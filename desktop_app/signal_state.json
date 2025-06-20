@@ -1,0 +1,24 @@
+{
+  "signals": {
+    "success": true,
+    "timestamp": "2025-06-20T15:08:21.908582",
+    "date": "2025-06-20",
+    "tqqq_price": 73.93000030517578,
+    "sma_200": 71.62326593399048,
+    "price_vs_sma_pct": 3.2206495209409214,
+    "macd": 2.6826965101228666,
+    "macd_signal": 3.2265280372650995,
+    "macd_histogram": -0.5438315271422329,
+    "macd_bullish": false,
+    "sma_bullish": true,
+    "bullish_count": 1
+  },
+  "allocation": {
+    "lqq3_pct": 66,
+    "cash_pct": 34,
+    "stance": "BALANCED",
+    "emoji": "\u2696\ufe0f",
+    "description": "Trend positive, momentum weak"
+  },
+  "saved_at": "2025-06-20T15:08:21.909010"
+}
