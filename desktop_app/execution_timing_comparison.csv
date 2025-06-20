@@ -1,0 +1,4 @@
+Scenario,Total Return (%),Buy & Hold Return (%),Excess Return (%),Volatility (%),Sharpe Ratio,Max Drawdown (%),Win Rate (%),Total Trades,Final Value ($)
+Open Execution (8am UK),7000.24,1384.87,5615.37,41.65,1.19,-43.63,53.59,651,710024.09
+Close Execution (4:30pm UK),2829.92,1393.83,1436.08,39.5,1.018,-50.02,53.18,625,292991.84
+Intraday Execution (Midpoint),3969.77,1389.35,2580.42,37.3,1.14,-46.57,53.48,608,406977.16
