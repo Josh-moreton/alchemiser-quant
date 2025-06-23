@@ -1,14 +1,14 @@
 {
   "signals": {
     "success": true,
-    "timestamp": "2025-06-20T15:08:21.908582",
+    "timestamp": "2025-06-23T08:50:15.514486",
     "date": "2025-06-20",
-    "tqqq_price": 73.93000030517578,
-    "sma_200": 71.62326593399048,
-    "price_vs_sma_pct": 3.2206495209409214,
-    "macd": 2.6826965101228666,
-    "macd_signal": 3.2265280372650995,
-    "macd_histogram": -0.5438315271422329,
+    "tqqq_price": 72.44999694824219,
+    "sma_200": 71.61586618423462,
+    "price_vs_sma_pct": 1.1647290027348545,
+    "macd": 2.564633546040554,
+    "macd_signal": 3.202915441627599,
+    "macd_histogram": -0.6382818955870451,
     "macd_bullish": false,
     "sma_bullish": true,
     "bullish_count": 1
@@ -20,5 +20,5 @@
     "emoji": "\u2696\ufe0f",
     "description": "Trend positive, momentum weak"
   },
-  "saved_at": "2025-06-20T15:08:21.909010"
+  "saved_at": "2025-06-23T08:50:15.515064"
 }
