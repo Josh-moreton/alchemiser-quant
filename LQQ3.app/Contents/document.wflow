@@ -59,7 +59,7 @@
 				<key>ActionParameters</key>
 				<dict>
 					<key>COMMAND_STRING</key>
-					<string>cd /Users/joshua.moreton/Documents/GitHub/LQQ3
+					<string>cd /Users/joshmoreton/GitHub/LQQ3
 source .venv/bin/activate
 python lqq3_daily_signal.py</string>
 					<key>CheckedForUserDefaultShell</key>
@@ -171,8 +171,6 @@ python lqq3_daily_signal.py</string>
 						<string>4</string>
 					</dict>
 				</dict>
-				<key>conversionLabel</key>
-				<integer>0</integer>
 				<key>isViewVisible</key>
 				<integer>1</integer>
 				<key>location</key>
