@@ -3,7 +3,7 @@ name: Daily LQQ3 Signal
 on:
   workflow_dispatch:
   schedule:
-    - cron: '45 19 * * *'
+    - cron: "47 18 * * *"
 
 jobs:
   run-signal:
@@ -13,7 +13,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: "3.12"
       - name: Install dependencies
         run: pip install -r requirements.txt
       - name: Run daily signal email
