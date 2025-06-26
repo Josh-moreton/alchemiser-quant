@@ -90,6 +90,41 @@ def send_email_signal_change(signal_data, smtp_server, smtp_port, smtp_user, smt
         print(f"Failed to send email: {e}")
         return False
 
+def test_email_workflow():
+    """Test the email sending workflow with dummy signal data."""
+    print("\n=== TESTING EMAIL WORKFLOW ===")
+    from datetime import datetime
+    import os
+    # Dummy signal data simulating a signal change
+    test_signal_data = {
+        'success': True,
+        'date': datetime.now().strftime('%Y-%m-%d'),
+        'tqqq_close': 100.0,
+        'sma_150': 98.0,
+        'signal': 1,
+        'signal_str': 'IN (Buy/Hold LQQ3)',
+        'guidance': '🟢 Signal just turned IN: BUY LQQ3 with available cash!',
+        'signal_changed': True,
+        'price_vs_sma_pct': 2.04
+    }
+    # Email config for Apple Mail/iCloud
+    smtp_server = "smtp.mail.me.com"
+    smtp_port = 587
+    smtp_user = "joshuamoreton1@icloud.com"  # Replace with your iCloud email
+    smtp_password = os.environ.get("SMTP_PASSWORD")
+    to_email = "josh@rwxt.org"  # Replace with recipient
+
+    if not smtp_password:
+        print("❌ SMTP_PASSWORD environment variable not set. Test email not sent.")
+        return
+
+    print("Sending test email...")
+    result = send_email_signal_change(test_signal_data, smtp_server, smtp_port, smtp_user, smtp_password, to_email)
+    if result:
+        print("Test email sent successfully.")
+    else:
+        print("Test email failed.")
+
 def main():
     print("🚀 LQQ3 Daily Signal Check (Email Only)")
     print("=" * 40)
