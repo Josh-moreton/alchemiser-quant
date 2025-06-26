@@ -1,3 +1,6 @@
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 #!/usr/bin/env python3
 """
 LQQ3 Daily Signal Check - 150-day SMA Strategy
@@ -110,17 +113,53 @@ def create_popup(signal_data):
         )
         title = "LQQ3 Daily Signal"
     
-    # Create macOS notification
-    cmd = [
-        "osascript", "-e",
-        f'display notification "{message}" with title "{title}"'
-    ]
-    
+    # Create macOS dialog (centered popup with OK button)
+    # Escape double quotes for AppleScript
+    message_escaped = message.replace('"', '\"')
+    title_escaped = title.replace('"', '\"')
+    script = f'display dialog "{message_escaped}" with title "{title_escaped}" buttons ["OK"] default button "OK"'
+    cmd = ["osascript", "-e", script]
     try:
         subprocess.run(cmd, check=True)
         return True
     except subprocess.CalledProcessError as e:
         print(f"Failed to create popup: {e}")
+        return False
+
+def send_email_signal_change(signal_data, smtp_server, smtp_port, smtp_user, smtp_password, to_email):
+    """Send an email if the signal has changed"""
+    price_vs_sma = signal_data['price_vs_sma_pct']
+    change_indicator = " 🔄 CHANGED!" if signal_data['signal_changed'] else ""
+    subject = f"LQQ3 Signal Change: {signal_data['signal_str']} on {signal_data['date']}"
+    body = (
+        f"TQQQ Close: ${signal_data['tqqq_close']:.2f}\n"
+        f"150-SMA: ${signal_data['sma_150']:.2f}\n"
+        f"Price vs SMA: {price_vs_sma:+.1f}%\n"
+        f"Signal: {signal_data['signal_str']}{change_indicator}\n\n"
+        f"{signal_data['guidance']}"
+    )
+    msg = MIMEMultipart()
+    msg['From'] = smtp_user
+    msg['To'] = to_email
+    msg['Subject'] = subject
+    msg.attach(MIMEText(body, 'plain'))
+    print(f"Connecting to SMTP server: {smtp_server}:{smtp_port} as {smtp_user}")
+    try:
+        with smtplib.SMTP(smtp_server, smtp_port) as server:
+            print("EHLO...")
+            server.ehlo()
+            print("Starting TLS...")
+            server.starttls()
+            print("EHLO again...")
+            server.ehlo()
+            print("Logging in...")
+            server.login(smtp_user, smtp_password)
+            print("Sending email...")
+            server.sendmail(smtp_user, to_email, msg.as_string())
+        print(f"Email sent to {to_email}")
+        return True
+    except Exception as e:
+        print(f"Failed to send email: {e}")
         return False
 
 def main():
@@ -145,10 +184,54 @@ def main():
     else:
         print(f"❌ Error: {signal_data['error']}")
     
+
     # Create popup notification
     create_popup(signal_data)
-    
+
+    # Email config for Apple Mail/iCloud
+    smtp_server = "smtp.mail.me.com"
+    smtp_port = 587
+    smtp_user = "joshuamoreton1@icloud.com"  # Replace with your iCloud email
+    smtp_password = "hdrn-ihkv-labz-mvgp"  # Replace with your app-specific password
+    to_email = "josh@rwxt.org"  # Replace with recipient
+
+    # Only send email if signal changed
+    if signal_data['success'] and signal_data['signal_changed']:
+        send_email_signal_change(signal_data, smtp_server, smtp_port, smtp_user, smtp_password, to_email)
+
     return signal_data
+
+def test_email_workflow():
+    """Test the email sending workflow with dummy signal data."""
+    print("\n=== TESTING EMAIL WORKFLOW ===")
+    # Dummy signal data simulating a signal change
+    test_signal_data = {
+        'success': True,
+        'date': datetime.now().strftime('%Y-%m-%d'),
+        'tqqq_close': 100.0,
+        'sma_150': 98.0,
+        'signal': 1,
+        'signal_str': 'IN (Buy/Hold LQQ3)',
+        'guidance': '🟢 Signal just turned IN: BUY LQQ3 with available cash!',
+        'signal_changed': True,
+        'price_vs_sma_pct': 2.04
+    }
+    # Email config for Apple Mail/iCloud
+    smtp_server = "smtp.mail.me.com"
+    smtp_port = 587
+    smtp_user = "joshuamoreton1@icloud.com"  # Replace with your iCloud email
+    smtp_password = "hdrn-ihkv-labz-mvgp"  # Replace with your app-specific password
+    to_email = "josh@rwxt.org"  # Replace with recipient
+
+    print("Sending test email...")
+    result = send_email_signal_change(test_signal_data, smtp_server, smtp_port, smtp_user, smtp_password, to_email)
+    if result:
+        print("Test email sent successfully.")
+    else:
+        print("Test email failed.")
+
+# To run the test, uncomment the following line:
+# test_email_workflow()
 
 if __name__ == "__main__":
     main()
