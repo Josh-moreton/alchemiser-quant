@@ -148,5 +148,5 @@ def main():
         print(f"❌ Error: {e}")
 
 if __name__ == "__main__":
-    # main()
-    test_email_workflow()
+    main()
+    # test_email_workflow()
