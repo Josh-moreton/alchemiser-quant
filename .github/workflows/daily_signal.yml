@@ -3,7 +3,7 @@ name: Daily LQQ3 Signal
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 8 * * *'
+    - cron: '45 19 * * *'
 
 jobs:
   run-signal:
