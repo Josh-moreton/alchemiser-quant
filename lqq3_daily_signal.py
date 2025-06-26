@@ -227,7 +227,7 @@ def test_email_workflow():
     smtp_server = "smtp.mail.me.com"
     smtp_port = 587
     smtp_user = "joshuamoreton1@icloud.com"  # Replace with your iCloud email
-    smtp_password = "hdrn-ihkv-labz-mvgp"  # Replace with your app-specific password
+    smtp_password = os.environ.get("SMTP_PASSWORD")
     to_email = "josh@rwxt.org"  # Replace with recipient
 
     print("Sending test email...")
