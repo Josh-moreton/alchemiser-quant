@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-LQQ3 Daily Signal Check - 150-day SMA Strategy (Email Only)
+LQQ3 Daily Signal Check - 200-day SMA Strategy (Email Only)
 Sends an email with TQQQ signal status and trading guidance if the signal changes.
 """
 
@@ -15,7 +15,7 @@ warnings.filterwarnings('ignore')
 
 def fetch_daily_signal():
     TICKER = "TQQQ"
-    SMA_PERIOD = 150
+    SMA_PERIOD = 200
     end_date = datetime.now()
     start_date = end_date - timedelta(days=SMA_PERIOD*2)
     data = yf.download(TICKER, start=start_date, end=end_date, progress=False)
@@ -47,7 +47,7 @@ def fetch_daily_signal():
         'success': True,
         'date': latest.name.strftime('%Y-%m-%d'),
         'tqqq_close': latest_close,
-        'sma_150': latest_sma,
+        'sma_200': latest_sma,
         'signal': current_signal,
         'signal_str': signal_str,
         'guidance': guidance,
@@ -61,7 +61,7 @@ def send_email_signal_change(signal_data, smtp_server, smtp_port, smtp_user, smt
     subject = f"LQQ3 Signal Change: {signal_data['signal_str']} on {signal_data['date']}"
     body = (
         f"TQQQ Close: ${signal_data['tqqq_close']:.2f}\n"
-        f"150-SMA: ${signal_data['sma_150']:.2f}\n"
+        f"200-SMA: ${signal_data['sma_200']:.2f}\n"
         f"Price vs SMA: {price_vs_sma:+.1f}%\n"
         f"Signal: {signal_data['signal_str']}{change_indicator}\n\n"
         f"{signal_data['guidance']}"
@@ -100,7 +100,7 @@ def test_email_workflow():
         'success': True,
         'date': datetime.now().strftime('%Y-%m-%d'),
         'tqqq_close': 100.0,
-        'sma_150': 98.0,
+        'sma_200': 98.0,
         'signal': 1,
         'signal_str': 'IN (Buy/Hold LQQ3)',
         'guidance': '🟢 Signal just turned IN: BUY LQQ3 with available cash!',
