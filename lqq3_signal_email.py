@@ -93,6 +93,7 @@ def send_email_signal_change(signal_data, smtp_server, smtp_port, smtp_user, smt
 def main():
     print("🚀 LQQ3 Daily Signal Check (Email Only)")
     print("=" * 40)
+    import os
     try:
         signal_data = fetch_daily_signal()
         if signal_data['success'] and signal_data['signal_changed']:
@@ -100,8 +101,11 @@ def main():
             smtp_server = "smtp.mail.me.com"
             smtp_port = 587
             smtp_user = "joshuamoreton1@icloud.com"  # Replace with your iCloud email
-            smtp_password = "hdrn-ihkv-labz-mvgp"  # Replace with your app-specific password
+            smtp_password = os.environ.get("SMTP_PASSWORD")
             to_email = "josh@rwxt.org"  # Replace with recipient
+            if not smtp_password:
+                print("❌ SMTP_PASSWORD environment variable not set. Email not sent.")
+                return
             send_email_signal_change(signal_data, smtp_server, smtp_port, smtp_user, smtp_password, to_email)
         else:
             print("No signal change. No email sent.")

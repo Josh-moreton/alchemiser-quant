@@ -16,5 +16,7 @@ jobs:
           python-version: '3.12'
       - name: Install dependencies
         run: pip install -r requirements.txt
-      - name: Run daily signal
-        run: python lqq3_daily_signal.py
+      - name: Run daily signal email
+        env:
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+        run: python lqq3_signal_email.py
