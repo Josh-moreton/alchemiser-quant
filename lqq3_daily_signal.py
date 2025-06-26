@@ -9,6 +9,8 @@ import pandas as pd
 from datetime import datetime, timedelta
 import subprocess
 import sys
+import shutil
+import platform
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -93,7 +95,12 @@ def fetch_daily_signal():
         }
 
 def create_popup(signal_data):
-    """Create macOS popup notification"""
+    """Create macOS popup notification if running on macOS"""
+    # Skip popup on non-macOS systems or if osascript is unavailable
+    if platform.system() != "Darwin" or shutil.which("osascript") is None:
+        print("Popup notifications require macOS with osascript. Skipping.")
+        return False
+
     if not signal_data['success']:
         message = f"❌ Error fetching signal data:\n{signal_data['error']}"
         title = "LQQ3 Signal Error"
@@ -119,7 +126,7 @@ def create_popup(signal_data):
     try:
         subprocess.run(cmd, check=True)
         return True
-    except subprocess.CalledProcessError as e:
+    except (subprocess.CalledProcessError, FileNotFoundError) as e:
         print(f"Failed to create popup: {e}")
         return False
 
