@@ -33,6 +33,13 @@ This project backtests a trading strategy for the LSE-listed ETF LQQ3 based on s
    python trading_strategy_backtest.py
    ```
 
+## GitHub Actions
+
+This repository includes a workflow to run the daily LQQ3 signal script.
+The workflow installs the dependencies and executes `lqq3_daily_signal.py`
+every day at 08:00 UTC. You can trigger it manually from the Actions tab
+using the **Run workflow** button.
+
 ## Files
 
 - `trading_strategy_backtest.py` - Main backtesting engine
