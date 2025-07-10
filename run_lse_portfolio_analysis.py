@@ -80,9 +80,8 @@ main()
 
 def run_full_analysis():
     """Run the complete analysis with all asset types."""
-    print("Running FULL ANALYSIS with all LSE instruments (2-4 hours)")
-    print("This tests ALL eligible instruments: shares, ETFs, ETNs, and other equity-like instruments.")
-    print("Warning: This will take several hours!")
+    print("Running FULL ANALYSIS with all LSE instruments (5-10 minutes with cache)")
+    print("This tests ALL eligible instruments: shares, ETFs, ETCs, and other equity-like instruments.")
     print("-" * 100)
     
     try:
@@ -100,13 +99,14 @@ def main():
     print("=" * 80)
     print(f"Current time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print("\nAnalysis Options:")
-    print("1. Quick Test (~100 tickers, 5-10 minutes)")
-    print("2. Medium Analysis (Shares & ETFs only, 30-60 minutes)")  
-    print("3. Full Analysis (All LSE instruments, 2-4 hours)")
-    print("4. Exit")
+    print("1. Quick Test (~100 tickers, 2-3 minutes with cache)")
+    print("2. Medium Analysis (Shares & ETFs only, 5-10 minutes with cache)")  
+    print("3. Full Analysis (All LSE instruments, 5-10 minutes with cache)")
+    print("4. Download/Update Data Cache (60-120 minutes)")
+    print("5. Exit")
     
     while True:
-        choice = input(f"\nEnter choice (1-4): ").strip()
+        choice = input(f"\nEnter choice (1-5): ").strip()
         
         if choice == "1":
             print("\n" + "="*60)
@@ -118,8 +118,8 @@ def main():
             break
             
         elif choice == "2":
-            confirm = input("Medium analysis will take 30-60 minutes. Continue? (y/N): ").strip().lower()
-            if confirm in ['y', 'yes']:
+            confirm = input("Medium analysis will take 5-10 minutes with cache. Continue? (Y/n): ").strip().lower()
+            if confirm != 'n':
                 print("\n" + "="*80)
                 success = run_medium_analysis()
                 if success:
@@ -131,8 +131,8 @@ def main():
             break
             
         elif choice == "3":
-            confirm = input("Full analysis will take 2-4 hours. Continue? (y/N): ").strip().lower()
-            if confirm in ['y', 'yes']:
+            confirm = input("Full analysis will take 5-10 minutes with cache. Continue? (Y/n): ").strip().lower()
+            if confirm != 'n':
                 print("\n" + "="*100)
                 success = run_full_analysis()
                 if success:
@@ -144,11 +144,33 @@ def main():
             break
             
         elif choice == "4":
+            print("\n" + "="*80)
+            print("DOWNLOADING AND CACHING DATA")
+            print("="*80)
+            print("This will download all LSE ticker data and cache it locally.")
+            print("This only needs to be done once (or when you want to refresh data).")
+            confirm = input("This will take 60-120 minutes. Continue? (y/N): ").strip().lower()
+            if confirm in ['y', 'yes']:
+                try:
+                    result = subprocess.run([sys.executable, "lse_data_downloader.py"], 
+                                          cwd="/Users/joshua.moreton/Documents/GitHub/LQQ3")
+                    if result.returncode == 0:
+                        print("\n✓ Data caching completed successfully!")
+                        print("You can now run fast analysis (options 1-3).")
+                    else:
+                        print("\n✗ Data caching failed.")
+                except Exception as e:
+                    print(f"Error: {e}")
+            else:
+                print("Data caching cancelled.")
+            break
+            
+        elif choice == "5":
             print("Goodbye!")
             break
             
         else:
-            print("Invalid choice. Please enter 1, 2, 3, or 4.")
+            print("Invalid choice. Please enter 1, 2, 3, 4, or 5.")
     
     print("\nResults will be saved as CSV files with timestamp.")
     print("Check for files like: lse_2stock_portfolio_results_YYYYMMDD_HHMMSS.csv")
