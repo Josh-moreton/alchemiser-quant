@@ -1,4 +1,0 @@
-,Strategy,Total Return (%),Annual Return (%),Buy & Hold Return (%),Excess Return (%),Final Portfolio Value (£),Volatility (%),Sharpe Ratio,Sortino Ratio,Max Drawdown (%),Calmar Ratio,Number of Trades,Trades per Year,Average Allocation (%),Win Rate (%),Allocation Distribution
-Variable Allocation (33/66/100%),Variable Allocation (33/66/100%),8435.67,42.68,5404.66,3031.01,4694616.13,38.56,1.07,1.44,-50.1,0.85,1954,156.2,75.2,53.8,"{0.66: 47.9770627588404, 1.0: 39.34374004460019, 0.33: 12.679197196559414}"
-OR Logic (Current Strategy),OR Logic (Current Strategy),12165.97,46.87,5404.66,6761.31,6746283.59,49.35,0.99,1.29,-60.17,0.78,445,35.6,91.6,53.7,"{1.0: 87.32080280344059, 0.34: 12.679197196559414}"
-Buy & Hold,Buy & Hold,5404.66,37.76,5404.66,0.0,3027561.69,56.18,0.64,0.82,-79.16,0.48,0,0.0,100.0,53.7,{1.0: 100.0}

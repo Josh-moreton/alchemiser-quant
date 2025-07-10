@@ -1,7 +1,0 @@
-Strategy,Total Return (%),Buy & Hold Return (%),Excess Return (%),Final Portfolio Value (£),Volatility (%),Sharpe Ratio,Max Drawdown (%),Number of Trades,Trades per Year,Time in Market (%),Trading Period (Years)
-Strategy 2: OR Logic,10188.61,5404.66,4783.95,5658735.82,49.58,1.0,-59.16,93,7.4,87.3,12.5
-Strategy 4: Weighted Score,6525.82,5404.66,1121.16,3644202.35,38.75,1.06,-49.9,245,19.6,54.2,12.5
-Strategy 1: AND Logic,3324.55,5404.66,-2080.11,1883502.67,29.7,1.1,-45.24,206,16.5,39.3,12.5
-Strategy 3: MACD + SMA Filter,3324.55,5404.66,-2080.11,1883502.67,29.7,1.1,-45.24,206,16.5,39.3,12.5
-Strategy 6: SMA Trend + MACD Timing,3324.55,5404.66,-2080.11,1883502.67,29.7,1.1,-45.24,206,16.5,39.3,12.5
-Strategy 5: Adaptive Position Sizing,864.8,5404.66,-4539.86,530641.17,28.56,0.78,-42.12,96,7.7,87.3,12.5
