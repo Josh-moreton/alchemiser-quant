@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 LSE Portfolio Optimizer using official LSE ticker list
-Reads all LSE tickers from All_LSE.csv and finds optimal 2-3 stock portfolios with LQQ3.
+Reads all LSE tickers from All_LSE.csv and finds optimal 3 stock portfolios with LQQ3.
 Optimizes for LOWEST MAXIMUM DRAWDOWN to hedge against LQQ3's volatility.
 """
 
@@ -19,10 +19,11 @@ warnings.filterwarnings('ignore')
 
 # --- Configuration ---
 CORE_TICKER = "LQQ3.L"
-CORE_WEIGHT = 0.66  # 66% allocation to LQQ3
+FIXED_HEDGE_TICKER = "SGLN.L" # New: Fixed second ticker for 3-stock analysis
+CORE_WEIGHT = 0.65  # 66% allocation to LQQ3
 # START_DATE is determined by the cached data's range
 INITIAL_CAPITAL = 65000
-MIN_TRADING_DAYS = 252 * 5  # Minimum 10 years of data
+MIN_TRADING_DAYS = 252 * 10  # Minimum 10 years of data
 REBALANCE_FREQUENCY = 'Q'  # Quarterly rebalancing
 DATA_FOLDER = "lse_ticker_data"  # Cached data folder
 
@@ -203,10 +204,11 @@ def test_portfolio_batch(combinations):
 
 def main():
     print("=" * 80)
-    print("LSE PORTFOLIO OPTIMIZER - Using Pre-Cached Data")
+    print("LSE Portfolio Optimizer - 3-Stock with Fixed Hedge")
     print("=" * 80)
     print(f"Core ticker: {CORE_TICKER} (Weight: {CORE_WEIGHT:.1%})")
-    print(f"Optimization goal: MINIMIZE MAXIMUM DRAWDOWN")
+    print(f"Fixed Hedge Ticker: {FIXED_HEDGE_TICKER}")
+    print(f"Goal: Find best 3rd ticker to minimize Max Drawdown")
     print(f"Data source: Cached data from '{DATA_FOLDER}/'")
     print(f"Minimum trading days required: {MIN_TRADING_DAYS}")
     
@@ -218,12 +220,16 @@ def main():
         print("Could not load data. Exiting.")
         return
     
-    # Check if core ticker is available
+    # Check if core and fixed tickers are available
     if CORE_TICKER not in price_data:
         print(f"ERROR: Core ticker {CORE_TICKER} not found in cached data!")
         return
+    if FIXED_HEDGE_TICKER not in price_data:
+        print(f"ERROR: Fixed hedge ticker {FIXED_HEDGE_TICKER} not found in cached data!")
+        print(f"Please ensure '{FIXED_HEDGE_TICKER.replace('.', '_')}.pkl' exists in '{DATA_FOLDER}' and has enough data.")
+        return
     
-    print(f"✓ Found {len(price_data)} cached tickers including {CORE_TICKER}")
+    print(f"✓ Found {len(price_data)} cached tickers including {CORE_TICKER} and {FIXED_HEDGE_TICKER}")
     
     # Show asset type breakdown from cache
     if ticker_info:
@@ -237,8 +243,8 @@ def main():
         for asset_type, count in asset_type_counts.items():
             print(f"  {asset_type}: {count}")
     
-    # Remove core ticker from other tickers list and filter by asset type
-    all_other_tickers = [t for t in price_data.keys() if t != CORE_TICKER]
+    # Remove core and fixed tickers from other tickers list and filter by asset type
+    all_other_tickers = [t for t in price_data.keys() if t not in [CORE_TICKER, FIXED_HEDGE_TICKER]]
     
     print(f"\nFiltering {len(all_other_tickers)} tickers by asset types: {INCLUDE_ASSET_TYPES}...")
     other_tickers = [
@@ -247,102 +253,24 @@ def main():
     ]
     
     print(f"✓ Found {len(other_tickers)} tickers matching the criteria.")
-    print(f"\nWill test combinations with {len(other_tickers)} other tickers")
+    print(f"\nWill test combinations with {len(other_tickers)} other tickers as the 3rd asset.")
     
     if len(other_tickers) == 0:
-        print("ERROR: No other valid tickers to combine with core ticker!")
+        print("ERROR: No other valid tickers to combine with core and fixed hedge tickers!")
         return
     
-    # Test 2-stock portfolios
-    print(f"\nTesting 2-stock portfolios...")
-    results_2_stock = []
-    
-    combinations_2 = []
-    for other_ticker in other_tickers:
-        tickers = [CORE_TICKER, other_ticker]
-        weights = [CORE_WEIGHT, 1 - CORE_WEIGHT]
-        combinations_2.append((tickers, weights, price_data))
-    
-    # Process 2-stock combinations in parallel
-    print(f"Will test {len(combinations_2)} 2-stock combinations using multi-processing...")
-    batch_size_2 = 100  # How many combinations to send to each process at once
-    with ProcessPoolExecutor() as executor:
-        futures = []
-        for i in range(0, len(combinations_2), batch_size_2):
-            batch = combinations_2[i:i+batch_size_2]
-            futures.append(executor.submit(test_portfolio_batch, batch))
-        
-        for i, future in enumerate(as_completed(futures)):
-            results_2_stock.extend(future.result())
-            if (i + 1) % 5 == 0: # Update progress every 5 batches
-                 print(f"Completed {min((i + 1) * batch_size_2, len(combinations_2))}/{len(combinations_2)} 2-stock combinations")
-
-    print(f"Completed all {len(combinations_2)} 2-stock combinations, found {len(results_2_stock)} valid portfolios")
-
-    # --- Analyze and Save 2-Stock Results ---
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    df_2 = pd.DataFrame() # Initialize to ensure it exists for the final summary
-
-    if results_2_stock:
-        print("\n" + "=" * 80)
-        print("ANALYZING 2-STOCK RESULTS")
-        print("=" * 80)
-        
-        df_2_all = pd.DataFrame(results_2_stock)
-        
-        # Filter for portfolios with at least 35% CAGR, then sort by lowest drawdown
-        print("\nFiltering 2-stock portfolios for CAGR >= 35%...")
-        df_2 = df_2_all[df_2_all['cagr'] >= 0.35].sort_values('max_drawdown', ascending=True)
-        
-        if df_2.empty:
-            print("No 2-stock portfolios found meeting the criteria (CAGR >= 35%).")
-        else:
-            print(f"\nTOP 10 TWO-STOCK PORTFOLIOS (CAGR >= 35%, by Lowest Maximum Drawdown):")
-            print("-" * 100)
-            for i, row in df_2.head(10).iterrows():
-                portfolio_str = f"{row['tickers'][0]} ({row['weights'][0]:.0%}) + {row['tickers'][1]} ({row['weights'][1]:.0%})"
-                
-                # Add asset type info if available
-                other_ticker = row['tickers'][1]
-                if other_ticker in ticker_info:
-                    asset_type = ticker_info[other_ticker]['type']
-                    portfolio_str += f" [{asset_type}]"
-                
-                print(f"{i+1:2d}. {portfolio_str}")
-                print(f"    MaxDD: {row['max_drawdown']:.1%} | CAGR: {row['cagr']:.1%} | Calmar: {row['calmar']:.3f} | Sharpe: {row['sharpe']:.2f} | DPR: {row['dpr']:.3f}")
-            
-            # Save results
-            df_2_save = df_2.copy()
-            df_2_save['ticker_1'] = df_2_save['tickers'].str[0]
-            df_2_save['ticker_2'] = df_2_save['tickers'].str[1]
-            df_2_save['weight_1'] = df_2_save['weights'].str[0]
-            df_2_save['weight_2'] = df_2_save['weights'].str[1]
-            
-            # Add asset type info
-            df_2_save['asset_type_2'] = df_2_save['ticker_2'].apply(
-                lambda x: ticker_info.get(x, {}).get('type', 'Unknown')
-            )
-            
-            df_2_save = df_2_save.drop(['tickers', 'weights'], axis=1)
-            filename_2 = f"lse_2stock_portfolio_results_{timestamp}.csv"
-            df_2_save.to_csv(filename_2, index=False)
-            print(f"\n✓ 2-stock results saved to {filename_2}")
-    
-    # Test 3-stock portfolios
-    print(f"\nTesting 3-stock portfolios...")
-    
-    print(f"Testing 3-stock combinations with all {len(other_tickers)} other tickers.")
+    # Test 3-stock portfolios with the fixed hedge
+    print(f"\nTesting 3-stock portfolios: {CORE_TICKER} + {FIXED_HEDGE_TICKER} + 1 other...")
     
     results_3_stock = []
     remaining_weight = 1 - CORE_WEIGHT
     equal_weight = remaining_weight / 2
     
     combinations_3 = []
-    for i, ticker1 in enumerate(other_tickers):
-        for ticker2 in other_tickers[i+1:]:
-            tickers = [CORE_TICKER, ticker1, ticker2]
-            weights = [CORE_WEIGHT, equal_weight, equal_weight]
-            combinations_3.append((tickers, weights, price_data))
+    for third_ticker in other_tickers:
+        tickers = [CORE_TICKER, FIXED_HEDGE_TICKER, third_ticker]
+        weights = [CORE_WEIGHT, equal_weight, equal_weight]
+        combinations_3.append((tickers, weights, price_data))
     
     print(f"Will test {len(combinations_3)} 3-stock combinations using multi-processing...")
     
@@ -356,14 +284,15 @@ def main():
         
         for i, future in enumerate(as_completed(futures)):
             results_3_stock.extend(future.result())
-            if (i + 1) % 20 == 0: # Update progress every 20 batches
+            if (i + 1) % 10 == 0: # Update progress every 10 batches
                 print(f"Completed {min((i + 1) * batch_size_3, len(combinations_3))}/{len(combinations_3)} 3-stock combinations")
 
     print(f"Completed {len(combinations_3)} 3-stock combinations, found {len(results_3_stock)} valid portfolios")
     
     # --- Analyze and Save 3-Stock and Final Results ---
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     print("\n" + "=" * 80)
-    print("FINAL RESULTS ANALYSIS")
+    print("RESULTS ANALYSIS")
     print("=" * 80)
     
     df_3 = pd.DataFrame() # Initialize to ensure it exists for the final summary
@@ -372,14 +301,14 @@ def main():
     if results_3_stock:
         df_3_all = pd.DataFrame(results_3_stock)
         
-        # Filter for portfolios with at least 35% CAGR, then sort by lowest drawdown
+        # Filter for portfolios with at least 35% CAGR, then sort by highest CAGR
         print("\nFiltering 3-stock portfolios for CAGR >= 35%...")
-        df_3 = df_3_all[df_3_all['cagr'] >= 0.35].sort_values('max_drawdown', ascending=True)
+        df_3 = df_3_all[df_3_all['cagr'] >= 0.35].sort_values('cagr', ascending=False)
 
         if df_3.empty:
             print("No 3-stock portfolios found meeting the criteria (CAGR >= 35%).")
         else:
-            print(f"\nTOP 10 THREE-STOCK PORTFOLIOS (CAGR >= 35%, by Lowest Maximum Drawdown):")
+            print(f"\nTOP 10 THREE-STOCK PORTFOLIOS (CAGR >= 35%, by Highest CAGR):")
             print("-" * 120)
             for i, row in df_3.head(10).iterrows():
                 portfolio_str = f"{row['tickers'][0]} ({row['weights'][0]:.0%}) + {row['tickers'][1]} ({row['weights'][1]:.0%}) + {row['tickers'][2]} ({row['weights'][2]:.0%})"
@@ -414,7 +343,7 @@ def main():
             )
             
             df_3_save = df_3_save.drop(['tickers', 'weights'], axis=1)
-            filename_3 = f"lse_3stock_portfolio_results_{timestamp}.csv"
+            filename_3 = f"lse_3stock_SGLN_hedge_results_{timestamp}.csv"
             df_3_save.to_csv(filename_3, index=False)
             print(f"\n✓ 3-stock results saved to {filename_3}")
     
@@ -438,20 +367,15 @@ def main():
     print("=" * 80)
     
     # Determine best drawdown from available, valid results
-    best_2_drawdown = df_2.iloc[0]['max_drawdown'] if not df_2.empty else float('inf')
     best_3_drawdown = df_3.iloc[0]['max_drawdown'] if not df_3.empty else float('inf')
     lqq3_drawdown = lqq3_metrics['max_drawdown'] if lqq3_metrics else float('inf')
 
     print(f"LQQ3 standalone Max Drawdown: {lqq3_drawdown:.1%}" if lqq3_drawdown != float('inf') else "LQQ3 standalone: N/A")
-    print(f"Best 2-stock (CAGR>=35%) Max Drawdown: {best_2_drawdown:.1%}" if best_2_drawdown != float('inf') else "Best 2-stock (CAGR>=35%): None found")
     print(f"Best 3-stock (CAGR>=35%) Max Drawdown: {best_3_drawdown:.1%}" if best_3_drawdown != float('inf') else "Best 3-stock (CAGR>=35%): None found")
 
-    best_overall_drawdown = min(best_2_drawdown, best_3_drawdown)
-
-    if best_overall_drawdown < lqq3_drawdown:
-        portfolio_type = "3-stock" if best_3_drawdown < best_2_drawdown else "2-stock"
-        improvement = (lqq3_drawdown - best_overall_drawdown) / lqq3_drawdown * 100 if lqq3_drawdown > 0 else 0
-        print(f"\nRecommendation: {portfolio_type} portfolio reduces max drawdown by {improvement:.1f}% vs LQQ3 alone (while maintaining CAGR >= 35%).")
+    if best_3_drawdown < lqq3_drawdown:
+        improvement = (lqq3_drawdown - best_3_drawdown) / lqq3_drawdown * 100 if lqq3_drawdown > 0 else 0
+        print(f"\nRecommendation: The best 3-stock portfolio reduces max drawdown by {improvement:.1f}% vs LQQ3 alone (while maintaining CAGR >= 35%).")
     elif lqq3_drawdown != float('inf'):
         print(f"\nRecommendation: Stick with LQQ3 standalone - no diversified portfolio met the criteria and improved drawdown.")
     
