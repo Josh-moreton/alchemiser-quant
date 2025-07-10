@@ -22,16 +22,16 @@ CORE_TICKER = "LQQ3.L"
 CORE_WEIGHT = 0.66  # 66% allocation to LQQ3
 # START_DATE is determined by the cached data's range
 INITIAL_CAPITAL = 65000
-MIN_TRADING_DAYS = 252 * 3  # Minimum 3 years of data
+MIN_TRADING_DAYS = 252 * 5  # Minimum 10 years of data
 REBALANCE_FREQUENCY = 'Q'  # Quarterly rebalancing
 DATA_FOLDER = "lse_ticker_data"  # Cached data folder
 
 # Asset types to include (can be used for filtering later if needed)
 INCLUDE_ASSET_TYPES = [
-    'SHRS',  # Shares (regular stocks)
-    'ETFS',  # ETFs (like LQQ3)
-    'ETCS',  # ETCs (Exchange Traded Commodities)
-    'OTHR',  # Other equity-like instruments
+    'ETFs',
+    'ETCs',
+    'ETNs',
+    'Other equity-like financial instruments',
 ]
 
 def load_cached_data():
@@ -106,7 +106,12 @@ def calculate_portfolio_metrics(returns_series):
     
     # Sortino ratio
     downside_returns = returns_series[returns_series < 0]
-    sortino = returns_series.mean() / downside_returns.std() * np.sqrt(252) if len(downside_returns) > 0 and downside_returns.std() > 0 else 0
+    downside_deviation_period = downside_returns.std()
+    sortino = returns_series.mean() / downside_deviation_period * np.sqrt(252) if len(downside_returns) > 0 and downside_deviation_period > 0 else 0
+
+    # Downside Protection Ratio (DPR)
+    downside_deviation_annual = downside_deviation_period * np.sqrt(252)
+    dpr = cagr / downside_deviation_annual if downside_deviation_annual > 0 else 0
     
     # Maximum drawdown
     cumulative = (1 + returns_series).cumprod()
@@ -131,6 +136,7 @@ def calculate_portfolio_metrics(returns_series):
         'volatility': volatility,
         'sharpe': sharpe,
         'sortino': sortino,
+        'dpr': dpr,
         'max_drawdown': max_drawdown,
         'calmar': calmar
     }
@@ -231,8 +237,16 @@ def main():
         for asset_type, count in asset_type_counts.items():
             print(f"  {asset_type}: {count}")
     
-    # Remove core ticker from other tickers list
-    other_tickers = [t for t in price_data.keys() if t != CORE_TICKER]
+    # Remove core ticker from other tickers list and filter by asset type
+    all_other_tickers = [t for t in price_data.keys() if t != CORE_TICKER]
+    
+    print(f"\nFiltering {len(all_other_tickers)} tickers by asset types: {INCLUDE_ASSET_TYPES}...")
+    other_tickers = [
+        t for t in all_other_tickers 
+        if ticker_info.get(t, {}).get('type') in INCLUDE_ASSET_TYPES
+    ]
+    
+    print(f"✓ Found {len(other_tickers)} tickers matching the criteria.")
     print(f"\nWill test combinations with {len(other_tickers)} other tickers")
     
     if len(other_tickers) == 0:
@@ -264,6 +278,55 @@ def main():
                  print(f"Completed {min((i + 1) * batch_size_2, len(combinations_2))}/{len(combinations_2)} 2-stock combinations")
 
     print(f"Completed all {len(combinations_2)} 2-stock combinations, found {len(results_2_stock)} valid portfolios")
+
+    # --- Analyze and Save 2-Stock Results ---
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    df_2 = pd.DataFrame() # Initialize to ensure it exists for the final summary
+
+    if results_2_stock:
+        print("\n" + "=" * 80)
+        print("ANALYZING 2-STOCK RESULTS")
+        print("=" * 80)
+        
+        df_2_all = pd.DataFrame(results_2_stock)
+        
+        # Filter for portfolios with at least 35% CAGR, then sort by lowest drawdown
+        print("\nFiltering 2-stock portfolios for CAGR >= 35%...")
+        df_2 = df_2_all[df_2_all['cagr'] >= 0.35].sort_values('max_drawdown', ascending=True)
+        
+        if df_2.empty:
+            print("No 2-stock portfolios found meeting the criteria (CAGR >= 35%).")
+        else:
+            print(f"\nTOP 10 TWO-STOCK PORTFOLIOS (CAGR >= 35%, by Lowest Maximum Drawdown):")
+            print("-" * 100)
+            for i, row in df_2.head(10).iterrows():
+                portfolio_str = f"{row['tickers'][0]} ({row['weights'][0]:.0%}) + {row['tickers'][1]} ({row['weights'][1]:.0%})"
+                
+                # Add asset type info if available
+                other_ticker = row['tickers'][1]
+                if other_ticker in ticker_info:
+                    asset_type = ticker_info[other_ticker]['type']
+                    portfolio_str += f" [{asset_type}]"
+                
+                print(f"{i+1:2d}. {portfolio_str}")
+                print(f"    MaxDD: {row['max_drawdown']:.1%} | CAGR: {row['cagr']:.1%} | Calmar: {row['calmar']:.3f} | Sharpe: {row['sharpe']:.2f} | DPR: {row['dpr']:.3f}")
+            
+            # Save results
+            df_2_save = df_2.copy()
+            df_2_save['ticker_1'] = df_2_save['tickers'].str[0]
+            df_2_save['ticker_2'] = df_2_save['tickers'].str[1]
+            df_2_save['weight_1'] = df_2_save['weights'].str[0]
+            df_2_save['weight_2'] = df_2_save['weights'].str[1]
+            
+            # Add asset type info
+            df_2_save['asset_type_2'] = df_2_save['ticker_2'].apply(
+                lambda x: ticker_info.get(x, {}).get('type', 'Unknown')
+            )
+            
+            df_2_save = df_2_save.drop(['tickers', 'weights'], axis=1)
+            filename_2 = f"lse_2stock_portfolio_results_{timestamp}.csv"
+            df_2_save.to_csv(filename_2, index=False)
+            print(f"\n✓ 2-stock results saved to {filename_2}")
     
     # Test 3-stock portfolios
     print(f"\nTesting 3-stock portfolios...")
@@ -298,90 +361,62 @@ def main():
 
     print(f"Completed {len(combinations_3)} 3-stock combinations, found {len(results_3_stock)} valid portfolios")
     
-    # Analyze and save results
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    
+    # --- Analyze and Save 3-Stock and Final Results ---
     print("\n" + "=" * 80)
-    print("RESULTS ANALYSIS")
+    print("FINAL RESULTS ANALYSIS")
     print("=" * 80)
     
-    # Best 2-stock portfolios
-    if results_2_stock:
-        df_2 = pd.DataFrame(results_2_stock).sort_values('max_drawdown', ascending=True)  # Sort by LOWEST drawdown
-        
-        print(f"\nTOP 10 TWO-STOCK PORTFOLIOS (by Lowest Maximum Drawdown):")
-        print("-" * 100)
-        for i, row in df_2.head(10).iterrows():
-            portfolio_str = f"{row['tickers'][0]} ({row['weights'][0]:.0%}) + {row['tickers'][1]} ({row['weights'][1]:.0%})"
-            
-            # Add asset type info if available
-            other_ticker = row['tickers'][1]
-            if other_ticker in ticker_info:
-                asset_type = ticker_info[other_ticker]['type']
-                portfolio_str += f" [{asset_type}]"
-            
-            print(f"{i+1:2d}. {portfolio_str}")
-            print(f"    MaxDD: {row['max_drawdown']:.1%} | CAGR: {row['cagr']:.1%} | Calmar: {row['calmar']:.3f} | Sharpe: {row['sharpe']:.2f}")
-        
-        # Save results
-        df_2_save = df_2.copy()
-        df_2_save['ticker_1'] = df_2_save['tickers'].str[0]
-        df_2_save['ticker_2'] = df_2_save['tickers'].str[1]
-        df_2_save['weight_1'] = df_2_save['weights'].str[0]
-        df_2_save['weight_2'] = df_2_save['weights'].str[1]
-        
-        # Add asset type info
-        df_2_save['asset_type_2'] = df_2_save['ticker_2'].apply(
-            lambda x: ticker_info.get(x, {}).get('type', 'Unknown')
-        )
-        
-        df_2_save = df_2_save.drop(['tickers', 'weights'], axis=1)
-        filename_2 = f"lse_2stock_portfolio_results_{timestamp}.csv"
-        df_2_save.to_csv(filename_2, index=False)
-        print(f"\n2-stock results saved to {filename_2}")
-    
+    df_3 = pd.DataFrame() # Initialize to ensure it exists for the final summary
+
     # Best 3-stock portfolios
     if results_3_stock:
-        df_3 = pd.DataFrame(results_3_stock).sort_values('max_drawdown', ascending=True)  # Sort by LOWEST drawdown
+        df_3_all = pd.DataFrame(results_3_stock)
         
-        print(f"\nTOP 10 THREE-STOCK PORTFOLIOS (by Lowest Maximum Drawdown):")
-        print("-" * 120)
-        for i, row in df_3.head(10).iterrows():
-            portfolio_str = f"{row['tickers'][0]} ({row['weights'][0]:.0%}) + {row['tickers'][1]} ({row['weights'][1]:.0%}) + {row['tickers'][2]} ({row['weights'][2]:.0%})"
+        # Filter for portfolios with at least 35% CAGR, then sort by lowest drawdown
+        print("\nFiltering 3-stock portfolios for CAGR >= 35%...")
+        df_3 = df_3_all[df_3_all['cagr'] >= 0.35].sort_values('max_drawdown', ascending=True)
+
+        if df_3.empty:
+            print("No 3-stock portfolios found meeting the criteria (CAGR >= 35%).")
+        else:
+            print(f"\nTOP 10 THREE-STOCK PORTFOLIOS (CAGR >= 35%, by Lowest Maximum Drawdown):")
+            print("-" * 120)
+            for i, row in df_3.head(10).iterrows():
+                portfolio_str = f"{row['tickers'][0]} ({row['weights'][0]:.0%}) + {row['tickers'][1]} ({row['weights'][1]:.0%}) + {row['tickers'][2]} ({row['weights'][2]:.0%})"
+                
+                # Add asset type info
+                other_tickers_list = row['tickers'][1:3]
+                asset_types = []
+                for ticker in other_tickers_list:
+                    if ticker in ticker_info:
+                        asset_types.append(ticker_info[ticker]['type'])
+                if asset_types:
+                    portfolio_str += f" [{', '.join(asset_types)}]"
+                
+                print(f"{i+1:2d}. {portfolio_str}")
+                print(f"    MaxDD: {row['max_drawdown']:.1%} | CAGR: {row['cagr']:.1%} | Calmar: {row['calmar']:.3f} | Sharpe: {row['sharpe']:.2f} | DPR: {row['dpr']:.3f}")
+            
+            # Save results
+            df_3_save = df_3.copy()
+            df_3_save['ticker_1'] = df_3_save['tickers'].str[0]
+            df_3_save['ticker_2'] = df_3_save['tickers'].str[1]
+            df_3_save['ticker_3'] = df_3_save['tickers'].str[2]
+            df_3_save['weight_1'] = df_3_save['weights'].str[0]
+            df_3_save['weight_2'] = df_3_save['weights'].str[1]
+            df_3_save['weight_3'] = df_3_save['weights'].str[2]
             
             # Add asset type info
-            other_tickers = row['tickers'][1:3]
-            asset_types = []
-            for ticker in other_tickers:
-                if ticker in ticker_info:
-                    asset_types.append(ticker_info[ticker]['type'])
-            if asset_types:
-                portfolio_str += f" [{', '.join(asset_types)}]"
+            df_3_save['asset_type_2'] = df_3_save['ticker_2'].apply(
+                lambda x: ticker_info.get(x, {}).get('type', 'Unknown')
+            )
+            df_3_save['asset_type_3'] = df_3_save['ticker_3'].apply(
+                lambda x: ticker_info.get(x, {}).get('type', 'Unknown')
+            )
             
-            print(f"{i+1:2d}. {portfolio_str}")
-            print(f"    MaxDD: {row['max_drawdown']:.1%} | CAGR: {row['cagr']:.1%} | Calmar: {row['calmar']:.3f} | Sharpe: {row['sharpe']:.2f}")
-        
-        # Save results
-        df_3_save = df_3.copy()
-        df_3_save['ticker_1'] = df_3_save['tickers'].str[0]
-        df_3_save['ticker_2'] = df_3_save['tickers'].str[1]
-        df_3_save['ticker_3'] = df_3_save['tickers'].str[2]
-        df_3_save['weight_1'] = df_3_save['weights'].str[0]
-        df_3_save['weight_2'] = df_3_save['weights'].str[1]
-        df_3_save['weight_3'] = df_3_save['weights'].str[2]
-        
-        # Add asset type info
-        df_3_save['asset_type_2'] = df_3_save['ticker_2'].apply(
-            lambda x: ticker_info.get(x, {}).get('type', 'Unknown')
-        )
-        df_3_save['asset_type_3'] = df_3_save['ticker_3'].apply(
-            lambda x: ticker_info.get(x, {}).get('type', 'Unknown')
-        )
-        
-        df_3_save = df_3_save.drop(['tickers', 'weights'], axis=1)
-        filename_3 = f"lse_3stock_portfolio_results_{timestamp}.csv"
-        df_3_save.to_csv(filename_3, index=False)
-        print(f"3-stock results saved to {filename_3}")
+            df_3_save = df_3_save.drop(['tickers', 'weights'], axis=1)
+            filename_3 = f"lse_3stock_portfolio_results_{timestamp}.csv"
+            df_3_save.to_csv(filename_3, index=False)
+            print(f"\n✓ 3-stock results saved to {filename_3}")
     
     # LQQ3 standalone for comparison
     print(f"\n" + "=" * 80)
@@ -394,6 +429,7 @@ def main():
         print(f"Max Drawdown: {lqq3_metrics['max_drawdown']:.1%}")
         print(f"Calmar Ratio: {lqq3_metrics['calmar']:.3f}")
         print(f"Sharpe Ratio: {lqq3_metrics['sharpe']:.2f}")
+        print(f"DPR: {lqq3_metrics['dpr']:.3f}")
         print(f"Volatility: {lqq3_metrics['volatility']:.1%}")
     
     # Final summary
@@ -401,22 +437,23 @@ def main():
     print("SUMMARY")
     print("=" * 80)
     
-    if results_2_stock and results_3_stock:
-        best_2_drawdown = df_2.iloc[0]['max_drawdown']
-        best_3_drawdown = df_3.iloc[0]['max_drawdown']
-        lqq3_drawdown = lqq3_metrics['max_drawdown'] if lqq3_metrics else 1.0
-        
-        print(f"Best 2-stock Max Drawdown: {best_2_drawdown:.1%}")
-        print(f"Best 3-stock Max Drawdown: {best_3_drawdown:.1%}")
-        print(f"LQQ3 standalone Max Drawdown: {lqq3_drawdown:.1%}")
-        
-        best_overall_drawdown = min(best_2_drawdown, best_3_drawdown)
-        if best_overall_drawdown < lqq3_drawdown:
-            portfolio_type = "3-stock" if best_3_drawdown < best_2_drawdown else "2-stock"
-            improvement = (lqq3_drawdown - best_overall_drawdown) / lqq3_drawdown * 100 if lqq3_drawdown > 0 else 0
-            print(f"\nRecommendation: {portfolio_type} portfolio reduces max drawdown by {improvement:.1f}% vs LQQ3 alone")
-        else:
-            print(f"\nRecommendation: Stick with LQQ3 standalone - diversification doesn't improve drawdown")
+    # Determine best drawdown from available, valid results
+    best_2_drawdown = df_2.iloc[0]['max_drawdown'] if not df_2.empty else float('inf')
+    best_3_drawdown = df_3.iloc[0]['max_drawdown'] if not df_3.empty else float('inf')
+    lqq3_drawdown = lqq3_metrics['max_drawdown'] if lqq3_metrics else float('inf')
+
+    print(f"LQQ3 standalone Max Drawdown: {lqq3_drawdown:.1%}" if lqq3_drawdown != float('inf') else "LQQ3 standalone: N/A")
+    print(f"Best 2-stock (CAGR>=35%) Max Drawdown: {best_2_drawdown:.1%}" if best_2_drawdown != float('inf') else "Best 2-stock (CAGR>=35%): None found")
+    print(f"Best 3-stock (CAGR>=35%) Max Drawdown: {best_3_drawdown:.1%}" if best_3_drawdown != float('inf') else "Best 3-stock (CAGR>=35%): None found")
+
+    best_overall_drawdown = min(best_2_drawdown, best_3_drawdown)
+
+    if best_overall_drawdown < lqq3_drawdown:
+        portfolio_type = "3-stock" if best_3_drawdown < best_2_drawdown else "2-stock"
+        improvement = (lqq3_drawdown - best_overall_drawdown) / lqq3_drawdown * 100 if lqq3_drawdown > 0 else 0
+        print(f"\nRecommendation: {portfolio_type} portfolio reduces max drawdown by {improvement:.1f}% vs LQQ3 alone (while maintaining CAGR >= 35%).")
+    elif lqq3_drawdown != float('inf'):
+        print(f"\nRecommendation: Stick with LQQ3 standalone - no diversified portfolio met the criteria and improved drawdown.")
     
     print(f"\nAnalysis complete! Tested {len(price_data)} valid tickers from LSE.")
 
