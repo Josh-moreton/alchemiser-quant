@@ -20,8 +20,8 @@ warnings.filterwarnings('ignore')
 # --- Configuration ---
 CORE_TICKER = "LQQ3.L"
 FIXED_HEDGE_TICKER = "SGLN.L" # New: Fixed second ticker for 3-stock analysis
-CORE_WEIGHT = 0.65  # 66% allocation to LQQ3
-# START_DATE is determined by the cached data's range
+# CORE_WEIGHT is now variable: 50%, 60%, 70%
+START_DATE = "2015-07-10"  # Fixed start date: 10 years ago from 2025-07-10
 INITIAL_CAPITAL = 65000
 MIN_TRADING_DAYS = 252 * 10  # Minimum 10 years of data
 REBALANCE_FREQUENCY = 'Q'  # Quarterly rebalancing
@@ -189,6 +189,33 @@ def backtest_portfolio(tickers, weights, price_data):
     except Exception as e:
         return None
 
+def generate_weight_combinations():
+    """
+    Generate all weight combinations where:
+    - Ticker 1 (LQQ3.L): 50%, 60%, 70%
+    - Tickers 2 & 3: All 10% increment combinations that sum to remaining weight
+    """
+    combinations = []
+    ticker1_weights = [0.50, 0.60, 0.70]
+    
+    for w1 in ticker1_weights:
+        remaining = 1.0 - w1  # Weight left for tickers 2 and 3
+        
+        # Generate all 10% increment combinations for tickers 2 and 3
+        steps = int(remaining / 0.10)  # Number of 10% steps in remaining weight
+        
+        for i in range(steps + 1):
+            w2 = i * 0.10
+            w3 = remaining - w2
+            
+            # Only include if w3 is non-negative and is a multiple of 0.10
+            if w3 >= 0 and abs(w3 - round(w3 / 0.10) * 0.10) < 0.001:
+                w3 = round(w3 / 0.10) * 0.10  # Round to nearest 0.10
+                if w3 >= 0:  # Final check
+                    combinations.append((round(w1, 2), round(w2, 2), round(w3, 2)))
+    
+    return combinations
+
 def test_portfolio_batch(combinations):
     """Test a batch of portfolio combinations."""
     results = []
@@ -204,12 +231,13 @@ def test_portfolio_batch(combinations):
 
 def main():
     print("=" * 80)
-    print("LSE Portfolio Optimizer - 3-Stock with Fixed Hedge")
+    print("LSE Portfolio Optimizer - 3-Stock with Variable Weights")
     print("=" * 80)
-    print(f"Core ticker: {CORE_TICKER} (Weight: {CORE_WEIGHT:.1%})")
+    print(f"Core ticker: {CORE_TICKER} (Variable weights: 50%, 60%, 70%)")
     print(f"Fixed Hedge Ticker: {FIXED_HEDGE_TICKER}")
-    print(f"Goal: Find best 3rd ticker to minimize Max Drawdown")
+    print(f"Goal: Find best 3rd ticker and optimal allocation to minimize Max Drawdown")
     print(f"Data source: Cached data from '{DATA_FOLDER}/'")
+    print(f"Fixed start date: {START_DATE} (10 years of data)")
     print(f"Minimum trading days required: {MIN_TRADING_DAYS}")
     
     # Load cached data
@@ -262,17 +290,22 @@ def main():
     # Test 3-stock portfolios with the fixed hedge
     print(f"\nTesting 3-stock portfolios: {CORE_TICKER} + {FIXED_HEDGE_TICKER} + 1 other...")
     
+    # Generate all weight combinations
+    weight_combinations = generate_weight_combinations()
+    print(f"Generated {len(weight_combinations)} weight combinations.")
+    print("Weight combinations for ticker 1 (LQQ3.L): 50%, 60%, 70%")
+    print("Weight combinations for tickers 2 & 3: All 10% increments that sum to remaining weight")
+    
     results_3_stock = []
-    remaining_weight = 1 - CORE_WEIGHT
-    equal_weight = remaining_weight / 2
     
     combinations_3 = []
     for third_ticker in other_tickers:
-        tickers = [CORE_TICKER, FIXED_HEDGE_TICKER, third_ticker]
-        weights = [CORE_WEIGHT, equal_weight, equal_weight]
-        combinations_3.append((tickers, weights, price_data))
+        for weights in weight_combinations:
+            tickers = [CORE_TICKER, FIXED_HEDGE_TICKER, third_ticker]
+            combinations_3.append((tickers, weights, price_data))
     
-    print(f"Will test {len(combinations_3)} 3-stock combinations using multi-processing...")
+    total_combinations = len(other_tickers) * len(weight_combinations)
+    print(f"Will test {total_combinations} total combinations ({len(other_tickers)} tickers × {len(weight_combinations)} weight combinations) using multi-processing...")
     
     # Process 3-stock combinations in parallel
     batch_size_3 = 50 # Smaller batches for more frequent progress updates
@@ -285,9 +318,10 @@ def main():
         for i, future in enumerate(as_completed(futures)):
             results_3_stock.extend(future.result())
             if (i + 1) % 10 == 0: # Update progress every 10 batches
-                print(f"Completed {min((i + 1) * batch_size_3, len(combinations_3))}/{len(combinations_3)} 3-stock combinations")
+                completed = min((i + 1) * batch_size_3, len(combinations_3))
+                print(f"Completed {completed}/{len(combinations_3)} combinations")
 
-    print(f"Completed {len(combinations_3)} 3-stock combinations, found {len(results_3_stock)} valid portfolios")
+    print(f"Completed {len(combinations_3)} total combinations, found {len(results_3_stock)} valid portfolios")
     
     # --- Analyze and Save 3-Stock and Final Results ---
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -343,7 +377,16 @@ def main():
             )
             
             df_3_save = df_3_save.drop(['tickers', 'weights'], axis=1)
-            filename_3 = f"lse_3stock_SGLN_hedge_results_{timestamp}.csv"
+            
+            # Reorder columns for better readability
+            cols_ordered = [
+                'ticker_1', 'weight_1', 'ticker_2', 'weight_2', 'ticker_3', 'weight_3',
+                'asset_type_2', 'asset_type_3', 'total_return', 'cagr', 'volatility', 
+                'sharpe', 'sortino', 'dpr', 'max_drawdown', 'calmar'
+            ]
+            df_3_save = df_3_save[cols_ordered]
+            
+            filename_3 = f"lse_3stock_variable_weights_results_{timestamp}.csv"
             df_3_save.to_csv(filename_3, index=False)
             print(f"\n✓ 3-stock results saved to {filename_3}")
     
