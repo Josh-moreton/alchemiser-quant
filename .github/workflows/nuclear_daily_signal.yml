@@ -1,0 +1,22 @@
+name: Nuclear Energy Daily Signal
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 7 * * *" # 7 AM UTC daily
+
+jobs:
+  run-nuclear-signal:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Run Nuclear Energy daily signal email
+        env:
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+        run: python nuclear_signal_email.py

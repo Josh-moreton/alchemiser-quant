@@ -188,8 +188,8 @@ class NuclearStrategyEngine:
         
         return indicators
     
-    def get_best_nuclear_stocks(self, indicators, top_n=3):
-        """Get top performing nuclear stocks based on 90-day moving average return"""
+    def get_nuclear_portfolio(self, indicators):
+        """Get nuclear energy portfolio with top 3 stocks and their allocations"""
         nuclear_performance = []
         
         for symbol in self.nuclear_symbols:
@@ -197,16 +197,39 @@ class NuclearStrategyEngine:
                 performance = indicators[symbol]['ma_return_90']
                 nuclear_performance.append((symbol, performance))
         
-        # Sort by performance and get top N
+        # Sort by performance and get top 3
         nuclear_performance.sort(key=lambda x: x[1], reverse=True)
-        top_stocks = [stock[0] for stock in nuclear_performance[:top_n]]
+        top_3_stocks = nuclear_performance[:3]
         
-        if not top_stocks:
-            # Default to first available nuclear stocks
+        if len(top_3_stocks) < 3:
+            # If we don't have 3 stocks, pad with available ones
             available = [s for s in self.nuclear_symbols if s in indicators]
-            top_stocks = available[:top_n] if available else ['SMR']
+            while len(top_3_stocks) < 3 and len(available) > len(top_3_stocks):
+                missing_stock = available[len(top_3_stocks)]
+                performance = indicators[missing_stock]['ma_return_90']
+                top_3_stocks.append((missing_stock, performance))
         
-        return top_stocks
+        # For simplicity, we'll use equal weighting (33.3% each)
+        # In the original strategy, this would be inverse volatility weighted
+        if top_3_stocks:
+            portfolio = {}
+            weight_per_stock = 1.0 / len(top_3_stocks)
+            
+            for symbol, performance in top_3_stocks:
+                portfolio[symbol] = {
+                    'weight': weight_per_stock,
+                    'performance': performance
+                }
+            
+            return portfolio
+        else:
+            # Default fallback
+            return {'SMR': {'weight': 1.0, 'performance': 0.0}}
+    
+    def get_best_nuclear_stocks(self, indicators, top_n=3):
+        """Get top performing nuclear stocks based on 90-day moving average return"""
+        portfolio = self.get_nuclear_portfolio(indicators)
+        return list(portfolio.keys())[:top_n]
     
     def evaluate_nuclear_strategy(self, indicators):
         """
@@ -311,11 +334,14 @@ class NuclearStrategyEngine:
             spy_ma_200 = indicators['SPY']['ma_200']
             
             if spy_price > spy_ma_200:
-                # Bull market - go with nuclear energy portfolio
-                top_nuclear = self.get_best_nuclear_stocks(indicators, top_n=1)
-                if top_nuclear:
-                    nuclear_symbol = top_nuclear[0]
-                    return nuclear_symbol, 'BUY', f"Bull market - top nuclear stock: {nuclear_symbol}"
+                # Bull market - return nuclear energy portfolio allocation
+                nuclear_portfolio = self.get_nuclear_portfolio(indicators)
+                if nuclear_portfolio:
+                    # Return the nuclear portfolio allocation (not single stock)
+                    portfolio_stocks = list(nuclear_portfolio.keys())
+                    portfolio_desc = ", ".join([f"{s} ({nuclear_portfolio[s]['weight']:.1%})" for s in portfolio_stocks])
+                    # For compliance with original strategy, return portfolio info as a special signal
+                    return 'NUCLEAR_PORTFOLIO', 'BUY', f"Bull market - Nuclear portfolio: {portfolio_desc}"
                 else:
                     return 'SMR', 'BUY', "Bull market - default nuclear energy play"
             else:
@@ -399,6 +425,43 @@ class NuclearTradingBot:
                 }
             }
     
+    def handle_nuclear_portfolio_signal(self, symbol, action, reason, indicators):
+        """Handle nuclear portfolio signal by creating individual alerts for each stock"""
+        if symbol == 'NUCLEAR_PORTFOLIO' and action == 'BUY':
+            # Get the nuclear portfolio
+            nuclear_portfolio = self.strategy.get_nuclear_portfolio(indicators)
+            
+            # Create alerts for all nuclear stocks in the portfolio
+            alerts = []
+            for stock_symbol, allocation in nuclear_portfolio.items():
+                current_price = self.strategy.data_provider.get_current_price(stock_symbol)
+                
+                portfolio_reason = f"Nuclear portfolio allocation: {allocation['weight']:.1%} ({reason})"
+                
+                alert = Alert(
+                    symbol=stock_symbol,
+                    action=action,
+                    confidence=1.0,
+                    reason=portfolio_reason,
+                    timestamp=dt.datetime.now(),
+                    price=current_price
+                )
+                alerts.append(alert)
+            
+            return alerts
+        else:
+            # Single stock signal
+            current_price = self.strategy.data_provider.get_current_price(symbol)
+            alert = Alert(
+                symbol=symbol,
+                action=action,
+                confidence=1.0,
+                reason=reason,
+                timestamp=dt.datetime.now(),
+                price=current_price
+            )
+            return [alert]
+    
     def run_analysis(self):
         """Run complete strategy analysis"""
         logging.info("Starting Nuclear Energy strategy analysis...")
@@ -418,21 +481,11 @@ class NuclearTradingBot:
         # Evaluate strategy
         symbol, action, reason = self.strategy.evaluate_nuclear_strategy(indicators)
         
-        # Get current price
-        current_price = self.strategy.data_provider.get_current_price(symbol)
-        
-        # Create alert (no confidence score - pure strategy decision)
-        alert = Alert(
-            symbol=symbol,
-            action=action,
-            confidence=1.0,  # Always 100% since it's a deterministic strategy
-            reason=reason,
-            timestamp=dt.datetime.now(),
-            price=current_price
-        )
+        # Handle nuclear portfolio signal properly
+        alerts = self.handle_nuclear_portfolio_signal(symbol, action, reason, indicators)
         
         logging.info(f"Analysis complete: {action} {symbol} - {reason}")
-        return alert
+        return alerts
     
     def log_alert(self, alert):
         """Log alert to file"""
@@ -453,22 +506,45 @@ class NuclearTradingBot:
     
     def run_once(self):
         """Run analysis once"""
-        alert = self.run_analysis()
+        alerts = self.run_analysis()
         
-        if alert:
-            # Always log the alert
-            self.log_alert(alert)
+        if alerts and len(alerts) > 0:
+            # Log all alerts
+            for alert in alerts:
+                self.log_alert(alert)
             
-            # Display result
-            if alert.action != 'HOLD':
-                print(f"🚨 NUCLEAR TRADING SIGNAL: {alert.action} {alert.symbol} at ${alert.price:.2f}")
-                print(f"   Reason: {alert.reason}")
+            # Display results
+            if len(alerts) > 1:
+                # Nuclear portfolio signal
+                print(f"🚨 NUCLEAR PORTFOLIO SIGNAL: {len(alerts)} stocks allocated")
                 print(f"   [Deterministic Strategy - No Confidence Scoring]")
+                print(f"\n� NUCLEAR PORTFOLIO ALLOCATION:")
+                for alert in alerts:
+                    if alert.action != 'HOLD':
+                        print(f"   🟢 {alert.action} {alert.symbol} at ${alert.price:.2f}")
+                        print(f"      Reason: {alert.reason}")
+                    else:
+                        print(f"   ⚪ {alert.action} {alert.symbol} at ${alert.price:.2f}")
+                        print(f"      Reason: {alert.reason}")
+                        
+                # Show portfolio allocation details
+                portfolio = self.get_current_portfolio_allocation()
+                if portfolio:
+                    print(f"\n� PORTFOLIO DETAILS:")
+                    for symbol, data in portfolio.items():
+                        print(f"   {symbol}: {data['weight']:.1%}")
             else:
-                print(f"📊 Nuclear Analysis: {alert.action} {alert.symbol} at ${alert.price:.2f}")
-                print(f"   Reason: {alert.reason}")
+                # Single signal
+                alert = alerts[0]
+                if alert.action != 'HOLD':
+                    print(f"🚨 NUCLEAR TRADING SIGNAL: {alert.action} {alert.symbol} at ${alert.price:.2f}")
+                    print(f"   Reason: {alert.reason}")
+                    print(f"   [Deterministic Strategy - No Confidence Scoring]")
+                else:
+                    print(f"📊 Nuclear Analysis: {alert.action} {alert.symbol} at ${alert.price:.2f}")
+                    print(f"   Reason: {alert.reason}")
             
-            return alert
+            return alerts[0]  # Return first alert for compatibility
         else:
             print("❌ Unable to generate nuclear energy signal")
             return None
@@ -489,6 +565,44 @@ class NuclearTradingBot:
             except Exception as e:
                 logging.error(f"Error in continuous run: {e}")
                 time.sleep(60)
+    
+    def get_current_portfolio_allocation(self):
+        """Get current portfolio allocation for display purposes"""
+        # Get market data and indicators
+        market_data = self.strategy.get_market_data()
+        if not market_data:
+            return None
+        
+        indicators = self.strategy.calculate_indicators(market_data)
+        if not indicators:
+            return None
+        
+        # Get strategy recommendation
+        symbol, action, reason = self.strategy.evaluate_nuclear_strategy(indicators)
+        
+        # If we're in a bull market, show the nuclear portfolio
+        if 'SPY' in indicators:
+            spy_price = indicators['SPY']['current_price']
+            spy_ma_200 = indicators['SPY']['ma_200']
+            
+            if spy_price > spy_ma_200 and action == 'BUY':
+                nuclear_portfolio = self.strategy.get_nuclear_portfolio(indicators)
+                if nuclear_portfolio:
+                    # Add current prices and market values
+                    portfolio_with_prices = {}
+                    for symbol, data in nuclear_portfolio.items():
+                        if symbol in indicators:
+                            current_price = indicators[symbol]['current_price']
+                            portfolio_with_prices[symbol] = {
+                                'weight': data['weight'],
+                                'performance': data['performance'],
+                                'current_price': current_price,
+                                'market_value': 10000 * data['weight'],  # Assuming $10k portfolio
+                                'shares': (10000 * data['weight']) / current_price
+                            }
+                    return portfolio_with_prices
+        
+        return None
 
 def main():
     """Main function"""
