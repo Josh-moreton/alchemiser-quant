@@ -64,17 +64,9 @@ class NuclearBacktester:
         """Calculate indicators for a specific date"""
         indicators = {}
         
-        # Ensure date is timezone-aware if needed
-        if isinstance(date, pd.Timestamp):
-            date = date.tz_localize(None)  # Remove timezone to match data
-        
         for symbol, df in historical_data.items():
-            # Ensure dataframe index is timezone-naive
-            if df.index.tz is not None:
-                df = df.tz_localize(None)
-            
-            # Get data up to the current date
-            data_slice = df[df.index <= date]
+            # Simply filter data up to the current date
+            data_slice = df[df.index.date <= date.date()]
             
             if len(data_slice) < 200:  # Need minimum data for indicators
                 continue
@@ -152,7 +144,7 @@ class NuclearBacktester:
                 continue
                 
             symbol_data = historical_data[symbol]
-            price_data = symbol_data[symbol_data.index <= date]
+            price_data = symbol_data[symbol_data.index.date <= date.date()]
             
             if price_data.empty:
                 continue
@@ -165,7 +157,7 @@ class NuclearBacktester:
                 if current_position and current_shares > 0:
                     if current_position in historical_data:
                         old_price_data = historical_data[current_position]
-                        old_price_slice = old_price_data[old_price_data.index <= date]
+                        old_price_slice = old_price_data[old_price_data.index.date <= date.date()]
                         if not old_price_slice.empty:
                             old_price = float(old_price_slice['Close'].iloc[-1])
                             sale_value = current_shares * old_price
