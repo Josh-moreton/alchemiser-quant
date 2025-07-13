@@ -19,3 +19,1630 @@
 2025-07-13 11:20:17,989 - INFO - Analysis complete: BUY NUCLEAR_PORTFOLIO - Bull market - Nuclear portfolio: SMR (31.2%), LEU (39.5%), OKLO (29.3%)
 2025-07-13 11:54:26,520 - INFO - Starting Nuclear Energy strategy analysis...
 2025-07-13 11:54:31,028 - INFO - Analysis complete: BUY NUCLEAR_PORTFOLIO - Bull market - Nuclear portfolio: SMR (31.2%), LEU (39.5%), OKLO (29.3%)
+2025-07-13 13:02:18,903 - INFO - Starting backtest from 2022-01-01 00:00:00 to 2025-07-13 00:00:00...
+2025-07-13 13:02:18,903 - INFO - Initial capital: $100,000.00
+2025-07-13 13:02:18,903 - INFO - Trading strategy: 'close' prices
+2025-07-13 13:03:56,089 - INFO - Starting backtest from 2022-01-01 00:00:00 to 2025-07-13 00:00:00...
+2025-07-13 13:03:56,089 - INFO - Initial capital: $100,000.00
+2025-07-13 13:03:56,089 - INFO - Trading strategy: 'close' prices
+2025-07-13 13:05:16,515 - INFO - Starting backtest from 2022-01-01 00:00:00 to 2025-07-13 00:00:00...
+2025-07-13 13:05:16,516 - INFO - Initial capital: $100,000.00
+2025-07-13 13:05:16,516 - INFO - Trading strategy: 'close' prices
+2025-07-13 13:07:48,756 - INFO - Starting backtest from 2022-01-01 00:00:00 to 2025-07-13 00:00:00...
+2025-07-13 13:07:48,757 - INFO - Initial capital: $100,000.00
+2025-07-13 13:07:48,757 - INFO - Trading strategy: 'close' prices
+2025-07-13 13:07:53,637 - INFO - Signal on 2022-02-01: BUY NUCLEAR_PORTFOLIO - Bull market - Nuclear portfolio: BWXT (33.3%), LEU (33.3%), EXC (33.3%)
+2025-07-13 13:07:54,092 - INFO - Signal on 2022-03-01: BUY NUCLEAR_PORTFOLIO - Bull market - Nuclear portfolio: BWXT (33.3%), LEU (33.3%), EXC (33.3%)
+2025-07-13 13:07:54,663 - INFO - Signal on 2022-04-01: BUY NUCLEAR_PORTFOLIO - Bull market - Nuclear portfolio: SMR (33.3%), BWXT (33.3%), LEU (33.3%)
+2025-07-13 13:07:55,705 - INFO - Signal on 2022-06-01: BUY NUCLEAR_PORTFOLIO - Bull market - Nuclear portfolio: EXC (60.7%), BWXT (39.3%)
+2025-07-13 13:07:56,251 - INFO - Signal on 2022-07-01: BUY NUCLEAR_PORTFOLIO - Bull market - Nuclear portfolio: BWXT (41.3%), EXC (58.7%)
+2025-07-13 13:07:56,803 - INFO - Signal on 2022-08-01: BUY UVXY_BTAL_PORTFOLIO - VTV overbought, UVXY 75% + BTAL 25% allocation
+2025-07-13 13:07:57,404 - INFO - Signal on 2022-09-01: BUY TQQQ - TQQQ oversold, buying dip
+2025-07-13 13:07:58,502 - INFO - Signal on 2022-11-01: BUY UVXY - VTV extremely overbought
+2025-07-13 13:07:59,033 - INFO - Signal on 2022-12-01: BUY NUCLEAR_PORTFOLIO - Bull market - Nuclear portfolio: LEU (11.2%), BWXT (42.4%), NLR (46.5%)
+2025-07-13 13:08:00,124 - INFO - Signal on 2023-02-01: BUY NUCLEAR_PORTFOLIO - Bull market - Nuclear portfolio: BWXT (40.7%), LEU (12.8%), NLR (46.5%)
+2025-07-13 13:08:00,632 - INFO - Signal on 2023-03-01: BUY UPRO - SPY oversold, buying dip with leverage
+2025-07-13 13:08:01,769 - INFO - Signal on 2023-05-01: BUY NUCLEAR_PORTFOLIO - Bull market - Nuclear portfolio: BWXT (11.2%), NLR (13.7%), OKLO (75.2%)
+2025-07-13 13:08:02,371 - INFO - Signal on 2023-06-01: BUY NUCLEAR_PORTFOLIO - Bull market - Nuclear portfolio: BWXT (12.7%), OKLO (72.9%), NLR (14.4%)
+2025-07-13 13:08:03,486 - INFO - Signal on 2023-08-01: BUY UVXY - VTV extremely overbought
+2025-07-13 13:08:04,136 - INFO - Signal on 2023-09-01: BUY NUCLEAR_PORTFOLIO - Bull market - Nuclear portfolio: LEU (14.2%), NLR (46.3%), BWXT (39.4%)
+2025-07-13 13:08:05,289 - INFO - Signal on 2023-11-01: BUY TQQQ - TQQQ oversold, buying dip
+2025-07-13 13:08:05,844 - INFO - Signal on 2023-12-01: BUY UVXY - XLF extremely overbought (RSI > 81)
+2025-07-13 13:08:06,942 - INFO - Signal on 2024-02-01: BUY UVXY_BTAL_PORTFOLIO - XLF overbought, UVXY 75% + BTAL 25% allocation
+2025-07-13 13:08:07,507 - INFO - Signal on 2024-03-01: BUY UVXY - VTV extremely overbought
+2025-07-13 13:08:08,050 - INFO - Signal on 2024-04-01: BUY UVXY - VTV extremely overbought
+2025-07-13 13:08:08,639 - INFO - Signal on 2024-05-01: BUY NUCLEAR_PORTFOLIO - Bull market - Nuclear portfolio: SMR (10.9%), OKLO (29.8%), BWXT (59.4%)
+2025-07-13 13:08:09,770 - INFO - Signal on 2024-07-01: BUY NUCLEAR_PORTFOLIO - Bull market - Nuclear portfolio: SMR (11.5%), OKLO (12.6%), NLR (75.9%)
+2025-07-13 13:08:10,352 - INFO - Signal on 2024-08-01: BUY NUCLEAR_PORTFOLIO - Bull market - Nuclear portfolio: SMR (23.5%), OKLO (20.3%), LEU (56.2%)
+2025-07-13 13:08:11,518 - INFO - Signal on 2024-10-01: BUY UVXY_BTAL_PORTFOLIO - VOX overbought, UVXY 75% + BTAL 25% allocation
+2025-07-13 13:08:12,153 - INFO - Signal on 2024-11-01: BUY UPRO - SPY oversold, buying dip with leverage
+2025-07-13 13:08:14,951 - INFO - Signal on 2025-04-01: BUY SQQQ - TQQQ weak, IEF strong, short position (Bear 1)
+2025-07-13 13:08:15,500 - INFO - Signal on 2025-05-01: BUY SQQQ - TQQQ up but bonds weak, short position (Bear 1)
+2025-07-13 13:08:16,635 - INFO - Signal on 2025-07-01: BUY UVXY - SPY extremely overbought (RSI > 81)
+2025-07-13 13:10:36,634 - INFO - Starting backtest from 2022-01-01 00:00:00 to 2025-07-13 00:00:00...
+2025-07-13 13:10:36,634 - INFO - Initial capital: $100,000.00
+2025-07-13 13:10:36,634 - INFO - Trading strategy: 'close' prices
+2025-07-13 13:10:41,014 - WARNING - Could not get price for BWXT on 2022-01-04
+2025-07-13 13:10:41,015 - WARNING - Could not get price for LEU on 2022-01-04
+2025-07-13 13:10:41,015 - WARNING - Could not get price for EXC on 2022-01-04
+2025-07-13 13:10:41,043 - WARNING - Could not get price for BWXT on 2022-01-05
+2025-07-13 13:10:41,043 - WARNING - Could not get price for LEU on 2022-01-05
+2025-07-13 13:10:41,043 - WARNING - Could not get price for EXC on 2022-01-05
+2025-07-13 13:10:41,068 - WARNING - Could not get price for BWXT on 2022-01-06
+2025-07-13 13:10:41,068 - WARNING - Could not get price for LEU on 2022-01-06
+2025-07-13 13:10:41,068 - WARNING - Could not get price for EXC on 2022-01-06
+2025-07-13 13:10:41,093 - WARNING - Could not get price for BWXT on 2022-01-07
+2025-07-13 13:10:41,093 - WARNING - Could not get price for LEU on 2022-01-07
+2025-07-13 13:10:41,093 - WARNING - Could not get price for EXC on 2022-01-07
+2025-07-13 13:10:41,118 - WARNING - Could not get price for BWXT on 2022-01-10
+2025-07-13 13:10:41,118 - WARNING - Could not get price for LEU on 2022-01-10
+2025-07-13 13:10:41,118 - WARNING - Could not get price for EXC on 2022-01-10
+2025-07-13 13:10:41,142 - WARNING - Could not get price for BWXT on 2022-01-11
+2025-07-13 13:10:41,142 - WARNING - Could not get price for LEU on 2022-01-11
+2025-07-13 13:10:41,142 - WARNING - Could not get price for EXC on 2022-01-11
+2025-07-13 13:10:41,167 - WARNING - Could not get price for BWXT on 2022-01-12
+2025-07-13 13:10:41,167 - WARNING - Could not get price for LEU on 2022-01-12
+2025-07-13 13:10:41,167 - WARNING - Could not get price for EXC on 2022-01-12
+2025-07-13 13:10:41,192 - WARNING - Could not get price for BWXT on 2022-01-13
+2025-07-13 13:10:41,192 - WARNING - Could not get price for LEU on 2022-01-13
+2025-07-13 13:10:41,192 - WARNING - Could not get price for EXC on 2022-01-13
+2025-07-13 13:10:41,217 - WARNING - Could not get price for BWXT on 2022-01-14
+2025-07-13 13:10:41,217 - WARNING - Could not get price for LEU on 2022-01-14
+2025-07-13 13:10:41,217 - WARNING - Could not get price for EXC on 2022-01-14
+2025-07-13 13:10:41,254 - WARNING - Could not get price for TQQQ on 2022-01-18
+2025-07-13 13:10:41,278 - WARNING - Could not get price for TQQQ on 2022-01-19
+2025-07-13 13:10:41,301 - WARNING - Could not get price for TQQQ on 2022-01-20
+2025-07-13 13:10:41,325 - WARNING - Could not get price for TQQQ on 2022-01-21
+2025-07-13 13:10:41,349 - WARNING - Could not get price for TQQQ on 2022-01-24
+2025-07-13 13:10:41,374 - WARNING - Could not get price for TQQQ on 2022-01-25
+2025-07-13 13:10:41,398 - WARNING - Could not get price for TQQQ on 2022-01-26
+2025-07-13 13:10:41,422 - WARNING - Could not get price for TQQQ on 2022-01-27
+2025-07-13 13:10:41,446 - WARNING - Could not get price for TQQQ on 2022-01-28
+2025-07-13 13:10:41,470 - WARNING - Could not get price for TQQQ on 2022-01-31
+2025-07-13 13:10:41,495 - INFO - Signal on 2022-02-01: BUY NUCLEAR_PORTFOLIO - Bull market - Nuclear portfolio: BWXT (33.3%), LEU (33.3%), EXC (33.3%)
+2025-07-13 13:10:41,495 - WARNING - Could not get price for BWXT on 2022-02-01
+2025-07-13 13:10:41,495 - WARNING - Could not get price for LEU on 2022-02-01
+2025-07-13 13:10:41,495 - WARNING - Could not get price for EXC on 2022-02-01
+2025-07-13 13:10:41,520 - WARNING - Could not get price for BWXT on 2022-02-02
+2025-07-13 13:10:41,520 - WARNING - Could not get price for LEU on 2022-02-02
+2025-07-13 13:10:41,520 - WARNING - Could not get price for EXC on 2022-02-02
+2025-07-13 13:10:41,545 - WARNING - Could not get price for BWXT on 2022-02-03
+2025-07-13 13:10:41,545 - WARNING - Could not get price for LEU on 2022-02-03
+2025-07-13 13:10:41,546 - WARNING - Could not get price for EXC on 2022-02-03
+2025-07-13 13:10:41,570 - WARNING - Could not get price for BWXT on 2022-02-04
+2025-07-13 13:10:41,571 - WARNING - Could not get price for LEU on 2022-02-04
+2025-07-13 13:10:41,571 - WARNING - Could not get price for EXC on 2022-02-04
+2025-07-13 13:10:41,596 - WARNING - Could not get price for BWXT on 2022-02-07
+2025-07-13 13:10:41,596 - WARNING - Could not get price for LEU on 2022-02-07
+2025-07-13 13:10:41,596 - WARNING - Could not get price for EXC on 2022-02-07
+2025-07-13 13:10:41,622 - WARNING - Could not get price for BWXT on 2022-02-08
+2025-07-13 13:10:41,622 - WARNING - Could not get price for LEU on 2022-02-08
+2025-07-13 13:10:41,622 - WARNING - Could not get price for EXC on 2022-02-08
+2025-07-13 13:10:41,646 - WARNING - Could not get price for UVXY on 2022-02-09
+2025-07-13 13:10:41,646 - WARNING - Could not get price for BTAL on 2022-02-09
+2025-07-13 13:10:41,671 - WARNING - Could not get price for UVXY on 2022-02-10
+2025-07-13 13:10:41,695 - WARNING - Could not get price for UVXY on 2022-02-11
+2025-07-13 13:10:41,695 - WARNING - Could not get price for BTAL on 2022-02-11
+2025-07-13 13:10:41,720 - WARNING - Could not get price for BWXT on 2022-02-14
+2025-07-13 13:10:41,720 - WARNING - Could not get price for LEU on 2022-02-14
+2025-07-13 13:10:41,720 - WARNING - Could not get price for EXC on 2022-02-14
+2025-07-13 13:10:41,745 - WARNING - Could not get price for BWXT on 2022-02-15
+2025-07-13 13:10:41,745 - WARNING - Could not get price for LEU on 2022-02-15
+2025-07-13 13:10:41,745 - WARNING - Could not get price for EXC on 2022-02-15
+2025-07-13 13:10:41,771 - WARNING - Could not get price for BWXT on 2022-02-16
+2025-07-13 13:10:41,771 - WARNING - Could not get price for LEU on 2022-02-16
+2025-07-13 13:10:41,771 - WARNING - Could not get price for EXC on 2022-02-16
+2025-07-13 13:10:41,796 - WARNING - Could not get price for BWXT on 2022-02-17
+2025-07-13 13:10:41,796 - WARNING - Could not get price for LEU on 2022-02-17
+2025-07-13 13:10:41,796 - WARNING - Could not get price for EXC on 2022-02-17
+2025-07-13 13:10:41,821 - WARNING - Could not get price for BWXT on 2022-02-18
+2025-07-13 13:10:41,821 - WARNING - Could not get price for LEU on 2022-02-18
+2025-07-13 13:10:41,821 - WARNING - Could not get price for EXC on 2022-02-18
+2025-07-13 13:10:41,845 - WARNING - Could not get price for BWXT on 2022-02-22
+2025-07-13 13:10:41,845 - WARNING - Could not get price for LEU on 2022-02-22
+2025-07-13 13:10:41,845 - WARNING - Could not get price for EXC on 2022-02-22
+2025-07-13 13:10:41,870 - WARNING - Could not get price for BWXT on 2022-02-23
+2025-07-13 13:10:41,870 - WARNING - Could not get price for LEU on 2022-02-23
+2025-07-13 13:10:41,870 - WARNING - Could not get price for EXC on 2022-02-23
+2025-07-13 13:10:41,895 - WARNING - Could not get price for TQQQ on 2022-02-24
+2025-07-13 13:10:41,919 - WARNING - Could not get price for TQQQ on 2022-02-25
+2025-07-13 13:10:41,943 - WARNING - Could not get price for BWXT on 2022-02-28
+2025-07-13 13:10:41,944 - WARNING - Could not get price for LEU on 2022-02-28
+2025-07-13 13:10:41,944 - WARNING - Could not get price for EXC on 2022-02-28
+2025-07-13 13:10:41,968 - INFO - Signal on 2022-03-01: BUY NUCLEAR_PORTFOLIO - Bull market - Nuclear portfolio: BWXT (33.3%), LEU (33.3%), EXC (33.3%)
+2025-07-13 13:10:41,968 - WARNING - Could not get price for BWXT on 2022-03-01
+2025-07-13 13:10:41,968 - WARNING - Could not get price for LEU on 2022-03-01
+2025-07-13 13:10:41,968 - WARNING - Could not get price for EXC on 2022-03-01
+2025-07-13 13:10:41,995 - WARNING - Could not get price for SMR on 2022-03-02
+2025-07-13 13:10:41,995 - WARNING - Could not get price for BWXT on 2022-03-02
+2025-07-13 13:10:41,995 - WARNING - Could not get price for LEU on 2022-03-02
+2025-07-13 13:10:42,021 - WARNING - Could not get price for SMR on 2022-03-03
+2025-07-13 13:10:42,021 - WARNING - Could not get price for BWXT on 2022-03-03
+2025-07-13 13:10:42,021 - WARNING - Could not get price for LEU on 2022-03-03
+2025-07-13 13:10:42,046 - WARNING - Could not get price for SMR on 2022-03-04
+2025-07-13 13:10:42,046 - WARNING - Could not get price for BWXT on 2022-03-04
+2025-07-13 13:10:42,046 - WARNING - Could not get price for LEU on 2022-03-04
+2025-07-13 13:10:42,072 - WARNING - Could not get price for SMR on 2022-03-07
+2025-07-13 13:10:42,072 - WARNING - Could not get price for BWXT on 2022-03-07
+2025-07-13 13:10:42,072 - WARNING - Could not get price for LEU on 2022-03-07
+2025-07-13 13:10:42,098 - WARNING - Could not get price for SMR on 2022-03-08
+2025-07-13 13:10:42,098 - WARNING - Could not get price for BWXT on 2022-03-08
+2025-07-13 13:10:42,098 - WARNING - Could not get price for LEU on 2022-03-08
+2025-07-13 13:10:42,124 - WARNING - Could not get price for SMR on 2022-03-09
+2025-07-13 13:10:42,124 - WARNING - Could not get price for BWXT on 2022-03-09
+2025-07-13 13:10:42,124 - WARNING - Could not get price for LEU on 2022-03-09
+2025-07-13 13:10:42,150 - WARNING - Could not get price for SMR on 2022-03-10
+2025-07-13 13:10:42,150 - WARNING - Could not get price for BWXT on 2022-03-10
+2025-07-13 13:10:42,150 - WARNING - Could not get price for LEU on 2022-03-10
+2025-07-13 13:10:42,176 - WARNING - Could not get price for SMR on 2022-03-11
+2025-07-13 13:10:42,176 - WARNING - Could not get price for BWXT on 2022-03-11
+2025-07-13 13:10:42,176 - WARNING - Could not get price for LEU on 2022-03-11
+2025-07-13 13:10:42,202 - WARNING - Could not get price for SMR on 2022-03-14
+2025-07-13 13:10:42,202 - WARNING - Could not get price for BWXT on 2022-03-14
+2025-07-13 13:10:42,202 - WARNING - Could not get price for LEU on 2022-03-14
+2025-07-13 13:10:42,227 - WARNING - Could not get price for TQQQ on 2022-03-15
+2025-07-13 13:10:42,254 - WARNING - Could not get price for SMR on 2022-03-16
+2025-07-13 13:10:42,254 - WARNING - Could not get price for BWXT on 2022-03-16
+2025-07-13 13:10:42,254 - WARNING - Could not get price for LEU on 2022-03-16
+2025-07-13 13:10:42,280 - WARNING - Could not get price for SMR on 2022-03-17
+2025-07-13 13:10:42,280 - WARNING - Could not get price for BWXT on 2022-03-17
+2025-07-13 13:10:42,280 - WARNING - Could not get price for LEU on 2022-03-17
+2025-07-13 13:10:42,306 - WARNING - Could not get price for SMR on 2022-03-18
+2025-07-13 13:10:42,306 - WARNING - Could not get price for BWXT on 2022-03-18
+2025-07-13 13:10:42,306 - WARNING - Could not get price for LEU on 2022-03-18
+2025-07-13 13:10:42,332 - WARNING - Could not get price for SMR on 2022-03-21
+2025-07-13 13:10:42,332 - WARNING - Could not get price for BWXT on 2022-03-21
+2025-07-13 13:10:42,332 - WARNING - Could not get price for LEU on 2022-03-21
+2025-07-13 13:10:42,358 - WARNING - Could not get price for UVXY on 2022-03-22
+2025-07-13 13:10:42,385 - WARNING - Could not get price for UVXY on 2022-03-23
+2025-07-13 13:10:42,410 - WARNING - Could not get price for SMR on 2022-03-24
+2025-07-13 13:10:42,410 - WARNING - Could not get price for BWXT on 2022-03-24
+2025-07-13 13:10:42,410 - WARNING - Could not get price for LEU on 2022-03-24
+2025-07-13 13:10:42,436 - WARNING - Could not get price for SMR on 2022-03-25
+2025-07-13 13:10:42,436 - WARNING - Could not get price for BWXT on 2022-03-25
+2025-07-13 13:10:42,437 - WARNING - Could not get price for LEU on 2022-03-25
+2025-07-13 13:10:42,462 - WARNING - Could not get price for UVXY on 2022-03-28
+2025-07-13 13:10:42,488 - WARNING - Could not get price for UVXY on 2022-03-29
+2025-07-13 13:10:42,513 - WARNING - Could not get price for UVXY on 2022-03-30
+2025-07-13 13:10:42,540 - WARNING - Could not get price for UVXY on 2022-03-31
+2025-07-13 13:10:42,566 - INFO - Signal on 2022-04-01: BUY NUCLEAR_PORTFOLIO - Bull market - Nuclear portfolio: SMR (33.3%), BWXT (33.3%), LEU (33.3%)
+2025-07-13 13:10:42,566 - WARNING - Could not get price for SMR on 2022-04-01
+2025-07-13 13:10:42,566 - WARNING - Could not get price for BWXT on 2022-04-01
+2025-07-13 13:10:42,566 - WARNING - Could not get price for LEU on 2022-04-01
+2025-07-13 13:10:42,597 - WARNING - Could not get price for SMR on 2022-04-04
+2025-07-13 13:10:42,597 - WARNING - Could not get price for BWXT on 2022-04-04
+2025-07-13 13:10:42,597 - WARNING - Could not get price for LEU on 2022-04-04
+2025-07-13 13:10:42,623 - WARNING - Could not get price for SMR on 2022-04-05
+2025-07-13 13:10:42,623 - WARNING - Could not get price for BWXT on 2022-04-05
+2025-07-13 13:10:42,623 - WARNING - Could not get price for LEU on 2022-04-05
+2025-07-13 13:10:42,649 - WARNING - Could not get price for SMR on 2022-04-06
+2025-07-13 13:10:42,649 - WARNING - Could not get price for BWXT on 2022-04-06
+2025-07-13 13:10:42,650 - WARNING - Could not get price for LEU on 2022-04-06
+2025-07-13 13:10:42,676 - WARNING - Could not get price for SMR on 2022-04-07
+2025-07-13 13:10:42,676 - WARNING - Could not get price for BWXT on 2022-04-07
+2025-07-13 13:10:42,676 - WARNING - Could not get price for LEU on 2022-04-07
+2025-07-13 13:10:42,701 - WARNING - Could not get price for SMR on 2022-04-08
+2025-07-13 13:10:42,701 - WARNING - Could not get price for BWXT on 2022-04-08
+2025-07-13 13:10:42,701 - WARNING - Could not get price for LEU on 2022-04-08
+2025-07-13 13:10:42,727 - WARNING - Could not get price for SMR on 2022-04-11
+2025-07-13 13:10:42,727 - WARNING - Could not get price for BWXT on 2022-04-11
+2025-07-13 13:10:42,727 - WARNING - Could not get price for LEU on 2022-04-11
+2025-07-13 13:10:42,753 - WARNING - Could not get price for TQQQ on 2022-04-12
+2025-07-13 13:10:42,779 - WARNING - Could not get price for TQQQ on 2022-04-13
+2025-07-13 13:10:42,805 - WARNING - Could not get price for TQQQ on 2022-04-14
+2025-07-13 13:10:42,830 - WARNING - Could not get price for TQQQ on 2022-04-18
+2025-07-13 13:10:42,857 - WARNING - Could not get price for TQQQ on 2022-04-19
+2025-07-13 13:10:42,882 - WARNING - Could not get price for TQQQ on 2022-04-20
+2025-07-13 13:10:42,908 - WARNING - Could not get price for TQQQ on 2022-04-21
+2025-07-13 13:10:42,934 - WARNING - Could not get price for TQQQ on 2022-04-22
+2025-07-13 13:10:42,960 - WARNING - Could not get price for TQQQ on 2022-04-25
+2025-07-13 13:10:42,986 - WARNING - Could not get price for SMR on 2022-04-26
+2025-07-13 13:10:42,986 - WARNING - Could not get price for BWXT on 2022-04-26
+2025-07-13 13:10:42,986 - WARNING - Could not get price for LEU on 2022-04-26
+2025-07-13 13:10:43,012 - WARNING - Could not get price for UPRO on 2022-04-27
+2025-07-13 13:10:43,039 - WARNING - Could not get price for SMR on 2022-04-28
+2025-07-13 13:10:43,039 - WARNING - Could not get price for BWXT on 2022-04-28
+2025-07-13 13:10:43,039 - WARNING - Could not get price for LEU on 2022-04-28
+2025-07-13 13:10:43,065 - WARNING - Could not get price for SMR on 2022-04-29
+2025-07-13 13:10:43,066 - WARNING - Could not get price for BWXT on 2022-04-29
+2025-07-13 13:10:43,066 - WARNING - Could not get price for LEU on 2022-04-29
+2025-07-13 13:10:43,094 - WARNING - Could not get price for SMR on 2022-05-02
+2025-07-13 13:10:43,094 - WARNING - Could not get price for BWXT on 2022-05-02
+2025-07-13 13:10:43,094 - WARNING - Could not get price for LEU on 2022-05-02
+2025-07-13 13:10:43,122 - WARNING - Could not get price for SMR on 2022-05-03
+2025-07-13 13:10:43,122 - WARNING - Could not get price for BWXT on 2022-05-03
+2025-07-13 13:10:43,122 - WARNING - Could not get price for LEU on 2022-05-03
+2025-07-13 13:10:43,148 - WARNING - Could not get price for TQQQ on 2022-05-04
+2025-07-13 13:10:43,175 - WARNING - Could not get price for SMR on 2022-05-05
+2025-07-13 13:10:43,175 - WARNING - Could not get price for BWXT on 2022-05-05
+2025-07-13 13:10:43,175 - WARNING - Could not get price for LEU on 2022-05-05
+2025-07-13 13:10:43,203 - WARNING - Could not get price for SMR on 2022-05-06
+2025-07-13 13:10:43,203 - WARNING - Could not get price for BWXT on 2022-05-06
+2025-07-13 13:10:43,203 - WARNING - Could not get price for LEU on 2022-05-06
+2025-07-13 13:10:43,230 - WARNING - Could not get price for SMR on 2022-05-09
+2025-07-13 13:10:43,230 - WARNING - Could not get price for BWXT on 2022-05-09
+2025-07-13 13:10:43,230 - WARNING - Could not get price for LEU on 2022-05-09
+2025-07-13 13:10:43,257 - WARNING - Could not get price for SMR on 2022-05-10
+2025-07-13 13:10:43,257 - WARNING - Could not get price for BWXT on 2022-05-10
+2025-07-13 13:10:43,257 - WARNING - Could not get price for LEU on 2022-05-10
+2025-07-13 13:10:43,284 - WARNING - Could not get price for SMR on 2022-05-11
+2025-07-13 13:10:43,284 - WARNING - Could not get price for BWXT on 2022-05-11
+2025-07-13 13:10:43,285 - WARNING - Could not get price for LEU on 2022-05-11
+2025-07-13 13:10:43,314 - WARNING - Could not get price for BWXT on 2022-05-12
+2025-07-13 13:10:43,314 - WARNING - Could not get price for LEU on 2022-05-12
+2025-07-13 13:10:43,340 - WARNING - Could not get price for TQQQ on 2022-05-13
+2025-07-13 13:10:43,369 - WARNING - Could not get price for EXC on 2022-05-16
+2025-07-13 13:10:43,369 - WARNING - Could not get price for BWXT on 2022-05-16
+2025-07-13 13:10:43,398 - WARNING - Could not get price for EXC on 2022-05-17
+2025-07-13 13:10:43,399 - WARNING - Could not get price for BWXT on 2022-05-17
+2025-07-13 13:10:43,428 - WARNING - Could not get price for EXC on 2022-05-18
+2025-07-13 13:10:43,428 - WARNING - Could not get price for BWXT on 2022-05-18
+2025-07-13 13:10:43,454 - WARNING - Could not get price for TQQQ on 2022-05-19
+2025-07-13 13:10:43,483 - WARNING - Could not get price for EXC on 2022-05-20
+2025-07-13 13:10:43,483 - WARNING - Could not get price for BWXT on 2022-05-20
+2025-07-13 13:10:43,511 - WARNING - Could not get price for EXC on 2022-05-23
+2025-07-13 13:10:43,511 - WARNING - Could not get price for BWXT on 2022-05-23
+2025-07-13 13:10:43,540 - WARNING - Could not get price for EXC on 2022-05-24
+2025-07-13 13:10:43,540 - WARNING - Could not get price for BWXT on 2022-05-24
+2025-07-13 13:10:43,568 - WARNING - Could not get price for EXC on 2022-05-25
+2025-07-13 13:10:43,568 - WARNING - Could not get price for BWXT on 2022-05-25
+2025-07-13 13:10:43,596 - WARNING - Could not get price for EXC on 2022-05-26
+2025-07-13 13:10:43,596 - WARNING - Could not get price for BWXT on 2022-05-26
+2025-07-13 13:10:43,624 - WARNING - Could not get price for EXC on 2022-05-27
+2025-07-13 13:10:43,624 - WARNING - Could not get price for BWXT on 2022-05-27
+2025-07-13 13:10:43,652 - WARNING - Could not get price for EXC on 2022-05-31
+2025-07-13 13:10:43,652 - WARNING - Could not get price for BWXT on 2022-05-31
+2025-07-13 13:10:43,679 - INFO - Signal on 2022-06-01: BUY NUCLEAR_PORTFOLIO - Bull market - Nuclear portfolio: EXC (60.7%), BWXT (39.3%)
+2025-07-13 13:10:43,680 - WARNING - Could not get price for EXC on 2022-06-01
+2025-07-13 13:10:43,680 - WARNING - Could not get price for BWXT on 2022-06-01
+2025-07-13 13:10:43,707 - WARNING - Could not get price for EXC on 2022-06-02
+2025-07-13 13:10:43,707 - WARNING - Could not get price for BWXT on 2022-06-02
+2025-07-13 13:10:43,733 - WARNING - Could not get price for UVXY on 2022-06-03
+2025-07-13 13:10:43,760 - WARNING - Could not get price for EXC on 2022-06-06
+2025-07-13 13:10:43,761 - WARNING - Could not get price for BWXT on 2022-06-06
+2025-07-13 13:10:43,788 - WARNING - Could not get price for EXC on 2022-06-07
+2025-07-13 13:10:43,788 - WARNING - Could not get price for BWXT on 2022-06-07
+2025-07-13 13:10:43,815 - WARNING - Could not get price for EXC on 2022-06-08
+2025-07-13 13:10:43,815 - WARNING - Could not get price for BWXT on 2022-06-08
+2025-07-13 13:10:43,843 - WARNING - Could not get price for BWXT on 2022-06-09
+2025-07-13 13:10:43,843 - WARNING - Could not get price for EXC on 2022-06-09
+2025-07-13 13:10:43,871 - WARNING - Could not get price for BWXT on 2022-06-10
+2025-07-13 13:10:43,871 - WARNING - Could not get price for EXC on 2022-06-10
+2025-07-13 13:10:43,898 - WARNING - Could not get price for BWXT on 2022-06-13
+2025-07-13 13:10:43,898 - WARNING - Could not get price for EXC on 2022-06-13
+2025-07-13 13:10:43,924 - WARNING - Could not get price for TQQQ on 2022-06-14
+2025-07-13 13:10:43,950 - WARNING - Could not get price for TQQQ on 2022-06-15
+2025-07-13 13:10:43,977 - WARNING - Could not get price for UPRO on 2022-06-16
+2025-07-13 13:10:44,003 - WARNING - Could not get price for TQQQ on 2022-06-17
+2025-07-13 13:10:44,028 - WARNING - Could not get price for TQQQ on 2022-06-21
+2025-07-13 13:10:44,054 - WARNING - Could not get price for TQQQ on 2022-06-22
+2025-07-13 13:10:44,080 - WARNING - Could not get price for TQQQ on 2022-06-23
+2025-07-13 13:10:44,106 - WARNING - Could not get price for TQQQ on 2022-06-24
+2025-07-13 13:10:44,133 - WARNING - Could not get price for BWXT on 2022-06-27
+2025-07-13 13:10:44,133 - WARNING - Could not get price for EXC on 2022-06-27
+2025-07-13 13:10:44,161 - WARNING - Could not get price for BWXT on 2022-06-28
+2025-07-13 13:10:44,161 - WARNING - Could not get price for EXC on 2022-06-28
+2025-07-13 13:10:44,188 - WARNING - Could not get price for BWXT on 2022-06-29
+2025-07-13 13:10:44,188 - WARNING - Could not get price for EXC on 2022-06-29
+2025-07-13 13:10:44,216 - WARNING - Could not get price for BWXT on 2022-06-30
+2025-07-13 13:10:44,216 - WARNING - Could not get price for EXC on 2022-06-30
+2025-07-13 13:10:44,242 - INFO - Signal on 2022-07-01: BUY NUCLEAR_PORTFOLIO - Bull market - Nuclear portfolio: BWXT (41.3%), EXC (58.7%)
+2025-07-13 13:10:44,243 - WARNING - Could not get price for BWXT on 2022-07-01
+2025-07-13 13:10:44,243 - WARNING - Could not get price for EXC on 2022-07-01
+2025-07-13 13:10:44,271 - WARNING - Could not get price for BWXT on 2022-07-05
+2025-07-13 13:10:44,271 - WARNING - Could not get price for EXC on 2022-07-05
+2025-07-13 13:10:44,299 - WARNING - Could not get price for BWXT on 2022-07-06
+2025-07-13 13:10:44,299 - WARNING - Could not get price for EXC on 2022-07-06
+2025-07-13 13:10:44,327 - WARNING - Could not get price for BWXT on 2022-07-07
+2025-07-13 13:10:44,327 - WARNING - Could not get price for EXC on 2022-07-07
+2025-07-13 13:10:44,355 - WARNING - Could not get price for BWXT on 2022-07-08
+2025-07-13 13:10:44,355 - WARNING - Could not get price for EXC on 2022-07-08
+2025-07-13 13:10:44,384 - WARNING - Could not get price for SMR on 2022-07-11
+2025-07-13 13:10:44,384 - WARNING - Could not get price for BWXT on 2022-07-11
+2025-07-13 13:10:44,384 - WARNING - Could not get price for EXC on 2022-07-11
+2025-07-13 13:10:44,412 - WARNING - Could not get price for EXC on 2022-07-12
+2025-07-13 13:10:44,413 - WARNING - Could not get price for BWXT on 2022-07-12
+2025-07-13 13:10:44,413 - WARNING - Could not get price for SMR on 2022-07-12
+2025-07-13 13:10:44,441 - WARNING - Could not get price for BWXT on 2022-07-13
+2025-07-13 13:10:44,441 - WARNING - Could not get price for EXC on 2022-07-13
+2025-07-13 13:10:44,441 - WARNING - Could not get price for SMR on 2022-07-13
+2025-07-13 13:10:44,469 - WARNING - Could not get price for BWXT on 2022-07-14
+2025-07-13 13:10:44,469 - WARNING - Could not get price for SMR on 2022-07-14
+2025-07-13 13:10:44,469 - WARNING - Could not get price for EXC on 2022-07-14
+2025-07-13 13:10:44,497 - WARNING - Could not get price for SMR on 2022-07-15
+2025-07-13 13:10:44,498 - WARNING - Could not get price for BWXT on 2022-07-15
+2025-07-13 13:10:44,498 - WARNING - Could not get price for EXC on 2022-07-15
+2025-07-13 13:10:44,526 - WARNING - Could not get price for SMR on 2022-07-18
+2025-07-13 13:10:44,526 - WARNING - Could not get price for EXC on 2022-07-18
+2025-07-13 13:10:44,526 - WARNING - Could not get price for OKLO on 2022-07-18
+2025-07-13 13:10:44,554 - WARNING - Could not get price for SMR on 2022-07-19
+2025-07-13 13:10:44,554 - WARNING - Could not get price for EXC on 2022-07-19
+2025-07-13 13:10:44,554 - WARNING - Could not get price for BWXT on 2022-07-19
+2025-07-13 13:10:44,582 - WARNING - Could not get price for SMR on 2022-07-20
+2025-07-13 13:10:44,582 - WARNING - Could not get price for BWXT on 2022-07-20
+2025-07-13 13:10:44,582 - WARNING - Could not get price for EXC on 2022-07-20
+2025-07-13 13:10:44,611 - WARNING - Could not get price for SMR on 2022-07-21
+2025-07-13 13:10:44,611 - WARNING - Could not get price for BWXT on 2022-07-21
+2025-07-13 13:10:44,611 - WARNING - Could not get price for EXC on 2022-07-21
+2025-07-13 13:10:44,640 - WARNING - Could not get price for SMR on 2022-07-22
+2025-07-13 13:10:44,640 - WARNING - Could not get price for BWXT on 2022-07-22
+2025-07-13 13:10:44,640 - WARNING - Could not get price for EXC on 2022-07-22
+2025-07-13 13:10:44,668 - WARNING - Could not get price for SMR on 2022-07-25
+2025-07-13 13:10:44,668 - WARNING - Could not get price for BWXT on 2022-07-25
+2025-07-13 13:10:44,668 - WARNING - Could not get price for EXC on 2022-07-25
+2025-07-13 13:10:44,696 - WARNING - Could not get price for SMR on 2022-07-26
+2025-07-13 13:10:44,696 - WARNING - Could not get price for LEU on 2022-07-26
+2025-07-13 13:10:44,696 - WARNING - Could not get price for BWXT on 2022-07-26
+2025-07-13 13:10:44,726 - WARNING - Could not get price for SMR on 2022-07-27
+2025-07-13 13:10:44,726 - WARNING - Could not get price for BWXT on 2022-07-27
+2025-07-13 13:10:44,726 - WARNING - Could not get price for EXC on 2022-07-27
+2025-07-13 13:10:44,755 - WARNING - Could not get price for SMR on 2022-07-28
+2025-07-13 13:10:44,755 - WARNING - Could not get price for EXC on 2022-07-28
+2025-07-13 13:10:44,755 - WARNING - Could not get price for BWXT on 2022-07-28
+2025-07-13 13:10:44,790 - WARNING - Could not get price for UVXY on 2022-07-29
+2025-07-13 13:10:44,816 - INFO - Signal on 2022-08-01: BUY UVXY_BTAL_PORTFOLIO - VTV overbought, UVXY 75% + BTAL 25% allocation
+2025-07-13 13:10:44,816 - WARNING - Could not get price for UVXY on 2022-08-01
+2025-07-13 13:10:44,816 - WARNING - Could not get price for BTAL on 2022-08-01
+2025-07-13 13:10:44,842 - WARNING - Could not get price for UVXY on 2022-08-02
+2025-07-13 13:10:44,870 - WARNING - Could not get price for SMR on 2022-08-03
+2025-07-13 13:10:44,870 - WARNING - Could not get price for LEU on 2022-08-03
+2025-07-13 13:10:44,870 - WARNING - Could not get price for EXC on 2022-08-03
+2025-07-13 13:10:44,899 - WARNING - Could not get price for SMR on 2022-08-04
+2025-07-13 13:10:44,899 - WARNING - Could not get price for LEU on 2022-08-04
+2025-07-13 13:10:44,899 - WARNING - Could not get price for BWXT on 2022-08-04
+2025-07-13 13:10:44,927 - WARNING - Could not get price for SMR on 2022-08-05
+2025-07-13 13:10:44,927 - WARNING - Could not get price for LEU on 2022-08-05
+2025-07-13 13:10:44,927 - WARNING - Could not get price for BWXT on 2022-08-05
+2025-07-13 13:10:44,955 - WARNING - Could not get price for SMR on 2022-08-08
+2025-07-13 13:10:44,956 - WARNING - Could not get price for LEU on 2022-08-08
+2025-07-13 13:10:44,956 - WARNING - Could not get price for BWXT on 2022-08-08
+2025-07-13 13:10:44,984 - WARNING - Could not get price for SMR on 2022-08-09
+2025-07-13 13:10:44,984 - WARNING - Could not get price for LEU on 2022-08-09
+2025-07-13 13:10:44,984 - WARNING - Could not get price for BWXT on 2022-08-09
+2025-07-13 13:10:45,009 - WARNING - Could not get price for UVXY on 2022-08-10
+2025-07-13 13:10:45,009 - WARNING - Could not get price for BTAL on 2022-08-10
+2025-07-13 13:10:45,038 - WARNING - Could not get price for LEU on 2022-08-11
+2025-07-13 13:10:45,038 - WARNING - Could not get price for SMR on 2022-08-11
+2025-07-13 13:10:45,038 - WARNING - Could not get price for BWXT on 2022-08-11
+2025-07-13 13:10:45,066 - WARNING - Could not get price for LEU on 2022-08-12
+2025-07-13 13:10:45,066 - WARNING - Could not get price for SMR on 2022-08-12
+2025-07-13 13:10:45,066 - WARNING - Could not get price for BWXT on 2022-08-12
+2025-07-13 13:10:45,092 - WARNING - Could not get price for UVXY on 2022-08-15
+2025-07-13 13:10:45,092 - WARNING - Could not get price for BTAL on 2022-08-15
+2025-07-13 13:10:45,118 - WARNING - Could not get price for UVXY on 2022-08-16
+2025-07-13 13:10:45,143 - WARNING - Could not get price for UVXY on 2022-08-17
+2025-07-13 13:10:45,169 - WARNING - Could not get price for UVXY on 2022-08-18
+2025-07-13 13:10:45,195 - WARNING - Could not get price for UVXY on 2022-08-19
+2025-07-13 13:10:45,224 - WARNING - Could not get price for LEU on 2022-08-22
+2025-07-13 13:10:45,224 - WARNING - Could not get price for SMR on 2022-08-22
+2025-07-13 13:10:45,224 - WARNING - Could not get price for BWXT on 2022-08-22
+2025-07-13 13:10:45,253 - WARNING - Could not get price for LEU on 2022-08-23
+2025-07-13 13:10:45,253 - WARNING - Could not get price for SMR on 2022-08-23
+2025-07-13 13:10:45,253 - WARNING - Could not get price for OKLO on 2022-08-23
+2025-07-13 13:10:45,281 - WARNING - Could not get price for LEU on 2022-08-24
+2025-07-13 13:10:45,281 - WARNING - Could not get price for SMR on 2022-08-24
+2025-07-13 13:10:45,281 - WARNING - Could not get price for OKLO on 2022-08-24
+2025-07-13 13:10:45,310 - WARNING - Could not get price for LEU on 2022-08-25
+2025-07-13 13:10:45,310 - WARNING - Could not get price for SMR on 2022-08-25
+2025-07-13 13:10:45,310 - WARNING - Could not get price for OKLO on 2022-08-25
+2025-07-13 13:10:45,338 - WARNING - Could not get price for LEU on 2022-08-26
+2025-07-13 13:10:45,338 - WARNING - Could not get price for SMR on 2022-08-26
+2025-07-13 13:10:45,338 - WARNING - Could not get price for OKLO on 2022-08-26
+2025-07-13 13:10:45,364 - WARNING - Could not get price for TQQQ on 2022-08-29
+2025-07-13 13:10:45,390 - WARNING - Could not get price for TQQQ on 2022-08-30
+2025-07-13 13:10:45,416 - WARNING - Could not get price for TQQQ on 2022-08-31
+2025-07-13 13:10:45,441 - INFO - Signal on 2022-09-01: BUY TQQQ - TQQQ oversold, buying dip
+2025-07-13 13:10:45,441 - WARNING - Could not get price for TQQQ on 2022-09-01
+2025-07-13 13:10:45,467 - WARNING - Could not get price for TQQQ on 2022-09-02
+2025-07-13 13:10:45,493 - WARNING - Could not get price for TQQQ on 2022-09-06
+2025-07-13 13:10:45,519 - WARNING - Could not get price for TQQQ on 2022-09-07
+2025-07-13 13:10:45,546 - WARNING - Could not get price for TQQQ on 2022-09-08
+2025-07-13 13:10:45,574 - WARNING - Could not get price for LEU on 2022-09-09
+2025-07-13 13:10:45,574 - WARNING - Could not get price for SMR on 2022-09-09
+2025-07-13 13:10:45,574 - WARNING - Could not get price for BWXT on 2022-09-09
+2025-07-13 13:10:45,602 - WARNING - Could not get price for LEU on 2022-09-12
+2025-07-13 13:10:45,602 - WARNING - Could not get price for SMR on 2022-09-12
+2025-07-13 13:10:45,602 - WARNING - Could not get price for BWXT on 2022-09-12
+2025-07-13 13:10:45,631 - WARNING - Could not get price for LEU on 2022-09-13
+2025-07-13 13:10:45,631 - WARNING - Could not get price for SMR on 2022-09-13
+2025-07-13 13:10:45,631 - WARNING - Could not get price for BWXT on 2022-09-13
+2025-07-13 13:10:45,660 - WARNING - Could not get price for LEU on 2022-09-14
+2025-07-13 13:10:45,660 - WARNING - Could not get price for SMR on 2022-09-14
+2025-07-13 13:10:45,660 - WARNING - Could not get price for BWXT on 2022-09-14
+2025-07-13 13:10:45,688 - WARNING - Could not get price for LEU on 2022-09-15
+2025-07-13 13:10:45,688 - WARNING - Could not get price for SMR on 2022-09-15
+2025-07-13 13:10:45,688 - WARNING - Could not get price for BWXT on 2022-09-15
+2025-07-13 13:10:45,717 - WARNING - Could not get price for LEU on 2022-09-16
+2025-07-13 13:10:45,717 - WARNING - Could not get price for SMR on 2022-09-16
+2025-07-13 13:10:45,717 - WARNING - Could not get price for BWXT on 2022-09-16
+2025-07-13 13:10:45,746 - WARNING - Could not get price for LEU on 2022-09-19
+2025-07-13 13:10:45,746 - WARNING - Could not get price for SMR on 2022-09-19
+2025-07-13 13:10:45,746 - WARNING - Could not get price for BWXT on 2022-09-19
+2025-07-13 13:10:45,774 - WARNING - Could not get price for LEU on 2022-09-20
+2025-07-13 13:10:45,774 - WARNING - Could not get price for SMR on 2022-09-20
+2025-07-13 13:10:45,774 - WARNING - Could not get price for BWXT on 2022-09-20
+2025-07-13 13:10:45,802 - WARNING - Could not get price for LEU on 2022-09-21
+2025-07-13 13:10:45,803 - WARNING - Could not get price for SMR on 2022-09-21
+2025-07-13 13:10:45,803 - WARNING - Could not get price for BWXT on 2022-09-21
+2025-07-13 13:10:45,831 - WARNING - Could not get price for LEU on 2022-09-22
+2025-07-13 13:10:45,831 - WARNING - Could not get price for SMR on 2022-09-22
+2025-07-13 13:10:45,831 - WARNING - Could not get price for BWXT on 2022-09-22
+2025-07-13 13:10:45,857 - WARNING - Could not get price for TQQQ on 2022-09-23
+2025-07-13 13:10:45,884 - WARNING - Could not get price for TQQQ on 2022-09-26
+2025-07-13 13:10:45,910 - WARNING - Could not get price for TQQQ on 2022-09-27
+2025-07-13 13:10:45,936 - WARNING - Could not get price for TQQQ on 2022-09-28
+2025-07-13 13:10:45,963 - WARNING - Could not get price for TQQQ on 2022-09-29
+2025-07-13 13:10:45,989 - WARNING - Could not get price for TQQQ on 2022-09-30
+2025-07-13 13:10:46,015 - WARNING - Could not get price for TQQQ on 2022-10-03
+2025-07-13 13:10:46,042 - WARNING - Could not get price for TQQQ on 2022-10-04
+2025-07-13 13:10:46,071 - WARNING - Could not get price for LEU on 2022-10-05
+2025-07-13 13:10:46,071 - WARNING - Could not get price for SMR on 2022-10-05
+2025-07-13 13:10:46,071 - WARNING - Could not get price for BWXT on 2022-10-05
+2025-07-13 13:10:46,099 - WARNING - Could not get price for LEU on 2022-10-06
+2025-07-13 13:10:46,099 - WARNING - Could not get price for SMR on 2022-10-06
+2025-07-13 13:10:46,099 - WARNING - Could not get price for BWXT on 2022-10-06
+2025-07-13 13:10:46,129 - WARNING - Could not get price for LEU on 2022-10-07
+2025-07-13 13:10:46,129 - WARNING - Could not get price for SMR on 2022-10-07
+2025-07-13 13:10:46,129 - WARNING - Could not get price for BWXT on 2022-10-07
+2025-07-13 13:10:46,157 - WARNING - Could not get price for LEU on 2022-10-10
+2025-07-13 13:10:46,157 - WARNING - Could not get price for SMR on 2022-10-10
+2025-07-13 13:10:46,157 - WARNING - Could not get price for BWXT on 2022-10-10
+2025-07-13 13:10:46,187 - WARNING - Could not get price for LEU on 2022-10-11
+2025-07-13 13:10:46,187 - WARNING - Could not get price for SMR on 2022-10-11
+2025-07-13 13:10:46,187 - WARNING - Could not get price for BWXT on 2022-10-11
+2025-07-13 13:10:46,215 - WARNING - Could not get price for LEU on 2022-10-12
+2025-07-13 13:10:46,215 - WARNING - Could not get price for SMR on 2022-10-12
+2025-07-13 13:10:46,215 - WARNING - Could not get price for BWXT on 2022-10-12
+2025-07-13 13:10:46,243 - WARNING - Could not get price for LEU on 2022-10-13
+2025-07-13 13:10:46,244 - WARNING - Could not get price for SMR on 2022-10-13
+2025-07-13 13:10:46,244 - WARNING - Could not get price for BWXT on 2022-10-13
+2025-07-13 13:10:46,272 - WARNING - Could not get price for LEU on 2022-10-14
+2025-07-13 13:10:46,272 - WARNING - Could not get price for SMR on 2022-10-14
+2025-07-13 13:10:46,272 - WARNING - Could not get price for BWXT on 2022-10-14
+2025-07-13 13:10:46,301 - WARNING - Could not get price for LEU on 2022-10-17
+2025-07-13 13:10:46,301 - WARNING - Could not get price for SMR on 2022-10-17
+2025-07-13 13:10:46,301 - WARNING - Could not get price for BWXT on 2022-10-17
+2025-07-13 13:10:46,329 - WARNING - Could not get price for LEU on 2022-10-18
+2025-07-13 13:10:46,330 - WARNING - Could not get price for SMR on 2022-10-18
+2025-07-13 13:10:46,330 - WARNING - Could not get price for BWXT on 2022-10-18
+2025-07-13 13:10:46,355 - WARNING - Could not get price for SQQQ on 2022-10-19
+2025-07-13 13:10:46,382 - WARNING - Could not get price for SQQQ on 2022-10-20
+2025-07-13 13:10:46,408 - WARNING - Could not get price for PSQ on 2022-10-21
+2025-07-13 13:10:46,409 - WARNING - Could not get price for SQQQ on 2022-10-21
+2025-07-13 13:10:46,434 - WARNING - Could not get price for PSQ on 2022-10-24
+2025-07-13 13:10:46,435 - WARNING - Could not get price for SQQQ on 2022-10-24
+2025-07-13 13:10:46,461 - WARNING - Could not get price for PSQ on 2022-10-25
+2025-07-13 13:10:46,461 - WARNING - Could not get price for SQQQ on 2022-10-25
+2025-07-13 13:10:46,487 - WARNING - Could not get price for UVXY on 2022-10-26
+2025-07-13 13:10:46,488 - WARNING - Could not get price for BTAL on 2022-10-26
+2025-07-13 13:10:46,514 - WARNING - Could not get price for SQQQ on 2022-10-27
+2025-07-13 13:10:46,541 - WARNING - Could not get price for PSQ on 2022-10-28
+2025-07-13 13:10:46,541 - WARNING - Could not get price for SQQQ on 2022-10-28
+2025-07-13 13:10:46,567 - WARNING - Could not get price for UVXY on 2022-10-31
+2025-07-13 13:10:46,595 - INFO - Signal on 2022-11-01: BUY UVXY - VTV extremely overbought
+2025-07-13 13:10:46,595 - WARNING - Could not get price for UVXY on 2022-11-01
+2025-07-13 13:10:46,622 - WARNING - Could not get price for UVXY on 2022-11-02
+2025-07-13 13:10:46,622 - WARNING - Could not get price for BTAL on 2022-11-02
+2025-07-13 13:10:46,648 - WARNING - Could not get price for PSQ on 2022-11-03
+2025-07-13 13:10:46,648 - WARNING - Could not get price for SQQQ on 2022-11-03
+2025-07-13 13:10:46,674 - WARNING - Could not get price for PSQ on 2022-11-04
+2025-07-13 13:10:46,674 - WARNING - Could not get price for SQQQ on 2022-11-04
+2025-07-13 13:10:46,699 - WARNING - Could not get price for PSQ on 2022-11-07
+2025-07-13 13:10:46,700 - WARNING - Could not get price for SQQQ on 2022-11-07
+2025-07-13 13:10:46,726 - WARNING - Could not get price for PSQ on 2022-11-08
+2025-07-13 13:10:46,726 - WARNING - Could not get price for SQQQ on 2022-11-08
+2025-07-13 13:10:46,753 - WARNING - Could not get price for PSQ on 2022-11-09
+2025-07-13 13:10:46,753 - WARNING - Could not get price for SQQQ on 2022-11-09
+2025-07-13 13:10:46,778 - WARNING - Could not get price for PSQ on 2022-11-10
+2025-07-13 13:10:46,778 - WARNING - Could not get price for SQQQ on 2022-11-10
+2025-07-13 13:10:46,804 - WARNING - Could not get price for TQQQ on 2022-11-11
+2025-07-13 13:10:46,829 - WARNING - Could not get price for TQQQ on 2022-11-14
+2025-07-13 13:10:46,855 - WARNING - Could not get price for TQQQ on 2022-11-15
+2025-07-13 13:10:46,881 - WARNING - Could not get price for TQQQ on 2022-11-16
+2025-07-13 13:10:46,906 - WARNING - Could not get price for SQQQ on 2022-11-17
+2025-07-13 13:10:46,932 - WARNING - Could not get price for SQQQ on 2022-11-18
+2025-07-13 13:10:46,958 - WARNING - Could not get price for SQQQ on 2022-11-21
+2025-07-13 13:10:46,983 - WARNING - Could not get price for SQQQ on 2022-11-22
+2025-07-13 13:10:47,009 - WARNING - Could not get price for SQQQ on 2022-11-23
+2025-07-13 13:10:47,034 - WARNING - Could not get price for UVXY on 2022-11-25
+2025-07-13 13:10:47,060 - WARNING - Could not get price for TQQQ on 2022-11-28
+2025-07-13 13:10:47,085 - WARNING - Could not get price for TQQQ on 2022-11-29
+2025-07-13 13:10:47,111 - WARNING - Could not get price for TQQQ on 2022-11-30
+2025-07-13 13:10:47,138 - INFO - Signal on 2022-12-01: BUY NUCLEAR_PORTFOLIO - Bull market - Nuclear portfolio: LEU (11.2%), BWXT (42.4%), NLR (46.5%)
+2025-07-13 13:10:47,139 - WARNING - Could not get price for LEU on 2022-12-01
+2025-07-13 13:10:47,139 - WARNING - Could not get price for BWXT on 2022-12-01
+2025-07-13 13:10:47,139 - WARNING - Could not get price for NLR on 2022-12-01
+2025-07-13 13:10:47,167 - WARNING - Could not get price for LEU on 2022-12-02
+2025-07-13 13:10:47,167 - WARNING - Could not get price for BWXT on 2022-12-02
+2025-07-13 13:10:47,167 - WARNING - Could not get price for NLR on 2022-12-02
+2025-07-13 13:10:47,195 - WARNING - Could not get price for LEU on 2022-12-05
+2025-07-13 13:10:47,195 - WARNING - Could not get price for BWXT on 2022-12-05
+2025-07-13 13:10:47,195 - WARNING - Could not get price for NLR on 2022-12-05
+2025-07-13 13:10:47,222 - WARNING - Could not get price for TQQQ on 2022-12-06
+2025-07-13 13:10:47,248 - WARNING - Could not get price for SQQQ on 2022-12-07
+2025-07-13 13:10:47,248 - WARNING - Could not get price for QQQ on 2022-12-07
+2025-07-13 13:10:47,274 - WARNING - Could not get price for SQQQ on 2022-12-08
+2025-07-13 13:10:47,275 - WARNING - Could not get price for QQQ on 2022-12-08
+2025-07-13 13:10:47,300 - WARNING - Could not get price for SQQQ on 2022-12-09
+2025-07-13 13:10:47,300 - WARNING - Could not get price for QQQ on 2022-12-09
+2025-07-13 13:10:47,326 - WARNING - Could not get price for SQQQ on 2022-12-12
+2025-07-13 13:10:47,326 - WARNING - Could not get price for QQQ on 2022-12-12
+2025-07-13 13:10:47,352 - WARNING - Could not get price for SQQQ on 2022-12-13
+2025-07-13 13:10:47,352 - WARNING - Could not get price for QQQ on 2022-12-13
+2025-07-13 13:10:47,381 - WARNING - Could not get price for BWXT on 2022-12-14
+2025-07-13 13:10:47,381 - WARNING - Could not get price for LEU on 2022-12-14
+2025-07-13 13:10:47,381 - WARNING - Could not get price for NLR on 2022-12-14
+2025-07-13 13:10:47,408 - WARNING - Could not get price for SQQQ on 2022-12-15
+2025-07-13 13:10:47,408 - WARNING - Could not get price for QQQ on 2022-12-15
+2025-07-13 13:10:47,433 - WARNING - Could not get price for TQQQ on 2022-12-16
+2025-07-13 13:10:47,459 - WARNING - Could not get price for TQQQ on 2022-12-19
+2025-07-13 13:10:47,485 - WARNING - Could not get price for TQQQ on 2022-12-20
+2025-07-13 13:10:47,510 - WARNING - Could not get price for SQQQ on 2022-12-21
+2025-07-13 13:10:47,536 - WARNING - Could not get price for SQQQ on 2022-12-22
+2025-07-13 13:10:47,562 - WARNING - Could not get price for TQQQ on 2022-12-23
+2025-07-13 13:10:47,587 - WARNING - Could not get price for TQQQ on 2022-12-27
+2025-07-13 13:10:47,613 - WARNING - Could not get price for TQQQ on 2022-12-28
+2025-07-13 13:10:47,639 - WARNING - Could not get price for TQQQ on 2022-12-29
+2025-07-13 13:10:47,665 - WARNING - Could not get price for TQQQ on 2022-12-30
+2025-07-13 13:10:47,691 - WARNING - Could not get price for SQQQ on 2023-01-03
+2025-07-13 13:10:47,717 - WARNING - Could not get price for SQQQ on 2023-01-04
+2025-07-13 13:10:47,743 - WARNING - Could not get price for UVXY on 2023-01-05
+2025-07-13 13:10:47,743 - WARNING - Could not get price for BTAL on 2023-01-05
+2025-07-13 13:10:47,768 - WARNING - Could not get price for SQQQ on 2023-01-06
+2025-07-13 13:10:47,794 - WARNING - Could not get price for SQQQ on 2023-01-09
+2025-07-13 13:10:47,819 - WARNING - Could not get price for SQQQ on 2023-01-10
+2025-07-13 13:10:47,845 - WARNING - Could not get price for SQQQ on 2023-01-11
+2025-07-13 13:10:47,870 - WARNING - Could not get price for UVXY on 2023-01-12
+2025-07-13 13:10:47,871 - WARNING - Could not get price for BTAL on 2023-01-12
+2025-07-13 13:10:47,896 - WARNING - Could not get price for UVXY on 2023-01-13
+2025-07-13 13:10:47,922 - WARNING - Could not get price for UVXY on 2023-01-17
+2025-07-13 13:10:47,948 - WARNING - Could not get price for UVXY on 2023-01-18
+2025-07-13 13:10:47,973 - WARNING - Could not get price for UVXY on 2023-01-19
+2025-07-13 13:10:47,973 - WARNING - Could not get price for BTAL on 2023-01-19
+2025-07-13 13:10:47,999 - WARNING - Could not get price for TQQQ on 2023-01-20
+2025-07-13 13:10:48,025 - WARNING - Could not get price for UVXY on 2023-01-23
+2025-07-13 13:10:48,025 - WARNING - Could not get price for BTAL on 2023-01-23
+2025-07-13 13:10:48,051 - WARNING - Could not get price for UVXY on 2023-01-24
+2025-07-13 13:10:48,051 - WARNING - Could not get price for BTAL on 2023-01-24
+2025-07-13 13:10:48,076 - WARNING - Could not get price for UVXY on 2023-01-25
+2025-07-13 13:10:48,076 - WARNING - Could not get price for BTAL on 2023-01-25
+2025-07-13 13:10:48,104 - WARNING - Could not get price for BWXT on 2023-01-26
+2025-07-13 13:10:48,105 - WARNING - Could not get price for NLR on 2023-01-26
+2025-07-13 13:10:48,105 - WARNING - Could not get price for OKLO on 2023-01-26
+2025-07-13 13:10:48,133 - WARNING - Could not get price for BWXT on 2023-01-27
+2025-07-13 13:10:48,133 - WARNING - Could not get price for NLR on 2023-01-27
+2025-07-13 13:10:48,133 - WARNING - Could not get price for OKLO on 2023-01-27
+2025-07-13 13:10:48,163 - WARNING - Could not get price for BWXT on 2023-01-30
+2025-07-13 13:10:48,163 - WARNING - Could not get price for NLR on 2023-01-30
+2025-07-13 13:10:48,163 - WARNING - Could not get price for LEU on 2023-01-30
+2025-07-13 13:10:48,191 - WARNING - Could not get price for BWXT on 2023-01-31
+2025-07-13 13:10:48,191 - WARNING - Could not get price for LEU on 2023-01-31
+2025-07-13 13:10:48,191 - WARNING - Could not get price for NLR on 2023-01-31
+2025-07-13 13:10:48,218 - INFO - Signal on 2023-02-01: BUY NUCLEAR_PORTFOLIO - Bull market - Nuclear portfolio: BWXT (40.7%), LEU (12.8%), NLR (46.5%)
+2025-07-13 13:10:48,220 - WARNING - Could not get price for BWXT on 2023-02-01
+2025-07-13 13:10:48,220 - WARNING - Could not get price for LEU on 2023-02-01
+2025-07-13 13:10:48,220 - WARNING - Could not get price for NLR on 2023-02-01
+2025-07-13 13:10:48,245 - WARNING - Could not get price for UVXY on 2023-02-02
+2025-07-13 13:10:48,245 - WARNING - Could not get price for BTAL on 2023-02-02
+2025-07-13 13:10:48,271 - WARNING - Could not get price for UVXY on 2023-02-03
+2025-07-13 13:10:48,296 - WARNING - Could not get price for UVXY on 2023-02-06
+2025-07-13 13:10:48,322 - WARNING - Could not get price for UVXY on 2023-02-07
+2025-07-13 13:10:48,322 - WARNING - Could not get price for BTAL on 2023-02-07
+2025-07-13 13:10:48,348 - WARNING - Could not get price for UVXY on 2023-02-08
+2025-07-13 13:10:48,377 - WARNING - Could not get price for BWXT on 2023-02-09
+2025-07-13 13:10:48,377 - WARNING - Could not get price for NLR on 2023-02-09
+2025-07-13 13:10:48,377 - WARNING - Could not get price for LEU on 2023-02-09
+2025-07-13 13:10:48,406 - WARNING - Could not get price for BWXT on 2023-02-10
+2025-07-13 13:10:48,406 - WARNING - Could not get price for NLR on 2023-02-10
+2025-07-13 13:10:48,406 - WARNING - Could not get price for LEU on 2023-02-10
+2025-07-13 13:10:48,435 - WARNING - Could not get price for BWXT on 2023-02-13
+2025-07-13 13:10:48,435 - WARNING - Could not get price for LEU on 2023-02-13
+2025-07-13 13:10:48,435 - WARNING - Could not get price for NLR on 2023-02-13
+2025-07-13 13:10:48,464 - WARNING - Could not get price for BWXT on 2023-02-14
+2025-07-13 13:10:48,464 - WARNING - Could not get price for LEU on 2023-02-14
+2025-07-13 13:10:48,464 - WARNING - Could not get price for NLR on 2023-02-14
+2025-07-13 13:10:48,493 - WARNING - Could not get price for BWXT on 2023-02-15
+2025-07-13 13:10:48,493 - WARNING - Could not get price for LEU on 2023-02-15
+2025-07-13 13:10:48,493 - WARNING - Could not get price for EXC on 2023-02-15
+2025-07-13 13:10:48,521 - WARNING - Could not get price for LEU on 2023-02-16
+2025-07-13 13:10:48,521 - WARNING - Could not get price for BWXT on 2023-02-16
+2025-07-13 13:10:48,521 - WARNING - Could not get price for EXC on 2023-02-16
+2025-07-13 13:10:48,550 - WARNING - Could not get price for LEU on 2023-02-17
+2025-07-13 13:10:48,550 - WARNING - Could not get price for BWXT on 2023-02-17
+2025-07-13 13:10:48,550 - WARNING - Could not get price for EXC on 2023-02-17
+2025-07-13 13:10:48,578 - WARNING - Could not get price for LEU on 2023-02-21
+2025-07-13 13:10:48,578 - WARNING - Could not get price for BWXT on 2023-02-21
+2025-07-13 13:10:48,578 - WARNING - Could not get price for EXC on 2023-02-21
+2025-07-13 13:10:48,606 - WARNING - Could not get price for LEU on 2023-02-22
+2025-07-13 13:10:48,606 - WARNING - Could not get price for EXC on 2023-02-22
+2025-07-13 13:10:48,607 - WARNING - Could not get price for BWXT on 2023-02-22
+2025-07-13 13:10:48,633 - WARNING - Could not get price for TQQQ on 2023-02-23
+2025-07-13 13:10:48,663 - WARNING - Could not get price for LEU on 2023-02-24
+2025-07-13 13:10:48,663 - WARNING - Could not get price for EXC on 2023-02-24
+2025-07-13 13:10:48,663 - WARNING - Could not get price for BWXT on 2023-02-24
+2025-07-13 13:10:48,691 - WARNING - Could not get price for LEU on 2023-02-27
+2025-07-13 13:10:48,691 - WARNING - Could not get price for BWXT on 2023-02-27
+2025-07-13 13:10:48,691 - WARNING - Could not get price for EXC on 2023-02-27
+2025-07-13 13:10:48,720 - WARNING - Could not get price for LEU on 2023-02-28
+2025-07-13 13:10:48,720 - WARNING - Could not get price for BWXT on 2023-02-28
+2025-07-13 13:10:48,720 - WARNING - Could not get price for EXC on 2023-02-28
+2025-07-13 13:10:48,745 - INFO - Signal on 2023-03-01: BUY UPRO - SPY oversold, buying dip with leverage
+2025-07-13 13:10:48,746 - WARNING - Could not get price for UPRO on 2023-03-01
+2025-07-13 13:10:48,771 - WARNING - Could not get price for TQQQ on 2023-03-02
+2025-07-13 13:10:48,797 - WARNING - Could not get price for TQQQ on 2023-03-03
+2025-07-13 13:10:48,825 - WARNING - Could not get price for EXC on 2023-03-06
+2025-07-13 13:10:48,825 - WARNING - Could not get price for BWXT on 2023-03-06
+2025-07-13 13:10:48,825 - WARNING - Could not get price for LEU on 2023-03-06
+2025-07-13 13:10:48,853 - WARNING - Could not get price for EXC on 2023-03-07
+2025-07-13 13:10:48,853 - WARNING - Could not get price for BWXT on 2023-03-07
+2025-07-13 13:10:48,854 - WARNING - Could not get price for LEU on 2023-03-07
+2025-07-13 13:10:48,882 - WARNING - Could not get price for BWXT on 2023-03-08
+2025-07-13 13:10:48,882 - WARNING - Could not get price for LEU on 2023-03-08
+2025-07-13 13:10:48,882 - WARNING - Could not get price for EXC on 2023-03-08
+2025-07-13 13:10:48,910 - WARNING - Could not get price for BWXT on 2023-03-09
+2025-07-13 13:10:48,910 - WARNING - Could not get price for EXC on 2023-03-09
+2025-07-13 13:10:48,910 - WARNING - Could not get price for LEU on 2023-03-09
+2025-07-13 13:10:48,939 - WARNING - Could not get price for BWXT on 2023-03-10
+2025-07-13 13:10:48,939 - WARNING - Could not get price for EXC on 2023-03-10
+2025-07-13 13:10:48,939 - WARNING - Could not get price for NLR on 2023-03-10
+2025-07-13 13:10:48,965 - WARNING - Could not get price for SQQQ on 2023-03-13
+2025-07-13 13:10:48,990 - WARNING - Could not get price for SQQQ on 2023-03-14
+2025-07-13 13:10:49,029 - WARNING - Could not get price for EXC on 2023-03-15
+2025-07-13 13:10:49,029 - WARNING - Could not get price for BWXT on 2023-03-15
+2025-07-13 13:10:49,029 - WARNING - Could not get price for OKLO on 2023-03-15
+2025-07-13 13:10:49,054 - WARNING - Could not get price for SQQQ on 2023-03-16
+2025-07-13 13:10:49,082 - WARNING - Could not get price for EXC on 2023-03-17
+2025-07-13 13:10:49,082 - WARNING - Could not get price for BWXT on 2023-03-17
+2025-07-13 13:10:49,082 - WARNING - Could not get price for NLR on 2023-03-17
+2025-07-13 13:10:49,111 - WARNING - Could not get price for EXC on 2023-03-20
+2025-07-13 13:10:49,111 - WARNING - Could not get price for BWXT on 2023-03-20
+2025-07-13 13:10:49,111 - WARNING - Could not get price for OKLO on 2023-03-20
+2025-07-13 13:10:49,141 - WARNING - Could not get price for EXC on 2023-03-21
+2025-07-13 13:10:49,141 - WARNING - Could not get price for BWXT on 2023-03-21
+2025-07-13 13:10:49,141 - WARNING - Could not get price for OKLO on 2023-03-21
+2025-07-13 13:10:49,170 - WARNING - Could not get price for BWXT on 2023-03-22
+2025-07-13 13:10:49,170 - WARNING - Could not get price for EXC on 2023-03-22
+2025-07-13 13:10:49,170 - WARNING - Could not get price for OKLO on 2023-03-22
+2025-07-13 13:10:49,198 - WARNING - Could not get price for LEU on 2023-03-23
+2025-07-13 13:10:49,198 - WARNING - Could not get price for EXC on 2023-03-23
+2025-07-13 13:10:49,198 - WARNING - Could not get price for BWXT on 2023-03-23
+2025-07-13 13:10:49,228 - WARNING - Could not get price for EXC on 2023-03-24
+2025-07-13 13:10:49,228 - WARNING - Could not get price for OKLO on 2023-03-24
+2025-07-13 13:10:49,228 - WARNING - Could not get price for BWXT on 2023-03-24
+2025-07-13 13:10:49,254 - WARNING - Could not get price for UVXY on 2023-03-27
+2025-07-13 13:10:49,283 - WARNING - Could not get price for EXC on 2023-03-28
+2025-07-13 13:10:49,283 - WARNING - Could not get price for BWXT on 2023-03-28
+2025-07-13 13:10:49,283 - WARNING - Could not get price for OKLO on 2023-03-28
+2025-07-13 13:10:49,312 - WARNING - Could not get price for EXC on 2023-03-29
+2025-07-13 13:10:49,312 - WARNING - Could not get price for BWXT on 2023-03-29
+2025-07-13 13:10:49,312 - WARNING - Could not get price for OKLO on 2023-03-29
+2025-07-13 13:10:49,340 - WARNING - Could not get price for EXC on 2023-03-30
+2025-07-13 13:10:49,340 - WARNING - Could not get price for BWXT on 2023-03-30
+2025-07-13 13:10:49,340 - WARNING - Could not get price for OKLO on 2023-03-30
+2025-07-13 13:10:49,369 - WARNING - Could not get price for EXC on 2023-03-31
+2025-07-13 13:10:49,369 - WARNING - Could not get price for BWXT on 2023-03-31
+2025-07-13 13:10:49,369 - WARNING - Could not get price for NLR on 2023-03-31
+2025-07-13 13:10:49,395 - WARNING - Could not get price for UVXY on 2023-04-03
+2025-07-13 13:10:49,420 - WARNING - Could not get price for UVXY on 2023-04-04
+2025-07-13 13:10:49,449 - WARNING - Could not get price for EXC on 2023-04-05
+2025-07-13 13:10:49,449 - WARNING - Could not get price for BWXT on 2023-04-05
+2025-07-13 13:10:49,449 - WARNING - Could not get price for OKLO on 2023-04-05
+2025-07-13 13:10:49,475 - WARNING - Could not get price for UVXY on 2023-04-06
+2025-07-13 13:10:49,501 - WARNING - Could not get price for UVXY on 2023-04-10
+2025-07-13 13:10:49,528 - WARNING - Could not get price for UVXY on 2023-04-11
+2025-07-13 13:10:49,554 - WARNING - Could not get price for UVXY on 2023-04-12
+2025-07-13 13:10:49,579 - WARNING - Could not get price for UVXY on 2023-04-13
+2025-07-13 13:10:49,605 - WARNING - Could not get price for UVXY on 2023-04-14
+2025-07-13 13:10:49,634 - WARNING - Could not get price for BWXT on 2023-04-17
+2025-07-13 13:10:49,634 - WARNING - Could not get price for EXC on 2023-04-17
+2025-07-13 13:10:49,634 - WARNING - Could not get price for OKLO on 2023-04-17
+2025-07-13 13:10:49,663 - WARNING - Could not get price for BWXT on 2023-04-18
+2025-07-13 13:10:49,663 - WARNING - Could not get price for EXC on 2023-04-18
+2025-07-13 13:10:49,663 - WARNING - Could not get price for NLR on 2023-04-18
+2025-07-13 13:10:49,689 - WARNING - Could not get price for UVXY on 2023-04-19
+2025-07-13 13:10:49,689 - WARNING - Could not get price for BTAL on 2023-04-19
+2025-07-13 13:10:49,715 - WARNING - Could not get price for UVXY on 2023-04-20
+2025-07-13 13:10:49,741 - WARNING - Could not get price for UVXY on 2023-04-21
+2025-07-13 13:10:49,766 - WARNING - Could not get price for UVXY on 2023-04-24
+2025-07-13 13:10:49,792 - WARNING - Could not get price for UVXY on 2023-04-25
+2025-07-13 13:10:49,792 - WARNING - Could not get price for BTAL on 2023-04-25
+2025-07-13 13:10:49,820 - WARNING - Could not get price for BWXT on 2023-04-26
+2025-07-13 13:10:49,820 - WARNING - Could not get price for EXC on 2023-04-26
+2025-07-13 13:10:49,820 - WARNING - Could not get price for OKLO on 2023-04-26
+2025-07-13 13:10:49,849 - WARNING - Could not get price for BWXT on 2023-04-27
+2025-07-13 13:10:49,849 - WARNING - Could not get price for OKLO on 2023-04-27
+2025-07-13 13:10:49,849 - WARNING - Could not get price for EXC on 2023-04-27
+2025-07-13 13:10:49,877 - WARNING - Could not get price for BWXT on 2023-04-28
+2025-07-13 13:10:49,877 - WARNING - Could not get price for OKLO on 2023-04-28
+2025-07-13 13:10:49,877 - WARNING - Could not get price for NLR on 2023-04-28
+2025-07-13 13:10:49,905 - INFO - Signal on 2023-05-01: BUY NUCLEAR_PORTFOLIO - Bull market - Nuclear portfolio: BWXT (11.2%), NLR (13.7%), OKLO (75.2%)
+2025-07-13 13:10:49,906 - WARNING - Could not get price for BWXT on 2023-05-01
+2025-07-13 13:10:49,906 - WARNING - Could not get price for NLR on 2023-05-01
+2025-07-13 13:10:49,906 - WARNING - Could not get price for OKLO on 2023-05-01
+2025-07-13 13:10:49,934 - WARNING - Could not get price for BWXT on 2023-05-02
+2025-07-13 13:10:49,934 - WARNING - Could not get price for NLR on 2023-05-02
+2025-07-13 13:10:49,934 - WARNING - Could not get price for EXC on 2023-05-02
+2025-07-13 13:10:49,962 - WARNING - Could not get price for BWXT on 2023-05-03
+2025-07-13 13:10:49,963 - WARNING - Could not get price for NLR on 2023-05-03
+2025-07-13 13:10:49,963 - WARNING - Could not get price for OKLO on 2023-05-03
+2025-07-13 13:10:49,990 - WARNING - Could not get price for BWXT on 2023-05-04
+2025-07-13 13:10:49,991 - WARNING - Could not get price for OKLO on 2023-05-04
+2025-07-13 13:10:49,991 - WARNING - Could not get price for NLR on 2023-05-04
+2025-07-13 13:10:50,019 - WARNING - Could not get price for BWXT on 2023-05-05
+2025-07-13 13:10:50,019 - WARNING - Could not get price for NLR on 2023-05-05
+2025-07-13 13:10:50,019 - WARNING - Could not get price for OKLO on 2023-05-05
+2025-07-13 13:10:50,047 - WARNING - Could not get price for BWXT on 2023-05-08
+2025-07-13 13:10:50,047 - WARNING - Could not get price for NLR on 2023-05-08
+2025-07-13 13:10:50,047 - WARNING - Could not get price for OKLO on 2023-05-08
+2025-07-13 13:10:50,076 - WARNING - Could not get price for BWXT on 2023-05-09
+2025-07-13 13:10:50,076 - WARNING - Could not get price for OKLO on 2023-05-09
+2025-07-13 13:10:50,076 - WARNING - Could not get price for NLR on 2023-05-09
+2025-07-13 13:10:50,104 - WARNING - Could not get price for BWXT on 2023-05-10
+2025-07-13 13:10:50,105 - WARNING - Could not get price for NLR on 2023-05-10
+2025-07-13 13:10:50,105 - WARNING - Could not get price for OKLO on 2023-05-10
+2025-07-13 13:10:50,133 - WARNING - Could not get price for BWXT on 2023-05-11
+2025-07-13 13:10:50,133 - WARNING - Could not get price for NLR on 2023-05-11
+2025-07-13 13:10:50,133 - WARNING - Could not get price for OKLO on 2023-05-11
+2025-07-13 13:10:50,161 - WARNING - Could not get price for BWXT on 2023-05-12
+2025-07-13 13:10:50,161 - WARNING - Could not get price for NLR on 2023-05-12
+2025-07-13 13:10:50,161 - WARNING - Could not get price for OKLO on 2023-05-12
+2025-07-13 13:10:50,190 - WARNING - Could not get price for BWXT on 2023-05-15
+2025-07-13 13:10:50,190 - WARNING - Could not get price for NLR on 2023-05-15
+2025-07-13 13:10:50,190 - WARNING - Could not get price for OKLO on 2023-05-15
+2025-07-13 13:10:50,220 - WARNING - Could not get price for BWXT on 2023-05-16
+2025-07-13 13:10:50,220 - WARNING - Could not get price for NLR on 2023-05-16
+2025-07-13 13:10:50,220 - WARNING - Could not get price for OKLO on 2023-05-16
+2025-07-13 13:10:50,248 - WARNING - Could not get price for BWXT on 2023-05-17
+2025-07-13 13:10:50,248 - WARNING - Could not get price for OKLO on 2023-05-17
+2025-07-13 13:10:50,248 - WARNING - Could not get price for NLR on 2023-05-17
+2025-07-13 13:10:50,274 - WARNING - Could not get price for UVXY on 2023-05-18
+2025-07-13 13:10:50,274 - WARNING - Could not get price for BTAL on 2023-05-18
+2025-07-13 13:10:50,300 - WARNING - Could not get price for UVXY on 2023-05-19
+2025-07-13 13:10:50,326 - WARNING - Could not get price for UVXY on 2023-05-22
+2025-07-13 13:10:50,352 - WARNING - Could not get price for UVXY on 2023-05-23
+2025-07-13 13:10:50,380 - WARNING - Could not get price for BWXT on 2023-05-24
+2025-07-13 13:10:50,380 - WARNING - Could not get price for OKLO on 2023-05-24
+2025-07-13 13:10:50,380 - WARNING - Could not get price for NLR on 2023-05-24
+2025-07-13 13:10:50,409 - WARNING - Could not get price for BWXT on 2023-05-25
+2025-07-13 13:10:50,409 - WARNING - Could not get price for OKLO on 2023-05-25
+2025-07-13 13:10:50,409 - WARNING - Could not get price for NLR on 2023-05-25
+2025-07-13 13:10:50,438 - WARNING - Could not get price for BWXT on 2023-05-26
+2025-07-13 13:10:50,438 - WARNING - Could not get price for OKLO on 2023-05-26
+2025-07-13 13:10:50,438 - WARNING - Could not get price for NLR on 2023-05-26
+2025-07-13 13:10:50,463 - WARNING - Could not get price for UVXY on 2023-05-30
+2025-07-13 13:10:50,463 - WARNING - Could not get price for BTAL on 2023-05-30
+2025-07-13 13:10:50,489 - WARNING - Could not get price for UVXY on 2023-05-31
+2025-07-13 13:10:50,489 - WARNING - Could not get price for BTAL on 2023-05-31
+2025-07-13 13:10:50,516 - INFO - Signal on 2023-06-01: BUY NUCLEAR_PORTFOLIO - Bull market - Nuclear portfolio: BWXT (12.7%), OKLO (72.9%), NLR (14.4%)
+2025-07-13 13:10:50,518 - WARNING - Could not get price for BWXT on 2023-06-01
+2025-07-13 13:10:50,518 - WARNING - Could not get price for OKLO on 2023-06-01
+2025-07-13 13:10:50,518 - WARNING - Could not get price for NLR on 2023-06-01
+2025-07-13 13:10:50,546 - WARNING - Could not get price for BWXT on 2023-06-02
+2025-07-13 13:10:50,546 - WARNING - Could not get price for OKLO on 2023-06-02
+2025-07-13 13:10:50,546 - WARNING - Could not get price for NLR on 2023-06-02
+2025-07-13 13:10:50,575 - WARNING - Could not get price for BWXT on 2023-06-05
+2025-07-13 13:10:50,576 - WARNING - Could not get price for OKLO on 2023-06-05
+2025-07-13 13:10:50,576 - WARNING - Could not get price for NLR on 2023-06-05
+2025-07-13 13:10:50,604 - WARNING - Could not get price for BWXT on 2023-06-06
+2025-07-13 13:10:50,604 - WARNING - Could not get price for OKLO on 2023-06-06
+2025-07-13 13:10:50,604 - WARNING - Could not get price for NLR on 2023-06-06
+2025-07-13 13:10:50,633 - WARNING - Could not get price for BWXT on 2023-06-07
+2025-07-13 13:10:50,633 - WARNING - Could not get price for OKLO on 2023-06-07
+2025-07-13 13:10:50,633 - WARNING - Could not get price for NLR on 2023-06-07
+2025-07-13 13:10:50,662 - WARNING - Could not get price for BWXT on 2023-06-08
+2025-07-13 13:10:50,662 - WARNING - Could not get price for OKLO on 2023-06-08
+2025-07-13 13:10:50,662 - WARNING - Could not get price for NLR on 2023-06-08
+2025-07-13 13:10:50,709 - WARNING - Could not get price for UVXY on 2023-06-09
+2025-07-13 13:10:50,736 - WARNING - Could not get price for UVXY on 2023-06-12
+2025-07-13 13:10:50,762 - WARNING - Could not get price for UVXY on 2023-06-13
+2025-07-13 13:10:50,762 - WARNING - Could not get price for BTAL on 2023-06-13
+2025-07-13 13:10:50,789 - WARNING - Could not get price for UVXY on 2023-06-14
+2025-07-13 13:10:50,816 - WARNING - Could not get price for UVXY on 2023-06-15
+2025-07-13 13:10:50,843 - WARNING - Could not get price for UVXY on 2023-06-16
+2025-07-13 13:10:50,870 - WARNING - Could not get price for UVXY on 2023-06-20
+2025-07-13 13:10:50,899 - WARNING - Could not get price for BWXT on 2023-06-21
+2025-07-13 13:10:50,899 - WARNING - Could not get price for NLR on 2023-06-21
+2025-07-13 13:10:50,899 - WARNING - Could not get price for OKLO on 2023-06-21
+2025-07-13 13:10:50,929 - WARNING - Could not get price for BWXT on 2023-06-22
+2025-07-13 13:10:50,929 - WARNING - Could not get price for NLR on 2023-06-22
+2025-07-13 13:10:50,929 - WARNING - Could not get price for EXC on 2023-06-22
+2025-07-13 13:10:50,959 - WARNING - Could not get price for BWXT on 2023-06-23
+2025-07-13 13:10:50,959 - WARNING - Could not get price for OKLO on 2023-06-23
+2025-07-13 13:10:50,959 - WARNING - Could not get price for NLR on 2023-06-23
+2025-07-13 13:10:50,988 - WARNING - Could not get price for BWXT on 2023-06-26
+2025-07-13 13:10:50,988 - WARNING - Could not get price for OKLO on 2023-06-26
+2025-07-13 13:10:50,988 - WARNING - Could not get price for NLR on 2023-06-26
+2025-07-13 13:10:51,017 - WARNING - Could not get price for BWXT on 2023-06-27
+2025-07-13 13:10:51,017 - WARNING - Could not get price for OKLO on 2023-06-27
+2025-07-13 13:10:51,017 - WARNING - Could not get price for NLR on 2023-06-27
+2025-07-13 13:10:51,046 - WARNING - Could not get price for BWXT on 2023-06-28
+2025-07-13 13:10:51,046 - WARNING - Could not get price for OKLO on 2023-06-28
+2025-07-13 13:10:51,046 - WARNING - Could not get price for NLR on 2023-06-28
+2025-07-13 13:10:51,075 - WARNING - Could not get price for BWXT on 2023-06-29
+2025-07-13 13:10:51,075 - WARNING - Could not get price for OKLO on 2023-06-29
+2025-07-13 13:10:51,075 - WARNING - Could not get price for NLR on 2023-06-29
+2025-07-13 13:10:51,104 - WARNING - Could not get price for BWXT on 2023-06-30
+2025-07-13 13:10:51,104 - WARNING - Could not get price for OKLO on 2023-06-30
+2025-07-13 13:10:51,104 - WARNING - Could not get price for NLR on 2023-06-30
+2025-07-13 13:10:51,133 - WARNING - Could not get price for BWXT on 2023-07-03
+2025-07-13 13:10:51,133 - WARNING - Could not get price for NLR on 2023-07-03
+2025-07-13 13:10:51,133 - WARNING - Could not get price for OKLO on 2023-07-03
+2025-07-13 13:10:51,161 - WARNING - Could not get price for BWXT on 2023-07-05
+2025-07-13 13:10:51,161 - WARNING - Could not get price for NLR on 2023-07-05
+2025-07-13 13:10:51,161 - WARNING - Could not get price for OKLO on 2023-07-05
+2025-07-13 13:10:51,190 - WARNING - Could not get price for BWXT on 2023-07-06
+2025-07-13 13:10:51,190 - WARNING - Could not get price for NLR on 2023-07-06
+2025-07-13 13:10:51,190 - WARNING - Could not get price for OKLO on 2023-07-06
+2025-07-13 13:10:51,219 - WARNING - Could not get price for BWXT on 2023-07-07
+2025-07-13 13:10:51,219 - WARNING - Could not get price for NLR on 2023-07-07
+2025-07-13 13:10:51,219 - WARNING - Could not get price for OKLO on 2023-07-07
+2025-07-13 13:10:51,251 - WARNING - Could not get price for BWXT on 2023-07-10
+2025-07-13 13:10:51,251 - WARNING - Could not get price for NLR on 2023-07-10
+2025-07-13 13:10:51,251 - WARNING - Could not get price for OKLO on 2023-07-10
+2025-07-13 13:10:51,280 - WARNING - Could not get price for BWXT on 2023-07-11
+2025-07-13 13:10:51,280 - WARNING - Could not get price for NLR on 2023-07-11
+2025-07-13 13:10:51,281 - WARNING - Could not get price for OKLO on 2023-07-11
+2025-07-13 13:10:51,307 - WARNING - Could not get price for UVXY on 2023-07-12
+2025-07-13 13:10:51,333 - WARNING - Could not get price for UVXY on 2023-07-13
+2025-07-13 13:10:51,333 - WARNING - Could not get price for BTAL on 2023-07-13
+2025-07-13 13:10:51,358 - WARNING - Could not get price for UVXY on 2023-07-14
+2025-07-13 13:10:51,384 - WARNING - Could not get price for UVXY on 2023-07-17
+2025-07-13 13:10:51,411 - WARNING - Could not get price for UVXY on 2023-07-18
+2025-07-13 13:10:51,411 - WARNING - Could not get price for BTAL on 2023-07-18
+2025-07-13 13:10:51,438 - WARNING - Could not get price for UVXY on 2023-07-19
+2025-07-13 13:10:51,463 - WARNING - Could not get price for UVXY on 2023-07-20
+2025-07-13 13:10:51,489 - WARNING - Could not get price for UVXY on 2023-07-21
+2025-07-13 13:10:51,515 - WARNING - Could not get price for UVXY on 2023-07-24
+2025-07-13 13:10:51,541 - WARNING - Could not get price for UVXY on 2023-07-25
+2025-07-13 13:10:51,567 - WARNING - Could not get price for UVXY on 2023-07-26
+2025-07-13 13:10:51,595 - WARNING - Could not get price for UVXY on 2023-07-27
+2025-07-13 13:10:51,624 - WARNING - Could not get price for BWXT on 2023-07-28
+2025-07-13 13:10:51,624 - WARNING - Could not get price for NLR on 2023-07-28
+2025-07-13 13:10:51,624 - WARNING - Could not get price for LEU on 2023-07-28
+2025-07-13 13:10:51,650 - WARNING - Could not get price for UVXY on 2023-07-31
+2025-07-13 13:10:51,676 - INFO - Signal on 2023-08-01: BUY UVXY - VTV extremely overbought
+2025-07-13 13:10:51,676 - WARNING - Could not get price for UVXY on 2023-08-01
+2025-07-13 13:10:51,705 - WARNING - Could not get price for LEU on 2023-08-02
+2025-07-13 13:10:51,705 - WARNING - Could not get price for NLR on 2023-08-02
+2025-07-13 13:10:51,705 - WARNING - Could not get price for BWXT on 2023-08-02
+2025-07-13 13:10:51,734 - WARNING - Could not get price for LEU on 2023-08-03
+2025-07-13 13:10:51,734 - WARNING - Could not get price for NLR on 2023-08-03
+2025-07-13 13:10:51,734 - WARNING - Could not get price for BWXT on 2023-08-03
+2025-07-13 13:10:51,762 - WARNING - Could not get price for LEU on 2023-08-04
+2025-07-13 13:10:51,762 - WARNING - Could not get price for NLR on 2023-08-04
+2025-07-13 13:10:51,762 - WARNING - Could not get price for BWXT on 2023-08-04
+2025-07-13 13:10:51,791 - WARNING - Could not get price for LEU on 2023-08-07
+2025-07-13 13:10:51,791 - WARNING - Could not get price for BWXT on 2023-08-07
+2025-07-13 13:10:51,791 - WARNING - Could not get price for NLR on 2023-08-07
+2025-07-13 13:10:51,819 - WARNING - Could not get price for LEU on 2023-08-08
+2025-07-13 13:10:51,819 - WARNING - Could not get price for BWXT on 2023-08-08
+2025-07-13 13:10:51,819 - WARNING - Could not get price for NLR on 2023-08-08
+2025-07-13 13:10:51,848 - WARNING - Could not get price for LEU on 2023-08-09
+2025-07-13 13:10:51,848 - WARNING - Could not get price for BWXT on 2023-08-09
+2025-07-13 13:10:51,848 - WARNING - Could not get price for NLR on 2023-08-09
+2025-07-13 13:10:51,876 - WARNING - Could not get price for LEU on 2023-08-10
+2025-07-13 13:10:51,876 - WARNING - Could not get price for BWXT on 2023-08-10
+2025-07-13 13:10:51,876 - WARNING - Could not get price for NLR on 2023-08-10
+2025-07-13 13:10:51,904 - WARNING - Could not get price for LEU on 2023-08-11
+2025-07-13 13:10:51,904 - WARNING - Could not get price for BWXT on 2023-08-11
+2025-07-13 13:10:51,905 - WARNING - Could not get price for NLR on 2023-08-11
+2025-07-13 13:10:51,930 - WARNING - Could not get price for TQQQ on 2023-08-14
+2025-07-13 13:10:51,956 - WARNING - Could not get price for TQQQ on 2023-08-15
+2025-07-13 13:10:51,982 - WARNING - Could not get price for TQQQ on 2023-08-16
+2025-07-13 13:10:52,008 - WARNING - Could not get price for TQQQ on 2023-08-17
+2025-07-13 13:10:52,035 - WARNING - Could not get price for TQQQ on 2023-08-18
+2025-07-13 13:10:52,061 - WARNING - Could not get price for TQQQ on 2023-08-21
+2025-07-13 13:10:52,087 - WARNING - Could not get price for UPRO on 2023-08-22
+2025-07-13 13:10:52,113 - WARNING - Could not get price for UPRO on 2023-08-23
+2025-07-13 13:10:52,142 - WARNING - Could not get price for LEU on 2023-08-24
+2025-07-13 13:10:52,142 - WARNING - Could not get price for BWXT on 2023-08-24
+2025-07-13 13:10:52,142 - WARNING - Could not get price for NLR on 2023-08-24
+2025-07-13 13:10:52,172 - WARNING - Could not get price for LEU on 2023-08-25
+2025-07-13 13:10:52,172 - WARNING - Could not get price for BWXT on 2023-08-25
+2025-07-13 13:10:52,172 - WARNING - Could not get price for NLR on 2023-08-25
+2025-07-13 13:10:52,201 - WARNING - Could not get price for LEU on 2023-08-28
+2025-07-13 13:10:52,201 - WARNING - Could not get price for NLR on 2023-08-28
+2025-07-13 13:10:52,201 - WARNING - Could not get price for BWXT on 2023-08-28
+2025-07-13 13:10:52,230 - WARNING - Could not get price for LEU on 2023-08-29
+2025-07-13 13:10:52,230 - WARNING - Could not get price for BWXT on 2023-08-29
+2025-07-13 13:10:52,230 - WARNING - Could not get price for NLR on 2023-08-29
+2025-07-13 13:10:52,259 - WARNING - Could not get price for LEU on 2023-08-30
+2025-07-13 13:10:52,259 - WARNING - Could not get price for NLR on 2023-08-30
+2025-07-13 13:10:52,259 - WARNING - Could not get price for BWXT on 2023-08-30
+2025-07-13 13:10:52,288 - WARNING - Could not get price for LEU on 2023-08-31
+2025-07-13 13:10:52,288 - WARNING - Could not get price for NLR on 2023-08-31
+2025-07-13 13:10:52,288 - WARNING - Could not get price for BWXT on 2023-08-31
+2025-07-13 13:10:52,316 - INFO - Signal on 2023-09-01: BUY NUCLEAR_PORTFOLIO - Bull market - Nuclear portfolio: LEU (14.2%), NLR (46.3%), BWXT (39.4%)
+2025-07-13 13:10:52,317 - WARNING - Could not get price for LEU on 2023-09-01
+2025-07-13 13:10:52,317 - WARNING - Could not get price for NLR on 2023-09-01
+2025-07-13 13:10:52,317 - WARNING - Could not get price for BWXT on 2023-09-01
+2025-07-13 13:10:52,345 - WARNING - Could not get price for LEU on 2023-09-05
+2025-07-13 13:10:52,346 - WARNING - Could not get price for NLR on 2023-09-05
+2025-07-13 13:10:52,346 - WARNING - Could not get price for BWXT on 2023-09-05
+2025-07-13 13:10:52,374 - WARNING - Could not get price for LEU on 2023-09-06
+2025-07-13 13:10:52,374 - WARNING - Could not get price for NLR on 2023-09-06
+2025-07-13 13:10:52,374 - WARNING - Could not get price for BWXT on 2023-09-06
+2025-07-13 13:10:52,403 - WARNING - Could not get price for LEU on 2023-09-07
+2025-07-13 13:10:52,403 - WARNING - Could not get price for NLR on 2023-09-07
+2025-07-13 13:10:52,403 - WARNING - Could not get price for BWXT on 2023-09-07
+2025-07-13 13:10:52,431 - WARNING - Could not get price for LEU on 2023-09-08
+2025-07-13 13:10:52,432 - WARNING - Could not get price for NLR on 2023-09-08
+2025-07-13 13:10:52,432 - WARNING - Could not get price for BWXT on 2023-09-08
+2025-07-13 13:10:52,460 - WARNING - Could not get price for LEU on 2023-09-11
+2025-07-13 13:10:52,460 - WARNING - Could not get price for NLR on 2023-09-11
+2025-07-13 13:10:52,460 - WARNING - Could not get price for BWXT on 2023-09-11
+2025-07-13 13:10:52,489 - WARNING - Could not get price for LEU on 2023-09-12
+2025-07-13 13:10:52,489 - WARNING - Could not get price for NLR on 2023-09-12
+2025-07-13 13:10:52,489 - WARNING - Could not get price for BWXT on 2023-09-12
+2025-07-13 13:10:52,518 - WARNING - Could not get price for LEU on 2023-09-13
+2025-07-13 13:10:52,518 - WARNING - Could not get price for NLR on 2023-09-13
+2025-07-13 13:10:52,518 - WARNING - Could not get price for BWXT on 2023-09-13
+2025-07-13 13:10:52,546 - WARNING - Could not get price for LEU on 2023-09-14
+2025-07-13 13:10:52,546 - WARNING - Could not get price for NLR on 2023-09-14
+2025-07-13 13:10:52,546 - WARNING - Could not get price for BWXT on 2023-09-14
+2025-07-13 13:10:52,575 - WARNING - Could not get price for LEU on 2023-09-15
+2025-07-13 13:10:52,575 - WARNING - Could not get price for NLR on 2023-09-15
+2025-07-13 13:10:52,575 - WARNING - Could not get price for BWXT on 2023-09-15
+2025-07-13 13:10:52,605 - WARNING - Could not get price for LEU on 2023-09-18
+2025-07-13 13:10:52,605 - WARNING - Could not get price for NLR on 2023-09-18
+2025-07-13 13:10:52,605 - WARNING - Could not get price for BWXT on 2023-09-18
+2025-07-13 13:10:52,635 - WARNING - Could not get price for LEU on 2023-09-19
+2025-07-13 13:10:52,635 - WARNING - Could not get price for NLR on 2023-09-19
+2025-07-13 13:10:52,635 - WARNING - Could not get price for BWXT on 2023-09-19
+2025-07-13 13:10:52,665 - WARNING - Could not get price for LEU on 2023-09-20
+2025-07-13 13:10:52,665 - WARNING - Could not get price for NLR on 2023-09-20
+2025-07-13 13:10:52,665 - WARNING - Could not get price for BWXT on 2023-09-20
+2025-07-13 13:10:52,694 - WARNING - Could not get price for LEU on 2023-09-21
+2025-07-13 13:10:52,694 - WARNING - Could not get price for NLR on 2023-09-21
+2025-07-13 13:10:52,694 - WARNING - Could not get price for BWXT on 2023-09-21
+2025-07-13 13:10:52,721 - WARNING - Could not get price for TQQQ on 2023-09-22
+2025-07-13 13:10:52,747 - WARNING - Could not get price for TQQQ on 2023-09-25
+2025-07-13 13:10:52,773 - WARNING - Could not get price for TQQQ on 2023-09-26
+2025-07-13 13:10:52,798 - WARNING - Could not get price for TQQQ on 2023-09-27
+2025-07-13 13:10:52,824 - WARNING - Could not get price for TQQQ on 2023-09-28
+2025-07-13 13:10:52,850 - WARNING - Could not get price for TQQQ on 2023-09-29
+2025-07-13 13:10:52,876 - WARNING - Could not get price for TQQQ on 2023-10-02
+2025-07-13 13:10:52,903 - WARNING - Could not get price for UPRO on 2023-10-03
+2025-07-13 13:10:52,929 - WARNING - Could not get price for TQQQ on 2023-10-04
+2025-07-13 13:10:52,956 - WARNING - Could not get price for UPRO on 2023-10-05
+2025-07-13 13:10:52,986 - WARNING - Could not get price for LEU on 2023-10-06
+2025-07-13 13:10:52,986 - WARNING - Could not get price for NLR on 2023-10-06
+2025-07-13 13:10:52,986 - WARNING - Could not get price for BWXT on 2023-10-06
+2025-07-13 13:10:53,015 - WARNING - Could not get price for LEU on 2023-10-09
+2025-07-13 13:10:53,015 - WARNING - Could not get price for NLR on 2023-10-09
+2025-07-13 13:10:53,015 - WARNING - Could not get price for BWXT on 2023-10-09
+2025-07-13 13:10:53,043 - WARNING - Could not get price for LEU on 2023-10-10
+2025-07-13 13:10:53,043 - WARNING - Could not get price for BWXT on 2023-10-10
+2025-07-13 13:10:53,043 - WARNING - Could not get price for NLR on 2023-10-10
+2025-07-13 13:10:53,070 - WARNING - Could not get price for UVXY on 2023-10-11
+2025-07-13 13:10:53,070 - WARNING - Could not get price for BTAL on 2023-10-11
+2025-07-13 13:10:53,106 - WARNING - Could not get price for UVXY on 2023-10-12
+2025-07-13 13:10:53,106 - WARNING - Could not get price for BTAL on 2023-10-12
+2025-07-13 13:10:53,135 - WARNING - Could not get price for LEU on 2023-10-13
+2025-07-13 13:10:53,135 - WARNING - Could not get price for BWXT on 2023-10-13
+2025-07-13 13:10:53,135 - WARNING - Could not get price for NLR on 2023-10-13
+2025-07-13 13:10:53,164 - WARNING - Could not get price for LEU on 2023-10-16
+2025-07-13 13:10:53,164 - WARNING - Could not get price for BWXT on 2023-10-16
+2025-07-13 13:10:53,164 - WARNING - Could not get price for NLR on 2023-10-16
+2025-07-13 13:10:53,193 - WARNING - Could not get price for LEU on 2023-10-17
+2025-07-13 13:10:53,193 - WARNING - Could not get price for BWXT on 2023-10-17
+2025-07-13 13:10:53,193 - WARNING - Could not get price for NLR on 2023-10-17
+2025-07-13 13:10:53,219 - WARNING - Could not get price for UVXY on 2023-10-18
+2025-07-13 13:10:53,248 - WARNING - Could not get price for LEU on 2023-10-19
+2025-07-13 13:10:53,248 - WARNING - Could not get price for BWXT on 2023-10-19
+2025-07-13 13:10:53,248 - WARNING - Could not get price for NLR on 2023-10-19
+2025-07-13 13:10:53,276 - WARNING - Could not get price for LEU on 2023-10-20
+2025-07-13 13:10:53,277 - WARNING - Could not get price for BWXT on 2023-10-20
+2025-07-13 13:10:53,277 - WARNING - Could not get price for NLR on 2023-10-20
+2025-07-13 13:10:53,305 - WARNING - Could not get price for LEU on 2023-10-23
+2025-07-13 13:10:53,305 - WARNING - Could not get price for BWXT on 2023-10-23
+2025-07-13 13:10:53,305 - WARNING - Could not get price for NLR on 2023-10-23
+2025-07-13 13:10:53,331 - WARNING - Could not get price for UPRO on 2023-10-24
+2025-07-13 13:10:53,360 - WARNING - Could not get price for LEU on 2023-10-25
+2025-07-13 13:10:53,360 - WARNING - Could not get price for NLR on 2023-10-25
+2025-07-13 13:10:53,360 - WARNING - Could not get price for BWXT on 2023-10-25
+2025-07-13 13:10:53,386 - WARNING - Could not get price for TQQQ on 2023-10-26
+2025-07-13 13:10:53,411 - WARNING - Could not get price for TQQQ on 2023-10-27
+2025-07-13 13:10:53,438 - WARNING - Could not get price for TQQQ on 2023-10-30
+2025-07-13 13:10:53,463 - WARNING - Could not get price for TQQQ on 2023-10-31
+2025-07-13 13:10:53,489 - INFO - Signal on 2023-11-01: BUY TQQQ - TQQQ oversold, buying dip
+2025-07-13 13:10:53,489 - WARNING - Could not get price for TQQQ on 2023-11-01
+2025-07-13 13:10:53,518 - WARNING - Could not get price for LEU on 2023-11-02
+2025-07-13 13:10:53,518 - WARNING - Could not get price for NLR on 2023-11-02
+2025-07-13 13:10:53,518 - WARNING - Could not get price for BWXT on 2023-11-02
+2025-07-13 13:10:53,547 - WARNING - Could not get price for LEU on 2023-11-03
+2025-07-13 13:10:53,547 - WARNING - Could not get price for NLR on 2023-11-03
+2025-07-13 13:10:53,547 - WARNING - Could not get price for BWXT on 2023-11-03
+2025-07-13 13:10:53,575 - WARNING - Could not get price for LEU on 2023-11-06
+2025-07-13 13:10:53,575 - WARNING - Could not get price for NLR on 2023-11-06
+2025-07-13 13:10:53,575 - WARNING - Could not get price for BWXT on 2023-11-06
+2025-07-13 13:10:53,604 - WARNING - Could not get price for LEU on 2023-11-07
+2025-07-13 13:10:53,604 - WARNING - Could not get price for NLR on 2023-11-07
+2025-07-13 13:10:53,604 - WARNING - Could not get price for BWXT on 2023-11-07
+2025-07-13 13:10:53,634 - WARNING - Could not get price for LEU on 2023-11-08
+2025-07-13 13:10:53,634 - WARNING - Could not get price for NLR on 2023-11-08
+2025-07-13 13:10:53,635 - WARNING - Could not get price for BWXT on 2023-11-08
+2025-07-13 13:10:53,661 - WARNING - Could not get price for UVXY on 2023-11-09
+2025-07-13 13:10:53,687 - WARNING - Could not get price for UVXY on 2023-11-10
+2025-07-13 13:10:53,715 - WARNING - Could not get price for UVXY on 2023-11-13
+2025-07-13 13:10:53,741 - WARNING - Could not get price for UVXY on 2023-11-14
+2025-07-13 13:10:53,768 - WARNING - Could not get price for UVXY on 2023-11-15
+2025-07-13 13:10:53,794 - WARNING - Could not get price for UVXY on 2023-11-16
+2025-07-13 13:10:53,820 - WARNING - Could not get price for UVXY on 2023-11-17
+2025-07-13 13:10:53,847 - WARNING - Could not get price for UVXY on 2023-11-20
+2025-07-13 13:10:53,873 - WARNING - Could not get price for UVXY on 2023-11-21
+2025-07-13 13:10:53,900 - WARNING - Could not get price for UVXY on 2023-11-22
+2025-07-13 13:10:53,926 - WARNING - Could not get price for UVXY on 2023-11-24
+2025-07-13 13:10:53,953 - WARNING - Could not get price for UVXY on 2023-11-27
+2025-07-13 13:10:53,979 - WARNING - Could not get price for UVXY on 2023-11-28
+2025-07-13 13:10:54,005 - WARNING - Could not get price for UVXY on 2023-11-29
+2025-07-13 13:10:54,031 - WARNING - Could not get price for UVXY on 2023-11-30
+2025-07-13 13:10:54,058 - INFO - Signal on 2023-12-01: BUY UVXY - XLF extremely overbought (RSI > 81)
+2025-07-13 13:10:54,058 - WARNING - Could not get price for UVXY on 2023-12-01
+2025-07-13 13:10:54,084 - WARNING - Could not get price for UVXY on 2023-12-04
+2025-07-13 13:10:54,111 - WARNING - Could not get price for UVXY on 2023-12-05
+2025-07-13 13:10:54,140 - WARNING - Could not get price for LEU on 2023-12-06
+2025-07-13 13:10:54,140 - WARNING - Could not get price for NLR on 2023-12-06
+2025-07-13 13:10:54,140 - WARNING - Could not get price for BWXT on 2023-12-06
+2025-07-13 13:10:54,169 - WARNING - Could not get price for LEU on 2023-12-07
+2025-07-13 13:10:54,169 - WARNING - Could not get price for NLR on 2023-12-07
+2025-07-13 13:10:54,169 - WARNING - Could not get price for BWXT on 2023-12-07
+2025-07-13 13:10:54,198 - WARNING - Could not get price for LEU on 2023-12-08
+2025-07-13 13:10:54,198 - WARNING - Could not get price for NLR on 2023-12-08
+2025-07-13 13:10:54,198 - WARNING - Could not get price for BWXT on 2023-12-08
+2025-07-13 13:10:54,227 - WARNING - Could not get price for LEU on 2023-12-11
+2025-07-13 13:10:54,227 - WARNING - Could not get price for NLR on 2023-12-11
+2025-07-13 13:10:54,227 - WARNING - Could not get price for BWXT on 2023-12-11
+2025-07-13 13:10:54,255 - WARNING - Could not get price for LEU on 2023-12-12
+2025-07-13 13:10:54,255 - WARNING - Could not get price for NLR on 2023-12-12
+2025-07-13 13:10:54,256 - WARNING - Could not get price for BWXT on 2023-12-12
+2025-07-13 13:10:54,282 - WARNING - Could not get price for UVXY on 2023-12-13
+2025-07-13 13:10:54,309 - WARNING - Could not get price for UVXY on 2023-12-14
+2025-07-13 13:10:54,336 - WARNING - Could not get price for UVXY on 2023-12-15
+2025-07-13 13:10:54,365 - WARNING - Could not get price for LEU on 2023-12-18
+2025-07-13 13:10:54,365 - WARNING - Could not get price for NLR on 2023-12-18
+2025-07-13 13:10:54,365 - WARNING - Could not get price for BWXT on 2023-12-18
+2025-07-13 13:10:54,392 - WARNING - Could not get price for UVXY on 2023-12-19
+2025-07-13 13:10:54,419 - WARNING - Could not get price for UVXY on 2023-12-20
+2025-07-13 13:10:54,449 - WARNING - Could not get price for LEU on 2023-12-21
+2025-07-13 13:10:54,449 - WARNING - Could not get price for NLR on 2023-12-21
+2025-07-13 13:10:54,449 - WARNING - Could not get price for BWXT on 2023-12-21
+2025-07-13 13:10:54,479 - WARNING - Could not get price for LEU on 2023-12-22
+2025-07-13 13:10:54,479 - WARNING - Could not get price for NLR on 2023-12-22
+2025-07-13 13:10:54,479 - WARNING - Could not get price for BWXT on 2023-12-22
+2025-07-13 13:10:54,509 - WARNING - Could not get price for LEU on 2023-12-26
+2025-07-13 13:10:54,509 - WARNING - Could not get price for NLR on 2023-12-26
+2025-07-13 13:10:54,509 - WARNING - Could not get price for BWXT on 2023-12-26
+2025-07-13 13:10:54,535 - WARNING - Could not get price for UVXY on 2023-12-27
+2025-07-13 13:10:54,535 - WARNING - Could not get price for BTAL on 2023-12-27
+2025-07-13 13:10:54,562 - WARNING - Could not get price for UVXY on 2023-12-28
+2025-07-13 13:10:54,562 - WARNING - Could not get price for BTAL on 2023-12-28
+2025-07-13 13:10:54,592 - WARNING - Could not get price for LEU on 2023-12-29
+2025-07-13 13:10:54,592 - WARNING - Could not get price for NLR on 2023-12-29
+2025-07-13 13:10:54,592 - WARNING - Could not get price for BWXT on 2023-12-29
+2025-07-13 13:10:54,621 - WARNING - Could not get price for LEU on 2024-01-02
+2025-07-13 13:10:54,621 - WARNING - Could not get price for NLR on 2024-01-02
+2025-07-13 13:10:54,621 - WARNING - Could not get price for BWXT on 2024-01-02
+2025-07-13 13:10:54,651 - WARNING - Could not get price for LEU on 2024-01-03
+2025-07-13 13:10:54,651 - WARNING - Could not get price for NLR on 2024-01-03
+2025-07-13 13:10:54,651 - WARNING - Could not get price for BWXT on 2024-01-03
+2025-07-13 13:10:54,680 - WARNING - Could not get price for LEU on 2024-01-04
+2025-07-13 13:10:54,680 - WARNING - Could not get price for NLR on 2024-01-04
+2025-07-13 13:10:54,680 - WARNING - Could not get price for BWXT on 2024-01-04
+2025-07-13 13:10:54,707 - WARNING - Could not get price for TQQQ on 2024-01-05
+2025-07-13 13:10:54,737 - WARNING - Could not get price for NLR on 2024-01-08
+2025-07-13 13:10:54,737 - WARNING - Could not get price for LEU on 2024-01-08
+2025-07-13 13:10:54,737 - WARNING - Could not get price for OKLO on 2024-01-08
+2025-07-13 13:10:54,767 - WARNING - Could not get price for NLR on 2024-01-09
+2025-07-13 13:10:54,768 - WARNING - Could not get price for LEU on 2024-01-09
+2025-07-13 13:10:54,768 - WARNING - Could not get price for BWXT on 2024-01-09
+2025-07-13 13:10:54,797 - WARNING - Could not get price for NLR on 2024-01-10
+2025-07-13 13:10:54,797 - WARNING - Could not get price for LEU on 2024-01-10
+2025-07-13 13:10:54,797 - WARNING - Could not get price for BWXT on 2024-01-10
+2025-07-13 13:10:54,827 - WARNING - Could not get price for NLR on 2024-01-11
+2025-07-13 13:10:54,827 - WARNING - Could not get price for LEU on 2024-01-11
+2025-07-13 13:10:54,827 - WARNING - Could not get price for BWXT on 2024-01-11
+2025-07-13 13:10:54,856 - WARNING - Could not get price for NLR on 2024-01-12
+2025-07-13 13:10:54,857 - WARNING - Could not get price for LEU on 2024-01-12
+2025-07-13 13:10:54,857 - WARNING - Could not get price for BWXT on 2024-01-12
+2025-07-13 13:10:54,886 - WARNING - Could not get price for NLR on 2024-01-16
+2025-07-13 13:10:54,886 - WARNING - Could not get price for BWXT on 2024-01-16
+2025-07-13 13:10:54,886 - WARNING - Could not get price for LEU on 2024-01-16
+2025-07-13 13:10:54,916 - WARNING - Could not get price for NLR on 2024-01-17
+2025-07-13 13:10:54,916 - WARNING - Could not get price for LEU on 2024-01-17
+2025-07-13 13:10:54,916 - WARNING - Could not get price for BWXT on 2024-01-17
+2025-07-13 13:10:54,947 - WARNING - Could not get price for NLR on 2024-01-18
+2025-07-13 13:10:54,947 - WARNING - Could not get price for LEU on 2024-01-18
+2025-07-13 13:10:54,947 - WARNING - Could not get price for BWXT on 2024-01-18
+2025-07-13 13:10:54,974 - WARNING - Could not get price for UVXY on 2024-01-19
+2025-07-13 13:10:54,974 - WARNING - Could not get price for BTAL on 2024-01-19
+2025-07-13 13:10:55,001 - WARNING - Could not get price for UVXY on 2024-01-22
+2025-07-13 13:10:55,028 - WARNING - Could not get price for UVXY on 2024-01-23
+2025-07-13 13:10:55,054 - WARNING - Could not get price for UVXY on 2024-01-24
+2025-07-13 13:10:55,082 - WARNING - Could not get price for UVXY on 2024-01-25
+2025-07-13 13:10:55,109 - WARNING - Could not get price for UVXY on 2024-01-26
+2025-07-13 13:10:55,135 - WARNING - Could not get price for UVXY on 2024-01-29
+2025-07-13 13:10:55,135 - WARNING - Could not get price for BTAL on 2024-01-29
+2025-07-13 13:10:55,162 - WARNING - Could not get price for UVXY on 2024-01-30
+2025-07-13 13:10:55,189 - WARNING - Could not get price for UVXY on 2024-01-31
+2025-07-13 13:10:55,215 - INFO - Signal on 2024-02-01: BUY UVXY_BTAL_PORTFOLIO - XLF overbought, UVXY 75% + BTAL 25% allocation
+2025-07-13 13:10:55,216 - WARNING - Could not get price for UVXY on 2024-02-01
+2025-07-13 13:10:55,216 - WARNING - Could not get price for BTAL on 2024-02-01
+2025-07-13 13:10:55,242 - WARNING - Could not get price for UVXY on 2024-02-02
+2025-07-13 13:10:55,242 - WARNING - Could not get price for BTAL on 2024-02-02
+2025-07-13 13:10:55,271 - WARNING - Could not get price for NLR on 2024-02-05
+2025-07-13 13:10:55,271 - WARNING - Could not get price for BWXT on 2024-02-05
+2025-07-13 13:10:55,272 - WARNING - Could not get price for OKLO on 2024-02-05
+2025-07-13 13:10:55,301 - WARNING - Could not get price for NLR on 2024-02-06
+2025-07-13 13:10:55,301 - WARNING - Could not get price for BWXT on 2024-02-06
+2025-07-13 13:10:55,301 - WARNING - Could not get price for OKLO on 2024-02-06
+2025-07-13 13:10:55,330 - WARNING - Could not get price for NLR on 2024-02-07
+2025-07-13 13:10:55,331 - WARNING - Could not get price for BWXT on 2024-02-07
+2025-07-13 13:10:55,331 - WARNING - Could not get price for OKLO on 2024-02-07
+2025-07-13 13:10:55,361 - WARNING - Could not get price for NLR on 2024-02-08
+2025-07-13 13:10:55,361 - WARNING - Could not get price for BWXT on 2024-02-08
+2025-07-13 13:10:55,361 - WARNING - Could not get price for OKLO on 2024-02-08
+2025-07-13 13:10:55,390 - WARNING - Could not get price for BWXT on 2024-02-09
+2025-07-13 13:10:55,390 - WARNING - Could not get price for NLR on 2024-02-09
+2025-07-13 13:10:55,390 - WARNING - Could not get price for OKLO on 2024-02-09
+2025-07-13 13:10:55,419 - WARNING - Could not get price for BWXT on 2024-02-12
+2025-07-13 13:10:55,419 - WARNING - Could not get price for NLR on 2024-02-12
+2025-07-13 13:10:55,419 - WARNING - Could not get price for OKLO on 2024-02-12
+2025-07-13 13:10:55,449 - WARNING - Could not get price for BWXT on 2024-02-13
+2025-07-13 13:10:55,449 - WARNING - Could not get price for NLR on 2024-02-13
+2025-07-13 13:10:55,449 - WARNING - Could not get price for OKLO on 2024-02-13
+2025-07-13 13:10:55,478 - WARNING - Could not get price for BWXT on 2024-02-14
+2025-07-13 13:10:55,478 - WARNING - Could not get price for NLR on 2024-02-14
+2025-07-13 13:10:55,478 - WARNING - Could not get price for OKLO on 2024-02-14
+2025-07-13 13:10:55,507 - WARNING - Could not get price for BWXT on 2024-02-15
+2025-07-13 13:10:55,508 - WARNING - Could not get price for NLR on 2024-02-15
+2025-07-13 13:10:55,508 - WARNING - Could not get price for OKLO on 2024-02-15
+2025-07-13 13:10:55,537 - WARNING - Could not get price for BWXT on 2024-02-16
+2025-07-13 13:10:55,537 - WARNING - Could not get price for NLR on 2024-02-16
+2025-07-13 13:10:55,537 - WARNING - Could not get price for OKLO on 2024-02-16
+2025-07-13 13:10:55,567 - WARNING - Could not get price for BWXT on 2024-02-20
+2025-07-13 13:10:55,567 - WARNING - Could not get price for NLR on 2024-02-20
+2025-07-13 13:10:55,567 - WARNING - Could not get price for OKLO on 2024-02-20
+2025-07-13 13:10:55,596 - WARNING - Could not get price for BWXT on 2024-02-21
+2025-07-13 13:10:55,596 - WARNING - Could not get price for NLR on 2024-02-21
+2025-07-13 13:10:55,596 - WARNING - Could not get price for OKLO on 2024-02-21
+2025-07-13 13:10:55,625 - WARNING - Could not get price for BWXT on 2024-02-22
+2025-07-13 13:10:55,625 - WARNING - Could not get price for NLR on 2024-02-22
+2025-07-13 13:10:55,625 - WARNING - Could not get price for OKLO on 2024-02-22
+2025-07-13 13:10:55,655 - WARNING - Could not get price for BWXT on 2024-02-23
+2025-07-13 13:10:55,655 - WARNING - Could not get price for NLR on 2024-02-23
+2025-07-13 13:10:55,655 - WARNING - Could not get price for OKLO on 2024-02-23
+2025-07-13 13:10:55,685 - WARNING - Could not get price for BWXT on 2024-02-26
+2025-07-13 13:10:55,685 - WARNING - Could not get price for NLR on 2024-02-26
+2025-07-13 13:10:55,685 - WARNING - Could not get price for OKLO on 2024-02-26
+2025-07-13 13:10:55,714 - WARNING - Could not get price for BWXT on 2024-02-27
+2025-07-13 13:10:55,714 - WARNING - Could not get price for NLR on 2024-02-27
+2025-07-13 13:10:55,714 - WARNING - Could not get price for OKLO on 2024-02-27
+2025-07-13 13:10:55,743 - WARNING - Could not get price for BWXT on 2024-02-28
+2025-07-13 13:10:55,743 - WARNING - Could not get price for NLR on 2024-02-28
+2025-07-13 13:10:55,743 - WARNING - Could not get price for OKLO on 2024-02-28
+2025-07-13 13:10:55,770 - WARNING - Could not get price for UVXY on 2024-02-29
+2025-07-13 13:10:55,797 - INFO - Signal on 2024-03-01: BUY UVXY - VTV extremely overbought
+2025-07-13 13:10:55,797 - WARNING - Could not get price for UVXY on 2024-03-01
+2025-07-13 13:10:55,823 - WARNING - Could not get price for UVXY on 2024-03-04
+2025-07-13 13:10:55,823 - WARNING - Could not get price for BTAL on 2024-03-04
+2025-07-13 13:10:55,850 - WARNING - Could not get price for UVXY on 2024-03-05
+2025-07-13 13:10:55,877 - WARNING - Could not get price for UVXY on 2024-03-06
+2025-07-13 13:10:55,877 - WARNING - Could not get price for BTAL on 2024-03-06
+2025-07-13 13:10:55,904 - WARNING - Could not get price for UVXY on 2024-03-07
+2025-07-13 13:10:55,933 - WARNING - Could not get price for SMR on 2024-03-08
+2025-07-13 13:10:55,933 - WARNING - Could not get price for BWXT on 2024-03-08
+2025-07-13 13:10:55,933 - WARNING - Could not get price for NLR on 2024-03-08
+2025-07-13 13:10:55,962 - WARNING - Could not get price for SMR on 2024-03-11
+2025-07-13 13:10:55,962 - WARNING - Could not get price for BWXT on 2024-03-11
+2025-07-13 13:10:55,962 - WARNING - Could not get price for NLR on 2024-03-11
+2025-07-13 13:10:55,989 - WARNING - Could not get price for UVXY on 2024-03-12
+2025-07-13 13:10:56,016 - WARNING - Could not get price for UVXY on 2024-03-13
+2025-07-13 13:10:56,042 - WARNING - Could not get price for UVXY on 2024-03-14
+2025-07-13 13:10:56,072 - WARNING - Could not get price for SMR on 2024-03-15
+2025-07-13 13:10:56,072 - WARNING - Could not get price for BWXT on 2024-03-15
+2025-07-13 13:10:56,072 - WARNING - Could not get price for NLR on 2024-03-15
+2025-07-13 13:10:56,101 - WARNING - Could not get price for SMR on 2024-03-18
+2025-07-13 13:10:56,102 - WARNING - Could not get price for BWXT on 2024-03-18
+2025-07-13 13:10:56,102 - WARNING - Could not get price for NLR on 2024-03-18
+2025-07-13 13:10:56,131 - WARNING - Could not get price for SMR on 2024-03-19
+2025-07-13 13:10:56,131 - WARNING - Could not get price for BWXT on 2024-03-19
+2025-07-13 13:10:56,131 - WARNING - Could not get price for NLR on 2024-03-19
+2025-07-13 13:10:56,160 - WARNING - Could not get price for SMR on 2024-03-20
+2025-07-13 13:10:56,160 - WARNING - Could not get price for BWXT on 2024-03-20
+2025-07-13 13:10:56,160 - WARNING - Could not get price for NLR on 2024-03-20
+2025-07-13 13:10:56,186 - WARNING - Could not get price for UVXY on 2024-03-21
+2025-07-13 13:10:56,186 - WARNING - Could not get price for BTAL on 2024-03-21
+2025-07-13 13:10:56,213 - WARNING - Could not get price for UVXY on 2024-03-22
+2025-07-13 13:10:56,242 - WARNING - Could not get price for SMR on 2024-03-25
+2025-07-13 13:10:56,243 - WARNING - Could not get price for BWXT on 2024-03-25
+2025-07-13 13:10:56,243 - WARNING - Could not get price for NLR on 2024-03-25
+2025-07-13 13:10:56,272 - WARNING - Could not get price for SMR on 2024-03-26
+2025-07-13 13:10:56,272 - WARNING - Could not get price for BWXT on 2024-03-26
+2025-07-13 13:10:56,272 - WARNING - Could not get price for NLR on 2024-03-26
+2025-07-13 13:10:56,302 - WARNING - Could not get price for SMR on 2024-03-27
+2025-07-13 13:10:56,302 - WARNING - Could not get price for BWXT on 2024-03-27
+2025-07-13 13:10:56,302 - WARNING - Could not get price for OKLO on 2024-03-27
+2025-07-13 13:10:56,331 - WARNING - Could not get price for SMR on 2024-03-28
+2025-07-13 13:10:56,331 - WARNING - Could not get price for BWXT on 2024-03-28
+2025-07-13 13:10:56,331 - WARNING - Could not get price for NLR on 2024-03-28
+2025-07-13 13:10:56,358 - INFO - Signal on 2024-04-01: BUY UVXY - VTV extremely overbought
+2025-07-13 13:10:56,358 - WARNING - Could not get price for UVXY on 2024-04-01
+2025-07-13 13:10:56,384 - WARNING - Could not get price for UVXY on 2024-04-02
+2025-07-13 13:10:56,384 - WARNING - Could not get price for BTAL on 2024-04-02
+2025-07-13 13:10:56,410 - WARNING - Could not get price for UVXY on 2024-04-03
+2025-07-13 13:10:56,410 - WARNING - Could not get price for BTAL on 2024-04-03
+2025-07-13 13:10:56,437 - WARNING - Could not get price for UVXY on 2024-04-04
+2025-07-13 13:10:56,437 - WARNING - Could not get price for BTAL on 2024-04-04
+2025-07-13 13:10:56,463 - WARNING - Could not get price for TQQQ on 2024-04-05
+2025-07-13 13:10:56,492 - WARNING - Could not get price for SMR on 2024-04-08
+2025-07-13 13:10:56,492 - WARNING - Could not get price for BWXT on 2024-04-08
+2025-07-13 13:10:56,492 - WARNING - Could not get price for OKLO on 2024-04-08
+2025-07-13 13:10:56,521 - WARNING - Could not get price for SMR on 2024-04-09
+2025-07-13 13:10:56,521 - WARNING - Could not get price for OKLO on 2024-04-09
+2025-07-13 13:10:56,521 - WARNING - Could not get price for BWXT on 2024-04-09
+2025-07-13 13:10:56,551 - WARNING - Could not get price for SMR on 2024-04-10
+2025-07-13 13:10:56,551 - WARNING - Could not get price for OKLO on 2024-04-10
+2025-07-13 13:10:56,551 - WARNING - Could not get price for BWXT on 2024-04-10
+2025-07-13 13:10:56,580 - WARNING - Could not get price for SMR on 2024-04-11
+2025-07-13 13:10:56,580 - WARNING - Could not get price for OKLO on 2024-04-11
+2025-07-13 13:10:56,580 - WARNING - Could not get price for BWXT on 2024-04-11
+2025-07-13 13:10:56,610 - WARNING - Could not get price for SMR on 2024-04-12
+2025-07-13 13:10:56,610 - WARNING - Could not get price for OKLO on 2024-04-12
+2025-07-13 13:10:56,610 - WARNING - Could not get price for BWXT on 2024-04-12
+2025-07-13 13:10:56,639 - WARNING - Could not get price for SMR on 2024-04-15
+2025-07-13 13:10:56,639 - WARNING - Could not get price for OKLO on 2024-04-15
+2025-07-13 13:10:56,639 - WARNING - Could not get price for BWXT on 2024-04-15
+2025-07-13 13:10:56,666 - WARNING - Could not get price for UPRO on 2024-04-16
+2025-07-13 13:10:56,693 - WARNING - Could not get price for UPRO on 2024-04-17
+2025-07-13 13:10:56,720 - WARNING - Could not get price for UPRO on 2024-04-18
+2025-07-13 13:10:56,747 - WARNING - Could not get price for UPRO on 2024-04-19
+2025-07-13 13:10:56,773 - WARNING - Could not get price for TQQQ on 2024-04-22
+2025-07-13 13:10:56,800 - WARNING - Could not get price for TQQQ on 2024-04-23
+2025-07-13 13:10:56,829 - WARNING - Could not get price for SMR on 2024-04-24
+2025-07-13 13:10:56,829 - WARNING - Could not get price for OKLO on 2024-04-24
+2025-07-13 13:10:56,829 - WARNING - Could not get price for BWXT on 2024-04-24
+2025-07-13 13:10:56,858 - WARNING - Could not get price for SMR on 2024-04-25
+2025-07-13 13:10:56,858 - WARNING - Could not get price for OKLO on 2024-04-25
+2025-07-13 13:10:56,859 - WARNING - Could not get price for BWXT on 2024-04-25
+2025-07-13 13:10:56,885 - WARNING - Could not get price for TQQQ on 2024-04-26
+2025-07-13 13:10:56,914 - WARNING - Could not get price for SMR on 2024-04-29
+2025-07-13 13:10:56,914 - WARNING - Could not get price for OKLO on 2024-04-29
+2025-07-13 13:10:56,914 - WARNING - Could not get price for BWXT on 2024-04-29
+2025-07-13 13:10:56,943 - WARNING - Could not get price for SMR on 2024-04-30
+2025-07-13 13:10:56,943 - WARNING - Could not get price for OKLO on 2024-04-30
+2025-07-13 13:10:56,943 - WARNING - Could not get price for BWXT on 2024-04-30
+2025-07-13 13:10:56,971 - INFO - Signal on 2024-05-01: BUY NUCLEAR_PORTFOLIO - Bull market - Nuclear portfolio: SMR (10.9%), OKLO (29.8%), BWXT (59.4%)
+2025-07-13 13:10:56,972 - WARNING - Could not get price for SMR on 2024-05-01
+2025-07-13 13:10:56,972 - WARNING - Could not get price for OKLO on 2024-05-01
+2025-07-13 13:10:56,972 - WARNING - Could not get price for BWXT on 2024-05-01
+2025-07-13 13:10:57,001 - WARNING - Could not get price for SMR on 2024-05-02
+2025-07-13 13:10:57,002 - WARNING - Could not get price for OKLO on 2024-05-02
+2025-07-13 13:10:57,002 - WARNING - Could not get price for BWXT on 2024-05-02
+2025-07-13 13:10:57,031 - WARNING - Could not get price for SMR on 2024-05-03
+2025-07-13 13:10:57,031 - WARNING - Could not get price for OKLO on 2024-05-03
+2025-07-13 13:10:57,031 - WARNING - Could not get price for BWXT on 2024-05-03
+2025-07-13 13:10:57,060 - WARNING - Could not get price for SMR on 2024-05-06
+2025-07-13 13:10:57,060 - WARNING - Could not get price for OKLO on 2024-05-06
+2025-07-13 13:10:57,060 - WARNING - Could not get price for BWXT on 2024-05-06
+2025-07-13 13:10:57,090 - WARNING - Could not get price for SMR on 2024-05-07
+2025-07-13 13:10:57,090 - WARNING - Could not get price for OKLO on 2024-05-07
+2025-07-13 13:10:57,090 - WARNING - Could not get price for BWXT on 2024-05-07
+2025-07-13 13:10:57,119 - WARNING - Could not get price for SMR on 2024-05-08
+2025-07-13 13:10:57,120 - WARNING - Could not get price for OKLO on 2024-05-08
+2025-07-13 13:10:57,120 - WARNING - Could not get price for BWXT on 2024-05-08
+2025-07-13 13:10:57,150 - WARNING - Could not get price for SMR on 2024-05-09
+2025-07-13 13:10:57,150 - WARNING - Could not get price for OKLO on 2024-05-09
+2025-07-13 13:10:57,150 - WARNING - Could not get price for BWXT on 2024-05-09
+2025-07-13 13:10:57,190 - WARNING - Could not get price for SMR on 2024-05-10
+2025-07-13 13:10:57,190 - WARNING - Could not get price for OKLO on 2024-05-10
+2025-07-13 13:10:57,190 - WARNING - Could not get price for NLR on 2024-05-10
+2025-07-13 13:10:57,219 - WARNING - Could not get price for SMR on 2024-05-13
+2025-07-13 13:10:57,219 - WARNING - Could not get price for BWXT on 2024-05-13
+2025-07-13 13:10:57,219 - WARNING - Could not get price for NLR on 2024-05-13
+2025-07-13 13:10:57,248 - WARNING - Could not get price for SMR on 2024-05-14
+2025-07-13 13:10:57,248 - WARNING - Could not get price for OKLO on 2024-05-14
+2025-07-13 13:10:57,248 - WARNING - Could not get price for BWXT on 2024-05-14
+2025-07-13 13:10:57,275 - WARNING - Could not get price for UVXY on 2024-05-15
+2025-07-13 13:10:57,302 - WARNING - Could not get price for UVXY on 2024-05-16
+2025-07-13 13:10:57,329 - WARNING - Could not get price for UVXY on 2024-05-17
+2025-07-13 13:10:57,356 - WARNING - Could not get price for UVXY on 2024-05-20
+2025-07-13 13:10:57,383 - WARNING - Could not get price for UVXY on 2024-05-21
+2025-07-13 13:10:57,410 - WARNING - Could not get price for UVXY on 2024-05-22
+2025-07-13 13:10:57,437 - WARNING - Could not get price for UVXY on 2024-05-23
+2025-07-13 13:10:57,464 - WARNING - Could not get price for UVXY on 2024-05-24
+2025-07-13 13:10:57,464 - WARNING - Could not get price for BTAL on 2024-05-24
+2025-07-13 13:10:57,491 - WARNING - Could not get price for UVXY on 2024-05-28
+2025-07-13 13:16:58,402 - INFO - Starting Nuclear Energy strategy analysis...
+2025-07-13 13:17:02,462 - INFO - Analysis complete: BUY NUCLEAR_PORTFOLIO - Bull market - Nuclear portfolio: SMR (31.2%), LEU (39.5%), OKLO (29.3%)
+2025-07-13 13:22:31,288 - INFO - Downloading historical data...
+2025-07-13 13:22:31,844 - INFO - Downloaded daily data for SPY: 250 records
+2025-07-13 13:22:31,950 - INFO - Downloaded daily data for IOO: 250 records
+2025-07-13 13:22:32,031 - INFO - Downloaded daily data for TQQQ: 250 records
+2025-07-13 13:22:32,123 - INFO - Downloaded daily data for VTV: 250 records
+2025-07-13 13:22:32,222 - INFO - Downloaded daily data for XLF: 250 records
+2025-07-13 13:22:32,316 - INFO - Downloaded daily data for VOX: 250 records
+2025-07-13 13:22:32,384 - INFO - Downloaded daily data for UVXY: 250 records
+2025-07-13 13:22:32,463 - INFO - Downloaded daily data for BTAL: 250 records
+2025-07-13 13:22:32,576 - INFO - Downloaded daily data for QQQ: 250 records
+2025-07-13 13:22:32,665 - INFO - Downloaded daily data for SQQQ: 250 records
+2025-07-13 13:22:32,769 - INFO - Downloaded daily data for PSQ: 250 records
+2025-07-13 13:22:32,858 - INFO - Downloaded daily data for UPRO: 250 records
+2025-07-13 13:22:32,969 - INFO - Downloaded daily data for TLT: 250 records
+2025-07-13 13:22:33,070 - INFO - Downloaded daily data for IEF: 250 records
+2025-07-13 13:22:33,138 - INFO - Downloaded daily data for SMR: 250 records
+2025-07-13 13:22:33,222 - INFO - Downloaded daily data for BWXT: 250 records
+2025-07-13 13:22:33,299 - INFO - Downloaded daily data for LEU: 250 records
+2025-07-13 13:22:33,428 - INFO - Downloaded daily data for EXC: 250 records
+2025-07-13 13:22:33,528 - INFO - Downloaded daily data for NLR: 250 records
+2025-07-13 13:22:33,596 - INFO - Downloaded daily data for OKLO: 250 records
+2025-07-13 13:22:33,829 - ERROR - $SPY: possibly delisted; no price data found  (1h 2023-01-01 -> 2023-12-31) (Yahoo error = "1h data not available for startTime=1672549200 and endTime=1703998800. The requested range must be within the last 730 days.")
+2025-07-13 13:22:34,069 - ERROR - $QQQ: possibly delisted; no price data found  (1h 2023-01-01 -> 2023-12-31) (Yahoo error = "1h data not available for startTime=1672549200 and endTime=1703998800. The requested range must be within the last 730 days.")
+2025-07-13 13:22:34,315 - ERROR - $TQQQ: possibly delisted; no price data found  (1h 2023-01-01 -> 2023-12-31) (Yahoo error = "1h data not available for startTime=1672549200 and endTime=1703998800. The requested range must be within the last 730 days.")
+2025-07-13 13:22:34,577 - ERROR - $UVXY: possibly delisted; no price data found  (1h 2023-01-01 -> 2023-12-31) (Yahoo error = "1h data not available for startTime=1672549200 and endTime=1703998800. The requested range must be within the last 730 days.")
+2025-07-13 13:22:34,820 - ERROR - $SMR: possibly delisted; no price data found  (1h 2023-01-01 -> 2023-12-31) (Yahoo error = "1h data not available for startTime=1672549200 and endTime=1703998800. The requested range must be within the last 730 days.")
+2025-07-13 13:22:35,070 - ERROR - $BWXT: possibly delisted; no price data found  (1h 2023-01-01 -> 2023-12-31) (Yahoo error = "1h data not available for startTime=1672549200 and endTime=1703998800. The requested range must be within the last 730 days.")
+2025-07-13 13:22:35,314 - ERROR - $TLT: possibly delisted; no price data found  (1h 2023-01-01 -> 2023-12-31) (Yahoo error = "1h data not available for startTime=1672549200 and endTime=1703998800. The requested range must be within the last 730 days.")
+2025-07-13 13:22:35,315 - INFO - Data download complete. Daily: 20, Hourly: 0
+2025-07-13 13:22:35,316 - INFO - Running backtest: close execution
+2025-07-13 13:22:35,322 - ERROR - Error processing date 2023-01-02 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,323 - ERROR - Error processing date 2023-01-03 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,323 - ERROR - Error processing date 2023-01-04 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,323 - ERROR - Error processing date 2023-01-05 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,324 - ERROR - Error processing date 2023-01-06 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,324 - ERROR - Error processing date 2023-01-09 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,324 - ERROR - Error processing date 2023-01-10 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,324 - ERROR - Error processing date 2023-01-11 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,324 - ERROR - Error processing date 2023-01-12 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,325 - ERROR - Error processing date 2023-01-13 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,325 - ERROR - Error processing date 2023-01-16 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,325 - ERROR - Error processing date 2023-01-17 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,326 - ERROR - Error processing date 2023-01-18 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,326 - ERROR - Error processing date 2023-01-19 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,326 - ERROR - Error processing date 2023-01-20 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,326 - ERROR - Error processing date 2023-01-23 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,326 - ERROR - Error processing date 2023-01-24 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,327 - ERROR - Error processing date 2023-01-25 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,327 - ERROR - Error processing date 2023-01-26 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,327 - ERROR - Error processing date 2023-01-27 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,327 - ERROR - Error processing date 2023-01-30 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,327 - ERROR - Error processing date 2023-01-31 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,327 - ERROR - Error processing date 2023-02-01 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,328 - ERROR - Error processing date 2023-02-02 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,328 - ERROR - Error processing date 2023-02-03 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,328 - ERROR - Error processing date 2023-02-06 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,328 - ERROR - Error processing date 2023-02-07 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,328 - ERROR - Error processing date 2023-02-08 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,328 - ERROR - Error processing date 2023-02-09 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,329 - ERROR - Error processing date 2023-02-10 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,329 - ERROR - Error processing date 2023-02-13 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,329 - ERROR - Error processing date 2023-02-14 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,329 - ERROR - Error processing date 2023-02-15 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,329 - ERROR - Error processing date 2023-02-16 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,329 - ERROR - Error processing date 2023-02-17 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,330 - ERROR - Error processing date 2023-02-20 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,330 - ERROR - Error processing date 2023-02-21 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,330 - ERROR - Error processing date 2023-02-22 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,331 - ERROR - Error processing date 2023-02-23 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,331 - ERROR - Error processing date 2023-02-24 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,331 - ERROR - Error processing date 2023-02-27 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,331 - ERROR - Error processing date 2023-02-28 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,331 - ERROR - Error processing date 2023-03-01 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,331 - ERROR - Error processing date 2023-03-02 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,331 - ERROR - Error processing date 2023-03-03 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,332 - ERROR - Error processing date 2023-03-06 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,332 - ERROR - Error processing date 2023-03-07 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,332 - ERROR - Error processing date 2023-03-08 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,332 - ERROR - Error processing date 2023-03-09 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,332 - ERROR - Error processing date 2023-03-10 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,332 - ERROR - Error processing date 2023-03-13 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,332 - ERROR - Error processing date 2023-03-14 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,332 - ERROR - Error processing date 2023-03-15 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,332 - ERROR - Error processing date 2023-03-16 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,332 - ERROR - Error processing date 2023-03-17 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,333 - ERROR - Error processing date 2023-03-20 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,333 - ERROR - Error processing date 2023-03-21 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,333 - ERROR - Error processing date 2023-03-22 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,333 - ERROR - Error processing date 2023-03-23 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,333 - ERROR - Error processing date 2023-03-24 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,333 - ERROR - Error processing date 2023-03-27 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,333 - ERROR - Error processing date 2023-03-28 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,333 - ERROR - Error processing date 2023-03-29 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,333 - ERROR - Error processing date 2023-03-30 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,333 - ERROR - Error processing date 2023-03-31 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,333 - ERROR - Error processing date 2023-04-03 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,334 - ERROR - Error processing date 2023-04-04 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,334 - ERROR - Error processing date 2023-04-05 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,334 - ERROR - Error processing date 2023-04-06 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,334 - ERROR - Error processing date 2023-04-07 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,334 - ERROR - Error processing date 2023-04-10 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,334 - ERROR - Error processing date 2023-04-11 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,335 - ERROR - Error processing date 2023-04-12 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,335 - ERROR - Error processing date 2023-04-13 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,335 - ERROR - Error processing date 2023-04-14 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,335 - ERROR - Error processing date 2023-04-17 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,335 - ERROR - Error processing date 2023-04-18 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,335 - ERROR - Error processing date 2023-04-19 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,335 - ERROR - Error processing date 2023-04-20 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,336 - ERROR - Error processing date 2023-04-21 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,336 - ERROR - Error processing date 2023-04-24 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,336 - ERROR - Error processing date 2023-04-25 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,336 - ERROR - Error processing date 2023-04-26 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,336 - ERROR - Error processing date 2023-04-27 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,336 - ERROR - Error processing date 2023-04-28 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,336 - ERROR - Error processing date 2023-05-01 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,336 - ERROR - Error processing date 2023-05-02 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,336 - ERROR - Error processing date 2023-05-03 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,336 - ERROR - Error processing date 2023-05-04 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,337 - ERROR - Error processing date 2023-05-05 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,337 - ERROR - Error processing date 2023-05-08 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,337 - ERROR - Error processing date 2023-05-09 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,337 - ERROR - Error processing date 2023-05-10 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,337 - ERROR - Error processing date 2023-05-11 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,337 - ERROR - Error processing date 2023-05-12 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,337 - ERROR - Error processing date 2023-05-15 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,337 - ERROR - Error processing date 2023-05-16 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,337 - ERROR - Error processing date 2023-05-17 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,337 - ERROR - Error processing date 2023-05-18 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,337 - ERROR - Error processing date 2023-05-19 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,337 - ERROR - Error processing date 2023-05-22 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,337 - ERROR - Error processing date 2023-05-23 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,338 - ERROR - Error processing date 2023-05-24 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,338 - ERROR - Error processing date 2023-05-25 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,338 - ERROR - Error processing date 2023-05-26 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,338 - ERROR - Error processing date 2023-05-29 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,338 - ERROR - Error processing date 2023-05-30 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,338 - ERROR - Error processing date 2023-05-31 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,338 - ERROR - Error processing date 2023-06-01 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,338 - ERROR - Error processing date 2023-06-02 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,338 - ERROR - Error processing date 2023-06-05 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,338 - ERROR - Error processing date 2023-06-06 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,338 - ERROR - Error processing date 2023-06-07 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,338 - ERROR - Error processing date 2023-06-08 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,338 - ERROR - Error processing date 2023-06-09 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,339 - ERROR - Error processing date 2023-06-12 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,339 - ERROR - Error processing date 2023-06-13 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,339 - ERROR - Error processing date 2023-06-14 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,339 - ERROR - Error processing date 2023-06-15 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,339 - ERROR - Error processing date 2023-06-16 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,339 - ERROR - Error processing date 2023-06-19 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,339 - ERROR - Error processing date 2023-06-20 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,339 - ERROR - Error processing date 2023-06-21 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,340 - ERROR - Error processing date 2023-06-22 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,340 - ERROR - Error processing date 2023-06-23 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,340 - ERROR - Error processing date 2023-06-26 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,340 - ERROR - Error processing date 2023-06-27 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,340 - ERROR - Error processing date 2023-06-28 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,340 - ERROR - Error processing date 2023-06-29 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,340 - ERROR - Error processing date 2023-06-30 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,340 - ERROR - Error processing date 2023-07-03 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,340 - ERROR - Error processing date 2023-07-04 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,340 - ERROR - Error processing date 2023-07-05 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,340 - ERROR - Error processing date 2023-07-06 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,340 - ERROR - Error processing date 2023-07-07 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,340 - ERROR - Error processing date 2023-07-10 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,340 - ERROR - Error processing date 2023-07-11 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,341 - ERROR - Error processing date 2023-07-12 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,341 - ERROR - Error processing date 2023-07-13 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,341 - ERROR - Error processing date 2023-07-14 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,341 - ERROR - Error processing date 2023-07-17 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,341 - ERROR - Error processing date 2023-07-18 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,341 - ERROR - Error processing date 2023-07-19 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,341 - ERROR - Error processing date 2023-07-20 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,341 - ERROR - Error processing date 2023-07-21 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,341 - ERROR - Error processing date 2023-07-24 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,341 - ERROR - Error processing date 2023-07-25 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,341 - ERROR - Error processing date 2023-07-26 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,341 - ERROR - Error processing date 2023-07-27 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,341 - ERROR - Error processing date 2023-07-28 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,341 - ERROR - Error processing date 2023-07-31 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,342 - ERROR - Error processing date 2023-08-01 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,342 - ERROR - Error processing date 2023-08-02 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,342 - ERROR - Error processing date 2023-08-03 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,342 - ERROR - Error processing date 2023-08-04 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,342 - ERROR - Error processing date 2023-08-07 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,342 - ERROR - Error processing date 2023-08-08 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,342 - ERROR - Error processing date 2023-08-09 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,342 - ERROR - Error processing date 2023-08-10 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,343 - ERROR - Error processing date 2023-08-11 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,343 - ERROR - Error processing date 2023-08-14 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,343 - ERROR - Error processing date 2023-08-15 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,343 - ERROR - Error processing date 2023-08-16 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,343 - ERROR - Error processing date 2023-08-17 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,343 - ERROR - Error processing date 2023-08-18 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,343 - ERROR - Error processing date 2023-08-21 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,343 - ERROR - Error processing date 2023-08-22 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,343 - ERROR - Error processing date 2023-08-23 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,343 - ERROR - Error processing date 2023-08-24 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,343 - ERROR - Error processing date 2023-08-25 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,343 - ERROR - Error processing date 2023-08-28 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,343 - ERROR - Error processing date 2023-08-29 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,343 - ERROR - Error processing date 2023-08-30 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,344 - ERROR - Error processing date 2023-08-31 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,344 - ERROR - Error processing date 2023-09-01 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,344 - ERROR - Error processing date 2023-09-04 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,344 - ERROR - Error processing date 2023-09-05 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,344 - ERROR - Error processing date 2023-09-06 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,344 - ERROR - Error processing date 2023-09-07 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,344 - ERROR - Error processing date 2023-09-08 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,344 - ERROR - Error processing date 2023-09-11 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,344 - ERROR - Error processing date 2023-09-12 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,344 - ERROR - Error processing date 2023-09-13 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,344 - ERROR - Error processing date 2023-09-14 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,344 - ERROR - Error processing date 2023-09-15 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,344 - ERROR - Error processing date 2023-09-18 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,344 - ERROR - Error processing date 2023-09-19 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,344 - ERROR - Error processing date 2023-09-20 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,344 - ERROR - Error processing date 2023-09-21 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,344 - ERROR - Error processing date 2023-09-22 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,345 - ERROR - Error processing date 2023-09-25 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,345 - ERROR - Error processing date 2023-09-26 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,345 - ERROR - Error processing date 2023-09-27 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,345 - ERROR - Error processing date 2023-09-28 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,345 - ERROR - Error processing date 2023-09-29 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,345 - ERROR - Error processing date 2023-10-02 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,345 - ERROR - Error processing date 2023-10-03 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,345 - ERROR - Error processing date 2023-10-04 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,345 - ERROR - Error processing date 2023-10-05 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,345 - ERROR - Error processing date 2023-10-06 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,345 - ERROR - Error processing date 2023-10-09 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,345 - ERROR - Error processing date 2023-10-10 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,345 - ERROR - Error processing date 2023-10-11 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,345 - ERROR - Error processing date 2023-10-12 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,345 - ERROR - Error processing date 2023-10-13 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,345 - ERROR - Error processing date 2023-10-16 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,345 - ERROR - Error processing date 2023-10-17 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,346 - ERROR - Error processing date 2023-10-18 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,346 - ERROR - Error processing date 2023-10-19 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,346 - ERROR - Error processing date 2023-10-20 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,346 - ERROR - Error processing date 2023-10-23 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,346 - ERROR - Error processing date 2023-10-24 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,346 - ERROR - Error processing date 2023-10-25 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,346 - ERROR - Error processing date 2023-10-26 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,346 - ERROR - Error processing date 2023-10-27 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,346 - ERROR - Error processing date 2023-10-30 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,346 - ERROR - Error processing date 2023-10-31 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,346 - ERROR - Error processing date 2023-11-01 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,346 - ERROR - Error processing date 2023-11-02 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,346 - ERROR - Error processing date 2023-11-03 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,346 - ERROR - Error processing date 2023-11-06 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,346 - ERROR - Error processing date 2023-11-07 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,347 - ERROR - Error processing date 2023-11-08 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,347 - ERROR - Error processing date 2023-11-09 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,347 - ERROR - Error processing date 2023-11-10 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,347 - ERROR - Error processing date 2023-11-13 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,347 - ERROR - Error processing date 2023-11-14 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,347 - ERROR - Error processing date 2023-11-15 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,347 - ERROR - Error processing date 2023-11-16 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,347 - ERROR - Error processing date 2023-11-17 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,348 - ERROR - Error processing date 2023-11-20 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,348 - ERROR - Error processing date 2023-11-21 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,348 - ERROR - Error processing date 2023-11-22 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,348 - ERROR - Error processing date 2023-11-23 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,348 - ERROR - Error processing date 2023-11-24 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,348 - ERROR - Error processing date 2023-11-27 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,348 - ERROR - Error processing date 2023-11-28 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,348 - ERROR - Error processing date 2023-11-29 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,348 - ERROR - Error processing date 2023-11-30 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,348 - ERROR - Error processing date 2023-12-01 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,348 - ERROR - Error processing date 2023-12-04 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,348 - ERROR - Error processing date 2023-12-05 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,348 - ERROR - Error processing date 2023-12-06 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,348 - ERROR - Error processing date 2023-12-07 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,348 - ERROR - Error processing date 2023-12-08 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,348 - ERROR - Error processing date 2023-12-11 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,348 - ERROR - Error processing date 2023-12-12 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,348 - ERROR - Error processing date 2023-12-13 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,349 - ERROR - Error processing date 2023-12-14 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,349 - ERROR - Error processing date 2023-12-15 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,349 - ERROR - Error processing date 2023-12-18 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,349 - ERROR - Error processing date 2023-12-19 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,349 - ERROR - Error processing date 2023-12-20 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,349 - ERROR - Error processing date 2023-12-21 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,349 - ERROR - Error processing date 2023-12-22 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,349 - ERROR - Error processing date 2023-12-25 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,349 - ERROR - Error processing date 2023-12-26 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,349 - ERROR - Error processing date 2023-12-27 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,349 - ERROR - Error processing date 2023-12-28 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,349 - ERROR - Error processing date 2023-12-29 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
+2025-07-13 13:22:35,349 - ERROR - No portfolio values calculated or missing SPY data

@@ -105,6 +105,10 @@ class DataProvider:
             data = ticker.history(period=period)
             
             if not data.empty:
+                # Flatten the column MultiIndex if it exists
+                if isinstance(data.columns, pd.MultiIndex):
+                    data.columns = [col[0] for col in data.columns]
+                
                 self.cache[cache_key] = {
                     'data': data,
                     'timestamp': current_time
@@ -221,8 +225,11 @@ class NuclearStrategyEngine:
                     price_data = market_data[symbol]['Close']
                     if len(price_data) >= 90:
                         returns = price_data.pct_change().dropna()
-                        volatility = returns.tail(90).std() * (252 ** 0.5)  # Annualized volatility
-                        volatilities.append((symbol, performance, volatility))
+                        # Ensure volatility is a scalar by taking the first element if it's a series
+                        volatility_val = returns.tail(90).std() * (252 ** 0.5)
+                        if isinstance(volatility_val, pd.Series):
+                            volatility_val = volatility_val.iloc[0]
+                        volatilities.append((symbol, performance, volatility_val))
             
             if volatilities:
                 # Calculate inverse volatility weights
