@@ -71,10 +71,28 @@ def get_current_signal():
     """Get current trading signal"""
     try:
         bot = NuclearTradingBot()
-        alert = bot.run_analysis()
-        return alert
+        alerts = bot.run_analysis()
+        
+        # Handle portfolio signals (list of alerts) vs single signals
+        if alerts:
+            if isinstance(alerts, list):
+                return alerts  # Return list of alerts
+            else:
+                return [alerts]  # Wrap single alert in list
+        else:
+            return []
     except Exception as e:
         st.error(f"Error getting signal: {e}")
+        return []
+
+def get_current_portfolio_allocation():
+    """Get current portfolio allocation details"""
+    try:
+        bot = NuclearTradingBot()
+        portfolio = bot.get_current_portfolio_allocation()
+        return portfolio
+    except Exception as e:
+        st.error(f"Error getting portfolio allocation: {e}")
         return None
 
 @st.cache_data(ttl=3600)  # Cache for 1 hour
@@ -259,36 +277,81 @@ def create_indicators_chart(indicators):
     
     return fig
 
-def display_signal_card(alert):
-    """Display trading signal in a card format"""
-    if not alert:
+def display_signal_card(alerts):
+    """Display trading signal(s) in a card format - handles both single and portfolio signals"""
+    if not alerts:
         st.error("No trading signal available")
         return
     
-    # Determine card style based on action
-    if alert.action == 'BUY':
-        card_class = "signal-buy"
-        icon = "📈"
-        color = "green"
-    elif alert.action == 'SELL':
-        card_class = "signal-sell"
-        icon = "📉"
-        color = "red"
-    else:
-        card_class = "signal-hold"
-        icon = "⏸️"
-        color = "orange"
+    # Handle single alert (backwards compatibility)
+    if not isinstance(alerts, list):
+        alerts = [alerts]
     
-    # Create the signal card
-    st.markdown(f"""
-    <div class="{card_class}">
-        <h3>{icon} {alert.action} {alert.symbol}</h3>
-        <p><strong>Price:</strong> ${alert.price:.2f}</p>
-        <p><strong>Reason:</strong> {alert.reason}</p>
-        <p><strong>Time:</strong> {alert.timestamp.strftime('%Y-%m-%d %H:%M:%S')}</p>
-        <p><em>Deterministic Strategy - No Confidence Scoring</em></p>
-    </div>
-    """, unsafe_allow_html=True)
+    # Check if this is a nuclear portfolio signal (multiple stocks)
+    if len(alerts) > 1:
+        st.markdown("### 🚨 Nuclear Portfolio Signal")
+        st.markdown("*Deterministic Strategy - No Confidence Scoring*")
+        
+        # Display portfolio summary
+        portfolio_value = 0
+        portfolio_details = []
+        
+        for alert in alerts:
+            if alert.action == 'BUY':
+                # Extract allocation percentage from reason
+                import re
+                allocation_match = re.search(r'(\d+\.?\d*)%', alert.reason)
+                if allocation_match:
+                    allocation = float(allocation_match.group(1))
+                    portfolio_value += allocation
+                    portfolio_details.append({
+                        'Symbol': alert.symbol,
+                        'Action': alert.action,
+                        'Price': f"${alert.price:.2f}",
+                        'Allocation': f"{allocation:.1f}%",
+                        'Reason': alert.reason.split('(')[0].strip()  # Clean up reason
+                    })
+        
+        # Display portfolio table
+        if portfolio_details:
+            df_portfolio = pd.DataFrame(portfolio_details)
+            st.dataframe(df_portfolio, use_container_width=True)
+            
+            # Show portfolio allocation pie chart
+            fig_pie = px.pie(
+                values=[float(d['Allocation'].replace('%', '')) for d in portfolio_details],
+                names=[d['Symbol'] for d in portfolio_details],
+                title="Portfolio Allocation"
+            )
+            st.plotly_chart(fig_pie, use_container_width=True)
+    else:
+        # Single signal display
+        alert = alerts[0]
+        
+        # Determine card style based on action
+        if alert.action == 'BUY':
+            card_class = "signal-buy"
+            icon = "📈"
+            color = "green"
+        elif alert.action == 'SELL':
+            card_class = "signal-sell"
+            icon = "📉"
+            color = "red"
+        else:
+            card_class = "signal-hold"
+            icon = "⏸️"
+            color = "orange"
+        
+        # Create the signal card
+        st.markdown(f"""
+        <div class="{card_class}">
+            <h3>{icon} {alert.action} {alert.symbol}</h3>
+            <p><strong>Price:</strong> ${alert.price:.2f}</p>
+            <p><strong>Reason:</strong> {alert.reason}</p>
+            <p><strong>Time:</strong> {alert.timestamp.strftime('%Y-%m-%d %H:%M:%S')}</p>
+            <p><em>Deterministic Strategy - No Confidence Scoring</em></p>
+        </div>
+        """, unsafe_allow_html=True)
 
 def load_alert_history():
     """Load historical alerts from JSON file"""
@@ -378,8 +441,12 @@ def main():
         current_signal = get_current_signal()
         
         with col1:
-            if current_signal:
-                st.metric("Current Signal", f"{current_signal.action} {current_signal.symbol}")
+            if current_signal and len(current_signal) > 0:
+                if len(current_signal) > 1:
+                    st.metric("Current Signal", f"Portfolio ({len(current_signal)} stocks)")
+                else:
+                    alert = current_signal[0]
+                    st.metric("Current Signal", f"{alert.action} {alert.symbol}")
             else:
                 st.metric("Current Signal", "Loading...")
         

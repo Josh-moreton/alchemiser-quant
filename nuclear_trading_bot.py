@@ -380,26 +380,31 @@ class NuclearStrategyEngine:
         
         # In the original strategy, there are two parallel "Bear" sub-strategies
         # that get weighted together with 14-day inverse volatility weighting
-        # For alerting purposes, we'll evaluate both and determine the combined signal
+        # We need to evaluate both and combine them properly
         
         bear1_signal = self._evaluate_bear_subgroup_1(indicators)
         bear2_signal = self._evaluate_bear_subgroup_2(indicators)
         
-        # If both bear signals are the same, return that signal
-        if bear1_signal[0] == bear2_signal[0]:
+        # Get the recommended symbols from each bear strategy
+        bear1_symbol = bear1_signal[0]
+        bear2_symbol = bear2_signal[0]
+        
+        # If both bear signals are the same, return that signal with full allocation
+        if bear1_symbol == bear2_symbol:
             return bear1_signal
         
-        # If different, we need to decide based on the original weighting logic
-        # For simplicity in alerting, prioritize the more aggressive signal (SQQQ over others)
-        priority_order = ['SQQQ', 'TQQQ', 'QQQ', 'PSQ']
+        # If different symbols, combine using inverse volatility weighting (14-day window)
+        bear_portfolio = self._combine_bear_strategies_with_inverse_volatility(
+            bear1_symbol, bear2_symbol, indicators
+        )
         
-        for priority_symbol in priority_order:
-            if bear1_signal[0] == priority_symbol:
-                return bear1_signal
-            if bear2_signal[0] == priority_symbol:
-                return bear2_signal
+        if bear_portfolio:
+            # Format portfolio allocation for display
+            portfolio_desc = ", ".join([f"{s} ({bear_portfolio[s]['weight']:.1%})" 
+                                      for s in bear_portfolio.keys()])
+            return 'BEAR_PORTFOLIO', 'BUY', f"Bear market portfolio: {portfolio_desc}"
         
-        # Default to bear1 if no priority match
+        # Fallback if volatility calculation fails
         return bear1_signal
     
     def _evaluate_bear_subgroup_1(self, indicators):
@@ -447,7 +452,7 @@ class NuclearStrategyEngine:
         if 'PSQ' in indicators and indicators['PSQ']['rsi_10'] < 35:
             return 'SQQQ', 'BUY', "PSQ oversold, aggressive short position (Bear 2)"
         
-        # Check TQQQ trend (simplified logic for Bear 2)
+        # Bear 2 does NOT have the QQQ 60-day check - goes directly to TQQQ trend
         if 'TQQQ' in indicators:
             tqqq_price = indicators['TQQQ']['current_price']
             tqqq_ma_20 = indicators['TQQQ']['ma_20']
@@ -483,6 +488,85 @@ class NuclearStrategyEngine:
             psq_rsi_20 = indicators['PSQ']['rsi_20']
             return ief_rsi_10 > psq_rsi_20
         return False
+    
+    def _combine_bear_strategies_with_inverse_volatility(self, bear1_symbol, bear2_symbol, indicators):
+        """
+        Combine two bear strategy symbols using inverse volatility weighting (14-day window)
+        Returns portfolio allocation dictionary or None if calculation fails
+        """
+        try:
+            # Get 14-day volatility for both symbols
+            vol1 = self._get_14_day_volatility(bear1_symbol, indicators)
+            vol2 = self._get_14_day_volatility(bear2_symbol, indicators)
+            
+            if vol1 is None or vol2 is None or vol1 <= 0 or vol2 <= 0:
+                return None
+            
+            # Calculate inverse volatility weights
+            inv_vol1 = 1.0 / vol1
+            inv_vol2 = 1.0 / vol2
+            total_inv_vol = inv_vol1 + inv_vol2
+            
+            # Normalize to get portfolio weights
+            weight1 = inv_vol1 / total_inv_vol
+            weight2 = inv_vol2 / total_inv_vol
+            
+            # Return portfolio allocation
+            portfolio = {}
+            if weight1 > 0.01:  # Only include if weight > 1%
+                portfolio[bear1_symbol] = {'weight': weight1, 'performance': 0.0}
+            if weight2 > 0.01:  # Only include if weight > 1%
+                portfolio[bear2_symbol] = {'weight': weight2, 'performance': 0.0}
+            
+            return portfolio if portfolio else None
+            
+        except Exception as e:
+            # If anything goes wrong, fall back to None
+            return None
+    
+    def _get_14_day_volatility(self, symbol, indicators):
+        """
+        Calculate 14-day volatility for a symbol
+        Returns volatility or None if not available
+        """
+        try:
+            if symbol in indicators:
+                # Use historical data if available
+                if 'price_history' in indicators[symbol] and len(indicators[symbol]['price_history']) >= 14:
+                    prices = indicators[symbol]['price_history'][-14:]  # Last 14 days
+                    returns = []
+                    for i in range(1, len(prices)):
+                        daily_return = (prices[i] - prices[i-1]) / prices[i-1]
+                        returns.append(daily_return)
+                    
+                    if len(returns) >= 10:  # Need at least 10 daily returns
+                        import numpy as np
+                        volatility = np.std(returns) * np.sqrt(252)  # Annualized volatility
+                        return max(volatility, 0.01)  # Minimum volatility floor
+                
+                # Fallback: use RSI-based volatility estimate if price history not available
+                if 'rsi_10' in indicators[symbol]:
+                    rsi = indicators[symbol]['rsi_10']
+                    # RSI-based volatility estimate (higher RSI variability = higher volatility)
+                    rsi_volatility = abs(50 - rsi) / 100.0  # Normalize RSI deviation
+                    estimated_vol = 0.2 + (rsi_volatility * 0.3)  # 20-50% range
+                    return estimated_vol
+                
+                # Last resort: use fixed volatility estimates based on symbol type
+                volatility_estimates = {
+                    'SQQQ': 0.8,  # High volatility leveraged short ETF
+                    'TQQQ': 0.7,  # High volatility leveraged long ETF
+                    'QQQ': 0.25,  # Medium volatility index ETF
+                    'PSQ': 0.4,   # Medium-high volatility short ETF
+                    'TLT': 0.2,   # Lower volatility bond ETF
+                    'IEF': 0.15   # Low volatility bond ETF
+                }
+                return volatility_estimates.get(symbol, 0.3)  # Default 30% volatility
+            
+            return None
+            
+        except Exception as e:
+            return None
 
 class NuclearTradingBot:
     """Nuclear Energy Trading Bot"""
@@ -558,6 +642,44 @@ class NuclearTradingBot:
             alerts.append(btal_alert)
             
             return alerts
+            
+        elif symbol == 'BEAR_PORTFOLIO' and action == 'BUY':
+            # Handle bear market portfolio with inverse volatility weighting
+            alerts = []
+            
+            # Extract portfolio allocation from reason string
+            import re
+            portfolio_match = re.findall(r'(\w+) \((\d+\.?\d*)%\)', reason)
+            
+            if portfolio_match:
+                for stock_symbol, allocation_str in portfolio_match:
+                    current_price = self.strategy.data_provider.get_current_price(stock_symbol)
+                    
+                    bear_reason = f"Bear market allocation: {allocation_str}% (inverse volatility weighted)"
+                    
+                    alert = Alert(
+                        symbol=stock_symbol,
+                        action=action,
+                        confidence=1.0,
+                        reason=bear_reason,
+                        timestamp=dt.datetime.now(),
+                        price=current_price
+                    )
+                    alerts.append(alert)
+                
+                return alerts
+            else:
+                # Fallback: treat as single stock signal
+                current_price = self.strategy.data_provider.get_current_price(symbol)
+                alert = Alert(
+                    symbol=symbol,
+                    action=action,
+                    confidence=1.0,
+                    reason=reason,
+                    timestamp=dt.datetime.now(),
+                    price=current_price
+                )
+                return [alert]
         else:
             # Single stock signal
             current_price = self.strategy.data_provider.get_current_price(symbol)

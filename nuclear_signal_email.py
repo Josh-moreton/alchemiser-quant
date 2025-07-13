@@ -36,28 +36,58 @@ def fetch_nuclear_signal():
             raise ValueError("Failed to calculate indicators")
         
         # Evaluate strategy
-        symbol, action, reason = strategy.evaluate_nuclear_strategy(indicators)
+        symbol, action, reason = strategy.evaluate_nuclear_strategy(indicators, market_data)
         
-        # Get current price
+        # Get current price for main signal
         current_price = strategy.data_provider.get_current_price(symbol)
         
-        # Get portfolio allocation if in nuclear mode
+        # Handle portfolio allocations
         portfolio = None
-        if 'SPY' in indicators:
-            spy_price = indicators['SPY']['current_price']
-            spy_ma_200 = indicators['SPY']['ma_200']
+        portfolio_allocation = None
+        
+        # Check for nuclear portfolio signal
+        if symbol == 'NUCLEAR_PORTFOLIO' and action == 'BUY':
+            portfolio_allocation = strategy.get_nuclear_portfolio(indicators, market_data)
+            if portfolio_allocation:
+                portfolio = {}
+                for sym, data in portfolio_allocation.items():
+                    if sym in indicators:
+                        portfolio[sym] = {
+                            'weight': data['weight'],
+                            'price': indicators[sym]['current_price'],
+                            'performance': data['performance']
+                        }
+        
+        # Check for UVXY/BTAL portfolio signal
+        elif symbol == 'UVXY_BTAL_PORTFOLIO' and action == 'BUY':
+            portfolio = {
+                'UVXY': {
+                    'weight': 0.75,
+                    'price': strategy.data_provider.get_current_price('UVXY'),
+                    'performance': 0.0
+                },
+                'BTAL': {
+                    'weight': 0.25,
+                    'price': strategy.data_provider.get_current_price('BTAL'),
+                    'performance': 0.0
+                }
+            }
             
-            if spy_price > spy_ma_200 and action == 'BUY':
-                nuclear_portfolio = strategy.get_nuclear_portfolio(indicators)
-                if nuclear_portfolio:
-                    portfolio = {}
-                    for sym, data in nuclear_portfolio.items():
-                        if sym in indicators:
-                            portfolio[sym] = {
-                                'weight': data['weight'],
-                                'price': indicators[sym]['current_price'],
-                                'performance': data['performance']
-                            }
+        # Check for bear market portfolio signal
+        elif symbol == 'BEAR_PORTFOLIO' and action == 'BUY':
+            # Extract portfolio allocation from reason string
+            import re
+            portfolio_match = re.findall(r'(\w+) \((\d+\.?\d*)%\)', reason)
+            
+            if portfolio_match:
+                portfolio = {}
+                for stock_symbol, allocation_str in portfolio_match:
+                    allocation_weight = float(allocation_str) / 100.0
+                    portfolio[stock_symbol] = {
+                        'weight': allocation_weight,
+                        'price': strategy.data_provider.get_current_price(stock_symbol),
+                        'performance': 0.0
+                    }
         
         # Check for signal change by comparing with previous signal
         signal_changed = check_signal_change(symbol, action, reason)
@@ -145,9 +175,18 @@ Please check the system logs for more information.
     # Action emoji
     action_emoji = "🚨" if signal_data['action'] == 'BUY' else "⏸️" if signal_data['action'] == 'HOLD' else "🔴"
     
+    # Determine subject and signal description
+    signal_description = signal_data['symbol']
+    if signal_data['symbol'] == 'NUCLEAR_PORTFOLIO':
+        signal_description = f"Nuclear Portfolio ({len(signal_data['portfolio'])} stocks)"
+    elif signal_data['symbol'] == 'UVXY_BTAL_PORTFOLIO':
+        signal_description = "UVXY/BTAL Hedge Portfolio"
+    elif signal_data['symbol'] == 'BEAR_PORTFOLIO':
+        signal_description = f"Bear Market Portfolio ({len(signal_data['portfolio'])} positions)"
+    
     body = f"""Nuclear Energy Strategy Signal - {signal_data['date']}
 
-{action_emoji} SIGNAL: {signal_data['action']} {signal_data['symbol']}{change_indicator}
+{action_emoji} SIGNAL: {signal_data['action']} {signal_description}{change_indicator}
 
 📊 MARKET CONDITIONS:
 • SPY Price: ${market['spy_price']:.2f}
@@ -159,20 +198,33 @@ Please check the system logs for more information.
 🎯 SIGNAL DETAILS:
 • Symbol: {signal_data['symbol']}
 • Action: {signal_data['action']}
-• Price: ${signal_data['price']:.2f}
 • Reason: {signal_data['reason']}
 
 """
     
     # Add portfolio allocation if available
     if signal_data['portfolio']:
-        body += "💼 NUCLEAR PORTFOLIO ALLOCATION:\n"
-        body += "(Top 3 stocks by 90-day MA return - Equal Weight)\n\n"
+        if signal_data['symbol'] == 'NUCLEAR_PORTFOLIO':
+            body += "💼 NUCLEAR PORTFOLIO ALLOCATION:\n"
+            body += "(Top 3 nuclear stocks by 90-day MA return - Inverse Volatility Weighted)\n\n"
+        elif signal_data['symbol'] == 'UVXY_BTAL_PORTFOLIO':
+            body += "🛡️ VOLATILITY HEDGE ALLOCATION:\n"
+            body += "(UVXY 75% / BTAL 25% allocation per original Composer strategy)\n\n"
+        elif signal_data['symbol'] == 'BEAR_PORTFOLIO':
+            body += "🐻 BEAR MARKET PORTFOLIO ALLOCATION:\n"
+            body += "(Combined Bear1 & Bear2 strategies - 14-day Inverse Volatility Weighted)\n\n"
+        else:
+            body += "💼 PORTFOLIO ALLOCATION:\n\n"
         
         for symbol, data in signal_data['portfolio'].items():
             shares_10k = (10000 * data['weight']) / data['price']
             body += f"• {symbol}: {data['weight']:.1%} @ ${data['price']:.2f} ({shares_10k:.1f} shares for $10K)\n"
-            body += f"  90-day MA Return: {data['performance']:.2f}%\n\n"
+            if data['performance'] != 0.0:
+                body += f"  90-day MA Return: {data['performance']:.2f}%\n"
+            body += "\n"
+    else:
+        # Single stock signal
+        body += f"• Price: ${signal_data['price']:.2f}\n\n"
     
     body += """
 📈 TRADING GUIDANCE:
@@ -193,6 +245,15 @@ Nuclear Energy Strategy | Based on Composer.trade Symphony
 def send_email_signal(signal_data, smtp_server, smtp_port, smtp_user, smtp_password, to_email):
     """Send email with signal information"""
     
+    # Determine signal description for subject
+    signal_description = signal_data['symbol']
+    if signal_data['symbol'] == 'NUCLEAR_PORTFOLIO':
+        signal_description = f"Nuclear Portfolio"
+    elif signal_data['symbol'] == 'UVXY_BTAL_PORTFOLIO':
+        signal_description = "UVXY/BTAL Hedge"
+    elif signal_data['symbol'] == 'BEAR_PORTFOLIO':
+        signal_description = "Bear Market Portfolio"
+    
     # Determine subject based on signal change and type
     if signal_data['signal_changed']:
         subject_prefix = "🔄 SIGNAL CHANGE"
@@ -200,7 +261,7 @@ def send_email_signal(signal_data, smtp_server, smtp_port, smtp_user, smtp_passw
         subject_prefix = "📊 Daily Update"
     
     if signal_data['success']:
-        subject = f"{subject_prefix}: Nuclear Energy - {signal_data['action']} {signal_data['symbol']} ({signal_data['date']})"
+        subject = f"{subject_prefix}: Nuclear Energy - {signal_data['action']} {signal_description} ({signal_data['date']})"
     else:
         subject = f"❌ Nuclear Energy Strategy Error - {signal_data['date']}"
     
