@@ -8,6 +8,7 @@ import os
 import json
 import logging
 import sys
+import time
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 from dotenv import load_dotenv
@@ -28,7 +29,7 @@ load_dotenv()
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
         logging.FileHandler('data/logs/alpaca_trader.log'),
@@ -133,23 +134,37 @@ class AlpacaTradingBot:
             return {}
     
     def get_current_price(self, symbol: str) -> float:
-        """Get current price for a symbol using Alpaca data API only. Returns 0.0 if unavailable."""
+        """Get current price for a symbol using Alpaca data API only. Returns 0.0 if unavailable. Adds detailed debug logging for troubleshooting."""
         try:
             from alpaca.data.requests import StockLatestQuoteRequest
             request_params = StockLatestQuoteRequest(symbol_or_symbols=symbol)
+            logging.debug(f"Requesting latest quote for symbol: {symbol}")
             latest_quote = self.data_client.get_stock_latest_quote(request_params)
+            logging.debug(f"Raw latest_quote response for {symbol}: {latest_quote}")
             if latest_quote and symbol in latest_quote:
                 quote = latest_quote[symbol]
                 bid_price = float(getattr(quote, 'bid_price', 0) or 0)
                 ask_price = float(getattr(quote, 'ask_price', 0) or 0)
+                logging.debug(f"Parsed quote for {symbol}: bid_price={bid_price}, ask_price={ask_price}, full_quote={quote}")
+                
+                # Handle cases where only bid or ask is available
                 if bid_price > 0 and ask_price > 0:
                     midpoint_price = (bid_price + ask_price) / 2
-                    logging.debug(f"Alpaca price for {symbol}: ${midpoint_price:.2f} (bid: ${bid_price:.2f}, ask: ${ask_price:.2f})")
+                    logging.info(f"Alpaca price for {symbol}: ${midpoint_price:.2f} (bid: ${bid_price:.2f}, ask: ${ask_price:.2f})")
                     return midpoint_price
-            logging.warning(f"No valid Alpaca quote for {symbol}, returning 0.0")
+                elif bid_price > 0:
+                    logging.warning(f"Using bid price for {symbol} (ask=0): ${bid_price:.2f}")
+                    return bid_price
+                elif ask_price > 0:
+                    logging.warning(f"Using ask price for {symbol} (bid=0): ${ask_price:.2f}")
+                    return ask_price
+                else:
+                    logging.warning(f"Quote for {symbol} has non-positive bid/ask: bid={bid_price}, ask={ask_price}")
+            else:
+                logging.warning(f"No valid Alpaca quote for {symbol}. latest_quote={latest_quote}")
             return 0.0
         except Exception as e:
-            logging.warning(f"Alpaca pricing failed for {symbol}: {e}, returning 0.0")
+            logging.error(f"Alpaca pricing failed for {symbol}: {e}", exc_info=True)
             return 0.0
     
     def calculate_position_size(self, symbol: str, portfolio_weight: float, account_value: float) -> float:
@@ -181,34 +196,53 @@ class AlpacaTradingBot:
             logging.error(f"Error calculating position size for {symbol}: {e}")
             return 0.0
     
-    def place_order(self, symbol: str, qty: float, side: OrderSide) -> Optional[str]:
+    def place_order(self, symbol: str, qty: float, side: OrderSide, max_retries: int = 3) -> Optional[str]:
         """
-        Place a market order (supports fractional shares)
+        Place a market order (supports fractional shares) with retry logic
         
         Args:
             symbol: Stock symbol
             qty: Quantity of shares (float for fractional shares)
             side: OrderSide.BUY or OrderSide.SELL
+            max_retries: Maximum number of retry attempts
         Returns:
             Order ID if successful, None if failed
         """
-        try:
-            if qty <= 0:
-                logging.warning(f"Invalid quantity for {symbol}: {qty}")
-                return None
-            market_order_data = MarketOrderRequest(
-                symbol=symbol,
-                qty=qty,
-                side=side,
-                time_in_force=TimeInForce.DAY
-            )
-            order = self.trading_client.submit_order(market_order_data)
-            order_id = str(getattr(order, 'id', 'unknown'))
-            logging.info(f"Order placed: {side.value} {qty} shares of {symbol} - Order ID: {order_id}")
-            return order_id
-        except Exception as e:
-            logging.error(f"Error placing order for {symbol}: {e}")
+        if qty <= 0:
+            logging.warning(f"Invalid quantity for {symbol}: {qty}")
             return None
+        
+        for attempt in range(max_retries + 1):  # +1 for initial attempt
+            try:
+                market_order_data = MarketOrderRequest(
+                    symbol=symbol,
+                    qty=qty,
+                    side=side,
+                    time_in_force=TimeInForce.DAY
+                )
+                order = self.trading_client.submit_order(market_order_data)
+                order_id = str(getattr(order, 'id', 'unknown'))
+                logging.info(f"Order placed: {side.value} {qty} shares of {symbol} - Order ID: {order_id}")
+                return order_id
+                
+            except Exception as e:
+                if attempt < max_retries:
+                    # Calculate delay: 5 seconds for first retry, then increase
+                    delay = 5 + (attempt * 5)  # 5, 10, 15 seconds
+                    logging.warning(f"Order failed for {symbol} (attempt {attempt + 1}/{max_retries + 1}): {e}")
+                    logging.info(f"Retrying in {delay} seconds...")
+                    time.sleep(delay)
+                    
+                    # Refresh account info before retry (buying power might have changed)
+                    if side == OrderSide.BUY:
+                        account_info = self.get_account_info()
+                        current_buying_power = account_info.get('buying_power', 0)
+                        logging.debug(f"Current buying power before retry: ${current_buying_power:,.2f}")
+                else:
+                    logging.error(f"Order failed for {symbol} after {max_retries + 1} attempts: {e}")
+                    return None
+        
+        return None
     
     def rebalance_portfolio(self, target_portfolio: Dict[str, float]) -> Dict[str, str]:
         """
@@ -229,6 +263,7 @@ class AlpacaTradingBot:
             
             portfolio_value = account_info['portfolio_value']
             current_cash = account_info['cash']
+            buying_power = account_info['buying_power']  # Add buying power for purchase calculations
             
             # Get current positions
             current_positions = self.get_positions()
@@ -236,7 +271,7 @@ class AlpacaTradingBot:
             # Calculate orders needed
             orders_executed = {}
             
-            logging.info(f"🔄 Starting portfolio rebalance - Portfolio Value: ${portfolio_value:,.2f}, Current Cash: ${current_cash:,.2f}")
+            logging.info(f"🔄 Starting portfolio rebalance - Portfolio Value: ${portfolio_value:,.2f}, Cash: ${current_cash:,.2f}, Buying Power: ${buying_power:,.2f}")
             
             # Calculate current and target allocations
             current_allocations = {}
@@ -288,14 +323,26 @@ class AlpacaTradingBot:
             
             if successful_sells > 0:
                 logging.info(f"📉 Rebalancing sells: {successful_sells} successful")
+                
+                # Wait for buying power to update after sells
+                logging.info("⏳ Waiting for buying power to update after sells...")
+                time.sleep(10)  # Wait 10 seconds for settlement
+                
+                # Refresh account info to get updated buying power
+                updated_account_info = self.get_account_info()
+                if updated_account_info:
+                    updated_buying_power = updated_account_info['buying_power']
+                    logging.info(f"� Updated buying power after sells: ${updated_buying_power:,.2f} (was ${buying_power:,.2f})")
+                    buying_power = updated_buying_power  # Use the updated value
             
-            # Calculate total cash available after sells
-            total_cash_available = current_cash + cash_from_sells
-            logging.info(f"💸 Total cash available: ${total_cash_available:,.2f}")
+            # Calculate total buying power available after sells
+            # Use actual buying power instead of estimated
+            total_buying_power_available = buying_power
+            logging.info(f"💸 Total buying power available: ${total_buying_power_available:,.2f}")
             
             # PHASE 2: Buy positions that need to be increased or added
             successful_buys = 0
-            remaining_cash = total_cash_available
+            remaining_buying_power = total_buying_power_available
             
             # Sort by priority (largest allocations first)
             for symbol, target_weight in sorted(target_portfolio.items(), key=lambda x: x[1], reverse=True):
@@ -310,20 +357,20 @@ class AlpacaTradingBot:
                     target_value = portfolio_value * target_weight
                     value_to_buy = target_value - current_value
                     
-                    if value_to_buy > 1.0 and remaining_cash > 1.0:  # Only buy if more than $1
+                    if value_to_buy > 1.0 and remaining_buying_power > 1.0:  # Only buy if more than $1
                         current_price = self.get_current_price(symbol)
                         
                         if current_price > 0:
-                            # Limit purchase to available cash
-                            actual_value_to_buy = min(value_to_buy, remaining_cash)
+                            # Limit purchase to available buying power
+                            actual_value_to_buy = min(value_to_buy, remaining_buying_power)
                             buy_qty = round(actual_value_to_buy / current_price, 6)
                             required_cash = buy_qty * current_price
                             
-                            if buy_qty > 0 and required_cash <= remaining_cash:
+                            if buy_qty > 0 and required_cash <= remaining_buying_power:
                                 order_id = self.place_order(symbol, buy_qty, OrderSide.BUY)
                                 if order_id:
                                     orders_executed[f"{symbol}_BUY"] = order_id
-                                    remaining_cash -= required_cash
+                                    remaining_buying_power -= required_cash
                                     successful_buys += 1
                                     logging.info(f"✅ Bought {buy_qty} shares of {symbol} for ${required_cash:,.2f}")
                                 else:
@@ -332,7 +379,7 @@ class AlpacaTradingBot:
             if successful_buys > 0:
                 logging.info(f"📈 Rebalancing buys: {successful_buys} successful")
             
-            logging.info(f"� Cash remaining after rebalancing: ${remaining_cash:,.2f}")
+            logging.info(f"💰 Buying power remaining after rebalancing: ${remaining_buying_power:,.2f}")
             
             return orders_executed
             

@@ -3893,3 +3893,169 @@ Best execution hour: 09:30 with +74.03% return
 2025-07-14 21:13:42,885 - INFO - � Cash remaining after rebalancing: $440.61
 2025-07-14 21:13:42,885 - INFO - ✅ Portfolio rebalanced - 1 orders executed
 2025-07-14 21:13:42,885 - INFO -    OKLO_SELL: Order fbe0eec1-d5d4-496b-9410-2b049dfcb7a4 (5.689125 shares)
+2025-07-14 21:21:10,105 - INFO - Starting Nuclear Energy strategy analysis...
+2025-07-14 21:21:12,928 - INFO - Analysis complete: BUY NUCLEAR_PORTFOLIO - Bull market - Nuclear portfolio: SMR (31.2%), LEU (39.6%), OKLO (29.1%)
+2025-07-14 21:21:13,211 - INFO - API Key loaded: Yes
+2025-07-14 21:21:13,211 - INFO - Secret Key loaded: Yes
+2025-07-14 21:21:13,211 - INFO - Base URL: https://paper-api.alpaca.markets/v2
+2025-07-14 21:21:13,211 - INFO - TradingClient initialized successfully
+2025-07-14 21:21:13,211 - INFO - StockHistoricalDataClient initialized successfully
+2025-07-14 21:21:13,211 - INFO - Alpaca Trading Bot initialized - Paper Trading: True
+2025-07-14 21:21:13,658 - INFO - 🚀 Executing Nuclear Strategy with Alpaca
+2025-07-14 21:21:13,668 - INFO - Found 3 recent signals
+2025-07-14 21:21:13,669 - INFO - Parsed signal: SMR -> 31.2%
+2025-07-14 21:21:13,669 - INFO - Parsed signal: LEU -> 39.6%
+2025-07-14 21:21:13,669 - INFO - Parsed signal: OKLO -> 29.1%
+2025-07-14 21:21:13,669 - INFO - Target Portfolio: {'SMR': 0.312, 'LEU': 0.396, 'OKLO': 0.29100000000000004}
+2025-07-14 21:21:13,771 - INFO - Account Value: $105,772.62
+2025-07-14 21:21:14,212 - WARNING - No valid Alpaca quote for LEU, returning 0.0
+2025-07-14 21:21:14,313 - ERROR - ❌ Unable to get prices for symbols: ['LEU'] - aborting execution
+2025-07-14 21:23:01,922 - INFO - Starting Nuclear Energy strategy analysis...
+2025-07-14 21:23:04,485 - INFO - Analysis complete: BUY NUCLEAR_PORTFOLIO - Bull market - Nuclear portfolio: SMR (31.2%), LEU (39.6%), OKLO (29.1%)
+2025-07-14 21:23:04,734 - INFO - API Key loaded: Yes
+2025-07-14 21:23:04,734 - INFO - Secret Key loaded: Yes
+2025-07-14 21:23:04,734 - INFO - Base URL: https://paper-api.alpaca.markets/v2
+2025-07-14 21:23:04,734 - INFO - TradingClient initialized successfully
+2025-07-14 21:23:04,734 - INFO - StockHistoricalDataClient initialized successfully
+2025-07-14 21:23:04,735 - INFO - Alpaca Trading Bot initialized - Paper Trading: True
+2025-07-14 21:23:05,152 - INFO - 🚀 Executing Nuclear Strategy with Alpaca
+2025-07-14 21:23:05,161 - INFO - Found 6 recent signals
+2025-07-14 21:23:05,161 - INFO - Parsed signal: SMR -> 31.2%
+2025-07-14 21:23:05,161 - INFO - Parsed signal: LEU -> 39.6%
+2025-07-14 21:23:05,161 - INFO - Parsed signal: OKLO -> 29.1%
+2025-07-14 21:23:05,161 - INFO - Parsed signal: SMR -> 31.2%
+2025-07-14 21:23:05,162 - INFO - Parsed signal: LEU -> 39.6%
+2025-07-14 21:23:05,162 - INFO - Parsed signal: OKLO -> 29.1%
+2025-07-14 21:23:05,162 - INFO - Target Portfolio: {'SMR': 0.312, 'LEU': 0.396, 'OKLO': 0.29100000000000004}
+2025-07-14 21:23:05,263 - INFO - Account Value: $105,739.57
+2025-07-14 21:23:05,683 - WARNING - No valid Alpaca quote for LEU, returning 0.0
+2025-07-14 21:23:05,790 - ERROR - ❌ Unable to get prices for symbols: ['LEU'] - aborting execution
+2025-07-14 21:27:27,668 - INFO - Starting Nuclear Energy strategy analysis...
+2025-07-14 21:27:32,178 - INFO - Analysis complete: BUY NUCLEAR_PORTFOLIO - Bull market - Nuclear portfolio: SMR (31.2%), LEU (39.6%), OKLO (29.1%)
+2025-07-14 21:27:33,416 - INFO - API Key loaded: Yes
+2025-07-14 21:27:33,416 - INFO - Secret Key loaded: Yes
+2025-07-14 21:27:33,416 - INFO - Base URL: https://paper-api.alpaca.markets/v2
+2025-07-14 21:27:33,416 - INFO - TradingClient initialized successfully
+2025-07-14 21:27:33,416 - INFO - StockHistoricalDataClient initialized successfully
+2025-07-14 21:27:33,416 - INFO - Alpaca Trading Bot initialized - Paper Trading: True
+2025-07-14 21:27:33,870 - INFO - 🚀 Executing Nuclear Strategy with Alpaca
+2025-07-14 21:27:33,881 - INFO - Found 6 recent signals
+2025-07-14 21:27:33,881 - INFO - Parsed signal: SMR -> 31.2%
+2025-07-14 21:27:33,882 - INFO - Parsed signal: LEU -> 39.6%
+2025-07-14 21:27:33,882 - INFO - Parsed signal: OKLO -> 29.1%
+2025-07-14 21:27:33,882 - INFO - Parsed signal: SMR -> 31.2%
+2025-07-14 21:27:33,882 - INFO - Parsed signal: LEU -> 39.6%
+2025-07-14 21:27:33,883 - INFO - Parsed signal: OKLO -> 29.1%
+2025-07-14 21:27:33,883 - INFO - Target Portfolio: {'SMR': 0.312, 'LEU': 0.396, 'OKLO': 0.29100000000000004}
+2025-07-14 21:27:33,986 - INFO - Account Value: $105,693.64
+2025-07-14 21:27:34,323 - INFO - Alpaca price for SMR: $40.05 (bid: $37.01, ask: $43.10)
+2025-07-14 21:27:34,424 - WARNING - Quote for LEU has non-positive bid/ask: bid=215.5, ask=0.0
+2025-07-14 21:27:34,531 - INFO - Alpaca price for OKLO: $60.10 (bid: $56.20, ask: $64.00)
+2025-07-14 21:27:34,532 - ERROR - ❌ Unable to get prices for symbols: ['LEU'] - aborting execution
+2025-07-14 21:28:55,509 - INFO - Starting Nuclear Energy strategy analysis...
+2025-07-14 21:28:58,142 - INFO - Analysis complete: BUY NUCLEAR_PORTFOLIO - Bull market - Nuclear portfolio: SMR (31.2%), LEU (39.6%), OKLO (29.1%)
+2025-07-14 21:28:58,427 - INFO - API Key loaded: Yes
+2025-07-14 21:28:58,427 - INFO - Secret Key loaded: Yes
+2025-07-14 21:28:58,427 - INFO - Base URL: https://paper-api.alpaca.markets/v2
+2025-07-14 21:28:58,427 - INFO - TradingClient initialized successfully
+2025-07-14 21:28:58,427 - INFO - StockHistoricalDataClient initialized successfully
+2025-07-14 21:28:58,427 - INFO - Alpaca Trading Bot initialized - Paper Trading: True
+2025-07-14 21:28:58,883 - INFO - 🚀 Executing Nuclear Strategy with Alpaca
+2025-07-14 21:28:58,894 - INFO - Found 6 recent signals
+2025-07-14 21:28:58,894 - INFO - Parsed signal: SMR -> 31.2%
+2025-07-14 21:28:58,895 - INFO - Parsed signal: LEU -> 39.6%
+2025-07-14 21:28:58,895 - INFO - Parsed signal: OKLO -> 29.1%
+2025-07-14 21:28:58,895 - INFO - Parsed signal: SMR -> 31.2%
+2025-07-14 21:28:58,895 - INFO - Parsed signal: LEU -> 39.6%
+2025-07-14 21:28:58,895 - INFO - Parsed signal: OKLO -> 29.1%
+2025-07-14 21:28:58,895 - INFO - Target Portfolio: {'SMR': 0.312, 'LEU': 0.396, 'OKLO': 0.29100000000000004}
+2025-07-14 21:28:58,999 - INFO - Account Value: $105,692.18
+2025-07-14 21:28:59,353 - INFO - Alpaca price for SMR: $40.05 (bid: $37.01, ask: $43.10)
+2025-07-14 21:28:59,452 - WARNING - Quote for LEU has non-positive bid/ask: bid=215.5, ask=0.0
+2025-07-14 21:28:59,550 - INFO - Alpaca price for OKLO: $60.10 (bid: $56.20, ask: $64.00)
+2025-07-14 21:28:59,550 - ERROR - ❌ Unable to get prices for symbols: ['LEU'] - aborting execution
+2025-07-14 21:31:14,995 - INFO - Starting Nuclear Energy strategy analysis...
+2025-07-14 21:31:17,780 - INFO - Analysis complete: BUY NUCLEAR_PORTFOLIO - Bull market - Nuclear portfolio: SMR (31.2%), LEU (39.6%), OKLO (29.1%)
+2025-07-14 21:31:18,047 - INFO - API Key loaded: Yes
+2025-07-14 21:31:18,047 - INFO - Secret Key loaded: Yes
+2025-07-14 21:31:18,047 - INFO - Base URL: https://paper-api.alpaca.markets/v2
+2025-07-14 21:31:18,047 - INFO - TradingClient initialized successfully
+2025-07-14 21:31:18,047 - INFO - StockHistoricalDataClient initialized successfully
+2025-07-14 21:31:18,047 - INFO - Alpaca Trading Bot initialized - Paper Trading: True
+2025-07-14 21:31:18,452 - INFO - 🚀 Executing Nuclear Strategy with Alpaca
+2025-07-14 21:31:18,462 - INFO - Found 9 recent signals
+2025-07-14 21:31:18,462 - INFO - Parsed signal: SMR -> 31.2%
+2025-07-14 21:31:18,462 - INFO - Parsed signal: LEU -> 39.6%
+2025-07-14 21:31:18,462 - INFO - Parsed signal: OKLO -> 29.1%
+2025-07-14 21:31:18,462 - INFO - Parsed signal: SMR -> 31.2%
+2025-07-14 21:31:18,462 - INFO - Parsed signal: LEU -> 39.6%
+2025-07-14 21:31:18,462 - INFO - Parsed signal: OKLO -> 29.1%
+2025-07-14 21:31:18,462 - INFO - Parsed signal: SMR -> 31.2%
+2025-07-14 21:31:18,462 - INFO - Parsed signal: LEU -> 39.6%
+2025-07-14 21:31:18,462 - INFO - Parsed signal: OKLO -> 29.1%
+2025-07-14 21:31:18,462 - INFO - Target Portfolio: {'SMR': 0.312, 'LEU': 0.396, 'OKLO': 0.29100000000000004}
+2025-07-14 21:31:18,561 - INFO - Account Value: $105,670.74
+2025-07-14 21:31:18,863 - INFO - Alpaca price for SMR: $40.05 (bid: $37.01, ask: $43.10)
+2025-07-14 21:31:18,963 - WARNING - Using bid price for LEU (ask=0): $215.50
+2025-07-14 21:31:19,062 - INFO - Alpaca price for OKLO: $60.10 (bid: $56.20, ask: $64.00)
+2025-07-14 21:31:19,259 - INFO - 🔄 Starting portfolio rebalance - Portfolio Value: $105,670.74, Cash: $98.69, Buying Power: $14.32
+2025-07-14 21:31:19,259 - INFO - Current allocation LEU: 39.4% ($41,600.21)
+2025-07-14 21:31:19,259 - INFO - Current allocation OKLO: 29.4% ($31,117.44)
+2025-07-14 21:31:19,259 - INFO - Current allocation SMR: 31.1% ($32,854.40)
+2025-07-14 21:31:19,259 - INFO - Target allocation SMR: 31.2% ($32,969.27)
+2025-07-14 21:31:19,259 - INFO - Target allocation LEU: 39.6% ($41,845.61)
+2025-07-14 21:31:19,259 - INFO - Target allocation OKLO: 29.1% ($30,750.19)
+2025-07-14 21:31:19,359 - INFO - Alpaca price for OKLO: $60.10 (bid: $56.20, ask: $64.00)
+2025-07-14 21:31:19,463 - INFO - Order placed: sell 6.110677 shares of OKLO - Order ID: 98d85d03-35da-43a7-b553-08b02d0dd49c
+2025-07-14 21:31:19,463 - INFO - 💰 Selling 6.110677 shares of OKLO to rebalance ($367.25)
+2025-07-14 21:31:19,463 - INFO - 📉 Rebalancing sells: 1 successful
+2025-07-14 21:31:19,464 - INFO - 💸 Total buying power available: $381.57 (base: $14.32 + sell proceeds: $367.25)
+2025-07-14 21:31:19,564 - WARNING - Using bid price for LEU (ask=0): $215.50
+2025-07-14 21:31:19,668 - ERROR - Error placing order for LEU: {"buying_power":"14.32","code":40310000,"cost_basis":"247.69","message":"insufficient buying power"}
+2025-07-14 21:31:19,668 - ERROR - ❌ Failed to place buy order for LEU
+2025-07-14 21:31:19,766 - INFO - Alpaca price for SMR: $40.05 (bid: $37.01, ask: $43.10)
+2025-07-14 21:31:19,870 - ERROR - Error placing order for SMR: {"buying_power":"14.32","code":40310000,"cost_basis":"120.47","message":"insufficient buying power"}
+2025-07-14 21:31:19,870 - ERROR - ❌ Failed to place buy order for SMR
+2025-07-14 21:31:19,870 - INFO - 💰 Buying power remaining after rebalancing: $381.57
+2025-07-14 21:31:19,870 - INFO - ✅ Portfolio rebalanced - 1 orders executed
+2025-07-14 21:31:19,870 - INFO -    OKLO_SELL: Order 98d85d03-35da-43a7-b553-08b02d0dd49c
+2025-07-14 21:35:14,352 - INFO - Starting Nuclear Energy strategy analysis...
+2025-07-14 21:35:17,100 - INFO - Analysis complete: BUY NUCLEAR_PORTFOLIO - Bull market - Nuclear portfolio: SMR (31.2%), LEU (39.6%), OKLO (29.1%)
+2025-07-14 21:35:17,374 - INFO - API Key loaded: Yes
+2025-07-14 21:35:17,374 - INFO - Secret Key loaded: Yes
+2025-07-14 21:35:17,374 - INFO - Base URL: https://paper-api.alpaca.markets/v2
+2025-07-14 21:35:17,374 - INFO - TradingClient initialized successfully
+2025-07-14 21:35:17,374 - INFO - StockHistoricalDataClient initialized successfully
+2025-07-14 21:35:17,374 - INFO - Alpaca Trading Bot initialized - Paper Trading: True
+2025-07-14 21:35:17,814 - INFO - 🚀 Executing Nuclear Strategy with Alpaca
+2025-07-14 21:35:17,823 - INFO - Found 6 recent signals
+2025-07-14 21:35:17,823 - INFO - Parsed signal: SMR -> 31.2%
+2025-07-14 21:35:17,823 - INFO - Parsed signal: LEU -> 39.6%
+2025-07-14 21:35:17,823 - INFO - Parsed signal: OKLO -> 29.1%
+2025-07-14 21:35:17,823 - INFO - Parsed signal: SMR -> 31.2%
+2025-07-14 21:35:17,823 - INFO - Parsed signal: LEU -> 39.6%
+2025-07-14 21:35:17,823 - INFO - Parsed signal: OKLO -> 29.1%
+2025-07-14 21:35:17,823 - INFO - Target Portfolio: {'SMR': 0.312, 'LEU': 0.396, 'OKLO': 0.29100000000000004}
+2025-07-14 21:35:17,927 - INFO - Account Value: $105,615.36
+2025-07-14 21:35:18,267 - INFO - Alpaca price for SMR: $40.05 (bid: $37.01, ask: $43.10)
+2025-07-14 21:35:18,367 - WARNING - Using bid price for LEU (ask=0): $215.50
+2025-07-14 21:35:18,466 - INFO - Alpaca price for OKLO: $60.10 (bid: $56.20, ask: $64.00)
+2025-07-14 21:35:18,668 - INFO - 🔄 Starting portfolio rebalance - Portfolio Value: $105,615.36, Cash: $98.69, Buying Power: $14.31
+2025-07-14 21:35:18,669 - INFO - Current allocation LEU: 39.4% ($41,600.21)
+2025-07-14 21:35:18,669 - INFO - Current allocation OKLO: 29.4% ($31,062.06)
+2025-07-14 21:35:18,669 - INFO - Current allocation SMR: 31.1% ($32,854.40)
+2025-07-14 21:35:18,669 - INFO - Target allocation SMR: 31.2% ($32,951.99)
+2025-07-14 21:35:18,669 - INFO - Target allocation LEU: 39.6% ($41,823.68)
+2025-07-14 21:35:18,669 - INFO - Target allocation OKLO: 29.1% ($30,734.07)
+2025-07-14 21:35:18,773 - INFO - Alpaca price for OKLO: $60.10 (bid: $56.20, ask: $64.00)
+2025-07-14 21:35:18,879 - INFO - Order placed: sell 5.457391 shares of OKLO - Order ID: cf402843-8a78-407a-8b38-75fc92d02afc
+2025-07-14 21:35:18,880 - INFO - 💰 Selling 5.457391 shares of OKLO to rebalance ($327.99)
+2025-07-14 21:35:18,880 - INFO - 📉 Rebalancing sells: 1 successful
+2025-07-14 21:35:18,880 - INFO - ⏳ Waiting for buying power to update after sells...
+2025-07-14 21:35:28,992 - INFO - � Updated buying power after sells: $14.31 (was $14.31)
+2025-07-14 21:35:28,992 - INFO - 💸 Total buying power available: $14.31
+2025-07-14 21:35:29,097 - WARNING - Using bid price for LEU (ask=0): $215.50
+2025-07-14 21:35:29,201 - INFO - Alpaca price for SMR: $40.05 (bid: $37.01, ask: $43.10)
+2025-07-14 21:35:29,202 - INFO - 💰 Buying power remaining after rebalancing: $14.31
+2025-07-14 21:35:29,202 - INFO - ✅ Portfolio rebalanced - 1 orders executed
+2025-07-14 21:35:29,203 - INFO -    OKLO_SELL: Order cf402843-8a78-407a-8b38-75fc92d02afc
