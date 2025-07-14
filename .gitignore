@@ -1,0 +1,12 @@
+# Ignore Python cache and virtual environments
+__pycache__/
+.venv/
+venv/
+
+# Ignore data outputs
+*.log
+*.csv
+*.json
+
+# Ignore backtest results
+/data/backtest_results/
