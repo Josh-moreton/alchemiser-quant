@@ -29,8 +29,7 @@ load_dotenv()
 
 # Configure logging
 logging.basicConfig(
-    level=logging.
-    ,
+    level=logging.DEBUG,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
         logging.FileHandler('data/logs/alpaca_trader.log'),
