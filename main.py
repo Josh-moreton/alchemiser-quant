@@ -55,6 +55,20 @@ def run_backtest(backtest_type="comprehensive"):
     try:
         if backtest_type == "comprehensive":
             from backtest.simplified_comprehensive_backtest import run_comprehensive_nuclear_backtest
+            # Pass through CLI args for start_date, end_date, initial_capital
+            import sys
+            import argparse
+            parser = argparse.ArgumentParser(add_help=False)
+            parser.add_argument('--start-date', type=str, default=None)
+            parser.add_argument('--end-date', type=str, default=None)
+            parser.add_argument('--initial-capital', type=float, default=100000)
+            args, unknown = parser.parse_known_args()
+
+            # Set attributes for direct call (bypass argparse in module)
+            run_comprehensive_nuclear_backtest._direct_call = True
+            run_comprehensive_nuclear_backtest._start_date = args.start_date or '2024-07-01'
+            run_comprehensive_nuclear_backtest._end_date = args.end_date or '2024-09-30'
+            run_comprehensive_nuclear_backtest._initial_capital = args.initial_capital
             results = run_comprehensive_nuclear_backtest()
         elif backtest_type == "hourly":
             from execution.hourly_execution_engine import run_hourly_analysis
@@ -62,10 +76,10 @@ def run_backtest(backtest_type="comprehensive"):
         else:
             print(f"❌ Unknown backtest type: {backtest_type}")
             return False
-            
+
         print(f"\n✅ {backtest_type.title()} backtest completed successfully!")
         return True
-        
+
     except Exception as e:
         print(f"❌ Error running backtest: {e}")
         import traceback
@@ -119,28 +133,32 @@ def main():
     parser.add_argument('--backtest-type', choices=['comprehensive', 'hourly'], 
                        default='comprehensive',
                        help='Type of backtest to run (only for backtest mode)')
-    
+    parser.add_argument('--start-date', type=str, default=None, help='Backtest start date (YYYY-MM-DD)')
+    parser.add_argument('--end-date', type=str, default=None, help='Backtest end date (YYYY-MM-DD)')
+    parser.add_argument('--initial-capital', type=float, default=100000, help='Initial capital for backtest')
+
     args = parser.parse_args()
-    
+
     print("🚀 NUCLEAR TRADING STRATEGY")
     print("=" * 60)
     print(f"Mode: {args.mode}")
     print(f"Timestamp: {datetime.now()}")
     print()
-    
+
     success = False
-    
+
     if args.mode == 'bot':
         success = run_trading_bot()
     elif args.mode == 'email':
         success = run_email_bot()
     elif args.mode == 'backtest':
+        # Pass start_date, end_date, initial_capital via sys.argv for run_backtest
         success = run_backtest(args.backtest_type)
     elif args.mode == 'dashboard':
         success = run_dashboard()
     elif args.mode == 'hourly-test':
         success = run_backtest('hourly')
-    
+
     if success:
         print("\n🎉 Operation completed successfully!")
         sys.exit(0)

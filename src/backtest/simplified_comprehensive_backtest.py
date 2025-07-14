@@ -753,23 +753,37 @@ class ComprehensiveBacktestReporter:
             return obj
 
 def run_comprehensive_nuclear_backtest():
-    """Run comprehensive nuclear strategy backtest"""
-    
-    # Test parameters - 3 months of data
-    START_DATE = '2024-07-01'
-    END_DATE = '2024-09-30'
-    INITIAL_CAPITAL = 100000
-    
+    """Run comprehensive nuclear strategy backtest
+    Now accepts start_date, end_date, and initial_capital as arguments for CLI integration
+    """
+    import argparse
+    parser = argparse.ArgumentParser(description="Run comprehensive nuclear backtest")
+    parser.add_argument('--start-date', type=str, default=None, help='Backtest start date (YYYY-MM-DD)')
+    parser.add_argument('--end-date', type=str, default=None, help='Backtest end date (YYYY-MM-DD)')
+    parser.add_argument('--initial-capital', type=float, default=100000, help='Initial capital for backtest')
+    parser.add_argument('--no-argparse', action='store_true', help='(Internal) Do not parse args, use direct call')
+    args, unknown = parser.parse_known_args()
+
+    # Allow direct function call with parameters (for main.py integration)
+    if hasattr(run_comprehensive_nuclear_backtest, "_direct_call") and run_comprehensive_nuclear_backtest._direct_call:
+        START_DATE = run_comprehensive_nuclear_backtest._start_date
+        END_DATE = run_comprehensive_nuclear_backtest._end_date
+        INITIAL_CAPITAL = run_comprehensive_nuclear_backtest._initial_capital
+    else:
+        START_DATE = args.start_date or '2024-07-01'
+        END_DATE = args.end_date or '2024-09-30'
+        INITIAL_CAPITAL = args.initial_capital
+
     # Setup logging
     logging.basicConfig(
         level=logging.WARNING,
         format='%(asctime)s - %(levelname)s - %(message)s'
     )
-    
+
     # Run comprehensive backtest
     reporter = ComprehensiveBacktestReporter(START_DATE, END_DATE, INITIAL_CAPITAL)
     results = reporter.run_comprehensive_backtest()
-    
+
     return results
 
 if __name__ == "__main__":
