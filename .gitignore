@@ -12,3 +12,4 @@ venv/
 /data/backtest_results/
 
 .env
+.env

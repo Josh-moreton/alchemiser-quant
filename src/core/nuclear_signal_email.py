@@ -148,14 +148,73 @@ def check_signal_change(current_symbol, current_action, current_reason):
     if prev_signal is None:
         return True  # First run, consider it a change
     
-    # Check if key components changed
-    signal_changed = (
-        prev_signal.get('symbol') != current_symbol or
-        prev_signal.get('action') != current_action or
-        prev_signal.get('reason') != current_reason
-    )
+    # Basic checks for symbol and action
+    if (prev_signal.get('symbol') != current_symbol or 
+        prev_signal.get('action') != current_action):
+        return True
     
-    return signal_changed
+    # For nuclear portfolio signals, use smarter comparison
+    if current_symbol == 'NUCLEAR_PORTFOLIO':
+        return check_nuclear_portfolio_change(prev_signal.get('reason', ''), current_reason)
+    
+    # For other signals, check exact reason
+    return prev_signal.get('reason') != current_reason
+
+def check_nuclear_portfolio_change(prev_reason, current_reason, threshold=2.0):
+    """
+    Check if nuclear portfolio allocation has meaningfully changed
+    
+    Args:
+        prev_reason: Previous signal reason string
+        current_reason: Current signal reason string
+        threshold: Percentage threshold for meaningful change (default 2.0%)
+    
+    Returns:
+        True if meaningful change detected, False otherwise
+    """
+    import re
+    
+    def extract_allocations(reason_string):
+        """Extract stock allocations from reason string"""
+        # Pattern to match: STOCK (XX.X%)
+        pattern = r'(\w+) \((\d+\.?\d*)%\)'
+        matches = re.findall(pattern, reason_string)
+        
+        allocations = {}
+        for stock, percentage in matches:
+            allocations[stock] = float(percentage)
+        
+        return allocations
+    
+    try:
+        prev_allocations = extract_allocations(prev_reason)
+        current_allocations = extract_allocations(current_reason)
+        
+        # Check if the same stocks are present
+        prev_stocks = set(prev_allocations.keys())
+        current_stocks = set(current_allocations.keys())
+        
+        if prev_stocks != current_stocks:
+            print(f"Portfolio composition changed: {prev_stocks} -> {current_stocks}")
+            return True
+        
+        # Check if any allocation changed by more than threshold
+        for stock in current_stocks:
+            prev_pct = prev_allocations.get(stock, 0)
+            current_pct = current_allocations.get(stock, 0)
+            change = abs(current_pct - prev_pct)
+            
+            if change >= threshold:
+                print(f"Meaningful allocation change for {stock}: {prev_pct:.1f}% -> {current_pct:.1f}% (change: {change:.1f}%)")
+                return True
+        
+        print(f"Nuclear portfolio allocations unchanged (all changes < {threshold}%)")
+        return False
+        
+    except Exception as e:
+        print(f"Error comparing nuclear portfolio allocations: {e}")
+        # Fall back to string comparison if parsing fails
+        return prev_reason != current_reason
 
 def format_email_body(signal_data):
     """Format the email body with signal information"""
