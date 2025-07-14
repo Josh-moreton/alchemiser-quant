@@ -76,7 +76,7 @@ class TestMarketCrashScenario:
         orders = crash_bot.rebalance_portfolio(defensive_portfolio)
         
         # Should execute defensive rebalancing
-        assert isinstance(orders, dict)
+        assert isinstance(orders, list)
         # Should sell nuclear positions and buy defensive assets
     
     def test_insufficient_buying_power_crash(self, crash_bot):
@@ -103,7 +103,7 @@ class TestMarketCrashScenario:
         orders = crash_bot.rebalance_portfolio(target_portfolio)
         
         # Should handle limited buying power gracefully
-        assert isinstance(orders, dict)
+        assert isinstance(orders, list)
 
 
 class TestVolatilitySpike:
@@ -203,7 +203,7 @@ class TestLowLiquidityConditions:
         orders = liquidity_bot.rebalance_portfolio(large_portfolio)
         
         # Should handle large order size gracefully
-        assert isinstance(orders, dict)
+        assert isinstance(orders, list)
     
     def test_illiquid_stock_pricing(self, liquidity_bot):
         """Test pricing for illiquid stocks"""
@@ -296,7 +296,7 @@ class TestExtremeMarketConditions:
         orders = extreme_bot.rebalance_portfolio(target_portfolio)
         
         # Should handle market halt gracefully
-        assert isinstance(orders, dict)
+        assert isinstance(orders, list)
     
     def test_flash_crash_scenario(self, extreme_bot):
         """Test rapid price changes during flash crash"""
@@ -325,7 +325,7 @@ class TestExtremeMarketConditions:
         orders = extreme_bot.rebalance_portfolio(target_portfolio)
         
         # Should handle rapid price changes
-        assert isinstance(orders, dict)
+        assert isinstance(orders, list)
     
     def test_penny_stock_behavior(self, extreme_bot):
         """Test handling of very low-priced stocks"""
@@ -343,7 +343,7 @@ class TestExtremeMarketConditions:
         orders = extreme_bot.rebalance_portfolio(target_portfolio)
         
         # Should handle penny stocks (but might result in huge quantities)
-        assert isinstance(orders, dict)
+        assert isinstance(orders, list)
 
 
 class TestHighFrequencyScenarios:

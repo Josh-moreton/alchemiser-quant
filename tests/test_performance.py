@@ -60,7 +60,7 @@ class TestPerformance:
         
         # Should complete in reasonable time (< 5 seconds)
         assert execution_time < 5.0
-        assert isinstance(orders, dict)
+        assert isinstance(orders, list)
     
     def test_rapid_successive_rebalances(self, perf_bot):
         """Test multiple rapid rebalancing operations"""
@@ -84,7 +84,7 @@ class TestPerformance:
         start_time = time.time()
         for portfolio in portfolios:
             orders = perf_bot.rebalance_portfolio(portfolio)
-            assert isinstance(orders, dict)
+            assert isinstance(orders, list)
         
         total_time = time.time() - start_time
         
@@ -231,7 +231,7 @@ class TestStressConditions:
         for portfolio in portfolios:
             try:
                 orders = stress_bot.rebalance_portfolio(portfolio)
-                if isinstance(orders, dict):
+                if isinstance(orders, list):
                     successful_rebalances += 1
             except:
                 pass  # Expected for rate-limited calls
@@ -265,7 +265,7 @@ class TestStressConditions:
         execution_time = time.time() - start_time
         
         # Should handle timeout gracefully and continue with other symbols
-        assert isinstance(orders, dict)
+        assert isinstance(orders, list)
         # Should not hang indefinitely
         assert execution_time < 10.0
     
@@ -295,7 +295,7 @@ class TestStressConditions:
         execution_time = time.time() - start_time
         
         # Should handle many orders efficiently
-        assert isinstance(orders, dict)
+        assert isinstance(orders, list)
         assert execution_time < 30.0  # Should complete in reasonable time
 
 

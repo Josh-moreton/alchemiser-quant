@@ -69,10 +69,13 @@ class TestPositionSwitching:
         assert len(orders) == 2
         
         # Check for AAPL sell order and TSLA buy order
-        assert 'AAPL_SELL' in orders
-        assert 'TSLA_BUY' in orders
-        assert orders['AAPL_SELL'] == 'mock_order_id'
-        assert orders['TSLA_BUY'] == 'mock_order_id'
+        sell_orders = [o for o in orders if o['side'] == OrderSide.SELL and o['symbol'] == 'AAPL']
+        buy_orders = [o for o in orders if o['side'] == OrderSide.BUY and o['symbol'] == 'TSLA']
+        assert len(sell_orders) == 1
+        assert len(buy_orders) == 1
+        assert sell_orders[0]['qty'] == 100.0  # All AAPL shares sold
+        assert sell_orders[0]['order_id'] == 'mock_order_id'
+        assert buy_orders[0]['order_id'] == 'mock_order_id'
 
     def test_single_to_multi_asset_split(self, mock_bot):
         """Test switching from single position to multi-asset portfolio"""
@@ -95,7 +98,9 @@ class TestPositionSwitching:
         assert len(orders) >= 1  # At least TSLA buy, may or may not need AAPL sell
         
         # Should buy TSLA (new position)
-        assert 'TSLA_BUY' in orders
+        tsla_buys = [o for o in orders if o['side'] == OrderSide.BUY and o['symbol'] == 'TSLA']
+        assert len(tsla_buys) == 1
+        assert tsla_buys[0]['order_id'] == 'mock_order_id'
         
         # May also sell some AAPL if rebalancing is needed
         # The exact behavior depends on the bot's rebalancing logic
@@ -126,7 +131,10 @@ class TestPositionSwitching:
         assert len(orders) >= 1
         
         # Check for AAPL full sell (not in target portfolio)
-        assert 'AAPL_SELL' in orders
+        aapl_sells = [o for o in orders if o['side'] == OrderSide.SELL and o['symbol'] == 'AAPL']
+        assert len(aapl_sells) == 1
+        assert aapl_sells[0]['qty'] == 50.0  # All AAPL shares sold
+        assert aapl_sells[0]['order_id'] == 'mock_order_id'
         
         # May also buy more TSLA to reach 100% allocation
         # Exact behavior depends on rebalancing logic
@@ -157,10 +165,14 @@ class TestPositionSwitching:
         assert len(orders) >= 2
         
         # Check for AAPL full sell (not in target)
-        assert 'AAPL_SELL' in orders
+        aapl_sells = [o for o in orders if o['side'] == OrderSide.SELL and o['symbol'] == 'AAPL']
+        assert len(aapl_sells) == 1
+        assert aapl_sells[0]['order_id'] == 'mock_order_id'
         
         # Check for MSFT buy (new position)
-        assert 'MSFT_BUY' in orders
+        msft_buys = [o for o in orders if o['side'] == OrderSide.BUY and o['symbol'] == 'MSFT']
+        assert len(msft_buys) == 1
+        assert msft_buys[0]['order_id'] == 'mock_order_id'
 
     def test_full_liquidation_to_cash(self, mock_bot):
         """Test switching to all-cash (full liquidation)"""
@@ -188,8 +200,11 @@ class TestPositionSwitching:
         assert len(orders) == 2
         
         # Check that all current positions are sold
-        assert 'AAPL_SELL' in orders
-        assert 'TSLA_SELL' in orders
+        sell_orders = [o for o in orders if o['side'] == OrderSide.SELL]
+        sell_symbols = {o['symbol'] for o in sell_orders}
+        assert 'AAPL' in sell_symbols
+        assert 'TSLA' in sell_symbols
+        assert all(o['order_id'] == 'mock_order_id' for o in sell_orders)
 
     def test_cash_to_new_position(self, mock_bot):
         """Test switching from all-cash to new positions"""
@@ -207,8 +222,9 @@ class TestPositionSwitching:
         
         # The bot might place orders sequentially, so we just check 
         # that it's trying to establish positions
-        order_keys = list(orders.keys())
-        has_smr_or_leu = any('SMR' in key or 'LEU' in key for key in order_keys)
+        buy_orders = [o for o in orders if o['side'] == OrderSide.BUY]
+        buy_symbols = {o['symbol'] for o in buy_orders}
+        has_smr_or_leu = 'SMR' in buy_symbols or 'LEU' in buy_symbols
         assert has_smr_or_leu
 
     def test_identical_portfolio_no_trades(self, mock_bot):
@@ -315,8 +331,11 @@ class TestPositionSwitching:
         assert len(orders) >= 2
         
         # Check that TSLA and MSFT are sold (not in target)
-        assert 'TSLA_SELL' in orders
-        assert 'MSFT_SELL' in orders
+        sell_orders = [o for o in orders if o['side'] == OrderSide.SELL]
+        sell_symbols = {o['symbol'] for o in sell_orders}
+        assert 'TSLA' in sell_symbols
+        assert 'MSFT' in sell_symbols
+        assert all(o['order_id'] == 'mock_order_id' for o in sell_orders)
 
 
 if __name__ == '__main__':
