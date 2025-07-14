@@ -2327,3 +2327,123 @@
 2025-07-14 09:34:00,665 - INFO - Downloaded OKLO: 286 daily records
 2025-07-14 09:34:00,665 - INFO - Downloaded data for 20 symbols
 2025-07-14 09:34:00,665 - INFO - Running backtest for 10 trading days
+2025-07-14 09:36:44,094 - INFO - Downloading complete dataset for 20 symbols...
+2025-07-14 09:36:44,641 - INFO - Downloaded SPY: 338 daily records
+2025-07-14 09:36:44,758 - INFO - Downloaded IOO: 338 daily records
+2025-07-14 09:36:44,849 - INFO - Downloaded TQQQ: 338 daily records
+2025-07-14 09:36:44,945 - INFO - Downloaded VTV: 338 daily records
+2025-07-14 09:36:45,052 - INFO - Downloaded XLF: 338 daily records
+2025-07-14 09:36:45,168 - INFO - Downloaded VOX: 338 daily records
+2025-07-14 09:36:45,245 - INFO - Downloaded UVXY: 338 daily records
+2025-07-14 09:36:45,335 - INFO - Downloaded BTAL: 338 daily records
+2025-07-14 09:36:45,430 - INFO - Downloaded QQQ: 338 daily records
+2025-07-14 09:36:45,508 - INFO - Downloaded SQQQ: 338 daily records
+2025-07-14 09:36:45,612 - INFO - Downloaded PSQ: 338 daily records
+2025-07-14 09:36:45,750 - INFO - Downloaded UPRO: 338 daily records
+2025-07-14 09:36:45,874 - INFO - Downloaded TLT: 338 daily records
+2025-07-14 09:36:45,992 - INFO - Downloaded IEF: 338 daily records
+2025-07-14 09:36:46,081 - INFO - Downloaded SMR: 338 daily records
+2025-07-14 09:36:46,191 - INFO - Downloaded BWXT: 338 daily records
+2025-07-14 09:36:46,274 - INFO - Downloaded LEU: 338 daily records
+2025-07-14 09:36:46,455 - INFO - Downloaded EXC: 338 daily records
+2025-07-14 09:36:46,552 - INFO - Downloaded NLR: 338 daily records
+2025-07-14 09:36:46,653 - INFO - Downloaded OKLO: 338 daily records
+2025-07-14 09:36:46,654 - INFO - Signal analyzer initialized with data for 20 symbols
+2025-07-14 09:36:46,654 - INFO - Generating signals for 63 trading days...
+2025-07-14 09:36:47,017 - INFO - Processed 20/63 days
+2025-07-14 09:36:47,370 - INFO - Processed 40/63 days
+2025-07-14 09:36:47,729 - INFO - Processed 60/63 days
+2025-07-14 09:36:47,793 - INFO - Generated 63 signals successfully
+2025-07-14 09:36:47,796 - INFO - Downloading complete dataset for 20 symbols...
+2025-07-14 09:36:47,810 - INFO - Downloaded SPY: 338 daily records
+2025-07-14 09:36:47,817 - INFO - Downloaded IOO: 338 daily records
+2025-07-14 09:36:47,828 - INFO - Downloaded TQQQ: 338 daily records
+2025-07-14 09:36:47,833 - INFO - Downloaded VTV: 338 daily records
+2025-07-14 09:36:47,837 - INFO - Downloaded XLF: 338 daily records
+2025-07-14 09:36:47,841 - INFO - Downloaded VOX: 338 daily records
+2025-07-14 09:36:47,846 - INFO - Downloaded UVXY: 338 daily records
+2025-07-14 09:36:47,850 - INFO - Downloaded BTAL: 338 daily records
+2025-07-14 09:36:47,854 - INFO - Downloaded QQQ: 338 daily records
+2025-07-14 09:36:47,859 - INFO - Downloaded SQQQ: 338 daily records
+2025-07-14 09:36:47,864 - INFO - Downloaded PSQ: 338 daily records
+2025-07-14 09:36:47,868 - INFO - Downloaded UPRO: 338 daily records
+2025-07-14 09:36:47,872 - INFO - Downloaded TLT: 338 daily records
+2025-07-14 09:36:47,876 - INFO - Downloaded IEF: 338 daily records
+2025-07-14 09:36:47,879 - INFO - Downloaded SMR: 338 daily records
+2025-07-14 09:36:47,883 - INFO - Downloaded BWXT: 338 daily records
+2025-07-14 09:36:47,886 - INFO - Downloaded LEU: 338 daily records
+2025-07-14 09:36:47,890 - INFO - Downloaded EXC: 338 daily records
+2025-07-14 09:36:47,894 - INFO - Downloaded NLR: 338 daily records
+2025-07-14 09:36:47,897 - INFO - Downloaded OKLO: 338 daily records
+2025-07-14 09:36:47,897 - INFO - Downloaded data for 20 symbols
+2025-07-14 09:36:47,897 - INFO - Running backtest for 63 trading days
+2025-07-14 09:36:48,802 - INFO - Processed 50/63 days, Portfolio: $124,319
+2025-07-14 09:36:49,042 - INFO - Downloading complete dataset for 20 symbols...
+2025-07-14 09:36:49,046 - INFO - Downloaded SPY: 338 daily records
+2025-07-14 09:36:49,051 - INFO - Downloaded IOO: 338 daily records
+2025-07-14 09:36:49,055 - INFO - Downloaded TQQQ: 338 daily records
+2025-07-14 09:36:49,059 - INFO - Downloaded VTV: 338 daily records
+2025-07-14 09:36:49,063 - INFO - Downloaded XLF: 338 daily records
+2025-07-14 09:36:49,067 - INFO - Downloaded VOX: 338 daily records
+2025-07-14 09:36:49,072 - INFO - Downloaded UVXY: 338 daily records
+2025-07-14 09:36:49,076 - INFO - Downloaded BTAL: 338 daily records
+2025-07-14 09:36:49,079 - INFO - Downloaded QQQ: 338 daily records
+2025-07-14 09:36:49,084 - INFO - Downloaded SQQQ: 338 daily records
+2025-07-14 09:36:49,089 - INFO - Downloaded PSQ: 338 daily records
+2025-07-14 09:36:49,093 - INFO - Downloaded UPRO: 338 daily records
+2025-07-14 09:36:49,097 - INFO - Downloaded TLT: 338 daily records
+2025-07-14 09:36:49,101 - INFO - Downloaded IEF: 338 daily records
+2025-07-14 09:36:49,104 - INFO - Downloaded SMR: 338 daily records
+2025-07-14 09:36:49,108 - INFO - Downloaded BWXT: 338 daily records
+2025-07-14 09:36:49,111 - INFO - Downloaded LEU: 338 daily records
+2025-07-14 09:36:49,115 - INFO - Downloaded EXC: 338 daily records
+2025-07-14 09:36:49,119 - INFO - Downloaded NLR: 338 daily records
+2025-07-14 09:36:49,122 - INFO - Downloaded OKLO: 338 daily records
+2025-07-14 09:36:49,122 - INFO - Downloaded data for 20 symbols
+2025-07-14 09:36:49,122 - INFO - Running backtest for 63 trading days
+2025-07-14 09:36:50,024 - INFO - Processed 50/63 days, Portfolio: $156,755
+2025-07-14 09:36:50,253 - INFO - Downloading complete dataset for 20 symbols...
+2025-07-14 09:36:50,258 - INFO - Downloaded SPY: 338 daily records
+2025-07-14 09:36:50,262 - INFO - Downloaded IOO: 338 daily records
+2025-07-14 09:36:50,266 - INFO - Downloaded TQQQ: 338 daily records
+2025-07-14 09:36:50,270 - INFO - Downloaded VTV: 338 daily records
+2025-07-14 09:36:50,274 - INFO - Downloaded XLF: 338 daily records
+2025-07-14 09:36:50,278 - INFO - Downloaded VOX: 338 daily records
+2025-07-14 09:36:50,282 - INFO - Downloaded UVXY: 338 daily records
+2025-07-14 09:36:50,286 - INFO - Downloaded BTAL: 338 daily records
+2025-07-14 09:36:50,290 - INFO - Downloaded QQQ: 338 daily records
+2025-07-14 09:36:50,294 - INFO - Downloaded SQQQ: 338 daily records
+2025-07-14 09:36:50,300 - INFO - Downloaded PSQ: 338 daily records
+2025-07-14 09:36:50,304 - INFO - Downloaded UPRO: 338 daily records
+2025-07-14 09:36:50,308 - INFO - Downloaded TLT: 338 daily records
+2025-07-14 09:36:50,312 - INFO - Downloaded IEF: 338 daily records
+2025-07-14 09:36:50,315 - INFO - Downloaded SMR: 338 daily records
+2025-07-14 09:36:50,319 - INFO - Downloaded BWXT: 338 daily records
+2025-07-14 09:36:50,322 - INFO - Downloaded LEU: 338 daily records
+2025-07-14 09:36:50,326 - INFO - Downloaded EXC: 338 daily records
+2025-07-14 09:36:50,330 - INFO - Downloaded NLR: 338 daily records
+2025-07-14 09:36:50,333 - INFO - Downloaded OKLO: 338 daily records
+2025-07-14 09:36:50,333 - INFO - Downloaded data for 20 symbols
+2025-07-14 09:36:50,333 - INFO - Running backtest for 63 trading days
+2025-07-14 09:36:51,260 - INFO - Processed 50/63 days, Portfolio: $176,733
+2025-07-14 09:36:51,491 - INFO - Downloading complete dataset for 20 symbols...
+2025-07-14 09:36:51,495 - INFO - Downloaded SPY: 338 daily records
+2025-07-14 09:36:51,499 - INFO - Downloaded IOO: 338 daily records
+2025-07-14 09:36:51,504 - INFO - Downloaded TQQQ: 338 daily records
+2025-07-14 09:36:51,507 - INFO - Downloaded VTV: 338 daily records
+2025-07-14 09:36:51,512 - INFO - Downloaded XLF: 338 daily records
+2025-07-14 09:36:51,516 - INFO - Downloaded VOX: 338 daily records
+2025-07-14 09:36:51,520 - INFO - Downloaded UVXY: 338 daily records
+2025-07-14 09:36:51,524 - INFO - Downloaded BTAL: 338 daily records
+2025-07-14 09:36:51,528 - INFO - Downloaded QQQ: 338 daily records
+2025-07-14 09:36:51,533 - INFO - Downloaded SQQQ: 338 daily records
+2025-07-14 09:36:51,538 - INFO - Downloaded PSQ: 338 daily records
+2025-07-14 09:36:51,542 - INFO - Downloaded UPRO: 338 daily records
+2025-07-14 09:36:51,546 - INFO - Downloaded TLT: 338 daily records
+2025-07-14 09:36:51,550 - INFO - Downloaded IEF: 338 daily records
+2025-07-14 09:36:51,553 - INFO - Downloaded SMR: 338 daily records
+2025-07-14 09:36:51,557 - INFO - Downloaded BWXT: 338 daily records
+2025-07-14 09:36:51,561 - INFO - Downloaded LEU: 338 daily records
+2025-07-14 09:36:51,565 - INFO - Downloaded EXC: 338 daily records
+2025-07-14 09:36:51,569 - INFO - Downloaded NLR: 338 daily records
+2025-07-14 09:36:51,572 - INFO - Downloaded OKLO: 338 daily records
