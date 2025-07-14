@@ -91,8 +91,7 @@ class AlpacaTradingBot:
             logging.error(f"Failed to initialize StockHistoricalDataClient: {e}")
             raise
         
-        # Portfolio configuration  
-        self.min_cash_reserve = 0.02   # Keep only 2% cash reserve for strategy execution
+        # Portfolio configuration - no cash reserves, invest everything based on strategy
         
         logging.info(f"Alpaca Trading Bot initialized - Paper Trading: {paper_trading}")
     
@@ -134,67 +133,62 @@ class AlpacaTradingBot:
             return {}
     
     def get_current_price(self, symbol: str) -> float:
-        """Get current price for a symbol - simplified version using yfinance as fallback"""
+        """Get current price for a symbol using Alpaca data API only. Returns 0.0 if unavailable."""
         try:
-            # For now, use yfinance as a fallback for pricing
-            # This will be replaced with proper Alpaca data once we figure out the API
-            import yfinance as yf
-            ticker = yf.Ticker(symbol)
-            hist = ticker.history(period="1d", interval="1m")
-            if not hist.empty:
-                return float(hist['Close'].iloc[-1])
-            else:
-                logging.warning(f"No price data found for {symbol}")
-                return 0.0
-                
+            from alpaca.data.requests import StockLatestQuoteRequest
+            request_params = StockLatestQuoteRequest(symbol_or_symbols=symbol)
+            latest_quote = self.data_client.get_stock_latest_quote(request_params)
+            if latest_quote and symbol in latest_quote:
+                quote = latest_quote[symbol]
+                bid_price = float(getattr(quote, 'bid_price', 0) or 0)
+                ask_price = float(getattr(quote, 'ask_price', 0) or 0)
+                if bid_price > 0 and ask_price > 0:
+                    midpoint_price = (bid_price + ask_price) / 2
+                    logging.debug(f"Alpaca price for {symbol}: ${midpoint_price:.2f} (bid: ${bid_price:.2f}, ask: ${ask_price:.2f})")
+                    return midpoint_price
+            logging.warning(f"No valid Alpaca quote for {symbol}, returning 0.0")
+            return 0.0
         except Exception as e:
-            logging.error(f"Error getting price for {symbol}: {e}")
+            logging.warning(f"Alpaca pricing failed for {symbol}: {e}, returning 0.0")
             return 0.0
     
-    def calculate_position_size(self, symbol: str, portfolio_weight: float, account_value: float) -> int:
+    def calculate_position_size(self, symbol: str, portfolio_weight: float, account_value: float) -> float:
         """
-        Calculate position size based on portfolio weight
+        Calculate position size based on portfolio weight (fractional shares supported)
         
         Args:
             symbol: Stock symbol
             portfolio_weight: Target weight (0.0 to 1.0)
             account_value: Total account value
-            
         Returns:
-            Number of shares to buy/sell
+            Number of shares to buy/sell (float for fractional shares)
         """
         try:
             current_price = self.get_current_price(symbol)
             if current_price <= 0:
-                return 0
-            
-            # Calculate target dollar amount based on strategy allocation
+                return 0.0
+            # Calculate target dollar amount based on strategy allocation of full account value
             target_value = account_value * portfolio_weight
-            
-            # Calculate shares
-            shares = int(target_value / current_price)
-            
+            # Calculate shares (fractional)
+            shares = round(target_value / current_price, 6)  # 6 decimals is safe for Alpaca
             logging.info(f"Position calculation for {symbol}: "
                         f"Target weight: {portfolio_weight:.1%}, "
                         f"Target value: ${target_value:.2f}, "
                         f"Price: ${current_price:.2f}, "
                         f"Shares: {shares}")
-            
             return shares
-        
         except Exception as e:
             logging.error(f"Error calculating position size for {symbol}: {e}")
-            return 0
+            return 0.0
     
-    def place_order(self, symbol: str, qty: int, side: OrderSide) -> Optional[str]:
+    def place_order(self, symbol: str, qty: float, side: OrderSide) -> Optional[str]:
         """
-        Place a market order
+        Place a market order (supports fractional shares)
         
         Args:
             symbol: Stock symbol
-            qty: Quantity of shares
+            qty: Quantity of shares (float for fractional shares)
             side: OrderSide.BUY or OrderSide.SELL
-            
         Returns:
             Order ID if successful, None if failed
         """
@@ -202,27 +196,23 @@ class AlpacaTradingBot:
             if qty <= 0:
                 logging.warning(f"Invalid quantity for {symbol}: {qty}")
                 return None
-            
             market_order_data = MarketOrderRequest(
                 symbol=symbol,
                 qty=qty,
                 side=side,
                 time_in_force=TimeInForce.DAY
             )
-            
             order = self.trading_client.submit_order(market_order_data)
-            
             order_id = str(getattr(order, 'id', 'unknown'))
             logging.info(f"Order placed: {side.value} {qty} shares of {symbol} - Order ID: {order_id}")
             return order_id
-            
         except Exception as e:
             logging.error(f"Error placing order for {symbol}: {e}")
             return None
     
     def rebalance_portfolio(self, target_portfolio: Dict[str, float]) -> Dict[str, str]:
         """
-        Rebalance portfolio to match target allocations
+        Rebalance portfolio to match target allocations with minimal trading
         
         Args:
             target_portfolio: Dict of {symbol: weight} where weight is 0.0 to 1.0
@@ -248,57 +238,101 @@ class AlpacaTradingBot:
             
             logging.info(f"🔄 Starting portfolio rebalance - Portfolio Value: ${portfolio_value:,.2f}, Current Cash: ${current_cash:,.2f}")
             
-            # First, handle sells for positions we need to reduce or eliminate
+            # Calculate current and target allocations
+            current_allocations = {}
+            target_allocations = {}
+            
+            # Calculate current allocations based on market value
+            for symbol, position in current_positions.items():
+                current_allocations[symbol] = position['market_value'] / portfolio_value
+                logging.info(f"Current allocation {symbol}: {current_allocations[symbol]:.1%} (${position['market_value']:,.2f})")
+            
+            # Calculate target allocations
+            for symbol, target_weight in target_portfolio.items():
+                target_allocations[symbol] = target_weight
+                target_value = portfolio_value * target_weight
+                logging.info(f"Target allocation {symbol}: {target_weight:.1%} (${target_value:,.2f})")
+            
+            # PHASE 1: Sell positions that need to be reduced or eliminated
             cash_from_sells = 0
+            successful_sells = 0
+            
             for symbol in list(current_positions.keys()):
-                current_qty = current_positions[symbol]['qty']
-                target_weight = target_portfolio.get(symbol, 0.0)
-                target_qty = self.calculate_position_size(symbol, target_weight, portfolio_value)
+                current_weight = current_allocations.get(symbol, 0.0)
+                target_weight = target_allocations.get(symbol, 0.0)
                 
-                if current_qty > target_qty:
-                    # Sell excess shares
-                    sell_qty = int(current_qty - target_qty)
-                    if sell_qty > 0:
-                        current_price = self.get_current_price(symbol)
-                        cash_from_sells += sell_qty * current_price
+                if current_weight > target_weight:
+                    # Need to reduce this position
+                    current_qty = current_positions[symbol]['qty']
+                    current_value = current_positions[symbol]['market_value']
+                    target_value = portfolio_value * target_weight
+                    
+                    # Calculate how much to sell
+                    value_to_sell = current_value - target_value
+                    current_price = self.get_current_price(symbol)
+                    
+                    if current_price > 0 and value_to_sell > 1.0:  # Only sell if more than $1
+                        sell_qty = round(value_to_sell / current_price, 6)
+                        sell_qty = min(sell_qty, current_qty)  # Don't sell more than we have
                         
-                        order_id = self.place_order(symbol, sell_qty, OrderSide.SELL)
-                        if order_id:
-                            orders_executed[f"{symbol}_SELL"] = order_id
-                            logging.info(f"💰 Selling {sell_qty} shares of {symbol} will add ${sell_qty * current_price:,.2f} cash")
+                        if sell_qty > 0:
+                            order_id = self.place_order(symbol, sell_qty, OrderSide.SELL)
+                            if order_id:
+                                orders_executed[f"{symbol}_SELL"] = order_id
+                                estimated_proceeds = sell_qty * current_price
+                                cash_from_sells += estimated_proceeds
+                                successful_sells += 1
+                                logging.info(f"💰 Selling {sell_qty} shares of {symbol} to rebalance (${estimated_proceeds:,.2f})")
+                            else:
+                                logging.error(f"❌ Failed to place sell order for {symbol}")
+            
+            if successful_sells > 0:
+                logging.info(f"📉 Rebalancing sells: {successful_sells} successful")
             
             # Calculate total cash available after sells
             total_cash_available = current_cash + cash_from_sells
-            logging.info(f"💸 Total cash available for buys: ${total_cash_available:,.2f} (current: ${current_cash:,.2f} + from sells: ${cash_from_sells:,.2f})")
+            logging.info(f"💸 Total cash available: ${total_cash_available:,.2f}")
             
-            # Then handle buys for new positions or increases
-            # Sort by priority (largest allocations first to ensure they get filled)
-            buy_orders = []
+            # PHASE 2: Buy positions that need to be increased or added
+            successful_buys = 0
+            remaining_cash = total_cash_available
+            
+            # Sort by priority (largest allocations first)
             for symbol, target_weight in sorted(target_portfolio.items(), key=lambda x: x[1], reverse=True):
                 if target_weight <= 0:
                     continue
                 
-                current_qty = current_positions.get(symbol, {}).get('qty', 0)
-                target_qty = self.calculate_position_size(symbol, target_weight, portfolio_value)
+                current_weight = current_allocations.get(symbol, 0.0)
                 
-                if target_qty > current_qty:
-                    # Buy additional shares
-                    buy_qty = int(target_qty - current_qty)
-                    if buy_qty > 0:
+                if target_weight > current_weight:
+                    # Need to increase this position
+                    current_value = current_positions.get(symbol, {}).get('market_value', 0.0)
+                    target_value = portfolio_value * target_weight
+                    value_to_buy = target_value - current_value
+                    
+                    if value_to_buy > 1.0 and remaining_cash > 1.0:  # Only buy if more than $1
                         current_price = self.get_current_price(symbol)
-                        required_cash = buy_qty * current_price
-                        buy_orders.append((symbol, buy_qty, required_cash))
+                        
+                        if current_price > 0:
+                            # Limit purchase to available cash
+                            actual_value_to_buy = min(value_to_buy, remaining_cash)
+                            buy_qty = round(actual_value_to_buy / current_price, 6)
+                            required_cash = buy_qty * current_price
+                            
+                            if buy_qty > 0 and required_cash <= remaining_cash:
+                                order_id = self.place_order(symbol, buy_qty, OrderSide.BUY)
+                                if order_id:
+                                    orders_executed[f"{symbol}_BUY"] = order_id
+                                    remaining_cash -= required_cash
+                                    successful_buys += 1
+                                    logging.info(f"✅ Bought {buy_qty} shares of {symbol} for ${required_cash:,.2f}")
+                                else:
+                                    logging.error(f"❌ Failed to place buy order for {symbol}")
             
-            # Execute buy orders with available cash
-            for symbol, buy_qty, required_cash in buy_orders:
-                if required_cash <= total_cash_available:
-                    order_id = self.place_order(symbol, buy_qty, OrderSide.BUY)
-                    if order_id:
-                        orders_executed[f"{symbol}_BUY"] = order_id
-                        total_cash_available -= required_cash
-                        logging.info(f"✅ Bought {buy_qty} shares of {symbol} for ${required_cash:,.2f}, remaining cash: ${total_cash_available:,.2f}")
-                else:
-                    logging.warning(f"❌ Insufficient cash for {symbol}: need ${required_cash:.2f}, have ${total_cash_available:.2f}")
+            if successful_buys > 0:
+                logging.info(f"📈 Rebalancing buys: {successful_buys} successful")
+            
+            logging.info(f"� Cash remaining after rebalancing: ${remaining_cash:,.2f}")
             
             return orders_executed
             
@@ -396,7 +430,7 @@ class AlpacaTradingBot:
             # Read latest signals
             signals = self.read_nuclear_signals()
             if not signals:
-                logging.info("No recent signals found")
+                logging.warning("⚠️ No recent signals found - unable to execute strategy")
                 return False
             
             logging.info(f"Found {len(signals)} recent signals")
@@ -404,14 +438,34 @@ class AlpacaTradingBot:
             # Parse target portfolio
             target_portfolio = self.parse_portfolio_from_signals(signals)
             if not target_portfolio:
-                logging.info("No valid portfolio allocation found in signals")
+                logging.warning("⚠️ No valid portfolio allocation found in signals - unable to execute")
                 return False
             
             logging.info(f"Target Portfolio: {target_portfolio}")
             
+            # Validate target portfolio
+            total_allocation = sum(target_portfolio.values())
+            if abs(total_allocation - 1.0) > 0.05:  # Allow 5% tolerance
+                logging.warning(f"⚠️ Portfolio allocation sums to {total_allocation:.1%}, expected ~100%")
+            
             # Get account info
             account_info = self.get_account_info()
+            if not account_info:
+                logging.error("❌ Failed to get account information - aborting strategy execution")
+                return False
+                
             logging.info(f"Account Value: ${account_info.get('portfolio_value', 0):,.2f}")
+            
+            # Validate we have sufficient data for pricing
+            missing_prices = []
+            for symbol in target_portfolio.keys():
+                price = self.get_current_price(symbol)
+                if price <= 0:
+                    missing_prices.append(symbol)
+            
+            if missing_prices:
+                logging.error(f"❌ Unable to get prices for symbols: {missing_prices} - aborting execution")
+                return False
             
             # Execute rebalancing
             orders = self.rebalance_portfolio(target_portfolio)
@@ -425,11 +479,13 @@ class AlpacaTradingBot:
                 self.log_trade_execution(target_portfolio, orders, account_info)
                 return True
             else:
-                logging.info("No trades needed - portfolio already aligned")
+                logging.info("ℹ️ No trades needed - portfolio already aligned with strategy")
                 return True
                 
         except Exception as e:
-            logging.error(f"Error executing nuclear strategy: {e}")
+            logging.error(f"💥 Critical error executing nuclear strategy: {e}")
+            import traceback
+            logging.error(f"Stack trace: {traceback.format_exc()}")
             return False
     
     def log_trade_execution(self, target_portfolio: Dict[str, float], orders: Dict[str, str], account_info: Dict):
