@@ -264,3 +264,29 @@ Recent backtest results (2024-07-01 to 2024-09-30):
 - **Tests** (`tests/`): Unit tests and integration tests
 - **Data** (`data/`): Organized storage for results, logs, and market data
 - **Documentation** (`docs/`): Strategy guides and implementation notes
+
+## 📋 Quick Reference
+
+### Main.py Modes Summary
+
+| Mode | Command | Purpose | Output |
+|------|---------|---------|--------|
+| **bot** | `python main.py bot` | Live signal generation | Console + JSON logs |
+| **email** | `python main.py email` | Live signals + email alerts | Console + Email |
+| **backtest** | `python main.py backtest` | Historical strategy testing | Reports + CSV files |
+| **dashboard** | `python main.py dashboard` | Interactive web interface | Web app at :8501 |
+| **hourly-test** | `python main.py hourly-test` | Timing optimization | Performance analysis |
+
+### For Production Use
+- **Automated Trading**: `python main.py email` (GitHub Actions hourly)
+- **Manual Check**: `python main.py bot`
+- **Strategy Analysis**: `python main.py backtest`
+- **Live Monitoring**: `python main.py dashboard`
+
+### Key Features
+- ✅ **Unified Entry Point**: One command for all operations
+- ✅ **Smart Email Alerts**: Only sends when signals change
+- ✅ **Comprehensive Backtesting**: Multiple execution strategies tested
+- ✅ **Automated Execution**: GitHub Actions hourly monitoring
+- ✅ **Interactive Dashboard**: Real-time web interface
+- ✅ **Organized Data**: All outputs properly structured in `data/` directory
