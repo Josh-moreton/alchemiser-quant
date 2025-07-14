@@ -15,6 +15,7 @@ python main.py <mode> [options]
 ### Available Modes
 
 #### 🤖 `bot` - Live Trading Signal Generation
+
 Generate live nuclear trading signals without email notifications.
 
 ```bash
@@ -22,6 +23,7 @@ python main.py bot
 ```
 
 **What it does:**
+
 - Fetches live market data for all nuclear and market symbols
 - Calculates technical indicators (RSI, moving averages, etc.)
 - Evaluates nuclear strategy logic and generates trading signals
@@ -29,6 +31,7 @@ python main.py bot
 - Displays portfolio allocations for nuclear portfolio signals
 
 **Example Output:**
+
 ```
 🚨 NUCLEAR PORTFOLIO SIGNAL: 3 stocks allocated
 🎯 NUCLEAR PORTFOLIO ALLOCATION:
@@ -38,6 +41,7 @@ python main.py bot
 ```
 
 #### 📧 `email` - Live Trading with Email Notifications
+
 Generate live trading signals AND send email notifications when signals change.
 
 ```bash
@@ -45,15 +49,18 @@ python main.py email
 ```
 
 **Requirements:**
+
 - Environment variable `SMTP_PASSWORD` must be set with iCloud app password
 - Configured for: `joshuamoreton1@icloud.com` → `josh@rwxt.org`
 
 **Smart Notifications:**
+
 - Only sends email when signals actually change (reduces spam)
 - Includes market analysis, portfolio breakdown, and risk disclaimers
 - Sends error notifications if bot encounters issues
 
 **Example Email Content:**
+
 ```
 🔄 SIGNAL CHANGE: Nuclear Energy - BUY Nuclear Portfolio
 📊 Market Conditions: SPY $623.62 (+7.4% vs 200-MA)
@@ -61,6 +68,7 @@ python main.py email
 ```
 
 #### 📈 `backtest` - Strategy Backtesting
+
 Test nuclear strategy performance against historical data.
 
 ```bash
@@ -72,17 +80,20 @@ python main.py backtest --backtest-type hourly
 ```
 
 **Features:**
+
 - Tests multiple execution strategies (open, close, 10AM, 2PM)
 - Calculates performance metrics (returns, Sharpe ratio, drawdown)
 - Generates detailed reports and CSV files
 - Compares strategy vs benchmark performance
 
 **Output Files:**
+
 - `data/backtest_results/nuclear_comprehensive_report_*.json`
 - `data/backtest_results/nuclear_trades_*.csv`
 - `data/backtest_results/nuclear_portfolio_*.csv`
 
 #### 📊 `dashboard` - Interactive Web Dashboard
+
 Launch Streamlit web dashboard for interactive analysis.
 
 ```bash
@@ -90,6 +101,7 @@ python main.py dashboard
 ```
 
 **Features:**
+
 - Real-time trading signal display with portfolio details
 - Interactive charts and historical performance analysis
 - Signal history timeline and market condition monitoring
@@ -97,6 +109,7 @@ python main.py dashboard
 - Access at `http://localhost:8501`
 
 #### ⏰ `hourly-test` - Hourly Execution Testing
+
 Specialized backtest focusing on hourly execution timing optimization.
 
 ```bash
@@ -108,11 +121,13 @@ python main.py hourly-test
 ### Environment Setup
 
 #### For Email Notifications
+
 ```bash
 export SMTP_PASSWORD="your-icloud-app-password"
 ```
 
 **To get iCloud app password:**
+
 1. Go to [appleid.apple.com](https://appleid.apple.com)
 2. Security → Generate App-Specific Password
 3. Name: "Nuclear Trading Bot"
@@ -149,6 +164,7 @@ LQQ3/
 ```
 
 **Key Files:**
+
 - **`main.py`** - Single entry point for all operations
 - **`src/core/nuclear_trading_bot.py`** - Core trading strategy and signal generation
 - **`src/core/nuclear_signal_email.py`** - Email notification system
@@ -160,12 +176,13 @@ LQQ3/
 The system runs automatically via **GitHub Actions** every hour:
 
 - **Schedule:** Hourly execution (`0 * * * *`)
-- **Command:** `python main.py email` 
+- **Command:** `python main.py email`
 - **Functions:** Generates trading signals, sends email notifications only when signals change
 - **Manual Trigger:** Available via GitHub Actions UI
 - **Environment:** `SMTP_PASSWORD` configured as repository secret
 
 **GitHub Actions Workflow:**
+
 ```yaml
 - name: Run Nuclear Trading Bot with Email
   env:
@@ -187,17 +204,20 @@ The nuclear strategy has demonstrated exceptional performance:
 ## 🔧 Installation
 
 1. **Clone the repository:**
+
    ```bash
    git clone https://github.com/Josh-moreton/LQQ3.git
    cd LQQ3
    ```
 
 2. **Install dependencies:**
+
    ```bash
    pip install -r requirements.txt
    ```
 
 3. **Set up environment variables (for email mode):**
+
    ```bash
    export SMTP_PASSWORD="your-icloud-app-password"
    ```
@@ -205,6 +225,7 @@ The nuclear strategy has demonstrated exceptional performance:
 ## 📈 Usage Examples
 
 ### Daily Operations
+
 ```bash
 # Generate live trading signal (local use)
 python main.py bot
@@ -217,6 +238,7 @@ python main.py dashboard
 ```
 
 ### Strategy Analysis
+
 ```bash
 # Comprehensive backtesting
 python main.py backtest
@@ -229,6 +251,7 @@ python main.py backtest --backtest-type comprehensive
 ```
 
 ### Development & Testing
+
 ```bash
 # Test email functionality (requires SMTP_PASSWORD)
 python main.py email
@@ -278,12 +301,14 @@ Recent backtest results (2024-07-01 to 2024-09-30):
 | **hourly-test** | `python main.py hourly-test` | Timing optimization | Performance analysis |
 
 ### For Production Use
+
 - **Automated Trading**: `python main.py email` (GitHub Actions hourly)
 - **Manual Check**: `python main.py bot`
 - **Strategy Analysis**: `python main.py backtest`
 - **Live Monitoring**: `python main.py dashboard`
 
 ### Key Features
+
 - ✅ **Unified Entry Point**: One command for all operations
 - ✅ **Smart Email Alerts**: Only sends when signals change
 - ✅ **Comprehensive Backtesting**: Multiple execution strategies tested
