@@ -3,7 +3,7 @@ name: Nuclear Energy Trading Bot - Hourly Signals
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 * * * *" # Hourly execution
+    - cron: "*/15 * * * *" # Every 15 minutes
 
 jobs:
   run-nuclear-bot:

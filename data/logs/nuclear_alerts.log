@@ -3195,3 +3195,92 @@ Best execution hour: 09:30 with +74.03% return
 2025-07-14 11:22:20,330 - ERROR - HTTP Error 404: 
 2025-07-14 11:22:20,728 - ERROR - $NUCLEAR_PORTFOLIO: possibly delisted; no price data found  (period=5d) (Yahoo error = "No data found, symbol may be delisted")
 2025-07-14 11:22:20,729 - WARNING - No data found for NUCLEAR_PORTFOLIO
+2025-07-14 11:32:53,824 - INFO - Downloading complete dataset for 20 symbols...
+2025-07-14 11:32:54,366 - INFO - Downloaded SPY: 336 daily records
+2025-07-14 11:32:54,461 - INFO - Downloaded IOO: 336 daily records
+2025-07-14 11:32:54,548 - INFO - Downloaded TQQQ: 336 daily records
+2025-07-14 11:32:54,659 - INFO - Downloaded VTV: 336 daily records
+2025-07-14 11:32:54,776 - INFO - Downloaded XLF: 336 daily records
+2025-07-14 11:32:54,876 - INFO - Downloaded VOX: 336 daily records
+2025-07-14 11:32:54,950 - INFO - Downloaded UVXY: 336 daily records
+2025-07-14 11:32:55,046 - INFO - Downloaded BTAL: 336 daily records
+2025-07-14 11:32:55,154 - INFO - Downloaded QQQ: 336 daily records
+2025-07-14 11:32:55,238 - INFO - Downloaded SQQQ: 336 daily records
+2025-07-14 11:32:55,341 - INFO - Downloaded PSQ: 336 daily records
+2025-07-14 11:32:55,458 - INFO - Downloaded UPRO: 336 daily records
+2025-07-14 11:32:55,569 - INFO - Downloaded TLT: 336 daily records
+2025-07-14 11:32:55,686 - INFO - Downloaded IEF: 336 daily records
+2025-07-14 11:32:55,797 - INFO - Downloaded SMR: 336 daily records
+2025-07-14 11:32:55,885 - INFO - Downloaded BWXT: 336 daily records
+2025-07-14 11:32:55,969 - INFO - Downloaded LEU: 336 daily records
+2025-07-14 11:32:56,133 - INFO - Downloaded EXC: 336 daily records
+2025-07-14 11:32:56,230 - INFO - Downloaded NLR: 336 daily records
+2025-07-14 11:32:56,312 - INFO - Downloaded OKLO: 336 daily records
+2025-07-14 11:32:56,351 - INFO - Scaling target portfolio by 0.973 to prevent over-allocation
+2025-07-14 11:32:56,374 - INFO - Scaling target portfolio by 0.987 to prevent over-allocation
+2025-07-14 11:32:56,374 - INFO - Scaled down OKLO purchase to fit available cash
+2025-07-14 11:32:56,394 - INFO - Scaling target portfolio by 0.963 to prevent over-allocation
+2025-07-14 11:32:56,429 - INFO - Scaled down BTAL purchase to fit available cash
+2025-07-14 11:32:56,446 - INFO - Scaling target portfolio by 0.997 to prevent over-allocation
+2025-07-14 11:32:56,446 - INFO - Scaled down BWXT purchase to fit available cash
+2025-07-14 11:32:56,464 - INFO - Scaling target portfolio by 0.970 to prevent over-allocation
+2025-07-14 11:32:56,464 - INFO - Scaled down UVXY purchase to fit available cash
+2025-07-14 11:32:56,514 - INFO - Scaling target portfolio by 0.964 to prevent over-allocation
+2025-07-14 11:32:56,532 - INFO - Scaling target portfolio by 0.980 to prevent over-allocation
+2025-07-14 11:32:56,549 - INFO - Scaling target portfolio by 0.943 to prevent over-allocation
+2025-07-14 11:32:56,566 - INFO - Scaling target portfolio by 0.948 to prevent over-allocation
+2025-07-14 11:32:56,584 - INFO - Scaling target portfolio by 0.931 to prevent over-allocation
+2025-07-14 11:32:56,601 - INFO - Scaled down TQQQ purchase to fit available cash
+2025-07-14 11:32:56,618 - INFO - Scaling target portfolio by 0.990 to prevent over-allocation
+2025-07-14 11:32:56,652 - INFO - Scaled down TQQQ purchase to fit available cash
+2025-07-14 11:32:56,669 - INFO - Scaling target portfolio by 0.964 to prevent over-allocation
+2025-07-14 11:32:56,686 - INFO - Scaling target portfolio by 0.984 to prevent over-allocation
+2025-07-14 11:32:56,720 - INFO - Scaling target portfolio by 0.911 to prevent over-allocation
+2025-07-14 11:32:56,738 - INFO - Scaled down SMR purchase to fit available cash
+2025-07-14 11:32:56,773 - INFO - Scaled down EXC purchase to fit available cash
+2025-07-14 11:32:56,790 - INFO - Scaling target portfolio by 0.981 to prevent over-allocation
+2025-07-14 11:32:56,790 - INFO - Scaled down TQQQ purchase to fit available cash
+2025-07-14 11:32:56,807 - INFO - Scaling target portfolio by 0.964 to prevent over-allocation
+2025-07-14 11:32:56,824 - INFO - Scaling target portfolio by 0.907 to prevent over-allocation
+2025-07-14 11:32:56,843 - INFO - Scaling target portfolio by 0.971 to prevent over-allocation
+2025-07-14 11:32:56,843 - INFO - Scaled down SMR purchase to fit available cash
+2025-07-14 11:32:56,860 - INFO - Scaling target portfolio by 0.987 to prevent over-allocation
+2025-07-14 11:32:56,878 - INFO - Scaling target portfolio by 0.977 to prevent over-allocation
+2025-07-14 11:32:56,895 - INFO - Scaling target portfolio by 1.000 to prevent over-allocation
+2025-07-14 11:32:56,913 - INFO - Scaling target portfolio by 0.980 to prevent over-allocation
+2025-07-14 11:32:56,931 - INFO - Scaling target portfolio by 0.992 to prevent over-allocation
+2025-07-14 11:32:56,949 - INFO - Scaling target portfolio by 0.981 to prevent over-allocation
+2025-07-14 11:32:56,966 - INFO - Scaling target portfolio by 0.982 to prevent over-allocation
+2025-07-14 11:32:56,967 - INFO - Scaled down UVXY purchase to fit available cash
+2025-07-14 11:32:56,984 - INFO - Scaling target portfolio by 0.996 to prevent over-allocation
+2025-07-14 11:32:57,001 - INFO - Scaling target portfolio by 0.927 to prevent over-allocation
+2025-07-14 11:32:57,035 - INFO - Scaling target portfolio by 0.993 to prevent over-allocation
+2025-07-14 11:32:57,068 - INFO - Scaling target portfolio by 0.916 to prevent over-allocation
+2025-07-14 11:32:57,120 - INFO - Scaling target portfolio by 0.770 to prevent over-allocation
+2025-07-14 11:32:57,147 - INFO - Scaled down TQQQ purchase to fit available cash
+2025-07-14 11:32:57,181 - INFO - Scaling target portfolio by 0.872 to prevent over-allocation
+2025-07-14 11:32:57,182 - INFO - Scaled down TQQQ purchase to fit available cash
+2025-07-14 11:32:57,199 - INFO - Scaling target portfolio by 0.963 to prevent over-allocation
+2025-07-14 11:32:57,216 - INFO - Scaling target portfolio by 0.964 to prevent over-allocation
+2025-07-14 11:32:57,234 - INFO - Scaling target portfolio by 0.942 to prevent over-allocation
+2025-07-14 11:32:57,234 - INFO - Scaled down SMR purchase to fit available cash
+2025-07-14 11:32:57,252 - INFO - Scaling target portfolio by 0.989 to prevent over-allocation
+2025-07-14 11:32:57,270 - INFO - Scaling target portfolio by 0.971 to prevent over-allocation
+2025-07-14 11:32:57,287 - INFO - Scaling target portfolio by 0.988 to prevent over-allocation
+2025-07-14 11:32:57,287 - INFO - Scaled down EXC purchase to fit available cash
+2025-07-14 11:32:57,339 - INFO - Scaling target portfolio by 0.983 to prevent over-allocation
+2025-07-14 11:32:57,357 - INFO - Scaling target portfolio by 0.947 to prevent over-allocation
+2025-07-14 11:32:57,375 - INFO - Scaling target portfolio by 0.996 to prevent over-allocation
+2025-07-14 11:32:57,375 - INFO - Scaled down UVXY purchase to fit available cash
+2025-07-14 11:32:57,392 - INFO - Scaling target portfolio by 1.000 to prevent over-allocation
+2025-07-14 11:32:57,409 - INFO - Scaling target portfolio by 0.972 to prevent over-allocation
+2025-07-14 11:32:57,427 - INFO - Scaling target portfolio by 0.989 to prevent over-allocation
+2025-07-14 11:32:57,444 - INFO - Scaling target portfolio by 0.926 to prevent over-allocation
+2025-07-14 11:32:57,444 - INFO - Downloading complete dataset for 1 symbols...
+2025-07-14 11:32:57,449 - INFO - Downloaded SPY: 336 daily records
+2025-07-14 11:32:57,449 - INFO - Downloading complete dataset for 1 symbols...
+2025-07-14 11:32:57,453 - INFO - Downloaded QQQ: 336 daily records
+2025-07-14 11:32:57,454 - INFO - Downloading complete dataset for 1 symbols...
+2025-07-14 11:32:57,458 - INFO - Downloaded TLT: 336 daily records
+2025-07-14 11:32:57,458 - INFO - Downloading complete dataset for 1 symbols...
+2025-07-14 11:32:57,463 - INFO - Downloaded IEF: 336 daily records
