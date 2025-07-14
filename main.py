@@ -104,6 +104,28 @@ def run_dashboard():
         traceback.print_exc()
         return False
 
+def run_alpaca_bot():
+    """Run the nuclear trading bot with Alpaca execution"""
+    print("🚀 NUCLEAR TRADING BOT - ALPACA EXECUTION MODE")
+    print("=" * 60)
+    print(f"Running live trading analysis with Alpaca paper trading at {datetime.now()}")
+    print()
+    
+    try:
+        from execution.nuclear_alpaca_bot import run_nuclear_alpaca_bot
+        
+        # Run the nuclear bot with Alpaca execution
+        print("⚡ Starting nuclear trading bot with Alpaca execution...")
+        success = run_nuclear_alpaca_bot()
+        
+        return success
+        
+    except Exception as e:
+        print(f"❌ Error running Alpaca bot: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
 def run_email_bot():
     """Run the nuclear trading bot with email notifications"""
     print("🚀 NUCLEAR TRADING BOT - EMAIL MODE")
@@ -128,7 +150,7 @@ def run_email_bot():
 
 def main():
     parser = argparse.ArgumentParser(description="Nuclear Trading Strategy - Unified Entry Point")
-    parser.add_argument('mode', choices=['bot', 'email', 'backtest', 'dashboard', 'hourly-test'], 
+    parser.add_argument('mode', choices=['bot', 'email', 'alpaca', 'backtest', 'dashboard', 'hourly-test'], 
                        help='Operation mode to run')
     parser.add_argument('--backtest-type', choices=['comprehensive', 'hourly'], 
                        default='comprehensive',
@@ -151,6 +173,8 @@ def main():
         success = run_trading_bot()
     elif args.mode == 'email':
         success = run_email_bot()
+    elif args.mode == 'alpaca':
+        success = run_alpaca_bot()
     elif args.mode == 'backtest':
         # Pass start_date, end_date, initial_capital via sys.argv for run_backtest
         success = run_backtest(args.backtest_type)

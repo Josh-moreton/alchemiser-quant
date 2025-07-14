@@ -3284,3 +3284,309 @@ Best execution hour: 09:30 with +74.03% return
 2025-07-14 11:32:57,458 - INFO - Downloaded TLT: 336 daily records
 2025-07-14 11:32:57,458 - INFO - Downloading complete dataset for 1 symbols...
 2025-07-14 11:32:57,463 - INFO - Downloaded IEF: 336 daily records
+2025-07-14 12:59:06,573 - INFO - Starting Nuclear Energy strategy analysis...
+2025-07-14 12:59:09,073 - ERROR - $SPY: possibly delisted; no price data found  (period=1y) (Yahoo error = "1m data not available for startTime=1720958349 and endTime=1752494349. Only 8 days worth of 1m granularity data are allowed to be fetched per request.")
+2025-07-14 12:59:09,074 - WARNING - No data found for SPY
+2025-07-14 12:59:09,085 - WARNING - Could not fetch data for SPY
+2025-07-14 12:59:09,372 - ERROR - $IOO: possibly delisted; no price data found  (period=1y) (Yahoo error = "1m data not available for startTime=1720958349 and endTime=1752494349. Only 8 days worth of 1m granularity data are allowed to be fetched per request.")
+2025-07-14 12:59:09,373 - WARNING - No data found for IOO
+2025-07-14 12:59:09,375 - WARNING - Could not fetch data for IOO
+2025-07-14 12:59:09,643 - ERROR - $TQQQ: possibly delisted; no price data found  (period=1y) (Yahoo error = "1m data not available for startTime=1720958349 and endTime=1752494349. Only 8 days worth of 1m granularity data are allowed to be fetched per request.")
+2025-07-14 12:59:09,644 - WARNING - No data found for TQQQ
+2025-07-14 12:59:09,644 - WARNING - Could not fetch data for TQQQ
+2025-07-14 12:59:09,943 - ERROR - $VTV: possibly delisted; no price data found  (period=1y) (Yahoo error = "1m data not available for startTime=1720958350 and endTime=1752494350. Only 8 days worth of 1m granularity data are allowed to be fetched per request.")
+2025-07-14 12:59:09,944 - WARNING - No data found for VTV
+2025-07-14 12:59:09,945 - WARNING - Could not fetch data for VTV
+2025-07-14 12:59:10,421 - ERROR - $XLF: possibly delisted; no price data found  (period=1y) (Yahoo error = "1m data not available for startTime=1720958350 and endTime=1752494350. Only 8 days worth of 1m granularity data are allowed to be fetched per request.")
+2025-07-14 12:59:10,423 - WARNING - No data found for XLF
+2025-07-14 12:59:10,424 - WARNING - Could not fetch data for XLF
+2025-07-14 12:59:10,676 - ERROR - $VOX: possibly delisted; no price data found  (period=1y) (Yahoo error = "1m data not available for startTime=1720958350 and endTime=1752494350. Only 8 days worth of 1m granularity data are allowed to be fetched per request.")
+2025-07-14 12:59:10,677 - WARNING - No data found for VOX
+2025-07-14 12:59:10,677 - WARNING - Could not fetch data for VOX
+2025-07-14 12:59:10,933 - ERROR - $UVXY: possibly delisted; no price data found  (period=1y) (Yahoo error = "1m data not available for startTime=1720958351 and endTime=1752494351. Only 8 days worth of 1m granularity data are allowed to be fetched per request.")
+2025-07-14 12:59:10,934 - WARNING - No data found for UVXY
+2025-07-14 12:59:10,935 - WARNING - Could not fetch data for UVXY
+2025-07-14 12:59:11,175 - ERROR - $BTAL: possibly delisted; no price data found  (period=1y) (Yahoo error = "1m data not available for startTime=1720958351 and endTime=1752494351. Only 8 days worth of 1m granularity data are allowed to be fetched per request.")
+2025-07-14 12:59:11,175 - WARNING - No data found for BTAL
+2025-07-14 12:59:11,176 - WARNING - Could not fetch data for BTAL
+2025-07-14 12:59:11,436 - ERROR - $QQQ: possibly delisted; no price data found  (period=1y) (Yahoo error = "1m data not available for startTime=1720958351 and endTime=1752494351. Only 8 days worth of 1m granularity data are allowed to be fetched per request.")
+2025-07-14 12:59:11,436 - WARNING - No data found for QQQ
+2025-07-14 12:59:11,437 - WARNING - Could not fetch data for QQQ
+2025-07-14 12:59:11,796 - ERROR - $SQQQ: possibly delisted; no price data found  (period=1y) (Yahoo error = "1m data not available for startTime=1720958352 and endTime=1752494352. Only 8 days worth of 1m granularity data are allowed to be fetched per request.")
+2025-07-14 12:59:11,797 - WARNING - No data found for SQQQ
+2025-07-14 12:59:11,798 - WARNING - Could not fetch data for SQQQ
+2025-07-14 12:59:12,078 - ERROR - $PSQ: possibly delisted; no price data found  (period=1y) (Yahoo error = "1m data not available for startTime=1720958352 and endTime=1752494352. Only 8 days worth of 1m granularity data are allowed to be fetched per request.")
+2025-07-14 12:59:12,079 - WARNING - No data found for PSQ
+2025-07-14 12:59:12,080 - WARNING - Could not fetch data for PSQ
+2025-07-14 12:59:12,328 - ERROR - $UPRO: possibly delisted; no price data found  (period=1y) (Yahoo error = "1m data not available for startTime=1720958352 and endTime=1752494352. Only 8 days worth of 1m granularity data are allowed to be fetched per request.")
+2025-07-14 12:59:12,329 - WARNING - No data found for UPRO
+2025-07-14 12:59:12,330 - WARNING - Could not fetch data for UPRO
+2025-07-14 12:59:12,605 - ERROR - $TLT: possibly delisted; no price data found  (period=1y) (Yahoo error = "1m data not available for startTime=1720958352 and endTime=1752494352. Only 8 days worth of 1m granularity data are allowed to be fetched per request.")
+2025-07-14 12:59:12,606 - WARNING - No data found for TLT
+2025-07-14 12:59:12,607 - WARNING - Could not fetch data for TLT
+2025-07-14 12:59:12,898 - ERROR - $IEF: possibly delisted; no price data found  (period=1y) (Yahoo error = "1m data not available for startTime=1720958353 and endTime=1752494353. Only 8 days worth of 1m granularity data are allowed to be fetched per request.")
+2025-07-14 12:59:12,898 - WARNING - No data found for IEF
+2025-07-14 12:59:12,899 - WARNING - Could not fetch data for IEF
+2025-07-14 12:59:13,145 - ERROR - $SMR: possibly delisted; no price data found  (period=1y) (Yahoo error = "1m data not available for startTime=1720958353 and endTime=1752494353. Only 8 days worth of 1m granularity data are allowed to be fetched per request.")
+2025-07-14 12:59:13,146 - WARNING - No data found for SMR
+2025-07-14 12:59:13,147 - WARNING - Could not fetch data for SMR
+2025-07-14 12:59:13,421 - ERROR - $BWXT: possibly delisted; no price data found  (period=1y) (Yahoo error = "1m data not available for startTime=1720958353 and endTime=1752494353. Only 8 days worth of 1m granularity data are allowed to be fetched per request.")
+2025-07-14 12:59:13,422 - WARNING - No data found for BWXT
+2025-07-14 12:59:13,423 - WARNING - Could not fetch data for BWXT
+2025-07-14 12:59:13,699 - ERROR - $LEU: possibly delisted; no price data found  (period=1y) (Yahoo error = "1m data not available for startTime=1720958353 and endTime=1752494353. Only 8 days worth of 1m granularity data are allowed to be fetched per request.")
+2025-07-14 12:59:13,699 - WARNING - No data found for LEU
+2025-07-14 12:59:13,700 - WARNING - Could not fetch data for LEU
+2025-07-14 12:59:13,960 - ERROR - $EXC: possibly delisted; no price data found  (period=1y) (Yahoo error = "1m data not available for startTime=1720958354 and endTime=1752494354. Only 8 days worth of 1m granularity data are allowed to be fetched per request.")
+2025-07-14 12:59:13,961 - WARNING - No data found for EXC
+2025-07-14 12:59:13,962 - WARNING - Could not fetch data for EXC
+2025-07-14 12:59:14,216 - ERROR - $NLR: possibly delisted; no price data found  (period=1y) (Yahoo error = "1m data not available for startTime=1720958354 and endTime=1752494354. Only 8 days worth of 1m granularity data are allowed to be fetched per request.")
+2025-07-14 12:59:14,217 - WARNING - No data found for NLR
+2025-07-14 12:59:14,218 - WARNING - Could not fetch data for NLR
+2025-07-14 12:59:14,479 - ERROR - $OKLO: possibly delisted; no price data found  (period=1y) (Yahoo error = "1m data not available for startTime=1720958354 and endTime=1752494354. Only 8 days worth of 1m granularity data are allowed to be fetched per request.")
+2025-07-14 12:59:14,480 - WARNING - No data found for OKLO
+2025-07-14 12:59:14,481 - WARNING - Could not fetch data for OKLO
+2025-07-14 12:59:14,481 - ERROR - No market data available
+2025-07-14 12:59:31,640 - INFO - Starting Nuclear Energy strategy analysis...
+2025-07-14 12:59:32,240 - ERROR - $SPY: possibly delisted; no price data found  (period=1y) (Yahoo error = "5m data not available for startTime=1720958372 and endTime=1752494372. The requested range must be within the last 60 days.")
+2025-07-14 12:59:32,241 - WARNING - No data found for SPY
+2025-07-14 12:59:32,244 - WARNING - Could not fetch data for SPY
+2025-07-14 12:59:32,510 - ERROR - $IOO: possibly delisted; no price data found  (period=1y) (Yahoo error = "5m data not available for startTime=1720958372 and endTime=1752494372. The requested range must be within the last 60 days.")
+2025-07-14 12:59:32,511 - WARNING - No data found for IOO
+2025-07-14 12:59:32,512 - WARNING - Could not fetch data for IOO
+2025-07-14 12:59:32,772 - ERROR - $TQQQ: possibly delisted; no price data found  (period=1y) (Yahoo error = "5m data not available for startTime=1720958372 and endTime=1752494372. The requested range must be within the last 60 days.")
+2025-07-14 12:59:32,773 - WARNING - No data found for TQQQ
+2025-07-14 12:59:32,774 - WARNING - Could not fetch data for TQQQ
+2025-07-14 12:59:33,018 - ERROR - $VTV: possibly delisted; no price data found  (period=1y) (Yahoo error = "5m data not available for startTime=1720958373 and endTime=1752494373. The requested range must be within the last 60 days.")
+2025-07-14 12:59:33,019 - WARNING - No data found for VTV
+2025-07-14 12:59:33,021 - WARNING - Could not fetch data for VTV
+2025-07-14 12:59:33,317 - ERROR - $XLF: possibly delisted; no price data found  (period=1y) (Yahoo error = "5m data not available for startTime=1720958373 and endTime=1752494373. The requested range must be within the last 60 days.")
+2025-07-14 12:59:33,317 - WARNING - No data found for XLF
+2025-07-14 12:59:33,318 - WARNING - Could not fetch data for XLF
+2025-07-14 12:59:33,575 - ERROR - $VOX: possibly delisted; no price data found  (period=1y) (Yahoo error = "5m data not available for startTime=1720958373 and endTime=1752494373. The requested range must be within the last 60 days.")
+2025-07-14 12:59:33,576 - WARNING - No data found for VOX
+2025-07-14 12:59:33,577 - WARNING - Could not fetch data for VOX
+2025-07-14 12:59:33,824 - ERROR - $UVXY: possibly delisted; no price data found  (period=1y) (Yahoo error = "5m data not available for startTime=1720958374 and endTime=1752494374. The requested range must be within the last 60 days.")
+2025-07-14 12:59:33,825 - WARNING - No data found for UVXY
+2025-07-14 12:59:33,826 - WARNING - Could not fetch data for UVXY
+2025-07-14 12:59:34,077 - ERROR - $BTAL: possibly delisted; no price data found  (period=1y) (Yahoo error = "5m data not available for startTime=1720958374 and endTime=1752494374. The requested range must be within the last 60 days.")
+2025-07-14 12:59:34,078 - WARNING - No data found for BTAL
+2025-07-14 12:59:34,079 - WARNING - Could not fetch data for BTAL
+2025-07-14 12:59:34,360 - ERROR - $QQQ: possibly delisted; no price data found  (period=1y) (Yahoo error = "5m data not available for startTime=1720958374 and endTime=1752494374. The requested range must be within the last 60 days.")
+2025-07-14 12:59:34,361 - WARNING - No data found for QQQ
+2025-07-14 12:59:34,362 - WARNING - Could not fetch data for QQQ
+2025-07-14 12:59:34,615 - ERROR - $SQQQ: possibly delisted; no price data found  (period=1y) (Yahoo error = "5m data not available for startTime=1720958374 and endTime=1752494374. The requested range must be within the last 60 days.")
+2025-07-14 12:59:34,616 - WARNING - No data found for SQQQ
+2025-07-14 12:59:34,617 - WARNING - Could not fetch data for SQQQ
+2025-07-14 12:59:34,875 - ERROR - $PSQ: possibly delisted; no price data found  (period=1y) (Yahoo error = "5m data not available for startTime=1720958375 and endTime=1752494375. The requested range must be within the last 60 days.")
+2025-07-14 12:59:34,876 - WARNING - No data found for PSQ
+2025-07-14 12:59:34,877 - WARNING - Could not fetch data for PSQ
+2025-07-14 12:59:35,145 - ERROR - $UPRO: possibly delisted; no price data found  (period=1y) (Yahoo error = "5m data not available for startTime=1720958375 and endTime=1752494375. The requested range must be within the last 60 days.")
+2025-07-14 12:59:35,146 - WARNING - No data found for UPRO
+2025-07-14 12:59:35,147 - WARNING - Could not fetch data for UPRO
+2025-07-14 12:59:35,401 - ERROR - $TLT: possibly delisted; no price data found  (period=1y) (Yahoo error = "5m data not available for startTime=1720958375 and endTime=1752494375. The requested range must be within the last 60 days.")
+2025-07-14 12:59:35,402 - WARNING - No data found for TLT
+2025-07-14 12:59:35,402 - WARNING - Could not fetch data for TLT
+2025-07-14 12:59:35,651 - ERROR - $IEF: possibly delisted; no price data found  (period=1y) (Yahoo error = "5m data not available for startTime=1720958375 and endTime=1752494375. The requested range must be within the last 60 days.")
+2025-07-14 12:59:35,652 - WARNING - No data found for IEF
+2025-07-14 12:59:35,653 - WARNING - Could not fetch data for IEF
+2025-07-14 12:59:35,914 - ERROR - $SMR: possibly delisted; no price data found  (period=1y) (Yahoo error = "5m data not available for startTime=1720958376 and endTime=1752494376. The requested range must be within the last 60 days.")
+2025-07-14 12:59:35,915 - WARNING - No data found for SMR
+2025-07-14 12:59:35,916 - WARNING - Could not fetch data for SMR
+2025-07-14 12:59:36,182 - ERROR - $BWXT: possibly delisted; no price data found  (period=1y) (Yahoo error = "5m data not available for startTime=1720958376 and endTime=1752494376. The requested range must be within the last 60 days.")
+2025-07-14 12:59:36,183 - WARNING - No data found for BWXT
+2025-07-14 12:59:36,184 - WARNING - Could not fetch data for BWXT
+2025-07-14 12:59:36,492 - ERROR - $LEU: possibly delisted; no price data found  (period=1y) (Yahoo error = "5m data not available for startTime=1720958376 and endTime=1752494376. The requested range must be within the last 60 days.")
+2025-07-14 12:59:36,493 - WARNING - No data found for LEU
+2025-07-14 12:59:36,494 - WARNING - Could not fetch data for LEU
+2025-07-14 12:59:36,755 - ERROR - $EXC: possibly delisted; no price data found  (period=1y) (Yahoo error = "5m data not available for startTime=1720958376 and endTime=1752494376. The requested range must be within the last 60 days.")
+2025-07-14 12:59:36,756 - WARNING - No data found for EXC
+2025-07-14 12:59:36,757 - WARNING - Could not fetch data for EXC
+2025-07-14 12:59:37,020 - ERROR - $NLR: possibly delisted; no price data found  (period=1y) (Yahoo error = "5m data not available for startTime=1720958377 and endTime=1752494377. The requested range must be within the last 60 days.")
+2025-07-14 12:59:37,021 - WARNING - No data found for NLR
+2025-07-14 12:59:37,021 - WARNING - Could not fetch data for NLR
+2025-07-14 12:59:37,272 - ERROR - $OKLO: possibly delisted; no price data found  (period=1y) (Yahoo error = "5m data not available for startTime=1720958377 and endTime=1752494377. The requested range must be within the last 60 days.")
+2025-07-14 12:59:37,273 - WARNING - No data found for OKLO
+2025-07-14 12:59:37,275 - WARNING - Could not fetch data for OKLO
+2025-07-14 12:59:37,275 - ERROR - No market data available
+2025-07-14 12:59:42,962 - INFO - Starting Nuclear Energy strategy analysis...
+2025-07-14 12:59:43,679 - ERROR - $SPY: possibly delisted; no price data found  (period=1y) (Yahoo error = "15m data not available for startTime=1720958383 and endTime=1752494383. The requested range must be within the last 60 days.")
+2025-07-14 12:59:43,679 - WARNING - No data found for SPY
+2025-07-14 12:59:43,680 - WARNING - Could not fetch data for SPY
+2025-07-14 12:59:43,969 - ERROR - $IOO: possibly delisted; no price data found  (period=1y) (Yahoo error = "15m data not available for startTime=1720958384 and endTime=1752494384. The requested range must be within the last 60 days.")
+2025-07-14 12:59:43,970 - WARNING - No data found for IOO
+2025-07-14 12:59:43,971 - WARNING - Could not fetch data for IOO
+2025-07-14 12:59:44,209 - ERROR - $TQQQ: possibly delisted; no price data found  (period=1y) (Yahoo error = "15m data not available for startTime=1720958384 and endTime=1752494384. The requested range must be within the last 60 days.")
+2025-07-14 12:59:44,210 - WARNING - No data found for TQQQ
+2025-07-14 12:59:44,211 - WARNING - Could not fetch data for TQQQ
+2025-07-14 12:59:44,463 - ERROR - $VTV: possibly delisted; no price data found  (period=1y) (Yahoo error = "15m data not available for startTime=1720958384 and endTime=1752494384. The requested range must be within the last 60 days.")
+2025-07-14 12:59:44,463 - WARNING - No data found for VTV
+2025-07-14 12:59:44,464 - WARNING - Could not fetch data for VTV
+2025-07-14 12:59:44,713 - ERROR - $XLF: possibly delisted; no price data found  (period=1y) (Yahoo error = "15m data not available for startTime=1720958384 and endTime=1752494384. The requested range must be within the last 60 days.")
+2025-07-14 12:59:44,714 - WARNING - No data found for XLF
+2025-07-14 12:59:44,715 - WARNING - Could not fetch data for XLF
+2025-07-14 12:59:44,984 - ERROR - $VOX: possibly delisted; no price data found  (period=1y) (Yahoo error = "15m data not available for startTime=1720958385 and endTime=1752494385. The requested range must be within the last 60 days.")
+2025-07-14 12:59:44,985 - WARNING - No data found for VOX
+2025-07-14 12:59:44,986 - WARNING - Could not fetch data for VOX
+2025-07-14 12:59:45,261 - ERROR - $UVXY: possibly delisted; no price data found  (period=1y) (Yahoo error = "15m data not available for startTime=1720958385 and endTime=1752494385. The requested range must be within the last 60 days.")
+2025-07-14 12:59:45,262 - WARNING - No data found for UVXY
+2025-07-14 12:59:45,263 - WARNING - Could not fetch data for UVXY
+2025-07-14 12:59:45,928 - ERROR - $BTAL: possibly delisted; no price data found  (period=1y) (Yahoo error = "15m data not available for startTime=1720958386 and endTime=1752494386. The requested range must be within the last 60 days.")
+2025-07-14 12:59:45,930 - WARNING - No data found for BTAL
+2025-07-14 12:59:45,931 - WARNING - Could not fetch data for BTAL
+2025-07-14 12:59:46,211 - ERROR - $QQQ: possibly delisted; no price data found  (period=1y) (Yahoo error = "15m data not available for startTime=1720958386 and endTime=1752494386. The requested range must be within the last 60 days.")
+2025-07-14 12:59:46,212 - WARNING - No data found for QQQ
+2025-07-14 12:59:46,213 - WARNING - Could not fetch data for QQQ
+2025-07-14 12:59:46,647 - ERROR - $SQQQ: possibly delisted; no price data found  (period=1y) (Yahoo error = "15m data not available for startTime=1720958386 and endTime=1752494386. The requested range must be within the last 60 days.")
+2025-07-14 12:59:46,648 - WARNING - No data found for SQQQ
+2025-07-14 12:59:46,649 - WARNING - Could not fetch data for SQQQ
+2025-07-14 12:59:46,918 - ERROR - $PSQ: possibly delisted; no price data found  (period=1y) (Yahoo error = "15m data not available for startTime=1720958387 and endTime=1752494387. The requested range must be within the last 60 days.")
+2025-07-14 12:59:46,919 - WARNING - No data found for PSQ
+2025-07-14 12:59:46,920 - WARNING - Could not fetch data for PSQ
+2025-07-14 12:59:47,172 - ERROR - $UPRO: possibly delisted; no price data found  (period=1y) (Yahoo error = "15m data not available for startTime=1720958387 and endTime=1752494387. The requested range must be within the last 60 days.")
+2025-07-14 12:59:47,173 - WARNING - No data found for UPRO
+2025-07-14 12:59:47,174 - WARNING - Could not fetch data for UPRO
+2025-07-14 12:59:47,487 - ERROR - $TLT: possibly delisted; no price data found  (period=1y) (Yahoo error = "15m data not available for startTime=1720958387 and endTime=1752494387. The requested range must be within the last 60 days.")
+2025-07-14 12:59:47,488 - WARNING - No data found for TLT
+2025-07-14 12:59:47,489 - WARNING - Could not fetch data for TLT
+2025-07-14 12:59:47,760 - ERROR - $IEF: possibly delisted; no price data found  (period=1y) (Yahoo error = "15m data not available for startTime=1720958387 and endTime=1752494387. The requested range must be within the last 60 days.")
+2025-07-14 12:59:47,761 - WARNING - No data found for IEF
+2025-07-14 12:59:47,762 - WARNING - Could not fetch data for IEF
+2025-07-14 12:59:48,001 - ERROR - $SMR: possibly delisted; no price data found  (period=1y) (Yahoo error = "15m data not available for startTime=1720958388 and endTime=1752494388. The requested range must be within the last 60 days.")
+2025-07-14 12:59:48,001 - WARNING - No data found for SMR
+2025-07-14 12:59:48,002 - WARNING - Could not fetch data for SMR
+2025-07-14 12:59:48,260 - ERROR - $BWXT: possibly delisted; no price data found  (period=1y) (Yahoo error = "15m data not available for startTime=1720958388 and endTime=1752494388. The requested range must be within the last 60 days.")
+2025-07-14 12:59:48,261 - WARNING - No data found for BWXT
+2025-07-14 12:59:48,262 - WARNING - Could not fetch data for BWXT
+2025-07-14 12:59:48,653 - ERROR - $LEU: possibly delisted; no price data found  (period=1y) (Yahoo error = "15m data not available for startTime=1720958388 and endTime=1752494388. The requested range must be within the last 60 days.")
+2025-07-14 12:59:48,654 - WARNING - No data found for LEU
+2025-07-14 12:59:48,655 - WARNING - Could not fetch data for LEU
+2025-07-14 12:59:48,921 - ERROR - $EXC: possibly delisted; no price data found  (period=1y) (Yahoo error = "15m data not available for startTime=1720958389 and endTime=1752494389. The requested range must be within the last 60 days.")
+2025-07-14 12:59:48,922 - WARNING - No data found for EXC
+2025-07-14 12:59:48,923 - WARNING - Could not fetch data for EXC
+2025-07-14 12:59:49,194 - ERROR - $NLR: possibly delisted; no price data found  (period=1y) (Yahoo error = "15m data not available for startTime=1720958389 and endTime=1752494389. The requested range must be within the last 60 days.")
+2025-07-14 12:59:49,195 - WARNING - No data found for NLR
+2025-07-14 12:59:49,195 - WARNING - Could not fetch data for NLR
+2025-07-14 12:59:49,478 - ERROR - $OKLO: possibly delisted; no price data found  (period=1y) (Yahoo error = "15m data not available for startTime=1720958389 and endTime=1752494389. The requested range must be within the last 60 days.")
+2025-07-14 12:59:49,478 - WARNING - No data found for OKLO
+2025-07-14 12:59:49,479 - WARNING - Could not fetch data for OKLO
+2025-07-14 12:59:49,480 - ERROR - No market data available
+2025-07-14 15:17:22,750 - INFO - Starting Nuclear Energy strategy analysis...
+2025-07-14 15:17:25,712 - INFO - Analysis complete: BUY NUCLEAR_PORTFOLIO - Bull market - Nuclear portfolio: SMR (31.4%), LEU (39.4%), OKLO (29.2%)
+2025-07-14 16:07:03,718 - INFO - Starting Nuclear Energy strategy analysis...
+2025-07-14 16:07:06,634 - INFO - Analysis complete: BUY NUCLEAR_PORTFOLIO - Bull market - Nuclear portfolio: SMR (31.4%), LEU (39.4%), OKLO (29.2%)
+2025-07-14 16:07:08,684 - INFO - API Key loaded: Yes
+2025-07-14 16:07:08,684 - INFO - Secret Key loaded: Yes
+2025-07-14 16:07:08,684 - INFO - Base URL: https://paper-api.alpaca.markets/v2
+2025-07-14 16:07:08,684 - INFO - TradingClient initialized successfully
+2025-07-14 16:07:08,684 - INFO - StockHistoricalDataClient initialized successfully
+2025-07-14 16:07:08,684 - INFO - Alpaca Trading Bot initialized - Paper Trading: True
+2025-07-14 16:07:09,253 - INFO - 🚀 Executing Nuclear Strategy with Alpaca
+2025-07-14 16:07:09,257 - INFO - Found 3 recent signals
+2025-07-14 16:07:09,257 - INFO - Parsed signal: SMR -> 31.4%
+2025-07-14 16:07:09,258 - INFO - Parsed signal: LEU -> 39.4%
+2025-07-14 16:07:09,258 - INFO - Parsed signal: OKLO -> 29.2%
+2025-07-14 16:07:09,258 - INFO - Target Portfolio: {'SMR': 0.314, 'LEU': 0.39399999999999996, 'OKLO': 0.292}
+2025-07-14 16:07:09,361 - INFO - Account Value: $98,843.70
+2025-07-14 16:07:09,652 - INFO - Position calculation for LEU: Target weight: 39.4%, Target value: $9884.37, Price: $205.27, Shares: 48
+2025-07-14 16:07:09,759 - INFO - Order placed: sell 113 shares of LEU - Order ID: 876548ea-938d-4d73-b41b-204b2d840a4a
+2025-07-14 16:07:09,837 - INFO - Position calculation for OKLO: Target weight: 29.2%, Target value: $9884.37, Price: $56.12, Shares: 176
+2025-07-14 16:07:09,946 - INFO - Order placed: sell 407 shares of OKLO - Order ID: 49ef74e9-6ff0-486d-9e26-a76978c5a21f
+2025-07-14 16:07:10,028 - INFO - Position calculation for SMR: Target weight: 31.4%, Target value: $9884.37, Price: $38.79, Shares: 254
+2025-07-14 16:07:10,136 - INFO - Order placed: sell 593 shares of SMR - Order ID: 9df9cf73-7da4-45fa-b9e3-eab7a8dfb098
+2025-07-14 16:07:10,186 - INFO - Position calculation for SMR: Target weight: 31.4%, Target value: $9884.37, Price: $38.79, Shares: 254
+2025-07-14 16:07:10,235 - INFO - Position calculation for LEU: Target weight: 39.4%, Target value: $9884.37, Price: $205.27, Shares: 48
+2025-07-14 16:07:10,274 - INFO - Position calculation for OKLO: Target weight: 29.2%, Target value: $9884.37, Price: $56.12, Shares: 176
+2025-07-14 16:07:10,274 - INFO - ✅ Portfolio rebalanced - 3 orders executed
+2025-07-14 16:07:10,274 - INFO -    LEU_SELL: Order 876548ea-938d-4d73-b41b-204b2d840a4a
+2025-07-14 16:07:10,274 - INFO -    OKLO_SELL: Order 49ef74e9-6ff0-486d-9e26-a76978c5a21f
+2025-07-14 16:07:10,274 - INFO -    SMR_SELL: Order 9df9cf73-7da4-45fa-b9e3-eab7a8dfb098
+2025-07-14 16:13:46,098 - INFO - Starting Nuclear Energy strategy analysis...
+2025-07-14 16:13:49,299 - INFO - Analysis complete: BUY NUCLEAR_PORTFOLIO - Bull market - Nuclear portfolio: SMR (31.4%), LEU (39.4%), OKLO (29.2%)
+2025-07-14 16:13:51,357 - INFO - API Key loaded: Yes
+2025-07-14 16:13:51,358 - INFO - Secret Key loaded: Yes
+2025-07-14 16:13:51,358 - INFO - Base URL: https://paper-api.alpaca.markets/v2
+2025-07-14 16:13:51,359 - INFO - TradingClient initialized successfully
+2025-07-14 16:13:51,359 - INFO - StockHistoricalDataClient initialized successfully
+2025-07-14 16:13:51,359 - INFO - Alpaca Trading Bot initialized - Paper Trading: True
+2025-07-14 16:13:52,061 - INFO - 🚀 Executing Nuclear Strategy with Alpaca
+2025-07-14 16:13:52,071 - INFO - Found 3 recent signals
+2025-07-14 16:13:52,072 - INFO - Parsed signal: SMR -> 31.4%
+2025-07-14 16:13:52,072 - INFO - Parsed signal: LEU -> 39.4%
+2025-07-14 16:13:52,072 - INFO - Parsed signal: OKLO -> 29.2%
+2025-07-14 16:13:52,072 - INFO - Target Portfolio: {'SMR': 0.314, 'LEU': 0.39399999999999996, 'OKLO': 0.292}
+2025-07-14 16:13:52,187 - INFO - Account Value: $98,964.69
+2025-07-14 16:13:52,497 - INFO - Position calculation for LEU: Target weight: 39.4%, Target value: $38992.09, Price: $206.99, Shares: 188
+2025-07-14 16:13:52,595 - INFO - Position calculation for OKLO: Target weight: 29.2%, Target value: $28897.69, Price: $56.34, Shares: 512
+2025-07-14 16:13:52,695 - INFO - Position calculation for SMR: Target weight: 31.4%, Target value: $31074.91, Price: $39.19, Shares: 793
+2025-07-14 16:13:52,733 - INFO - Position calculation for SMR: Target weight: 31.4%, Target value: $31074.91, Price: $39.19, Shares: 793
+2025-07-14 16:13:52,878 - INFO - Order placed: buy 538 shares of SMR - Order ID: ed2f7cbf-4a16-4210-b77d-a218a0c0e714
+2025-07-14 16:13:52,933 - INFO - Position calculation for LEU: Target weight: 39.4%, Target value: $38992.09, Price: $206.99, Shares: 188
+2025-07-14 16:13:53,083 - INFO - Order placed: buy 139 shares of LEU - Order ID: b41fe81e-a259-49cf-b7b8-cb07984c5231
+2025-07-14 16:13:53,130 - INFO - Position calculation for OKLO: Target weight: 29.2%, Target value: $28897.69, Price: $56.34, Shares: 512
+2025-07-14 16:13:53,168 - WARNING - Insufficient cash for OKLO: need $18873.87, have $19132.70
+2025-07-14 16:13:53,169 - INFO - ✅ Portfolio rebalanced - 2 orders executed
+2025-07-14 16:13:53,169 - INFO -    SMR_BUY: Order ed2f7cbf-4a16-4210-b77d-a218a0c0e714
+2025-07-14 16:13:53,169 - INFO -    LEU_BUY: Order b41fe81e-a259-49cf-b7b8-cb07984c5231
+2025-07-14 16:15:41,539 - INFO - Starting Nuclear Energy strategy analysis...
+2025-07-14 16:15:44,457 - INFO - Analysis complete: BUY NUCLEAR_PORTFOLIO - Bull market - Nuclear portfolio: SMR (31.4%), LEU (39.4%), OKLO (29.2%)
+2025-07-14 16:15:46,516 - INFO - API Key loaded: Yes
+2025-07-14 16:15:46,516 - INFO - Secret Key loaded: Yes
+2025-07-14 16:15:46,516 - INFO - Base URL: https://paper-api.alpaca.markets/v2
+2025-07-14 16:15:46,517 - INFO - TradingClient initialized successfully
+2025-07-14 16:15:46,517 - INFO - StockHistoricalDataClient initialized successfully
+2025-07-14 16:15:46,518 - INFO - Alpaca Trading Bot initialized - Paper Trading: True
+2025-07-14 16:15:46,949 - INFO - 🚀 Executing Nuclear Strategy with Alpaca
+2025-07-14 16:15:46,966 - INFO - Found 6 recent signals
+2025-07-14 16:15:46,968 - INFO - Parsed signal: SMR -> 31.4%
+2025-07-14 16:15:46,973 - INFO - Parsed signal: LEU -> 39.4%
+2025-07-14 16:15:46,973 - INFO - Parsed signal: OKLO -> 29.2%
+2025-07-14 16:15:46,974 - INFO - Parsed signal: SMR -> 31.4%
+2025-07-14 16:15:46,974 - INFO - Parsed signal: LEU -> 39.4%
+2025-07-14 16:15:46,975 - INFO - Parsed signal: OKLO -> 29.2%
+2025-07-14 16:15:46,976 - INFO - Target Portfolio: {'SMR': 0.314, 'LEU': 0.39399999999999996, 'OKLO': 0.292}
+2025-07-14 16:15:47,144 - INFO - Account Value: $99,185.93
+2025-07-14 16:15:47,442 - INFO - Position calculation for LEU: Target weight: 39.4%, Target value: $39079.26, Price: $206.54, Shares: 189
+2025-07-14 16:15:47,526 - INFO - Position calculation for OKLO: Target weight: 29.2%, Target value: $28962.29, Price: $56.72, Shares: 510
+2025-07-14 16:15:47,592 - INFO - Position calculation for SMR: Target weight: 31.4%, Target value: $31144.38, Price: $39.52, Shares: 788
+2025-07-14 16:15:47,693 - INFO - Order placed: sell 4 shares of SMR - Order ID: 900d7c87-af35-4fb4-a370-09eb806de160
+2025-07-14 16:15:47,735 - INFO - Position calculation for SMR: Target weight: 31.4%, Target value: $31144.38, Price: $39.52, Shares: 788
+2025-07-14 16:15:47,770 - INFO - Position calculation for LEU: Target weight: 39.4%, Target value: $39079.26, Price: $206.54, Shares: 189
+2025-07-14 16:15:47,908 - INFO - Order placed: buy 1 shares of LEU - Order ID: 67ad4dd9-80a9-49c9-85dc-c336b786f46d
+2025-07-14 16:15:47,948 - INFO - Position calculation for OKLO: Target weight: 29.2%, Target value: $28962.29, Price: $56.72, Shares: 510
+2025-07-14 16:15:47,987 - WARNING - Insufficient cash for OKLO: need $18887.76, have $18499.99 available for trading
+2025-07-14 16:15:47,987 - INFO - ✅ Portfolio rebalanced - 2 orders executed
+2025-07-14 16:15:47,987 - INFO -    SMR_SELL: Order 900d7c87-af35-4fb4-a370-09eb806de160
+2025-07-14 16:15:47,987 - INFO -    LEU_BUY: Order 67ad4dd9-80a9-49c9-85dc-c336b786f46d
+2025-07-14 16:17:00,321 - INFO - Starting Nuclear Energy strategy analysis...
+2025-07-14 16:17:03,054 - INFO - Analysis complete: BUY NUCLEAR_PORTFOLIO - Bull market - Nuclear portfolio: SMR (31.4%), LEU (39.4%), OKLO (29.2%)
+2025-07-14 16:17:05,113 - INFO - API Key loaded: Yes
+2025-07-14 16:17:05,114 - INFO - Secret Key loaded: Yes
+2025-07-14 16:17:05,114 - INFO - Base URL: https://paper-api.alpaca.markets/v2
+2025-07-14 16:17:05,114 - INFO - TradingClient initialized successfully
+2025-07-14 16:17:05,115 - INFO - StockHistoricalDataClient initialized successfully
+2025-07-14 16:17:05,115 - INFO - Alpaca Trading Bot initialized - Paper Trading: True
+2025-07-14 16:17:05,588 - INFO - 🚀 Executing Nuclear Strategy with Alpaca
+2025-07-14 16:17:05,600 - INFO - Found 9 recent signals
+2025-07-14 16:17:05,601 - INFO - Parsed signal: SMR -> 31.4%
+2025-07-14 16:17:05,601 - INFO - Parsed signal: LEU -> 39.4%
+2025-07-14 16:17:05,602 - INFO - Parsed signal: OKLO -> 29.2%
+2025-07-14 16:17:05,602 - INFO - Parsed signal: SMR -> 31.4%
+2025-07-14 16:17:05,602 - INFO - Parsed signal: LEU -> 39.4%
+2025-07-14 16:17:05,603 - INFO - Parsed signal: OKLO -> 29.2%
+2025-07-14 16:17:05,603 - INFO - Parsed signal: SMR -> 31.4%
+2025-07-14 16:17:05,603 - INFO - Parsed signal: LEU -> 39.4%
+2025-07-14 16:17:05,603 - INFO - Parsed signal: OKLO -> 29.2%
+2025-07-14 16:17:05,603 - INFO - Target Portfolio: {'SMR': 0.314, 'LEU': 0.39399999999999996, 'OKLO': 0.292}
+2025-07-14 16:17:05,710 - INFO - Account Value: $99,248.05
+2025-07-14 16:17:05,918 - INFO - 🔄 Starting portfolio rebalance - Portfolio Value: $99,248.05, Current Cash: $19,034.63
+2025-07-14 16:17:06,030 - INFO - Position calculation for LEU: Target weight: 39.4%, Target value: $39103.73, Price: $206.91, Shares: 188
+2025-07-14 16:17:06,113 - INFO - Position calculation for OKLO: Target weight: 29.2%, Target value: $28980.43, Price: $56.77, Shares: 510
+2025-07-14 16:17:06,191 - INFO - Position calculation for SMR: Target weight: 31.4%, Target value: $31163.89, Price: $39.50, Shares: 788
+2025-07-14 16:17:06,191 - INFO - 💸 Total cash available for buys: $19,034.63 (current: $19,034.63 + from sells: $0.00)
+2025-07-14 16:17:06,227 - INFO - Position calculation for LEU: Target weight: 39.4%, Target value: $39103.73, Price: $206.91, Shares: 188
+2025-07-14 16:17:06,264 - INFO - Position calculation for SMR: Target weight: 31.4%, Target value: $31163.89, Price: $39.50, Shares: 788
+2025-07-14 16:17:06,302 - INFO - Position calculation for OKLO: Target weight: 29.2%, Target value: $28980.43, Price: $56.77, Shares: 510
+2025-07-14 16:17:06,441 - INFO - Order placed: buy 333 shares of OKLO - Order ID: 43d97cd2-6268-4fd3-a2f7-d0ac5c78be65
+2025-07-14 16:17:06,441 - INFO - ✅ Bought 333 shares of OKLO for $18,903.81, remaining cash: $130.82
+2025-07-14 16:17:06,441 - INFO - ✅ Portfolio rebalanced - 1 orders executed
+2025-07-14 16:17:06,442 - INFO -    OKLO_BUY: Order 43d97cd2-6268-4fd3-a2f7-d0ac5c78be65

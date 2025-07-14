@@ -1,0 +1,50 @@
+name: Nuclear Energy Trading Bot - Alpaca Paper Trading
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "30 13 * * *" # Every day at 1:30 PM UTC (13:30)
+
+jobs:
+  run-alpaca-bot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run Nuclear Trading Bot with Alpaca Paper Trading
+        env:
+          ALPACA_PAPER_KEY: ${{ secrets.ALPACA_PAPER_KEY }}
+          ALPACA_PAPER_SECRET: ${{ secrets.ALPACA_PAPER_SECRET }}
+          ALPACA_PAPER_ENDPOINT: ${{ secrets.ALPACA_PAPER_ENDPOINT }}
+        run: python main.py alpaca
+
+      - name: Upload trading logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: alpaca-trading-logs-${{ github.run_number }}
+          path: |
+            data/logs/alpaca_trader.log
+            data/logs/alpaca_trades.json
+            data/logs/nuclear_alerts.json
+          retention-days: 30
+
+      - name: Archive error logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: alpaca-error-logs-${{ github.run_number }}
+          path: |
+            *.log
+            data/logs/*.log
+          retention-days: 7
