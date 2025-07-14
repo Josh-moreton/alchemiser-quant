@@ -31,10 +31,9 @@ logging.basicConfig(
 
 class Alert:
     """Simple alert class"""
-    def __init__(self, symbol, action, confidence, reason, timestamp, price):
+    def __init__(self, symbol, action, reason, timestamp, price):
         self.symbol = symbol
         self.action = action
-        self.confidence = confidence
         self.reason = reason
         self.timestamp = timestamp
         self.price = price
@@ -225,17 +224,31 @@ class NuclearStrategyEngine:
                     price_data = market_data[symbol]['Close']
                     if len(price_data) >= 90:
                         returns = price_data.pct_change().dropna()
-                        # Ensure volatility is a scalar by taking the first element if it's a series
-                        volatility_val = returns.tail(90).std() * (252 ** 0.5)
+                        # Use last 90 days of returns
+                        recent_returns = returns.tail(90)
+                        # Calculate standard deviation (volatility)
+                        volatility_val = recent_returns.std()
+                        
+                        # Ensure volatility is a scalar
                         if isinstance(volatility_val, pd.Series):
                             volatility_val = volatility_val.iloc[0]
+                        
+                        # Add minimum volatility floor to avoid division by very small numbers
+                        volatility_val = max(volatility_val, 0.001)
+                        
                         volatilities.append((symbol, performance, volatility_val))
             
-            if volatilities:
+            if volatilities and len(volatilities) == len(top_3_stocks):
                 # Calculate inverse volatility weights
-                inv_vols = [(symbol, perf, 1.0 / vol if vol > 0 else 1.0) for symbol, perf, vol in volatilities]
+                inv_vols = []
+                for symbol, performance, vol in volatilities:
+                    inv_vol = 1.0 / vol
+                    inv_vols.append((symbol, performance, inv_vol))
+                
+                # Calculate total inverse volatility
                 total_inv_vol = sum(inv_vol for _, _, inv_vol in inv_vols)
                 
+                # Normalize to get portfolio weights
                 for symbol, performance, inv_vol in inv_vols:
                     weight = inv_vol / total_inv_vol
                     portfolio[symbol] = {
@@ -590,7 +603,6 @@ class NuclearTradingBot:
         except FileNotFoundError:
             self.config = {
                 "alerts": {
-                    "min_confidence": 0.6,
                     "cooldown_minutes": 30
                 }
             }
@@ -611,7 +623,6 @@ class NuclearTradingBot:
                 alert = Alert(
                     symbol=stock_symbol,
                     action=action,
-                    confidence=1.0,
                     reason=portfolio_reason,
                     timestamp=dt.datetime.now(),
                     price=current_price
@@ -629,7 +640,6 @@ class NuclearTradingBot:
             uvxy_alert = Alert(
                 symbol='UVXY',
                 action=action,
-                confidence=1.0,
                 reason=f"Volatility hedge allocation: 75% ({reason})",
                 timestamp=dt.datetime.now(),
                 price=uvxy_price
@@ -641,7 +651,6 @@ class NuclearTradingBot:
             btal_alert = Alert(
                 symbol='BTAL',
                 action=action,
-                confidence=1.0,
                 reason=f"Anti-beta hedge allocation: 25% ({reason})",
                 timestamp=dt.datetime.now(),
                 price=btal_price
@@ -667,7 +676,6 @@ class NuclearTradingBot:
                     alert = Alert(
                         symbol=stock_symbol,
                         action=action,
-                        confidence=1.0,
                         reason=bear_reason,
                         timestamp=dt.datetime.now(),
                         price=current_price
@@ -681,7 +689,6 @@ class NuclearTradingBot:
                 alert = Alert(
                     symbol=symbol,
                     action=action,
-                    confidence=1.0,
                     reason=reason,
                     timestamp=dt.datetime.now(),
                     price=current_price
@@ -693,7 +700,6 @@ class NuclearTradingBot:
             alert = Alert(
                 symbol=symbol,
                 action=action,
-                confidence=1.0,
                 reason=reason,
                 timestamp=dt.datetime.now(),
                 price=current_price
@@ -732,7 +738,6 @@ class NuclearTradingBot:
             'symbol': alert.symbol,
             'action': alert.action,
             'price': alert.price,
-            'confidence': alert.confidence,
             'reason': alert.reason
         }
         
@@ -755,7 +760,6 @@ class NuclearTradingBot:
             if len(alerts) > 1:
                 # Nuclear portfolio signal
                 print(f"🚨 NUCLEAR PORTFOLIO SIGNAL: {len(alerts)} stocks allocated")
-                print(f"   [Deterministic Strategy - No Confidence Scoring]")
                 print(f"\n� NUCLEAR PORTFOLIO ALLOCATION:")
                 for alert in alerts:
                     if alert.action != 'HOLD':
@@ -777,7 +781,6 @@ class NuclearTradingBot:
                 if alert.action != 'HOLD':
                     print(f"🚨 NUCLEAR TRADING SIGNAL: {alert.action} {alert.symbol} at ${alert.price:.2f}")
                     print(f"   Reason: {alert.reason}")
-                    print(f"   [Deterministic Strategy - No Confidence Scoring]")
                 else:
                     print(f"📊 Nuclear Analysis: {alert.action} {alert.symbol} at ${alert.price:.2f}")
                     print(f"   Reason: {alert.reason}")

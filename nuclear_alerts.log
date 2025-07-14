@@ -1646,3 +1646,213 @@
 2025-07-13 13:22:35,349 - ERROR - Error processing date 2023-12-28 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
 2025-07-13 13:22:35,349 - ERROR - Error processing date 2023-12-29 00:00:00: Invalid comparison between dtype=datetime64[ns, America/New_York] and Timestamp
 2025-07-13 13:22:35,349 - ERROR - No portfolio values calculated or missing SPY data
+2025-07-13 13:28:29,798 - INFO - Downloading historical data...
+2025-07-13 13:28:30,340 - INFO - Downloaded daily data for SPY: 250 records
+2025-07-13 13:28:30,443 - INFO - Downloaded daily data for IOO: 250 records
+2025-07-13 13:28:30,527 - INFO - Downloaded daily data for TQQQ: 250 records
+2025-07-13 13:28:30,632 - INFO - Downloaded daily data for VTV: 250 records
+2025-07-13 13:28:30,736 - INFO - Downloaded daily data for XLF: 250 records
+2025-07-13 13:28:30,819 - INFO - Downloaded daily data for VOX: 250 records
+2025-07-13 13:28:30,883 - INFO - Downloaded daily data for UVXY: 250 records
+2025-07-13 13:28:30,977 - INFO - Downloaded daily data for BTAL: 250 records
+2025-07-13 13:28:31,074 - INFO - Downloaded daily data for QQQ: 250 records
+2025-07-13 13:28:31,154 - INFO - Downloaded daily data for SQQQ: 250 records
+2025-07-13 13:28:31,239 - INFO - Downloaded daily data for PSQ: 250 records
+2025-07-13 13:28:31,325 - INFO - Downloaded daily data for UPRO: 250 records
+2025-07-13 13:28:31,435 - INFO - Downloaded daily data for TLT: 250 records
+2025-07-13 13:28:31,566 - INFO - Downloaded daily data for IEF: 250 records
+2025-07-13 13:28:31,638 - INFO - Downloaded daily data for SMR: 250 records
+2025-07-13 13:28:31,719 - INFO - Downloaded daily data for BWXT: 250 records
+2025-07-13 13:28:31,795 - INFO - Downloaded daily data for LEU: 250 records
+2025-07-13 13:28:31,927 - INFO - Downloaded daily data for EXC: 250 records
+2025-07-13 13:28:32,012 - INFO - Downloaded daily data for NLR: 250 records
+2025-07-13 13:28:32,077 - INFO - Downloaded daily data for OKLO: 250 records
+2025-07-13 13:28:32,078 - INFO - Downloading hourly data from 2023-01-01 to 2023-12-31
+2025-07-13 13:28:32,317 - ERROR - $SPY: possibly delisted; no price data found  (1h 2023-01-01 -> 2023-12-31) (Yahoo error = "1h data not available for startTime=1672549200 and endTime=1703998800. The requested range must be within the last 730 days.")
+2025-07-13 13:28:32,584 - ERROR - $QQQ: possibly delisted; no price data found  (1h 2023-01-01 -> 2023-12-31) (Yahoo error = "1h data not available for startTime=1672549200 and endTime=1703998800. The requested range must be within the last 730 days.")
+2025-07-13 13:28:32,850 - ERROR - $TQQQ: possibly delisted; no price data found  (1h 2023-01-01 -> 2023-12-31) (Yahoo error = "1h data not available for startTime=1672549200 and endTime=1703998800. The requested range must be within the last 730 days.")
+2025-07-13 13:28:33,096 - ERROR - $UVXY: possibly delisted; no price data found  (1h 2023-01-01 -> 2023-12-31) (Yahoo error = "1h data not available for startTime=1672549200 and endTime=1703998800. The requested range must be within the last 730 days.")
+2025-07-13 13:28:33,330 - ERROR - $SMR: possibly delisted; no price data found  (1h 2023-01-01 -> 2023-12-31) (Yahoo error = "1h data not available for startTime=1672549200 and endTime=1703998800. The requested range must be within the last 730 days.")
+2025-07-13 13:28:33,598 - ERROR - $BWXT: possibly delisted; no price data found  (1h 2023-01-01 -> 2023-12-31) (Yahoo error = "1h data not available for startTime=1672549200 and endTime=1703998800. The requested range must be within the last 730 days.")
+2025-07-13 13:28:33,598 - INFO - Data download complete. Daily: 20, Hourly: 0
+2025-07-13 13:28:33,598 - INFO - Running backtest: close execution
+2025-07-13 13:28:34,138 - INFO - Processed 51/260 dates, Portfolio: $97,632
+2025-07-13 13:28:34,969 - INFO - Processed 101/260 dates, Portfolio: $96,301
+2025-07-13 13:28:35,811 - INFO - Processed 151/260 dates, Portfolio: $94,155
+2025-07-13 13:28:36,663 - INFO - Processed 201/260 dates, Portfolio: $93,890
+2025-07-13 13:28:37,530 - INFO - Processed 251/260 dates, Portfolio: $87,718
+2025-07-13 13:30:03,204 - INFO - Downloading historical data...
+2025-07-13 13:30:04,248 - INFO - Downloaded daily data for SPY: 251 records
+2025-07-13 13:30:04,360 - INFO - Downloaded daily data for IOO: 251 records
+2025-07-13 13:30:04,441 - INFO - Downloaded daily data for TQQQ: 251 records
+2025-07-13 13:30:04,535 - INFO - Downloaded daily data for VTV: 251 records
+2025-07-13 13:30:04,632 - INFO - Downloaded daily data for XLF: 251 records
+2025-07-13 13:30:04,715 - INFO - Downloaded daily data for VOX: 251 records
+2025-07-13 13:30:04,774 - INFO - Downloaded daily data for UVXY: 251 records
+2025-07-13 13:30:04,846 - INFO - Downloaded daily data for BTAL: 251 records
+2025-07-13 13:30:04,942 - INFO - Downloaded daily data for QQQ: 251 records
+2025-07-13 13:30:05,019 - INFO - Downloaded daily data for SQQQ: 251 records
+2025-07-13 13:30:05,137 - INFO - Downloaded daily data for PSQ: 251 records
+2025-07-13 13:30:05,233 - INFO - Downloaded daily data for UPRO: 251 records
+2025-07-13 13:30:05,352 - INFO - Downloaded daily data for TLT: 251 records
+2025-07-13 13:30:05,450 - INFO - Downloaded daily data for IEF: 251 records
+2025-07-13 13:30:05,520 - INFO - Downloaded daily data for SMR: 251 records
+2025-07-13 13:30:05,610 - INFO - Downloaded daily data for BWXT: 251 records
+2025-07-13 13:30:05,704 - INFO - Downloaded daily data for LEU: 251 records
+2025-07-13 13:30:05,882 - INFO - Downloaded daily data for EXC: 251 records
+2025-07-13 13:30:05,964 - INFO - Downloaded daily data for NLR: 251 records
+2025-07-13 13:30:06,035 - INFO - Downloaded daily data for OKLO: 251 records
+2025-07-13 13:30:06,035 - INFO - Downloading hourly data from 2024-01-01 to 2024-12-31
+2025-07-13 13:30:06,176 - INFO - Downloaded hourly data for SPY: 1745 records
+2025-07-13 13:30:06,303 - INFO - Downloaded hourly data for QQQ: 1745 records
+2025-07-13 13:30:06,451 - INFO - Downloaded hourly data for TQQQ: 1745 records
+2025-07-13 13:30:06,641 - INFO - Downloaded hourly data for UVXY: 1745 records
+2025-07-13 13:30:06,778 - INFO - Downloaded hourly data for SMR: 1745 records
+2025-07-13 13:30:06,931 - INFO - Downloaded hourly data for BWXT: 1745 records
+2025-07-13 13:30:06,931 - INFO - Data download complete. Daily: 20, Hourly: 6
+2025-07-13 13:30:06,931 - INFO - Running backtest: Open Execution
+2025-07-13 13:30:06,931 - INFO - Running backtest: open execution
+2025-07-13 13:30:07,472 - INFO - Processed 51/262 dates, Portfolio: $97,683
+2025-07-13 13:30:08,306 - INFO - Processed 101/262 dates, Portfolio: $98,302
+2025-07-13 13:30:09,158 - INFO - Processed 151/262 dates, Portfolio: $108,882
+2025-07-13 13:30:10,006 - INFO - Processed 201/262 dates, Portfolio: $141,152
+2025-07-13 13:30:10,886 - INFO - Processed 251/262 dates, Portfolio: $152,217
+2025-07-13 13:30:11,084 - INFO - Completed Open Execution: 0.00% return
+2025-07-13 13:30:11,084 - INFO - Running backtest: Close Execution
+2025-07-13 13:30:11,084 - INFO - Running backtest: close execution
+2025-07-13 13:30:11,609 - INFO - Processed 51/262 dates, Portfolio: $97,683
+2025-07-13 13:30:12,443 - INFO - Processed 101/262 dates, Portfolio: $98,302
+2025-07-13 13:30:13,279 - INFO - Processed 151/262 dates, Portfolio: $108,882
+2025-07-13 13:30:14,123 - INFO - Processed 201/262 dates, Portfolio: $141,152
+2025-07-13 13:30:14,995 - INFO - Processed 251/262 dates, Portfolio: $152,217
+2025-07-13 13:30:15,192 - INFO - Completed Close Execution: 0.00% return
+2025-07-13 13:30:15,192 - INFO - Running backtest: 10AM Execution
+2025-07-13 13:30:15,192 - INFO - Running backtest: hour execution
+2025-07-13 13:30:15,711 - INFO - Processed 51/262 dates, Portfolio: $97,683
+2025-07-13 13:30:16,538 - INFO - Processed 101/262 dates, Portfolio: $98,302
+2025-07-13 13:30:17,380 - INFO - Processed 151/262 dates, Portfolio: $108,882
+2025-07-13 13:30:18,230 - INFO - Processed 201/262 dates, Portfolio: $141,152
+2025-07-13 13:30:19,140 - INFO - Processed 251/262 dates, Portfolio: $152,217
+2025-07-13 13:30:19,345 - INFO - Completed 10AM Execution: 0.00% return
+2025-07-13 13:30:19,345 - INFO - Running backtest: 2PM Execution
+2025-07-13 13:30:19,345 - INFO - Running backtest: hour execution
+2025-07-13 13:30:19,869 - INFO - Processed 51/262 dates, Portfolio: $97,683
+2025-07-13 13:30:20,731 - INFO - Processed 101/262 dates, Portfolio: $98,302
+2025-07-13 13:30:21,576 - INFO - Processed 151/262 dates, Portfolio: $108,882
+2025-07-13 13:30:22,443 - INFO - Processed 201/262 dates, Portfolio: $141,152
+2025-07-13 13:30:23,315 - INFO - Processed 251/262 dates, Portfolio: $152,217
+2025-07-13 13:30:23,512 - INFO - Completed 2PM Execution: 0.00% return
+2025-07-13 13:30:23,512 - INFO - Running backtest: Signal Timing
+2025-07-13 13:30:23,512 - INFO - Running backtest: signal execution
+2025-07-13 13:30:24,067 - INFO - Processed 51/262 dates, Portfolio: $97,683
+2025-07-13 13:30:24,902 - INFO - Processed 101/262 dates, Portfolio: $98,302
+2025-07-13 13:30:25,808 - INFO - Processed 151/262 dates, Portfolio: $108,882
+2025-07-13 13:30:29,116 - INFO - Downloading historical data...
+2025-07-13 13:30:29,549 - INFO - Downloaded daily data for SPY: 63 records
+2025-07-13 13:30:29,655 - INFO - Downloaded daily data for IOO: 63 records
+2025-07-13 13:30:29,724 - INFO - Downloaded daily data for TQQQ: 63 records
+2025-07-13 13:30:29,817 - INFO - Downloaded daily data for VTV: 63 records
+2025-07-13 13:30:29,913 - INFO - Downloaded daily data for XLF: 63 records
+2025-07-13 13:30:30,011 - INFO - Downloaded daily data for VOX: 63 records
+2025-07-13 13:30:30,089 - INFO - Downloaded daily data for UVXY: 63 records
+2025-07-13 13:30:30,168 - INFO - Downloaded daily data for BTAL: 63 records
+2025-07-13 13:30:30,275 - INFO - Downloaded daily data for QQQ: 63 records
+2025-07-13 13:30:30,388 - INFO - Downloaded daily data for SQQQ: 63 records
+2025-07-13 13:30:30,472 - INFO - Downloaded daily data for PSQ: 63 records
+2025-07-13 13:30:30,558 - INFO - Downloaded daily data for UPRO: 63 records
+2025-07-13 13:30:30,654 - INFO - Downloaded daily data for TLT: 63 records
+2025-07-13 13:30:30,771 - INFO - Downloaded daily data for IEF: 63 records
+2025-07-13 13:30:30,866 - INFO - Downloaded daily data for SMR: 63 records
+2025-07-13 13:30:30,949 - INFO - Downloaded daily data for BWXT: 63 records
+2025-07-13 13:30:31,031 - INFO - Downloaded daily data for LEU: 63 records
+2025-07-13 13:30:31,169 - INFO - Downloaded daily data for EXC: 63 records
+2025-07-13 13:30:31,267 - INFO - Downloaded daily data for NLR: 63 records
+2025-07-13 13:30:31,326 - INFO - Downloaded daily data for OKLO: 63 records
+2025-07-13 13:30:31,326 - INFO - Downloading hourly data from 2024-10-01 to 2024-12-31
+2025-07-13 13:30:31,442 - INFO - Downloaded hourly data for SPY: 433 records
+2025-07-13 13:30:31,533 - INFO - Downloaded hourly data for QQQ: 433 records
+2025-07-13 13:30:31,613 - INFO - Downloaded hourly data for TQQQ: 433 records
+2025-07-13 13:30:31,690 - INFO - Downloaded hourly data for UVXY: 433 records
+2025-07-13 13:30:31,765 - INFO - Downloaded hourly data for SMR: 433 records
+2025-07-13 13:30:31,847 - INFO - Downloaded hourly data for BWXT: 433 records
+2025-07-13 13:30:31,847 - INFO - Data download complete. Daily: 20, Hourly: 6
+2025-07-13 13:30:31,847 - INFO - Running backtest: close execution
+2025-07-13 13:30:32,417 - INFO - Processed 51/66 dates, Portfolio: $102,555
+2025-07-13 13:30:48,881 - INFO - Downloading historical data...
+2025-07-13 13:30:49,336 - INFO - Downloaded daily data for SPY: 63 records
+2025-07-13 13:30:49,432 - INFO - Downloaded daily data for IOO: 63 records
+2025-07-13 13:30:49,514 - INFO - Downloaded daily data for TQQQ: 63 records
+2025-07-13 13:30:49,612 - INFO - Downloaded daily data for VTV: 63 records
+2025-07-13 13:30:49,705 - INFO - Downloaded daily data for XLF: 63 records
+2025-07-13 13:30:49,793 - INFO - Downloaded daily data for VOX: 63 records
+2025-07-13 13:30:49,851 - INFO - Downloaded daily data for UVXY: 63 records
+2025-07-13 13:30:49,937 - INFO - Downloaded daily data for BTAL: 63 records
+2025-07-13 13:30:50,022 - INFO - Downloaded daily data for QQQ: 63 records
+2025-07-13 13:30:50,090 - INFO - Downloaded daily data for SQQQ: 63 records
+2025-07-13 13:30:50,169 - INFO - Downloaded daily data for PSQ: 63 records
+2025-07-13 13:30:50,248 - INFO - Downloaded daily data for UPRO: 63 records
+2025-07-13 13:30:50,339 - INFO - Downloaded daily data for TLT: 63 records
+2025-07-13 13:30:50,436 - INFO - Downloaded daily data for IEF: 63 records
+2025-07-13 13:30:50,493 - INFO - Downloaded daily data for SMR: 63 records
+2025-07-13 13:30:50,575 - INFO - Downloaded daily data for BWXT: 63 records
+2025-07-13 13:30:50,645 - INFO - Downloaded daily data for LEU: 63 records
+2025-07-13 13:30:50,778 - INFO - Downloaded daily data for EXC: 63 records
+2025-07-13 13:30:50,863 - INFO - Downloaded daily data for NLR: 63 records
+2025-07-13 13:30:50,940 - INFO - Downloaded daily data for OKLO: 63 records
+2025-07-13 13:30:50,941 - INFO - Downloading hourly data from 2024-10-01 to 2024-12-31
+2025-07-13 13:30:51,050 - INFO - Downloaded hourly data for SPY: 433 records
+2025-07-13 13:30:51,175 - INFO - Downloaded hourly data for QQQ: 433 records
+2025-07-13 13:30:51,255 - INFO - Downloaded hourly data for TQQQ: 433 records
+2025-07-13 13:30:51,338 - INFO - Downloaded hourly data for UVXY: 433 records
+2025-07-13 13:30:51,418 - INFO - Downloaded hourly data for SMR: 433 records
+2025-07-13 13:30:51,492 - INFO - Downloaded hourly data for BWXT: 433 records
+2025-07-13 13:30:51,493 - INFO - Data download complete. Daily: 20, Hourly: 6
+2025-07-13 13:30:51,493 - INFO - Running backtest: Open Execution
+2025-07-13 13:30:51,493 - INFO - Running backtest: open execution
+2025-07-13 13:30:52,066 - INFO - Processed 51/66 dates, Portfolio: $102,555
+2025-07-13 13:30:52,324 - INFO - Completed Open Execution: 0.00% return
+2025-07-13 13:30:52,324 - INFO - Running backtest: Close Execution
+2025-07-13 13:30:52,324 - INFO - Running backtest: close execution
+2025-07-13 13:30:52,882 - INFO - Processed 51/66 dates, Portfolio: $102,555
+2025-07-13 13:30:53,139 - INFO - Completed Close Execution: 0.00% return
+2025-07-13 13:30:53,139 - INFO - Running backtest: 10AM Execution
+2025-07-13 13:30:53,139 - INFO - Running backtest: hour execution
+2025-07-13 13:30:53,715 - INFO - Processed 51/66 dates, Portfolio: $102,555
+2025-07-13 13:30:53,975 - INFO - Completed 10AM Execution: 0.00% return
+2025-07-13 13:30:53,976 - INFO - Running backtest: 2PM Execution
+2025-07-13 13:30:53,976 - INFO - Running backtest: hour execution
+2025-07-13 13:30:54,547 - INFO - Processed 51/66 dates, Portfolio: $102,555
+2025-07-13 13:30:54,807 - INFO - Completed 2PM Execution: 0.00% return
+2025-07-13 13:30:54,807 - INFO - Running backtest: Signal Timing
+2025-07-13 13:30:54,807 - INFO - Running backtest: signal execution
+2025-07-13 13:30:55,367 - INFO - Processed 51/66 dates, Portfolio: $102,555
+2025-07-13 13:30:55,618 - INFO - Completed Signal Timing: 0.00% return
+2025-07-13 13:30:56,334 - INFO - Charts saved to nuclear_backtest_results_charts.png
+2025-07-13 13:30:59,869 - INFO - Results saved to nuclear_backtest_results_summary.csv
+2025-07-13 13:39:37,873 - INFO - Downloading complete dataset for 20 symbols...
+2025-07-13 13:39:38,393 - INFO - Downloaded SPY: 63 daily records
+2025-07-13 13:39:38,481 - INFO - Downloaded IOO: 63 daily records
+2025-07-13 13:39:38,561 - INFO - Downloaded TQQQ: 63 daily records
+2025-07-13 13:39:38,656 - INFO - Downloaded VTV: 63 daily records
+2025-07-13 13:39:38,760 - INFO - Downloaded XLF: 63 daily records
+2025-07-13 13:39:38,881 - INFO - Downloaded VOX: 63 daily records
+2025-07-13 13:39:38,939 - INFO - Downloaded UVXY: 63 daily records
+2025-07-13 13:39:39,013 - INFO - Downloaded BTAL: 63 daily records
+2025-07-13 13:39:39,096 - INFO - Downloaded QQQ: 63 daily records
+2025-07-13 13:39:39,189 - INFO - Downloaded SQQQ: 63 daily records
+2025-07-13 13:39:39,282 - INFO - Downloaded PSQ: 63 daily records
+2025-07-13 13:39:39,359 - INFO - Downloaded UPRO: 63 daily records
+2025-07-13 13:39:39,459 - INFO - Downloaded TLT: 63 daily records
+2025-07-13 13:39:39,566 - INFO - Downloaded IEF: 63 daily records
+2025-07-13 13:39:39,619 - INFO - Downloaded SMR: 63 daily records
+2025-07-13 13:39:39,699 - INFO - Downloaded BWXT: 63 daily records
+2025-07-13 13:39:39,774 - INFO - Downloaded LEU: 63 daily records
+2025-07-13 13:39:39,898 - INFO - Downloaded EXC: 63 daily records
+2025-07-13 13:39:39,976 - INFO - Downloaded NLR: 63 daily records
+2025-07-13 13:39:40,032 - INFO - Downloaded OKLO: 63 daily records
+2025-07-14 08:43:06,614 - INFO - Starting Nuclear Energy strategy analysis...
+2025-07-14 08:43:10,317 - INFO - Analysis complete: BUY NUCLEAR_PORTFOLIO - Bull market - Nuclear portfolio: SMR (31.2%), LEU (39.5%), OKLO (29.3%)
+2025-07-14 08:50:43,619 - INFO - Starting Nuclear Energy strategy analysis...
+2025-07-14 08:50:47,311 - INFO - Analysis complete: BUY NUCLEAR_PORTFOLIO - Bull market - Nuclear portfolio: SMR (31.2%), LEU (39.5%), OKLO (29.3%)
+2025-07-14 08:55:21,433 - INFO - Starting Nuclear Energy strategy analysis...
+2025-07-14 08:55:24,058 - INFO - Analysis complete: BUY NUCLEAR_PORTFOLIO - Bull market - Nuclear portfolio: SMR (31.2%), LEU (39.5%), OKLO (29.3%)
