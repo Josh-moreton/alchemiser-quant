@@ -38,8 +38,11 @@ def fetch_nuclear_signal():
         # Evaluate strategy
         symbol, action, reason = strategy.evaluate_nuclear_strategy(indicators, market_data)
         
-        # Get current price for main signal
-        current_price = strategy.data_provider.get_current_price(symbol)
+        # Handle portfolio signals (don't try to get price for portfolio symbols)
+        current_price = 0.0
+        if symbol not in ['NUCLEAR_PORTFOLIO', 'UVXY_BTAL_PORTFOLIO', 'BEAR_PORTFOLIO']:
+            # Only get price for actual ticker symbols
+            current_price = strategy.data_provider.get_current_price(symbol)
         
         # Handle portfolio allocations
         portfolio = None

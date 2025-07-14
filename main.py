@@ -90,9 +90,31 @@ def run_dashboard():
         traceback.print_exc()
         return False
 
+def run_email_bot():
+    """Run the nuclear trading bot with email notifications"""
+    print("🚀 NUCLEAR TRADING BOT - EMAIL MODE")
+    print("=" * 60)
+    print(f"Running live trading analysis with email notifications at {datetime.now()}")
+    print()
+    
+    try:
+        from core.nuclear_signal_email import main as email_main
+        
+        # Run the email bot
+        print("📧 Starting email-enabled nuclear trading bot...")
+        email_main()
+        
+        return True
+        
+    except Exception as e:
+        print(f"❌ Error running email bot: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
 def main():
     parser = argparse.ArgumentParser(description="Nuclear Trading Strategy - Unified Entry Point")
-    parser.add_argument('mode', choices=['bot', 'backtest', 'dashboard', 'hourly-test'], 
+    parser.add_argument('mode', choices=['bot', 'email', 'backtest', 'dashboard', 'hourly-test'], 
                        help='Operation mode to run')
     parser.add_argument('--backtest-type', choices=['comprehensive', 'hourly'], 
                        default='comprehensive',
@@ -110,6 +132,8 @@ def main():
     
     if args.mode == 'bot':
         success = run_trading_bot()
+    elif args.mode == 'email':
+        success = run_email_bot()
     elif args.mode == 'backtest':
         success = run_backtest(args.backtest_type)
     elif args.mode == 'dashboard':

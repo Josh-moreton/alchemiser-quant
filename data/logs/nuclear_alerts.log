@@ -3189,3 +3189,9 @@ Best execution hour: 09:30 with +74.03% return
 2025-07-14 11:18:13,693 - INFO - Downloaded TLT: 336 daily records
 2025-07-14 11:18:13,694 - INFO - Downloading complete dataset for 1 symbols...
 2025-07-14 11:18:13,698 - INFO - Downloaded IEF: 336 daily records
+2025-07-14 11:21:41,810 - ERROR - HTTP Error 404: 
+2025-07-14 11:21:42,204 - ERROR - $NUCLEAR_PORTFOLIO: possibly delisted; no price data found  (period=5d) (Yahoo error = "No data found, symbol may be delisted")
+2025-07-14 11:21:42,205 - WARNING - No data found for NUCLEAR_PORTFOLIO
+2025-07-14 11:22:20,330 - ERROR - HTTP Error 404: 
+2025-07-14 11:22:20,728 - ERROR - $NUCLEAR_PORTFOLIO: possibly delisted; no price data found  (period=5d) (Yahoo error = "No data found, symbol may be delisted")
+2025-07-14 11:22:20,729 - WARNING - No data found for NUCLEAR_PORTFOLIO
