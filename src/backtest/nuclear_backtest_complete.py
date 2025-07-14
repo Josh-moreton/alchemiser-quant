@@ -389,7 +389,7 @@ class ComprehensiveBacktester:
         """Save results to JSON file"""
         if filename is None:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"nuclear_backtest_results_{timestamp}.json"
+            filename = f"data/backtest_results/nuclear_backtest_results_{timestamp}.json"
         
         # Convert results to JSON-serializable format
         json_results = self._convert_to_json_serializable(self.results)

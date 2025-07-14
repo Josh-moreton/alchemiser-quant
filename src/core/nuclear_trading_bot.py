@@ -24,7 +24,7 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('nuclear_alerts.log'),
+        logging.FileHandler('data/logs/nuclear_alerts.log'),
         logging.StreamHandler()
     ]
 )
@@ -742,7 +742,7 @@ class NuclearTradingBot:
         }
         
         try:
-            with open('nuclear_alerts.json', 'a') as f:
+            with open('data/logs/nuclear_alerts.json', 'a') as f:
                 f.write(json.dumps(alert_data) + '\n')
         except Exception as e:
             logging.error(f"Failed to log alert: {e}")

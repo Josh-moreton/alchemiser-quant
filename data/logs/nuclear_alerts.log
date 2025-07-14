@@ -2447,3 +2447,745 @@
 2025-07-14 09:36:51,565 - INFO - Downloaded EXC: 338 daily records
 2025-07-14 09:36:51,569 - INFO - Downloaded NLR: 338 daily records
 2025-07-14 09:36:51,572 - INFO - Downloaded OKLO: 338 daily records
+2025-07-14 10:14:14,527 - INFO - Starting Hourly Execution Engine Test
+2025-07-14 10:14:14,527 - INFO - Test period: 2024-07-01 to 2024-09-30
+2025-07-14 10:14:14,527 - INFO - Initial capital: $100,000.00
+2025-07-14 10:14:14,527 - INFO - Running hourly execution analysis...
+2025-07-14 10:14:14,528 - INFO - Downloading complete dataset for 20 symbols...
+2025-07-14 10:14:16,582 - INFO - Downloaded SPY: 336 daily records
+2025-07-14 10:14:16,716 - INFO - Downloaded IOO: 336 daily records
+2025-07-14 10:14:16,803 - INFO - Downloaded TQQQ: 336 daily records
+2025-07-14 10:14:16,923 - INFO - Downloaded VTV: 336 daily records
+2025-07-14 10:14:17,048 - INFO - Downloaded XLF: 336 daily records
+2025-07-14 10:14:17,138 - INFO - Downloaded VOX: 336 daily records
+2025-07-14 10:14:17,213 - INFO - Downloaded UVXY: 336 daily records
+2025-07-14 10:14:17,329 - INFO - Downloaded BTAL: 336 daily records
+2025-07-14 10:14:17,438 - INFO - Downloaded QQQ: 336 daily records
+2025-07-14 10:14:17,533 - INFO - Downloaded SQQQ: 336 daily records
+2025-07-14 10:14:17,645 - INFO - Downloaded PSQ: 336 daily records
+2025-07-14 10:14:17,764 - INFO - Downloaded UPRO: 336 daily records
+2025-07-14 10:14:17,872 - INFO - Downloaded TLT: 336 daily records
+2025-07-14 10:14:17,962 - INFO - Downloaded IEF: 336 daily records
+2025-07-14 10:14:18,032 - INFO - Downloaded SMR: 336 daily records
+2025-07-14 10:14:18,120 - INFO - Downloaded BWXT: 336 daily records
+2025-07-14 10:14:18,197 - INFO - Downloaded LEU: 336 daily records
+2025-07-14 10:14:18,337 - INFO - Downloaded EXC: 336 daily records
+2025-07-14 10:14:18,456 - INFO - Downloaded NLR: 336 daily records
+2025-07-14 10:14:18,531 - INFO - Downloaded OKLO: 336 daily records
+2025-07-14 10:14:18,531 - INFO - Downloading hourly data for 20 symbols...
+2025-07-14 10:14:18,634 - INFO - Downloaded SPY: 437 hourly records
+2025-07-14 10:14:18,738 - INFO - Downloaded IOO: 437 hourly records
+2025-07-14 10:14:18,823 - INFO - Downloaded TQQQ: 437 hourly records
+2025-07-14 10:14:18,934 - INFO - Downloaded VTV: 437 hourly records
+2025-07-14 10:14:19,035 - INFO - Downloaded XLF: 437 hourly records
+2025-07-14 10:14:19,134 - INFO - Downloaded VOX: 437 hourly records
+2025-07-14 10:14:19,220 - INFO - Downloaded UVXY: 437 hourly records
+2025-07-14 10:14:19,327 - INFO - Downloaded BTAL: 437 hourly records
+2025-07-14 10:14:19,405 - INFO - Downloaded QQQ: 437 hourly records
+2025-07-14 10:14:19,480 - INFO - Downloaded SQQQ: 437 hourly records
+2025-07-14 10:14:19,566 - INFO - Downloaded PSQ: 437 hourly records
+2025-07-14 10:14:19,677 - INFO - Downloaded UPRO: 437 hourly records
+2025-07-14 10:14:19,772 - INFO - Downloaded TLT: 437 hourly records
+2025-07-14 10:14:19,855 - INFO - Downloaded IEF: 437 hourly records
+2025-07-14 10:14:19,941 - INFO - Downloaded SMR: 437 hourly records
+2025-07-14 10:14:20,024 - INFO - Downloaded BWXT: 437 hourly records
+2025-07-14 10:14:20,119 - INFO - Downloaded LEU: 437 hourly records
+2025-07-14 10:14:20,211 - INFO - Downloaded EXC: 437 hourly records
+2025-07-14 10:14:20,294 - INFO - Downloaded NLR: 436 hourly records
+2025-07-14 10:14:20,373 - INFO - Downloaded OKLO: 437 hourly records
+2025-07-14 10:14:21,472 - INFO - Downloading complete dataset for 20 symbols...
+2025-07-14 10:14:21,476 - INFO - Downloaded SPY: 336 daily records
+2025-07-14 10:14:21,480 - INFO - Downloaded IOO: 336 daily records
+2025-07-14 10:14:21,484 - INFO - Downloaded TQQQ: 336 daily records
+2025-07-14 10:14:21,488 - INFO - Downloaded VTV: 336 daily records
+2025-07-14 10:14:21,493 - INFO - Downloaded XLF: 336 daily records
+2025-07-14 10:14:21,497 - INFO - Downloaded VOX: 336 daily records
+2025-07-14 10:14:21,502 - INFO - Downloaded UVXY: 336 daily records
+2025-07-14 10:14:21,506 - INFO - Downloaded BTAL: 336 daily records
+2025-07-14 10:14:21,509 - INFO - Downloaded QQQ: 336 daily records
+2025-07-14 10:14:21,513 - INFO - Downloaded SQQQ: 336 daily records
+2025-07-14 10:14:21,518 - INFO - Downloaded PSQ: 336 daily records
+2025-07-14 10:14:21,522 - INFO - Downloaded UPRO: 336 daily records
+2025-07-14 10:14:21,526 - INFO - Downloaded TLT: 336 daily records
+2025-07-14 10:14:21,531 - INFO - Downloaded IEF: 336 daily records
+2025-07-14 10:14:21,534 - INFO - Downloaded SMR: 336 daily records
+2025-07-14 10:14:21,538 - INFO - Downloaded BWXT: 336 daily records
+2025-07-14 10:14:21,541 - INFO - Downloaded LEU: 336 daily records
+2025-07-14 10:14:21,545 - INFO - Downloaded EXC: 336 daily records
+2025-07-14 10:14:21,549 - INFO - Downloaded NLR: 336 daily records
+2025-07-14 10:14:21,552 - INFO - Downloaded OKLO: 336 daily records
+2025-07-14 10:14:21,552 - INFO - Downloading hourly data for 20 symbols...
+2025-07-14 10:14:21,557 - INFO - Downloaded SPY: 437 hourly records
+2025-07-14 10:14:21,562 - INFO - Downloaded IOO: 437 hourly records
+2025-07-14 10:14:21,568 - INFO - Downloaded TQQQ: 437 hourly records
+2025-07-14 10:14:21,574 - INFO - Downloaded VTV: 437 hourly records
+2025-07-14 10:14:21,580 - INFO - Downloaded XLF: 437 hourly records
+2025-07-14 10:14:21,586 - INFO - Downloaded VOX: 437 hourly records
+2025-07-14 10:14:21,591 - INFO - Downloaded UVXY: 437 hourly records
+2025-07-14 10:14:21,596 - INFO - Downloaded BTAL: 437 hourly records
+2025-07-14 10:14:21,602 - INFO - Downloaded QQQ: 437 hourly records
+2025-07-14 10:14:21,607 - INFO - Downloaded SQQQ: 437 hourly records
+2025-07-14 10:14:21,612 - INFO - Downloaded PSQ: 437 hourly records
+2025-07-14 10:14:21,618 - INFO - Downloaded UPRO: 437 hourly records
+2025-07-14 10:14:21,624 - INFO - Downloaded TLT: 437 hourly records
+2025-07-14 10:14:21,630 - INFO - Downloaded IEF: 437 hourly records
+2025-07-14 10:14:21,635 - INFO - Downloaded SMR: 437 hourly records
+2025-07-14 10:14:21,640 - INFO - Downloaded BWXT: 437 hourly records
+2025-07-14 10:14:21,645 - INFO - Downloaded LEU: 437 hourly records
+2025-07-14 10:14:21,651 - INFO - Downloaded EXC: 437 hourly records
+2025-07-14 10:14:21,656 - INFO - Downloaded NLR: 436 hourly records
+2025-07-14 10:14:21,660 - INFO - Downloaded OKLO: 437 hourly records
+2025-07-14 10:14:22,757 - INFO - Downloading complete dataset for 20 symbols...
+2025-07-14 10:14:22,762 - INFO - Downloaded SPY: 336 daily records
+2025-07-14 10:14:22,766 - INFO - Downloaded IOO: 336 daily records
+2025-07-14 10:14:22,769 - INFO - Downloaded TQQQ: 336 daily records
+2025-07-14 10:14:22,774 - INFO - Downloaded VTV: 336 daily records
+2025-07-14 10:14:22,779 - INFO - Downloaded XLF: 336 daily records
+2025-07-14 10:14:22,783 - INFO - Downloaded VOX: 336 daily records
+2025-07-14 10:14:22,787 - INFO - Downloaded UVXY: 336 daily records
+2025-07-14 10:14:22,791 - INFO - Downloaded BTAL: 336 daily records
+2025-07-14 10:14:22,796 - INFO - Downloaded QQQ: 336 daily records
+2025-07-14 10:14:22,800 - INFO - Downloaded SQQQ: 336 daily records
+2025-07-14 10:14:22,805 - INFO - Downloaded PSQ: 336 daily records
+2025-07-14 10:14:22,809 - INFO - Downloaded UPRO: 336 daily records
+2025-07-14 10:14:22,813 - INFO - Downloaded TLT: 336 daily records
+2025-07-14 10:14:22,817 - INFO - Downloaded IEF: 336 daily records
+2025-07-14 10:14:22,820 - INFO - Downloaded SMR: 336 daily records
+2025-07-14 10:14:22,824 - INFO - Downloaded BWXT: 336 daily records
+2025-07-14 10:14:22,827 - INFO - Downloaded LEU: 336 daily records
+2025-07-14 10:14:22,832 - INFO - Downloaded EXC: 336 daily records
+2025-07-14 10:14:22,835 - INFO - Downloaded NLR: 336 daily records
+2025-07-14 10:14:22,839 - INFO - Downloaded OKLO: 336 daily records
+2025-07-14 10:14:22,839 - INFO - Downloading hourly data for 20 symbols...
+2025-07-14 10:14:22,844 - INFO - Downloaded SPY: 437 hourly records
+2025-07-14 10:14:22,849 - INFO - Downloaded IOO: 437 hourly records
+2025-07-14 10:14:22,855 - INFO - Downloaded TQQQ: 437 hourly records
+2025-07-14 10:14:22,861 - INFO - Downloaded VTV: 437 hourly records
+2025-07-14 10:14:22,867 - INFO - Downloaded XLF: 437 hourly records
+2025-07-14 10:14:22,872 - INFO - Downloaded VOX: 437 hourly records
+2025-07-14 10:14:22,877 - INFO - Downloaded UVXY: 437 hourly records
+2025-07-14 10:14:22,882 - INFO - Downloaded BTAL: 437 hourly records
+2025-07-14 10:14:22,888 - INFO - Downloaded QQQ: 437 hourly records
+2025-07-14 10:14:22,893 - INFO - Downloaded SQQQ: 437 hourly records
+2025-07-14 10:14:22,899 - INFO - Downloaded PSQ: 437 hourly records
+2025-07-14 10:14:22,904 - INFO - Downloaded UPRO: 437 hourly records
+2025-07-14 10:14:22,910 - INFO - Downloaded TLT: 437 hourly records
+2025-07-14 10:14:22,916 - INFO - Downloaded IEF: 437 hourly records
+2025-07-14 10:14:22,921 - INFO - Downloaded SMR: 437 hourly records
+2025-07-14 10:14:22,926 - INFO - Downloaded BWXT: 437 hourly records
+2025-07-14 10:14:22,931 - INFO - Downloaded LEU: 437 hourly records
+2025-07-14 10:14:22,936 - INFO - Downloaded EXC: 437 hourly records
+2025-07-14 10:14:22,941 - INFO - Downloaded NLR: 436 hourly records
+2025-07-14 10:14:22,946 - INFO - Downloaded OKLO: 437 hourly records
+2025-07-14 10:14:24,056 - INFO - Downloading complete dataset for 20 symbols...
+2025-07-14 10:14:24,060 - INFO - Downloaded SPY: 336 daily records
+2025-07-14 10:14:24,064 - INFO - Downloaded IOO: 336 daily records
+2025-07-14 10:14:24,068 - INFO - Downloaded TQQQ: 336 daily records
+2025-07-14 10:14:24,072 - INFO - Downloaded VTV: 336 daily records
+2025-07-14 10:14:24,076 - INFO - Downloaded XLF: 336 daily records
+2025-07-14 10:14:24,080 - INFO - Downloaded VOX: 336 daily records
+2025-07-14 10:14:24,084 - INFO - Downloaded UVXY: 336 daily records
+2025-07-14 10:14:24,089 - INFO - Downloaded BTAL: 336 daily records
+2025-07-14 10:14:24,093 - INFO - Downloaded QQQ: 336 daily records
+2025-07-14 10:14:24,097 - INFO - Downloaded SQQQ: 336 daily records
+2025-07-14 10:14:24,102 - INFO - Downloaded PSQ: 336 daily records
+2025-07-14 10:14:24,107 - INFO - Downloaded UPRO: 336 daily records
+2025-07-14 10:14:24,111 - INFO - Downloaded TLT: 336 daily records
+2025-07-14 10:14:24,116 - INFO - Downloaded IEF: 336 daily records
+2025-07-14 10:14:24,119 - INFO - Downloaded SMR: 336 daily records
+2025-07-14 10:14:24,123 - INFO - Downloaded BWXT: 336 daily records
+2025-07-14 10:14:24,126 - INFO - Downloaded LEU: 336 daily records
+2025-07-14 10:14:24,131 - INFO - Downloaded EXC: 336 daily records
+2025-07-14 10:14:24,134 - INFO - Downloaded NLR: 336 daily records
+2025-07-14 10:14:24,138 - INFO - Downloaded OKLO: 336 daily records
+2025-07-14 10:14:24,138 - INFO - Downloading hourly data for 20 symbols...
+2025-07-14 10:14:24,144 - INFO - Downloaded SPY: 437 hourly records
+2025-07-14 10:14:24,149 - INFO - Downloaded IOO: 437 hourly records
+2025-07-14 10:14:24,155 - INFO - Downloaded TQQQ: 437 hourly records
+2025-07-14 10:14:24,161 - INFO - Downloaded VTV: 437 hourly records
+2025-07-14 10:14:24,167 - INFO - Downloaded XLF: 437 hourly records
+2025-07-14 10:14:24,173 - INFO - Downloaded VOX: 437 hourly records
+2025-07-14 10:14:24,177 - INFO - Downloaded UVXY: 437 hourly records
+2025-07-14 10:14:24,183 - INFO - Downloaded BTAL: 437 hourly records
+2025-07-14 10:14:24,189 - INFO - Downloaded QQQ: 437 hourly records
+2025-07-14 10:14:24,193 - INFO - Downloaded SQQQ: 437 hourly records
+2025-07-14 10:14:24,199 - INFO - Downloaded PSQ: 437 hourly records
+2025-07-14 10:14:24,205 - INFO - Downloaded UPRO: 437 hourly records
+2025-07-14 10:14:24,210 - INFO - Downloaded TLT: 437 hourly records
+2025-07-14 10:14:24,217 - INFO - Downloaded IEF: 437 hourly records
+2025-07-14 10:14:24,222 - INFO - Downloaded SMR: 437 hourly records
+2025-07-14 10:14:24,227 - INFO - Downloaded BWXT: 437 hourly records
+2025-07-14 10:14:24,232 - INFO - Downloaded LEU: 437 hourly records
+2025-07-14 10:14:24,239 - INFO - Downloaded EXC: 437 hourly records
+2025-07-14 10:14:24,244 - INFO - Downloaded NLR: 436 hourly records
+2025-07-14 10:14:24,250 - INFO - Downloaded OKLO: 437 hourly records
+2025-07-14 10:14:24,304 - ERROR - Error processing 2024-07-03 for hour 12:30: DatetimeIndex.get_loc() got an unexpected keyword argument 'method'
+2025-07-14 10:14:25,351 - INFO - Downloading complete dataset for 20 symbols...
+2025-07-14 10:14:25,355 - INFO - Downloaded SPY: 336 daily records
+2025-07-14 10:14:25,360 - INFO - Downloaded IOO: 336 daily records
+2025-07-14 10:14:25,364 - INFO - Downloaded TQQQ: 336 daily records
+2025-07-14 10:14:25,369 - INFO - Downloaded VTV: 336 daily records
+2025-07-14 10:14:25,372 - INFO - Downloaded XLF: 336 daily records
+2025-07-14 10:14:25,377 - INFO - Downloaded VOX: 336 daily records
+2025-07-14 10:14:25,381 - INFO - Downloaded UVXY: 336 daily records
+2025-07-14 10:14:25,384 - INFO - Downloaded BTAL: 336 daily records
+2025-07-14 10:14:25,388 - INFO - Downloaded QQQ: 336 daily records
+2025-07-14 10:14:25,392 - INFO - Downloaded SQQQ: 336 daily records
+2025-07-14 10:14:25,397 - INFO - Downloaded PSQ: 336 daily records
+2025-07-14 10:14:25,401 - INFO - Downloaded UPRO: 336 daily records
+2025-07-14 10:14:25,405 - INFO - Downloaded TLT: 336 daily records
+2025-07-14 10:14:25,410 - INFO - Downloaded IEF: 336 daily records
+2025-07-14 10:14:25,412 - INFO - Downloaded SMR: 336 daily records
+2025-07-14 10:14:25,416 - INFO - Downloaded BWXT: 336 daily records
+2025-07-14 10:14:25,419 - INFO - Downloaded LEU: 336 daily records
+2025-07-14 10:14:25,424 - INFO - Downloaded EXC: 336 daily records
+2025-07-14 10:14:25,428 - INFO - Downloaded NLR: 336 daily records
+2025-07-14 10:14:25,431 - INFO - Downloaded OKLO: 336 daily records
+2025-07-14 10:14:25,431 - INFO - Downloading hourly data for 20 symbols...
+2025-07-14 10:14:25,437 - INFO - Downloaded SPY: 437 hourly records
+2025-07-14 10:14:25,442 - INFO - Downloaded IOO: 437 hourly records
+2025-07-14 10:14:25,448 - INFO - Downloaded TQQQ: 437 hourly records
+2025-07-14 10:14:25,454 - INFO - Downloaded VTV: 437 hourly records
+2025-07-14 10:14:25,460 - INFO - Downloaded XLF: 437 hourly records
+2025-07-14 10:14:25,465 - INFO - Downloaded VOX: 437 hourly records
+2025-07-14 10:14:25,470 - INFO - Downloaded UVXY: 437 hourly records
+2025-07-14 10:14:25,475 - INFO - Downloaded BTAL: 437 hourly records
+2025-07-14 10:14:25,481 - INFO - Downloaded QQQ: 437 hourly records
+2025-07-14 10:14:25,486 - INFO - Downloaded SQQQ: 437 hourly records
+2025-07-14 10:14:25,492 - INFO - Downloaded PSQ: 437 hourly records
+2025-07-14 10:14:25,507 - INFO - Downloaded UPRO: 437 hourly records
+2025-07-14 10:14:25,513 - INFO - Downloaded TLT: 437 hourly records
+2025-07-14 10:14:25,519 - INFO - Downloaded IEF: 437 hourly records
+2025-07-14 10:14:25,524 - INFO - Downloaded SMR: 437 hourly records
+2025-07-14 10:14:25,529 - INFO - Downloaded BWXT: 437 hourly records
+2025-07-14 10:14:25,534 - INFO - Downloaded LEU: 437 hourly records
+2025-07-14 10:14:25,540 - INFO - Downloaded EXC: 437 hourly records
+2025-07-14 10:14:25,545 - INFO - Downloaded NLR: 436 hourly records
+2025-07-14 10:14:25,550 - INFO - Downloaded OKLO: 437 hourly records
+2025-07-14 10:14:25,603 - ERROR - Error processing 2024-07-03 for hour 13:30: DatetimeIndex.get_loc() got an unexpected keyword argument 'method'
+2025-07-14 10:14:26,614 - INFO - Downloading complete dataset for 20 symbols...
+2025-07-14 10:14:26,618 - INFO - Downloaded SPY: 336 daily records
+2025-07-14 10:14:26,622 - INFO - Downloaded IOO: 336 daily records
+2025-07-14 10:14:26,626 - INFO - Downloaded TQQQ: 336 daily records
+2025-07-14 10:14:26,631 - INFO - Downloaded VTV: 336 daily records
+2025-07-14 10:14:26,635 - INFO - Downloaded XLF: 336 daily records
+2025-07-14 10:14:26,639 - INFO - Downloaded VOX: 336 daily records
+2025-07-14 10:14:26,643 - INFO - Downloaded UVXY: 336 daily records
+2025-07-14 10:14:26,647 - INFO - Downloaded BTAL: 336 daily records
+2025-07-14 10:14:26,651 - INFO - Downloaded QQQ: 336 daily records
+2025-07-14 10:14:26,655 - INFO - Downloaded SQQQ: 336 daily records
+2025-07-14 10:14:26,660 - INFO - Downloaded PSQ: 336 daily records
+2025-07-14 10:14:26,664 - INFO - Downloaded UPRO: 336 daily records
+2025-07-14 10:14:26,668 - INFO - Downloaded TLT: 336 daily records
+2025-07-14 10:14:26,672 - INFO - Downloaded IEF: 336 daily records
+2025-07-14 10:14:26,675 - INFO - Downloaded SMR: 336 daily records
+2025-07-14 10:14:26,679 - INFO - Downloaded BWXT: 336 daily records
+2025-07-14 10:14:26,682 - INFO - Downloaded LEU: 336 daily records
+2025-07-14 10:14:26,686 - INFO - Downloaded EXC: 336 daily records
+2025-07-14 10:14:26,690 - INFO - Downloaded NLR: 336 daily records
+2025-07-14 10:14:26,693 - INFO - Downloaded OKLO: 336 daily records
+2025-07-14 10:14:26,693 - INFO - Downloading hourly data for 20 symbols...
+2025-07-14 10:14:26,699 - INFO - Downloaded SPY: 437 hourly records
+2025-07-14 10:14:26,705 - INFO - Downloaded IOO: 437 hourly records
+2025-07-14 10:14:26,710 - INFO - Downloaded TQQQ: 437 hourly records
+2025-07-14 10:14:26,716 - INFO - Downloaded VTV: 437 hourly records
+2025-07-14 10:14:26,722 - INFO - Downloaded XLF: 437 hourly records
+2025-07-14 10:14:26,727 - INFO - Downloaded VOX: 437 hourly records
+2025-07-14 10:14:26,732 - INFO - Downloaded UVXY: 437 hourly records
+2025-07-14 10:14:26,737 - INFO - Downloaded BTAL: 437 hourly records
+2025-07-14 10:14:26,743 - INFO - Downloaded QQQ: 437 hourly records
+2025-07-14 10:14:26,748 - INFO - Downloaded SQQQ: 437 hourly records
+2025-07-14 10:14:26,754 - INFO - Downloaded PSQ: 437 hourly records
+2025-07-14 10:14:26,759 - INFO - Downloaded UPRO: 437 hourly records
+2025-07-14 10:14:26,765 - INFO - Downloaded TLT: 437 hourly records
+2025-07-14 10:14:26,771 - INFO - Downloaded IEF: 437 hourly records
+2025-07-14 10:14:26,776 - INFO - Downloaded SMR: 437 hourly records
+2025-07-14 10:14:26,782 - INFO - Downloaded BWXT: 437 hourly records
+2025-07-14 10:14:26,787 - INFO - Downloaded LEU: 437 hourly records
+2025-07-14 10:14:26,792 - INFO - Downloaded EXC: 437 hourly records
+2025-07-14 10:14:26,797 - INFO - Downloaded NLR: 436 hourly records
+2025-07-14 10:14:26,802 - INFO - Downloaded OKLO: 437 hourly records
+2025-07-14 10:14:26,856 - ERROR - Error processing 2024-07-03 for hour 14:30: DatetimeIndex.get_loc() got an unexpected keyword argument 'method'
+2025-07-14 10:14:27,889 - INFO - Downloading complete dataset for 20 symbols...
+2025-07-14 10:14:27,893 - INFO - Downloaded SPY: 336 daily records
+2025-07-14 10:14:27,897 - INFO - Downloaded IOO: 336 daily records
+2025-07-14 10:14:27,901 - INFO - Downloaded TQQQ: 336 daily records
+2025-07-14 10:14:27,905 - INFO - Downloaded VTV: 336 daily records
+2025-07-14 10:14:27,909 - INFO - Downloaded XLF: 336 daily records
+2025-07-14 10:14:27,913 - INFO - Downloaded VOX: 336 daily records
+2025-07-14 10:14:27,918 - INFO - Downloaded UVXY: 336 daily records
+2025-07-14 10:14:27,922 - INFO - Downloaded BTAL: 336 daily records
+2025-07-14 10:14:27,925 - INFO - Downloaded QQQ: 336 daily records
+2025-07-14 10:14:27,929 - INFO - Downloaded SQQQ: 336 daily records
+2025-07-14 10:14:27,934 - INFO - Downloaded PSQ: 336 daily records
+2025-07-14 10:14:27,938 - INFO - Downloaded UPRO: 336 daily records
+2025-07-14 10:14:27,942 - INFO - Downloaded TLT: 336 daily records
+2025-07-14 10:14:27,947 - INFO - Downloaded IEF: 336 daily records
+2025-07-14 10:14:27,950 - INFO - Downloaded SMR: 336 daily records
+2025-07-14 10:14:27,954 - INFO - Downloaded BWXT: 336 daily records
+2025-07-14 10:14:27,957 - INFO - Downloaded LEU: 336 daily records
+2025-07-14 10:14:27,961 - INFO - Downloaded EXC: 336 daily records
+2025-07-14 10:14:27,965 - INFO - Downloaded NLR: 336 daily records
+2025-07-14 10:14:27,968 - INFO - Downloaded OKLO: 336 daily records
+2025-07-14 10:14:27,968 - INFO - Downloading hourly data for 20 symbols...
+2025-07-14 10:14:27,973 - INFO - Downloaded SPY: 437 hourly records
+2025-07-14 10:14:27,979 - INFO - Downloaded IOO: 437 hourly records
+2025-07-14 10:14:27,984 - INFO - Downloaded TQQQ: 437 hourly records
+2025-07-14 10:14:27,990 - INFO - Downloaded VTV: 437 hourly records
+2025-07-14 10:14:27,995 - INFO - Downloaded XLF: 437 hourly records
+2025-07-14 10:14:28,001 - INFO - Downloaded VOX: 437 hourly records
+2025-07-14 10:14:28,006 - INFO - Downloaded UVXY: 437 hourly records
+2025-07-14 10:14:28,011 - INFO - Downloaded BTAL: 437 hourly records
+2025-07-14 10:14:28,017 - INFO - Downloaded QQQ: 437 hourly records
+2025-07-14 10:14:28,022 - INFO - Downloaded SQQQ: 437 hourly records
+2025-07-14 10:14:28,027 - INFO - Downloaded PSQ: 437 hourly records
+2025-07-14 10:14:28,033 - INFO - Downloaded UPRO: 437 hourly records
+2025-07-14 10:14:28,038 - INFO - Downloaded TLT: 437 hourly records
+2025-07-14 10:14:28,044 - INFO - Downloaded IEF: 437 hourly records
+2025-07-14 10:14:28,049 - INFO - Downloaded SMR: 437 hourly records
+2025-07-14 10:14:28,054 - INFO - Downloaded BWXT: 437 hourly records
+2025-07-14 10:14:28,059 - INFO - Downloaded LEU: 437 hourly records
+2025-07-14 10:14:28,065 - INFO - Downloaded EXC: 437 hourly records
+2025-07-14 10:14:28,070 - INFO - Downloaded NLR: 436 hourly records
+2025-07-14 10:14:28,075 - INFO - Downloaded OKLO: 437 hourly records
+2025-07-14 10:14:28,129 - ERROR - Error processing 2024-07-03 for hour 15:30: DatetimeIndex.get_loc() got an unexpected keyword argument 'method'
+2025-07-14 10:14:29,170 - INFO - Downloading complete dataset for 20 symbols...
+2025-07-14 10:14:29,174 - INFO - Downloaded SPY: 336 daily records
+2025-07-14 10:14:29,178 - INFO - Downloaded IOO: 336 daily records
+2025-07-14 10:14:29,183 - INFO - Downloaded TQQQ: 336 daily records
+2025-07-14 10:14:29,187 - INFO - Downloaded VTV: 336 daily records
+2025-07-14 10:14:29,191 - INFO - Downloaded XLF: 336 daily records
+2025-07-14 10:14:29,195 - INFO - Downloaded VOX: 336 daily records
+2025-07-14 10:14:29,199 - INFO - Downloaded UVXY: 336 daily records
+2025-07-14 10:14:29,203 - INFO - Downloaded BTAL: 336 daily records
+2025-07-14 10:14:29,207 - INFO - Downloaded QQQ: 336 daily records
+2025-07-14 10:14:29,212 - INFO - Downloaded SQQQ: 336 daily records
+2025-07-14 10:14:29,216 - INFO - Downloaded PSQ: 336 daily records
+2025-07-14 10:14:29,220 - INFO - Downloaded UPRO: 336 daily records
+2025-07-14 10:14:29,225 - INFO - Downloaded TLT: 336 daily records
+2025-07-14 10:14:29,229 - INFO - Downloaded IEF: 336 daily records
+2025-07-14 10:14:29,232 - INFO - Downloaded SMR: 336 daily records
+2025-07-14 10:14:29,236 - INFO - Downloaded BWXT: 336 daily records
+2025-07-14 10:14:29,239 - INFO - Downloaded LEU: 336 daily records
+2025-07-14 10:14:29,244 - INFO - Downloaded EXC: 336 daily records
+2025-07-14 10:14:29,248 - INFO - Downloaded NLR: 336 daily records
+2025-07-14 10:14:29,251 - INFO - Downloaded OKLO: 336 daily records
+2025-07-14 10:14:29,251 - INFO - Downloading hourly data for 20 symbols...
+2025-07-14 10:14:29,257 - INFO - Downloaded SPY: 437 hourly records
+2025-07-14 10:14:29,263 - INFO - Downloaded IOO: 437 hourly records
+2025-07-14 10:14:29,270 - INFO - Downloaded TQQQ: 437 hourly records
+2025-07-14 10:14:29,276 - INFO - Downloaded VTV: 437 hourly records
+2025-07-14 10:14:29,281 - INFO - Downloaded XLF: 437 hourly records
+2025-07-14 10:14:29,288 - INFO - Downloaded VOX: 437 hourly records
+2025-07-14 10:14:29,293 - INFO - Downloaded UVXY: 437 hourly records
+2025-07-14 10:14:29,298 - INFO - Downloaded BTAL: 437 hourly records
+2025-07-14 10:14:29,304 - INFO - Downloaded QQQ: 437 hourly records
+2025-07-14 10:14:29,308 - INFO - Downloaded SQQQ: 437 hourly records
+2025-07-14 10:14:29,314 - INFO - Downloaded PSQ: 437 hourly records
+2025-07-14 10:14:29,320 - INFO - Downloaded UPRO: 437 hourly records
+2025-07-14 10:14:29,325 - INFO - Downloaded TLT: 437 hourly records
+2025-07-14 10:14:29,331 - INFO - Downloaded IEF: 437 hourly records
+2025-07-14 10:14:29,336 - INFO - Downloaded SMR: 437 hourly records
+2025-07-14 10:14:29,342 - INFO - Downloaded BWXT: 437 hourly records
+2025-07-14 10:14:29,347 - INFO - Downloaded LEU: 437 hourly records
+2025-07-14 10:14:29,352 - INFO - Downloaded EXC: 437 hourly records
+2025-07-14 10:14:29,357 - INFO - Downloaded NLR: 436 hourly records
+2025-07-14 10:14:29,362 - INFO - Downloaded OKLO: 437 hourly records
+2025-07-14 10:14:29,380 - ERROR - Error processing 2024-07-01 for hour 16:00: DatetimeIndex.get_loc() got an unexpected keyword argument 'method'
+2025-07-14 10:14:29,398 - ERROR - Error processing 2024-07-02 for hour 16:00: DatetimeIndex.get_loc() got an unexpected keyword argument 'method'
+2025-07-14 10:14:29,416 - ERROR - Error processing 2024-07-03 for hour 16:00: DatetimeIndex.get_loc() got an unexpected keyword argument 'method'
+2025-07-14 10:14:29,434 - ERROR - Error processing 2024-07-05 for hour 16:00: DatetimeIndex.get_loc() got an unexpected keyword argument 'method'
+2025-07-14 10:14:29,452 - ERROR - Error processing 2024-07-08 for hour 16:00: DatetimeIndex.get_loc() got an unexpected keyword argument 'method'
+2025-07-14 10:14:29,472 - ERROR - Error processing 2024-07-09 for hour 16:00: DatetimeIndex.get_loc() got an unexpected keyword argument 'method'
+2025-07-14 10:14:29,491 - ERROR - Error processing 2024-07-10 for hour 16:00: DatetimeIndex.get_loc() got an unexpected keyword argument 'method'
+2025-07-14 10:14:29,508 - ERROR - Error processing 2024-07-11 for hour 16:00: DatetimeIndex.get_loc() got an unexpected keyword argument 'method'
+2025-07-14 10:14:29,526 - ERROR - Error processing 2024-07-12 for hour 16:00: DatetimeIndex.get_loc() got an unexpected keyword argument 'method'
+2025-07-14 10:14:29,543 - ERROR - Error processing 2024-07-15 for hour 16:00: DatetimeIndex.get_loc() got an unexpected keyword argument 'method'
+2025-07-14 10:14:29,560 - ERROR - Error processing 2024-07-16 for hour 16:00: DatetimeIndex.get_loc() got an unexpected keyword argument 'method'
+2025-07-14 10:14:29,578 - ERROR - Error processing 2024-07-17 for hour 16:00: DatetimeIndex.get_loc() got an unexpected keyword argument 'method'
+2025-07-14 10:14:29,595 - ERROR - Error processing 2024-07-18 for hour 16:00: DatetimeIndex.get_loc() got an unexpected keyword argument 'method'
+2025-07-14 10:14:29,613 - ERROR - Error processing 2024-07-19 for hour 16:00: DatetimeIndex.get_loc() got an unexpected keyword argument 'method'
+2025-07-14 10:14:29,630 - ERROR - Error processing 2024-07-22 for hour 16:00: DatetimeIndex.get_loc() got an unexpected keyword argument 'method'
+2025-07-14 10:14:29,648 - ERROR - Error processing 2024-07-23 for hour 16:00: DatetimeIndex.get_loc() got an unexpected keyword argument 'method'
+2025-07-14 10:14:29,666 - ERROR - Error processing 2024-07-24 for hour 16:00: DatetimeIndex.get_loc() got an unexpected keyword argument 'method'
+2025-07-14 10:14:29,684 - ERROR - Error processing 2024-07-25 for hour 16:00: DatetimeIndex.get_loc() got an unexpected keyword argument 'method'
+2025-07-14 10:14:29,701 - ERROR - Error processing 2024-07-26 for hour 16:00: DatetimeIndex.get_loc() got an unexpected keyword argument 'method'
+2025-07-14 10:14:29,718 - ERROR - Error processing 2024-07-29 for hour 16:00: DatetimeIndex.get_loc() got an unexpected keyword argument 'method'
+2025-07-14 10:14:29,736 - ERROR - Error processing 2024-07-30 for hour 16:00: DatetimeIndex.get_loc() got an unexpected keyword argument 'method'
+2025-07-14 10:14:29,753 - ERROR - Error processing 2024-07-31 for hour 16:00: DatetimeIndex.get_loc() got an unexpected keyword argument 'method'
+2025-07-14 10:14:29,771 - ERROR - Error processing 2024-08-01 for hour 16:00: DatetimeIndex.get_loc() got an unexpected keyword argument 'method'
+2025-07-14 10:14:29,788 - ERROR - Error processing 2024-08-02 for hour 16:00: DatetimeIndex.get_loc() got an unexpected keyword argument 'method'
+2025-07-14 10:14:29,806 - ERROR - Error processing 2024-08-05 for hour 16:00: DatetimeIndex.get_loc() got an unexpected keyword argument 'method'
+2025-07-14 10:14:29,823 - ERROR - Error processing 2024-08-06 for hour 16:00: DatetimeIndex.get_loc() got an unexpected keyword argument 'method'
+2025-07-14 10:14:29,841 - ERROR - Error processing 2024-08-07 for hour 16:00: DatetimeIndex.get_loc() got an unexpected keyword argument 'method'
+2025-07-14 10:14:29,858 - ERROR - Error processing 2024-08-08 for hour 16:00: DatetimeIndex.get_loc() got an unexpected keyword argument 'method'
+2025-07-14 10:14:29,876 - ERROR - Error processing 2024-08-09 for hour 16:00: DatetimeIndex.get_loc() got an unexpected keyword argument 'method'
+2025-07-14 10:14:29,893 - ERROR - Error processing 2024-08-12 for hour 16:00: DatetimeIndex.get_loc() got an unexpected keyword argument 'method'
+2025-07-14 10:14:29,911 - ERROR - Error processing 2024-08-13 for hour 16:00: DatetimeIndex.get_loc() got an unexpected keyword argument 'method'
+2025-07-14 10:14:29,929 - ERROR - Error processing 2024-08-14 for hour 16:00: DatetimeIndex.get_loc() got an unexpected keyword argument 'method'
+2025-07-14 10:14:29,947 - ERROR - Error processing 2024-08-15 for hour 16:00: DatetimeIndex.get_loc() got an unexpected keyword argument 'method'
+2025-07-14 10:14:29,964 - ERROR - Error processing 2024-08-16 for hour 16:00: DatetimeIndex.get_loc() got an unexpected keyword argument 'method'
+2025-07-14 10:14:29,982 - ERROR - Error processing 2024-08-19 for hour 16:00: DatetimeIndex.get_loc() got an unexpected keyword argument 'method'
+2025-07-14 10:14:29,999 - ERROR - Error processing 2024-08-20 for hour 16:00: DatetimeIndex.get_loc() got an unexpected keyword argument 'method'
+2025-07-14 10:14:30,017 - ERROR - Error processing 2024-08-21 for hour 16:00: DatetimeIndex.get_loc() got an unexpected keyword argument 'method'
+2025-07-14 10:14:30,034 - ERROR - Error processing 2024-08-22 for hour 16:00: DatetimeIndex.get_loc() got an unexpected keyword argument 'method'
+2025-07-14 10:14:30,052 - ERROR - Error processing 2024-08-23 for hour 16:00: DatetimeIndex.get_loc() got an unexpected keyword argument 'method'
+2025-07-14 10:14:30,069 - ERROR - Error processing 2024-08-26 for hour 16:00: DatetimeIndex.get_loc() got an unexpected keyword argument 'method'
+2025-07-14 10:14:30,087 - ERROR - Error processing 2024-08-27 for hour 16:00: DatetimeIndex.get_loc() got an unexpected keyword argument 'method'
+2025-07-14 10:14:30,104 - ERROR - Error processing 2024-08-28 for hour 16:00: DatetimeIndex.get_loc() got an unexpected keyword argument 'method'
+2025-07-14 10:14:30,122 - ERROR - Error processing 2024-08-29 for hour 16:00: DatetimeIndex.get_loc() got an unexpected keyword argument 'method'
+2025-07-14 10:14:30,140 - ERROR - Error processing 2024-08-30 for hour 16:00: DatetimeIndex.get_loc() got an unexpected keyword argument 'method'
+2025-07-14 10:14:30,157 - ERROR - Error processing 2024-09-03 for hour 16:00: DatetimeIndex.get_loc() got an unexpected keyword argument 'method'
+2025-07-14 10:14:30,174 - ERROR - Error processing 2024-09-04 for hour 16:00: DatetimeIndex.get_loc() got an unexpected keyword argument 'method'
+2025-07-14 10:14:30,192 - ERROR - Error processing 2024-09-05 for hour 16:00: DatetimeIndex.get_loc() got an unexpected keyword argument 'method'
+2025-07-14 10:14:30,219 - ERROR - Error processing 2024-09-06 for hour 16:00: DatetimeIndex.get_loc() got an unexpected keyword argument 'method'
+2025-07-14 10:14:30,236 - ERROR - Error processing 2024-09-09 for hour 16:00: DatetimeIndex.get_loc() got an unexpected keyword argument 'method'
+2025-07-14 10:14:30,253 - ERROR - Error processing 2024-09-10 for hour 16:00: DatetimeIndex.get_loc() got an unexpected keyword argument 'method'
+2025-07-14 10:14:30,271 - ERROR - Error processing 2024-09-11 for hour 16:00: DatetimeIndex.get_loc() got an unexpected keyword argument 'method'
+2025-07-14 10:14:30,289 - ERROR - Error processing 2024-09-12 for hour 16:00: DatetimeIndex.get_loc() got an unexpected keyword argument 'method'
+2025-07-14 10:14:30,307 - ERROR - Error processing 2024-09-13 for hour 16:00: DatetimeIndex.get_loc() got an unexpected keyword argument 'method'
+2025-07-14 10:14:30,324 - ERROR - Error processing 2024-09-16 for hour 16:00: DatetimeIndex.get_loc() got an unexpected keyword argument 'method'
+2025-07-14 10:14:30,342 - ERROR - Error processing 2024-09-17 for hour 16:00: DatetimeIndex.get_loc() got an unexpected keyword argument 'method'
+2025-07-14 10:14:30,360 - ERROR - Error processing 2024-09-18 for hour 16:00: DatetimeIndex.get_loc() got an unexpected keyword argument 'method'
+2025-07-14 10:14:30,378 - ERROR - Error processing 2024-09-19 for hour 16:00: DatetimeIndex.get_loc() got an unexpected keyword argument 'method'
+2025-07-14 10:14:30,396 - ERROR - Error processing 2024-09-20 for hour 16:00: DatetimeIndex.get_loc() got an unexpected keyword argument 'method'
+2025-07-14 10:14:30,413 - ERROR - Error processing 2024-09-23 for hour 16:00: DatetimeIndex.get_loc() got an unexpected keyword argument 'method'
+2025-07-14 10:14:30,430 - ERROR - Error processing 2024-09-24 for hour 16:00: DatetimeIndex.get_loc() got an unexpected keyword argument 'method'
+2025-07-14 10:14:30,449 - ERROR - Error processing 2024-09-25 for hour 16:00: DatetimeIndex.get_loc() got an unexpected keyword argument 'method'
+2025-07-14 10:14:30,466 - ERROR - Error processing 2024-09-26 for hour 16:00: DatetimeIndex.get_loc() got an unexpected keyword argument 'method'
+2025-07-14 10:14:30,484 - ERROR - Error processing 2024-09-27 for hour 16:00: DatetimeIndex.get_loc() got an unexpected keyword argument 'method'
+2025-07-14 10:14:30,485 - INFO - 
+============================================================
+2025-07-14 10:14:30,485 - INFO - HOURLY EXECUTION ANALYSIS RESULTS
+2025-07-14 10:14:30,485 - INFO - ============================================================
+2025-07-14 10:14:30,485 - INFO - 09:30          : +74.03% ($174,028.04)
+2025-07-14 10:14:30,485 - INFO - 10:30          : +65.94% ($165,937.30)
+2025-07-14 10:14:30,485 - INFO - 11:30          : +69.69% ($169,686.12)
+2025-07-14 10:14:30,485 - INFO - 12:30          : +61.18% ($161,181.72)
+2025-07-14 10:14:30,485 - INFO - 13:30          : +66.85% ($166,853.21)
+2025-07-14 10:14:30,485 - INFO - 14:30          : +67.44% ($167,442.63)
+2025-07-14 10:14:30,485 - INFO - 15:30          : +70.27% ($170,274.27)
+2025-07-14 10:14:30,485 - INFO - 16:00          :  +0.00% ($100,000.00)
+2025-07-14 10:14:30,485 - INFO - 
+Best execution hour: 09:30 with +74.03% return
+2025-07-14 10:14:30,486 - INFO - Detailed results saved to: /Users/joshua.moreton/Documents/GitHub/LQQ3/hourly_execution_results_20250714_101430.json
+2025-07-14 10:21:37,351 - INFO - Downloading complete dataset for 20 symbols...
+2025-07-14 10:21:39,752 - INFO - Downloaded SPY: 336 daily records
+2025-07-14 10:21:39,873 - INFO - Downloaded IOO: 336 daily records
+2025-07-14 10:21:39,952 - INFO - Downloaded TQQQ: 336 daily records
+2025-07-14 10:21:40,047 - INFO - Downloaded VTV: 336 daily records
+2025-07-14 10:21:40,148 - INFO - Downloaded XLF: 336 daily records
+2025-07-14 10:21:40,247 - INFO - Downloaded VOX: 336 daily records
+2025-07-14 10:21:40,348 - INFO - Downloaded UVXY: 336 daily records
+2025-07-14 10:21:40,460 - INFO - Downloaded BTAL: 336 daily records
+2025-07-14 10:21:40,582 - INFO - Downloaded QQQ: 336 daily records
+2025-07-14 10:21:40,679 - INFO - Downloaded SQQQ: 336 daily records
+2025-07-14 10:21:40,779 - INFO - Downloaded PSQ: 336 daily records
+2025-07-14 10:21:40,881 - INFO - Downloaded UPRO: 336 daily records
+2025-07-14 10:21:41,001 - INFO - Downloaded TLT: 336 daily records
+2025-07-14 10:21:41,133 - INFO - Downloaded IEF: 336 daily records
+2025-07-14 10:21:41,194 - INFO - Downloaded SMR: 336 daily records
+2025-07-14 10:21:41,286 - INFO - Downloaded BWXT: 336 daily records
+2025-07-14 10:21:41,361 - INFO - Downloaded LEU: 336 daily records
+2025-07-14 10:21:41,513 - INFO - Downloaded EXC: 336 daily records
+2025-07-14 10:21:41,630 - INFO - Downloaded NLR: 336 daily records
+2025-07-14 10:21:41,711 - INFO - Downloaded OKLO: 336 daily records
+2025-07-14 10:21:41,711 - INFO - Downloading hourly data for 20 symbols...
+2025-07-14 10:21:41,851 - INFO - Downloaded SPY: 437 hourly records
+2025-07-14 10:21:41,946 - INFO - Downloaded IOO: 437 hourly records
+2025-07-14 10:21:42,041 - INFO - Downloaded TQQQ: 437 hourly records
+2025-07-14 10:21:42,117 - INFO - Downloaded VTV: 437 hourly records
+2025-07-14 10:21:42,195 - INFO - Downloaded XLF: 437 hourly records
+2025-07-14 10:21:42,280 - INFO - Downloaded VOX: 437 hourly records
+2025-07-14 10:21:42,388 - INFO - Downloaded UVXY: 437 hourly records
+2025-07-14 10:21:42,514 - INFO - Downloaded BTAL: 437 hourly records
+2025-07-14 10:21:42,608 - INFO - Downloaded QQQ: 437 hourly records
+2025-07-14 10:21:42,724 - INFO - Downloaded SQQQ: 437 hourly records
+2025-07-14 10:21:42,818 - INFO - Downloaded PSQ: 437 hourly records
+2025-07-14 10:21:42,904 - INFO - Downloaded UPRO: 437 hourly records
+2025-07-14 10:21:42,997 - INFO - Downloaded TLT: 437 hourly records
+2025-07-14 10:21:43,094 - INFO - Downloaded IEF: 437 hourly records
+2025-07-14 10:21:43,176 - INFO - Downloaded SMR: 437 hourly records
+2025-07-14 10:21:43,300 - INFO - Downloaded BWXT: 437 hourly records
+2025-07-14 10:21:43,389 - INFO - Downloaded LEU: 437 hourly records
+2025-07-14 10:21:43,472 - INFO - Downloaded EXC: 437 hourly records
+2025-07-14 10:21:43,561 - INFO - Downloaded NLR: 436 hourly records
+2025-07-14 10:21:43,650 - INFO - Downloaded OKLO: 437 hourly records
+2025-07-14 10:21:44,760 - INFO - Downloading complete dataset for 1 symbols...
+2025-07-14 10:21:44,764 - INFO - Downloaded SPY: 336 daily records
+2025-07-14 10:21:44,765 - INFO - Downloading complete dataset for 1 symbols...
+2025-07-14 10:21:44,769 - INFO - Downloaded QQQ: 336 daily records
+2025-07-14 10:21:44,770 - INFO - Downloading complete dataset for 1 symbols...
+2025-07-14 10:21:44,775 - INFO - Downloaded TLT: 336 daily records
+2025-07-14 10:21:44,775 - INFO - Downloading complete dataset for 1 symbols...
+2025-07-14 10:21:44,779 - INFO - Downloaded IEF: 336 daily records
+2025-07-14 10:28:14,951 - INFO - Downloading complete dataset for 20 symbols...
+2025-07-14 10:28:15,502 - INFO - Downloaded SPY: 336 daily records
+2025-07-14 10:28:15,624 - INFO - Downloaded IOO: 336 daily records
+2025-07-14 10:28:15,698 - INFO - Downloaded TQQQ: 336 daily records
+2025-07-14 10:28:15,828 - INFO - Downloaded VTV: 336 daily records
+2025-07-14 10:28:15,949 - INFO - Downloaded XLF: 336 daily records
+2025-07-14 10:28:16,067 - INFO - Downloaded VOX: 336 daily records
+2025-07-14 10:28:16,149 - INFO - Downloaded UVXY: 336 daily records
+2025-07-14 10:28:16,249 - INFO - Downloaded BTAL: 336 daily records
+2025-07-14 10:28:16,383 - INFO - Downloaded QQQ: 336 daily records
+2025-07-14 10:28:16,556 - INFO - Downloaded SQQQ: 336 daily records
+2025-07-14 10:28:16,689 - INFO - Downloaded PSQ: 336 daily records
+2025-07-14 10:28:16,785 - INFO - Downloaded UPRO: 336 daily records
+2025-07-14 10:28:16,908 - INFO - Downloaded TLT: 336 daily records
+2025-07-14 10:28:17,045 - INFO - Downloaded IEF: 336 daily records
+2025-07-14 10:28:17,115 - INFO - Downloaded SMR: 336 daily records
+2025-07-14 10:28:17,215 - INFO - Downloaded BWXT: 336 daily records
+2025-07-14 10:28:17,294 - INFO - Downloaded LEU: 336 daily records
+2025-07-14 10:28:17,488 - INFO - Downloaded EXC: 336 daily records
+2025-07-14 10:28:17,585 - INFO - Downloaded NLR: 336 daily records
+2025-07-14 10:28:17,665 - INFO - Downloaded OKLO: 336 daily records
+2025-07-14 10:28:18,740 - INFO - Downloading complete dataset for 1 symbols...
+2025-07-14 10:28:18,744 - INFO - Downloaded SPY: 336 daily records
+2025-07-14 10:28:18,745 - INFO - Downloading complete dataset for 1 symbols...
+2025-07-14 10:28:18,749 - INFO - Downloaded QQQ: 336 daily records
+2025-07-14 10:28:18,749 - INFO - Downloading complete dataset for 1 symbols...
+2025-07-14 10:28:18,753 - INFO - Downloaded TLT: 336 daily records
+2025-07-14 10:28:18,753 - INFO - Downloading complete dataset for 1 symbols...
+2025-07-14 10:28:18,757 - INFO - Downloaded IEF: 336 daily records
+2025-07-14 10:30:59,537 - INFO - Downloading complete dataset for 20 symbols...
+2025-07-14 10:31:00,065 - INFO - Downloaded SPY: 336 daily records
+2025-07-14 10:31:00,169 - INFO - Downloaded IOO: 336 daily records
+2025-07-14 10:31:00,257 - INFO - Downloaded TQQQ: 336 daily records
+2025-07-14 10:31:00,363 - INFO - Downloaded VTV: 336 daily records
+2025-07-14 10:31:00,478 - INFO - Downloaded XLF: 336 daily records
+2025-07-14 10:31:00,610 - INFO - Downloaded VOX: 336 daily records
+2025-07-14 10:31:00,687 - INFO - Downloaded UVXY: 336 daily records
+2025-07-14 10:31:00,773 - INFO - Downloaded BTAL: 336 daily records
+2025-07-14 10:31:00,873 - INFO - Downloaded QQQ: 336 daily records
+2025-07-14 10:31:01,023 - INFO - Downloaded SQQQ: 336 daily records
+2025-07-14 10:31:01,183 - INFO - Downloaded PSQ: 336 daily records
+2025-07-14 10:31:01,315 - INFO - Downloaded UPRO: 336 daily records
+2025-07-14 10:31:01,429 - INFO - Downloaded TLT: 336 daily records
+2025-07-14 10:31:01,550 - INFO - Downloaded IEF: 336 daily records
+2025-07-14 10:31:01,624 - INFO - Downloaded SMR: 336 daily records
+2025-07-14 10:31:01,719 - INFO - Downloaded BWXT: 336 daily records
+2025-07-14 10:31:01,819 - INFO - Downloaded LEU: 336 daily records
+2025-07-14 10:31:01,967 - INFO - Downloaded EXC: 336 daily records
+2025-07-14 10:31:02,076 - INFO - Downloaded NLR: 336 daily records
+2025-07-14 10:31:02,156 - INFO - Downloaded OKLO: 336 daily records
+2025-07-14 10:31:03,234 - INFO - Downloading complete dataset for 1 symbols...
+2025-07-14 10:31:03,238 - INFO - Downloaded SPY: 336 daily records
+2025-07-14 10:31:03,238 - INFO - Downloading complete dataset for 1 symbols...
+2025-07-14 10:31:03,242 - INFO - Downloaded QQQ: 336 daily records
+2025-07-14 10:31:03,243 - INFO - Downloading complete dataset for 1 symbols...
+2025-07-14 10:31:03,247 - INFO - Downloaded TLT: 336 daily records
+2025-07-14 10:31:03,247 - INFO - Downloading complete dataset for 1 symbols...
+2025-07-14 10:31:03,251 - INFO - Downloaded IEF: 336 daily records
+2025-07-14 10:33:24,180 - INFO - Downloading complete dataset for 20 symbols...
+2025-07-14 10:33:25,472 - INFO - Downloaded SPY: 336 daily records
+2025-07-14 10:33:25,575 - INFO - Downloaded IOO: 336 daily records
+2025-07-14 10:33:25,662 - INFO - Downloaded TQQQ: 336 daily records
+2025-07-14 10:33:25,773 - INFO - Downloaded VTV: 336 daily records
+2025-07-14 10:33:25,901 - INFO - Downloaded XLF: 336 daily records
+2025-07-14 10:33:26,009 - INFO - Downloaded VOX: 336 daily records
+2025-07-14 10:33:26,085 - INFO - Downloaded UVXY: 336 daily records
+2025-07-14 10:33:26,184 - INFO - Downloaded BTAL: 336 daily records
+2025-07-14 10:33:26,297 - INFO - Downloaded QQQ: 336 daily records
+2025-07-14 10:33:26,403 - INFO - Downloaded SQQQ: 336 daily records
+2025-07-14 10:33:26,516 - INFO - Downloaded PSQ: 336 daily records
+2025-07-14 10:33:26,616 - INFO - Downloaded UPRO: 336 daily records
+2025-07-14 10:33:26,737 - INFO - Downloaded TLT: 336 daily records
+2025-07-14 10:33:26,877 - INFO - Downloaded IEF: 336 daily records
+2025-07-14 10:33:26,946 - INFO - Downloaded SMR: 336 daily records
+2025-07-14 10:33:27,033 - INFO - Downloaded BWXT: 336 daily records
+2025-07-14 10:33:27,159 - INFO - Downloaded LEU: 336 daily records
+2025-07-14 10:33:27,307 - INFO - Downloaded EXC: 336 daily records
+2025-07-14 10:33:27,399 - INFO - Downloaded NLR: 336 daily records
+2025-07-14 10:33:27,469 - INFO - Downloaded OKLO: 336 daily records
+2025-07-14 10:33:28,555 - INFO - Downloading complete dataset for 1 symbols...
+2025-07-14 10:33:28,559 - INFO - Downloaded SPY: 336 daily records
+2025-07-14 10:33:28,559 - INFO - Downloading complete dataset for 1 symbols...
+2025-07-14 10:33:28,564 - INFO - Downloaded QQQ: 336 daily records
+2025-07-14 10:33:28,564 - INFO - Downloading complete dataset for 1 symbols...
+2025-07-14 10:33:28,570 - INFO - Downloaded TLT: 336 daily records
+2025-07-14 10:33:28,570 - INFO - Downloading complete dataset for 1 symbols...
+2025-07-14 10:33:28,575 - INFO - Downloaded IEF: 336 daily records
+2025-07-14 10:39:47,217 - INFO - Downloading complete dataset for 20 symbols...
+2025-07-14 10:39:48,512 - INFO - Downloaded SPY: 336 daily records
+2025-07-14 10:39:48,607 - INFO - Downloaded IOO: 336 daily records
+2025-07-14 10:39:48,690 - INFO - Downloaded TQQQ: 336 daily records
+2025-07-14 10:39:48,783 - INFO - Downloaded VTV: 336 daily records
+2025-07-14 10:39:48,888 - INFO - Downloaded XLF: 336 daily records
+2025-07-14 10:39:49,015 - INFO - Downloaded VOX: 336 daily records
+2025-07-14 10:39:49,095 - INFO - Downloaded UVXY: 336 daily records
+2025-07-14 10:39:49,215 - INFO - Downloaded BTAL: 336 daily records
+2025-07-14 10:39:49,312 - INFO - Downloaded QQQ: 336 daily records
+2025-07-14 10:39:49,389 - INFO - Downloaded SQQQ: 336 daily records
+2025-07-14 10:39:49,477 - INFO - Downloaded PSQ: 336 daily records
+2025-07-14 10:39:49,571 - INFO - Downloaded UPRO: 336 daily records
+2025-07-14 10:39:49,678 - INFO - Downloaded TLT: 336 daily records
+2025-07-14 10:39:49,783 - INFO - Downloaded IEF: 336 daily records
+2025-07-14 10:39:49,851 - INFO - Downloaded SMR: 336 daily records
+2025-07-14 10:39:49,938 - INFO - Downloaded BWXT: 336 daily records
+2025-07-14 10:39:50,028 - INFO - Downloaded LEU: 336 daily records
+2025-07-14 10:39:50,147 - INFO - Downloaded EXC: 336 daily records
+2025-07-14 10:39:50,234 - INFO - Downloaded NLR: 336 daily records
+2025-07-14 10:39:50,311 - INFO - Downloaded OKLO: 336 daily records
+2025-07-14 10:39:50,345 - INFO - Scaling target portfolio by 0.973 to prevent over-allocation
+2025-07-14 10:39:50,367 - INFO - Scaling target portfolio by 0.987 to prevent over-allocation
+2025-07-14 10:39:50,367 - INFO - Scaled down OKLO purchase to fit available cash
+2025-07-14 10:39:50,386 - INFO - Scaling target portfolio by 0.963 to prevent over-allocation
+2025-07-14 10:39:50,421 - INFO - Scaled down BTAL purchase to fit available cash
+2025-07-14 10:39:50,438 - INFO - Scaling target portfolio by 0.997 to prevent over-allocation
+2025-07-14 10:39:50,438 - INFO - Scaled down BWXT purchase to fit available cash
+2025-07-14 10:39:50,455 - INFO - Scaling target portfolio by 0.970 to prevent over-allocation
+2025-07-14 10:39:50,455 - INFO - Scaled down UVXY purchase to fit available cash
+2025-07-14 10:39:50,505 - INFO - Scaling target portfolio by 0.964 to prevent over-allocation
+2025-07-14 10:39:50,523 - INFO - Scaling target portfolio by 0.980 to prevent over-allocation
+2025-07-14 10:39:50,540 - INFO - Scaling target portfolio by 0.943 to prevent over-allocation
+2025-07-14 10:39:50,557 - INFO - Scaling target portfolio by 0.948 to prevent over-allocation
+2025-07-14 10:39:50,574 - INFO - Scaling target portfolio by 0.931 to prevent over-allocation
+2025-07-14 10:39:50,591 - INFO - Scaled down TQQQ purchase to fit available cash
+2025-07-14 10:39:50,609 - INFO - Scaling target portfolio by 0.990 to prevent over-allocation
+2025-07-14 10:39:50,643 - INFO - Scaled down TQQQ purchase to fit available cash
+2025-07-14 10:39:50,660 - INFO - Scaling target portfolio by 0.964 to prevent over-allocation
+2025-07-14 10:39:50,677 - INFO - Scaling target portfolio by 0.984 to prevent over-allocation
+2025-07-14 10:39:50,711 - INFO - Scaling target portfolio by 0.911 to prevent over-allocation
+2025-07-14 10:39:50,728 - INFO - Scaled down SMR purchase to fit available cash
+2025-07-14 10:39:50,763 - INFO - Scaled down EXC purchase to fit available cash
+2025-07-14 10:39:50,780 - INFO - Scaling target portfolio by 0.981 to prevent over-allocation
+2025-07-14 10:39:50,780 - INFO - Scaled down TQQQ purchase to fit available cash
+2025-07-14 10:39:50,797 - INFO - Scaling target portfolio by 0.964 to prevent over-allocation
+2025-07-14 10:39:50,814 - INFO - Scaling target portfolio by 0.907 to prevent over-allocation
+2025-07-14 10:39:50,831 - INFO - Scaling target portfolio by 0.971 to prevent over-allocation
+2025-07-14 10:39:50,831 - INFO - Scaled down SMR purchase to fit available cash
+2025-07-14 10:39:50,849 - INFO - Scaling target portfolio by 0.987 to prevent over-allocation
+2025-07-14 10:39:50,866 - INFO - Scaling target portfolio by 0.977 to prevent over-allocation
+2025-07-14 10:39:50,886 - INFO - Scaling target portfolio by 1.000 to prevent over-allocation
+2025-07-14 10:39:50,903 - INFO - Scaling target portfolio by 0.980 to prevent over-allocation
+2025-07-14 10:39:50,921 - INFO - Scaling target portfolio by 0.992 to prevent over-allocation
+2025-07-14 10:39:50,938 - INFO - Scaling target portfolio by 0.981 to prevent over-allocation
+2025-07-14 10:39:50,956 - INFO - Scaling target portfolio by 0.982 to prevent over-allocation
+2025-07-14 10:39:50,956 - INFO - Scaled down UVXY purchase to fit available cash
+2025-07-14 10:39:50,973 - INFO - Scaling target portfolio by 0.996 to prevent over-allocation
+2025-07-14 10:39:50,990 - INFO - Scaling target portfolio by 0.927 to prevent over-allocation
+2025-07-14 10:39:51,024 - INFO - Scaling target portfolio by 0.993 to prevent over-allocation
+2025-07-14 10:39:51,060 - INFO - Scaling target portfolio by 0.916 to prevent over-allocation
+2025-07-14 10:39:51,112 - INFO - Scaling target portfolio by 0.770 to prevent over-allocation
+2025-07-14 10:39:51,130 - INFO - Scaled down TQQQ purchase to fit available cash
+2025-07-14 10:39:51,179 - INFO - Scaling target portfolio by 0.872 to prevent over-allocation
+2025-07-14 10:39:51,179 - INFO - Scaled down TQQQ purchase to fit available cash
+2025-07-14 10:39:51,197 - INFO - Scaling target portfolio by 0.963 to prevent over-allocation
+2025-07-14 10:39:51,215 - INFO - Scaling target portfolio by 0.964 to prevent over-allocation
+2025-07-14 10:39:51,233 - INFO - Scaling target portfolio by 0.942 to prevent over-allocation
+2025-07-14 10:39:51,233 - INFO - Scaled down SMR purchase to fit available cash
+2025-07-14 10:39:51,251 - INFO - Scaling target portfolio by 0.989 to prevent over-allocation
+2025-07-14 10:39:51,269 - INFO - Scaling target portfolio by 0.971 to prevent over-allocation
+2025-07-14 10:39:51,287 - INFO - Scaling target portfolio by 0.988 to prevent over-allocation
+2025-07-14 10:39:51,287 - INFO - Scaled down BWXT purchase to fit available cash
+2025-07-14 10:39:51,339 - INFO - Scaling target portfolio by 0.983 to prevent over-allocation
+2025-07-14 10:39:51,356 - INFO - Scaling target portfolio by 0.947 to prevent over-allocation
+2025-07-14 10:39:51,373 - INFO - Scaling target portfolio by 0.996 to prevent over-allocation
+2025-07-14 10:39:51,374 - INFO - Scaled down UVXY purchase to fit available cash
+2025-07-14 10:39:51,391 - INFO - Scaling target portfolio by 1.000 to prevent over-allocation
+2025-07-14 10:39:51,408 - INFO - Scaling target portfolio by 0.972 to prevent over-allocation
+2025-07-14 10:39:51,426 - INFO - Scaling target portfolio by 0.989 to prevent over-allocation
+2025-07-14 10:39:51,443 - INFO - Scaling target portfolio by 0.926 to prevent over-allocation
+2025-07-14 10:39:51,443 - INFO - Downloading complete dataset for 1 symbols...
+2025-07-14 10:39:51,447 - INFO - Downloaded SPY: 336 daily records
+2025-07-14 10:39:51,448 - INFO - Downloading complete dataset for 1 symbols...
+2025-07-14 10:39:51,452 - INFO - Downloaded QQQ: 336 daily records
+2025-07-14 10:39:51,453 - INFO - Downloading complete dataset for 1 symbols...
+2025-07-14 10:39:51,457 - INFO - Downloaded TLT: 336 daily records
+2025-07-14 10:39:51,457 - INFO - Downloading complete dataset for 1 symbols...
+2025-07-14 10:39:51,462 - INFO - Downloaded IEF: 336 daily records
+2025-07-14 11:17:04,875 - INFO - Starting Nuclear Energy strategy analysis...
+2025-07-14 11:17:08,454 - INFO - Analysis complete: BUY NUCLEAR_PORTFOLIO - Bull market - Nuclear portfolio: SMR (31.2%), LEU (39.5%), OKLO (29.3%)
+2025-07-14 11:17:57,588 - INFO - Starting Nuclear Energy strategy analysis...
+2025-07-14 11:18:00,215 - INFO - Analysis complete: BUY NUCLEAR_PORTFOLIO - Bull market - Nuclear portfolio: SMR (31.2%), LEU (39.5%), OKLO (29.3%)
+2025-07-14 11:18:08,028 - INFO - Downloading complete dataset for 20 symbols...
+2025-07-14 11:18:10,354 - INFO - Downloaded SPY: 336 daily records
+2025-07-14 11:18:10,462 - INFO - Downloaded IOO: 336 daily records
+2025-07-14 11:18:10,562 - INFO - Downloaded TQQQ: 336 daily records
+2025-07-14 11:18:10,670 - INFO - Downloaded VTV: 336 daily records
+2025-07-14 11:18:10,784 - INFO - Downloaded XLF: 336 daily records
+2025-07-14 11:18:10,884 - INFO - Downloaded VOX: 336 daily records
+2025-07-14 11:18:10,962 - INFO - Downloaded UVXY: 336 daily records
+2025-07-14 11:18:11,068 - INFO - Downloaded BTAL: 336 daily records
+2025-07-14 11:18:11,167 - INFO - Downloaded QQQ: 336 daily records
+2025-07-14 11:18:11,341 - INFO - Downloaded SQQQ: 336 daily records
+2025-07-14 11:18:11,479 - INFO - Downloaded PSQ: 336 daily records
+2025-07-14 11:18:11,576 - INFO - Downloaded UPRO: 336 daily records
+2025-07-14 11:18:11,693 - INFO - Downloaded TLT: 336 daily records
+2025-07-14 11:18:11,838 - INFO - Downloaded IEF: 336 daily records
+2025-07-14 11:18:11,914 - INFO - Downloaded SMR: 336 daily records
+2025-07-14 11:18:12,017 - INFO - Downloaded BWXT: 336 daily records
+2025-07-14 11:18:12,099 - INFO - Downloaded LEU: 336 daily records
+2025-07-14 11:18:12,303 - INFO - Downloaded EXC: 336 daily records
+2025-07-14 11:18:12,438 - INFO - Downloaded NLR: 336 daily records
+2025-07-14 11:18:12,541 - INFO - Downloaded OKLO: 336 daily records
+2025-07-14 11:18:12,577 - INFO - Scaling target portfolio by 0.973 to prevent over-allocation
+2025-07-14 11:18:12,600 - INFO - Scaling target portfolio by 0.987 to prevent over-allocation
+2025-07-14 11:18:12,600 - INFO - Scaled down SMR purchase to fit available cash
+2025-07-14 11:18:12,619 - INFO - Scaling target portfolio by 0.963 to prevent over-allocation
+2025-07-14 11:18:12,655 - INFO - Scaled down BTAL purchase to fit available cash
+2025-07-14 11:18:12,672 - INFO - Scaling target portfolio by 0.997 to prevent over-allocation
+2025-07-14 11:18:12,673 - INFO - Scaled down SMR purchase to fit available cash
+2025-07-14 11:18:12,690 - INFO - Scaling target portfolio by 0.970 to prevent over-allocation
+2025-07-14 11:18:12,690 - INFO - Scaled down UVXY purchase to fit available cash
+2025-07-14 11:18:12,740 - INFO - Scaling target portfolio by 0.964 to prevent over-allocation
+2025-07-14 11:18:12,757 - INFO - Scaling target portfolio by 0.980 to prevent over-allocation
+2025-07-14 11:18:12,775 - INFO - Scaling target portfolio by 0.943 to prevent over-allocation
+2025-07-14 11:18:12,792 - INFO - Scaling target portfolio by 0.948 to prevent over-allocation
+2025-07-14 11:18:12,809 - INFO - Scaling target portfolio by 0.931 to prevent over-allocation
+2025-07-14 11:18:12,827 - INFO - Scaled down TQQQ purchase to fit available cash
+2025-07-14 11:18:12,844 - INFO - Scaling target portfolio by 0.990 to prevent over-allocation
+2025-07-14 11:18:12,878 - INFO - Scaled down TQQQ purchase to fit available cash
+2025-07-14 11:18:12,897 - INFO - Scaling target portfolio by 0.964 to prevent over-allocation
+2025-07-14 11:18:12,914 - INFO - Scaling target portfolio by 0.984 to prevent over-allocation
+2025-07-14 11:18:12,948 - INFO - Scaling target portfolio by 0.911 to prevent over-allocation
+2025-07-14 11:18:12,966 - INFO - Scaled down OKLO purchase to fit available cash
+2025-07-14 11:18:13,001 - INFO - Scaled down EXC purchase to fit available cash
+2025-07-14 11:18:13,018 - INFO - Scaling target portfolio by 0.981 to prevent over-allocation
+2025-07-14 11:18:13,018 - INFO - Scaled down TQQQ purchase to fit available cash
+2025-07-14 11:18:13,036 - INFO - Scaling target portfolio by 0.964 to prevent over-allocation
+2025-07-14 11:18:13,053 - INFO - Scaling target portfolio by 0.907 to prevent over-allocation
+2025-07-14 11:18:13,071 - INFO - Scaling target portfolio by 0.971 to prevent over-allocation
+2025-07-14 11:18:13,071 - INFO - Scaled down LEU purchase to fit available cash
+2025-07-14 11:18:13,089 - INFO - Scaling target portfolio by 0.987 to prevent over-allocation
+2025-07-14 11:18:13,089 - INFO - Scaled down SMR purchase to fit available cash
+2025-07-14 11:18:13,107 - INFO - Scaling target portfolio by 0.977 to prevent over-allocation
+2025-07-14 11:18:13,125 - INFO - Scaling target portfolio by 1.000 to prevent over-allocation
+2025-07-14 11:18:13,143 - INFO - Scaling target portfolio by 0.980 to prevent over-allocation
+2025-07-14 11:18:13,162 - INFO - Scaling target portfolio by 0.992 to prevent over-allocation
+2025-07-14 11:18:13,179 - INFO - Scaling target portfolio by 0.981 to prevent over-allocation
+2025-07-14 11:18:13,199 - INFO - Scaling target portfolio by 0.982 to prevent over-allocation
+2025-07-14 11:18:13,199 - INFO - Scaled down UVXY purchase to fit available cash
+2025-07-14 11:18:13,218 - INFO - Scaling target portfolio by 0.996 to prevent over-allocation
+2025-07-14 11:18:13,235 - INFO - Scaling target portfolio by 0.927 to prevent over-allocation
+2025-07-14 11:18:13,270 - INFO - Scaling target portfolio by 0.993 to prevent over-allocation
+2025-07-14 11:18:13,304 - INFO - Scaling target portfolio by 0.916 to prevent over-allocation
+2025-07-14 11:18:13,354 - INFO - Scaling target portfolio by 0.770 to prevent over-allocation
+2025-07-14 11:18:13,381 - INFO - Scaled down TQQQ purchase to fit available cash
+2025-07-14 11:18:13,414 - INFO - Scaling target portfolio by 0.872 to prevent over-allocation
+2025-07-14 11:18:13,415 - INFO - Scaled down TQQQ purchase to fit available cash
+2025-07-14 11:18:13,432 - INFO - Scaling target portfolio by 0.963 to prevent over-allocation
+2025-07-14 11:18:13,449 - INFO - Scaling target portfolio by 0.964 to prevent over-allocation
+2025-07-14 11:18:13,467 - INFO - Scaling target portfolio by 0.942 to prevent over-allocation
+2025-07-14 11:18:13,467 - INFO - Scaled down BWXT purchase to fit available cash
+2025-07-14 11:18:13,485 - INFO - Scaling target portfolio by 0.989 to prevent over-allocation
+2025-07-14 11:18:13,503 - INFO - Scaling target portfolio by 0.971 to prevent over-allocation
+2025-07-14 11:18:13,521 - INFO - Scaling target portfolio by 0.988 to prevent over-allocation
+2025-07-14 11:18:13,521 - INFO - Scaled down EXC purchase to fit available cash
+2025-07-14 11:18:13,573 - INFO - Scaling target portfolio by 0.983 to prevent over-allocation
+2025-07-14 11:18:13,592 - INFO - Scaling target portfolio by 0.947 to prevent over-allocation
+2025-07-14 11:18:13,609 - INFO - Scaling target portfolio by 0.996 to prevent over-allocation
+2025-07-14 11:18:13,609 - INFO - Scaled down UVXY purchase to fit available cash
+2025-07-14 11:18:13,626 - INFO - Scaling target portfolio by 1.000 to prevent over-allocation
+2025-07-14 11:18:13,644 - INFO - Scaling target portfolio by 0.972 to prevent over-allocation
+2025-07-14 11:18:13,661 - INFO - Scaling target portfolio by 0.989 to prevent over-allocation
+2025-07-14 11:18:13,679 - INFO - Scaling target portfolio by 0.926 to prevent over-allocation
+2025-07-14 11:18:13,679 - INFO - Downloading complete dataset for 1 symbols...
+2025-07-14 11:18:13,684 - INFO - Downloaded SPY: 336 daily records
+2025-07-14 11:18:13,684 - INFO - Downloading complete dataset for 1 symbols...
+2025-07-14 11:18:13,688 - INFO - Downloaded QQQ: 336 daily records
+2025-07-14 11:18:13,689 - INFO - Downloading complete dataset for 1 symbols...
+2025-07-14 11:18:13,693 - INFO - Downloaded TLT: 336 daily records
+2025-07-14 11:18:13,694 - INFO - Downloading complete dataset for 1 symbols...
+2025-07-14 11:18:13,698 - INFO - Downloaded IEF: 336 daily records

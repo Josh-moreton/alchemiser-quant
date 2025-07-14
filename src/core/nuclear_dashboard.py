@@ -357,7 +357,7 @@ def load_alert_history():
     """Load historical alerts from JSON file"""
     try:
         alerts = []
-        with open('nuclear_alerts.json', 'r') as f:
+        with open('data/logs/nuclear_alerts.json', 'r') as f:
             for line in f:
                 try:
                     alert = json.loads(line.strip())

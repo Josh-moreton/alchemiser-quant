@@ -1,0 +1,32 @@
+{
+  "execution_summary": {
+    "start_date": "2024-07-01",
+    "end_date": "2024-09-30",
+    "initial_capital": 100000,
+    "execution_time": "Market Open (Daily Open)",
+    "total_trading_days": 63
+  },
+  "performance_metrics": {
+    "total_return": 0.5404781481056498,
+    "cagr": 5.010036678719552,
+    "volatility": 1.0017050637361564,
+    "sharpe_ratio": 2.3928904942606284,
+    "sortino_ratio": 4.902974080386799,
+    "max_drawdown": -0.2015288166446136,
+    "max_drawdown_duration_days": 23,
+    "calmar_ratio": 24.860150335495252,
+    "win_rate": 0.6031746031746031,
+    "best_day_return": 0.37012499025402024,
+    "worst_day_return": -0.11281022774631255,
+    "final_value": 154047.81481056497,
+    "total_days": 88,
+    "total_years": 0.24093086926762491,
+    "trading_days": 63
+  },
+  "benchmark_comparison": {
+    "SPY": {
+      "total_return": 0.051129215116032016,
+      "start_price": 538.6312866210938,
+      "end_price": 566.1710815429688,
+      "daily_returns": {
+        

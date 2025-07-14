@@ -1,0 +1,3 @@
+{"timestamp": "2025-07-14T11:18:00.063759", "symbol": "SMR", "action": "BUY", "price": 37.47999954223633, "reason": "Nuclear portfolio allocation: 31.2% (Bull market - Nuclear portfolio: SMR (31.2%), LEU (39.5%), OKLO (29.3%))"}
+{"timestamp": "2025-07-14T11:18:00.148521", "symbol": "LEU", "action": "BUY", "price": 206.39999389648438, "reason": "Nuclear portfolio allocation: 39.5% (Bull market - Nuclear portfolio: SMR (31.2%), LEU (39.5%), OKLO (29.3%))"}
+{"timestamp": "2025-07-14T11:18:00.215443", "symbol": "OKLO", "action": "BUY", "price": 56.08000183105469, "reason": "Nuclear portfolio allocation: 29.3% (Bull market - Nuclear portfolio: SMR (31.2%), LEU (39.5%), OKLO (29.3%))"}

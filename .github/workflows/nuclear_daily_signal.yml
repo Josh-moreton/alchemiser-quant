@@ -1,22 +1,37 @@
-name: Nuclear Energy Daily Signal
+name: Nuclear Energy Trading Bot - Hourly Signals
 
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 * * * *" # Hourly
+    - cron: "0 * * * *" # Hourly execution
 
 jobs:
-  run-nuclear-signal:
+  run-nuclear-bot:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+
       - name: Install dependencies
-        run: pip install -r requirements.txt
-      - name: Run Nuclear Energy daily signal email
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run Nuclear Trading Bot
         env:
           SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
-        run: python nuclear_signal_email.py
+        run: python main.py bot
+
+      - name: Archive logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: error-logs-${{ github.run_number }}
+          path: |
+            *.log
+            data/logs/*.log
+          retention-days: 7

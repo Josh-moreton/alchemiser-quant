@@ -16,10 +16,17 @@ import os
 
 # Import the original strategy components
 try:
-    from nuclear_trading_bot import NuclearStrategyEngine, TechnicalIndicators
+    from ..core.nuclear_trading_bot import NuclearStrategyEngine, TechnicalIndicators
 except ImportError:
-    print("Error: Could not import nuclear_trading_bot. Make sure it's in the same directory.")
-    sys.exit(1)
+    try:
+        # Fallback for direct execution
+        import sys
+        import os
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'core'))
+        from nuclear_trading_bot import NuclearStrategyEngine, TechnicalIndicators
+    except ImportError:
+        print("Error: Could not import nuclear_trading_bot. Make sure it's in the src/core directory.")
+        sys.exit(1)
 
 class BacktestDataProvider:
     """
@@ -80,6 +87,70 @@ class BacktestDataProvider:
         self.all_data = all_data
         return all_data
     
+    def download_hourly_data(self, symbols: List[str]) -> Dict[str, pd.DataFrame]:
+        """Download hourly data for execution timing analysis"""
+        self.logger.info(f"Downloading hourly data for {len(symbols)} symbols...")
+        
+        hourly_data = {}
+        failed_symbols = []
+        
+        # Calculate date range for hourly data (yfinance limit: ~730 days for hourly)
+        start_dt = pd.Timestamp(self.start_date)
+        end_dt = pd.Timestamp(self.end_date)
+        
+        # Check if requested period exceeds yfinance hourly limit
+        days_requested = (end_dt - start_dt).days
+        if days_requested > 700:  # Conservative limit
+            self.logger.warning(f"Hourly data requested for {days_requested} days. yfinance limit ~730 days.")
+            # Adjust start date to stay within limits
+            start_dt = end_dt - pd.Timedelta(days=700)
+            adjusted_start = start_dt.strftime('%Y-%m-%d')
+            self.logger.info(f"Adjusted hourly data start date to: {adjusted_start}")
+        else:
+            adjusted_start = self.start_date
+        
+        for symbol in symbols:
+            try:
+                ticker = yf.Ticker(symbol)
+                
+                # Download hourly data
+                hourly_df = ticker.history(
+                    start=adjusted_start,
+                    end=self.end_date,
+                    interval='1h',
+                    auto_adjust=True
+                )
+                
+                if not hourly_df.empty:
+                    # Normalize timezone to ET (market timezone)
+                    try:
+                        if hasattr(hourly_df.index, 'tz') and hourly_df.index.tz is not None:
+                            hourly_df.index = hourly_df.index.tz_convert('America/New_York').tz_localize(None)
+                    except (AttributeError, TypeError):
+                        pass
+                    
+                    # Filter to market hours only (9:30 AM - 4:00 PM ET)
+                    market_hours = hourly_df.between_time('09:30', '16:00')
+                    
+                    if not market_hours.empty:
+                        hourly_data[symbol] = market_hours
+                        self.logger.info(f"Downloaded {symbol}: {len(market_hours)} hourly records")
+                    else:
+                        failed_symbols.append(symbol)
+                else:
+                    failed_symbols.append(symbol)
+                    
+            except Exception as e:
+                self.logger.warning(f"Failed hourly download for {symbol}: {e}")
+                failed_symbols.append(symbol)
+        
+        if failed_symbols:
+            self.logger.warning(f"Failed hourly downloads: {failed_symbols}")
+        
+        # Store hourly data separately
+        self.hourly_data = hourly_data
+        return hourly_data
+    
     def get_data_up_to_date(self, symbol: str, as_of_date: pd.Timestamp) -> pd.DataFrame:
         """
         Get historical data for symbol up to (but not including) as_of_date
@@ -115,6 +186,45 @@ class BacktestDataProvider:
             return float(data.iloc[-1][price_type])
         
         return None
+    
+    def get_hourly_prices_for_date(self, symbol: str, date: pd.Timestamp) -> pd.DataFrame:
+        """Get all hourly prices for a specific trading date"""
+        if not hasattr(self, 'hourly_data') or symbol not in self.hourly_data:
+            return pd.DataFrame()
+        
+        hourly_data = self.hourly_data[symbol]
+        date_normalized = date.normalize()
+        
+        # Get all hours for this date
+        date_hours = hourly_data[hourly_data.index.date == date_normalized.date()]
+        
+        return date_hours
+    
+    def get_price_at_hour(self, symbol: str, date: pd.Timestamp, hour: int) -> Optional[float]:
+        """Get price at specific hour (9-16 for 9:30AM-4:30PM)"""
+        if not hasattr(self, 'hourly_data') or symbol not in self.hourly_data:
+            return None
+        
+        # Create timestamp for the specific hour (30 minutes past to align with market open)
+        target_time = date.normalize() + pd.Timedelta(hours=hour, minutes=30)
+        
+        hourly_data = self.hourly_data[symbol]
+        
+        # Find exact hour or closest available
+        date_hours = hourly_data[hourly_data.index.date == date.date()]
+        if date_hours.empty:
+            return None
+        
+        # Try exact match first
+        if target_time in date_hours.index:
+            return float(date_hours.loc[target_time, 'Close'])
+        
+        # Find closest hour
+        try:
+            closest_idx = date_hours.index.get_loc(target_time, method='nearest')
+            return float(date_hours.iloc[closest_idx]['Close'])
+        except (KeyError, IndexError):
+            return None
 
 class BacktestNuclearStrategy:
     """

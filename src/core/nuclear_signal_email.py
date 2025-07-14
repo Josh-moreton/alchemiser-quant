@@ -17,7 +17,7 @@ import warnings
 warnings.filterwarnings('ignore')
 
 # Import our Nuclear strategy components
-from nuclear_trading_bot import NuclearStrategyEngine, TechnicalIndicators
+from .nuclear_trading_bot import NuclearStrategyEngine, TechnicalIndicators
 
 def fetch_nuclear_signal():
     """Fetch the current Nuclear Energy strategy signal"""
@@ -118,7 +118,7 @@ def fetch_nuclear_signal():
 
 def check_signal_change(current_symbol, current_action, current_reason):
     """Check if the signal has changed from the previous day"""
-    signal_file = 'nuclear_last_signal.json'
+    signal_file = 'data/logs/nuclear_last_signal.json'
     
     # Try to load previous signal
     try:
