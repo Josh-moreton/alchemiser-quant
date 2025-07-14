@@ -112,11 +112,62 @@ def run_alpaca_bot():
     print()
     
     try:
-        from execution.nuclear_alpaca_bot import run_nuclear_alpaca_bot
+        # Import and run the core nuclear trading bot first to generate signals
+        from core.nuclear_trading_bot import NuclearTradingBot
         
-        # Run the nuclear bot with Alpaca execution
-        print("⚡ Starting nuclear trading bot with Alpaca execution...")
-        success = run_nuclear_alpaca_bot()
+        print("📊 STEP 1: Generating Nuclear Trading Signals...")
+        print("-" * 50)
+        
+        # Generate nuclear signals
+        bot = NuclearTradingBot()
+        print("Fetching live market data and generating signal...")
+        print()
+        
+        signal = bot.run_once()
+        
+        if not signal:
+            print("❌ Failed to generate nuclear signals")
+            return False
+        
+        print("✅ Nuclear trading signals generated successfully!")
+        print()
+        
+        # Import and initialize Alpaca trading bot
+        print("🏦 STEP 2: Connecting to Alpaca Paper Trading...")
+        print("-" * 50)
+        
+        from execution.alpaca_trader import AlpacaTradingBot
+        
+        # Initialize bot with paper trading
+        bot = AlpacaTradingBot(paper_trading=True)
+        
+        # Display account summary before trading
+        print("📋 Account Status Before Trading:")
+        bot.display_account_summary()
+        
+        print("⚡ STEP 3: Executing Trades Based on Nuclear Signals...")
+        print("-" * 50)
+        
+        # Execute nuclear strategy with Alpaca
+        success = bot.execute_nuclear_strategy()
+        
+        if success:
+            print("✅ Trade execution completed successfully!")
+        else:
+            print("❌ Trade execution failed!")
+        
+        print()
+        print("📊 STEP 4: Final Account Status...")
+        print("-" * 50)
+        
+        # Display updated account summary
+        bot.display_account_summary()
+        
+        print()
+        print("=" * 70)
+        print("🎯 NUCLEAR ALPACA BOT EXECUTION COMPLETE")
+        print("=" * 70)
+        print()
         
         return success
         

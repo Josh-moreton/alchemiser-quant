@@ -3590,3 +3590,67 @@ Best execution hour: 09:30 with +74.03% return
 2025-07-14 16:17:06,441 - INFO - ✅ Bought 333 shares of OKLO for $18,903.81, remaining cash: $130.82
 2025-07-14 16:17:06,441 - INFO - ✅ Portfolio rebalanced - 1 orders executed
 2025-07-14 16:17:06,442 - INFO -    OKLO_BUY: Order 43d97cd2-6268-4fd3-a2f7-d0ac5c78be65
+2025-07-14 19:29:28,486 - INFO - Starting Nuclear Energy strategy analysis...
+2025-07-14 19:29:32,294 - INFO - Analysis complete: BUY NUCLEAR_PORTFOLIO - Bull market - Nuclear portfolio: SMR (31.2%), LEU (39.6%), OKLO (29.2%)
+2025-07-14 19:29:33,469 - INFO - API Key loaded: Yes
+2025-07-14 19:29:33,469 - INFO - Secret Key loaded: Yes
+2025-07-14 19:29:33,469 - INFO - Base URL: https://paper-api.alpaca.markets/v2
+2025-07-14 19:29:33,470 - INFO - TradingClient initialized successfully
+2025-07-14 19:29:33,470 - INFO - StockHistoricalDataClient initialized successfully
+2025-07-14 19:29:33,470 - INFO - Alpaca Trading Bot initialized - Paper Trading: True
+2025-07-14 19:29:33,981 - INFO - 🚀 Executing Nuclear Strategy with Alpaca
+2025-07-14 19:29:33,989 - INFO - Found 3 recent signals
+2025-07-14 19:29:33,990 - INFO - Parsed signal: SMR -> 31.2%
+2025-07-14 19:29:33,990 - INFO - Parsed signal: LEU -> 39.6%
+2025-07-14 19:29:33,990 - INFO - Parsed signal: OKLO -> 29.2%
+2025-07-14 19:29:33,990 - INFO - Target Portfolio: {'SMR': 0.312, 'LEU': 0.396, 'OKLO': 0.292}
+2025-07-14 19:29:34,094 - INFO - Account Value: $104,303.03
+2025-07-14 19:29:34,300 - INFO - 🔄 Starting portfolio rebalance - Portfolio Value: $104,303.03, Current Cash: $247.61
+2025-07-14 19:29:34,398 - INFO - Position calculation for LEU: Target weight: 39.6%, Target value: $41304.00, Price: $213.39, Shares: 193
+2025-07-14 19:29:34,492 - INFO - Position calculation for OKLO: Target weight: 29.2%, Target value: $30456.48, Price: $60.83, Shares: 500
+2025-07-14 19:29:34,642 - INFO - Order placed: sell 6 shares of OKLO - Order ID: 342a2b42-3cdb-48e4-ab9f-8e294e917321
+2025-07-14 19:29:34,642 - INFO - 💰 Selling 6 shares of OKLO will add $364.96 cash
+2025-07-14 19:29:34,719 - INFO - Position calculation for SMR: Target weight: 31.2%, Target value: $32542.55, Price: $41.77, Shares: 779
+2025-07-14 19:29:34,866 - INFO - Order placed: sell 10 shares of SMR - Order ID: 6e2bdebf-19cc-4f74-8d8c-1b09b1a71406
+2025-07-14 19:29:34,866 - INFO - 💰 Selling 10 shares of SMR will add $417.70 cash
+2025-07-14 19:29:34,866 - INFO - 💸 Total cash available for buys: $1,030.28 (current: $247.61 + from sells: $782.67)
+2025-07-14 19:29:34,904 - INFO - Position calculation for LEU: Target weight: 39.6%, Target value: $41304.00, Price: $213.39, Shares: 193
+2025-07-14 19:29:34,976 - INFO - Position calculation for SMR: Target weight: 31.2%, Target value: $32542.55, Price: $41.77, Shares: 779
+2025-07-14 19:29:35,011 - INFO - Position calculation for OKLO: Target weight: 29.2%, Target value: $30456.48, Price: $60.83, Shares: 500
+2025-07-14 19:29:35,118 - ERROR - Error placing order for LEU: {"buying_power":"612.53","code":40310000,"cost_basis":"855.49","message":"insufficient buying power"}
+2025-07-14 19:29:35,119 - INFO - ✅ Portfolio rebalanced - 2 orders executed
+2025-07-14 19:29:35,119 - INFO -    OKLO_SELL: Order 342a2b42-3cdb-48e4-ab9f-8e294e917321
+2025-07-14 19:29:35,119 - INFO -    SMR_SELL: Order 6e2bdebf-19cc-4f74-8d8c-1b09b1a71406
+2025-07-14 19:32:13,449 - INFO - Starting Nuclear Energy strategy analysis...
+2025-07-14 19:32:16,307 - INFO - Analysis complete: BUY NUCLEAR_PORTFOLIO - Bull market - Nuclear portfolio: SMR (31.2%), LEU (39.6%), OKLO (29.2%)
+2025-07-14 19:32:16,578 - INFO - API Key loaded: Yes
+2025-07-14 19:32:16,578 - INFO - Secret Key loaded: Yes
+2025-07-14 19:32:16,578 - INFO - Base URL: https://paper-api.alpaca.markets/v2
+2025-07-14 19:32:16,578 - INFO - TradingClient initialized successfully
+2025-07-14 19:32:16,579 - INFO - StockHistoricalDataClient initialized successfully
+2025-07-14 19:32:16,579 - INFO - Alpaca Trading Bot initialized - Paper Trading: True
+2025-07-14 19:32:17,061 - INFO - 🚀 Executing Nuclear Strategy with Alpaca
+2025-07-14 19:32:17,066 - INFO - Found 6 recent signals
+2025-07-14 19:32:17,066 - INFO - Parsed signal: SMR -> 31.2%
+2025-07-14 19:32:17,066 - INFO - Parsed signal: LEU -> 39.6%
+2025-07-14 19:32:17,066 - INFO - Parsed signal: OKLO -> 29.2%
+2025-07-14 19:32:17,066 - INFO - Parsed signal: SMR -> 31.2%
+2025-07-14 19:32:17,066 - INFO - Parsed signal: LEU -> 39.6%
+2025-07-14 19:32:17,066 - INFO - Parsed signal: OKLO -> 29.2%
+2025-07-14 19:32:17,066 - INFO - Target Portfolio: {'SMR': 0.312, 'LEU': 0.396, 'OKLO': 0.292}
+2025-07-14 19:32:17,167 - INFO - Account Value: $104,320.60
+2025-07-14 19:32:17,375 - INFO - 🔄 Starting portfolio rebalance - Portfolio Value: $104,329.66, Current Cash: $1,030.03
+2025-07-14 19:32:17,490 - INFO - Position calculation for LEU: Target weight: 39.6%, Target value: $41314.55, Price: $213.29, Shares: 193
+2025-07-14 19:32:17,574 - INFO - Position calculation for OKLO: Target weight: 29.2%, Target value: $30464.26, Price: $60.97, Shares: 499
+2025-07-14 19:32:17,729 - INFO - Order placed: sell 1 shares of OKLO - Order ID: 896f406d-9953-468d-a5a7-0fa4738d5317
+2025-07-14 19:32:17,729 - INFO - 💰 Selling 1 shares of OKLO will add $60.97 cash
+2025-07-14 19:32:17,806 - INFO - Position calculation for SMR: Target weight: 31.2%, Target value: $32550.85, Price: $41.74, Shares: 779
+2025-07-14 19:32:17,806 - INFO - 💸 Total cash available for buys: $1,091.00 (current: $1,030.03 + from sells: $60.97)
+2025-07-14 19:32:17,852 - INFO - Position calculation for LEU: Target weight: 39.6%, Target value: $41314.55, Price: $213.29, Shares: 193
+2025-07-14 19:32:17,935 - INFO - Position calculation for SMR: Target weight: 31.2%, Target value: $32550.85, Price: $41.74, Shares: 779
+2025-07-14 19:32:17,975 - INFO - Position calculation for OKLO: Target weight: 29.2%, Target value: $30464.26, Price: $60.97, Shares: 499
+2025-07-14 19:32:18,084 - INFO - Order placed: buy 4 shares of LEU - Order ID: 288e52ce-c256-48f8-bbab-aae1e5f42c50
+2025-07-14 19:32:18,085 - INFO - ✅ Bought 4 shares of LEU for $853.14, remaining cash: $237.86
+2025-07-14 19:32:18,085 - INFO - ✅ Portfolio rebalanced - 2 orders executed
+2025-07-14 19:32:18,085 - INFO -    OKLO_SELL: Order 896f406d-9953-468d-a5a7-0fa4738d5317
+2025-07-14 19:32:18,085 - INFO -    LEU_BUY: Order 288e52ce-c256-48f8-bbab-aae1e5f42c50

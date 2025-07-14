@@ -351,6 +351,7 @@ class AlpacaTradingBot:
             Dict of {symbol: weight} for target portfolio
         """
         portfolio = {}
+        single_buy_signals = []
         
         for signal in signals:
             if signal.get('action') != 'BUY':
@@ -368,6 +369,17 @@ class AlpacaTradingBot:
                 weight = allocation_pct / 100.0
                 portfolio[symbol] = weight
                 logging.info(f"Parsed signal: {symbol} -> {weight:.1%}")
+            elif symbol:
+                # This is a single BUY signal without percentage - save for potential 100% allocation
+                single_buy_signals.append((symbol, reason))
+                logging.info(f"Found single BUY signal: {symbol} - {reason}")
+        
+        # If no portfolio allocations were found but we have single BUY signals,
+        # treat the first (most recent) single BUY as 100% allocation
+        if not portfolio and single_buy_signals:
+            symbol, reason = single_buy_signals[0]  # Use the first/most recent signal
+            portfolio[symbol] = 1.0  # 100% allocation
+            logging.info(f"✅ Single signal handling: {symbol} -> 100% allocation (reason: {reason})")
         
         return portfolio
     
