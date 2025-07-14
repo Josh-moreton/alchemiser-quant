@@ -1,0 +1,31 @@
+# Test Dependencies for Alpaca Trading Bot
+# Install with: pip install -r test_requirements.txt
+
+# Core testing framework
+pytest>=7.0.0
+pytest-mock>=3.10.0
+pytest-cov>=4.0.0
+pytest-html>=3.1.0
+pytest-xdist>=3.0.0
+
+# Performance monitoring
+psutil>=5.9.0
+
+# Mocking and fixtures
+responses>=0.22.0
+
+# Test data generation
+faker>=18.0.0
+
+# Optional: For advanced testing features
+pytest-timeout>=2.1.0
+pytest-benchmark>=4.0.0
+pytest-asyncio>=0.21.0
+
+# Code quality
+flake8>=6.0.0
+black>=23.0.0
+
+# Development utilities
+ipdb>=0.13.0
+rich>=13.0.0 
