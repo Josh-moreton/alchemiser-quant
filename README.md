@@ -22,6 +22,8 @@ Generate live nuclear trading signals without email notifications.
 python main.py bot
 ```
 
+### Available Modes
+
 **What it does:**
 
 - Fetches live market data for all nuclear and market symbols
@@ -47,6 +49,8 @@ Generate live trading signals AND send email notifications when signals change.
 ```bash
 python main.py email
 ```
+
+#### 🦙 `alpaca` - Automated Trading with Alpaca Paper Account
 
 **Requirements:**
 
@@ -86,7 +90,7 @@ python main.py backtest --backtest-type hourly
 - Generates detailed reports and CSV files
 - Compares strategy vs benchmark performance
 
-**Output Files:**
+### Alpaca Setup & Environment Variables
 
 - `data/backtest_results/nuclear_comprehensive_report_*.json`
 - `data/backtest_results/nuclear_trades_*.csv`
@@ -107,6 +111,8 @@ python main.py dashboard
 - Signal history timeline and market condition monitoring
 - Live backtesting interface
 - Access at `http://localhost:8501`
+
+## 🤖 Automated Execution (GitHub Actions)
 
 #### ⏰ `hourly-test` - Hourly Execution Testing
 
