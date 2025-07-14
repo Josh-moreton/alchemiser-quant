@@ -1,4 +1,4 @@
-name: Nuclear Energy Trading Bot - Hourly Signals
+name: Nuclear Bot - Daily Signal
 
 on:
   workflow_dispatch:
