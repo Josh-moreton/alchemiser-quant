@@ -10,3 +10,5 @@ venv/
 
 # Ignore backtest results
 /data/backtest_results/
+
+.env
