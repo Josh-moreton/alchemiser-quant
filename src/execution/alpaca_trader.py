@@ -29,7 +29,8 @@ load_dotenv()
 
 # Configure logging
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.
+    ,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
         logging.FileHandler('data/logs/alpaca_trader.log'),
@@ -40,17 +41,26 @@ logging.basicConfig(
 class AlpacaTradingBot:
     """Alpaca Trading Bot for Nuclear Strategy"""
     
-    def __init__(self, paper_trading=True):
+    def __init__(self, paper_trading=None):
         """
         Initialize Alpaca trading client
         
         Args:
-            paper_trading (bool): Use paper trading account if True
+            paper_trading (bool, optional): Use paper trading account if True. 
+                                          If None, reads from ALPACA_PAPER_TRADING env variable
         """
-        self.paper_trading = paper_trading
+        # Determine paper trading mode
+        if paper_trading is None:
+            # Read from environment variable
+            env_paper_trading = os.getenv('ALPACA_PAPER_TRADING', 'true').lower()
+            self.paper_trading = env_paper_trading in ('true', '1', 'yes', 'on')
+        else:
+            self.paper_trading = paper_trading
+        
+        logging.info(f"🏦 Trading Mode: {'PAPER' if self.paper_trading else 'LIVE'} (from {'env variable' if paper_trading is None else 'parameter'})")
         
         # Get credentials from environment
-        if paper_trading:
+        if self.paper_trading:
             self.api_key = os.getenv('ALPACA_PAPER_KEY')
             self.secret_key = os.getenv('ALPACA_PAPER_SECRET')
             self.base_url = os.getenv('ALPACA_PAPER_ENDPOINT', 'https://paper-api.alpaca.markets')
@@ -74,7 +84,7 @@ class AlpacaTradingBot:
             self.trading_client = TradingClient(
                 api_key=self.api_key,
                 secret_key=self.secret_key,
-                paper=paper_trading
+                paper=self.paper_trading
             )
             logging.info("TradingClient initialized successfully")
         except Exception as e:
@@ -94,7 +104,7 @@ class AlpacaTradingBot:
         
         # Portfolio configuration - no cash reserves, invest everything based on strategy
         
-        logging.info(f"Alpaca Trading Bot initialized - Paper Trading: {paper_trading}")
+        logging.info(f"Alpaca Trading Bot initialized - Paper Trading: {self.paper_trading}")
     
     def get_account_info(self) -> Dict:
         """Get account information"""
@@ -589,8 +599,8 @@ class AlpacaTradingBot:
 def main():
     """Main function for testing"""
     try:
-        # Initialize bot with paper trading
-        bot = AlpacaTradingBot(paper_trading=True)
+        # Initialize bot - will read ALPACA_PAPER_TRADING from environment
+        bot = AlpacaTradingBot()
         
         # Display account summary
         bot.display_account_summary()
