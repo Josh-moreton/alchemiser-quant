@@ -33,6 +33,11 @@ class BacktestDataProvider:
         self.cache = {}
         self.logger = logging.getLogger(__name__)
         
+        # Extend start date to ensure we have enough data for 200-day MA
+        start_dt = pd.Timestamp(start_date)
+        extended_start = start_dt - pd.Timedelta(days=400)  # More conservative buffer for weekends/holidays
+        self.extended_start_date = extended_start.strftime('%Y-%m-%d')
+        
     def download_all_data(self, symbols: List[str]) -> Dict[str, pd.DataFrame]:
         """Download all historical data for symbols"""
         self.logger.info(f"Downloading complete dataset for {len(symbols)} symbols...")
@@ -44,18 +49,21 @@ class BacktestDataProvider:
             try:
                 ticker = yf.Ticker(symbol)
                 
-                # Download daily data
+                # Download daily data with extended start date for sufficient history
                 daily_data = ticker.history(
-                    start=self.start_date, 
+                    start=self.extended_start_date, 
                     end=self.end_date, 
                     interval='1d',
                     auto_adjust=True
                 )
                 
                 if not daily_data.empty:
-                    # Normalize timezone
-                    if daily_data.index.tz is not None:
-                        daily_data.index = daily_data.index.tz_localize(None)
+                    # Normalize timezone - more robust handling
+                    try:
+                        if hasattr(daily_data.index, 'tz') and daily_data.index.tz is not None:
+                            daily_data.index = daily_data.index.tz_localize(None)
+                    except (AttributeError, TypeError):
+                        pass  # Index already timezone-naive or other timezone issue
                     
                     all_data[symbol] = daily_data
                     self.logger.info(f"Downloaded {symbol}: {len(daily_data)} daily records")
@@ -116,74 +124,79 @@ class BacktestNuclearStrategy:
     
     def __init__(self, data_provider: BacktestDataProvider):
         self.data_provider = data_provider
-        self.original_strategy = NuclearStrategyEngine()
+        # Create a NEW strategy engine 
+        self.strategy_engine = NuclearStrategyEngine()
+        # We'll replace the data provider dynamically per evaluation
+        self.backtest_wrapper = None
         self.indicators_calc = TechnicalIndicators()
         self.logger = logging.getLogger(__name__)
         
         # Get all required symbols
-        self.all_symbols = self.original_strategy.all_symbols
+        self.all_symbols = self.strategy_engine.all_symbols
         
-    def calculate_indicators_at_time(self, as_of_date: pd.Timestamp) -> Dict:
-        """
-        Calculate all indicators as of specific date using only historical data
-        This replicates the original strategy's indicator calculation
-        """
-        indicators = {}
-        market_data = {}
+    def _create_backtest_data_provider(self):
+        """Create a backtest-compatible data provider that mimics the live one"""
         
-        for symbol in self.all_symbols:
-            # Get historical data up to (but not including) as_of_date
-            hist_data = self.data_provider.get_data_up_to_date(symbol, as_of_date)
+        class BacktestDataProviderWrapper:
+            """Wraps our backtest data provider to look like the live DataProvider"""
             
-            if hist_data.empty or len(hist_data) < 200:  # Need sufficient data for 200-day MA
-                continue
+            def __init__(self, backtest_provider, current_date):
+                self.backtest_provider = backtest_provider
+                self.current_date = current_date
+                self.cache = {}
+                self.cache_duration = 300
             
-            market_data[symbol] = hist_data
-            close = hist_data['Close']
+            def get_data(self, symbol, period="1y"):
+                """Get historical data up to current_date (mimics live behavior)"""
+                return self.backtest_provider.get_data_up_to_date(symbol, self.current_date)
             
-            try:
-                indicators[symbol] = {
-                    'rsi_10': self._safe_indicator(close, self.indicators_calc.rsi, 10),
-                    'rsi_20': self._safe_indicator(close, self.indicators_calc.rsi, 20),
-                    'ma_200': self._safe_indicator(close, self.indicators_calc.moving_average, 200),
-                    'ma_20': self._safe_indicator(close, self.indicators_calc.moving_average, 20),
-                    'ma_return_90': self._safe_indicator(close, self.indicators_calc.moving_average_return, 90),
-                    'cum_return_60': self._safe_indicator(close, self.indicators_calc.cumulative_return, 60),
-                    'current_price': float(close.iloc[-1]),
-                    'price_history': close.tail(90).values.tolist() if len(close) >= 90 else close.values.tolist()
-                }
-            except Exception as e:
-                self.logger.warning(f"Failed to calculate indicators for {symbol} on {as_of_date}: {e}")
-                continue
+            def get_current_price(self, symbol):
+                """Get 'current' price as of the backtest date"""
+                data = self.get_data(symbol, period="5d")
+                if not data.empty:
+                    return float(data['Close'].iloc[-1])
+                return 0.0
         
-        return indicators, market_data
-    
-    def _safe_indicator(self, data, indicator_func, *args, **kwargs):
-        """Safely calculate indicator with fallback"""
-        try:
-            result = indicator_func(data, *args, **kwargs)
-            if hasattr(result, 'iloc') and len(result) > 0:
-                value = float(result.iloc[-1])
-                return value if not pd.isna(value) else 50.0
-            return 50.0
-        except:
-            return 50.0
+        wrapper = BacktestDataProviderWrapper(self.data_provider, pd.Timestamp('2024-11-01'))
+        return wrapper
     
     def evaluate_strategy_at_time(self, as_of_date: pd.Timestamp) -> Tuple[str, str, str, Dict, Dict]:
         """
         Evaluate the nuclear strategy at a specific point in time
         Returns: (signal, action, reason, indicators, market_data)
         """
-        # Calculate indicators using only historical data
-        indicators, market_data = self.calculate_indicators_at_time(as_of_date)
+        # Create a fresh wrapper for this evaluation date
+        self.backtest_wrapper = self._create_backtest_data_provider()
+        self.backtest_wrapper.current_date = as_of_date
         
-        if not indicators:
-            return 'SPY', 'HOLD', "Insufficient data", {}, {}
+        # Temporarily replace the data provider (ignore type checker)
+        original_provider = self.strategy_engine.data_provider
+        self.strategy_engine.data_provider = self.backtest_wrapper  # type: ignore
         
-        # Use original strategy logic
-        signal, action, reason = self.original_strategy.evaluate_nuclear_strategy(indicators, market_data)
-        
-        return signal, action, reason, indicators, market_data
+        try:
+            # Use the EXACT same method as the live bot
+            market_data = self.strategy_engine.get_market_data()
+            if not market_data:
+                return 'SPY', 'HOLD', "No market data available", {}, {}
+            
+            # Calculate indicators using the EXACT same method as the live bot
+            indicators = self.strategy_engine.calculate_indicators(market_data)
+            if not indicators:
+                return 'SPY', 'HOLD', "No indicators calculated", {}, {}
+            
+            # Add price_history to indicators for portfolio building
+            for symbol in indicators:
+                if symbol in market_data and not market_data[symbol].empty:
+                    indicators[symbol]['price_history'] = market_data[symbol]['Close'].tolist()
+            
+            # Use the EXACT same strategy evaluation as the live bot
+            signal, action, reason = self.strategy_engine.evaluate_nuclear_strategy(indicators, market_data)
+            
+            return signal, action, reason, indicators, market_data
+            
+        finally:
+            # Restore original provider
+            self.strategy_engine.data_provider = original_provider
 
 class SignalTracker:
     """
@@ -279,7 +292,7 @@ class PortfolioBuilder:
     
     def _build_nuclear_portfolio(self, indicators: Dict, portfolio_value: float) -> Dict[str, float]:
         """Build nuclear energy portfolio with inverse volatility weighting"""
-        nuclear_symbols = self.strategy.original_strategy.nuclear_symbols
+        nuclear_symbols = self.strategy.strategy_engine.nuclear_symbols
         nuclear_performance = []
         
         # Get performance for available nuclear stocks
@@ -380,10 +393,18 @@ def test_backtest_framework():
     
     # Test strategy evaluation at specific date
     test_date = pd.Timestamp('2024-11-01')
+    
+    # Debug: Check available data for a key symbol
+    spy_data = data_provider.get_data_up_to_date('SPY', test_date)
+    print(f"SPY data available up to {test_date.date()}: {len(spy_data)} records")
+    if not spy_data.empty:
+        print(f"SPY data range: {spy_data.index[0].date()} to {spy_data.index[-1].date()}")
+    
     signal, action, reason, indicators, market_data = strategy.evaluate_strategy_at_time(test_date)
     
     print(f"Strategy Signal on {test_date.date()}: {action} {signal}")
     print(f"Reason: {reason}")
+    print(f"Indicators calculated for {len(indicators)} symbols")
     
     # Test portfolio building
     if indicators:

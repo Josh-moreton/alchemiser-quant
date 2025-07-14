@@ -1856,3 +1856,474 @@
 2025-07-14 08:50:47,311 - INFO - Analysis complete: BUY NUCLEAR_PORTFOLIO - Bull market - Nuclear portfolio: SMR (31.2%), LEU (39.5%), OKLO (29.3%)
 2025-07-14 08:55:21,433 - INFO - Starting Nuclear Energy strategy analysis...
 2025-07-14 08:55:24,058 - INFO - Analysis complete: BUY NUCLEAR_PORTFOLIO - Bull market - Nuclear portfolio: SMR (31.2%), LEU (39.5%), OKLO (29.3%)
+2025-07-14 08:59:21,022 - INFO - Downloading complete dataset for 20 symbols...
+2025-07-14 08:59:21,753 - INFO - Downloaded SPY: 63 daily records
+2025-07-14 08:59:21,849 - INFO - Downloaded IOO: 63 daily records
+2025-07-14 08:59:21,933 - INFO - Downloaded TQQQ: 63 daily records
+2025-07-14 08:59:22,027 - INFO - Downloaded VTV: 63 daily records
+2025-07-14 08:59:22,133 - INFO - Downloaded XLF: 63 daily records
+2025-07-14 08:59:22,275 - INFO - Downloaded VOX: 63 daily records
+2025-07-14 08:59:22,345 - INFO - Downloaded UVXY: 63 daily records
+2025-07-14 08:59:22,437 - INFO - Downloaded BTAL: 63 daily records
+2025-07-14 08:59:22,542 - INFO - Downloaded QQQ: 63 daily records
+2025-07-14 08:59:22,631 - INFO - Downloaded SQQQ: 63 daily records
+2025-07-14 08:59:22,760 - INFO - Downloaded PSQ: 63 daily records
+2025-07-14 08:59:22,850 - INFO - Downloaded UPRO: 63 daily records
+2025-07-14 08:59:22,960 - INFO - Downloaded TLT: 63 daily records
+2025-07-14 08:59:23,064 - INFO - Downloaded IEF: 63 daily records
+2025-07-14 08:59:23,138 - INFO - Downloaded SMR: 63 daily records
+2025-07-14 08:59:23,219 - INFO - Downloaded BWXT: 63 daily records
+2025-07-14 08:59:23,302 - INFO - Downloaded LEU: 63 daily records
+2025-07-14 08:59:23,492 - INFO - Downloaded EXC: 63 daily records
+2025-07-14 08:59:23,596 - INFO - Downloaded NLR: 63 daily records
+2025-07-14 08:59:23,680 - INFO - Downloaded OKLO: 63 daily records
+2025-07-14 08:59:41,687 - INFO - Downloading complete dataset for 20 symbols...
+2025-07-14 08:59:42,177 - INFO - Downloaded SPY: 63 daily records
+2025-07-14 08:59:42,266 - INFO - Downloaded IOO: 63 daily records
+2025-07-14 08:59:42,359 - INFO - Downloaded TQQQ: 63 daily records
+2025-07-14 08:59:42,453 - INFO - Downloaded VTV: 63 daily records
+2025-07-14 08:59:42,552 - INFO - Downloaded XLF: 63 daily records
+2025-07-14 08:59:42,648 - INFO - Downloaded VOX: 63 daily records
+2025-07-14 08:59:42,716 - INFO - Downloaded UVXY: 63 daily records
+2025-07-14 08:59:42,815 - INFO - Downloaded BTAL: 63 daily records
+2025-07-14 08:59:42,897 - INFO - Downloaded QQQ: 63 daily records
+2025-07-14 08:59:42,969 - INFO - Downloaded SQQQ: 63 daily records
+2025-07-14 08:59:43,071 - INFO - Downloaded PSQ: 63 daily records
+2025-07-14 08:59:43,199 - INFO - Downloaded UPRO: 63 daily records
+2025-07-14 08:59:43,322 - INFO - Downloaded TLT: 63 daily records
+2025-07-14 08:59:43,421 - INFO - Downloaded IEF: 63 daily records
+2025-07-14 08:59:43,505 - INFO - Downloaded SMR: 63 daily records
+2025-07-14 08:59:43,596 - INFO - Downloaded BWXT: 63 daily records
+2025-07-14 08:59:43,667 - INFO - Downloaded LEU: 63 daily records
+2025-07-14 08:59:43,791 - INFO - Downloaded EXC: 63 daily records
+2025-07-14 08:59:43,897 - INFO - Downloaded NLR: 63 daily records
+2025-07-14 08:59:43,963 - INFO - Downloaded OKLO: 63 daily records
+2025-07-14 09:02:04,701 - INFO - Downloading complete dataset for 20 symbols...
+2025-07-14 09:02:06,088 - INFO - Downloaded SPY: 235 daily records
+2025-07-14 09:02:06,187 - INFO - Downloaded IOO: 235 daily records
+2025-07-14 09:02:06,273 - INFO - Downloaded TQQQ: 235 daily records
+2025-07-14 09:02:06,374 - INFO - Downloaded VTV: 235 daily records
+2025-07-14 09:02:06,505 - INFO - Downloaded XLF: 235 daily records
+2025-07-14 09:02:06,621 - INFO - Downloaded VOX: 235 daily records
+2025-07-14 09:02:06,728 - INFO - Downloaded UVXY: 235 daily records
+2025-07-14 09:02:06,813 - INFO - Downloaded BTAL: 235 daily records
+2025-07-14 09:02:06,916 - INFO - Downloaded QQQ: 235 daily records
+2025-07-14 09:02:06,994 - INFO - Downloaded SQQQ: 235 daily records
+2025-07-14 09:02:07,084 - INFO - Downloaded PSQ: 235 daily records
+2025-07-14 09:02:07,175 - INFO - Downloaded UPRO: 235 daily records
+2025-07-14 09:02:07,295 - INFO - Downloaded TLT: 235 daily records
+2025-07-14 09:02:07,417 - INFO - Downloaded IEF: 235 daily records
+2025-07-14 09:02:07,508 - INFO - Downloaded SMR: 235 daily records
+2025-07-14 09:02:07,628 - INFO - Downloaded BWXT: 235 daily records
+2025-07-14 09:02:07,706 - INFO - Downloaded LEU: 235 daily records
+2025-07-14 09:02:07,828 - INFO - Downloaded EXC: 235 daily records
+2025-07-14 09:02:07,912 - INFO - Downloaded NLR: 235 daily records
+2025-07-14 09:02:07,993 - INFO - Downloaded OKLO: 235 daily records
+2025-07-14 09:03:38,937 - INFO - Downloading complete dataset for 20 symbols...
+2025-07-14 09:03:39,433 - INFO - Downloaded SPY: 235 daily records
+2025-07-14 09:03:39,555 - INFO - Downloaded IOO: 235 daily records
+2025-07-14 09:03:39,645 - INFO - Downloaded TQQQ: 235 daily records
+2025-07-14 09:03:39,738 - INFO - Downloaded VTV: 235 daily records
+2025-07-14 09:03:39,835 - INFO - Downloaded XLF: 235 daily records
+2025-07-14 09:03:39,970 - INFO - Downloaded VOX: 235 daily records
+2025-07-14 09:03:40,040 - INFO - Downloaded UVXY: 235 daily records
+2025-07-14 09:03:40,130 - INFO - Downloaded BTAL: 235 daily records
+2025-07-14 09:03:40,230 - INFO - Downloaded QQQ: 235 daily records
+2025-07-14 09:03:40,322 - INFO - Downloaded SQQQ: 235 daily records
+2025-07-14 09:03:40,423 - INFO - Downloaded PSQ: 235 daily records
+2025-07-14 09:03:40,568 - INFO - Downloaded UPRO: 235 daily records
+2025-07-14 09:03:40,698 - INFO - Downloaded TLT: 235 daily records
+2025-07-14 09:03:40,848 - INFO - Downloaded IEF: 235 daily records
+2025-07-14 09:03:40,943 - INFO - Downloaded SMR: 235 daily records
+2025-07-14 09:03:41,027 - INFO - Downloaded BWXT: 235 daily records
+2025-07-14 09:03:41,117 - INFO - Downloaded LEU: 235 daily records
+2025-07-14 09:03:41,298 - INFO - Downloaded EXC: 235 daily records
+2025-07-14 09:03:41,389 - INFO - Downloaded NLR: 235 daily records
+2025-07-14 09:03:41,470 - INFO - Downloaded OKLO: 235 daily records
+2025-07-14 09:04:12,329 - INFO - Downloading complete dataset for 20 symbols...
+2025-07-14 09:04:15,324 - INFO - Downloaded SPY: 338 daily records
+2025-07-14 09:04:17,242 - INFO - Downloaded IOO: 338 daily records
+2025-07-14 09:04:19,418 - INFO - Downloaded TQQQ: 338 daily records
+2025-07-14 09:04:21,485 - INFO - Downloaded VTV: 338 daily records
+2025-07-14 09:04:23,070 - INFO - Downloaded XLF: 338 daily records
+2025-07-14 09:04:24,558 - INFO - Downloaded VOX: 338 daily records
+2025-07-14 09:04:26,025 - INFO - Downloaded UVXY: 338 daily records
+2025-07-14 09:04:27,463 - INFO - Downloaded BTAL: 338 daily records
+2025-07-14 09:04:28,930 - INFO - Downloaded QQQ: 338 daily records
+2025-07-14 09:04:30,441 - INFO - Downloaded SQQQ: 338 daily records
+2025-07-14 09:04:32,020 - INFO - Downloaded PSQ: 338 daily records
+2025-07-14 09:04:32,944 - INFO - Downloaded UPRO: 338 daily records
+2025-07-14 09:04:34,273 - INFO - Downloaded TLT: 338 daily records
+2025-07-14 09:04:35,618 - INFO - Downloaded IEF: 338 daily records
+2025-07-14 09:04:37,057 - INFO - Downloaded SMR: 338 daily records
+2025-07-14 09:04:38,979 - INFO - Downloaded BWXT: 338 daily records
+2025-07-14 09:04:40,444 - INFO - Downloaded LEU: 338 daily records
+2025-07-14 09:04:41,858 - INFO - Downloaded EXC: 338 daily records
+2025-07-14 09:04:43,384 - INFO - Downloaded NLR: 338 daily records
+2025-07-14 09:04:44,829 - INFO - Downloaded OKLO: 338 daily records
+2025-07-14 09:09:33,300 - INFO - Downloading complete dataset for 20 symbols...
+2025-07-14 09:09:33,851 - INFO - Downloaded SPY: 338 daily records
+2025-07-14 09:09:33,964 - INFO - Downloaded IOO: 338 daily records
+2025-07-14 09:09:34,054 - INFO - Downloaded TQQQ: 338 daily records
+2025-07-14 09:09:34,161 - INFO - Downloaded VTV: 338 daily records
+2025-07-14 09:09:34,279 - INFO - Downloaded XLF: 338 daily records
+2025-07-14 09:09:34,392 - INFO - Downloaded VOX: 338 daily records
+2025-07-14 09:09:34,473 - INFO - Downloaded UVXY: 338 daily records
+2025-07-14 09:09:34,576 - INFO - Downloaded BTAL: 338 daily records
+2025-07-14 09:09:34,709 - INFO - Downloaded QQQ: 338 daily records
+2025-07-14 09:09:34,803 - INFO - Downloaded SQQQ: 338 daily records
+2025-07-14 09:09:34,901 - INFO - Downloaded PSQ: 338 daily records
+2025-07-14 09:09:34,990 - INFO - Downloaded UPRO: 338 daily records
+2025-07-14 09:09:35,120 - INFO - Downloaded TLT: 338 daily records
+2025-07-14 09:09:35,233 - INFO - Downloaded IEF: 338 daily records
+2025-07-14 09:09:35,304 - INFO - Downloaded SMR: 338 daily records
+2025-07-14 09:09:35,399 - INFO - Downloaded BWXT: 338 daily records
+2025-07-14 09:09:35,498 - INFO - Downloaded LEU: 338 daily records
+2025-07-14 09:09:35,655 - INFO - Downloaded EXC: 338 daily records
+2025-07-14 09:09:35,764 - INFO - Downloaded NLR: 338 daily records
+2025-07-14 09:09:35,843 - INFO - Downloaded OKLO: 338 daily records
+2025-07-14 09:12:45,591 - INFO - Starting Nuclear Energy strategy analysis...
+2025-07-14 09:12:48,274 - INFO - Analysis complete: BUY NUCLEAR_PORTFOLIO - Bull market - Nuclear portfolio: SMR (31.2%), LEU (39.5%), OKLO (29.3%)
+2025-07-14 09:15:51,085 - INFO - Downloading complete dataset for 20 symbols...
+2025-07-14 09:15:51,607 - INFO - Downloaded SPY: 338 daily records
+2025-07-14 09:15:51,718 - INFO - Downloaded IOO: 338 daily records
+2025-07-14 09:15:51,813 - INFO - Downloaded TQQQ: 338 daily records
+2025-07-14 09:15:51,934 - INFO - Downloaded VTV: 338 daily records
+2025-07-14 09:15:52,094 - INFO - Downloaded XLF: 338 daily records
+2025-07-14 09:15:52,218 - INFO - Downloaded VOX: 338 daily records
+2025-07-14 09:15:52,299 - INFO - Downloaded UVXY: 338 daily records
+2025-07-14 09:15:52,395 - INFO - Downloaded BTAL: 338 daily records
+2025-07-14 09:15:52,510 - INFO - Downloaded QQQ: 338 daily records
+2025-07-14 09:15:52,636 - INFO - Downloaded SQQQ: 338 daily records
+2025-07-14 09:15:52,776 - INFO - Downloaded PSQ: 338 daily records
+2025-07-14 09:15:52,910 - INFO - Downloaded UPRO: 338 daily records
+2025-07-14 09:15:53,032 - INFO - Downloaded TLT: 338 daily records
+2025-07-14 09:15:53,165 - INFO - Downloaded IEF: 338 daily records
+2025-07-14 09:15:53,252 - INFO - Downloaded SMR: 338 daily records
+2025-07-14 09:15:53,372 - INFO - Downloaded BWXT: 338 daily records
+2025-07-14 09:15:53,483 - INFO - Downloaded LEU: 338 daily records
+2025-07-14 09:15:53,666 - INFO - Downloaded EXC: 338 daily records
+2025-07-14 09:15:53,787 - INFO - Downloaded NLR: 338 daily records
+2025-07-14 09:15:53,871 - INFO - Downloaded OKLO: 338 daily records
+2025-07-14 09:17:16,014 - INFO - Downloading complete dataset for 20 symbols...
+2025-07-14 09:17:18,331 - INFO - Downloaded SPY: 338 daily records
+2025-07-14 09:17:18,440 - INFO - Downloaded IOO: 338 daily records
+2025-07-14 09:17:18,554 - INFO - Downloaded TQQQ: 338 daily records
+2025-07-14 09:17:18,648 - INFO - Downloaded VTV: 338 daily records
+2025-07-14 09:17:18,790 - INFO - Downloaded XLF: 338 daily records
+2025-07-14 09:17:18,904 - INFO - Downloaded VOX: 338 daily records
+2025-07-14 09:17:18,980 - INFO - Downloaded UVXY: 338 daily records
+2025-07-14 09:17:19,065 - INFO - Downloaded BTAL: 338 daily records
+2025-07-14 09:17:19,159 - INFO - Downloaded QQQ: 338 daily records
+2025-07-14 09:17:19,240 - INFO - Downloaded SQQQ: 338 daily records
+2025-07-14 09:17:19,330 - INFO - Downloaded PSQ: 338 daily records
+2025-07-14 09:17:19,454 - INFO - Downloaded UPRO: 338 daily records
+2025-07-14 09:17:19,568 - INFO - Downloaded TLT: 338 daily records
+2025-07-14 09:17:19,692 - INFO - Downloaded IEF: 338 daily records
+2025-07-14 09:17:19,778 - INFO - Downloaded SMR: 338 daily records
+2025-07-14 09:17:19,872 - INFO - Downloaded BWXT: 338 daily records
+2025-07-14 09:17:19,995 - INFO - Downloaded LEU: 338 daily records
+2025-07-14 09:17:20,175 - INFO - Downloaded EXC: 338 daily records
+2025-07-14 09:17:20,274 - INFO - Downloaded NLR: 338 daily records
+2025-07-14 09:17:20,369 - INFO - Downloaded OKLO: 338 daily records
+2025-07-14 09:18:56,718 - INFO - Downloading complete dataset for 20 symbols...
+2025-07-14 09:18:57,241 - INFO - Downloaded SPY: 338 daily records
+2025-07-14 09:18:57,356 - INFO - Downloaded IOO: 338 daily records
+2025-07-14 09:18:57,437 - INFO - Downloaded TQQQ: 338 daily records
+2025-07-14 09:18:57,570 - INFO - Downloaded VTV: 338 daily records
+2025-07-14 09:18:57,699 - INFO - Downloaded XLF: 338 daily records
+2025-07-14 09:18:57,797 - INFO - Downloaded VOX: 338 daily records
+2025-07-14 09:18:57,886 - INFO - Downloaded UVXY: 338 daily records
+2025-07-14 09:18:57,965 - INFO - Downloaded BTAL: 338 daily records
+2025-07-14 09:18:58,082 - INFO - Downloaded QQQ: 338 daily records
+2025-07-14 09:18:58,177 - INFO - Downloaded SQQQ: 338 daily records
+2025-07-14 09:18:58,265 - INFO - Downloaded PSQ: 338 daily records
+2025-07-14 09:18:58,358 - INFO - Downloaded UPRO: 338 daily records
+2025-07-14 09:18:58,470 - INFO - Downloaded TLT: 338 daily records
+2025-07-14 09:18:58,608 - INFO - Downloaded IEF: 338 daily records
+2025-07-14 09:18:58,677 - INFO - Downloaded SMR: 338 daily records
+2025-07-14 09:18:58,759 - INFO - Downloaded BWXT: 338 daily records
+2025-07-14 09:18:58,842 - INFO - Downloaded LEU: 338 daily records
+2025-07-14 09:18:59,058 - INFO - Downloaded EXC: 338 daily records
+2025-07-14 09:18:59,144 - INFO - Downloaded NLR: 338 daily records
+2025-07-14 09:18:59,245 - INFO - Downloaded OKLO: 338 daily records
+2025-07-14 09:18:59,245 - INFO - Signal analyzer initialized with data for 20 symbols
+2025-07-14 09:18:59,246 - INFO - Generating signals for 20 trading days...
+2025-07-14 09:18:59,336 - WARNING - Failed to generate signal for 2024-11-06: 'BacktestNuclearStrategy' object has no attribute 'original_strategy'
+2025-07-14 09:18:59,387 - WARNING - Failed to generate signal for 2024-11-11: 'BacktestNuclearStrategy' object has no attribute 'original_strategy'
+2025-07-14 09:18:59,405 - WARNING - Failed to generate signal for 2024-11-12: 'BacktestNuclearStrategy' object has no attribute 'original_strategy'
+2025-07-14 09:18:59,423 - WARNING - Failed to generate signal for 2024-11-13: 'BacktestNuclearStrategy' object has no attribute 'original_strategy'
+2025-07-14 09:18:59,440 - WARNING - Failed to generate signal for 2024-11-14: 'BacktestNuclearStrategy' object has no attribute 'original_strategy'
+2025-07-14 09:18:59,475 - WARNING - Failed to generate signal for 2024-11-18: 'BacktestNuclearStrategy' object has no attribute 'original_strategy'
+2025-07-14 09:18:59,509 - WARNING - Failed to generate signal for 2024-11-20: 'BacktestNuclearStrategy' object has no attribute 'original_strategy'
+2025-07-14 09:18:59,527 - WARNING - Failed to generate signal for 2024-11-21: 'BacktestNuclearStrategy' object has no attribute 'original_strategy'
+2025-07-14 09:18:59,544 - WARNING - Failed to generate signal for 2024-11-22: 'BacktestNuclearStrategy' object has no attribute 'original_strategy'
+2025-07-14 09:18:59,562 - WARNING - Failed to generate signal for 2024-11-25: 'BacktestNuclearStrategy' object has no attribute 'original_strategy'
+2025-07-14 09:18:59,580 - WARNING - Failed to generate signal for 2024-11-26: 'BacktestNuclearStrategy' object has no attribute 'original_strategy'
+2025-07-14 09:18:59,597 - WARNING - Failed to generate signal for 2024-11-27: 'BacktestNuclearStrategy' object has no attribute 'original_strategy'
+2025-07-14 09:18:59,615 - WARNING - Failed to generate signal for 2024-11-29: 'BacktestNuclearStrategy' object has no attribute 'original_strategy'
+2025-07-14 09:18:59,615 - INFO - Generated 7 signals successfully
+2025-07-14 09:19:32,508 - INFO - Downloading complete dataset for 20 symbols...
+2025-07-14 09:19:33,010 - INFO - Downloaded SPY: 338 daily records
+2025-07-14 09:19:33,143 - INFO - Downloaded IOO: 338 daily records
+2025-07-14 09:19:33,242 - INFO - Downloaded TQQQ: 338 daily records
+2025-07-14 09:19:33,363 - INFO - Downloaded VTV: 338 daily records
+2025-07-14 09:19:33,467 - INFO - Downloaded XLF: 338 daily records
+2025-07-14 09:19:33,587 - INFO - Downloaded VOX: 338 daily records
+2025-07-14 09:19:33,670 - INFO - Downloaded UVXY: 338 daily records
+2025-07-14 09:19:33,767 - INFO - Downloaded BTAL: 338 daily records
+2025-07-14 09:19:33,882 - INFO - Downloaded QQQ: 338 daily records
+2025-07-14 09:19:34,000 - INFO - Downloaded SQQQ: 338 daily records
+2025-07-14 09:19:34,106 - INFO - Downloaded PSQ: 338 daily records
+2025-07-14 09:19:34,206 - INFO - Downloaded UPRO: 338 daily records
+2025-07-14 09:19:34,396 - INFO - Downloaded TLT: 338 daily records
+2025-07-14 09:19:34,561 - INFO - Downloaded IEF: 338 daily records
+2025-07-14 09:19:34,642 - INFO - Downloaded SMR: 338 daily records
+2025-07-14 09:19:34,740 - INFO - Downloaded BWXT: 338 daily records
+2025-07-14 09:19:34,817 - INFO - Downloaded LEU: 338 daily records
+2025-07-14 09:19:34,963 - INFO - Downloaded EXC: 338 daily records
+2025-07-14 09:19:35,070 - INFO - Downloaded NLR: 338 daily records
+2025-07-14 09:19:35,161 - INFO - Downloaded OKLO: 338 daily records
+2025-07-14 09:19:35,161 - INFO - Signal analyzer initialized with data for 20 symbols
+2025-07-14 09:19:35,162 - INFO - Generating signals for 20 trading days...
+2025-07-14 09:19:35,525 - INFO - Processed 20/20 days
+2025-07-14 09:19:35,525 - INFO - Generated 20 signals successfully
+2025-07-14 09:22:15,405 - INFO - Downloading complete dataset for 20 symbols...
+2025-07-14 09:22:15,963 - INFO - Downloaded SPY: 296 daily records
+2025-07-14 09:22:16,067 - INFO - Downloaded IOO: 296 daily records
+2025-07-14 09:22:16,183 - INFO - Downloaded TQQQ: 296 daily records
+2025-07-14 09:22:16,298 - INFO - Downloaded VTV: 296 daily records
+2025-07-14 09:22:16,411 - INFO - Downloaded XLF: 296 daily records
+2025-07-14 09:22:16,505 - INFO - Downloaded VOX: 296 daily records
+2025-07-14 09:22:16,580 - INFO - Downloaded UVXY: 296 daily records
+2025-07-14 09:22:16,682 - INFO - Downloaded BTAL: 296 daily records
+2025-07-14 09:22:16,777 - INFO - Downloaded QQQ: 296 daily records
+2025-07-14 09:22:16,874 - INFO - Downloaded SQQQ: 296 daily records
+2025-07-14 09:22:16,975 - INFO - Downloaded PSQ: 296 daily records
+2025-07-14 09:22:17,077 - INFO - Downloaded UPRO: 296 daily records
+2025-07-14 09:22:17,213 - INFO - Downloaded TLT: 296 daily records
+2025-07-14 09:22:17,327 - INFO - Downloaded IEF: 296 daily records
+2025-07-14 09:22:17,400 - INFO - Downloaded SMR: 296 daily records
+2025-07-14 09:22:17,485 - INFO - Downloaded BWXT: 296 daily records
+2025-07-14 09:22:17,577 - INFO - Downloaded LEU: 296 daily records
+2025-07-14 09:22:17,736 - INFO - Downloaded EXC: 296 daily records
+2025-07-14 09:22:17,863 - INFO - Downloaded NLR: 296 daily records
+2025-07-14 09:22:17,944 - INFO - Downloaded OKLO: 296 daily records
+2025-07-14 09:22:17,944 - INFO - Downloaded data for 20 symbols
+2025-07-14 09:22:17,945 - INFO - Running backtest for 20 trading days
+2025-07-14 09:22:18,036 - ERROR - Error processing 2024-11-06: 'price_history'
+2025-07-14 09:22:18,088 - ERROR - Error processing 2024-11-11: 'price_history'
+2025-07-14 09:22:18,106 - ERROR - Error processing 2024-11-12: 'price_history'
+2025-07-14 09:22:18,123 - ERROR - Error processing 2024-11-13: 'price_history'
+2025-07-14 09:22:18,141 - ERROR - Error processing 2024-11-14: 'price_history'
+2025-07-14 09:22:18,175 - ERROR - Error processing 2024-11-18: 'price_history'
+2025-07-14 09:22:18,210 - ERROR - Error processing 2024-11-20: 'price_history'
+2025-07-14 09:22:18,227 - ERROR - Error processing 2024-11-21: 'price_history'
+2025-07-14 09:22:18,245 - ERROR - Error processing 2024-11-22: 'price_history'
+2025-07-14 09:22:18,262 - ERROR - Error processing 2024-11-25: 'price_history'
+2025-07-14 09:22:18,280 - ERROR - Error processing 2024-11-26: 'price_history'
+2025-07-14 09:22:18,297 - ERROR - Error processing 2024-11-27: 'price_history'
+2025-07-14 09:22:18,315 - ERROR - Error processing 2024-11-29: 'price_history'
+2025-07-14 09:22:18,315 - INFO - Downloading complete dataset for 20 symbols...
+2025-07-14 09:22:18,319 - INFO - Downloaded SPY: 296 daily records
+2025-07-14 09:22:18,323 - INFO - Downloaded IOO: 296 daily records
+2025-07-14 09:22:18,327 - INFO - Downloaded TQQQ: 296 daily records
+2025-07-14 09:22:18,331 - INFO - Downloaded VTV: 296 daily records
+2025-07-14 09:22:18,334 - INFO - Downloaded XLF: 296 daily records
+2025-07-14 09:22:18,339 - INFO - Downloaded VOX: 296 daily records
+2025-07-14 09:22:18,343 - INFO - Downloaded UVXY: 296 daily records
+2025-07-14 09:22:18,347 - INFO - Downloaded BTAL: 296 daily records
+2025-07-14 09:22:18,351 - INFO - Downloaded QQQ: 296 daily records
+2025-07-14 09:22:18,355 - INFO - Downloaded SQQQ: 296 daily records
+2025-07-14 09:22:18,360 - INFO - Downloaded PSQ: 296 daily records
+2025-07-14 09:22:18,364 - INFO - Downloaded UPRO: 296 daily records
+2025-07-14 09:22:18,368 - INFO - Downloaded TLT: 296 daily records
+2025-07-14 09:22:18,372 - INFO - Downloaded IEF: 296 daily records
+2025-07-14 09:22:18,375 - INFO - Downloaded SMR: 296 daily records
+2025-07-14 09:22:18,378 - INFO - Downloaded BWXT: 296 daily records
+2025-07-14 09:22:18,381 - INFO - Downloaded LEU: 296 daily records
+2025-07-14 09:22:18,385 - INFO - Downloaded EXC: 296 daily records
+2025-07-14 09:22:18,389 - INFO - Downloaded NLR: 296 daily records
+2025-07-14 09:22:18,392 - INFO - Downloaded OKLO: 296 daily records
+2025-07-14 09:22:18,393 - INFO - Downloaded data for 20 symbols
+2025-07-14 09:22:18,393 - INFO - Running backtest for 20 trading days
+2025-07-14 09:22:18,463 - ERROR - Error processing 2024-11-06: 'price_history'
+2025-07-14 09:22:18,515 - ERROR - Error processing 2024-11-11: 'price_history'
+2025-07-14 09:22:18,533 - ERROR - Error processing 2024-11-12: 'price_history'
+2025-07-14 09:22:18,550 - ERROR - Error processing 2024-11-13: 'price_history'
+2025-07-14 09:22:18,568 - ERROR - Error processing 2024-11-14: 'price_history'
+2025-07-14 09:22:18,603 - ERROR - Error processing 2024-11-18: 'price_history'
+2025-07-14 09:22:18,637 - ERROR - Error processing 2024-11-20: 'price_history'
+2025-07-14 09:22:18,655 - ERROR - Error processing 2024-11-21: 'price_history'
+2025-07-14 09:22:18,672 - ERROR - Error processing 2024-11-22: 'price_history'
+2025-07-14 09:22:18,690 - ERROR - Error processing 2024-11-25: 'price_history'
+2025-07-14 09:22:18,707 - ERROR - Error processing 2024-11-26: 'price_history'
+2025-07-14 09:22:18,725 - ERROR - Error processing 2024-11-27: 'price_history'
+2025-07-14 09:22:18,743 - ERROR - Error processing 2024-11-29: 'price_history'
+2025-07-14 09:22:18,743 - INFO - Downloading complete dataset for 20 symbols...
+2025-07-14 09:22:18,747 - INFO - Downloaded SPY: 296 daily records
+2025-07-14 09:22:18,751 - INFO - Downloaded IOO: 296 daily records
+2025-07-14 09:22:18,755 - INFO - Downloaded TQQQ: 296 daily records
+2025-07-14 09:22:18,759 - INFO - Downloaded VTV: 296 daily records
+2025-07-14 09:22:18,763 - INFO - Downloaded XLF: 296 daily records
+2025-07-14 09:22:18,767 - INFO - Downloaded VOX: 296 daily records
+2025-07-14 09:22:18,771 - INFO - Downloaded UVXY: 296 daily records
+2025-07-14 09:22:18,775 - INFO - Downloaded BTAL: 296 daily records
+2025-07-14 09:22:18,778 - INFO - Downloaded QQQ: 296 daily records
+2025-07-14 09:22:18,793 - INFO - Downloaded SQQQ: 296 daily records
+2025-07-14 09:22:18,798 - INFO - Downloaded PSQ: 296 daily records
+2025-07-14 09:22:18,801 - INFO - Downloaded UPRO: 296 daily records
+2025-07-14 09:22:18,806 - INFO - Downloaded TLT: 296 daily records
+2025-07-14 09:22:18,810 - INFO - Downloaded IEF: 296 daily records
+2025-07-14 09:22:18,813 - INFO - Downloaded SMR: 296 daily records
+2025-07-14 09:22:18,816 - INFO - Downloaded BWXT: 296 daily records
+2025-07-14 09:22:18,819 - INFO - Downloaded LEU: 296 daily records
+2025-07-14 09:22:18,823 - INFO - Downloaded EXC: 296 daily records
+2025-07-14 09:22:18,827 - INFO - Downloaded NLR: 296 daily records
+2025-07-14 09:22:18,830 - INFO - Downloaded OKLO: 296 daily records
+2025-07-14 09:22:18,830 - INFO - Downloaded data for 20 symbols
+2025-07-14 09:22:18,830 - INFO - Running backtest for 20 trading days
+2025-07-14 09:22:18,899 - ERROR - Error processing 2024-11-06: 'price_history'
+2025-07-14 09:22:18,951 - ERROR - Error processing 2024-11-11: 'price_history'
+2025-07-14 09:22:18,968 - ERROR - Error processing 2024-11-12: 'price_history'
+2025-07-14 09:22:18,986 - ERROR - Error processing 2024-11-13: 'price_history'
+2025-07-14 09:22:19,004 - ERROR - Error processing 2024-11-14: 'price_history'
+2025-07-14 09:22:19,038 - ERROR - Error processing 2024-11-18: 'price_history'
+2025-07-14 09:22:19,074 - ERROR - Error processing 2024-11-20: 'price_history'
+2025-07-14 09:22:19,092 - ERROR - Error processing 2024-11-21: 'price_history'
+2025-07-14 09:22:19,109 - ERROR - Error processing 2024-11-22: 'price_history'
+2025-07-14 09:22:19,127 - ERROR - Error processing 2024-11-25: 'price_history'
+2025-07-14 09:22:19,145 - ERROR - Error processing 2024-11-26: 'price_history'
+2025-07-14 09:22:19,163 - ERROR - Error processing 2024-11-27: 'price_history'
+2025-07-14 09:22:19,180 - ERROR - Error processing 2024-11-29: 'price_history'
+2025-07-14 09:22:34,043 - INFO - Downloading complete dataset for 20 symbols...
+2025-07-14 09:22:34,509 - INFO - Downloaded SPY: 296 daily records
+2025-07-14 09:22:34,632 - INFO - Downloaded IOO: 296 daily records
+2025-07-14 09:22:34,762 - INFO - Downloaded TQQQ: 296 daily records
+2025-07-14 09:22:34,874 - INFO - Downloaded VTV: 296 daily records
+2025-07-14 09:22:34,976 - INFO - Downloaded XLF: 296 daily records
+2025-07-14 09:22:35,104 - INFO - Downloaded VOX: 296 daily records
+2025-07-14 09:22:35,175 - INFO - Downloaded UVXY: 296 daily records
+2025-07-14 09:22:35,311 - INFO - Downloaded BTAL: 296 daily records
+2025-07-14 09:22:35,451 - INFO - Downloaded QQQ: 296 daily records
+2025-07-14 09:22:35,539 - INFO - Downloaded SQQQ: 296 daily records
+2025-07-14 09:22:35,631 - INFO - Downloaded PSQ: 296 daily records
+2025-07-14 09:22:35,718 - INFO - Downloaded UPRO: 296 daily records
+2025-07-14 09:22:35,819 - INFO - Downloaded TLT: 296 daily records
+2025-07-14 09:22:35,972 - INFO - Downloaded IEF: 296 daily records
+2025-07-14 09:22:36,043 - INFO - Downloaded SMR: 296 daily records
+2025-07-14 09:22:36,126 - INFO - Downloaded BWXT: 296 daily records
+2025-07-14 09:22:36,203 - INFO - Downloaded LEU: 296 daily records
+2025-07-14 09:22:36,342 - INFO - Downloaded EXC: 296 daily records
+2025-07-14 09:22:36,473 - INFO - Downloaded NLR: 296 daily records
+2025-07-14 09:22:36,568 - INFO - Downloaded OKLO: 296 daily records
+2025-07-14 09:22:36,569 - INFO - Downloaded data for 20 symbols
+2025-07-14 09:22:36,570 - INFO - Running backtest for 20 trading days
+2025-07-14 09:22:36,664 - ERROR - Error processing 2024-11-06: 'price_history'
+2025-07-14 09:22:36,716 - ERROR - Error processing 2024-11-11: 'price_history'
+2025-07-14 09:22:36,734 - ERROR - Error processing 2024-11-12: 'price_history'
+2025-07-14 09:22:36,751 - ERROR - Error processing 2024-11-13: 'price_history'
+2025-07-14 09:22:36,769 - ERROR - Error processing 2024-11-14: 'price_history'
+2025-07-14 09:22:36,803 - ERROR - Error processing 2024-11-18: 'price_history'
+2025-07-14 09:22:36,838 - ERROR - Error processing 2024-11-20: 'price_history'
+2025-07-14 09:22:36,855 - ERROR - Error processing 2024-11-21: 'price_history'
+2025-07-14 09:22:36,873 - ERROR - Error processing 2024-11-22: 'price_history'
+2025-07-14 09:22:36,890 - ERROR - Error processing 2024-11-25: 'price_history'
+2025-07-14 09:22:36,908 - ERROR - Error processing 2024-11-26: 'price_history'
+2025-07-14 09:22:36,925 - ERROR - Error processing 2024-11-27: 'price_history'
+2025-07-14 09:22:36,943 - ERROR - Error processing 2024-11-29: 'price_history'
+2025-07-14 09:22:36,943 - INFO - Downloading complete dataset for 20 symbols...
+2025-07-14 09:22:36,947 - INFO - Downloaded SPY: 296 daily records
+2025-07-14 09:22:36,952 - INFO - Downloaded IOO: 296 daily records
+2025-07-14 09:22:36,955 - INFO - Downloaded TQQQ: 296 daily records
+2025-07-14 09:22:36,959 - INFO - Downloaded VTV: 296 daily records
+2025-07-14 09:22:36,963 - INFO - Downloaded XLF: 296 daily records
+2025-07-14 09:22:36,967 - INFO - Downloaded VOX: 296 daily records
+2025-07-14 09:22:36,971 - INFO - Downloaded UVXY: 296 daily records
+2025-07-14 09:22:36,975 - INFO - Downloaded BTAL: 296 daily records
+2025-07-14 09:22:36,979 - INFO - Downloaded QQQ: 296 daily records
+2025-07-14 09:22:36,984 - INFO - Downloaded SQQQ: 296 daily records
+2025-07-14 09:22:36,989 - INFO - Downloaded PSQ: 296 daily records
+2025-07-14 09:22:36,993 - INFO - Downloaded UPRO: 296 daily records
+2025-07-14 09:22:36,997 - INFO - Downloaded TLT: 296 daily records
+2025-07-14 09:22:37,001 - INFO - Downloaded IEF: 296 daily records
+2025-07-14 09:22:37,004 - INFO - Downloaded SMR: 296 daily records
+2025-07-14 09:22:37,008 - INFO - Downloaded BWXT: 296 daily records
+2025-07-14 09:22:37,011 - INFO - Downloaded LEU: 296 daily records
+2025-07-14 09:22:37,015 - INFO - Downloaded EXC: 296 daily records
+2025-07-14 09:22:37,019 - INFO - Downloaded NLR: 296 daily records
+2025-07-14 09:22:37,022 - INFO - Downloaded OKLO: 296 daily records
+2025-07-14 09:22:37,022 - INFO - Downloaded data for 20 symbols
+2025-07-14 09:22:37,022 - INFO - Running backtest for 20 trading days
+2025-07-14 09:22:37,091 - ERROR - Error processing 2024-11-06: 'price_history'
+2025-07-14 09:22:37,143 - ERROR - Error processing 2024-11-11: 'price_history'
+2025-07-14 09:22:37,161 - ERROR - Error processing 2024-11-12: 'price_history'
+2025-07-14 09:22:37,178 - ERROR - Error processing 2024-11-13: 'price_history'
+2025-07-14 09:22:37,196 - ERROR - Error processing 2024-11-14: 'price_history'
+2025-07-14 09:22:37,231 - ERROR - Error processing 2024-11-18: 'price_history'
+2025-07-14 09:22:37,265 - ERROR - Error processing 2024-11-20: 'price_history'
+2025-07-14 09:22:37,283 - ERROR - Error processing 2024-11-21: 'price_history'
+2025-07-14 09:22:37,300 - ERROR - Error processing 2024-11-22: 'price_history'
+2025-07-14 09:22:37,318 - ERROR - Error processing 2024-11-25: 'price_history'
+2025-07-14 09:22:37,336 - ERROR - Error processing 2024-11-26: 'price_history'
+2025-07-14 09:22:37,353 - ERROR - Error processing 2024-11-27: 'price_history'
+2025-07-14 09:22:37,371 - ERROR - Error processing 2024-11-29: 'price_history'
+2025-07-14 09:22:37,371 - INFO - Downloading complete dataset for 20 symbols...
+2025-07-14 09:22:37,375 - INFO - Downloaded SPY: 296 daily records
+2025-07-14 09:22:37,379 - INFO - Downloaded IOO: 296 daily records
+2025-07-14 09:22:37,383 - INFO - Downloaded TQQQ: 296 daily records
+2025-07-14 09:22:37,387 - INFO - Downloaded VTV: 296 daily records
+2025-07-14 09:22:37,392 - INFO - Downloaded XLF: 296 daily records
+2025-07-14 09:22:37,396 - INFO - Downloaded VOX: 296 daily records
+2025-07-14 09:22:37,400 - INFO - Downloaded UVXY: 296 daily records
+2025-07-14 09:22:37,404 - INFO - Downloaded BTAL: 296 daily records
+2025-07-14 09:22:37,408 - INFO - Downloaded QQQ: 296 daily records
+2025-07-14 09:22:37,413 - INFO - Downloaded SQQQ: 296 daily records
+2025-07-14 09:22:37,417 - INFO - Downloaded PSQ: 296 daily records
+2025-07-14 09:22:37,421 - INFO - Downloaded UPRO: 296 daily records
+2025-07-14 09:22:37,425 - INFO - Downloaded TLT: 296 daily records
+2025-07-14 09:22:37,429 - INFO - Downloaded IEF: 296 daily records
+2025-07-14 09:22:37,432 - INFO - Downloaded SMR: 296 daily records
+2025-07-14 09:22:37,446 - INFO - Downloaded BWXT: 296 daily records
+2025-07-14 09:22:37,449 - INFO - Downloaded LEU: 296 daily records
+2025-07-14 09:22:37,453 - INFO - Downloaded EXC: 296 daily records
+2025-07-14 09:22:37,456 - INFO - Downloaded NLR: 296 daily records
+2025-07-14 09:22:37,459 - INFO - Downloaded OKLO: 296 daily records
+2025-07-14 09:22:37,459 - INFO - Downloaded data for 20 symbols
+2025-07-14 09:22:37,460 - INFO - Running backtest for 20 trading days
+2025-07-14 09:22:37,528 - ERROR - Error processing 2024-11-06: 'price_history'
+2025-07-14 09:22:37,580 - ERROR - Error processing 2024-11-11: 'price_history'
+2025-07-14 09:22:37,599 - ERROR - Error processing 2024-11-12: 'price_history'
+2025-07-14 09:22:37,616 - ERROR - Error processing 2024-11-13: 'price_history'
+2025-07-14 09:22:37,634 - ERROR - Error processing 2024-11-14: 'price_history'
+2025-07-14 09:22:37,669 - ERROR - Error processing 2024-11-18: 'price_history'
+2025-07-14 09:22:37,704 - ERROR - Error processing 2024-11-20: 'price_history'
+2025-07-14 09:22:37,722 - ERROR - Error processing 2024-11-21: 'price_history'
+2025-07-14 09:22:37,740 - ERROR - Error processing 2024-11-22: 'price_history'
+2025-07-14 09:22:37,757 - ERROR - Error processing 2024-11-25: 'price_history'
+2025-07-14 09:22:37,775 - ERROR - Error processing 2024-11-26: 'price_history'
+2025-07-14 09:22:37,792 - ERROR - Error processing 2024-11-27: 'price_history'
+2025-07-14 09:22:37,810 - ERROR - Error processing 2024-11-29: 'price_history'
+2025-07-14 09:33:57,495 - INFO - Downloading complete dataset for 20 symbols...
+2025-07-14 09:33:58,772 - INFO - Downloaded SPY: 286 daily records
+2025-07-14 09:33:58,872 - INFO - Downloaded IOO: 286 daily records
+2025-07-14 09:33:58,953 - INFO - Downloaded TQQQ: 286 daily records
+2025-07-14 09:33:59,053 - INFO - Downloaded VTV: 286 daily records
+2025-07-14 09:33:59,154 - INFO - Downloaded XLF: 286 daily records
+2025-07-14 09:33:59,242 - INFO - Downloaded VOX: 286 daily records
+2025-07-14 09:33:59,304 - INFO - Downloaded UVXY: 286 daily records
+2025-07-14 09:33:59,384 - INFO - Downloaded BTAL: 286 daily records
+2025-07-14 09:33:59,491 - INFO - Downloaded QQQ: 286 daily records
+2025-07-14 09:33:59,607 - INFO - Downloaded SQQQ: 286 daily records
+2025-07-14 09:33:59,706 - INFO - Downloaded PSQ: 286 daily records
+2025-07-14 09:33:59,805 - INFO - Downloaded UPRO: 286 daily records
+2025-07-14 09:33:59,923 - INFO - Downloaded TLT: 286 daily records
+2025-07-14 09:34:00,029 - INFO - Downloaded IEF: 286 daily records
+2025-07-14 09:34:00,103 - INFO - Downloaded SMR: 286 daily records
+2025-07-14 09:34:00,190 - INFO - Downloaded BWXT: 286 daily records
+2025-07-14 09:34:00,265 - INFO - Downloaded LEU: 286 daily records
+2025-07-14 09:34:00,406 - INFO - Downloaded EXC: 286 daily records
+2025-07-14 09:34:00,553 - INFO - Downloaded NLR: 286 daily records
+2025-07-14 09:34:00,665 - INFO - Downloaded OKLO: 286 daily records
+2025-07-14 09:34:00,665 - INFO - Downloaded data for 20 symbols
+2025-07-14 09:34:00,665 - INFO - Running backtest for 10 trading days
