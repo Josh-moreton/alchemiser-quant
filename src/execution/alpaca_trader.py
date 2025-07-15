@@ -217,6 +217,10 @@ class AlpacaTradingBot:
         Returns:
             Order ID if successful, None if failed
         """
+        if os.environ.get("FAST_TEST") == "1":
+            poll_timeout = 0
+            poll_interval = 0
+
         if qty <= 0:
             logging.warning(f"Invalid quantity for {symbol}: {qty}")
             return None

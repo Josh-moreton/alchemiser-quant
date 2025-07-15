@@ -7,7 +7,6 @@ This module integrates the Nuclear Trading Strategy with Alpaca Markets for auto
 - **Paper Trading**: Safe testing environment using Alpaca's paper trading account
 - **Automatic Portfolio Rebalancing**: Reads nuclear signals and adjusts portfolio accordingly
 - **Position Management**: Handles buying/selling based on nuclear portfolio allocations
-- **Risk Management**: Built-in position size limits and cash reserves
 - **Comprehensive Logging**: All trades and errors logged for analysis
 
 ## Setup
@@ -36,14 +35,6 @@ ALPACA_SECRET=your_live_secret_here
 
 ## Usage
 
-### Basic Test
-
-Test your Alpaca connection:
-
-```bash
-cd src/execution
-python test_alpaca.py
-```
 
 ### Manual Trading Bot
 
@@ -62,14 +53,6 @@ cd src/execution
 python alpaca_trader.py
 ```
 
-### Continuous Monitoring
-
-Run continuous monitoring with hourly execution:
-
-```bash
-cd src/execution
-python nuclear_alpaca_bot.py --continuous --interval 60
-```
 
 ## How It Works
 
@@ -79,10 +62,6 @@ python nuclear_alpaca_bot.py --continuous --interval 60
 
 3. **Portfolio Parsing**: Extracts allocation percentages from signal reasons (e.g., "31.2%" becomes 0.312 weight)
 
-4. **Risk Management**:
-   - Maximum 10% per position
-   - 5% cash reserve maintained
-   - Position sizing based on portfolio value
 
 5. **Trade Execution**:
    - Sells excess positions first
@@ -91,16 +70,6 @@ python nuclear_alpaca_bot.py --continuous --interval 60
 
 6. **Logging**: All trades logged to `data/logs/alpaca_trades.json`
 
-## Configuration
-
-### Position Limits
-
-Edit `AlpacaTradingBot` class parameters:
-
-```python
-self.max_position_size = 0.10  # Max 10% per position
-self.min_cash_reserve = 0.05   # Keep 5% cash
-```
 
 ### Supported Signals
 
@@ -138,15 +107,12 @@ Target Portfolio: {'SMR': 0.312, 'LEU': 0.395, 'OKLO': 0.293}
 ## Safety Features
 
 - **Paper Trading Only**: Default configuration uses paper trading
-- **Position Limits**: Prevents over-concentration in single positions
 - **Error Handling**: Comprehensive error catching and logging
 - **Dry Run Capability**: Can test without actual execution
 
 ## Files
 
 - `alpaca_trader.py`: Main trading bot class
-- `test_alpaca.py`: Connection testing script
-- `nuclear_alpaca_bot.py`: Integrated nuclear + Alpaca execution
 - `../logs/alpaca_trades.json`: Trade execution log
 - `../logs/alpaca_trader.log`: Error and info logs
 
