@@ -1,3 +1,10 @@
+import time
+# Patch time.sleep to a no-op for all tests in this module
+import pytest
+
+@pytest.fixture(autouse=True)
+def patch_sleep(monkeypatch):
+    monkeypatch.setattr(time, "sleep", lambda x: None)
 #!/usr/bin/env python3
 """
 Comprehensive pytest testing suite for the Alpaca Trading Bot
@@ -191,11 +198,9 @@ class TestOrderPlacement:
         """Test successful buy order placement"""
         mock_order = Mock()
         mock_order.id = 'order_123'
-        
+        mock_order.status = 'filled'  # Ensure status is filled for test
         mock_bot.trading_client.submit_order = Mock(return_value=mock_order)
-        
         order_id = mock_bot.place_order('AAPL', 10.5, OrderSide.BUY)
-        
         assert order_id == 'order_123'
         mock_bot.trading_client.submit_order.assert_called_once()
     
@@ -203,11 +208,9 @@ class TestOrderPlacement:
         """Test successful sell order placement"""
         mock_order = Mock()
         mock_order.id = 'order_456'
-        
+        mock_order.status = 'filled'  # Ensure status is filled for test
         mock_bot.trading_client.submit_order = Mock(return_value=mock_order)
-        
         order_id = mock_bot.place_order('AAPL', 5.25, OrderSide.SELL)
-        
         assert order_id == 'order_456'
     
     def test_place_order_invalid_quantity(self, mock_bot):
@@ -450,17 +453,23 @@ class TestPortfolioRebalancing:
         # Target: Switch to classic nuclear portfolio
         target_portfolio = {'SMR': 0.6, 'LEU': 0.4}
         
+        # Patch get_account_info to simulate cash update after sells
+        def get_account_info_side_effect():
+            # After sells, simulate increased cash/buying power
+            return {
+                'portfolio_value': 47500.0,
+                'cash': 47500.0,
+                'buying_power': 47500.0
+            }
+        mock_bot.get_account_info = Mock(side_effect=get_account_info_side_effect)
         orders = mock_bot.rebalance_portfolio(target_portfolio)
-        
         # Should sell all current positions and buy new ones
         assert len(orders) == 4  # 2 sells + 2 buys
-        
         # Verify all current positions are sold
         sell_orders = [o for o in orders if o['side'] == OrderSide.SELL]
         sell_symbols = {o['symbol'] for o in sell_orders}
         assert 'OKLO' in sell_symbols
         assert 'NNE' in sell_symbols
-        
         # Verify new positions are bought
         buy_orders = [o for o in orders if o['side'] == OrderSide.BUY]
         buy_symbols = {o['symbol'] for o in buy_orders}
@@ -496,19 +505,22 @@ class TestPortfolioRebalancing:
         # Target: Keep SMR, drop OKLO, add LEU
         target_portfolio = {'SMR': 0.65, 'LEU': 0.35}
         
+        # Patch get_account_info to simulate cash update after sells
+        def get_account_info_side_effect():
+            # After sells, simulate increased cash/buying_power
+            return {
+                'portfolio_value': 46000.0,
+                'cash': 46000.0,
+                'buying_power': 46000.0
+            }
+        mock_bot.get_account_info = Mock(side_effect=get_account_info_side_effect)
         orders = mock_bot.rebalance_portfolio(target_portfolio)
-        
         # Should: sell all OKLO, buy SMR and LEU
         oklo_sells = [o for o in orders if o['symbol'] == 'OKLO' and o['side'] == OrderSide.SELL]
         assert len(oklo_sells) == 1
-        # Bot sells what's needed to reach 0% allocation (all shares)
-        assert oklo_sells[0]['qty'] > 0  # Some OKLO shares sold
-        
-        # Should buy more SMR (to get from ~35% to 65%)
+        assert oklo_sells[0]['qty'] > 0
         smr_buys = [o for o in orders if o['symbol'] == 'SMR' and o['side'] == OrderSide.BUY]
         assert len(smr_buys) == 1
-        
-        # Should buy LEU
         leu_buys = [o for o in orders if o['symbol'] == 'LEU' and o['side'] == OrderSide.BUY]
         assert len(leu_buys) == 1
 

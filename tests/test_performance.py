@@ -1,3 +1,10 @@
+import time
+# Patch time.sleep to a no-op for all tests in this module
+import pytest
+
+@pytest.fixture(autouse=True)
+def patch_sleep(monkeypatch):
+    monkeypatch.setattr(time, "sleep", lambda x: None)
 #!/usr/bin/env python3
 """
 Performance and Load Testing for Alpaca Trading Bot
@@ -244,7 +251,7 @@ class TestStressConditions:
         """Test handling of network timeouts"""
         def timeout_simulation(symbol):
             if symbol == 'TIMEOUT_STOCK':
-                time.sleep(5)  # Simulate long network delay
+                # Removed time.sleep(5) for fast test
                 raise Exception("Request timeout")
             return 100.0
         
