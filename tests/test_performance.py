@@ -261,6 +261,7 @@ class TestStressConditions:
             'cash': 50000.0
         })
         stress_bot.get_positions = Mock(return_value={})
+        stress_bot.place_order = Mock(return_value="order_123")
         
         target_portfolio = {
             'SMR': 0.5,
