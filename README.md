@@ -275,29 +275,19 @@ python main.py email
 python main.py backtest --backtest-type hourly
 ```
 
+
 ## Key Features
 
 - **Nuclear Strategy**: Focus on nuclear energy ETFs and leveraged instruments
 - **Execution Timing**: Optimized for 9:30 AM market open execution
 - **Risk Management**: No leverage (instruments are already leveraged)
-- **Comprehensive Backtesting**: Full performance metrics including Sharpe, Sortino, CAGR, max drawdown
 - **Data Management**: Organized storage of results, logs, and market data
 
-## Performance Highlights
 
-Recent backtest results (2024-07-01 to 2024-09-30):
-
-- **Total Return**: +54.05%
-- **CAGR**: +501.00%
-- **Sharpe Ratio**: 2.39
-- **Sortino Ratio**: 4.90
-- **Max Drawdown**: -20.15%
-- **Win Rate**: 60.32%
 
 ## File Organization
 
 - **Core Components** (`src/core/`): Main trading logic and strategy
-- **Backtesting** (`src/backtest/`): Historical analysis and performance testing
 - **Execution** (`src/execution/`): Trade execution and timing optimization
 - **Tests** (`tests/`): Unit tests and integration tests
 - **Data** (`data/`): Organized storage for results, logs, and market data
@@ -312,14 +302,17 @@ Recent backtest results (2024-07-01 to 2024-09-30):
 | **bot** | `python main.py bot` | Live signal generation | Console + JSON logs |
 | **email** | `python main.py email` | Live signals + email alerts | Console + Email |
 | **alpaca** | `python main.py alpaca` | Automated trading with Alpaca + email alert | Console + Email |
-| **backtest** | `python main.py backtest` | Historical strategy testing | Reports + CSV files |
+| **backtest** | *(removed)* | *(removed)* | *(removed)* |
 | **dashboard** | *(removed)* | *(removed)* | *(removed)* |
 | **hourly-test** | `python main.py hourly-test` | Timing optimization | Performance analysis |
 
 ### For Production Use
 
+- **Automated Trading**: `python main.py email` (GitHub Actions hourly)
+- **Manual Check**: `python main.py bot`
+- **Alpaca Trading**: `python main.py alpaca`
 
-*Dashboard mode has been removed. Use email or Alpaca modes for notifications.*
+*Backtest and dashboard modes have been removed. Use email or Alpaca modes for notifications.*
 
 ### Key Features
 
