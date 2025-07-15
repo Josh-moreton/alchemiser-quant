@@ -205,9 +205,9 @@ class AlpacaTradingBot:
             logging.error(f"Error calculating position size for {symbol}: {e}")
             return 0.0
     
-    def place_order(self, symbol: str, qty: float, side: OrderSide, max_retries: int = 3) -> Optional[str]:
+    def place_order(self, symbol: str, qty: float, side: OrderSide, max_retries: int = 3, poll_timeout: int = 30, poll_interval: float = 2.0) -> Optional[str]:
         """
-        Place a market order (supports fractional shares) with retry logic
+        Place a market order (supports fractional shares) with retry logic and detailed Alpaca API response logging.
         
         Args:
             symbol: Stock symbol
@@ -230,18 +230,62 @@ class AlpacaTradingBot:
                     time_in_force=TimeInForce.DAY
                 )
                 order = self.trading_client.submit_order(market_order_data)
+                # Log the full order response for debugging
+                try:
+                    order_json = order.__dict__ if hasattr(order, '__dict__') else str(order)
+                    logging.debug(f"Alpaca API order response for {symbol}: {order_json}")
+                except Exception as log_exc:
+                    logging.warning(f"Could not serialize Alpaca order response for {symbol}: {log_exc}")
                 order_id = str(getattr(order, 'id', 'unknown'))
-                logging.info(f"Order placed: {side.value} {qty} shares of {symbol} - Order ID: {order_id}")
-                return order_id
-                
+                order_status = getattr(order, 'status', 'unknown')
+                filled_qty = getattr(order, 'filled_qty', None)
+                filled_avg_price = getattr(order, 'filled_avg_price', None)
+                submitted_at = getattr(order, 'submitted_at', None)
+                logging.info(f"Order placed: {side.value} {qty} shares of {symbol} - Order ID: {order_id}, Status: {order_status}")
+                logging.info(f"Order details: filled_qty={filled_qty}, filled_avg_price={filled_avg_price}, submitted_at={submitted_at}")
+                # Poll for order status until filled, canceled, or rejected, or timeout
+                poll_start = time.time()
+                final_status = order_status
+                final_filled_qty = filled_qty
+                final_filled_avg_price = filled_avg_price
+                if order_id != 'unknown' and order_status not in ("filled", "canceled", "rejected"):
+                    while time.time() - poll_start < poll_timeout:
+                        try:
+                            polled_order = self.trading_client.get_order_by_id(order_id)
+                            polled_status = getattr(polled_order, 'status', 'unknown')
+                            polled_filled_qty = getattr(polled_order, 'filled_qty', None)
+                            polled_filled_avg_price = getattr(polled_order, 'filled_avg_price', None)
+                            logging.debug(f"Polled order status for {symbol}: {polled_status}, filled_qty={polled_filled_qty}, filled_avg_price={polled_filled_avg_price}")
+                            if polled_status in ("filled", "canceled", "rejected"):
+                                final_status = polled_status
+                                final_filled_qty = polled_filled_qty
+                                final_filled_avg_price = polled_filled_avg_price
+                                break
+                        except Exception as poll_exc:
+                            logging.warning(f"Error polling order status for {symbol} (Order ID: {order_id}): {poll_exc}")
+                        time.sleep(poll_interval)
+                # Log final status
+                logging.info(f"Final order status for {symbol}: {final_status}, filled_qty={final_filled_qty}, filled_avg_price={final_filled_avg_price}")
+                if final_status == "filled":
+                    return order_id
+                else:
+                    logging.warning(f"Order for {symbol} ({side.value}) was not filled. Final status: {final_status}. Not counting as executed.")
+                    return None
             except Exception as e:
+                # Log the full exception and any Alpaca API error details
+                logging.error(f"Alpaca API Exception placing order for {symbol}: {e}", exc_info=True)
+                api_response = getattr(e, 'response', None)
+                if api_response is not None:
+                    try:
+                        logging.error(f"Alpaca API error response: {getattr(api_response, 'text', str(api_response))}")
+                    except Exception:
+                        pass
                 if attempt < max_retries:
                     # Calculate delay: 5 seconds for first retry, then increase
                     delay = 5 + (attempt * 5)  # 5, 10, 15 seconds
                     logging.warning(f"Order failed for {symbol} (attempt {attempt + 1}/{max_retries + 1}): {e}")
                     logging.info(f"Retrying in {delay} seconds...")
                     time.sleep(delay)
-                    
                     # Refresh account info before retry (buying power might have changed)
                     if side == OrderSide.BUY:
                         account_info = self.get_account_info()
@@ -250,10 +294,9 @@ class AlpacaTradingBot:
                 else:
                     logging.error(f"Order failed for {symbol} after {max_retries + 1} attempts: {e}")
                     return None
-        
         return None
     
-    def rebalance_portfolio(self, target_portfolio: Dict[str, float]) -> Dict[str, str]:
+    def rebalance_portfolio(self, target_portfolio: Dict[str, float]) -> List[Dict]:
         """
         Rebalance portfolio to match target allocations with minimal trading
         
@@ -261,24 +304,24 @@ class AlpacaTradingBot:
             target_portfolio: Dict of {symbol: weight} where weight is 0.0 to 1.0
             
         Returns:
-            Dict of {symbol: order_id} for executed orders
+            List of order dicts for executed orders
         """
         try:
             # Get account info
             account_info = self.get_account_info()
             if not account_info:
                 logging.error("Could not get account information")
-                return {}
+                return []
             
             portfolio_value = account_info['portfolio_value']
             current_cash = account_info['cash']
-            buying_power = account_info['buying_power']  # Add buying power for purchase calculations
+            buying_power = account_info.get('buying_power', current_cash)  # Fallback to cash if missing
             
             # Get current positions
             current_positions = self.get_positions()
             
             # Calculate orders needed
-            orders_executed = {}
+            orders_executed = []
             
             logging.info(f"🔄 Starting portfolio rebalance - Portfolio Value: ${portfolio_value:,.2f}, Cash: ${current_cash:,.2f}, Buying Power: ${buying_power:,.2f}")
             
@@ -322,7 +365,13 @@ class AlpacaTradingBot:
                         if sell_qty > 0:
                             order_id = self.place_order(symbol, sell_qty, OrderSide.SELL)
                             if order_id:
-                                orders_executed[f"{symbol}_SELL"] = order_id
+                                orders_executed.append({
+                                    'symbol': symbol,
+                                    'side': OrderSide.SELL,
+                                    'qty': sell_qty,
+                                    'order_id': order_id,
+                                    'estimated_value': sell_qty * current_price
+                                })
                                 estimated_proceeds = sell_qty * current_price
                                 cash_from_sells += estimated_proceeds
                                 successful_sells += 1
@@ -340,7 +389,7 @@ class AlpacaTradingBot:
                 # Refresh account info to get updated buying power
                 updated_account_info = self.get_account_info()
                 if updated_account_info:
-                    updated_buying_power = updated_account_info['buying_power']
+                    updated_buying_power = updated_account_info.get('buying_power', buying_power)
                     logging.info(f"� Updated buying power after sells: ${updated_buying_power:,.2f} (was ${buying_power:,.2f})")
                     buying_power = updated_buying_power  # Use the updated value
             
@@ -378,7 +427,13 @@ class AlpacaTradingBot:
                             if buy_qty > 0 and required_cash <= remaining_buying_power:
                                 order_id = self.place_order(symbol, buy_qty, OrderSide.BUY)
                                 if order_id:
-                                    orders_executed[f"{symbol}_BUY"] = order_id
+                                    orders_executed.append({
+                                        'symbol': symbol,
+                                        'side': OrderSide.BUY,
+                                        'qty': buy_qty,
+                                        'order_id': order_id,
+                                        'estimated_value': required_cash
+                                    })
                                     remaining_buying_power -= required_cash
                                     successful_buys += 1
                                     logging.info(f"✅ Bought {buy_qty} shares of {symbol} for ${required_cash:,.2f}")
@@ -394,7 +449,7 @@ class AlpacaTradingBot:
             
         except Exception as e:
             logging.error(f"Error rebalancing portfolio: {e}")
-            return {}
+            return []
     
     def read_nuclear_signals(self) -> List[Dict]:
         """Read the latest nuclear trading signals from the alerts file"""
@@ -528,9 +583,8 @@ class AlpacaTradingBot:
             
             if orders:
                 logging.info(f"✅ Portfolio rebalanced - {len(orders)} orders executed")
-                for trade_desc, order_id in orders.items():
-                    logging.info(f"   {trade_desc}: Order {order_id}")
-                
+                for order in orders:
+                    logging.info(f"   {order['side'].value} {order['qty']} {order['symbol']} (Order ID: {order['order_id']}, Value: ${order['estimated_value']:.2f})")
                 # Log trade execution
                 self.log_trade_execution(target_portfolio, orders, account_info)
                 return True
@@ -544,21 +598,29 @@ class AlpacaTradingBot:
             logging.error(f"Stack trace: {traceback.format_exc()}")
             return False
     
-    def log_trade_execution(self, target_portfolio: Dict[str, float], orders: Dict[str, str], account_info: Dict):
+    def log_trade_execution(self, target_portfolio: Dict[str, float], orders: List[Dict], account_info: Dict):
         """Log trade execution details"""
         try:
+            # Convert OrderSide enum to string for JSON serialization
+            serializable_orders = []
+            for order in orders:
+                serializable_orders.append({
+                    'symbol': order['symbol'],
+                    'side': order['side'].value if hasattr(order['side'], 'value') else str(order['side']),
+                    'qty': order['qty'],
+                    'order_id': order['order_id'],
+                    'estimated_value': order['estimated_value']
+                })
             trade_log = {
                 'timestamp': datetime.now().isoformat(),
                 'account_value': account_info.get('portfolio_value', 0),
                 'target_portfolio': target_portfolio,
-                'orders_executed': orders,
+                'orders_executed': serializable_orders,
                 'paper_trading': self.paper_trading
             }
-            
             log_file = 'data/logs/alpaca_trades.json'
             with open(log_file, 'a') as f:
                 f.write(json.dumps(trade_log) + '\n')
-                
         except Exception as e:
             logging.error(f"Error logging trade execution: {e}")
     

@@ -214,7 +214,6 @@ def main():
             success = run_alpaca_bot()
         elif args.mode == 'backtest':
             # Pass start_date, end_date, initial_capital, and no_redundant_rebalance for run_backtest
-            import sys
             sys.argv = [sys.argv[0]]
             if args.start_date:
                 sys.argv += ["--start-date", args.start_date]
