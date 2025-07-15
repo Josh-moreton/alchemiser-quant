@@ -1,6 +1,6 @@
 # Nuclear Trading Strategy
 
-A comprehensive nuclear energy trading strategy with unified entry points and automated hourly execution via GitHub Actions.
+A comprehensive nuclear energy trading strategy with unified entry points and automated daily execution via GitHub Actions.
 
 ## 🚀 Quick Start Guide
 
