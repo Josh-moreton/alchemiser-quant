@@ -209,6 +209,7 @@ def main():
     parser.add_argument('--start-date', type=str, default=None, help='Backtest start date (YYYY-MM-DD)')
     parser.add_argument('--end-date', type=str, default=None, help='Backtest end date (YYYY-MM-DD)')
     parser.add_argument('--initial-capital', type=float, default=100000, help='Initial capital for backtest')
+    parser.add_argument('--no-redundant-rebalance', action='store_true', help='Skip rebalancing if tickers unchanged (comprehensive backtest only)')
 
     args = parser.parse_args()
 
@@ -216,24 +217,36 @@ def main():
     print("=" * 60)
     print(f"Mode: {args.mode}")
     print(f"Timestamp: {datetime.now()}")
-    print()
-
     success = False
-
-    if args.mode == 'bot':
-        success = run_trading_bot()
-    elif args.mode == 'email':
-        success = run_email_bot()
-    elif args.mode == 'alpaca':
-        success = run_alpaca_bot()
-    elif args.mode == 'backtest':
-        # Pass start_date, end_date, initial_capital via sys.argv for run_backtest
-        success = run_backtest(args.backtest_type)
-    elif args.mode == 'dashboard':
-        success = run_dashboard()
-    elif args.mode == 'hourly-test':
-        success = run_backtest('hourly')
-
+    try:
+        if args.mode == 'bot':
+            success = run_trading_bot()
+        elif args.mode == 'email':
+            success = run_email_bot()
+        elif args.mode == 'alpaca':
+            success = run_alpaca_bot()
+        elif args.mode == 'backtest':
+            # Pass start_date, end_date, initial_capital, and no_redundant_rebalance for run_backtest
+            import sys
+            sys.argv = [sys.argv[0]]
+            if args.start_date:
+                sys.argv += ["--start-date", args.start_date]
+            if args.end_date:
+                sys.argv += ["--end-date", args.end_date]
+            if args.initial_capital:
+                sys.argv += ["--initial-capital", str(args.initial_capital)]
+            if args.no_redundant_rebalance:
+                sys.argv += ["--no-redundant-rebalance"]
+            success = run_backtest(args.backtest_type)
+        elif args.mode == 'dashboard':
+            success = run_dashboard()
+        elif args.mode == 'hourly-test':
+            success = run_backtest('hourly')
+    except Exception as e:
+        print(f"\n💥 Operation failed due to error: {e}")
+        import traceback
+        traceback.print_exc()
+        success = False
     if success:
         print("\n🎉 Operation completed successfully!")
         sys.exit(0)

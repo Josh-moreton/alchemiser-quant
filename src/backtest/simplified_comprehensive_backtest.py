@@ -21,18 +21,16 @@ class ComprehensiveBacktestReporter:
     Generate comprehensive backtest report using daily Open prices (9:30 AM equivalent)
     """
     
-    def __init__(self, start_date: str, end_date: str, initial_capital: float = 100000):
+    def __init__(self, start_date: str, end_date: str, initial_capital: float = 100000, no_redundant_rebalance: bool = False):
         self.start_date = start_date
         self.end_date = end_date
         self.initial_capital = initial_capital
+        self.no_redundant_rebalance = no_redundant_rebalance
         self.logger = logging.getLogger(__name__)
-        
         # Benchmark symbols for comparison
         self.benchmarks = ['SPY', 'QQQ', 'TLT', 'IEF']
-        
         # Risk-free rate (approximate 10-year treasury)
         self.risk_free_rate = 0.045  # 4.5% annual
-        
         # Transaction cost parameters
         self.commission_per_trade = 0.0
         self.spread_cost = 0.001
@@ -124,62 +122,72 @@ class ComprehensiveBacktestReporter:
             try:
                 # 1. Evaluate strategy using daily data (as normal)
                 signal, action, reason, indicators, market_data = strategy.evaluate_strategy_at_time(trade_date)
-                
                 # 2. Build target portfolio
                 current_portfolio_value = self._calculate_portfolio_value(
                     current_positions, current_capital, daily_data, trade_date
                 )
-                
                 target_portfolio = portfolio_builder.build_target_portfolio(
                     signal, action, reason, indicators, current_portfolio_value
                 )
-                
+                # Optionally skip rebalancing if tickers haven't changed
+                if self.no_redundant_rebalance:
+                    current_tickers = set([k for k, v in current_positions.items() if abs(v) > 0.01])
+                    target_tickers = set([k for k, v in target_portfolio.items() if abs(v) > 0.01])
+                    if current_tickers == target_tickers:
+                        self.logger.info(f"Skipping redundant rebalance on {trade_date.date()} (tickers unchanged)")
+                        # Still record portfolio state for this day
+                        portfolio_value = self._calculate_portfolio_value(
+                            current_positions, current_capital, daily_data, trade_date
+                        )
+                        portfolio_history.append({
+                            'date': trade_date,
+                            'portfolio_value': portfolio_value,
+                            'cash': current_capital,
+                            'signal': signal,
+                            'action': action
+                        })
+                        signal_history.append({
+                            'date': trade_date,
+                            'signal': signal,
+                            'action': action,
+                            'reason': reason
+                        })
+                        continue
                 # 3. Execute trades using Open prices (market open execution)
                 execution_prices = self._get_open_execution_prices(
                     target_portfolio, current_positions, daily_data, trade_date
                 )
-                
                 # 4. Execute trades
                 trades = self._execute_trades(
                     target_portfolio, current_positions, execution_prices, 
                     trade_date, current_capital
                 )
-                
                 # 5. Update portfolio state with cash validation
                 for trade in trades:
                     trade_cost = trade['trade_value'] + trade['costs']
-                    
                     # Ensure we don't go into negative cash
                     if trade['trade_value'] > 0 and trade_cost > current_capital:
                         self.logger.warning(f"Insufficient cash for {trade['symbol']} trade on {trade_date}")
                         continue
-                    
                     current_capital -= trade_cost
-                    
                     symbol = trade['symbol']
                     shares = trade['shares']
-                    
                     if symbol in current_positions:
                         current_positions[symbol] += shares
                     else:
                         current_positions[symbol] = shares
-                    
                     # Clean up zero positions
                     if abs(current_positions[symbol]) < 0.01:
                         del current_positions[symbol]
-                
                 # Final validation: ensure cash is not negative
                 if current_capital < 0:
                     self.logger.error(f"Portfolio went negative on {trade_date}: ${current_capital:.2f}")
                     current_capital = max(current_capital, 0)  # Force to zero minimum
-                
                 transaction_log.extend(trades)
-                
                 # 6. Record portfolio state (using Close prices for valuation)
                 portfolio_value = self._calculate_portfolio_value(
                     current_positions, current_capital, daily_data, trade_date
                 )
-                
                 portfolio_history.append({
                     'date': trade_date,
                     'portfolio_value': portfolio_value,
@@ -187,14 +195,12 @@ class ComprehensiveBacktestReporter:
                     'signal': signal,
                     'action': action
                 })
-                
                 signal_history.append({
                     'date': trade_date,
                     'signal': signal,
                     'action': action,
                     'reason': reason
                 })
-                
             except Exception as e:
                 self.logger.error(f"Error processing {trade_date.date()}: {e}")
                 continue
@@ -763,6 +769,7 @@ def run_comprehensive_nuclear_backtest():
     parser.add_argument('--start-date', type=str, default=None, help='Backtest start date (YYYY-MM-DD)')
     parser.add_argument('--end-date', type=str, default=None, help='Backtest end date (YYYY-MM-DD)')
     parser.add_argument('--initial-capital', type=float, default=100000, help='Initial capital for backtest')
+    parser.add_argument('--no-redundant-rebalance', action='store_true', help='Skip rebalancing if tickers unchanged')
     parser.add_argument('--no-argparse', action='store_true', help='(Internal) Do not parse args, use direct call')
     args, unknown = parser.parse_known_args()
 
@@ -771,10 +778,12 @@ def run_comprehensive_nuclear_backtest():
         START_DATE = run_comprehensive_nuclear_backtest._start_date
         END_DATE = run_comprehensive_nuclear_backtest._end_date
         INITIAL_CAPITAL = run_comprehensive_nuclear_backtest._initial_capital
+        NO_REDUNDANT_REBALANCE = getattr(run_comprehensive_nuclear_backtest, '_no_redundant_rebalance', False)
     else:
         START_DATE = args.start_date or '2024-07-01'
         END_DATE = args.end_date or '2024-09-30'
         INITIAL_CAPITAL = args.initial_capital
+        NO_REDUNDANT_REBALANCE = args.no_redundant_rebalance
 
     # Setup logging
     logging.basicConfig(
@@ -783,7 +792,7 @@ def run_comprehensive_nuclear_backtest():
     )
 
     # Run comprehensive backtest
-    reporter = ComprehensiveBacktestReporter(START_DATE, END_DATE, INITIAL_CAPITAL)
+    reporter = ComprehensiveBacktestReporter(START_DATE, END_DATE, INITIAL_CAPITAL, no_redundant_rebalance=NO_REDUNDANT_REBALANCE)
     results = reporter.run_comprehensive_backtest()
 
     return results
