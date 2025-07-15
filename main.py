@@ -45,7 +45,6 @@ def run_trading_bot():
         traceback.print_exc()
         return False
 
-def run_dashboard():
 
 def run_alpaca_bot():
     """Run the nuclear trading bot with Alpaca execution"""
