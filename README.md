@@ -275,15 +275,12 @@ python main.py email
 python main.py backtest --backtest-type hourly
 ```
 
-
 ## Key Features
 
 - **Nuclear Strategy**: Focus on nuclear energy ETFs and leveraged instruments
 - **Execution Timing**: Optimized for 9:30 AM market open execution
 - **Risk Management**: No leverage (instruments are already leveraged)
 - **Data Management**: Organized storage of results, logs, and market data
-
-
 
 ## File Organization
 
