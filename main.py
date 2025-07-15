@@ -55,20 +55,7 @@ def run_backtest(backtest_type="comprehensive"):
     try:
         if backtest_type == "comprehensive":
             from backtest.simplified_comprehensive_backtest import run_comprehensive_nuclear_backtest
-            # Pass through CLI args for start_date, end_date, initial_capital
-            import sys
-            import argparse
-            parser = argparse.ArgumentParser(add_help=False)
-            parser.add_argument('--start-date', type=str, default=None)
-            parser.add_argument('--end-date', type=str, default=None)
-            parser.add_argument('--initial-capital', type=float, default=100000)
-            args, unknown = parser.parse_known_args()
-
-            # Set attributes for direct call (bypass argparse in module)
-            run_comprehensive_nuclear_backtest._direct_call = True
-            run_comprehensive_nuclear_backtest._start_date = args.start_date or '2024-07-01'
-            run_comprehensive_nuclear_backtest._end_date = args.end_date or '2024-09-30'
-            run_comprehensive_nuclear_backtest._initial_capital = args.initial_capital
+            # Just call the function, let it parse sys.argv (including --no-redundant-rebalance)
             results = run_comprehensive_nuclear_backtest()
         elif backtest_type == "hourly":
             from execution.hourly_execution_engine import run_hourly_analysis
