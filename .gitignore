@@ -1,16 +1,57 @@
-# Ignore Python cache and virtual environments
+# Python cache and virtual environments
 __pycache__/
+*.py[cod]
+*.pyo
 .venv/
 venv/
+env/
+ENV/
 
-# Ignore data outputs
+# macOS system files
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+.Spotlight-V100
+.Trashes
+*.swp
+
+# VSCode and JetBrains IDEs
+.vscode/
+.idea/
+
+# Data outputs and logs
 *.log
 *.csv
 *.json
 
-# Ignore backtest results
+# Ignore backtest results and logs
 /data/backtest_results/
+data/backtest_results/
+data/logs/
+data/*.log
+data/*.json
+data/*.csv
 
+# Environment variables
 .env
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Test outputs
+htmlcov/
+.coverage
+.tox/
+.nox/
+.cache/
+pytest_cache/
+test-results/
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
 
 

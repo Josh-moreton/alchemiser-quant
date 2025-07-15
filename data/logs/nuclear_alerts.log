@@ -7420,3 +7420,457 @@ Best execution hour: 09:30 with +74.03% return
 2025-07-15 10:23:47,390 - INFO - ✅ Retrieved 523 bars for IEF
 2025-07-15 10:23:47,396 - INFO - ✅ Downloaded IEF: 523 daily records
 2025-07-15 10:23:47,396 - INFO - 📈 Successfully downloaded daily data for 1/1 symbols
+2025-07-15 11:41:46,561 - INFO - Starting Nuclear Energy strategy analysis...
+2025-07-15 11:41:50,892 - INFO - Analysis complete: BUY NUCLEAR_PORTFOLIO - Bull market - Nuclear portfolio: SMR (31.2%), LEU (39.6%), OKLO (29.1%)
+2025-07-15 11:46:22,863 - INFO - Starting Nuclear Energy strategy analysis...
+2025-07-15 11:46:27,051 - INFO - Analysis complete: BUY NUCLEAR_PORTFOLIO - Bull market - Nuclear portfolio: SMR (31.2%), LEU (39.6%), OKLO (29.1%)
+2025-07-15 11:54:53,604 - INFO - Starting Nuclear Energy strategy analysis...
+2025-07-15 11:54:56,268 - INFO - Analysis complete: BUY NUCLEAR_PORTFOLIO - Bull market - Nuclear portfolio: SMR (31.2%), LEU (39.6%), OKLO (29.1%)
+2025-07-15 12:19:16,245 - INFO - Starting Nuclear Energy strategy analysis...
+2025-07-15 12:19:19,802 - INFO - Analysis complete: BUY NUCLEAR_PORTFOLIO - Bull market - Nuclear portfolio: SMR (31.2%), LEU (39.6%), OKLO (29.1%)
+2025-07-15 12:19:20,108 - INFO - 🏦 Trading Mode: PAPER (from parameter)
+2025-07-15 12:19:20,108 - INFO - API Key loaded: Yes
+2025-07-15 12:19:20,108 - INFO - Secret Key loaded: Yes
+2025-07-15 12:19:20,108 - INFO - Base URL: https://paper-api.alpaca.markets/v2
+2025-07-15 12:19:20,108 - INFO - TradingClient initialized successfully
+2025-07-15 12:19:20,108 - INFO - StockHistoricalDataClient initialized successfully
+2025-07-15 12:19:20,108 - INFO - Alpaca Trading Bot initialized - Paper Trading: True
+2025-07-15 12:19:20,634 - INFO - 🚀 Executing Nuclear Strategy with Alpaca
+2025-07-15 12:19:20,644 - INFO - Found 3 recent signals
+2025-07-15 12:19:20,645 - INFO - Parsed signal: SMR -> 31.2%
+2025-07-15 12:19:20,645 - INFO - Parsed signal: LEU -> 39.6%
+2025-07-15 12:19:20,645 - INFO - Parsed signal: OKLO -> 29.1%
+2025-07-15 12:19:20,646 - INFO - Target Portfolio: {'SMR': 0.312, 'LEU': 0.396, 'OKLO': 0.29100000000000004}
+2025-07-15 12:19:20,755 - INFO - Account Value: $105,453.05
+2025-07-15 12:19:21,101 - INFO - Alpaca price for SMR: $40.05 (bid: $37.01, ask: $43.10)
+2025-07-15 12:19:21,202 - WARNING - Using bid price for LEU (ask=0): $215.50
+2025-07-15 12:19:21,307 - INFO - Alpaca price for OKLO: $60.10 (bid: $56.20, ask: $64.00)
+2025-07-15 12:19:21,514 - INFO - 🔄 Starting portfolio rebalance - Portfolio Value: $105,453.05, Cash: $98.15, Buying Power: $15.07
+2025-07-15 12:19:21,514 - INFO - Current allocation LEU: 40.0% ($42,147.73)
+2025-07-15 12:19:21,514 - INFO - Current allocation OKLO: 29.3% ($30,845.58)
+2025-07-15 12:19:21,514 - INFO - Current allocation SMR: 30.7% ($32,361.58)
+2025-07-15 12:19:21,514 - INFO - Target allocation SMR: 31.2% ($32,901.35)
+2025-07-15 12:19:21,514 - INFO - Target allocation LEU: 39.6% ($41,759.41)
+2025-07-15 12:19:21,514 - INFO - Target allocation OKLO: 29.1% ($30,686.84)
+2025-07-15 12:19:21,616 - WARNING - Using bid price for LEU (ask=0): $215.50
+2025-07-15 12:19:21,722 - INFO - Order placed: sell 1.801961 shares of LEU - Order ID: 2a27b143-f0a8-47ec-9c07-7d456a05843a
+2025-07-15 12:19:21,723 - INFO - 💰 Selling 1.801961 shares of LEU to rebalance ($388.32)
+2025-07-15 12:19:21,831 - INFO - Alpaca price for OKLO: $60.10 (bid: $56.20, ask: $64.00)
+2025-07-15 12:19:21,944 - INFO - Order placed: sell 2.641323 shares of OKLO - Order ID: d391d1ae-07c2-4dbe-adcb-f489be354d47
+2025-07-15 12:19:21,945 - INFO - 💰 Selling 2.641323 shares of OKLO to rebalance ($158.74)
+2025-07-15 12:19:21,945 - INFO - 📉 Rebalancing sells: 2 successful
+2025-07-15 12:19:21,945 - INFO - ⏳ Waiting for buying power to update after sells...
+2025-07-15 12:19:32,115 - INFO - � Updated buying power after sells: $15.04 (was $15.07)
+2025-07-15 12:19:32,116 - INFO - 💸 Total buying power available: $15.04
+2025-07-15 12:19:32,221 - INFO - Alpaca price for SMR: $40.05 (bid: $37.01, ask: $43.10)
+2025-07-15 12:19:32,221 - INFO - 💰 Buying power remaining after rebalancing: $15.04
+2025-07-15 12:19:32,221 - INFO - ✅ Portfolio rebalanced - 2 orders executed
+2025-07-15 12:19:32,221 - INFO -    sell 1.801961 LEU (Order ID: 2a27b143-f0a8-47ec-9c07-7d456a05843a, Value: $388.32)
+2025-07-15 12:19:32,221 - INFO -    sell 2.641323 OKLO (Order ID: d391d1ae-07c2-4dbe-adcb-f489be354d47, Value: $158.74)
+2025-07-15 12:24:54,598 - INFO - Starting Nuclear Energy strategy analysis...
+2025-07-15 12:24:57,520 - INFO - Analysis complete: BUY NUCLEAR_PORTFOLIO - Bull market - Nuclear portfolio: SMR (31.2%), LEU (39.6%), OKLO (29.1%)
+2025-07-15 12:24:57,764 - INFO - 🏦 Trading Mode: PAPER (from parameter)
+2025-07-15 12:24:57,764 - INFO - API Key loaded: Yes
+2025-07-15 12:24:57,765 - INFO - Secret Key loaded: Yes
+2025-07-15 12:24:57,765 - INFO - Base URL: https://paper-api.alpaca.markets/v2
+2025-07-15 12:24:57,765 - INFO - TradingClient initialized successfully
+2025-07-15 12:24:57,765 - INFO - StockHistoricalDataClient initialized successfully
+2025-07-15 12:24:57,765 - INFO - Alpaca Trading Bot initialized - Paper Trading: True
+2025-07-15 12:24:58,243 - INFO - 🚀 Executing Nuclear Strategy with Alpaca
+2025-07-15 12:24:58,254 - INFO - Found 3 recent signals
+2025-07-15 12:24:58,254 - INFO - Parsed signal: SMR -> 31.2%
+2025-07-15 12:24:58,254 - INFO - Parsed signal: LEU -> 39.6%
+2025-07-15 12:24:58,254 - INFO - Parsed signal: OKLO -> 29.1%
+2025-07-15 12:24:58,254 - INFO - Target Portfolio: {'SMR': 0.312, 'LEU': 0.396, 'OKLO': 0.29100000000000004}
+2025-07-15 12:24:58,365 - INFO - Account Value: $105,549.78
+2025-07-15 12:24:58,689 - INFO - Alpaca price for SMR: $40.05 (bid: $37.01, ask: $43.10)
+2025-07-15 12:24:58,794 - WARNING - Using bid price for LEU (ask=0): $215.50
+2025-07-15 12:24:58,895 - INFO - Alpaca price for OKLO: $60.10 (bid: $56.20, ask: $64.00)
+2025-07-15 12:24:59,100 - INFO - 🔄 Starting portfolio rebalance - Portfolio Value: $105,549.78, Cash: $98.15, Buying Power: $14.96
+2025-07-15 12:24:59,101 - INFO - Current allocation LEU: 39.9% ($42,147.73)
+2025-07-15 12:24:59,101 - INFO - Current allocation OKLO: 29.3% ($30,911.03)
+2025-07-15 12:24:59,101 - INFO - Current allocation SMR: 30.7% ($32,392.87)
+2025-07-15 12:24:59,101 - INFO - Target allocation SMR: 31.2% ($32,931.53)
+2025-07-15 12:24:59,101 - INFO - Target allocation LEU: 39.6% ($41,797.71)
+2025-07-15 12:24:59,101 - INFO - Target allocation OKLO: 29.1% ($30,714.99)
+2025-07-15 12:24:59,217 - WARNING - Using bid price for LEU (ask=0): $215.50
+2025-07-15 12:24:59,323 - INFO - Order placed: sell 1.624211 shares of LEU - Order ID: d903607e-218d-497d-9ca5-5b7c49c9fb05, Status: OrderStatus.PENDING_NEW
+2025-07-15 12:24:59,323 - INFO - Order details: filled_qty=0, filled_avg_price=None, submitted_at=2025-07-15 11:24:59.595913+00:00
+2025-07-15 12:24:59,323 - INFO - 💰 Selling 1.624211 shares of LEU to rebalance ($350.02)
+2025-07-15 12:24:59,424 - INFO - Alpaca price for OKLO: $60.10 (bid: $56.20, ask: $64.00)
+2025-07-15 12:24:59,533 - INFO - Order placed: sell 3.261928 shares of OKLO - Order ID: 8445f7d5-03f9-4d19-bf90-ef1115cb13c3, Status: OrderStatus.PENDING_NEW
+2025-07-15 12:24:59,533 - INFO - Order details: filled_qty=0, filled_avg_price=None, submitted_at=2025-07-15 11:24:59.805695+00:00
+2025-07-15 12:24:59,534 - INFO - 💰 Selling 3.261928 shares of OKLO to rebalance ($196.04)
+2025-07-15 12:24:59,534 - INFO - 📉 Rebalancing sells: 2 successful
+2025-07-15 12:24:59,535 - INFO - ⏳ Waiting for buying power to update after sells...
+2025-07-15 12:25:09,656 - INFO - � Updated buying power after sells: $14.96 (was $14.96)
+2025-07-15 12:25:09,656 - INFO - 💸 Total buying power available: $14.96
+2025-07-15 12:25:09,759 - INFO - Alpaca price for SMR: $40.05 (bid: $37.01, ask: $43.10)
+2025-07-15 12:25:09,868 - ERROR - Alpaca API Exception placing order for SMR: {"buying_power":"14.96","code":40310000,"cost_basis":"15.48","message":"insufficient buying power"}
+Traceback (most recent call last):
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 198, in _one_request
+    response.raise_for_status()
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/requests/models.py", line 1026, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 403 Client Error: Forbidden for url: https://paper-api.alpaca.markets/v2/orders
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/src/execution/alpaca_trader.py", line 232, in place_order
+    order = self.trading_client.submit_order(market_order_data)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/trading/client.py", line 100, in submit_order
+    response = self.post("/orders", data)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 240, in post
+    return self._request("POST", path, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 131, in _request
+    return self._one_request(method, url, opts, retry)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 207, in _one_request
+    raise APIError(error, http_error)
+alpaca.common.exceptions.APIError: {"buying_power":"14.96","code":40310000,"cost_basis":"15.48","message":"insufficient buying power"}
+2025-07-15 12:25:09,914 - ERROR - Alpaca API error response: {"buying_power":"14.96","code":40310000,"cost_basis":"15.48","message":"insufficient buying power"}
+2025-07-15 12:25:09,915 - WARNING - Order failed for SMR (attempt 1/4): {"buying_power":"14.96","code":40310000,"cost_basis":"15.48","message":"insufficient buying power"}
+2025-07-15 12:25:09,915 - INFO - Retrying in 5 seconds...
+2025-07-15 12:25:15,133 - ERROR - Alpaca API Exception placing order for SMR: {"buying_power":"14.96","code":40310000,"cost_basis":"15.48","message":"insufficient buying power"}
+Traceback (most recent call last):
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 198, in _one_request
+    response.raise_for_status()
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/requests/models.py", line 1026, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 403 Client Error: Forbidden for url: https://paper-api.alpaca.markets/v2/orders
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/src/execution/alpaca_trader.py", line 232, in place_order
+    order = self.trading_client.submit_order(market_order_data)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/trading/client.py", line 100, in submit_order
+    response = self.post("/orders", data)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 240, in post
+    return self._request("POST", path, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 131, in _request
+    return self._one_request(method, url, opts, retry)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 207, in _one_request
+    raise APIError(error, http_error)
+alpaca.common.exceptions.APIError: {"buying_power":"14.96","code":40310000,"cost_basis":"15.48","message":"insufficient buying power"}
+2025-07-15 12:25:15,136 - ERROR - Alpaca API error response: {"buying_power":"14.96","code":40310000,"cost_basis":"15.48","message":"insufficient buying power"}
+2025-07-15 12:25:15,136 - WARNING - Order failed for SMR (attempt 2/4): {"buying_power":"14.96","code":40310000,"cost_basis":"15.48","message":"insufficient buying power"}
+2025-07-15 12:25:15,136 - INFO - Retrying in 10 seconds...
+2025-07-15 12:25:25,354 - ERROR - Alpaca API Exception placing order for SMR: {"buying_power":"14.96","code":40310000,"cost_basis":"15.48","message":"insufficient buying power"}
+Traceback (most recent call last):
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 198, in _one_request
+    response.raise_for_status()
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/requests/models.py", line 1026, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 403 Client Error: Forbidden for url: https://paper-api.alpaca.markets/v2/orders
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/src/execution/alpaca_trader.py", line 232, in place_order
+    order = self.trading_client.submit_order(market_order_data)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/trading/client.py", line 100, in submit_order
+    response = self.post("/orders", data)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 240, in post
+    return self._request("POST", path, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 131, in _request
+    return self._one_request(method, url, opts, retry)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 207, in _one_request
+    raise APIError(error, http_error)
+alpaca.common.exceptions.APIError: {"buying_power":"14.96","code":40310000,"cost_basis":"15.48","message":"insufficient buying power"}
+2025-07-15 12:25:25,357 - ERROR - Alpaca API error response: {"buying_power":"14.96","code":40310000,"cost_basis":"15.48","message":"insufficient buying power"}
+2025-07-15 12:25:25,357 - WARNING - Order failed for SMR (attempt 3/4): {"buying_power":"14.96","code":40310000,"cost_basis":"15.48","message":"insufficient buying power"}
+2025-07-15 12:25:25,358 - INFO - Retrying in 15 seconds...
+2025-07-15 12:25:40,629 - ERROR - Alpaca API Exception placing order for SMR: {"buying_power":"14.96","code":40310000,"cost_basis":"15.48","message":"insufficient buying power"}
+Traceback (most recent call last):
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 198, in _one_request
+    response.raise_for_status()
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/requests/models.py", line 1026, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 403 Client Error: Forbidden for url: https://paper-api.alpaca.markets/v2/orders
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/src/execution/alpaca_trader.py", line 232, in place_order
+    order = self.trading_client.submit_order(market_order_data)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/trading/client.py", line 100, in submit_order
+    response = self.post("/orders", data)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 240, in post
+    return self._request("POST", path, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 131, in _request
+    return self._one_request(method, url, opts, retry)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 207, in _one_request
+    raise APIError(error, http_error)
+alpaca.common.exceptions.APIError: {"buying_power":"14.96","code":40310000,"cost_basis":"15.48","message":"insufficient buying power"}
+2025-07-15 12:25:40,633 - ERROR - Alpaca API error response: {"buying_power":"14.96","code":40310000,"cost_basis":"15.48","message":"insufficient buying power"}
+2025-07-15 12:25:40,633 - ERROR - Order failed for SMR after 4 attempts: {"buying_power":"14.96","code":40310000,"cost_basis":"15.48","message":"insufficient buying power"}
+2025-07-15 12:25:40,633 - ERROR - ❌ Failed to place buy order for SMR
+2025-07-15 12:25:40,633 - INFO - 💰 Buying power remaining after rebalancing: $14.96
+2025-07-15 12:25:40,634 - INFO - ✅ Portfolio rebalanced - 2 orders executed
+2025-07-15 12:25:40,634 - INFO -    sell 1.624211 LEU (Order ID: d903607e-218d-497d-9ca5-5b7c49c9fb05, Value: $350.02)
+2025-07-15 12:25:40,634 - INFO -    sell 3.261928 OKLO (Order ID: 8445f7d5-03f9-4d19-bf90-ef1115cb13c3, Value: $196.04)
+2025-07-15 12:28:52,562 - INFO - Starting Nuclear Energy strategy analysis...
+2025-07-15 12:28:55,247 - INFO - Analysis complete: BUY NUCLEAR_PORTFOLIO - Bull market - Nuclear portfolio: SMR (31.2%), LEU (39.6%), OKLO (29.1%)
+2025-07-15 12:28:55,495 - INFO - 🏦 Trading Mode: PAPER (from parameter)
+2025-07-15 12:28:55,495 - INFO - API Key loaded: Yes
+2025-07-15 12:28:55,495 - INFO - Secret Key loaded: Yes
+2025-07-15 12:28:55,495 - INFO - Base URL: https://paper-api.alpaca.markets/v2
+2025-07-15 12:28:55,495 - INFO - TradingClient initialized successfully
+2025-07-15 12:28:55,495 - INFO - StockHistoricalDataClient initialized successfully
+2025-07-15 12:28:55,495 - INFO - Alpaca Trading Bot initialized - Paper Trading: True
+2025-07-15 12:28:55,965 - INFO - 🚀 Executing Nuclear Strategy with Alpaca
+2025-07-15 12:28:55,973 - INFO - Found 6 recent signals
+2025-07-15 12:28:55,973 - INFO - Parsed signal: SMR -> 31.2%
+2025-07-15 12:28:55,973 - INFO - Parsed signal: LEU -> 39.6%
+2025-07-15 12:28:55,974 - INFO - Parsed signal: OKLO -> 29.1%
+2025-07-15 12:28:55,974 - INFO - Parsed signal: SMR -> 31.2%
+2025-07-15 12:28:55,974 - INFO - Parsed signal: LEU -> 39.6%
+2025-07-15 12:28:55,974 - INFO - Parsed signal: OKLO -> 29.1%
+2025-07-15 12:28:55,974 - INFO - Target Portfolio: {'SMR': 0.312, 'LEU': 0.396, 'OKLO': 0.29100000000000004}
+2025-07-15 12:28:56,086 - INFO - Account Value: $105,376.99
+2025-07-15 12:28:56,493 - INFO - Alpaca price for SMR: $40.05 (bid: $37.01, ask: $43.10)
+2025-07-15 12:28:56,598 - WARNING - Using bid price for LEU (ask=0): $215.50
+2025-07-15 12:28:56,698 - INFO - Alpaca price for OKLO: $60.10 (bid: $56.20, ask: $64.00)
+2025-07-15 12:28:56,909 - INFO - 🔄 Starting portfolio rebalance - Portfolio Value: $105,376.99, Cash: $98.15, Buying Power: $15.00
+2025-07-15 12:28:56,910 - INFO - Current allocation LEU: 40.0% ($42,147.73)
+2025-07-15 12:28:56,910 - INFO - Current allocation OKLO: 29.2% ($30,785.17)
+2025-07-15 12:28:56,910 - INFO - Current allocation SMR: 30.7% ($32,345.94)
+2025-07-15 12:28:56,911 - INFO - Target allocation SMR: 31.2% ($32,877.62)
+2025-07-15 12:28:56,911 - INFO - Target allocation LEU: 39.6% ($41,729.29)
+2025-07-15 12:28:56,911 - INFO - Target allocation OKLO: 29.1% ($30,664.70)
+2025-07-15 12:28:57,015 - WARNING - Using bid price for LEU (ask=0): $215.50
+2025-07-15 12:28:57,123 - INFO - Order placed: sell 1.941728 shares of LEU - Order ID: ec639425-a8a4-4773-989d-187351c01859, Status: OrderStatus.PENDING_NEW
+2025-07-15 12:28:57,123 - INFO - Order details: filled_qty=0, filled_avg_price=None, submitted_at=2025-07-15 11:28:57.402098+00:00
+2025-07-15 12:28:57,123 - WARNING - Order for LEU (sell) not filled immediately. Status: OrderStatus.PENDING_NEW. Check Alpaca portal for details.
+2025-07-15 12:28:57,124 - INFO - 💰 Selling 1.941728 shares of LEU to rebalance ($418.44)
+2025-07-15 12:28:57,228 - INFO - Alpaca price for OKLO: $60.10 (bid: $56.20, ask: $64.00)
+2025-07-15 12:28:57,347 - INFO - Order placed: sell 2.004402 shares of OKLO - Order ID: 2df6b360-ec73-47fd-b50b-687cdee24995, Status: OrderStatus.PENDING_NEW
+2025-07-15 12:28:57,348 - INFO - Order details: filled_qty=0, filled_avg_price=None, submitted_at=2025-07-15 11:28:57.615723+00:00
+2025-07-15 12:28:57,348 - WARNING - Order for OKLO (sell) not filled immediately. Status: OrderStatus.PENDING_NEW. Check Alpaca portal for details.
+2025-07-15 12:28:57,349 - INFO - 💰 Selling 2.004402 shares of OKLO to rebalance ($120.46)
+2025-07-15 12:28:57,349 - INFO - 📉 Rebalancing sells: 2 successful
+2025-07-15 12:28:57,349 - INFO - ⏳ Waiting for buying power to update after sells...
+2025-07-15 12:29:07,463 - INFO - � Updated buying power after sells: $15.00 (was $15.00)
+2025-07-15 12:29:07,463 - INFO - 💸 Total buying power available: $15.00
+2025-07-15 12:29:07,564 - INFO - Alpaca price for SMR: $40.05 (bid: $37.01, ask: $43.10)
+2025-07-15 12:29:07,669 - ERROR - Alpaca API Exception placing order for SMR: {"buying_power":"15","code":40310000,"cost_basis":"15.51","message":"insufficient buying power"}
+Traceback (most recent call last):
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 198, in _one_request
+    response.raise_for_status()
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/requests/models.py", line 1026, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 403 Client Error: Forbidden for url: https://paper-api.alpaca.markets/v2/orders
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/src/execution/alpaca_trader.py", line 232, in place_order
+    order = self.trading_client.submit_order(market_order_data)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/trading/client.py", line 100, in submit_order
+    response = self.post("/orders", data)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 240, in post
+    return self._request("POST", path, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 131, in _request
+    return self._one_request(method, url, opts, retry)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 207, in _one_request
+    raise APIError(error, http_error)
+alpaca.common.exceptions.APIError: {"buying_power":"15","code":40310000,"cost_basis":"15.51","message":"insufficient buying power"}
+2025-07-15 12:29:07,675 - ERROR - Alpaca API error response: {"buying_power":"15","code":40310000,"cost_basis":"15.51","message":"insufficient buying power"}
+2025-07-15 12:29:07,675 - WARNING - Order failed for SMR (attempt 1/4): {"buying_power":"15","code":40310000,"cost_basis":"15.51","message":"insufficient buying power"}
+2025-07-15 12:29:07,675 - INFO - Retrying in 5 seconds...
+2025-07-15 12:29:12,897 - ERROR - Alpaca API Exception placing order for SMR: {"buying_power":"15","code":40310000,"cost_basis":"15.51","message":"insufficient buying power"}
+Traceback (most recent call last):
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 198, in _one_request
+    response.raise_for_status()
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/requests/models.py", line 1026, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 403 Client Error: Forbidden for url: https://paper-api.alpaca.markets/v2/orders
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/src/execution/alpaca_trader.py", line 232, in place_order
+    order = self.trading_client.submit_order(market_order_data)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/trading/client.py", line 100, in submit_order
+    response = self.post("/orders", data)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 240, in post
+    return self._request("POST", path, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 131, in _request
+    return self._one_request(method, url, opts, retry)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 207, in _one_request
+    raise APIError(error, http_error)
+alpaca.common.exceptions.APIError: {"buying_power":"15","code":40310000,"cost_basis":"15.51","message":"insufficient buying power"}
+2025-07-15 12:29:12,900 - ERROR - Alpaca API error response: {"buying_power":"15","code":40310000,"cost_basis":"15.51","message":"insufficient buying power"}
+2025-07-15 12:29:12,900 - WARNING - Order failed for SMR (attempt 2/4): {"buying_power":"15","code":40310000,"cost_basis":"15.51","message":"insufficient buying power"}
+2025-07-15 12:29:12,900 - INFO - Retrying in 10 seconds...
+2025-07-15 12:29:23,126 - ERROR - Alpaca API Exception placing order for SMR: {"buying_power":"15","code":40310000,"cost_basis":"15.51","message":"insufficient buying power"}
+Traceback (most recent call last):
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 198, in _one_request
+    response.raise_for_status()
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/requests/models.py", line 1026, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 403 Client Error: Forbidden for url: https://paper-api.alpaca.markets/v2/orders
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/src/execution/alpaca_trader.py", line 232, in place_order
+    order = self.trading_client.submit_order(market_order_data)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/trading/client.py", line 100, in submit_order
+    response = self.post("/orders", data)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 240, in post
+    return self._request("POST", path, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 131, in _request
+    return self._one_request(method, url, opts, retry)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 207, in _one_request
+    raise APIError(error, http_error)
+alpaca.common.exceptions.APIError: {"buying_power":"15","code":40310000,"cost_basis":"15.51","message":"insufficient buying power"}
+2025-07-15 12:29:23,128 - ERROR - Alpaca API error response: {"buying_power":"15","code":40310000,"cost_basis":"15.51","message":"insufficient buying power"}
+2025-07-15 12:29:23,129 - WARNING - Order failed for SMR (attempt 3/4): {"buying_power":"15","code":40310000,"cost_basis":"15.51","message":"insufficient buying power"}
+2025-07-15 12:29:23,129 - INFO - Retrying in 15 seconds...
+2025-07-15 12:29:38,346 - ERROR - Alpaca API Exception placing order for SMR: {"buying_power":"15","code":40310000,"cost_basis":"15.51","message":"insufficient buying power"}
+Traceback (most recent call last):
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 198, in _one_request
+    response.raise_for_status()
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/requests/models.py", line 1026, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 403 Client Error: Forbidden for url: https://paper-api.alpaca.markets/v2/orders
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/src/execution/alpaca_trader.py", line 232, in place_order
+    order = self.trading_client.submit_order(market_order_data)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/trading/client.py", line 100, in submit_order
+    response = self.post("/orders", data)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 240, in post
+    return self._request("POST", path, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 131, in _request
+    return self._one_request(method, url, opts, retry)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 207, in _one_request
+    raise APIError(error, http_error)
+alpaca.common.exceptions.APIError: {"buying_power":"15","code":40310000,"cost_basis":"15.51","message":"insufficient buying power"}
+2025-07-15 12:29:38,346 - ERROR - Alpaca API error response: {"buying_power":"15","code":40310000,"cost_basis":"15.51","message":"insufficient buying power"}
+2025-07-15 12:29:38,346 - ERROR - Order failed for SMR after 4 attempts: {"buying_power":"15","code":40310000,"cost_basis":"15.51","message":"insufficient buying power"}
+2025-07-15 12:29:38,346 - ERROR - ❌ Failed to place buy order for SMR
+2025-07-15 12:29:38,347 - INFO - 💰 Buying power remaining after rebalancing: $15.00
+2025-07-15 12:29:38,347 - INFO - ✅ Portfolio rebalanced - 2 orders executed
+2025-07-15 12:29:38,347 - INFO -    sell 1.941728 LEU (Order ID: ec639425-a8a4-4773-989d-187351c01859, Value: $418.44)
+2025-07-15 12:29:38,347 - INFO -    sell 2.004402 OKLO (Order ID: 2df6b360-ec73-47fd-b50b-687cdee24995, Value: $120.46)
+2025-07-15 12:36:06,114 - INFO - Starting Nuclear Energy strategy analysis...
+2025-07-15 12:36:09,581 - INFO - Analysis complete: BUY NUCLEAR_PORTFOLIO - Bull market - Nuclear portfolio: SMR (31.2%), LEU (39.6%), OKLO (29.1%)
+2025-07-15 12:36:10,765 - INFO - 🏦 Trading Mode: PAPER (from parameter)
+2025-07-15 12:36:10,765 - INFO - API Key loaded: Yes
+2025-07-15 12:36:10,765 - INFO - Secret Key loaded: Yes
+2025-07-15 12:36:10,765 - INFO - Base URL: https://paper-api.alpaca.markets/v2
+2025-07-15 12:36:10,765 - INFO - TradingClient initialized successfully
+2025-07-15 12:36:10,765 - INFO - StockHistoricalDataClient initialized successfully
+2025-07-15 12:36:10,765 - INFO - Alpaca Trading Bot initialized - Paper Trading: True
+2025-07-15 12:36:11,230 - INFO - 🚀 Executing Nuclear Strategy with Alpaca
+2025-07-15 12:36:11,243 - INFO - Found 3 recent signals
+2025-07-15 12:36:11,244 - INFO - Parsed signal: SMR -> 31.2%
+2025-07-15 12:36:11,244 - INFO - Parsed signal: LEU -> 39.6%
+2025-07-15 12:36:11,244 - INFO - Parsed signal: OKLO -> 29.1%
+2025-07-15 12:36:11,244 - INFO - Target Portfolio: {'SMR': 0.312, 'LEU': 0.396, 'OKLO': 0.29100000000000004}
+2025-07-15 12:36:11,350 - INFO - Account Value: $105,422.84
+2025-07-15 12:36:11,700 - INFO - Alpaca price for SMR: $40.05 (bid: $37.01, ask: $43.10)
+2025-07-15 12:36:11,805 - WARNING - Using bid price for LEU (ask=0): $215.50
+2025-07-15 12:36:11,913 - INFO - Alpaca price for OKLO: $60.10 (bid: $56.20, ask: $64.00)
+2025-07-15 12:36:12,131 - INFO - 🔄 Starting portfolio rebalance - Portfolio Value: $105,422.84, Cash: $98.15, Buying Power: $98.15
+2025-07-15 12:36:12,132 - INFO - Current allocation LEU: 40.0% ($42,147.73)
+2025-07-15 12:36:12,132 - INFO - Current allocation OKLO: 29.2% ($30,815.37)
+2025-07-15 12:36:12,132 - INFO - Current allocation SMR: 30.7% ($32,361.58)
+2025-07-15 12:36:12,133 - INFO - Target allocation SMR: 31.2% ($32,891.93)
+2025-07-15 12:36:12,133 - INFO - Target allocation LEU: 39.6% ($41,747.44)
+2025-07-15 12:36:12,133 - INFO - Target allocation OKLO: 29.1% ($30,678.05)
+2025-07-15 12:36:12,237 - WARNING - Using bid price for LEU (ask=0): $215.50
+2025-07-15 12:36:12,347 - INFO - Order placed: sell 1.857475 shares of LEU - Order ID: 83d7e02d-3a46-40ad-b06e-8a014976805e, Status: OrderStatus.PENDING_NEW
+2025-07-15 12:36:12,347 - INFO - Order details: filled_qty=0, filled_avg_price=None, submitted_at=2025-07-15 11:36:12.569692+00:00
+2025-07-15 12:36:44,062 - INFO - Final order status for LEU: OrderStatus.PENDING_NEW, filled_qty=0, filled_avg_price=None
+2025-07-15 12:36:44,063 - WARNING - Order for LEU (sell) was not filled. Final status: OrderStatus.PENDING_NEW. Not counting as executed.
+2025-07-15 12:36:44,064 - ERROR - ❌ Failed to place sell order for LEU
+2025-07-15 12:36:44,170 - INFO - Alpaca price for OKLO: $60.10 (bid: $56.20, ask: $64.00)
+2025-07-15 12:36:44,280 - INFO - Order placed: sell 2.284998 shares of OKLO - Order ID: d4612821-4f8b-412d-9339-cff155474a57, Status: OrderStatus.PENDING_NEW
+2025-07-15 12:36:44,280 - INFO - Order details: filled_qty=0, filled_avg_price=None, submitted_at=2025-07-15 11:36:44.499411+00:00
+2025-07-15 12:37:15,971 - INFO - Final order status for OKLO: OrderStatus.PENDING_NEW, filled_qty=0, filled_avg_price=None
+2025-07-15 12:37:15,971 - WARNING - Order for OKLO (sell) was not filled. Final status: OrderStatus.PENDING_NEW. Not counting as executed.
+2025-07-15 12:37:15,971 - ERROR - ❌ Failed to place sell order for OKLO
+2025-07-15 12:37:15,972 - INFO - 💸 Total buying power available: $98.15
+2025-07-15 12:37:16,077 - INFO - Alpaca price for SMR: $40.05 (bid: $37.01, ask: $43.10)
+2025-07-15 12:37:16,077 - INFO - 💰 Buying power remaining after rebalancing: $98.15
+2025-07-15 12:37:16,078 - INFO - ℹ️ No trades needed - portfolio already aligned with strategy
+2025-07-15 12:55:07,877 - INFO - Starting Nuclear Energy strategy analysis...
+2025-07-15 12:55:11,289 - INFO - Analysis complete: BUY NUCLEAR_PORTFOLIO - Bull market - Nuclear portfolio: SMR (31.2%), LEU (39.6%), OKLO (29.1%)
+2025-07-15 12:55:11,551 - INFO - 🏦 Trading Mode: PAPER (from parameter)
+2025-07-15 12:55:11,551 - INFO - API Key loaded: Yes
+2025-07-15 12:55:11,551 - INFO - Secret Key loaded: Yes
+2025-07-15 12:55:11,551 - INFO - Base URL: https://paper-api.alpaca.markets/v2
+2025-07-15 12:55:11,551 - INFO - TradingClient initialized successfully
+2025-07-15 12:55:11,551 - INFO - StockHistoricalDataClient initialized successfully
+2025-07-15 12:55:11,551 - INFO - Alpaca Trading Bot initialized - Paper Trading: True
+2025-07-15 12:55:12,012 - INFO - 🚀 Executing Nuclear Strategy with Alpaca
+2025-07-15 12:55:12,021 - INFO - Found 3 recent signals
+2025-07-15 12:55:12,022 - INFO - Parsed signal: SMR -> 31.2%
+2025-07-15 12:55:12,022 - INFO - Parsed signal: LEU -> 39.6%
+2025-07-15 12:55:12,022 - INFO - Parsed signal: OKLO -> 29.1%
+2025-07-15 12:55:12,023 - INFO - Target Portfolio: {'SMR': 0.312, 'LEU': 0.396, 'OKLO': 0.29100000000000004}
+2025-07-15 12:55:12,134 - INFO - Account Value: $105,540.80
+2025-07-15 12:55:12,487 - INFO - Alpaca price for SMR: $40.05 (bid: $37.01, ask: $43.10)
+2025-07-15 12:55:12,590 - WARNING - Using bid price for LEU (ask=0): $215.50
+2025-07-15 12:55:12,694 - INFO - Alpaca price for OKLO: $60.10 (bid: $56.20, ask: $64.00)
+2025-07-15 12:55:12,906 - INFO - 🔄 Starting portfolio rebalance - Portfolio Value: $105,540.80, Cash: $98.15, Buying Power: $98.15
+2025-07-15 12:55:12,906 - INFO - Current allocation LEU: 39.9% ($42,147.73)
+2025-07-15 12:55:12,907 - INFO - Current allocation OKLO: 29.3% ($30,870.75)
+2025-07-15 12:55:12,907 - INFO - Current allocation SMR: 30.7% ($32,424.16)
+2025-07-15 12:55:12,907 - INFO - Target allocation SMR: 31.2% ($32,928.73)
+2025-07-15 12:55:12,907 - INFO - Target allocation LEU: 39.6% ($41,794.16)
+2025-07-15 12:55:12,907 - INFO - Target allocation OKLO: 29.1% ($30,712.37)
+2025-07-15 12:55:13,011 - WARNING - Using bid price for LEU (ask=0): $215.50
+2025-07-15 12:55:13,119 - INFO - Order placed: sell 1.640713 shares of LEU - Order ID: 4cc1e2e8-3ed1-4ef8-a5bb-942969388f42, Status: OrderStatus.PENDING_NEW
+2025-07-15 12:55:13,120 - INFO - Order details: filled_qty=0, filled_avg_price=None, submitted_at=2025-07-15 11:55:13.301387+00:00
+2025-07-15 12:55:44,794 - INFO - Final order status for LEU: OrderStatus.PENDING_NEW, filled_qty=0, filled_avg_price=None
+2025-07-15 12:55:44,796 - WARNING - Order for LEU (sell) was not filled. Final status: OrderStatus.PENDING_NEW. Not counting as executed.
+2025-07-15 12:55:44,796 - ERROR - ❌ Failed to place sell order for LEU
+2025-07-15 12:55:44,902 - INFO - Alpaca price for OKLO: $60.10 (bid: $56.20, ask: $64.00)
+2025-07-15 12:55:45,013 - INFO - Order placed: sell 2.635276 shares of OKLO - Order ID: 89e3cdbf-a3e3-40c1-8704-34ef3f96dabd, Status: OrderStatus.PENDING_NEW
+2025-07-15 12:55:45,013 - INFO - Order details: filled_qty=0, filled_avg_price=None, submitted_at=2025-07-15 11:55:45.194542+00:00
+2025-07-15 12:56:02,004 - INFO - Final order status for OKLO: OrderStatus.CANCELED, filled_qty=0, filled_avg_price=None
+2025-07-15 12:56:02,005 - WARNING - Order for OKLO (sell) was not filled. Final status: OrderStatus.CANCELED. Not counting as executed.
+2025-07-15 12:56:02,005 - ERROR - ❌ Failed to place sell order for OKLO
+2025-07-15 12:56:02,005 - INFO - 💸 Total buying power available: $98.15
+2025-07-15 12:56:02,114 - INFO - Alpaca price for SMR: $40.05 (bid: $37.01, ask: $43.10)
+2025-07-15 12:56:02,115 - INFO - 💰 Buying power remaining after rebalancing: $98.15
+2025-07-15 12:56:02,115 - INFO - ℹ️ No trades needed - portfolio already aligned with strategy

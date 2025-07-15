@@ -13,6 +13,7 @@ This strategy focuses on:
 import yfinance as yf
 import pandas as pd
 import numpy as np
+import pandas_ta as ta
 import datetime as dt
 import json
 import logging
@@ -43,44 +44,39 @@ class TechnicalIndicators:
     
     @staticmethod
     def rsi(data, window=14):
-        """Calculate RSI"""
+        """Calculate RSI using pandas_ta"""
         try:
-            delta = data.diff()
-            gain = delta.where(delta > 0, 0)
-            loss = -delta.where(delta < 0, 0)
-            
-            avg_gain = gain.rolling(window=window).mean()
-            avg_loss = loss.rolling(window=window).mean()
-            
-            rs = avg_gain / avg_loss
-            rsi = 100 - (100 / (1 + rs))
-            return rsi
-        except:
+            rsi_series = ta.rsi(data, length=window)
+            return rsi_series
+        except Exception:
             return pd.Series([50] * len(data), index=data.index)
-    
+
     @staticmethod
     def moving_average(data, window):
-        """Calculate moving average"""
+        """Calculate moving average using pandas_ta"""
         try:
-            return data.rolling(window=window).mean()
-        except:
+            ma_series = ta.sma(data, length=window)
+            return ma_series
+        except Exception:
             return data
-    
+
     @staticmethod
     def moving_average_return(data, window):
-        """Calculate moving average return"""
+        """Calculate moving average return using pandas_ta"""
         try:
             returns = data.pct_change()
-            return returns.rolling(window=window).mean() * 100
-        except:
+            ma_return = returns.rolling(window=window).mean() * 100
+            return ma_return
+        except Exception:
             return pd.Series([0] * len(data), index=data.index)
-    
+
     @staticmethod
     def cumulative_return(data, window):
         """Calculate cumulative return over window"""
         try:
-            return ((data / data.shift(window)) - 1) * 100
-        except:
+            cum_return = ((data / data.shift(window)) - 1) * 100
+            return cum_return
+        except Exception:
             return pd.Series([0] * len(data), index=data.index)
 
 class DataProvider:
@@ -128,26 +124,80 @@ class DataProvider:
             return float(data['Close'].iloc[-1])
         return 0.0
 
+from enum import Enum, auto
+
+# ActionType enum for clarity and safety
+class ActionType(Enum):
+    BUY = "BUY"
+    SELL = "SELL"
+    HOLD = "HOLD"
+
 class NuclearStrategyEngine:
+    def get_nuclear_portfolio(self, indicators, market_data=None, top_n=3):
+        """
+        Get nuclear energy portfolio with top N stocks and their allocations using inverse volatility weighting.
+        Returns a dict: {symbol: {weight, performance}}
+        """
+        nuclear_performance = []
+        for symbol in self.nuclear_symbols:
+            if symbol in indicators:
+                perf = indicators[symbol].get('ma_return_90', 0)
+                nuclear_performance.append((symbol, perf))
+        # Sort by performance, descending
+        nuclear_performance.sort(key=lambda x: x[1], reverse=True)
+        top_stocks = nuclear_performance[:top_n]
+        # If not enough, pad with available
+        if len(top_stocks) < top_n:
+            available = [s for s in self.nuclear_symbols if s in indicators]
+            for s in available:
+                if s not in [x[0] for x in top_stocks]:
+                    top_stocks.append((s, 0.0))
+                if len(top_stocks) >= top_n:
+                    break
+        # Calculate 90-day volatility for each stock
+        volatilities = []
+        for symbol, _ in top_stocks:
+            if market_data and symbol in market_data:
+                close = market_data[symbol]['Close']
+                returns = close.pct_change().dropna()
+                vol = returns[-90:].std() * np.sqrt(252) if len(returns) >= 90 else 0.3
+            else:
+                vol = 0.3  # fallback
+            volatilities.append(max(vol, 0.01))
+        # Inverse volatility weighting
+        inv_vols = [1/v for v in volatilities]
+        total_inv = sum(inv_vols)
+        portfolio = {}
+        for i, (symbol, perf) in enumerate(top_stocks):
+            weight = inv_vols[i] / total_inv if total_inv > 0 else 1.0/top_n
+            portfolio[symbol] = {'weight': weight, 'performance': perf}
+        return portfolio
+
+    def get_best_nuclear_stocks(self, indicators, top_n=3):
+        """Get top performing nuclear stocks based on 90-day moving average return."""
+        portfolio = self.get_nuclear_portfolio(indicators, top_n=top_n)
+        return list(portfolio.keys())[:top_n]
     """Nuclear Energy Strategy Engine"""
-    
+
     def __init__(self):
         self.data_provider = DataProvider()
         self.indicators = TechnicalIndicators()
-        
+
         # Core symbols from the Nuclear strategy
         self.market_symbols = ['SPY', 'IOO', 'TQQQ', 'VTV', 'XLF', 'VOX']
         self.volatility_symbols = ['UVXY', 'BTAL']
         self.tech_symbols = ['QQQ', 'SQQQ', 'PSQ', 'UPRO']
         self.bond_symbols = ['TLT', 'IEF']
-        
+
         # Nuclear energy stocks (the core of this strategy)
         self.nuclear_symbols = ['SMR', 'BWXT', 'LEU', 'EXC', 'NLR', 'OKLO']
-        
+
         # All symbols
-        self.all_symbols = (self.market_symbols + self.volatility_symbols + 
-                           self.tech_symbols + self.bond_symbols + self.nuclear_symbols)
-    
+        self.all_symbols = (
+            self.market_symbols + self.volatility_symbols +
+            self.tech_symbols + self.bond_symbols + self.nuclear_symbols
+        )
+
     def get_market_data(self):
         """Fetch data for all symbols"""
         market_data = {}
@@ -158,7 +208,7 @@ class NuclearStrategyEngine:
             else:
                 logging.warning(f"Could not fetch data for {symbol}")
         return market_data
-    
+
     def safe_get_indicator(self, data, indicator_func, *args, **kwargs):
         """Safely get indicator value"""
         try:
@@ -167,17 +217,15 @@ class NuclearStrategyEngine:
                 value = float(result.iloc[-1])
                 return value if not pd.isna(value) else 50.0
             return 50.0
-        except:
+        except Exception:
             return 50.0
-    
+
     def calculate_indicators(self, market_data):
         """Calculate all technical indicators"""
         indicators = {}
-        
         for symbol, df in market_data.items():
             if df.empty:
                 continue
-                
             close = df['Close']
             indicators[symbol] = {
                 'rsi_10': self.safe_get_indicator(close, self.indicators.rsi, 10),
@@ -188,310 +236,130 @@ class NuclearStrategyEngine:
                 'cum_return_60': self.safe_get_indicator(close, self.indicators.cumulative_return, 60),
                 'current_price': float(close.iloc[-1]),
             }
-        
         return indicators
-    
-    def get_nuclear_portfolio(self, indicators, market_data=None):
-        """Get nuclear energy portfolio with top 3 stocks and their allocations"""
-        nuclear_performance = []
-        
-        for symbol in self.nuclear_symbols:
-            if symbol in indicators:
-                performance = indicators[symbol]['ma_return_90']
-                nuclear_performance.append((symbol, performance))
-        
-        # Sort by performance and get top 3
-        nuclear_performance.sort(key=lambda x: x[1], reverse=True)
-        top_3_stocks = nuclear_performance[:3]
-        
-        if len(top_3_stocks) < 3:
-            # If we don't have 3 stocks, pad with available ones
-            available = [s for s in self.nuclear_symbols if s in indicators]
-            while len(top_3_stocks) < 3 and len(available) > len(top_3_stocks):
-                missing_stock = available[len(top_3_stocks)]
-                performance = indicators[missing_stock]['ma_return_90']
-                top_3_stocks.append((missing_stock, performance))
-        
-        # Apply inverse volatility weighting (90-day window as per original strategy)
-        if top_3_stocks:
-            portfolio = {}
-            
-            # Calculate 90-day volatility for each stock
-            volatilities = []
-            for symbol, performance in top_3_stocks:
-                # Use price data to calculate volatility
-                if market_data and symbol in market_data:
-                    price_data = market_data[symbol]['Close']
-                    if len(price_data) >= 90:
-                        returns = price_data.pct_change().dropna()
-                        # Use last 90 days of returns
-                        recent_returns = returns.tail(90)
-                        # Calculate standard deviation (volatility)
-                        volatility_val = recent_returns.std()
-                        
-                        # Ensure volatility is a scalar
-                        if isinstance(volatility_val, pd.Series):
-                            volatility_val = volatility_val.iloc[0]
-                        
-                        # Add minimum volatility floor to avoid division by very small numbers
-                        volatility_val = max(volatility_val, 0.001)
-                        
-                        volatilities.append((symbol, performance, volatility_val))
-            
-            if volatilities and len(volatilities) == len(top_3_stocks):
-                # Calculate inverse volatility weights
-                inv_vols = []
-                for symbol, performance, vol in volatilities:
-                    inv_vol = 1.0 / vol
-                    inv_vols.append((symbol, performance, inv_vol))
-                
-                # Calculate total inverse volatility
-                total_inv_vol = sum(inv_vol for _, _, inv_vol in inv_vols)
-                
-                # Normalize to get portfolio weights
-                for symbol, performance, inv_vol in inv_vols:
-                    weight = inv_vol / total_inv_vol
-                    portfolio[symbol] = {
-                        'weight': weight,
-                        'performance': performance
-                    }
-            else:
-                # Fallback to equal weighting if volatility calculation fails
-                weight_per_stock = 1.0 / len(top_3_stocks)
-                for symbol, performance in top_3_stocks:
-                    portfolio[symbol] = {
-                        'weight': weight_per_stock,
-                        'performance': performance
-                    }
-            
-            return portfolio
-        else:
-            # Default fallback
-            return {'SMR': {'weight': 1.0, 'performance': 0.0}}
-    
-    def get_best_nuclear_stocks(self, indicators, top_n=3):
-        """Get top performing nuclear stocks based on 90-day moving average return"""
-        portfolio = self.get_nuclear_portfolio(indicators)
-        return list(portfolio.keys())[:top_n]
-    
+
     def evaluate_nuclear_strategy(self, indicators, market_data=None):
         """
         Evaluate the Nuclear Energy strategy
         Returns: (recommended_symbol, action, reason)
         """
-        
-        # Safety check for required data
         if 'SPY' not in indicators:
-            return 'SPY', 'HOLD', "Missing SPY data"
-        
+            return 'SPY', ActionType.HOLD.value, "Missing SPY data"
         spy_rsi_10 = indicators['SPY']['rsi_10']
-        
-        # Level 1: Check if SPY RSI > 79 (market overbought)
         if spy_rsi_10 > 79:
-            return self._evaluate_overbought_conditions(indicators)
-        else:
-            return self._evaluate_normal_conditions(indicators, market_data)
-    
-    def _evaluate_overbought_conditions(self, indicators):
-        """Handle overbought market conditions (SPY RSI > 79)"""
-        
+            return self._handle_overbought(indicators)
+        return self._handle_normal(indicators, market_data)
+
+    def _handle_overbought(self, indicators):
         spy_rsi_10 = indicators['SPY']['rsi_10']
-        
-        # If SPY RSI > 81, definitely go to UVXY
         if spy_rsi_10 > 81:
-            return 'UVXY', 'BUY', "SPY extremely overbought (RSI > 81)"
-        
-        # Check other major indices for overbought conditions
-        symbols_to_check = ['IOO', 'TQQQ', 'VTV', 'XLF']
-        
-        for symbol in symbols_to_check:
+            return 'UVXY', ActionType.BUY.value, "SPY extremely overbought (RSI > 81)"
+        for symbol in ['IOO', 'TQQQ', 'VTV', 'XLF']:
             if symbol in indicators and indicators[symbol]['rsi_10'] > 81:
-                return 'UVXY', 'BUY', f"{symbol} extremely overbought (RSI > 81)"
-        
-        # Per original strategy: UVXY 75% + BTAL 25% allocation
-        # Return as portfolio allocation signal
-        return 'UVXY_BTAL_PORTFOLIO', 'BUY', "Market overbought, UVXY 75% + BTAL 25% allocation"
-    
-    def _evaluate_normal_conditions(self, indicators, market_data=None):
-        """Handle normal market conditions (SPY RSI <= 79)"""
-        
-        # Check each major index for overbought (but not extreme) conditions
-        if 'IOO' in indicators and indicators['IOO']['rsi_10'] > 79:
-            return self._evaluate_secondary_overbought(indicators, 'IOO')
-        
-        if 'TQQQ' in indicators and indicators['TQQQ']['rsi_10'] > 79:
-            return self._evaluate_secondary_overbought(indicators, 'TQQQ')
-        
-        if 'VTV' in indicators and indicators['VTV']['rsi_10'] > 79:
-            return self._evaluate_secondary_overbought(indicators, 'VTV')
-        
-        if 'XLF' in indicators and indicators['XLF']['rsi_10'] > 79:
-            return self._evaluate_secondary_overbought(indicators, 'XLF')
-        
+                return 'UVXY', ActionType.BUY.value, f"{symbol} extremely overbought (RSI > 81)"
+        return 'UVXY_BTAL_PORTFOLIO', ActionType.BUY.value, "Market overbought, UVXY 75% + BTAL 25% allocation"
+
+    def _handle_normal(self, indicators, market_data=None):
+        for symbol in ['IOO', 'TQQQ', 'VTV', 'XLF']:
+            if symbol in indicators and indicators[symbol]['rsi_10'] > 79:
+                return self._handle_secondary_overbought(indicators, symbol)
         if 'VOX' in indicators and indicators['VOX']['rsi_10'] > 79:
-            return self._evaluate_vox_overbought(indicators)
-        
-        # If nothing is overbought, evaluate main trading logic
-        return self._evaluate_main_trading_logic(indicators, market_data)
-    
-    def _evaluate_secondary_overbought(self, indicators, overbought_symbol):
-        """Handle when a secondary index is overbought"""
-        
-        # Check if the overbought symbol is extremely overbought (>81)
+            return self._handle_vox_overbought(indicators)
+        return self._main_trading_logic(indicators, market_data)
+
+    def _handle_secondary_overbought(self, indicators, overbought_symbol):
         if indicators[overbought_symbol]['rsi_10'] > 81:
-            return 'UVXY', 'BUY', f"{overbought_symbol} extremely overbought"
-        
-        # Continue checking other symbols for extreme overbought
-        other_symbols = ['TQQQ', 'VTV', 'XLF']
-        for symbol in other_symbols:
+            return 'UVXY', ActionType.BUY.value, f"{overbought_symbol} extremely overbought"
+        for symbol in ['TQQQ', 'VTV', 'XLF']:
             if symbol != overbought_symbol and symbol in indicators:
                 if indicators[symbol]['rsi_10'] > 81:
-                    return 'UVXY', 'BUY', f"{symbol} extremely overbought"
-        
-        # Default to UVXY 75% + BTAL 25% allocation per original strategy
-        return 'UVXY_BTAL_PORTFOLIO', 'BUY', f"{overbought_symbol} overbought, UVXY 75% + BTAL 25% allocation"
-    
-    def _evaluate_vox_overbought(self, indicators):
-        """Handle when VOX (communications) is overbought"""
-        
-        # Check XLF for extreme overbought
+                    return 'UVXY', ActionType.BUY.value, f"{symbol} extremely overbought"
+        return 'UVXY_BTAL_PORTFOLIO', ActionType.BUY.value, f"{overbought_symbol} overbought, UVXY 75% + BTAL 25% allocation"
+
+    def _handle_vox_overbought(self, indicators):
         if 'XLF' in indicators and indicators['XLF']['rsi_10'] > 81:
-            return 'UVXY', 'BUY', "XLF extremely overbought"
-        
-        # Default to UVXY 75% + BTAL 25% allocation per original strategy
-        return 'UVXY_BTAL_PORTFOLIO', 'BUY', "VOX overbought, UVXY 75% + BTAL 25% allocation"
-    
-    def _evaluate_main_trading_logic(self, indicators, market_data=None):
-        """Main trading logic when no major overbought conditions"""
-        
-        # Check for TQQQ oversold condition
+            return 'UVXY', ActionType.BUY.value, "XLF extremely overbought"
+        return 'UVXY_BTAL_PORTFOLIO', ActionType.BUY.value, "VOX overbought, UVXY 75% + BTAL 25% allocation"
+
+    def _main_trading_logic(self, indicators, market_data=None):
+        # Oversold checks
         if 'TQQQ' in indicators and indicators['TQQQ']['rsi_10'] < 30:
-            return 'TQQQ', 'BUY', "TQQQ oversold, buying dip"
-        
-        # Check for SPY oversold condition  
+            return 'TQQQ', ActionType.BUY.value, "TQQQ oversold, buying dip"
         if 'SPY' in indicators and indicators['SPY']['rsi_10'] < 30:
-            return 'UPRO', 'BUY', "SPY oversold, buying dip with leverage"
-        
-        # Check SPY trend vs 200-day MA
+            return 'UPRO', ActionType.BUY.value, "SPY oversold, buying dip with leverage"
+        # Bull/bear market check
         if 'SPY' in indicators:
             spy_price = indicators['SPY']['current_price']
             spy_ma_200 = indicators['SPY']['ma_200']
-            
             if spy_price > spy_ma_200:
-                # Bull market - return nuclear energy portfolio allocation
-                nuclear_portfolio = self.get_nuclear_portfolio(indicators, market_data)
-                if nuclear_portfolio:
-                    # Return the nuclear portfolio allocation (not single stock)
-                    portfolio_stocks = list(nuclear_portfolio.keys())
-                    portfolio_desc = ", ".join([f"{s} ({nuclear_portfolio[s]['weight']:.1%})" for s in portfolio_stocks])
-                    # For compliance with original strategy, return portfolio info as a special signal
-                    return 'NUCLEAR_PORTFOLIO', 'BUY', f"Bull market - Nuclear portfolio: {portfolio_desc}"
-                else:
-                    return 'SMR', 'BUY', "Bull market - default nuclear energy play"
-            else:
-                # Bear market - evaluate bear market logic
-                return self._evaluate_bear_market_logic(indicators)
-        
-        # Default fallback
-        return 'SPY', 'HOLD', "No clear signal, holding cash equivalent"
-    
-    def _evaluate_bear_market_logic(self, indicators):
-        """Handle bear market conditions (SPY below 200-day MA)"""
-        
-        # In the original strategy, there are two parallel "Bear" sub-strategies
-        # that get weighted together with 14-day inverse volatility weighting
-        # We need to evaluate both and combine them properly
-        
-        bear1_signal = self._evaluate_bear_subgroup_1(indicators)
-        bear2_signal = self._evaluate_bear_subgroup_2(indicators)
-        
-        # Get the recommended symbols from each bear strategy
+                return self._bull_market_portfolio(indicators, market_data)
+            return self._bear_market_logic(indicators)
+        return 'SPY', ActionType.HOLD.value, "No clear signal, holding cash equivalent"
+
+    def _bull_market_portfolio(self, indicators, market_data=None):
+        nuclear_portfolio = self.get_nuclear_portfolio(indicators, market_data)
+        if nuclear_portfolio:
+            portfolio_stocks = list(nuclear_portfolio.keys())
+            portfolio_desc = ", ".join([
+                f"{s} ({nuclear_portfolio[s]['weight']:.1%})" for s in portfolio_stocks
+            ])
+            return 'NUCLEAR_PORTFOLIO', ActionType.BUY.value, f"Bull market - Nuclear portfolio: {portfolio_desc}"
+        return 'SMR', ActionType.BUY.value, "Bull market - default nuclear energy play"
+
+    def _bear_market_logic(self, indicators):
+        bear1_signal = self._bear_subgroup_1(indicators)
+        bear2_signal = self._bear_subgroup_2(indicators)
         bear1_symbol = bear1_signal[0]
         bear2_symbol = bear2_signal[0]
-        
-        # If both bear signals are the same, return that signal with full allocation
         if bear1_symbol == bear2_symbol:
             return bear1_signal
-        
-        # If different symbols, combine using inverse volatility weighting (14-day window)
         bear_portfolio = self._combine_bear_strategies_with_inverse_volatility(
             bear1_symbol, bear2_symbol, indicators
         )
-        
         if bear_portfolio:
-            # Format portfolio allocation for display
-            portfolio_desc = ", ".join([f"{s} ({bear_portfolio[s]['weight']:.1%})" 
-                                      for s in bear_portfolio.keys()])
-            return 'BEAR_PORTFOLIO', 'BUY', f"Bear market portfolio: {portfolio_desc}"
-        
-        # Fallback if volatility calculation fails
+            portfolio_desc = ", ".join([
+                f"{s} ({bear_portfolio[s]['weight']:.1%})" for s in bear_portfolio.keys()
+            ])
+            return 'BEAR_PORTFOLIO', ActionType.BUY.value, f"Bear market portfolio: {portfolio_desc}"
         return bear1_signal
-    
-    def _evaluate_bear_subgroup_1(self, indicators):
-        """Bear market sub-strategy 1 (mirrors original 'Bear 1' group)"""
-        
-        # Check PSQ RSI for oversold bear ETF
+
+    def _bear_subgroup_1(self, indicators):
         if 'PSQ' in indicators and indicators['PSQ']['rsi_10'] < 35:
-            return 'SQQQ', 'BUY', "PSQ oversold, aggressive short position (Bear 1)"
-        
-        # Check QQQ 60-day performance
+            return 'SQQQ', ActionType.BUY.value, "PSQ oversold, aggressive short position (Bear 1)"
         if 'QQQ' in indicators and indicators['QQQ']['cum_return_60'] < -10:
-            # QQQ down more than 10% in 60 days - check bond vs PSQ strength
             if self._bonds_stronger_than_psq(indicators):
-                return 'TQQQ', 'BUY', "Bonds strong vs PSQ, contrarian TQQQ buy (Bear 1)"
-            else:
-                return 'PSQ', 'BUY', "QQQ weak, defensive short position (Bear 1)"
-        
-        # Check TQQQ trend
+                return 'TQQQ', ActionType.BUY.value, "Bonds strong vs PSQ, contrarian TQQQ buy (Bear 1)"
+            return 'PSQ', ActionType.BUY.value, "QQQ weak, defensive short position (Bear 1)"
         if 'TQQQ' in indicators:
             tqqq_price = indicators['TQQQ']['current_price']
             tqqq_ma_20 = indicators['TQQQ']['ma_20']
-            
             if tqqq_price > tqqq_ma_20:
-                # TQQQ above 20-day MA
                 if self._bonds_stronger_than_psq(indicators):
-                    return 'TQQQ', 'BUY', "TQQQ trending up, bonds strong (Bear 1)"
-                else:
-                    return 'SQQQ', 'BUY', "TQQQ up but bonds weak, short position (Bear 1)"
+                    return 'TQQQ', ActionType.BUY.value, "TQQQ trending up, bonds strong (Bear 1)"
+                return 'SQQQ', ActionType.BUY.value, "TQQQ up but bonds weak, short position (Bear 1)"
             else:
-                # TQQQ below 20-day MA
                 if self._ief_stronger_than_psq(indicators):
-                    return 'SQQQ', 'BUY', "TQQQ weak, IEF strong, short position (Bear 1)"
+                    return 'SQQQ', ActionType.BUY.value, "TQQQ weak, IEF strong, short position (Bear 1)"
                 elif self._bonds_stronger_than_psq(indicators):
-                    return 'QQQ', 'BUY', "TQQQ weak but bonds strong, neutral QQQ (Bear 1)"
-                else:
-                    return 'SQQQ', 'BUY', "TQQQ weak, bonds weak, short position (Bear 1)"
-        
-        # Default bear market position
-        return 'SQQQ', 'BUY', "Bear market conditions, short tech (Bear 1)"
-    
-    def _evaluate_bear_subgroup_2(self, indicators):
-        """Bear market sub-strategy 2 (mirrors original 'Bear 2' group)"""
-        
-        # Check PSQ RSI for oversold bear ETF
+                    return 'QQQ', ActionType.BUY.value, "TQQQ weak but bonds strong, neutral QQQ (Bear 1)"
+                return 'SQQQ', ActionType.BUY.value, "TQQQ weak, bonds weak, short position (Bear 1)"
+        return 'SQQQ', ActionType.BUY.value, "Bear market conditions, short tech (Bear 1)"
+
+    def _bear_subgroup_2(self, indicators):
         if 'PSQ' in indicators and indicators['PSQ']['rsi_10'] < 35:
-            return 'SQQQ', 'BUY', "PSQ oversold, aggressive short position (Bear 2)"
-        
-        # Bear 2 does NOT have the QQQ 60-day check - goes directly to TQQQ trend
+            return 'SQQQ', ActionType.BUY.value, "PSQ oversold, aggressive short position (Bear 2)"
         if 'TQQQ' in indicators:
             tqqq_price = indicators['TQQQ']['current_price']
             tqqq_ma_20 = indicators['TQQQ']['ma_20']
-            
             if tqqq_price > tqqq_ma_20:
-                # TQQQ above 20-day MA
                 if self._bonds_stronger_than_psq(indicators):
-                    return 'TQQQ', 'BUY', "TQQQ trending up, bonds strong (Bear 2)"
-                else:
-                    return 'SQQQ', 'BUY', "TQQQ up but bonds weak, short position (Bear 2)"
+                    return 'TQQQ', ActionType.BUY.value, "TQQQ trending up, bonds strong (Bear 2)"
+                return 'SQQQ', ActionType.BUY.value, "TQQQ up but bonds weak, short position (Bear 2)"
             else:
-                # TQQQ below 20-day MA
                 if self._bonds_stronger_than_psq(indicators):
-                    return 'QQQ', 'BUY', "TQQQ weak but bonds strong, neutral QQQ (Bear 2)"
-                else:
-                    return 'SQQQ', 'BUY', "TQQQ weak, bonds weak, short position (Bear 2)"
-        
-        # Default bear market position
-        return 'SQQQ', 'BUY', "Bear market conditions, short tech (Bear 2)"
+                    return 'QQQ', ActionType.BUY.value, "TQQQ weak but bonds strong, neutral QQQ (Bear 2)"
+                return 'SQQQ', ActionType.BUY.value, "TQQQ weak, bonds weak, short position (Bear 2)"
+        return 'SQQQ', ActionType.BUY.value, "Bear market conditions, short tech (Bear 2)"
     
     def _bonds_stronger_than_psq(self, indicators):
         """Check if TLT RSI(20) > PSQ RSI(20)"""
