@@ -1,40 +1,30 @@
-# Core dependencies
-yfinance==0.2.63
+
+# Core dependencies (exact versions for reproducibility)
+alpaca-py==0.42.0
+matplotlib==3.10.3
+numpy==1.26.4
 pandas==2.3.0
 pandas_ta==0.3.14b0
-numpy==1.26.4
-python-dateutil==2.9.0.post0
-tqdm==4.67.1
-matplotlib==3.10.3
-seaborn==0.13.2
-python-dotenv==1.1.1
-alpaca-py==0.42.0
-# Core testing framework
-pytest>=7.0.0
-pytest-mock>=3.10.0
-pytest-cov>=4.0.0
-pytest-html>=3.1.0
-pytest-xdist>=3.0.0
-
-# Performance monitoring
 psutil==7.0.0
+python-dateutil==2.9.0.post0
+python-dotenv==1.1.1
+seaborn==0.13.2
+tqdm==4.67.1
+yfinance==0.2.63
 
-# Mocking and fixtures
+# Testing and dev dependencies (exact versions)
+pytest==8.4.1
+pytest-cov==6.2.1
+pytest-mock==3.14.1
+pytest-html==3.1.0
+pytest-xdist==3.0.0
+pytest-timeout==2.1.0
+pytest-benchmark==4.0.0
+pytest-asyncio==0.21.0
 responses==0.22.0
-
-# Test data generation
 faker==18.0.0
-
-# Optional: For advanced testing features
-pytest-timeout>=2.1.0
-pytest-benchmark>=4.0.0
-pytest-asyncio>=0.21.0
-
-# Code quality
-flake8>=6.0.0
-black>=23.0.0
-
-# Development utilities
-ipdb>=0.13.0
-rich>=13.0.0
+flake8==6.0.0
+black==23.0.0
+ipdb==0.13.0
+rich==13.0.0
 setuptools==80.9.0
