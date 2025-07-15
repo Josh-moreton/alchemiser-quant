@@ -57,18 +57,38 @@ python main.py email
 - Environment variable `SMTP_PASSWORD` must be set with iCloud app password
 - Configured for: `joshuamoreton1@icloud.com` → `josh@rwxt.org`
 
-**Smart Notifications:**
+**Automated Email Alerts:**
 
-- Only sends email when signals actually change (reduces spam)
-- Includes market analysis, portfolio breakdown, and risk disclaimers
-- Sends error notifications if bot encounters issues
+- Sends a detailed email notification after every Alpaca bot execution (success or failure)
+- Email includes: execution status, account value before/after, cash changes, all positions, and log references
+- Uses the same SMTP configuration as the main bot
+- No longer requires a signal change to send an email (always notifies)
 
 **Example Email Content:**
 
 ```
-🔄 SIGNAL CHANGE: Nuclear Energy - BUY Nuclear Portfolio
-📊 Market Conditions: SPY $623.62 (+7.4% vs 200-MA)
-🎯 Nuclear Portfolio: SMR (31.2%), LEU (39.5%), OKLO (29.3%)
+Nuclear Alpaca Bot Execution Report - 2025-07-15 13:45:22
+
+✅ EXECUTION STATUS: SUCCESS
+
+📈 ACCOUNT SUMMARY:
+   Portfolio Value Before: $100,000.00
+   Portfolio Value After:  $101,250.00
+   Portfolio Change:       $+1,250.00 (+1.25%)
+   
+   Cash Before: $10,000.00
+   Cash After:  $5,000.00
+   Cash Change: $-5,000.00
+
+📊 CURRENT POSITIONS:
+   SMR: 156.0 shares @ $40.00 = $31,200.00
+   LEU: 197.5 shares @ $200.00 = $39,500.00
+   OKLO: 486.67 shares @ $60.00 = $29,200.00
+
+🤖 EXECUTION DETAILS:
+   Strategy: Nuclear Energy Portfolio Rebalancing
+   Trading Mode: Paper Trading (Alpaca)
+   Execution Time: 13:45:22
 ```
 
 #### 📈 `backtest` - Strategy Backtesting
@@ -92,25 +112,14 @@ python main.py backtest --backtest-type hourly
 
 ### Alpaca Setup & Environment Variables
 
-- `data/backtest_results/nuclear_comprehensive_report_*.json`
-- `data/backtest_results/nuclear_trades_*.csv`
-- `data/backtest_results/nuclear_portfolio_*.csv`
+### Email & Alpaca Notification Setup
+
+- Set the `SMTP_PASSWORD` environment variable with your iCloud app password for all email features (including Alpaca execution alerts)
+- Alpaca mode now always sends a detailed email after every run, regardless of signal change
 
 #### 📊 `dashboard` - Interactive Web Dashboard
 
-Launch Streamlit web dashboard for interactive analysis.
-
-```bash
-python main.py dashboard
-```
-
-**Features:**
-
-- Real-time trading signal display with portfolio details
-- Interactive charts and historical performance analysis
-- Signal history timeline and market condition monitoring
-- Live backtesting interface
-- Access at `http://localhost:8501`
+**[Dashboard mode has been removed. All dashboard code and dependencies are no longer part of this project.]**
 
 ## 🤖 Automated Execution (GitHub Actions)
 
@@ -302,16 +311,15 @@ Recent backtest results (2024-07-01 to 2024-09-30):
 |------|---------|---------|--------|
 | **bot** | `python main.py bot` | Live signal generation | Console + JSON logs |
 | **email** | `python main.py email` | Live signals + email alerts | Console + Email |
+| **alpaca** | `python main.py alpaca` | Automated trading with Alpaca + email alert | Console + Email |
 | **backtest** | `python main.py backtest` | Historical strategy testing | Reports + CSV files |
-| **dashboard** | `python main.py dashboard` | Interactive web interface | Web app at :8501 |
+| **dashboard** | *(removed)* | *(removed)* | *(removed)* |
 | **hourly-test** | `python main.py hourly-test` | Timing optimization | Performance analysis |
 
 ### For Production Use
 
-- **Automated Trading**: `python main.py email` (GitHub Actions hourly)
-- **Manual Check**: `python main.py bot`
-- **Strategy Analysis**: `python main.py backtest`
-- **Live Monitoring**: `python main.py dashboard`
+
+*Dashboard mode has been removed. Use email or Alpaca modes for notifications.*
 
 ### Key Features
 
