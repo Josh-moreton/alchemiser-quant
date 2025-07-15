@@ -1,6 +1,6 @@
 # Nuclear Trading Strategy
 
-A comprehensive nuclear energy trading strategy with unified entry points, backtesting framework, and automated hourly execution via GitHub Actions.
+A comprehensive nuclear energy trading strategy with unified entry points and automated hourly execution via GitHub Actions.
 
 ## 🚀 Quick Start Guide
 
@@ -91,24 +91,6 @@ Nuclear Alpaca Bot Execution Report - 2025-07-15 13:45:22
    Execution Time: 13:45:22
 ```
 
-#### 📈 `backtest` - Strategy Backtesting
-
-Test nuclear strategy performance against historical data.
-
-```bash
-# Comprehensive backtest (default)
-python main.py backtest
-
-# Hourly execution timing analysis
-python main.py backtest --backtest-type hourly
-```
-
-**Features:**
-
-- Tests multiple execution strategies (open, close, 10AM, 2PM)
-- Calculates performance metrics (returns, Sharpe ratio, drawdown)
-- Generates detailed reports and CSV files
-- Compares strategy vs benchmark performance
 
 ### Alpaca Setup & Environment Variables
 
@@ -123,15 +105,6 @@ python main.py backtest --backtest-type hourly
 
 ## 🤖 Automated Execution (GitHub Actions)
 
-#### ⏰ `hourly-test` - Hourly Execution Testing
-
-Specialized backtest focusing on hourly execution timing optimization.
-
-```bash
-python main.py hourly-test
-```
-
-**Use Case:** Testing optimal execution times for automated trading with hourly data granularity.
 
 ### Environment Setup
 
@@ -156,23 +129,12 @@ LQQ3/
 ├── src/
 │   ├── core/                   # Core trading components
 │   │   ├── nuclear_trading_bot.py     # Main trading strategy
-│   │   ├── signal_analyzer.py         # Signal analysis tools
-│   │   ├── nuclear_signal_email.py    # Email notifications
-│   │   └── nuclear_dashboard.py       # Trading dashboard
-│   ├── backtest/               # Backtesting framework
-│   │   ├── nuclear_backtest_framework.py      # Core backtesting
-│   │   ├── simplified_comprehensive_backtest.py  # ⭐ Main backtest
-│   │   ├── comprehensive_nuclear_backtest.py     # Detailed backtest
-│   │   └── nuclear_backtest_complete.py          # Complete suite
-│   └── execution/              # Execution timing analysis
-│       ├── execution_engine.py         # Trade execution engine
-│       └── hourly_execution_engine.py  # Hourly timing optimization
+│   │   └── nuclear_signal_email.py    # Email notifications
+│   └── execution/              # Alpaca trading integration
+│       └── alpaca_trader.py    # Alpaca trading bot
 ├── tests/                      # Test suite
 ├── data/                       # Data storage & results
-│   ├── logs/                   # Live trading alerts and logs
-│   ├── backtest_results/       # Backtest reports and CSV files
-│   └── lse_ticker_data/        # Market data cache
-├── docs/                       # Documentation
+│   └── logs/                   # Live trading alerts and logs
 ├── .github/workflows/          # 🤖 AUTOMATED EXECUTION
 │   └── nuclear_daily_signal.yml       # Hourly GitHub Action
 └── requirements.txt            # Python dependencies
@@ -183,7 +145,7 @@ LQQ3/
 - **`main.py`** - Single entry point for all operations
 - **`src/core/nuclear_trading_bot.py`** - Core trading strategy and signal generation
 - **`src/core/nuclear_signal_email.py`** - Email notification system
-- **`src/backtest/simplified_comprehensive_backtest.py`** - Main backtesting engine
+- **`src/execution/alpaca_trader.py`** - Alpaca trading integration
 - **`.github/workflows/nuclear_daily_signal.yml`** - Automated hourly execution
 
 ## 🤖 Automated Execution
@@ -247,22 +209,6 @@ python main.py bot
 
 # Generate signal + email notifications (production)
 python main.py email
-
-# Interactive web dashboard
-python main.py dashboard
-```
-
-### Strategy Analysis
-
-```bash
-# Comprehensive backtesting
-python main.py backtest
-
-# Hourly execution timing analysis
-python main.py hourly-test
-
-# Custom backtest duration
-python main.py backtest --backtest-type comprehensive
 ```
 
 ### Development & Testing
@@ -270,9 +216,6 @@ python main.py backtest --backtest-type comprehensive
 ```bash
 # Test email functionality (requires SMTP_PASSWORD)
 python main.py email
-
-# Test specific timeframe
-python main.py backtest --backtest-type hourly
 ```
 
 ## Key Features
@@ -288,7 +231,6 @@ python main.py backtest --backtest-type hourly
 - **Execution** (`src/execution/`): Trade execution and timing optimization
 - **Tests** (`tests/`): Unit tests and integration tests
 - **Data** (`data/`): Organized storage for results, logs, and market data
-- **Documentation** (`docs/`): Strategy guides and implementation notes
 
 ## 📋 Quick Reference
 
@@ -299,9 +241,6 @@ python main.py backtest --backtest-type hourly
 | **bot** | `python main.py bot` | Live signal generation | Console + JSON logs |
 | **email** | `python main.py email` | Live signals + email alerts | Console + Email |
 | **alpaca** | `python main.py alpaca` | Automated trading with Alpaca + email alert | Console + Email |
-| **backtest** | *(removed)* | *(removed)* | *(removed)* |
-| **dashboard** | *(removed)* | *(removed)* | *(removed)* |
-| **hourly-test** | `python main.py hourly-test` | Timing optimization | Performance analysis |
 
 ### For Production Use
 
@@ -309,13 +248,11 @@ python main.py backtest --backtest-type hourly
 - **Manual Check**: `python main.py bot`
 - **Alpaca Trading**: `python main.py alpaca`
 
-*Backtest and dashboard modes have been removed. Use email or Alpaca modes for notifications.*
+*Backtest, dashboard, and hourly-test modes have been removed. Use email or Alpaca modes for notifications.*
 
 ### Key Features
 
 - ✅ **Unified Entry Point**: One command for all operations
 - ✅ **Smart Email Alerts**: Only sends when signals change
-- ✅ **Comprehensive Backtesting**: Multiple execution strategies tested
 - ✅ **Automated Execution**: GitHub Actions hourly monitoring
-- ✅ **Interactive Dashboard**: Real-time web interface
 - ✅ **Organized Data**: All outputs properly structured in `data/` directory

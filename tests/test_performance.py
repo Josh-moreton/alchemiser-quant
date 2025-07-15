@@ -5,6 +5,8 @@ import pytest
 @pytest.fixture(autouse=True)
 def patch_sleep(monkeypatch):
     monkeypatch.setattr(time, "sleep", lambda x: None)
+    import execution.alpaca_trader as at
+    monkeypatch.setattr(at.time, "sleep", lambda x: None)
 #!/usr/bin/env python3
 """
 Performance and Load Testing for Alpaca Trading Bot
