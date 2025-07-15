@@ -99,10 +99,6 @@ Nuclear Alpaca Bot Execution Report - 2025-07-15 13:45:22
 - Set the `SMTP_PASSWORD` environment variable with your iCloud app password for all email features (including Alpaca execution alerts)
 - Alpaca mode now always sends a detailed email after every run, regardless of signal change
 
-#### 📊 `dashboard` - Interactive Web Dashboard
-
-**[Dashboard mode has been removed. All dashboard code and dependencies are no longer part of this project.]**
-
 ## 🤖 Automated Execution (GitHub Actions)
 
 
@@ -152,7 +148,6 @@ LQQ3/
 
 The system runs automatically via **GitHub Actions** every hour:
 
-- **Schedule:** Hourly execution (`0 * * * *`)
 - **Command:** `python main.py email`
 - **Functions:** Generates trading signals, sends email notifications only when signals change
 - **Manual Trigger:** Available via GitHub Actions UI
@@ -248,11 +243,9 @@ python main.py email
 - **Manual Check**: `python main.py bot`
 - **Alpaca Trading**: `python main.py alpaca`
 
-*Backtest, dashboard, and hourly-test modes have been removed. Use email or Alpaca modes for notifications.*
-
 ### Key Features
 
 - ✅ **Unified Entry Point**: One command for all operations
 - ✅ **Smart Email Alerts**: Only sends when signals change
-- ✅ **Automated Execution**: GitHub Actions hourly monitoring
+- ✅ **Automated Execution**: GitHub Actions dailt monitoring
 - ✅ **Organized Data**: All outputs properly structured in `data/` directory
