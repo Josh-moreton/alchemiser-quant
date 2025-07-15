@@ -58,10 +58,7 @@
 
 ### **nuclear_trading_bot.py**
 
-1. **Unimplemented Methods**
-   - Many methods are stubs or have empty `try/except` blocks. Implement or remove them to avoid confusion.
-
-2. **Indicator Calculation**
+2. **Indicator Calculation** - DONE
    - The `TechnicalIndicators` class has empty methods. Consider using libraries like `pandas_ta` for technical indicators.
 
 3. **Strategy Logic** - DONE

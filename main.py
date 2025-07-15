@@ -45,33 +45,6 @@ def run_trading_bot():
         traceback.print_exc()
         return False
 
-def run_backtest(backtest_type="comprehensive"):
-    """Run backtesting system"""
-    print("📈 NUCLEAR STRATEGY BACKTEST")
-    print("=" * 60)
-    print(f"Running {backtest_type} backtest...")
-    print()
-    
-    try:
-        if backtest_type == "comprehensive":
-            from backtest.simplified_comprehensive_backtest import run_comprehensive_nuclear_backtest
-            # Just call the function, let it parse sys.argv (including --no-redundant-rebalance)
-            results = run_comprehensive_nuclear_backtest()
-        elif backtest_type == "hourly":
-            from execution.hourly_execution_engine import run_hourly_analysis
-            results = run_hourly_analysis()
-        else:
-            print(f"❌ Unknown backtest type: {backtest_type}")
-            return False
-
-        print(f"\n✅ {backtest_type.title()} backtest completed successfully!")
-        return True
-
-    except Exception as e:
-        print(f"❌ Error running backtest: {e}")
-        import traceback
-        traceback.print_exc()
-        return False
 
 def run_dashboard():
     """Launch the nuclear trading dashboard"""
@@ -188,15 +161,8 @@ def run_email_bot():
 
 def main():
     parser = argparse.ArgumentParser(description="Nuclear Trading Strategy - Unified Entry Point")
-    parser.add_argument('mode', choices=['bot', 'email', 'alpaca', 'backtest', 'dashboard', 'hourly-test'], 
+    parser.add_argument('mode', choices=['bot', 'email', 'alpaca', 'dashboard'], 
                        help='Operation mode to run')
-    parser.add_argument('--backtest-type', choices=['comprehensive', 'hourly'], 
-                       default='comprehensive',
-                       help='Type of backtest to run (only for backtest mode)')
-    parser.add_argument('--start-date', type=str, default=None, help='Backtest start date (YYYY-MM-DD)')
-    parser.add_argument('--end-date', type=str, default=None, help='Backtest end date (YYYY-MM-DD)')
-    parser.add_argument('--initial-capital', type=float, default=100000, help='Initial capital for backtest')
-    parser.add_argument('--no-redundant-rebalance', action='store_true', help='Skip rebalancing if tickers unchanged (comprehensive backtest only)')
 
     args = parser.parse_args()
 
@@ -212,22 +178,8 @@ def main():
             success = run_email_bot()
         elif args.mode == 'alpaca':
             success = run_alpaca_bot()
-        elif args.mode == 'backtest':
-            # Pass start_date, end_date, initial_capital, and no_redundant_rebalance for run_backtest
-            sys.argv = [sys.argv[0]]
-            if args.start_date:
-                sys.argv += ["--start-date", args.start_date]
-            if args.end_date:
-                sys.argv += ["--end-date", args.end_date]
-            if args.initial_capital:
-                sys.argv += ["--initial-capital", str(args.initial_capital)]
-            if args.no_redundant_rebalance:
-                sys.argv += ["--no-redundant-rebalance"]
-            success = run_backtest(args.backtest_type)
         elif args.mode == 'dashboard':
             success = run_dashboard()
-        elif args.mode == 'hourly-test':
-            success = run_backtest('hourly')
     except Exception as e:
         print(f"\n💥 Operation failed due to error: {e}")
         import traceback
