@@ -268,12 +268,6 @@ def format_alpaca_email_body(email_data):
    Check data/logs/alpaca_trader.log for detailed execution logs
    Check data/logs/nuclear_alerts.json for nuclear strategy signals
 
-⚠️ DISCLAIMER:
-This is an automated paper trading notification from your Nuclear Energy Trading Bot.
-This is for educational and testing purposes only.
-Always verify trades and do your own research before making investment decisions.
-
-Nuclear Energy Strategy | Alpaca Paper Trading Bot
 """
     
     return body
