@@ -26,6 +26,7 @@ jobs:
           ALPACA_PAPER_KEY: ${{ secrets.ALPACA_PAPER_KEY }}
           ALPACA_PAPER_SECRET: ${{ secrets.ALPACA_PAPER_SECRET }}
           ALPACA_PAPER_ENDPOINT: ${{ vars.ALPACA_PAPER_ENDPOINT }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
         run: python main.py alpaca
 
       - name: Upload trading logs
