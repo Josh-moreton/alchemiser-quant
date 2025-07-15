@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Comprehensive Nuclear Strategy Backtest Report
-Using market open (daily Open prices) execution - simplified and faster
+Using Alpaca Market Data API instead of yfinance - simplified and faster
 """
 
 import pandas as pd
@@ -13,7 +13,8 @@ import json
 from datetime import datetime, timedelta
 warnings.filterwarnings('ignore')
 
-from .nuclear_backtest_framework import BacktestDataProvider, BacktestNuclearStrategy, PortfolioBuilder
+from .alpaca_data_provider import AlpacaBacktestDataProvider
+from .nuclear_backtest_framework import BacktestNuclearStrategy, PortfolioBuilder
 
 class ComprehensiveBacktestReporter:
     """
@@ -40,10 +41,11 @@ class ComprehensiveBacktestReporter:
     def run_comprehensive_backtest(self) -> Dict:
         """Run comprehensive backtest with detailed metrics"""
         
-        print("🚀 COMPREHENSIVE NUCLEAR STRATEGY BACKTEST")
+        print("🚀 COMPREHENSIVE NUCLEAR STRATEGY BACKTEST (ALPACA DATA)")
         print("=" * 60)
         print(f"Period: {self.start_date} to {self.end_date}")
         print(f"Initial Capital: ${self.initial_capital:,.2f}")
+        print(f"Data Source: Alpaca Market Data API")
         print(f"Execution: Market Open (Daily Open Prices)")
         print()
         
@@ -96,11 +98,11 @@ class ComprehensiveBacktestReporter:
     def _run_open_price_backtest(self) -> Dict:
         """Run backtest using daily Open prices for execution"""
         
-        # Initialize framework components
-        data_provider = BacktestDataProvider(self.start_date, self.end_date)
+        # Initialize Alpaca framework components
+        data_provider = AlpacaBacktestDataProvider(self.start_date, self.end_date)
         strategy = BacktestNuclearStrategy(data_provider)
         
-        # Download daily data
+        # Download daily data from Alpaca
         daily_data = data_provider.download_all_data(strategy.all_symbols)
         
         # Initialize execution state
@@ -330,8 +332,8 @@ class ComprehensiveBacktestReporter:
         return total_value
     
     def _calculate_benchmark_performance(self) -> Dict:
-        """Calculate benchmark performance for comparison"""
-        data_provider = BacktestDataProvider(self.start_date, self.end_date)
+        """Calculate benchmark performance for comparison using Alpaca data"""
+        data_provider = AlpacaBacktestDataProvider(self.start_date, self.end_date)
         
         benchmark_results = {}
         

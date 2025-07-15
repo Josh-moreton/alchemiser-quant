@@ -4059,3 +4059,403 @@ Best execution hour: 09:30 with +74.03% return
 2025-07-14 21:35:29,202 - INFO - 💰 Buying power remaining after rebalancing: $14.31
 2025-07-14 21:35:29,202 - INFO - ✅ Portfolio rebalanced - 1 orders executed
 2025-07-14 21:35:29,203 - INFO -    OKLO_SELL: Order cf402843-8a78-407a-8b38-75fc92d02afc
+2025-07-15 08:38:57,352 - INFO - 🏦 Alpaca Data Provider initialized for 2024-10-01 to 2024-12-31
+2025-07-15 08:38:57,353 - INFO - 📊 Downloading daily data for 20 symbols from Alpaca...
+2025-07-15 08:38:57,803 - WARNING - No data returned for SPY
+2025-07-15 08:38:57,803 - WARNING - ❌ No daily data received for SPY
+2025-07-15 08:38:57,922 - WARNING - No data returned for IOO
+2025-07-15 08:38:57,923 - WARNING - ❌ No daily data received for IOO
+2025-07-15 08:38:58,042 - WARNING - No data returned for TQQQ
+2025-07-15 08:38:58,042 - WARNING - ❌ No daily data received for TQQQ
+2025-07-15 08:38:58,157 - WARNING - No data returned for VTV
+2025-07-15 08:38:58,157 - WARNING - ❌ No daily data received for VTV
+2025-07-15 08:38:58,273 - WARNING - No data returned for XLF
+2025-07-15 08:38:58,274 - WARNING - ❌ No daily data received for XLF
+2025-07-15 08:38:58,390 - WARNING - No data returned for VOX
+2025-07-15 08:38:58,391 - WARNING - ❌ No daily data received for VOX
+2025-07-15 08:38:58,506 - WARNING - No data returned for UVXY
+2025-07-15 08:38:58,506 - WARNING - ❌ No daily data received for UVXY
+2025-07-15 08:38:58,623 - WARNING - No data returned for BTAL
+2025-07-15 08:38:58,624 - WARNING - ❌ No daily data received for BTAL
+2025-07-15 08:38:58,748 - WARNING - No data returned for QQQ
+2025-07-15 08:38:58,748 - WARNING - ❌ No daily data received for QQQ
+2025-07-15 08:38:58,864 - WARNING - No data returned for SQQQ
+2025-07-15 08:38:58,864 - WARNING - ❌ No daily data received for SQQQ
+2025-07-15 08:38:58,983 - WARNING - No data returned for PSQ
+2025-07-15 08:38:58,984 - WARNING - ❌ No daily data received for PSQ
+2025-07-15 08:38:59,134 - WARNING - No data returned for UPRO
+2025-07-15 08:38:59,134 - WARNING - ❌ No daily data received for UPRO
+2025-07-15 08:38:59,248 - WARNING - No data returned for TLT
+2025-07-15 08:38:59,248 - WARNING - ❌ No daily data received for TLT
+2025-07-15 08:38:59,360 - WARNING - No data returned for IEF
+2025-07-15 08:38:59,361 - WARNING - ❌ No daily data received for IEF
+2025-07-15 08:38:59,478 - WARNING - No data returned for SMR
+2025-07-15 08:38:59,479 - WARNING - ❌ No daily data received for SMR
+2025-07-15 08:38:59,595 - WARNING - No data returned for BWXT
+2025-07-15 08:38:59,595 - WARNING - ❌ No daily data received for BWXT
+2025-07-15 08:38:59,711 - WARNING - No data returned for LEU
+2025-07-15 08:38:59,712 - WARNING - ❌ No daily data received for LEU
+2025-07-15 08:38:59,827 - WARNING - No data returned for EXC
+2025-07-15 08:38:59,827 - WARNING - ❌ No daily data received for EXC
+2025-07-15 08:38:59,943 - WARNING - No data returned for NLR
+2025-07-15 08:38:59,944 - WARNING - ❌ No daily data received for NLR
+2025-07-15 08:39:00,055 - WARNING - No data returned for OKLO
+2025-07-15 08:39:00,055 - WARNING - ❌ No daily data received for OKLO
+2025-07-15 08:39:00,055 - WARNING - Failed to download daily data: ['SPY', 'IOO', 'TQQQ', 'VTV', 'XLF', 'VOX', 'UVXY', 'BTAL', 'QQQ', 'SQQQ', 'PSQ', 'UPRO', 'TLT', 'IEF', 'SMR', 'BWXT', 'LEU', 'EXC', 'NLR', 'OKLO']
+2025-07-15 08:39:00,055 - INFO - 📈 Successfully downloaded daily data for 0/20 symbols
+2025-07-15 08:50:53,325 - INFO - 🔑 Using Alpaca credentials: API Key = PKS7WB1K...
+2025-07-15 08:50:53,326 - INFO - 🏦 Alpaca Data Provider initialized for 2024-10-01 to 2024-12-31
+2025-07-15 08:50:53,327 - INFO - 📊 Downloading daily data for 20 symbols from Alpaca...
+2025-07-15 08:50:53,327 - INFO - 🔍 Attempting to download SPY data...
+2025-07-15 08:50:53,760 - INFO - ✅ Retrieved 338 bars for SPY
+2025-07-15 08:50:53,774 - INFO - ✅ Downloaded SPY: 338 daily records
+2025-07-15 08:50:53,774 - INFO - 🔍 Attempting to download IOO data...
+2025-07-15 08:50:53,887 - INFO - ✅ Retrieved 338 bars for IOO
+2025-07-15 08:50:53,890 - INFO - ✅ Downloaded IOO: 338 daily records
+2025-07-15 08:50:53,890 - INFO - 🔍 Attempting to download TQQQ data...
+2025-07-15 08:50:54,003 - INFO - ✅ Retrieved 338 bars for TQQQ
+2025-07-15 08:50:54,007 - INFO - ✅ Downloaded TQQQ: 338 daily records
+2025-07-15 08:50:54,008 - INFO - 🔍 Attempting to download VTV data...
+2025-07-15 08:50:54,123 - INFO - ✅ Retrieved 338 bars for VTV
+2025-07-15 08:50:54,129 - INFO - ✅ Downloaded VTV: 338 daily records
+2025-07-15 08:50:54,130 - INFO - 🔍 Attempting to download XLF data...
+2025-07-15 08:50:54,243 - INFO - ✅ Retrieved 338 bars for XLF
+2025-07-15 08:50:54,247 - INFO - ✅ Downloaded XLF: 338 daily records
+2025-07-15 08:50:54,247 - INFO - 🔍 Attempting to download VOX data...
+2025-07-15 08:50:54,366 - INFO - ✅ Retrieved 338 bars for VOX
+2025-07-15 08:50:54,371 - INFO - ✅ Downloaded VOX: 338 daily records
+2025-07-15 08:50:54,372 - INFO - 🔍 Attempting to download UVXY data...
+2025-07-15 08:50:54,486 - INFO - ✅ Retrieved 338 bars for UVXY
+2025-07-15 08:50:54,489 - INFO - ✅ Downloaded UVXY: 338 daily records
+2025-07-15 08:50:54,490 - INFO - 🔍 Attempting to download BTAL data...
+2025-07-15 08:50:54,601 - INFO - ✅ Retrieved 338 bars for BTAL
+2025-07-15 08:50:54,602 - INFO - ✅ Downloaded BTAL: 338 daily records
+2025-07-15 08:50:54,602 - INFO - 🔍 Attempting to download QQQ data...
+2025-07-15 08:50:54,715 - INFO - ✅ Retrieved 338 bars for QQQ
+2025-07-15 08:50:54,717 - INFO - ✅ Downloaded QQQ: 338 daily records
+2025-07-15 08:50:54,717 - INFO - 🔍 Attempting to download SQQQ data...
+2025-07-15 08:50:54,836 - INFO - ✅ Retrieved 338 bars for SQQQ
+2025-07-15 08:50:54,838 - INFO - ✅ Downloaded SQQQ: 338 daily records
+2025-07-15 08:50:54,838 - INFO - 🔍 Attempting to download PSQ data...
+2025-07-15 08:50:54,952 - INFO - ✅ Retrieved 338 bars for PSQ
+2025-07-15 08:50:54,954 - INFO - ✅ Downloaded PSQ: 338 daily records
+2025-07-15 08:50:54,954 - INFO - 🔍 Attempting to download UPRO data...
+2025-07-15 08:50:55,092 - INFO - ✅ Retrieved 338 bars for UPRO
+2025-07-15 08:50:55,094 - INFO - ✅ Downloaded UPRO: 338 daily records
+2025-07-15 08:50:55,094 - INFO - 🔍 Attempting to download TLT data...
+2025-07-15 08:50:55,204 - INFO - ✅ Retrieved 338 bars for TLT
+2025-07-15 08:50:55,207 - INFO - ✅ Downloaded TLT: 338 daily records
+2025-07-15 08:50:55,207 - INFO - 🔍 Attempting to download IEF data...
+2025-07-15 08:50:55,318 - INFO - ✅ Retrieved 338 bars for IEF
+2025-07-15 08:50:55,319 - INFO - ✅ Downloaded IEF: 338 daily records
+2025-07-15 08:50:55,319 - INFO - 🔍 Attempting to download SMR data...
+2025-07-15 08:50:55,435 - INFO - ✅ Retrieved 338 bars for SMR
+2025-07-15 08:50:55,438 - INFO - ✅ Downloaded SMR: 338 daily records
+2025-07-15 08:50:55,438 - INFO - 🔍 Attempting to download BWXT data...
+2025-07-15 08:50:55,550 - INFO - ✅ Retrieved 338 bars for BWXT
+2025-07-15 08:50:55,554 - INFO - ✅ Downloaded BWXT: 338 daily records
+2025-07-15 08:50:55,554 - INFO - 🔍 Attempting to download LEU data...
+2025-07-15 08:50:55,668 - INFO - ✅ Retrieved 338 bars for LEU
+2025-07-15 08:50:55,673 - INFO - ✅ Downloaded LEU: 338 daily records
+2025-07-15 08:50:55,674 - INFO - 🔍 Attempting to download EXC data...
+2025-07-15 08:50:55,791 - INFO - ✅ Retrieved 338 bars for EXC
+2025-07-15 08:50:55,796 - INFO - ✅ Downloaded EXC: 338 daily records
+2025-07-15 08:50:55,796 - INFO - 🔍 Attempting to download NLR data...
+2025-07-15 08:50:55,910 - INFO - ✅ Retrieved 338 bars for NLR
+2025-07-15 08:50:55,915 - INFO - ✅ Downloaded NLR: 338 daily records
+2025-07-15 08:50:55,915 - INFO - 🔍 Attempting to download OKLO data...
+2025-07-15 08:50:56,026 - INFO - ✅ Retrieved 338 bars for OKLO
+2025-07-15 08:50:56,028 - INFO - ✅ Downloaded OKLO: 338 daily records
+2025-07-15 08:50:56,028 - INFO - 📈 Successfully downloaded daily data for 20/20 symbols
+2025-07-15 08:53:28,540 - INFO - 🔑 Using Alpaca credentials: API Key = PKS7WB1K...
+2025-07-15 08:53:28,540 - INFO - 🏦 Alpaca Data Provider initialized for 2024-07-01 to 2024-09-30
+2025-07-15 08:53:28,540 - INFO - 📊 Downloading daily data for 20 symbols from Alpaca...
+2025-07-15 08:53:28,540 - INFO - 🔍 Attempting to download SPY data...
+2025-07-15 08:53:28,952 - INFO - ✅ Retrieved 336 bars for SPY
+2025-07-15 08:53:28,967 - INFO - ✅ Downloaded SPY: 336 daily records
+2025-07-15 08:53:28,967 - INFO - 🔍 Attempting to download IOO data...
+2025-07-15 08:53:29,080 - INFO - ✅ Retrieved 336 bars for IOO
+2025-07-15 08:53:29,082 - INFO - ✅ Downloaded IOO: 336 daily records
+2025-07-15 08:53:29,082 - INFO - 🔍 Attempting to download TQQQ data...
+2025-07-15 08:53:29,193 - INFO - ✅ Retrieved 336 bars for TQQQ
+2025-07-15 08:53:29,197 - INFO - ✅ Downloaded TQQQ: 336 daily records
+2025-07-15 08:53:29,197 - INFO - 🔍 Attempting to download VTV data...
+2025-07-15 08:53:29,313 - INFO - ✅ Retrieved 336 bars for VTV
+2025-07-15 08:53:29,318 - INFO - ✅ Downloaded VTV: 336 daily records
+2025-07-15 08:53:29,318 - INFO - 🔍 Attempting to download XLF data...
+2025-07-15 08:53:29,437 - INFO - ✅ Retrieved 336 bars for XLF
+2025-07-15 08:53:29,442 - INFO - ✅ Downloaded XLF: 336 daily records
+2025-07-15 08:53:29,442 - INFO - 🔍 Attempting to download VOX data...
+2025-07-15 08:53:29,558 - INFO - ✅ Retrieved 336 bars for VOX
+2025-07-15 08:53:29,562 - INFO - ✅ Downloaded VOX: 336 daily records
+2025-07-15 08:53:29,562 - INFO - 🔍 Attempting to download UVXY data...
+2025-07-15 08:53:29,680 - INFO - ✅ Retrieved 336 bars for UVXY
+2025-07-15 08:53:29,686 - INFO - ✅ Downloaded UVXY: 336 daily records
+2025-07-15 08:53:29,687 - INFO - 🔍 Attempting to download BTAL data...
+2025-07-15 08:53:29,800 - INFO - ✅ Retrieved 336 bars for BTAL
+2025-07-15 08:53:29,805 - INFO - ✅ Downloaded BTAL: 336 daily records
+2025-07-15 08:53:29,805 - INFO - 🔍 Attempting to download QQQ data...
+2025-07-15 08:53:29,929 - INFO - ✅ Retrieved 336 bars for QQQ
+2025-07-15 08:53:29,934 - INFO - ✅ Downloaded QQQ: 336 daily records
+2025-07-15 08:53:29,934 - INFO - 🔍 Attempting to download SQQQ data...
+2025-07-15 08:53:30,081 - INFO - ✅ Retrieved 336 bars for SQQQ
+2025-07-15 08:53:30,083 - INFO - ✅ Downloaded SQQQ: 336 daily records
+2025-07-15 08:53:30,083 - INFO - 🔍 Attempting to download PSQ data...
+2025-07-15 08:53:30,195 - INFO - ✅ Retrieved 336 bars for PSQ
+2025-07-15 08:53:30,199 - INFO - ✅ Downloaded PSQ: 336 daily records
+2025-07-15 08:53:30,199 - INFO - 🔍 Attempting to download UPRO data...
+2025-07-15 08:53:30,312 - INFO - ✅ Retrieved 336 bars for UPRO
+2025-07-15 08:53:30,317 - INFO - ✅ Downloaded UPRO: 336 daily records
+2025-07-15 08:53:30,318 - INFO - 🔍 Attempting to download TLT data...
+2025-07-15 08:53:30,434 - INFO - ✅ Retrieved 336 bars for TLT
+2025-07-15 08:53:30,438 - INFO - ✅ Downloaded TLT: 336 daily records
+2025-07-15 08:53:30,438 - INFO - 🔍 Attempting to download IEF data...
+2025-07-15 08:53:30,554 - INFO - ✅ Retrieved 336 bars for IEF
+2025-07-15 08:53:30,559 - INFO - ✅ Downloaded IEF: 336 daily records
+2025-07-15 08:53:30,559 - INFO - 🔍 Attempting to download SMR data...
+2025-07-15 08:53:30,667 - INFO - ✅ Retrieved 336 bars for SMR
+2025-07-15 08:53:30,669 - INFO - ✅ Downloaded SMR: 336 daily records
+2025-07-15 08:53:30,669 - INFO - 🔍 Attempting to download BWXT data...
+2025-07-15 08:53:30,776 - INFO - ✅ Retrieved 336 bars for BWXT
+2025-07-15 08:53:30,778 - INFO - ✅ Downloaded BWXT: 336 daily records
+2025-07-15 08:53:30,778 - INFO - 🔍 Attempting to download LEU data...
+2025-07-15 08:53:30,888 - INFO - ✅ Retrieved 336 bars for LEU
+2025-07-15 08:53:30,891 - INFO - ✅ Downloaded LEU: 336 daily records
+2025-07-15 08:53:30,891 - INFO - 🔍 Attempting to download EXC data...
+2025-07-15 08:53:31,009 - INFO - ✅ Retrieved 336 bars for EXC
+2025-07-15 08:53:31,010 - INFO - ✅ Downloaded EXC: 336 daily records
+2025-07-15 08:53:31,010 - INFO - 🔍 Attempting to download NLR data...
+2025-07-15 08:53:31,119 - INFO - ✅ Retrieved 336 bars for NLR
+2025-07-15 08:53:31,121 - INFO - ✅ Downloaded NLR: 336 daily records
+2025-07-15 08:53:31,121 - INFO - 🔍 Attempting to download OKLO data...
+2025-07-15 08:53:31,230 - INFO - ✅ Retrieved 336 bars for OKLO
+2025-07-15 08:53:31,231 - INFO - ✅ Downloaded OKLO: 336 daily records
+2025-07-15 08:53:31,231 - INFO - 📈 Successfully downloaded daily data for 20/20 symbols
+2025-07-15 08:53:31,262 - INFO - Scaling target portfolio by 0.973 to prevent over-allocation
+2025-07-15 08:53:31,283 - INFO - Scaling target portfolio by 0.987 to prevent over-allocation
+2025-07-15 08:53:31,283 - INFO - Scaled down OKLO purchase to fit available cash
+2025-07-15 08:53:31,302 - INFO - Scaling target portfolio by 0.963 to prevent over-allocation
+2025-07-15 08:53:31,337 - INFO - Scaled down UVXY purchase to fit available cash
+2025-07-15 08:53:31,354 - INFO - Scaling target portfolio by 0.997 to prevent over-allocation
+2025-07-15 08:53:31,354 - INFO - Scaled down BWXT purchase to fit available cash
+2025-07-15 08:53:31,371 - INFO - Scaling target portfolio by 0.970 to prevent over-allocation
+2025-07-15 08:53:31,371 - INFO - Scaled down UVXY purchase to fit available cash
+2025-07-15 08:53:31,421 - INFO - Scaling target portfolio by 0.964 to prevent over-allocation
+2025-07-15 08:53:31,438 - INFO - Scaling target portfolio by 0.980 to prevent over-allocation
+2025-07-15 08:53:31,456 - INFO - Scaling target portfolio by 0.943 to prevent over-allocation
+2025-07-15 08:53:31,473 - INFO - Scaling target portfolio by 0.948 to prevent over-allocation
+2025-07-15 08:53:31,490 - INFO - Scaling target portfolio by 0.931 to prevent over-allocation
+2025-07-15 08:53:31,507 - INFO - Scaled down TQQQ purchase to fit available cash
+2025-07-15 08:53:31,524 - INFO - Scaling target portfolio by 0.990 to prevent over-allocation
+2025-07-15 08:53:31,558 - INFO - Scaled down TQQQ purchase to fit available cash
+2025-07-15 08:53:31,575 - INFO - Scaling target portfolio by 0.964 to prevent over-allocation
+2025-07-15 08:53:31,592 - INFO - Scaling target portfolio by 0.984 to prevent over-allocation
+2025-07-15 08:53:31,626 - INFO - Scaling target portfolio by 0.911 to prevent over-allocation
+2025-07-15 08:53:31,643 - INFO - Scaled down SMR purchase to fit available cash
+2025-07-15 08:53:31,678 - INFO - Scaled down EXC purchase to fit available cash
+2025-07-15 08:53:31,695 - INFO - Scaling target portfolio by 0.981 to prevent over-allocation
+2025-07-15 08:53:31,695 - INFO - Scaled down TQQQ purchase to fit available cash
+2025-07-15 08:53:31,712 - INFO - Scaling target portfolio by 0.964 to prevent over-allocation
+2025-07-15 08:53:31,729 - INFO - Scaling target portfolio by 0.907 to prevent over-allocation
+2025-07-15 08:53:31,747 - INFO - Scaling target portfolio by 0.971 to prevent over-allocation
+2025-07-15 08:53:31,747 - INFO - Scaled down SMR purchase to fit available cash
+2025-07-15 08:53:31,764 - INFO - Scaling target portfolio by 0.992 to prevent over-allocation
+2025-07-15 08:53:31,782 - INFO - Scaling target portfolio by 0.977 to prevent over-allocation
+2025-07-15 08:53:31,799 - INFO - Scaling target portfolio by 1.000 to prevent over-allocation
+2025-07-15 08:53:31,819 - INFO - Scaling target portfolio by 0.980 to prevent over-allocation
+2025-07-15 08:53:31,839 - INFO - Scaling target portfolio by 0.992 to prevent over-allocation
+2025-07-15 08:53:31,857 - INFO - Scaling target portfolio by 0.981 to prevent over-allocation
+2025-07-15 08:53:31,874 - INFO - Scaling target portfolio by 0.982 to prevent over-allocation
+2025-07-15 08:53:31,874 - INFO - Scaled down UVXY purchase to fit available cash
+2025-07-15 08:53:31,891 - INFO - Scaling target portfolio by 0.996 to prevent over-allocation
+2025-07-15 08:53:31,908 - INFO - Scaling target portfolio by 0.927 to prevent over-allocation
+2025-07-15 08:53:31,941 - INFO - Scaling target portfolio by 0.993 to prevent over-allocation
+2025-07-15 08:53:31,975 - INFO - Scaling target portfolio by 0.916 to prevent over-allocation
+2025-07-15 08:53:32,025 - INFO - Scaling target portfolio by 0.770 to prevent over-allocation
+2025-07-15 08:53:32,042 - INFO - Scaled down TQQQ purchase to fit available cash
+2025-07-15 08:53:32,077 - INFO - Scaling target portfolio by 0.872 to prevent over-allocation
+2025-07-15 08:53:32,077 - INFO - Scaled down TQQQ purchase to fit available cash
+2025-07-15 08:53:32,094 - INFO - Scaling target portfolio by 0.963 to prevent over-allocation
+2025-07-15 08:53:32,111 - INFO - Scaling target portfolio by 0.964 to prevent over-allocation
+2025-07-15 08:53:32,129 - INFO - Scaling target portfolio by 0.942 to prevent over-allocation
+2025-07-15 08:53:32,129 - INFO - Scaled down SMR purchase to fit available cash
+2025-07-15 08:53:32,146 - INFO - Scaling target portfolio by 0.989 to prevent over-allocation
+2025-07-15 08:53:32,164 - INFO - Scaling target portfolio by 0.971 to prevent over-allocation
+2025-07-15 08:53:32,182 - INFO - Scaling target portfolio by 0.988 to prevent over-allocation
+2025-07-15 08:53:32,182 - INFO - Scaled down BWXT purchase to fit available cash
+2025-07-15 08:53:32,233 - INFO - Scaling target portfolio by 0.983 to prevent over-allocation
+2025-07-15 08:53:32,250 - INFO - Scaling target portfolio by 0.947 to prevent over-allocation
+2025-07-15 08:53:32,268 - INFO - Scaling target portfolio by 0.996 to prevent over-allocation
+2025-07-15 08:53:32,268 - INFO - Scaled down UVXY purchase to fit available cash
+2025-07-15 08:53:32,285 - INFO - Scaling target portfolio by 1.000 to prevent over-allocation
+2025-07-15 08:53:32,302 - INFO - Scaling target portfolio by 0.972 to prevent over-allocation
+2025-07-15 08:53:32,320 - INFO - Scaling target portfolio by 0.989 to prevent over-allocation
+2025-07-15 08:53:32,338 - INFO - Scaling target portfolio by 0.926 to prevent over-allocation
+2025-07-15 08:53:32,338 - INFO - 🔑 Using Alpaca credentials: API Key = PKS7WB1K...
+2025-07-15 08:53:32,338 - INFO - 🏦 Alpaca Data Provider initialized for 2024-07-01 to 2024-09-30
+2025-07-15 08:53:32,338 - INFO - 📊 Downloading daily data for 1 symbols from Alpaca...
+2025-07-15 08:53:32,338 - INFO - 🔍 Attempting to download SPY data...
+2025-07-15 08:53:32,756 - INFO - ✅ Retrieved 336 bars for SPY
+2025-07-15 08:53:32,761 - INFO - ✅ Downloaded SPY: 336 daily records
+2025-07-15 08:53:32,762 - INFO - 📈 Successfully downloaded daily data for 1/1 symbols
+2025-07-15 08:53:32,764 - INFO - 📊 Downloading daily data for 1 symbols from Alpaca...
+2025-07-15 08:53:32,764 - INFO - 🔍 Attempting to download QQQ data...
+2025-07-15 08:53:32,877 - INFO - ✅ Retrieved 336 bars for QQQ
+2025-07-15 08:53:32,880 - INFO - ✅ Downloaded QQQ: 336 daily records
+2025-07-15 08:53:32,881 - INFO - 📈 Successfully downloaded daily data for 1/1 symbols
+2025-07-15 08:53:32,882 - INFO - 📊 Downloading daily data for 1 symbols from Alpaca...
+2025-07-15 08:53:32,882 - INFO - 🔍 Attempting to download TLT data...
+2025-07-15 08:53:32,996 - INFO - ✅ Retrieved 336 bars for TLT
+2025-07-15 08:53:33,002 - INFO - ✅ Downloaded TLT: 336 daily records
+2025-07-15 08:53:33,002 - INFO - 📈 Successfully downloaded daily data for 1/1 symbols
+2025-07-15 08:53:33,005 - INFO - 📊 Downloading daily data for 1 symbols from Alpaca...
+2025-07-15 08:53:33,005 - INFO - 🔍 Attempting to download IEF data...
+2025-07-15 08:53:33,121 - INFO - ✅ Retrieved 336 bars for IEF
+2025-07-15 08:53:33,126 - INFO - ✅ Downloaded IEF: 336 daily records
+2025-07-15 08:53:33,127 - INFO - 📈 Successfully downloaded daily data for 1/1 symbols
+2025-07-15 08:55:54,177 - INFO - 🔑 Using Alpaca credentials: API Key = PKS7WB1K...
+2025-07-15 08:55:54,178 - INFO - 🏦 Alpaca Data Provider initialized for 2024-07-01 to 2024-09-30
+2025-07-15 08:55:54,178 - INFO - 📊 Downloading daily data for 20 symbols from Alpaca...
+2025-07-15 08:55:54,178 - INFO - 🔍 Attempting to download SPY data...
+2025-07-15 08:55:54,637 - INFO - ✅ Retrieved 336 bars for SPY
+2025-07-15 08:55:54,649 - INFO - ✅ Downloaded SPY: 336 daily records
+2025-07-15 08:55:54,650 - INFO - 🔍 Attempting to download IOO data...
+2025-07-15 08:55:54,767 - INFO - ✅ Retrieved 336 bars for IOO
+2025-07-15 08:55:54,772 - INFO - ✅ Downloaded IOO: 336 daily records
+2025-07-15 08:55:54,772 - INFO - 🔍 Attempting to download TQQQ data...
+2025-07-15 08:55:54,890 - INFO - ✅ Retrieved 336 bars for TQQQ
+2025-07-15 08:55:54,894 - INFO - ✅ Downloaded TQQQ: 336 daily records
+2025-07-15 08:55:54,894 - INFO - 🔍 Attempting to download VTV data...
+2025-07-15 08:55:55,010 - INFO - ✅ Retrieved 336 bars for VTV
+2025-07-15 08:55:55,014 - INFO - ✅ Downloaded VTV: 336 daily records
+2025-07-15 08:55:55,014 - INFO - 🔍 Attempting to download XLF data...
+2025-07-15 08:55:55,132 - INFO - ✅ Retrieved 336 bars for XLF
+2025-07-15 08:55:55,137 - INFO - ✅ Downloaded XLF: 336 daily records
+2025-07-15 08:55:55,137 - INFO - 🔍 Attempting to download VOX data...
+2025-07-15 08:55:55,252 - INFO - ✅ Retrieved 336 bars for VOX
+2025-07-15 08:55:55,256 - INFO - ✅ Downloaded VOX: 336 daily records
+2025-07-15 08:55:55,256 - INFO - 🔍 Attempting to download UVXY data...
+2025-07-15 08:55:55,370 - INFO - ✅ Retrieved 336 bars for UVXY
+2025-07-15 08:55:55,375 - INFO - ✅ Downloaded UVXY: 336 daily records
+2025-07-15 08:55:55,375 - INFO - 🔍 Attempting to download BTAL data...
+2025-07-15 08:55:55,493 - INFO - ✅ Retrieved 336 bars for BTAL
+2025-07-15 08:55:55,497 - INFO - ✅ Downloaded BTAL: 336 daily records
+2025-07-15 08:55:55,498 - INFO - 🔍 Attempting to download QQQ data...
+2025-07-15 08:55:55,648 - INFO - ✅ Retrieved 336 bars for QQQ
+2025-07-15 08:55:55,651 - INFO - ✅ Downloaded QQQ: 336 daily records
+2025-07-15 08:55:55,651 - INFO - 🔍 Attempting to download SQQQ data...
+2025-07-15 08:55:55,764 - INFO - ✅ Retrieved 336 bars for SQQQ
+2025-07-15 08:55:55,768 - INFO - ✅ Downloaded SQQQ: 336 daily records
+2025-07-15 08:55:55,769 - INFO - 🔍 Attempting to download PSQ data...
+2025-07-15 08:55:55,892 - INFO - ✅ Retrieved 336 bars for PSQ
+2025-07-15 08:55:55,896 - INFO - ✅ Downloaded PSQ: 336 daily records
+2025-07-15 08:55:55,896 - INFO - 🔍 Attempting to download UPRO data...
+2025-07-15 08:55:56,009 - INFO - ✅ Retrieved 336 bars for UPRO
+2025-07-15 08:55:56,011 - INFO - ✅ Downloaded UPRO: 336 daily records
+2025-07-15 08:55:56,011 - INFO - 🔍 Attempting to download TLT data...
+2025-07-15 08:55:56,129 - INFO - ✅ Retrieved 336 bars for TLT
+2025-07-15 08:55:56,130 - INFO - ✅ Downloaded TLT: 336 daily records
+2025-07-15 08:55:56,130 - INFO - 🔍 Attempting to download IEF data...
+2025-07-15 08:55:56,239 - INFO - ✅ Retrieved 336 bars for IEF
+2025-07-15 08:55:56,240 - INFO - ✅ Downloaded IEF: 336 daily records
+2025-07-15 08:55:56,241 - INFO - 🔍 Attempting to download SMR data...
+2025-07-15 08:55:56,349 - INFO - ✅ Retrieved 336 bars for SMR
+2025-07-15 08:55:56,350 - INFO - ✅ Downloaded SMR: 336 daily records
+2025-07-15 08:55:56,350 - INFO - 🔍 Attempting to download BWXT data...
+2025-07-15 08:55:56,460 - INFO - ✅ Retrieved 336 bars for BWXT
+2025-07-15 08:55:56,461 - INFO - ✅ Downloaded BWXT: 336 daily records
+2025-07-15 08:55:56,461 - INFO - 🔍 Attempting to download LEU data...
+2025-07-15 08:55:56,572 - INFO - ✅ Retrieved 336 bars for LEU
+2025-07-15 08:55:56,574 - INFO - ✅ Downloaded LEU: 336 daily records
+2025-07-15 08:55:56,574 - INFO - 🔍 Attempting to download EXC data...
+2025-07-15 08:55:56,687 - INFO - ✅ Retrieved 336 bars for EXC
+2025-07-15 08:55:56,691 - INFO - ✅ Downloaded EXC: 336 daily records
+2025-07-15 08:55:56,692 - INFO - 🔍 Attempting to download NLR data...
+2025-07-15 08:55:56,813 - INFO - ✅ Retrieved 336 bars for NLR
+2025-07-15 08:55:56,819 - INFO - ✅ Downloaded NLR: 336 daily records
+2025-07-15 08:55:56,819 - INFO - 🔍 Attempting to download OKLO data...
+2025-07-15 08:55:56,934 - INFO - ✅ Retrieved 336 bars for OKLO
+2025-07-15 08:55:56,938 - INFO - ✅ Downloaded OKLO: 336 daily records
+2025-07-15 08:55:56,938 - INFO - 📈 Successfully downloaded daily data for 20/20 symbols
+2025-07-15 08:55:56,980 - INFO - Scaling target portfolio by 0.973 to prevent over-allocation
+2025-07-15 08:55:57,003 - INFO - Scaling target portfolio by 0.987 to prevent over-allocation
+2025-07-15 08:55:57,003 - INFO - Scaled down OKLO purchase to fit available cash
+2025-07-15 08:55:57,022 - INFO - Scaling target portfolio by 0.963 to prevent over-allocation
+2025-07-15 08:55:57,056 - INFO - Scaled down UVXY purchase to fit available cash
+2025-07-15 08:55:57,073 - INFO - Scaling target portfolio by 0.997 to prevent over-allocation
+2025-07-15 08:55:57,074 - INFO - Scaled down NLR purchase to fit available cash
+2025-07-15 08:55:57,090 - INFO - Scaling target portfolio by 0.971 to prevent over-allocation
+2025-07-15 08:55:57,090 - INFO - Scaled down UVXY purchase to fit available cash
+2025-07-15 08:55:57,139 - INFO - Scaling target portfolio by 0.964 to prevent over-allocation
+2025-07-15 08:55:57,156 - INFO - Scaling target portfolio by 0.980 to prevent over-allocation
+2025-07-15 08:55:57,173 - INFO - Scaling target portfolio by 0.943 to prevent over-allocation
+2025-07-15 08:55:57,189 - INFO - Scaling target portfolio by 0.948 to prevent over-allocation
+2025-07-15 08:55:57,206 - INFO - Scaling target portfolio by 0.931 to prevent over-allocation
+2025-07-15 08:55:57,223 - INFO - Scaled down TQQQ purchase to fit available cash
+2025-07-15 08:55:57,240 - INFO - Scaling target portfolio by 0.990 to prevent over-allocation
+2025-07-15 08:55:57,274 - INFO - Scaled down TQQQ purchase to fit available cash
+2025-07-15 08:55:57,291 - INFO - Scaling target portfolio by 0.964 to prevent over-allocation
+2025-07-15 08:55:57,307 - INFO - Scaling target portfolio by 0.984 to prevent over-allocation
+2025-07-15 08:55:57,341 - INFO - Scaling target portfolio by 0.911 to prevent over-allocation
+2025-07-15 08:55:57,358 - INFO - Scaled down SMR purchase to fit available cash
+2025-07-15 08:55:57,393 - INFO - Scaled down EXC purchase to fit available cash
+2025-07-15 08:55:57,410 - INFO - Scaling target portfolio by 0.981 to prevent over-allocation
+2025-07-15 08:55:57,410 - INFO - Scaled down TQQQ purchase to fit available cash
+2025-07-15 08:55:57,427 - INFO - Scaling target portfolio by 0.964 to prevent over-allocation
+2025-07-15 08:55:57,444 - INFO - Scaling target portfolio by 0.907 to prevent over-allocation
+2025-07-15 08:55:57,462 - INFO - Scaling target portfolio by 0.971 to prevent over-allocation
+2025-07-15 08:55:57,462 - INFO - Scaled down SMR purchase to fit available cash
+2025-07-15 08:55:57,480 - INFO - Scaling target portfolio by 0.992 to prevent over-allocation
+2025-07-15 08:55:57,497 - INFO - Scaling target portfolio by 0.977 to prevent over-allocation
+2025-07-15 08:55:57,515 - INFO - Scaling target portfolio by 1.000 to prevent over-allocation
+2025-07-15 08:55:57,533 - INFO - Scaling target portfolio by 0.980 to prevent over-allocation
+2025-07-15 08:55:57,550 - INFO - Scaling target portfolio by 0.992 to prevent over-allocation
+2025-07-15 08:55:57,568 - INFO - Scaling target portfolio by 0.981 to prevent over-allocation
+2025-07-15 08:55:57,585 - INFO - Scaling target portfolio by 0.982 to prevent over-allocation
+2025-07-15 08:55:57,585 - INFO - Scaled down UVXY purchase to fit available cash
+2025-07-15 08:55:57,602 - INFO - Scaling target portfolio by 0.996 to prevent over-allocation
+2025-07-15 08:55:57,619 - INFO - Scaling target portfolio by 0.927 to prevent over-allocation
+2025-07-15 08:55:57,653 - INFO - Scaling target portfolio by 0.993 to prevent over-allocation
+2025-07-15 08:55:57,686 - INFO - Scaling target portfolio by 0.916 to prevent over-allocation
+2025-07-15 08:55:57,735 - INFO - Scaling target portfolio by 0.770 to prevent over-allocation
+2025-07-15 08:55:57,752 - INFO - Scaled down TQQQ purchase to fit available cash
+2025-07-15 08:55:57,785 - INFO - Scaling target portfolio by 0.872 to prevent over-allocation
+2025-07-15 08:55:57,785 - INFO - Scaled down TQQQ purchase to fit available cash
+2025-07-15 08:55:57,802 - INFO - Scaling target portfolio by 0.963 to prevent over-allocation
+2025-07-15 08:55:57,819 - INFO - Scaling target portfolio by 0.964 to prevent over-allocation
+2025-07-15 08:55:57,837 - INFO - Scaling target portfolio by 0.942 to prevent over-allocation
+2025-07-15 08:55:57,837 - INFO - Scaled down BWXT purchase to fit available cash
+2025-07-15 08:55:57,855 - INFO - Scaling target portfolio by 0.989 to prevent over-allocation
+2025-07-15 08:55:57,872 - INFO - Scaling target portfolio by 0.971 to prevent over-allocation
+2025-07-15 08:55:57,890 - INFO - Scaling target portfolio by 0.988 to prevent over-allocation
+2025-07-15 08:55:57,890 - INFO - Scaled down EXC purchase to fit available cash
+2025-07-15 08:55:57,944 - INFO - Scaling target portfolio by 0.983 to prevent over-allocation
+2025-07-15 08:55:57,961 - INFO - Scaling target portfolio by 0.947 to prevent over-allocation
+2025-07-15 08:55:57,978 - INFO - Scaling target portfolio by 0.996 to prevent over-allocation
+2025-07-15 08:55:57,978 - INFO - Scaled down UVXY purchase to fit available cash
+2025-07-15 08:55:57,995 - INFO - Scaling target portfolio by 1.000 to prevent over-allocation
+2025-07-15 08:55:58,012 - INFO - Scaling target portfolio by 0.972 to prevent over-allocation
+2025-07-15 08:55:58,029 - INFO - Scaling target portfolio by 0.989 to prevent over-allocation
+2025-07-15 08:55:58,046 - INFO - Scaling target portfolio by 0.926 to prevent over-allocation
+2025-07-15 08:55:58,047 - INFO - 🔑 Using Alpaca credentials: API Key = PKS7WB1K...
+2025-07-15 08:55:58,047 - INFO - 🏦 Alpaca Data Provider initialized for 2024-07-01 to 2024-09-30
+2025-07-15 08:55:58,047 - INFO - 📊 Downloading daily data for 1 symbols from Alpaca...
+2025-07-15 08:55:58,047 - INFO - 🔍 Attempting to download SPY data...
+2025-07-15 08:55:58,454 - INFO - ✅ Retrieved 336 bars for SPY
+2025-07-15 08:55:58,456 - INFO - ✅ Downloaded SPY: 336 daily records
+2025-07-15 08:55:58,456 - INFO - 📈 Successfully downloaded daily data for 1/1 symbols
+2025-07-15 08:55:58,457 - INFO - 📊 Downloading daily data for 1 symbols from Alpaca...
+2025-07-15 08:55:58,457 - INFO - 🔍 Attempting to download QQQ data...
+2025-07-15 08:55:58,569 - INFO - ✅ Retrieved 336 bars for QQQ
+2025-07-15 08:55:58,570 - INFO - ✅ Downloaded QQQ: 336 daily records
+2025-07-15 08:55:58,570 - INFO - 📈 Successfully downloaded daily data for 1/1 symbols
+2025-07-15 08:55:58,571 - INFO - 📊 Downloading daily data for 1 symbols from Alpaca...
+2025-07-15 08:55:58,571 - INFO - 🔍 Attempting to download TLT data...
+2025-07-15 08:55:58,680 - INFO - ✅ Retrieved 336 bars for TLT
+2025-07-15 08:55:58,682 - INFO - ✅ Downloaded TLT: 336 daily records
+2025-07-15 08:55:58,682 - INFO - 📈 Successfully downloaded daily data for 1/1 symbols
+2025-07-15 08:55:58,683 - INFO - 📊 Downloading daily data for 1 symbols from Alpaca...
+2025-07-15 08:55:58,683 - INFO - 🔍 Attempting to download IEF data...
+2025-07-15 08:55:58,795 - INFO - ✅ Retrieved 336 bars for IEF
+2025-07-15 08:55:58,800 - INFO - ✅ Downloaded IEF: 336 daily records
+2025-07-15 08:55:58,800 - INFO - 📈 Successfully downloaded daily data for 1/1 symbols
