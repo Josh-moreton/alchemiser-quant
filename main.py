@@ -45,24 +45,7 @@ def run_trading_bot():
         traceback.print_exc()
         return False
 
-
 def run_dashboard():
-    """Launch the nuclear trading dashboard"""
-    print("📊 NUCLEAR TRADING DASHBOARD")
-    print("=" * 60)
-    print("Starting dashboard server...")
-    print()
-    
-    try:
-        from core.nuclear_dashboard import run_dashboard_server
-        run_dashboard_server()
-        return True
-        
-    except Exception as e:
-        print(f"❌ Error running dashboard: {e}")
-        import traceback
-        traceback.print_exc()
-        return False
 
 def run_alpaca_bot():
     """Run the nuclear trading bot with Alpaca execution"""
@@ -161,7 +144,7 @@ def run_email_bot():
 
 def main():
     parser = argparse.ArgumentParser(description="Nuclear Trading Strategy - Unified Entry Point")
-    parser.add_argument('mode', choices=['bot', 'email', 'alpaca', 'dashboard'], 
+    parser.add_argument('mode', choices=['bot', 'email', 'alpaca'], 
                        help='Operation mode to run')
 
     args = parser.parse_args()
@@ -178,8 +161,6 @@ def main():
             success = run_email_bot()
         elif args.mode == 'alpaca':
             success = run_alpaca_bot()
-        elif args.mode == 'dashboard':
-            success = run_dashboard()
     except Exception as e:
         print(f"\n💥 Operation failed due to error: {e}")
         import traceback
