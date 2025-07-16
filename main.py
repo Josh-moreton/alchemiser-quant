@@ -135,115 +135,56 @@ def run_alpaca_bot():
 def send_alpaca_email_notification(success, account_before, account_after, alpaca_bot):
     """Send email notification about Alpaca bot execution"""
     try:
-        from src.core.email_utils import send_email
-        
+        from src.core.email_utils import send_alpaca_notification
         # Get current positions for portfolio summary
         positions = alpaca_bot.get_positions()
-        
-        # Calculate portfolio changes
-        portfolio_value_before = account_before.get('portfolio_value', 0.0)
-        portfolio_value_after = account_after.get('portfolio_value', 0.0)
-        cash_before = account_before.get('cash', 0.0)
-        cash_after = account_after.get('cash', 0.0)
-        
-        # Email configuration
-        smtp_server = "smtp.mail.me.com"
-        smtp_port = 587
-        smtp_user = "joshuamoreton1@icloud.com"
-        smtp_password = os.environ.get("SMTP_PASSWORD")
-        to_email = "josh@rwxt.org"
-        
-        if not smtp_password:
-            print("⚠️ SMTP_PASSWORD environment variable not set. Email notification skipped.")
-            return
-        
-        # Format subject and body
-        status_icon = "✅" if success else "❌"
-        subject = f"{status_icon} Nuclear Alpaca Bot Execution - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-        
-        portfolio_change = portfolio_value_after - portfolio_value_before
-        portfolio_change_pct = (portfolio_change / portfolio_value_before * 100) if portfolio_value_before > 0 else 0
-        
-        # Create positions summary
-        if positions:
-            positions_text = "\n📊 CURRENT POSITIONS:\n"
-            for symbol, position in positions.items():
-                qty = position.get('qty', 0)
-                market_value = position.get('market_value', 0)
-                current_price = position.get('current_price', 0)
-                positions_text += f"   {symbol}: {qty} shares @ ${current_price:.2f} = ${market_value:.2f}\n"
-        else:
-            positions_text = "\n💰 CURRENT POSITIONS: 100% Cash\n"
-        
-        body = f"""Nuclear Alpaca Bot Execution Report - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-
-{status_icon} EXECUTION STATUS: {'SUCCESS' if success else 'FAILED'}
-
-📈 ACCOUNT SUMMARY:
-   Portfolio Value Before: ${portfolio_value_before:,.2f}
-   Portfolio Value After:  ${portfolio_value_after:,.2f}
-   Portfolio Change:       ${portfolio_change:+,.2f} ({portfolio_change_pct:+.2f}%)
-   
-   Cash Before: ${cash_before:,.2f}
-   Cash After:  ${cash_after:,.2f}
-   Cash Change: ${cash_after - cash_before:+,.2f}
-
-{positions_text}
-
-🤖 EXECUTION DETAILS:
-   Strategy: Nuclear Energy Portfolio Rebalancing
-   Trading Mode: Paper Trading (Alpaca)
-   Execution Time: {datetime.now().strftime('%H:%M:%S')}
-   
-📋 LOGS:
-   Check data/logs/alpaca_trader.log for detailed execution logs
-   Check data/logs/nuclear_alerts.json for nuclear strategy signals
-"""
-        
-        # Send email
-        email_sent = send_email(subject, body, smtp_server, smtp_port, smtp_user, smtp_password, to_email)
-        
-        if email_sent:
-            print("✅ Email notification sent successfully!")
-        else:
-            print("❌ Failed to send email notification.")
-            
+        # Send notification using email_utils
+        send_alpaca_notification(success, account_before, account_after, positions)
     except Exception as e:
         print(f"⚠️ Error sending email notification: {e}")
         traceback.print_exc()
 
 
-
-
-
-
-
-
-def run_email_bot():
-    """Run the nuclear trading bot with email notifications"""
+def run_email_bot(test_mode=False):
+    """Run the nuclear trading bot and send an email notification with the signal."""
     print("🚀 NUCLEAR TRADING BOT - EMAIL MODE")
     print("=" * 60)
     print(f"Running live trading analysis with email notifications at {datetime.now()}")
     print()
-    
     try:
-        from src.core.nuclear_signal_email import main as email_main
+        from core.nuclear_trading_bot import NuclearTradingBot
+        from src.core.email_utils import send_signal_notification
         
-        # Run the email bot
-        print("📧 Starting email-enabled nuclear trading bot...")
-        email_main()
+        # Run the bot and get the signal
+        bot = NuclearTradingBot()
+        print("Fetching live market data and generating signal...")
+        print()
         
-        return True
+        signal = bot.run_once()
+        
+        if not signal:
+            print("❌ Failed to generate nuclear signals")
+            return False
+            
+        print("✅ Nuclear trading signals generated successfully!")
+        print()
+        
+        # Send email notification using email_utils
+        email_sent = send_signal_notification(signal, test_mode)
+        
+        return email_sent
         
     except Exception as e:
         print(f"❌ Error running email bot: {e}")
         traceback.print_exc()
         return False
 
+
 def main():
     parser = argparse.ArgumentParser(description="Nuclear Trading Strategy - Unified Entry Point")
     parser.add_argument('mode', choices=['bot', 'email', 'alpaca'], 
                        help='Operation mode to run')
+    parser.add_argument('--test-email', action='store_true', help='Always send email in email mode (for testing)')
 
     args = parser.parse_args()
 
@@ -256,7 +197,7 @@ def main():
         if args.mode == 'bot':
             success = run_trading_bot()
         elif args.mode == 'email':
-            success = run_email_bot()
+            success = run_email_bot(test_mode=args.test_email)
         elif args.mode == 'alpaca':
             success = run_alpaca_bot()
     except Exception as e:
