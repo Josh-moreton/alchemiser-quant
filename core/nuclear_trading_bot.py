@@ -49,50 +49,9 @@ class Alert:
 
 
 
-class DataProvider:
-    """Fetch market data"""
-    
-    def __init__(self):
-        self.cache = {}
-        self.cache_duration = 300  # 5 minutes
-    
-    def get_data(self, symbol, period="1y"):
-        """Get historical data with caching"""
-        cache_key = f"{symbol}_{period}"
-        current_time = dt.datetime.now()
-        
-        if (cache_key in self.cache and 
-            (current_time - self.cache[cache_key]['timestamp']).seconds < self.cache_duration):
-            return self.cache[cache_key]['data']
-        
-        try:
-            ticker = yf.Ticker(symbol)
-            data = ticker.history(period=period)
-            
-            if not data.empty:
-                # Flatten the column MultiIndex if it exists
-                if isinstance(data.columns, pd.MultiIndex):
-                    data.columns = [col[0] for col in data.columns]
-                
-                self.cache[cache_key] = {
-                    'data': data,
-                    'timestamp': current_time
-                }
-                return data
-            else:
-                logging.warning(f"No data found for {symbol}")
-                return pd.DataFrame()
-                
-        except Exception as e:
-            logging.error(f"Error fetching data for {symbol}: {e}")
-            return pd.DataFrame()
-    
-    def get_current_price(self, symbol):
-        """Get current price"""
-        data = self.get_data(symbol, period="5d")
-        if not data.empty:
-            return float(data['Close'].iloc[-1])
-        return 0.0
+
+# Import DataProvider from the new module
+from core.data_provider import DataProvider
 
 from enum import Enum, auto
 
