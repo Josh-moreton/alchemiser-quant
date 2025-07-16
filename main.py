@@ -184,9 +184,117 @@ def run_email_bot(test_mode=False):
         return False
 
 
+def run_alpaca_telegram_bot():
+    """Run the nuclear trading bot with Alpaca execution and send Telegram update instead of email."""
+    print("🚀 NUCLEAR TRADING BOT - ALPACA TELEGRAM MODE")
+    print("=" * 60)
+    print(f"Running live trading analysis with Alpaca paper trading at {datetime.now()}")
+    print()
+    
+    try:
+        # Import and run the core nuclear trading bot first to generate signals
+        from core.nuclear_trading_bot import NuclearTradingBot
+        from core.telegram_utils import send_telegram_message
+        
+        print("📊 STEP 1: Generating Nuclear Trading Signals...")
+        print("-" * 50)
+        
+        # Generate nuclear signals
+        bot = NuclearTradingBot()
+        print("Fetching live market data and generating signal...")
+        print()
+        
+        signal = bot.run_once()
+        
+        if not signal:
+            print("❌ Failed to generate nuclear signals")
+            send_telegram_message("❌ Failed to generate nuclear signals")
+            return False
+        
+        print("✅ Nuclear trading signals generated successfully!")
+        print()
+        
+        # Import and initialize Alpaca trading bot
+        print("🏦 STEP 2: Connecting to Alpaca Paper Trading...")
+        print("-" * 50)
+        
+        from execution.alpaca_trader import AlpacaTradingBot
+        
+        # Initialize bot with paper trading
+        alpaca_bot = AlpacaTradingBot(paper_trading=True)
+        
+        # Get account info before trading
+        account_info_before = alpaca_bot.get_account_info()
+        
+        # Display account summary before trading
+        print("📋 Account Status Before Trading:")
+        alpaca_bot.display_account_summary()
+        
+        print("⚡ STEP 3: Executing Trades Based on Nuclear Signals...")
+        print("-" * 50)
+        
+        # Execute nuclear strategy with Alpaca
+        success = alpaca_bot.execute_nuclear_strategy()
+        
+        if success:
+            print("✅ Trade execution completed successfully!")
+        else:
+            print("❌ Trade execution failed!")
+        
+        print()
+        print("📊 STEP 4: Final Account Status...")
+        print("-" * 50)
+        
+        # Get account info after trading
+        account_info_after = alpaca_bot.get_account_info()
+        
+        # Display updated account summary
+        alpaca_bot.display_account_summary()
+        
+        print()
+        print("=" * 70)
+        print("🎯 NUCLEAR ALPACA BOT EXECUTION COMPLETE")
+        print("=" * 70)
+        print()
+        
+        # Send Telegram notification about the execution
+        print("📲 STEP 5: Sending Telegram Notification...")
+        print("-" * 50)
+        
+        try:
+            positions = alpaca_bot.get_positions()
+            msg = f"🚀 Nuclear Alpaca Bot Execution\n\n"
+            msg += f"Status: {'✅ Success' if success else '❌ Failed'}\n"
+            msg += f"Portfolio Value Before: ${account_info_before.get('portfolio_value', 0):,.2f}\n"
+            msg += f"Portfolio Value After:  ${account_info_after.get('portfolio_value', 0):,.2f}\n"
+            msg += f"Cash Before: ${account_info_before.get('cash', 0):,.2f}\n"
+            msg += f"Cash After:  ${account_info_after.get('cash', 0):,.2f}\n"
+            
+            if positions:
+                msg += "\nPositions:\n"
+                for symbol, pos in positions.items():
+                    qty = pos.get('qty', 0)
+                    price = pos.get('current_price', 0)
+                    market_value = pos.get('market_value', 0)
+                    msg += f"- {symbol}: {qty} @ ${price:.2f} = ${market_value:.2f}\n"
+            
+            send_telegram_message(msg)
+            print("✅ Telegram notification sent successfully!")
+            
+        except Exception as e:
+            print(f"⚠️ Error sending Telegram notification: {e}")
+        
+        return success
+        
+    except Exception as e:
+        print(f"❌ Error running Alpaca Telegram bot: {e}")
+        traceback.print_exc()
+        return False
+
+
 def main():
     parser = argparse.ArgumentParser(description="Nuclear Trading Strategy - Unified Entry Point")
-    parser.add_argument('mode', choices=['bot', 'email', 'alpaca'], 
+    parser.add_argument('mode', choices=['bot', 'email', 'alpaca', 'telegram'], 
                        help='Operation mode to run')
     parser.add_argument('--test-email', action='store_true', help='Always send email in email mode (for testing)')
 
@@ -204,6 +312,8 @@ def main():
             success = run_email_bot(test_mode=args.test_email)
         elif args.mode == 'alpaca':
             success = run_alpaca_bot()
+        elif args.mode == 'telegram':
+            success = run_alpaca_telegram_bot()
     except Exception as e:
         print(f"\n💥 Operation failed due to error: {e}")
         traceback.print_exc()
