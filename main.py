@@ -5,14 +5,11 @@ Unified launcher for all nuclear trading operations
 """
 
 # Standard library imports
-import sys
-import os
 import argparse
 from datetime import datetime
 import traceback
-
-# Add src directory to Python path for local imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
+import sys
+import os
 
 def run_trading_bot():
     """Run the main nuclear trading bot for live signals"""
@@ -135,7 +132,7 @@ def run_alpaca_bot():
 def send_alpaca_email_notification(success, account_before, account_after, alpaca_bot):
     """Send email notification about Alpaca bot execution"""
     try:
-        from src.core.email_utils import send_alpaca_notification
+        from core.email_utils import send_alpaca_notification
         # Get current positions for portfolio summary
         positions = alpaca_bot.get_positions()
         # Send notification using email_utils
@@ -153,7 +150,7 @@ def run_email_bot(test_mode=False):
     print()
     try:
         from core.nuclear_trading_bot import NuclearTradingBot
-        from src.core.email_utils import send_signal_notification
+        from core.email_utils import send_signal_notification
         
         # Run the bot and get the signal
         bot = NuclearTradingBot()
