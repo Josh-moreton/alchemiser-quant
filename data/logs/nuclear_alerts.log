@@ -8477,3 +8477,42 @@ alpaca.common.exceptions.APIError: {"buying_power":"1.2","code":40310000,"cost_b
 2025-07-16 13:59:57,610 - INFO - Target allocation OKLO: 29.1% ($30,549.02)
 2025-07-16 13:59:57,820 - INFO - Order placed: sell 9.210159 shares of SMR - Order ID: 160e4775-b641-4f91-aaf3-63a3f714fe05, Status: OrderStatus.PENDING_NEW
 2025-07-16 13:59:57,820 - INFO - Order details: filled_qty=0, filled_avg_price=None, submitted_at=2025-07-16 12:59:57.991484+00:00
+2025-07-16 14:00:29,595 - INFO - Final order status for SMR: OrderStatus.PENDING_NEW, filled_qty=0, filled_avg_price=None
+2025-07-16 14:00:29,595 - WARNING - Order for SMR (sell) was not filled. Final status: OrderStatus.PENDING_NEW. Not counting as executed.
+2025-07-16 14:00:29,595 - ERROR - ❌ Failed to place sell order for SMR
+2025-07-16 14:00:29,595 - INFO - 💸 Total buying power available: $0.79
+2025-07-16 14:00:29,595 - INFO - 💰 Buying power remaining after rebalancing: $0.79
+2025-07-16 14:00:29,595 - INFO - ℹ️ No trades needed - portfolio already aligned with strategy
+2025-07-16 14:07:37,473 - INFO - Starting Nuclear Energy strategy analysis...
+2025-07-16 14:07:43,011 - INFO - Analysis complete: BUY NUCLEAR_PORTFOLIO - Bull market - Nuclear portfolio: SMR (31.2%), LEU (39.8%), OKLO (29.1%)
+2025-07-16 14:14:01,654 - INFO - Starting Nuclear Energy strategy analysis...
+2025-07-16 14:14:06,247 - INFO - Analysis complete: BUY NUCLEAR_PORTFOLIO - Bull market - Nuclear portfolio: SMR (31.2%), LEU (39.8%), OKLO (29.1%)
+2025-07-16 14:14:10,118 - INFO - Starting Nuclear Energy strategy analysis...
+2025-07-16 14:14:14,601 - INFO - Analysis complete: BUY NUCLEAR_PORTFOLIO - Bull market - Nuclear portfolio: SMR (31.2%), LEU (39.8%), OKLO (29.1%)
+2025-07-16 14:14:21,316 - INFO - Starting Nuclear Energy strategy analysis...
+2025-07-16 14:14:26,994 - INFO - Analysis complete: BUY NUCLEAR_PORTFOLIO - Bull market - Nuclear portfolio: SMR (31.2%), LEU (39.8%), OKLO (29.1%)
+2025-07-16 14:14:27,084 - INFO - 🏦 Trading Mode: PAPER (from parameter)
+2025-07-16 14:14:27,084 - INFO - Alpaca Trading Bot initialized - Paper Trading: True
+2025-07-16 14:14:27,085 - INFO - Alpaca Trading Bot initialized - Paper Trading: True
+2025-07-16 14:14:27,647 - INFO - 🚀 Executing Nuclear Strategy with Alpaca
+2025-07-16 14:14:27,657 - INFO - Found 9 recent signals
+2025-07-16 14:14:27,657 - INFO - Parsed signal: SMR -> 31.2%
+2025-07-16 14:14:27,658 - INFO - Parsed signal: LEU -> 39.8%
+2025-07-16 14:14:27,658 - INFO - Parsed signal: OKLO -> 29.1%
+2025-07-16 14:14:27,658 - INFO - Parsed signal: SMR -> 31.2%
+2025-07-16 14:14:27,658 - INFO - Parsed signal: LEU -> 39.8%
+2025-07-16 14:14:27,658 - INFO - Parsed signal: OKLO -> 29.1%
+2025-07-16 14:14:27,658 - INFO - Parsed signal: SMR -> 31.2%
+2025-07-16 14:14:27,658 - INFO - Parsed signal: LEU -> 39.8%
+2025-07-16 14:14:27,658 - INFO - Parsed signal: OKLO -> 29.1%
+2025-07-16 14:14:27,658 - INFO - Target Portfolio: {'SMR': 0.312, 'LEU': 0.39799999999999996, 'OKLO': 0.29100000000000004}
+2025-07-16 14:14:27,763 - INFO - Account Value: $105,100.10
+2025-07-16 14:14:28,594 - INFO - 🔄 Starting portfolio rebalance - Portfolio Value: $105,100.10, Cash: $332.75, Buying Power: $1.20
+2025-07-16 14:14:28,594 - INFO - Current allocation LEU: 39.7% ($41,721.38)
+2025-07-16 14:14:28,595 - INFO - Current allocation OKLO: 28.6% ($30,039.01)
+2025-07-16 14:14:28,595 - INFO - Current allocation SMR: 31.4% ($33,006.96)
+2025-07-16 14:14:28,595 - INFO - Target allocation SMR: 31.2% ($32,791.23)
+2025-07-16 14:14:28,595 - INFO - Target allocation LEU: 39.8% ($41,829.84)
+2025-07-16 14:14:28,595 - INFO - Target allocation OKLO: 29.1% ($30,584.13)
+2025-07-16 14:14:28,805 - INFO - Order placed: sell 4.959275 shares of SMR - Order ID: bc8d0c58-864b-47b0-89bb-1cb1a03505bd, Status: OrderStatus.PENDING_NEW
+2025-07-16 14:14:28,806 - INFO - Order details: filled_qty=0, filled_avg_price=None, submitted_at=2025-07-16 13:14:28.950276+00:00

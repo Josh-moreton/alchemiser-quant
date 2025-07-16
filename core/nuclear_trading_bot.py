@@ -36,14 +36,9 @@ logging.basicConfig(
     ]
 )
 
-class Alert:
-    """Simple alert class"""
-    def __init__(self, symbol, action, reason, timestamp, price):
-        self.symbol = symbol
-        self.action = action
-        self.reason = reason
-        self.timestamp = timestamp
-        self.price = price
+
+# Import Alert from alert_service
+from .alert_service import Alert
 
 
 
@@ -429,111 +424,12 @@ class NuclearTradingBot:
             }
     
     def handle_nuclear_portfolio_signal(self, symbol, action, reason, indicators, market_data=None):
-        """Handle nuclear portfolio signal by creating individual alerts for each stock"""
-        if symbol == 'NUCLEAR_PORTFOLIO' and action == 'BUY':
-            # Get the nuclear portfolio
-            nuclear_portfolio = self.strategy.get_nuclear_portfolio(indicators, market_data)
-            
-            # Create alerts for all nuclear stocks in the portfolio
-            alerts = []
-            for stock_symbol, allocation in nuclear_portfolio.items():
-                current_price = self.strategy.data_provider.get_current_price(stock_symbol)
-                current_price = self._ensure_scalar_price(current_price)
-                
-                portfolio_reason = f"Nuclear portfolio allocation: {allocation['weight']:.1%} ({reason})"
-                
-                alert = Alert(
-                    symbol=stock_symbol,
-                    action=action,
-                    reason=portfolio_reason,
-                    timestamp=dt.datetime.now(),
-                    price=current_price
-                )
-                alerts.append(alert)
-            
-            return alerts
-            
-        elif symbol == 'UVXY_BTAL_PORTFOLIO' and action == 'BUY':
-            # Handle UVXY 75% + BTAL 25% allocation
-            alerts = []
-            
-            # UVXY 75%
-            uvxy_price = self.strategy.data_provider.get_current_price('UVXY')
-            uvxy_price = self._ensure_scalar_price(uvxy_price)
-            
-            uvxy_alert = Alert(
-                symbol='UVXY',
-                action=action,
-                reason=f"Volatility hedge allocation: 75% ({reason})",
-                timestamp=dt.datetime.now(),
-                price=uvxy_price
-            )
-            alerts.append(uvxy_alert)
-            
-            # BTAL 25%
-            btal_price = self.strategy.data_provider.get_current_price('BTAL')
-            btal_price = self._ensure_scalar_price(btal_price)
-            
-            btal_alert = Alert(
-                symbol='BTAL',
-                action=action,
-                reason=f"Anti-beta hedge allocation: 25% ({reason})",
-                timestamp=dt.datetime.now(),
-                price=btal_price
-            )
-            alerts.append(btal_alert)
-            
-            return alerts
-            
-        elif symbol == 'BEAR_PORTFOLIO' and action == 'BUY':
-            # Handle bear market portfolio with inverse volatility weighting
-            alerts = []
-            
-            # Extract portfolio allocation from reason string
-            import re
-            portfolio_match = re.findall(r'(\w+) \((\d+\.?\d*)%\)', reason)
-            
-            if portfolio_match:
-                for stock_symbol, allocation_str in portfolio_match:
-                    current_price = self.strategy.data_provider.get_current_price(stock_symbol)
-                    current_price = self._ensure_scalar_price(current_price)
-                    
-                    bear_reason = f"Bear market allocation: {allocation_str}% (inverse volatility weighted)"
-                    
-                    alert = Alert(
-                        symbol=stock_symbol,
-                        action=action,
-                        reason=bear_reason,
-                        timestamp=dt.datetime.now(),
-                        price=current_price
-                    )
-                    alerts.append(alert)
-                
-                return alerts
-            else:
-                # Fallback: treat as single stock signal
-                current_price = self.strategy.data_provider.get_current_price(symbol)
-                current_price = self._ensure_scalar_price(current_price)
-                alert = Alert(
-                    symbol=symbol,
-                    action=action,
-                    reason=reason,
-                    timestamp=dt.datetime.now(),
-                    price=current_price
-                )
-                return [alert]
-        else:
-            # Single stock signal
-            current_price = self.strategy.data_provider.get_current_price(symbol)
-            current_price = self._ensure_scalar_price(current_price)
-            alert = Alert(
-                symbol=symbol,
-                action=action,
-                reason=reason,
-                timestamp=dt.datetime.now(),
-                price=current_price
-            )
-            return [alert]
+        """Delegate alert creation to alert_service.create_alerts_from_signal"""
+        from .alert_service import create_alerts_from_signal
+        return create_alerts_from_signal(
+            symbol, action, reason, indicators, market_data,
+            self.strategy.data_provider, self._ensure_scalar_price, self.strategy
+        )
     
     def run_analysis(self):
         """Run complete strategy analysis"""
@@ -561,20 +457,9 @@ class NuclearTradingBot:
         return alerts
     
     def log_alert(self, alert):
-        """Log alert to file"""
-        alert_data = {
-            'timestamp': alert.timestamp.isoformat(),
-            'symbol': alert.symbol,
-            'action': alert.action,
-            'price': alert.price,
-            'reason': alert.reason
-        }
-        
-        try:
-            with open('data/logs/nuclear_alerts.json', 'a') as f:
-                f.write(json.dumps(alert_data) + '\n')
-        except Exception as e:
-            logging.error(f"Failed to log alert: {e}")
+        """Log alert to file - delegates to alert service"""
+        from .alert_service import log_alert_to_file
+        log_alert_to_file(alert)
     
     def run_once(self):
         """Run analysis once"""

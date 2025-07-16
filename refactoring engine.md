@@ -102,3 +102,7 @@ core/
     - Fetch data → calculate indicators → evaluate strategy → generate alerts → log/output.
 6. **Update main.py to only handle CLI and call the orchestrator.**
 7. **Write unit tests for each new service/class.**
+
+## Configuration management
+
+Hard-coded email addresses, log paths, and credentials appear throughout. A configuration file or environment-based settings object would centralize these parameters.
