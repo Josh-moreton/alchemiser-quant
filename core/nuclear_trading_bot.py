@@ -18,7 +18,6 @@ import warnings
 import datetime as dt
 
 # Third-party imports
-import yfinance as yf
 import pandas as pd
 import numpy as np
 
@@ -51,7 +50,7 @@ class Alert:
 
 
 # Import DataProvider from the new module
-from core.data_provider import DataProvider
+from .data_provider import DataProvider
 
 from enum import Enum, auto
 
@@ -89,7 +88,14 @@ class NuclearStrategyEngine:
             if market_data and symbol in market_data:
                 close = market_data[symbol]['Close']
                 returns = close.pct_change().dropna()
-                vol = returns[-90:].std() * np.sqrt(252) if len(returns) >= 90 else 0.3
+                if len(returns) >= 90:
+                    vol = returns[-90:].std() * np.sqrt(252)
+                    # Ensure vol is a scalar, not a Series
+                    if hasattr(vol, 'item'):
+                        vol = vol.item()
+                    vol = float(vol) if pd.notna(vol) else 0.3
+                else:
+                    vol = 0.3
             else:
                 vol = 0.3  # fallback
             volatilities.append(max(vol, 0.01))
@@ -391,6 +397,24 @@ class NuclearTradingBot:
     def __init__(self):
         self.strategy = NuclearStrategyEngine()
         self.load_config()
+    
+    def _ensure_scalar_price(self, price):
+        """Ensure price is a scalar value for JSON serialization and string formatting"""
+        if price is None:
+            return None
+        try:
+            # If it's a pandas Series or similar, get the scalar value
+            if hasattr(price, 'item') and callable(getattr(price, 'item')):
+                price = price.item()
+            elif hasattr(price, 'iloc'):
+                # If it's still a Series, get the first element
+                price = price.iloc[0]
+            # Convert to float
+            price = float(price)
+            return price if not pd.isna(price) else None
+        except (ValueError, TypeError, AttributeError) as e:
+            print(f"Error converting price to scalar: {e}")
+            return None
         
     def load_config(self):
         """Load configuration"""
@@ -414,6 +438,7 @@ class NuclearTradingBot:
             alerts = []
             for stock_symbol, allocation in nuclear_portfolio.items():
                 current_price = self.strategy.data_provider.get_current_price(stock_symbol)
+                current_price = self._ensure_scalar_price(current_price)
                 
                 portfolio_reason = f"Nuclear portfolio allocation: {allocation['weight']:.1%} ({reason})"
                 
@@ -434,6 +459,8 @@ class NuclearTradingBot:
             
             # UVXY 75%
             uvxy_price = self.strategy.data_provider.get_current_price('UVXY')
+            uvxy_price = self._ensure_scalar_price(uvxy_price)
+            
             uvxy_alert = Alert(
                 symbol='UVXY',
                 action=action,
@@ -445,6 +472,8 @@ class NuclearTradingBot:
             
             # BTAL 25%
             btal_price = self.strategy.data_provider.get_current_price('BTAL')
+            btal_price = self._ensure_scalar_price(btal_price)
+            
             btal_alert = Alert(
                 symbol='BTAL',
                 action=action,
@@ -467,6 +496,7 @@ class NuclearTradingBot:
             if portfolio_match:
                 for stock_symbol, allocation_str in portfolio_match:
                     current_price = self.strategy.data_provider.get_current_price(stock_symbol)
+                    current_price = self._ensure_scalar_price(current_price)
                     
                     bear_reason = f"Bear market allocation: {allocation_str}% (inverse volatility weighted)"
                     
@@ -483,6 +513,7 @@ class NuclearTradingBot:
             else:
                 # Fallback: treat as single stock signal
                 current_price = self.strategy.data_provider.get_current_price(symbol)
+                current_price = self._ensure_scalar_price(current_price)
                 alert = Alert(
                     symbol=symbol,
                     action=action,
@@ -494,6 +525,7 @@ class NuclearTradingBot:
         else:
             # Single stock signal
             current_price = self.strategy.data_provider.get_current_price(symbol)
+            current_price = self._ensure_scalar_price(current_price)
             alert = Alert(
                 symbol=symbol,
                 action=action,
