@@ -96,11 +96,11 @@ core/
 
 1. **Extract `DataProvider` to `data_provider.py`.** - DONE
 2. **Extract `Alert` and alert creation logic to `alert_service.py`.** - DONE
-3. **Move all scenario-specific methods from `NuclearStrategyEngine` to their own classes in `strategy_engine.py`.**
-4. **Refactor `NuclearStrategyEngine` to coordinate scenario handlers.**
-5. **Update `NuclearTradingBot` to only orchestrate:**
+3. **Move all scenario-specific methods from `NuclearStrategyEngine` to their own classes in `strategy_engine.py`.** - DONE
+4. **Refactor `NuclearStrategyEngine` to coordinate scenario handlers.** - DONE
+5. **Update `NuclearTradingBot` to only orchestrate:** - DONE
     - Fetch data → calculate indicators → evaluate strategy → generate alerts → log/output.
-6. **Update main.py to only handle CLI and call the orchestrator.**
+6. **Update main.py to only handle CLI and call the orchestrator.** - DONE
 7. **Write unit tests for each new service/class.**
 
 ## Configuration management
