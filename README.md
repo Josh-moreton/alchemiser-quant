@@ -22,8 +22,6 @@ Generate live nuclear trading signals without email notifications.
 python main.py bot
 ```
 
-### Available Modes
-
 **What it does:**
 
 - Fetches live market data for all nuclear and market symbols
@@ -34,7 +32,7 @@ python main.py bot
 
 **Example Output:**
 
-```
+```text
 🚨 NUCLEAR PORTFOLIO SIGNAL: 3 stocks allocated
 🎯 NUCLEAR PORTFOLIO ALLOCATION:
    🟢 BUY SMR at $37.48 (31.2%)
@@ -66,7 +64,7 @@ python main.py email
 
 **Example Email Content:**
 
-```
+```text
 Nuclear Alpaca Bot Execution Report - 2025-07-15 13:45:22
 
 ✅ EXECUTION STATUS: SUCCESS
@@ -91,7 +89,6 @@ Nuclear Alpaca Bot Execution Report - 2025-07-15 13:45:22
    Execution Time: 13:45:22
 ```
 
-
 ### Alpaca Setup & Environment Variables
 
 ### Email & Alpaca Notification Setup
@@ -100,7 +97,6 @@ Nuclear Alpaca Bot Execution Report - 2025-07-15 13:45:22
 - Alpaca mode now always sends a detailed email after every run, regardless of signal change
 
 ## 🤖 Automated Execution (GitHub Actions)
-
 
 ### Environment Setup
 
@@ -119,7 +115,7 @@ export SMTP_PASSWORD="your-icloud-app-password"
 
 ## 📁 Project Structure
 
-```
+```text
 LQQ3/
 ├── main.py                     # 🎯 UNIFIED ENTRY POINT (all operations)
 ├── src/
@@ -167,7 +163,7 @@ The system runs automatically via **GitHub Actions** every hour:
 The nuclear strategy has demonstrated exceptional performance:
 
 - **Total Return:** +54.05% (3 months)
-- **CAGR:** +501.00% (annualized)  
+- **CAGR:** +501.00% (annualized)
 - **Sharpe Ratio:** 2.39
 - **Max Drawdown:** -20.15%
 - **Win Rate:** 60.32%
@@ -231,11 +227,11 @@ python main.py email
 
 ### Main.py Modes Summary
 
-| Mode | Command | Purpose | Output |
-|------|---------|---------|--------|
-| **bot** | `python main.py bot` | Live signal generation | Console + JSON logs |
-| **email** | `python main.py email` | Live signals + email alerts | Console + Email |
-| **alpaca** | `python main.py alpaca` | Automated trading with Alpaca + email alert | Console + Email |
+| Mode   | Command                | Purpose                              | Output                |
+|--------|------------------------|--------------------------------------|-----------------------|
+| **bot**   | `python main.py bot`    | Live signal generation               | Console + JSON logs   |
+| **email** | `python main.py email`  | Live signals + email alerts          | Console + Email       |
+| **alpaca**| `python main.py alpaca` | Automated trading with Alpaca + email alert | Console + Email |
 
 ### For Production Use
 
@@ -243,9 +239,9 @@ python main.py email
 - **Manual Check**: `python main.py bot`
 - **Alpaca Trading**: `python main.py alpaca`
 
-### Key Features
+### Other Key Features
 
 - ✅ **Unified Entry Point**: One command for all operations
 - ✅ **Smart Email Alerts**: Only sends when signals change
-- ✅ **Automated Execution**: GitHub Actions dailt monitoring
+- ✅ **Automated Execution**: GitHub Actions daily monitoring
 - ✅ **Organized Data**: All outputs properly structured in `data/` directory
