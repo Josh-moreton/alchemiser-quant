@@ -14,6 +14,7 @@ from datetime import datetime
 import traceback
 import sys
 import os
+from core.config import Config
 
 def run_trading_bot():
     """Run the main nuclear trading bot for live signals"""
@@ -35,7 +36,9 @@ def run_trading_bot():
         if signal:
             print()
             print("✅ Signal generated successfully!")
-            print(f"📁 Alert logged to: data/logs/nuclear_alerts.json")
+            config = Config()
+            log_path = config['logging']['nuclear_alerts_json']
+            print(f"📁 Alert logged to: {log_path}")
         else:
             print()
             print("⚠️  No clear signal generated")

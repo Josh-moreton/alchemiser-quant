@@ -3,6 +3,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import os
 from datetime import datetime
+from .config import Config
 
 def send_email(subject, body, smtp_server, smtp_port, smtp_user, smtp_password, to_email):
     """Send a plain text email using SMTP."""
@@ -69,12 +70,15 @@ Price: {getattr(signal, 'price', 'N/A')}
 def send_alpaca_notification(success, account_before, account_after, positions):
     """Send email notification about Alpaca bot execution with all formatting and configuration handled."""
     try:
-        # Email configuration
-        smtp_server = "smtp.mail.me.com"
-        smtp_port = 587
-        smtp_user = "joshuamoreton1@icloud.com"
+        # Load email configuration from config.yaml
+        config = Config()
+        email_config = config['email']
+        
+        smtp_server = email_config['smtp_server']
+        smtp_port = email_config['smtp_port']
+        smtp_user = email_config['username']
         smtp_password = os.environ.get("SMTP_PASSWORD")
-        to_email = "josh@rwxt.org"
+        to_email = email_config['recipients'][0]  # Use first recipient
         
         if not smtp_password:
             print("⚠️ SMTP_PASSWORD environment variable not set. Email notification skipped.")
@@ -103,12 +107,15 @@ def send_alpaca_notification(success, account_before, account_after, positions):
 def send_signal_notification(signal, test_mode=False):
     """Send email notification about trading signal with all formatting and configuration handled."""
     try:
-        # Email configuration
-        smtp_server = "smtp.mail.me.com"
-        smtp_port = 587
-        smtp_user = "joshuamoreton1@icloud.com"
+        # Load email configuration from config.yaml
+        config = Config()
+        email_config = config['email']
+        
+        smtp_server = email_config['smtp_server']
+        smtp_port = email_config['smtp_port']
+        smtp_user = email_config['username']
         smtp_password = os.environ.get("SMTP_PASSWORD")
-        to_email = "josh@rwxt.org"
+        to_email = email_config['recipients'][0]  # Use first recipient
         
         if not smtp_password:
             print("❌ SMTP_PASSWORD environment variable not set. Email not sent.")

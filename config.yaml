@@ -1,0 +1,23 @@
+email:
+  sender: "joshuamoreton1@icloud.com"
+  recipients:
+    - "josh@rwxt.org"
+  smtp_server: "smtp.mail.me.com"
+  smtp_port: 587
+  username: "joshuamoreton1@icloud.com"
+  # password is loaded from .env (SMTP_PASSWORD)
+
+logging:
+  level: "INFO"
+  nuclear_alerts_log: "data/logs/nuclear_alerts.log"
+  nuclear_alerts_json: "data/logs/nuclear_alerts.json"
+  alpaca_log: "data/logs/alpaca_trader.log"
+  alpaca_trades_json: "data/logs/alpaca_trades.json"
+
+alpaca:
+  # api_key and api_secret loaded from .env
+  paper: true
+
+data:
+  cache_duration: 300
+  default_symbol: "AAPL"

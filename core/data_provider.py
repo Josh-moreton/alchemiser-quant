@@ -8,10 +8,15 @@ from alpaca.trading.client import TradingClient
 from alpaca.data.historical import StockHistoricalDataClient
 from alpaca.data.requests import StockBarsRequest, StockLatestQuoteRequest
 from alpaca.data.timeframe import TimeFrame
+from .config import Config
 
 class DataProvider:
     """Fetch market data with caching."""
-    def __init__(self, cache_duration=300):
+    def __init__(self, cache_duration=None):
+        if cache_duration is None:
+            config = Config()
+            cache_duration = config['data']['cache_duration']
+        
         self.cache = {}
         self.cache_duration = cache_duration  # seconds
 

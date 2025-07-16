@@ -21,6 +21,7 @@ from alpaca.trading.enums import OrderSide, TimeInForce
 
 # Import AlpacaDataProvider
 from core.data_provider import AlpacaDataProvider
+from core.config import Config
 
 # Add src directory to Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
@@ -28,12 +29,16 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 # Load environment variables
 load_dotenv()
 
+# Load configuration
+config = Config()
+logging_config = config['logging']
+
 # Configure logging
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('data/logs/alpaca_trader.log'),
+        logging.FileHandler(logging_config['alpaca_log']),
         logging.StreamHandler()
     ]
 )
@@ -382,7 +387,8 @@ class AlpacaTradingBot:
         """Read the latest nuclear trading signals from the alerts file"""
         try:
             signals = []
-            alerts_file = 'data/logs/nuclear_alerts.json'
+            config = Config()
+            alerts_file = config['logging']['nuclear_alerts_json']
             
             if not os.path.exists(alerts_file):
                 logging.warning(f"Alerts file not found: {alerts_file}")
@@ -545,7 +551,8 @@ class AlpacaTradingBot:
                 'orders_executed': serializable_orders,
                 'paper_trading': self.paper_trading
             }
-            log_file = 'data/logs/alpaca_trades.json'
+            config = Config()
+            log_file = config['logging']['alpaca_trades_json']
             with open(log_file, 'a') as f:
                 f.write(json.dumps(trade_log) + '\n')
         except Exception as e:

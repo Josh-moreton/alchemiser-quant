@@ -2,6 +2,7 @@ import datetime as dt
 import re
 import json
 import logging
+from .config import Config
 
 class Alert:
     """Simple alert class for trading signals."""
@@ -113,8 +114,12 @@ def create_alerts_from_signal(symbol, action, reason, indicators, market_data, d
         ))
         return alerts
 
-def log_alert_to_file(alert, log_file_path='data/logs/nuclear_alerts.json'):
+def log_alert_to_file(alert, log_file_path=None):
     """Log alert to file - centralized logging logic"""
+    if log_file_path is None:
+        config = Config()
+        log_file_path = config['logging']['nuclear_alerts_json']
+    
     alert_data = {
         'timestamp': alert.timestamp.isoformat(),
         'symbol': alert.symbol,
@@ -129,7 +134,11 @@ def log_alert_to_file(alert, log_file_path='data/logs/nuclear_alerts.json'):
     except Exception as e:
         logging.error(f"Failed to log alert: {e}")
 
-def log_alerts_to_file(alerts, log_file_path='data/logs/nuclear_alerts.json'):
+def log_alerts_to_file(alerts, log_file_path=None):
     """Log multiple alerts to file"""
+    if log_file_path is None:
+        config = Config()
+        log_file_path = config['logging']['nuclear_alerts_json']
+    
     for alert in alerts:
         log_alert_to_file(alert, log_file_path)

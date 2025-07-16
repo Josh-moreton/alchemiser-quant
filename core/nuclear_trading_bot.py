@@ -23,15 +23,20 @@ import numpy as np
 
 # Local imports
 from .indicators import TechnicalIndicators
+from .config import Config
 
 warnings.filterwarnings('ignore')
+
+# Load configuration
+config = Config()
+logging_config = config['logging']
 
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('data/logs/nuclear_alerts.log'),
+        logging.FileHandler(logging_config['nuclear_alerts_log']),
         logging.StreamHandler()
     ]
 )
