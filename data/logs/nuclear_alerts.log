@@ -7916,3 +7916,7 @@ alpaca.common.exceptions.APIError: {"buying_power":"15","code":40310000,"cost_ba
 2025-07-15 13:40:27,746 - INFO - Alpaca price for SMR: $40.05 (bid: $37.01, ask: $43.10)
 2025-07-15 13:40:27,746 - INFO - 💰 Buying power remaining after rebalancing: $98.15
 2025-07-15 13:40:27,746 - INFO - ℹ️ No trades needed - portfolio already aligned with strategy
+2025-07-16 10:50:10,306 - INFO - Starting Nuclear Energy strategy analysis...
+2025-07-16 10:50:14,548 - INFO - Analysis complete: BUY NUCLEAR_PORTFOLIO - Bull market - Nuclear portfolio: SMR (31.2%), LEU (39.8%), OKLO (29.1%)
+2025-07-16 10:57:06,378 - INFO - Starting Nuclear Energy strategy analysis...
+2025-07-16 10:57:08,953 - INFO - Analysis complete: BUY NUCLEAR_PORTFOLIO - Bull market - Nuclear portfolio: SMR (31.2%), LEU (39.8%), OKLO (29.1%)

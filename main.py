@@ -4,12 +4,14 @@ Nuclear Trading Strategy - Main Entry Point
 Unified launcher for all nuclear trading operations
 """
 
+# Standard library imports
 import sys
 import os
 import argparse
 from datetime import datetime
+import traceback
 
-# Add src directory to Python path
+# Add src directory to Python path for local imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 
 def run_trading_bot():
@@ -41,7 +43,6 @@ def run_trading_bot():
         
     except Exception as e:
         print(f"❌ Error running trading bot: {e}")
-        import traceback
         traceback.print_exc()
         return False
 
@@ -127,7 +128,6 @@ def run_alpaca_bot():
         
     except Exception as e:
         print(f"❌ Error running Alpaca bot: {e}")
-        import traceback
         traceback.print_exc()
         return False
 
@@ -183,7 +183,6 @@ def send_alpaca_email_notification(success, account_before, account_after, alpac
             
     except Exception as e:
         print(f"⚠️ Error sending email notification: {e}")
-        import traceback
         traceback.print_exc()
 
 
@@ -291,7 +290,6 @@ def run_email_bot():
         
     except Exception as e:
         print(f"❌ Error running email bot: {e}")
-        import traceback
         traceback.print_exc()
         return False
 
@@ -316,7 +314,6 @@ def main():
             success = run_alpaca_bot()
     except Exception as e:
         print(f"\n💥 Operation failed due to error: {e}")
-        import traceback
         traceback.print_exc()
         success = False
     if success:
