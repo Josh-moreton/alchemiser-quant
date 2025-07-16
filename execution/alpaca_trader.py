@@ -230,70 +230,37 @@ class AlpacaTradingBot:
     
     def rebalance_portfolio(self, target_portfolio: Dict[str, float]) -> List[Dict]:
         """
-        Rebalance portfolio to match target allocations with minimal trading
-        
-        Args:
-            target_portfolio: Dict of {symbol: weight} where weight is 0.0 to 1.0
-            
-        Returns:
-            List of order dicts for executed orders
+        Rebalance portfolio to match target allocations with minimal trading.
+        Sells all reductions first, waits for settlement, then buys.
         """
         try:
-            # Get account info
+            # Get initial account info and positions
             account_info = self.get_account_info()
             if not account_info:
                 logging.error("Could not get account information")
                 return []
-            
             portfolio_value = account_info['portfolio_value']
-            current_cash = account_info['cash']
-            buying_power = account_info.get('buying_power', current_cash)  # Fallback to cash if missing
-            
-            # Get current positions
+            buying_power = account_info.get('buying_power', account_info['cash'])
             current_positions = self.get_positions()
-            
-            # Calculate orders needed
+
+            # Calculate current allocations
+            current_allocations = {
+                symbol: pos['market_value'] / portfolio_value
+                for symbol, pos in current_positions.items()
+            }
+
+            # --- PHASE 1: Sells ---
             orders_executed = []
-            
-            logging.info(f"🔄 Starting portfolio rebalance - Portfolio Value: ${portfolio_value:,.2f}, Cash: ${current_cash:,.2f}, Buying Power: ${buying_power:,.2f}")
-            
-            # Calculate current and target allocations
-            current_allocations = {}
-            target_allocations = {}
-            
-            # Calculate current allocations based on market value
-            for symbol, position in current_positions.items():
-                current_allocations[symbol] = position['market_value'] / portfolio_value
-                logging.info(f"Current allocation {symbol}: {current_allocations[symbol]:.1%} (${position['market_value']:,.2f})")
-            
-            # Calculate target allocations
-            for symbol, target_weight in target_portfolio.items():
-                target_allocations[symbol] = target_weight
-                target_value = portfolio_value * target_weight
-                logging.info(f"Target allocation {symbol}: {target_weight:.1%} (${target_value:,.2f})")
-            
-            # PHASE 1: Sell positions that need to be reduced or eliminated
-            cash_from_sells = 0
-            successful_sells = 0
-            
-            for symbol in list(current_positions.keys()):
+            for symbol, pos in current_positions.items():
+                target_weight = target_portfolio.get(symbol, 0.0)
                 current_weight = current_allocations.get(symbol, 0.0)
-                target_weight = target_allocations.get(symbol, 0.0)
-                
                 if current_weight > target_weight:
-                    # Need to reduce this position
-                    current_qty = current_positions[symbol]['qty']
-                    current_value = current_positions[symbol]['market_value']
+                    # Need to reduce or close this position
                     target_value = portfolio_value * target_weight
-                    
-                    # Calculate how much to sell
-                    value_to_sell = current_value - target_value
-                    current_price = self.get_current_price(symbol)
-                    
-                    if current_price > 0 and value_to_sell > 1.0:  # Only sell if more than $1
-                        sell_qty = round(value_to_sell / current_price, 6)
-                        sell_qty = min(sell_qty, current_qty)  # Don't sell more than we have
-                        
+                    value_to_sell = pos['market_value'] - target_value
+                    if value_to_sell > 1.0:
+                        current_price = self.get_current_price(symbol)
+                        sell_qty = min(round(value_to_sell / current_price, 6), pos['qty'])
                         if sell_qty > 0:
                             order_id = self.place_order(symbol, sell_qty, OrderSide.SELL)
                             if order_id:
@@ -304,81 +271,50 @@ class AlpacaTradingBot:
                                     'order_id': order_id,
                                     'estimated_value': sell_qty * current_price
                                 })
-                                estimated_proceeds = sell_qty * current_price
-                                cash_from_sells += estimated_proceeds
-                                successful_sells += 1
-                                logging.info(f"💰 Selling {sell_qty} shares of {symbol} to rebalance (${estimated_proceeds:,.2f})")
-                            else:
-                                logging.error(f"❌ Failed to place sell order for {symbol}")
-            
-            if successful_sells > 0:
-                logging.info(f"📉 Rebalancing sells: {successful_sells} successful")
-                
-                # Wait for buying power to update after sells
-                logging.info("⏳ Waiting for buying power to update after sells...")
-                time.sleep(10)  # Wait 10 seconds for settlement
-                
-                # Refresh account info to get updated buying power
-                updated_account_info = self.get_account_info()
-                if updated_account_info:
-                    updated_buying_power = updated_account_info.get('buying_power', buying_power)
-                    logging.info(f"� Updated buying power after sells: ${updated_buying_power:,.2f} (was ${buying_power:,.2f})")
-                    buying_power = updated_buying_power  # Use the updated value
-            
-            # Calculate total buying power available after sells
-            # Use actual buying power instead of estimated
-            total_buying_power_available = buying_power
-            logging.info(f"💸 Total buying power available: ${total_buying_power_available:,.2f}")
-            
-            # PHASE 2: Buy positions that need to be increased or added
-            successful_buys = 0
-            remaining_buying_power = total_buying_power_available
-            
-            # Sort by priority (largest allocations first)
+                                logging.info(f"Sold {sell_qty} of {symbol} for rebalancing.")
+
+            # Wait for settlement and refresh account info
+            logging.info("Waiting for settlement after sells...")
+            time.sleep(10)
+            account_info = self.get_account_info()
+            portfolio_value = account_info['portfolio_value']
+            buying_power = account_info.get('buying_power', account_info['cash'])
+            current_positions = self.get_positions()
+
+            # --- PHASE 2: Buys ---
+            # Recalculate allocations after sells
+            current_allocations = {
+                symbol: pos['market_value'] / portfolio_value
+                for symbol, pos in current_positions.items()
+            }
+            remaining_buying_power = buying_power
             for symbol, target_weight in sorted(target_portfolio.items(), key=lambda x: x[1], reverse=True):
-                if target_weight <= 0:
-                    continue
-                
                 current_weight = current_allocations.get(symbol, 0.0)
-                
                 if target_weight > current_weight:
-                    # Need to increase this position
-                    current_value = current_positions.get(symbol, {}).get('market_value', 0.0)
                     target_value = portfolio_value * target_weight
+                    current_value = current_positions.get(symbol, {}).get('market_value', 0.0)
                     value_to_buy = target_value - current_value
-                    
-                    if value_to_buy > 1.0 and remaining_buying_power > 1.0:  # Only buy if more than $1
+                    if value_to_buy > 1.0 and remaining_buying_power > 1.0:
                         current_price = self.get_current_price(symbol)
-                        
-                        if current_price > 0:
-                            # Limit purchase to available buying power
-                            actual_value_to_buy = min(value_to_buy, remaining_buying_power)
-                            buy_qty = round(actual_value_to_buy / current_price, 6)
-                            required_cash = buy_qty * current_price
-                            
-                            if buy_qty > 0 and required_cash <= remaining_buying_power:
-                                order_id = self.place_order(symbol, buy_qty, OrderSide.BUY)
-                                if order_id:
-                                    orders_executed.append({
-                                        'symbol': symbol,
-                                        'side': OrderSide.BUY,
-                                        'qty': buy_qty,
-                                        'order_id': order_id,
-                                        'estimated_value': required_cash
-                                    })
-                                    remaining_buying_power -= required_cash
-                                    successful_buys += 1
-                                    logging.info(f"✅ Bought {buy_qty} shares of {symbol} for ${required_cash:,.2f}")
-                                else:
-                                    logging.error(f"❌ Failed to place buy order for {symbol}")
-            
-            if successful_buys > 0:
-                logging.info(f"📈 Rebalancing buys: {successful_buys} successful")
-            
-            logging.info(f"💰 Buying power remaining after rebalancing: ${remaining_buying_power:,.2f}")
-            
+                        actual_value_to_buy = min(value_to_buy, remaining_buying_power)
+                        buy_qty = round(actual_value_to_buy / current_price, 6)
+                        required_cash = buy_qty * current_price
+                        if buy_qty > 0 and required_cash <= remaining_buying_power:
+                            order_id = self.place_order(symbol, buy_qty, OrderSide.BUY)
+                            if order_id:
+                                orders_executed.append({
+                                    'symbol': symbol,
+                                    'side': OrderSide.BUY,
+                                    'qty': buy_qty,
+                                    'order_id': order_id,
+                                    'estimated_value': required_cash
+                                })
+                                remaining_buying_power -= required_cash
+                                logging.info(f"Bought {buy_qty} of {symbol} for rebalancing.")
+
+            logging.info(f"Rebalancing complete. Orders executed: {len(orders_executed)}")
             return orders_executed
-            
+
         except Exception as e:
             logging.error(f"Error rebalancing portfolio: {e}")
             return []

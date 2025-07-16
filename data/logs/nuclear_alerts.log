@@ -8667,3 +8667,38 @@ alpaca.common.exceptions.APIError: {"buying_power":"184.68","code":40310000,"cos
 2025-07-16 16:19:29,619 - INFO - ✅ Portfolio rebalanced - 2 orders executed
 2025-07-16 16:19:29,620 - INFO -    sell 0.299009 OKLO (Order ID: 65a5db19-1ed3-4f62-9a02-cb2fd5586083, Value: $18.13)
 2025-07-16 16:19:29,620 - INFO -    sell 12.418355 SMR (Order ID: fd37926a-af3c-410e-9231-7c9a7af7b159, Value: $540.63)
+2025-07-16 16:39:24,447 - INFO - Starting Nuclear Energy strategy analysis...
+2025-07-16 16:39:30,451 - INFO - Analysis complete: BUY NUCLEAR_PORTFOLIO - Bull market - Nuclear portfolio: SMR (31.0%), LEU (39.6%), OKLO (29.4%)
+2025-07-16 16:39:30,543 - INFO - 🏦 Trading Mode: PAPER (from parameter)
+2025-07-16 16:39:30,543 - INFO - Alpaca Trading Bot initialized - Paper Trading: True
+2025-07-16 16:39:30,543 - INFO - Alpaca Trading Bot initialized - Paper Trading: True
+2025-07-16 16:39:31,122 - INFO - 🚀 Executing Nuclear Strategy with Alpaca
+2025-07-16 16:39:31,135 - INFO - Found 3 recent signals
+2025-07-16 16:39:31,136 - INFO - Parsed signal: SMR -> 31.0%
+2025-07-16 16:39:31,136 - INFO - Parsed signal: LEU -> 39.6%
+2025-07-16 16:39:31,136 - INFO - Parsed signal: OKLO -> 29.4%
+2025-07-16 16:39:31,136 - INFO - Target Portfolio: {'SMR': 0.31, 'LEU': 0.396, 'OKLO': 0.294}
+2025-07-16 16:39:31,243 - INFO - Account Value: $104,323.20
+2025-07-16 16:39:32,237 - INFO - Order placed: sell 0.609226 shares of LEU - Order ID: d011baa2-2a54-42eb-b6f7-c6e14339a2eb, Status: OrderStatus.PENDING_NEW
+2025-07-16 16:39:32,238 - INFO - Order details: filled_qty=0, filled_avg_price=None, submitted_at=2025-07-16 15:39:32.316138+00:00
+2025-07-16 16:39:32,348 - INFO - Final order status for LEU: OrderStatus.FILLED, filled_qty=0.609226, filled_avg_price=211.296
+2025-07-16 16:39:32,348 - INFO - Sold 0.609226 of LEU for rebalancing.
+2025-07-16 16:39:32,564 - INFO - Order placed: sell 0.09192 shares of SMR - Order ID: 47bf540c-f81f-443c-a5a7-cc1f26d54f20, Status: OrderStatus.PENDING_NEW
+2025-07-16 16:39:32,564 - INFO - Order details: filled_qty=0, filled_avg_price=None, submitted_at=2025-07-16 15:39:32.643917+00:00
+2025-07-16 16:39:32,669 - INFO - Final order status for SMR: OrderStatus.FILLED, filled_qty=0.09192, filled_avg_price=42.248
+2025-07-16 16:39:32,670 - INFO - Sold 0.09192 of SMR for rebalancing.
+2025-07-16 16:39:32,670 - INFO - Waiting for settlement after sells...
+2025-07-16 16:39:43,114 - INFO - Order placed: buy 0.105977 shares of LEU - Order ID: 1a7dcd30-9b33-4ab2-8683-2058fc5177dd, Status: OrderStatus.PENDING_NEW
+2025-07-16 16:39:43,115 - INFO - Order details: filled_qty=0, filled_avg_price=None, submitted_at=2025-07-16 15:39:43.185307+00:00
+2025-07-16 16:39:43,224 - INFO - Final order status for LEU: OrderStatus.FILLED, filled_qty=0.105977, filled_avg_price=212.184
+2025-07-16 16:39:43,225 - INFO - Bought 0.105977 of LEU for rebalancing.
+2025-07-16 16:39:43,439 - INFO - Order placed: buy 2.046183 shares of OKLO - Order ID: e80fb68d-cce2-4811-8f54-97696e73d001, Status: OrderStatus.PENDING_NEW
+2025-07-16 16:39:43,440 - INFO - Order details: filled_qty=0, filled_avg_price=None, submitted_at=2025-07-16 15:39:43.520996+00:00
+2025-07-16 16:39:45,709 - INFO - Final order status for OKLO: OrderStatus.FILLED, filled_qty=2.046183, filled_avg_price=60.509774
+2025-07-16 16:39:45,710 - INFO - Bought 2.046183 of OKLO for rebalancing.
+2025-07-16 16:39:45,710 - INFO - Rebalancing complete. Orders executed: 4
+2025-07-16 16:39:45,710 - INFO - ✅ Portfolio rebalanced - 4 orders executed
+2025-07-16 16:39:45,711 - INFO -    sell 0.609226 LEU (Order ID: d011baa2-2a54-42eb-b6f7-c6e14339a2eb, Value: $129.00)
+2025-07-16 16:39:45,711 - INFO -    sell 0.09192 SMR (Order ID: 47bf540c-f81f-443c-a5a7-cc1f26d54f20, Value: $4.06)
+2025-07-16 16:39:45,711 - INFO -    buy 0.105977 LEU (Order ID: 1a7dcd30-9b33-4ab2-8683-2058fc5177dd, Value: $22.44)
+2025-07-16 16:39:45,711 - INFO -    buy 2.046183 OKLO (Order ID: e80fb68d-cce2-4811-8f54-97696e73d001, Value: $126.29)
