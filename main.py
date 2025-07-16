@@ -135,7 +135,7 @@ def run_alpaca_bot():
 def send_alpaca_email_notification(success, account_before, account_after, alpaca_bot):
     """Send email notification about Alpaca bot execution"""
     try:
-        from core.nuclear_signal_email import send_email_signal
+        from src.core.email_utils import send_email
         
         # Get current positions for portfolio summary
         positions = alpaca_bot.get_positions()
@@ -145,22 +145,6 @@ def send_alpaca_email_notification(success, account_before, account_after, alpac
         portfolio_value_after = account_after.get('portfolio_value', 0.0)
         cash_before = account_before.get('cash', 0.0)
         cash_after = account_after.get('cash', 0.0)
-        
-        # Create email data structure similar to nuclear_signal_email format
-        email_data = {
-            'success': success,
-            'date': datetime.now().strftime('%Y-%m-%d'),
-            'time': datetime.now().strftime('%H:%M:%S'),
-            'symbol': 'ALPACA_EXECUTION',
-            'action': 'EXECUTE' if success else 'FAILED',
-            'reason': f'Alpaca bot execution {"completed successfully" if success else "failed"}',
-            'portfolio_value_before': portfolio_value_before,
-            'portfolio_value_after': portfolio_value_after,
-            'cash_before': cash_before,
-            'cash_after': cash_after,
-            'positions': positions,
-            'signal_changed': True  # Always send email for executions
-        }
         
         # Email configuration
         smtp_server = "smtp.mail.me.com"
@@ -173,8 +157,51 @@ def send_alpaca_email_notification(success, account_before, account_after, alpac
             print("⚠️ SMTP_PASSWORD environment variable not set. Email notification skipped.")
             return
         
+        # Format subject and body
+        status_icon = "✅" if success else "❌"
+        subject = f"{status_icon} Nuclear Alpaca Bot Execution - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+        
+        portfolio_change = portfolio_value_after - portfolio_value_before
+        portfolio_change_pct = (portfolio_change / portfolio_value_before * 100) if portfolio_value_before > 0 else 0
+        
+        # Create positions summary
+        if positions:
+            positions_text = "\n📊 CURRENT POSITIONS:\n"
+            for symbol, position in positions.items():
+                qty = position.get('qty', 0)
+                market_value = position.get('market_value', 0)
+                current_price = position.get('current_price', 0)
+                positions_text += f"   {symbol}: {qty} shares @ ${current_price:.2f} = ${market_value:.2f}\n"
+        else:
+            positions_text = "\n💰 CURRENT POSITIONS: 100% Cash\n"
+        
+        body = f"""Nuclear Alpaca Bot Execution Report - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+{status_icon} EXECUTION STATUS: {'SUCCESS' if success else 'FAILED'}
+
+📈 ACCOUNT SUMMARY:
+   Portfolio Value Before: ${portfolio_value_before:,.2f}
+   Portfolio Value After:  ${portfolio_value_after:,.2f}
+   Portfolio Change:       ${portfolio_change:+,.2f} ({portfolio_change_pct:+.2f}%)
+   
+   Cash Before: ${cash_before:,.2f}
+   Cash After:  ${cash_after:,.2f}
+   Cash Change: ${cash_after - cash_before:+,.2f}
+
+{positions_text}
+
+🤖 EXECUTION DETAILS:
+   Strategy: Nuclear Energy Portfolio Rebalancing
+   Trading Mode: Paper Trading (Alpaca)
+   Execution Time: {datetime.now().strftime('%H:%M:%S')}
+   
+📋 LOGS:
+   Check data/logs/alpaca_trader.log for detailed execution logs
+   Check data/logs/nuclear_alerts.json for nuclear strategy signals
+"""
+        
         # Send email
-        email_sent = send_alpaca_execution_email(email_data, smtp_server, smtp_port, smtp_user, smtp_password, to_email)
+        email_sent = send_email(subject, body, smtp_server, smtp_port, smtp_user, smtp_password, to_email)
         
         if email_sent:
             print("✅ Email notification sent successfully!")
@@ -186,90 +213,10 @@ def send_alpaca_email_notification(success, account_before, account_after, alpac
         traceback.print_exc()
 
 
-def send_alpaca_execution_email(email_data, smtp_server, smtp_port, smtp_user, smtp_password, to_email):
-    """Send email notification for Alpaca execution"""
-    import smtplib
-    from email.mime.text import MIMEText
-    from email.mime.multipart import MIMEMultipart
-    
-    try:
-        # Create subject
-        status_icon = "✅" if email_data['success'] else "❌"
-        subject = f"{status_icon} Nuclear Alpaca Bot Execution - {email_data['date']} {email_data['time']}"
-        
-        # Create email body
-        body = format_alpaca_email_body(email_data)
-        
-        # Create email message
-        msg = MIMEMultipart()
-        msg['From'] = smtp_user
-        msg['To'] = to_email
-        msg['Subject'] = subject
-        msg.attach(MIMEText(body, 'plain'))
-        
-        # Send email
-        with smtplib.SMTP(smtp_server, smtp_port) as server:
-            server.ehlo()
-            server.starttls()
-            server.ehlo()
-            server.login(smtp_user, smtp_password)
-            server.sendmail(smtp_user, to_email, msg.as_string())
-        
-        return True
-        
-    except Exception as e:
-        print(f"Failed to send Alpaca execution email: {e}")
-        return False
 
 
-def format_alpaca_email_body(email_data):
-    """Format the email body for Alpaca execution notifications"""
-    status_icon = "✅" if email_data['success'] else "❌"
-    status_text = "SUCCESS" if email_data['success'] else "FAILED"
-    
-    # Calculate portfolio change
-    portfolio_change = email_data['portfolio_value_after'] - email_data['portfolio_value_before']
-    portfolio_change_pct = (portfolio_change / email_data['portfolio_value_before'] * 100) if email_data['portfolio_value_before'] > 0 else 0
-    
-    # Create positions summary
-    positions_text = ""
-    if email_data['positions']:
-        positions_text = "\n📊 CURRENT POSITIONS:\n"
-        for symbol, position in email_data['positions'].items():
-            qty = position.get('qty', 0)
-            market_value = position.get('market_value', 0)
-            current_price = position.get('current_price', 0)
-            positions_text += f"   {symbol}: {qty} shares @ ${current_price:.2f} = ${market_value:.2f}\n"
-    else:
-        positions_text = "\n💰 CURRENT POSITIONS: 100% Cash\n"
-    
-    body = f"""Nuclear Alpaca Bot Execution Report - {email_data['date']} {email_data['time']}
 
-{status_icon} EXECUTION STATUS: {status_text}
 
-📈 ACCOUNT SUMMARY:
-   Portfolio Value Before: ${email_data['portfolio_value_before']:,.2f}
-   Portfolio Value After:  ${email_data['portfolio_value_after']:,.2f}
-   Portfolio Change:       ${portfolio_change:+,.2f} ({portfolio_change_pct:+.2f}%)
-   
-   Cash Before: ${email_data['cash_before']:,.2f}
-   Cash After:  ${email_data['cash_after']:,.2f}
-   Cash Change: ${email_data['cash_after'] - email_data['cash_before']:+,.2f}
-
-{positions_text}
-
-🤖 EXECUTION DETAILS:
-   Strategy: Nuclear Energy Portfolio Rebalancing
-   Trading Mode: Paper Trading (Alpaca)
-   Execution Time: {email_data['time']}
-   
-📋 LOGS:
-   Check data/logs/alpaca_trader.log for detailed execution logs
-   Check data/logs/nuclear_alerts.json for nuclear strategy signals
-
-"""
-    
-    return body
 
 
 def run_email_bot():
@@ -280,7 +227,7 @@ def run_email_bot():
     print()
     
     try:
-        from core.nuclear_signal_email import main as email_main
+        from src.core.nuclear_signal_email import main as email_main
         
         # Run the email bot
         print("📧 Starting email-enabled nuclear trading bot...")
