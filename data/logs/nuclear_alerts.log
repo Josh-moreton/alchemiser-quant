@@ -8630,3 +8630,40 @@ alpaca.common.exceptions.APIError: {"buying_power":"184.68","code":40310000,"cos
 2025-07-16 15:31:36,914 - INFO - Analysis complete: BUY NUCLEAR_PORTFOLIO - Bull market - Nuclear portfolio: SMR (31.1%), LEU (39.6%), OKLO (29.4%)
 2025-07-16 15:31:54,172 - INFO - Starting Nuclear Energy strategy analysis...
 2025-07-16 15:31:58,625 - INFO - Analysis complete: BUY NUCLEAR_PORTFOLIO - Bull market - Nuclear portfolio: SMR (31.1%), LEU (39.6%), OKLO (29.4%)
+2025-07-16 15:57:51,295 - INFO - Starting Nuclear Energy strategy analysis...
+2025-07-16 15:57:57,171 - INFO - Analysis complete: BUY NUCLEAR_PORTFOLIO - Bull market - Nuclear portfolio: SMR (31.0%), LEU (39.6%), OKLO (29.4%)
+2025-07-16 16:19:08,941 - INFO - Starting Nuclear Energy strategy analysis...
+2025-07-16 16:19:14,868 - INFO - Analysis complete: BUY NUCLEAR_PORTFOLIO - Bull market - Nuclear portfolio: SMR (31.1%), LEU (39.6%), OKLO (29.4%)
+2025-07-16 16:19:14,941 - INFO - 🏦 Trading Mode: PAPER (from parameter)
+2025-07-16 16:19:14,941 - INFO - Alpaca Trading Bot initialized - Paper Trading: True
+2025-07-16 16:19:14,941 - INFO - Alpaca Trading Bot initialized - Paper Trading: True
+2025-07-16 16:19:15,699 - INFO - 🚀 Executing Nuclear Strategy with Alpaca
+2025-07-16 16:19:15,714 - INFO - Found 3 recent signals
+2025-07-16 16:19:15,715 - INFO - Parsed signal: SMR -> 31.1%
+2025-07-16 16:19:15,715 - INFO - Parsed signal: LEU -> 39.6%
+2025-07-16 16:19:15,715 - INFO - Parsed signal: OKLO -> 29.4%
+2025-07-16 16:19:15,715 - INFO - Target Portfolio: {'SMR': 0.311, 'LEU': 0.396, 'OKLO': 0.294}
+2025-07-16 16:19:15,821 - INFO - Account Value: $107,275.57
+2025-07-16 16:19:16,656 - INFO - 🔄 Starting portfolio rebalance - Portfolio Value: $107,277.52, Cash: $35.27, Buying Power: $35.27
+2025-07-16 16:19:16,657 - INFO - Current allocation LEU: 38.9% ($41,780.58)
+2025-07-16 16:19:16,657 - INFO - Current allocation OKLO: 29.4% ($31,557.73)
+2025-07-16 16:19:16,657 - INFO - Current allocation SMR: 31.6% ($33,903.94)
+2025-07-16 16:19:16,657 - INFO - Target allocation SMR: 31.1% ($33,363.31)
+2025-07-16 16:19:16,658 - INFO - Target allocation LEU: 39.6% ($42,481.90)
+2025-07-16 16:19:16,658 - INFO - Target allocation OKLO: 29.4% ($31,539.59)
+2025-07-16 16:19:16,870 - INFO - Order placed: sell 0.299009 shares of OKLO - Order ID: 65a5db19-1ed3-4f62-9a02-cb2fd5586083, Status: OrderStatus.PENDING_NEW
+2025-07-16 16:19:16,871 - INFO - Order details: filled_qty=0, filled_avg_price=None, submitted_at=2025-07-16 15:19:16.968369+00:00
+2025-07-16 16:19:16,974 - INFO - Final order status for OKLO: OrderStatus.FILLED, filled_qty=0.299009, filled_avg_price=62.56
+2025-07-16 16:19:16,975 - INFO - 💰 Selling 0.299009 shares of OKLO to rebalance ($18.13)
+2025-07-16 16:19:17,184 - INFO - Order placed: sell 12.418355 shares of SMR - Order ID: fd37926a-af3c-410e-9231-7c9a7af7b159, Status: OrderStatus.PENDING_NEW
+2025-07-16 16:19:17,185 - INFO - Order details: filled_qty=0, filled_avg_price=None, submitted_at=2025-07-16 15:19:17.283368+00:00
+2025-07-16 16:19:19,406 - INFO - Final order status for SMR: OrderStatus.FILLED, filled_qty=12.418355, filled_avg_price=43.51
+2025-07-16 16:19:19,407 - INFO - 💰 Selling 12.418355 shares of SMR to rebalance ($540.63)
+2025-07-16 16:19:19,407 - INFO - 📉 Rebalancing sells: 2 successful
+2025-07-16 16:19:19,407 - INFO - ⏳ Waiting for buying power to update after sells...
+2025-07-16 16:19:29,518 - INFO - � Updated buying power after sells: $594.30 (was $35.27)
+2025-07-16 16:19:29,518 - INFO - 💸 Total buying power available: $594.30
+2025-07-16 16:19:29,619 - INFO - 💰 Buying power remaining after rebalancing: $594.30
+2025-07-16 16:19:29,619 - INFO - ✅ Portfolio rebalanced - 2 orders executed
+2025-07-16 16:19:29,620 - INFO -    sell 0.299009 OKLO (Order ID: 65a5db19-1ed3-4f62-9a02-cb2fd5586083, Value: $18.13)
+2025-07-16 16:19:29,620 - INFO -    sell 12.418355 SMR (Order ID: fd37926a-af3c-410e-9231-7c9a7af7b159, Value: $540.63)
