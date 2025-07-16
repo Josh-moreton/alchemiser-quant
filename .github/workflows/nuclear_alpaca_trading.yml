@@ -27,7 +27,9 @@ jobs:
           ALPACA_PAPER_SECRET: ${{ secrets.ALPACA_PAPER_SECRET }}
           ALPACA_PAPER_ENDPOINT: ${{ vars.ALPACA_PAPER_ENDPOINT }}
           SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
-        run: python main.py alpaca
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python main.py telegram
 
       - name: Upload trading logs
         if: always()
