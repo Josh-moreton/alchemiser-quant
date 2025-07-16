@@ -14,12 +14,13 @@ from typing import Dict, List, Optional, Tuple
 from dotenv import load_dotenv
 
 # Alpaca imports
-from alpaca.trading.client import TradingClient
+
+# Alpaca order enums
 from alpaca.trading.requests import MarketOrderRequest, GetOrdersRequest
 from alpaca.trading.enums import OrderSide, TimeInForce
-from alpaca.data.historical import StockHistoricalDataClient
-from alpaca.data.requests import StockBarsRequest
-from alpaca.data.timeframe import TimeFrame
+
+# Import AlpacaDataProvider
+from core.data_provider import AlpacaDataProvider
 
 # Add src directory to Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
@@ -36,145 +37,67 @@ logging.basicConfig(
         logging.StreamHandler()
     ]
 )
-
 class AlpacaTradingBot:
     """Alpaca Trading Bot for Nuclear Strategy"""
-    
+
     def __init__(self, paper_trading=None):
         """
-        Initialize Alpaca trading client
-        
+        Initialize Alpaca trading bot using AlpacaDataProvider for all data access.
         Args:
-            paper_trading (bool, optional): Use paper trading account if True. 
-                                          If None, reads from ALPACA_PAPER_TRADING env variable
+            paper_trading (bool, optional): Use paper trading account if True. If None, reads from ALPACA_PAPER_TRADING env variable
         """
         # Determine paper trading mode
         if paper_trading is None:
-            # Read from environment variable
             env_paper_trading = os.getenv('ALPACA_PAPER_TRADING', 'true').lower()
             self.paper_trading = env_paper_trading in ('true', '1', 'yes', 'on')
         else:
             self.paper_trading = paper_trading
-        
-        logging.info(f"🏦 Trading Mode: {'PAPER' if self.paper_trading else 'LIVE'} (from {'env variable' if paper_trading is None else 'parameter'})")
-        
-        # Get credentials from environment
-        if self.paper_trading:
-            self.api_key = os.getenv('ALPACA_PAPER_KEY')
-            self.secret_key = os.getenv('ALPACA_PAPER_SECRET')
-            self.base_url = os.getenv('ALPACA_PAPER_ENDPOINT', 'https://paper-api.alpaca.markets')
-        else:
-            self.api_key = os.getenv('ALPACA_KEY')
-            self.secret_key = os.getenv('ALPACA_SECRET')
-            self.base_url = os.getenv('ALPACA_ENDPOINT', 'https://api.alpaca.markets')
-        
-        # Debug: Check if credentials are loaded
-        logging.info(f"API Key loaded: {'Yes' if self.api_key else 'No'}")
-        logging.info(f"Secret Key loaded: {'Yes' if self.secret_key else 'No'}")
-        logging.info(f"Base URL: {self.base_url}")
-        
-        if not self.api_key or not self.secret_key:
-            raise ValueError(f"Alpaca API credentials not found in environment variables. "
-                           f"API Key: {'Found' if self.api_key else 'Missing'}, "
-                           f"Secret: {'Found' if self.secret_key else 'Missing'}")
-        
-        # Initialize trading client
-        try:
-            self.trading_client = TradingClient(
-                api_key=self.api_key,
-                secret_key=self.secret_key,
-                paper=self.paper_trading
-            )
-            logging.info("TradingClient initialized successfully")
-        except Exception as e:
-            logging.error(f"Failed to initialize TradingClient: {e}")
-            raise
-        
-        # Initialize data client (API keys needed for stock data)
-        try:
-            self.data_client = StockHistoricalDataClient(
-                api_key=self.api_key,
-                secret_key=self.secret_key
-            )
-            logging.info("StockHistoricalDataClient initialized successfully")
-        except Exception as e:
-            logging.error(f"Failed to initialize StockHistoricalDataClient: {e}")
-            raise
+
+        logging.info(f"\U0001F3E6 Trading Mode: {'PAPER' if self.paper_trading else 'LIVE'} (from {'env variable' if paper_trading is None else 'parameter'})")
+
+        # Use AlpacaDataProvider for all Alpaca data access
+        self.data_provider = AlpacaDataProvider(paper_trading=self.paper_trading)
+        self.trading_client = self.data_provider.trading_client  # For order placement
+        logging.info(f"Alpaca Trading Bot initialized - Paper Trading: {self.paper_trading}")
         
         # Portfolio configuration - no cash reserves, invest everything based on strategy
         
         logging.info(f"Alpaca Trading Bot initialized - Paper Trading: {self.paper_trading}")
     
     def get_account_info(self) -> Dict:
-        """Get account information"""
-        try:
-            account = self.trading_client.get_account()
-            return {
-                'account_number': getattr(account, 'account_number', 'N/A'),
-                'portfolio_value': float(getattr(account, 'portfolio_value', 0) or 0),
-                'buying_power': float(getattr(account, 'buying_power', 0) or 0),
-                'cash': float(getattr(account, 'cash', 0) or 0),
-                'day_trade_count': getattr(account, 'day_trade_count', 0),
-                'status': getattr(account, 'status', 'unknown')
-            }
-        except Exception as e:
-            logging.error(f"Error getting account info: {e}")
+        """Get account information via AlpacaDataProvider, returns dict for compatibility"""
+        account = self.data_provider.get_account_info()
+        if not account:
             return {}
+        return {
+            'account_number': getattr(account, 'account_number', 'N/A'),
+            'portfolio_value': float(getattr(account, 'portfolio_value', 0) or 0),
+            'buying_power': float(getattr(account, 'buying_power', 0) or 0),
+            'cash': float(getattr(account, 'cash', 0) or 0),
+            'day_trade_count': getattr(account, 'day_trade_count', 0),
+            'status': getattr(account, 'status', 'unknown')
+        }
     
     def get_positions(self) -> Dict:
-        """Get current positions"""
-        try:
-            positions = self.trading_client.get_all_positions()
-            position_dict = {}
-            
-            for position in positions:
-                position_dict[getattr(position, 'symbol', 'unknown')] = {
-                    'qty': float(getattr(position, 'qty', 0) or 0),
-                    'market_value': float(getattr(position, 'market_value', 0) or 0),
-                    'cost_basis': float(getattr(position, 'cost_basis', 0) or 0),
-                    'unrealized_pl': float(getattr(position, 'unrealized_pl', 0) or 0),
-                    'unrealized_plpc': float(getattr(position, 'unrealized_plpc', 0) or 0),
-                    'current_price': float(getattr(position, 'current_price', 0) or 0)
-                }
-            
+        """Get current positions via AlpacaDataProvider, returns dict for compatibility"""
+        positions = self.data_provider.get_positions()
+        position_dict = {}
+        if not positions:
             return position_dict
-        except Exception as e:
-            logging.error(f"Error getting positions: {e}")
-            return {}
+        for position in positions:
+            position_dict[getattr(position, 'symbol', 'unknown')] = {
+                'qty': float(getattr(position, 'qty', 0) or 0),
+                'market_value': float(getattr(position, 'market_value', 0) or 0),
+                'cost_basis': float(getattr(position, 'cost_basis', 0) or 0),
+                'unrealized_pl': float(getattr(position, 'unrealized_pl', 0) or 0),
+                'unrealized_plpc': float(getattr(position, 'unrealized_plpc', 0) or 0),
+                'current_price': float(getattr(position, 'current_price', 0) or 0)
+            }
+        return position_dict
     
     def get_current_price(self, symbol: str) -> float:
-        """Get current price for a symbol using Alpaca data API only. Returns 0.0 if unavailable. Adds detailed debug logging for troubleshooting."""
-        try:
-            from alpaca.data.requests import StockLatestQuoteRequest
-            request_params = StockLatestQuoteRequest(symbol_or_symbols=symbol)
-            logging.debug(f"Requesting latest quote for symbol: {symbol}")
-            latest_quote = self.data_client.get_stock_latest_quote(request_params)
-            logging.debug(f"Raw latest_quote response for {symbol}: {latest_quote}")
-            if latest_quote and symbol in latest_quote:
-                quote = latest_quote[symbol]
-                bid_price = float(getattr(quote, 'bid_price', 0) or 0)
-                ask_price = float(getattr(quote, 'ask_price', 0) or 0)
-                logging.debug(f"Parsed quote for {symbol}: bid_price={bid_price}, ask_price={ask_price}, full_quote={quote}")
-                
-                # Handle cases where only bid or ask is available
-                if bid_price > 0 and ask_price > 0:
-                    midpoint_price = (bid_price + ask_price) / 2
-                    logging.info(f"Alpaca price for {symbol}: ${midpoint_price:.2f} (bid: ${bid_price:.2f}, ask: ${ask_price:.2f})")
-                    return midpoint_price
-                elif bid_price > 0:
-                    logging.warning(f"Using bid price for {symbol} (ask=0): ${bid_price:.2f}")
-                    return bid_price
-                elif ask_price > 0:
-                    logging.warning(f"Using ask price for {symbol} (bid=0): ${ask_price:.2f}")
-                    return ask_price
-                else:
-                    logging.warning(f"Quote for {symbol} has non-positive bid/ask: bid={bid_price}, ask={ask_price}")
-            else:
-                logging.warning(f"No valid Alpaca quote for {symbol}. latest_quote={latest_quote}")
-            return 0.0
-        except Exception as e:
-            logging.error(f"Alpaca pricing failed for {symbol}: {e}", exc_info=True)
-            return 0.0
+        """Get current price for a symbol via AlpacaDataProvider"""
+        return self.data_provider.get_current_price(symbol)
     
     def calculate_position_size(self, symbol: str, portfolio_weight: float, account_value: float) -> float:
         """
