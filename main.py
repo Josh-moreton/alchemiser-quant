@@ -2,6 +2,10 @@
 """
 Nuclear Trading Strategy - Main Entry Point
 Unified launcher for all nuclear trading operations
+
+This file is a thin runner. It only handles CLI, orchestration, and logging.
+All business logic is delegated to orchestrator and service classes in core/.
+No business logic should be added here.
 """
 
 # Standard library imports
