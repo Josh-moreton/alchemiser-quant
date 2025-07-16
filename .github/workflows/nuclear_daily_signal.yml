@@ -1,4 +1,4 @@
-name: Nuclear Bot - Daily Signal
+name: Nuclear Bot - Daily Signal Check
 
 on:
   workflow_dispatch:
