@@ -170,7 +170,7 @@ class NuclearStrategyEngine:
 
     def evaluate_nuclear_strategy(self, indicators, market_data=None):
         """
-        Evaluate the Nuclear Energy strategy using scenario handler classes
+        Evaluate the Nuclear Energy strategy using a prioritized list of scenario handler classes (strategy pattern).
         Returns: (recommended_symbol, action, reason)
         """
         from .strategy_engine import (
@@ -178,32 +178,23 @@ class NuclearStrategyEngine:
         )
         if 'SPY' not in indicators:
             return 'SPY', ActionType.HOLD.value, "Missing SPY data"
-        spy_rsi_10 = indicators['SPY']['rsi_10']
-        overbought_handler = OverboughtStrategy()
-        secondary_overbought_handler = SecondaryOverboughtStrategy()
-        vox_overbought_handler = VoxOverboughtStrategy()
-        bull_handler = BullMarketStrategy(self.get_nuclear_portfolio)
-        bear_handler = BearMarketStrategy(self._bear_subgroup_1, self._bear_subgroup_2, self._combine_bear_strategies_with_inverse_volatility)
 
-        if spy_rsi_10 > 79:
-            return overbought_handler.recommend(indicators)
-        for symbol in ['IOO', 'TQQQ', 'VTV', 'XLF']:
-            if symbol in indicators and indicators[symbol]['rsi_10'] > 79:
-                return secondary_overbought_handler.recommend(indicators, symbol)
-        if 'VOX' in indicators and indicators['VOX']['rsi_10'] > 79:
-            return vox_overbought_handler.recommend(indicators)
-        # Oversold checks
-        if 'TQQQ' in indicators and indicators['TQQQ']['rsi_10'] < 30:
-            return 'TQQQ', ActionType.BUY.value, "TQQQ oversold, buying dip"
-        if 'SPY' in indicators and indicators['SPY']['rsi_10'] < 30:
-            return 'UPRO', ActionType.BUY.value, "SPY oversold, buying dip with leverage"
-        # Bull/bear market check
-        if 'SPY' in indicators:
-            spy_price = indicators['SPY']['current_price']
-            spy_ma_200 = indicators['SPY']['ma_200']
-            if spy_price > spy_ma_200:
-                return bull_handler.recommend(indicators, market_data)
-            return bear_handler.recommend(indicators)
+        # Instantiate handlers with required dependencies
+        handlers = [
+            lambda inds, md: OverboughtStrategy().recommend(inds) if inds['SPY']['rsi_10'] > 79 else None,
+            # Secondary overbought for each symbol
+            *[lambda inds, md, s=s: SecondaryOverboughtStrategy().recommend(inds, s) if s in inds and inds[s]['rsi_10'] > 79 else None for s in ['IOO', 'TQQQ', 'VTV', 'XLF']],
+            lambda inds, md: VoxOverboughtStrategy().recommend(inds) if 'VOX' in inds and inds['VOX']['rsi_10'] > 79 else None,
+            lambda inds, md: ('TQQQ', ActionType.BUY.value, "TQQQ oversold, buying dip") if 'TQQQ' in inds and inds['TQQQ']['rsi_10'] < 30 else None,
+            lambda inds, md: ('UPRO', ActionType.BUY.value, "SPY oversold, buying dip with leverage") if 'SPY' in inds and inds['SPY']['rsi_10'] < 30 else None,
+            lambda inds, md: BullMarketStrategy(self.get_nuclear_portfolio).recommend(inds, md) if 'SPY' in inds and inds['SPY']['current_price'] > inds['SPY']['ma_200'] else None,
+            lambda inds, md: BearMarketStrategy(self._bear_subgroup_1, self._bear_subgroup_2, self._combine_bear_strategies_with_inverse_volatility).recommend(inds)
+        ]
+
+        for handler in handlers:
+            result = handler(indicators, market_data)
+            if result:
+                return result
         return 'SPY', ActionType.HOLD.value, "No clear signal, holding cash equivalent"
 
 
