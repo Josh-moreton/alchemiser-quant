@@ -10,6 +10,7 @@ seaborn==0.13.2
 tqdm==4.67.1
 yfinance==0.2.63
 setuptools==80.9.0
+python-telegram-bot==20.7
 PyYAML==6.0.1
 
 # Optional: For local development and testing (not needed for GitHub Actions)
