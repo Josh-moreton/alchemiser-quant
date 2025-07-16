@@ -170,48 +170,28 @@ class NuclearStrategyEngine:
 
     def evaluate_nuclear_strategy(self, indicators, market_data=None):
         """
-        Evaluate the Nuclear Energy strategy
+        Evaluate the Nuclear Energy strategy using scenario handler classes
         Returns: (recommended_symbol, action, reason)
         """
+        from .strategy_engine import (
+            BullMarketStrategy, BearMarketStrategy, OverboughtStrategy, SecondaryOverboughtStrategy, VoxOverboughtStrategy
+        )
         if 'SPY' not in indicators:
             return 'SPY', ActionType.HOLD.value, "Missing SPY data"
         spy_rsi_10 = indicators['SPY']['rsi_10']
+        overbought_handler = OverboughtStrategy()
+        secondary_overbought_handler = SecondaryOverboughtStrategy()
+        vox_overbought_handler = VoxOverboughtStrategy()
+        bull_handler = BullMarketStrategy(self.get_nuclear_portfolio)
+        bear_handler = BearMarketStrategy(self._bear_subgroup_1, self._bear_subgroup_2, self._combine_bear_strategies_with_inverse_volatility)
+
         if spy_rsi_10 > 79:
-            return self._handle_overbought(indicators)
-        return self._handle_normal(indicators, market_data)
-
-    def _handle_overbought(self, indicators):
-        spy_rsi_10 = indicators['SPY']['rsi_10']
-        if spy_rsi_10 > 81:
-            return 'UVXY', ActionType.BUY.value, "SPY extremely overbought (RSI > 81)"
-        for symbol in ['IOO', 'TQQQ', 'VTV', 'XLF']:
-            if symbol in indicators and indicators[symbol]['rsi_10'] > 81:
-                return 'UVXY', ActionType.BUY.value, f"{symbol} extremely overbought (RSI > 81)"
-        return 'UVXY_BTAL_PORTFOLIO', ActionType.BUY.value, "Market overbought, UVXY 75% + BTAL 25% allocation"
-
-    def _handle_normal(self, indicators, market_data=None):
+            return overbought_handler.recommend(indicators)
         for symbol in ['IOO', 'TQQQ', 'VTV', 'XLF']:
             if symbol in indicators and indicators[symbol]['rsi_10'] > 79:
-                return self._handle_secondary_overbought(indicators, symbol)
+                return secondary_overbought_handler.recommend(indicators, symbol)
         if 'VOX' in indicators and indicators['VOX']['rsi_10'] > 79:
-            return self._handle_vox_overbought(indicators)
-        return self._main_trading_logic(indicators, market_data)
-
-    def _handle_secondary_overbought(self, indicators, overbought_symbol):
-        if indicators[overbought_symbol]['rsi_10'] > 81:
-            return 'UVXY', ActionType.BUY.value, f"{overbought_symbol} extremely overbought"
-        for symbol in ['TQQQ', 'VTV', 'XLF']:
-            if symbol != overbought_symbol and symbol in indicators:
-                if indicators[symbol]['rsi_10'] > 81:
-                    return 'UVXY', ActionType.BUY.value, f"{symbol} extremely overbought"
-        return 'UVXY_BTAL_PORTFOLIO', ActionType.BUY.value, f"{overbought_symbol} overbought, UVXY 75% + BTAL 25% allocation"
-
-    def _handle_vox_overbought(self, indicators):
-        if 'XLF' in indicators and indicators['XLF']['rsi_10'] > 81:
-            return 'UVXY', ActionType.BUY.value, "XLF extremely overbought"
-        return 'UVXY_BTAL_PORTFOLIO', ActionType.BUY.value, "VOX overbought, UVXY 75% + BTAL 25% allocation"
-
-    def _main_trading_logic(self, indicators, market_data=None):
+            return vox_overbought_handler.recommend(indicators)
         # Oversold checks
         if 'TQQQ' in indicators and indicators['TQQQ']['rsi_10'] < 30:
             return 'TQQQ', ActionType.BUY.value, "TQQQ oversold, buying dip"
@@ -222,36 +202,10 @@ class NuclearStrategyEngine:
             spy_price = indicators['SPY']['current_price']
             spy_ma_200 = indicators['SPY']['ma_200']
             if spy_price > spy_ma_200:
-                return self._bull_market_portfolio(indicators, market_data)
-            return self._bear_market_logic(indicators)
+                return bull_handler.recommend(indicators, market_data)
+            return bear_handler.recommend(indicators)
         return 'SPY', ActionType.HOLD.value, "No clear signal, holding cash equivalent"
 
-    def _bull_market_portfolio(self, indicators, market_data=None):
-        nuclear_portfolio = self.get_nuclear_portfolio(indicators, market_data)
-        if nuclear_portfolio:
-            portfolio_stocks = list(nuclear_portfolio.keys())
-            portfolio_desc = ", ".join([
-                f"{s} ({nuclear_portfolio[s]['weight']:.1%})" for s in portfolio_stocks
-            ])
-            return 'NUCLEAR_PORTFOLIO', ActionType.BUY.value, f"Bull market - Nuclear portfolio: {portfolio_desc}"
-        return 'SMR', ActionType.BUY.value, "Bull market - default nuclear energy play"
-
-    def _bear_market_logic(self, indicators):
-        bear1_signal = self._bear_subgroup_1(indicators)
-        bear2_signal = self._bear_subgroup_2(indicators)
-        bear1_symbol = bear1_signal[0]
-        bear2_symbol = bear2_signal[0]
-        if bear1_symbol == bear2_symbol:
-            return bear1_signal
-        bear_portfolio = self._combine_bear_strategies_with_inverse_volatility(
-            bear1_symbol, bear2_symbol, indicators
-        )
-        if bear_portfolio:
-            portfolio_desc = ", ".join([
-                f"{s} ({bear_portfolio[s]['weight']:.1%})" for s in bear_portfolio.keys()
-            ])
-            return 'BEAR_PORTFOLIO', ActionType.BUY.value, f"Bear market portfolio: {portfolio_desc}"
-        return bear1_signal
 
     def _bear_subgroup_1(self, indicators):
         if 'PSQ' in indicators and indicators['PSQ']['rsi_10'] < 35:
