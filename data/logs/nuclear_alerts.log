@@ -8702,3 +8702,29 @@ alpaca.common.exceptions.APIError: {"buying_power":"184.68","code":40310000,"cos
 2025-07-16 16:39:45,711 - INFO -    sell 0.09192 SMR (Order ID: 47bf540c-f81f-443c-a5a7-cc1f26d54f20, Value: $4.06)
 2025-07-16 16:39:45,711 - INFO -    buy 0.105977 LEU (Order ID: 1a7dcd30-9b33-4ab2-8683-2058fc5177dd, Value: $22.44)
 2025-07-16 16:39:45,711 - INFO -    buy 2.046183 OKLO (Order ID: e80fb68d-cce2-4811-8f54-97696e73d001, Value: $126.29)
+2025-07-16 16:43:57,814 - INFO - Starting Nuclear Energy strategy analysis...
+2025-07-16 16:44:02,252 - INFO - Analysis complete: BUY NUCLEAR_PORTFOLIO - Bull market - Nuclear portfolio: SMR (31.0%), LEU (39.6%), OKLO (29.4%)
+2025-07-16 16:44:02,290 - INFO - 🏦 Trading Mode: PAPER (from parameter)
+2025-07-16 16:44:02,290 - INFO - Alpaca Trading Bot initialized - Paper Trading: True
+2025-07-16 16:44:02,290 - INFO - Alpaca Trading Bot initialized - Paper Trading: True
+2025-07-16 16:44:02,832 - INFO - 🚀 Executing Nuclear Strategy with Alpaca
+2025-07-16 16:44:02,844 - INFO - Found 6 recent signals
+2025-07-16 16:44:02,845 - INFO - Parsed signal: SMR -> 31.0%
+2025-07-16 16:44:02,845 - INFO - Parsed signal: LEU -> 39.6%
+2025-07-16 16:44:02,845 - INFO - Parsed signal: OKLO -> 29.4%
+2025-07-16 16:44:02,845 - INFO - Parsed signal: SMR -> 31.0%
+2025-07-16 16:44:02,845 - INFO - Parsed signal: LEU -> 39.6%
+2025-07-16 16:44:02,845 - INFO - Parsed signal: OKLO -> 29.4%
+2025-07-16 16:44:02,846 - INFO - Target Portfolio: {'SMR': 0.31, 'LEU': 0.396, 'OKLO': 0.294}
+2025-07-16 16:44:02,951 - INFO - Account Value: $105,984.30
+2025-07-16 16:44:03,903 - INFO - Placing LIMIT sell order for OKLO: qty=0.041552, limit_price=60.32
+2025-07-16 16:44:04,116 - INFO - Limit order filled: 1b068cef-9ef2-4c2d-8347-463fdb777cd4
+2025-07-16 16:44:04,117 - INFO - Sold 0.041552 of OKLO for rebalancing.
+2025-07-16 16:44:04,322 - INFO - Placing LIMIT sell order for SMR: qty=3.095496, limit_price=42.98
+2025-07-16 16:44:06,645 - INFO - Limit order filled: ba94aaa6-713b-4725-8067-384433d68fe5
+2025-07-16 16:44:06,646 - INFO - Sold 3.095496 of SMR for rebalancing.
+2025-07-16 16:44:06,646 - INFO - Waiting for settlement after sells...
+2025-07-16 16:44:16,970 - INFO - Rebalancing complete. Orders executed: 2
+2025-07-16 16:44:16,972 - INFO - ✅ Portfolio rebalanced - 2 orders executed
+2025-07-16 16:44:16,973 - INFO -    sell 0.041552 OKLO (Order ID: 1b068cef-9ef2-4c2d-8347-463fdb777cd4, Value: $2.51)
+2025-07-16 16:44:16,973 - INFO -    sell 3.095496 SMR (Order ID: ba94aaa6-713b-4725-8067-384433d68fe5, Value: $133.43)

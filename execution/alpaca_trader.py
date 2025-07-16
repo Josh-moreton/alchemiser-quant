@@ -16,7 +16,7 @@ from dotenv import load_dotenv
 # Alpaca imports
 
 # Alpaca order enums
-from alpaca.trading.requests import MarketOrderRequest, GetOrdersRequest
+from alpaca.trading.requests import MarketOrderRequest, GetOrdersRequest, LimitOrderRequest
 from alpaca.trading.enums import OrderSide, TimeInForce
 
 # Import AlpacaDataProvider
@@ -133,9 +133,13 @@ class AlpacaTradingBot:
             logging.error(f"Error calculating position size for {symbol}: {e}")
             return 0.0
     
-    def place_order(self, symbol: str, qty: float, side: OrderSide, max_retries: int = 3, poll_timeout: int = 30, poll_interval: float = 2.0) -> Optional[str]:
+    def place_order(
+        self, symbol: str, qty: float, side: OrderSide, 
+        max_retries: int = 3, poll_timeout: int = 30, poll_interval: float = 2.0, 
+        slippage_bps: float = 0.3
+    ) -> Optional[str]:
         """
-        Place a market order (supports fractional shares) with retry logic and detailed Alpaca API response logging.
+        Place a limit order with a small slippage buffer. Fallback to market order if not filled.
         
         Args:
             symbol: Stock symbol
@@ -145,87 +149,71 @@ class AlpacaTradingBot:
         Returns:
             Order ID if successful, None if failed
         """
-        if os.environ.get("FAST_TEST") == "1":
-            poll_timeout = 0
-            poll_interval = 0
-
         if qty <= 0:
             logging.warning(f"Invalid quantity for {symbol}: {qty}")
             return None
-        
+
         for attempt in range(max_retries + 1):  # +1 for initial attempt
             try:
-                market_order_data = MarketOrderRequest(
+                current_price = self.get_current_price(symbol)
+                if current_price <= 0:
+                    logging.error(f"Invalid current price for {symbol}")
+                    return None
+
+                # Calculate limit price with slippage buffer
+                if side == OrderSide.BUY:
+                    limit_price = round(current_price * (1 + slippage_bps / 100), 2)
+                else:
+                    limit_price = round(current_price * (1 - slippage_bps / 100), 2)
+
+                logging.info(f"Placing LIMIT {side.value} order for {symbol}: qty={qty}, limit_price={limit_price}")
+
+                limit_order_data = LimitOrderRequest(
                     symbol=symbol,
                     qty=qty,
                     side=side,
-                    time_in_force=TimeInForce.DAY
+                    time_in_force=TimeInForce.DAY,
+                    limit_price=limit_price
                 )
-                order = self.trading_client.submit_order(market_order_data)
-                # Log the full order response for debugging
-                try:
-                    order_json = order.__dict__ if hasattr(order, '__dict__') else str(order)
-                    logging.debug(f"Alpaca API order response for {symbol}: {order_json}")
-                except Exception as log_exc:
-                    logging.warning(f"Could not serialize Alpaca order response for {symbol}: {log_exc}")
+                order = self.trading_client.submit_order(limit_order_data)
                 order_id = str(getattr(order, 'id', 'unknown'))
                 order_status = getattr(order, 'status', 'unknown')
-                filled_qty = getattr(order, 'filled_qty', None)
-                filled_avg_price = getattr(order, 'filled_avg_price', None)
-                submitted_at = getattr(order, 'submitted_at', None)
-                logging.info(f"Order placed: {side.value} {qty} shares of {symbol} - Order ID: {order_id}, Status: {order_status}")
-                logging.info(f"Order details: filled_qty={filled_qty}, filled_avg_price={filled_avg_price}, submitted_at={submitted_at}")
-                # Poll for order status until filled, canceled, or rejected, or timeout
+
+                # Poll for order status
                 poll_start = time.time()
-                final_status = order_status
-                final_filled_qty = filled_qty
-                final_filled_avg_price = filled_avg_price
-                if order_id != 'unknown' and order_status not in ("filled", "canceled", "rejected"):
-                    while time.time() - poll_start < poll_timeout:
-                        try:
-                            polled_order = self.trading_client.get_order_by_id(order_id)
-                            polled_status = getattr(polled_order, 'status', 'unknown')
-                            polled_filled_qty = getattr(polled_order, 'filled_qty', None)
-                            polled_filled_avg_price = getattr(polled_order, 'filled_avg_price', None)
-                            logging.debug(f"Polled order status for {symbol}: {polled_status}, filled_qty={polled_filled_qty}, filled_avg_price={polled_filled_avg_price}")
-                            if polled_status in ("filled", "canceled", "rejected"):
-                                final_status = polled_status
-                                final_filled_qty = polled_filled_qty
-                                final_filled_avg_price = polled_filled_avg_price
-                                break
-                        except Exception as poll_exc:
-                            logging.warning(f"Error polling order status for {symbol} (Order ID: {order_id}): {poll_exc}")
-                        time.sleep(poll_interval)
-                # Log final status
-                logging.info(f"Final order status for {symbol}: {final_status}, filled_qty={final_filled_qty}, filled_avg_price={final_filled_avg_price}")
-                if final_status == "filled":
-                    return order_id
-                else:
-                    logging.warning(f"Order for {symbol} ({side.value}) was not filled. Final status: {final_status}. Not counting as executed.")
-                    return None
+                while time.time() - poll_start < poll_timeout:
+                    polled_order = self.trading_client.get_order_by_id(order_id)
+                    polled_status = getattr(polled_order, 'status', 'unknown')
+                    if polled_status == "filled":
+                        logging.info(f"Limit order filled: {order_id}")
+                        return order_id
+                    elif polled_status in ("canceled", "rejected"):
+                        logging.warning(f"Limit order {order_id} was {polled_status}")
+                        break
+                    time.sleep(poll_interval)
+
+                # If not filled, cancel and retry with wider slippage
+                self.trading_client.cancel_order_by_id(order_id)
+                logging.warning(f"Limit order {order_id} not filled in time, canceled. Retrying with wider slippage.")
+                slippage_bps *= 2  # Double the slippage for next attempt
+
             except Exception as e:
-                # Log the full exception and any Alpaca API error details
-                logging.error(f"Alpaca API Exception placing order for {symbol}: {e}", exc_info=True)
-                api_response = getattr(e, 'response', None)
-                if api_response is not None:
+                logging.error(f"Exception placing limit order for {symbol}: {e}", exc_info=True)
+                if attempt == max_retries:
+                    # As a last resort, fallback to market order
                     try:
-                        logging.error(f"Alpaca API error response: {getattr(api_response, 'text', str(api_response))}")
-                    except Exception:
-                        pass
-                if attempt < max_retries:
-                    # Calculate delay: 5 seconds for first retry, then increase
-                    delay = 5 + (attempt * 5)  # 5, 10, 15 seconds
-                    logging.warning(f"Order failed for {symbol} (attempt {attempt + 1}/{max_retries + 1}): {e}")
-                    logging.info(f"Retrying in {delay} seconds...")
-                    time.sleep(delay)
-                    # Refresh account info before retry (buying power might have changed)
-                    if side == OrderSide.BUY:
-                        account_info = self.get_account_info()
-                        current_buying_power = account_info.get('buying_power', 0)
-                        logging.debug(f"Current buying power before retry: ${current_buying_power:,.2f}")
-                else:
-                    logging.error(f"Order failed for {symbol} after {max_retries + 1} attempts: {e}")
-                    return None
+                        logging.warning(f"Falling back to MARKET order for {symbol}")
+                        market_order_data = MarketOrderRequest(
+                            symbol=symbol,
+                            qty=qty,
+                            side=side,
+                            time_in_force=TimeInForce.DAY
+                        )
+                        order = self.trading_client.submit_order(market_order_data)
+                        return str(getattr(order, 'id', 'unknown'))
+                    except Exception as e2:
+                        logging.error(f"Market order also failed for {symbol}: {e2}", exc_info=True)
+                        return None
         return None
     
     def rebalance_portfolio(self, target_portfolio: Dict[str, float]) -> List[Dict]:

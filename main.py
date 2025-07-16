@@ -192,9 +192,9 @@ def run_alpaca_telegram_bot():
     print()
     
     try:
-        # Import and run the core nuclear trading bot first to generate signals
         from core.nuclear_trading_bot import NuclearTradingBot
         from core.telegram_utils import send_telegram_message
+        from execution.alpaca_trader import AlpacaTradingBot
         
         print("📊 STEP 1: Generating Nuclear Trading Signals...")
         print("-" * 50)
@@ -218,9 +218,6 @@ def run_alpaca_telegram_bot():
         print("🏦 STEP 2: Connecting to Alpaca Paper Trading...")
         print("-" * 50)
         
-        from execution.alpaca_trader import AlpacaTradingBot
-        
-        # Initialize bot with paper trading
         alpaca_bot = AlpacaTradingBot(paper_trading=True)
         
         # Get account info before trading
@@ -233,8 +230,22 @@ def run_alpaca_telegram_bot():
         print("⚡ STEP 3: Executing Trades Based on Nuclear Signals...")
         print("-" * 50)
         
-        # Execute nuclear strategy with Alpaca
-        success = alpaca_bot.execute_nuclear_strategy()
+        # Execute nuclear strategy and capture orders
+        orders = []
+        success = False
+        try:
+            # Patch: capture orders from rebalance_portfolio
+            # We'll monkeypatch the bot to store orders for reporting
+            orig_rebalance = alpaca_bot.rebalance_portfolio
+            def rebalance_and_capture(*args, **kwargs):
+                result = orig_rebalance(*args, **kwargs)
+                nonlocal orders
+                orders = result
+                return result
+            alpaca_bot.rebalance_portfolio = rebalance_and_capture
+            success = alpaca_bot.execute_nuclear_strategy()
+        finally:
+            alpaca_bot.rebalance_portfolio = orig_rebalance
         
         if success:
             print("✅ Trade execution completed successfully!")
@@ -261,26 +272,34 @@ def run_alpaca_telegram_bot():
         print("📲 STEP 5: Sending Telegram Notification...")
         print("-" * 50)
         
+        positions = alpaca_bot.get_positions()
+        msg = f"\U0001F680 Nuclear Alpaca Bot Execution\n\n"
+        msg += f"Status: {'✅ Success' if success else '❌ Failed'}\n"
+        msg += f"Portfolio Value Before: ${account_info_before.get('portfolio_value', 0):,.2f}\n"
+        msg += f"Portfolio Value After:  ${account_info_after.get('portfolio_value', 0):,.2f}\n"
+        msg += f"Cash Before: ${account_info_before.get('cash', 0):,.2f}\n"
+        msg += f"Cash After:  ${account_info_after.get('cash', 0):,.2f}\n"
+        
+        if positions:
+            msg += "\nPositions:\n"
+            for symbol, pos in positions.items():
+                qty = pos.get('qty', 0)
+                price = pos.get('current_price', 0)
+                market_value = pos.get('market_value', 0)
+                msg += f"- {symbol}: {qty} @ ${price:.2f} = ${market_value:.2f}\n"
+        
+        # Add order summary
+        if orders:
+            msg += "\nOrders Executed:\n"
+            for order in orders:
+                side = order.get('side')
+                if hasattr(side, 'value'):
+                    side = side.value
+                msg += f"- {side.upper()} {order['qty']} {order['symbol']} (${order['estimated_value']:.2f})\n"
+        
         try:
-            positions = alpaca_bot.get_positions()
-            msg = f"🚀 Nuclear Alpaca Bot Execution\n\n"
-            msg += f"Status: {'✅ Success' if success else '❌ Failed'}\n"
-            msg += f"Portfolio Value Before: ${account_info_before.get('portfolio_value', 0):,.2f}\n"
-            msg += f"Portfolio Value After:  ${account_info_after.get('portfolio_value', 0):,.2f}\n"
-            msg += f"Cash Before: ${account_info_before.get('cash', 0):,.2f}\n"
-            msg += f"Cash After:  ${account_info_after.get('cash', 0):,.2f}\n"
-            
-            if positions:
-                msg += "\nPositions:\n"
-                for symbol, pos in positions.items():
-                    qty = pos.get('qty', 0)
-                    price = pos.get('current_price', 0)
-                    market_value = pos.get('market_value', 0)
-                    msg += f"- {symbol}: {qty} @ ${price:.2f} = ${market_value:.2f}\n"
-            
             send_telegram_message(msg)
             print("✅ Telegram notification sent successfully!")
-            
         except Exception as e:
             print(f"⚠️ Error sending Telegram notification: {e}")
         
