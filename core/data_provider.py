@@ -1,17 +1,21 @@
-import yfinance as yf
 import pandas as pd
 import time
 import os
 import logging
 from typing import cast
+from datetime import datetime, timedelta
+from dotenv import load_dotenv
 from alpaca.trading.client import TradingClient
 from alpaca.data.historical import StockHistoricalDataClient
 from alpaca.data.requests import StockBarsRequest, StockLatestQuoteRequest
 from alpaca.data.timeframe import TimeFrame
 from .config import Config
 
+# Load environment variables from .env file
+load_dotenv()
+
 class DataProvider:
-    """Fetch market data with caching."""
+    """Fetch market data with caching using Alpaca API ONLY."""
     def __init__(self, cache_duration=None):
         if cache_duration is None:
             config = Config()
@@ -19,24 +23,135 @@ class DataProvider:
         
         self.cache = {}
         self.cache_duration = cache_duration  # seconds
+        
+        # Initialize Alpaca client with REAL trading keys
+        self.api_key = os.getenv('ALPACA_KEY')
+        self.secret_key = os.getenv('ALPACA_SECRET')
+        
+        if not self.api_key or not self.secret_key:
+            raise ValueError("Alpaca API keys (ALPACA_KEY and ALPACA_SECRET) must be set in .env file")
+        
+        self.data_client = StockHistoricalDataClient(self.api_key, self.secret_key)
+        logging.info("Initialized Alpaca DataProvider with real trading keys")
 
     def get_data(self, symbol, period="1y", interval="1d"):
         now = time.time()
         cache_key = (symbol, period, interval)
+        
         # Check cache
         if cache_key in self.cache:
             cached_time, data = self.cache[cache_key]
             if now - cached_time < self.cache_duration:
                 return data
-        # Fetch new data
-        df = yf.download(symbol, period=period, interval=interval, progress=False)
+        
+        # Fetch data from Alpaca ONLY
+        df = self._get_alpaca_data(symbol, period, interval)
+        
         if df is not None and not df.empty:
             self.cache[cache_key] = (now, df)
             return df
+        
         return pd.DataFrame()  # Return empty DataFrame if download fails
 
-    def get_current_price(self, symbol):
+    def _get_alpaca_data(self, symbol, period="1y", interval="1d"):
+        """Get data from Alpaca API"""
         try:
+            # Convert period to start/end dates
+            end_date = datetime.now()
+            
+            if period == "1y":
+                start_date = end_date - timedelta(days=365)
+            elif period == "6mo":
+                start_date = end_date - timedelta(days=180)
+            elif period == "3mo":
+                start_date = end_date - timedelta(days=90)
+            elif period == "1mo":
+                start_date = end_date - timedelta(days=30)
+            elif period == "200d":
+                start_date = end_date - timedelta(days=200)
+            else:
+                start_date = end_date - timedelta(days=365)  # Default to 1 year
+            
+            # Convert interval to TimeFrame
+            if interval == "1d":
+                timeframe = TimeFrame.Day
+            elif interval == "1h":
+                timeframe = TimeFrame.Hour
+            elif interval == "1m":
+                timeframe = TimeFrame.Minute
+            else:
+                timeframe = TimeFrame.Day
+            
+            request = StockBarsRequest(
+                symbol_or_symbols=symbol,
+                timeframe=cast(TimeFrame, timeframe),
+                start=start_date
+                # Don't set end - let it default to 15 minutes ago for free tier
+            )
+            
+            bars = self.data_client.get_stock_bars(request)
+            
+            if bars:
+                try:
+                    # BarSet objects have a data attribute that contains the actual bar data
+                    if hasattr(bars, 'data') and bars.data:
+                        bar_data = bars.data.get(symbol, [])
+                    else:
+                        # Try direct access
+                        bar_data = getattr(bars, symbol, [])
+                    
+                    if bar_data:
+                        # Convert to DataFrame with proper structure
+                        data = []
+                        for bar in bar_data:
+                            data.append({
+                                'Open': float(bar.open),
+                                'High': float(bar.high),
+                                'Low': float(bar.low),
+                                'Close': float(bar.close),
+                                'Volume': int(bar.volume)
+                            })
+                        
+                        df = pd.DataFrame(data)
+                        
+                        # Set proper datetime index
+                        df.index = pd.to_datetime([bar.timestamp for bar in bar_data])
+                        df.index.name = 'Date'
+                        
+                        logging.info(f"Successfully fetched {len(df)} bars for {symbol} from Alpaca")
+                        return df
+                    
+                except Exception as e:
+                    logging.error(f"Error processing bar data for {symbol}: {e}")
+            
+            logging.warning(f"No data returned from Alpaca for {symbol}")
+            return pd.DataFrame()
+            
+        except Exception as e:
+            logging.error(f"Error fetching Alpaca data for {symbol}: {e}")
+            return pd.DataFrame()
+
+    def get_current_price(self, symbol):
+        """Get current price from Alpaca"""
+        try:
+            # Try Alpaca latest quote first
+            try:
+                request = StockLatestQuoteRequest(symbol_or_symbols=symbol)
+                latest_quote = self.data_client.get_stock_latest_quote(request)
+                if latest_quote and symbol in latest_quote:
+                    quote = latest_quote[symbol]
+                    bid = float(getattr(quote, 'bid_price', 0) or 0)
+                    ask = float(getattr(quote, 'ask_price', 0) or 0)
+                    if bid > 0 and ask > 0:
+                        return (bid + ask) / 2
+                    elif bid > 0:
+                        return bid
+                    elif ask > 0:
+                        return ask
+            except Exception as e:
+                logging.warning(f"Alpaca current price failed for {symbol}: {e}")
+            
+            # Fall back to using recent historical data
             df = self.get_data(symbol, period="1d", interval="1m")
             if df is not None and not df.empty and 'Close' in df.columns:
                 price = df['Close'].iloc[-1]
@@ -48,16 +163,17 @@ class DataProvider:
                 return price if not pd.isna(price) else None
             return None
         except Exception as e:
-            print(f"Error getting current price for {symbol}: {e}")
+            logging.error(f"Error getting current price for {symbol}: {e}")
             return None
 
 class AlpacaDataProvider:
     """Fetch market and account data from Alpaca API."""
-    def __init__(self, paper_trading=True, endpoint=None, paper_endpoint=None):
+    def __init__(self, paper_trading=False, endpoint=None, paper_endpoint=None):
         self.paper_trading = paper_trading
         from core.config import Config
         config = Config()
-        # API keys still loaded from .env for security
+        
+        # Use REAL trading keys by default
         if paper_trading:
             self.api_key = os.getenv('ALPACA_PAPER_KEY')
             self.secret_key = os.getenv('ALPACA_PAPER_SECRET')
@@ -66,8 +182,14 @@ class AlpacaDataProvider:
             self.api_key = os.getenv('ALPACA_KEY')
             self.secret_key = os.getenv('ALPACA_SECRET')
             self.api_endpoint = endpoint or config['alpaca'].get('endpoint', 'https://api.alpaca.markets')
+            
+        if not self.api_key or not self.secret_key:
+            raise ValueError(f"Alpaca API keys not found in .env file for {'paper' if paper_trading else 'live'} trading")
+            
         self.trading_client = TradingClient(self.api_key, self.secret_key, paper=paper_trading)
         self.data_client = StockHistoricalDataClient(self.api_key, self.secret_key)
+        
+        logging.info(f"Initialized AlpacaDataProvider with {'paper' if paper_trading else 'live'} trading keys")
 
     def get_current_price(self, symbol):
         """Get the latest midpoint price for a symbol."""

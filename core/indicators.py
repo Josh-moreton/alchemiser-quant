@@ -8,20 +8,8 @@ class TechnicalIndicators:
     def rsi(data, window=14):
         """Calculate RSI using TA-Lib"""
         try:
-            # Handle NaN values by dropping them first
-            data_clean = data.dropna()
-            
-            if len(data_clean) < window:
-                # Not enough data for calculation
-                return pd.Series([50] * len(data), index=data.index)
-            
-            rsi_values = talib.RSI(data_clean.values, timeperiod=window)
-            
-            # Create result series aligned with original data index
-            result = pd.Series(index=data.index, dtype=float)
-            result.iloc[:len(data_clean)] = rsi_values
-            
-            return result
+            rsi_series = talib.RSI(data.values, timeperiod=window)
+            return pd.Series(rsi_series, index=data.index)
         except Exception:
             return pd.Series([50] * len(data), index=data.index)
 
@@ -29,20 +17,8 @@ class TechnicalIndicators:
     def moving_average(data, window):
         """Calculate moving average using TA-Lib"""
         try:
-            # Handle NaN values by dropping them first
-            data_clean = data.dropna()
-            
-            if len(data_clean) < window:
-                # Not enough data for calculation
-                return data
-            
-            ma_values = talib.SMA(data_clean.values, timeperiod=window)
-            
-            # Create result series aligned with original data index
-            result = pd.Series(index=data.index, dtype=float)
-            result.iloc[:len(data_clean)] = ma_values
-            
-            return result
+            ma_series = talib.SMA(data.values, timeperiod=window)
+            return pd.Series(ma_series, index=data.index)
         except Exception:
             return data
 
@@ -51,21 +27,9 @@ class TechnicalIndicators:
         """Calculate moving average return using TA-Lib"""
         try:
             returns = data.pct_change()
-            # Handle NaN values by dropping them first
-            returns_clean = returns.dropna()
-            
-            if len(returns_clean) < window:
-                # Not enough data for calculation
-                return pd.Series([0] * len(data), index=data.index)
-            
-            # Calculate SMA on clean returns
-            ma_return = talib.SMA(returns_clean.values, timeperiod=window)
-            
-            # Create result series aligned with original data index
-            result = pd.Series(index=data.index, dtype=float)
-            result.iloc[:len(returns_clean)] = ma_return
-            
-            return result * 100
+            # Use pandas rolling to match pandas-ta behavior exactly
+            ma_return = returns.rolling(window=window).mean() * 100
+            return ma_return
         except Exception:
             return pd.Series([0] * len(data), index=data.index)
 

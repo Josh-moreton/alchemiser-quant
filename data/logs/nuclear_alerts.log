@@ -9460,3 +9460,420 @@ alpaca.common.exceptions.APIError: {"buying_power":"2.9","code":40310000,"cost_b
 2025-07-17 10:44:37,707 - INFO - Analysis complete: BUY SQQQ - TQQQ weak, bonds weak, short position (Bear 1)
 2025-07-17 10:55:56,043 - INFO - Starting Nuclear Energy strategy analysis...
 2025-07-17 10:56:00,097 - INFO - Analysis complete: BUY SQQQ - TQQQ weak, bonds weak, short position (Bear 1)
+2025-07-17 11:02:45,078 - INFO - Starting Nuclear Energy strategy analysis...
+2025-07-17 11:02:49,674 - INFO - Analysis complete: BUY SQQQ - TQQQ weak, bonds weak, short position (Bear 1)
+2025-07-17 11:03:16,295 - INFO - Starting Nuclear Energy strategy analysis...
+2025-07-17 11:03:20,217 - INFO - Analysis complete: BUY SQQQ - TQQQ weak, bonds weak, short position (Bear 1)
+2025-07-17 11:06:05,875 - INFO - Starting Nuclear Energy strategy analysis...
+2025-07-17 11:06:10,430 - INFO - Analysis complete: BUY NUCLEAR_PORTFOLIO - Bull market - Nuclear portfolio: SMR (19.7%), BWXT (55.1%), LEU (25.2%)
+2025-07-17 11:08:35,358 - INFO - Starting Nuclear Energy strategy analysis...
+2025-07-17 11:08:39,599 - INFO - Analysis complete: BUY NUCLEAR_PORTFOLIO - Bull market - Nuclear portfolio: SMR (19.7%), BWXT (55.1%), LEU (25.2%)
+2025-07-17 11:21:38,715 - INFO - Initialized Alpaca DataProvider with real trading keys
+2025-07-17 11:21:39,075 - ERROR - Error fetching Alpaca data for SPY: {"message":"subscription does not permit querying recent SIP data"}
+
+2025-07-17 11:21:39,079 - WARNING - Could not fetch data for SPY
+2025-07-17 11:21:39,183 - ERROR - Error fetching Alpaca data for IOO: {"message":"subscription does not permit querying recent SIP data"}
+
+2025-07-17 11:21:39,184 - WARNING - Could not fetch data for IOO
+2025-07-17 11:21:39,289 - ERROR - Error fetching Alpaca data for TQQQ: {"message":"subscription does not permit querying recent SIP data"}
+
+2025-07-17 11:21:39,289 - WARNING - Could not fetch data for TQQQ
+2025-07-17 11:21:39,397 - ERROR - Error fetching Alpaca data for VTV: {"message":"subscription does not permit querying recent SIP data"}
+
+2025-07-17 11:21:39,398 - WARNING - Could not fetch data for VTV
+2025-07-17 11:21:39,500 - ERROR - Error fetching Alpaca data for XLF: {"message":"subscription does not permit querying recent SIP data"}
+
+2025-07-17 11:21:39,501 - WARNING - Could not fetch data for XLF
+2025-07-17 11:21:39,605 - ERROR - Error fetching Alpaca data for VOX: {"message":"subscription does not permit querying recent SIP data"}
+
+2025-07-17 11:21:39,605 - WARNING - Could not fetch data for VOX
+2025-07-17 11:21:39,706 - ERROR - Error fetching Alpaca data for UVXY: {"message":"subscription does not permit querying recent SIP data"}
+
+2025-07-17 11:21:39,706 - WARNING - Could not fetch data for UVXY
+2025-07-17 11:21:39,815 - ERROR - Error fetching Alpaca data for BTAL: {"message":"subscription does not permit querying recent SIP data"}
+
+2025-07-17 11:21:39,816 - WARNING - Could not fetch data for BTAL
+2025-07-17 11:21:39,919 - ERROR - Error fetching Alpaca data for QQQ: {"message":"subscription does not permit querying recent SIP data"}
+
+2025-07-17 11:21:39,921 - WARNING - Could not fetch data for QQQ
+2025-07-17 11:21:40,030 - ERROR - Error fetching Alpaca data for SQQQ: {"message":"subscription does not permit querying recent SIP data"}
+
+2025-07-17 11:21:40,031 - WARNING - Could not fetch data for SQQQ
+2025-07-17 11:21:40,136 - ERROR - Error fetching Alpaca data for PSQ: {"message":"subscription does not permit querying recent SIP data"}
+
+2025-07-17 11:21:40,137 - WARNING - Could not fetch data for PSQ
+2025-07-17 11:21:40,245 - ERROR - Error fetching Alpaca data for UPRO: {"message":"subscription does not permit querying recent SIP data"}
+
+2025-07-17 11:21:40,248 - WARNING - Could not fetch data for UPRO
+2025-07-17 11:21:40,351 - ERROR - Error fetching Alpaca data for TLT: {"message":"subscription does not permit querying recent SIP data"}
+
+2025-07-17 11:21:40,353 - WARNING - Could not fetch data for TLT
+2025-07-17 11:21:40,458 - ERROR - Error fetching Alpaca data for IEF: {"message":"subscription does not permit querying recent SIP data"}
+
+2025-07-17 11:21:40,460 - WARNING - Could not fetch data for IEF
+2025-07-17 11:21:40,563 - ERROR - Error fetching Alpaca data for SMR: {"message":"subscription does not permit querying recent SIP data"}
+
+2025-07-17 11:21:40,565 - WARNING - Could not fetch data for SMR
+2025-07-17 11:21:40,683 - ERROR - Error fetching Alpaca data for BWXT: {"message":"subscription does not permit querying recent SIP data"}
+
+2025-07-17 11:21:40,685 - WARNING - Could not fetch data for BWXT
+2025-07-17 11:21:40,788 - ERROR - Error fetching Alpaca data for LEU: {"message":"subscription does not permit querying recent SIP data"}
+
+2025-07-17 11:21:40,790 - WARNING - Could not fetch data for LEU
+2025-07-17 11:21:40,894 - ERROR - Error fetching Alpaca data for EXC: {"message":"subscription does not permit querying recent SIP data"}
+
+2025-07-17 11:21:40,895 - WARNING - Could not fetch data for EXC
+2025-07-17 11:21:40,998 - ERROR - Error fetching Alpaca data for NLR: {"message":"subscription does not permit querying recent SIP data"}
+
+2025-07-17 11:21:41,000 - WARNING - Could not fetch data for NLR
+2025-07-17 11:21:41,104 - ERROR - Error fetching Alpaca data for OKLO: {"message":"subscription does not permit querying recent SIP data"}
+
+2025-07-17 11:21:41,106 - WARNING - Could not fetch data for OKLO
+2025-07-17 11:25:28,970 - INFO - Initialized Alpaca DataProvider with real trading keys
+2025-07-17 11:25:29,410 - WARNING - No data returned from Alpaca for SPY
+2025-07-17 11:25:29,411 - WARNING - Could not fetch data for SPY
+2025-07-17 11:25:29,525 - WARNING - No data returned from Alpaca for IOO
+2025-07-17 11:25:29,526 - WARNING - Could not fetch data for IOO
+2025-07-17 11:25:29,635 - WARNING - No data returned from Alpaca for TQQQ
+2025-07-17 11:25:29,635 - WARNING - Could not fetch data for TQQQ
+2025-07-17 11:25:29,748 - WARNING - No data returned from Alpaca for VTV
+2025-07-17 11:25:29,749 - WARNING - Could not fetch data for VTV
+2025-07-17 11:25:29,861 - WARNING - No data returned from Alpaca for XLF
+2025-07-17 11:25:29,862 - WARNING - Could not fetch data for XLF
+2025-07-17 11:25:29,975 - WARNING - No data returned from Alpaca for VOX
+2025-07-17 11:25:29,975 - WARNING - Could not fetch data for VOX
+2025-07-17 11:25:30,087 - WARNING - No data returned from Alpaca for UVXY
+2025-07-17 11:25:30,087 - WARNING - Could not fetch data for UVXY
+2025-07-17 11:25:30,231 - WARNING - No data returned from Alpaca for BTAL
+2025-07-17 11:25:30,232 - WARNING - Could not fetch data for BTAL
+2025-07-17 11:25:30,350 - WARNING - No data returned from Alpaca for QQQ
+2025-07-17 11:25:30,351 - WARNING - Could not fetch data for QQQ
+2025-07-17 11:25:30,465 - WARNING - No data returned from Alpaca for SQQQ
+2025-07-17 11:25:30,466 - WARNING - Could not fetch data for SQQQ
+2025-07-17 11:25:30,581 - WARNING - No data returned from Alpaca for PSQ
+2025-07-17 11:25:30,583 - WARNING - Could not fetch data for PSQ
+2025-07-17 11:25:30,702 - WARNING - No data returned from Alpaca for UPRO
+2025-07-17 11:25:30,704 - WARNING - Could not fetch data for UPRO
+2025-07-17 11:25:30,825 - WARNING - No data returned from Alpaca for TLT
+2025-07-17 11:25:30,826 - WARNING - Could not fetch data for TLT
+2025-07-17 11:25:30,945 - WARNING - No data returned from Alpaca for IEF
+2025-07-17 11:25:30,947 - WARNING - Could not fetch data for IEF
+2025-07-17 11:25:31,064 - WARNING - No data returned from Alpaca for SMR
+2025-07-17 11:25:31,066 - WARNING - Could not fetch data for SMR
+2025-07-17 11:25:31,184 - WARNING - No data returned from Alpaca for BWXT
+2025-07-17 11:25:31,185 - WARNING - Could not fetch data for BWXT
+2025-07-17 11:25:31,304 - WARNING - No data returned from Alpaca for LEU
+2025-07-17 11:25:31,305 - WARNING - Could not fetch data for LEU
+2025-07-17 11:25:31,421 - WARNING - No data returned from Alpaca for EXC
+2025-07-17 11:25:31,423 - WARNING - Could not fetch data for EXC
+2025-07-17 11:25:31,539 - WARNING - No data returned from Alpaca for NLR
+2025-07-17 11:25:31,539 - WARNING - Could not fetch data for NLR
+2025-07-17 11:25:31,648 - WARNING - No data returned from Alpaca for OKLO
+2025-07-17 11:25:31,648 - WARNING - Could not fetch data for OKLO
+2025-07-17 11:25:42,243 - INFO - Initialized Alpaca DataProvider with real trading keys
+2025-07-17 11:25:42,662 - WARNING - No data returned from Alpaca for SPY
+2025-07-17 11:25:42,664 - WARNING - Could not fetch data for SPY
+2025-07-17 11:25:42,782 - WARNING - No data returned from Alpaca for IOO
+2025-07-17 11:25:42,783 - WARNING - Could not fetch data for IOO
+2025-07-17 11:25:42,905 - WARNING - No data returned from Alpaca for TQQQ
+2025-07-17 11:25:42,906 - WARNING - Could not fetch data for TQQQ
+2025-07-17 11:25:43,026 - WARNING - No data returned from Alpaca for VTV
+2025-07-17 11:25:43,027 - WARNING - Could not fetch data for VTV
+2025-07-17 11:25:43,141 - WARNING - No data returned from Alpaca for XLF
+2025-07-17 11:25:43,141 - WARNING - Could not fetch data for XLF
+2025-07-17 11:25:43,256 - WARNING - No data returned from Alpaca for VOX
+2025-07-17 11:25:43,256 - WARNING - Could not fetch data for VOX
+2025-07-17 11:25:43,374 - WARNING - No data returned from Alpaca for UVXY
+2025-07-17 11:25:43,374 - WARNING - Could not fetch data for UVXY
+2025-07-17 11:25:43,500 - WARNING - No data returned from Alpaca for BTAL
+2025-07-17 11:25:43,502 - WARNING - Could not fetch data for BTAL
+2025-07-17 11:25:43,624 - WARNING - No data returned from Alpaca for QQQ
+2025-07-17 11:25:43,626 - WARNING - Could not fetch data for QQQ
+2025-07-17 11:25:43,743 - WARNING - No data returned from Alpaca for SQQQ
+2025-07-17 11:25:43,745 - WARNING - Could not fetch data for SQQQ
+2025-07-17 11:25:43,865 - WARNING - No data returned from Alpaca for PSQ
+2025-07-17 11:25:43,866 - WARNING - Could not fetch data for PSQ
+2025-07-17 11:25:43,986 - WARNING - No data returned from Alpaca for UPRO
+2025-07-17 11:25:43,988 - WARNING - Could not fetch data for UPRO
+2025-07-17 11:25:44,105 - WARNING - No data returned from Alpaca for TLT
+2025-07-17 11:25:44,107 - WARNING - Could not fetch data for TLT
+2025-07-17 11:25:44,227 - WARNING - No data returned from Alpaca for IEF
+2025-07-17 11:25:44,229 - WARNING - Could not fetch data for IEF
+2025-07-17 11:25:44,355 - WARNING - No data returned from Alpaca for SMR
+2025-07-17 11:25:44,356 - WARNING - Could not fetch data for SMR
+2025-07-17 11:25:44,479 - WARNING - No data returned from Alpaca for BWXT
+2025-07-17 11:25:44,480 - WARNING - Could not fetch data for BWXT
+2025-07-17 11:25:44,598 - WARNING - No data returned from Alpaca for LEU
+2025-07-17 11:25:44,600 - WARNING - Could not fetch data for LEU
+2025-07-17 11:25:44,714 - WARNING - No data returned from Alpaca for EXC
+2025-07-17 11:25:44,715 - WARNING - Could not fetch data for EXC
+2025-07-17 11:25:44,830 - WARNING - No data returned from Alpaca for NLR
+2025-07-17 11:25:44,831 - WARNING - Could not fetch data for NLR
+2025-07-17 11:25:44,945 - WARNING - No data returned from Alpaca for OKLO
+2025-07-17 11:25:44,945 - WARNING - Could not fetch data for OKLO
+2025-07-17 11:26:05,138 - INFO - Initialized Alpaca DataProvider with real trading keys
+2025-07-17 11:26:05,562 - INFO - Alpaca response for SPY: bars=True, type=<class 'alpaca.data.models.bars.BarSet'>
+2025-07-17 11:26:05,563 - INFO - Bars keys: No keys method
+2025-07-17 11:26:05,563 - INFO - Symbol in bars: No contains method
+2025-07-17 11:26:05,563 - WARNING - No data returned from Alpaca for SPY
+2025-07-17 11:26:05,563 - WARNING - Could not fetch data for SPY
+2025-07-17 11:26:05,682 - INFO - Alpaca response for IOO: bars=True, type=<class 'alpaca.data.models.bars.BarSet'>
+2025-07-17 11:26:05,683 - INFO - Bars keys: No keys method
+2025-07-17 11:26:05,683 - INFO - Symbol in bars: No contains method
+2025-07-17 11:26:05,683 - WARNING - No data returned from Alpaca for IOO
+2025-07-17 11:26:05,684 - WARNING - Could not fetch data for IOO
+2025-07-17 11:26:05,799 - INFO - Alpaca response for TQQQ: bars=True, type=<class 'alpaca.data.models.bars.BarSet'>
+2025-07-17 11:26:05,799 - INFO - Bars keys: No keys method
+2025-07-17 11:26:05,799 - INFO - Symbol in bars: No contains method
+2025-07-17 11:26:05,799 - WARNING - No data returned from Alpaca for TQQQ
+2025-07-17 11:26:05,800 - WARNING - Could not fetch data for TQQQ
+2025-07-17 11:26:05,917 - INFO - Alpaca response for VTV: bars=True, type=<class 'alpaca.data.models.bars.BarSet'>
+2025-07-17 11:26:05,918 - INFO - Bars keys: No keys method
+2025-07-17 11:26:05,918 - INFO - Symbol in bars: No contains method
+2025-07-17 11:26:05,918 - WARNING - No data returned from Alpaca for VTV
+2025-07-17 11:26:05,919 - WARNING - Could not fetch data for VTV
+2025-07-17 11:26:06,038 - INFO - Alpaca response for XLF: bars=True, type=<class 'alpaca.data.models.bars.BarSet'>
+2025-07-17 11:26:06,039 - INFO - Bars keys: No keys method
+2025-07-17 11:26:06,039 - INFO - Symbol in bars: No contains method
+2025-07-17 11:26:06,039 - WARNING - No data returned from Alpaca for XLF
+2025-07-17 11:26:06,041 - WARNING - Could not fetch data for XLF
+2025-07-17 11:26:06,160 - INFO - Alpaca response for VOX: bars=True, type=<class 'alpaca.data.models.bars.BarSet'>
+2025-07-17 11:26:06,160 - INFO - Bars keys: No keys method
+2025-07-17 11:26:06,160 - INFO - Symbol in bars: No contains method
+2025-07-17 11:26:06,160 - WARNING - No data returned from Alpaca for VOX
+2025-07-17 11:26:06,161 - WARNING - Could not fetch data for VOX
+2025-07-17 11:26:06,276 - INFO - Alpaca response for UVXY: bars=True, type=<class 'alpaca.data.models.bars.BarSet'>
+2025-07-17 11:26:06,278 - INFO - Bars keys: No keys method
+2025-07-17 11:26:06,278 - INFO - Symbol in bars: No contains method
+2025-07-17 11:26:06,278 - WARNING - No data returned from Alpaca for UVXY
+2025-07-17 11:26:06,279 - WARNING - Could not fetch data for UVXY
+2025-07-17 11:26:06,394 - INFO - Alpaca response for BTAL: bars=True, type=<class 'alpaca.data.models.bars.BarSet'>
+2025-07-17 11:26:06,395 - INFO - Bars keys: No keys method
+2025-07-17 11:26:06,395 - INFO - Symbol in bars: No contains method
+2025-07-17 11:26:06,395 - WARNING - No data returned from Alpaca for BTAL
+2025-07-17 11:26:06,395 - WARNING - Could not fetch data for BTAL
+2025-07-17 11:26:06,513 - INFO - Alpaca response for QQQ: bars=True, type=<class 'alpaca.data.models.bars.BarSet'>
+2025-07-17 11:26:06,514 - INFO - Bars keys: No keys method
+2025-07-17 11:26:06,514 - INFO - Symbol in bars: No contains method
+2025-07-17 11:26:06,514 - WARNING - No data returned from Alpaca for QQQ
+2025-07-17 11:26:06,514 - WARNING - Could not fetch data for QQQ
+2025-07-17 11:26:06,625 - INFO - Alpaca response for SQQQ: bars=True, type=<class 'alpaca.data.models.bars.BarSet'>
+2025-07-17 11:26:06,626 - INFO - Bars keys: No keys method
+2025-07-17 11:26:06,626 - INFO - Symbol in bars: No contains method
+2025-07-17 11:26:06,626 - WARNING - No data returned from Alpaca for SQQQ
+2025-07-17 11:26:06,626 - WARNING - Could not fetch data for SQQQ
+2025-07-17 11:26:06,748 - INFO - Alpaca response for PSQ: bars=True, type=<class 'alpaca.data.models.bars.BarSet'>
+2025-07-17 11:26:06,748 - INFO - Bars keys: No keys method
+2025-07-17 11:26:06,749 - INFO - Symbol in bars: No contains method
+2025-07-17 11:26:06,749 - WARNING - No data returned from Alpaca for PSQ
+2025-07-17 11:26:06,751 - WARNING - Could not fetch data for PSQ
+2025-07-17 11:26:06,872 - INFO - Alpaca response for UPRO: bars=True, type=<class 'alpaca.data.models.bars.BarSet'>
+2025-07-17 11:26:06,872 - INFO - Bars keys: No keys method
+2025-07-17 11:26:06,873 - INFO - Symbol in bars: No contains method
+2025-07-17 11:26:06,873 - WARNING - No data returned from Alpaca for UPRO
+2025-07-17 11:26:06,875 - WARNING - Could not fetch data for UPRO
+2025-07-17 11:26:06,996 - INFO - Alpaca response for TLT: bars=True, type=<class 'alpaca.data.models.bars.BarSet'>
+2025-07-17 11:26:06,997 - INFO - Bars keys: No keys method
+2025-07-17 11:26:06,997 - INFO - Symbol in bars: No contains method
+2025-07-17 11:26:06,997 - WARNING - No data returned from Alpaca for TLT
+2025-07-17 11:26:06,999 - WARNING - Could not fetch data for TLT
+2025-07-17 11:26:07,120 - INFO - Alpaca response for IEF: bars=True, type=<class 'alpaca.data.models.bars.BarSet'>
+2025-07-17 11:26:07,120 - INFO - Bars keys: No keys method
+2025-07-17 11:26:07,120 - INFO - Symbol in bars: No contains method
+2025-07-17 11:26:07,121 - WARNING - No data returned from Alpaca for IEF
+2025-07-17 11:26:07,122 - WARNING - Could not fetch data for IEF
+2025-07-17 11:26:07,244 - INFO - Alpaca response for SMR: bars=True, type=<class 'alpaca.data.models.bars.BarSet'>
+2025-07-17 11:26:07,245 - INFO - Bars keys: No keys method
+2025-07-17 11:26:07,245 - INFO - Symbol in bars: No contains method
+2025-07-17 11:26:07,245 - WARNING - No data returned from Alpaca for SMR
+2025-07-17 11:26:07,246 - WARNING - Could not fetch data for SMR
+2025-07-17 11:26:07,366 - INFO - Alpaca response for BWXT: bars=True, type=<class 'alpaca.data.models.bars.BarSet'>
+2025-07-17 11:26:07,366 - INFO - Bars keys: No keys method
+2025-07-17 11:26:07,367 - INFO - Symbol in bars: No contains method
+2025-07-17 11:26:07,367 - WARNING - No data returned from Alpaca for BWXT
+2025-07-17 11:26:07,368 - WARNING - Could not fetch data for BWXT
+2025-07-17 11:26:07,483 - INFO - Alpaca response for LEU: bars=True, type=<class 'alpaca.data.models.bars.BarSet'>
+2025-07-17 11:26:07,483 - INFO - Bars keys: No keys method
+2025-07-17 11:26:07,483 - INFO - Symbol in bars: No contains method
+2025-07-17 11:26:07,483 - WARNING - No data returned from Alpaca for LEU
+2025-07-17 11:26:07,484 - WARNING - Could not fetch data for LEU
+2025-07-17 11:26:07,597 - INFO - Alpaca response for EXC: bars=True, type=<class 'alpaca.data.models.bars.BarSet'>
+2025-07-17 11:26:07,597 - INFO - Bars keys: No keys method
+2025-07-17 11:26:07,597 - INFO - Symbol in bars: No contains method
+2025-07-17 11:26:07,597 - WARNING - No data returned from Alpaca for EXC
+2025-07-17 11:26:07,598 - WARNING - Could not fetch data for EXC
+2025-07-17 11:26:07,716 - INFO - Alpaca response for NLR: bars=True, type=<class 'alpaca.data.models.bars.BarSet'>
+2025-07-17 11:26:07,716 - INFO - Bars keys: No keys method
+2025-07-17 11:26:07,716 - INFO - Symbol in bars: No contains method
+2025-07-17 11:26:07,716 - WARNING - No data returned from Alpaca for NLR
+2025-07-17 11:26:07,716 - WARNING - Could not fetch data for NLR
+2025-07-17 11:26:07,829 - INFO - Alpaca response for OKLO: bars=True, type=<class 'alpaca.data.models.bars.BarSet'>
+2025-07-17 11:26:07,830 - INFO - Bars keys: No keys method
+2025-07-17 11:26:07,830 - INFO - Symbol in bars: No contains method
+2025-07-17 11:26:07,830 - WARNING - No data returned from Alpaca for OKLO
+2025-07-17 11:26:07,830 - WARNING - Could not fetch data for OKLO
+2025-07-17 11:26:22,264 - INFO - Initialized Alpaca DataProvider with real trading keys
+2025-07-17 11:26:22,692 - INFO - Alpaca response for SPY: bars=True, type=<class 'alpaca.data.models.bars.BarSet'>
+2025-07-17 11:26:22,692 - INFO - Bar data available: False
+2025-07-17 11:26:22,692 - WARNING - No data returned from Alpaca for SPY
+2025-07-17 11:26:22,694 - WARNING - Could not fetch data for SPY
+2025-07-17 11:26:22,811 - INFO - Alpaca response for IOO: bars=True, type=<class 'alpaca.data.models.bars.BarSet'>
+2025-07-17 11:26:22,812 - INFO - Bar data available: False
+2025-07-17 11:26:22,812 - WARNING - No data returned from Alpaca for IOO
+2025-07-17 11:26:22,812 - WARNING - Could not fetch data for IOO
+2025-07-17 11:26:22,929 - INFO - Alpaca response for TQQQ: bars=True, type=<class 'alpaca.data.models.bars.BarSet'>
+2025-07-17 11:26:22,929 - INFO - Bar data available: False
+2025-07-17 11:26:22,929 - WARNING - No data returned from Alpaca for TQQQ
+2025-07-17 11:26:22,930 - WARNING - Could not fetch data for TQQQ
+2025-07-17 11:26:23,055 - INFO - Alpaca response for VTV: bars=True, type=<class 'alpaca.data.models.bars.BarSet'>
+2025-07-17 11:26:23,056 - INFO - Bar data available: False
+2025-07-17 11:26:23,056 - WARNING - No data returned from Alpaca for VTV
+2025-07-17 11:26:23,057 - WARNING - Could not fetch data for VTV
+2025-07-17 11:26:23,173 - INFO - Alpaca response for XLF: bars=True, type=<class 'alpaca.data.models.bars.BarSet'>
+2025-07-17 11:26:23,173 - INFO - Bar data available: False
+2025-07-17 11:26:23,173 - WARNING - No data returned from Alpaca for XLF
+2025-07-17 11:26:23,174 - WARNING - Could not fetch data for XLF
+2025-07-17 11:26:23,293 - INFO - Alpaca response for VOX: bars=True, type=<class 'alpaca.data.models.bars.BarSet'>
+2025-07-17 11:26:23,294 - INFO - Bar data available: False
+2025-07-17 11:26:23,294 - WARNING - No data returned from Alpaca for VOX
+2025-07-17 11:26:23,295 - WARNING - Could not fetch data for VOX
+2025-07-17 11:26:23,414 - INFO - Alpaca response for UVXY: bars=True, type=<class 'alpaca.data.models.bars.BarSet'>
+2025-07-17 11:26:23,415 - INFO - Bar data available: False
+2025-07-17 11:26:23,415 - WARNING - No data returned from Alpaca for UVXY
+2025-07-17 11:26:23,416 - WARNING - Could not fetch data for UVXY
+2025-07-17 11:26:23,538 - INFO - Alpaca response for BTAL: bars=True, type=<class 'alpaca.data.models.bars.BarSet'>
+2025-07-17 11:26:23,539 - INFO - Bar data available: False
+2025-07-17 11:26:23,539 - WARNING - No data returned from Alpaca for BTAL
+2025-07-17 11:26:23,540 - WARNING - Could not fetch data for BTAL
+2025-07-17 11:26:23,660 - INFO - Alpaca response for QQQ: bars=True, type=<class 'alpaca.data.models.bars.BarSet'>
+2025-07-17 11:26:23,661 - INFO - Bar data available: False
+2025-07-17 11:26:23,661 - WARNING - No data returned from Alpaca for QQQ
+2025-07-17 11:26:23,662 - WARNING - Could not fetch data for QQQ
+2025-07-17 11:26:23,773 - INFO - Alpaca response for SQQQ: bars=True, type=<class 'alpaca.data.models.bars.BarSet'>
+2025-07-17 11:26:23,774 - INFO - Bar data available: False
+2025-07-17 11:26:23,774 - WARNING - No data returned from Alpaca for SQQQ
+2025-07-17 11:26:23,775 - WARNING - Could not fetch data for SQQQ
+2025-07-17 11:26:23,902 - INFO - Alpaca response for PSQ: bars=True, type=<class 'alpaca.data.models.bars.BarSet'>
+2025-07-17 11:26:23,902 - INFO - Bar data available: False
+2025-07-17 11:26:23,902 - WARNING - No data returned from Alpaca for PSQ
+2025-07-17 11:26:23,903 - WARNING - Could not fetch data for PSQ
+2025-07-17 11:26:24,023 - INFO - Alpaca response for UPRO: bars=True, type=<class 'alpaca.data.models.bars.BarSet'>
+2025-07-17 11:26:24,023 - INFO - Bar data available: False
+2025-07-17 11:26:24,023 - WARNING - No data returned from Alpaca for UPRO
+2025-07-17 11:26:24,024 - WARNING - Could not fetch data for UPRO
+2025-07-17 11:26:24,139 - INFO - Alpaca response for TLT: bars=True, type=<class 'alpaca.data.models.bars.BarSet'>
+2025-07-17 11:26:24,139 - INFO - Bar data available: False
+2025-07-17 11:26:24,140 - WARNING - No data returned from Alpaca for TLT
+2025-07-17 11:26:24,141 - WARNING - Could not fetch data for TLT
+2025-07-17 11:26:24,262 - INFO - Alpaca response for IEF: bars=True, type=<class 'alpaca.data.models.bars.BarSet'>
+2025-07-17 11:26:24,263 - INFO - Bar data available: False
+2025-07-17 11:26:24,263 - WARNING - No data returned from Alpaca for IEF
+2025-07-17 11:26:24,264 - WARNING - Could not fetch data for IEF
+2025-07-17 11:26:24,380 - INFO - Alpaca response for SMR: bars=True, type=<class 'alpaca.data.models.bars.BarSet'>
+2025-07-17 11:26:24,380 - INFO - Bar data available: False
+2025-07-17 11:26:24,380 - WARNING - No data returned from Alpaca for SMR
+2025-07-17 11:26:24,381 - WARNING - Could not fetch data for SMR
+2025-07-17 11:26:24,493 - INFO - Alpaca response for BWXT: bars=True, type=<class 'alpaca.data.models.bars.BarSet'>
+2025-07-17 11:26:24,493 - INFO - Bar data available: False
+2025-07-17 11:26:24,493 - WARNING - No data returned from Alpaca for BWXT
+2025-07-17 11:26:24,494 - WARNING - Could not fetch data for BWXT
+2025-07-17 11:26:24,606 - INFO - Alpaca response for LEU: bars=True, type=<class 'alpaca.data.models.bars.BarSet'>
+2025-07-17 11:26:24,607 - INFO - Bar data available: False
+2025-07-17 11:26:24,607 - WARNING - No data returned from Alpaca for LEU
+2025-07-17 11:26:24,607 - WARNING - Could not fetch data for LEU
+2025-07-17 11:26:24,722 - INFO - Alpaca response for EXC: bars=True, type=<class 'alpaca.data.models.bars.BarSet'>
+2025-07-17 11:26:24,723 - INFO - Bar data available: False
+2025-07-17 11:26:24,723 - WARNING - No data returned from Alpaca for EXC
+2025-07-17 11:26:24,723 - WARNING - Could not fetch data for EXC
+2025-07-17 11:26:24,841 - INFO - Alpaca response for NLR: bars=True, type=<class 'alpaca.data.models.bars.BarSet'>
+2025-07-17 11:26:24,842 - INFO - Bar data available: False
+2025-07-17 11:26:24,842 - WARNING - No data returned from Alpaca for NLR
+2025-07-17 11:26:24,842 - WARNING - Could not fetch data for NLR
+2025-07-17 11:26:24,954 - INFO - Alpaca response for OKLO: bars=True, type=<class 'alpaca.data.models.bars.BarSet'>
+2025-07-17 11:26:24,954 - INFO - Bar data available: False
+2025-07-17 11:26:24,954 - WARNING - No data returned from Alpaca for OKLO
+2025-07-17 11:26:24,954 - WARNING - Could not fetch data for OKLO
+2025-07-17 11:27:11,863 - INFO - Initialized Alpaca DataProvider with real trading keys
+2025-07-17 11:27:12,284 - INFO - Alpaca response for SPY: bars=True, type=<class 'alpaca.data.models.bars.BarSet'>
+2025-07-17 11:27:12,284 - INFO - Bar data from .data attribute: 249 bars
+2025-07-17 11:27:12,298 - INFO - Successfully fetched 249 bars for SPY from Alpaca
+2025-07-17 11:27:12,413 - INFO - Alpaca response for IOO: bars=True, type=<class 'alpaca.data.models.bars.BarSet'>
+2025-07-17 11:27:12,413 - INFO - Bar data from .data attribute: 249 bars
+2025-07-17 11:27:12,416 - INFO - Successfully fetched 249 bars for IOO from Alpaca
+2025-07-17 11:27:12,534 - INFO - Alpaca response for TQQQ: bars=True, type=<class 'alpaca.data.models.bars.BarSet'>
+2025-07-17 11:27:12,535 - INFO - Bar data from .data attribute: 249 bars
+2025-07-17 11:27:12,538 - INFO - Successfully fetched 249 bars for TQQQ from Alpaca
+2025-07-17 11:27:12,655 - INFO - Alpaca response for VTV: bars=True, type=<class 'alpaca.data.models.bars.BarSet'>
+2025-07-17 11:27:12,655 - INFO - Bar data from .data attribute: 249 bars
+2025-07-17 11:27:12,658 - INFO - Successfully fetched 249 bars for VTV from Alpaca
+2025-07-17 11:27:12,771 - INFO - Alpaca response for XLF: bars=True, type=<class 'alpaca.data.models.bars.BarSet'>
+2025-07-17 11:27:12,771 - INFO - Bar data from .data attribute: 249 bars
+2025-07-17 11:27:12,773 - INFO - Successfully fetched 249 bars for XLF from Alpaca
+2025-07-17 11:27:12,884 - INFO - Alpaca response for VOX: bars=True, type=<class 'alpaca.data.models.bars.BarSet'>
+2025-07-17 11:27:12,884 - INFO - Bar data from .data attribute: 249 bars
+2025-07-17 11:27:12,885 - INFO - Successfully fetched 249 bars for VOX from Alpaca
+2025-07-17 11:27:13,000 - INFO - Alpaca response for UVXY: bars=True, type=<class 'alpaca.data.models.bars.BarSet'>
+2025-07-17 11:27:13,000 - INFO - Bar data from .data attribute: 249 bars
+2025-07-17 11:27:13,002 - INFO - Successfully fetched 249 bars for UVXY from Alpaca
+2025-07-17 11:27:13,119 - INFO - Alpaca response for BTAL: bars=True, type=<class 'alpaca.data.models.bars.BarSet'>
+2025-07-17 11:27:13,119 - INFO - Bar data from .data attribute: 249 bars
+2025-07-17 11:27:13,123 - INFO - Successfully fetched 249 bars for BTAL from Alpaca
+2025-07-17 11:27:13,243 - INFO - Alpaca response for QQQ: bars=True, type=<class 'alpaca.data.models.bars.BarSet'>
+2025-07-17 11:27:13,244 - INFO - Bar data from .data attribute: 249 bars
+2025-07-17 11:27:13,247 - INFO - Successfully fetched 249 bars for QQQ from Alpaca
+2025-07-17 11:27:13,363 - INFO - Alpaca response for SQQQ: bars=True, type=<class 'alpaca.data.models.bars.BarSet'>
+2025-07-17 11:27:13,363 - INFO - Bar data from .data attribute: 249 bars
+2025-07-17 11:27:13,366 - INFO - Successfully fetched 249 bars for SQQQ from Alpaca
+2025-07-17 11:27:13,487 - INFO - Alpaca response for PSQ: bars=True, type=<class 'alpaca.data.models.bars.BarSet'>
+2025-07-17 11:27:13,487 - INFO - Bar data from .data attribute: 249 bars
+2025-07-17 11:27:13,491 - INFO - Successfully fetched 249 bars for PSQ from Alpaca
+2025-07-17 11:27:13,613 - INFO - Alpaca response for UPRO: bars=True, type=<class 'alpaca.data.models.bars.BarSet'>
+2025-07-17 11:27:13,613 - INFO - Bar data from .data attribute: 249 bars
+2025-07-17 11:27:13,617 - INFO - Successfully fetched 249 bars for UPRO from Alpaca
+2025-07-17 11:27:13,736 - INFO - Alpaca response for TLT: bars=True, type=<class 'alpaca.data.models.bars.BarSet'>
+2025-07-17 11:27:13,736 - INFO - Bar data from .data attribute: 249 bars
+2025-07-17 11:27:13,740 - INFO - Successfully fetched 249 bars for TLT from Alpaca
+2025-07-17 11:27:13,860 - INFO - Alpaca response for IEF: bars=True, type=<class 'alpaca.data.models.bars.BarSet'>
+2025-07-17 11:27:13,861 - INFO - Bar data from .data attribute: 249 bars
+2025-07-17 11:27:13,864 - INFO - Successfully fetched 249 bars for IEF from Alpaca
+2025-07-17 11:27:13,980 - INFO - Alpaca response for SMR: bars=True, type=<class 'alpaca.data.models.bars.BarSet'>
+2025-07-17 11:27:13,980 - INFO - Bar data from .data attribute: 249 bars
+2025-07-17 11:27:13,985 - INFO - Successfully fetched 249 bars for SMR from Alpaca
+2025-07-17 11:27:14,105 - INFO - Alpaca response for BWXT: bars=True, type=<class 'alpaca.data.models.bars.BarSet'>
+2025-07-17 11:27:14,106 - INFO - Bar data from .data attribute: 249 bars
+2025-07-17 11:27:14,110 - INFO - Successfully fetched 249 bars for BWXT from Alpaca
+2025-07-17 11:27:14,226 - INFO - Alpaca response for LEU: bars=True, type=<class 'alpaca.data.models.bars.BarSet'>
+2025-07-17 11:27:14,226 - INFO - Bar data from .data attribute: 249 bars
+2025-07-17 11:27:14,230 - INFO - Successfully fetched 249 bars for LEU from Alpaca
+2025-07-17 11:27:14,350 - INFO - Alpaca response for EXC: bars=True, type=<class 'alpaca.data.models.bars.BarSet'>
+2025-07-17 11:27:14,350 - INFO - Bar data from .data attribute: 249 bars
+2025-07-17 11:27:14,354 - INFO - Successfully fetched 249 bars for EXC from Alpaca
+2025-07-17 11:27:14,472 - INFO - Alpaca response for NLR: bars=True, type=<class 'alpaca.data.models.bars.BarSet'>
+2025-07-17 11:27:14,472 - INFO - Bar data from .data attribute: 249 bars
+2025-07-17 11:27:14,474 - INFO - Successfully fetched 249 bars for NLR from Alpaca
+2025-07-17 11:27:14,595 - INFO - Alpaca response for OKLO: bars=True, type=<class 'alpaca.data.models.bars.BarSet'>
+2025-07-17 11:27:14,595 - INFO - Bar data from .data attribute: 249 bars
+2025-07-17 11:27:14,600 - INFO - Successfully fetched 249 bars for OKLO from Alpaca
+2025-07-17 11:27:47,546 - INFO - Initialized Alpaca DataProvider with real trading keys
+2025-07-17 11:27:47,546 - INFO - Starting Nuclear Energy strategy analysis...
+2025-07-17 11:27:47,976 - INFO - Successfully fetched 249 bars for SPY from Alpaca
+2025-07-17 11:27:48,092 - INFO - Successfully fetched 249 bars for IOO from Alpaca
+2025-07-17 11:27:48,210 - INFO - Successfully fetched 249 bars for TQQQ from Alpaca
+2025-07-17 11:27:48,327 - INFO - Successfully fetched 249 bars for VTV from Alpaca
+2025-07-17 11:27:48,442 - INFO - Successfully fetched 249 bars for XLF from Alpaca
+2025-07-17 11:27:48,555 - INFO - Successfully fetched 249 bars for VOX from Alpaca
+2025-07-17 11:27:48,669 - INFO - Successfully fetched 249 bars for UVXY from Alpaca
+2025-07-17 11:27:48,785 - INFO - Successfully fetched 249 bars for BTAL from Alpaca
+2025-07-17 11:27:48,909 - INFO - Successfully fetched 249 bars for QQQ from Alpaca
+2025-07-17 11:27:49,026 - INFO - Successfully fetched 249 bars for SQQQ from Alpaca
+2025-07-17 11:27:49,145 - INFO - Successfully fetched 249 bars for PSQ from Alpaca
+2025-07-17 11:27:49,265 - INFO - Successfully fetched 249 bars for UPRO from Alpaca
+2025-07-17 11:27:49,382 - INFO - Successfully fetched 249 bars for TLT from Alpaca
+2025-07-17 11:27:49,504 - INFO - Successfully fetched 249 bars for IEF from Alpaca
+2025-07-17 11:27:49,626 - INFO - Successfully fetched 249 bars for SMR from Alpaca
+2025-07-17 11:27:49,741 - INFO - Successfully fetched 249 bars for BWXT from Alpaca
+2025-07-17 11:27:49,857 - INFO - Successfully fetched 249 bars for LEU from Alpaca
+2025-07-17 11:27:49,972 - INFO - Successfully fetched 249 bars for EXC from Alpaca
+2025-07-17 11:27:50,087 - INFO - Successfully fetched 249 bars for NLR from Alpaca
+2025-07-17 11:27:50,210 - INFO - Successfully fetched 249 bars for OKLO from Alpaca
+2025-07-17 11:27:50,544 - INFO - Analysis complete: BUY NUCLEAR_PORTFOLIO - Bull market - Nuclear portfolio: SMR (31.0%), LEU (39.6%), OKLO (29.4%)

@@ -149,8 +149,16 @@ class NuclearStrategyEngine:
         try:
             result = indicator_func(data, *args, **kwargs)
             if hasattr(result, 'iloc') and len(result) > 0:
-                value = float(result.iloc[-1])
-                return value if not pd.isna(value) else 50.0
+                value = result.iloc[-1]
+                # Check if value is NaN - if so, try to find the last valid value
+                if pd.isna(value):
+                    # Find the last non-NaN value
+                    valid_values = result.dropna()
+                    if len(valid_values) > 0:
+                        value = valid_values.iloc[-1]
+                    else:
+                        return 50.0  # Fallback only if no valid values
+                return float(value)
             return 50.0
         except Exception:
             return 50.0
