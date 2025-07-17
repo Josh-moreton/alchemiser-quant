@@ -1,4 +1,4 @@
-name: Nuclear Bot - Alpaca Paper Trading
+name: Nuclear Bot - Alpaca Live Trading
 
 on:
   workflow_dispatch:
