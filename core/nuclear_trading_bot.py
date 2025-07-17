@@ -517,25 +517,3 @@ class NuclearTradingBot:
         
         return None
 
-def main():
-    """Main function"""
-    import argparse
-    
-    parser = argparse.ArgumentParser(description='Nuclear Energy Trading Strategy Alert Bot')
-    parser.add_argument('--mode', choices=['once', 'continuous'], default='once',
-                       help='Run mode: once or continuous')
-    parser.add_argument('--interval', type=int, default=15,
-                       help='Interval in minutes for continuous mode')
-    
-    args = parser.parse_args()
-    
-    # Create bot
-    bot = NuclearTradingBot()
-    
-    if args.mode == 'once':
-        bot.run_once()
-    else:
-        bot.run_continuous(args.interval)
-
-if __name__ == "__main__":
-    main()
