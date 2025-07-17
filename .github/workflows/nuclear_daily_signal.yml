@@ -2,8 +2,8 @@ name: Nuclear Bot - Daily Signal Check
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "0 13 * * *" # Every day at 1 PM UTC
+#  schedule:
+#    - cron: "0 13 * * *" # Every day at 1 PM UTC
 
 jobs:
   run-nuclear-bot:
