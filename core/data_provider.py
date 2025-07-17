@@ -53,14 +53,19 @@ class DataProvider:
 
 class AlpacaDataProvider:
     """Fetch market and account data from Alpaca API."""
-    def __init__(self, paper_trading=True):
+    def __init__(self, paper_trading=True, endpoint=None, paper_endpoint=None):
         self.paper_trading = paper_trading
+        from core.config import Config
+        config = Config()
+        # API keys still loaded from .env for security
         if paper_trading:
             self.api_key = os.getenv('ALPACA_PAPER_KEY')
             self.secret_key = os.getenv('ALPACA_PAPER_SECRET')
+            self.api_endpoint = paper_endpoint or config['alpaca'].get('paper_endpoint', 'https://paper-api.alpaca.markets/v2')
         else:
             self.api_key = os.getenv('ALPACA_KEY')
             self.secret_key = os.getenv('ALPACA_SECRET')
+            self.api_endpoint = endpoint or config['alpaca'].get('endpoint', 'https://api.alpaca.markets')
         self.trading_client = TradingClient(self.api_key, self.secret_key, paper=paper_trading)
         self.data_client = StockHistoricalDataClient(self.api_key, self.secret_key)
 

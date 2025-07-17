@@ -8728,3 +8728,731 @@ alpaca.common.exceptions.APIError: {"buying_power":"184.68","code":40310000,"cos
 2025-07-16 16:44:16,972 - INFO - ✅ Portfolio rebalanced - 2 orders executed
 2025-07-16 16:44:16,973 - INFO -    sell 0.041552 OKLO (Order ID: 1b068cef-9ef2-4c2d-8347-463fdb777cd4, Value: $2.51)
 2025-07-16 16:44:16,973 - INFO -    sell 3.095496 SMR (Order ID: ba94aaa6-713b-4725-8067-384433d68fe5, Value: $133.43)
+2025-07-17 08:59:51,887 - INFO - Starting Nuclear Energy strategy analysis...
+2025-07-17 08:59:57,753 - INFO - Analysis complete: BUY NUCLEAR_PORTFOLIO - Bull market - Nuclear portfolio: SMR (31.0%), LEU (39.6%), OKLO (29.4%)
+2025-07-17 08:59:57,802 - INFO - 🏦 Trading Mode: PAPER (from parameter)
+2025-07-17 08:59:57,802 - INFO - Alpaca Trading Bot initialized - Paper Trading: True
+2025-07-17 08:59:57,802 - INFO - Alpaca Trading Bot initialized - Paper Trading: True
+2025-07-17 08:59:58,497 - INFO - 🚀 Executing Nuclear Strategy with Alpaca
+2025-07-17 08:59:58,513 - INFO - Found 3 recent signals
+2025-07-17 08:59:58,514 - INFO - Parsed signal: SMR -> 31.0%
+2025-07-17 08:59:58,514 - INFO - Parsed signal: LEU -> 39.6%
+2025-07-17 08:59:58,514 - INFO - Parsed signal: OKLO -> 29.4%
+2025-07-17 08:59:58,514 - INFO - Target Portfolio: {'SMR': 0.31, 'LEU': 0.396, 'OKLO': 0.294}
+2025-07-17 08:59:58,622 - INFO - Account Value: $112,067.00
+2025-07-17 08:59:59,690 - INFO - Placing LIMIT sell order for SMR: qty=3.63229, limit_price=111.17
+2025-07-17 09:00:31,716 - WARNING - Limit order 6ba0702a-b643-4993-9fdf-a015771395b6 not filled in time, canceled. Retrying with wider slippage.
+2025-07-17 09:00:31,825 - INFO - Placing LIMIT sell order for SMR: qty=3.63229, limit_price=110.83
+2025-07-17 09:01:03,798 - WARNING - Limit order b91d5c12-33d5-4783-beaa-ee78c2ef469f not filled in time, canceled. Retrying with wider slippage.
+2025-07-17 09:01:03,923 - INFO - Placing LIMIT sell order for SMR: qty=3.63229, limit_price=110.16
+2025-07-17 09:01:35,866 - WARNING - Limit order e0727adc-e242-4eab-a237-29919fd7dc12 not filled in time, canceled. Retrying with wider slippage.
+2025-07-17 09:01:35,972 - INFO - Placing LIMIT sell order for SMR: qty=3.63229, limit_price=108.82
+2025-07-17 09:02:08,002 - WARNING - Limit order 58e5d18a-c148-4980-b71b-f4de0b7a2966 not filled in time, canceled. Retrying with wider slippage.
+2025-07-17 09:02:08,002 - INFO - Waiting for settlement after sells...
+2025-07-17 09:02:18,441 - INFO - Placing LIMIT buy order for LEU: qty=0.609832, limit_price=227.48
+2025-07-17 09:02:18,552 - ERROR - Exception placing limit order for LEU: {"buying_power":"138.31","code":40310000,"cost_basis":"138.73","message":"insufficient buying power"}
+Traceback (most recent call last):
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 198, in _one_request
+    response.raise_for_status()
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/requests/models.py", line 1021, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 403 Client Error: Forbidden for url: https://paper-api.alpaca.markets/v2/orders
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/execution/alpaca_trader.py", line 178, in place_order
+    order = self.trading_client.submit_order(limit_order_data)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/trading/client.py", line 100, in submit_order
+    response = self.post("/orders", data)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 240, in post
+    return self._request("POST", path, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 131, in _request
+    return self._one_request(method, url, opts, retry)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 207, in _one_request
+    raise APIError(error, http_error)
+alpaca.common.exceptions.APIError: {"buying_power":"138.31","code":40310000,"cost_basis":"138.73","message":"insufficient buying power"}
+2025-07-17 09:02:18,711 - INFO - Placing LIMIT buy order for LEU: qty=0.609832, limit_price=227.48
+2025-07-17 09:02:18,821 - ERROR - Exception placing limit order for LEU: {"buying_power":"138.31","code":40310000,"cost_basis":"138.73","message":"insufficient buying power"}
+Traceback (most recent call last):
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 198, in _one_request
+    response.raise_for_status()
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/requests/models.py", line 1021, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 403 Client Error: Forbidden for url: https://paper-api.alpaca.markets/v2/orders
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/execution/alpaca_trader.py", line 178, in place_order
+    order = self.trading_client.submit_order(limit_order_data)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/trading/client.py", line 100, in submit_order
+    response = self.post("/orders", data)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 240, in post
+    return self._request("POST", path, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 131, in _request
+    return self._one_request(method, url, opts, retry)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 207, in _one_request
+    raise APIError(error, http_error)
+alpaca.common.exceptions.APIError: {"buying_power":"138.31","code":40310000,"cost_basis":"138.73","message":"insufficient buying power"}
+2025-07-17 09:02:18,928 - INFO - Placing LIMIT buy order for LEU: qty=0.609832, limit_price=227.48
+2025-07-17 09:02:19,039 - ERROR - Exception placing limit order for LEU: {"buying_power":"138.31","code":40310000,"cost_basis":"138.73","message":"insufficient buying power"}
+Traceback (most recent call last):
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 198, in _one_request
+    response.raise_for_status()
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/requests/models.py", line 1021, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 403 Client Error: Forbidden for url: https://paper-api.alpaca.markets/v2/orders
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/execution/alpaca_trader.py", line 178, in place_order
+    order = self.trading_client.submit_order(limit_order_data)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/trading/client.py", line 100, in submit_order
+    response = self.post("/orders", data)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 240, in post
+    return self._request("POST", path, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 131, in _request
+    return self._one_request(method, url, opts, retry)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 207, in _one_request
+    raise APIError(error, http_error)
+alpaca.common.exceptions.APIError: {"buying_power":"138.31","code":40310000,"cost_basis":"138.73","message":"insufficient buying power"}
+2025-07-17 09:02:19,149 - INFO - Placing LIMIT buy order for LEU: qty=0.609832, limit_price=227.48
+2025-07-17 09:02:19,262 - ERROR - Exception placing limit order for LEU: {"buying_power":"138.31","code":40310000,"cost_basis":"138.73","message":"insufficient buying power"}
+Traceback (most recent call last):
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 198, in _one_request
+    response.raise_for_status()
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/requests/models.py", line 1021, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 403 Client Error: Forbidden for url: https://paper-api.alpaca.markets/v2/orders
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/execution/alpaca_trader.py", line 178, in place_order
+    order = self.trading_client.submit_order(limit_order_data)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/trading/client.py", line 100, in submit_order
+    response = self.post("/orders", data)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 240, in post
+    return self._request("POST", path, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 131, in _request
+    return self._one_request(method, url, opts, retry)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 207, in _one_request
+    raise APIError(error, http_error)
+alpaca.common.exceptions.APIError: {"buying_power":"138.31","code":40310000,"cost_basis":"138.73","message":"insufficient buying power"}
+2025-07-17 09:02:19,264 - WARNING - Falling back to MARKET order for LEU
+2025-07-17 09:02:19,373 - INFO - Bought 0.609832 of LEU for rebalancing.
+2025-07-17 09:02:19,373 - INFO - Rebalancing complete. Orders executed: 1
+2025-07-17 09:02:19,373 - INFO - ✅ Portfolio rebalanced - 1 orders executed
+2025-07-17 09:02:19,374 - INFO -    buy 0.609832 LEU (Order ID: b1b05bf5-b3d3-40d4-a75f-0d076d0ddd70, Value: $138.31)
+2025-07-17 09:11:37,443 - INFO - Starting Nuclear Energy strategy analysis...
+2025-07-17 09:11:42,077 - INFO - Analysis complete: BUY NUCLEAR_PORTFOLIO - Bull market - Nuclear portfolio: SMR (31.0%), LEU (39.6%), OKLO (29.4%)
+2025-07-17 09:11:42,121 - INFO - 🏦 Trading Mode: LIVE (from config.yaml)
+2025-07-17 09:11:42,123 - INFO - Alpaca Trading Bot initialized - Paper Trading: False
+2025-07-17 09:11:42,766 - INFO - 🚀 Executing Nuclear Strategy with Alpaca
+2025-07-17 09:11:42,778 - INFO - Found 3 recent signals
+2025-07-17 09:11:42,778 - INFO - Parsed signal: SMR -> 31.0%
+2025-07-17 09:11:42,778 - INFO - Parsed signal: LEU -> 39.6%
+2025-07-17 09:11:42,778 - INFO - Parsed signal: OKLO -> 29.4%
+2025-07-17 09:11:42,778 - INFO - Target Portfolio: {'SMR': 0.31, 'LEU': 0.396, 'OKLO': 0.294}
+2025-07-17 09:11:42,888 - INFO - Account Value: $10.00
+2025-07-17 09:11:43,684 - INFO - Waiting for settlement after sells...
+2025-07-17 09:11:54,191 - INFO - Placing LIMIT buy order for LEU: qty=0.01746, limit_price=227.48
+2025-07-17 09:12:26,198 - WARNING - Limit order 52dbf9ed-b400-492a-892e-c9d9f7bd2446 not filled in time, canceled. Retrying with wider slippage.
+2025-07-17 09:12:26,298 - INFO - Placing LIMIT buy order for LEU: qty=0.01746, limit_price=228.16
+2025-07-17 09:12:58,183 - WARNING - Limit order 879c7240-dd2e-485c-b946-e71fbc33786e not filled in time, canceled. Retrying with wider slippage.
+2025-07-17 09:12:58,289 - INFO - Placing LIMIT buy order for LEU: qty=0.01746, limit_price=229.52
+2025-07-17 09:13:30,201 - WARNING - Limit order 329405b3-1343-4af1-af63-225e45e6a8ca not filled in time, canceled. Retrying with wider slippage.
+2025-07-17 09:13:30,305 - INFO - Placing LIMIT buy order for LEU: qty=0.01746, limit_price=232.24
+2025-07-17 09:14:25,340 - INFO - Starting Nuclear Energy strategy analysis...
+2025-07-17 09:14:31,118 - INFO - Analysis complete: BUY NUCLEAR_PORTFOLIO - Bull market - Nuclear portfolio: SMR (31.0%), LEU (39.6%), OKLO (29.4%)
+2025-07-17 09:14:31,150 - INFO - 🏦 Trading Mode: LIVE (from config.yaml)
+2025-07-17 09:14:31,152 - INFO - Alpaca Trading Bot initialized - Paper Trading: False
+2025-07-17 09:14:31,694 - INFO - 🚀 Executing Nuclear Strategy with Alpaca
+2025-07-17 09:14:31,702 - INFO - Found 6 recent signals
+2025-07-17 09:14:31,702 - INFO - Parsed signal: SMR -> 31.0%
+2025-07-17 09:14:31,703 - INFO - Parsed signal: LEU -> 39.6%
+2025-07-17 09:14:31,703 - INFO - Parsed signal: OKLO -> 29.4%
+2025-07-17 09:14:31,703 - INFO - Parsed signal: SMR -> 31.0%
+2025-07-17 09:14:31,703 - INFO - Parsed signal: LEU -> 39.6%
+2025-07-17 09:14:31,703 - INFO - Parsed signal: OKLO -> 29.4%
+2025-07-17 09:14:31,703 - INFO - Target Portfolio: {'SMR': 0.31, 'LEU': 0.396, 'OKLO': 0.294}
+2025-07-17 09:14:31,815 - INFO - Account Value: $10.00
+2025-07-17 09:14:32,578 - INFO - Waiting for settlement after sells...
+2025-07-17 09:14:43,006 - INFO - Placing LIMIT buy order for LEU: qty=0.01746, limit_price=227.48
+2025-07-17 09:14:43,228 - INFO - Bought 0.01746 of LEU for rebalancing.
+2025-07-17 09:14:43,441 - INFO - Placing LIMIT buy order for SMR: qty=0.017758, limit_price=111.83
+2025-07-17 09:14:43,660 - ERROR - Exception placing limit order for SMR: {"buying_power":"1.96","code":40310000,"cost_basis":"2","message":"insufficient buying power"}
+Traceback (most recent call last):
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 198, in _one_request
+    response.raise_for_status()
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/requests/models.py", line 1021, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 403 Client Error: Forbidden for url: https://api.alpaca.markets/v2/orders
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/execution/alpaca_trader.py", line 186, in place_order
+    order = self.trading_client.submit_order(limit_order_data)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/trading/client.py", line 100, in submit_order
+    response = self.post("/orders", data)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 240, in post
+    return self._request("POST", path, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 131, in _request
+    return self._one_request(method, url, opts, retry)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 207, in _one_request
+    raise APIError(error, http_error)
+alpaca.common.exceptions.APIError: {"buying_power":"1.96","code":40310000,"cost_basis":"2","message":"insufficient buying power"}
+2025-07-17 09:14:43,789 - INFO - Placing LIMIT buy order for SMR: qty=0.017758, limit_price=111.83
+2025-07-17 09:14:44,002 - ERROR - Exception placing limit order for SMR: {"buying_power":"1.96","code":40310000,"cost_basis":"2","message":"insufficient buying power"}
+Traceback (most recent call last):
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 198, in _one_request
+    response.raise_for_status()
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/requests/models.py", line 1021, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 403 Client Error: Forbidden for url: https://api.alpaca.markets/v2/orders
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/execution/alpaca_trader.py", line 186, in place_order
+    order = self.trading_client.submit_order(limit_order_data)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/trading/client.py", line 100, in submit_order
+    response = self.post("/orders", data)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 240, in post
+    return self._request("POST", path, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 131, in _request
+    return self._one_request(method, url, opts, retry)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 207, in _one_request
+    raise APIError(error, http_error)
+alpaca.common.exceptions.APIError: {"buying_power":"1.96","code":40310000,"cost_basis":"2","message":"insufficient buying power"}
+2025-07-17 09:14:44,113 - INFO - Placing LIMIT buy order for SMR: qty=0.017758, limit_price=111.83
+2025-07-17 09:14:44,323 - ERROR - Exception placing limit order for SMR: {"buying_power":"1.96","code":40310000,"cost_basis":"2","message":"insufficient buying power"}
+Traceback (most recent call last):
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 198, in _one_request
+    response.raise_for_status()
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/requests/models.py", line 1021, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 403 Client Error: Forbidden for url: https://api.alpaca.markets/v2/orders
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/execution/alpaca_trader.py", line 186, in place_order
+    order = self.trading_client.submit_order(limit_order_data)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/trading/client.py", line 100, in submit_order
+    response = self.post("/orders", data)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 240, in post
+    return self._request("POST", path, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 131, in _request
+    return self._one_request(method, url, opts, retry)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 207, in _one_request
+    raise APIError(error, http_error)
+alpaca.common.exceptions.APIError: {"buying_power":"1.96","code":40310000,"cost_basis":"2","message":"insufficient buying power"}
+2025-07-17 09:14:44,430 - INFO - Placing LIMIT buy order for SMR: qty=0.017758, limit_price=111.83
+2025-07-17 09:14:44,645 - ERROR - Exception placing limit order for SMR: {"buying_power":"1.96","code":40310000,"cost_basis":"2","message":"insufficient buying power"}
+Traceback (most recent call last):
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 198, in _one_request
+    response.raise_for_status()
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/requests/models.py", line 1021, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 403 Client Error: Forbidden for url: https://api.alpaca.markets/v2/orders
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/execution/alpaca_trader.py", line 186, in place_order
+    order = self.trading_client.submit_order(limit_order_data)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/trading/client.py", line 100, in submit_order
+    response = self.post("/orders", data)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 240, in post
+    return self._request("POST", path, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 131, in _request
+    return self._one_request(method, url, opts, retry)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 207, in _one_request
+    raise APIError(error, http_error)
+alpaca.common.exceptions.APIError: {"buying_power":"1.96","code":40310000,"cost_basis":"2","message":"insufficient buying power"}
+2025-07-17 09:14:44,647 - WARNING - Falling back to MARKET order for SMR
+2025-07-17 09:14:44,760 - ERROR - Market order also failed for SMR: {"code":40310000,"message":"cost basis must be \u003e= minimal amount of order 1"}
+Traceback (most recent call last):
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 198, in _one_request
+    response.raise_for_status()
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/requests/models.py", line 1021, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 403 Client Error: Forbidden for url: https://api.alpaca.markets/v2/orders
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/execution/alpaca_trader.py", line 186, in place_order
+    order = self.trading_client.submit_order(limit_order_data)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/trading/client.py", line 100, in submit_order
+    response = self.post("/orders", data)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 240, in post
+    return self._request("POST", path, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 131, in _request
+    return self._one_request(method, url, opts, retry)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 207, in _one_request
+    raise APIError(error, http_error)
+alpaca.common.exceptions.APIError: {"buying_power":"1.96","code":40310000,"cost_basis":"2","message":"insufficient buying power"}
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 198, in _one_request
+    response.raise_for_status()
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/requests/models.py", line 1021, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 403 Client Error: Forbidden for url: https://api.alpaca.markets/v2/orders
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/execution/alpaca_trader.py", line 224, in place_order
+    order = self.trading_client.submit_order(market_order_data)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/trading/client.py", line 100, in submit_order
+    response = self.post("/orders", data)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 240, in post
+    return self._request("POST", path, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 131, in _request
+    return self._one_request(method, url, opts, retry)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 207, in _one_request
+    raise APIError(error, http_error)
+alpaca.common.exceptions.APIError: {"code":40310000,"message":"cost basis must be \u003e= minimal amount of order 1"}
+2025-07-17 09:14:44,872 - INFO - Rebalancing complete. Orders executed: 1
+2025-07-17 09:14:44,873 - INFO - ✅ Portfolio rebalanced - 1 orders executed
+2025-07-17 09:14:44,873 - INFO -    buy 0.01746 LEU (Order ID: f83313f3-4870-4fce-b7ea-3bdf364dbd40, Value: $3.96)
+2025-07-17 09:28:55,580 - INFO - Starting Nuclear Energy strategy analysis...
+2025-07-17 09:29:01,729 - INFO - Analysis complete: BUY NUCLEAR_PORTFOLIO - Bull market - Nuclear portfolio: SMR (31.0%), LEU (39.6%), OKLO (29.4%)
+2025-07-17 09:29:01,782 - INFO - 🏦 Trading Mode: LIVE (from config.yaml)
+2025-07-17 09:29:01,784 - INFO - Alpaca Trading Bot initialized - Paper Trading: False
+2025-07-17 09:29:02,385 - INFO - 🚀 Executing Nuclear Strategy with Alpaca
+2025-07-17 09:29:02,399 - INFO - Found 3 recent signals
+2025-07-17 09:29:02,399 - INFO - Parsed signal: SMR -> 31.0%
+2025-07-17 09:29:02,400 - INFO - Parsed signal: LEU -> 39.6%
+2025-07-17 09:29:02,400 - INFO - Parsed signal: OKLO -> 29.4%
+2025-07-17 09:29:02,400 - INFO - Target Portfolio: {'SMR': 0.31, 'LEU': 0.396, 'OKLO': 0.294}
+2025-07-17 09:29:02,507 - INFO - Account Value: $10.00
+2025-07-17 09:29:03,298 - INFO - Waiting for settlement after sells...
+2025-07-17 09:29:13,725 - INFO - Placing LIMIT buy order for LEU: qty=0.01746, limit_price=227.48
+2025-07-17 09:29:13,993 - INFO - Bought 0.01746 of LEU for rebalancing.
+2025-07-17 09:29:14,203 - INFO - Placing LIMIT buy order for SMR: qty=0.027803, limit_price=111.83
+2025-07-17 09:29:14,417 - INFO - Bought 0.027803 of SMR for rebalancing.
+2025-07-17 09:29:14,632 - INFO - Placing LIMIT buy order for OKLO: qty=0.048031, limit_price=61.39
+2025-07-17 09:29:14,847 - ERROR - Exception placing limit order for OKLO: {"buying_power":"2.9","code":40310000,"cost_basis":"2.96","message":"insufficient buying power"}
+Traceback (most recent call last):
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 198, in _one_request
+    response.raise_for_status()
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/requests/models.py", line 1021, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 403 Client Error: Forbidden for url: https://api.alpaca.markets/v2/orders
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/execution/alpaca_trader.py", line 186, in place_order
+    order = self.trading_client.submit_order(limit_order_data)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/trading/client.py", line 100, in submit_order
+    response = self.post("/orders", data)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 240, in post
+    return self._request("POST", path, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 131, in _request
+    return self._one_request(method, url, opts, retry)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 207, in _one_request
+    raise APIError(error, http_error)
+alpaca.common.exceptions.APIError: {"buying_power":"2.9","code":40310000,"cost_basis":"2.96","message":"insufficient buying power"}
+2025-07-17 09:29:14,989 - INFO - Placing LIMIT buy order for OKLO: qty=0.048031, limit_price=61.39
+2025-07-17 09:29:15,198 - ERROR - Exception placing limit order for OKLO: {"buying_power":"2.9","code":40310000,"cost_basis":"2.96","message":"insufficient buying power"}
+Traceback (most recent call last):
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 198, in _one_request
+    response.raise_for_status()
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/requests/models.py", line 1021, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 403 Client Error: Forbidden for url: https://api.alpaca.markets/v2/orders
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/execution/alpaca_trader.py", line 186, in place_order
+    order = self.trading_client.submit_order(limit_order_data)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/trading/client.py", line 100, in submit_order
+    response = self.post("/orders", data)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 240, in post
+    return self._request("POST", path, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 131, in _request
+    return self._one_request(method, url, opts, retry)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 207, in _one_request
+    raise APIError(error, http_error)
+alpaca.common.exceptions.APIError: {"buying_power":"2.9","code":40310000,"cost_basis":"2.96","message":"insufficient buying power"}
+2025-07-17 09:29:15,307 - INFO - Placing LIMIT buy order for OKLO: qty=0.048031, limit_price=61.39
+2025-07-17 09:29:15,526 - ERROR - Exception placing limit order for OKLO: {"buying_power":"2.9","code":40310000,"cost_basis":"2.96","message":"insufficient buying power"}
+Traceback (most recent call last):
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 198, in _one_request
+    response.raise_for_status()
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/requests/models.py", line 1021, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 403 Client Error: Forbidden for url: https://api.alpaca.markets/v2/orders
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/execution/alpaca_trader.py", line 186, in place_order
+    order = self.trading_client.submit_order(limit_order_data)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/trading/client.py", line 100, in submit_order
+    response = self.post("/orders", data)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 240, in post
+    return self._request("POST", path, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 131, in _request
+    return self._one_request(method, url, opts, retry)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 207, in _one_request
+    raise APIError(error, http_error)
+alpaca.common.exceptions.APIError: {"buying_power":"2.9","code":40310000,"cost_basis":"2.96","message":"insufficient buying power"}
+2025-07-17 09:29:15,637 - INFO - Placing LIMIT buy order for OKLO: qty=0.048031, limit_price=61.39
+2025-07-17 09:29:15,856 - ERROR - Exception placing limit order for OKLO: {"buying_power":"2.9","code":40310000,"cost_basis":"2.96","message":"insufficient buying power"}
+Traceback (most recent call last):
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 198, in _one_request
+    response.raise_for_status()
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/requests/models.py", line 1021, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 403 Client Error: Forbidden for url: https://api.alpaca.markets/v2/orders
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/execution/alpaca_trader.py", line 186, in place_order
+    order = self.trading_client.submit_order(limit_order_data)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/trading/client.py", line 100, in submit_order
+    response = self.post("/orders", data)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 240, in post
+    return self._request("POST", path, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 131, in _request
+    return self._one_request(method, url, opts, retry)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 207, in _one_request
+    raise APIError(error, http_error)
+alpaca.common.exceptions.APIError: {"buying_power":"2.9","code":40310000,"cost_basis":"2.96","message":"insufficient buying power"}
+2025-07-17 09:29:15,858 - WARNING - Falling back to MARKET order for OKLO
+2025-07-17 09:29:15,968 - ERROR - Market order also failed for OKLO: {"buying_power":"2.9","code":40310000,"cost_basis":"3.08","message":"insufficient buying power"}
+Traceback (most recent call last):
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 198, in _one_request
+    response.raise_for_status()
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/requests/models.py", line 1021, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 403 Client Error: Forbidden for url: https://api.alpaca.markets/v2/orders
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/execution/alpaca_trader.py", line 186, in place_order
+    order = self.trading_client.submit_order(limit_order_data)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/trading/client.py", line 100, in submit_order
+    response = self.post("/orders", data)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 240, in post
+    return self._request("POST", path, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 131, in _request
+    return self._one_request(method, url, opts, retry)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 207, in _one_request
+    raise APIError(error, http_error)
+alpaca.common.exceptions.APIError: {"buying_power":"2.9","code":40310000,"cost_basis":"2.96","message":"insufficient buying power"}
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 198, in _one_request
+    response.raise_for_status()
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/requests/models.py", line 1021, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 403 Client Error: Forbidden for url: https://api.alpaca.markets/v2/orders
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/execution/alpaca_trader.py", line 224, in place_order
+    order = self.trading_client.submit_order(market_order_data)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/trading/client.py", line 100, in submit_order
+    response = self.post("/orders", data)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 240, in post
+    return self._request("POST", path, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 131, in _request
+    return self._one_request(method, url, opts, retry)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 207, in _one_request
+    raise APIError(error, http_error)
+alpaca.common.exceptions.APIError: {"buying_power":"2.9","code":40310000,"cost_basis":"3.08","message":"insufficient buying power"}
+2025-07-17 09:29:15,972 - INFO - Rebalancing complete. Orders executed: 2
+2025-07-17 09:29:15,972 - INFO - ✅ Portfolio rebalanced - 2 orders executed
+2025-07-17 09:29:15,972 - INFO -    buy 0.01746 LEU (Order ID: b427e8a2-f4df-47c6-9162-125f81a2c140, Value: $3.96)
+2025-07-17 09:29:15,973 - INFO -    buy 0.027803 SMR (Order ID: 9f3dbe4f-fb2e-48a6-a8ac-9d58fd93d4e3, Value: $3.10)
+2025-07-17 10:27:04,336 - INFO - Starting Nuclear Energy strategy analysis...
+2025-07-17 10:27:09,642 - INFO - Analysis complete: BUY NUCLEAR_PORTFOLIO - Bull market - Nuclear portfolio: SMR (31.0%), LEU (39.6%), OKLO (29.4%)
+2025-07-17 10:27:09,686 - INFO - 🏦 Trading Mode: LIVE (from config.yaml)
+2025-07-17 10:27:09,687 - INFO - Alpaca Trading Bot initialized - Paper Trading: False
+2025-07-17 10:27:10,291 - INFO - 🚀 Executing Nuclear Strategy with Alpaca
+2025-07-17 10:27:10,306 - INFO - Found 3 recent signals
+2025-07-17 10:27:10,306 - INFO - Parsed signal: SMR -> 31.0%
+2025-07-17 10:27:10,307 - INFO - Parsed signal: LEU -> 39.6%
+2025-07-17 10:27:10,307 - INFO - Parsed signal: OKLO -> 29.4%
+2025-07-17 10:27:10,307 - INFO - Target Portfolio: {'SMR': 0.31, 'LEU': 0.396, 'OKLO': 0.294}
+2025-07-17 10:27:10,412 - INFO - Account Value: $10.00
+2025-07-17 10:27:11,462 - INFO - Waiting for settlement after sells...
+2025-07-17 10:27:21,898 - INFO - Placing LIMIT buy order for LEU: qty=0.01746, limit_price=227.48
+2025-07-17 10:27:22,121 - INFO - Bought 0.01746 of LEU for rebalancing.
+2025-07-17 10:27:22,343 - INFO - Placing LIMIT buy order for SMR: qty=0.027802, limit_price=111.83
+2025-07-17 10:27:22,571 - INFO - Bought 0.027802 of SMR for rebalancing.
+2025-07-17 10:27:22,779 - INFO - Placing LIMIT buy order for OKLO: qty=0.048031, limit_price=61.39
+2025-07-17 10:27:23,002 - ERROR - Exception placing limit order for OKLO: {"buying_power":"2.9","code":40310000,"cost_basis":"2.96","message":"insufficient buying power"}
+Traceback (most recent call last):
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 198, in _one_request
+    response.raise_for_status()
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/requests/models.py", line 1021, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 403 Client Error: Forbidden for url: https://api.alpaca.markets/v2/orders
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/execution/alpaca_trader.py", line 186, in place_order
+    order = self.trading_client.submit_order(limit_order_data)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/trading/client.py", line 100, in submit_order
+    response = self.post("/orders", data)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 240, in post
+    return self._request("POST", path, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 131, in _request
+    return self._one_request(method, url, opts, retry)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 207, in _one_request
+    raise APIError(error, http_error)
+alpaca.common.exceptions.APIError: {"buying_power":"2.9","code":40310000,"cost_basis":"2.96","message":"insufficient buying power"}
+2025-07-17 10:27:23,158 - INFO - Placing LIMIT buy order for OKLO: qty=0.048031, limit_price=61.39
+2025-07-17 10:27:23,371 - ERROR - Exception placing limit order for OKLO: {"buying_power":"2.9","code":40310000,"cost_basis":"2.96","message":"insufficient buying power"}
+Traceback (most recent call last):
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 198, in _one_request
+    response.raise_for_status()
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/requests/models.py", line 1021, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 403 Client Error: Forbidden for url: https://api.alpaca.markets/v2/orders
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/execution/alpaca_trader.py", line 186, in place_order
+    order = self.trading_client.submit_order(limit_order_data)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/trading/client.py", line 100, in submit_order
+    response = self.post("/orders", data)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 240, in post
+    return self._request("POST", path, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 131, in _request
+    return self._one_request(method, url, opts, retry)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 207, in _one_request
+    raise APIError(error, http_error)
+alpaca.common.exceptions.APIError: {"buying_power":"2.9","code":40310000,"cost_basis":"2.96","message":"insufficient buying power"}
+2025-07-17 10:27:23,482 - INFO - Placing LIMIT buy order for OKLO: qty=0.048031, limit_price=61.39
+2025-07-17 10:27:23,701 - ERROR - Exception placing limit order for OKLO: {"buying_power":"2.9","code":40310000,"cost_basis":"2.96","message":"insufficient buying power"}
+Traceback (most recent call last):
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 198, in _one_request
+    response.raise_for_status()
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/requests/models.py", line 1021, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 403 Client Error: Forbidden for url: https://api.alpaca.markets/v2/orders
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/execution/alpaca_trader.py", line 186, in place_order
+    order = self.trading_client.submit_order(limit_order_data)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/trading/client.py", line 100, in submit_order
+    response = self.post("/orders", data)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 240, in post
+    return self._request("POST", path, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 131, in _request
+    return self._one_request(method, url, opts, retry)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 207, in _one_request
+    raise APIError(error, http_error)
+alpaca.common.exceptions.APIError: {"buying_power":"2.9","code":40310000,"cost_basis":"2.96","message":"insufficient buying power"}
+2025-07-17 10:27:23,810 - INFO - Placing LIMIT buy order for OKLO: qty=0.048031, limit_price=61.39
+2025-07-17 10:27:24,032 - ERROR - Exception placing limit order for OKLO: {"buying_power":"2.9","code":40310000,"cost_basis":"2.96","message":"insufficient buying power"}
+Traceback (most recent call last):
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 198, in _one_request
+    response.raise_for_status()
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/requests/models.py", line 1021, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 403 Client Error: Forbidden for url: https://api.alpaca.markets/v2/orders
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/execution/alpaca_trader.py", line 186, in place_order
+    order = self.trading_client.submit_order(limit_order_data)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/trading/client.py", line 100, in submit_order
+    response = self.post("/orders", data)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 240, in post
+    return self._request("POST", path, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 131, in _request
+    return self._one_request(method, url, opts, retry)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 207, in _one_request
+    raise APIError(error, http_error)
+alpaca.common.exceptions.APIError: {"buying_power":"2.9","code":40310000,"cost_basis":"2.96","message":"insufficient buying power"}
+2025-07-17 10:27:24,034 - WARNING - Falling back to MARKET order for OKLO
+2025-07-17 10:27:24,144 - ERROR - Market order also failed for OKLO: {"buying_power":"2.9","code":40310000,"cost_basis":"3.07","message":"insufficient buying power"}
+Traceback (most recent call last):
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 198, in _one_request
+    response.raise_for_status()
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/requests/models.py", line 1021, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 403 Client Error: Forbidden for url: https://api.alpaca.markets/v2/orders
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/execution/alpaca_trader.py", line 186, in place_order
+    order = self.trading_client.submit_order(limit_order_data)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/trading/client.py", line 100, in submit_order
+    response = self.post("/orders", data)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 240, in post
+    return self._request("POST", path, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 131, in _request
+    return self._one_request(method, url, opts, retry)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 207, in _one_request
+    raise APIError(error, http_error)
+alpaca.common.exceptions.APIError: {"buying_power":"2.9","code":40310000,"cost_basis":"2.96","message":"insufficient buying power"}
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 198, in _one_request
+    response.raise_for_status()
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/requests/models.py", line 1021, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 403 Client Error: Forbidden for url: https://api.alpaca.markets/v2/orders
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/execution/alpaca_trader.py", line 224, in place_order
+    order = self.trading_client.submit_order(market_order_data)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/trading/client.py", line 100, in submit_order
+    response = self.post("/orders", data)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 240, in post
+    return self._request("POST", path, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 131, in _request
+    return self._one_request(method, url, opts, retry)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joshua.moreton/Documents/GitHub/LQQ3/.venv/lib/python3.12/site-packages/alpaca/common/rest.py", line 207, in _one_request
+    raise APIError(error, http_error)
+alpaca.common.exceptions.APIError: {"buying_power":"2.9","code":40310000,"cost_basis":"3.07","message":"insufficient buying power"}
+2025-07-17 10:27:24,149 - INFO - Rebalancing complete. Orders executed: 2
+2025-07-17 10:27:24,149 - INFO - ✅ Portfolio rebalanced - 2 orders executed
+2025-07-17 10:27:24,150 - INFO -    buy 0.01746 LEU (Order ID: 30e0c65c-781c-4013-8d3c-a23c7c1ecd81, Value: $3.96)
+2025-07-17 10:27:24,150 - INFO -    buy 0.027802 SMR (Order ID: 479482f9-cb30-46fb-81ca-6eddc87ace81, Value: $3.10)
+2025-07-17 10:31:48,761 - INFO - Starting Nuclear Energy strategy analysis...
+2025-07-17 10:31:53,450 - INFO - Analysis complete: BUY NUCLEAR_PORTFOLIO - Bull market - Nuclear portfolio: SMR (31.0%), LEU (39.6%), OKLO (29.4%)
+2025-07-17 10:31:53,501 - INFO - 🏦 Trading Mode: LIVE (from config.yaml)
+2025-07-17 10:31:53,503 - INFO - Alpaca Trading Bot initialized - Paper Trading: False
+2025-07-17 10:31:54,106 - INFO - 🚀 Executing Nuclear Strategy with Alpaca
+2025-07-17 10:31:54,121 - INFO - Found 6 recent signals
+2025-07-17 10:31:54,122 - INFO - Parsed signal: SMR -> 31.0%
+2025-07-17 10:31:54,122 - INFO - Parsed signal: LEU -> 39.6%
+2025-07-17 10:31:54,122 - INFO - Parsed signal: OKLO -> 29.4%
+2025-07-17 10:31:54,122 - INFO - Parsed signal: SMR -> 31.0%
+2025-07-17 10:31:54,123 - INFO - Parsed signal: LEU -> 39.6%
+2025-07-17 10:31:54,123 - INFO - Parsed signal: OKLO -> 29.4%
+2025-07-17 10:31:54,123 - INFO - Target Portfolio: {'SMR': 0.31, 'LEU': 0.396, 'OKLO': 0.294}
+2025-07-17 10:31:54,236 - INFO - Account Value: $10.00
+2025-07-17 10:31:55,010 - INFO - Waiting for settlement after sells...
+2025-07-17 10:32:05,457 - INFO - Placing LIMIT buy order for LEU: qty=0.01746, limit_price=227.48
+2025-07-17 10:32:05,681 - INFO - Bought 0.01746 of LEU for rebalancing.
+2025-07-17 10:32:05,897 - INFO - Placing LIMIT buy order for SMR: qty=0.027802, limit_price=111.83
+2025-07-17 10:32:06,115 - INFO - Bought 0.027802 of SMR for rebalancing.
+2025-07-17 10:32:06,340 - INFO - Placing LIMIT buy order for OKLO: qty=0.039865, limit_price=61.39
+2025-07-17 10:32:06,562 - INFO - Bought 0.039865 of OKLO for rebalancing.
+2025-07-17 10:32:06,562 - INFO - Rebalancing complete. Orders executed: 3
+2025-07-17 10:32:06,563 - INFO - ✅ Portfolio rebalanced - 3 orders executed
+2025-07-17 10:32:06,563 - INFO -    buy 0.01746 LEU (Order ID: c9bd40fa-c70b-4dc7-a5ff-fa95d67a7b05, Value: $3.96)
+2025-07-17 10:32:06,563 - INFO -    buy 0.027802 SMR (Order ID: e92fd479-0341-43cb-ad64-2d9ca00dd979, Value: $3.10)
+2025-07-17 10:32:06,564 - INFO -    buy 0.039865 OKLO (Order ID: 539821c2-b121-4c44-af99-1099a3d177ba, Value: $2.44)

@@ -16,7 +16,10 @@ logging:
 
 alpaca:
   # api_key and api_secret loaded from .env
-  paper: true
+  paper: false
+  endpoint: "https://api.alpaca.markets"
+  paper_endpoint: "https://paper-api.alpaca.markets/v2"
+  cash_reserve_pct: 0.05
 
 data:
   cache_duration: 300

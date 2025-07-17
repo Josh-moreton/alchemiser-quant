@@ -188,7 +188,10 @@ def run_alpaca_telegram_bot():
     """Run the nuclear trading bot with Alpaca execution and send Telegram update instead of email."""
     print("🚀 NUCLEAR TRADING BOT - ALPACA TELEGRAM MODE")
     print("=" * 60)
-    print(f"Running live trading analysis with Alpaca paper trading at {datetime.now()}")
+    from core.config import Config
+    config = Config()
+    trading_mode = 'PAPER' if config['alpaca'].get('paper', True) else 'LIVE'
+    print(f"Running trading analysis with Alpaca {trading_mode} trading at {datetime.now()}")
     print()
     
     try:
@@ -215,10 +218,10 @@ def run_alpaca_telegram_bot():
         print()
         
         # Import and initialize Alpaca trading bot
-        print("🏦 STEP 2: Connecting to Alpaca Paper Trading...")
+        print(f"🏦 STEP 2: Connecting to Alpaca {trading_mode} Trading...")
         print("-" * 50)
         
-        alpaca_bot = AlpacaTradingBot(paper_trading=True)
+        alpaca_bot = AlpacaTradingBot()
         
         # Get account info before trading
         account_info_before = alpaca_bot.get_account_info()

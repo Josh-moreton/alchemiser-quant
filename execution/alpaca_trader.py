@@ -14,6 +14,7 @@ from typing import Dict, List, Optional, Tuple
 from dotenv import load_dotenv
 
 # Alpaca imports
+from alpaca.trading.client import TradingClient
 
 # Alpaca order enums
 from alpaca.trading.requests import MarketOrderRequest, GetOrdersRequest, LimitOrderRequest
@@ -42,31 +43,35 @@ logging.basicConfig(
         logging.StreamHandler()
     ]
 )
+
+def is_market_open(trading_client):
+    clock = trading_client.get_clock()
+    return clock.is_open
+
 class AlpacaTradingBot:
     """Alpaca Trading Bot for Nuclear Strategy"""
 
-    def __init__(self, paper_trading=None):
+    def __init__(self):
         """
         Initialize Alpaca trading bot using AlpacaDataProvider for all data access.
-        Args:
-            paper_trading (bool, optional): Use paper trading account if True. If None, reads from ALPACA_PAPER_TRADING env variable
+        Uses config.yaml for trading mode and endpoints.
         """
-        # Determine paper trading mode
-        if paper_trading is None:
-            env_paper_trading = os.getenv('ALPACA_PAPER_TRADING', 'true').lower()
-            self.paper_trading = env_paper_trading in ('true', '1', 'yes', 'on')
-        else:
-            self.paper_trading = paper_trading
+        from core.config import Config
+        config = Config()
+        alpaca_cfg = config['alpaca']
+        self.paper_trading = alpaca_cfg.get('paper', True)
+        self.endpoint = alpaca_cfg.get('endpoint', 'https://api.alpaca.markets')
+        self.paper_endpoint = alpaca_cfg.get('paper_endpoint', 'https://paper-api.alpaca.markets/v2')
 
-        logging.info(f"\U0001F3E6 Trading Mode: {'PAPER' if self.paper_trading else 'LIVE'} (from {'env variable' if paper_trading is None else 'parameter'})")
+        logging.info(f"\U0001F3E6 Trading Mode: {'PAPER' if self.paper_trading else 'LIVE'} (from config.yaml)")
 
         # Use AlpacaDataProvider for all Alpaca data access
-        self.data_provider = AlpacaDataProvider(paper_trading=self.paper_trading)
+        self.data_provider = AlpacaDataProvider(
+            paper_trading=self.paper_trading,
+            endpoint=self.endpoint,
+            paper_endpoint=self.paper_endpoint
+        )
         self.trading_client = self.data_provider.trading_client  # For order placement
-        logging.info(f"Alpaca Trading Bot initialized - Paper Trading: {self.paper_trading}")
-        
-        # Portfolio configuration - no cash reserves, invest everything based on strategy
-        
         logging.info(f"Alpaca Trading Bot initialized - Paper Trading: {self.paper_trading}")
     
     def get_account_info(self) -> Dict:
@@ -175,27 +180,34 @@ class AlpacaTradingBot:
                     time_in_force=TimeInForce.DAY,
                     limit_price=limit_price
                 )
-                order = self.trading_client.submit_order(limit_order_data)
-                order_id = str(getattr(order, 'id', 'unknown'))
-                order_status = getattr(order, 'status', 'unknown')
+                
+                if not is_market_open(self.trading_client):
+                    # Market is closed, place order once and return
+                    order = self.trading_client.submit_order(limit_order_data)
+                    return str(getattr(order, 'id', 'unknown'))
+                else:
+                    # Retry logic as before
+                    order = self.trading_client.submit_order(limit_order_data)
+                    order_id = str(getattr(order, 'id', 'unknown'))
+                    order_status = getattr(order, 'status', 'unknown')
 
-                # Poll for order status
-                poll_start = time.time()
-                while time.time() - poll_start < poll_timeout:
-                    polled_order = self.trading_client.get_order_by_id(order_id)
-                    polled_status = getattr(polled_order, 'status', 'unknown')
-                    if polled_status == "filled":
-                        logging.info(f"Limit order filled: {order_id}")
-                        return order_id
-                    elif polled_status in ("canceled", "rejected"):
-                        logging.warning(f"Limit order {order_id} was {polled_status}")
-                        break
-                    time.sleep(poll_interval)
+                    # Poll for order status
+                    poll_start = time.time()
+                    while time.time() - poll_start < poll_timeout:
+                        polled_order = self.trading_client.get_order_by_id(order_id)
+                        polled_status = getattr(polled_order, 'status', 'unknown')
+                        if polled_status == "filled":
+                            logging.info(f"Limit order filled: {order_id}")
+                            return order_id
+                        elif polled_status in ("canceled", "rejected"):
+                            logging.warning(f"Limit order {order_id} was {polled_status}")
+                            break
+                        time.sleep(poll_interval)
 
-                # If not filled, cancel and retry with wider slippage
-                self.trading_client.cancel_order_by_id(order_id)
-                logging.warning(f"Limit order {order_id} not filled in time, canceled. Retrying with wider slippage.")
-                slippage_bps *= 2  # Double the slippage for next attempt
+                    # If not filled, cancel and retry with wider slippage
+                    self.trading_client.cancel_order_by_id(order_id)
+                    logging.warning(f"Limit order {order_id} not filled in time, canceled. Retrying with wider slippage.")
+                    slippage_bps *= 2  # Double the slippage for next attempt
 
             except Exception as e:
                 logging.error(f"Exception placing limit order for {symbol}: {e}", exc_info=True)
@@ -229,6 +241,11 @@ class AlpacaTradingBot:
                 return []
             portfolio_value = account_info['portfolio_value']
             buying_power = account_info.get('buying_power', account_info['cash'])
+            # Use only (1-cash_reserve_pct) of buying power for allocations
+            from core.config import Config
+            config = Config()
+            cash_reserve_pct = config['alpaca'].get('cash_reserve_pct', 0.05)
+            usable_buying_power = buying_power * (1 - cash_reserve_pct)
             current_positions = self.get_positions()
 
             # Calculate current allocations
@@ -275,7 +292,7 @@ class AlpacaTradingBot:
                 symbol: pos['market_value'] / portfolio_value
                 for symbol, pos in current_positions.items()
             }
-            remaining_buying_power = buying_power
+            remaining_buying_power = usable_buying_power
             for symbol, target_weight in sorted(target_portfolio.items(), key=lambda x: x[1], reverse=True):
                 current_weight = current_allocations.get(symbol, 0.0)
                 if target_weight > current_weight:
@@ -285,7 +302,8 @@ class AlpacaTradingBot:
                     if value_to_buy > 1.0 and remaining_buying_power > 1.0:
                         current_price = self.get_current_price(symbol)
                         actual_value_to_buy = min(value_to_buy, remaining_buying_power)
-                        buy_qty = round(actual_value_to_buy / current_price, 6)
+                        import math
+                        buy_qty = math.floor((actual_value_to_buy / current_price) * 1e6) / 1e6
                         required_cash = buy_qty * current_price
                         if buy_qty > 0 and required_cash <= remaining_buying_power:
                             order_id = self.place_order(symbol, buy_qty, OrderSide.BUY)
@@ -538,7 +556,3 @@ def main():
     except Exception as e:
         logging.error(f"Main execution error: {e}")
         print(f"❌ Error: {e}")
-
-
-if __name__ == "__main__":
-    main()
