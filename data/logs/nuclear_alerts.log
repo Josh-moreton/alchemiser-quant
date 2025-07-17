@@ -9898,3 +9898,10 @@ alpaca.common.exceptions.APIError: {"buying_power":"2.9","code":40310000,"cost_b
 2025-07-17 11:28:13,800 - INFO - Successfully fetched 249 bars for EXC from Alpaca
 2025-07-17 11:28:13,927 - INFO - Successfully fetched 249 bars for NLR from Alpaca
 2025-07-17 11:28:14,050 - INFO - Successfully fetched 249 bars for OKLO from Alpaca
+2025-07-17 11:51:05,836 - INFO - Initialized Alpaca DataProvider with real trading keys
+2025-07-17 11:51:05,840 - INFO - Starting Nuclear Energy strategy analysis...
+2025-07-17 11:51:06,161 - INFO - Analysis complete: BUY SQQQ - TQQQ up but bonds weak, short position (Bear 1)
+2025-07-17 11:51:20,463 - INFO - Initialized Alpaca DataProvider with real trading keys
+2025-07-17 11:51:20,470 - INFO - Starting Nuclear Energy strategy analysis...
+2025-07-17 11:51:20,798 - INFO - Analysis complete: BUY SQQQ - TQQQ up but bonds weak, short position (Bear 1)
+2025-07-17 11:51:34,089 - INFO - Initialized Alpaca DataProvider with real trading keys
