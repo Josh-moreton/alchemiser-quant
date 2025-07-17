@@ -15,7 +15,7 @@ requests==2.31.0
 PyYAML==6.0.1
 
 # TA-Lib for technical indicators
-TA-Lib
+vectorbt
 
 # Optional: For local development and testing (not needed for GitHub Actions)
 # pytest==8.4.1
