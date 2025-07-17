@@ -149,8 +149,16 @@ class NuclearStrategyEngine:
         try:
             result = indicator_func(data, *args, **kwargs)
             if hasattr(result, 'iloc') and len(result) > 0:
-                value = float(result.iloc[-1])
-                return value if not pd.isna(value) else 50.0
+                value = result.iloc[-1]
+                # Check if value is NaN - if so, try to find the last valid value
+                if pd.isna(value):
+                    # Find the last non-NaN value
+                    valid_values = result.dropna()
+                    if len(valid_values) > 0:
+                        value = valid_values.iloc[-1]
+                    else:
+                        return 50.0  # Fallback only if no valid values
+                return float(value)
             return 50.0
         except Exception:
             return 50.0
@@ -193,7 +201,7 @@ class NuclearStrategyEngine:
             lambda inds, md: ('TQQQ', ActionType.BUY.value, "TQQQ oversold, buying dip") if 'TQQQ' in inds and inds['TQQQ']['rsi_10'] < 30 else None,
             lambda inds, md: ('UPRO', ActionType.BUY.value, "SPY oversold, buying dip with leverage") if 'SPY' in inds and inds['SPY']['rsi_10'] < 30 else None,
             lambda inds, md: BullMarketStrategy(self.get_nuclear_portfolio).recommend(inds, md) if 'SPY' in inds and inds['SPY']['current_price'] > inds['SPY']['ma_200'] else None,
-            lambda inds, md: BearMarketStrategy(self._bear_subgroup_1, self._bear_subgroup_2, self._combine_bear_strategies_with_inverse_volatility).recommend(inds)
+            lambda inds, md: BearMarketStrategy(self._bear_subgroup_1, self._bear_subgroup_2, self._combine_bear_strategies_with_inverse_volatility).recommend(inds) if 'SPY' in inds and inds['SPY']['current_price'] <= inds['SPY']['ma_200'] else None
         ]
 
         for handler in handlers:
@@ -509,25 +517,3 @@ class NuclearTradingBot:
         
         return None
 
-def main():
-    """Main function"""
-    import argparse
-    
-    parser = argparse.ArgumentParser(description='Nuclear Energy Trading Strategy Alert Bot')
-    parser.add_argument('--mode', choices=['once', 'continuous'], default='once',
-                       help='Run mode: once or continuous')
-    parser.add_argument('--interval', type=int, default=15,
-                       help='Interval in minutes for continuous mode')
-    
-    args = parser.parse_args()
-    
-    # Create bot
-    bot = NuclearTradingBot()
-    
-    if args.mode == 'once':
-        bot.run_once()
-    else:
-        bot.run_continuous(args.interval)
-
-if __name__ == "__main__":
-    main()

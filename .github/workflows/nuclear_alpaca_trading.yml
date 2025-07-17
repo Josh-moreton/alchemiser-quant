@@ -1,4 +1,4 @@
-name: Nuclear Bot - Alpaca Paper Trading
+name: Nuclear Bot - Alpaca Live Trading
 
 on:
   workflow_dispatch:
@@ -11,6 +11,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # TA-Lib build step removed; VectorBT will be installed via pip
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -20,12 +21,13 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+          pip install vectorbt
 
-      - name: Run Nuclear Trading Bot with Alpaca Paper Trading
+      - name: Run Nuclear Trading Bot with Alpaca Live Trading
         env:
-          ALPACA_PAPER_KEY: ${{ secrets.ALPACA_PAPER_KEY }}
-          ALPACA_PAPER_SECRET: ${{ secrets.ALPACA_PAPER_SECRET }}
-          ALPACA_PAPER_ENDPOINT: ${{ vars.ALPACA_PAPER_ENDPOINT }}
+          ALPACA_KEY: ${{ secrets.ALPACA_KEY }}
+          ALPACA_SECRET: ${{ secrets.ALPACA_SECRET }}
+          ALPACA_ENDPOINT: ${{ vars.ALPACA_ENDPOINT }}
           SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
