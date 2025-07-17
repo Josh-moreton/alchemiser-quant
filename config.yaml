@@ -1,3 +1,4 @@
+# Email configuration
 email:
   sender: "joshuamoreton1@icloud.com"
   recipients:
@@ -7,6 +8,7 @@ email:
   username: "joshuamoreton1@icloud.com"
   # password is loaded from .env (SMTP_PASSWORD)
 
+# Logging configuration
 logging:
   level: "INFO"
   nuclear_alerts_log: "data/logs/nuclear_alerts.log"
@@ -14,6 +16,7 @@ logging:
   alpaca_log: "data/logs/alpaca_trader.log"
   alpaca_trades_json: "data/logs/alpaca_trades.json"
 
+# Alpaca configuration
 alpaca:
   # api_key and api_secret loaded from .env
   paper: false
@@ -21,6 +24,7 @@ alpaca:
   paper_endpoint: "https://paper-api.alpaca.markets/v2"
   cash_reserve_pct: 0.05
 
+# Data configuration
 data:
   cache_duration: 300
   default_symbol: "AAPL"
