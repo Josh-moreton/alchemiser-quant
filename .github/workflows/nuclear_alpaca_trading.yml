@@ -23,7 +23,7 @@ jobs:
           pip install -r requirements.txt
           pip install vectorbt
 
-      - name: Run Nuclear Trading Bot with Alpaca Paper Trading
+      - name: Run Nuclear Trading Bot with Alpaca Live Trading
         env:
           ALPACA_KEY: ${{ secrets.ALPACA_KEY }}
           ALPACA_SECRET: ${{ secrets.ALPACA_SECRET }}
