@@ -25,6 +25,9 @@ jobs:
 
       - name: Run Nuclear Trading Bot with Email
         env:
+          ALPACA_KEY: ${{ secrets.ALPACA_KEY }}
+          ALPACA_SECRET: ${{ secrets.ALPACA_SECRET }}
+          ALPACA_ENDPOINT: ${{ vars.ALPACA_ENDPOINT }}
           SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
         run: python main.py email
 

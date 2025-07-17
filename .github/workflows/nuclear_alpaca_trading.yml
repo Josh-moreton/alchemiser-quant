@@ -25,9 +25,9 @@ jobs:
 
       - name: Run Nuclear Trading Bot with Alpaca Paper Trading
         env:
-          ALPACA_PAPER_KEY: ${{ secrets.ALPACA_PAPER_KEY }}
-          ALPACA_PAPER_SECRET: ${{ secrets.ALPACA_PAPER_SECRET }}
-          ALPACA_PAPER_ENDPOINT: ${{ vars.ALPACA_PAPER_ENDPOINT }}
+          ALPACA_KEY: ${{ secrets.ALPACA_KEY }}
+          ALPACA_SECRET: ${{ secrets.ALPACA_SECRET }}
+          ALPACA_ENDPOINT: ${{ vars.ALPACA_ENDPOINT }}
           SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
