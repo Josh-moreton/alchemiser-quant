@@ -9456,3 +9456,7 @@ alpaca.common.exceptions.APIError: {"buying_power":"2.9","code":40310000,"cost_b
 2025-07-17 10:32:06,563 - INFO -    buy 0.01746 LEU (Order ID: c9bd40fa-c70b-4dc7-a5ff-fa95d67a7b05, Value: $3.96)
 2025-07-17 10:32:06,563 - INFO -    buy 0.027802 SMR (Order ID: e92fd479-0341-43cb-ad64-2d9ca00dd979, Value: $3.10)
 2025-07-17 10:32:06,564 - INFO -    buy 0.039865 OKLO (Order ID: 539821c2-b121-4c44-af99-1099a3d177ba, Value: $2.44)
+2025-07-17 10:44:31,986 - INFO - Starting Nuclear Energy strategy analysis...
+2025-07-17 10:44:37,707 - INFO - Analysis complete: BUY SQQQ - TQQQ weak, bonds weak, short position (Bear 1)
+2025-07-17 10:55:56,043 - INFO - Starting Nuclear Energy strategy analysis...
+2025-07-17 10:56:00,097 - INFO - Analysis complete: BUY SQQQ - TQQQ weak, bonds weak, short position (Bear 1)

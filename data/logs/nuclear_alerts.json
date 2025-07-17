@@ -196,3 +196,5 @@
 {"timestamp": "2025-07-17T10:31:53.089016", "symbol": "SMR", "action": "BUY", "price": 46.09000015258789, "reason": "Nuclear portfolio allocation: 31.0% (Bull market - Nuclear portfolio: SMR (31.0%), LEU (39.6%), OKLO (29.4%))"}
 {"timestamp": "2025-07-17T10:31:53.272612", "symbol": "LEU", "action": "BUY", "price": 226.7100067138672, "reason": "Nuclear portfolio allocation: 39.6% (Bull market - Nuclear portfolio: SMR (31.0%), LEU (39.6%), OKLO (29.4%))"}
 {"timestamp": "2025-07-17T10:31:53.450577", "symbol": "OKLO", "action": "BUY", "price": 64.37000274658203, "reason": "Nuclear portfolio allocation: 29.4% (Bull market - Nuclear portfolio: SMR (31.0%), LEU (39.6%), OKLO (29.4%))"}
+{"timestamp": "2025-07-17T10:44:37.707297", "symbol": "SQQQ", "action": "BUY", "price": 19.072999954223633, "reason": "TQQQ weak, bonds weak, short position (Bear 1)"}
+{"timestamp": "2025-07-17T10:56:00.097284", "symbol": "SQQQ", "action": "BUY", "price": 19.072999954223633, "reason": "TQQQ weak, bonds weak, short position (Bear 1)"}
