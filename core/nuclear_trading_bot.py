@@ -201,7 +201,7 @@ class NuclearStrategyEngine:
             lambda inds, md: ('TQQQ', ActionType.BUY.value, "TQQQ oversold, buying dip") if 'TQQQ' in inds and inds['TQQQ']['rsi_10'] < 30 else None,
             lambda inds, md: ('UPRO', ActionType.BUY.value, "SPY oversold, buying dip with leverage") if 'SPY' in inds and inds['SPY']['rsi_10'] < 30 else None,
             lambda inds, md: BullMarketStrategy(self.get_nuclear_portfolio).recommend(inds, md) if 'SPY' in inds and inds['SPY']['current_price'] > inds['SPY']['ma_200'] else None,
-            lambda inds, md: BearMarketStrategy(self._bear_subgroup_1, self._bear_subgroup_2, self._combine_bear_strategies_with_inverse_volatility).recommend(inds)
+            lambda inds, md: BearMarketStrategy(self._bear_subgroup_1, self._bear_subgroup_2, self._combine_bear_strategies_with_inverse_volatility).recommend(inds) if 'SPY' in inds and inds['SPY']['current_price'] <= inds['SPY']['ma_200'] else None
         ]
 
         for handler in handlers:

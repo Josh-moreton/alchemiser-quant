@@ -11,8 +11,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install TA-Lib C library
-        run: sudo apt-get update && sudo apt-get install -y ta-lib
+      - name: Build TA-Lib C library from source
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential wget
+          wget https://github.com/TA-Lib/ta-lib/releases/download/0.6.4/ta-lib-0.6.4-src.tar.gz
+          tar -xzvf ta-lib-0.6.4-src.tar.gz
+          cd ta-lib-0.6.4
+          ./configure --prefix=/usr
+          make
+          sudo make install
+          cd ..
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
