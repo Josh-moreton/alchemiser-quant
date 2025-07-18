@@ -1,9 +1,6 @@
 import os
 import requests
-from dotenv import load_dotenv
 from .secrets_manager import SecretsManager
-
-load_dotenv()
 
 # Initialize secrets manager
 secrets_manager = SecretsManager(region_name="eu-west-2")

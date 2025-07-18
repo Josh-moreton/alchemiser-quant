@@ -12,7 +12,6 @@ import subprocess
 import asyncio
 import json
 import requests
-from dotenv import load_dotenv
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes
 
@@ -20,7 +19,6 @@ from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandle
 from core.secrets_manager import SecretsManager
 
 # Load environment variables
-load_dotenv()
 
 # Initialize secrets manager
 secrets_manager = SecretsManager(region_name="eu-west-2")
