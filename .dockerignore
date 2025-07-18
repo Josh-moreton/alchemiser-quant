@@ -13,7 +13,7 @@ dist/
 .gitignore
 .DS_Store
 .env*
-data/logs/*
+tmp/*
 *.log
 *.sqlite3
 *.db
