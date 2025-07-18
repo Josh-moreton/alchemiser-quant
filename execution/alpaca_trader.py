@@ -51,7 +51,7 @@ def is_market_open(trading_client):
 class AlpacaTradingBot:
     """Alpaca Trading Bot for Nuclear Strategy"""
 
-    def __init__(self):
+    def __init__(self, paper_trading=None):
         """
         Initialize Alpaca trading bot using AlpacaDataProvider for all data access.
         Uses config.yaml for trading mode and endpoints.
@@ -59,11 +59,15 @@ class AlpacaTradingBot:
         from core.config import Config
         config = Config()
         alpaca_cfg = config['alpaca']
-        self.paper_trading = alpaca_cfg.get('paper', True)
+        # If paper_trading is explicitly passed, override config.yaml
+        if paper_trading is not None:
+            self.paper_trading = paper_trading
+        else:
+            self.paper_trading = alpaca_cfg.get('paper', True)
         self.endpoint = alpaca_cfg.get('endpoint', 'https://api.alpaca.markets')
         self.paper_endpoint = alpaca_cfg.get('paper_endpoint', 'https://paper-api.alpaca.markets/v2')
 
-        logging.info(f"\U0001F3E6 Trading Mode: {'PAPER' if self.paper_trading else 'LIVE'} (from config.yaml)")
+        logging.info(f"\U0001F3E6 Trading Mode: {'PAPER' if self.paper_trading else 'LIVE'} (from config.yaml and CLI)")
 
         # Use AlpacaDataProvider for all Alpaca data access
         self.data_provider = AlpacaDataProvider(

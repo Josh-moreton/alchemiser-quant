@@ -4,15 +4,41 @@ import os
 import logging
 from typing import cast
 from datetime import datetime, timedelta
-from dotenv import load_dotenv
+import boto3
+import json
 from alpaca.trading.client import TradingClient
 from alpaca.data.historical import StockHistoricalDataClient
 from alpaca.data.requests import StockBarsRequest, StockLatestQuoteRequest
 from alpaca.data.timeframe import TimeFrame
 from .config import Config
 
-# Load environment variables from .env file
-load_dotenv()
+def get_secrets(secret_name="nuclear-secrets", region_name="eu-west-2"):
+    client = boto3.client("secretsmanager", region_name=region_name)
+    response = client.get_secret_value(SecretId=secret_name)
+    secret = response.get("SecretString")
+    return json.loads(secret)
+
+secrets = get_secrets()
+TELEGRAM_TOKEN = secrets["TELEGRAM_TOKEN"]
+TELEGRAM_CHAT_ID = secrets["TELEGRAM_CHAT_ID"]
+
+def get_alpaca_keys(paper_trading=False):
+    if paper_trading:
+        return secrets["ALPACA_PAPER_KEY"], secrets["ALPACA_PAPER_SECRET"]
+    else:
+        return secrets["ALPACA_KEY"], secrets["ALPACA_SECRET"]
+
+class DataProvider:
+    """Fetch market data with caching using Alpaca API ONLY."""
+    def __init__(self, cache_duration=None, paper_trading=False):
+        if cache_duration is None:
+            config = Config()
+            cache_duration = config['data']['cache_duration']
+        self.cache = {}
+        self.cache_duration = cache_duration  # seconds
+        self.api_key, self.secret_key = get_alpaca_keys(paper_trading=paper_trading)
+        self.data_client = StockHistoricalDataClient(self.api_key, self.secret_key)
+        logging.info(f"Initialized Alpaca DataProvider with {'paper' if paper_trading else 'live'} trading keys")
 
 class DataProvider:
     """Fetch market data with caching using Alpaca API ONLY."""

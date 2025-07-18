@@ -8,84 +8,42 @@ All business logic is delegated to orchestrator and service classes in core/.
 No business logic should be added here.
 """
 
-# Standard library imports
 import argparse
 from datetime import datetime
 import traceback
 import sys
-import os
-from core.config import Config
-
-
-def generate_signal():
-    """
-    Helper function to create and run the NuclearTradingBot, returning the bot and the generated signal.
-    Used to avoid code duplication in both bot and live trading modes.
-    """
-    from core.nuclear_trading_bot import NuclearTradingBot
-    bot = NuclearTradingBot()
-    print("Fetching live market data and generating signal...")
-    print()
-    signal = bot.run_once()
-    return bot, signal
-
-def run_trading_bot():
-    """
-    Run the main nuclear trading bot for live signals.
-    This mode only generates signals and logs them, without executing trades or sending notifications.
-    """
-    print("🚀 NUCLEAR TRADING BOT - LIVE MODE")
-    print("=" * 60)
-    print(f"Running live trading analysis at {datetime.now()}")
-    print()
-    try:
-        bot, signal = generate_signal()
-        if signal:
-            print()
-            print("✅ Signal generated successfully!")
-            config = Config()
-            log_path = config['logging']['nuclear_alerts_json']
-            print(f"📁 Alert logged to: {log_path}")
-        else:
-            print()
-            print("⚠️  No clear signal generated")
-        return True
-    except Exception as e:
-        print(f"❌ Error running trading bot: {e}")
-        traceback.print_exc()
-        return False
-
-
-
-
-
-def run_live_trading_bot():
+def run_alpaca_trading_bot(paper_trading=False, ignore_market_hours=False):
     """
     Run the nuclear trading bot with Alpaca execution and send Telegram update instead of email.
     This mode generates signals, executes trades via Alpaca, and sends a Telegram notification summarizing the results.
     """
-    print("🚀 NUCLEAR TRADING BOT - LIVE TRADING MODE")
+    mode_str = 'PAPER' if paper_trading else 'LIVE'
+    print(f"🚀 NUCLEAR TRADING BOT - {mode_str} TRADING MODE")
     print("=" * 60)
-    config = Config()
-    trading_mode = 'PAPER' if config['alpaca'].get('paper', True) else 'LIVE'
-    print(f"Running trading analysis with Alpaca {trading_mode} trading at {datetime.now()}")
+    print(f"Running trading analysis with Alpaca {mode_str} trading at {datetime.now()}")
     print()
     try:
         from core.telegram_utils import send_telegram_message
         from execution.alpaca_trader import AlpacaTradingBot, is_market_open
         print("📊 STEP 1: Checking Market Status...")
         print("-" * 50)
-        alpaca_bot = AlpacaTradingBot()
-        if not is_market_open(alpaca_bot.trading_client):
+        alpaca_bot = AlpacaTradingBot(paper_trading=paper_trading)
+        market_open = is_market_open(alpaca_bot.trading_client)
+        if not market_open and not ignore_market_hours:
             print("❌ Market is CLOSED. No trades will be placed.")
             send_telegram_message("❌ Market is CLOSED. No trades will be placed.")
             return False
-        print("✅ Market is OPEN. Proceeding with trading.")
+        if not market_open and ignore_market_hours:
+            print("⚠️ Market is CLOSED, but running anyway due to --ignore-market-hours flag.")
+        else:
+            print("✅ Market is OPEN. Proceeding with trading.")
         print()
         print("📊 STEP 2: Generating Nuclear Trading Signals...")
         print("-" * 50)
         # Generate nuclear signals
-        bot, signal = generate_signal()
+        from core.nuclear_trading_bot import NuclearTradingBot
+        bot = NuclearTradingBot()
+        signal = bot.run_once()
         if not signal:
             print("❌ Failed to generate nuclear signals")
             send_telegram_message("❌ Failed to generate nuclear signals")
@@ -166,6 +124,10 @@ def run_live_trading_bot():
         print(f"❌ Error running Alpaca Telegram bot: {e}")
         traceback.print_exc()
         return False
+    except Exception as e:
+        print(f"❌ Error running Alpaca Telegram bot: {e}")
+        traceback.print_exc()
+        return False
 
 
 def main():
@@ -176,8 +138,10 @@ def main():
       - 'live': Generates signals, executes trades, and sends Telegram notifications.
     """
     parser = argparse.ArgumentParser(description="Nuclear Trading Strategy - Unified Entry Point")
-    parser.add_argument('mode', choices=['bot', 'live'], 
+    parser.add_argument('mode', choices=['bot', 'live', 'paper'], 
                        help='Operation mode to run')
+    parser.add_argument('--ignore-market-hours', action='store_true',
+                        help='Ignore market open check and run trading logic regardless of market hours (live/paper modes only)')
 
     args = parser.parse_args()
 
@@ -187,10 +151,23 @@ def main():
     print(f"Timestamp: {datetime.now()}")
     success = False
     try:
-        if args.mode == 'bot':
-            success = run_trading_bot()
-        elif args.mode == 'live':
-            success = run_live_trading_bot()
+        if args.mode == 'live':
+            success = run_alpaca_trading_bot(paper_trading=False, ignore_market_hours=args.ignore_market_hours)
+        elif args.mode == 'paper':
+            success = run_alpaca_trading_bot(paper_trading=True, ignore_market_hours=args.ignore_market_hours)
+        elif args.mode == 'bot':
+            print("📊 STEP 1: Generating Nuclear Trading Signals (BOT MODE)...")
+            print("-" * 50)
+            from core.nuclear_trading_bot import NuclearTradingBot
+            bot = NuclearTradingBot()
+            signal = bot.run_once()
+            if not signal:
+                print("❌ Failed to generate nuclear signals")
+                success = False
+            else:
+                print("✅ Nuclear trading signals generated successfully!")
+                print(signal)
+                success = True
     except Exception as e:
         print(f"\n💥 Operation failed due to error: {e}")
         traceback.print_exc()
