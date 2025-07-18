@@ -1,8 +1,25 @@
-# Exclude signal/log files and other unnecessary files from Docker image
-data/logs/*
-*.pyc
+
+# Exclude local dev, build, cache, and sensitive files from Lambda Docker image
+.venv/
 __pycache__/
-.env.old
-.git
+*.pyc
+*.pyo
+*.pyd
+*.pdb
+*.egg-info/
+build/
+dist/
+.git/
 .gitignore
 .DS_Store
+.env*
+data/logs/*
+*.log
+*.sqlite3
+*.db
+*.ipynb
+# Exclude test artifacts
+tests/__pycache__/
+tests/*.pyc
+tests/*.pyo
+tests/*.log
