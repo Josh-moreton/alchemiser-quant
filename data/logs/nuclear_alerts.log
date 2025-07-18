@@ -10059,3 +10059,26 @@ alpaca.common.exceptions.APIError: {"buying_power":"2.9","code":40310000,"cost_b
 2025-07-18 08:01:08,340 - INFO - Successfully fetched 249 bars for NLR from Alpaca
 2025-07-18 08:01:08,457 - INFO - Successfully fetched 249 bars for OKLO from Alpaca
 2025-07-18 08:01:09,655 - INFO - Analysis complete: BUY NUCLEAR_PORTFOLIO - Bull market - Nuclear portfolio: SMR (31.1%), LEU (39.6%), OKLO (29.4%)
+2025-07-18 08:08:39,513 - INFO - Initialized Alpaca DataProvider with real trading keys
+2025-07-18 08:08:39,513 - INFO - Starting Nuclear Energy strategy analysis...
+2025-07-18 08:08:40,318 - INFO - Successfully fetched 249 bars for SPY from Alpaca
+2025-07-18 08:08:40,438 - INFO - Successfully fetched 249 bars for IOO from Alpaca
+2025-07-18 08:08:40,551 - INFO - Successfully fetched 249 bars for TQQQ from Alpaca
+2025-07-18 08:08:40,658 - INFO - Successfully fetched 249 bars for VTV from Alpaca
+2025-07-18 08:08:40,772 - INFO - Successfully fetched 249 bars for XLF from Alpaca
+2025-07-18 08:08:40,889 - INFO - Successfully fetched 249 bars for VOX from Alpaca
+2025-07-18 08:08:41,002 - INFO - Successfully fetched 249 bars for UVXY from Alpaca
+2025-07-18 08:08:41,122 - INFO - Successfully fetched 249 bars for BTAL from Alpaca
+2025-07-18 08:08:41,240 - INFO - Successfully fetched 249 bars for QQQ from Alpaca
+2025-07-18 08:08:41,354 - INFO - Successfully fetched 249 bars for SQQQ from Alpaca
+2025-07-18 08:08:41,484 - INFO - Successfully fetched 249 bars for PSQ from Alpaca
+2025-07-18 08:08:41,602 - INFO - Successfully fetched 249 bars for UPRO from Alpaca
+2025-07-18 08:08:41,719 - INFO - Successfully fetched 249 bars for TLT from Alpaca
+2025-07-18 08:08:41,836 - INFO - Successfully fetched 249 bars for IEF from Alpaca
+2025-07-18 08:08:41,956 - INFO - Successfully fetched 249 bars for SMR from Alpaca
+2025-07-18 08:08:42,079 - INFO - Successfully fetched 249 bars for BWXT from Alpaca
+2025-07-18 08:08:42,197 - INFO - Successfully fetched 249 bars for LEU from Alpaca
+2025-07-18 08:08:42,313 - INFO - Successfully fetched 249 bars for EXC from Alpaca
+2025-07-18 08:08:42,436 - INFO - Successfully fetched 249 bars for NLR from Alpaca
+2025-07-18 08:08:42,554 - INFO - Successfully fetched 249 bars for OKLO from Alpaca
+2025-07-18 08:08:45,469 - INFO - Analysis complete: BUY NUCLEAR_PORTFOLIO - Bull market - Nuclear portfolio: SMR (31.1%), LEU (39.6%), OKLO (29.4%)
