@@ -36,6 +36,8 @@ data/*.csv
 
 # Environment variables
 .env
+.env.old
+
 
 # Jupyter Notebook checkpoints
 .ipynb_checkpoints/
@@ -55,3 +57,5 @@ dist/
 *.egg-info/
 
 
+data/logs/nuclear_alerts.json
+data/logs/nuclear_alerts.log

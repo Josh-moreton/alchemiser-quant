@@ -1,11 +1,10 @@
 import os
 import requests
-from dotenv import load_dotenv
+from .secrets_manager import SecretsManager
 
-load_dotenv()
-
-TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
-TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")  # Set this in your .env
+# Initialize secrets manager
+secrets_manager = SecretsManager(region_name="eu-west-2")
+TELEGRAM_TOKEN, TELEGRAM_CHAT_ID = secrets_manager.get_telegram_config()
 
 
 def send_telegram_message(text, chat_id=None, parse_mode=None):

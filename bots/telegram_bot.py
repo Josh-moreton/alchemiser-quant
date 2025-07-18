@@ -12,13 +12,18 @@ import subprocess
 import asyncio
 import json
 import requests
-from dotenv import load_dotenv
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes
 
+# Import secrets manager
+from core.secrets_manager import SecretsManager
+
 # Load environment variables
-load_dotenv()
-TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
+
+# Initialize secrets manager
+secrets_manager = SecretsManager(region_name="eu-west-2")
+TELEGRAM_TOKEN, TELEGRAM_CHAT_ID = secrets_manager.get_telegram_config()
+
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")  # You'll need to add this to .env
 GITHUB_OWNER = "Josh-moreton"
 GITHUB_REPO = "LQQ3"

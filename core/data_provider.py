@@ -4,15 +4,14 @@ import os
 import logging
 from typing import cast
 from datetime import datetime, timedelta
-from dotenv import load_dotenv
 from alpaca.trading.client import TradingClient
 from alpaca.data.historical import StockHistoricalDataClient
 from alpaca.data.requests import StockBarsRequest, StockLatestQuoteRequest
 from alpaca.data.timeframe import TimeFrame
 from .config import Config
+from .secrets_manager import SecretsManager
 
 # Load environment variables from .env file
-load_dotenv()
 
 class DataProvider:
     """Fetch market data with caching using Alpaca API ONLY."""
@@ -24,12 +23,12 @@ class DataProvider:
         self.cache = {}
         self.cache_duration = cache_duration  # seconds
         
-        # Initialize Alpaca client with REAL trading keys
-        self.api_key = os.getenv('ALPACA_KEY')
-        self.secret_key = os.getenv('ALPACA_SECRET')
+                # Initialize Alpaca client with REAL trading keys
+        secrets_manager = SecretsManager(region_name="eu-west-2")
+        self.api_key, self.secret_key = secrets_manager.get_alpaca_keys(paper_trading=False)
         
         if not self.api_key or not self.secret_key:
-            raise ValueError("Alpaca API keys (ALPACA_KEY and ALPACA_SECRET) must be set in .env file")
+            raise ValueError("Alpaca API keys not found in AWS Secrets Manager for live trading")
         
         self.data_client = StockHistoricalDataClient(self.api_key, self.secret_key)
         logging.info("Initialized Alpaca DataProvider with real trading keys")
@@ -173,18 +172,20 @@ class AlpacaDataProvider:
         from core.config import Config
         config = Config()
         
-        # Use REAL trading keys by default
+        # Initialize secrets manager
+        secrets_manager = SecretsManager(region_name="eu-west-2")
+        
+        # Get API keys from AWS Secrets Manager
+        self.api_key, self.secret_key = secrets_manager.get_alpaca_keys(paper_trading=paper_trading)
+        
+        if not self.api_key or not self.secret_key:
+            raise ValueError(f"Alpaca API keys not found in AWS Secrets Manager for {'paper' if paper_trading else 'live'} trading")
+        
+        # Set endpoints
         if paper_trading:
-            self.api_key = os.getenv('ALPACA_PAPER_KEY')
-            self.secret_key = os.getenv('ALPACA_PAPER_SECRET')
             self.api_endpoint = paper_endpoint or config['alpaca'].get('paper_endpoint', 'https://paper-api.alpaca.markets/v2')
         else:
-            self.api_key = os.getenv('ALPACA_KEY')
-            self.secret_key = os.getenv('ALPACA_SECRET')
             self.api_endpoint = endpoint or config['alpaca'].get('endpoint', 'https://api.alpaca.markets')
-            
-        if not self.api_key or not self.secret_key:
-            raise ValueError(f"Alpaca API keys not found in .env file for {'paper' if paper_trading else 'live'} trading")
             
         self.trading_client = TradingClient(self.api_key, self.secret_key, paper=paper_trading)
         self.data_client = StockHistoricalDataClient(self.api_key, self.secret_key)

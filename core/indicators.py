@@ -3,7 +3,7 @@ Technical indicators for trading strategies using vectorbt.
 Provides RSI, moving averages, and return calculations.
 """
 import pandas as pd
-import vectorbt as vbt
+
 
 class TechnicalIndicators:
     """
@@ -14,26 +14,26 @@ class TechnicalIndicators:
     @staticmethod
     def rsi(data, window=14):
         """
-        Calculate RSI using vectorbt.
+        Calculate RSI manually using pandas.
         Returns a pandas Series of RSI values.
         """
-        try:
-            rsi_series = vbt.RSI.run(data, window=window).rsi
-            return pd.Series(rsi_series.values, index=data.index)
-        except Exception:
-            return pd.Series([50] * len(data), index=data.index)
+        delta = data.diff()
+        gain = delta.where(delta > 0, 0)
+        loss = -delta.where(delta < 0, 0)
+        avg_gain = gain.rolling(window=window, min_periods=window).mean()
+        avg_loss = loss.rolling(window=window, min_periods=window).mean()
+        rs = avg_gain / avg_loss
+        rsi = 100 - (100 / (1 + rs))
+        rsi = rsi.fillna(50)
+        return rsi
 
     @staticmethod
     def moving_average(data, window):
         """
-        Calculate moving average using vectorbt.
+        Calculate moving average using pandas.
         Returns a pandas Series of moving average values.
         """
-        try:
-            ma_series = vbt.MA.run(data, window=window).ma
-            return pd.Series(ma_series.values, index=data.index)
-        except Exception:
-            return data
+        return data.rolling(window=window, min_periods=window).mean()
 
     @staticmethod
     def moving_average_return(data, window):

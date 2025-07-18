@@ -56,7 +56,7 @@ python alpaca_trader.py
 
 ## How It Works
 
-1. **Signal Generation**: The nuclear trading bot generates signals and saves them to `data/logs/nuclear_alerts.json`
+1. **Signal Generation**: The nuclear trading bot generates signals and saves them to `/tmp/nuclear_alerts.json`
 
 2. **Signal Reading**: The Alpaca bot reads the latest signals (within last 5 minutes) to group portfolio signals
 
@@ -68,7 +68,7 @@ python alpaca_trader.py
    - Buys new/additional positions
    - Uses market orders with day duration
 
-6. **Logging**: All trades logged to `data/logs/alpaca_trades.json`
+6. **Logging**: All trades logged to `/tmp/alpaca_trades.json`
 
 
 ### Supported Signals
@@ -113,8 +113,8 @@ Target Portfolio: {'SMR': 0.312, 'LEU': 0.395, 'OKLO': 0.293}
 ## Files
 
 - `alpaca_trader.py`: Main trading bot class
-- `../logs/alpaca_trades.json`: Trade execution log
-- `../logs/alpaca_trader.log`: Error and info logs
+- `/tmp/alpaca_trades.json`: Trade execution log
+- `/tmp/alpaca_trader.log`: Error and info logs
 
 ## Troubleshooting
 
@@ -133,5 +133,5 @@ Target Portfolio: {'SMR': 0.312, 'LEU': 0.395, 'OKLO': 0.293}
 ### Signal Issues
 
 1. Ensure nuclear bot generated recent signals
-2. Check `nuclear_alerts.json` file exists
+2. Check `/tmp/nuclear_alerts.json` file exists
 3. Verify signal format and timestamps
