@@ -181,7 +181,11 @@ class AlpacaTradingBot:
                     limit_price=limit_price
                 )
                 
-                if not is_market_open(self.trading_client):
+                # Check if we should ignore market hours (for testing)
+                config = Config()
+                ignore_market_hours = config['alpaca'].get('ignore_market_hours', False)
+                
+                if not ignore_market_hours and not is_market_open(self.trading_client):
                     # Market is closed, place order once and return
                     order = self.trading_client.submit_order(limit_order_data)
                     return str(getattr(order, 'id', 'unknown'))

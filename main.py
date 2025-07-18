@@ -76,11 +76,20 @@ def run_live_trading_bot():
         print("📊 STEP 1: Checking Market Status...")
         print("-" * 50)
         alpaca_bot = AlpacaTradingBot()
-        if not is_market_open(alpaca_bot.trading_client):
+        
+        # Check if we should ignore market hours (for testing)
+        ignore_market_hours = config['alpaca'].get('ignore_market_hours', False)
+        
+        if not ignore_market_hours and not is_market_open(alpaca_bot.trading_client):
             print("❌ Market is CLOSED. No trades will be placed.")
             send_telegram_message("❌ Market is CLOSED. No trades will be placed.")
             return False
-        print("✅ Market is OPEN. Proceeding with trading.")
+        
+        if ignore_market_hours:
+            print("⚠️  IGNORING MARKET HOURS (Testing Mode)")
+            send_telegram_message("⚠️  IGNORING MARKET HOURS (Testing Mode)")
+        else:
+            print("✅ Market is OPEN. Proceeding with trading.")
         print()
         print("📊 STEP 2: Generating Nuclear Trading Signals...")
         print("-" * 50)
