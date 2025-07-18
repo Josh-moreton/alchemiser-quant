@@ -4,7 +4,6 @@ import os
 import logging
 from typing import cast
 from datetime import datetime, timedelta
-from dotenv import load_dotenv
 from alpaca.trading.client import TradingClient
 from alpaca.data.historical import StockHistoricalDataClient
 from alpaca.data.requests import StockBarsRequest, StockLatestQuoteRequest
@@ -13,7 +12,6 @@ from .config import Config
 from .secrets_manager import SecretsManager
 
 # Load environment variables from .env file
-load_dotenv()
 
 class DataProvider:
     """Fetch market data with caching using Alpaca API ONLY."""

@@ -11,7 +11,6 @@ import sys
 import time
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
-from dotenv import load_dotenv
 
 # Alpaca imports
 from alpaca.trading.client import TradingClient
@@ -28,7 +27,6 @@ from core.config import Config
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 # Load environment variables
-load_dotenv()
 
 # Load configuration
 config = Config()
@@ -51,19 +49,29 @@ def is_market_open(trading_client):
 class AlpacaTradingBot:
     """Alpaca Trading Bot for Nuclear Strategy"""
 
-    def __init__(self):
+    def __init__(self, paper_trading=None):
         """
         Initialize Alpaca trading bot using AlpacaDataProvider for all data access.
         Uses config.yaml for trading mode and endpoints.
+        
+        Args:
+            paper_trading (bool, optional): Override config setting for paper trading. 
+                                          If None, uses config.yaml setting.
         """
         from core.config import Config
         config = Config()
         alpaca_cfg = config['alpaca']
-        self.paper_trading = alpaca_cfg.get('paper', True)
+        
+        # Use parameter if provided, otherwise default to paper trading for safety
+        if paper_trading is not None:
+            self.paper_trading = paper_trading
+        else:
+            self.paper_trading = True  # Default to paper trading for safety
+            
         self.endpoint = alpaca_cfg.get('endpoint', 'https://api.alpaca.markets')
         self.paper_endpoint = alpaca_cfg.get('paper_endpoint', 'https://paper-api.alpaca.markets/v2')
 
-        logging.info(f"\U0001F3E6 Trading Mode: {'PAPER' if self.paper_trading else 'LIVE'} (from config.yaml)")
+        logging.info(f"\U0001F3E6 Trading Mode: {'PAPER' if self.paper_trading else 'LIVE'} (from CLI mode)")
 
         # Use AlpacaDataProvider for all Alpaca data access
         self.data_provider = AlpacaDataProvider(
@@ -229,18 +237,36 @@ class AlpacaTradingBot:
         Sells all reductions first, waits for settlement, then buys.
         """
         try:
+            print("🔄 Starting portfolio rebalancing...")
+            logging.info("🔄 Starting portfolio rebalancing...")
+            
             # Get initial account info and positions
             account_info = self.get_account_info()
             if not account_info:
                 logging.error("Could not get account information")
                 return []
+            
             portfolio_value = account_info['portfolio_value']
             buying_power = account_info.get('buying_power', account_info['cash'])
+            
+            print(f"📊 Account Info:")
+            print(f"   Portfolio Value: ${portfolio_value:,.2f}")
+            print(f"   Buying Power: ${buying_power:,.2f}")
+            logging.info(f"📊 Account Info:")
+            logging.info(f"   Portfolio Value: ${portfolio_value:,.2f}")
+            logging.info(f"   Buying Power: ${buying_power:,.2f}")
+            
             # Use only (1-cash_reserve_pct) of buying power for allocations
             from core.config import Config
             config = Config()
             cash_reserve_pct = config['alpaca'].get('cash_reserve_pct', 0.05)
             usable_buying_power = buying_power * (1 - cash_reserve_pct)
+            
+            print(f"   Cash Reserve: {cash_reserve_pct:.1%}")
+            print(f"   Usable Buying Power: ${usable_buying_power:,.2f}")
+            logging.info(f"   Cash Reserve: {cash_reserve_pct:.1%}")
+            logging.info(f"   Usable Buying Power: ${usable_buying_power:,.2f}")
+            
             current_positions = self.get_positions()
 
             # Calculate current allocations
@@ -248,19 +274,43 @@ class AlpacaTradingBot:
                 symbol: pos['market_value'] / portfolio_value
                 for symbol, pos in current_positions.items()
             }
+            
+            print(f"🎯 Target vs Current Allocations:")
+            logging.info(f"🎯 Target vs Current Allocations:")
+            for symbol in set(list(target_portfolio.keys()) + list(current_allocations.keys())):
+                target_weight = target_portfolio.get(symbol, 0.0)
+                current_weight = current_allocations.get(symbol, 0.0)
+                target_value = portfolio_value * target_weight
+                current_value = current_positions.get(symbol, {}).get('market_value', 0.0)
+                
+                print(f"   {symbol}: Target {target_weight:.1%} (${target_value:.2f}) | Current {current_weight:.1%} (${current_value:.2f})")
+                logging.info(f"   {symbol}: Target {target_weight:.1%} (${target_value:.2f}) | Current {current_weight:.1%} (${current_value:.2f})")
 
             # --- PHASE 1: Sells ---
+            print("📉 PHASE 1: Checking for positions to reduce/sell...")
+            logging.info("📉 PHASE 1: Checking for positions to reduce/sell...")
             orders_executed = []
+            sells_needed = False
+            
             for symbol, pos in current_positions.items():
                 target_weight = target_portfolio.get(symbol, 0.0)
                 current_weight = current_allocations.get(symbol, 0.0)
+                
                 if current_weight > target_weight:
-                    # Need to reduce or close this position
+                    sells_needed = True
                     target_value = portfolio_value * target_weight
                     value_to_sell = pos['market_value'] - target_value
+                    
+                    print(f"   {symbol}: Need to reduce by ${value_to_sell:.2f}")
+                    logging.info(f"   {symbol}: Need to reduce by ${value_to_sell:.2f}")
+                    
                     if value_to_sell > 1.0:
                         current_price = self.get_current_price(symbol)
                         sell_qty = min(round(value_to_sell / current_price, 6), pos['qty'])
+                        
+                        print(f"   {symbol}: Selling {sell_qty} shares at ${current_price:.2f}")
+                        logging.info(f"   {symbol}: Selling {sell_qty} shares at ${current_price:.2f}")
+                        
                         if sell_qty > 0:
                             order_id = self.place_order(symbol, sell_qty, OrderSide.SELL)
                             if order_id:
@@ -271,35 +321,78 @@ class AlpacaTradingBot:
                                     'order_id': order_id,
                                     'estimated_value': sell_qty * current_price
                                 })
-                                logging.info(f"Sold {sell_qty} of {symbol} for rebalancing.")
+                                print(f"   ✅ {symbol}: Sold {sell_qty} shares (Order ID: {order_id})")
+                                logging.info(f"   ✅ {symbol}: Sold {sell_qty} shares (Order ID: {order_id})")
+                            else:
+                                print(f"   ❌ {symbol}: Failed to place sell order")
+                                logging.error(f"   ❌ {symbol}: Failed to place sell order")
+                    else:
+                        print(f"   {symbol}: Value to sell (${value_to_sell:.2f}) below minimum trade size")
+                        logging.info(f"   {symbol}: Value to sell (${value_to_sell:.2f}) below minimum trade size")
+                else:
+                    print(f"   {symbol}: No sell needed (current: {current_weight:.1%}, target: {target_weight:.1%})")
+                    logging.info(f"   {symbol}: No sell needed (current: {current_weight:.1%}, target: {target_weight:.1%})")
+            
+            if not sells_needed:
+                print("   No sells needed - all positions are below target allocations")
+                logging.info("   No sells needed - all positions are below target allocations")
 
             # Wait for settlement and refresh account info
-            logging.info("Waiting for settlement after sells...")
-            time.sleep(10)
-            account_info = self.get_account_info()
-            portfolio_value = account_info['portfolio_value']
-            buying_power = account_info.get('buying_power', account_info['cash'])
-            current_positions = self.get_positions()
+            if orders_executed:
+                print("⏳ Waiting for settlement after sells...")
+                logging.info("⏳ Waiting for settlement after sells...")
+                time.sleep(10)
+                account_info = self.get_account_info()
+                portfolio_value = account_info['portfolio_value']
+                buying_power = account_info.get('buying_power', account_info['cash'])
+                current_positions = self.get_positions()
+                print(f"   Updated Portfolio Value: ${portfolio_value:,.2f}")
+                print(f"   Updated Buying Power: ${buying_power:,.2f}")
+                logging.info(f"   Updated Portfolio Value: ${portfolio_value:,.2f}")
+                logging.info(f"   Updated Buying Power: ${buying_power:,.2f}")
 
             # --- PHASE 2: Buys ---
+            print("📈 PHASE 2: Checking for positions to increase/buy...")
+            logging.info("📈 PHASE 2: Checking for positions to increase/buy...")
+            
             # Recalculate allocations after sells
             current_allocations = {
                 symbol: pos['market_value'] / portfolio_value
                 for symbol, pos in current_positions.items()
             }
+            
             remaining_buying_power = usable_buying_power
+            print(f"   Available buying power: ${remaining_buying_power:.2f}")
+            logging.info(f"   Available buying power: ${remaining_buying_power:.2f}")
+            
+            buys_needed = False
             for symbol, target_weight in sorted(target_portfolio.items(), key=lambda x: x[1], reverse=True):
                 current_weight = current_allocations.get(symbol, 0.0)
+                
                 if target_weight > current_weight:
+                    buys_needed = True
                     target_value = portfolio_value * target_weight
                     current_value = current_positions.get(symbol, {}).get('market_value', 0.0)
                     value_to_buy = target_value - current_value
+                    
+                    print(f"   {symbol}: Need to buy ${value_to_buy:.2f} more")
+                    logging.info(f"   {symbol}: Need to buy ${value_to_buy:.2f} more")
+                    
                     if value_to_buy > 1.0 and remaining_buying_power > 1.0:
                         current_price = self.get_current_price(symbol)
                         actual_value_to_buy = min(value_to_buy, remaining_buying_power)
+                        
                         import math
                         buy_qty = math.floor((actual_value_to_buy / current_price) * 1e6) / 1e6
                         required_cash = buy_qty * current_price
+                        
+                        print(f"   {symbol}: Calculated buy qty: {buy_qty} shares")
+                        print(f"   {symbol}: Required cash: ${required_cash:.2f}")
+                        print(f"   {symbol}: Available cash: ${remaining_buying_power:.2f}")
+                        logging.info(f"   {symbol}: Calculated buy qty: {buy_qty} shares")
+                        logging.info(f"   {symbol}: Required cash: ${required_cash:.2f}")
+                        logging.info(f"   {symbol}: Available cash: ${remaining_buying_power:.2f}")
+                        
                         if buy_qty > 0 and required_cash <= remaining_buying_power:
                             order_id = self.place_order(symbol, buy_qty, OrderSide.BUY)
                             if order_id:
@@ -311,12 +404,50 @@ class AlpacaTradingBot:
                                     'estimated_value': required_cash
                                 })
                                 remaining_buying_power -= required_cash
-                                logging.info(f"Bought {buy_qty} of {symbol} for rebalancing.")
+                                print(f"   ✅ {symbol}: Bought {buy_qty} shares (Order ID: {order_id})")
+                                logging.info(f"   ✅ {symbol}: Bought {buy_qty} shares (Order ID: {order_id})")
+                            else:
+                                print(f"   ❌ {symbol}: Failed to place buy order")
+                                logging.error(f"   ❌ {symbol}: Failed to place buy order")
+                        else:
+                            if buy_qty <= 0:
+                                print(f"   {symbol}: Buy quantity too small: {buy_qty}")
+                                logging.info(f"   {symbol}: Buy quantity too small: {buy_qty}")
+                            else:
+                                print(f"   {symbol}: Insufficient cash (need ${required_cash:.2f}, have ${remaining_buying_power:.2f})")
+                                logging.info(f"   {symbol}: Insufficient cash (need ${required_cash:.2f}, have ${remaining_buying_power:.2f})")
+                    else:
+                        if value_to_buy <= 1.0:
+                            print(f"   {symbol}: Value to buy (${value_to_buy:.2f}) below minimum trade size")
+                            logging.info(f"   {symbol}: Value to buy (${value_to_buy:.2f}) below minimum trade size")
+                        else:
+                            print(f"   {symbol}: No buying power remaining (${remaining_buying_power:.2f})")
+                            logging.info(f"   {symbol}: No buying power remaining (${remaining_buying_power:.2f})")
+                else:
+                    print(f"   {symbol}: No buy needed (current: {current_weight:.1%}, target: {target_weight:.1%})")
+                    logging.info(f"   {symbol}: No buy needed (current: {current_weight:.1%}, target: {target_weight:.1%})")
+            
+            if not buys_needed:
+                print("   No buys needed - all positions are at or above target allocations")
+                logging.info("   No buys needed - all positions are at or above target allocations")
 
-            logging.info(f"Rebalancing complete. Orders executed: {len(orders_executed)}")
+            print(f"✅ Rebalancing complete. Orders executed: {len(orders_executed)}")
+            logging.info(f"✅ Rebalancing complete. Orders executed: {len(orders_executed)}")
+            
+            if orders_executed:
+                print("📋 Summary of executed orders:")
+                logging.info("📋 Summary of executed orders:")
+                for order in orders_executed:
+                    print(f"   {order['side'].value} {order['qty']} {order['symbol']} (${order['estimated_value']:.2f})")
+                    logging.info(f"   {order['side'].value} {order['qty']} {order['symbol']} (${order['estimated_value']:.2f})")
+            else:
+                print("   No orders executed - portfolio is already properly balanced")
+                logging.info("   No orders executed - portfolio is already properly balanced")
+            
             return orders_executed
 
         except Exception as e:
+            print(f"❌ Error rebalancing portfolio: {e}")
             logging.error(f"Error rebalancing portfolio: {e}")
             return []
     
