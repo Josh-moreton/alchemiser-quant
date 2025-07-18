@@ -1,13 +1,3 @@
-# Email configuration
-email:
-  sender: "joshuamoreton1@icloud.com"
-  recipients:
-    - "josh@rwxt.org"
-  smtp_server: "smtp.mail.me.com"
-  smtp_port: 587
-  username: "joshuamoreton1@icloud.com"
-  # password is loaded from .env (SMTP_PASSWORD)
-
 # Logging configuration
 logging:
   level: "INFO"
@@ -19,7 +9,6 @@ logging:
 # Alpaca configuration
 alpaca:
   # api_key and api_secret loaded from .env
-  paper: false
   endpoint: "https://api.alpaca.markets"
   paper_endpoint: "https://paper-api.alpaca.markets/v2"
   cash_reserve_pct: 0.05
