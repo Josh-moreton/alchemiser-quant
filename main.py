@@ -72,8 +72,17 @@ def run_live_trading_bot():
     print()
     try:
         from core.telegram_utils import send_telegram_message
-        from execution.alpaca_trader import AlpacaTradingBot
-        print("📊 STEP 1: Generating Nuclear Trading Signals...")
+        from execution.alpaca_trader import AlpacaTradingBot, is_market_open
+        print("📊 STEP 1: Checking Market Status...")
+        print("-" * 50)
+        alpaca_bot = AlpacaTradingBot()
+        if not is_market_open(alpaca_bot.trading_client):
+            print("❌ Market is CLOSED. No trades will be placed.")
+            send_telegram_message("❌ Market is CLOSED. No trades will be placed.")
+            return False
+        print("✅ Market is OPEN. Proceeding with trading.")
+        print()
+        print("📊 STEP 2: Generating Nuclear Trading Signals...")
         print("-" * 50)
         # Generate nuclear signals
         bot, signal = generate_signal()
@@ -83,10 +92,6 @@ def run_live_trading_bot():
             return False
         print("✅ Nuclear trading signals generated successfully!")
         print()
-        # Import and initialize Alpaca trading bot
-        print(f"🏦 STEP 2: Connecting to Alpaca {trading_mode} Trading...")
-        print("-" * 50)
-        alpaca_bot = AlpacaTradingBot()
         # Get account info before trading
         account_info_before = alpaca_bot.get_account_info()
         # Display account summary before trading

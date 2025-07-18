@@ -31,7 +31,7 @@ def send_telegram_message(text, chat_id=None, parse_mode=None):
     if parse_mode:
         payload["parse_mode"] = parse_mode
     try:
-        resp = requests.post(url, data=payload)
+        resp = requests.post(url, data=payload, timeout=10)
         if resp.status_code == 200:
             return True
         else:

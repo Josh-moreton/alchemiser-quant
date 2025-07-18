@@ -36,7 +36,7 @@ logging_config = config['logging']
 
 # Configure logging
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
         logging.FileHandler(logging_config['alpaca_log']),
