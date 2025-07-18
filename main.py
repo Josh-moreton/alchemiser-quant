@@ -59,10 +59,13 @@ def run_trading_bot():
 
 
 
-def run_live_trading_bot():
+def run_live_trading_bot(ignore_market_hours=False):
     """
     Run the nuclear trading bot with Alpaca execution and send Telegram update instead of email.
     This mode generates signals, executes trades via Alpaca, and sends a Telegram notification summarizing the results.
+    
+    Args:
+        ignore_market_hours (bool): If True, ignore market hours and run during closed market (for testing)
     """
     print("🚀 NUCLEAR TRADING BOT - LIVE TRADING MODE")
     print("=" * 60)
@@ -77,9 +80,7 @@ def run_live_trading_bot():
         print("-" * 50)
         alpaca_bot = AlpacaTradingBot()
         
-        # Check if we should ignore market hours (for testing)
-        ignore_market_hours = config['alpaca'].get('ignore_market_hours', False)
-        
+        # Check if we should ignore market hours (from command line argument)
         if not ignore_market_hours and not is_market_open(alpaca_bot.trading_client):
             print("❌ Market is CLOSED. No trades will be placed.")
             send_telegram_message("❌ Market is CLOSED. No trades will be placed.")
@@ -187,6 +188,8 @@ def main():
     parser = argparse.ArgumentParser(description="Nuclear Trading Strategy - Unified Entry Point")
     parser.add_argument('mode', choices=['bot', 'live'], 
                        help='Operation mode to run')
+    parser.add_argument('--ignore-market-hours', action='store_true',
+                       help='Ignore market hours and run during closed market (for testing)')
 
     args = parser.parse_args()
 
@@ -199,7 +202,7 @@ def main():
         if args.mode == 'bot':
             success = run_trading_bot()
         elif args.mode == 'live':
-            success = run_live_trading_bot()
+            success = run_live_trading_bot(ignore_market_hours=args.ignore_market_hours)
     except Exception as e:
         print(f"\n💥 Operation failed due to error: {e}")
         traceback.print_exc()

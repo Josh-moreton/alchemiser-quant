@@ -23,7 +23,6 @@ alpaca:
   endpoint: "https://api.alpaca.markets"
   paper_endpoint: "https://paper-api.alpaca.markets/v2"
   cash_reserve_pct: 0.05
-  ignore_market_hours: true # Set to true for testing outside market hours
 
 # Data configuration
 data:

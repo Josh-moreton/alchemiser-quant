@@ -181,37 +181,28 @@ class AlpacaTradingBot:
                     limit_price=limit_price
                 )
                 
-                # Check if we should ignore market hours (for testing)
-                config = Config()
-                ignore_market_hours = config['alpaca'].get('ignore_market_hours', False)
-                
-                if not ignore_market_hours and not is_market_open(self.trading_client):
-                    # Market is closed, place order once and return
-                    order = self.trading_client.submit_order(limit_order_data)
-                    return str(getattr(order, 'id', 'unknown'))
-                else:
-                    # Retry logic as before
-                    order = self.trading_client.submit_order(limit_order_data)
-                    order_id = str(getattr(order, 'id', 'unknown'))
-                    order_status = getattr(order, 'status', 'unknown')
+                # Place order directly (market hours check is handled in main.py)
+                order = self.trading_client.submit_order(limit_order_data)
+                order_id = str(getattr(order, 'id', 'unknown'))
+                order_status = getattr(order, 'status', 'unknown')
 
-                    # Poll for order status
-                    poll_start = time.time()
-                    while time.time() - poll_start < poll_timeout:
-                        polled_order = self.trading_client.get_order_by_id(order_id)
-                        polled_status = getattr(polled_order, 'status', 'unknown')
-                        if polled_status == "filled":
-                            logging.info(f"Limit order filled: {order_id}")
-                            return order_id
-                        elif polled_status in ("canceled", "rejected"):
-                            logging.warning(f"Limit order {order_id} was {polled_status}")
-                            break
-                        time.sleep(poll_interval)
+                # Poll for order status
+                poll_start = time.time()
+                while time.time() - poll_start < poll_timeout:
+                    polled_order = self.trading_client.get_order_by_id(order_id)
+                    polled_status = getattr(polled_order, 'status', 'unknown')
+                    if polled_status == "filled":
+                        logging.info(f"Limit order filled: {order_id}")
+                        return order_id
+                    elif polled_status in ("canceled", "rejected"):
+                        logging.warning(f"Limit order {order_id} was {polled_status}")
+                        break
+                    time.sleep(poll_interval)
 
-                    # If not filled, cancel and retry with wider slippage
-                    self.trading_client.cancel_order_by_id(order_id)
-                    logging.warning(f"Limit order {order_id} not filled in time, canceled. Retrying with wider slippage.")
-                    slippage_bps *= 2  # Double the slippage for next attempt
+                # If not filled, cancel and retry with wider slippage
+                self.trading_client.cancel_order_by_id(order_id)
+                logging.warning(f"Limit order {order_id} not filled in time, canceled. Retrying with wider slippage.")
+                slippage_bps *= 2  # Double the slippage for next attempt
 
             except Exception as e:
                 logging.error(f"Exception placing limit order for {symbol}: {e}", exc_info=True)
