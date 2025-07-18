@@ -55,3 +55,5 @@ dist/
 *.egg-info/
 
 
+data/logs/nuclear_alerts.json
+data/logs/nuclear_alerts.log

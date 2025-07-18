@@ -1,0 +1,8 @@
+# Exclude signal/log files and other unnecessary files from Docker image
+data/logs/*
+*.pyc
+__pycache__/
+.env
+.git
+.gitignore
+.DS_Store
