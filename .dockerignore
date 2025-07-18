@@ -3,7 +3,6 @@ data/logs/*
 *.pyc
 __pycache__/
 .env
-.env.old
 .git
 .gitignore
 .DS_Store

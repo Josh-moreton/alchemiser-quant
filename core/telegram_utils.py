@@ -1,18 +1,11 @@
 import os
 import requests
-import boto3
-import json
+from dotenv import load_dotenv
 
-# Load secrets from AWS Secrets Manager
-def get_secrets(secret_name="nuclear-secrets", region_name="eu-west-2"):
-    client = boto3.client("secretsmanager", region_name=region_name)
-    response = client.get_secret_value(SecretId=secret_name)
-    secret = response.get("SecretString")
-    return json.loads(secret)
+load_dotenv()
 
-secrets = get_secrets()
-TELEGRAM_TOKEN = secrets["TELEGRAM_TOKEN"]
-TELEGRAM_CHAT_ID = secrets["TELEGRAM_CHAT_ID"]
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")  # Set this in your .env
 
 
 def send_telegram_message(text, chat_id=None, parse_mode=None):
