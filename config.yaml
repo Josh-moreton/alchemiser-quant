@@ -3,7 +3,7 @@ logging:
   level: "INFO"
   nuclear_alerts_log: "data/logs/nuclear_alerts.log"
   nuclear_alerts_json: "data/logs/nuclear_alerts.json"
-  alpaca_log: "data/logs/alpaca_trader.log"
+  alpaca_log: "/tmp/alpaca_trader.log"
   alpaca_trades_json: "data/logs/alpaca_trades.json"
 
 # Alpaca configuration

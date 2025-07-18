@@ -20,7 +20,7 @@ def test_config_loading():
     logging_config = config['logging']
     assert logging_config['level'] == 'INFO'
     assert logging_config['nuclear_alerts_json'] == 'data/logs/nuclear_alerts.json'
-    assert logging_config['alpaca_log'] == 'data/logs/alpaca_trader.log'
+    assert logging_config['alpaca_log'] == '/tmp/alpaca_trader.log'
     
     # Test data configuration
     assert 'data' in config

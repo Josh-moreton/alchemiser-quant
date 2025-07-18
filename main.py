@@ -70,6 +70,8 @@ def run_live_trading_bot(ignore_market_hours=False):
     print("🚀 NUCLEAR TRADING BOT - LIVE TRADING MODE")
     print("=" * 60)
     print(f"Running trading analysis with Alpaca LIVE trading at {datetime.now()}")
+    print("[INFO] Initializing Telegram and Alpaca modules...")
+    print("[INFO] Importing send_telegram_message and AlpacaTradingBot. This may take a few seconds if cold starting.")
     print()
     try:
         from core.telegram_utils import send_telegram_message
