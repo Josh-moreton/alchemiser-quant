@@ -36,6 +36,8 @@ data/*.csv
 
 # Environment variables
 .env
+.env.old
+
 
 # Jupyter Notebook checkpoints
 .ipynb_checkpoints/
