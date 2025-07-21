@@ -166,6 +166,24 @@ class AlpacaTradingBot:
             logging.warning(f"Invalid quantity for {symbol}: {qty}")
             return None
 
+        # Cancel any existing orders for this symbol to avoid wash trade issues
+        try:
+            from alpaca.trading.requests import GetOrdersRequest
+            from alpaca.trading.enums import QueryOrderStatus
+            
+            order_filter = GetOrdersRequest(
+                status=QueryOrderStatus.OPEN,
+                symbols=[symbol]
+            )
+            existing_orders = self.trading_client.get_orders(order_filter)
+            for order in existing_orders:
+                order_id = getattr(order, 'id', None)
+                if order_id:
+                    self.trading_client.cancel_order_by_id(order_id)
+                    logging.info(f"Canceled existing order {order_id} for {symbol}")
+        except Exception as e:
+            logging.warning(f"Error canceling existing orders for {symbol}: {e}")
+
         for attempt in range(max_retries + 1):  # +1 for initial attempt
             try:
                 current_price = self.get_current_price(symbol)
@@ -289,49 +307,73 @@ class AlpacaTradingBot:
             # --- PHASE 1: Sells ---
             print("📉 PHASE 1: Checking for positions to reduce/sell...")
             logging.info("📉 PHASE 1: Checking for positions to reduce/sell...")
+            rebalance_threshold = 0.01  # 1% threshold
             orders_executed = []
             sells_needed = False
+            any_trades_needed = False
+            
+            # First, check if ANY trades are needed at all
+            for symbol in set(list(target_portfolio.keys()) + list(current_allocations.keys())):
+                target_weight = target_portfolio.get(symbol, 0.0)
+                current_weight = current_allocations.get(symbol, 0.0)
+                deviation = abs(current_weight - target_weight)
+                
+                if deviation > rebalance_threshold:
+                    any_trades_needed = True
+                    break
+            
+            if not any_trades_needed:
+                print("   🎯 All positions are within 1% threshold - no rebalancing needed")
+                logging.info("   🎯 All positions are within 1% threshold - no rebalancing needed")
+                print(f"✅ Rebalancing complete. Orders executed: 0")
+                logging.info(f"✅ Rebalancing complete. Orders executed: 0")
+                return []
             
             for symbol, pos in current_positions.items():
                 target_weight = target_portfolio.get(symbol, 0.0)
                 current_weight = current_allocations.get(symbol, 0.0)
+                deviation = current_weight - target_weight
                 
-                if current_weight > target_weight:
-                    sells_needed = True
-                    target_value = portfolio_value * target_weight
-                    value_to_sell = pos['market_value'] - target_value
-                    
-                    print(f"   {symbol}: Need to reduce by ${value_to_sell:.2f}")
-                    logging.info(f"   {symbol}: Need to reduce by ${value_to_sell:.2f}")
-                    
-                    if value_to_sell > 1.0:
-                        current_price = self.get_current_price(symbol)
-                        sell_qty = min(round(value_to_sell / current_price, 6), pos['qty'])
+                if abs(deviation) > rebalance_threshold:
+                    if deviation > 0:
+                        sells_needed = True
+                        target_value = portfolio_value * target_weight
+                        value_to_sell = pos['market_value'] - target_value
                         
-                        print(f"   {symbol}: Selling {sell_qty} shares at ${current_price:.2f}")
-                        logging.info(f"   {symbol}: Selling {sell_qty} shares at ${current_price:.2f}")
+                        print(f"   {symbol}: Need to reduce by ${value_to_sell:.2f} (deviation: {deviation:.2%})")
+                        logging.info(f"   {symbol}: Need to reduce by ${value_to_sell:.2f} (deviation: {deviation:.2%})")
                         
-                        if sell_qty > 0:
-                            order_id = self.place_order(symbol, sell_qty, OrderSide.SELL)
-                            if order_id:
-                                orders_executed.append({
-                                    'symbol': symbol,
-                                    'side': OrderSide.SELL,
-                                    'qty': sell_qty,
-                                    'order_id': order_id,
-                                    'estimated_value': sell_qty * current_price
-                                })
-                                print(f"   ✅ {symbol}: Sold {sell_qty} shares (Order ID: {order_id})")
-                                logging.info(f"   ✅ {symbol}: Sold {sell_qty} shares (Order ID: {order_id})")
-                            else:
-                                print(f"   ❌ {symbol}: Failed to place sell order")
-                                logging.error(f"   ❌ {symbol}: Failed to place sell order")
+                        if value_to_sell > 1.0:
+                            current_price = self.get_current_price(symbol)
+                            sell_qty = min(round(value_to_sell / current_price, 6), pos['qty'])
+                            
+                            print(f"   {symbol}: Selling {sell_qty} shares at ${current_price:.2f}")
+                            logging.info(f"   {symbol}: Selling {sell_qty} shares at ${current_price:.2f}")
+                            
+                            if sell_qty > 0:
+                                order_id = self.place_order(symbol, sell_qty, OrderSide.SELL)
+                                if order_id:
+                                    orders_executed.append({
+                                        'symbol': symbol,
+                                        'side': OrderSide.SELL,
+                                        'qty': sell_qty,
+                                        'order_id': order_id,
+                                        'estimated_value': sell_qty * current_price
+                                    })
+                                    print(f"   ✅ {symbol}: Sold {sell_qty} shares (Order ID: {order_id})")
+                                    logging.info(f"   ✅ {symbol}: Sold {sell_qty} shares (Order ID: {order_id})")
+                                else:
+                                    print(f"   ❌ {symbol}: Failed to place sell order")
+                                    logging.error(f"   ❌ {symbol}: Failed to place sell order")
+                        else:
+                            print(f"   {symbol}: Value to sell (${value_to_sell:.2f}) below minimum trade size")
+                            logging.info(f"   {symbol}: Value to sell (${value_to_sell:.2f}) below minimum trade size")
                     else:
-                        print(f"   {symbol}: Value to sell (${value_to_sell:.2f}) below minimum trade size")
-                        logging.info(f"   {symbol}: Value to sell (${value_to_sell:.2f}) below minimum trade size")
+                        print(f"   {symbol}: No sell needed (deviation: {deviation:.2%}, current: {current_weight:.1%}, target: {target_weight:.1%})")
+                        logging.info(f"   {symbol}: No sell needed (deviation: {deviation:.2%}, current: {current_weight:.1%}, target: {target_weight:.1%})")
                 else:
-                    print(f"   {symbol}: No sell needed (current: {current_weight:.1%}, target: {target_weight:.1%})")
-                    logging.info(f"   {symbol}: No sell needed (current: {current_weight:.1%}, target: {target_weight:.1%})")
+                    print(f"   {symbol}: No trade needed (deviation: {deviation:.2%}, current: {current_weight:.1%}, target: {target_weight:.1%})")
+                    logging.info(f"   {symbol}: No trade needed (deviation: {deviation:.2%}, current: {current_weight:.1%}, target: {target_weight:.1%})")
             
             if not sells_needed:
                 print("   No sells needed - all positions are below target allocations")
@@ -368,64 +410,69 @@ class AlpacaTradingBot:
             buys_needed = False
             for symbol, target_weight in sorted(target_portfolio.items(), key=lambda x: x[1], reverse=True):
                 current_weight = current_allocations.get(symbol, 0.0)
+                deviation = target_weight - current_weight
                 
-                if target_weight > current_weight:
-                    buys_needed = True
-                    target_value = portfolio_value * target_weight
-                    current_value = current_positions.get(symbol, {}).get('market_value', 0.0)
-                    value_to_buy = target_value - current_value
-                    
-                    print(f"   {symbol}: Need to buy ${value_to_buy:.2f} more")
-                    logging.info(f"   {symbol}: Need to buy ${value_to_buy:.2f} more")
-                    
-                    if value_to_buy > 1.0 and remaining_buying_power > 1.0:
-                        current_price = self.get_current_price(symbol)
-                        actual_value_to_buy = min(value_to_buy, remaining_buying_power)
+                if abs(deviation) > rebalance_threshold:
+                    if deviation > 0:
+                        buys_needed = True
+                        target_value = portfolio_value * target_weight
+                        current_value = current_positions.get(symbol, {}).get('market_value', 0.0)
+                        value_to_buy = target_value - current_value
                         
-                        import math
-                        buy_qty = math.floor((actual_value_to_buy / current_price) * 1e6) / 1e6
-                        required_cash = buy_qty * current_price
+                        print(f"   {symbol}: Need to buy ${value_to_buy:.2f} more (deviation: {deviation:.2%})")
+                        logging.info(f"   {symbol}: Need to buy ${value_to_buy:.2f} more (deviation: {deviation:.2%})")
                         
-                        print(f"   {symbol}: Calculated buy qty: {buy_qty} shares")
-                        print(f"   {symbol}: Required cash: ${required_cash:.2f}")
-                        print(f"   {symbol}: Available cash: ${remaining_buying_power:.2f}")
-                        logging.info(f"   {symbol}: Calculated buy qty: {buy_qty} shares")
-                        logging.info(f"   {symbol}: Required cash: ${required_cash:.2f}")
-                        logging.info(f"   {symbol}: Available cash: ${remaining_buying_power:.2f}")
-                        
-                        if buy_qty > 0 and required_cash <= remaining_buying_power:
-                            order_id = self.place_order(symbol, buy_qty, OrderSide.BUY)
-                            if order_id:
-                                orders_executed.append({
-                                    'symbol': symbol,
-                                    'side': OrderSide.BUY,
-                                    'qty': buy_qty,
-                                    'order_id': order_id,
-                                    'estimated_value': required_cash
-                                })
-                                remaining_buying_power -= required_cash
-                                print(f"   ✅ {symbol}: Bought {buy_qty} shares (Order ID: {order_id})")
-                                logging.info(f"   ✅ {symbol}: Bought {buy_qty} shares (Order ID: {order_id})")
+                        if value_to_buy > 1.0 and remaining_buying_power > 1.0:
+                            current_price = self.get_current_price(symbol)
+                            actual_value_to_buy = min(value_to_buy, remaining_buying_power)
+                            
+                            import math
+                            buy_qty = math.floor((actual_value_to_buy / current_price) * 1e6) / 1e6
+                            required_cash = buy_qty * current_price
+                            
+                            print(f"   {symbol}: Calculated buy qty: {buy_qty} shares")
+                            print(f"   {symbol}: Required cash: ${required_cash:.2f}")
+                            print(f"   {symbol}: Available cash: ${remaining_buying_power:.2f}")
+                            logging.info(f"   {symbol}: Calculated buy qty: {buy_qty} shares")
+                            logging.info(f"   {symbol}: Required cash: ${required_cash:.2f}")
+                            logging.info(f"   {symbol}: Available cash: ${remaining_buying_power:.2f}")
+                            
+                            if buy_qty > 0 and required_cash <= remaining_buying_power:
+                                order_id = self.place_order(symbol, buy_qty, OrderSide.BUY)
+                                if order_id:
+                                    orders_executed.append({
+                                        'symbol': symbol,
+                                        'side': OrderSide.BUY,
+                                        'qty': buy_qty,
+                                        'order_id': order_id,
+                                        'estimated_value': required_cash
+                                    })
+                                    remaining_buying_power -= required_cash
+                                    print(f"   ✅ {symbol}: Bought {buy_qty} shares (Order ID: {order_id})")
+                                    logging.info(f"   ✅ {symbol}: Bought {buy_qty} shares (Order ID: {order_id})")
+                                else:
+                                    print(f"   ❌ {symbol}: Failed to place buy order")
+                                    logging.error(f"   ❌ {symbol}: Failed to place buy order")
                             else:
-                                print(f"   ❌ {symbol}: Failed to place buy order")
-                                logging.error(f"   ❌ {symbol}: Failed to place buy order")
+                                if buy_qty <= 0:
+                                    print(f"   {symbol}: Buy quantity too small: {buy_qty}")
+                                    logging.info(f"   {symbol}: Buy quantity too small: {buy_qty}")
+                                else:
+                                    print(f"   {symbol}: Insufficient cash (need ${required_cash:.2f}, have ${remaining_buying_power:.2f})")
+                                    logging.info(f"   {symbol}: Insufficient cash (need ${required_cash:.2f}, have ${remaining_buying_power:.2f})")
                         else:
-                            if buy_qty <= 0:
-                                print(f"   {symbol}: Buy quantity too small: {buy_qty}")
-                                logging.info(f"   {symbol}: Buy quantity too small: {buy_qty}")
+                            if value_to_buy <= 1.0:
+                                print(f"   {symbol}: Value to buy (${value_to_buy:.2f}) below minimum trade size")
+                                logging.info(f"   {symbol}: Value to buy (${value_to_buy:.2f}) below minimum trade size")
                             else:
-                                print(f"   {symbol}: Insufficient cash (need ${required_cash:.2f}, have ${remaining_buying_power:.2f})")
-                                logging.info(f"   {symbol}: Insufficient cash (need ${required_cash:.2f}, have ${remaining_buying_power:.2f})")
+                                print(f"   {symbol}: No buying power remaining (${remaining_buying_power:.2f})")
+                                logging.info(f"   {symbol}: No buying power remaining (${remaining_buying_power:.2f})")
                     else:
-                        if value_to_buy <= 1.0:
-                            print(f"   {symbol}: Value to buy (${value_to_buy:.2f}) below minimum trade size")
-                            logging.info(f"   {symbol}: Value to buy (${value_to_buy:.2f}) below minimum trade size")
-                        else:
-                            print(f"   {symbol}: No buying power remaining (${remaining_buying_power:.2f})")
-                            logging.info(f"   {symbol}: No buying power remaining (${remaining_buying_power:.2f})")
+                        print(f"   {symbol}: No buy needed (deviation: {deviation:.2%}, current: {current_weight:.1%}, target: {target_weight:.1%})")
+                        logging.info(f"   {symbol}: No buy needed (deviation: {deviation:.2%}, current: {current_weight:.1%}, target: {target_weight:.1%})")
                 else:
-                    print(f"   {symbol}: No buy needed (current: {current_weight:.1%}, target: {target_weight:.1%})")
-                    logging.info(f"   {symbol}: No buy needed (current: {current_weight:.1%}, target: {target_weight:.1%})")
+                    print(f"   {symbol}: No trade needed (deviation: {deviation:.2%}, current: {current_weight:.1%}, target: {target_weight:.1%})")
+                    logging.info(f"   {symbol}: No trade needed (deviation: {deviation:.2%}, current: {current_weight:.1%}, target: {target_weight:.1%})")
             
             if not buys_needed:
                 print("   No buys needed - all positions are at or above target allocations")
