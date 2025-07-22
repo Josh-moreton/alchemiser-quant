@@ -109,20 +109,9 @@ def run_live_trading_bot(ignore_market_hours=False):
         alpaca_bot.display_account_summary()
         print("⚡ STEP 3: Executing Trades Based on Nuclear Signals...")
         print("-" * 50)
-        # Execute nuclear strategy and capture orders
-        orders = []  # Always reset orders for each run
-        success = False
-        orig_rebalance = alpaca_bot.rebalance_portfolio
-        def rebalance_and_capture(*args, **kwargs):
-            result = orig_rebalance(*args, **kwargs)
-            nonlocal orders
-            orders = result  # Only set orders for this run
-            return result
-        alpaca_bot.rebalance_portfolio = rebalance_and_capture
-        try:
-            success = alpaca_bot.execute_nuclear_strategy()
-        finally:
-            alpaca_bot.rebalance_portfolio = orig_rebalance
+        # Execute nuclear strategy which returns whether it succeeded and any
+        # orders that were executed
+        success, orders = alpaca_bot.execute_nuclear_strategy()
         if success:
             print("✅ Trade execution completed successfully!")
         else:
@@ -220,8 +209,7 @@ def run_paper_trading_bot(ignore_market_hours=False):
         print("-" * 50)
         
         # Execute nuclear strategy via Alpaca paper trading
-        success = alpaca_bot.execute_nuclear_strategy()
-        orders = alpaca_bot.read_nuclear_signals()  # Get executed orders
+        success, orders = alpaca_bot.execute_nuclear_strategy()
         
         if success:
             print("✅ Paper trade execution completed successfully!")
