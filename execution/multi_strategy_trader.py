@@ -21,6 +21,7 @@ from dataclasses import dataclass
 
 from core.config import Config
 from core.strategy_manager import MultiStrategyManager, StrategyType
+from core.strategy_order_tracker import StrategyOrderTracker
 from execution.alpaca_trader import AlpacaTradingBot
 
 
@@ -52,6 +53,9 @@ class MultiStrategyAlpacaTrader(AlpacaTradingBot):
         # Initialize strategy manager
         self.strategy_manager = MultiStrategyManager(strategy_allocations)
         
+        # Initialize order tracker
+        self.order_tracker = StrategyOrderTracker()
+        
         # Configuration
         self.config = Config()
         
@@ -60,6 +64,7 @@ class MultiStrategyAlpacaTrader(AlpacaTradingBot):
                                                             'data/logs/multi_strategy_execution.log')
         
         logging.info(f"MultiStrategyAlpacaTrader initialized with allocations: {self.strategy_manager.strategy_allocations}")
+        logging.info(f"Order tracking enabled: {self.order_tracker.orders_file}")
     
     def execute_multi_strategy(self) -> MultiStrategyExecutionResult:
         """
@@ -99,7 +104,7 @@ class MultiStrategyAlpacaTrader(AlpacaTradingBot):
             
             # Execute portfolio rebalancing
             logging.info("⚡ Executing portfolio rebalancing...")
-            orders_executed = self.rebalance_portfolio(consolidated_portfolio)
+            orders_executed = self.rebalance_portfolio_with_tracking(consolidated_portfolio, strategy_signals)
             
             # Get account info after execution
             account_info_after = self.get_account_info()
@@ -142,6 +147,136 @@ class MultiStrategyAlpacaTrader(AlpacaTradingBot):
                 account_info_after={},
                 execution_summary={'error': str(e)}
             )
+    
+    def rebalance_portfolio_with_tracking(self, target_portfolio: Dict[str, float], 
+                                        strategy_signals: Dict[StrategyType, Any]) -> List[Dict]:
+        """
+        Enhanced portfolio rebalancing with strategy order tracking
+        
+        Args:
+            target_portfolio: Target allocations by symbol
+            strategy_signals: Strategy signals that led to these allocations
+            
+        Returns:
+            List of executed orders with strategy attribution
+        """
+        try:
+            logging.info("🔄 Starting portfolio rebalancing with strategy tracking...")
+            
+            # First, update our position tracking with current Alpaca state
+            current_positions = self.get_positions()
+            if current_positions:
+                strategy_positions = self.order_tracker.reconcile_positions_with_alpaca(current_positions)
+                logging.info(f"Reconciled positions across {len(strategy_positions)} strategies")
+            
+            # Execute parent class rebalancing
+            orders_executed = super().rebalance_portfolio(target_portfolio)
+            
+            # Enhanced order tracking with strategy attribution
+            for order in orders_executed:
+                if order.get('order_id'):
+                    # Determine which strategy(ies) drove this order
+                    contributing_strategies = self._determine_order_strategy(
+                        order['symbol'], order['side'], strategy_signals
+                    )
+                    
+                    for strategy_type in contributing_strategies:
+                        reason = strategy_signals.get(strategy_type, {}).get('reason', 'Multi-strategy rebalancing')
+                        
+                        # Record the order with strategy attribution
+                        self.order_tracker.record_order(
+                            order_id=order['order_id'],
+                            strategy_type=strategy_type,
+                            symbol=order['symbol'],
+                            side=order['side'].value if hasattr(order['side'], 'value') else str(order['side']),
+                            quantity=order['qty'],
+                            price=order.get('price'),
+                            reason=reason
+                        )
+                        
+                        logging.info(f"Tracked order {order['order_id']} for {strategy_type.value}: "
+                                   f"{order['side']} {order['qty']} {order['symbol']}")
+            
+            # Clean up old orders periodically
+            if len(orders_executed) > 0:
+                cleaned_orders = self.order_tracker.cleanup_old_orders(days_to_keep=90)
+                if cleaned_orders > 0:
+                    logging.info(f"Cleaned up {cleaned_orders} old order records")
+            
+            return orders_executed
+            
+        except Exception as e:
+            logging.error(f"Error in enhanced portfolio rebalancing: {e}")
+            # Fallback to parent method
+            return super().rebalance_portfolio(target_portfolio)
+    
+    def _determine_order_strategy(self, symbol: str, side: Any, 
+                                strategy_signals: Dict[StrategyType, Any]) -> List[StrategyType]:
+        """
+        Determine which strategy(ies) are responsible for an order
+        
+        Args:
+            symbol: Symbol being traded
+            side: Order side (BUY/SELL)
+            strategy_signals: Current strategy signals
+            
+        Returns:
+            List of strategies that contributed to this order
+        """
+        contributing_strategies = []
+        
+        side_str = side.value if hasattr(side, 'value') else str(side)
+        
+        for strategy_type, signal in strategy_signals.items():
+            signal_symbol = signal.get('symbol', '')
+            signal_action = signal.get('action', 'HOLD')
+            
+            # Direct symbol match
+            if signal_symbol == symbol:
+                if (signal_action == 'BUY' and side_str == 'BUY') or \
+                   (signal_action == 'SELL' and side_str == 'SELL'):
+                    contributing_strategies.append(strategy_type)
+            
+            # Cash/defensive position logic
+            elif symbol in ['BIL', 'SHY', 'CASH'] and signal_action in ['SELL', 'HOLD']:
+                # Defensive positions can be attributed to any strategy going defensive
+                contributing_strategies.append(strategy_type)
+        
+        # If no specific attribution found, attribute to all active strategies
+        # (for rebalancing orders that maintain overall portfolio structure)
+        if not contributing_strategies:
+            contributing_strategies = list(strategy_signals.keys())
+        
+        return contributing_strategies
+    
+    def get_strategy_attribution_report(self) -> Dict:
+        """Get detailed strategy attribution and performance report"""
+        try:
+            current_positions = self.get_positions()
+            strategy_attribution = self.order_tracker.get_strategy_attribution()
+            
+            # Reconcile with current positions if we have any
+            if current_positions:
+                strategy_positions = self.order_tracker.reconcile_positions_with_alpaca(current_positions)
+            else:
+                strategy_positions = {strategy.value: [] for strategy in StrategyType}
+            
+            report = {
+                'timestamp': datetime.now().isoformat(),
+                'total_portfolio_value': sum(pos.get('market_value', 0) for pos in current_positions.values()),
+                'strategy_attribution': strategy_attribution,
+                'detailed_positions': strategy_positions,
+                'strategy_allocations': {
+                    strategy.value: allocation 
+                    for strategy, allocation in self.strategy_manager.strategy_allocations.items()
+                }
+            }
+            
+            return report
+            
+        except Exception as e:
+            logging.error(f"Error generating strategy attribution report: {e}")
+            return {'error': str(e)}
     
     def _create_execution_summary(self, strategy_signals: Dict[StrategyType, Any], 
                                  consolidated_portfolio: Dict[str, float],

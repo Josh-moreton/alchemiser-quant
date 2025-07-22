@@ -6,6 +6,8 @@ logging:
   multi_strategy_alerts: "/tmp/multi_strategy_alerts.json"
   multi_strategy_log: "/tmp/multi_strategy_execution.log"
   strategy_positions: "/tmp/strategy_positions.json"
+  strategy_orders: "/tmp/strategy_orders.json"
+  strategy_positions_detailed: "/tmp/strategy_positions_detailed.json"
   tecl_strategy_log: "/tmp/tecl_strategy.log"
   alpaca_log: "/tmp/alpaca_trader.log"
   alpaca_trades_json: "/tmp/alpaca_trades.json"
