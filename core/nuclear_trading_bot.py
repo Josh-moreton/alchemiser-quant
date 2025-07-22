@@ -145,7 +145,7 @@ class NuclearStrategyEngine:
         return market_data
 
     def safe_get_indicator(self, data, indicator_func, *args, **kwargs):
-        """Safely get indicator value"""
+        """Safely get indicator value, logging exceptions to surface data problems."""
         try:
             result = indicator_func(data, *args, **kwargs)
             if hasattr(result, 'iloc') and len(result) > 0:
@@ -157,10 +157,13 @@ class NuclearStrategyEngine:
                     if len(valid_values) > 0:
                         value = valid_values.iloc[-1]
                     else:
+                        logging.error(f"No valid values for indicator {indicator_func.__name__} on data: {data}")
                         return 50.0  # Fallback only if no valid values
                 return float(value)
+            logging.error(f"Indicator {indicator_func.__name__} returned no results for data: {data}")
             return 50.0
-        except Exception:
+        except Exception as e:
+            logging.error(f"Exception in safe_get_indicator for {indicator_func.__name__}: {e}\nData: {data}")
             return 50.0
 
     def calculate_indicators(self, market_data):
