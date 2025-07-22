@@ -79,10 +79,12 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Show welcome message with inline keyboard buttons"""
     keyboard = [
         [
-            InlineKeyboardButton("🚀 Run Bot (Local)", callback_data="local_bot")
+            InlineKeyboardButton("🧠 Nuclear Strategy (Local)", callback_data="local_nuclear"),
+            InlineKeyboardButton("🎯 Multi-Strategy (Local)", callback_data="local_multi")
         ],
         [
-            InlineKeyboardButton("🏦 Alpaca Trading (Local)", callback_data="local_alpaca")
+            InlineKeyboardButton("🏦 Live Trading (Local)", callback_data="local_live"),
+            InlineKeyboardButton("📝 Paper Trading (Local)", callback_data="local_paper")
         ],
         [
             InlineKeyboardButton("☁️ Run via GitHub Actions", callback_data="github_workflow")
@@ -91,13 +93,16 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply_markup = InlineKeyboardMarkup(keyboard)
     
     welcome_text = (
-        "🚀 Welcome to the LQQ3 Trading Bot!\n\n"
-        "Choose how you want to run the trading bot:\n\n"
-        "**Local Commands:**\n"
-        "• 🚀 Run Bot - Generate trading signals locally\n"
-        "• 🏦 Alpaca Trading - Run locally + execute trades\n\n"
-        "**Cloud Commands:**\n"
-        "• ☁️ GitHub Actions - Run bot in the cloud\n\n"
+        "🚀 Welcome to the LQQ3 Multi-Strategy Trading Bot!\n\n"
+        "Choose how you want to run the trading system:\n\n"
+        "**Strategy Options:**\n"
+        "• 🧠 Nuclear Strategy - Original nuclear energy strategy only\n"
+        "• 🎯 Multi-Strategy - Nuclear (50%) + TECL (50%) strategies\n\n"
+        "**Execution Options:**\n"
+        "• 🏦 Live Trading - Real money multi-strategy execution\n"
+        "• 📝 Paper Trading - Risk-free multi-strategy testing\n\n"
+        "**Cloud Options:**\n"
+        "• ☁️ GitHub Actions - Run strategies in the cloud\n\n"
         "Use /help to see text commands or click a button below:"
     )
     
@@ -106,15 +111,19 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Show help message"""
     help_text = (
-        "🚀 **LQQ3 Trading Bot Commands**\n\n"
+        "🚀 **LQQ3 Multi-Strategy Trading Bot Commands**\n\n"
         "**Text Commands:**\n"
         "/start - Show main menu with buttons\n"
         "/help - Show this help message\n"
-        "/bot - Run live signal generation (local)\n"
-        "/alpaca - Run automated trading (local)\n"
+        "/nuclear - Nuclear strategy signals only\n"
+        "/multi - Multi-strategy signals (Nuclear + TECL)\n"
+        "/live - Multi-strategy live trading\n"
+        "/paper - Multi-strategy paper trading\n"
         "/github - Trigger GitHub Actions workflow\n\n"
         "**Button Commands:**\n"
-        "Use /start to see interactive buttons for all actions."
+        "Use /start to see interactive buttons for all actions.\n\n"
+        "**Strategy Allocation:**\n"
+        "Multi-strategy mode uses 50% Nuclear + 50% TECL allocation."
     )
     await update.message.reply_text(help_text, parse_mode='Markdown')
 
@@ -138,16 +147,25 @@ async def button_callback(query_update: Update, context: ContextTypes.DEFAULT_TY
     query = query_update.callback_query
     await query.answer()  # Acknowledge the button click
     
-    if query.data == "local_bot":
-        await query.edit_message_text("🚀 Running bot locally...")
+    if query.data == "local_nuclear":
+        await query.edit_message_text("🧠 Running Nuclear strategy locally...")
         output = await run_cmd("bot")
-        await query.edit_message_text(f"🚀 **Bot Results:**\n```\n{output}\n```", parse_mode='Markdown')
+        await query.edit_message_text(f"🧠 **Nuclear Strategy Results:**\n```\n{output}\n```", parse_mode='Markdown')
         
+    elif query.data == "local_multi":
+        await query.edit_message_text("🎯 Running Multi-strategy locally...")
+        output = await run_cmd("multi")
+        await query.edit_message_text(f"🎯 **Multi-Strategy Results:**\n```\n{output}\n```", parse_mode='Markdown')
         
-    elif query.data == "local_alpaca":
-        await query.edit_message_text("🏦 Running Alpaca trading bot...")
-        output = await run_cmd("alpaca")
-        await query.edit_message_text(f"🏦 **Alpaca Results:**\n```\n{output}\n```", parse_mode='Markdown')
+    elif query.data == "local_live":
+        await query.edit_message_text("🏦 Running Multi-strategy LIVE trading...")
+        output = await run_cmd("live")
+        await query.edit_message_text(f"🏦 **Live Trading Results:**\n```\n{output}\n```", parse_mode='Markdown')
+        
+    elif query.data == "local_paper":
+        await query.edit_message_text("📝 Running Multi-strategy PAPER trading...")
+        output = await run_cmd("paper")
+        await query.edit_message_text(f"📝 **Paper Trading Results:**\n```\n{output}\n```", parse_mode='Markdown')
         
     elif query.data == "github_workflow":
         await query.edit_message_text("☁️ Triggering GitHub Actions workflow...")
@@ -160,23 +178,55 @@ async def button_callback(query_update: Update, context: ContextTypes.DEFAULT_TY
                 "The bot is now running in the cloud.\n\n"
                 f"🔗 Check status: https://github.com/{GITHUB_OWNER}/{GITHUB_REPO}/actions\n\n"
                 "The workflow will:\n"
-                "• Run the nuclear trading bot\n"
+                "• Run the multi-strategy trading bot\n"
                 "• Log results to GitHub Actions"
             )
         else:
             await query.edit_message_text(f"❌ **Failed to trigger workflow:**\n{result.get('error')}")
 
+
+# Add new command handlers for multi-strategy
+async def nuclear_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Run Nuclear strategy only"""
+    await update.message.reply_text("🧠 Running Nuclear strategy...")
+    output = await run_cmd("bot")
+    await update.message.reply_text(f"🧠 **Nuclear Strategy Results:**\n```\n{output}\n```", parse_mode='Markdown')
+
+
+async def multi_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Run Multi-strategy signals"""
+    await update.message.reply_text("🎯 Running Multi-strategy analysis...")
+    output = await run_cmd("multi")
+    await update.message.reply_text(f"🎯 **Multi-Strategy Results:**\n```\n{output}\n```", parse_mode='Markdown')
+
+
+async def live_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Run Multi-strategy live trading"""
+    await update.message.reply_text("🏦 Running Multi-strategy LIVE trading...")
+    output = await run_cmd("live")
+    await update.message.reply_text(f"🏦 **Live Trading Results:**\n```\n{output}\n```", parse_mode='Markdown')
+
+
+async def paper_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Run Multi-strategy paper trading"""
+    await update.message.reply_text("📝 Running Multi-strategy PAPER trading...")
+    output = await run_cmd("paper")
+    await update.message.reply_text(f"📝 **Paper Trading Results:**\n```\n{output}\n```", parse_mode='Markdown')
+
 # Keep the original command handlers for backward compatibility
 async def bot_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("🚀 Running bot locally...")
+    """Legacy command - runs nuclear strategy only"""
+    await update.message.reply_text("🧠 Running Nuclear strategy (legacy command)...")
     output = await run_cmd("bot")
-    await update.message.reply_text(f"🚀 **Bot Results:**\n```\n{output}\n```", parse_mode='Markdown')
+    await update.message.reply_text(f"🧠 **Nuclear Strategy Results:**\n```\n{output}\n```", parse_mode='Markdown')
 
 
 async def alpaca_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("🏦 Running Alpaca trading bot...")
-    output = await run_cmd("alpaca")
-    await update.message.reply_text(f"🏦 **Alpaca Results:**\n```\n{output}\n```", parse_mode='Markdown')
+    """Legacy command - runs multi-strategy live trading"""
+    await update.message.reply_text("🏦 Running Multi-strategy LIVE trading (legacy command)...")
+    output = await run_cmd("live")
+    await update.message.reply_text(f"🏦 **Live Trading Results:**\n```\n{output}\n```", parse_mode='Markdown')
+
 
 def main():
     if not TELEGRAM_TOKEN:
@@ -188,17 +238,25 @@ def main():
     
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
     
-    # Command handlers
+    # New command handlers
     app.add_handler(CommandHandler("start", start_command))
     app.add_handler(CommandHandler("help", help_command))
+    app.add_handler(CommandHandler("nuclear", nuclear_command))
+    app.add_handler(CommandHandler("multi", multi_command))
+    app.add_handler(CommandHandler("live", live_command))
+    app.add_handler(CommandHandler("paper", paper_command))
+    app.add_handler(CommandHandler("github", github_command))
+    
+    # Legacy command handlers for backward compatibility
     app.add_handler(CommandHandler("bot", bot_command))
     app.add_handler(CommandHandler("alpaca", alpaca_command))
-    app.add_handler(CommandHandler("github", github_command))
     
     # Button callback handler
     app.add_handler(CallbackQueryHandler(button_callback))
     
-    print("Telegram bot is running...")
+    print("Telegram Multi-Strategy bot is running...")
+    print(f"Strategy modes: Nuclear, Multi-Strategy (Nuclear + TECL)")
+    print(f"Execution modes: Signals only, Live trading, Paper trading")
     print(f"GitHub Actions integration: {'✅ Enabled' if GITHUB_TOKEN else '❌ Disabled'}")
     app.run_polling()
 
