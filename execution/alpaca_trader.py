@@ -275,13 +275,14 @@ class AlpacaTradingBot:
                 for symbol, pos in current_positions.items()
             }
             
-            # Calculate target values based on usable buying power (not portfolio value!)
+            # Calculate target values based on PORTFOLIO VALUE (not buying power!)
+            # Allocations are percentages of total portfolio value
             target_values = {
-                symbol: usable_buying_power * weight 
+                symbol: portfolio_value * weight 
                 for symbol, weight in target_portfolio.items()
             }
             
-            print(f"🎯 Target vs Current Allocations (based on ${usable_buying_power:,.2f} usable buying power):")
+            print(f"🎯 Target vs Current Allocations (target values based on ${portfolio_value:,.2f} portfolio value):")
             logging.info(f"🎯 Target vs Current Allocations:")
             
             all_symbols = set(target_portfolio.keys()) | set(current_allocations.keys())
