@@ -19,5 +19,4 @@ class Config:
 
 # Usage example:
 # config = Config()
-# email = config['email']
 # log_path = config.get('log_path', 'logs/app.log')

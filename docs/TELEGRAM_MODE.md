@@ -13,10 +13,10 @@ It covers the main classes and functions involved so a developer can follow the 
 The CLI in `main.py` maps the `telegram` mode to the `run_alpaca_telegram_bot()` function.
 
 ```
-parser.add_argument('mode', choices=['bot', 'email', 'alpaca', 'telegram'], ...)
+parser.add_argument('mode', choices=['bot', 'live', 'paper'], ...)
 ...
-elif args.mode == 'telegram':
-    success = run_alpaca_telegram_bot()
+elif args.mode == 'live':
+    success = run_live_trading_bot()
 ```
 
 ## 2. `run_alpaca_telegram_bot()`

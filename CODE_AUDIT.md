@@ -94,17 +94,6 @@ This document captures the results of the line-by-line review of the repository.
 
 **Code Quality Rating**: **6/10** – Functional but couples I/O strongly to object creation.
 
-## core/email_utils.py
-
-**Issues**
-- SMTP password read from environment every call; fails silently if unset.
-- Duplicate code between `send_alpaca_notification` and `send_signal_notification`.
-
-**Recommended Fixes**
-- Factor common email logic into a helper.
-- Return explicit error when environment variable missing.
-
-**Code Quality Rating**: **6/10** – Works but repetitive.
 
 ## core/indicators.py
 

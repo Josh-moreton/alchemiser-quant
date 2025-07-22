@@ -61,7 +61,7 @@ def run_trading_bot():
 
 def run_live_trading_bot(ignore_market_hours=False):
     """
-    Run the nuclear trading bot with Alpaca execution and send Telegram update instead of email.
+    Run the nuclear trading bot with Alpaca execution and send a Telegram update.
     This mode generates signals, executes trades via Alpaca, and sends a Telegram notification summarizing the results.
     
     Args:

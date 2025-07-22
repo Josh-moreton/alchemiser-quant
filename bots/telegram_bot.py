@@ -1,7 +1,7 @@
 """
 Telegram Bot for LQQ3 Trading System
 
-- Handles /bot, /email, /alpaca commands
+ - Handles /bot and /alpaca commands
 - Runs main.py with the appropriate mode and returns output
 - Uses python-telegram-bot library
 - Requires TELEGRAM_TOKEN in .env
@@ -79,8 +79,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Show welcome message with inline keyboard buttons"""
     keyboard = [
         [
-            InlineKeyboardButton("🚀 Run Bot (Local)", callback_data="local_bot"),
-            InlineKeyboardButton("📧 Email Alert (Local)", callback_data="local_email")
+            InlineKeyboardButton("🚀 Run Bot (Local)", callback_data="local_bot")
         ],
         [
             InlineKeyboardButton("🏦 Alpaca Trading (Local)", callback_data="local_alpaca")
@@ -96,7 +95,6 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "Choose how you want to run the trading bot:\n\n"
         "**Local Commands:**\n"
         "• 🚀 Run Bot - Generate trading signals locally\n"
-        "• 📧 Email Alert - Run locally + send email\n"
         "• 🏦 Alpaca Trading - Run locally + execute trades\n\n"
         "**Cloud Commands:**\n"
         "• ☁️ GitHub Actions - Run bot in the cloud\n\n"
@@ -113,7 +111,6 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/start - Show main menu with buttons\n"
         "/help - Show this help message\n"
         "/bot - Run live signal generation (local)\n"
-        "/email - Run live signals + email alert (local)\n"
         "/alpaca - Run automated trading (local)\n"
         "/github - Trigger GitHub Actions workflow\n\n"
         "**Button Commands:**\n"
@@ -146,10 +143,6 @@ async def button_callback(query_update: Update, context: ContextTypes.DEFAULT_TY
         output = await run_cmd("bot")
         await query.edit_message_text(f"🚀 **Bot Results:**\n```\n{output}\n```", parse_mode='Markdown')
         
-    elif query.data == "local_email":
-        await query.edit_message_text("📧 Running bot with email notification...")
-        output = await run_cmd("email")
-        await query.edit_message_text(f"📧 **Email Results:**\n```\n{output}\n```", parse_mode='Markdown')
         
     elif query.data == "local_alpaca":
         await query.edit_message_text("🏦 Running Alpaca trading bot...")
@@ -168,7 +161,6 @@ async def button_callback(query_update: Update, context: ContextTypes.DEFAULT_TY
                 f"🔗 Check status: https://github.com/{GITHUB_OWNER}/{GITHUB_REPO}/actions\n\n"
                 "The workflow will:\n"
                 "• Run the nuclear trading bot\n"
-                "• Send email notifications\n"
                 "• Log results to GitHub Actions"
             )
         else:
@@ -180,10 +172,6 @@ async def bot_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     output = await run_cmd("bot")
     await update.message.reply_text(f"🚀 **Bot Results:**\n```\n{output}\n```", parse_mode='Markdown')
 
-async def email_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("📧 Running bot with email notification...")
-    output = await run_cmd("email")
-    await update.message.reply_text(f"📧 **Email Results:**\n```\n{output}\n```", parse_mode='Markdown')
 
 async def alpaca_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("🏦 Running Alpaca trading bot...")
@@ -204,7 +192,6 @@ def main():
     app.add_handler(CommandHandler("start", start_command))
     app.add_handler(CommandHandler("help", help_command))
     app.add_handler(CommandHandler("bot", bot_command))
-    app.add_handler(CommandHandler("email", email_command))
     app.add_handler(CommandHandler("alpaca", alpaca_command))
     app.add_handler(CommandHandler("github", github_command))
     
