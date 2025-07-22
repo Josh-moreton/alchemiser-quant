@@ -27,7 +27,7 @@ Key steps are:
 1. **Imports** – `NuclearTradingBot` for signal creation, `send_telegram_message` for messaging and `AlpacaTradingBot` for order execution【F:main.py†L187-L199】.
 2. **Generate signals** – instantiate `NuclearTradingBot`, call `run_once()` and abort if it returns `None` (also sending a Telegram failure message)【F:main.py†L202-L212】.
 3. **Initialize Alpaca** – create an `AlpacaTradingBot`, retrieve account info and print a summary before trading【F:main.py†L217-L229】.
-4. **Execute trades** – monkey‑patch `rebalance_portfolio` to capture executed orders while calling `execute_nuclear_strategy()`【F:main.py†L230-L248】.
+4. **Execute trades** – call `execute_nuclear_strategy()` which returns the executed orders for inclusion in the Telegram summary【F:main.py†L230-L237】.
 5. **Show final status** – fetch account info again, display the summary and mark completion【F:main.py†L255-L269】.
 6. **Send Telegram summary** – build a message with positions and orders then call `send_telegram_message`【F:main.py†L271-L306】.
 
@@ -67,7 +67,7 @@ if orders:
 
 【F:execution/alpaca_trader.py†L388-L447】
 
-The orders returned by `rebalance_portfolio` are captured in `run_alpaca_telegram_bot()` for inclusion in the Telegram update.
+The list of executed orders returned by `execute_nuclear_strategy()` is used directly in `run_alpaca_telegram_bot()` when composing the Telegram message.
 
 ## 5. Telegram Messaging
 

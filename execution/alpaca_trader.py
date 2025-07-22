@@ -549,12 +549,13 @@ class AlpacaTradingBot:
         
         return portfolio
     
-    def execute_nuclear_strategy(self) -> bool:
+    def execute_nuclear_strategy(self) -> Tuple[bool, List[Dict]]:
         """
         Execute trades based on the latest nuclear strategy signals
         
         Returns:
-            True if successful, False otherwise
+            Tuple where the first element indicates success and the second
+            element is the list of executed order dictionaries.
         """
         try:
             logging.info("🚀 Executing Nuclear Strategy with Alpaca")
@@ -563,7 +564,7 @@ class AlpacaTradingBot:
             signals = self.read_nuclear_signals()
             if not signals:
                 logging.warning("⚠️ No recent signals found - unable to execute strategy")
-                return False
+                return False, []
             
             logging.info(f"Found {len(signals)} recent signals")
             
@@ -571,7 +572,7 @@ class AlpacaTradingBot:
             target_portfolio = self.parse_portfolio_from_signals(signals)
             if not target_portfolio:
                 logging.warning("⚠️ No valid portfolio allocation found in signals - unable to execute")
-                return False
+                return False, []
             
             logging.info(f"Target Portfolio: {target_portfolio}")
             
@@ -584,7 +585,7 @@ class AlpacaTradingBot:
             account_info = self.get_account_info()
             if not account_info:
                 logging.error("❌ Failed to get account information - aborting strategy execution")
-                return False
+                return False, []
                 
             logging.info(f"Account Value: ${account_info.get('portfolio_value', 0):,.2f}")
             
@@ -597,27 +598,27 @@ class AlpacaTradingBot:
             
             if missing_prices:
                 logging.error(f"❌ Unable to get prices for symbols: {missing_prices} - aborting execution")
-                return False
+                return False, []
             
             # Execute rebalancing
             orders = self.rebalance_portfolio(target_portfolio)
-            
+
             if orders:
                 logging.info(f"✅ Portfolio rebalanced - {len(orders)} orders executed")
                 for order in orders:
                     logging.info(f"   {order['side'].value} {order['qty']} {order['symbol']} (Order ID: {order['order_id']}, Value: ${order['estimated_value']:.2f})")
                 # Log trade execution
                 self.log_trade_execution(target_portfolio, orders, account_info)
-                return True
+                return True, orders
             else:
                 logging.info("ℹ️ No trades needed - portfolio already aligned with strategy")
-                return True
+                return True, []
                 
         except Exception as e:
             logging.error(f"💥 Critical error executing nuclear strategy: {e}")
             import traceback
             logging.error(f"Stack trace: {traceback.format_exc()}")
-            return False
+            return False, []
     
     def log_trade_execution(self, target_portfolio: Dict[str, float], orders: List[Dict], account_info: Dict):
         """Log trade execution details"""
