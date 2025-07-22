@@ -183,7 +183,7 @@ class NuclearStrategyEngine:
 
     def evaluate_nuclear_strategy(self, indicators, market_data=None):
         """
-        Evaluate the Nuclear Energy strategy using a prioritized list of scenario handler classes (strategy pattern).
+        Evaluate the Nuclear Energy strategy using the canonical hierarchical logic from Clojure implementation.
         Returns: (recommended_symbol, action, reason)
         """
         from .strategy_engine import (
@@ -192,22 +192,46 @@ class NuclearStrategyEngine:
         if 'SPY' not in indicators:
             return 'SPY', ActionType.HOLD.value, "Missing SPY data"
 
-        # Instantiate handlers with required dependencies
-        handlers = [
-            lambda inds, md: OverboughtStrategy().recommend(inds) if inds['SPY']['rsi_10'] > 79 else None,
-            # Secondary overbought for each symbol
-            *[lambda inds, md, s=s: SecondaryOverboughtStrategy().recommend(inds, s) if s in inds and inds[s]['rsi_10'] > 79 else None for s in ['IOO', 'TQQQ', 'VTV', 'XLF']],
-            lambda inds, md: VoxOverboughtStrategy().recommend(inds) if 'VOX' in inds and inds['VOX']['rsi_10'] > 79 else None,
-            lambda inds, md: ('TQQQ', ActionType.BUY.value, "TQQQ oversold, buying dip") if 'TQQQ' in inds and inds['TQQQ']['rsi_10'] < 30 else None,
-            lambda inds, md: ('UPRO', ActionType.BUY.value, "SPY oversold, buying dip with leverage") if 'SPY' in inds and inds['SPY']['rsi_10'] < 30 else None,
-            lambda inds, md: BullMarketStrategy(self.get_nuclear_portfolio).recommend(inds, md) if 'SPY' in inds and inds['SPY']['current_price'] > inds['SPY']['ma_200'] else None,
-            lambda inds, md: BearMarketStrategy(self._bear_subgroup_1, self._bear_subgroup_2, self._combine_bear_strategies_with_inverse_volatility).recommend(inds) if 'SPY' in inds and inds['SPY']['current_price'] <= inds['SPY']['ma_200'] else None
-        ]
-
-        for handler in handlers:
-            result = handler(indicators, market_data)
+        # Hierarchical logic matching the Clojure canonical strategy
+        spy_rsi_10 = indicators['SPY']['rsi_10']
+        
+        # Primary overbought check: SPY RSI > 79
+        if spy_rsi_10 > 79:
+            result = OverboughtStrategy().recommend(indicators)
             if result:
                 return result
+        
+        # Secondary overbought checks in order: IOO, TQQQ, VTV, XLF
+        for symbol in ['IOO', 'TQQQ', 'VTV', 'XLF']:
+            if symbol in indicators and indicators[symbol]['rsi_10'] > 79:
+                result = SecondaryOverboughtStrategy().recommend(indicators, symbol)
+                if result:
+                    return result
+        
+        # VOX overbought check  
+        if 'VOX' in indicators and indicators['VOX']['rsi_10'] > 79:
+            result = VoxOverboughtStrategy().recommend(indicators)
+            if result:
+                return result
+        
+        # Oversold conditions (TQQQ first, then SPY)
+        if 'TQQQ' in indicators and indicators['TQQQ']['rsi_10'] < 30:
+            return 'TQQQ', ActionType.BUY.value, "TQQQ oversold, buying dip"
+        
+        if indicators['SPY']['rsi_10'] < 30:
+            return 'UPRO', ActionType.BUY.value, "SPY oversold, buying dip with leverage"
+            
+        # Bull vs Bear market determination (SPY above/below 200 MA)
+        if 'SPY' in indicators and indicators['SPY']['current_price'] > indicators['SPY']['ma_200']:
+            result = BullMarketStrategy(self.get_nuclear_portfolio).recommend(indicators, market_data)
+            if result:
+                return result
+        else:
+            result = BearMarketStrategy(self._bear_subgroup_1, self._bear_subgroup_2, self._combine_bear_strategies_with_inverse_volatility).recommend(indicators)
+            if result:
+                return result
+        
+        # Fallback if no strategy returns a result
         return 'SPY', ActionType.HOLD.value, "No clear signal, holding cash equivalent"
 
 
@@ -456,6 +480,15 @@ class NuclearTradingBot:
                 else:
                     print(f"📊 Nuclear Analysis: {alert.action} {alert.symbol} at ${alert.price:.2f}")
                     print(f"   Reason: {alert.reason}")
+            
+            # Print technical indicator values for key symbols
+            if alerts and hasattr(self.strategy, 'calculate_indicators'):
+                market_data = self.strategy.get_market_data()
+                indicators = self.strategy.calculate_indicators(market_data)
+                print("\n🔬 Technical Indicators Used for Signal Generation:")
+                for symbol in ['IOO', 'SPY', 'TQQQ', 'VTV', 'XLF']:
+                    if symbol in indicators:
+                        print(f"  {symbol}: RSI(10)={indicators[symbol].get('rsi_10')}, RSI(20)={indicators[symbol].get('rsi_20')}")
             
             return alerts[0]  # Return first alert for compatibility
         else:

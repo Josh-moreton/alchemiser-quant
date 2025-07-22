@@ -45,28 +45,47 @@ class OverboughtStrategy:
         spy_rsi_10 = indicators['SPY']['rsi_10']
         if spy_rsi_10 > 81:
             return 'UVXY', 'BUY', "SPY extremely overbought (RSI > 81)"
+        
+        # Check each symbol in order - first match wins
         for symbol in ['IOO', 'TQQQ', 'VTV', 'XLF']:
             if symbol in indicators and indicators[symbol]['rsi_10'] > 81:
                 return 'UVXY', 'BUY', f"{symbol} extremely overbought (RSI > 81)"
-        # Return hedge portfolio instead of nuclear portfolio when market is overbought
-        return 'UVXY_BTAL_PORTFOLIO', 'BUY', "IOO overbought, UVXY 75% + BTAL 25% allocation"
+        
+        # If SPY is overbought (79-81), return hedge portfolio 
+        if spy_rsi_10 > 79:
+            return 'UVXY_BTAL_PORTFOLIO', 'BUY', "SPY overbought (79-81), UVXY 75% + BTAL 25% allocation"
+            
+        # This should not be reached if called correctly from main strategy
+        return None
 
 class SecondaryOverboughtStrategy:
     def recommend(self, indicators, overbought_symbol):
+        # First check if the overbought symbol is extremely overbought (> 81)
         if indicators[overbought_symbol]['rsi_10'] > 81:
-            return 'UVXY', 'BUY', f"{overbought_symbol} extremely overbought"
+            return 'UVXY', 'BUY', f"{overbought_symbol} extremely overbought (RSI > 81)"
+        
+        # Then check other symbols for extreme overbought
         for symbol in ['TQQQ', 'VTV', 'XLF']:
             if symbol != overbought_symbol and symbol in indicators:
                 if indicators[symbol]['rsi_10'] > 81:
-                    return 'UVXY', 'BUY', f"{symbol} extremely overbought"
-        # Return hedge portfolio instead of nuclear portfolio when secondary overbought
-        return 'UVXY_BTAL_PORTFOLIO', 'BUY', f"{overbought_symbol} overbought, UVXY 75% + BTAL 25% allocation"
+                    return 'UVXY', 'BUY', f"{symbol} extremely overbought (RSI > 81)"
+        
+        # If overbought symbol is moderately overbought (79-81), return hedge portfolio
+        if indicators[overbought_symbol]['rsi_10'] > 79:
+            return 'UVXY_BTAL_PORTFOLIO', 'BUY', f"{overbought_symbol} overbought (79-81), UVXY 75% + BTAL 25% allocation"
+            
+        return None
 
 class VoxOverboughtStrategy:
     def recommend(self, indicators):
+        # Check if XLF is extremely overbought 
         if 'XLF' in indicators and indicators['XLF']['rsi_10'] > 81:
-            return 'UVXY', 'BUY', "XLF extremely overbought"
-        # Return hedge portfolio instead of nuclear portfolio when VOX overbought
-        return 'UVXY_BTAL_PORTFOLIO', 'BUY', "VOX overbought, UVXY 75% + BTAL 25% allocation"
+            return 'UVXY', 'BUY', "XLF extremely overbought (RSI > 81)"
+        
+        # If VOX is moderately overbought (79-81), return hedge portfolio
+        if 'VOX' in indicators and indicators['VOX']['rsi_10'] > 79:
+            return 'UVXY_BTAL_PORTFOLIO', 'BUY', "VOX overbought (79-81), UVXY 75% + BTAL 25% allocation"
+            
+        return None
 
 # Additional scenario classes can be added here as needed

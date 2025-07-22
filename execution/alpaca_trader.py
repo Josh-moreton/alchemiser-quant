@@ -284,17 +284,28 @@ class AlpacaTradingBot:
             
             print(f"🎯 Target vs Current Allocations (target values based on ${portfolio_value:,.2f} portfolio value):")
             logging.info(f"🎯 Target vs Current Allocations:")
-            
             all_symbols = set(target_portfolio.keys()) | set(current_allocations.keys())
             for symbol in sorted(all_symbols):
                 target_weight = target_portfolio.get(symbol, 0.0)
                 target_value = target_values.get(symbol, 0.0)
                 current_weight = current_allocations.get(symbol, 0.0)
                 current_value = current_positions.get(symbol, {}).get('market_value', 0.0)
-                
                 print(f"   {symbol}: Target {target_weight:.1%} (${target_value:.2f}) | Current {current_weight:.1%} (${current_value:.2f})")
                 logging.info(f"   {symbol}: Target {target_weight:.1%} (${target_value:.2f}) | Current {current_weight:.1%} (${current_value:.2f})")
-
+            # --- PRE-CHECK: If all positions are within allocation tolerance, skip trading ---
+            all_within_tolerance = True
+            for symbol in sorted(target_portfolio.keys()):
+                target_weight = target_portfolio.get(symbol, 0.0) * 100.0  # percent
+                current_weight = current_allocations.get(symbol, 0.0) * 100.0  # percent
+                allocation_diff = abs(current_weight - target_weight)
+                if allocation_diff > 1.0:
+                    all_within_tolerance = False
+                    break
+            if all_within_tolerance:
+                print("✅ Portfolio allocations are within 1.0% of target. No trades needed.")
+                logging.info("✅ Portfolio allocations are within 1.0% of target. No trades needed.")
+                return []
+            
             # --- PHASE 1: Sells ---
             print("📉 PHASE 1: Selling excess/unwanted positions...")
             logging.info("📉 PHASE 1: Selling excess/unwanted positions...")
@@ -311,19 +322,22 @@ class AlpacaTradingBot:
                     print(f"   {symbol}: Selling entire position ({sell_qty} shares) - not in target portfolio")
                     logging.info(f"   {symbol}: Selling entire position ({sell_qty} shares) - not in target portfolio")
                 else:
-                    # Calculate percentage deviation
-                    deviation_pct = abs(current_value - target_value) / target_value if target_value > 0 else 0.0
-                    # Only sell excess if deviation is greater than 1%
-                    if current_value > target_value + 1.0 and deviation_pct > 0.01:
+                    # Calculate percentage weights for both current and target
+                    current_weight = (current_value / portfolio_value) * 100
+                    target_weight = (target_value / portfolio_value) * 100
+                    allocation_diff = abs(current_weight - target_weight)
+                    
+                    # Only sell excess if allocation difference is greater than 1.0 percentage point
+                    if allocation_diff > 1.0:
                         sells_needed = True
                         excess_value = current_value - target_value
                         current_price = self.get_current_price(symbol)
                         sell_qty = min(round(excess_value / current_price, 6), pos['qty'])
-                        print(f"   {symbol}: Selling {sell_qty} shares (excess ${excess_value:.2f}, deviation {deviation_pct:.2%})")
-                        logging.info(f"   {symbol}: Selling {sell_qty} shares (excess ${excess_value:.2f}, deviation {deviation_pct:.2%})")
+                        print(f"   {symbol}: Selling {sell_qty} shares (allocation diff {allocation_diff:.1f}pp, excess ${excess_value:.2f})")
+                        logging.info(f"   {symbol}: Selling {sell_qty} shares (allocation diff {allocation_diff:.1f}pp, excess ${excess_value:.2f})")
                     else:
-                        print(f"   {symbol}: No sell needed (deviation {deviation_pct:.2%})")
-                        logging.info(f"   {symbol}: No sell needed (deviation {deviation_pct:.2%})")
+                        print(f"   {symbol}: No sell needed (allocation diff {allocation_diff:.1f}pp)")
+                        logging.info(f"   {symbol}: No sell needed (allocation diff {allocation_diff:.1f}pp)")
                         continue
                 
                 if sell_qty > 0:
@@ -362,13 +376,15 @@ class AlpacaTradingBot:
                 logging.info(f"   Updated Buying Power: ${buying_power:,.2f}")
 
             # --- PHASE 2: Buys ---
-            # Check if any buys are actually needed (deviation > 1% and not in tolerance)
+            # Check if any buys are actually needed (allocation difference > 1.0 percentage point)
             buys_needed = False
             for symbol in target_portfolio.keys():
                 target_value = target_values[symbol]
                 current_value = current_positions.get(symbol, {}).get('market_value', 0.0)
-                deviation_pct = abs(current_value - target_value) / target_value if target_value > 0 else 0.0
-                if value_to_buy := (target_value - current_value) > 1.0 and deviation_pct > 0.01:
+                current_weight = (current_value / portfolio_value) * 100
+                target_weight = (target_value / portfolio_value) * 100
+                allocation_diff = abs(current_weight - target_weight)
+                if target_value - current_value > 1.0 and allocation_diff > 1.0:
                     buys_needed = True
                     break
             # If no buys needed, skip buy phase
@@ -378,9 +394,11 @@ class AlpacaTradingBot:
             else:
                 print("📈 PHASE 2: Buying to reach target allocations...")
                 logging.info("📈 PHASE 2: Buying to reach target allocations...")
-                # Use actual cash available after sells
+                # Use actual cash available after sells, but respect cash reserve
                 account_info_after_sells = self.get_account_info()
-                available_cash = account_info_after_sells.get('cash', 0.0)
+                total_cash_available = account_info_after_sells.get('cash', 0.0)
+                # Apply cash reserve to available cash
+                available_cash = total_cash_available * (1 - cash_reserve_pct)
                 current_positions_after_sells = self.get_positions()
                 print(f"   Available cash for purchases: ${available_cash:.2f}")
                 logging.info(f"   Available cash for purchases: ${available_cash:.2f}")
@@ -391,15 +409,22 @@ class AlpacaTradingBot:
                     if symbol in current_positions_after_sells:
                         current_value = current_positions_after_sells[symbol].get('market_value', 0.0)
                     value_to_buy = target_value - current_value
-                    deviation_pct = abs(current_value - target_value) / target_value if target_value > 0 else 0.0
-                    if value_to_buy > 1.0 and deviation_pct > 0.01 and available_cash > 1.0:
+                    
+                    # Calculate allocation difference in percentage points
+                    current_weight = (current_value / portfolio_value) * 100
+                    target_weight = (target_value / portfolio_value) * 100
+                    allocation_diff = abs(current_weight - target_weight)
+                    
+                    if value_to_buy > 1.0 and allocation_diff > 1.0 and available_cash > 1.0:
                         current_price = self.get_current_price(symbol)
-                        actual_value_to_buy = min(value_to_buy, available_cash)
+                        # Add 0.5% safety margin for price fluctuation
+                        safety_margin = 0.005
+                        actual_value_to_buy = min(value_to_buy, available_cash * (1 - safety_margin))
                         buy_qty = round(actual_value_to_buy / current_price, 6)
                         required_cash = buy_qty * current_price
                         print(f"   {symbol}: Need ${value_to_buy:.2f}, buying ${actual_value_to_buy:.2f} ({buy_qty} shares)")
                         logging.info(f"   {symbol}: Need ${value_to_buy:.2f}, buying ${actual_value_to_buy:.2f} ({buy_qty} shares)")
-                        if buy_qty > 0 and required_cash <= available_cash:
+                        if buy_qty > 0 and required_cash <= available_cash * (1 - safety_margin):
                             order_id = self.place_order(symbol, buy_qty, OrderSide.BUY)
                             if order_id:
                                 orders_executed.append({
@@ -418,9 +443,9 @@ class AlpacaTradingBot:
                         else:
                             print(f"   {symbol}: Cannot buy - insufficient cash (need ${required_cash:.2f}, have ${available_cash:.2f})")
                             logging.info(f"   {symbol}: Cannot buy - insufficient cash")
-                    elif value_to_buy <= 1.0 or deviation_pct <= 0.01:
-                        print(f"   {symbol}: Already at target (difference: ${value_to_buy:.2f}, deviation {deviation_pct:.2%})")
-                        logging.info(f"   {symbol}: Already at target (difference: ${value_to_buy:.2f}, deviation {deviation_pct:.2%})")
+                    elif value_to_buy <= 1.0 or allocation_diff <= 1.0:
+                        print(f"   {symbol}: Already at target (difference: ${value_to_buy:.2f}, allocation diff {allocation_diff:.1f}pp)")
+                        logging.info(f"   {symbol}: Already at target (difference: ${value_to_buy:.2f}, allocation diff {allocation_diff:.1f}pp)")
                     else:
                         print(f"   {symbol}: No cash remaining (${available_cash:.2f})")
                         logging.info(f"   {symbol}: No cash remaining")
