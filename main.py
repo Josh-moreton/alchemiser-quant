@@ -110,18 +110,16 @@ def run_live_trading_bot(ignore_market_hours=False):
         print("⚡ STEP 3: Executing Trades Based on Nuclear Signals...")
         print("-" * 50)
         # Execute nuclear strategy and capture orders
-        orders = []
+        orders = []  # Always reset orders for each run
         success = False
+        orig_rebalance = alpaca_bot.rebalance_portfolio
+        def rebalance_and_capture(*args, **kwargs):
+            result = orig_rebalance(*args, **kwargs)
+            nonlocal orders
+            orders = result  # Only set orders for this run
+            return result
+        alpaca_bot.rebalance_portfolio = rebalance_and_capture
         try:
-            # Patch: capture orders from rebalance_portfolio
-            # We'll monkeypatch the bot to store orders for reporting
-            orig_rebalance = alpaca_bot.rebalance_portfolio
-            def rebalance_and_capture(*args, **kwargs):
-                result = orig_rebalance(*args, **kwargs)
-                nonlocal orders
-                orders = result
-                return result
-            alpaca_bot.rebalance_portfolio = rebalance_and_capture
             success = alpaca_bot.execute_nuclear_strategy()
         finally:
             alpaca_bot.rebalance_portfolio = orig_rebalance

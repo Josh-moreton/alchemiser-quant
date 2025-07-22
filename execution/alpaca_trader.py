@@ -304,25 +304,27 @@ class AlpacaTradingBot:
             for symbol, pos in current_positions.items():
                 target_value = target_values.get(symbol, 0.0)
                 current_value = pos['market_value']
-                
                 # If not in target portfolio, sell entire position
                 if target_value == 0.0:
                     sells_needed = True
                     sell_qty = pos['qty']
                     print(f"   {symbol}: Selling entire position ({sell_qty} shares) - not in target portfolio")
                     logging.info(f"   {symbol}: Selling entire position ({sell_qty} shares) - not in target portfolio")
-                # If current value exceeds target by more than $1, sell excess
-                elif current_value > target_value + 1.0:
-                    sells_needed = True
-                    excess_value = current_value - target_value
-                    current_price = self.get_current_price(symbol)
-                    sell_qty = min(round(excess_value / current_price, 6), pos['qty'])
-                    print(f"   {symbol}: Selling {sell_qty} shares (excess ${excess_value:.2f})")
-                    logging.info(f"   {symbol}: Selling {sell_qty} shares (excess ${excess_value:.2f})")
                 else:
-                    print(f"   {symbol}: No sell needed")
-                    logging.info(f"   {symbol}: No sell needed")
-                    continue
+                    # Calculate percentage deviation
+                    deviation_pct = abs(current_value - target_value) / target_value if target_value > 0 else 0.0
+                    # Only sell excess if deviation is greater than 1%
+                    if current_value > target_value + 1.0 and deviation_pct > 0.01:
+                        sells_needed = True
+                        excess_value = current_value - target_value
+                        current_price = self.get_current_price(symbol)
+                        sell_qty = min(round(excess_value / current_price, 6), pos['qty'])
+                        print(f"   {symbol}: Selling {sell_qty} shares (excess ${excess_value:.2f}, deviation {deviation_pct:.2%})")
+                        logging.info(f"   {symbol}: Selling {sell_qty} shares (excess ${excess_value:.2f}, deviation {deviation_pct:.2%})")
+                    else:
+                        print(f"   {symbol}: No sell needed (deviation {deviation_pct:.2%})")
+                        logging.info(f"   {symbol}: No sell needed (deviation {deviation_pct:.2%})")
+                        continue
                 
                 if sell_qty > 0:
                     current_price = self.get_current_price(symbol)
@@ -360,64 +362,68 @@ class AlpacaTradingBot:
                 logging.info(f"   Updated Buying Power: ${buying_power:,.2f}")
 
             # --- PHASE 2: Buys ---
-            print("📈 PHASE 2: Buying to reach target allocations...")
-            logging.info("📈 PHASE 2: Buying to reach target allocations...")
-            
-            # Use actual cash available after sells
-            account_info_after_sells = self.get_account_info()
-            available_cash = account_info_after_sells.get('cash', 0.0)
-            current_positions_after_sells = self.get_positions()
-            
-            print(f"   Available cash for purchases: ${available_cash:.2f}")
-            logging.info(f"   Available cash for purchases: ${available_cash:.2f}")
-            
-            # Sort by target weight (largest first) to prioritize important positions  
-            for symbol in sorted(target_portfolio.keys(), key=lambda x: target_portfolio[x], reverse=True):
+            # Check if any buys are actually needed (deviation > 1% and not in tolerance)
+            buys_needed = False
+            for symbol in target_portfolio.keys():
                 target_value = target_values[symbol]
-                
-                # Get updated current value after sells
-                current_value = 0.0
-                if symbol in current_positions_after_sells:
-                    current_value = current_positions_after_sells[symbol].get('market_value', 0.0)
-                
-                value_to_buy = target_value - current_value
-                
-                if value_to_buy > 1.0 and available_cash > 1.0:
-                    current_price = self.get_current_price(symbol)
-                    actual_value_to_buy = min(value_to_buy, available_cash)
-                    
-                    # Calculate exact shares with proper rounding
-                    buy_qty = round(actual_value_to_buy / current_price, 6)
-                    required_cash = buy_qty * current_price
-                    
-                    print(f"   {symbol}: Need ${value_to_buy:.2f}, buying ${actual_value_to_buy:.2f} ({buy_qty} shares)")
-                    logging.info(f"   {symbol}: Need ${value_to_buy:.2f}, buying ${actual_value_to_buy:.2f} ({buy_qty} shares)")
-                    
-                    if buy_qty > 0 and required_cash <= available_cash:
-                        order_id = self.place_order(symbol, buy_qty, OrderSide.BUY)
-                        if order_id:
-                            orders_executed.append({
-                                'symbol': symbol,
-                                'side': OrderSide.BUY,
-                                'qty': buy_qty,
-                                'order_id': order_id,
-                                'estimated_value': required_cash
-                            })
-                            available_cash -= required_cash
-                            print(f"   ✅ {symbol}: Bought {buy_qty} shares (Order ID: {order_id})")
-                            logging.info(f"   ✅ {symbol}: Bought {buy_qty} shares (Order ID: {order_id})")
+                current_value = current_positions.get(symbol, {}).get('market_value', 0.0)
+                deviation_pct = abs(current_value - target_value) / target_value if target_value > 0 else 0.0
+                if value_to_buy := (target_value - current_value) > 1.0 and deviation_pct > 0.01:
+                    buys_needed = True
+                    break
+            # If no buys needed, skip buy phase
+            if not buys_needed:
+                print("   No buys needed - all positions are at or above target allocations")
+                logging.info("   No buys needed - all positions are at or above target allocations")
+            else:
+                print("📈 PHASE 2: Buying to reach target allocations...")
+                logging.info("📈 PHASE 2: Buying to reach target allocations...")
+                # Use actual cash available after sells
+                account_info_after_sells = self.get_account_info()
+                available_cash = account_info_after_sells.get('cash', 0.0)
+                current_positions_after_sells = self.get_positions()
+                print(f"   Available cash for purchases: ${available_cash:.2f}")
+                logging.info(f"   Available cash for purchases: ${available_cash:.2f}")
+                # Sort by target weight (largest first) to prioritize important positions
+                for symbol in sorted(target_portfolio.keys(), key=lambda x: target_portfolio[x], reverse=True):
+                    target_value = target_values[symbol]
+                    current_value = 0.0
+                    if symbol in current_positions_after_sells:
+                        current_value = current_positions_after_sells[symbol].get('market_value', 0.0)
+                    value_to_buy = target_value - current_value
+                    deviation_pct = abs(current_value - target_value) / target_value if target_value > 0 else 0.0
+                    if value_to_buy > 1.0 and deviation_pct > 0.01 and available_cash > 1.0:
+                        current_price = self.get_current_price(symbol)
+                        actual_value_to_buy = min(value_to_buy, available_cash)
+                        buy_qty = round(actual_value_to_buy / current_price, 6)
+                        required_cash = buy_qty * current_price
+                        print(f"   {symbol}: Need ${value_to_buy:.2f}, buying ${actual_value_to_buy:.2f} ({buy_qty} shares)")
+                        logging.info(f"   {symbol}: Need ${value_to_buy:.2f}, buying ${actual_value_to_buy:.2f} ({buy_qty} shares)")
+                        if buy_qty > 0 and required_cash <= available_cash:
+                            order_id = self.place_order(symbol, buy_qty, OrderSide.BUY)
+                            if order_id:
+                                orders_executed.append({
+                                    'symbol': symbol,
+                                    'side': OrderSide.BUY,
+                                    'qty': buy_qty,
+                                    'order_id': order_id,
+                                    'estimated_value': required_cash
+                                })
+                                available_cash -= required_cash
+                                print(f"   ✅ {symbol}: Bought {buy_qty} shares (Order ID: {order_id})")
+                                logging.info(f"   ✅ {symbol}: Bought {buy_qty} shares (Order ID: {order_id})")
+                            else:
+                                print(f"   ❌ {symbol}: Failed to place buy order")
+                                logging.error(f"   ❌ {symbol}: Failed to place buy order")
                         else:
-                            print(f"   ❌ {symbol}: Failed to place buy order")
-                            logging.error(f"   ❌ {symbol}: Failed to place buy order")
+                            print(f"   {symbol}: Cannot buy - insufficient cash (need ${required_cash:.2f}, have ${available_cash:.2f})")
+                            logging.info(f"   {symbol}: Cannot buy - insufficient cash")
+                    elif value_to_buy <= 1.0 or deviation_pct <= 0.01:
+                        print(f"   {symbol}: Already at target (difference: ${value_to_buy:.2f}, deviation {deviation_pct:.2%})")
+                        logging.info(f"   {symbol}: Already at target (difference: ${value_to_buy:.2f}, deviation {deviation_pct:.2%})")
                     else:
-                        print(f"   {symbol}: Cannot buy - insufficient cash (need ${required_cash:.2f}, have ${available_cash:.2f})")
-                        logging.info(f"   {symbol}: Cannot buy - insufficient cash")
-                elif value_to_buy <= 1.0:
-                    print(f"   {symbol}: Already at target (difference: ${value_to_buy:.2f})")
-                    logging.info(f"   {symbol}: Already at target")
-                else:
-                    print(f"   {symbol}: No cash remaining (${available_cash:.2f})")
-                    logging.info(f"   {symbol}: No cash remaining")
+                        print(f"   {symbol}: No cash remaining (${available_cash:.2f})")
+                        logging.info(f"   {symbol}: No cash remaining")
 
             print(f"✅ Rebalancing complete. Orders executed: {len(orders_executed)}")
             logging.info(f"✅ Rebalancing complete. Orders executed: {len(orders_executed)}")
