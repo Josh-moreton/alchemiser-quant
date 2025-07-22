@@ -74,7 +74,7 @@ def run_live_trading_bot(ignore_market_hours=False):
     print("[INFO] Importing send_telegram_message and AlpacaTradingBot. This may take a few seconds if cold starting.")
     print()
     try:
-        from core.telegram_utils import send_telegram_message
+        from core.telegram_utils import send_telegram_message, build_execution_report
         from execution.alpaca_trader import AlpacaTradingBot, is_market_open
         print("📊 STEP 1: Checking Market Status...")
         print("-" * 50)
@@ -145,27 +145,15 @@ def run_live_trading_bot(ignore_market_hours=False):
         print("📲 STEP 5: Sending Telegram Notification...")
         print("-" * 50)
         positions = alpaca_bot.get_positions()
-        msg = f"\U0001F680 Nuclear Alpaca Bot Execution\n\n"
-        msg += f"Status: {'✅ Success' if success else '❌ Failed'}\n"
-        msg += f"Portfolio Value Before: ${account_info_before.get('portfolio_value', 0):,.2f}\n"
-        msg += f"Portfolio Value After:  ${account_info_after.get('portfolio_value', 0):,.2f}\n"
-        msg += f"Cash Before: ${account_info_before.get('cash', 0):,.2f}\n"
-        msg += f"Cash After:  ${account_info_after.get('cash', 0):,.2f}\n"
-        if positions:
-            msg += "\nPositions:\n"
-            for symbol, pos in positions.items():
-                qty = pos.get('qty', 0)
-                price = pos.get('current_price', 0)
-                market_value = pos.get('market_value', 0)
-                msg += f"- {symbol}: {qty} @ ${price:.2f} = ${market_value:.2f}\n"
-        # Add order summary
-        if orders:
-            msg += "\nOrders Executed:\n"
-            for order in orders:
-                side = order.get('side')
-                if hasattr(side, 'value'):
-                    side = side.value
-                msg += f"- {side.upper()} {order['qty']} {order['symbol']} (${order['estimated_value']:.2f})\n"
+        msg = build_execution_report(
+            mode="LIVE",
+            success=success,
+            account_before=account_info_before,
+            account_after=account_info_after,
+            positions=positions,
+            orders=orders,
+            signal=signal,
+        )
         try:
             send_telegram_message(msg)
             print("✅ Telegram notification sent successfully!")
@@ -191,7 +179,7 @@ def run_paper_trading_bot(ignore_market_hours=False):
     print(f"Running trading analysis with Alpaca PAPER trading at {datetime.now()}")
     print()
     try:
-        from core.telegram_utils import send_telegram_message
+        from core.telegram_utils import send_telegram_message, build_execution_report
         from execution.alpaca_trader import AlpacaTradingBot, is_market_open
         print("📊 STEP 1: Checking Market Status...")
         print("-" * 50)
@@ -260,22 +248,16 @@ def run_paper_trading_bot(ignore_market_hours=False):
         print("📲 STEP 5: Sending Telegram Notification...")
         print("-" * 50)
         positions = alpaca_bot.get_positions()
-        msg = f"🚀 Nuclear Paper Trading Bot Execution\n\n"
-        msg += f"Status: {'✅ Success' if success else '❌ Failed'}\n"
-        msg += f"Portfolio Value Before: ${account_info_before.get('portfolio_value', 0):,.2f}\n"
-        msg += f"Portfolio Value After:  ${account_info_after.get('portfolio_value', 0):,.2f}\n"
-        msg += f"Cash Before: ${account_info_before.get('cash', 0):,.2f}\n"
-        msg += f"Cash After:  ${account_info_after.get('cash', 0):,.2f}\n"
-        msg += f"Mode: PAPER TRADING\n"
-        
-        if positions:
-            msg += "\nPositions:\n"
-            for symbol, pos in positions.items():
-                qty = pos.get('qty', 0)
-                price = pos.get('current_price', 0)
-                market_value = pos.get('market_value', 0)
-                msg += f"- {symbol}: {qty} @ ${price:.2f} = ${market_value:.2f}\n"
-        
+        msg = build_execution_report(
+            mode="PAPER",
+            success=success,
+            account_before=account_info_before,
+            account_after=account_info_after,
+            positions=positions,
+            orders=orders,
+            signal=signal,
+        )
+
         try:
             send_telegram_message(msg)
             print("✅ Telegram notification sent successfully!")

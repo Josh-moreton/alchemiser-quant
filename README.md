@@ -59,19 +59,18 @@ python main.py live
 🚀 Nuclear Alpaca Bot Execution Report
 
 ✅ EXECUTION STATUS: SUCCESS
+Portfolio Value: $101,250.00 (+1,250.00 / +1.3%)
+Cash: $5,000.00 (4.9% of portfolio)
 
-📈 ACCOUNT SUMMARY:
-   Portfolio Value Before: $100,000.00
-   Portfolio Value After:  $101,250.00
-   Cash Before: $10,000.00
-   Cash After:  $5,000.00
+📊 Positions:
+ - SMR: 156 @ $40.00 (P&L +12.0%, 31.2% alloc)
+ - LEU: 198 @ $200.00 (P&L +8.5%, 39.5% alloc)
+ - OKLO: 487 @ $60.00 (P&L -2.3%, 29.3% alloc)
+Top gainer: SMR (+12.0%), Worst: OKLO (-2.3%)
 
-📊 CURRENT POSITIONS:
-   SMR: 156.0 shares @ $40.00 = $31,200.00
-   LEU: 197.5 shares @ $200.00 = $39,500.00
-   OKLO: 486.67 shares @ $60.00 = $29,200.00
-
-Execution Time: 13:45:22
+📝 Orders:
+ - BUY SMR 50 ($2,000.00)
+ - SELL LEU 30 ($6,000.00)
 ```
 
 ### Alpaca & Telegram Setup
