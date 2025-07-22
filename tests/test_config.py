@@ -7,13 +7,6 @@ def test_config_loading():
     """Test that config loads correctly from YAML file"""
     config = Config()
     
-    # Test email configuration
-    assert 'email' in config
-    email_config = config['email']
-    assert email_config['sender'] == 'joshuamoreton1@icloud.com'
-    assert email_config['smtp_server'] == 'smtp.mail.me.com'
-    assert email_config['smtp_port'] == 587
-    assert 'josh@rwxt.org' in email_config['recipients']
     
     # Test logging configuration
     assert 'logging' in config
@@ -50,7 +43,6 @@ def test_config_contains():
     """Test that 'in' operator works with config"""
     config = Config()
     
-    assert 'email' in config
     assert 'logging' in config
     assert 'data' in config
     assert 'alpaca' in config

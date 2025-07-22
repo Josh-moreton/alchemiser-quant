@@ -13,7 +13,6 @@ Several modules load secrets, read configuration files, print to the console or 
 ## 2. Duplicate Routines
 
 - Two separate classes, `DataProvider` and `AlpacaDataProvider`, both implement `get_current_price` with nearly identical logic. Compare lines 133–166 with lines 195–213 in `core/data_provider.py`.
-- Email notifications share substantial duplicated code in `send_alpaca_notification` and `send_signal_notification`. Both functions load the configuration, build SMTP parameters and send via `send_email`.
 
 ## 3. Heavy Use of Global Configuration
 
@@ -24,7 +23,7 @@ config = Config()
 logging_config = config['logging']
 ```
 
-occurs at the top of `core/nuclear_trading_bot.py` (lines 30–32). The same pattern appears in `email_utils.py` and other modules. This makes testing or changing configuration at runtime difficult.
+occurs at the top of `core/nuclear_trading_bot.py` (lines 30–32). This makes testing or changing configuration at runtime difficult.
 
 ## Step-by-Step Plan to Resolve
 
@@ -35,11 +34,9 @@ occurs at the top of `core/nuclear_trading_bot.py` (lines 30–32). The same pat
    - Lazy-load secrets only when needed, or inject the values from the orchestrator layer.
 3. **Consolidate Data Provider Classes**
    - Merge `DataProvider` and `AlpacaDataProvider` or extract a common base class to eliminate duplicated code for price retrieval.
-4. **Refactor Notification Functions**
-   - Extract common logic for loading SMTP settings and sending emails into reusable helpers so the two notification paths share one implementation.
-5. **Centralize Configuration Management**
+4. **Centralize Configuration Management**
    - Load `config.yaml` once in the CLI layer (`main.py`) and pass the resulting configuration object into lower-level classes. Avoid global Config instances in modules.
-6. **Improve Testing Strategy**
+5. **Improve Testing Strategy**
    - Provide test fixtures that mock external services (AWS, Alpaca, Telegram). With dependency injection in place, tests can run without network access or secrets.
 
 Following these steps will reduce coupling, improve testability and make the architecture easier to maintain.

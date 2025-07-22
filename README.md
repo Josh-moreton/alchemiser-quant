@@ -93,8 +93,7 @@ LQQ3/
 ├── main.py                     # 🎯 UNIFIED ENTRY POINT (all operations)
 ├── core/                       # Core trading components
 │   ├── nuclear_trading_bot.py  # Main trading strategy
-│   ├── telegram_utils.py       # Telegram helpers
-│   └── email_utils.py          # Email helper functions
+│   └── telegram_utils.py       # Telegram helpers
 ├── execution/                  # Alpaca trading integration
 │   └── alpaca_trader.py        # Alpaca trading bot
 ├── tests/                      # Test suite

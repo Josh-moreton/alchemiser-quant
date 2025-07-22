@@ -106,8 +106,7 @@ class SecretsManager:
             'ALPACA_PAPER_KEY': 'ALPACA_PAPER_KEY',
             'ALPACA_PAPER_SECRET': 'ALPACA_PAPER_SECRET',
             'TELEGRAM_TOKEN': 'TELEGRAM_TOKEN',
-            'TELEGRAM_CHAT_ID': 'TELEGRAM_CHAT_ID',
-            'SMTP_PASSWORD': 'SMTP_PASSWORD'
+            'TELEGRAM_CHAT_ID': 'TELEGRAM_CHAT_ID'
         }
         
         for key, env_var in env_mappings.items():
