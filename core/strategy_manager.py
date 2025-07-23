@@ -23,6 +23,9 @@ from enum import Enum
 from .config import Config
 from .nuclear_trading_bot import NuclearStrategyEngine, ActionType
 from .tecl_strategy_engine import TECLStrategyEngine
+# Centralized logging setup
+from .logging_utils import setup_logging
+setup_logging()
 
 
 class StrategyType(Enum):

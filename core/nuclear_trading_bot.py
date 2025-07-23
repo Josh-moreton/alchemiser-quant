@@ -20,6 +20,9 @@ import datetime as dt
 # Third-party imports
 import pandas as pd
 import numpy as np
+# Centralized logging setup
+from .logging_utils import setup_logging
+setup_logging()
 
 # Local imports
 from .indicators import TechnicalIndicators

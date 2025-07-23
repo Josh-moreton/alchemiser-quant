@@ -31,6 +31,7 @@ import numpy as np
 from .indicators import TechnicalIndicators
 from .data_provider import UnifiedDataProvider
 from .config import Config
+from .logging_utils import setup_logging  # Centralized logging setup
 from enum import Enum
 
 warnings.filterwarnings('ignore')
@@ -48,6 +49,7 @@ logging.basicConfig(
         logging.StreamHandler()
     ]
 )
+setup_logging()
 
 
 class ActionType(Enum):

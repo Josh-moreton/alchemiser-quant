@@ -12,6 +12,9 @@ import time
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 
+# Centralized logging setup
+from core.logging_utils import setup_logging
+setup_logging()
 # Alpaca imports
 from alpaca.trading.client import TradingClient
 
