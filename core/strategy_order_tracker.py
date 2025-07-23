@@ -177,7 +177,8 @@ class StrategyOrderTracker:
             # Group orders by symbol and strategy
             symbol_strategy_orders = {}
             for order_data in orders.values():
-                if order_data['status'] == 'filled':
+                # Consider both submitted and filled orders since we only record successful orders
+                if order_data['status'] in ['filled', 'submitted']:
                     symbol = order_data['symbol']
                     strategy = order_data['strategy_type']
                     key = f"{symbol}_{strategy}"

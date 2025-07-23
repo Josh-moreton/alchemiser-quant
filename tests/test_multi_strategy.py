@@ -189,6 +189,111 @@ def test_config_integration():
         return False, {}
 
 
+def test_tecl_strategy_engine_bull_market():
+    """Test TECL strategy engine in bull market scenario"""
+    print("\n🧪 Testing TECL Strategy Engine in Bull Market Scenario...")
+    print("-" * 40)
+    
+    try:
+        engine = TECLStrategyEngine()
+        
+        # Mock market data for bull market
+        market_data = [
+            {'symbol': 'AAPL', 'rsi': 70, 'price': 150, 'ma': 145},
+            {'symbol': 'TSLA', 'rsi': 75, 'price': 700, 'ma': 680},
+            # Add more symbols as needed
+        ]
+        
+        # Mock indicators (normally calculated from market data)
+        indicators = engine.calculate_indicators(market_data)
+        
+        # Test strategy evaluation
+        symbol_or_allocation, action, reason = engine.evaluate_tecl_strategy(indicators, market_data)
+        
+        assert action == "allocate", "TECL strategy should allocate in bull market"
+        assert isinstance(symbol_or_allocation, dict), "Allocation should be a dictionary"
+        assert all(v > 0 for v in symbol_or_allocation.values()), "All allocations should be positive"
+        
+        print(f"✅ TECL Strategy Bull Market Test Passed: {action} allocation {symbol_or_allocation}")
+        return True, {'symbol': symbol_or_allocation, 'action': action, 'reason': reason}
+        
+    except Exception as e:
+        print(f"❌ TECL Strategy Engine Bull Market test failed: {e}")
+        import traceback
+        traceback.print_exc()
+        return False, {}
+
+
+def test_tecl_strategy_engine_bear_market():
+    """Test TECL strategy engine in bear market scenario"""
+    print("\n🧪 Testing TECL Strategy Engine in Bear Market Scenario...")
+    print("-" * 40)
+    
+    try:
+        engine = TECLStrategyEngine()
+        
+        # Mock market data for bear market
+        market_data = [
+            {'symbol': 'AAPL', 'rsi': 30, 'price': 120, 'ma': 125},
+            {'symbol': 'TSLA', 'rsi': 25, 'price': 600, 'ma': 620},
+            # Add more symbols as needed
+        ]
+        
+        # Mock indicators (normally calculated from market data)
+        indicators = engine.calculate_indicators(market_data)
+        
+        # Test strategy evaluation
+        symbol_or_allocation, action, reason = engine.evaluate_tecl_strategy(indicators, market_data)
+        
+        assert action == "defensive", "TECL strategy should go defensive in bear market"
+        assert isinstance(symbol_or_allocation, dict), "Allocation should be a dictionary"
+        assert all(v <= 0 for v in symbol_or_allocation.values()), "All allocations should be non-positive (cash or hedge)"
+        
+        print(f"✅ TECL Strategy Bear Market Test Passed: {action} allocation {symbol_or_allocation}")
+        return True, {'symbol': symbol_or_allocation, 'action': action, 'reason': reason}
+        
+    except Exception as e:
+        print(f"❌ TECL Strategy Engine Bear Market test failed: {e}")
+        import traceback
+        traceback.print_exc()
+        return False, {}
+
+
+def test_nuclear_strategy_volatility_spike():
+    """Test Nuclear strategy with volatility spike scenario"""
+    print("\n🧪 Testing Nuclear Strategy with Volatility Spike Scenario...")
+    print("-" * 40)
+    
+    try:
+        engine = TECLStrategyEngine()
+        
+        # Mock market data for volatility spike
+        market_data = [
+            {'symbol': 'UVXY', 'rsi': 85, 'price': 20, 'ma': 15},
+            {'symbol': 'SPY', 'rsi': 40, 'price': 400, 'ma': 410},
+            # Add more symbols as needed
+        ]
+        
+        # Mock indicators (normally calculated from market data)
+        indicators = engine.calculate_indicators(market_data)
+        
+        # Test strategy evaluation
+        symbol_or_allocation, action, reason = engine.evaluate_tecl_strategy(indicators, market_data)
+        
+        assert action == "hedge", "Nuclear strategy should hedge against volatility spike"
+        assert isinstance(symbol_or_allocation, dict), "Allocation should be a dictionary"
+        assert all(v <= 0 for v in symbol_or_allocation.values()), "All allocations should be non-positive (cash or hedge)"
+        
+        print(f"✅ Nuclear Strategy Volatility Spike Test Passed: {action} allocation {symbol_or_allocation}")
+        return True, {'symbol': symbol_or_allocation, 'action': action, 'reason': reason}
+        
+    except Exception as e:
+        print(f"❌ Nuclear Strategy Volatility Spike test failed: {e}")
+        import traceback
+        traceback.print_exc()
+        return False, {}
+
+
 def run_comprehensive_test():
     """Run all tests and provide summary"""
     print("🚀 MULTI-STRATEGY SYSTEM COMPREHENSIVE TEST")
@@ -208,6 +313,9 @@ def run_comprehensive_test():
         ("Position Tracking", test_position_tracking),
         ("Multi-Strategy Manager", test_multi_strategy_manager),
         ("Multi-Strategy Trader", test_multi_strategy_trader),
+        ("TECL Strategy Engine Bull Market", test_tecl_strategy_engine_bull_market),
+        ("TECL Strategy Engine Bear Market", test_tecl_strategy_engine_bear_market),
+        ("Nuclear Strategy Volatility Spike", test_nuclear_strategy_volatility_spike),
     ]
     
     passed_tests = 0

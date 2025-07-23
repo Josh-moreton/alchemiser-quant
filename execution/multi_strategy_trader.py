@@ -298,8 +298,12 @@ class MultiStrategyAlpacaTrader(AlpacaTradingBot):
         for order in orders_executed:
             side = order.get('side')
             if side:
-                # Handle both string and enum values
-                side_value = side.value if hasattr(side, 'value') else str(side)
+                # Handle both string and enum values - normalize to uppercase for comparison
+                if hasattr(side, 'value'):
+                    side_value = side.value.upper()
+                else:
+                    side_value = str(side).upper()
+                
                 if side_value == 'BUY':
                     buy_orders.append(order)
                 elif side_value == 'SELL':
