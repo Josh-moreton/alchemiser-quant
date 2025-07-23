@@ -62,9 +62,6 @@ class MultiStrategyAlpacaTrader(AlpacaTradingBot):
         # Logging setup
         self.multi_strategy_log = self.config['logging'].get('multi_strategy_log', 
                                                             'data/logs/multi_strategy_execution.log')
-        
-        logging.info(f"MultiStrategyAlpacaTrader initialized with allocations: {self.strategy_manager.strategy_allocations}")
-        logging.info(f"Order tracking enabled: {self.order_tracker.orders_file}")
     
     def execute_multi_strategy(self) -> MultiStrategyExecutionResult:
         """
@@ -74,36 +71,23 @@ class MultiStrategyAlpacaTrader(AlpacaTradingBot):
             MultiStrategyExecutionResult with complete execution details
         """
         try:
-            logging.info("🚀 Starting multi-strategy execution")
-            
             # Get account info before execution
             account_info_before = self.get_account_info()
             if not account_info_before:
                 raise Exception("Unable to get account information")
             
-            logging.info(f"Account value before execution: ${account_info_before.get('portfolio_value', 0):,.2f}")
-            
             # Run all strategies
-            logging.info("📊 Running all strategies...")
             strategy_signals, consolidated_portfolio = self.strategy_manager.run_all_strategies()
-            
-            # Log strategy results
-            for strategy_type, signal in strategy_signals.items():
-                logging.info(f"{strategy_type.value} Strategy: {signal['action']} {signal['symbol']} - {signal['reason']}")
             
             # Validate consolidated portfolio
             if not consolidated_portfolio:
-                logging.warning("No positions recommended by any strategy - holding cash")
                 consolidated_portfolio = {'BIL': 1.0}  # Default to cash equivalent
             
             total_allocation = sum(consolidated_portfolio.values())
             if abs(total_allocation - 1.0) > 0.05:
                 logging.warning(f"Portfolio allocation sums to {total_allocation:.1%}, expected ~100%")
             
-            logging.info(f"Consolidated portfolio: {consolidated_portfolio}")
-            
             # Execute portfolio rebalancing
-            logging.info("⚡ Executing portfolio rebalancing...")
             orders_executed = self.rebalance_portfolio_with_tracking(consolidated_portfolio, strategy_signals)
             
             # Get account info after execution
@@ -129,7 +113,6 @@ class MultiStrategyAlpacaTrader(AlpacaTradingBot):
                 execution_summary=execution_summary
             )
             
-            logging.info("✅ Multi-strategy execution completed successfully")
             return result
             
         except Exception as e:
@@ -161,13 +144,10 @@ class MultiStrategyAlpacaTrader(AlpacaTradingBot):
             List of executed orders with strategy attribution
         """
         try:
-            logging.info("🔄 Starting portfolio rebalancing with strategy tracking...")
-            
             # First, update our position tracking with current Alpaca state
             current_positions = self.get_positions()
             if current_positions:
                 strategy_positions = self.order_tracker.reconcile_positions_with_alpaca(current_positions)
-                logging.info(f"Reconciled positions across {len(strategy_positions)} strategies")
             
             # Execute parent class rebalancing
             orders_executed = super().rebalance_portfolio(target_portfolio)
@@ -193,15 +173,10 @@ class MultiStrategyAlpacaTrader(AlpacaTradingBot):
                             price=order.get('price'),
                             reason=reason
                         )
-                        
-                        logging.info(f"Tracked order {order['order_id']} for {strategy_type.value}: "
-                                   f"{order['side']} {order['qty']} {order['symbol']}")
             
             # Clean up old orders periodically
             if len(orders_executed) > 0:
                 cleaned_orders = self.order_tracker.cleanup_old_orders(days_to_keep=90)
-                if cleaned_orders > 0:
-                    logging.info(f"Cleaned up {cleaned_orders} old order records")
             
             return orders_executed
             
@@ -284,12 +259,6 @@ class MultiStrategyAlpacaTrader(AlpacaTradingBot):
                                  account_before: Dict, account_after: Dict) -> Dict:
         """Create comprehensive execution summary"""
         
-        # Calculate portfolio changes
-        portfolio_value_before = account_before.get('portfolio_value', 0)
-        portfolio_value_after = account_after.get('portfolio_value', 0)
-        value_change = portfolio_value_after - portfolio_value_before
-        value_change_pct = (value_change / portfolio_value_before * 100) if portfolio_value_before > 0 else 0
-        
         # Analyze orders
         total_trades = len(orders_executed)
         buy_orders = []
@@ -325,14 +294,6 @@ class MultiStrategyAlpacaTrader(AlpacaTradingBot):
         return {
             'timestamp': datetime.now().isoformat(),
             'execution_mode': 'PAPER' if self.paper_trading else 'LIVE',
-            'account_summary': {
-                'portfolio_value_before': portfolio_value_before,
-                'portfolio_value_after': portfolio_value_after,
-                'value_change': value_change,
-                'value_change_pct': value_change_pct,
-                'cash_before': account_before.get('cash', 0),
-                'cash_after': account_after.get('cash', 0)
-            },
             'strategy_summary': strategy_allocations,
             'portfolio_allocation': consolidated_portfolio,
             'trading_summary': {
@@ -376,18 +337,9 @@ class MultiStrategyAlpacaTrader(AlpacaTradingBot):
             # Get strategy position tracking
             strategy_positions = self.strategy_manager.get_current_positions()
             
-            # Get account information
-            account_info = self.get_account_info()
-            
             # Create comprehensive report
             report = {
                 'timestamp': datetime.now().isoformat(),
-                'account_summary': {
-                    'portfolio_value': account_info.get('portfolio_value', 0),
-                    'buying_power': account_info.get('buying_power', 0),
-                    'cash': account_info.get('cash', 0),
-                    'paper_trading': self.paper_trading
-                },
                 'strategy_allocations': {
                     k.value: v for k, v in self.strategy_manager.strategy_allocations.items()
                 },
@@ -407,9 +359,7 @@ class MultiStrategyAlpacaTrader(AlpacaTradingBot):
     
     def display_multi_strategy_summary(self, execution_result: MultiStrategyExecutionResult):
         """Display comprehensive summary of multi-strategy execution"""
-        print("\n" + "="*80)
-        print("🎯 MULTI-STRATEGY EXECUTION SUMMARY")
-        print("="*80)
+        print("🎯 STRATEGY SIGNALS:")
         
         if not execution_result.success:
             print("❌ EXECUTION FAILED")
@@ -418,36 +368,29 @@ class MultiStrategyAlpacaTrader(AlpacaTradingBot):
         
         summary = execution_result.execution_summary
         
-        # Account changes
-        account = summary['account_summary']
-        print(f"💰 Account Performance:")
-        print(f"   Portfolio Value: ${account['portfolio_value_before']:,.2f} → ${account['portfolio_value_after']:,.2f}")
-        print(f"   Change: ${account['value_change']:+,.2f} ({account['value_change_pct']:+.2f}%)")
-        print(f"   Mode: {summary['execution_mode']}")
-        
-        # Strategy signals
-        print(f"\n📊 Strategy Signals:")
+        # Strategy signals - more concise
         for strategy, details in summary['strategy_summary'].items():
-            print(f"   {strategy} ({details['allocation']:.0%}): {details['signal']}")
-            print(f"      └─ {details['reason']}")
+            action_symbol = details['signal']
+            reason = details['reason']
+            allocation = details['allocation']
+            print(f"   {strategy} ({allocation:.0%}): {action_symbol}")
+            print(f"   └─ {reason}")
         
         # Portfolio allocation
-        print(f"\n🎯 Final Portfolio Allocation:")
+        print(f"\n🎯 PORTFOLIO ALLOCATION:")
         for symbol, weight in execution_result.consolidated_portfolio.items():
             print(f"   {symbol}: {weight:.1%}")
         
         # Trading summary
         trading = summary['trading_summary']
         if trading['total_trades'] > 0:
-            print(f"\n⚡ Trading Activity:")
-            print(f"   Total Trades: {trading['total_trades']} ({trading['buy_orders']} buys, {trading['sell_orders']} sells)")
-            print(f"   Buy Value: ${trading['total_buy_value']:,.2f}")
-            print(f"   Sell Value: ${trading['total_sell_value']:,.2f}")
-            print(f"   Net Activity: ${trading['net_trading_value']:+,.2f}")
+            print(f"\n⚡ TRADES EXECUTED:")
+            print(f"   {trading['total_trades']} orders ({trading['buy_orders']} buys, {trading['sell_orders']} sells)")
+            print(f"   Net: ${trading['net_trading_value']:+,.0f}")
         else:
             print(f"\n⚡ No trades needed - portfolio already aligned")
         
-        print("="*80)
+        print()
 
 
 def main():

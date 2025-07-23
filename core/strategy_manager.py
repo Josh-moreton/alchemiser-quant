@@ -159,7 +159,7 @@ class MultiStrategyManager:
                 with open(self.positions_file, 'w') as f:
                     json.dump(data, f, indent=2)
             
-            logging.info(f"Strategy positions saved to {self.positions_file}")
+            logging.debug(f"Strategy positions saved to {self.positions_file}")
         except Exception as e:
             logging.error(f"Error saving strategy positions: {e}")
     
@@ -172,7 +172,7 @@ class MultiStrategyManager:
             - strategy_signals: Dict mapping strategy types to their signals/results
             - consolidated_portfolio: Dict of symbol -> total_portfolio_weight
         """
-        logging.info("Running all strategies...")
+        logging.debug("Running all strategies...")
         
         strategy_signals = {}
         consolidated_portfolio = {}
@@ -190,7 +190,8 @@ class MultiStrategyManager:
             else:
                 logging.warning(f"Could not fetch data for {symbol}")
         
-        logging.info(f"Fetched market data for {len(market_data)} symbols using shared data provider")
+        # Market data fetched successfully
+        logging.debug(f"Fetched market data for {len(market_data)} symbols using shared data provider")
         
         # Run Nuclear Strategy
         try:
@@ -203,7 +204,7 @@ class MultiStrategyManager:
                 'indicators': nuclear_indicators,
                 'market_data': market_data
             }
-            logging.info(f"Nuclear strategy: {nuclear_result[1]} {nuclear_result[0]} - {nuclear_result[2]}")
+            logging.debug(f"Nuclear strategy: {nuclear_result[1]} {nuclear_result[0]} - {nuclear_result[2]}")
         except Exception as e:
             logging.error(f"Error running Nuclear strategy: {e}")
             strategy_signals[StrategyType.NUCLEAR] = {
@@ -225,7 +226,7 @@ class MultiStrategyManager:
                 'indicators': tecl_indicators,
                 'market_data': market_data
             }
-            logging.info(f"TECL strategy: {tecl_result[1]} {tecl_result[0]} - {tecl_result[2]}")
+            logging.debug(f"TECL strategy: {tecl_result[1]} {tecl_result[0]} - {tecl_result[2]}")
         except Exception as e:
             logging.error(f"Error running TECL strategy: {e}")
             strategy_signals[StrategyType.TECL] = {
@@ -276,7 +277,7 @@ class MultiStrategyManager:
         # Note: Position tracking should only happen when trades are actually executed
         # Signal generation should not create position records
         
-        logging.info(f"Consolidated portfolio: {consolidated_portfolio}")
+        logging.debug(f"Consolidated portfolio: {consolidated_portfolio}")
         return strategy_signals, consolidated_portfolio
     
     def _get_nuclear_portfolio_allocation(self, signal_data: Dict) -> Dict[str, float]:

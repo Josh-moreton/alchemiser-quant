@@ -36,18 +36,10 @@ from core.config import Config
 # Load config and set logging level from config
 config = Config()
 logging_config = config['logging']
-level_str = logging_config.get('level', 'INFO').upper()
-level_map = {
-    'CRITICAL': logging.CRITICAL,
-    'ERROR': logging.ERROR,
-    'WARNING': logging.WARNING,
-    'INFO': logging.INFO,
-    'DEBUG': logging.DEBUG,
-    'NOTSET': logging.NOTSET
-}
 
-# Set up logging with config level
-logging.basicConfig(level=level_map.get(level_str, logging.INFO), 
+# For main.py execution, suppress all logging to keep terminal clean
+# Only log critical errors to avoid cluttering the user interface
+logging.basicConfig(level=logging.CRITICAL, 
                    format='%(asctime)s - %(levelname)s - %(name)s - %(message)s')
 
 
@@ -150,18 +142,10 @@ def run_multi_strategy_trading(live_trading: bool = False, ignore_market_hours: 
     """
     mode_str = "LIVE" if live_trading else "PAPER"
     
-    print(f"🚀 MULTI-STRATEGY TRADING - {mode_str}")
-    print("=" * 60)
-    print(f"Running multi-strategy {mode_str.lower()} trading at {datetime.now()}")
-    print()
-    
     try:
         from core.telegram_utils import send_telegram_message
         from execution.multi_strategy_trader import MultiStrategyAlpacaTrader, StrategyType
         from execution.alpaca_trader import is_market_open
-        
-        print("📊 STEP 1: Initializing Multi-Strategy Trader...")
-        print("-" * 50)
         
         # Initialize multi-strategy trader
         trader = MultiStrategyAlpacaTrader(
@@ -178,11 +162,6 @@ def run_multi_strategy_trading(live_trading: bool = False, ignore_market_hours: 
             send_telegram_message("❌ Market is CLOSED. No trades will be placed.")
             return "market_closed"
         
-        print("✅ Market is OPEN. Proceeding with multi-strategy trading.")
-        
-        print("\n⚡ STEP 2: Executing Multi-Strategy Trading...")
-        print("-" * 50)
-        
         # Execute multi-strategy
         result = trader.execute_multi_strategy()
         
@@ -190,22 +169,16 @@ def run_multi_strategy_trading(live_trading: bool = False, ignore_market_hours: 
         trader.display_multi_strategy_summary(result)
         
         # Send Telegram notification
-        print("\n📲 STEP 3: Sending Telegram Notification...")
-        print("-" * 50)
-        
         try:
             message = _build_multi_strategy_telegram_message(result, mode_str)
             send_telegram_message(message)
-            print("✅ Telegram notification sent successfully!")
         except Exception as e:
-            print(f"⚠️ Error sending Telegram notification: {e}")
+            print(f"⚠️ Telegram notification failed: {e}")
         
         return result.success
         
     except Exception as e:
-        print(f"❌ Error running multi-strategy trading: {e}")
-        import traceback
-        traceback.print_exc()
+        print(f"❌ Error: {e}")
         return False
 
 
@@ -215,16 +188,11 @@ def _build_single_strategy_telegram_message(result, strategy_name, mode):
         return f"❌ {mode} {strategy_name} Strategy FAILED\n\nError: {result.execution_summary.get('error', 'Unknown error')}"
     
     summary = result.execution_summary
-    account = summary['account_summary']
     
     # Build message
     lines = [
         f"🎯 {mode} {strategy_name} STRATEGY",
         f"Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
-        "",
-        f"💰 Account Performance:",
-        f"Portfolio: ${account['portfolio_value_before']:,.0f} → ${account['portfolio_value_after']:,.0f}",
-        f"Change: ${account['value_change']:+,.0f} ({account['value_change_pct']:+.2f}%)",
         "",
         f"🎯 Portfolio Allocation:"
     ]
@@ -251,16 +219,11 @@ def _build_multi_strategy_telegram_message(result, mode):
         return f"❌ {mode} Multi-Strategy Execution FAILED\n\nError: {result.execution_summary.get('error', 'Unknown error')}"
     
     summary = result.execution_summary
-    account = summary['account_summary']
     
     # Build message
     lines = [
         f"🎯 {mode} MULTI-STRATEGY EXECUTION",
         f"Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
-        "",
-        f"💰 Account Performance:",
-        f"Portfolio: ${account['portfolio_value_before']:,.0f} → ${account['portfolio_value_after']:,.0f}",
-        f"Change: ${account['value_change']:+,.0f} ({account['value_change_pct']:+.2f}%)",
         "",
         f"📊 Strategy Signals:"
     ]
@@ -315,18 +278,16 @@ def main():
 
     args = parser.parse_args()
 
-    print("🚀 MULTI-STRATEGY NUCLEAR TRADING BOT")
-    print("=" * 60)
-    print(f"Mode: {args.mode}")
+    # Suppress all logging output for clean terminal display
+    logging.getLogger().setLevel(logging.CRITICAL)
+    logging.getLogger('root').setLevel(logging.CRITICAL)
+    logging.getLogger('botocore').setLevel(logging.CRITICAL)
+    logging.getLogger('urllib3').setLevel(logging.CRITICAL)
     
-    if args.mode == 'trade':
-        if args.live:
-            print("Trading Mode: LIVE TRADING ⚠️")
-        else:
-            print("Trading Mode: Paper Trading (Safe Default)")
-    
-    print(f"Timestamp: {datetime.now()}")
+    mode_label = "LIVE TRADING ⚠️" if args.mode == 'trade' and args.live else "Paper Trading"
+    print(f"🚀 Multi-Strategy Nuclear Bot | {args.mode.upper()} | {mode_label}")
     print()
+    
     success = False
     try:
         if args.mode == 'bot':
@@ -336,20 +297,19 @@ def main():
             # Multi-strategy trading
             result = run_multi_strategy_trading(live_trading=args.live, ignore_market_hours=args.ignore_market_hours)
             if result == "market_closed":
-                print("\n🎉 Operation completed successfully! (Market closed)")
+                print("✅ Market closed - no action taken")
                 sys.exit(0)
             else:
                 success = result
     except Exception as e:
-        print(f"\n💥 Operation failed due to error: {e}")
-        traceback.print_exc()
+        print(f"❌ Error: {e}")
         success = False
+    
     if success:
-        print("\n🎉 Operation completed successfully!")
+        print("\n✅ Operation completed successfully!")
         sys.exit(0)
     else:
-        print("\n💥 Operation failed!")
-        sys.exit(1)
+        print("\n❌ Operation failed!")
         sys.exit(1)
 
 if __name__ == "__main__":

@@ -15,17 +15,16 @@ python main.py <mode> [options]
 
 ### Modes
 
-| Mode      | Command                | Description                                      |
-|-----------|------------------------|--------------------------------------------------|
-| bot       | python main.py bot     | Generate live signals (single strategy)          |
-| live      | python main.py live    | Execute trades & send Telegram (multi-strategy)  |
-| multi     | python main.py multi   | Test multi-strategy signals (no trading)         |
-| paper     | python main.py paper   | Paper trading (safe testing)                     |
+| Mode      | Command                  | Description                                      |
+|-----------|--------------------------|--------------------------------------------------|
+| bot       | python main.py bot       | Generate multi-strategy signals (no trading)     |
+| trade     | python main.py trade     | Execute multi-strategy trading (paper)           |
+| trade --live | python main.py trade --live | Execute multi-strategy trading (live) ⚠️      |
 
 #### Example: Live Trading & Telegram
 
 ```bash
-python main.py live
+python main.py trade --live
 ```
 
 **Requirements:**
@@ -34,7 +33,7 @@ python main.py live
 
 **Telegram Output:**
 
-```
+```text
 🚀 Alchemiser Multi-Strategy Execution Report
 
 ✅ EXECUTION STATUS: SUCCESS
@@ -145,7 +144,7 @@ The-Alchemiser/
    export TELEGRAM_CHAT_ID="your-chat-id"
    ```
 
-3. **Set up environment variables:**
+4. **Set up environment variables:**
 
 ```bash
 export ALPACA_KEY="your-alpaca-key"
@@ -159,17 +158,14 @@ export TELEGRAM_CHAT_ID="your-chat-id"
 ### Daily Operations
 
 ```bash
-# Generate live signals (single strategy)
+# Generate multi-strategy signals (no trading)
 python main.py bot
 
+# Run multi-strategy paper trading
+python main.py trade
+
 # Run multi-strategy live trading with Telegram
-python main.py live
-
-# Test multi-strategy signals (no trading)
-python main.py multi
-
-# Safe paper trading
-python main.py paper
+python main.py trade --live
 ```
 
 ### Development & Testing
@@ -187,12 +183,11 @@ python tests/test_multi_strategy.py
 
 ## 📋 Quick Reference
 
-| Mode   | Command                | Purpose                              | Output                |
-|--------|------------------------|--------------------------------------|-----------------------|
-| bot    | `python main.py bot`   | Live signal generation               | Console + JSON logs   |
-| live   | `python main.py live`  | Automated trading (multi-strategy)   | Console + Telegram    |
-| multi  | `python main.py multi` | Multi-strategy signals (no trading)  | Console               |
-| paper  | `python main.py paper` | Paper trading (safe)                 | Console + Telegram    |
+| Mode   | Command                    | Purpose                              | Output                |
+|--------|----------------------------|--------------------------------------|-----------------------|
+| bot    | `python main.py bot`       | Multi-strategy signal generation     | Console + JSON logs   |
+| trade  | `python main.py trade`     | Paper trading (multi-strategy)       | Console + Telegram    |
+| trade --live | `python main.py trade --live` | Live trading (multi-strategy) ⚠️ | Console + Telegram    |
 
 ## 🛠️ Troubleshooting
 

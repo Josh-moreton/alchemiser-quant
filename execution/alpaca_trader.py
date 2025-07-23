@@ -249,9 +249,6 @@ class AlpacaTradingBot:
         Sells all reductions first, waits for settlement, then buys.
         """
         try:
-            print("🔄 Starting portfolio rebalancing...")
-            logging.info("🔄 Starting portfolio rebalancing...")
-            
             # Get initial account info and positions
             account_info = self.get_account_info()
             if not account_info:
@@ -261,18 +258,11 @@ class AlpacaTradingBot:
             portfolio_value = account_info['portfolio_value']
             buying_power = account_info.get('buying_power', account_info['cash'])
             
-            logging.info(f"📊 Account Info:")
-            logging.info(f"   Portfolio Value: ${portfolio_value:,.2f}")
-            logging.info(f"   Buying Power: ${buying_power:,.2f}")
-            
             # Use only (1-cash_reserve_pct) of buying power for allocations
             from core.config import Config
             config = Config()
             cash_reserve_pct = config['alpaca'].get('cash_reserve_pct', 0.05)
             usable_buying_power = buying_power * (1 - cash_reserve_pct)
-            
-            logging.info(f"   Cash Reserve: {cash_reserve_pct:.1%}")
-            logging.info(f"   Usable Buying Power: ${usable_buying_power:,.2f}")
             
             current_positions = self.get_positions()
 
@@ -289,15 +279,11 @@ class AlpacaTradingBot:
                 for symbol, weight in target_portfolio.items()
             }
             
-            print(f"🎯 Portfolio Allocation Changes:")
-            logging.info(f"🎯 Target vs Current Allocations:")
             all_symbols = set(target_portfolio.keys()) | set(current_allocations.keys())
             trades_needed = []
             for symbol in sorted(all_symbols):
                 target_weight = target_portfolio.get(symbol, 0.0)
-                target_value = target_values.get(symbol, 0.0)
                 current_weight = current_allocations.get(symbol, 0.0)
-                current_value = current_positions.get(symbol, {}).get('market_value', 0.0)
                 allocation_diff = abs(current_weight - target_weight) * 100
                 
                 # Only show positions that need significant changes
@@ -305,8 +291,6 @@ class AlpacaTradingBot:
                     change_direction = "→" if abs(allocation_diff) < 0.1 else ("↗️" if target_weight > current_weight else "↘️")
                     print(f"   {symbol}: {current_weight:.1%} {change_direction} {target_weight:.1%} (Δ{allocation_diff:.1f}pp)")
                     trades_needed.append(symbol)
-                
-                logging.info(f"   {symbol}: Target {target_weight:.1%} (${target_value:.2f}) | Current {current_weight:.1%} (${current_value:.2f})")
                 
             if not trades_needed:
                 print("   ✅ All positions within tolerance")
@@ -321,12 +305,10 @@ class AlpacaTradingBot:
                     all_within_tolerance = False
                     break
             if all_within_tolerance:
-                print("✅ Portfolio allocations are within 1.0% of target. No trades needed.")
-                logging.info("✅ Portfolio allocations are within 1.0% of target. No trades needed.")
+                print("✅ No trades needed - portfolio already balanced")
                 return []
             
             # --- PHASE 1: Sells ---
-            logging.info("📉 PHASE 1: Selling excess/unwanted positions...")
             orders_executed = []
             sells_needed = False
             sells_summary = []
@@ -340,7 +322,6 @@ class AlpacaTradingBot:
                     sells_needed = True
                     sell_qty = pos['qty']
                     sells_summary.append(f"{symbol}: Selling entire position ({sell_qty} shares)")
-                    logging.info(f"   {symbol}: Selling entire position ({sell_qty} shares) - not in target portfolio")
                 else:
                     # Calculate percentage weights for both current and target
                     current_weight = (current_value / portfolio_value) * 100
@@ -357,12 +338,6 @@ class AlpacaTradingBot:
                             current_price = self.get_current_price(symbol)
                             sell_qty = min(round(excess_value / current_price, 6), pos['qty'])
                             sells_summary.append(f"{symbol}: Selling {sell_qty} shares (${excess_value:.0f} excess)")
-                            logging.info(f"   {symbol}: Selling {sell_qty} shares (allocation diff {allocation_diff:.1f}pp, excess ${excess_value:.2f})")
-                        else:
-                            # We need more of this position, handle in buy phase
-                            logging.info(f"   {symbol}: No sell needed - position is under target (allocation diff {allocation_diff:.1f}pp, need ${-excess_value:.2f} more)")
-                    else:
-                        logging.info(f"   {symbol}: No sell needed (allocation diff {allocation_diff:.1f}pp)")
                 
                 if sell_qty > 0:
                     current_price = self.get_current_price(symbol)
@@ -375,9 +350,8 @@ class AlpacaTradingBot:
                             'order_id': order_id,
                             'estimated_value': sell_qty * current_price
                         })
-                        logging.info(f"   ✅ {symbol}: Sold {sell_qty} shares (Order ID: {order_id})")
                     else:
-                        logging.error(f"   ❌ {symbol}: Failed to place sell order")
+                        logging.error(f"❌ {symbol}: Failed to place sell order")
             
             # Display sell summary
             if sells_summary:
@@ -386,20 +360,15 @@ class AlpacaTradingBot:
                     print(f"   {summary}")
             else:
                 print("📉 No sells needed")
-                
-            logging.info(f"   Sells needed: {sells_needed}")
 
             # Wait for settlement and refresh account info
             if sells_needed and orders_executed:
                 print("⏳ Waiting for settlement...")
-                logging.info("⏳ Waiting for settlement after sells...")
                 time.sleep(10)
                 account_info = self.get_account_info()
                 portfolio_value = account_info['portfolio_value']
                 buying_power = account_info.get('buying_power', account_info['cash'])
                 current_positions = self.get_positions()
-                logging.info(f"   Updated Portfolio Value: ${portfolio_value:,.2f}")
-                logging.info(f"   Updated Buying Power: ${buying_power:,.2f}")
 
             # --- PHASE 2: Buys ---
             # Check if any buys are actually needed (allocation difference > 1.0 percentage point)
@@ -417,17 +386,13 @@ class AlpacaTradingBot:
             # If no buys needed, skip buy phase
             if not buys_needed:
                 print("📈 No buys needed")
-                logging.info("   No buys needed - all positions are at or above target allocations")
             else:
-                logging.info("📈 PHASE 2: Buying to reach target allocations...")
-                
                 # Use actual cash available after sells, but respect cash reserve
                 account_info_after_sells = self.get_account_info()
                 total_cash_available = account_info_after_sells.get('cash', 0.0)
                 # Apply cash reserve to available cash
                 available_cash = total_cash_available * (1 - cash_reserve_pct)
                 current_positions_after_sells = self.get_positions()
-                logging.info(f"   Available cash for purchases: ${available_cash:.2f}")
                 
                 # STEP 1: Collect all buy orders needed
                 buy_orders_planned = []
@@ -460,7 +425,6 @@ class AlpacaTradingBot:
 
                         # Minimum order cost check
                         if required_cash < MIN_ORDER_COST:
-                            logging.info(f"   {symbol}: Skipping buy order (cost basis ${required_cash:.2f} < $1.00 minimum)")
                             continue
 
                         # Simple check: can we afford this order with available cash?
@@ -479,11 +443,8 @@ class AlpacaTradingBot:
                             })
                             total_cash_needed += required_cash
                             buy_summary.append(f"{symbol}: Buying {buy_qty} shares (${actual_value_to_buy:.0f})")
-                            logging.info(f"   {symbol}: Need ${value_to_buy:.2f}, planning to buy ${actual_value_to_buy:.2f} ({buy_qty} shares)")
-                        else:
-                            logging.info(f"   {symbol}: Cannot buy - insufficient cash (need ${required_cash:.2f}, available ${remaining_cash:.2f})")
                     elif value_to_buy <= 1.0 or allocation_diff <= 1.0:
-                        logging.info(f"   {symbol}: Already at target (difference: ${value_to_buy:.2f}, allocation diff {allocation_diff:.1f}pp)")
+                        pass  # Already at target
                 
                 # Display buy summary and execute
                 if buy_summary:
@@ -493,8 +454,6 @@ class AlpacaTradingBot:
                 
                 # STEP 2: Submit all buy orders at once
                 if buy_orders_planned:
-                    logging.info(f"📋 Submitting {len(buy_orders_planned)} buy orders (total: ${total_cash_needed:.2f})...")
-                    
                     for order_plan in buy_orders_planned:
                         symbol = order_plan['symbol']
                         buy_qty = order_plan['qty']
@@ -509,11 +468,6 @@ class AlpacaTradingBot:
                                 'order_id': order_id,
                                 'estimated_value': required_cash
                             })
-                            logging.info(f"   ✅ {symbol}: Bought {buy_qty} shares (Order ID: {order_id})")
-                        else:
-                            logging.error(f"   ❌ {symbol}: Failed to place buy order")
-                else:
-                    logging.info("   No buy orders needed - all positions already at target")
 
             # Simple summary
             if orders_executed:
@@ -523,16 +477,6 @@ class AlpacaTradingBot:
             else:
                 print("✅ No trades needed - portfolio already balanced")
                 
-            logging.info(f"✅ Rebalancing complete. Orders executed: {len(orders_executed)}")
-            
-            if orders_executed:
-                logging.info("📋 Summary of executed orders:")
-                for order in orders_executed:
-                    side_str = order['side'].value.lower() if hasattr(order['side'], 'value') else str(order['side']).lower()
-                    logging.info(f"   {side_str} {order['qty']} {order['symbol']} (${order['estimated_value']:.2f})")
-            else:
-                logging.info("   No orders executed - portfolio is already properly balanced")
-            
             return orders_executed
 
         except Exception as e:
@@ -667,8 +611,6 @@ class AlpacaTradingBot:
                 logging.error("❌ Failed to get account information - aborting strategy execution")
                 return False, []
                 
-            logging.info(f"Account Value: ${account_info.get('portfolio_value', 0):,.2f}")
-            
             # Validate we have sufficient data for pricing
             missing_prices = []
             for symbol in target_portfolio.keys():
@@ -736,47 +678,11 @@ class AlpacaTradingBot:
         except Exception as e:
             logging.error(f"Error logging trade execution: {e}")
     
-    def display_account_summary(self):
-        """Display account summary"""
-        try:
-            print("\n" + "="*60)
-            print("🏦 ALPACA ACCOUNT SUMMARY")
-            print("="*60)
-            
-            account_info = self.get_account_info()
-            if account_info:
-                print(f"Account Number: {account_info.get('account_number', 'N/A')}")
-                print(f"Portfolio Value: ${account_info.get('portfolio_value', 0):,.2f}")
-                print(f"Buying Power: ${account_info.get('buying_power', 0):,.2f}")
-                print(f"Cash: ${account_info.get('cash', 0):,.2f}")
-                print(f"Status: {account_info.get('status', 'N/A')}")
-                print(f"Paper Trading: {self.paper_trading}")
-            
-            print("\n📊 CURRENT POSITIONS:")
-            positions = self.get_positions()
-            if positions:
-                for symbol, pos in positions.items():
-                    pnl_pct = pos['unrealized_plpc'] * 100
-                    pnl_color = "🟢" if pnl_pct >= 0 else "🔴"
-                    print(f"   {pnl_color} {symbol}: {pos['qty']} shares @ ${pos['current_price']:.2f} "
-                          f"(P&L: {pnl_pct:+.1f}%)")
-            else:
-                print("   No positions")
-            
-            print("="*60)
-            
-        except Exception as e:
-            logging.error(f"Error displaying account summary: {e}")
-
-
 def main():
     """Main function for testing"""
     try:
         # Initialize bot - will read ALPACA_PAPER_TRADING from environment
         bot = AlpacaTradingBot()
-        
-        # Display account summary
-        bot.display_account_summary()
         
         # Execute nuclear strategy
         success = bot.execute_nuclear_strategy()
@@ -785,9 +691,6 @@ def main():
             print("\n✅ Nuclear strategy execution completed successfully!")
         else:
             print("\n❌ Nuclear strategy execution failed!")
-        
-        # Display updated account summary
-        bot.display_account_summary()
         
     except Exception as e:
         logging.error(f"Main execution error: {e}")

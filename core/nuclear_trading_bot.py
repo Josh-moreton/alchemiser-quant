@@ -273,7 +273,7 @@ class NuclearTradingBot:
     
     def run_analysis(self):
         """Run complete strategy analysis"""
-        logging.info("Starting Nuclear Energy strategy analysis...")
+        logging.debug("Starting Nuclear Energy strategy analysis...")
         
         # Get market data
         market_data = self.strategy.get_market_data()

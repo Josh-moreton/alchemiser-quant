@@ -330,7 +330,7 @@ class UnifiedDataProvider:
     def clear_cache(self):
         """Clear the data cache."""
         self.cache.clear()
-        logging.info("Data cache cleared")
+        logging.debug("Data cache cleared")
     
     def get_cache_stats(self):
         """Get cache statistics."""
