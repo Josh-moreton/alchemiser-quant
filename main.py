@@ -252,7 +252,7 @@ def _build_multi_strategy_telegram_message(result, mode):
     return "\n".join(lines)
 
 
-def main():
+def main(argv=None):
     """
     Main entry point for the Multi-Strategy Nuclear Trading Bot.
     
@@ -265,7 +265,7 @@ def main():
       - --live: Live trading (requires explicit flag)
     """
     parser = argparse.ArgumentParser(description="Multi-Strategy Nuclear Trading Bot")
-    parser.add_argument('mode', choices=['bot', 'trade'], 
+    parser.add_argument('mode', choices=['bot', 'trade'],
                        help='Operation mode: bot (show signals), trade (execute trading)')
     
     # Trading mode selection
@@ -276,7 +276,7 @@ def main():
     parser.add_argument('--ignore-market-hours', action='store_true',
                        help='Ignore market hours and run during closed market (for testing)')
 
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     # Suppress all logging output for clean terminal display
     logging.getLogger().setLevel(logging.CRITICAL)
@@ -298,7 +298,7 @@ def main():
             result = run_multi_strategy_trading(live_trading=args.live, ignore_market_hours=args.ignore_market_hours)
             if result == "market_closed":
                 print("✅ Market closed - no action taken")
-                sys.exit(0)
+                return True
             else:
                 success = result
     except Exception as e:
@@ -307,10 +307,10 @@ def main():
     
     if success:
         print("\n✅ Operation completed successfully!")
-        sys.exit(0)
+        return True
     else:
         print("\n❌ Operation failed!")
-        sys.exit(1)
+        return False
 
 if __name__ == "__main__":
-    main()
+    sys.exit(0 if main() else 1)
