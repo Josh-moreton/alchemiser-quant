@@ -73,13 +73,14 @@ class TECLStrategyEngine:
     """TECL Strategy Engine - Orchestrates data, indicators, and strategy logic"""
 
     def __init__(self, data_provider=None):
-        from .data_provider import UnifiedDataProvider
-        self.data_provider = data_provider or UnifiedDataProvider(paper_trading=True)
+        if data_provider is None:
+            raise ValueError("data_provider is required for TECLStrategyEngine")
+        self.data_provider = data_provider
         self.indicators = TechnicalIndicators()
         
         # Import the pure strategy engine
         from .tecl_strategy_engine import TECLStrategyEngine as PureStrategyEngine
-        self.strategy = PureStrategyEngine()
+        self.strategy = PureStrategyEngine(data_provider=self.data_provider)
 
         # TECL strategy symbols
         self.market_symbols = ['SPY', 'XLK', 'KMLM']

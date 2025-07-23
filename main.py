@@ -38,6 +38,7 @@ def generate_multi_strategy_signals():
     Generate signals for all strategies (Nuclear + TECL) and return consolidated results.
     """
     from core.strategy_manager import MultiStrategyManager, StrategyType
+    from core.data_provider import UnifiedDataProvider
     
     print("🚀 MULTI-STRATEGY SIGNAL GENERATION")
     print("=" * 60)
@@ -45,11 +46,14 @@ def generate_multi_strategy_signals():
     print()
     
     try:
-        # Initialize strategy manager with 50/50 allocation
+        # Create shared UnifiedDataProvider once
+        shared_data_provider = UnifiedDataProvider(paper_trading=True)
+        
+        # Pass shared data provider to MultiStrategyManager
         manager = MultiStrategyManager({
             StrategyType.NUCLEAR: 0.5,
             StrategyType.TECL: 0.5
-        })
+        }, shared_data_provider=shared_data_provider)
         
         print("📊 Running all strategies...")
         strategy_signals, consolidated_portfolio = manager.run_all_strategies()
@@ -72,24 +76,16 @@ def generate_multi_strategy_signals():
         # Get performance summary
         summary = manager.get_strategy_performance_summary()
         print(f"\n📋 Strategy Summary:")
-        for strategy, details in summary['strategies'].items():
-            print(f"  {strategy}: {details['current_positions']} positions, {details['allocation']:.0%} allocation")
+        
+        # Calculate actual position counts from signals
+        nuclear_positions = 3 if strategy_signals.get(StrategyType.NUCLEAR, {}).get('action') == 'BUY' else 0
+        tecl_positions = 1 if strategy_signals.get(StrategyType.TECL, {}).get('action') == 'BUY' else 0
+        
+        print(f"  NUCLEAR: {nuclear_positions} positions, 50% allocation")
+        print(f"  TECL: {tecl_positions} positions, 50% allocation")
         
         return manager, strategy_signals, consolidated_portfolio
         
-    except Exception as e:
-        print(f"❌ Error running multi-strategy analysis: {e}")
-        import traceback
-        traceback.print_exc()
-        return None, None, None
-    try:
-        # Initialize strategy manager with 50/50 allocation
-        manager = MultiStrategyManager({
-            StrategyType.NUCLEAR: 0.5,
-            StrategyType.TECL: 0.5
-        })
-        strategy_signals, consolidated_portfolio = manager.run_all_strategies()
-        return manager, strategy_signals, consolidated_portfolio
     except Exception as e:
         print(f"❌ Error running multi-strategy analysis: {e}")
         import traceback

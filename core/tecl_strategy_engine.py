@@ -69,7 +69,9 @@ class TECLStrategyEngine:
     """TECL Strategy Engine - Long-term technology leverage with volatility protection"""
     
     def __init__(self, data_provider=None):
-        self.data_provider = data_provider or UnifiedDataProvider(paper_trading=True)
+        if data_provider is None:
+            raise ValueError("data_provider is required for TECLStrategyEngine")
+        self.data_provider = data_provider
         self.indicators = TechnicalIndicators()
         
         # Core symbols used in TECL strategy

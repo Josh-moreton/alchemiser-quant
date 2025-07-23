@@ -66,13 +66,14 @@ class StrategyPosition:
 class MultiStrategyManager:
     """Manages multiple trading strategies with portfolio allocation"""
     
-    def __init__(self, strategy_allocations: Optional[Dict[StrategyType, float]] = None):
+    def __init__(self, strategy_allocations: Optional[Dict[StrategyType, float]] = None, shared_data_provider=None):
         """
         Initialize multi-strategy manager
         
         Args:
             strategy_allocations: Dict mapping strategy types to portfolio percentages
                                 Example: {StrategyType.NUCLEAR: 0.5, StrategyType.TECL: 0.5}
+            shared_data_provider: Shared UnifiedDataProvider instance (optional)
         """
         self.config = Config()
         
@@ -87,10 +88,10 @@ class MultiStrategyManager:
         if abs(total_allocation - 1.0) > 0.01:
             raise ValueError(f"Strategy allocations must sum to 1.0, got {total_allocation}")
         
-        # Create shared unified data provider to avoid redundant AWS/Alpaca initialization
-        from .data_provider import UnifiedDataProvider
-        shared_data_provider = UnifiedDataProvider(paper_trading=True)
-        
+        # Use provided shared_data_provider, or create one if not given
+        if shared_data_provider is None:
+            from .data_provider import UnifiedDataProvider
+            shared_data_provider = UnifiedDataProvider(paper_trading=True)
         # Initialize strategy orchestration engines with shared data provider
         self.nuclear_engine = NuclearStrategyEngine(data_provider=shared_data_provider)
         self.tecl_engine = TECLStrategyEngine(data_provider=shared_data_provider)
@@ -334,7 +335,7 @@ class MultiStrategyManager:
                     
                     # Create position record for each symbol this strategy wants to hold
                     for symbol, total_weight in consolidated_portfolio.items():
-                        # Calculate this strategy's contribution to this symbol
+                        # Calculate this strategy's contribution to this position
                         strategy_weight = total_weight / strategy_allocation if strategy_allocation > 0 else 0
                         
                         # Only record if this strategy actually contributed to this position
