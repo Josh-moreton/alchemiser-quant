@@ -31,16 +31,141 @@ import traceback
 import sys
 import os
 import logging
+from logging.handlers import RotatingFileHandler
 from core.config import Config
 
 # Load config and set logging level from config
 config = Config()
 logging_config = config['logging']
 
-# For main.py execution, suppress all logging to keep terminal clean
-# Only log critical errors to avoid cluttering the user interface
-logging.basicConfig(level=logging.CRITICAL, 
-                   format='%(asctime)s - %(levelname)s - %(name)s - %(message)s')
+# Ensure logs directory exists
+os.makedirs('data/logs', exist_ok=True)
+
+# Set up file-based logging for all system logs
+def setup_file_logging():
+    """Configure logging to send all logs to files, keeping terminal clean"""
+    
+    # Create file handler with rotation
+    file_handler = RotatingFileHandler(
+        'data/logs/trading_bot.log',
+        maxBytes=10*1024*1024,  # 10MB
+        backupCount=5
+    )
+    
+    # Create detailed formatter for file logs
+    file_formatter = logging.Formatter(
+        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    )
+    file_handler.setFormatter(file_formatter)
+    
+    # Configure root logger to use file handler only
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.INFO)
+    root_logger.handlers.clear()  # Remove any existing handlers
+    root_logger.addHandler(file_handler)
+    
+    # Set appropriate levels for third-party loggers
+    logging.getLogger('botocore').setLevel(logging.WARNING)
+    logging.getLogger('urllib3').setLevel(logging.WARNING)
+    logging.getLogger('alpaca').setLevel(logging.INFO)
+    logging.getLogger('boto3').setLevel(logging.WARNING)
+    logging.getLogger('s3transfer').setLevel(logging.WARNING)
+    
+    return file_handler
+
+# Initialize file-based logging
+setup_file_logging()
+
+
+def display_technical_indicators(strategy_signals):
+    """
+    Display key technical indicators used by all strategies in a clean boxed format
+    """
+    print("\n📊 TECHNICAL INDICATORS:")
+    print("┌─" + "─" * 58 + "─┐")
+    print("│ Key Market & Technical Indicators                        │")  
+    print("├─" + "─" * 58 + "─┤")
+    
+    # Get indicators from both strategies - prefer Nuclear as it has more comprehensive data
+    all_indicators = {}
+    for strategy_type, signal_data in strategy_signals.items():
+        if 'indicators' in signal_data and signal_data['indicators']:
+            all_indicators.update(signal_data['indicators'])
+    
+    if not all_indicators:
+        print("│ No indicator data available                              │")
+        print("└─" + "─" * 58 + "─┘")
+        return
+    
+    # Key symbols to display in order of importance
+    key_symbols = [
+        'SPY',      # Market trend filter
+        'TQQQ',     # Tech momentum  
+        'XLK',      # Tech sector
+        'KMLM',     # Managed futures comparison
+        'UVXY',     # Volatility indicator
+        'SPXL',     # Broad market leverage
+        'TECL',     # Tech leverage
+        'BIL',      # Cash equivalent
+        'SQQQ',     # Tech short
+        'BSV'       # Bonds
+    ]
+    
+    # Display indicators for available symbols
+    displayed_count = 0
+    for symbol in key_symbols:
+        if symbol in all_indicators and displayed_count < 8:  # Limit display
+            ind = all_indicators[symbol]
+            price = ind.get('current_price', 0)
+            rsi = ind.get('rsi_10', ind.get('rsi_9', 50))
+            ma_200 = ind.get('ma_200')
+            
+            # Format price nicely
+            if price < 10:
+                price_str = f"${price:.3f}"
+            elif price < 100:
+                price_str = f"${price:.2f}"
+            else:
+                price_str = f"${price:.1f}"
+            
+            # Show trend vs 200MA if available
+            trend_indicator = ""
+            if ma_200 and price > 0:
+                if price > ma_200:
+                    trend_indicator = " ↗"  # Above 200MA
+                else:
+                    trend_indicator = " ↘"  # Below 200MA
+            
+            # RSI level indicator
+            rsi_level = ""
+            if rsi > 80:
+                rsi_level = "🔴"  # Overbought
+            elif rsi < 30:
+                rsi_level = "🟢"  # Oversold  
+            else:
+                rsi_level = "⚪"  # Neutral
+            
+            # Format the line
+            line = f"│ {symbol:>4}: {price_str:<8} RSI:{rsi:5.1f} {rsi_level}{trend_indicator}"
+            # Pad to exact width
+            line = line.ljust(61) + "│"
+            print(line)
+            displayed_count += 1
+    
+    # Add market regime summary
+    if 'SPY' in all_indicators:
+        spy_data = all_indicators['SPY']
+        spy_price = spy_data.get('current_price', 0)
+        spy_ma200 = spy_data.get('ma_200', 0)
+        
+        if spy_price > 0 and spy_ma200 > 0:
+            print("├─" + "─" * 58 + "─┤")
+            regime = "BULL MARKET" if spy_price > spy_ma200 else "BEAR MARKET"
+            regime_line = f"│ Market Regime: {regime} (SPY {spy_price:.1f} vs 200MA {spy_ma200:.1f})"
+            regime_line = regime_line.ljust(61) + "│"
+            print(regime_line)
+    
+    print("└─" + "─" * 58 + "─┘")
 
 
 def generate_multi_strategy_signals():
@@ -67,6 +192,9 @@ def generate_multi_strategy_signals():
         
         print("📊 Running all strategies...")
         strategy_signals, consolidated_portfolio = manager.run_all_strategies()
+        
+        # Display technical indicators before strategy results
+        display_technical_indicators(strategy_signals)
         
         print("\n🎯 MULTI-STRATEGY RESULTS:")
         print("-" * 40)
@@ -277,12 +405,6 @@ def main(argv=None):
                        help='Ignore market hours and run during closed market (for testing)')
 
     args = parser.parse_args(argv)
-
-    # Suppress all logging output for clean terminal display
-    logging.getLogger().setLevel(logging.CRITICAL)
-    logging.getLogger('root').setLevel(logging.CRITICAL)
-    logging.getLogger('botocore').setLevel(logging.CRITICAL)
-    logging.getLogger('urllib3').setLevel(logging.CRITICAL)
     
     mode_label = "LIVE TRADING ⚠️" if args.mode == 'trade' and args.live else "Paper Trading"
     print(f"🚀 Multi-Strategy Nuclear Bot | {args.mode.upper()} | {mode_label}")

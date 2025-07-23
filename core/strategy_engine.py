@@ -3,7 +3,10 @@ Nuclear Trading Strategy Scenario Classes
 
 This module contains scenario classes for the nuclear energy trading strategy,
 focusing on signal logic and portfolio construction without execution or data management.
-Each scenario handles specific market conditions and provides pure strategy recommendations.
+Each scenario handles specific mark        for symbol in ['IOO', 'TQQQ', 'VTV', 'XLF']:
+            if symbol in indicators:
+                logging.debug(f"SecondaryOverboughtStrategy: {symbol} RSI(10) = {indicators[symbol]['rsi_10']:.2f}")
+                if indicators[symbol]['rsi_10'] > 81:onditions and provides pure strategy recommendations.
 
 This module now contains all the pure strategy logic for Nuclear energy trading,
 including portfolio construction, bear market subgroup strategies, and overbought conditions.
@@ -244,14 +247,14 @@ class BearMarketStrategy:
 class OverboughtStrategy:
     def recommend(self, indicators):
         spy_rsi_10 = indicators['SPY']['rsi_10']
-        logging.info(f"DEBUG OverboughtStrategy: SPY RSI(10) = {spy_rsi_10:.2f}")
+        logging.debug(f"OverboughtStrategy: SPY RSI(10) = {spy_rsi_10:.2f}")
         if spy_rsi_10 > 81:
             return 'UVXY', 'BUY', "SPY extremely overbought (RSI > 81)"
         
         # Check each symbol in order - first match wins
         for symbol in ['IOO', 'TQQQ', 'VTV', 'XLF']:
             if symbol in indicators:
-                logging.info(f"DEBUG OverboughtStrategy: {symbol} RSI(10) = {indicators[symbol]['rsi_10']:.2f}")
+                logging.debug(f"OverboughtStrategy: {symbol} RSI(10) = {indicators[symbol]['rsi_10']:.2f}")
                 if indicators[symbol]['rsi_10'] > 81:
                     return 'UVXY', 'BUY', f"{symbol} extremely overbought (RSI > 81)"
         

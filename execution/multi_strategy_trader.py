@@ -323,6 +323,7 @@ class MultiStrategyAlpacaTrader(AlpacaTradingBot):
                 with open(self.multi_strategy_log, 'a') as f:
                     f.write(json.dumps(execution_summary, indent=2, default=str) + '\n')
             
+            # Only log to file, no terminal output
             logging.info(f"Multi-strategy execution logged to {self.multi_strategy_log}")
             
         except Exception as e:
