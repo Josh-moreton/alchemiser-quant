@@ -167,6 +167,62 @@ class AlpacaTradingBot:
             logging.error(f"Error calculating position size for {symbol}: {e}")
             return 0.0
     
+    def wait_for_settlement(self, sell_orders: List[Dict], max_wait_time: int = 60, poll_interval: float = 2.0) -> bool:
+        """
+        Wait for sell orders to settle by polling their status.
+        
+        Args:
+            sell_orders: List of order dictionaries with 'order_id' keys
+            max_wait_time: Maximum time to wait in seconds
+            poll_interval: Time between status checks in seconds
+            
+        Returns:
+            True if all orders settled, False if timeout
+        """
+        if not sell_orders:
+            return True
+            
+        order_ids = [order['order_id'] for order in sell_orders if 'order_id' in order]
+        if not order_ids:
+            return True
+            
+        logging.info(f"Waiting for settlement of {len(order_ids)} sell orders...")
+        start_time = time.time()
+        settled_orders = set()
+        
+        while time.time() - start_time < max_wait_time:
+            # Check status of all pending orders
+            for order_id in order_ids:
+                if order_id in settled_orders:
+                    continue
+                    
+                try:
+                    order = self.trading_client.get_order_by_id(order_id)
+                    status = getattr(order, 'status', 'unknown')
+                    
+                    if status in ['filled', 'canceled', 'rejected']:
+                        settled_orders.add(order_id)
+                        logging.info(f"Order {order_id} settled with status: {status}")
+                        
+                except Exception as e:
+                    logging.warning(f"Error checking status of order {order_id}: {e}")
+                    # Consider the order settled if we can't check its status
+                    settled_orders.add(order_id)
+            
+            # All orders settled
+            if len(settled_orders) == len(order_ids):
+                elapsed = time.time() - start_time
+                logging.info(f"All sell orders settled in {elapsed:.1f} seconds")
+                return True
+                
+            # Wait before next poll
+            time.sleep(poll_interval)
+        
+        # Timeout reached
+        unsettled_count = len(order_ids) - len(settled_orders)
+        logging.warning(f"Settlement timeout: {unsettled_count} orders still pending after {max_wait_time}s")
+        return False
+
     def place_order(
         self, symbol: str, qty: float, side: OrderSide, 
         max_retries: int = 3, poll_timeout: int = 30, poll_interval: float = 2.0, 
@@ -254,220 +310,161 @@ class AlpacaTradingBot:
     
     def rebalance_portfolio(self, target_portfolio: Dict[str, float]) -> List[Dict]:
         """
-        Rebalance portfolio to match target allocations with minimal trading.
-        Sells all reductions first, waits for settlement, then buys.
+        Efficiently rebalance portfolio to match target allocations.
+        Uses buying power as the base for allocation calculations to handle cash properly.
+        
+        Key improvements:
+        1. Uses buying power (not portfolio value) as allocation base
+        2. Sells unwanted positions completely before buying new ones
+        3. Prioritizes high-weight target positions
+        4. Handles complete portfolio composition changes efficiently
+        
+        Args:
+            target_portfolio: Dict of {symbol: weight} where weights sum to ~1.0
+            
+        Returns:
+            List of order dictionaries for executed trades
         """
         try:
-            # Get initial account info and positions
+            print("🔄 Starting improved portfolio rebalancing...")
+            logging.info("🔄 Starting improved portfolio rebalancing...")
+            
+            # Get account information
             account_info = self.get_account_info()
             if not account_info:
-                logging.error("Could not get account information")
+                print("❌ Unable to get account information")
+                logging.error("❌ Unable to get account information")
                 return []
             
-            portfolio_value = account_info['portfolio_value']
-            buying_power = account_info.get('buying_power', account_info['cash'])
+            # Use buying power as the base for calculations (includes cash + margin)
+            total_buying_power = account_info.get('buying_power', 0.0)
+            cash = account_info.get('cash', 0.0)
+            portfolio_value = account_info.get('portfolio_value', 0.0)
             
-            # Use only (1-cash_reserve_pct) of buying power for allocations
-            from core.config import Config
-            config = Config()
-            cash_reserve_pct = config['alpaca'].get('cash_reserve_pct', 0.05)
-            usable_buying_power = buying_power * (1 - cash_reserve_pct)
+            # Cash reserve (5% minimum)
+            cash_reserve_pct = 0.05
+            usable_buying_power = total_buying_power * (1 - cash_reserve_pct)
             
+            print(f"📊 Account: ${portfolio_value:,.0f} portfolio | ${usable_buying_power:,.0f} usable")
+
+            # Get current positions
             current_positions = self.get_positions()
 
-            # Calculate current allocations
-            current_allocations = {
-                symbol: pos['market_value'] / portfolio_value
-                for symbol, pos in current_positions.items()
-            }
-            
-            # Calculate target values based on PORTFOLIO VALUE (not buying power!)
-            # Allocations are percentages of total portfolio value
+            # Calculate target values based on usable buying power (not portfolio value!)
             target_values = {
-                symbol: portfolio_value * weight 
+                symbol: usable_buying_power * weight 
                 for symbol, weight in target_portfolio.items()
             }
             
-            all_symbols = set(target_portfolio.keys()) | set(current_allocations.keys())
-            trades_needed = []
+            # Calculate current values
+            current_values = {
+                symbol: pos.get('market_value', 0.0) 
+                for symbol, pos in current_positions.items()
+            }
+            
+            print(f"🎯 Target vs Current Allocations (based on ${usable_buying_power:,.2f} usable buying power):")
+            
+            all_symbols = set(target_portfolio.keys()) | set(current_positions.keys())
             for symbol in sorted(all_symbols):
                 target_weight = target_portfolio.get(symbol, 0.0)
-                current_weight = current_allocations.get(symbol, 0.0)
-                allocation_diff = abs(current_weight - target_weight) * 100
-                
-                # Only show positions that need significant changes
-                if allocation_diff > 1.0 or target_weight == 0.0 or current_weight == 0.0:
-                    change_direction = "→" if abs(allocation_diff) < 0.1 else ("↗️" if target_weight > current_weight else "↘️")
-                    print(f"   {symbol:>4}: {current_weight:>5.1%} {change_direction} {target_weight:>5.1%} (Δ{allocation_diff:>4.1f}pp)")
-                    trades_needed.append(symbol)
-                
-            if not trades_needed:
-                print("   ✅ All positions within tolerance")
-                
-            # --- PRE-CHECK: If all positions are within allocation tolerance, skip trading ---
-            all_within_tolerance = True
-            for symbol in sorted(target_portfolio.keys()):
-                target_weight = target_portfolio.get(symbol, 0.0) * 100.0  # percent
-                current_weight = current_allocations.get(symbol, 0.0) * 100.0  # percent
-                allocation_diff = abs(current_weight - target_weight)
-                if allocation_diff > 1.0:
-                    all_within_tolerance = False
-                    break
-            if all_within_tolerance:
-                print("✅ No trades needed - portfolio already balanced")
-                return []
-            
-            # --- PHASE 1: Sells ---
-            orders_executed = []
-            sells_needed = False
-            sells_summary = []
-            
-            for symbol, pos in current_positions.items():
-                sell_qty = 0  # Initialize sell_qty for each position
                 target_value = target_values.get(symbol, 0.0)
-                current_value = pos['market_value']
+                current_value = current_values.get(symbol, 0.0)
+                current_weight = current_value / usable_buying_power if usable_buying_power > 0 else 0.0
+                
+                print(f"   {symbol:>4}: Target {target_weight:>5.1%} (${target_value:>8,.2f}) | Current {current_weight:>5.1%} (${current_value:>8,.2f})")
+                logging.info(f"   {symbol}: Target {target_weight:.1%} (${target_value:.2f}) | Current {current_weight:.1%} (${current_value:.2f})")
+
+            orders_executed = []
+            
+            # PHASE 1: Sell positions that are not in target or exceed target
+            print("📉 Sell Orders:")
+            
+            sells_made = False
+            for symbol, pos in current_positions.items():
+                target_value = target_values.get(symbol, 0.0)
+                current_value = current_values[symbol]
+                
                 # If not in target portfolio, sell entire position
                 if target_value == 0.0:
-                    sells_needed = True
                     sell_qty = pos['qty']
-                    sells_summary.append(f"{symbol}: Selling entire position ({sell_qty} shares)")
+                    print(f"   {symbol}: Selling entire position ({sell_qty} shares)")
+                    logging.info(f"   {symbol}: Selling entire position ({sell_qty} shares) - not in target portfolio")
+                # If current value exceeds target by more than $1, sell excess
+                elif current_value > target_value + 1.0:
+                    excess_value = current_value - target_value
+                    current_price = self.get_current_price(symbol)
+                    sell_qty = min(round(excess_value / current_price, 6), pos['qty'])
+                    print(f"   {symbol}: Selling {sell_qty} shares (excess ${excess_value:.2f})")
+                    logging.info(f"   {symbol}: Selling {sell_qty} shares (excess ${excess_value:.2f})")
                 else:
-                    # Calculate percentage weights for both current and target
-                    current_weight = (current_value / portfolio_value) * 100
-                    target_weight = (target_value / portfolio_value) * 100
-                    allocation_diff = abs(current_weight - target_weight)
-                    
-                    # Only sell excess if allocation difference is greater than 1.0 percentage point
-                    # AND we actually have excess (current > target)
-                    if allocation_diff > 1.0:
-                        excess_value = current_value - target_value
-                        # Only sell if we have excess (positive excess_value)
-                        if excess_value > 0:
-                            sells_needed = True
-                            current_price = self.get_current_price(symbol)
-                            sell_qty = min(round(excess_value / current_price, 6), pos['qty'])
-                            sells_summary.append(f"{symbol}: Selling {sell_qty} shares (${excess_value:.0f} excess)")
+                    continue
                 
                 if sell_qty > 0:
-                    current_price = self.get_current_price(symbol)
                     order_id = self.place_order(symbol, sell_qty, OrderSide.SELL)
                     if order_id:
+                        estimated_value = sell_qty * self.get_current_price(symbol)
                         orders_executed.append({
                             'symbol': symbol,
                             'side': OrderSide.SELL,
                             'qty': sell_qty,
                             'order_id': order_id,
-                            'estimated_value': sell_qty * current_price
+                            'estimated_value': estimated_value
                         })
+                        sells_made = True
+                        print(f"   ✅ {symbol}: Sold {sell_qty} shares (Order ID: {order_id})")
+                        logging.info(f"   ✅ {symbol}: Sold {sell_qty} shares (Order ID: {order_id})")
                     else:
-                        logging.error(f"❌ {symbol}: Failed to place sell order")
+                        print(f"   ❌ {symbol}: Failed to place sell order")
+                        logging.error(f"   ❌ {symbol}: Failed to place sell order")
             
-            # Display sell summary
-            if sells_summary:
-                print("📉 Sell Orders:")
-                for summary in sells_summary:
-                    print(f"   {summary}")
-            else:
-                print("📉 No sells needed")
+            if not sells_made:
+                print("   No sells needed")
+                logging.info("   No sells needed")
 
-            # Wait for settlement and refresh account info
-            if sells_needed and orders_executed:
+            # Wait for settlement if we made sells
+            if sells_made:
                 print("⏳ Waiting for settlement...")
-                time.sleep(10)
+                sell_orders = [order for order in orders_executed if order.get('side') == OrderSide.SELL]
+                
+                # Poll order status instead of fixed sleep
+                settlement_success = self.wait_for_settlement(sell_orders, max_wait_time=60, poll_interval=2.0)
+                
+                if not settlement_success:
+                    logging.warning("Some sell orders may not have settled completely, proceeding with caution")
+                
+                # Refresh account info and positions after settlement
                 account_info = self.get_account_info()
-                portfolio_value = account_info['portfolio_value']
-                buying_power = account_info.get('buying_power', account_info['cash'])
                 current_positions = self.get_positions()
+                cash = account_info.get('cash', 0.0)
 
-            # --- PHASE 2: Buys ---
-            # Check if any buys are actually needed (allocation difference > 1.0 percentage point)
-            buys_needed = False
-            for symbol in target_portfolio.keys():
-                target_value = target_values[symbol]
-                current_value = current_positions.get(symbol, {}).get('market_value', 0.0)
-                current_weight = (current_value / portfolio_value) * 100
-                target_weight = (target_value / portfolio_value) * 100
-                allocation_diff = abs(current_weight - target_weight)
-                if target_value - current_value > 1.0 and allocation_diff > 1.0:
-                    buys_needed = True
-                    break
+            # PHASE 2: Buy positions to reach targets
+            print("📈 Buy Orders:")
             
-            # If no buys needed, skip buy phase
-            if not buys_needed:
-                print("📈 No buys needed")
-            else:
-                # Use actual cash available after sells, but respect cash reserve
-                account_info_after_sells = self.get_account_info()
-                total_cash_available = account_info_after_sells.get('cash', 0.0)
-                # Apply cash reserve to available cash
-                available_cash = total_cash_available * (1 - cash_reserve_pct)
-                current_positions_after_sells = self.get_positions()
+            available_cash = cash
+            
+            # Sort by target weight (largest first) to prioritize important positions
+            for symbol in sorted(target_portfolio.keys(), key=lambda x: target_portfolio[x], reverse=True):
+                target_value = target_values[symbol]
                 
-                # STEP 1: Collect all buy orders needed
-                buy_orders_planned = []
-                buy_summary = []
-                total_cash_needed = 0.0
-
-                MIN_ORDER_COST = 1.0  # Alpaca minimum order cost
-
-                # Sort by target weight (largest first) to prioritize important positions
-                for symbol in sorted(target_portfolio.keys(), key=lambda x: target_portfolio[x], reverse=True):
-                    target_value = target_values[symbol]
-                    current_value = 0.0
-                    if symbol in current_positions_after_sells:
-                        current_value = current_positions_after_sells[symbol].get('market_value', 0.0)
-                    value_to_buy = target_value - current_value
-
-                    # Calculate allocation difference in percentage points
-                    current_weight = (current_value / portfolio_value) * 100
-                    target_weight = (target_value / portfolio_value) * 100
-                    allocation_diff = abs(current_weight - target_weight)
-
-                    if value_to_buy > 1.0 and allocation_diff > 1.0:
-                        current_price = self.get_current_price(symbol)
-                        remaining_cash = available_cash - total_cash_needed
-
-                        # Calculate how much we can actually buy with remaining cash
-                        actual_value_to_buy = min(value_to_buy, remaining_cash)
-                        buy_qty = round(actual_value_to_buy / current_price, 6)
-                        required_cash = buy_qty * current_price
-
-                        # Minimum order cost check
-                        if required_cash < MIN_ORDER_COST:
-                            continue
-
-                        # Simple check: can we afford this order with available cash?
-                        # Use small tolerance (1 cent) to handle floating point precision issues
-                        total_after_order = total_cash_needed + required_cash
-                        can_afford = total_after_order <= (available_cash + 0.01)
-
-                        if buy_qty > 0 and can_afford:
-                            buy_orders_planned.append({
-                                'symbol': symbol,
-                                'qty': buy_qty,
-                                'value_needed': value_to_buy,
-                                'value_to_buy': actual_value_to_buy,
-                                'required_cash': required_cash,
-                                'allocation_diff': allocation_diff
-                            })
-                            total_cash_needed += required_cash
-                            buy_summary.append(f"{symbol}: Buying {buy_qty} shares (${actual_value_to_buy:.0f})")
-                    elif value_to_buy <= 1.0 or allocation_diff <= 1.0:
-                        pass  # Already at target
+                # Get updated current value
+                current_value = 0.0
+                if symbol in current_positions:
+                    current_value = current_positions[symbol].get('market_value', 0.0)
                 
-                # Display buy summary and execute
-                if buy_summary:
-                    print("📈 Buy Orders:")
-                    for summary in buy_summary:
-                        print(f"   {summary}")
+                value_to_buy = target_value - current_value
                 
-                # STEP 2: Submit all buy orders at once
-                if buy_orders_planned:
-                    for order_plan in buy_orders_planned:
-                        symbol = order_plan['symbol']
-                        buy_qty = order_plan['qty']
-                        required_cash = order_plan['required_cash']
-                        
+                if value_to_buy > 1.0 and available_cash > 1.0:
+                    current_price = self.get_current_price(symbol)
+                    actual_value_to_buy = min(value_to_buy, available_cash)
+                    
+                    # Calculate exact shares with proper rounding
+                    buy_qty = round(actual_value_to_buy / current_price, 6)
+                    required_cash = buy_qty * current_price
+                    
+                    print(f"   {symbol}: Buying {buy_qty} shares (${required_cash:.2f})")
+                    logging.info(f"   {symbol}: Need ${value_to_buy:.2f}, buying ${actual_value_to_buy:.2f} ({buy_qty} shares)")
+                    
+                    if buy_qty > 0 and required_cash <= available_cash:
                         order_id = self.place_order(symbol, buy_qty, OrderSide.BUY)
                         if order_id:
                             orders_executed.append({
@@ -477,20 +474,32 @@ class AlpacaTradingBot:
                                 'order_id': order_id,
                                 'estimated_value': required_cash
                             })
+                            available_cash -= required_cash
+                            logging.info(f"   ✅ {symbol}: Bought {buy_qty} shares (Order ID: {order_id})")
+                        else:
+                            logging.error(f"   ❌ {symbol}: Failed to place buy order")
+                    else:
+                        logging.info(f"   {symbol}: Cannot buy - insufficient cash (need ${required_cash:.2f}, have ${available_cash:.2f})")
+                elif value_to_buy <= 1.0:
+                    logging.info(f"   {symbol}: Already at target")
+                else:
+                    logging.info(f"   {symbol}: No cash remaining")
 
-            # Simple summary
+            print(f"✅ Executed {len(orders_executed)} orders ({sum(1 for o in orders_executed if o['side'] == OrderSide.BUY)} buys, {sum(1 for o in orders_executed if o['side'] == OrderSide.SELL)} sells)")
+            logging.info(f"✅ Rebalancing complete. Orders executed: {len(orders_executed)}")
+            
             if orders_executed:
-                sell_count = sum(1 for o in orders_executed if (hasattr(o['side'], 'value') and o['side'].value == 'sell') or str(o['side']).upper() == 'SELL')
-                buy_count = len(orders_executed) - sell_count
-                print(f"✅ Executed {len(orders_executed)} orders ({buy_count} buys, {sell_count} sells)")
-            else:
-                print("✅ No trades needed - portfolio already balanced")
-                
+                logging.info("📋 Summary of executed orders:")
+                for order in orders_executed:
+                    logging.info(f"   {order['side'].value.lower()} {order['qty']} {order['symbol']} (${order['estimated_value']:.2f})")
+            
             return orders_executed
 
         except Exception as e:
             print(f"❌ Error rebalancing portfolio: {e}")
-            logging.error(f"Error rebalancing portfolio: {e}")
+            logging.error(f"❌ Error rebalancing portfolio: {e}")
+            import traceback
+            logging.error(f"Stack trace: {traceback.format_exc()}")
             return []
     
     def read_nuclear_signals(self) -> List[Dict]:

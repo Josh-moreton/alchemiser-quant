@@ -13,6 +13,64 @@ import logging
 from alpaca.trading.enums import OrderSide
 
 
+def wait_for_settlement(trading_client, sell_orders: List[Dict], max_wait_time: int = 60, poll_interval: float = 2.0) -> bool:
+    """
+    Wait for sell orders to settle by polling their status.
+    
+    Args:
+        trading_client: Alpaca trading client for API calls
+        sell_orders: List of order dictionaries with 'order_id' keys
+        max_wait_time: Maximum time to wait in seconds
+        poll_interval: Time between status checks in seconds
+        
+    Returns:
+        True if all orders settled, False if timeout
+    """
+    if not sell_orders:
+        return True
+        
+    order_ids = [order['order_id'] for order in sell_orders if 'order_id' in order]
+    if not order_ids:
+        return True
+        
+    logging.info(f"Waiting for settlement of {len(order_ids)} sell orders...")
+    start_time = time.time()
+    settled_orders = set()
+    
+    while time.time() - start_time < max_wait_time:
+        # Check status of all pending orders
+        for order_id in order_ids:
+            if order_id in settled_orders:
+                continue
+                
+            try:
+                order = trading_client.get_order_by_id(order_id)
+                status = getattr(order, 'status', 'unknown')
+                
+                if status in ['filled', 'canceled', 'rejected']:
+                    settled_orders.add(order_id)
+                    logging.info(f"Order {order_id} settled with status: {status}")
+                    
+            except Exception as e:
+                logging.warning(f"Error checking status of order {order_id}: {e}")
+                # Consider the order settled if we can't check its status
+                settled_orders.add(order_id)
+        
+        # All orders settled
+        if len(settled_orders) == len(order_ids):
+            elapsed = time.time() - start_time
+            logging.info(f"All sell orders settled in {elapsed:.1f} seconds")
+            return True
+            
+        # Wait before next poll
+        time.sleep(poll_interval)
+    
+    # Timeout reached
+    unsettled_count = len(order_ids) - len(settled_orders)
+    logging.warning(f"Settlement timeout: {unsettled_count} orders still pending after {max_wait_time}s")
+    return False
+
+
 def improved_rebalance_portfolio(self, target_portfolio: Dict[str, float]) -> List[Dict]:
     """
     Efficiently rebalance portfolio to match target allocations.
@@ -129,9 +187,15 @@ def improved_rebalance_portfolio(self, target_portfolio: Dict[str, float]) -> Li
         # Wait for settlement if we made sells
         if sells_made:
             print("⏳ Waiting for settlement...")
-            time.sleep(10)
+            sell_orders = [order for order in orders_executed if order.get('side') == OrderSide.SELL]
             
-            # Refresh account info and positions
+            # Poll order status instead of fixed sleep
+            settlement_success = wait_for_settlement(self.trading_client, sell_orders, max_wait_time=60, poll_interval=2.0)
+            
+            if not settlement_success:
+                logging.warning("Some sell orders may not have settled completely, proceeding with caution")
+            
+            # Refresh account info and positions after settlement
             account_info = self.get_account_info()
             current_positions = self.get_positions()
             cash = account_info.get('cash', 0.0)

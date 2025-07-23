@@ -286,18 +286,43 @@ class MultiStrategyManager:
         market_data = signal_data.get('market_data', {})
         
         if signal_data['symbol'] == 'NUCLEAR_PORTFOLIO':
-            # Bull market nuclear portfolio
+            # Bull market nuclear portfolio - extract actual weights from strategy engine
             portfolio = self.nuclear_engine.strategy.get_nuclear_portfolio(indicators, market_data)
             return {symbol: data['weight'] for symbol, data in portfolio.items()}
         
         elif signal_data['symbol'] == 'BEAR_PORTFOLIO':
-            # Bear market portfolio - need to extract from the combination logic
-            # This is more complex as it involves two subgroups combined with inverse volatility
-            # For now, return equal weights - this could be enhanced
-            return {'SQQQ': 0.6, 'TQQQ': 0.4}  # Default bear allocation
+            # Bear market portfolio - extract from the combination logic using inverse volatility
+            try:
+                # Get the two bear subgroup signals
+                bear1_signal = self.nuclear_engine.strategy.bear_subgroup_1(indicators)
+                bear2_signal = self.nuclear_engine.strategy.bear_subgroup_2(indicators)
+                bear1_symbol = bear1_signal[0]
+                bear2_symbol = bear2_signal[0]
+                
+                # If both strategies recommend the same symbol, use 100% allocation
+                if bear1_symbol == bear2_symbol:
+                    return {bear1_symbol: 1.0}
+                
+                # Otherwise, use inverse volatility weighting to combine them  
+                bear_portfolio = self.nuclear_engine.strategy.combine_bear_strategies_with_inverse_volatility(
+                    bear1_symbol, bear2_symbol, indicators
+                )
+                
+                if bear_portfolio:
+                    return {symbol: data['weight'] for symbol, data in bear_portfolio.items()}
+                
+                # Fallback to equal weights if calculation fails
+                logging.warning("Bear portfolio calculation failed, using fallback allocation")
+                return {bear1_symbol: 0.6, bear2_symbol: 0.4}
+                
+            except Exception as e:
+                logging.error(f"Error calculating bear portfolio allocation: {e}")
+                # Safe fallback - single defensive position
+                return {'SQQQ': 1.0}
         
         elif signal_data['symbol'] == 'UVXY_BTAL_PORTFOLIO':
-            # Volatility hedge portfolio
+            # Volatility hedge portfolio - these are the standard weights used by the strategy
+            # This could be enhanced to be dynamic based on market conditions if needed
             return {'UVXY': 0.75, 'BTAL': 0.25}
         
         return {}
