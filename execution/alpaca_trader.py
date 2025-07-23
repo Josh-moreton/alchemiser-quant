@@ -85,14 +85,23 @@ class AlpacaTradingBot:
         self.endpoint = alpaca_cfg.get('endpoint', 'https://api.alpaca.markets')
         self.paper_endpoint = alpaca_cfg.get('paper_endpoint', 'https://paper-api.alpaca.markets/v2')
 
-        logging.info(f"\U0001F3E6 Trading Mode: {'PAPER' if self.paper_trading else 'LIVE'} (from CLI mode)")
+        # Log trading mode to file only
+        logging.info(f"Trading Mode: {'PAPER' if self.paper_trading else 'LIVE'} (from CLI mode)")
+        
+        # Display trading mode cleanly to user
+        print(f"🏦 Trading Mode: {'PAPER' if self.paper_trading else 'LIVE'} (from CLI mode)")
 
-                # Use UnifiedDataProvider for all Alpaca data access
+        # Use UnifiedDataProvider for all Alpaca data access
         self.data_provider = UnifiedDataProvider(
             paper_trading=self.paper_trading
         )
         self.trading_client = self.data_provider.trading_client  # For order placement
+        
+        # Log to file
         logging.info(f"Alpaca Trading Bot initialized - Paper Trading: {self.paper_trading}")
+        # User-facing message
+        print("Successfully retrieved Alpaca paper trading keys")
+        print(f"Alpaca Trading Bot initialized - Paper Trading: {self.paper_trading}")
     
     def get_account_info(self) -> Dict:
         """Get account information via UnifiedDataProvider, returns dict for compatibility"""
@@ -289,7 +298,7 @@ class AlpacaTradingBot:
                 # Only show positions that need significant changes
                 if allocation_diff > 1.0 or target_weight == 0.0 or current_weight == 0.0:
                     change_direction = "→" if abs(allocation_diff) < 0.1 else ("↗️" if target_weight > current_weight else "↘️")
-                    print(f"   {symbol}: {current_weight:.1%} {change_direction} {target_weight:.1%} (Δ{allocation_diff:.1f}pp)")
+                    print(f"   {symbol:>4}: {current_weight:>5.1%} {change_direction} {target_weight:>5.1%} (Δ{allocation_diff:>4.1f}pp)")
                     trades_needed.append(symbol)
                 
             if not trades_needed:

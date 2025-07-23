@@ -50,17 +50,7 @@ def improved_rebalance_portfolio(self, target_portfolio: Dict[str, float]) -> Li
         cash_reserve_pct = 0.05
         usable_buying_power = total_buying_power * (1 - cash_reserve_pct)
         
-        print(f"📊 Account Info:")
-        print(f"   Portfolio Value: ${portfolio_value:,.2f}")
-        print(f"   Total Buying Power: ${total_buying_power:,.2f}")
-        print(f"   Cash: ${cash:,.2f}")
-        print(f"   Cash Reserve: {cash_reserve_pct:.1%}")
-        print(f"   Usable Buying Power: ${usable_buying_power:,.2f}")
-        
-        logging.info(f"📊 Account Info:")
-        logging.info(f"   Portfolio Value: ${portfolio_value:,.2f}")
-        logging.info(f"   Total Buying Power: ${total_buying_power:,.2f}")
-        logging.info(f"   Usable Buying Power: ${usable_buying_power:,.2f}")
+        print(f"📊 Account: ${portfolio_value:,.0f} portfolio | ${usable_buying_power:,.0f} usable")
 
         # Get current positions
         current_positions = self.get_positions()
@@ -78,7 +68,6 @@ def improved_rebalance_portfolio(self, target_portfolio: Dict[str, float]) -> Li
         }
         
         print(f"🎯 Target vs Current Allocations (based on ${usable_buying_power:,.2f} usable buying power):")
-        logging.info(f"🎯 Target vs Current Allocations:")
         
         all_symbols = set(target_portfolio.keys()) | set(current_positions.keys())
         for symbol in sorted(all_symbols):
@@ -87,14 +76,13 @@ def improved_rebalance_portfolio(self, target_portfolio: Dict[str, float]) -> Li
             current_value = current_values.get(symbol, 0.0)
             current_weight = current_value / usable_buying_power if usable_buying_power > 0 else 0.0
             
-            print(f"   {symbol}: Target {target_weight:.1%} (${target_value:.2f}) | Current {current_weight:.1%} (${current_value:.2f})")
+            print(f"   {symbol:>4}: Target {target_weight:>5.1%} (${target_value:>8,.2f}) | Current {current_weight:>5.1%} (${current_value:>8,.2f})")
             logging.info(f"   {symbol}: Target {target_weight:.1%} (${target_value:.2f}) | Current {current_weight:.1%} (${current_value:.2f})")
 
         orders_executed = []
         
         # PHASE 1: Sell positions that are not in target or exceed target
-        print("📉 PHASE 1: Selling excess/unwanted positions...")
-        logging.info("📉 PHASE 1: Selling excess/unwanted positions...")
+        print("📉 Sell Orders:")
         
         sells_made = False
         for symbol, pos in current_positions.items():
@@ -104,7 +92,7 @@ def improved_rebalance_portfolio(self, target_portfolio: Dict[str, float]) -> Li
             # If not in target portfolio, sell entire position
             if target_value == 0.0:
                 sell_qty = pos['qty']
-                print(f"   {symbol}: Selling entire position ({sell_qty} shares) - not in target portfolio")
+                print(f"   {symbol}: Selling entire position ({sell_qty} shares)")
                 logging.info(f"   {symbol}: Selling entire position ({sell_qty} shares) - not in target portfolio")
             # If current value exceeds target by more than $1, sell excess
             elif current_value > target_value + 1.0:
@@ -114,8 +102,6 @@ def improved_rebalance_portfolio(self, target_portfolio: Dict[str, float]) -> Li
                 print(f"   {symbol}: Selling {sell_qty} shares (excess ${excess_value:.2f})")
                 logging.info(f"   {symbol}: Selling {sell_qty} shares (excess ${excess_value:.2f})")
             else:
-                print(f"   {symbol}: No sell needed")
-                logging.info(f"   {symbol}: No sell needed")
                 continue
             
             if sell_qty > 0:
@@ -142,25 +128,18 @@ def improved_rebalance_portfolio(self, target_portfolio: Dict[str, float]) -> Li
 
         # Wait for settlement if we made sells
         if sells_made:
-            print("⏳ Waiting for settlement after sells...")
-            logging.info("⏳ Waiting for settlement after sells...")
+            print("⏳ Waiting for settlement...")
             time.sleep(10)
             
             # Refresh account info and positions
             account_info = self.get_account_info()
             current_positions = self.get_positions()
             cash = account_info.get('cash', 0.0)
-            
-            print(f"   Updated Cash: ${cash:,.2f}")
-            logging.info(f"   Updated Cash: ${cash:,.2f}")
 
         # PHASE 2: Buy positions to reach targets
-        print("📈 PHASE 2: Buying to reach target allocations...")
-        logging.info("📈 PHASE 2: Buying to reach target allocations...")
+        print("📈 Buy Orders:")
         
         available_cash = cash
-        print(f"   Available cash for purchases: ${available_cash:.2f}")
-        logging.info(f"   Available cash for purchases: ${available_cash:.2f}")
         
         # Sort by target weight (largest first) to prioritize important positions
         for symbol in sorted(target_portfolio.keys(), key=lambda x: target_portfolio[x], reverse=True):
@@ -181,7 +160,7 @@ def improved_rebalance_portfolio(self, target_portfolio: Dict[str, float]) -> Li
                 buy_qty = round(actual_value_to_buy / current_price, 6)
                 required_cash = buy_qty * current_price
                 
-                print(f"   {symbol}: Need ${value_to_buy:.2f}, buying ${actual_value_to_buy:.2f} ({buy_qty} shares)")
+                print(f"   {symbol}: Buying {buy_qty} shares (${required_cash:.2f})")
                 logging.info(f"   {symbol}: Need ${value_to_buy:.2f}, buying ${actual_value_to_buy:.2f} ({buy_qty} shares)")
                 
                 if buy_qty > 0 and required_cash <= available_cash:
@@ -195,29 +174,22 @@ def improved_rebalance_portfolio(self, target_portfolio: Dict[str, float]) -> Li
                             'estimated_value': required_cash
                         })
                         available_cash -= required_cash
-                        print(f"   ✅ {symbol}: Bought {buy_qty} shares (Order ID: {order_id})")
                         logging.info(f"   ✅ {symbol}: Bought {buy_qty} shares (Order ID: {order_id})")
                     else:
-                        print(f"   ❌ {symbol}: Failed to place buy order")
                         logging.error(f"   ❌ {symbol}: Failed to place buy order")
                 else:
-                    print(f"   {symbol}: Cannot buy - insufficient cash (need ${required_cash:.2f}, have ${available_cash:.2f})")
-                    logging.info(f"   {symbol}: Cannot buy - insufficient cash")
+                    logging.info(f"   {symbol}: Cannot buy - insufficient cash (need ${required_cash:.2f}, have ${available_cash:.2f})")
             elif value_to_buy <= 1.0:
-                print(f"   {symbol}: Already at target (difference: ${value_to_buy:.2f})")
                 logging.info(f"   {symbol}: Already at target")
             else:
-                print(f"   {symbol}: No cash remaining (${available_cash:.2f})")
                 logging.info(f"   {symbol}: No cash remaining")
 
-        print(f"✅ Rebalancing complete. Orders executed: {len(orders_executed)}")
+        print(f"✅ Executed {len(orders_executed)} orders ({sum(1 for o in orders_executed if o['side'] == OrderSide.BUY)} buys, {sum(1 for o in orders_executed if o['side'] == OrderSide.SELL)} sells)")
         logging.info(f"✅ Rebalancing complete. Orders executed: {len(orders_executed)}")
         
         if orders_executed:
-            print("📋 Summary of executed orders:")
             logging.info("📋 Summary of executed orders:")
             for order in orders_executed:
-                print(f"   {order['side'].value.lower()} {order['qty']} {order['symbol']} (${order['estimated_value']:.2f})")
                 logging.info(f"   {order['side'].value.lower()} {order['qty']} {order['symbol']} (${order['estimated_value']:.2f})")
         
         return orders_executed
