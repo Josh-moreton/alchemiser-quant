@@ -311,7 +311,7 @@ def _run_tecl_strategy(live_trading: bool) -> bool:
         return False
 
 
-def run_multi_strategy_trading(live_trading: bool = False):
+def run_multi_strategy_trading(live_trading: bool = False, ignore_market_hours: bool = False):
     """
     Run multi-strategy trading with both Nuclear and TECL strategies
     
@@ -342,8 +342,8 @@ def run_multi_strategy_trading(live_trading: bool = False):
             }
         )
         
-        # Check market hours
-        if not is_market_open(trader.trading_client):
+        # Check market hours unless ignore_market_hours is set
+        if not ignore_market_hours and not is_market_open(trader.trading_client):
             print("❌ Market is CLOSED. No trades will be placed.")
             send_telegram_message("❌ Market is CLOSED. No trades will be placed.")
             return False
@@ -528,7 +528,7 @@ def main():
             
         elif args.mode == 'multi':
             # Multi-strategy trading
-            success = run_multi_strategy_trading(live_trading=args.live)
+            success = run_multi_strategy_trading(live_trading=args.live, ignore_market_hours=args.ignore_market_hours)
             
     except Exception as e:
         print(f"\n💥 Operation failed due to error: {e}")
