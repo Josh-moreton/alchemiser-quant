@@ -4,15 +4,7 @@ The following summarizes key issues identified in the provided code base for the
 
 ## Issues
 
-4. **Maintainability/Accuracy** – `core/strategy_manager.py` lines 293‑298
-   - `_get_nuclear_portfolio_allocation` returns hard-coded weights (`{'SQQQ': 0.6, 'TQQQ': 0.4}`) with a comment acknowledging it is incomplete.
-   - **Impact**: misaligned or outdated allocations lead to incorrect trades and portfolio drift.
-   - **Suggested Fix**: implement real portfolio extraction or clearly mark the feature as unfinished to avoid use in production.
-
-5. **Reliability/Performance** – `execution/alpaca_trader.py` lines 356‑371
-   - After selling positions, the bot sleeps for a fixed 10 seconds assuming settlement has completed.
-   - **Impact**: orders may not settle exactly in 10 seconds, risking stale data or failure during heavy load.
-   - **Suggested Fix**: poll order status with retries/backoff rather than relying on `time.sleep`.
+1-5 completed
 
 6. **Reliability/Security** – `core/s3_utils.py` lines 195‑202
    - `S3FileHandler.emit()` uses `print` to show errors and ignores failed writes to S3.
