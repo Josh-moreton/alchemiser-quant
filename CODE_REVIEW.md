@@ -4,21 +4,6 @@ The following summarizes key issues identified in the provided code base for the
 
 ## Issues
 
-1. **Reliability** – `lambda_handler.py` lines 4‑7 and `main.py` lines 294‑313
-   - `lambda_handler` calls `main()`, which ends with `sys.exit()`. When used in AWS Lambda or similar automation, this results in a `SystemExit` that prevents the handler from returning a valid JSON response.
-   - **Impact**: automated runs may halt with an error, disrupting scheduled trading.
-   - **Suggested Fix**: refactor `main()` to return a status code instead of exiting or catch `SystemExit` and convert it to a proper response.
-
-2. **Observability/Maintainability** – `main.py` lines 281‑285
-   - The logging configuration forces all loggers to the `CRITICAL` level, effectively suppressing logs and leaving only `print` statements.
-   - **Impact**: critical information for monitoring and debugging is lost.
-   - **Suggested Fix**: respect configured logging levels and emit at least `INFO`/`ERROR` logs.
-
-3. **Reliability/Security** – `core/data_provider.py` lines 31‑68 and 200‑207
-   - Secrets are fetched from AWS Secrets Manager each time a `UnifiedDataProvider` instance is created. The module also supports a `TEST_MODE` environment variable that returns a fake price of `100.0`.
-   - **Impact**: repeated secrets lookups increase chances of rate limits or failures; running in `TEST_MODE` inadvertently could cause invalid trades.
-   - **Suggested Fix**: cache secrets once at startup and remove or guard `TEST_MODE` for production runs.
-
 4. **Maintainability/Accuracy** – `core/strategy_manager.py` lines 293‑298
    - `_get_nuclear_portfolio_allocation` returns hard-coded weights (`{'SQQQ': 0.6, 'TQQQ': 0.4}`) with a comment acknowledging it is incomplete.
    - **Impact**: misaligned or outdated allocations lead to incorrect trades and portfolio drift.
@@ -50,9 +35,10 @@ The following summarizes key issues identified in the provided code base for the
    - **Suggested Fix**: mark attribution as "unknown" or improve the signal-to-order matching.
 
 10. **Maintainability** – `core/nuclear_trading_bot.py` lines 217‑232
-   - `_ensure_scalar_price` returns `None` on errors without logging.
-   - **Impact**: downstream calculations may get `None`, leading to incorrect signals with no trace.
-   - **Suggested Fix**: log conversion errors and consider raising an exception when critical.
+
+- `_ensure_scalar_price` returns `None` on errors without logging.
+- **Impact**: downstream calculations may get `None`, leading to incorrect signals with no trace.
+- **Suggested Fix**: log conversion errors and consider raising an exception when critical.
 
 ## High-Level Summary
 
@@ -67,4 +53,3 @@ The following summarizes key issues identified in the provided code base for the
 - **Resilience**: The bot often swallows exceptions and relies on fixed delays, making it fragile in the face of API changes or high market volatility.
 
 Given these findings, deploying this code with real capital poses significant financial and operational risk. Major refactoring is recommended to address logging, error handling, configuration management, and strategy isolation before using in production.
-

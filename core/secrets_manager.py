@@ -29,6 +29,7 @@ class SecretsManager:
         """
         self.region_name = region_name
         self.client = None
+        self._secrets_cache = None  # Cache for secrets
         
         if BOTO3_AVAILABLE:
             try:
@@ -50,25 +51,24 @@ class SecretsManager:
         Returns:
             Dictionary containing the secret values, or None if failed
         """
+        # Use cache if available
+        if self._secrets_cache is not None:
+            return self._secrets_cache
         if not self.client:
             logging.warning("AWS Secrets Manager client not available - falling back to environment variables")
-            return self._get_secret_from_env()
-        
+            self._secrets_cache = self._get_secret_from_env()
+            return self._secrets_cache
         try:
             logging.debug(f"Retrieving secret: {secret_name}")
             response = self.client.get_secret_value(SecretId=secret_name)
-            
-            # Parse the secret value
             secret_string = response['SecretString']
             secret_dict = json.loads(secret_string)
-            
             logging.debug(f"Successfully retrieved secret: {secret_name}")
-            return secret_dict
-            
+            self._secrets_cache = secret_dict
+            return self._secrets_cache
         except ClientError as e:
             error_code = e.response['Error']['Code']
             logging.error(f"AWS Secrets Manager error ({error_code}): {e}")
-            
             if error_code == 'ResourceNotFoundException':
                 logging.error(f"Secret '{secret_name}' not found in AWS Secrets Manager")
             elif error_code == 'InvalidRequestException':
@@ -79,16 +79,14 @@ class SecretsManager:
                 logging.error(f"Cannot decrypt secret '{secret_name}'")
             elif error_code == 'InternalServiceErrorException':
                 logging.error(f"Internal service error retrieving secret '{secret_name}'")
-            
-            # Fallback to environment variables
             logging.warning("Falling back to environment variables")
-            return self._get_secret_from_env()
-            
+            self._secrets_cache = self._get_secret_from_env()
+            return self._secrets_cache
         except Exception as e:
             logging.error(f"Unexpected error retrieving secret '{secret_name}': {e}")
-            # Fallback to environment variables
             logging.warning("Falling back to environment variables")
-            return self._get_secret_from_env()
+            self._secrets_cache = self._get_secret_from_env()
+            return self._secrets_cache
     
     def _get_secret_from_env(self) -> Optional[Dict]:
         """

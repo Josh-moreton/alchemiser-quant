@@ -197,31 +197,22 @@ class UnifiedDataProvider:
         
         Args:
             symbol: Stock symbol
-            
         Returns:
             float: Current price or None if unavailable
         """
-        # Handle test mode
-        if os.getenv("TEST_MODE"):
-            return 100.0
-        
         try:
             # Try to get latest quote
             request = StockLatestQuoteRequest(symbol_or_symbols=symbol)
             latest_quote = self.data_client.get_stock_latest_quote(request)
-            
             if latest_quote and symbol in latest_quote:
                 quote = latest_quote[symbol]
-                
                 # Extract bid/ask prices safely
                 bid = 0.0
                 ask = 0.0
-                
                 if hasattr(quote, 'bid_price') and quote.bid_price:
                     bid = float(quote.bid_price)
                 if hasattr(quote, 'ask_price') and quote.ask_price:
                     ask = float(quote.ask_price)
-                
                 # Return midpoint if both available
                 if bid > 0 and ask > 0:
                     return (bid + ask) / 2
@@ -229,23 +220,17 @@ class UnifiedDataProvider:
                     return bid
                 elif ask > 0:
                     return ask
-            
             # Fallback to recent historical data
             logging.debug(f"No current quote for {symbol}, falling back to historical data")
             df = self.get_data(symbol, period="1d", interval="1m")
-            
             if df is not None and not df.empty and 'Close' in df.columns:
                 price = df['Close'].iloc[-1]
-                
                 # Ensure scalar value
                 if hasattr(price, 'item'):
                     price = price.item()
-                
                 price = float(price)
                 return price if not pd.isna(price) else None
-            
             return None
-            
         except Exception as e:
             logging.error(f"Error getting current price for {symbol}: {e}")
             return None
