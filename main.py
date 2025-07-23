@@ -290,6 +290,13 @@ def run_multi_strategy_trading(live_trading: bool = False, ignore_market_hours: 
             send_telegram_message("❌ Market is CLOSED. No trades will be placed.")
             return "market_closed"
         
+        # Generate strategy signals to get technical indicators for display
+        print("📊 Analyzing market conditions...")
+        strategy_signals = trader.strategy_manager.run_all_strategies()[0]
+        
+        # Display technical indicators
+        display_technical_indicators(strategy_signals)
+        
         # Execute multi-strategy
         result = trader.execute_multi_strategy()
         
