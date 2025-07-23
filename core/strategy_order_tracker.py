@@ -416,7 +416,6 @@ def main():
     """Test the strategy order tracker"""
     import pprint
     
-    logging.basicConfig(level=logging.INFO)
     
     print("🧪 Testing Strategy Order Tracker")
     print("=" * 40)

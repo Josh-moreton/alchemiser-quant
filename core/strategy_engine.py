@@ -27,6 +27,7 @@ class NuclearStrategyEngine:
     def __init__(self):
         # Nuclear energy stocks (the core of this strategy)
         self.nuclear_symbols = ['SMR', 'BWXT', 'LEU', 'EXC', 'NLR', 'OKLO']
+        logging.debug("NuclearStrategyEngine initialized")
     
     def get_nuclear_portfolio(self, indicators, market_data=None, top_n=3):
         """

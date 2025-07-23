@@ -64,7 +64,7 @@ class UnifiedDataProvider:
         else:
             self.api_endpoint = self.config['alpaca'].get('endpoint', 'https://api.alpaca.markets')
         
-        logging.info(f"Initialized UnifiedDataProvider with {'paper' if paper_trading else 'live'} trading keys")
+        logging.debug(f"Initialized UnifiedDataProvider with {'paper' if paper_trading else 'live'} trading keys")
     
     def get_data(self, symbol, period="1y", interval="1d"):
         """
@@ -95,7 +95,7 @@ class UnifiedDataProvider:
             if df is not None and not df.empty:
                 # Cache the data
                 self.cache[cache_key] = (now, df)
-                logging.info(f"Fetched and cached {len(df)} bars for {symbol}")
+                logging.debug(f"Fetched and cached {len(df)} bars for {symbol}")
                 return df
             else:
                 logging.warning(f"No data returned for {symbol}")

@@ -19,7 +19,7 @@ class S3Handler:
         """Initialize S3 client"""
         try:
             self.s3_client = boto3.client('s3')
-            logging.info("S3 client initialized successfully")
+            logging.debug("S3 client initialized successfully")
         except NoCredentialsError:
             logging.error("AWS credentials not found. Please configure AWS credentials.")
             raise
@@ -143,7 +143,7 @@ class S3Handler:
         try:
             # Check if bucket exists
             self.s3_client.head_bucket(Bucket=bucket_name)
-            logging.info(f"Bucket {bucket_name} already exists")
+            logging.debug(f"Bucket {bucket_name} already exists")
             return True
             
         except ClientError as e:
@@ -158,7 +158,7 @@ class S3Handler:
                             CreateBucketConfiguration={'LocationConstraint': region}
                         )
                     
-                    logging.info(f"Created bucket {bucket_name}")
+                    logging.debug(f"Created bucket {bucket_name}")
                     return True
                     
                 except Exception as create_error:

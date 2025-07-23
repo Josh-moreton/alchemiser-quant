@@ -22,7 +22,7 @@ from enum import Enum
 
 from .config import Config
 from .nuclear_trading_bot import NuclearStrategyEngine, ActionType
-from .tecl_strategy_engine import TECLStrategyEngine
+from .tecl_trading_bot import TECLStrategyEngine
 # Centralized logging setup
 from .logging_utils import setup_logging
 setup_logging()
@@ -91,7 +91,7 @@ class MultiStrategyManager:
         from .data_provider import UnifiedDataProvider
         shared_data_provider = UnifiedDataProvider(paper_trading=True)
         
-        # Initialize strategy engines with shared data provider
+        # Initialize strategy orchestration engines with shared data provider
         self.nuclear_engine = NuclearStrategyEngine(data_provider=shared_data_provider)
         self.tecl_engine = TECLStrategyEngine(data_provider=shared_data_provider)
         
@@ -103,7 +103,7 @@ class MultiStrategyManager:
         if not self.positions_file.startswith('s3://'):
             os.makedirs(os.path.dirname(self.positions_file), exist_ok=True)
         
-        logging.info(f"MultiStrategyManager initialized with allocations: {self.strategy_allocations}")
+        logging.debug(f"MultiStrategyManager initialized with allocations: {self.strategy_allocations}")
     
     def get_current_positions(self) -> Dict[StrategyType, List[StrategyPosition]]:
         """Load current strategy positions from file"""
@@ -272,8 +272,8 @@ class MultiStrategyManager:
                     else:
                         consolidated_portfolio[symbol] = strategy_allocation
         
-        # Update position tracking
-        self._update_position_tracking(strategy_signals, consolidated_portfolio)
+        # Note: Position tracking should only happen when trades are actually executed
+        # Signal generation should not create position records
         
         logging.info(f"Consolidated portfolio: {consolidated_portfolio}")
         return strategy_signals, consolidated_portfolio
@@ -317,7 +317,14 @@ class MultiStrategyManager:
     
     def _update_position_tracking(self, strategy_signals: Dict[StrategyType, Any], 
                                 consolidated_portfolio: Dict[str, float]):
-        """Update position tracking with current strategy positions"""
+        """
+        Update position tracking with current strategy positions
+        
+        WARNING: This method should ONLY be called when trades are actually executed,
+        not during signal generation. Signal generation should not create position records.
+        Position tracking should be handled by the StrategyOrderTracker in the execution layer.
+        """
+        logging.warning("_update_position_tracking called - this should only happen during trade execution")
         try:
             new_positions = {strategy: [] for strategy in StrategyType}
             
@@ -380,7 +387,6 @@ def main():
     """Test the multi-strategy manager"""
     import pprint
     
-    logging.basicConfig(level=logging.INFO)
     
     # Create manager with 50/50 allocation
     manager = MultiStrategyManager({

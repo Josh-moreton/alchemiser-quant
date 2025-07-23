@@ -33,7 +33,7 @@ class SecretsManager:
         if BOTO3_AVAILABLE:
             try:
                 self.client = boto3.client('secretsmanager', region_name=region_name)
-                logging.info(f"Initialized AWS Secrets Manager client for region: {region_name}")
+                logging.debug(f"Initialized AWS Secrets Manager client for region: {region_name}")
             except Exception as e:
                 logging.warning(f"Failed to initialize AWS Secrets Manager client: {e}")
                 self.client = None
@@ -55,14 +55,14 @@ class SecretsManager:
             return self._get_secret_from_env()
         
         try:
-            logging.info(f"Retrieving secret: {secret_name}")
+            logging.debug(f"Retrieving secret: {secret_name}")
             response = self.client.get_secret_value(SecretId=secret_name)
             
             # Parse the secret value
             secret_string = response['SecretString']
             secret_dict = json.loads(secret_string)
             
-            logging.info(f"Successfully retrieved secret: {secret_name}")
+            logging.debug(f"Successfully retrieved secret: {secret_name}")
             return secret_dict
             
         except ClientError as e:

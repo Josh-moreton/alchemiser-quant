@@ -23,9 +23,10 @@ def setup_logging(log_level=logging.INFO, log_file=None):
             file_handler = logging.FileHandler(log_file, mode='a')
             handlers.append(file_handler)
     
-    logging.basicConfig(
-        level=log_level,
-        format=log_format,
-        handlers=handlers
-    )
-    logging.info(f"Logging initialized. Level: {logging.getLevelName(log_level)} | File: {log_file or 'console only'}")
+    if not logging.getLogger().hasHandlers():
+        logging.basicConfig(
+            level=log_level,
+            format=log_format,
+            handlers=handlers
+        )
+        logging.info(f"Logging initialized. Level: {logging.getLevelName(log_level)} | File: {log_file or 'console only'}")

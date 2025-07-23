@@ -82,6 +82,19 @@ def generate_multi_strategy_signals():
         import traceback
         traceback.print_exc()
         return None, None, None
+    try:
+        # Initialize strategy manager with 50/50 allocation
+        manager = MultiStrategyManager({
+            StrategyType.NUCLEAR: 0.5,
+            StrategyType.TECL: 0.5
+        })
+        strategy_signals, consolidated_portfolio = manager.run_all_strategies()
+        return manager, strategy_signals, consolidated_portfolio
+    except Exception as e:
+        print(f"❌ Error running multi-strategy analysis: {e}")
+        import traceback
+        traceback.print_exc()
+        return None, None, None
 
 def run_all_signals_display():
     """
@@ -101,44 +114,9 @@ def run_all_signals_display():
             print("⚠️  Failed to generate multi-strategy signals")
             return False
         
-        # Display individual strategy results
-        print("🎯 INDIVIDUAL STRATEGY RESULTS:")
-        print("-" * 40)
-        for strategy_type, signal in strategy_signals.items():
-            status = "✅" if signal['action'] != 'HOLD' else "⏸️"
-            print(f"{status} {strategy_type.value} Strategy:")
-            print(f"  Action: {signal['action']} {signal['symbol']}")
-            print(f"  Reason: {signal['reason']}")
-
-        # Display consolidated portfolio
-        print("\n📈 Consolidated Portfolio Allocation:")
-        if consolidated_portfolio:
-            for symbol, weight in consolidated_portfolio.items():
-                print(f"  {symbol}: {weight:.1%}")
-        else:
-            print("  No portfolio recommendations")
-
-        # Get performance summary if manager is available
-        if manager and hasattr(manager, 'get_strategy_performance_summary'):
-            summary = manager.get_strategy_performance_summary()
-            print(f"\n📋 Strategy Summary:")
-            for strategy, details in summary['strategies'].items():
-                print(f"  {strategy}: {details['current_positions']} positions, {details['allocation']:.0%} allocation")
         
         # Summary
-        print("\n📋 STRATEGY SIGNALS SUMMARY")
-        print("=" * 40)
-        for strategy_type, signal in strategy_signals.items():
-            status = "✅" if signal['action'] != 'HOLD' else "⏸️"
-            print(f"{status} {strategy_type.value}: {signal['action']} {signal['symbol']}")
-            print(f"    └─ {signal['reason']}")
-        
-        print(f"\n🎯 Consolidated Portfolio:")
-        if consolidated_portfolio:
-            for symbol, weight in consolidated_portfolio.items():
-                print(f"    {symbol}: {weight:.1%}")
-        else:
-            print("    No portfolio recommendations")
+        # The redundant summary block has been removed.
         
         return True
         

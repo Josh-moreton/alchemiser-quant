@@ -1,18 +1,18 @@
 #!/usr/bin/env python3
 """
-Nuclear Trading Bot Engine
+TECL Trading Bot Engine
 
-This module provides orchestration and execution for the Nuclear Energy trading strategy, including:
-- Data fetching and technical indicator calculation
-- Strategy evaluation using pure logic from strategy_engine.py
-- Alert generation, logging, and S3 integration
-- Portfolio allocation reporting and display
+This module implements the orchestration and execution layer for the TECL strategy, including:
+- Market regime detection using SPY vs 200-day MA
+- RSI-based timing signals and sector rotation (XLK vs KMLM)
+- Dynamic allocation between TECL, BIL, UVXY, SQQQ, and BSV
+- Volatility protection and defensive positioning
+- Technical indicator calculation, alert generation, and S3 integration
 - Both continuous and one-shot execution modes
 
-Pure strategy logic (portfolio construction, signal generation) resides in strategy_engine.py.
-This file handles the real-world orchestration, data management, and execution layers.
+This file handles data fetching, orchestration, and execution for the TECL strategy,
+while pure strategy logic resides in tecl_strategy_engine.py.
 """
-
 
 # Standard library imports
 import json
@@ -23,6 +23,7 @@ import datetime as dt
 # Third-party imports
 import pandas as pd
 import numpy as np
+
 # Centralized logging setup
 from .logging_utils import setup_logging
 setup_logging()
@@ -45,26 +46,21 @@ import logging
 handlers: List[logging.Handler] = [logging.StreamHandler()]
 
 # Add S3 handler for logs
-if logging_config['nuclear_alerts_log'].startswith('s3://'):
-    s3_handler = S3FileHandler(logging_config['nuclear_alerts_log'])
+if logging_config.get('tecl_alerts_log', '').startswith('s3://'):
+    s3_handler = S3FileHandler(logging_config['tecl_alerts_log'])
     s3_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
     handlers.append(s3_handler)
-else:
-    handlers.append(logging.FileHandler(logging_config['nuclear_alerts_log']))
-
+elif 'tecl_alerts_log' in logging_config:
+    handlers.append(logging.FileHandler(logging_config['tecl_alerts_log']))
 
 
 # Import Alert from alert_service
 from .alert_service import Alert
 
-
-
-
-
 # Import UnifiedDataProvider from the new module
 from .data_provider import UnifiedDataProvider
 
-from enum import Enum, auto
+from enum import Enum
 
 # ActionType enum for clarity and safety
 class ActionType(Enum):
@@ -72,12 +68,9 @@ class ActionType(Enum):
     SELL = "SELL"
     HOLD = "HOLD"
 
-class NuclearStrategyEngine:
-    def get_best_nuclear_stocks(self, indicators, top_n=3):
-        """Get top performing nuclear stocks based on 90-day moving average return."""
-        portfolio = self.strategy.get_nuclear_portfolio(indicators, top_n=top_n)
-        return list(portfolio.keys())[:top_n]
-    """Nuclear Strategy Engine - Orchestrates data, indicators, and strategy logic"""
+
+class TECLStrategyEngine:
+    """TECL Strategy Engine - Orchestrates data, indicators, and strategy logic"""
 
     def __init__(self, data_provider=None):
         from .data_provider import UnifiedDataProvider
@@ -85,22 +78,17 @@ class NuclearStrategyEngine:
         self.indicators = TechnicalIndicators()
         
         # Import the pure strategy engine
-        from .strategy_engine import NuclearStrategyEngine as PureStrategyEngine
+        from .tecl_strategy_engine import TECLStrategyEngine as PureStrategyEngine
         self.strategy = PureStrategyEngine()
 
-        # Core symbols from the Nuclear strategy
-        self.market_symbols = ['SPY', 'IOO', 'TQQQ', 'VTV', 'XLF', 'VOX']
-        self.volatility_symbols = ['UVXY', 'BTAL']
-        self.tech_symbols = ['QQQ', 'SQQQ', 'PSQ', 'UPRO']
-        self.bond_symbols = ['TLT', 'IEF']
+        # TECL strategy symbols
+        self.market_symbols = ['SPY', 'XLK', 'KMLM']
+        self.tecl_symbols = ['TECL', 'BIL', 'UVXY', 'SQQQ', 'BSV']
+        self.tech_symbols = ['TQQQ', 'SPXL']  # For oversold signals
 
-        # Nuclear energy stocks (the core of this strategy)
-        self.nuclear_symbols = ['SMR', 'BWXT', 'LEU', 'EXC', 'NLR', 'OKLO']
-
-        # All symbols
+        # All symbols needed for TECL strategy
         self.all_symbols = (
-            self.market_symbols + self.volatility_symbols +
-            self.tech_symbols + self.bond_symbols + self.nuclear_symbols
+            self.market_symbols + self.tecl_symbols + self.tech_symbols
         )
 
     def get_market_data(self):
@@ -137,7 +125,7 @@ class NuclearStrategyEngine:
             return 50.0
 
     def calculate_indicators(self, market_data):
-        """Calculate all technical indicators"""
+        """Calculate all technical indicators needed for TECL strategy"""
         indicators = {}
         for symbol, df in market_data.items():
             if df.empty:
@@ -148,75 +136,23 @@ class NuclearStrategyEngine:
                 'rsi_20': self.safe_get_indicator(close, self.indicators.rsi, 20),
                 'ma_200': self.safe_get_indicator(close, self.indicators.moving_average, 200),
                 'ma_20': self.safe_get_indicator(close, self.indicators.moving_average, 20),
-                'ma_return_90': self.safe_get_indicator(close, self.indicators.moving_average_return, 90),
-                'cum_return_60': self.safe_get_indicator(close, self.indicators.cumulative_return, 60),
                 'current_price': float(close.iloc[-1]),
             }
         return indicators
 
-    def evaluate_nuclear_strategy(self, indicators, market_data=None):
+    def evaluate_tecl_strategy(self, indicators, market_data=None):
         """
-        Evaluate the Nuclear Energy strategy using the canonical hierarchical logic from Clojure implementation.
+        Evaluate the TECL strategy using the pure strategy logic.
         Returns: (recommended_symbol, action, reason)
         """
-        from .strategy_engine import (
-            BullMarketStrategy, BearMarketStrategy, OverboughtStrategy, SecondaryOverboughtStrategy, VoxOverboughtStrategy
-        )
-        if 'SPY' not in indicators:
-            return 'SPY', ActionType.HOLD.value, "Missing SPY data"
-
-        # Hierarchical logic matching the Clojure canonical strategy
-        spy_rsi_10 = indicators['SPY']['rsi_10']
-        logging.debug(f"SPY RSI(10) = {spy_rsi_10:.2f}")
-        
-        # Primary overbought check: SPY RSI > 79
-        if spy_rsi_10 > 79:
-            result = OverboughtStrategy().recommend(indicators)
-            if result:
-                return result
-        
-        # Secondary overbought checks in order: IOO, TQQQ, VTV, XLF
-        for symbol in ['IOO', 'TQQQ', 'VTV', 'XLF']:
-            if symbol in indicators:
-                logging.debug(f"{symbol} RSI(10) = {indicators[symbol]['rsi_10']:.2f}")
-                if indicators[symbol]['rsi_10'] > 79:
-                    logging.debug(f"{symbol} triggered overbought condition (RSI > 79)")
-                    result = SecondaryOverboughtStrategy().recommend(indicators, symbol)
-                    if result:
-                        return result
-        
-        # VOX overbought check  
-        if 'VOX' in indicators and indicators['VOX']['rsi_10'] > 79:
-            result = VoxOverboughtStrategy().recommend(indicators)
-            if result:
-                return result
-        
-        # Oversold conditions (TQQQ first, then SPY)
-        if 'TQQQ' in indicators and indicators['TQQQ']['rsi_10'] < 30:
-            return 'TQQQ', ActionType.BUY.value, "TQQQ oversold, buying dip"
-        
-        if indicators['SPY']['rsi_10'] < 30:
-            return 'UPRO', ActionType.BUY.value, "SPY oversold, buying dip with leverage"
-            
-        # Bull vs Bear market determination (SPY above/below 200 MA)
-        if 'SPY' in indicators and indicators['SPY']['current_price'] > indicators['SPY']['ma_200']:
-            result = BullMarketStrategy(self.strategy).recommend(indicators, market_data)
-            if result:
-                return result
-        else:
-            result = BearMarketStrategy(self.strategy).recommend(indicators)
-            if result:
-                return result
-        
-        # Fallback if no strategy returns a result
-        return 'SPY', ActionType.HOLD.value, "No clear signal, holding cash equivalent"
+        return self.strategy.evaluate_tecl_strategy(indicators, market_data)
 
 
-class NuclearTradingBot:
-    """Nuclear Energy Trading Bot"""
+class TECLTradingBot:
+    """TECL Trading Bot"""
     
     def __init__(self):
-        self.strategy = NuclearStrategyEngine()
+        self.strategy = TECLStrategyEngine()
         self.load_config()
     
     def _ensure_scalar_price(self, price):
@@ -234,7 +170,7 @@ class NuclearTradingBot:
             price = float(price)
             return price if not pd.isna(price) else None
         except (ValueError, TypeError, AttributeError) as e:
-            logging.debug(f"Error converting price to scalar: {e}")
+            print(f"Error converting price to scalar: {e}")
             return None
         
     def load_config(self):
@@ -269,7 +205,7 @@ class NuclearTradingBot:
             }
         }
     
-    def handle_nuclear_portfolio_signal(self, symbol, action, reason, indicators, market_data=None):
+    def handle_tecl_portfolio_signal(self, symbol, action, reason, indicators, market_data=None):
         """Delegate alert creation to alert_service.create_alerts_from_signal"""
         from .alert_service import create_alerts_from_signal
         return create_alerts_from_signal(
@@ -278,8 +214,8 @@ class NuclearTradingBot:
         )
     
     def run_analysis(self):
-        """Run complete strategy analysis"""
-        logging.info("Starting Nuclear Energy strategy analysis...")
+        """Run complete TECL strategy analysis"""
+        logging.info("Starting TECL strategy analysis...")
         
         # Get market data
         market_data = self.strategy.get_market_data()
@@ -294,10 +230,10 @@ class NuclearTradingBot:
             return None
         
         # Evaluate strategy
-        symbol, action, reason = self.strategy.evaluate_nuclear_strategy(indicators, market_data)
+        symbol, action, reason = self.strategy.evaluate_tecl_strategy(indicators, market_data)
         
-        # Handle nuclear portfolio signal properly
-        alerts = self.handle_nuclear_portfolio_signal(symbol, action, reason, indicators, market_data)
+        # Handle TECL portfolio signal properly
+        alerts = self.handle_tecl_portfolio_signal(symbol, action, reason, indicators, market_data)
         
         logging.info(f"Analysis complete: {action} {symbol} - {reason}")
         return alerts
@@ -318,66 +254,59 @@ class NuclearTradingBot:
             
             # Display results
             if len(alerts) > 1:
-                # Nuclear portfolio signal
-                logging.debug(f"NUCLEAR PORTFOLIO SIGNAL: {len(alerts)} stocks allocated")
-                logging.debug(f"NUCLEAR PORTFOLIO ALLOCATION:")
+                # Multi-asset TECL portfolio signal
+                print(f"🚨 TECL PORTFOLIO SIGNAL: {len(alerts)} assets allocated")
+                print(f"\n🔵 TECL PORTFOLIO ALLOCATION:")
                 for alert in alerts:
                     if alert.action != 'HOLD':
-                        logging.debug(f"   {alert.action} {alert.symbol} at ${alert.price:.2f}")
-                        logging.debug(f"      Reason: {alert.reason}")
+                        print(f"   🟢 {alert.action} {alert.symbol} at ${alert.price:.2f}")
+                        print(f"      Reason: {alert.reason}")
                     else:
-                        logging.debug(f"   {alert.action} {alert.symbol} at ${alert.price:.2f}")
-                        logging.debug(f"      Reason: {alert.reason}")
-                        
-                # Show portfolio allocation details
-                portfolio = self.get_current_portfolio_allocation()
-                if portfolio:
-                    logging.debug(f"PORTFOLIO DETAILS:")
-                    for symbol, data in portfolio.items():
-                        logging.debug(f"   {symbol}: {data['weight']:.1%}")
+                        print(f"   ⚪ {alert.action} {alert.symbol} at ${alert.price:.2f}")
+                        print(f"      Reason: {alert.reason}")
             else:
                 # Single signal
                 alert = alerts[0]
                 if alert.action != 'HOLD':
-                    logging.debug(f"NUCLEAR TRADING SIGNAL: {alert.action} {alert.symbol} at ${alert.price:.2f}")
-                    logging.debug(f"   Reason: {alert.reason}")
+                    print(f"🚨 TECL TRADING SIGNAL: {alert.action} {alert.symbol} at ${alert.price:.2f}")
+                    print(f"   Reason: {alert.reason}")
                 else:
-                    logging.debug(f"Nuclear Analysis: {alert.action} {alert.symbol} at ${alert.price:.2f}")
-                    logging.debug(f"   Reason: {alert.reason}")
+                    print(f"📊 TECL Analysis: {alert.action} {alert.symbol} at ${alert.price:.2f}")
+                    print(f"   Reason: {alert.reason}")
             
             # Print technical indicator values for key symbols
             if alerts and hasattr(self.strategy, 'calculate_indicators'):
                 market_data = self.strategy.get_market_data()
                 indicators = self.strategy.calculate_indicators(market_data)
-                logging.debug("Technical Indicators Used for Signal Generation:")
-                for symbol in ['IOO', 'SPY', 'TQQQ', 'VTV', 'XLF']:
+                print("\n🔬 Technical Indicators Used for TECL Signal Generation:")
+                for symbol in ['SPY', 'XLK', 'KMLM', 'TECL']:
                     if symbol in indicators:
-                        logging.debug(f"  {symbol}: RSI(10)={indicators[symbol].get('rsi_10')}, RSI(20)={indicators[symbol].get('rsi_20')}")
+                        print(f"  {symbol}: RSI(10)={indicators[symbol].get('rsi_10'):.1f}, RSI(20)={indicators[symbol].get('rsi_20'):.1f}")
             
             return alerts[0]  # Return first alert for compatibility
         else:
-            logging.debug("Unable to generate nuclear energy signal")
+            print("❌ Unable to generate TECL strategy signal")
             return None
     
     def run_continuous(self, interval_minutes=15):
         """Run analysis continuously"""
         import time
         
-        logging.info(f"Starting continuous Nuclear Energy analysis (every {interval_minutes} minutes)")
+        logging.info(f"Starting continuous TECL strategy analysis (every {interval_minutes} minutes)")
         
         while True:
             try:
                 self.run_once()
                 time.sleep(interval_minutes * 60)
             except KeyboardInterrupt:
-                logging.info("Stopping Nuclear Energy bot...")
+                logging.info("Stopping TECL bot...")
                 break
             except Exception as e:
                 logging.error(f"Error in continuous run: {e}")
                 time.sleep(60)
     
     def get_current_portfolio_allocation(self):
-        """Get current portfolio allocation for display purposes"""
+        """Get current TECL portfolio allocation for display purposes"""
         # Get market data and indicators
         market_data = self.strategy.get_market_data()
         if not market_data:
@@ -388,29 +317,32 @@ class NuclearTradingBot:
             return None
         
         # Get strategy recommendation
-        symbol, action, reason = self.strategy.evaluate_nuclear_strategy(indicators, market_data)
+        symbol, action, reason = self.strategy.evaluate_tecl_strategy(indicators, market_data)
         
-        # If we're in a bull market, show the nuclear portfolio
-        if 'SPY' in indicators:
-            spy_price = indicators['SPY']['current_price']
-            spy_ma_200 = indicators['SPY']['ma_200']
-            
-            if spy_price > spy_ma_200 and action == 'BUY':
-                nuclear_portfolio = self.strategy.strategy.get_nuclear_portfolio(indicators, market_data)
-                if nuclear_portfolio:
-                    # Add current prices and market values
-                    portfolio_with_prices = {}
-                    for symbol, data in nuclear_portfolio.items():
-                        if symbol in indicators:
-                            current_price = indicators[symbol]['current_price']
-                            portfolio_with_prices[symbol] = {
-                                'weight': data['weight'],
-                                'performance': data['performance'],
-                                'current_price': current_price,
-                                'market_value': 10000 * data['weight'],  # Assuming $10k portfolio
-                                'shares': (10000 * data['weight']) / current_price
-                            }
-                    return portfolio_with_prices
+        # Return current allocation with prices
+        if isinstance(symbol, dict):
+            # Multi-asset allocation
+            portfolio_with_prices = {}
+            for asset_symbol, weight in symbol.items():
+                if asset_symbol in indicators:
+                    current_price = indicators[asset_symbol]['current_price']
+                    portfolio_with_prices[asset_symbol] = {
+                        'weight': weight,
+                        'current_price': current_price,
+                        'market_value': 10000 * weight,  # Assuming $10k portfolio
+                        'shares': (10000 * weight) / current_price if current_price > 0 else 0
+                    }
+            return portfolio_with_prices
+        elif symbol in indicators:
+            # Single asset allocation
+            current_price = indicators[symbol]['current_price']
+            return {
+                symbol: {
+                    'weight': 1.0,
+                    'current_price': current_price,
+                    'market_value': 10000,
+                    'shares': 10000 / current_price if current_price > 0 else 0
+                }
+            }
         
         return None
-

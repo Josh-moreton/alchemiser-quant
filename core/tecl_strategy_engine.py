@@ -56,11 +56,6 @@ if tecl_log.startswith('s3://'):
 else:
     handlers.append(logging.FileHandler(tecl_log))
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=handlers
-)
 setup_logging()
 
 
@@ -90,7 +85,7 @@ class TECLStrategyEngine:
             self.volatility_symbols + self.bond_symbols + self.inverse_symbols
         )
         
-        logging.info("TECLStrategyEngine initialized")
+        logging.debug("TECLStrategyEngine initialized")
     
     def get_market_data(self):
         """Fetch data for all symbols"""
@@ -297,7 +292,6 @@ class TECLStrategyEngine:
 
 def main():
     """Test the TECL strategy engine"""
-    logging.basicConfig(level=logging.INFO)
     
     print("🚀 TECL Strategy Engine Test")
     print("=" * 50)
