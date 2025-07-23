@@ -1,16 +1,16 @@
 # Logging configuration
 logging:
   level: "INFO"
-  nuclear_alerts_log: "/tmp/nuclear_alerts.log"
-  nuclear_alerts_json: "/tmp/nuclear_alerts.json"
-  multi_strategy_alerts: "/data/multi_strategy_alerts.json"
-  multi_strategy_log: "/data/multi_strategy_execution.log"
-  strategy_positions: "/tmp/strategy_positions.json"
-  strategy_orders: "/tmp/strategy_orders.json"
-  strategy_positions_detailed: "/tmp/strategy_positions_detailed.json"
-  tecl_strategy_log: "/tmp/tecl_strategy.log"
-  alpaca_log: "/tmp/alpaca_trader.log"
-  alpaca_trades_json: "/tmp/alpaca_trades.json"
+  nuclear_alerts_log: "s3://the-alchemiser-s3/nuclear_alerts.log"
+  nuclear_alerts_json: "s3://the-alchemiser-s3/nuclear_alerts.json"
+  multi_strategy_alerts: "s3://the-alchemiser-s3/multi_strategy_alerts.json"
+  multi_strategy_log: "s3://the-alchemiser-s3/multi_strategy_execution.log"
+  strategy_positions: "s3://the-alchemiser-s3/strategy_positions.json"
+  strategy_orders: "s3://the-alchemiser-s3/strategy_orders.json"
+  strategy_positions_detailed: "s3://the-alchemiser-s3/strategy_positions_detailed.json"
+  tecl_strategy_log: "s3://the-alchemiser-s3/tecl_strategy.log"
+  alpaca_log: "s3://the-alchemiser-s3/alpaca_trader.log"
+  alpaca_trades_json: "s3://the-alchemiser-s3/alpaca_trades.json"
 
 # Alpaca configuration
 alpaca:

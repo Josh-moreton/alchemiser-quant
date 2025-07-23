@@ -36,13 +36,24 @@ config = Config()
 logging_config = config['logging']
 
 # Configure logging
+from core.s3_utils import S3FileHandler
+from typing import List
+import logging
+
+handlers: List[logging.Handler] = [logging.StreamHandler()]
+
+# Add S3 handler for logs
+if logging_config['alpaca_log'].startswith('s3://'):
+    s3_handler = S3FileHandler(logging_config['alpaca_log'])
+    s3_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+    handlers.append(s3_handler)
+else:
+    handlers.append(logging.FileHandler(logging_config['alpaca_log']))
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler(logging_config['alpaca_log']),
-        logging.StreamHandler()
-    ]
+    handlers=handlers
 )
 
 def is_market_open(trading_client):
@@ -479,13 +490,24 @@ class AlpacaTradingBot:
             config = Config()
             alerts_file = config['logging']['nuclear_alerts_json']
             
-            if not os.path.exists(alerts_file):
-                logging.warning(f"Alerts file not found: {alerts_file}")
-                return signals
+            from core.s3_utils import get_s3_handler
+            s3_handler = get_s3_handler()
             
-            # Read the last few lines (recent signals)
-            with open(alerts_file, 'r') as f:
-                lines = f.readlines()
+            if alerts_file.startswith('s3://'):
+                # Read from S3
+                content = s3_handler.read_text(alerts_file)
+                if not content:
+                    logging.warning(f"Alerts file not found or empty: {alerts_file}")
+                    return signals
+                lines = content.strip().split('\n')
+            else:
+                # Read from local file
+                if not os.path.exists(alerts_file):
+                    logging.warning(f"Alerts file not found: {alerts_file}")
+                    return signals
+                
+                with open(alerts_file, 'r') as f:
+                    lines = f.readlines()
             
             # Get signals from the last 5 minutes to group portfolio signals
             cutoff_time = datetime.now() - timedelta(minutes=5)
@@ -643,8 +665,17 @@ class AlpacaTradingBot:
             }
             config = Config()
             log_file = config['logging']['alpaca_trades_json']
-            with open(log_file, 'a') as f:
-                f.write(json.dumps(trade_log) + '\n')
+            
+            from core.s3_utils import get_s3_handler
+            s3_handler = get_s3_handler()
+            
+            if log_file.startswith('s3://'):
+                # Write to S3
+                s3_handler.append_text(log_file, json.dumps(trade_log) + '\n')
+            else:
+                # Write to local file
+                with open(log_file, 'a') as f:
+                    f.write(json.dumps(trade_log) + '\n')
         except Exception as e:
             logging.error(f"Error logging trade execution: {e}")
     
