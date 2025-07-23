@@ -114,8 +114,8 @@ class NuclearStrategyEngine:
         return list(portfolio.keys())[:top_n]
     """Nuclear Energy Strategy Engine"""
 
-    def __init__(self):
-        self.data_provider = DataProvider()
+    def __init__(self, data_provider=None):
+        self.data_provider = data_provider or DataProvider()
         self.indicators = TechnicalIndicators()
 
         # Core symbols from the Nuclear strategy

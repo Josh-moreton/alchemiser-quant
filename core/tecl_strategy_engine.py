@@ -59,8 +59,8 @@ class ActionType(Enum):
 class TECLStrategyEngine:
     """TECL Strategy Engine - Long-term technology leverage with volatility protection"""
     
-    def __init__(self):
-        self.data_provider = DataProvider()
+    def __init__(self, data_provider=None):
+        self.data_provider = data_provider or DataProvider()
         self.indicators = TechnicalIndicators()
         
         # Core symbols used in TECL strategy

@@ -84,9 +84,13 @@ class MultiStrategyManager:
         if abs(total_allocation - 1.0) > 0.01:
             raise ValueError(f"Strategy allocations must sum to 1.0, got {total_allocation}")
         
-        # Initialize strategy engines
-        self.nuclear_engine = NuclearStrategyEngine()
-        self.tecl_engine = TECLStrategyEngine()
+        # Create shared data provider to avoid redundant AWS/Alpaca initialization
+        from .data_provider import DataProvider
+        shared_data_provider = DataProvider()
+        
+        # Initialize strategy engines with shared data provider
+        self.nuclear_engine = NuclearStrategyEngine(data_provider=shared_data_provider)
+        self.tecl_engine = TECLStrategyEngine(data_provider=shared_data_provider)
         
         # Position tracking file
         self.positions_file = self.config['logging'].get('strategy_positions', 
@@ -150,19 +154,20 @@ class MultiStrategyManager:
         strategy_signals = {}
         consolidated_portfolio = {}
         
-        # Get market data (combined from all strategies)
+        # Get market data (combined from all strategies using shared data provider)
         all_symbols = set(self.nuclear_engine.all_symbols + self.tecl_engine.all_symbols)
         market_data = {}
         
-        # Fetch data for all required symbols
+        # Fetch data for all required symbols using the shared data provider
+        shared_data_provider = self.nuclear_engine.data_provider  # Both engines share the same instance
         for symbol in all_symbols:
-            data = self.nuclear_engine.data_provider.get_data(symbol)
+            data = shared_data_provider.get_data(symbol)
             if not data.empty:
                 market_data[symbol] = data
             else:
                 logging.warning(f"Could not fetch data for {symbol}")
         
-        logging.info(f"Fetched market data for {len(market_data)} symbols: {list(market_data.keys())}")
+        logging.info(f"Fetched market data for {len(market_data)} symbols using shared data provider")
         
         # Run Nuclear Strategy
         try:
