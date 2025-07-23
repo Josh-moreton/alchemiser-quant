@@ -184,7 +184,7 @@ def run_multi_strategy_trading(live_trading: bool = False, ignore_market_hours: 
         if not ignore_market_hours and not is_market_open(trader.trading_client):
             print("❌ Market is CLOSED. No trades will be placed.")
             send_telegram_message("❌ Market is CLOSED. No trades will be placed.")
-            return False
+            return "market_closed"
         
         print("✅ Market is OPEN. Proceeding with multi-strategy trading.")
         

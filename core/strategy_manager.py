@@ -99,19 +99,30 @@ class MultiStrategyManager:
         self.positions_file = self.config['logging'].get('strategy_positions', 
                                                         'data/logs/strategy_positions.json')
         
-        # Ensure directory exists
-        os.makedirs(os.path.dirname(self.positions_file), exist_ok=True)
+        # Ensure directory exists for local files only
+        if not self.positions_file.startswith('s3://'):
+            os.makedirs(os.path.dirname(self.positions_file), exist_ok=True)
         
         logging.info(f"MultiStrategyManager initialized with allocations: {self.strategy_allocations}")
     
     def get_current_positions(self) -> Dict[StrategyType, List[StrategyPosition]]:
         """Load current strategy positions from file"""
         try:
-            if not os.path.exists(self.positions_file):
-                return {strategy: [] for strategy in StrategyType}
+            from .s3_utils import get_s3_handler
+            s3_handler = get_s3_handler()
             
-            with open(self.positions_file, 'r') as f:
-                data = json.load(f)
+            if self.positions_file.startswith('s3://'):
+                # Read from S3
+                data = s3_handler.read_json(self.positions_file)
+                if not data:
+                    return {strategy: [] for strategy in StrategyType}
+            else:
+                # Read from local file
+                if not os.path.exists(self.positions_file):
+                    return {strategy: [] for strategy in StrategyType}
+                
+                with open(self.positions_file, 'r') as f:
+                    data = json.load(f)
             
             positions = {strategy: [] for strategy in StrategyType}
             for strategy_name, position_list in data.get('positions', {}).items():
@@ -136,8 +147,16 @@ class MultiStrategyManager:
                 }
             }
             
-            with open(self.positions_file, 'w') as f:
-                json.dump(data, f, indent=2)
+            from .s3_utils import get_s3_handler
+            s3_handler = get_s3_handler()
+            
+            if self.positions_file.startswith('s3://'):
+                # Save to S3
+                s3_handler.write_json(self.positions_file, data)
+            else:
+                # Save to local file
+                with open(self.positions_file, 'w') as f:
+                    json.dump(data, f, indent=2)
             
             logging.info(f"Strategy positions saved to {self.positions_file}")
         except Exception as e:

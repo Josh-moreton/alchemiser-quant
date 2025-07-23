@@ -41,13 +41,25 @@ config = Config()
 logging_config = config['logging']
 
 # Configure logging
+from .s3_utils import S3FileHandler
+from typing import List
+import logging
+
+handlers: List[logging.Handler] = [logging.StreamHandler()]
+
+# Add S3 handler for logs
+tecl_log = logging_config.get('tecl_strategy_log', 's3://the-alchemiser-s3/tecl_strategy.log')
+if tecl_log.startswith('s3://'):
+    s3_handler = S3FileHandler(tecl_log)
+    s3_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+    handlers.append(s3_handler)
+else:
+    handlers.append(logging.FileHandler(tecl_log))
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler(logging_config.get('tecl_strategy_log', 'data/logs/tecl_strategy.log')),
-        logging.StreamHandler()
-    ]
+    handlers=handlers
 )
 setup_logging()
 

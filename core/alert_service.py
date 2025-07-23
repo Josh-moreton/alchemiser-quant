@@ -129,8 +129,16 @@ def log_alert_to_file(alert, log_file_path=None):
     }
     
     try:
-        with open(log_file_path, 'a') as f:
-            f.write(json.dumps(alert_data) + '\n')
+        from .s3_utils import get_s3_handler
+        s3_handler = get_s3_handler()
+        
+        if log_file_path.startswith('s3://'):
+            # Append to S3
+            s3_handler.append_text(log_file_path, json.dumps(alert_data) + '\n')
+        else:
+            # Local file
+            with open(log_file_path, 'a') as f:
+                f.write(json.dumps(alert_data) + '\n')
     except Exception as e:
         logging.error(f"Failed to log alert: {e}")
 

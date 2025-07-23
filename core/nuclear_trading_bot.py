@@ -35,13 +35,24 @@ config = Config()
 logging_config = config['logging']
 
 # Configure logging
+from .s3_utils import S3FileHandler
+from typing import List
+import logging
+
+handlers: List[logging.Handler] = [logging.StreamHandler()]
+
+# Add S3 handler for logs
+if logging_config['nuclear_alerts_log'].startswith('s3://'):
+    s3_handler = S3FileHandler(logging_config['nuclear_alerts_log'])
+    s3_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+    handlers.append(s3_handler)
+else:
+    handlers.append(logging.FileHandler(logging_config['nuclear_alerts_log']))
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler(logging_config['nuclear_alerts_log']),
-        logging.StreamHandler()
-    ]
+    handlers=handlers
 )
 
 
@@ -406,14 +417,34 @@ class NuclearTradingBot:
     def load_config(self):
         """Load configuration"""
         try:
-            with open('alert_config.json', 'r') as f:
-                self.config = json.load(f)
-        except FileNotFoundError:
-            self.config = {
-                "alerts": {
-                    "cooldown_minutes": 30
-                }
+            # Try to load from S3 first, then local
+            from .s3_utils import get_s3_handler
+            import os
+            s3_handler = get_s3_handler()
+            
+            # Check if file exists in S3 bucket
+            s3_uri = "s3://the-alchemiser-s3/alert_config.json"
+            if s3_handler.file_exists(s3_uri):
+                content = s3_handler.read_text(s3_uri)
+                if content:
+                    self.config = json.loads(content)
+                    return
+            
+            # Fallback to local file
+            if os.path.exists('alert_config.json'):
+                with open('alert_config.json', 'r') as f:
+                    self.config = json.load(f)
+                    return
+                    
+        except Exception as e:
+            logging.warning(f"Could not load alert config: {e}")
+            
+        # Default config if nothing found
+        self.config = {
+            "alerts": {
+                "cooldown_minutes": 30
             }
+        }
     
     def handle_nuclear_portfolio_signal(self, symbol, action, reason, indicators, market_data=None):
         """Delegate alert creation to alert_service.create_alerts_from_signal"""

@@ -1,6 +1,7 @@
 import sys
-from main import run_live_trading_bot
+from main import main
 
 def lambda_handler(event=None, context=None):
-    result = run_live_trading_bot()
+    sys.argv = ["main.py", "trade", "--live"]
+    result = main()
     return {"status": "success" if result else "failed"}

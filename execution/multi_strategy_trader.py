@@ -335,11 +335,18 @@ class MultiStrategyAlpacaTrader(AlpacaTradingBot):
     def _log_multi_strategy_execution(self, execution_summary: Dict):
         """Log detailed execution summary to file"""
         try:
-            import os
-            os.makedirs(os.path.dirname(self.multi_strategy_log), exist_ok=True)
+            from core.s3_utils import get_s3_handler
+            s3_handler = get_s3_handler()
             
-            with open(self.multi_strategy_log, 'a') as f:
-                f.write(json.dumps(execution_summary, indent=2, default=str) + '\n')
+            if self.multi_strategy_log.startswith('s3://'):
+                # Log to S3
+                s3_handler.append_text(self.multi_strategy_log, json.dumps(execution_summary, indent=2, default=str) + '\n')
+            else:
+                # Log to local file
+                import os
+                os.makedirs(os.path.dirname(self.multi_strategy_log), exist_ok=True)
+                with open(self.multi_strategy_log, 'a') as f:
+                    f.write(json.dumps(execution_summary, indent=2, default=str) + '\n')
             
             logging.info(f"Multi-strategy execution logged to {self.multi_strategy_log}")
             

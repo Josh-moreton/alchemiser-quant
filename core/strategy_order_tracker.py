@@ -83,9 +83,10 @@ class StrategyOrderTracker:
             '/tmp/strategy_positions_detailed.json'
         )
         
-        # Ensure directories exist
+        # Ensure directories exist for local files only
         for file_path in [self.orders_file, self.positions_file]:
-            os.makedirs(os.path.dirname(file_path), exist_ok=True)
+            if not file_path.startswith('s3://'):
+                os.makedirs(os.path.dirname(file_path), exist_ok=True)
         
         logging.info(f"StrategyOrderTracker initialized with files: {self.orders_file}, {self.positions_file}")
     
@@ -313,12 +314,23 @@ class StrategyOrderTracker:
     def _load_orders(self) -> Dict[str, Dict]:
         """Load orders from storage"""
         try:
-            if not os.path.exists(self.orders_file):
-                return {}
+            from .s3_utils import get_s3_handler
+            s3_handler = get_s3_handler()
             
-            with open(self.orders_file, 'r') as f:
-                data = json.load(f)
+            if self.orders_file.startswith('s3://'):
+                # Read from S3
+                data = s3_handler.read_json(self.orders_file)
+                if not data:
+                    return {}
                 return data.get('orders', {})
+            else:
+                # Read from local file
+                if not os.path.exists(self.orders_file):
+                    return {}
+                
+                with open(self.orders_file, 'r') as f:
+                    data = json.load(f)
+                    return data.get('orders', {})
         except Exception as e:
             logging.error(f"Error loading orders: {e}")
             return {}
@@ -331,20 +343,39 @@ class StrategyOrderTracker:
                 'orders': orders
             }
             
-            with open(self.orders_file, 'w') as f:
-                json.dump(data, f, indent=2)
+            from .s3_utils import get_s3_handler
+            s3_handler = get_s3_handler()
+            
+            if self.orders_file.startswith('s3://'):
+                # Save to S3
+                s3_handler.write_json(self.orders_file, data)
+            else:
+                # Save to local file
+                with open(self.orders_file, 'w') as f:
+                    json.dump(data, f, indent=2)
         except Exception as e:
             logging.error(f"Error saving orders: {e}")
     
     def _load_positions(self) -> Dict[str, List[Dict]]:
         """Load positions from storage"""
         try:
-            if not os.path.exists(self.positions_file):
-                return {strategy.value: [] for strategy in StrategyType}
+            from .s3_utils import get_s3_handler
+            s3_handler = get_s3_handler()
             
-            with open(self.positions_file, 'r') as f:
-                data = json.load(f)
+            if self.positions_file.startswith('s3://'):
+                # Read from S3
+                data = s3_handler.read_json(self.positions_file)
+                if not data:
+                    return {strategy.value: [] for strategy in StrategyType}
                 return data.get('positions', {strategy.value: [] for strategy in StrategyType})
+            else:
+                # Read from local file
+                if not os.path.exists(self.positions_file):
+                    return {strategy.value: [] for strategy in StrategyType}
+                
+                with open(self.positions_file, 'r') as f:
+                    data = json.load(f)
+                    return data.get('positions', {strategy.value: [] for strategy in StrategyType})
         except Exception as e:
             logging.error(f"Error loading positions: {e}")
             return {strategy.value: [] for strategy in StrategyType}
@@ -367,8 +398,16 @@ class StrategyOrderTracker:
                 'positions': serializable_positions
             }
             
-            with open(self.positions_file, 'w') as f:
-                json.dump(data, f, indent=2)
+            from .s3_utils import get_s3_handler
+            s3_handler = get_s3_handler()
+            
+            if self.positions_file.startswith('s3://'):
+                # Save to S3
+                s3_handler.write_json(self.positions_file, data)
+            else:
+                # Save to local file
+                with open(self.positions_file, 'w') as f:
+                    json.dump(data, f, indent=2)
         except Exception as e:
             logging.error(f"Error saving positions: {e}")
 
