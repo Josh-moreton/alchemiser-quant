@@ -285,7 +285,7 @@ class MultiStrategyManager:
         
         if signal_data['symbol'] == 'NUCLEAR_PORTFOLIO':
             # Bull market nuclear portfolio
-            portfolio = self.nuclear_engine.get_nuclear_portfolio(indicators, market_data)
+            portfolio = self.nuclear_engine.strategy.get_nuclear_portfolio(indicators, market_data)
             return {symbol: data['weight'] for symbol, data in portfolio.items()}
         
         elif signal_data['symbol'] == 'BEAR_PORTFOLIO':
