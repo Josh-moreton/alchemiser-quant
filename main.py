@@ -113,8 +113,8 @@ def run_all_signals_display():
         nuclear_bot, nuclear_signal = generate_signal()
         
         if nuclear_signal:
-            print(f"✅ Nuclear Signal: {nuclear_signal['action']} {nuclear_signal['symbol']}")
-            print(f"   Reason: {nuclear_signal['reason']}")
+            print(f"✅ Nuclear Signal: {nuclear_signal.action} {nuclear_signal.symbol}")
+            print(f"   Reason: {nuclear_signal.reason}")
         else:
             print("⚠️  No clear nuclear signal")
         print()

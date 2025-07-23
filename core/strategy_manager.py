@@ -150,8 +150,19 @@ class MultiStrategyManager:
         strategy_signals = {}
         consolidated_portfolio = {}
         
-        # Get market data (shared across strategies)
-        market_data = self.nuclear_engine.get_market_data()  # TECL uses same data provider
+        # Get market data (combined from all strategies)
+        all_symbols = set(self.nuclear_engine.all_symbols + self.tecl_engine.all_symbols)
+        market_data = {}
+        
+        # Fetch data for all required symbols
+        for symbol in all_symbols:
+            data = self.nuclear_engine.data_provider.get_data(symbol)
+            if not data.empty:
+                market_data[symbol] = data
+            else:
+                logging.warning(f"Could not fetch data for {symbol}")
+        
+        logging.info(f"Fetched market data for {len(market_data)} symbols: {list(market_data.keys())}")
         
         # Run Nuclear Strategy
         try:
