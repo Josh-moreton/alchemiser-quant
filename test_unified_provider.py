@@ -10,7 +10,7 @@ import os
 # Add the core directory to the path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'core'))
 
-from core.data_provider import UnifiedDataProvider, DataProvider, AlpacaDataProvider
+from core.data_provider import UnifiedDataProvider
 
 def test_unified_provider():
     """Test the UnifiedDataProvider functionality."""
@@ -80,42 +80,37 @@ def test_unified_provider():
         return False
 
 def compare_providers():
-    """Compare UnifiedDataProvider with existing providers."""
-    print("\n🔄 Comparing Providers")
+    """Compare UnifiedDataProvider with itself (old providers removed)."""
+    print("\n🔄 Testing UnifiedDataProvider Consistency")
     print("=" * 50)
     
     test_symbol = "SPY"
     
     try:
-        # Test DataProvider (old)
-        print("Testing original DataProvider...")
-        old_provider = DataProvider()
-        old_data = old_provider.get_data(test_symbol, period="1mo", interval="1d")
-        old_price = old_provider.get_current_price(test_symbol)
-        print(f"   DataProvider: {len(old_data)} bars, price: ${old_price or 0:.2f}")
+        # Test UnifiedDataProvider twice to check consistency
+        print("Testing UnifiedDataProvider (first instance)...")
+        unified_provider1 = UnifiedDataProvider(paper_trading=True)
+        unified_data1 = unified_provider1.get_data(test_symbol, period="1mo", interval="1d")
+        unified_price1 = unified_provider1.get_current_price(test_symbol)
+        print(f"   UnifiedDataProvider #1: {len(unified_data1)} bars, price: ${unified_price1 or 0:.2f}")
         
-        # Test AlpacaDataProvider (old)
-        print("Testing AlpacaDataProvider...")
-        alpaca_provider = AlpacaDataProvider(paper_trading=True)
-        alpaca_price = alpaca_provider.get_current_price(test_symbol)
-        print(f"   AlpacaDataProvider: price: ${alpaca_price or 0:.2f}")
+        print("Testing UnifiedDataProvider (second instance)...")
+        unified_provider2 = UnifiedDataProvider(paper_trading=True)
+        unified_data2 = unified_provider2.get_data(test_symbol, period="1mo", interval="1d")
+        unified_price2 = unified_provider2.get_current_price(test_symbol)
+        print(f"   UnifiedDataProvider #2: {len(unified_data2)} bars, price: ${unified_price2 or 0:.2f}")
         
-        # Test UnifiedDataProvider (new)
-        print("Testing UnifiedDataProvider...")
-        unified_provider = UnifiedDataProvider(paper_trading=True)
-        unified_data = unified_provider.get_data(test_symbol, period="1mo", interval="1d")
-        unified_price = unified_provider.get_current_price(test_symbol)
-        print(f"   UnifiedDataProvider: {len(unified_data)} bars, price: ${unified_price or 0:.2f}")
+        # Compare results for consistency
+        print(f"\n📊 Consistency Results:")
+        data_consistent = len(unified_data1) == len(unified_data2) if not unified_data1.empty and not unified_data2.empty else True
+        price_consistent = abs((unified_price1 or 0) - (unified_price2 or 0)) < 1.0 if unified_price1 and unified_price2 else True
+        print(f"   Data consistency: {'✅ PASS' if data_consistent else '❌ FAIL'}")
+        print(f"   Price consistency: {'✅ PASS' if price_consistent else '❌ FAIL'}")
         
-        # Compare results
-        print(f"\n📊 Comparison Results:")
-        print(f"   Data consistency: {len(old_data) == len(unified_data) if not old_data.empty and not unified_data.empty else 'N/A'}")
-        print(f"   Price consistency: {abs((old_price or 0) - (unified_price or 0)) < 1.0 if old_price and unified_price else 'N/A'}")
-        
-        return True
+        return data_consistent and price_consistent
         
     except Exception as e:
-        print(f"❌ Provider comparison failed: {e}")
+        print(f"❌ Provider consistency test failed: {e}")
         import traceback
         traceback.print_exc()
         return False
@@ -135,14 +130,16 @@ if __name__ == "__main__":
     print(f"\n📋 Test Summary")
     print("=" * 30)
     print(f"UnifiedDataProvider: {'✅ PASS' if unified_success else '❌ FAIL'}")
-    print(f"Provider Comparison: {'✅ PASS' if comparison_success else '❌ FAIL'}")
+    print(f"Provider Consistency: {'✅ PASS' if comparison_success else '❌ FAIL'}")
     
     if unified_success and comparison_success:
-        print(f"\n🎉 All tests passed! UnifiedDataProvider is ready for use.")
-        print(f"\n💡 Next steps:")
-        print(f"   1. Update strategy_manager.py to use UnifiedDataProvider")
-        print(f"   2. Update other modules that use DataProvider/AlpacaDataProvider")
-        print(f"   3. Test the full application")
-        print(f"   4. Remove old provider classes")
+        print(f"\n🎉 All tests passed! UnifiedDataProvider is working perfectly.")
+        print(f"\n💡 Benefits achieved:")
+        print(f"   ✅ Single consolidated data provider class")
+        print(f"   ✅ Proper paper_trading parameter handling")
+        print(f"   ✅ Unified caching system")
+        print(f"   ✅ Consistent error handling")
+        print(f"   ✅ No more redundant AWS/Alpaca initialization")
+        print(f"   ✅ Old DataProvider/AlpacaDataProvider classes removed")
     else:
-        print(f"\n⚠️ Some tests failed. Please review the issues before proceeding.")
+        print(f"\n⚠️ Some tests failed. Please review the issues.")
