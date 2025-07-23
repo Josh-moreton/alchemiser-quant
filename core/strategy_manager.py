@@ -84,9 +84,9 @@ class MultiStrategyManager:
         if abs(total_allocation - 1.0) > 0.01:
             raise ValueError(f"Strategy allocations must sum to 1.0, got {total_allocation}")
         
-        # Create shared data provider to avoid redundant AWS/Alpaca initialization
-        from .data_provider import DataProvider
-        shared_data_provider = DataProvider()
+        # Create shared unified data provider to avoid redundant AWS/Alpaca initialization
+        from .data_provider import UnifiedDataProvider
+        shared_data_provider = UnifiedDataProvider(paper_trading=True)
         
         # Initialize strategy engines with shared data provider
         self.nuclear_engine = NuclearStrategyEngine(data_provider=shared_data_provider)
