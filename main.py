@@ -335,27 +335,29 @@ def main():
     
     print(f"Timestamp: {datetime.now()}")
     print()
-    
     success = False
     try:
         if args.mode == 'bot':
             # Display multi-strategy signals (no trading)
             success = run_all_signals_display()
-            
         elif args.mode == 'trade':
             # Multi-strategy trading
-            success = run_multi_strategy_trading(live_trading=args.live, ignore_market_hours=args.ignore_market_hours)
-            
+            result = run_multi_strategy_trading(live_trading=args.live, ignore_market_hours=args.ignore_market_hours)
+            if result == "market_closed":
+                print("\n🎉 Operation completed successfully! (Market closed)")
+                sys.exit(0)
+            else:
+                success = result
     except Exception as e:
         print(f"\n💥 Operation failed due to error: {e}")
         traceback.print_exc()
         success = False
-    
     if success:
         print("\n🎉 Operation completed successfully!")
         sys.exit(0)
     else:
         print("\n💥 Operation failed!")
+        sys.exit(1)
         sys.exit(1)
 
 if __name__ == "__main__":
