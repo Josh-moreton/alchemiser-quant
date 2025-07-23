@@ -12,6 +12,9 @@ import time
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 
+# Centralized logging setup
+from core.logging_utils import setup_logging
+setup_logging()
 # Alpaca imports
 from alpaca.trading.client import TradingClient
 
@@ -19,8 +22,8 @@ from alpaca.trading.client import TradingClient
 from alpaca.trading.requests import MarketOrderRequest, GetOrdersRequest, LimitOrderRequest
 from alpaca.trading.enums import OrderSide, TimeInForce
 
-# Import AlpacaDataProvider
-from core.data_provider import AlpacaDataProvider
+# Import UnifiedDataProvider
+from core.data_provider import UnifiedDataProvider
 from core.config import Config
 
 # Add src directory to Python path
@@ -51,7 +54,7 @@ class AlpacaTradingBot:
 
     def __init__(self, paper_trading=None):
         """
-        Initialize Alpaca trading bot using AlpacaDataProvider for all data access.
+        Initialize Alpaca trading bot using UnifiedDataProvider for all data access.
         Uses config.yaml for trading mode and endpoints.
         
         Args:
@@ -73,17 +76,15 @@ class AlpacaTradingBot:
 
         logging.info(f"\U0001F3E6 Trading Mode: {'PAPER' if self.paper_trading else 'LIVE'} (from CLI mode)")
 
-        # Use AlpacaDataProvider for all Alpaca data access
-        self.data_provider = AlpacaDataProvider(
-            paper_trading=self.paper_trading,
-            endpoint=self.endpoint,
-            paper_endpoint=self.paper_endpoint
+                # Use UnifiedDataProvider for all Alpaca data access
+        self.data_provider = UnifiedDataProvider(
+            paper_trading=self.paper_trading
         )
         self.trading_client = self.data_provider.trading_client  # For order placement
         logging.info(f"Alpaca Trading Bot initialized - Paper Trading: {self.paper_trading}")
     
     def get_account_info(self) -> Dict:
-        """Get account information via AlpacaDataProvider, returns dict for compatibility"""
+        """Get account information via UnifiedDataProvider, returns dict for compatibility"""
         account = self.data_provider.get_account_info()
         if not account:
             return {}
@@ -97,7 +98,7 @@ class AlpacaTradingBot:
         }
     
     def get_positions(self) -> Dict:
-        """Get current positions via AlpacaDataProvider, returns dict for compatibility"""
+        """Get current positions via UnifiedDataProvider, returns dict for compatibility"""
         positions = self.data_provider.get_positions()
         position_dict = {}
         if not positions:
@@ -114,7 +115,7 @@ class AlpacaTradingBot:
         return position_dict
     
     def get_current_price(self, symbol: str) -> float:
-        """Get current price for a symbol via AlpacaDataProvider"""
+        """Get current price for a symbol via UnifiedDataProvider"""
         return self.data_provider.get_current_price(symbol)
     
     def calculate_position_size(self, symbol: str, portfolio_weight: float, account_value: float) -> float:
