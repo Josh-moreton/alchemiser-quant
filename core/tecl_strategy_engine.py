@@ -29,7 +29,7 @@ import pandas as pd
 import numpy as np
 
 from .indicators import TechnicalIndicators
-from .data_provider import DataProvider
+from .data_provider import UnifiedDataProvider
 from .config import Config
 from enum import Enum
 
@@ -60,7 +60,7 @@ class TECLStrategyEngine:
     """TECL Strategy Engine - Long-term technology leverage with volatility protection"""
     
     def __init__(self, data_provider=None):
-        self.data_provider = data_provider or DataProvider()
+        self.data_provider = data_provider or UnifiedDataProvider(paper_trading=True)
         self.indicators = TechnicalIndicators()
         
         # Core symbols used in TECL strategy

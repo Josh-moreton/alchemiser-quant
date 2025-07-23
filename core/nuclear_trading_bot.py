@@ -49,8 +49,8 @@ from .alert_service import Alert
 
 
 
-# Import DataProvider from the new module
-from .data_provider import DataProvider
+# Import UnifiedDataProvider from the new module
+from .data_provider import UnifiedDataProvider
 
 from enum import Enum, auto
 
@@ -115,7 +115,7 @@ class NuclearStrategyEngine:
     """Nuclear Energy Strategy Engine"""
 
     def __init__(self, data_provider=None):
-        self.data_provider = data_provider or DataProvider()
+        self.data_provider = data_provider or UnifiedDataProvider(paper_trading=True)
         self.indicators = TechnicalIndicators()
 
         # Core symbols from the Nuclear strategy
