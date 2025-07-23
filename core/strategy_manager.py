@@ -222,8 +222,18 @@ class MultiStrategyManager:
                 strategy_allocation = self.strategy_allocations[strategy_type]
                 
                 # Handle portfolio vs single symbol signals
-                if signal_data['symbol'] in ['NUCLEAR_PORTFOLIO', 'BEAR_PORTFOLIO', 'UVXY_BTAL_PORTFOLIO']:
-                    # Multi-asset portfolio signal - get actual allocations
+                symbol_or_allocation = signal_data['symbol']
+                
+                if isinstance(symbol_or_allocation, dict):
+                    # Multi-asset allocation (e.g., from TECL strategy {'UVXY': 0.25, 'BIL': 0.75})
+                    for symbol, weight in symbol_or_allocation.items():
+                        total_weight = strategy_allocation * weight
+                        if symbol in consolidated_portfolio:
+                            consolidated_portfolio[symbol] += total_weight
+                        else:
+                            consolidated_portfolio[symbol] = total_weight
+                elif symbol_or_allocation in ['NUCLEAR_PORTFOLIO', 'BEAR_PORTFOLIO', 'UVXY_BTAL_PORTFOLIO']:
+                    # Named multi-asset portfolio signal - get actual allocations
                     if strategy_type == StrategyType.NUCLEAR:
                         portfolio = self._get_nuclear_portfolio_allocation(signal_data)
                     else:
@@ -237,7 +247,7 @@ class MultiStrategyManager:
                             consolidated_portfolio[symbol] = total_weight
                 else:
                     # Single symbol signal
-                    symbol = signal_data['symbol']
+                    symbol = symbol_or_allocation
                     if symbol in consolidated_portfolio:
                         consolidated_portfolio[symbol] += strategy_allocation
                     else:
@@ -274,8 +284,15 @@ class MultiStrategyManager:
     def _get_strategy_portfolio_allocation(self, signal_data: Dict, strategy_type: StrategyType) -> Dict[str, float]:
         """Extract portfolio allocation from any strategy signal"""
         if strategy_type == StrategyType.TECL:
-            # TECL strategy returns single symbols, so return 100% allocation
-            return {signal_data['symbol']: 1.0}
+            # Handle both single symbol and multi-asset allocations from TECL strategy
+            symbol_or_allocation = signal_data['symbol']
+            
+            if isinstance(symbol_or_allocation, dict):
+                # Multi-asset allocation (e.g., {'UVXY': 0.25, 'BIL': 0.75})
+                return symbol_or_allocation
+            else:
+                # Single symbol allocation
+                return {symbol_or_allocation: 1.0}
         
         return {}
     

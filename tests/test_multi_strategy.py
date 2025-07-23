@@ -46,10 +46,14 @@ def test_tecl_strategy_engine():
         
         # Test strategy evaluation
         print("⚡ Testing strategy evaluation...")
-        symbol, action, reason = engine.evaluate_tecl_strategy(indicators, market_data)
-        print(f"✅ TECL Strategy Result: {action} {symbol} - {reason}")
+        symbol_or_allocation, action, reason = engine.evaluate_tecl_strategy(indicators, market_data)
         
-        return True, {'symbol': symbol, 'action': action, 'reason': reason}
+        if isinstance(symbol_or_allocation, dict):
+            print(f"✅ TECL Strategy Result: {action} allocation {symbol_or_allocation} - {reason}")
+        else:
+            print(f"✅ TECL Strategy Result: {action} {symbol_or_allocation} - {reason}")
+        
+        return True, {'symbol': symbol_or_allocation, 'action': action, 'reason': reason}
         
     except Exception as e:
         print(f"❌ TECL Strategy Engine test failed: {e}")

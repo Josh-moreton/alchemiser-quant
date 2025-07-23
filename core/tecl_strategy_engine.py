@@ -132,7 +132,9 @@ class TECLStrategyEngine:
         """
         Evaluate the TECL strategy using hierarchical logic from Clojure implementation.
         
-        Returns: (recommended_symbol, action, reason)
+        Returns: (recommended_symbol_or_allocation, action, reason)
+        - For single symbols: returns symbol string
+        - For multi-asset allocations: returns dict with symbol:weight pairs
         """
         if 'SPY' not in indicators:
             return 'BIL', ActionType.HOLD.value, "Missing SPY data for market regime detection"
@@ -151,13 +153,13 @@ class TECLStrategyEngine:
     def _evaluate_bull_market_path(self, indicators):
         """Evaluate strategy when SPY is above 200-day MA (bull market)"""
         
-        # First check: TQQQ overbought > 79
+        # First check: TQQQ overbought > 79 - Mixed allocation (25% UVXY + 75% BIL)
         if 'TQQQ' in indicators and indicators['TQQQ']['rsi_10'] > 79:
-            return 'UVXY', ActionType.BUY.value, "Bull market: TQQQ overbought (RSI > 79), volatility hedge"
+            return {'UVXY': 0.25, 'BIL': 0.75}, ActionType.BUY.value, "Bull market: TQQQ overbought (RSI > 79), UVXY+BIL hedge"
         
-        # Second check: SPY overbought > 80
+        # Second check: SPY overbought > 80 - Mixed allocation (25% UVXY + 75% BIL)
         if indicators['SPY']['rsi_10'] > 80:
-            return 'UVXY', ActionType.BUY.value, "Bull market: SPY overbought (RSI > 80), volatility hedge"
+            return {'UVXY': 0.25, 'BIL': 0.75}, ActionType.BUY.value, "Bull market: SPY overbought (RSI > 80), UVXY+BIL hedge"
         
         # Third check: KMLM Switcher logic
         return self._evaluate_kmlm_switcher(indicators, "Bull market")
@@ -178,8 +180,8 @@ class TECLStrategyEngine:
             uvxy_rsi = indicators['UVXY']['rsi_10']
             
             if uvxy_rsi > 84:
-                # Extreme UVXY spike - mixed position
-                return 'UVXY', ActionType.BUY.value, "Bear market: UVXY extremely high (RSI > 84), volatility spike trade"
+                # Extreme UVXY spike - mixed position (15% UVXY + 85% BIL)
+                return {'UVXY': 0.15, 'BIL': 0.85}, ActionType.BUY.value, "Bear market: UVXY extremely high (RSI > 84), UVXY+BIL volatility trade"
             elif uvxy_rsi > 74:
                 # High UVXY - defensive
                 return 'BIL', ActionType.BUY.value, "Bear market: UVXY high (RSI > 74), defensive cash position"
@@ -216,8 +218,12 @@ class TECLStrategyEngine:
                 # XLK oversold - buy the dip
                 return 'TECL', ActionType.BUY.value, f"{market_regime}: XLK oversold (RSI < 29), buying tech dip"
             else:
-                # XLK weak, use selection mechanism
-                return self._evaluate_bond_vs_short_selection(indicators, market_regime)
+                # XLK weak - return BIL directly in bull market, use selection in bear market
+                if market_regime == "Bull market":
+                    return 'BIL', ActionType.BUY.value, f"{market_regime}: XLK weaker than KMLM, defensive cash position"
+                else:
+                    # Bear market - use bond vs short selection
+                    return self._evaluate_bond_vs_short_selection(indicators, market_regime)
     
     def _evaluate_bond_vs_short_selection(self, indicators, market_regime):
         """
@@ -248,9 +254,22 @@ class TECLStrategyEngine:
         TECL Strategy Summary:
         
         Bull Market (SPY > 200 MA):
-        1. If TQQQ RSI > 79 → UVXY (volatility hedge)
-        2. If SPY RSI > 80 → UVXY (volatility hedge) 
+        1. If TQQQ RSI > 79 → 25% UVXY + 75% BIL (volatility hedge)
+        2. If SPY RSI > 80 → 25% UVXY + 75% BIL (volatility hedge) 
         3. KMLM Switcher:
+           - If XLK RSI > KMLM RSI:
+             * XLK RSI > 81 → BIL (defensive)
+             * Else → TECL (technology growth)
+           - If KMLM RSI > XLK RSI:
+             * XLK RSI < 29 → TECL (buy dip)
+             * Else → BIL (defensive cash)
+        
+        Bear Market (SPY < 200 MA):
+        1. If TQQQ RSI < 31 → TECL (buy tech dip)
+        2. If SPXL RSI < 29 → SPXL (buy S&P dip)
+        3. If UVXY RSI > 84 → 15% UVXY + 85% BIL (volatility spike)
+        4. If UVXY RSI > 74 → BIL (defensive)
+        5. KMLM Switcher:
            - If XLK RSI > KMLM RSI:
              * XLK RSI > 81 → BIL (defensive)
              * Else → TECL (technology growth)
@@ -258,14 +277,7 @@ class TECLStrategyEngine:
              * XLK RSI < 29 → TECL (buy dip)
              * Else → Bond/Short selection
         
-        Bear Market (SPY < 200 MA):
-        1. If TQQQ RSI < 31 → TECL (buy tech dip)
-        2. If SPXL RSI < 29 → SPXL (buy S&P dip)
-        3. If UVXY RSI > 84 → UVXY (volatility spike)
-        4. If UVXY RSI > 74 → BIL (defensive)
-        5. KMLM Switcher (same logic as bull market)
-        
-        Bond/Short Selection:
+        Bond/Short Selection (Bear Market Only):
         - Compare SQQQ vs BSV using RSI(9)
         - Select highest RSI candidate
         """
@@ -293,11 +305,14 @@ def main():
     
     # Evaluate strategy
     print("⚡ Evaluating TECL strategy...")
-    symbol, action, reason = engine.evaluate_tecl_strategy(indicators, market_data)
+    symbol_or_allocation, action, reason = engine.evaluate_tecl_strategy(indicators, market_data)
     
     print(f"\n🎯 TECL STRATEGY RESULT:")
     print(f"   Action: {action}")
-    print(f"   Symbol: {symbol}")
+    if isinstance(symbol_or_allocation, dict):
+        print(f"   Allocation: {symbol_or_allocation}")
+    else:
+        print(f"   Symbol: {symbol_or_allocation}")
     print(f"   Reason: {reason}")
     
     # Print key indicators
