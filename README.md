@@ -1,48 +1,28 @@
-# Nuclear Trading Strategy
 
-A comprehensive nuclear energy trading strategy with unified entry points and automated daily execution via GitHub Actions.
+# The Alchemiser: Multi-Strategy Trading Bot
 
-## 🚀 Quick Start Guide
+The Alchemiser is a Python-based trading bot supporting both single and multi-strategy portfolio management, with automated execution via Alpaca and Telegram integration. It is designed for robust, diversified trading across nuclear energy, technology, and volatility hedges, with full position tracking and reporting.
+
+## 🚀 Quick Start
 
 ### Main Entry Point
 
-All nuclear trading operations are accessed through a single unified entry point:
+All bot operations are accessed via:
 
 ```bash
 python main.py <mode> [options]
 ```
 
-### Available Modes
+### Modes
 
-#### 🤖 `bot` - Live Trading Signal Generation
+| Mode      | Command                | Description                                      |
+|-----------|------------------------|--------------------------------------------------|
+| bot       | python main.py bot     | Generate live signals (single strategy)          |
+| live      | python main.py live    | Execute trades & send Telegram (multi-strategy)  |
+| multi     | python main.py multi   | Test multi-strategy signals (no trading)         |
+| paper     | python main.py paper   | Paper trading (safe testing)                     |
 
-Generate live nuclear trading signals and log them locally.
-
-```bash
-python main.py bot
-```
-
-**What it does:**
-
-- Fetches live market data for all nuclear and market symbols
-- Calculates technical indicators (RSI, moving averages, etc.)
-- Evaluates nuclear strategy logic and generates trading signals
-- Logs alerts to `data/logs/nuclear_alerts.json`
-- Displays portfolio allocations for nuclear portfolio signals
-
-**Example Output:**
-
-```text
-🚨 NUCLEAR PORTFOLIO SIGNAL: 3 stocks allocated
-🎯 NUCLEAR PORTFOLIO ALLOCATION:
-   🟢 BUY SMR at $37.48 (31.2%)
-   🟢 BUY LEU at $206.40 (39.5%)
-   🟢 BUY OKLO at $56.08 (29.3%)
-```
-
-#### 🚀 `live` - Automated Trading with Telegram Updates
-
-Execute trades via Alpaca and send a Telegram summary after every run.
+#### Example: Live Trading & Telegram
 
 ```bash
 python main.py live
@@ -50,13 +30,12 @@ python main.py live
 
 **Requirements:**
 
-- Environment variables `ALPACA_KEY` and `ALPACA_SECRET`
-- Environment variables `TELEGRAM_TOKEN` and `TELEGRAM_CHAT_ID`
+- Environment variables: `ALPACA_KEY`, `ALPACA_SECRET`, `TELEGRAM_TOKEN`, `TELEGRAM_CHAT_ID`
 
-**Example Telegram Message:**
+**Telegram Output:**
 
-```text
-🚀 Nuclear Alpaca Bot Execution Report
+```
+🚀 Alchemiser Multi-Strategy Execution Report
 
 ✅ EXECUTION STATUS: SUCCESS
 Portfolio Value: $101,250.00 (+1,250.00 / +1.3%)
@@ -66,6 +45,7 @@ Cash: $5,000.00 (4.9% of portfolio)
  - SMR: 156 @ $40.00 (P&L +12.0%, 31.2% alloc)
  - LEU: 198 @ $200.00 (P&L +8.5%, 39.5% alloc)
  - OKLO: 487 @ $60.00 (P&L -2.3%, 29.3% alloc)
+ - TECL: 100 @ $60.00 (P&L +5.0%, 20% alloc)
 Top gainer: SMR (+12.0%), Worst: OKLO (-2.3%)
 
 📝 Orders:
@@ -75,7 +55,7 @@ Top gainer: SMR (+12.0%), Worst: OKLO (-2.3%)
 
 ### Alpaca & Telegram Setup
 
-Provide your Alpaca API keys and Telegram bot credentials via environment variables before running the bot:
+Set your credentials before running:
 
 ```bash
 export ALPACA_KEY="your-alpaca-key"
@@ -84,47 +64,19 @@ export TELEGRAM_TOKEN="your-telegram-token"
 export TELEGRAM_CHAT_ID="your-chat-id"
 ```
 
-## 🤖 Automated Execution (GitHub Actions)
-
-## 📁 Project Structure
-
-```text
-LQQ3/
-├── main.py                     # 🎯 UNIFIED ENTRY POINT (all operations)
-├── core/                       # Core trading components
-│   ├── nuclear_trading_bot.py  # Main trading strategy
-│   └── telegram_utils.py       # Telegram helpers
-├── execution/                  # Alpaca trading integration
-│   └── alpaca_trader.py        # Alpaca trading bot
-├── tests/                      # Test suite
-├── data/                       # Data storage & results
-│   └── logs/                   # Live trading alerts and logs
-├── .github/workflows/          # 🤖 AUTOMATED EXECUTION
-│   └── nuclear_alpaca_trading.yml     # Daily trading workflow
-└── requirements.txt            # Python dependencies
-```
-
-**Key Files:**
-
-- **`main.py`** - Single entry point for all operations
-- **`core/nuclear_trading_bot.py`** - Core trading strategy and signal generation
-- **`core/telegram_utils.py`** - Telegram messaging utilities
-- **`execution/alpaca_trader.py`** - Alpaca trading integration
-- **`.github/workflows/nuclear_alpaca_trading.yml`** - Daily trading workflow
-
 ## 🤖 Automated Execution
 
-The system runs automatically via **GitHub Actions**:
+The bot runs automatically via **GitHub Actions**:
 
 - **Command:** `python main.py live`
-- **Functions:** Generates trading signals, executes trades, sends Telegram update
+- **Functions:** Multi-strategy signal generation, trade execution, Telegram update
 - **Manual Trigger:** Available via GitHub Actions UI
 - **Environment:** `ALPACA_KEY`, `ALPACA_SECRET`, `TELEGRAM_TOKEN`, `TELEGRAM_CHAT_ID`
 
 **GitHub Actions Workflow:**
 
 ```yaml
-- name: Run Nuclear Trading Bot
+- name: Run Alchemiser Bot
   env:
     ALPACA_KEY: ${{ secrets.ALPACA_KEY }}
     ALPACA_SECRET: ${{ secrets.ALPACA_SECRET }}
@@ -133,30 +85,64 @@ The system runs automatically via **GitHub Actions**:
   run: python main.py live
 ```
 
-## 📊 Latest Performance
+## 📁 Project Structure
 
-The nuclear strategy has demonstrated exceptional performance:
+```text
+The-Alchemiser/
+├── main.py                     # Unified entry point
+├── core/                       # Core trading logic & strategies
+│   ├── nuclear_trading_bot.py  # Nuclear strategy
+│   ├── tecl_strategy_engine.py # TECL strategy
+│   ├── strategy_manager.py     # Multi-strategy coordination
+│   └── telegram_utils.py       # Telegram integration
+├── execution/                  # Trading integration
+│   ├── alpaca_trader.py        # Alpaca trading bot
+│   └── multi_strategy_trader.py# Multi-strategy trading
+├── tests/                      # Test suite
+├── data/                       # Data storage & logs
+│   └── logs/                   # Trading logs
+├── .github/workflows/          # Automated execution
+│   └── nuclear_alpaca_trading.yml
+└── requirements.txt            # Python dependencies
+```
 
-- **Total Return:** +54.05% (3 months)
-- **CAGR:** +501.00% (annualized)
-- **Sharpe Ratio:** 2.39
-- **Max Drawdown:** -20.15%
-- **Win Rate:** 60.32%
-- **Optimal Execution:** 9:30 AM (market open)
+## 📊 Features & Strategies
+
+- **Multi-Strategy Support:** Nuclear, TECL, volatility hedges, and more
+- **Automated Trading:** Executes trades via Alpaca (paper/live)
+- **Telegram Integration:** Sends execution summaries and signals
+- **Position Tracking:** Tracks allocations and performance per strategy
+- **Risk Management:** No leverage (uses leveraged ETFs only)
+- **Data Management:** Logs, results, and signals organized in `data/`
+
+### Example Supported Strategies
+
+- Nuclear Portfolio: SMR, LEU, OKLO
+- TECL For The Long Term: TECL, XLK, KMLM, UVXY, BIL
+- Volatility Hedge: UVXY, BTAL
 
 ## 🔧 Installation
 
 1. **Clone the repository:**
 
    ```bash
-   git clone https://github.com/Josh-moreton/LQQ3.git
-   cd LQQ3
+   git clone https://github.com/Josh-moreton/The-Alchemiser.git
+   cd The-Alchemiser
    ```
 
 2. **Install dependencies:**
 
    ```bash
    pip install -r requirements.txt
+   ```
+
+3. **Set up environment variables:**
+
+   ```bash
+   export ALPACA_KEY="your-alpaca-key"
+   export ALPACA_SECRET="your-alpaca-secret"
+   export TELEGRAM_TOKEN="your-telegram-token"
+   export TELEGRAM_CHAT_ID="your-chat-id"
    ```
 
 3. **Set up environment variables:**
@@ -173,50 +159,63 @@ export TELEGRAM_CHAT_ID="your-chat-id"
 ### Daily Operations
 
 ```bash
-# Generate live trading signal (local use)
+# Generate live signals (single strategy)
 python main.py bot
 
-# Run automated trading with Telegram updates
+# Run multi-strategy live trading with Telegram
 python main.py live
+
+# Test multi-strategy signals (no trading)
+python main.py multi
+
+# Safe paper trading
+python main.py paper
 ```
 
 ### Development & Testing
 
 ```bash
-# Run the live trading flow with your credentials
-python main.py live
+python tests/test_multi_strategy.py
 ```
 
-## Key Features
+## 🧠 Advanced Features
 
-- **Nuclear Strategy**: Focus on nuclear energy ETFs and leveraged instruments
-- **Execution Timing**: Optimized for 9:30 AM market open execution
-- **Risk Management**: No leverage (instruments are already leveraged)
-- **Data Management**: Organized storage of results, logs, and market data
-
-## File Organization
-
-- **Core Components** (`core/`): Main trading logic and strategy
-- **Execution** (`execution/`): Trade execution and timing optimization
-- **Tests** (`tests/`): Unit tests and integration tests
-- **Data** (`data/`): Organized storage for results, logs, and market data
+- **Multi-Strategy Portfolio:** Allocate between Nuclear, TECL, and others
+- **Position Attribution:** Tracks which strategy drives each trade
+- **Comprehensive Reporting:** Telegram, logs, and JSON summaries
+- **Safe Testing:** Paper trading mode and dry-run capability
 
 ## 📋 Quick Reference
 
-### Main.py Modes Summary
-
 | Mode   | Command                | Purpose                              | Output                |
 |--------|------------------------|--------------------------------------|-----------------------|
-| **bot**   | `python main.py bot`    | Live signal generation               | Console + JSON logs   |
-| **live**  | `python main.py live`   | Automated trading with Telegram update | Console + Telegram |
+| bot    | `python main.py bot`   | Live signal generation               | Console + JSON logs   |
+| live   | `python main.py live`  | Automated trading (multi-strategy)   | Console + Telegram    |
+| multi  | `python main.py multi` | Multi-strategy signals (no trading)  | Console               |
+| paper  | `python main.py paper` | Paper trading (safe)                 | Console + Telegram    |
 
-### For Production Use
+## 🛠️ Troubleshooting
 
-- **Automated Trading**: `python main.py live` (GitHub Actions)
-- **Manual Check**: `python main.py bot`
+- Run from project root directory
+- Ensure all dependencies installed: `pip install -r requirements.txt`
+- Check API credentials and network connectivity
+- For multi-strategy: check `/tmp/strategy_positions.json` and logs
 
-### Other Key Features
+## 📚 Documentation
 
-- ✅ **Unified Entry Point**: One command for all operations
-- ✅ **Automated Execution**: GitHub Actions daily monitoring
-- ✅ **Organized Data**: All outputs properly structured in `data/` directory
+- See `docs/MULTI_STRATEGY.md` for multi-strategy details
+- See `execution/README.md` for Alpaca integration
+
+## 🏆 Performance
+
+Performance varies by strategy and market conditions. Example metrics (Nuclear strategy):
+
+- **Total Return:** +54.05% (3 months)
+- **Sharpe Ratio:** 2.39
+- **Max Drawdown:** -20.15%
+
+## 🤝 Support
+
+- Issues: GitHub Issues
+- Telegram: See bot output for contact info
+- Test suite: `python tests/test_multi_strategy.py`
