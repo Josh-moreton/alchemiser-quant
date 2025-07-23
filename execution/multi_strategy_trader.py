@@ -292,8 +292,18 @@ class MultiStrategyAlpacaTrader(AlpacaTradingBot):
         
         # Analyze orders
         total_trades = len(orders_executed)
-        buy_orders = [o for o in orders_executed if o.get('side') == 'BUY' or (hasattr(o.get('side'), 'value') and o['side'].value == 'BUY')]
-        sell_orders = [o for o in orders_executed if o.get('side') == 'SELL' or (hasattr(o.get('side'), 'value') and o['side'].value == 'SELL')]
+        buy_orders = []
+        sell_orders = []
+        
+        for order in orders_executed:
+            side = order.get('side')
+            if side:
+                # Handle both string and enum values
+                side_value = side.value if hasattr(side, 'value') else str(side)
+                if side_value == 'BUY':
+                    buy_orders.append(order)
+                elif side_value == 'SELL':
+                    sell_orders.append(order)
         
         total_buy_value = sum(o.get('estimated_value', 0) for o in buy_orders)
         total_sell_value = sum(o.get('estimated_value', 0) for o in sell_orders)

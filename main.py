@@ -30,7 +30,25 @@ from datetime import datetime
 import traceback
 import sys
 import os
+import logging
 from core.config import Config
+
+# Load config and set logging level from config
+config = Config()
+logging_config = config['logging']
+level_str = logging_config.get('level', 'INFO').upper()
+level_map = {
+    'CRITICAL': logging.CRITICAL,
+    'ERROR': logging.ERROR,
+    'WARNING': logging.WARNING,
+    'INFO': logging.INFO,
+    'DEBUG': logging.DEBUG,
+    'NOTSET': logging.NOTSET
+}
+
+# Set up logging with config level
+logging.basicConfig(level=level_map.get(level_str, logging.INFO), 
+                   format='%(asctime)s - %(levelname)s - %(name)s - %(message)s')
 
 
 def generate_multi_strategy_signals():

@@ -25,32 +25,29 @@ import pandas as pd
 import numpy as np
 # Centralized logging setup
 from .logging_utils import setup_logging
-setup_logging()
-
-# Local imports
-from .indicators import TechnicalIndicators
 from .config import Config
-
-warnings.filterwarnings('ignore')
-
-# Load configuration
 config = Config()
 logging_config = config['logging']
 
-# Configure logging
-from .s3_utils import S3FileHandler
-from typing import List
-import logging
+# Centralized logging setup
+import os
+level_str = logging_config.get('level', 'INFO').upper()
+level_map = {
+    'CRITICAL': logging.CRITICAL,
+    'ERROR': logging.ERROR,
+    'WARNING': logging.WARNING,
+    'INFO': logging.INFO,
+    'DEBUG': logging.DEBUG,
+    'NOTSET': logging.NOTSET
+}
+setup_logging(log_level=level_map.get(level_str, logging.INFO))
 
-handlers: List[logging.Handler] = [logging.StreamHandler()]
+from .indicators import TechnicalIndicators
 
-# Add S3 handler for logs
-if logging_config['nuclear_alerts_log'].startswith('s3://'):
-    s3_handler = S3FileHandler(logging_config['nuclear_alerts_log'])
-    s3_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
-    handlers.append(s3_handler)
-else:
-    handlers.append(logging.FileHandler(logging_config['nuclear_alerts_log']))
+warnings.filterwarnings('ignore')
+
+# Ensure root logger level is set correctly
+logging.getLogger().setLevel(level_map.get(level_str, logging.INFO))
 
 
 
@@ -168,7 +165,6 @@ class NuclearStrategyEngine:
 
         # Hierarchical logic matching the Clojure canonical strategy
         spy_rsi_10 = indicators['SPY']['rsi_10']
-        logging.debug(f"SPY RSI(10) = {spy_rsi_10:.2f}")
         
         # Primary overbought check: SPY RSI > 79
         if spy_rsi_10 > 79:
@@ -179,9 +175,7 @@ class NuclearStrategyEngine:
         # Secondary overbought checks in order: IOO, TQQQ, VTV, XLF
         for symbol in ['IOO', 'TQQQ', 'VTV', 'XLF']:
             if symbol in indicators:
-                logging.debug(f"{symbol} RSI(10) = {indicators[symbol]['rsi_10']:.2f}")
                 if indicators[symbol]['rsi_10'] > 79:
-                    logging.debug(f"{symbol} triggered overbought condition (RSI > 79)")
                     result = SecondaryOverboughtStrategy().recommend(indicators, symbol)
                     if result:
                         return result
@@ -235,7 +229,6 @@ class NuclearTradingBot:
             price = float(price)
             return price if not pd.isna(price) else None
         except (ValueError, TypeError, AttributeError) as e:
-            logging.debug(f"Error converting price to scalar: {e}")
             return None
         
     def load_config(self):
@@ -320,44 +313,44 @@ class NuclearTradingBot:
             # Display results
             if len(alerts) > 1:
                 # Nuclear portfolio signal
-                logging.debug(f"NUCLEAR PORTFOLIO SIGNAL: {len(alerts)} stocks allocated")
-                logging.debug(f"NUCLEAR PORTFOLIO ALLOCATION:")
+                logging.info(f"NUCLEAR PORTFOLIO SIGNAL: {len(alerts)} stocks allocated")
+                logging.info(f"NUCLEAR PORTFOLIO ALLOCATION:")
                 for alert in alerts:
                     if alert.action != 'HOLD':
-                        logging.debug(f"   {alert.action} {alert.symbol} at ${alert.price:.2f}")
-                        logging.debug(f"      Reason: {alert.reason}")
+                        logging.info(f"   {alert.action} {alert.symbol} at ${alert.price:.2f}")
+                        logging.info(f"      Reason: {alert.reason}")
                     else:
-                        logging.debug(f"   {alert.action} {alert.symbol} at ${alert.price:.2f}")
-                        logging.debug(f"      Reason: {alert.reason}")
+                        logging.info(f"   {alert.action} {alert.symbol} at ${alert.price:.2f}")
+                        logging.info(f"      Reason: {alert.reason}")
                         
                 # Show portfolio allocation details
                 portfolio = self.get_current_portfolio_allocation()
                 if portfolio:
-                    logging.debug(f"PORTFOLIO DETAILS:")
+                    logging.info(f"PORTFOLIO DETAILS:")
                     for symbol, data in portfolio.items():
-                        logging.debug(f"   {symbol}: {data['weight']:.1%}")
+                        logging.info(f"   {symbol}: {data['weight']:.1%}")
             else:
                 # Single signal
                 alert = alerts[0]
                 if alert.action != 'HOLD':
-                    logging.debug(f"NUCLEAR TRADING SIGNAL: {alert.action} {alert.symbol} at ${alert.price:.2f}")
-                    logging.debug(f"   Reason: {alert.reason}")
+                    logging.info(f"NUCLEAR TRADING SIGNAL: {alert.action} {alert.symbol} at ${alert.price:.2f}")
+                    logging.info(f"   Reason: {alert.reason}")
                 else:
-                    logging.debug(f"Nuclear Analysis: {alert.action} {alert.symbol} at ${alert.price:.2f}")
-                    logging.debug(f"   Reason: {alert.reason}")
+                    logging.info(f"Nuclear Analysis: {alert.action} {alert.symbol} at ${alert.price:.2f}")
+                    logging.info(f"   Reason: {alert.reason}")
             
             # Print technical indicator values for key symbols
             if alerts and hasattr(self.strategy, 'calculate_indicators'):
                 market_data = self.strategy.get_market_data()
                 indicators = self.strategy.calculate_indicators(market_data)
-                logging.debug("Technical Indicators Used for Signal Generation:")
+                logging.info("Technical Indicators Used for Signal Generation:")
                 for symbol in ['IOO', 'SPY', 'TQQQ', 'VTV', 'XLF']:
                     if symbol in indicators:
-                        logging.debug(f"  {symbol}: RSI(10)={indicators[symbol].get('rsi_10')}, RSI(20)={indicators[symbol].get('rsi_20')}")
+                        logging.info(f"  {symbol}: RSI(10)={indicators[symbol].get('rsi_10')}, RSI(20)={indicators[symbol].get('rsi_20')}")
             
             return alerts[0]  # Return first alert for compatibility
         else:
-            logging.debug("Unable to generate nuclear energy signal")
+            logging.info("Unable to generate nuclear energy signal")
             return None
     
     def run_continuous(self, interval_minutes=15):

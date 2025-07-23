@@ -210,14 +210,19 @@ class TECLStrategyEngine:
         xlk_rsi = indicators['XLK']['rsi_10']
         kmlm_rsi = indicators['KMLM']['rsi_10']
         
+        # Debug logging for RSI comparison
+        logging.info(f"KMLM Switcher - XLK RSI(10) = {xlk_rsi:.2f}, KMLM RSI(10) = {kmlm_rsi:.2f}")
+        
         if xlk_rsi > kmlm_rsi:
             # Technology (XLK) is stronger than materials (KMLM)
             
             if xlk_rsi > 81:
                 # XLK extremely overbought - defensive
+                logging.info(f"XLK extremely overbought: {xlk_rsi:.2f} > 81")
                 return 'BIL', ActionType.BUY.value, f"{market_regime}: XLK extremely overbought (RSI > 81), defensive"
             else:
                 # XLK strong but not extreme - buy technology
+                logging.info(f"XLK stronger than KMLM: {xlk_rsi:.2f} > {kmlm_rsi:.2f}")
                 return 'TECL', ActionType.BUY.value, f"{market_regime}: XLK stronger than KMLM, technology favored"
         
         else:
@@ -225,9 +230,11 @@ class TECLStrategyEngine:
             
             if xlk_rsi < 29:
                 # XLK oversold - buy the dip
+                logging.info(f"XLK oversold: {xlk_rsi:.2f} < 29")
                 return 'TECL', ActionType.BUY.value, f"{market_regime}: XLK oversold (RSI < 29), buying tech dip"
             else:
                 # XLK weak - return BIL directly in bull market, use selection in bear market
+                logging.info(f"KMLM stronger than XLK: {kmlm_rsi:.2f} > {xlk_rsi:.2f}")
                 if market_regime == "Bull market":
                     return 'BIL', ActionType.BUY.value, f"{market_regime}: XLK weaker than KMLM, defensive cash position"
                 else:

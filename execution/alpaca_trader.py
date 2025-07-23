@@ -399,6 +399,7 @@ class AlpacaTradingBot:
                 if target_value - current_value > 1.0 and allocation_diff > 1.0:
                     buys_needed = True
                     break
+            
             # If no buys needed, skip buy phase
             if not buys_needed:
                 print("   No buys needed - all positions are at or above target allocations")
@@ -406,6 +407,7 @@ class AlpacaTradingBot:
             else:
                 print("📈 PHASE 2: Buying to reach target allocations...")
                 logging.info("📈 PHASE 2: Buying to reach target allocations...")
+                
                 # Use actual cash available after sells, but respect cash reserve
                 account_info_after_sells = self.get_account_info()
                 total_cash_available = account_info_after_sells.get('cash', 0.0)
@@ -414,6 +416,11 @@ class AlpacaTradingBot:
                 current_positions_after_sells = self.get_positions()
                 print(f"   Available cash for purchases: ${available_cash:.2f}")
                 logging.info(f"   Available cash for purchases: ${available_cash:.2f}")
+                
+                # STEP 1: Collect all buy orders needed
+                buy_orders_planned = []
+                total_cash_needed = 0.0
+                
                 # Sort by target weight (largest first) to prioritize important positions
                 for symbol in sorted(target_portfolio.keys(), key=lambda x: target_portfolio[x], reverse=True):
                     target_value = target_values[symbol]
@@ -427,40 +434,66 @@ class AlpacaTradingBot:
                     target_weight = (target_value / portfolio_value) * 100
                     allocation_diff = abs(current_weight - target_weight)
                     
-                    if value_to_buy > 1.0 and allocation_diff > 1.0 and available_cash > 1.0:
+                    if value_to_buy > 1.0 and allocation_diff > 1.0:
                         current_price = self.get_current_price(symbol)
-                        # Add 0.5% safety margin for price fluctuation
-                        safety_margin = 0.005
-                        actual_value_to_buy = min(value_to_buy, available_cash * (1 - safety_margin))
+                        remaining_cash = available_cash - total_cash_needed
+                        
+                        # Calculate how much we can actually buy with remaining cash
+                        actual_value_to_buy = min(value_to_buy, remaining_cash)
                         buy_qty = round(actual_value_to_buy / current_price, 6)
                         required_cash = buy_qty * current_price
-                        print(f"   {symbol}: Need ${value_to_buy:.2f}, buying ${actual_value_to_buy:.2f} ({buy_qty} shares)")
-                        logging.info(f"   {symbol}: Need ${value_to_buy:.2f}, buying ${actual_value_to_buy:.2f} ({buy_qty} shares)")
-                        if buy_qty > 0 and required_cash <= available_cash * (1 - safety_margin):
-                            order_id = self.place_order(symbol, buy_qty, OrderSide.BUY)
-                            if order_id:
-                                orders_executed.append({
-                                    'symbol': symbol,
-                                    'side': OrderSide.BUY,
-                                    'qty': buy_qty,
-                                    'order_id': order_id,
-                                    'estimated_value': required_cash
-                                })
-                                available_cash -= required_cash
-                                print(f"   ✅ {symbol}: Bought {buy_qty} shares (Order ID: {order_id})")
-                                logging.info(f"   ✅ {symbol}: Bought {buy_qty} shares (Order ID: {order_id})")
-                            else:
-                                print(f"   ❌ {symbol}: Failed to place buy order")
-                                logging.error(f"   ❌ {symbol}: Failed to place buy order")
+                        
+                        # Simple check: can we afford this order with available cash?
+                        # Use small tolerance (1 cent) to handle floating point precision issues
+                        total_after_order = total_cash_needed + required_cash
+                        can_afford = total_after_order <= (available_cash + 0.01)
+                        
+                        if buy_qty > 0 and can_afford:
+                            buy_orders_planned.append({
+                                'symbol': symbol,
+                                'qty': buy_qty,
+                                'value_needed': value_to_buy,
+                                'value_to_buy': actual_value_to_buy,
+                                'required_cash': required_cash,
+                                'allocation_diff': allocation_diff
+                            })
+                            total_cash_needed += required_cash
+                            print(f"   {symbol}: Need ${value_to_buy:.2f}, planning to buy ${actual_value_to_buy:.2f} ({buy_qty} shares)")
+                            logging.info(f"   {symbol}: Need ${value_to_buy:.2f}, planning to buy ${actual_value_to_buy:.2f} ({buy_qty} shares)")
                         else:
-                            print(f"   {symbol}: Cannot buy - insufficient cash (need ${required_cash:.2f}, have ${available_cash:.2f})")
-                            logging.info(f"   {symbol}: Cannot buy - insufficient cash")
+                            print(f"   {symbol}: Cannot buy - insufficient cash (need ${required_cash:.2f}, remaining ${remaining_cash:.2f})")
+                            logging.info(f"   {symbol}: Cannot buy - insufficient cash (need ${required_cash:.2f}, available ${remaining_cash:.2f})")
                     elif value_to_buy <= 1.0 or allocation_diff <= 1.0:
                         print(f"   {symbol}: Already at target (difference: ${value_to_buy:.2f}, allocation diff {allocation_diff:.1f}pp)")
                         logging.info(f"   {symbol}: Already at target (difference: ${value_to_buy:.2f}, allocation diff {allocation_diff:.1f}pp)")
-                    else:
-                        print(f"   {symbol}: No cash remaining (${available_cash:.2f})")
-                        logging.info(f"   {symbol}: No cash remaining")
+                
+                # STEP 2: Submit all buy orders at once
+                if buy_orders_planned:
+                    print(f"📋 Submitting {len(buy_orders_planned)} buy orders (total: ${total_cash_needed:.2f})...")
+                    logging.info(f"📋 Submitting {len(buy_orders_planned)} buy orders (total: ${total_cash_needed:.2f})...")
+                    
+                    for order_plan in buy_orders_planned:
+                        symbol = order_plan['symbol']
+                        buy_qty = order_plan['qty']
+                        required_cash = order_plan['required_cash']
+                        
+                        order_id = self.place_order(symbol, buy_qty, OrderSide.BUY)
+                        if order_id:
+                            orders_executed.append({
+                                'symbol': symbol,
+                                'side': OrderSide.BUY,
+                                'qty': buy_qty,
+                                'order_id': order_id,
+                                'estimated_value': required_cash
+                            })
+                            print(f"   ✅ {symbol}: Bought {buy_qty} shares (Order ID: {order_id})")
+                            logging.info(f"   ✅ {symbol}: Bought {buy_qty} shares (Order ID: {order_id})")
+                        else:
+                            print(f"   ❌ {symbol}: Failed to place buy order")
+                            logging.error(f"   ❌ {symbol}: Failed to place buy order")
+                else:
+                    print("   No buy orders needed - all positions already at target")
+                    logging.info("   No buy orders needed - all positions already at target")
 
             print(f"✅ Rebalancing complete. Orders executed: {len(orders_executed)}")
             logging.info(f"✅ Rebalancing complete. Orders executed: {len(orders_executed)}")

@@ -279,10 +279,10 @@ class TECLTradingBot:
             if alerts and hasattr(self.strategy, 'calculate_indicators'):
                 market_data = self.strategy.get_market_data()
                 indicators = self.strategy.calculate_indicators(market_data)
-                print("\n🔬 Technical Indicators Used for TECL Signal Generation:")
+                logging.info("\n🔬 Technical Indicators Used for TECL Signal Generation:")
                 for symbol in ['SPY', 'XLK', 'KMLM', 'TECL']:
                     if symbol in indicators:
-                        print(f"  {symbol}: RSI(10)={indicators[symbol].get('rsi_10'):.1f}, RSI(20)={indicators[symbol].get('rsi_20'):.1f}")
+                        logging.info(f"  {symbol}: RSI(10)={indicators[symbol].get('rsi_10'):.1f}, RSI(20)={indicators[symbol].get('rsi_20'):.1f}")
             
             return alerts[0]  # Return first alert for compatibility
         else:
