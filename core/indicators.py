@@ -14,14 +14,19 @@ class TechnicalIndicators:
     @staticmethod
     def rsi(data, window=14):
         """
-        Calculate RSI manually using pandas.
+        Calculate RSI using Wilder's smoothing method (industry standard).
+        This matches TradingView, TwelveData, and Composer.trade calculations.
         Returns a pandas Series of RSI values.
         """
         delta = data.diff()
         gain = delta.where(delta > 0, 0)
         loss = -delta.where(delta < 0, 0)
-        avg_gain = gain.rolling(window=window, min_periods=window).mean()
-        avg_loss = loss.rolling(window=window, min_periods=window).mean()
+        
+        # Use Wilder's smoothing (exponential moving average with alpha = 1/window)
+        alpha = 1.0 / window
+        avg_gain = gain.ewm(alpha=alpha, adjust=False).mean()
+        avg_loss = loss.ewm(alpha=alpha, adjust=False).mean()
+        
         rs = avg_gain / avg_loss
         rsi = 100 - (100 / (1 + rs))
         rsi = rsi.fillna(50)

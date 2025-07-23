@@ -43,13 +43,16 @@ class BearMarketStrategy:
 class OverboughtStrategy:
     def recommend(self, indicators):
         spy_rsi_10 = indicators['SPY']['rsi_10']
+        logging.info(f"DEBUG OverboughtStrategy: SPY RSI(10) = {spy_rsi_10:.2f}")
         if spy_rsi_10 > 81:
             return 'UVXY', 'BUY', "SPY extremely overbought (RSI > 81)"
         
         # Check each symbol in order - first match wins
         for symbol in ['IOO', 'TQQQ', 'VTV', 'XLF']:
-            if symbol in indicators and indicators[symbol]['rsi_10'] > 81:
-                return 'UVXY', 'BUY', f"{symbol} extremely overbought (RSI > 81)"
+            if symbol in indicators:
+                logging.info(f"DEBUG OverboughtStrategy: {symbol} RSI(10) = {indicators[symbol]['rsi_10']:.2f}")
+                if indicators[symbol]['rsi_10'] > 81:
+                    return 'UVXY', 'BUY', f"{symbol} extremely overbought (RSI > 81)"
         
         # If SPY is overbought (79-81), return hedge portfolio 
         if spy_rsi_10 > 79:
@@ -61,12 +64,14 @@ class OverboughtStrategy:
 class SecondaryOverboughtStrategy:
     def recommend(self, indicators, overbought_symbol):
         # First check if the overbought symbol is extremely overbought (> 81)
+        logging.info(f"DEBUG SecondaryOverboughtStrategy: {overbought_symbol} RSI(10) = {indicators[overbought_symbol]['rsi_10']:.2f}")
         if indicators[overbought_symbol]['rsi_10'] > 81:
             return 'UVXY', 'BUY', f"{overbought_symbol} extremely overbought (RSI > 81)"
         
         # Then check other symbols for extreme overbought
         for symbol in ['TQQQ', 'VTV', 'XLF']:
             if symbol != overbought_symbol and symbol in indicators:
+                logging.info(f"DEBUG SecondaryOverboughtStrategy: {symbol} RSI(10) = {indicators[symbol]['rsi_10']:.2f}")
                 if indicators[symbol]['rsi_10'] > 81:
                     return 'UVXY', 'BUY', f"{symbol} extremely overbought (RSI > 81)"
         

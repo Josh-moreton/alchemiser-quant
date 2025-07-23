@@ -200,6 +200,7 @@ class NuclearStrategyEngine:
 
         # Hierarchical logic matching the Clojure canonical strategy
         spy_rsi_10 = indicators['SPY']['rsi_10']
+        logging.info(f"DEBUG: SPY RSI(10) = {spy_rsi_10:.2f}")
         
         # Primary overbought check: SPY RSI > 79
         if spy_rsi_10 > 79:
@@ -209,10 +210,13 @@ class NuclearStrategyEngine:
         
         # Secondary overbought checks in order: IOO, TQQQ, VTV, XLF
         for symbol in ['IOO', 'TQQQ', 'VTV', 'XLF']:
-            if symbol in indicators and indicators[symbol]['rsi_10'] > 79:
-                result = SecondaryOverboughtStrategy().recommend(indicators, symbol)
-                if result:
-                    return result
+            if symbol in indicators:
+                logging.info(f"DEBUG: {symbol} RSI(10) = {indicators[symbol]['rsi_10']:.2f}")
+                if indicators[symbol]['rsi_10'] > 79:
+                    logging.info(f"DEBUG: {symbol} triggered overbought condition (RSI > 79)")
+                    result = SecondaryOverboughtStrategy().recommend(indicators, symbol)
+                    if result:
+                        return result
         
         # VOX overbought check  
         if 'VOX' in indicators and indicators['VOX']['rsi_10'] > 79:
