@@ -88,11 +88,6 @@ def generate_multi_strategy_signals():
     from core.strategy_manager import MultiStrategyManager, StrategyType
     from core.data_provider import UnifiedDataProvider
     
-    print("🚀 MULTI-STRATEGY SIGNAL GENERATION")
-    print("=" * 60)
-    print(f"Running multi-strategy analysis at {datetime.now()}")
-    print()
-    
     try:
         # Create shared UnifiedDataProvider once
         shared_data_provider = UnifiedDataProvider(paper_trading=True)
@@ -129,8 +124,21 @@ def generate_multi_strategy_signals():
         print(f"\n📋 Strategy Summary:")
         
         # Calculate actual position counts from signals
-        nuclear_positions = 3 if strategy_signals.get(StrategyType.NUCLEAR, {}).get('action') == 'BUY' else 0
-        tecl_positions = 1 if strategy_signals.get(StrategyType.TECL, {}).get('action') == 'BUY' else 0
+        nuclear_signal = strategy_signals.get(StrategyType.NUCLEAR, {})
+        tecl_signal = strategy_signals.get(StrategyType.TECL, {})
+        
+        # Determine position count based on the specific signal
+        if nuclear_signal.get('action') == 'BUY':
+            if nuclear_signal.get('symbol') == 'UVXY_BTAL_PORTFOLIO':
+                nuclear_positions = 2  # UVXY and BTAL
+            elif nuclear_signal.get('symbol') == 'UVXY':
+                nuclear_positions = 1  # Just UVXY
+            else:
+                nuclear_positions = 3  # Default for other portfolios
+        else:
+            nuclear_positions = 0
+            
+        tecl_positions = 1 if tecl_signal.get('action') == 'BUY' else 0
         
         print(f"  NUCLEAR: {nuclear_positions} positions, 50% allocation")
         print(f"  TECL: {tecl_positions} positions, 50% allocation")
