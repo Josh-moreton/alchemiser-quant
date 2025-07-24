@@ -289,39 +289,30 @@ class MultiStrategyAlpacaTrader(AlpacaTradingBot):
         }
     
     def display_multi_strategy_summary(self, execution_result: MultiStrategyExecutionResult):
-        """Display comprehensive summary of multi-strategy execution"""
-        print("🎯 STRATEGY SIGNALS:")
+        """Display comprehensive summary of multi-strategy execution using rich formatting"""
+        from the_alchemiser.core.ui.cli_formatter import (
+            render_strategy_signals, render_portfolio_allocation, 
+            render_trading_summary, render_header, render_footer
+        )
         
         if not execution_result.success:
-            print("❌ EXECUTION FAILED")
-            print(f"Error: {execution_result.execution_summary.get('error', 'Unknown error')}")
+            render_header("❌ EXECUTION FAILED", "Multi-Strategy Trading")
+            from rich.console import Console
+            Console().print(f"[bold red]Error: {execution_result.execution_summary.get('error', 'Unknown error')}[/bold red]")
             return
-        
+
         summary = execution_result.execution_summary
         
-        # Strategy signals - more concise
-        for strategy, details in summary['strategy_summary'].items():
-            action_symbol = details['signal']
-            reason = details['reason']
-            allocation = details['allocation']
-            print(f"   {strategy} ({allocation:.0%}): {action_symbol}")
-            print(f"   └─ {reason}")
+        # Display strategy signals
+        render_strategy_signals(execution_result.strategy_signals)
         
-        # Portfolio allocation
-        print(f"\n🎯 PORTFOLIO ALLOCATION:")
-        for symbol, weight in execution_result.consolidated_portfolio.items():
-            print(f"   {symbol}: {weight:.1%}")
+        # Display portfolio allocation  
+        render_portfolio_allocation(execution_result.consolidated_portfolio)
         
-        # Trading summary
-        trading = summary['trading_summary']
-        if trading['total_trades'] > 0:
-            print(f"\n⚡ TRADES EXECUTED:")
-            print(f"   {trading['total_trades']} orders ({trading['buy_orders']} buys, {trading['sell_orders']} sells)")
-            print(f"   Net: ${trading['net_trading_value']:+,.0f}")
-        else:
-            print(f"\n⚡ No trades needed - portfolio already aligned")
+        # Display trading summary
+        render_trading_summary(execution_result.orders_executed)
         
-        print()
+        render_footer("Operation completed successfully!")
     
     def _trigger_post_trade_validation(self, strategy_signals: Dict[StrategyType, Any], 
                                      orders_executed: List[Dict]):

@@ -105,38 +105,35 @@ def run_all_signals_display():
     Generate and display multi-strategy signals without any trading.
     Shows Nuclear, TECL, and consolidated multi-strategy results.
     """
-    print("🤖 MULTI-STRATEGY SIGNAL ANALYSIS")
-    print("=" * 60)
-    print(f"Analyzing all strategies at {datetime.now()}")
-    print()
+    from the_alchemiser.core.ui.cli_formatter import (
+        render_header, render_footer, render_technical_indicators, 
+        render_strategy_signals, render_portfolio_allocation
+    )
+    
+    render_header("MULTI-STRATEGY SIGNAL ANALYSIS", f"Analysis at {datetime.now()}")
+    
     try:
         # Generate multi-strategy signals (this includes both Nuclear and TECL)
         manager, strategy_signals, consolidated_portfolio = generate_multi_strategy_signals()
         if not strategy_signals:
-            print("⚠️  Failed to generate multi-strategy signals")
+            from rich.console import Console
+            Console().print("[bold red]⚠️  Failed to generate multi-strategy signals[/bold red]")
             return False
-        # Display technical indicators before strategy results
-        print(render_technical_indicators(strategy_signals))
-        print("\n🎯 MULTI-STRATEGY RESULTS:")
-        print("-" * 40)
-        # Display individual strategy results
-        for strategy_type, signal in (strategy_signals or {}).items():
-            print(f"{strategy_type.value} Strategy:")
-            print(f"  Action: {signal.get('action', '')} {signal.get('symbol', '')}")
-            print(f"  Reason: {signal.get('reason', '')}")
-            print()
+            
+        # Display technical indicators
+        render_technical_indicators(strategy_signals)
+        
+        # Display strategy signals
+        render_strategy_signals(strategy_signals)
+        
         # Display consolidated portfolio
         if consolidated_portfolio:
-            print("📈 Consolidated Portfolio Allocation:")
-            for symbol, weight in consolidated_portfolio.items():
-                print(f"  {symbol}: {weight:.1%}")
-        # Get performance summary
-        if manager:
-            summary = manager.get_strategy_performance_summary()
-            print(f"\n📋 Strategy Summary:")
+            render_portfolio_allocation(consolidated_portfolio)
+        
         # Calculate actual position counts from signals
         nuclear_signal = (strategy_signals or {}).get(StrategyType.NUCLEAR, {})
         tecl_signal = (strategy_signals or {}).get(StrategyType.TECL, {})
+        
         # Determine position count based on the specific signal
         if nuclear_signal.get('action') == 'BUY':
             if nuclear_signal.get('symbol') == 'UVXY_BTAL_PORTFOLIO':
@@ -148,11 +145,21 @@ def run_all_signals_display():
         else:
             nuclear_positions = 0
         tecl_positions = 1 if tecl_signal.get('action') == 'BUY' else 0
-        print(f"  NUCLEAR: {nuclear_positions} positions, 50% allocation")
-        print(f"  TECL: {tecl_positions} positions, 50% allocation")
+        
+        from rich.console import Console
+        from rich.panel import Panel
+        console = Console()
+        
+        strategy_summary = f"""[bold cyan]NUCLEAR:[/bold cyan] {nuclear_positions} positions, 50% allocation
+[bold cyan]TECL:[/bold cyan] {tecl_positions} positions, 50% allocation"""
+        
+        console.print(Panel(strategy_summary, title="📋 Strategy Summary", border_style="blue"))
+        
+        render_footer("Signal analysis completed successfully!")
         return True
     except Exception as e:
-        print(f"❌ Error analyzing strategies: {e}")
+        from rich.console import Console
+        Console().print(f"[bold red]❌ Error analyzing strategies: {e}[/bold red]")
         import traceback
         traceback.print_exc()
         return False
@@ -165,6 +172,8 @@ def run_multi_strategy_trading(live_trading: bool = False, ignore_market_hours: 
     Args:
         live_trading: True for live trading, False for paper trading
     """
+    from the_alchemiser.core.ui.cli_formatter import render_header, render_technical_indicators
+    
     mode_str = "LIVE" if live_trading else "PAPER"
     
     try:
@@ -184,16 +193,17 @@ def run_multi_strategy_trading(live_trading: bool = False, ignore_market_hours: 
         
         # Check market hours unless ignore_market_hours is set
         if not ignore_market_hours and not is_market_open(trader.trading_client):
-            print("❌ Market is CLOSED. No trades will be placed.")
+            from rich.console import Console
+            Console().print("[bold red]❌ Market is CLOSED. No trades will be placed.[/bold red]")
             send_telegram_message("❌ Market is CLOSED. No trades will be placed.")
             return "market_closed"
         
         # Generate strategy signals to get technical indicators for display
-        print("📊 Analyzing market conditions...")
+        render_header("Analyzing market conditions...", "Multi-Strategy Trading")
         strategy_signals = trader.strategy_manager.run_all_strategies()[0]
         
         # Display technical indicators
-        print(render_technical_indicators(strategy_signals))
+        render_technical_indicators(strategy_signals)
         
         # Execute multi-strategy
         result = trader.execute_multi_strategy()
@@ -207,12 +217,14 @@ def run_multi_strategy_trading(live_trading: bool = False, ignore_market_hours: 
                 message = build_multi_strategy_message(result, mode_str)
                 send_telegram_message(message)
             except Exception as e:
-                print(f"⚠️ Telegram notification failed: {e}")
+                from rich.console import Console
+                Console().print(f"[bold yellow]⚠️ Telegram notification failed: {e}[/bold yellow]")
         
         return result.success
         
     except Exception as e:
-        print(f"❌ Error: {e}")
+        from rich.console import Console
+        Console().print(f"[bold red]❌ Error: {e}[/bold red]")
         return False
 
 
@@ -229,6 +241,8 @@ def main(argv=None):
       - Default: Paper trading (safe default)
       - --live: Live trading (requires explicit flag)
     """
+    from the_alchemiser.core.ui.cli_formatter import render_header, render_footer
+    
     parser = argparse.ArgumentParser(description="Multi-Strategy Nuclear Trading Bot")
     parser.add_argument('mode', choices=['bot', 'trade'],
                        help='Operation mode: bot (show signals), trade (execute trading)')
@@ -244,8 +258,7 @@ def main(argv=None):
     args = parser.parse_args(argv)
     
     mode_label = "LIVE TRADING ⚠️" if args.mode == 'trade' and args.live else "Paper Trading"
-    print(f"🚀 Multi-Strategy Nuclear Bot | {args.mode.upper()} | {mode_label}")
-    print()
+    render_header("Multi-Strategy Nuclear Bot", f"{args.mode.upper()} | {mode_label}")
     
     success = False
     try:
@@ -256,19 +269,20 @@ def main(argv=None):
             # Multi-strategy trading
             result = run_multi_strategy_trading(live_trading=args.live, ignore_market_hours=args.ignore_market_hours)
             if result == "market_closed":
-                print("✅ Market closed - no action taken")
+                render_footer("Market closed - no action taken")
                 return True
             else:
                 success = result
     except Exception as e:
-        print(f"❌ Error: {e}")
+        from rich.console import Console
+        Console().print(f"[bold red]❌ Error: {e}[/bold red]")
         success = False
     
     if success:
-        print("\n✅ Operation completed successfully!")
+        render_footer("Operation completed successfully!")
         return True
     else:
-        print("\n❌ Operation failed!")
+        render_footer("Operation failed!")
         return False
 
 if __name__ == "__main__":

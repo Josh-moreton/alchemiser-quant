@@ -63,8 +63,10 @@ class AlpacaTradingBot:
         # Log trading mode to file only
         logging.info(f"Trading Mode: {'PAPER' if self.paper_trading else 'LIVE'} (from CLI mode)")
         
-        # Display trading mode cleanly to user
-        print(f"🏦 Trading Mode: {'PAPER' if self.paper_trading else 'LIVE'} (from CLI mode)")
+        # Display trading mode cleanly to user using rich
+        from the_alchemiser.core.ui.cli_formatter import render_header
+        mode_str = "PAPER" if self.paper_trading else "LIVE" 
+        render_header(f"🏦 Trading Mode: {mode_str}", "Alpaca Trading Bot Initialized")
 
         # Use UnifiedDataProvider for all Alpaca data access
         self.data_provider = UnifiedDataProvider(
@@ -74,9 +76,11 @@ class AlpacaTradingBot:
         
         # Log to file
         logging.info(f"Alpaca Trading Bot initialized - Paper Trading: {self.paper_trading}")
-        # User-facing message
-        print("Successfully retrieved Alpaca paper trading keys")
-        print(f"Alpaca Trading Bot initialized - Paper Trading: {self.paper_trading}")
+        # User-facing message with rich
+        from rich.console import Console
+        console = Console()
+        console.print("[green]Successfully retrieved Alpaca paper trading keys[/green]")
+        console.print(f"[bold blue]Alpaca Trading Bot initialized - Paper Trading: {self.paper_trading}[/bold blue]")
     
     def get_account_info(self) -> Dict:
         """Get account information via UnifiedDataProvider, returns dict for compatibility"""
@@ -452,10 +456,14 @@ class AlpacaTradingBot:
                 # Get current positions
                 current_positions = self.get_positions()
 
-                # STEP 1: Calculate target and current allocations and display them
-                target_values, current_values = self.display_target_vs_current_allocations(
-                    target_portfolio, account_info, current_positions
-                )
+                # STEP 1: Calculate target and current allocations and display them using rich
+                from the_alchemiser.core.ui.cli_formatter import render_target_vs_current_allocations
+                render_target_vs_current_allocations(target_portfolio, account_info, current_positions)
+                
+                # Calculate values for discrepancy check
+                portfolio_value = account_info.get('portfolio_value', 0.0)
+                target_values = {symbol: portfolio_value * weight for symbol, weight in target_portfolio.items()}
+                current_values = {symbol: pos.get('market_value', 0.0) for symbol, pos in current_positions.items()}
                 
                 # Check if rebalancing is needed
                 if not self.check_allocation_discrepancies(target_values, current_values, tolerance=1.0):
@@ -581,10 +589,9 @@ class AlpacaTradingBot:
                         print("✅ Second pass complete - no additional orders needed")
                         break
                 
-                # Display plan
-                print(f"📋 Execution Plan:")
-                print(f"   Sells: {len(sell_orders_plan)} orders, ${total_proceeds_expected:.2f} proceeds")
-                print(f"   Buys: {len(final_buy_orders)} orders, ${sum(o['estimated_cost'] for o in final_buy_orders):.2f} cost")
+                # Display plan using rich
+                from the_alchemiser.core.ui.cli_formatter import render_execution_plan
+                render_execution_plan(sell_orders_plan, final_buy_orders)
                 
                 orders_executed = []
                 
@@ -712,6 +719,10 @@ class AlpacaTradingBot:
                     print("   No buys needed")
 
                 print(f"✅ Executed {len(orders_executed)} orders ({sum(1 for o in orders_executed if o['side'] == OrderSide.BUY)} buys, {sum(1 for o in orders_executed if o['side'] == OrderSide.SELL)} sells)")
+                
+                # Display trading summary using rich
+                from the_alchemiser.core.ui.cli_formatter import render_trading_summary
+                render_trading_summary(orders_executed)
                 logging.info(f"✅ Rebalancing attempt {attempt + 1} complete. Orders executed: {len(orders_executed)}")
                 
                 if orders_executed:
