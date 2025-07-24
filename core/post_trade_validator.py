@@ -29,33 +29,46 @@ from .data_provider import UnifiedDataProvider
 class PostTradeValidator:
     """Validates technical indicators against TwelveData API after live trades"""
     
-    def __init__(self):
+    def __init__(self, s3_log_path: str = "s3://the-alchemiser-s3/post_trade_validation.log"):
         self.base_url = "https://api.twelvedata.com"
         self.api_key = None
         self.secrets_manager = SecretsManager(region_name="eu-west-2")
         self.data_provider = UnifiedDataProvider(paper_trading=False)  # Use live data
         self.indicators_calc = TechnicalIndicators()
-        
+
         # Rate limiting
         self.request_count = 0
         self.last_reset_time = datetime.now()
         self.max_requests_per_minute = 5  # Very conservative for demo (API allows 8)
         self.rate_limit_lock = threading.Lock()
-        
+
         # Strategy-specific indicator configurations
         self.nuclear_indicators = {
             'rsi': [10, 20],      # RSI periods used in Nuclear strategy
             'sma': [20, 200],     # MA periods used in Nuclear strategy
             'custom': ['ma_return_90', 'cum_return_60']  # Custom indicators
         }
-        
+
         self.tecl_indicators = {
             'rsi': [9, 10],       # RSI periods used in TECL strategy  
             'sma': [200],         # MA periods used in TECL strategy
             'custom': []          # No custom indicators in TECL
         }
-        
+
         self.logger = logging.getLogger(__name__)
+        self.logger.setLevel(logging.INFO)
+
+        # Add S3 log handler if not already present
+        try:
+            from core.s3_utils import S3FileHandler
+            s3_handler_exists = any(isinstance(h, S3FileHandler) for h in self.logger.handlers)
+            if not s3_handler_exists:
+                s3_handler = S3FileHandler(s3_log_path)
+                s3_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+                self.logger.addHandler(s3_handler)
+        except Exception as e:
+            # Fallback: log to default handler only
+            self.logger.warning(f"Could not add S3 log handler: {e}")
     
     def _get_api_key(self) -> Optional[str]:
         """Get TwelveData API key from AWS Secrets Manager"""
