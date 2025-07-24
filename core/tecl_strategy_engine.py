@@ -27,35 +27,14 @@ import logging
 import warnings
 import pandas as pd
 import numpy as np
+from enum import Enum
 
 from .indicators import TechnicalIndicators
 from .data_provider import UnifiedDataProvider
 from .config import Config
 from .logging_utils import setup_logging  # Centralized logging setup
-from enum import Enum
 
 warnings.filterwarnings('ignore')
-
-# Load configuration
-config = Config()
-logging_config = config['logging']
-
-# Configure logging
-from .s3_utils import S3FileHandler
-from typing import List
-import logging
-
-handlers: List[logging.Handler] = [logging.StreamHandler()]
-
-# Add S3 handler for logs
-tecl_log = logging_config.get('tecl_strategy_log', 's3://the-alchemiser-s3/tecl_strategy.log')
-if tecl_log.startswith('s3://'):
-    s3_handler = S3FileHandler(tecl_log)
-    s3_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
-    handlers.append(s3_handler)
-else:
-    handlers.append(logging.FileHandler(tecl_log))
-
 setup_logging()
 
 

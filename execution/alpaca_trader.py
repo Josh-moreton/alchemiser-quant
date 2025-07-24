@@ -31,30 +31,27 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 # Load environment variables
 
-# Load configuration
-config = Config()
-logging_config = config['logging']
-
-# Configure logging
-from core.s3_utils import S3FileHandler
-from typing import List
+import os
+import json
 import logging
+import sys
+import time
+import traceback
+from datetime import datetime, timedelta
+from typing import Dict, List, Optional, Tuple
 
-handlers: List[logging.Handler] = [logging.StreamHandler()]
+# Centralized logging setup
+from core.logging_utils import setup_logging
+setup_logging()
 
-# Add S3 handler for logs
-if logging_config['alpaca_log'].startswith('s3://'):
-    s3_handler = S3FileHandler(logging_config['alpaca_log'])
-    s3_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
-    handlers.append(s3_handler)
-else:
-    handlers.append(logging.FileHandler(logging_config['alpaca_log']))
+# Alpaca imports
+from alpaca.trading.client import TradingClient
+from alpaca.trading.requests import MarketOrderRequest, GetOrdersRequest, LimitOrderRequest
+from alpaca.trading.enums import OrderSide, TimeInForce
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=handlers
-)
+# Import UnifiedDataProvider
+from core.data_provider import UnifiedDataProvider
+from core.config import Config
 
 def is_market_open(trading_client):
     clock = trading_client.get_clock()

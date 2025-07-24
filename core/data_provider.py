@@ -11,10 +11,6 @@ from alpaca.data.timeframe import TimeFrame
 from .config import Config
 from .secrets_manager import SecretsManager
 
-# Centralized logging setup
-from .logging_utils import setup_logging
-setup_logging()
-
 
 class UnifiedDataProvider:
     """

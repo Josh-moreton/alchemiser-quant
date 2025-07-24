@@ -23,9 +23,6 @@ from enum import Enum
 from .config import Config
 from .nuclear_trading_bot import NuclearStrategyEngine, ActionType
 from .tecl_trading_bot import TECLStrategyEngine
-# Centralized logging setup
-from .logging_utils import setup_logging
-setup_logging()
 
 
 class StrategyType(Enum):
@@ -97,16 +94,6 @@ class MultiStrategyManager:
         self.tecl_engine = TECLStrategyEngine(data_provider=shared_data_provider)
         
         logging.debug(f"MultiStrategyManager initialized with allocations: {self.strategy_allocations}")
-    
-    def get_current_positions(self) -> Dict[StrategyType, List[StrategyPosition]]:
-        """Return empty positions dict as we're not tracking positions between runs"""
-        logging.debug("Position tracking between runs disabled - returning empty positions")
-        return {strategy: [] for strategy in StrategyType}
-    
-    def save_positions(self, positions: Dict[StrategyType, List[StrategyPosition]]):
-        """Position tracking between runs is disabled - no-op"""
-        logging.debug("Position tracking between runs disabled - not saving positions")
-        pass
     
     def run_all_strategies(self) -> Tuple[Dict[StrategyType, Any], Dict[str, float]]:
         """
@@ -320,15 +307,16 @@ class MultiStrategyManager:
                             )
                             new_positions[strategy_type].append(position)
             
-            # Save updated positions
-            self.save_positions(new_positions)
+            # Position tracking between runs is disabled
+            logging.debug("Position tracking disabled - not saving positions")
             
         except Exception as e:
             logging.error(f"Error updating position tracking: {e}")
     
     def get_strategy_performance_summary(self) -> Dict[str, Any]:
         """Get a summary of each strategy's recent performance and current positions"""
-        positions = self.get_current_positions()
+        # Position tracking between runs is disabled
+        positions = {strategy: [] for strategy in StrategyType}
         
         summary = {
             'timestamp': datetime.now().isoformat(),
