@@ -628,7 +628,33 @@ class AlpacaTradingBot:
                                 print(f"   ❌ {symbol}: Failed to place buy order")
                                 logging.error(f"Failed to place buy order for {symbol}")
                         else:
-                            print(f"   ❌ {symbol}: Insufficient cash (need ${estimated_cost:.2f}, have ${available_cash:.2f})")
+                            # Retry with available cash amount
+                            current_price = self.get_current_price(symbol)
+                            if current_price > 0 and available_cash > 1.0:  # Only retry if we have at least $1
+                                adjusted_qty = int(available_cash / current_price * 1000000) / 1000000  # Round down to 6 decimals
+                                adjusted_cost = adjusted_qty * current_price
+                                
+                                if adjusted_qty > 0:
+                                    print(f"   🔄 {symbol}: Retrying with available cash (${available_cash:.2f} → {adjusted_qty} shares)")
+                                    
+                                    order_id = self.place_order(symbol, adjusted_qty, OrderSide.BUY)
+                                    if order_id:
+                                        orders_executed.append({
+                                            'symbol': symbol,
+                                            'side': OrderSide.BUY,
+                                            'qty': adjusted_qty,
+                                            'order_id': order_id,
+                                            'estimated_value': adjusted_cost
+                                        })
+                                        available_cash -= adjusted_cost
+                                        print(f"   ✅ {symbol}: Adjusted buy order placed (ID: {order_id})")
+                                    else:
+                                        print(f"   ❌ {symbol}: Failed to place adjusted buy order")
+                                        logging.error(f"Failed to place adjusted buy order for {symbol}")
+                                else:
+                                    print(f"   ❌ {symbol}: Cannot buy with available cash (${available_cash:.2f})")
+                            else:
+                                print(f"   ❌ {symbol}: Insufficient cash (need ${estimated_cost:.2f}, have ${available_cash:.2f})")
                 else:
                     print("   No buys needed")
 
