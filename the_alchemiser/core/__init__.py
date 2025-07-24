@@ -2,6 +2,6 @@
 Core trading components for The Alchemiser.
 """
 
-from .common import ActionType
+from the_alchemiser.core.common import ActionType
 
 __all__ = ['ActionType']

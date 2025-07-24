@@ -1,6 +1,6 @@
 import pytest
 import pandas as pd
-from core.indicators import TechnicalIndicators
+from the_alchemiser.core.indicators import TechnicalIndicators
 
 # Test data for coverage
 @pytest.mark.parametrize("data", [

@@ -22,9 +22,9 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple, Any, Union
 from concurrent.futures import ThreadPoolExecutor
 
-from .secrets_manager import SecretsManager
-from .indicators import TechnicalIndicators
-from .data_provider import UnifiedDataProvider
+from the_alchemiser.core.secrets_manager import SecretsManager
+from the_alchemiser.core.indicators import TechnicalIndicators
+from the_alchemiser.core.data_provider import UnifiedDataProvider
 
 class PostTradeValidator:
     """Validates technical indicators against TwelveData API after live trades"""
@@ -60,7 +60,7 @@ class PostTradeValidator:
 
         # Add S3 log handler if not already present
         try:
-            from core.s3_utils import S3FileHandler
+            from the_alchemiser.core.s3_utils import S3FileHandler
             s3_handler_exists = any(isinstance(h, S3FileHandler) for h in self.logger.handlers)
             if not s3_handler_exists:
                 s3_handler = S3FileHandler(s3_log_path)

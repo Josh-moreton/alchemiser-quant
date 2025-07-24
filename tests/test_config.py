@@ -1,5 +1,5 @@
 import pytest
-from core.config import Config
+from the_alchemiser.core.config import Config
 import os
 import yaml
 

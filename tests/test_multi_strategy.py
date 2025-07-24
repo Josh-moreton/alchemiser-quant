@@ -20,10 +20,10 @@ from typing import Dict, Any
 # Add project root to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.config import Config
-from core.strategy_manager import MultiStrategyManager, StrategyType
-from core.tecl_strategy_engine import TECLStrategyEngine
-from execution.multi_strategy_trader import MultiStrategyAlpacaTrader
+from the_alchemiser.core.config import Config
+from the_alchemiser.core.strategy_manager import MultiStrategyManager, StrategyType
+from the_alchemiser.core.tecl_strategy_engine import TECLStrategyEngine
+from the_alchemiser.execution.multi_strategy_trader import MultiStrategyAlpacaTrader
 
 
 def test_tecl_strategy_engine():

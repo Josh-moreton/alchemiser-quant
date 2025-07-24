@@ -12,7 +12,7 @@ from datetime import datetime
 # Add the project root to the path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from core.post_trade_validator import PostTradeValidator
+from the_alchemiser.core.post_trade_validator import PostTradeValidator
 
 def test_module_import():
     """Test that the module imports correctly"""
@@ -103,7 +103,7 @@ def test_integration_function():
     """Test the main integration function"""
     print("\n🔍 Testing integration function (no API calls)...")
     try:
-        from core.post_trade_validator import validate_after_live_trades
+        from the_alchemiser.core.post_trade_validator import validate_after_live_trades
         
         # Test with async_mode=True (should return None immediately)
         result = validate_after_live_trades(

@@ -2,7 +2,7 @@ import datetime as dt
 import re
 import json
 import logging
-from .config import Config
+from the_alchemiser.core.config import Config
 
 class Alert:
     """Simple alert class for trading signals."""
@@ -129,7 +129,7 @@ def log_alert_to_file(alert, log_file_path=None):
     }
     
     try:
-        from .s3_utils import get_s3_handler
+        from the_alchemiser.core.s3_utils import get_s3_handler
         s3_handler = get_s3_handler()
         
         if log_file_path.startswith('s3://'):

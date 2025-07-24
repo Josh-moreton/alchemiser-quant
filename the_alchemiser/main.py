@@ -32,24 +32,19 @@ import sys
 import os
 import logging
 from logging.handlers import RotatingFileHandler
-from core.config import Config
-from core.ui.cli_formatter import render_technical_indicators
-from core.ui.telegram_formatter import build_single_strategy_message, build_multi_strategy_message
-from core.strategy_manager import StrategyType
+from the_alchemiser.core.config import Config
+from the_alchemiser.core.ui.cli_formatter import render_technical_indicators
+from the_alchemiser.core.ui.telegram_formatter import build_single_strategy_message, build_multi_strategy_message
+from the_alchemiser.core.strategy_manager import StrategyType
 
 # Load config and set logging level from config
 config = Config()
 logging_config = config['logging']
 
-# Ensure logs directory exists
-os.makedirs('data/logs', exist_ok=True)
-
-# Set up file-based logging for all system logs
-
 def setup_file_logging():
     """Configure logging to send all logs to S3 in Lambda, file locally."""
     import os
-    from core.s3_utils import S3FileHandler
+    from the_alchemiser.core.s3_utils import S3FileHandler
     root_logger = logging.getLogger()
     root_logger.setLevel(logging.INFO)
     root_logger.handlers.clear()  # Remove any existing handlers
@@ -61,8 +56,9 @@ def setup_file_logging():
         s3_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
         root_logger.addHandler(s3_handler)
     else:
-        # Local/dev: log to file (and optionally S3)
-        log_path = "data/logs/trading_bot.log"
+        # Local/dev: Ensure logs directory exists and log to file
+        os.makedirs('the_alchemiser/data/logs', exist_ok=True)
+        log_path = "the_alchemiser/data/logs/trading_bot.log"
         file_handler = RotatingFileHandler(
             log_path,
             maxBytes=10*1024*1024,  # 10MB
@@ -70,11 +66,6 @@ def setup_file_logging():
         )
         file_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
         root_logger.addHandler(file_handler)
-        # Optionally, also add S3 handler locally:
-        # s3_log_path = logging_config.get('alpaca_log')
-        # s3_handler = S3FileHandler(s3_log_path)
-        # s3_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
-        # root_logger.addHandler(s3_handler)
 
     # Set appropriate levels for third-party loggers
     logging.getLogger('botocore').setLevel(logging.WARNING)
@@ -93,8 +84,8 @@ def generate_multi_strategy_signals():
     """
     Generate signals for all strategies (Nuclear + TECL) and return consolidated results.
     """
-    from core.strategy_manager import MultiStrategyManager, StrategyType
-    from core.data_provider import UnifiedDataProvider
+    from the_alchemiser.core.strategy_manager import MultiStrategyManager, StrategyType
+    from the_alchemiser.core.data_provider import UnifiedDataProvider
     
     try:
         # Create shared UnifiedDataProvider once
@@ -177,9 +168,9 @@ def run_multi_strategy_trading(live_trading: bool = False, ignore_market_hours: 
     mode_str = "LIVE" if live_trading else "PAPER"
     
     try:
-        from core.telegram_utils import send_telegram_message
-        from execution.multi_strategy_trader import MultiStrategyAlpacaTrader, StrategyType
-        from execution.alpaca_trader import is_market_open
+        from the_alchemiser.core.telegram_utils import send_telegram_message
+        from the_alchemiser.execution.multi_strategy_trader import MultiStrategyAlpacaTrader, StrategyType
+        from the_alchemiser.execution.alpaca_trader import is_market_open
         
         # Initialize multi-strategy trader
         trader = MultiStrategyAlpacaTrader(
@@ -210,12 +201,13 @@ def run_multi_strategy_trading(live_trading: bool = False, ignore_market_hours: 
         # Display results
         trader.display_multi_strategy_summary(result)
         
-        # Send Telegram notification
-        try:
-            message = build_multi_strategy_message(result, mode_str)
-            send_telegram_message(message)
-        except Exception as e:
-            print(f"⚠️ Telegram notification failed: {e}")
+        # Only send Telegram notification in live trading mode
+        if live_trading:
+            try:
+                message = build_multi_strategy_message(result, mode_str)
+                send_telegram_message(message)
+            except Exception as e:
+                print(f"⚠️ Telegram notification failed: {e}")
         
         return result.success
         
