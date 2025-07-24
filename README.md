@@ -109,10 +109,38 @@ The-Alchemiser/
 
 - **Multi-Strategy Support:** Nuclear, TECL, volatility hedges, and more
 - **Automated Trading:** Executes trades via Alpaca (paper/live)
+- **Post-Trade Validation:** Validates technical indicators against TwelveData API (live mode only)
 - **Telegram Integration:** Sends execution summaries and signals
 - **Position Tracking:** Tracks allocations and performance per strategy
 - **Risk Management:** No leverage (uses leveraged ETFs only)
 - **Data Management:** Logs, results, and signals organized in `data/`
+
+### Post-Trade Technical Indicator Validation 🔍
+
+When running in **live mode** (`--live` flag), the bot automatically validates technical indicators used in signal evaluation against external TwelveData API after trades are executed:
+
+- **Non-blocking:** Validation happens in background thread, doesn't delay trades
+- **Targeted:** Only validates indicators actually used in signal generation
+- **Rate-limited:** Respects TwelveData API limits (7 requests/minute)
+- **Strategy-aware:** Nuclear strategy (RSI 10/20, MA 20/200) vs TECL strategy (RSI 9/10, MA 200)
+
+```bash
+# Live trading with automatic post-trade validation
+python main.py trade --live
+
+# Example validation output in logs:
+# 🔍 Triggering post-trade validation for Nuclear: ['SPY', 'SMR'], TECL: ['XLK']
+# ✅ Post-trade validation Nuclear: 2/2 successful
+# ✅ Post-trade validation TECL: 1/1 successful
+```
+
+**Demo the validation system:**
+
+```bash
+python demo_post_trade_validation.py
+```
+
+See [docs/POST_TRADE_VALIDATION.md](docs/POST_TRADE_VALIDATION.md) for detailed documentation.
 
 ### Example Supported Strategies
 

@@ -33,6 +33,8 @@ import os
 import logging
 from logging.handlers import RotatingFileHandler
 from core.config import Config
+from core.ui.cli_formatter import render_technical_indicators
+from core.ui.telegram_formatter import build_single_strategy_message, build_multi_strategy_message
 
 # Load config and set logging level from config
 config = Config()
@@ -77,95 +79,6 @@ def setup_file_logging():
 setup_file_logging()
 
 
-def display_technical_indicators(strategy_signals):
-    """
-    Display key technical indicators used by all strategies in a clean boxed format
-    """
-    print("\n📊 TECHNICAL INDICATORS:")
-    print("┌─" + "─" * 58 + "─┐")
-    print("│ Key Market & Technical Indicators                        │")  
-    print("├─" + "─" * 58 + "─┤")
-    
-    # Get indicators from both strategies - prefer Nuclear as it has more comprehensive data
-    all_indicators = {}
-    for strategy_type, signal_data in strategy_signals.items():
-        if 'indicators' in signal_data and signal_data['indicators']:
-            all_indicators.update(signal_data['indicators'])
-    
-    if not all_indicators:
-        print("│ No indicator data available                              │")
-        print("└─" + "─" * 58 + "─┘")
-        return
-    
-    # Key symbols to display in order of importance
-    key_symbols = [
-        'SPY',      # Market trend filter
-        'TQQQ',     # Tech momentum  
-        'XLK',      # Tech sector
-        'KMLM',     # Managed futures comparison
-        'UVXY',     # Volatility indicator
-        'SPXL',     # Broad market leverage
-        'TECL',     # Tech leverage
-        'BIL',      # Cash equivalent
-        'SQQQ',     # Tech short
-        'BSV'       # Bonds
-    ]
-    
-    # Display indicators for available symbols
-    displayed_count = 0
-    for symbol in key_symbols:
-        if symbol in all_indicators and displayed_count < 8:  # Limit display
-            ind = all_indicators[symbol]
-            price = ind.get('current_price', 0)
-            rsi = ind.get('rsi_10', ind.get('rsi_9', 50))
-            ma_200 = ind.get('ma_200')
-            
-            # Format price nicely
-            if price < 10:
-                price_str = f"${price:.3f}"
-            elif price < 100:
-                price_str = f"${price:.2f}"
-            else:
-                price_str = f"${price:.1f}"
-            
-            # Show trend vs 200MA if available
-            trend_indicator = ""
-            if ma_200 and price > 0:
-                if price > ma_200:
-                    trend_indicator = " ↗"  # Above 200MA
-                else:
-                    trend_indicator = " ↘"  # Below 200MA
-            
-            # RSI level indicator
-            rsi_level = ""
-            if rsi > 80:
-                rsi_level = "🔴"  # Overbought
-            elif rsi < 30:
-                rsi_level = "🟢"  # Oversold  
-            else:
-                rsi_level = "⚪"  # Neutral
-            
-            # Format the line
-            line = f"│ {symbol:>4}: {price_str:<8} RSI:{rsi:5.1f} {rsi_level}{trend_indicator}"
-            # Pad to exact width
-            line = line.ljust(61) + "│"
-            print(line)
-            displayed_count += 1
-    
-    # Add market regime summary
-    if 'SPY' in all_indicators:
-        spy_data = all_indicators['SPY']
-        spy_price = spy_data.get('current_price', 0)
-        spy_ma200 = spy_data.get('ma_200', 0)
-        
-        if spy_price > 0 and spy_ma200 > 0:
-            print("├─" + "─" * 58 + "─┤")
-            regime = "BULL MARKET" if spy_price > spy_ma200 else "BEAR MARKET"
-            regime_line = f"│ Market Regime: {regime} (SPY {spy_price:.1f} vs 200MA {spy_ma200:.1f})"
-            regime_line = regime_line.ljust(61) + "│"
-            print(regime_line)
-    
-    print("└─" + "─" * 58 + "─┘")
 
 
 def generate_multi_strategy_signals():
@@ -194,7 +107,7 @@ def generate_multi_strategy_signals():
         strategy_signals, consolidated_portfolio = manager.run_all_strategies()
         
         # Display technical indicators before strategy results
-        display_technical_indicators(strategy_signals)
+        print(render_technical_indicators(strategy_signals))
         
         print("\n🎯 MULTI-STRATEGY RESULTS:")
         print("-" * 40)
@@ -281,7 +194,8 @@ def run_multi_strategy_trading(live_trading: bool = False, ignore_market_hours: 
             strategy_allocations={
                 StrategyType.NUCLEAR: 0.5,
                 StrategyType.TECL: 0.5
-            }
+            },
+            ignore_market_hours=ignore_market_hours
         )
         
         # Check market hours unless ignore_market_hours is set
@@ -295,7 +209,7 @@ def run_multi_strategy_trading(live_trading: bool = False, ignore_market_hours: 
         strategy_signals = trader.strategy_manager.run_all_strategies()[0]
         
         # Display technical indicators
-        display_technical_indicators(strategy_signals)
+        print(render_technical_indicators(strategy_signals))
         
         # Execute multi-strategy
         result = trader.execute_multi_strategy()
@@ -305,7 +219,7 @@ def run_multi_strategy_trading(live_trading: bool = False, ignore_market_hours: 
         
         # Send Telegram notification
         try:
-            message = _build_multi_strategy_telegram_message(result, mode_str)
+            message = build_multi_strategy_message(result, mode_str)
             send_telegram_message(message)
         except Exception as e:
             print(f"⚠️ Telegram notification failed: {e}")
@@ -316,75 +230,6 @@ def run_multi_strategy_trading(live_trading: bool = False, ignore_market_hours: 
         print(f"❌ Error: {e}")
         return False
 
-
-def _build_single_strategy_telegram_message(result, strategy_name, mode):
-    """Build Telegram message for single strategy execution results"""
-    if not result.success:
-        return f"❌ {mode} {strategy_name} Strategy FAILED\n\nError: {result.execution_summary.get('error', 'Unknown error')}"
-    
-    summary = result.execution_summary
-    
-    # Build message
-    lines = [
-        f"🎯 {mode} {strategy_name} STRATEGY",
-        f"Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
-        "",
-        f"🎯 Portfolio Allocation:"
-    ]
-    
-    for symbol, weight in result.consolidated_portfolio.items():
-        lines.append(f"{symbol}: {weight:.1%}")
-    
-    trading = summary['trading_summary']
-    if trading['total_trades'] > 0:
-        lines.extend([
-            "",
-            f"⚡ Trading: {trading['total_trades']} orders",
-            f"Buy: ${trading['total_buy_value']:,.0f} | Sell: ${trading['total_sell_value']:,.0f}"
-        ])
-    else:
-        lines.append("\n⚡ No trades needed")
-    
-    return "\n".join(lines)
-
-
-def _build_multi_strategy_telegram_message(result, mode):
-    """Build Telegram message for multi-strategy execution results"""
-    if not result.success:
-        return f"❌ {mode} Multi-Strategy Execution FAILED\n\nError: {result.execution_summary.get('error', 'Unknown error')}"
-    
-    summary = result.execution_summary
-    
-    # Build message
-    lines = [
-        f"🎯 {mode} MULTI-STRATEGY EXECUTION",
-        f"Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
-        "",
-        f"📊 Strategy Signals:"
-    ]
-    
-    for strategy, details in summary['strategy_summary'].items():
-        lines.append(f"{strategy} ({details['allocation']:.0%}): {details['signal']}")
-    
-    lines.extend([
-        "",
-        f"🎯 Portfolio Allocation:"
-    ])
-    
-    for symbol, weight in result.consolidated_portfolio.items():
-        lines.append(f"{symbol}: {weight:.1%}")
-    
-    trading = summary['trading_summary']
-    if trading['total_trades'] > 0:
-        lines.extend([
-            "",
-            f"⚡ Trading: {trading['total_trades']} orders",
-            f"Buy: ${trading['total_buy_value']:,.0f} | Sell: ${trading['total_sell_value']:,.0f}"
-        ])
-    else:
-        lines.append("\n⚡ No trades needed")
-    
-    return "\n".join(lines)
 
 
 def main(argv=None):
