@@ -37,12 +37,38 @@ def build_multi_strategy_message(result: Any, mode: str) -> str:
     ]
     for strategy, details in result.execution_summary['strategy_summary'].items():
         lines.append(f"{strategy} ({details['allocation']:.0%}): {details['signal']}")
-    lines.extend([
-        "",
-        "🎯 Portfolio Allocation:",
-    ])
-    for symbol, weight in result.consolidated_portfolio.items():
-        lines.append(f"{symbol}: {weight:.1%}")
+    
+    # Show final portfolio state if available
+    if hasattr(result, 'final_portfolio_state') and result.final_portfolio_state:
+        portfolio_state = result.final_portfolio_state
+        lines.extend([
+            "",
+            "🏁 FINAL PORTFOLIO STATE:",
+        ])
+        
+        total_value = portfolio_state.get('total_value', 0)
+        if total_value > 0:
+            lines.append(f"💰 Portfolio Value: ${total_value:,.2f}")
+        
+        allocations = portfolio_state.get('allocations', {})
+        if allocations:
+            lines.append("🎯 Target vs Current:")
+            for symbol, data in allocations.items():
+                target_pct = data.get('target_percent', 0)
+                current_pct = data.get('current_percent', 0) 
+                target_value = data.get('target_value', 0)
+                current_value = data.get('current_value', 0)
+                
+                lines.append(f"  {symbol}: Target {target_pct:.1f}% (${target_value:,.2f}) | Current {current_pct:.1f}% (${current_value:,.2f})")
+    else:
+        # Fallback to simple portfolio allocation
+        lines.extend([
+            "",
+            "🎯 Portfolio Allocation:",
+        ])
+        for symbol, weight in result.consolidated_portfolio.items():
+            lines.append(f"{symbol}: {weight:.1%}")
+    
     trading = result.execution_summary['trading_summary']
     if trading['total_trades'] > 0:
         lines.extend([

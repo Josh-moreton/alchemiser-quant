@@ -50,6 +50,7 @@ def build_execution_report(
     positions: dict,
     orders: list | None = None,
     signal=None,
+    portfolio_state: dict | None = None,
 ) -> str:
     """Build an objective Telegram report focused on signals and trades.
 
@@ -69,15 +70,17 @@ def build_execution_report(
         Orders executed during the run.
     signal: optional
         The primary trading signal/alert object for context.
+    portfolio_state: dict | None
+        Final portfolio allocation state with target vs current data.
     """
 
-    lines = [f"Nuclear {mode} Bot Report"]
+    lines = [f"🤖 Nuclear {mode} Bot Report"]
     
     # Status
     if success:
-        lines.append("Status: Completed")
+        lines.append("✅ Status: Completed")
     else:
-        lines.append("Status: Failed")
+        lines.append("❌ Status: Failed")
     
     # Signal detected
     if signal is not None:
@@ -85,27 +88,48 @@ def build_execution_report(
             sig_line = f"{signal.action} {signal.symbol}"
             if hasattr(signal, "reason") and signal.reason:
                 sig_line += f" - {signal.reason}"
-            lines.append(f"Signal: {sig_line}")
+            lines.append(f"📊 Signal: {sig_line}")
         except Exception:
-            lines.append("Signal: Error reading signal data")
+            lines.append("📊 Signal: Error reading signal data")
     else:
-        lines.append("Signal: None detected")
+        lines.append("📊 Signal: None detected")
 
     # Orders executed
     if orders and len(orders) > 0:
-        lines.append(f"Orders: {len(orders)} executed")
+        lines.append(f"⚡ Orders: {len(orders)} executed")
         for order in orders:
             side = order.get("side")
             side = side.value if hasattr(side, "value") else str(side)
             symbol = order.get("symbol", "N/A")
             qty = order.get("qty", 0)
             value = order.get("estimated_value", 0)
-            lines.append(f"- {side.upper()} {qty:.6f} {symbol} (${value:.2f})")
+            lines.append(f"  • {side.upper()} {qty:.6f} {symbol} (${value:.2f})")
     else:
-        lines.append("Orders: None executed")
+        lines.append("⚡ Orders: None executed")
+    
+    # Final portfolio state
+    if portfolio_state and "allocations" in portfolio_state:
+        lines.append("")
+        lines.append("🏁 FINAL PORTFOLIO STATE:")
+        
+        total_value = portfolio_state.get("total_value", 0)
+        if total_value > 0:
+            lines.append(f"💰 Portfolio Value: ${total_value:,.2f}")
+        
+        allocations = portfolio_state["allocations"]
+        if allocations:
+            lines.append("🎯 Target vs Current:")
+            for symbol, data in allocations.items():
+                target_pct = data.get("target_percent", 0)
+                current_pct = data.get("current_percent", 0) 
+                target_value = data.get("target_value", 0)
+                current_value = data.get("current_value", 0)
+                
+                lines.append(f"  {symbol}: Target {target_pct:.1f}% (${target_value:,.2f}) | Current {current_pct:.1f}% (${current_value:,.2f})")
     
     # Errors if any
     if not success:
-        lines.append("Note: Check logs for error details")
+        lines.append("")
+        lines.append("⚠️ Note: Check logs for error details")
 
     return "\n".join(lines)

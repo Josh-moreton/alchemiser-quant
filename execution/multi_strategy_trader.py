@@ -36,6 +36,7 @@ class MultiStrategyExecutionResult:
     account_info_before: Dict
     account_info_after: Dict
     execution_summary: Dict
+    final_portfolio_state: Optional[Dict] = None
 
 
 class MultiStrategyAlpacaTrader(AlpacaTradingBot):
@@ -109,6 +110,12 @@ class MultiStrategyAlpacaTrader(AlpacaTradingBot):
             if not self.paper_trading and orders_executed:
                 self._trigger_post_trade_validation(strategy_signals, orders_executed)
             
+            # Capture final portfolio state for reporting
+            final_positions = self.get_positions()
+            final_portfolio_state = self._build_portfolio_state_data(
+                consolidated_portfolio, account_info_after, final_positions
+            )
+            
             # Create result object
             result = MultiStrategyExecutionResult(
                 success=True,
@@ -117,7 +124,8 @@ class MultiStrategyAlpacaTrader(AlpacaTradingBot):
                 orders_executed=orders_executed,
                 account_info_before=account_info_before,
                 account_info_after=account_info_after,
-                execution_summary=execution_summary
+                execution_summary=execution_summary,
+                final_portfolio_state=final_portfolio_state
             )
             
             return result
@@ -135,7 +143,8 @@ class MultiStrategyAlpacaTrader(AlpacaTradingBot):
                 orders_executed=[],
                 account_info_before=account_info_before if 'account_info_before' in locals() else {},
                 account_info_after={},
-                execution_summary={'error': str(e)}
+                execution_summary={'error': str(e)},
+                final_portfolio_state=None
             )
     
     def rebalance_portfolio_with_tracking(self, target_portfolio: Dict[str, float], 
@@ -342,9 +351,6 @@ class MultiStrategyAlpacaTrader(AlpacaTradingBot):
             # Get current positions from Alpaca
             current_positions = self.get_positions()
             
-            # Get strategy position tracking
-            strategy_positions = self.strategy_manager.get_current_positions()
-            
             # Create comprehensive report
             report = {
                 'timestamp': datetime.now().isoformat(),
@@ -352,10 +358,6 @@ class MultiStrategyAlpacaTrader(AlpacaTradingBot):
                     k.value: v for k, v in self.strategy_manager.strategy_allocations.items()
                 },
                 'current_positions': current_positions,
-                'strategy_position_tracking': {
-                    strategy.value: [pos.to_dict() for pos in positions]
-                    for strategy, positions in strategy_positions.items()
-                },
                 'performance_summary': self.strategy_manager.get_strategy_performance_summary()
             }
             
@@ -364,6 +366,43 @@ class MultiStrategyAlpacaTrader(AlpacaTradingBot):
         except Exception as e:
             logging.error(f"Error generating performance report: {e}")
             return {'error': str(e)}
+    
+    def _build_portfolio_state_data(self, target_portfolio: Dict[str, float], 
+                                   account_info: Dict, current_positions: Dict) -> Dict:
+        """
+        Build portfolio state data for reporting purposes
+        
+        Args:
+            target_portfolio: Target allocation weights by symbol
+            account_info: Current account information
+            current_positions: Current positions from get_positions()
+            
+        Returns:
+            Dictionary with portfolio state data for Telegram reporting
+        """
+        portfolio_value = account_info.get('portfolio_value', 0.0)
+        
+        # Calculate target and current values
+        allocations = {}
+        all_symbols = set(target_portfolio.keys()) | set(current_positions.keys())
+        
+        for symbol in all_symbols:
+            target_weight = target_portfolio.get(symbol, 0.0)
+            target_value = portfolio_value * target_weight
+            current_value = current_positions.get(symbol, {}).get('market_value', 0.0)
+            current_weight = current_value / portfolio_value if portfolio_value > 0 else 0.0
+            
+            allocations[symbol] = {
+                'target_percent': target_weight * 100,
+                'current_percent': current_weight * 100,
+                'target_value': target_value,
+                'current_value': current_value
+            }
+        
+        return {
+            'total_value': portfolio_value,
+            'allocations': allocations
+        }
     
     def display_multi_strategy_summary(self, execution_result: MultiStrategyExecutionResult):
         """Display comprehensive summary of multi-strategy execution"""
