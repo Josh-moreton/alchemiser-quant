@@ -1,4 +1,7 @@
-# Core trading components
 """
-Core package initializer for LQQ3 trading bot.
+Core trading components for The Alchemiser.
 """
+
+from .common import ActionType
+
+__all__ = ['ActionType']

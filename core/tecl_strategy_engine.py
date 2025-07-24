@@ -38,10 +38,8 @@ warnings.filterwarnings('ignore')
 setup_logging()
 
 
-class ActionType(Enum):
-    BUY = "BUY"
-    SELL = "SELL"
-    HOLD = "HOLD"
+# Import ActionType from common module
+from .common import ActionType
 
 
 class TECLStrategyEngine:

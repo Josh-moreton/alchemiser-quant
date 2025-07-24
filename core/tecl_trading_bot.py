@@ -27,27 +27,10 @@ import numpy as np
 # Local imports
 from .indicators import TechnicalIndicators
 from .config import Config
+from .logging_utils import setup_logging
 
 warnings.filterwarnings('ignore')
-
-# Load configuration
-config = Config()
-logging_config = config['logging']
-
-# Configure logging
-from .s3_utils import S3FileHandler
-from typing import List
-import logging
-
-handlers: List[logging.Handler] = [logging.StreamHandler()]
-
-# Add S3 handler for logs
-if logging_config.get('tecl_alerts_log', '').startswith('s3://'):
-    s3_handler = S3FileHandler(logging_config['tecl_alerts_log'])
-    s3_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
-    handlers.append(s3_handler)
-elif 'tecl_alerts_log' in logging_config:
-    handlers.append(logging.FileHandler(logging_config['tecl_alerts_log']))
+setup_logging()  # Centralized logging setup
 
 
 # Import Alert from alert_service
@@ -58,11 +41,8 @@ from .data_provider import UnifiedDataProvider
 
 from enum import Enum
 
-# ActionType enum for clarity and safety
-class ActionType(Enum):
-    BUY = "BUY"
-    SELL = "SELL"
-    HOLD = "HOLD"
+# Import ActionType from common module
+from .common import ActionType
 
 
 class TECLStrategyEngine:

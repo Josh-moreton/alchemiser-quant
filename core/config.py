@@ -2,7 +2,15 @@ import os
 import yaml
 
 class Config:
-    def __init__(self, config_path=None):
+    _instance = None
+    
+    def __new__(cls, config_path=None):
+        if cls._instance is None:
+            cls._instance = super(Config, cls).__new__(cls)
+            cls._instance._load_config(config_path)
+        return cls._instance
+    
+    def _load_config(self, config_path=None):
         if config_path is None:
             config_path = os.path.join(os.path.dirname(__file__), '..', 'config.yaml')
         with open(config_path, 'r') as f:

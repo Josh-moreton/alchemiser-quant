@@ -9,49 +9,22 @@ import json
 import logging
 import sys
 import time
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple
-
-# Centralized logging setup
-from core.logging_utils import setup_logging
-setup_logging()
-# Alpaca imports
-from alpaca.trading.client import TradingClient
-
-# Alpaca order enums
-from alpaca.trading.requests import MarketOrderRequest, GetOrdersRequest, LimitOrderRequest
-from alpaca.trading.enums import OrderSide, TimeInForce
-
-# Import UnifiedDataProvider
-from core.data_provider import UnifiedDataProvider
-from core.config import Config
-
-# Add src directory to Python path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
-
-# Load environment variables
-
-import os
-import json
-import logging
-import sys
-import time
 import traceback
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 
 # Centralized logging setup
 from core.logging_utils import setup_logging
-setup_logging()
+from core.data_provider import UnifiedDataProvider
+from core.config import Config
 
 # Alpaca imports
 from alpaca.trading.client import TradingClient
 from alpaca.trading.requests import MarketOrderRequest, GetOrdersRequest, LimitOrderRequest
 from alpaca.trading.enums import OrderSide, TimeInForce
 
-# Import UnifiedDataProvider
-from core.data_provider import UnifiedDataProvider
-from core.config import Config
+# Initialize logging once
+setup_logging()
 
 def is_market_open(trading_client):
     clock = trading_client.get_clock()

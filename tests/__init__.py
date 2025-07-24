@@ -1,4 +1,3 @@
-# Tests module
 """
-Tests package initializer for LQQ3 trading bot.
+Test suite for The Alchemiser trading bot.
 """

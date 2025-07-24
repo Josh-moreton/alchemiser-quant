@@ -23,31 +23,24 @@ import datetime as dt
 # Third-party imports
 import pandas as pd
 import numpy as np
-# Centralized logging setup
+
+# Local imports
 from .logging_utils import setup_logging
 from .config import Config
+from .indicators import TechnicalIndicators
+
+# Setup
+warnings.filterwarnings('ignore')
 config = Config()
 logging_config = config['logging']
 
-# Centralized logging setup
-import os
+# Initialize logging once
 level_str = logging_config.get('level', 'INFO').upper()
 level_map = {
-    'CRITICAL': logging.CRITICAL,
-    'ERROR': logging.ERROR,
-    'WARNING': logging.WARNING,
-    'INFO': logging.INFO,
-    'DEBUG': logging.DEBUG,
-    'NOTSET': logging.NOTSET
+    'CRITICAL': logging.CRITICAL, 'ERROR': logging.ERROR, 'WARNING': logging.WARNING,
+    'INFO': logging.INFO, 'DEBUG': logging.DEBUG, 'NOTSET': logging.NOTSET
 }
 setup_logging(log_level=level_map.get(level_str, logging.INFO))
-
-from .indicators import TechnicalIndicators
-
-warnings.filterwarnings('ignore')
-
-# Ensure root logger level is set correctly
-logging.getLogger().setLevel(level_map.get(level_str, logging.INFO))
 
 
 

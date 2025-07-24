@@ -17,11 +17,8 @@ import numpy as np
 import pandas as pd
 from enum import Enum
 
-# Import action types for consistency  
-class ActionType(Enum):
-    BUY = "BUY"
-    SELL = "SELL"
-    HOLD = "HOLD"
+# Import action types from common module
+from .common import ActionType
 
 
 class NuclearStrategyEngine:
