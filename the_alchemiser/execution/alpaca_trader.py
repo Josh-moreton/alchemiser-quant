@@ -478,6 +478,9 @@ class AlpacaTradingBot:
                 for symbol, pos in current_positions.items():
                     target_value = target_values.get(symbol, 0.0)
                     current_value = current_values[symbol]
+                    # Calculate allocation percentages
+                    target_percent = target_value / portfolio_value if portfolio_value > 0 else 0.0
+                    current_percent = current_value / portfolio_value if portfolio_value > 0 else 0.0
 
                     # If the target is zero (or very close), liquidate the entire position, even if tiny
                     if target_value <= 0.0 and pos['qty'] > 0:
@@ -494,7 +497,8 @@ class AlpacaTradingBot:
                             'reason': 'entire position (target 0%)'
                         })
                         total_proceeds_expected += estimated_proceeds
-                    elif current_value > target_value + 1.0:  # Need to sell (with $1 tolerance)
+                    # Only sell if allocation difference is at least 1%
+                    elif (current_value > target_value + 1.0) and (abs(target_percent - current_percent) >= 0.01):
                         value_to_sell = current_value - target_value
                         current_price = self.get_current_price(symbol)
                         if current_price <= 0:
@@ -512,19 +516,22 @@ class AlpacaTradingBot:
                                 'reason': f'excess ${value_to_sell:.2f}'
                             })
                             total_proceeds_expected += estimated_proceeds
-                
+
                 # Calculate buys (positions to increase or add)
                 for symbol, target_value in target_values.items():
                     current_value = current_values.get(symbol, 0.0)
-                    
-                    if target_value > current_value + 1.0:  # Need to buy (with $1 tolerance)
+                    target_percent = target_value / portfolio_value if portfolio_value > 0 else 0.0
+                    current_percent = current_value / portfolio_value if portfolio_value > 0 else 0.0
+
+                    # Only buy if allocation difference is at least 1%
+                    if (target_value > current_value + 1.0) and (abs(target_percent - current_percent) >= 0.01):
                         value_to_buy = target_value - current_value
                         current_price = self.get_current_price(symbol)
-                        
+
                         if current_price <= 0:
                             logging.error(f"Cannot get price for {symbol}, skipping")
                             continue
-                        
+
                         buy_orders_plan.append({
                             'symbol': symbol,
                             'value_needed': value_to_buy,
