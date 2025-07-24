@@ -44,36 +44,43 @@ logging_config = config['logging']
 os.makedirs('data/logs', exist_ok=True)
 
 # Set up file-based logging for all system logs
+
 def setup_file_logging():
-    """Configure logging to send all logs to files, keeping terminal clean"""
-    
-    # Create file handler with rotation
-    file_handler = RotatingFileHandler(
-        'data/logs/trading_bot.log',
-        maxBytes=10*1024*1024,  # 10MB
-        backupCount=5
-    )
-    
-    # Create detailed formatter for file logs
-    file_formatter = logging.Formatter(
-        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    )
-    file_handler.setFormatter(file_formatter)
-    
-    # Configure root logger to use file handler only
+    """Configure logging to send all logs to S3 in Lambda, file locally."""
+    import os
+    from core.s3_utils import S3FileHandler
     root_logger = logging.getLogger()
     root_logger.setLevel(logging.INFO)
     root_logger.handlers.clear()  # Remove any existing handlers
-    root_logger.addHandler(file_handler)
-    
+
+    if os.environ.get("AWS_LAMBDA_FUNCTION_NAME"):
+        # Lambda: log to S3 only
+        s3_log_path = logging_config.get('alpaca_log')
+        s3_handler = S3FileHandler(s3_log_path)
+        s3_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+        root_logger.addHandler(s3_handler)
+    else:
+        # Local/dev: log to file (and optionally S3)
+        log_path = "data/logs/trading_bot.log"
+        file_handler = RotatingFileHandler(
+            log_path,
+            maxBytes=10*1024*1024,  # 10MB
+            backupCount=5
+        )
+        file_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+        root_logger.addHandler(file_handler)
+        # Optionally, also add S3 handler locally:
+        # s3_log_path = logging_config.get('alpaca_log')
+        # s3_handler = S3FileHandler(s3_log_path)
+        # s3_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+        # root_logger.addHandler(s3_handler)
+
     # Set appropriate levels for third-party loggers
     logging.getLogger('botocore').setLevel(logging.WARNING)
     logging.getLogger('urllib3').setLevel(logging.WARNING)
     logging.getLogger('alpaca').setLevel(logging.INFO)
     logging.getLogger('boto3').setLevel(logging.WARNING)
     logging.getLogger('s3transfer').setLevel(logging.WARNING)
-    
-    return file_handler
 
 # Initialize file-based logging
 setup_file_logging()

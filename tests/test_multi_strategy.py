@@ -142,12 +142,16 @@ def test_position_tracking():
     try:
         manager = MultiStrategyManager()
         
-        # Get current positions
+        # Get current positions (should be empty as tracking between runs is disabled)
         positions = manager.get_current_positions()
-        print(f"✅ Position tracking loaded: {len(positions)} strategy types")
+        print(f"✅ Position tracking disabled: {len(positions)} strategy types with empty position lists")
         
         for strategy, pos_list in positions.items():
             print(f"   {strategy.value}: {len(pos_list)} positions")
+        
+        # Verify all position lists are empty (since tracking between runs is disabled)
+        assert all(len(pos_list) == 0 for pos_list in positions.values()), "Position lists should be empty"
+        print("✅ All position lists are empty as expected")
         
         return True, {'positions': positions}
         
@@ -170,7 +174,6 @@ def test_config_integration():
         required_keys = [
             'multi_strategy_alerts',
             'multi_strategy_log',
-            'strategy_positions',
             'tecl_strategy_log'
         ]
         

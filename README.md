@@ -222,7 +222,7 @@ python tests/test_multi_strategy.py
 - Run from project root directory
 - Ensure all dependencies installed: `pip install -r requirements.txt`
 - Check API credentials and network connectivity
-- For multi-strategy: check `/tmp/strategy_positions.json` and logs
+- For multi-strategy: check logs for details
 
 ## 📚 Documentation
 

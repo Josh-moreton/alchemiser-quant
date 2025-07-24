@@ -96,72 +96,17 @@ class MultiStrategyManager:
         self.nuclear_engine = NuclearStrategyEngine(data_provider=shared_data_provider)
         self.tecl_engine = TECLStrategyEngine(data_provider=shared_data_provider)
         
-        # Position tracking file
-        self.positions_file = self.config['logging'].get('strategy_positions', 
-                                                        'data/logs/strategy_positions.json')
-        
-        # Ensure directory exists for local files only
-        if not self.positions_file.startswith('s3://'):
-            os.makedirs(os.path.dirname(self.positions_file), exist_ok=True)
-        
         logging.debug(f"MultiStrategyManager initialized with allocations: {self.strategy_allocations}")
     
     def get_current_positions(self) -> Dict[StrategyType, List[StrategyPosition]]:
-        """Load current strategy positions from file"""
-        try:
-            from .s3_utils import get_s3_handler
-            s3_handler = get_s3_handler()
-            
-            if self.positions_file.startswith('s3://'):
-                # Read from S3
-                data = s3_handler.read_json(self.positions_file)
-                if not data:
-                    return {strategy: [] for strategy in StrategyType}
-            else:
-                # Read from local file
-                if not os.path.exists(self.positions_file):
-                    return {strategy: [] for strategy in StrategyType}
-                
-                with open(self.positions_file, 'r') as f:
-                    data = json.load(f)
-            
-            positions = {strategy: [] for strategy in StrategyType}
-            for strategy_name, position_list in data.get('positions', {}).items():
-                strategy_type = StrategyType(strategy_name)
-                positions[strategy_type] = [
-                    StrategyPosition.from_dict(pos) for pos in position_list
-                ]
-            
-            return positions
-        except Exception as e:
-            logging.error(f"Error loading strategy positions: {e}")
-            return {strategy: [] for strategy in StrategyType}
+        """Return empty positions dict as we're not tracking positions between runs"""
+        logging.debug("Position tracking between runs disabled - returning empty positions")
+        return {strategy: [] for strategy in StrategyType}
     
     def save_positions(self, positions: Dict[StrategyType, List[StrategyPosition]]):
-        """Save strategy positions to file"""
-        try:
-            data = {
-                'timestamp': datetime.now().isoformat(),
-                'positions': {
-                    strategy.value: [pos.to_dict() for pos in pos_list]
-                    for strategy, pos_list in positions.items()
-                }
-            }
-            
-            from .s3_utils import get_s3_handler
-            s3_handler = get_s3_handler()
-            
-            if self.positions_file.startswith('s3://'):
-                # Save to S3
-                s3_handler.write_json(self.positions_file, data)
-            else:
-                # Save to local file
-                with open(self.positions_file, 'w') as f:
-                    json.dump(data, f, indent=2)
-            
-            logging.debug(f"Strategy positions saved to {self.positions_file}")
-        except Exception as e:
-            logging.error(f"Error saving strategy positions: {e}")
+        """Position tracking between runs is disabled - no-op"""
+        logging.debug("Position tracking between runs disabled - not saving positions")
+        pass
     
     def run_all_strategies(self) -> Tuple[Dict[StrategyType, Any], Dict[str, float]]:
         """
