@@ -11,6 +11,7 @@ Key Features:
 - Consolidated portfolio rebalancing
 - Strategy performance attribution
 - Enhanced reporting and logging
+- Post-trade indicator validation (live trading only)
 """
 
 import json
@@ -40,15 +41,17 @@ class MultiStrategyExecutionResult:
 class MultiStrategyAlpacaTrader(AlpacaTradingBot):
     """Enhanced Alpaca trader with multi-strategy support"""
     
-    def __init__(self, paper_trading: bool = True, strategy_allocations: Optional[Dict[StrategyType, float]] = None):
+    def __init__(self, paper_trading: bool = True, strategy_allocations: Optional[Dict[StrategyType, float]] = None, 
+                 ignore_market_hours: bool = False):
         """
         Initialize multi-strategy Alpaca trader
         
         Args:
             paper_trading: Whether to use paper trading account
             strategy_allocations: Portfolio allocation between strategies
+            ignore_market_hours: Whether to ignore market hours when placing orders
         """
-        super().__init__(paper_trading=paper_trading)
+        super().__init__(paper_trading=paper_trading, ignore_market_hours=ignore_market_hours)
         
         # Initialize strategy manager
         self.strategy_manager = MultiStrategyManager(strategy_allocations)
@@ -101,6 +104,10 @@ class MultiStrategyAlpacaTrader(AlpacaTradingBot):
             
             # Log execution details
             self._log_multi_strategy_execution(execution_summary)
+            
+            # Post-trade validation (live trading only)
+            if not self.paper_trading and orders_executed:
+                self._trigger_post_trade_validation(strategy_signals, orders_executed)
             
             # Create result object
             result = MultiStrategyExecutionResult(
@@ -392,6 +399,67 @@ class MultiStrategyAlpacaTrader(AlpacaTradingBot):
             print(f"\n⚡ No trades needed - portfolio already aligned")
         
         print()
+    
+    def _trigger_post_trade_validation(self, strategy_signals: Dict[StrategyType, Any], 
+                                     orders_executed: List[Dict]):
+        """
+        Trigger post-trade technical indicator validation for live trading
+        
+        Args:
+            strategy_signals: Strategy signals that led to trades
+            orders_executed: List of executed orders
+        """
+        try:
+            from core.post_trade_validator import validate_after_live_trades
+            
+            # Extract symbols from strategy signals that were actually used
+            nuclear_symbols = []
+            tecl_symbols = []
+            
+            # Get symbols from strategy signals
+            for strategy_type, signal in strategy_signals.items():
+                symbol = signal.get('symbol')
+                if symbol and symbol != 'NUCLEAR_PORTFOLIO' and symbol != 'BEAR_PORTFOLIO':
+                    if strategy_type == StrategyType.NUCLEAR:
+                        nuclear_symbols.append(symbol)
+                    elif strategy_type == StrategyType.TECL:
+                        tecl_symbols.append(symbol)
+            
+            # Also include symbols from executed orders to ensure we validate everything traded
+            order_symbols = {order['symbol'] for order in orders_executed if 'symbol' in order}
+            
+            # Map order symbols to strategies based on our known strategy symbols
+            nuclear_strategy_symbols = ['SPY', 'IOO', 'TQQQ', 'VTV', 'XLF', 'VOX', 'UVXY', 'BTAL', 
+                                      'QQQ', 'SQQQ', 'PSQ', 'UPRO', 'TLT', 'IEF', 
+                                      'SMR', 'BWXT', 'LEU', 'EXC', 'NLR', 'OKLO']
+            tecl_strategy_symbols = ['XLK', 'KMLM', 'SPXL', 'TECL', 'BIL', 'BSV', 'UVXY', 'SQQQ']
+            
+            for symbol in order_symbols:
+                if symbol in nuclear_strategy_symbols and symbol not in nuclear_symbols:
+                    nuclear_symbols.append(symbol)
+                elif symbol in tecl_strategy_symbols and symbol not in tecl_symbols:
+                    tecl_symbols.append(symbol)
+            
+            # Remove duplicates and limit to avoid rate limits
+            nuclear_symbols = list(set(nuclear_symbols))[:5]  # Limit to 5 symbols per strategy
+            tecl_symbols = list(set(tecl_symbols))[:5]
+            
+            if nuclear_symbols or tecl_symbols:
+                logging.info(f"🔍 Triggering post-trade validation for "
+                           f"Nuclear: {nuclear_symbols}, TECL: {tecl_symbols}")
+                
+                # Trigger validation asynchronously (non-blocking)
+                validate_after_live_trades(
+                    nuclear_symbols=nuclear_symbols if nuclear_symbols else None,
+                    tecl_symbols=tecl_symbols if tecl_symbols else None,
+                    async_mode=True  # Run in background thread
+                )
+            else:
+                logging.info("🔍 No symbols to validate in post-trade validation")
+                
+        except Exception as e:
+            logging.error(f"❌ Post-trade validation failed: {e}")
+            # Don't raise - validation failure shouldn't affect trading
 
 
 def main():

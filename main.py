@@ -79,9 +79,6 @@ def setup_file_logging():
 setup_file_logging()
 
 
-            print(regime_line)
-    
-    print("└─" + "─" * 58 + "─┘")
 
 
 def generate_multi_strategy_signals():
@@ -197,7 +194,8 @@ def run_multi_strategy_trading(live_trading: bool = False, ignore_market_hours: 
             strategy_allocations={
                 StrategyType.NUCLEAR: 0.5,
                 StrategyType.TECL: 0.5
-            }
+            },
+            ignore_market_hours=ignore_market_hours
         )
         
         # Check market hours unless ignore_market_hours is set

@@ -73,14 +73,13 @@ def wait_for_settlement(trading_client, sell_orders: List[Dict], max_wait_time: 
 
 def improved_rebalance_portfolio(self, target_portfolio: Dict[str, float]) -> List[Dict]:
     """
-    Efficiently rebalance portfolio to match target allocations.
-    Uses buying power as the base for allocation calculations to handle cash properly.
+    Rebalance portfolio to match target allocations.
     
-    Key improvements:
-    1. Uses buying power (not portfolio value) as allocation base
-    2. Sells unwanted positions completely before buying new ones
-    3. Prioritizes high-weight target positions
-    4. Handles complete portfolio composition changes efficiently
+    Process:
+    1. Calculate targets and current allocations based on portfolio value
+    2. Calculate deltas (what needs buying/selling)
+    3. Round down all values to ensure we stay within buying power
+    4. Execute all sells first, wait for settlement, then execute all buys
     
     Args:
         target_portfolio: Dict of {symbol: weight} where weights sum to ~1.0
@@ -89,8 +88,8 @@ def improved_rebalance_portfolio(self, target_portfolio: Dict[str, float]) -> Li
         List of order dictionaries for executed trades
     """
     try:
-        print("🔄 Starting improved portfolio rebalancing...")
-        logging.info("🔄 Starting improved portfolio rebalancing...")
+        print("🔄 Starting portfolio rebalancing...")
+        logging.info("🔄 Starting portfolio rebalancing...")
         
         # Get account information
         account_info = self.get_account_info()
@@ -99,154 +98,195 @@ def improved_rebalance_portfolio(self, target_portfolio: Dict[str, float]) -> Li
             logging.error("❌ Unable to get account information")
             return []
         
-        # Use buying power as the base for calculations (includes cash + margin)
-        total_buying_power = account_info.get('buying_power', 0.0)
-        cash = account_info.get('cash', 0.0)
         portfolio_value = account_info.get('portfolio_value', 0.0)
+        cash = account_info.get('cash', 0.0)
         
-        # Cash reserve (5% minimum)
-        cash_reserve_pct = 0.05
-        usable_buying_power = total_buying_power * (1 - cash_reserve_pct)
-        
-        print(f"📊 Account: ${portfolio_value:,.0f} portfolio | ${usable_buying_power:,.0f} usable")
+        print(f"📊 Portfolio Value: ${portfolio_value:,.2f} | Available Cash: ${cash:,.2f}")
 
         # Get current positions
         current_positions = self.get_positions()
 
-        # Calculate target values based on usable buying power (not portfolio value!)
+        # STEP 1: Calculate target and current allocations based on portfolio value
         target_values = {
-            symbol: usable_buying_power * weight 
+            symbol: portfolio_value * weight 
             for symbol, weight in target_portfolio.items()
         }
         
-        # Calculate current values
         current_values = {
             symbol: pos.get('market_value', 0.0) 
             for symbol, pos in current_positions.items()
         }
         
-        print(f"🎯 Target vs Current Allocations (based on ${usable_buying_power:,.2f} usable buying power):")
-        
+        # Display allocations
+        print(f"🎯 Target vs Current Allocations:")
         all_symbols = set(target_portfolio.keys()) | set(current_positions.keys())
         for symbol in sorted(all_symbols):
             target_weight = target_portfolio.get(symbol, 0.0)
             target_value = target_values.get(symbol, 0.0)
             current_value = current_values.get(symbol, 0.0)
-            current_weight = current_value / usable_buying_power if usable_buying_power > 0 else 0.0
+            current_weight = current_value / portfolio_value if portfolio_value > 0 else 0.0
             
             print(f"   {symbol:>4}: Target {target_weight:>5.1%} (${target_value:>8,.2f}) | Current {current_weight:>5.1%} (${current_value:>8,.2f})")
             logging.info(f"   {symbol}: Target {target_weight:.1%} (${target_value:.2f}) | Current {current_weight:.1%} (${current_value:.2f})")
 
-        orders_executed = []
+        # STEP 2: Calculate deltas (what needs buying/selling)
+        sell_orders_plan = []
+        buy_orders_plan = []
+        total_proceeds_expected = 0.0
+        total_cash_needed = 0.0
         
-        # PHASE 1: Sell positions that are not in target or exceed target
-        print("📉 Sell Orders:")
+        print(f"� Calculating order plan...")
         
-        sells_made = False
+        # Calculate sells (positions to reduce or eliminate)
         for symbol, pos in current_positions.items():
             target_value = target_values.get(symbol, 0.0)
             current_value = current_values[symbol]
             
-            # If not in target portfolio, sell entire position
-            if target_value == 0.0:
-                sell_qty = pos['qty']
-                print(f"   {symbol}: Selling entire position ({sell_qty} shares)")
-                logging.info(f"   {symbol}: Selling entire position ({sell_qty} shares) - not in target portfolio")
-            # If current value exceeds target by more than $1, sell excess
-            elif current_value > target_value + 1.0:
-                excess_value = current_value - target_value
+            if current_value > target_value + 1.0:  # Need to sell (with $1 tolerance)
+                value_to_sell = current_value - target_value
                 current_price = self.get_current_price(symbol)
-                sell_qty = min(round(excess_value / current_price, 6), pos['qty'])
-                print(f"   {symbol}: Selling {sell_qty} shares (excess ${excess_value:.2f})")
-                logging.info(f"   {symbol}: Selling {sell_qty} shares (excess ${excess_value:.2f})")
-            else:
-                continue
+                
+                if current_price <= 0:
+                    logging.error(f"Cannot get price for {symbol}, skipping")
+                    continue
+                
+                # Round DOWN shares to sell to be conservative
+                max_shares = pos['qty']
+                shares_to_sell = min(int(value_to_sell / current_price * 1000000) / 1000000, max_shares)  # Round down to 6 decimals
+                
+                if shares_to_sell > 0:
+                    estimated_proceeds = shares_to_sell * current_price
+                    sell_orders_plan.append({
+                        'symbol': symbol,
+                        'qty': shares_to_sell,
+                        'estimated_proceeds': estimated_proceeds,
+                        'reason': 'entire position' if target_value == 0 else f'excess ${value_to_sell:.2f}'
+                    })
+                    total_proceeds_expected += estimated_proceeds
+        
+        # Calculate buys (positions to increase or add)
+        for symbol, target_value in target_values.items():
+            current_value = current_values.get(symbol, 0.0)
             
-            if sell_qty > 0:
-                order_id = self.place_order(symbol, sell_qty, OrderSide.SELL)
+            if target_value > current_value + 1.0:  # Need to buy (with $1 tolerance)
+                value_to_buy = target_value - current_value
+                current_price = self.get_current_price(symbol)
+                
+                if current_price <= 0:
+                    logging.error(f"Cannot get price for {symbol}, skipping")
+                    continue
+                
+                buy_orders_plan.append({
+                    'symbol': symbol,
+                    'value_needed': value_to_buy,
+                    'price': current_price
+                })
+                total_cash_needed += value_to_buy
+        
+        # STEP 3: Adjust buy orders to fit available cash (round down)
+        projected_cash = cash + total_proceeds_expected
+        
+        print(f"💰 Cash Analysis:")
+        print(f"   Current cash: ${cash:.2f}")
+        print(f"   Expected proceeds: ${total_proceeds_expected:.2f}")
+        print(f"   Projected cash: ${projected_cash:.2f}")
+        print(f"   Cash needed for targets: ${total_cash_needed:.2f}")
+        
+        if total_cash_needed > projected_cash:
+            # Scale down buy orders proportionally
+            scale_factor = projected_cash / total_cash_needed if total_cash_needed > 0 else 0
+            print(f"⚠️  Insufficient cash, scaling down buys by {scale_factor:.1%}")
+            
+            for buy_plan in buy_orders_plan:
+                buy_plan['value_needed'] *= scale_factor
+        
+        # Convert buy plans to actual quantities (round DOWN)
+        final_buy_orders = []
+        for buy_plan in buy_orders_plan:
+            shares_to_buy = int(buy_plan['value_needed'] / buy_plan['price'] * 1000000) / 1000000  # Round down to 6 decimals
+            if shares_to_buy > 0:
+                final_buy_orders.append({
+                    'symbol': buy_plan['symbol'],
+                    'qty': shares_to_buy,
+                    'estimated_cost': shares_to_buy * buy_plan['price']
+                })
+        
+        # Display plan
+        print(f"📋 Execution Plan:")
+        print(f"   Sells: {len(sell_orders_plan)} orders, ${total_proceeds_expected:.2f} proceeds")
+        print(f"   Buys: {len(final_buy_orders)} orders, ${sum(o['estimated_cost'] for o in final_buy_orders):.2f} cost")
+        
+        orders_executed = []
+        
+        # STEP 4: Execute all sells first
+        print("📉 Executing Sell Orders:")
+        if sell_orders_plan:
+            for sell_plan in sell_orders_plan:
+                symbol = sell_plan['symbol']
+                qty = sell_plan['qty']
+                print(f"   {symbol}: Selling {qty} shares ({sell_plan['reason']})")
+                
+                order_id = self.place_order(symbol, qty, OrderSide.SELL)
                 if order_id:
-                    estimated_value = sell_qty * self.get_current_price(symbol)
                     orders_executed.append({
                         'symbol': symbol,
                         'side': OrderSide.SELL,
-                        'qty': sell_qty,
+                        'qty': qty,
                         'order_id': order_id,
-                        'estimated_value': estimated_value
+                        'estimated_value': sell_plan['estimated_proceeds']
                     })
-                    sells_made = True
-                    print(f"   ✅ {symbol}: Sold {sell_qty} shares (Order ID: {order_id})")
-                    logging.info(f"   ✅ {symbol}: Sold {sell_qty} shares (Order ID: {order_id})")
+                    print(f"   ✅ {symbol}: Sell order placed (ID: {order_id})")
                 else:
                     print(f"   ❌ {symbol}: Failed to place sell order")
-                    logging.error(f"   ❌ {symbol}: Failed to place sell order")
-        
-        if not sells_made:
+                    logging.error(f"Failed to place sell order for {symbol}")
+        else:
             print("   No sells needed")
-            logging.info("   No sells needed")
-
-        # Wait for settlement if we made sells
-        if sells_made:
-            print("⏳ Waiting for settlement...")
-            sell_orders = [order for order in orders_executed if order.get('side') == OrderSide.SELL]
-            
-            # Poll order status instead of fixed sleep
+        
+        # Wait for settlement
+        if sell_orders_plan:
+            print("⏳ Waiting for sell order settlement...")
+            sell_orders = [o for o in orders_executed if o['side'] == OrderSide.SELL]
             settlement_success = wait_for_settlement(self.trading_client, sell_orders, max_wait_time=60, poll_interval=2.0)
             
             if not settlement_success:
-                logging.warning("Some sell orders may not have settled completely, proceeding with caution")
+                logging.warning("Some sell orders may not have settled completely")
             
-            # Refresh account info and positions after settlement
+            # Refresh account info
             account_info = self.get_account_info()
-            current_positions = self.get_positions()
-            cash = account_info.get('cash', 0.0)
-
-        # PHASE 2: Buy positions to reach targets
-        print("📈 Buy Orders:")
+            available_cash = account_info.get('cash', 0.0)
+            print(f"💰 Cash after settlement: ${available_cash:.2f}")
+        else:
+            available_cash = cash
         
-        available_cash = cash
-        
-        # Sort by target weight (largest first) to prioritize important positions
-        for symbol in sorted(target_portfolio.keys(), key=lambda x: target_portfolio[x], reverse=True):
-            target_value = target_values[symbol]
-            
-            # Get updated current value
-            current_value = 0.0
-            if symbol in current_positions:
-                current_value = current_positions[symbol].get('market_value', 0.0)
-            
-            value_to_buy = target_value - current_value
-            
-            if value_to_buy > 1.0 and available_cash > 1.0:
-                current_price = self.get_current_price(symbol)
-                actual_value_to_buy = min(value_to_buy, available_cash)
+        # STEP 5: Execute all buys
+        print("📈 Executing Buy Orders:")
+        if final_buy_orders:
+            for buy_plan in final_buy_orders:
+                symbol = buy_plan['symbol']
+                qty = buy_plan['qty']
+                estimated_cost = buy_plan['estimated_cost']
                 
-                # Calculate exact shares with proper rounding
-                buy_qty = round(actual_value_to_buy / current_price, 6)
-                required_cash = buy_qty * current_price
-                
-                print(f"   {symbol}: Buying {buy_qty} shares (${required_cash:.2f})")
-                logging.info(f"   {symbol}: Need ${value_to_buy:.2f}, buying ${actual_value_to_buy:.2f} ({buy_qty} shares)")
-                
-                if buy_qty > 0 and required_cash <= available_cash:
-                    order_id = self.place_order(symbol, buy_qty, OrderSide.BUY)
+                if estimated_cost <= available_cash:
+                    print(f"   {symbol}: Buying {qty} shares (${estimated_cost:.2f})")
+                    
+                    order_id = self.place_order(symbol, qty, OrderSide.BUY)
                     if order_id:
                         orders_executed.append({
                             'symbol': symbol,
                             'side': OrderSide.BUY,
-                            'qty': buy_qty,
+                            'qty': qty,
                             'order_id': order_id,
-                            'estimated_value': required_cash
+                            'estimated_value': estimated_cost
                         })
-                        available_cash -= required_cash
-                        logging.info(f"   ✅ {symbol}: Bought {buy_qty} shares (Order ID: {order_id})")
+                        available_cash -= estimated_cost
+                        print(f"   ✅ {symbol}: Buy order placed (ID: {order_id})")
                     else:
-                        logging.error(f"   ❌ {symbol}: Failed to place buy order")
+                        print(f"   ❌ {symbol}: Failed to place buy order")
+                        logging.error(f"Failed to place buy order for {symbol}")
                 else:
-                    logging.info(f"   {symbol}: Cannot buy - insufficient cash (need ${required_cash:.2f}, have ${available_cash:.2f})")
-            elif value_to_buy <= 1.0:
-                logging.info(f"   {symbol}: Already at target")
-            else:
-                logging.info(f"   {symbol}: No cash remaining")
+                    print(f"   ❌ {symbol}: Insufficient cash (need ${estimated_cost:.2f}, have ${available_cash:.2f})")
+        else:
+            print("   No buys needed")
 
         print(f"✅ Executed {len(orders_executed)} orders ({sum(1 for o in orders_executed if o['side'] == OrderSide.BUY)} buys, {sum(1 for o in orders_executed if o['side'] == OrderSide.SELL)} sells)")
         logging.info(f"✅ Rebalancing complete. Orders executed: {len(orders_executed)}")
