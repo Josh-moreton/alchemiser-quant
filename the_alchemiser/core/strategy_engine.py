@@ -18,7 +18,7 @@ import pandas as pd
 from enum import Enum
 
 # Import action types from common module
-from .common import ActionType
+from the_alchemiser.core.common import ActionType
 
 
 class NuclearStrategyEngine:

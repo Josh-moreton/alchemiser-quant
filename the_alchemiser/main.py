@@ -32,10 +32,10 @@ import sys
 import os
 import logging
 from logging.handlers import RotatingFileHandler
-from core.config import Config
-from core.ui.cli_formatter import render_technical_indicators
-from core.ui.telegram_formatter import build_single_strategy_message, build_multi_strategy_message
-from core.strategy_manager import StrategyType
+from the_alchemiser.core.config import Config
+from the_alchemiser.core.ui.cli_formatter import render_technical_indicators
+from the_alchemiser.core.ui.telegram_formatter import build_single_strategy_message, build_multi_strategy_message
+from the_alchemiser.core.strategy_manager import StrategyType
 
 # Load config and set logging level from config
 config = Config()
@@ -49,7 +49,7 @@ os.makedirs('data/logs', exist_ok=True)
 def setup_file_logging():
     """Configure logging to send all logs to S3 in Lambda, file locally."""
     import os
-    from core.s3_utils import S3FileHandler
+    from the_alchemiser.core.s3_utils import S3FileHandler
     root_logger = logging.getLogger()
     root_logger.setLevel(logging.INFO)
     root_logger.handlers.clear()  # Remove any existing handlers
@@ -93,8 +93,8 @@ def generate_multi_strategy_signals():
     """
     Generate signals for all strategies (Nuclear + TECL) and return consolidated results.
     """
-    from core.strategy_manager import MultiStrategyManager, StrategyType
-    from core.data_provider import UnifiedDataProvider
+    from the_alchemiser.core.strategy_manager import MultiStrategyManager, StrategyType
+    from the_alchemiser.core.data_provider import UnifiedDataProvider
     
     try:
         # Create shared UnifiedDataProvider once
@@ -177,9 +177,9 @@ def run_multi_strategy_trading(live_trading: bool = False, ignore_market_hours: 
     mode_str = "LIVE" if live_trading else "PAPER"
     
     try:
-        from core.telegram_utils import send_telegram_message
-        from execution.multi_strategy_trader import MultiStrategyAlpacaTrader, StrategyType
-        from execution.alpaca_trader import is_market_open
+        from the_alchemiser.core.telegram_utils import send_telegram_message
+        from the_alchemiser.execution.multi_strategy_trader import MultiStrategyAlpacaTrader, StrategyType
+        from the_alchemiser.execution.alpaca_trader import is_market_open
         
         # Initialize multi-strategy trader
         trader = MultiStrategyAlpacaTrader(

@@ -20,10 +20,10 @@ from datetime import datetime
 from typing import Dict, List, Optional, Tuple, Any
 from dataclasses import dataclass
 
-from core.config import Config
-from core.strategy_manager import MultiStrategyManager, StrategyType
-from core.strategy_order_tracker import StrategyOrderTracker
-from execution.alpaca_trader import AlpacaTradingBot
+from the_alchemiser.core.config import Config
+from the_alchemiser.core.strategy_manager import MultiStrategyManager, StrategyType
+from the_alchemiser.core.strategy_order_tracker import StrategyOrderTracker
+from the_alchemiser.execution.alpaca_trader import AlpacaTradingBot
 
 
 @dataclass
@@ -326,7 +326,7 @@ class MultiStrategyAlpacaTrader(AlpacaTradingBot):
     def _log_multi_strategy_execution(self, execution_summary: Dict):
         """Log detailed execution summary to file"""
         try:
-            from core.s3_utils import get_s3_handler
+            from the_alchemiser.core.s3_utils import get_s3_handler
             s3_handler = get_s3_handler()
             
             if self.multi_strategy_log.startswith('s3://'):
@@ -449,7 +449,7 @@ class MultiStrategyAlpacaTrader(AlpacaTradingBot):
             orders_executed: List of executed orders
         """
         try:
-            from core.post_trade_validator import validate_after_live_trades
+            from the_alchemiser.core.post_trade_validator import validate_after_live_trades
             
             # Extract symbols from strategy signals that were actually used
             nuclear_symbols = []

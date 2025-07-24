@@ -12,7 +12,8 @@ class Config:
     
     def _load_config(self, config_path=None):
         if config_path is None:
-            config_path = os.path.join(os.path.dirname(__file__), '..', 'config.yaml')
+            project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+            config_path = os.path.join(project_root, 'config.yaml')
         with open(config_path, 'r') as f:
             self._config = yaml.safe_load(f)
 

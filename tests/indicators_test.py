@@ -5,14 +5,14 @@ import pandas as pd
 import sys
 import os
 from datetime import datetime, timedelta
-from core.secrets_manager import get_secret
+from the_alchemiser.core.secrets_manager import get_secret
 
 # Add the project root to the path so we can import our modules
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 # Import our own indicators and data provider
-from core.indicators import TechnicalIndicators
-from core.data_provider import UnifiedDataProvider
+from the_alchemiser.core.indicators import TechnicalIndicators
+from the_alchemiser.core.data_provider import UnifiedDataProvider
 
 BASE_URL = "https://api.twelvedata.com"
 

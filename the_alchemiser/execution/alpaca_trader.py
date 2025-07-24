@@ -14,9 +14,9 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 
 # Centralized logging setup
-from core.logging_utils import setup_logging
-from core.data_provider import UnifiedDataProvider
-from core.config import Config
+from the_alchemiser.core.logging_utils import setup_logging
+from the_alchemiser.core.data_provider import UnifiedDataProvider
+from the_alchemiser.core.config import Config
 
 # Alpaca imports
 from alpaca.trading.client import TradingClient
@@ -44,7 +44,7 @@ class AlpacaTradingBot:
             ignore_market_hours (bool, optional): Whether to ignore market hours when placing orders.
                                                Default False.
         """
-        from core.config import Config
+        from the_alchemiser.core.config import Config
         config = Config()
         alpaca_cfg = config['alpaca']
         
@@ -716,7 +716,7 @@ class AlpacaTradingBot:
             config = Config()
             alerts_file = config['logging']['nuclear_alerts_json']
             
-            from core.s3_utils import get_s3_handler
+            from the_alchemiser.core.s3_utils import get_s3_handler
             s3_handler = get_s3_handler()
             
             if alerts_file.startswith('s3://'):
@@ -890,7 +890,7 @@ class AlpacaTradingBot:
             config = Config()
             log_file = config['logging']['alpaca_trades_json']
             
-            from core.s3_utils import get_s3_handler
+            from the_alchemiser.core.s3_utils import get_s3_handler
             s3_handler = get_s3_handler()
             
             if log_file.startswith('s3://'):

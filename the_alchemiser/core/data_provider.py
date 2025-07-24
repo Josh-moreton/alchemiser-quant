@@ -8,8 +8,8 @@ from alpaca.trading.client import TradingClient
 from alpaca.data.historical import StockHistoricalDataClient
 from alpaca.data.requests import StockBarsRequest, StockLatestQuoteRequest
 from alpaca.data.timeframe import TimeFrame
-from .config import Config
-from .secrets_manager import SecretsManager
+from the_alchemiser.core.config import Config
+from the_alchemiser.core.secrets_manager import SecretsManager
 
 
 class UnifiedDataProvider:

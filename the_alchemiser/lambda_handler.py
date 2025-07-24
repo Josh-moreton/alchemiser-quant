@@ -1,4 +1,4 @@
-from main import main
+from the_alchemiser.main import main
 
 def lambda_handler(event=None, context=None):
     result = main(["trade", "--live"])

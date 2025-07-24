@@ -20,9 +20,9 @@ from typing import Dict, List, Optional, Tuple, Any
 from datetime import datetime, timedelta
 from enum import Enum
 
-from .config import Config
-from .nuclear_trading_bot import NuclearStrategyEngine, ActionType
-from .tecl_trading_bot import TECLStrategyEngine
+from the_alchemiser.core.config import Config
+from the_alchemiser.core.nuclear_trading_bot import NuclearStrategyEngine, ActionType
+from the_alchemiser.core.tecl_trading_bot import TECLStrategyEngine
 
 
 class StrategyType(Enum):
@@ -87,7 +87,7 @@ class MultiStrategyManager:
         
         # Use provided shared_data_provider, or create one if not given
         if shared_data_provider is None:
-            from .data_provider import UnifiedDataProvider
+            from the_alchemiser.core.data_provider import UnifiedDataProvider
             shared_data_provider = UnifiedDataProvider(paper_trading=True)
         # Initialize strategy orchestration engines with shared data provider
         self.nuclear_engine = NuclearStrategyEngine(data_provider=shared_data_provider)

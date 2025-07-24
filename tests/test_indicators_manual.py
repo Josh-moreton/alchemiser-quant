@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 import pytest
-from core.indicators import TechnicalIndicators
+from the_alchemiser.core.indicators import TechnicalIndicators
 
 def test_rsi_basic():
     # Create a simple price series

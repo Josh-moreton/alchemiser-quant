@@ -19,8 +19,8 @@ logging.basicConfig(
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
 
-from core.tecl_strategy_engine import TECLStrategyEngine
-from core.data_provider import UnifiedDataProvider
+from the_alchemiser.core.tecl_strategy_engine import TECLStrategyEngine
+from the_alchemiser.core.data_provider import UnifiedDataProvider
 
 def test_tecl_strategy():
     """Test the TECL strategy and show all indicators"""

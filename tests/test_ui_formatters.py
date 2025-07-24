@@ -1,5 +1,5 @@
-from core.ui.cli_formatter import render_technical_indicators
-from core.ui.telegram_formatter import build_multi_strategy_message
+from the_alchemiser.core.ui.cli_formatter import render_technical_indicators
+from the_alchemiser.core.ui.telegram_formatter import build_multi_strategy_message
 from types import SimpleNamespace
 
 

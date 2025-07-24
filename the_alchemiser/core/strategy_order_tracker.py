@@ -21,8 +21,8 @@ from typing import Dict, List, Optional, Set, Any
 from dataclasses import dataclass, asdict
 from enum import Enum
 
-from core.config import Config
-from core.strategy_manager import StrategyType
+from the_alchemiser.core.config import Config
+from the_alchemiser.core.strategy_manager import StrategyType
 
 
 @dataclass
@@ -315,7 +315,7 @@ class StrategyOrderTracker:
     def _load_orders(self) -> Dict[str, Dict]:
         """Load orders from storage"""
         try:
-            from .s3_utils import get_s3_handler
+            from the_alchemiser.core.s3_utils import get_s3_handler
             s3_handler = get_s3_handler()
             
             if self.orders_file.startswith('s3://'):
@@ -344,7 +344,7 @@ class StrategyOrderTracker:
                 'orders': orders
             }
             
-            from .s3_utils import get_s3_handler
+            from the_alchemiser.core.s3_utils import get_s3_handler
             s3_handler = get_s3_handler()
             
             if self.orders_file.startswith('s3://'):
@@ -360,7 +360,7 @@ class StrategyOrderTracker:
     def _load_positions(self) -> Dict[str, List[Dict]]:
         """Load positions from storage"""
         try:
-            from .s3_utils import get_s3_handler
+            from the_alchemiser.core.s3_utils import get_s3_handler
             s3_handler = get_s3_handler()
             
             if self.positions_file.startswith('s3://'):
@@ -399,7 +399,7 @@ class StrategyOrderTracker:
                 'positions': serializable_positions
             }
             
-            from .s3_utils import get_s3_handler
+            from the_alchemiser.core.s3_utils import get_s3_handler
             s3_handler = get_s3_handler()
             
             if self.positions_file.startswith('s3://'):
