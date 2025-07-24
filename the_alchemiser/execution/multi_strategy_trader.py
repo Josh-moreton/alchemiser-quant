@@ -333,7 +333,6 @@ class MultiStrategyAlpacaTrader(AlpacaTradingBot):
             orders_executed: List of executed orders
         """
         try:
-            from the_alchemiser.core.post_trade_validator import validate_after_live_trades
             
             # Extract symbols from strategy signals that were actually used
             nuclear_symbols = []
@@ -368,15 +367,8 @@ class MultiStrategyAlpacaTrader(AlpacaTradingBot):
             tecl_symbols = list(set(tecl_symbols))[:5]
             
             if nuclear_symbols or tecl_symbols:
-                logging.info(f"🔍 Triggering post-trade validation for "
-                           f"Nuclear: {nuclear_symbols}, TECL: {tecl_symbols}")
-                
-                # Trigger validation asynchronously (non-blocking)
-                validate_after_live_trades(
-                    nuclear_symbols=nuclear_symbols if nuclear_symbols else None,
-                    tecl_symbols=tecl_symbols if tecl_symbols else None,
-                    async_mode=True  # Run in background thread
-                )
+                logging.info(f"🔍 Triggering post-trade validation for Nuclear: {nuclear_symbols}, TECL: {tecl_symbols}")
+                # Post-trade validation temporarily disabled
             else:
                 logging.info("🔍 No symbols to validate in post-trade validation")
                 

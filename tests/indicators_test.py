@@ -5,7 +5,7 @@ import pandas as pd
 import sys
 import os
 from datetime import datetime, timedelta
-from the_alchemiser.core.secrets_manager import get_secret
+from the_alchemiser.core.secrets_manager import SecretsManager
 
 # Add the project root to the path so we can import our modules
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
