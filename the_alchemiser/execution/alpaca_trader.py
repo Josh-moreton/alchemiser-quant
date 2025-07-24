@@ -252,7 +252,8 @@ class AlpacaTradingBot:
             return None
 
         # Standard limit order flow for open market
-        for attempt in range(max_retries + 1):  # +1 for initial attempt
+        attempt = 0
+        while attempt <= max_retries:
             try:
                 current_price = self.get_current_price(symbol)
                 if current_price <= 0:
@@ -274,7 +275,6 @@ class AlpacaTradingBot:
                     time_in_force=TimeInForce.DAY,
                     limit_price=limit_price
                 )
-                
                 # Place order
                 order = self.trading_client.submit_order(limit_order_data)
                 order_id = str(getattr(order, 'id', 'unknown'))
@@ -297,24 +297,53 @@ class AlpacaTradingBot:
                 self.trading_client.cancel_order_by_id(order_id)
                 logging.warning(f"Limit order {order_id} not filled in time, canceled. Retrying with wider slippage.")
                 slippage_bps *= 2  # Double the slippage for next attempt
+                attempt += 1
 
             except Exception as e:
-                logging.error(f"Exception placing limit order for {symbol}: {e}", exc_info=True)
-                if attempt == max_retries:
-                    # As a last resort, fallback to market order
-                    try:
-                        logging.warning(f"Falling back to MARKET order for {symbol}")
-                        market_order_data = MarketOrderRequest(
-                            symbol=symbol,
-                            qty=qty,
-                            side=side,
-                            time_in_force=TimeInForce.DAY
-                        )
-                        order = self.trading_client.submit_order(market_order_data)
-                        return str(getattr(order, 'id', 'unknown'))
-                    except Exception as e2:
-                        logging.error(f"Market order also failed for {symbol}: {e2}", exc_info=True)
-                        return None
+                # Check for Alpaca APIError with code 40310000 (insufficient buying power)
+                import re
+                error_str = str(e)
+                insufficient_bp = False
+                match = re.search(r'"code":\s*40310000', error_str)
+                if match:
+                    insufficient_bp = True
+                if insufficient_bp and attempt < max_retries:
+                    # Reduce qty by 5% and retry
+                    old_qty = qty
+                    qty = round(qty * 0.95, 6)
+                    logging.warning(f"Order failed for {symbol} due to insufficient buying power (code 40310000). Retrying with 5% lower qty: {old_qty} -> {qty}")
+                    print(f"   ⚠️  {symbol}: Insufficient buying power, retrying with 5% lower qty ({old_qty} -> {qty})")
+                    attempt += 1
+                    continue
+                else:
+                    logging.error(f"Exception placing limit order for {symbol}: {e}", exc_info=True)
+                    if attempt == max_retries:
+                        # As a last resort, fallback to market order
+                        try:
+                            logging.warning(f"Falling back to MARKET order for {symbol}")
+                            market_order_data = MarketOrderRequest(
+                                symbol=symbol,
+                                qty=qty,
+                                side=side,
+                                time_in_force=TimeInForce.DAY
+                            )
+                            order = self.trading_client.submit_order(market_order_data)
+                            return str(getattr(order, 'id', 'unknown'))
+                        except Exception as e2:
+                            # Check for insufficient buying power again
+                            error_str2 = str(e2)
+                            match2 = re.search(r'"code":\s*40310000', error_str2)
+                            if match2 and attempt < max_retries:
+                                old_qty = qty
+                                qty = round(qty * 0.95, 6)
+                                logging.warning(f"Market order failed for {symbol} due to insufficient buying power (code 40310000). Retrying with 5% lower qty: {old_qty} -> {qty}")
+                                print(f"   ⚠️  {symbol}: Insufficient buying power (market), retrying with 5% lower qty ({old_qty} -> {qty})")
+                                attempt += 1
+                                continue
+                            logging.error(f"Market order also failed for {symbol}: {e2}", exc_info=True)
+                            return None
+                    else:
+                        attempt += 1
         return None
     
     def display_target_vs_current_allocations(self, target_portfolio: Dict[str, float], account_info: Dict, current_positions: Dict) -> Tuple[Dict[str, float], Dict[str, float]]:
@@ -513,10 +542,15 @@ class AlpacaTradingBot:
                 print(f"   Cash needed for targets: ${total_cash_needed:.2f}")
                 
                 if total_cash_needed > projected_cash:
-                    # Scale down buy orders proportionally
-                    scale_factor = projected_cash / total_cash_needed if total_cash_needed > 0 else 0
-                    print(f"⚠️  Insufficient cash, scaling down buys by {scale_factor:.1%}")
-                    
+                    # If cash shortfall is less than 1% or $1, scale down by 1% only
+                    cash_shortfall = total_cash_needed - projected_cash
+                    one_percent = total_cash_needed * 0.01
+                    if cash_shortfall <= max(one_percent, 1.0):
+                        scale_factor = 0.99
+                        print(f"⚠️  Insufficient cash, but within 1% or $1. Scaling down buys by 1%.")
+                    else:
+                        scale_factor = projected_cash / total_cash_needed if total_cash_needed > 0 else 0
+                        print(f"⚠️  Insufficient cash, scaling down buys by {scale_factor:.1%}")
                     for buy_plan in buy_orders_plan:
                         buy_plan['value_needed'] *= scale_factor
                 
@@ -555,19 +589,23 @@ class AlpacaTradingBot:
                         qty = sell_plan['qty']
                         print(f"   {symbol}: Selling {qty} shares ({sell_plan['reason']})")
                         
-                        order_id = self.place_order(symbol, qty, OrderSide.SELL)
-                        if order_id:
-                            orders_executed.append({
-                                'symbol': symbol,
-                                'side': OrderSide.SELL,
-                                'qty': qty,
-                                'order_id': order_id,
-                                'estimated_value': sell_plan['estimated_proceeds']
-                            })
-                            print(f"   ✅ {symbol}: Sell order placed (ID: {order_id})")
-                        else:
-                            print(f"   ❌ {symbol}: Failed to place sell order")
-                            logging.error(f"Failed to place sell order for {symbol}")
+                        try:
+                            order_id = self.place_order(symbol, qty, OrderSide.SELL)
+                            if order_id:
+                                orders_executed.append({
+                                    'symbol': symbol,
+                                    'side': OrderSide.SELL,
+                                    'qty': qty,
+                                    'order_id': order_id,
+                                    'estimated_value': sell_plan['estimated_proceeds']
+                                })
+                                print(f"   ✅ {symbol}: Sell order placed (ID: {order_id})")
+                            else:
+                                print(f"   ❌ {symbol}: Failed to place sell order")
+                                logging.error(f"Failed to place sell order for {symbol}")
+                        except Exception as e:
+                            print(f"   ❌ {symbol}: Exception during sell order: {e}")
+                            logging.error(f"Exception during sell order for {symbol}: {e}", exc_info=True)
                 else:
                     print("   No sells needed")
                 
@@ -613,20 +651,24 @@ class AlpacaTradingBot:
                         if estimated_cost <= available_cash:
                             print(f"   {symbol}: Buying {qty} shares (${estimated_cost:.2f})")
                             
-                            order_id = self.place_order(symbol, qty, OrderSide.BUY)
-                            if order_id:
-                                orders_executed.append({
-                                    'symbol': symbol,
-                                    'side': OrderSide.BUY,
-                                    'qty': qty,
-                                    'order_id': order_id,
-                                    'estimated_value': estimated_cost
-                                })
-                                available_cash -= estimated_cost
-                                print(f"   ✅ {symbol}: Buy order placed (ID: {order_id})")
-                            else:
-                                print(f"   ❌ {symbol}: Failed to place buy order")
-                                logging.error(f"Failed to place buy order for {symbol}")
+                            try:
+                                order_id = self.place_order(symbol, qty, OrderSide.BUY)
+                                if order_id:
+                                    orders_executed.append({
+                                        'symbol': symbol,
+                                        'side': OrderSide.BUY,
+                                        'qty': qty,
+                                        'order_id': order_id,
+                                        'estimated_value': estimated_cost
+                                    })
+                                    available_cash -= estimated_cost
+                                    print(f"   ✅ {symbol}: Buy order placed (ID: {order_id})")
+                                else:
+                                    print(f"   ❌ {symbol}: Failed to place buy order")
+                                    logging.error(f"Failed to place buy order for {symbol}")
+                            except Exception as e:
+                                print(f"   ❌ {symbol}: Exception during buy order: {e}")
+                                logging.error(f"Exception during buy order for {symbol}: {e}", exc_info=True)
                         else:
                             # Retry with available cash amount
                             current_price = self.get_current_price(symbol)
@@ -637,20 +679,24 @@ class AlpacaTradingBot:
                                 if adjusted_qty > 0:
                                     print(f"   🔄 {symbol}: Retrying with available cash (${available_cash:.2f} → {adjusted_qty} shares)")
                                     
-                                    order_id = self.place_order(symbol, adjusted_qty, OrderSide.BUY)
-                                    if order_id:
-                                        orders_executed.append({
-                                            'symbol': symbol,
-                                            'side': OrderSide.BUY,
-                                            'qty': adjusted_qty,
-                                            'order_id': order_id,
-                                            'estimated_value': adjusted_cost
-                                        })
-                                        available_cash -= adjusted_cost
-                                        print(f"   ✅ {symbol}: Adjusted buy order placed (ID: {order_id})")
-                                    else:
-                                        print(f"   ❌ {symbol}: Failed to place adjusted buy order")
-                                        logging.error(f"Failed to place adjusted buy order for {symbol}")
+                                    try:
+                                        order_id = self.place_order(symbol, adjusted_qty, OrderSide.BUY)
+                                        if order_id:
+                                            orders_executed.append({
+                                                'symbol': symbol,
+                                                'side': OrderSide.BUY,
+                                                'qty': adjusted_qty,
+                                                'order_id': order_id,
+                                                'estimated_value': adjusted_cost
+                                            })
+                                            available_cash -= adjusted_cost
+                                            print(f"   ✅ {symbol}: Adjusted buy order placed (ID: {order_id})")
+                                        else:
+                                            print(f"   ❌ {symbol}: Failed to place adjusted buy order")
+                                            logging.error(f"Failed to place adjusted buy order for {symbol}")
+                                    except Exception as e:
+                                        print(f"   ❌ {symbol}: Exception during adjusted buy order: {e}")
+                                        logging.error(f"Exception during adjusted buy order for {symbol}: {e}", exc_info=True)
                                 else:
                                     print(f"   ❌ {symbol}: Cannot buy with available cash (${available_cash:.2f})")
                             else:
