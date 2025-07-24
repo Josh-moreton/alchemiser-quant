@@ -35,6 +35,7 @@ from logging.handlers import RotatingFileHandler
 from core.config import Config
 from core.ui.cli_formatter import render_technical_indicators
 from core.ui.telegram_formatter import build_single_strategy_message, build_multi_strategy_message
+from core.strategy_manager import StrategyType
 
 # Load config and set logging level from config
 config = Config()
@@ -98,64 +99,14 @@ def generate_multi_strategy_signals():
     try:
         # Create shared UnifiedDataProvider once
         shared_data_provider = UnifiedDataProvider(paper_trading=True)
-        
         # Pass shared data provider to MultiStrategyManager
         manager = MultiStrategyManager({
             StrategyType.NUCLEAR: 0.5,
             StrategyType.TECL: 0.5
         }, shared_data_provider=shared_data_provider)
-        
-        print("📊 Running all strategies...")
         strategy_signals, consolidated_portfolio = manager.run_all_strategies()
-        
-        # Display technical indicators before strategy results
-        print(render_technical_indicators(strategy_signals))
-        
-        print("\n🎯 MULTI-STRATEGY RESULTS:")
-        print("-" * 40)
-        
-        # Display individual strategy results
-        for strategy_type, signal in strategy_signals.items():
-            print(f"{strategy_type.value} Strategy:")
-            print(f"  Action: {signal['action']} {signal['symbol']}")
-            print(f"  Reason: {signal['reason']}")
-            print()
-        
-        # Display consolidated portfolio
-        print("📈 Consolidated Portfolio Allocation:")
-        for symbol, weight in consolidated_portfolio.items():
-            print(f"  {symbol}: {weight:.1%}")
-        
-        # Get performance summary
-        summary = manager.get_strategy_performance_summary()
-        print(f"\n📋 Strategy Summary:")
-        
-        # Calculate actual position counts from signals
-        nuclear_signal = strategy_signals.get(StrategyType.NUCLEAR, {})
-        tecl_signal = strategy_signals.get(StrategyType.TECL, {})
-        
-        # Determine position count based on the specific signal
-        if nuclear_signal.get('action') == 'BUY':
-            if nuclear_signal.get('symbol') == 'UVXY_BTAL_PORTFOLIO':
-                nuclear_positions = 2  # UVXY and BTAL
-            elif nuclear_signal.get('symbol') == 'UVXY':
-                nuclear_positions = 1  # Just UVXY
-            else:
-                nuclear_positions = 3  # Default for other portfolios
-        else:
-            nuclear_positions = 0
-            
-        tecl_positions = 1 if tecl_signal.get('action') == 'BUY' else 0
-        
-        print(f"  NUCLEAR: {nuclear_positions} positions, 50% allocation")
-        print(f"  TECL: {tecl_positions} positions, 50% allocation")
-        
         return manager, strategy_signals, consolidated_portfolio
-        
     except Exception as e:
-        print(f"❌ Error running multi-strategy analysis: {e}")
-        import traceback
-        traceback.print_exc()
         return None, None, None
 
 def run_all_signals_display():
@@ -167,21 +118,48 @@ def run_all_signals_display():
     print("=" * 60)
     print(f"Analyzing all strategies at {datetime.now()}")
     print()
-    
     try:
         # Generate multi-strategy signals (this includes both Nuclear and TECL)
         manager, strategy_signals, consolidated_portfolio = generate_multi_strategy_signals()
-        
         if not strategy_signals:
             print("⚠️  Failed to generate multi-strategy signals")
             return False
-        
-        
-        # Summary
-        # The redundant summary block has been removed.
-        
+        # Display technical indicators before strategy results
+        print(render_technical_indicators(strategy_signals))
+        print("\n🎯 MULTI-STRATEGY RESULTS:")
+        print("-" * 40)
+        # Display individual strategy results
+        for strategy_type, signal in (strategy_signals or {}).items():
+            print(f"{strategy_type.value} Strategy:")
+            print(f"  Action: {signal.get('action', '')} {signal.get('symbol', '')}")
+            print(f"  Reason: {signal.get('reason', '')}")
+            print()
+        # Display consolidated portfolio
+        if consolidated_portfolio:
+            print("📈 Consolidated Portfolio Allocation:")
+            for symbol, weight in consolidated_portfolio.items():
+                print(f"  {symbol}: {weight:.1%}")
+        # Get performance summary
+        if manager:
+            summary = manager.get_strategy_performance_summary()
+            print(f"\n📋 Strategy Summary:")
+        # Calculate actual position counts from signals
+        nuclear_signal = (strategy_signals or {}).get(StrategyType.NUCLEAR, {})
+        tecl_signal = (strategy_signals or {}).get(StrategyType.TECL, {})
+        # Determine position count based on the specific signal
+        if nuclear_signal.get('action') == 'BUY':
+            if nuclear_signal.get('symbol') == 'UVXY_BTAL_PORTFOLIO':
+                nuclear_positions = 2  # UVXY and BTAL
+            elif nuclear_signal.get('symbol') == 'UVXY':
+                nuclear_positions = 1  # Just UVXY
+            else:
+                nuclear_positions = 3  # Default for other portfolios
+        else:
+            nuclear_positions = 0
+        tecl_positions = 1 if tecl_signal.get('action') == 'BUY' else 0
+        print(f"  NUCLEAR: {nuclear_positions} positions, 50% allocation")
+        print(f"  TECL: {tecl_positions} positions, 50% allocation")
         return True
-        
     except Exception as e:
         print(f"❌ Error analyzing strategies: {e}")
         import traceback
