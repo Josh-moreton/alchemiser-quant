@@ -47,8 +47,8 @@ class UnifiedDataProvider:
         self.cache_duration = cache_duration
         self.cache = {}
         
-        # Initialize secrets manager
-        secrets_manager = SecretsManager(region_name="eu-west-2")
+        # Initialize secrets manager - region will be loaded from config
+        secrets_manager = SecretsManager()
         
         # Get API keys from AWS Secrets Manager
         self.api_key, self.secret_key = secrets_manager.get_alpaca_keys(paper_trading=paper_trading)

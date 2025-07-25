@@ -235,7 +235,9 @@ class NuclearTradingBot:
             s3_handler = get_s3_handler()
             
             # Check if file exists in S3 bucket
-            s3_uri = "s3://the-alchemiser-s3/alert_config.json"
+            from the_alchemiser.core.config import get_config
+            global_config = get_config()
+            s3_uri = global_config['alerts'].get('alert_config_s3', 's3://the-alchemiser-s3/alert_config.json')
             if s3_handler.file_exists(s3_uri):
                 content = s3_handler.read_text(s3_uri)
                 if content:
@@ -251,10 +253,12 @@ class NuclearTradingBot:
         except Exception as e:
             logging.warning(f"Could not load alert config: {e}")
             
-        # Default config if nothing found
+        # Default config if nothing found - use global config values
+        from the_alchemiser.core.config import get_config
+        global_config = get_config()
         self.config = {
             "alerts": {
-                "cooldown_minutes": 30
+                "cooldown_minutes": global_config['alerts'].get('cooldown_minutes', 30)
             }
         }
     

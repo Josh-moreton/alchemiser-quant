@@ -20,13 +20,17 @@ except ImportError:
 class SecretsManager:
     """Handles retrieving secrets from AWS Secrets Manager"""
     
-    def __init__(self, region_name: str = "eu-west-2"):
+    def __init__(self, region_name: Optional[str] = None):
         """
         Initialize the Secrets Manager client
         
         Args:
-            region_name: AWS region where secrets are stored
+            region_name: AWS region where secrets are stored (if None, loads from config)
         """
+        if region_name is None:
+            from the_alchemiser.core.config import get_config
+            config = get_config()
+            region_name = config['secrets_manager'].get('region_name', 'eu-west-2')
         self.region_name = region_name
         self.client = None
         self._secrets_cache = None  # Cache for secrets

@@ -79,11 +79,18 @@ class MultiStrategyManager:
             config = get_config()
         self.config = config
         
-        # Default 50/50 allocation if not specified
-        self.strategy_allocations = strategy_allocations or {
-            StrategyType.NUCLEAR: 0.5,
-            StrategyType.TECL: 0.5
-        }
+        # Default allocation from config if not specified
+        if strategy_allocations is None:
+            default_allocations = self.config['strategy'].get('default_strategy_allocations', {
+                'nuclear': 0.5,
+                'tecl': 0.5
+            })
+            self.strategy_allocations = {
+                StrategyType.NUCLEAR: default_allocations.get('nuclear', 0.5),
+                StrategyType.TECL: default_allocations.get('tecl', 0.5)
+            }
+        else:
+            self.strategy_allocations = strategy_allocations
         
         # Validate allocations sum to 1.0
         total_allocation = sum(self.strategy_allocations.values())
