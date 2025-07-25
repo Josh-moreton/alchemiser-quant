@@ -50,11 +50,13 @@ def setup_file_logging():
     root_logger.handlers.clear()  # Remove any existing handlers
 
     if os.environ.get("AWS_LAMBDA_FUNCTION_NAME"):
-        # Lambda: log to S3 only
-        s3_log_path = logging_config.get('alpaca_log')
-        s3_handler = S3FileHandler(s3_log_path)
-        s3_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
-        root_logger.addHandler(s3_handler)
+        # Lambda: log to CloudWatch by default. To enable S3 logging, set S3_LOGGING_ENABLED=1 in Lambda env vars.
+        if os.environ.get("S3_LOGGING_ENABLED", "0") == "1":
+            s3_log_path = logging_config.get('alpaca_log')
+            if s3_log_path:
+                s3_handler = S3FileHandler(s3_log_path)
+                s3_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+                root_logger.addHandler(s3_handler)
     else:
         # Local/dev: Ensure logs directory exists and log to file
         os.makedirs('the_alchemiser/data/logs', exist_ok=True)
