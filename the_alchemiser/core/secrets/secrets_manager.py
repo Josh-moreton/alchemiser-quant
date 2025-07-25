@@ -130,7 +130,10 @@ class SecretsManager:
             Tuple of (api_key, secret_key) or (None, None) if not found
         """
         try:
-            secrets = self.get_secret('nuclear-secrets')
+            from the_alchemiser.core.config import get_config
+            config = get_config()
+            secret_name = config['secrets_manager'].get('secret_name', 'nuclear-secrets')
+            secrets = self.get_secret(secret_name)
             if not secrets:
                 logging.error("No secrets found")
                 return None, None
@@ -163,7 +166,10 @@ class SecretsManager:
             Tuple of (token, chat_id) or (None, None) if not found
         """
         try:
-            secrets = self.get_secret('nuclear-secrets')
+            from the_alchemiser.core.config import get_config
+            config = get_config()
+            secret_name = config['secrets_manager'].get('secret_name', 'nuclear-secrets')
+            secrets = self.get_secret(secret_name)
             if not secrets:
                 logging.error("No secrets found")
                 return None, None
