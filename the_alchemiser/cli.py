@@ -239,8 +239,47 @@ def version():
         border_style="cyan"
     ))
 
+
 # Clean imports now that backtest functions are in the main package
-from the_alchemiser.backtest.test_backtest import run_backtest, run_backtest_comparison, run_backtest_dual_rebalance
+from the_alchemiser.backtest.test_backtest import run_backtest, run_backtest_comparison, run_backtest_dual_rebalance, run_backtest_all_splits
+
+# --- New CLI command for all-splits backtest ---
+@app.command()
+def backtest_all_splits(
+    start: str = typer.Option("2023-01-01", help="Start date (YYYY-MM-DD)"),
+    end: str = typer.Option("2025-07-15", help="End date (YYYY-MM-DD)"),
+    initial_equity: float = typer.Option(10000, help="Initial equity for backtest"),
+    slippage_bps: int = typer.Option(None, help="Slippage in basis points (default: from config.yaml)"),
+    noise_factor: float = typer.Option(0.001, help="Market noise factor (default: 0.1%)"),
+    deposit_amount: float = typer.Option(0.0, help="Deposit amount (e.g. 100 for £100, default: 0)"),
+    deposit_frequency: Optional[str] = typer.Option(None, help="Deposit frequency: 'monthly' or 'weekly' (default: None)"),
+    deposit_day: int = typer.Option(1, help="Deposit day: for monthly, day of month (1-28); for weekly, weekday (0=Mon, 6=Sun)")
+):
+    """
+    🧪 [bold cyan]Backtest all possible splits between Nuclear and TECL strategies in 10% increments[/bold cyan]
+    """
+    import datetime as dt
+    try:
+        start_dt = dt.datetime.strptime(start, "%Y-%m-%d")
+        end_dt = dt.datetime.strptime(end, "%Y-%m-%d")
+    except Exception as e:
+        console.print(f"[red]Invalid date format: {e}[/red]")
+        raise typer.Exit(1)
+    from the_alchemiser.core.config import get_config
+    config = get_config()
+    if slippage_bps is None:
+        slippage_bps = config['alpaca'].get('slippage_bps', 5)
+    console.print(f"[bold green]Running all-splits backtest from {start} to {end} with {slippage_bps} bps slippage and {noise_factor*100:.3f}% noise...")
+    run_backtest_all_splits(
+        start_dt,
+        end_dt,
+        initial_equity=initial_equity,
+        slippage_bps=slippage_bps,
+        noise_factor=noise_factor,
+        deposit_amount=deposit_amount,
+        deposit_frequency=deposit_frequency,
+        deposit_day=deposit_day
+    )
 
 @app.command()
 def backtest_nuclear_compare(

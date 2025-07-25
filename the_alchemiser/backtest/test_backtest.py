@@ -1,3 +1,83 @@
+def run_backtest_all_splits(start, end, initial_equity=1000.0, slippage_bps=5, noise_factor=0.001, deposit_amount=0.0, deposit_frequency=None, deposit_day=1):
+    """
+    Backtest all possible splits between nuclear and tecl strategies in 10% increments.
+    """
+    console.print(Panel(f"[bold cyan]Backtesting All Splits (Nuclear/TECL) in 10% Increments[/bold cyan]\n"
+                       f"Period: {start.strftime('%Y-%m-%d')} to {end.strftime('%Y-%m-%d')}\n"
+                       f"Initial Equity: £{initial_equity:,.2f}\n"
+                       f"Slippage: {slippage_bps} bps per trade\n"
+                       f"Market Noise: {noise_factor*100:.3f}%\n"
+                       f"Deposit: £{deposit_amount:,.2f} {deposit_frequency if deposit_frequency else ''}",
+                       title="📊 All Splits Backtest"))
+
+    import copy
+    from the_alchemiser.core import config as alchemiser_config
+
+    # We'll mock the config in memory for each run
+    results = []
+    
+    # Store original global config instance
+    orig_global_config = alchemiser_config._global_config
+
+    for split in range(0, 110, 10):
+        w_nuclear = split / 100.0
+        w_tecl = 1.0 - w_nuclear
+
+        # Create a new Config instance with modified values
+        # We need to temporarily replace the global config
+        mock_config = alchemiser_config.Config()
+        
+        # Modify the internal config dict to have our desired split
+        mock_config._config = copy.deepcopy(mock_config._config)
+        if 'strategy' not in mock_config._config:
+            mock_config._config['strategy'] = {}
+        mock_config._config['strategy']['default_strategy_allocations'] = {'nuclear': w_nuclear, 'tecl': w_tecl}
+        
+        # Replace the global config temporarily
+        alchemiser_config._global_config = mock_config
+
+        # Run the normal backtest (which will use the config-driven allocation)
+        equity_curve = run_backtest(
+            start, end,
+            initial_equity=initial_equity,
+            price_type="close",
+            slippage_bps=slippage_bps,
+            noise_factor=noise_factor,
+            deposit_amount=deposit_amount,
+            deposit_frequency=deposit_frequency,
+            deposit_day=deposit_day
+        )
+
+        # Restore original global config
+        alchemiser_config._global_config = orig_global_config
+
+        final_equity = equity_curve[-1] if equity_curve else initial_equity
+        total_return = (final_equity / initial_equity - 1) * 100
+        daily_returns = [equity_curve[i]/equity_curve[i-1] - 1 for i in range(1, len(equity_curve))] if equity_curve and len(equity_curve) > 1 else []
+        volatility = pd.Series(daily_returns).std() * (252**0.5) * 100 if len(daily_returns) > 1 else 0
+        sharpe_ratio = (total_return / 100) / (volatility / 100) * (252**0.5) if volatility > 0 else 0
+        results.append({
+            'split': f"{int(w_nuclear*100)}% Nuclear / {int(w_tecl*100)}% TECL",
+            'final_equity': final_equity,
+            'total_return': total_return,
+            'volatility': volatility,
+            'sharpe_ratio': sharpe_ratio
+        })
+
+    # Restore original global config
+    alchemiser_config._global_config = orig_global_config
+
+    # Print summary table
+    table = Table(title="Strategy Split Comparison (Nuclear/TECL)")
+    table.add_column("Split", style="cyan")
+    table.add_column("Final Equity", style="green")
+    table.add_column("Total Return", style="yellow")
+    table.add_column("Volatility", style="magenta")
+    table.add_column("Sharpe Ratio", style="blue")
+    for r in results:
+        table.add_row(r['split'], f"£{r['final_equity']:,.2f}", f"{r['total_return']:+.2f}%", f"{r['volatility']:.2f}%", f"{r['sharpe_ratio']:.2f}")
+    console.print(table)
+    return results
 
 import os
 import time
@@ -20,7 +100,7 @@ from the_alchemiser.core.data.data_provider import UnifiedDataProvider
 console = Console()
 
 
-def _preload_symbol_data(data_provider, symbols, start, end):
+def _preload_symbol_data(data_provider, symbols, start, end, fetch_minute_data=True):
     """Fetch all required historical data in one shot - both daily and 1-minute."""
     console.print(f"[yellow]Loading historical data for {len(symbols)} symbols...")
     symbol_data = {}
@@ -42,23 +122,27 @@ def _preload_symbol_data(data_provider, symbols, start, end):
             daily_dates.append(bar.timestamp)
         symbol_data[sym] = pd.DataFrame(daily_rows, index=pd.to_datetime(daily_dates))
         
-        # Fetch 1-minute data for realistic execution pricing (last 90 days to limit data)
-        minute_start = max(start, end - dt.timedelta(days=90))
-        minute_bars = data_provider.get_historical_data(sym, start=minute_start, end=end, timeframe="1m")
-        minute_rows = []
-        minute_dates = []
-        for bar in minute_bars:
-            minute_rows.append({
-                'Open': float(bar.open),
-                'High': float(bar.high),
-                'Low': float(bar.low),
-                'Close': float(bar.close),
-                'Volume': getattr(bar, 'volume', 0)
-            })
-            minute_dates.append(bar.timestamp)
-        symbol_minute_data[sym] = pd.DataFrame(minute_rows, index=pd.to_datetime(minute_dates))
+        if fetch_minute_data:
+            # Fetch 1-minute data for realistic execution pricing (last 90 days to limit data)
+            minute_start = max(start, end - dt.timedelta(days=90))
+            minute_bars = data_provider.get_historical_data(sym, start=minute_start, end=end, timeframe="1m")
+            minute_rows = []
+            minute_dates = []
+            for bar in minute_bars:
+                minute_rows.append({
+                    'Open': float(bar.open),
+                    'High': float(bar.high),
+                    'Low': float(bar.low),
+                    'Close': float(bar.close),
+                    'Volume': getattr(bar, 'volume', 0)
+                })
+                minute_dates.append(bar.timestamp)
+            symbol_minute_data[sym] = pd.DataFrame(minute_rows, index=pd.to_datetime(minute_dates))
+        else:
+            symbol_minute_data[sym] = pd.DataFrame()  # Empty DataFrame
         
-    console.print(f"[green]✓ Data loaded for {len(symbols)} symbols (daily + 1min)")
+    data_type = "daily + 1min" if fetch_minute_data else "daily only"
+    console.print(f"[green]✓ Data loaded for {len(symbols)} symbols ({data_type})")
     return symbol_data, symbol_minute_data
 
 
@@ -160,13 +244,13 @@ def _get_realistic_execution_price(symbol_minute_data, symbol, target_time, pric
 
 
 def run_backtest(start, end, initial_equity=1000.0, price_type="close", slippage_bps=None, noise_factor=0.001, deposit_amount=0.0, deposit_frequency=None, deposit_day=1):
-
     # --- Deposit feature additions ---
     # New params: deposit_amount, deposit_frequency, deposit_day
+    # New param: use_minute_candles (default False, can be set via CLI)
     import calendar
     def run_backtest_with_deposit(
         start, end, initial_equity=1000.0, price_type="close", slippage_bps=None, noise_factor=0.001,
-        deposit_amount=0.0, deposit_frequency=None, deposit_day=1
+        deposit_amount=0.0, deposit_frequency=None, deposit_day=1, use_minute_candles=False
     ):
         price_type_l = price_type.lower()
         if price_type_l == 'close':
@@ -194,10 +278,12 @@ def run_backtest(start, end, initial_equity=1000.0, price_type="close", slippage
                 slippage_bps = config['alpaca'].get('slippage_bps', 5)
             except Exception:
                 slippage_bps = 5
+        execution_mode = "Daily + 1min candles" if use_minute_candles else "Daily only"
         console.print(Panel(f"[bold cyan]Starting Realistic Backtest[/bold cyan]\n"
                            f"Period: {start.strftime('%Y-%m-%d')} to {end.strftime('%Y-%m-%d')}\n"
                            f"Initial Equity: £{initial_equity:,.2f}\n"
                            f"Price Type: {price_label}\n"
+                           f"Execution Mode: {execution_mode}\n"
                            f"Slippage: {slippage_bps} bps\n"
                            f"Market Noise: {noise_factor*100:.3f}%"
                            f"{deposit_str}",
@@ -207,8 +293,18 @@ def run_backtest(start, end, initial_equity=1000.0, price_type="close", slippage
         manager = MultiStrategyManager(shared_data_provider=dp)
         all_syms = list(set(manager.nuclear_engine.all_symbols + manager.tecl_engine.all_symbols))
 
-        # Fetch both daily and minute data
-        symbol_data, symbol_minute_data = _preload_symbol_data(dp, all_syms, start - dt.timedelta(days=400), end)
+
+        # Fetch both daily and minute data if enabled
+        symbol_data = None
+        symbol_minute_data = None
+        # Use longer lookback for daily-only mode to ensure enough data for indicators (especially 200-day MA)
+        lookback_days = 400 if use_minute_candles else 1200
+        if use_minute_candles:
+            symbol_data, symbol_minute_data = _preload_symbol_data(dp, all_syms, start - dt.timedelta(days=lookback_days), end, fetch_minute_data=True)
+        else:
+            # Only fetch daily data
+            console.print(f"[yellow]Using daily-only mode with {lookback_days} day lookback for indicators (200-day MA requires ~250 trading days)...")
+            symbol_data, symbol_minute_data = _preload_symbol_data(dp, all_syms, start - dt.timedelta(days=lookback_days), end, fetch_minute_data=False)
 
         equity = initial_equity
         equity_curve = []
@@ -244,6 +340,8 @@ def run_backtest(start, end, initial_equity=1000.0, price_type="close", slippage
             def mock_fetch_historical_data(symbol, period="1y", interval="1d"):
                 if symbol in symbol_data:
                     df = symbol_data[symbol]
+                    # For backtesting, provide all available historical data up to current_day
+                    # This ensures indicators like 200-day MA have enough data to work with
                     slice_df = df[df.index < current_day]
                     return slice_df
                 else:
@@ -261,12 +359,20 @@ def run_backtest(start, end, initial_equity=1000.0, price_type="close", slippage
                 old_weight = prev_weights.get(sym, 0)
                 weight_change = abs(new_weight - old_weight)
                 if weight_change > 1e-6:
-                    execution_price = _get_realistic_execution_price(
-                        symbol_minute_data, sym, current_day, price_type, noise_factor
-                    )
-                    if execution_price is None and sym in symbol_data and current_day in symbol_data[sym].index:
-                        curr_row = symbol_data[sym].loc[current_day]
-                        execution_price = price_selector(curr_row)
+                    if use_minute_candles:
+                        execution_price = _get_realistic_execution_price(
+                            symbol_minute_data, sym, current_day, price_type, noise_factor
+                        )
+                        if execution_price is None and sym in symbol_data and current_day in symbol_data[sym].index:
+                            curr_row = symbol_data[sym].loc[current_day]
+                            execution_price = price_selector(curr_row)
+                    else:
+                        # Use daily data only
+                        if sym in symbol_data and current_day in symbol_data[sym].index:
+                            curr_row = symbol_data[sym].loc[current_day]
+                            execution_price = price_selector(curr_row)
+                        else:
+                            execution_price = None
                     if execution_price:
                         slippage_cost = _calculate_slippage_cost(weight_change, execution_price, slippage_bps)
                         total_slippage_cost += slippage_cost
@@ -285,15 +391,19 @@ def run_backtest(start, end, initial_equity=1000.0, price_type="close", slippage
                     continue
                 prev_row = df.loc[prev_dates[-1]]
                 curr_row = df.loc[current_day]
-                prev_price = _get_realistic_execution_price(
-                    symbol_minute_data, sym, prev_dates[-1], price_type, noise_factor
-                )
-                curr_price = _get_realistic_execution_price(
-                    symbol_minute_data, sym, current_day, price_type, noise_factor
-                )
-                if prev_price is None:
+                if use_minute_candles:
+                    prev_price = _get_realistic_execution_price(
+                        symbol_minute_data, sym, prev_dates[-1], price_type, noise_factor
+                    )
+                    curr_price = _get_realistic_execution_price(
+                        symbol_minute_data, sym, current_day, price_type, noise_factor
+                    )
+                    if prev_price is None:
+                        prev_price = price_selector(prev_row)
+                    if curr_price is None:
+                        curr_price = price_selector(curr_row)
+                else:
                     prev_price = price_selector(prev_row)
-                if curr_price is None:
                     curr_price = price_selector(curr_row)
                 if prev_price == 0:
                     continue
@@ -352,10 +462,58 @@ def run_backtest(start, end, initial_equity=1000.0, price_type="close", slippage
         return equity_curve
 
     # Call new function with backward compatibility
+    # Add use_minute_candles param, default False (can be set via CLI or global)
     return run_backtest_with_deposit(
         start, end, initial_equity, price_type, slippage_bps, noise_factor,
-        deposit_amount=deposit_amount, deposit_frequency=deposit_frequency, deposit_day=deposit_day
+        deposit_amount=deposit_amount, deposit_frequency=deposit_frequency, deposit_day=deposit_day,
+        use_minute_candles=globals().get('USE_MINUTE_CANDLES', False)
     )
+if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser(description="Run backtest with optional 1-minute candle execution.")
+    parser.add_argument('--start', type=str, required=True, help='Start date (YYYY-MM-DD)')
+    parser.add_argument('--end', type=str, required=True, help='End date (YYYY-MM-DD)')
+    parser.add_argument('--initial-equity', type=float, default=1000.0, help='Initial equity')
+    parser.add_argument('--price-type', type=str, default='close', choices=['close','open','mid','vwap'], help='Execution price type')
+    parser.add_argument('--slippage-bps', type=float, default=None, help='Slippage in basis points')
+    parser.add_argument('--noise-factor', type=float, default=0.001, help='Market noise factor')
+    parser.add_argument('--deposit-amount', type=float, default=0.0, help='Deposit amount')
+    parser.add_argument('--deposit-frequency', type=str, default=None, choices=[None, 'monthly', 'weekly'], help='Deposit frequency')
+    parser.add_argument('--deposit-day', type=int, default=1, help='Deposit day (1 for monthly, 0-6 for weekly)')
+    parser.add_argument('--use-minute-candles', action='store_true', help='Enable 1-minute candle execution (default: disabled)')
+    parser.add_argument('--all-splits', action='store_true', help='Backtest all possible splits between nuclear and tecl strategies in 10%% increments')
+    args = parser.parse_args()
+
+    # Parse dates
+    start_dt = dt.datetime.strptime(args.start, "%Y-%m-%d")
+    end_dt = dt.datetime.strptime(args.end, "%Y-%m-%d")
+
+    if args.all_splits:
+        run_backtest_all_splits(
+            start_dt,
+            end_dt,
+            initial_equity=args.initial_equity,
+            slippage_bps=args.slippage_bps if args.slippage_bps is not None else 5,
+            noise_factor=args.noise_factor,
+            deposit_amount=args.deposit_amount,
+            deposit_frequency=args.deposit_frequency,
+            deposit_day=args.deposit_day
+        )
+    else:
+        # Set global for use_minute_candles
+        globals()['USE_MINUTE_CANDLES'] = args.use_minute_candles
+        # Run backtest
+        run_backtest(
+            start_dt,
+            end_dt,
+            initial_equity=args.initial_equity,
+            price_type=args.price_type,
+            slippage_bps=args.slippage_bps,
+            noise_factor=args.noise_factor,
+            deposit_amount=args.deposit_amount,
+            deposit_frequency=args.deposit_frequency,
+            deposit_day=args.deposit_day
+        )
 
 
 def run_backtest_dual_rebalance(start, end, initial_equity=1000.0, slippage_bps=5, noise_factor=0.001, deposit_amount=0.0, deposit_frequency=None, deposit_day=1):
@@ -381,7 +539,7 @@ def run_backtest_dual_rebalance(start, end, initial_equity=1000.0, slippage_bps=
         all_syms = list(set(manager.nuclear_engine.all_symbols + manager.tecl_engine.all_symbols))
 
         # Fetch both daily and minute data
-        symbol_data, symbol_minute_data = _preload_symbol_data(dp, all_syms, start - dt.timedelta(days=400), end)
+        symbol_data, symbol_minute_data = _preload_symbol_data(dp, all_syms, start - dt.timedelta(days=400), end, fetch_minute_data=True)
 
         equity = initial_equity
         equity_curve = []
