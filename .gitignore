@@ -59,3 +59,4 @@ dist/
 
 data/logs/nuclear_alerts.json
 data/logs/nuclear_alerts.log
+tests/test_backtest.py
