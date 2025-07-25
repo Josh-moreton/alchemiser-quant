@@ -25,24 +25,24 @@ import pandas as pd
 import numpy as np
 
 # Local imports
-from the_alchemiser.core.indicators import TechnicalIndicators
-from the_alchemiser.core.config import Config
-from the_alchemiser.core.logging_utils import setup_logging
+from the_alchemiser.core.indicators.indicators import TechnicalIndicators
+from the_alchemiser.core.config import get_config
+from the_alchemiser.core.logging.logging_utils import setup_logging
 
 warnings.filterwarnings('ignore')
 setup_logging()  # Centralized logging setup
 
 
 # Import Alert from alert_service
-from the_alchemiser.core.alert_service import Alert
+from the_alchemiser.core.alerts.alert_service import Alert
 
 # Import UnifiedDataProvider from the new module
-from the_alchemiser.core.data_provider import UnifiedDataProvider
+from the_alchemiser.core.data.data_provider import UnifiedDataProvider
 
 from enum import Enum
 
 # Import ActionType from common module
-from the_alchemiser.core.common import ActionType
+from the_alchemiser.core.utils.common import ActionType
 
 
 class TECLStrategyEngine:
@@ -55,7 +55,7 @@ class TECLStrategyEngine:
         self.indicators = TechnicalIndicators()
         
         # Import the pure strategy engine
-        from the_alchemiser.core.tecl_strategy_engine import TECLStrategyEngine as PureStrategyEngine
+        from the_alchemiser.core.trading.tecl_strategy_engine import TECLStrategyEngine as PureStrategyEngine
         self.strategy = PureStrategyEngine(data_provider=self.data_provider)
 
         # TECL strategy symbols
@@ -154,7 +154,7 @@ class TECLTradingBot:
         """Load configuration"""
         try:
             # Try to load from S3 first, then local
-            from the_alchemiser.core.s3_utils import get_s3_handler
+            from the_alchemiser.core.utils.s3_utils import get_s3_handler
             import os
             s3_handler = get_s3_handler()
             
@@ -184,7 +184,7 @@ class TECLTradingBot:
     
     def handle_tecl_portfolio_signal(self, symbol, action, reason, indicators, market_data=None):
         """Delegate alert creation to alert_service.create_alerts_from_signal"""
-        from the_alchemiser.core.alert_service import create_alerts_from_signal
+        from the_alchemiser.core.alerts.alert_service import create_alerts_from_signal
         return create_alerts_from_signal(
             symbol, action, reason, indicators, market_data,
             self.strategy.data_provider, self._ensure_scalar_price, self.strategy
@@ -217,7 +217,7 @@ class TECLTradingBot:
     
     def log_alert(self, alert):
         """Log alert to file - delegates to alert service"""
-        from the_alchemiser.core.alert_service import log_alert_to_file
+        from the_alchemiser.core.alerts.alert_service import log_alert_to_file
         log_alert_to_file(alert)
     
     def run_once(self):

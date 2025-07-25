@@ -20,8 +20,7 @@ from datetime import datetime
 from typing import Dict, List, Optional, Tuple, Any
 from dataclasses import dataclass
 
-from the_alchemiser.core.config import Config
-from the_alchemiser.core.strategy_manager import MultiStrategyManager, StrategyType
+from the_alchemiser.core.trading.strategy_manager import MultiStrategyManager, StrategyType
 from the_alchemiser.execution.alpaca_trader import AlpacaTradingBot
 
 
@@ -42,7 +41,7 @@ class MultiStrategyAlpacaTrader(AlpacaTradingBot):
     """Enhanced Alpaca trader with multi-strategy support"""
     
     def __init__(self, paper_trading: bool = True, strategy_allocations: Optional[Dict[StrategyType, float]] = None, 
-                 ignore_market_hours: bool = False):
+                 ignore_market_hours: bool = False, config=None):
         """
         Initialize multi-strategy Alpaca trader
         
@@ -50,15 +49,20 @@ class MultiStrategyAlpacaTrader(AlpacaTradingBot):
             paper_trading: Whether to use paper trading account
             strategy_allocations: Portfolio allocation between strategies
             ignore_market_hours: Whether to ignore market hours when placing orders
+            config: Configuration object. If None, will load from global config.
         """
-        super().__init__(paper_trading=paper_trading, ignore_market_hours=ignore_market_hours)
+        # Use provided config or load global config
+        if config is None:
+            from the_alchemiser.core.config import get_config
+            config = get_config()
+        
+        super().__init__(paper_trading=paper_trading, ignore_market_hours=ignore_market_hours, config=config)
         
         # Initialize strategy manager
-        self.strategy_manager = MultiStrategyManager(strategy_allocations)
+        self.strategy_manager = MultiStrategyManager(strategy_allocations, config=config)
         
-        
-        # Configuration
-        self.config = Config()
+        # Store config reference
+        self.config = config
         
         # Logging setup
         self.multi_strategy_log = self.config['logging'].get('multi_strategy_log', 
@@ -210,7 +214,7 @@ class MultiStrategyAlpacaTrader(AlpacaTradingBot):
     def _log_multi_strategy_execution(self, execution_summary: Dict):
         """Log detailed execution summary to file"""
         try:
-            from the_alchemiser.core.s3_utils import get_s3_handler
+            from the_alchemiser.core.utils.s3_utils import get_s3_handler
             s3_handler = get_s3_handler()
             
             if self.multi_strategy_log.startswith('s3://'):

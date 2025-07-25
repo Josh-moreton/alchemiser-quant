@@ -4,8 +4,8 @@ import datetime as dt
 import pandas as pd
 import pytest
 
-from the_alchemiser.core.strategy_manager import MultiStrategyManager, StrategyType
-from the_alchemiser.core.data_provider import UnifiedDataProvider
+from the_alchemiser.core.trading.strategy_manager import MultiStrategyManager, StrategyType
+from the_alchemiser.core.data.data_provider import UnifiedDataProvider
 
 
 def _preload_symbol_data(data_provider, symbols, start, end):

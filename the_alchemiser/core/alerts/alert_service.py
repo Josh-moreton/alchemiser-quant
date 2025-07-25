@@ -2,7 +2,7 @@ import datetime as dt
 import re
 import json
 import logging
-from the_alchemiser.core.config import Config
+from the_alchemiser.core.config import get_config
 
 class Alert:
     """Simple alert class for trading signals."""
@@ -117,7 +117,7 @@ def create_alerts_from_signal(symbol, action, reason, indicators, market_data, d
 def log_alert_to_file(alert, log_file_path=None):
     """Log alert to file - centralized logging logic"""
     if log_file_path is None:
-        config = Config()
+        config = get_config()
         log_file_path = config['logging']['nuclear_alerts_json']
     
     alert_data = {
@@ -129,7 +129,7 @@ def log_alert_to_file(alert, log_file_path=None):
     }
     
     try:
-        from the_alchemiser.core.s3_utils import get_s3_handler
+        from the_alchemiser.core.utils.s3_utils import get_s3_handler
         s3_handler = get_s3_handler()
         
         if log_file_path.startswith('s3://'):
@@ -145,7 +145,7 @@ def log_alert_to_file(alert, log_file_path=None):
 def log_alerts_to_file(alerts, log_file_path=None):
     """Log multiple alerts to file"""
     if log_file_path is None:
-        config = Config()
+        config = get_config()
         log_file_path = config['logging']['nuclear_alerts_json']
     
     for alert in alerts:

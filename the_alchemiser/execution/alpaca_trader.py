@@ -14,8 +14,8 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 
 # Centralized logging setup
-from the_alchemiser.core.logging_utils import setup_logging
-from the_alchemiser.core.data_provider import UnifiedDataProvider
+from the_alchemiser.core.logging.logging_utils import setup_logging
+from the_alchemiser.core.data.data_provider import UnifiedDataProvider
 from the_alchemiser.core.config import Config
 
 # Alpaca imports
@@ -33,7 +33,7 @@ def is_market_open(trading_client):
 class AlpacaTradingBot:
     """Alpaca Trading Bot for Nuclear Strategy"""
 
-    def __init__(self, paper_trading=None, ignore_market_hours=False):
+    def __init__(self, paper_trading=None, ignore_market_hours=False, config=None):
         """
         Initialize Alpaca trading bot using UnifiedDataProvider for all data access.
         Uses config.yaml for trading mode and endpoints.
@@ -43,9 +43,13 @@ class AlpacaTradingBot:
                                           If None, uses config.yaml setting.
             ignore_market_hours (bool, optional): Whether to ignore market hours when placing orders.
                                                Default False.
+            config (Config, optional): Configuration object. If None, will load from global config.
         """
-        from the_alchemiser.core.config import Config
-        config = Config()
+        # Use provided config or load global config
+        if config is None:
+            from the_alchemiser.core.config import get_config
+            config = get_config()
+        
         alpaca_cfg = config['alpaca']
         
         # Use parameter if provided, otherwise default to paper trading for safety
@@ -70,7 +74,8 @@ class AlpacaTradingBot:
 
         # Use UnifiedDataProvider for all Alpaca data access
         self.data_provider = UnifiedDataProvider(
-            paper_trading=self.paper_trading
+            paper_trading=self.paper_trading,
+            config=config
         )
         self.trading_client = self.data_provider.trading_client  # For order placement
         
@@ -777,10 +782,11 @@ class AlpacaTradingBot:
         """Read the latest nuclear trading signals from the alerts file"""
         try:
             signals = []
-            config = Config()
+            from the_alchemiser.core.config import get_config
+            config = get_config()
             alerts_file = config['logging']['nuclear_alerts_json']
             
-            from the_alchemiser.core.s3_utils import get_s3_handler
+            from the_alchemiser.core.utils.s3_utils import get_s3_handler
             s3_handler = get_s3_handler()
             
             if alerts_file.startswith('s3://'):
@@ -951,10 +957,11 @@ class AlpacaTradingBot:
                 'orders_executed': serializable_orders,
                 'paper_trading': self.paper_trading
             }
-            config = Config()
+            from the_alchemiser.core.config import get_config
+            config = get_config()
             log_file = config['logging']['alpaca_trades_json']
             
-            from the_alchemiser.core.s3_utils import get_s3_handler
+            from the_alchemiser.core.utils.s3_utils import get_s3_handler
             s3_handler = get_s3_handler()
             
             if log_file.startswith('s3://'):

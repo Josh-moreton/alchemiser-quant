@@ -90,10 +90,14 @@ The bot runs automatically via **GitHub Actions**:
 The-Alchemiser/
 ├── main.py                     # Unified entry point
 ├── core/                       # Core trading logic & strategies
-│   ├── nuclear_trading_bot.py  # Nuclear strategy
-│   ├── tecl_strategy_engine.py # TECL strategy
-│   ├── strategy_manager.py     # Multi-strategy coordination
-│   └── telegram_utils.py       # Telegram integration
+│   ├── data/                   # Data access & providers
+│   ├── indicators/             # Technical indicators
+│   ├── secrets/                # Secrets management
+│   ├── logging/                # Logging helpers
+│   ├── trading/                # Bots and strategy engines
+│   ├── ui/                     # CLI & Telegram utilities
+│   ├── utils/                  # Common utilities (S3, helpers)
+│   └── alerts/                 # Alerting services
 ├── execution/                  # Trading integration
 │   ├── alpaca_trader.py        # Alpaca trading bot
 │   └── multi_strategy_trader.py# Multi-strategy trading

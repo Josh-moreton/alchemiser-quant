@@ -21,8 +21,8 @@ from datetime import datetime, timedelta
 from enum import Enum
 
 from the_alchemiser.core.config import Config
-from the_alchemiser.core.nuclear_trading_bot import NuclearStrategyEngine, ActionType
-from the_alchemiser.core.tecl_trading_bot import TECLStrategyEngine
+from the_alchemiser.core.trading.nuclear_trading_bot import NuclearStrategyEngine, ActionType
+from the_alchemiser.core.trading.tecl_trading_bot import TECLStrategyEngine
 
 
 class StrategyType(Enum):
@@ -63,7 +63,7 @@ class StrategyPosition:
 class MultiStrategyManager:
     """Manages multiple trading strategies with portfolio allocation"""
     
-    def __init__(self, strategy_allocations: Optional[Dict[StrategyType, float]] = None, shared_data_provider=None):
+    def __init__(self, strategy_allocations: Optional[Dict[StrategyType, float]] = None, shared_data_provider=None, config=None):
         """
         Initialize multi-strategy manager
         
@@ -71,8 +71,13 @@ class MultiStrategyManager:
             strategy_allocations: Dict mapping strategy types to portfolio percentages
                                 Example: {StrategyType.NUCLEAR: 0.5, StrategyType.TECL: 0.5}
             shared_data_provider: Shared UnifiedDataProvider instance (optional)
+            config: Configuration object. If None, will load from global config.
         """
-        self.config = Config()
+        # Use provided config or load global config
+        if config is None:
+            from the_alchemiser.core.config import get_config
+            config = get_config()
+        self.config = config
         
         # Default 50/50 allocation if not specified
         self.strategy_allocations = strategy_allocations or {
@@ -87,7 +92,7 @@ class MultiStrategyManager:
         
         # Use provided shared_data_provider, or create one if not given
         if shared_data_provider is None:
-            from the_alchemiser.core.data_provider import UnifiedDataProvider
+            from the_alchemiser.core.data.data_provider import UnifiedDataProvider
             shared_data_provider = UnifiedDataProvider(paper_trading=True)
         # Initialize strategy orchestration engines with shared data provider
         self.nuclear_engine = NuclearStrategyEngine(data_provider=shared_data_provider)

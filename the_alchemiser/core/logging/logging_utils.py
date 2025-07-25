@@ -1,7 +1,7 @@
 import logging
 import os
 from typing import List
-from the_alchemiser.core.s3_utils import S3FileHandler
+from the_alchemiser.core.utils.s3_utils import S3FileHandler
 
 def setup_logging(log_level=logging.INFO, log_file=None):
     """
