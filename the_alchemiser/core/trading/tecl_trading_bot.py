@@ -109,6 +109,7 @@ class TECLStrategyEngine:
                 continue
             close = df['Close']
             indicators[symbol] = {
+                'rsi_9': self.safe_get_indicator(close, self.indicators.rsi, 9),
                 'rsi_10': self.safe_get_indicator(close, self.indicators.rsi, 10),
                 'rsi_20': self.safe_get_indicator(close, self.indicators.rsi, 20),
                 'ma_200': self.safe_get_indicator(close, self.indicators.moving_average, 200),

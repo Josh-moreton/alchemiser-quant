@@ -41,7 +41,7 @@ def _preload_symbol_data(data_provider, symbols, start, end):
     return symbol_data
 
 
-def run_backtest(start, end, initial_equity=1000, price_type="close"):
+def run_backtest(start, end, initial_equity=1000.0, price_type="close"):
 
     price_type = price_type.lower()
     if price_type == 'close':
@@ -158,7 +158,7 @@ def run_backtest(start, end, initial_equity=1000, price_type="close"):
     return equity_curve
 
 
-def run_backtest_comparison(start, end, initial_equity=1000):
+def run_backtest_comparison(start, end, initial_equity=1000.0):
     """Run backtest for all three price types and compare results."""
     console.print(Panel(f"[bold cyan]Starting Backtest Comparison[/bold cyan]\n"
                        f"Period: {start.strftime('%Y-%m-%d')} to {end.strftime('%Y-%m-%d')}\n"
