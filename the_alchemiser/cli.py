@@ -272,7 +272,10 @@ def backtest(
     initial_equity: float = typer.Option(10000, help="Initial equity for backtest"),
     price_type: str = typer.Option("open", help="Price type: close, open, mid, or vwap"),
     slippage_bps: int = typer.Option(5, help="Slippage in basis points (default: 5 bps)"),
-    noise_factor: float = typer.Option(0.001, help="Market noise factor (default: 0.1%)")
+    noise_factor: float = typer.Option(0.001, help="Market noise factor (default: 0.1%)"),
+    deposit_amount: float = typer.Option(0.0, help="Deposit amount (e.g. 100 for £100, default: 0)"),
+    deposit_frequency: Optional[str] = typer.Option(None, help="Deposit frequency: 'monthly' or 'weekly' (default: None)"),
+    deposit_day: int = typer.Option(1, help="Deposit day: for monthly, day of month (1-28); for weekly, weekday (0=Mon, 6=Sun)")
 ):
     """
     🧪 [bold cyan]Run a realistic backtest[/bold cyan] for a given date range and price type.
@@ -289,7 +292,16 @@ def backtest(
         raise typer.Exit(1)
     
     console.print(f"[bold green]Running realistic backtest from {start} to {end} using {price_type} prices with {slippage_bps} bps slippage and {noise_factor*100:.3f}% noise...")
-    run_backtest(start_dt, end_dt, initial_equity=initial_equity, price_type=price_type, slippage_bps=slippage_bps, noise_factor=noise_factor)
+    run_backtest(
+        start_dt, end_dt,
+        initial_equity=initial_equity,
+        price_type=price_type,
+        slippage_bps=slippage_bps,
+        noise_factor=noise_factor,
+        deposit_amount=deposit_amount,
+        deposit_frequency=deposit_frequency,
+        deposit_day=deposit_day
+    )
 
 @app.command()
 def backtest_compare(
@@ -297,7 +309,10 @@ def backtest_compare(
     end: str = typer.Option("2025-07-15", help="End date (YYYY-MM-DD)"),
     initial_equity: float = typer.Option(10000, help="Initial equity for backtest"),
     slippage_bps: int = typer.Option(5, help="Slippage in basis points (default: 5 bps)"),
-    noise_factor: float = typer.Option(0.001, help="Market noise factor (default: 0.1%)")
+    noise_factor: float = typer.Option(0.001, help="Market noise factor (default: 0.1%)"),
+    deposit_amount: float = typer.Option(0.0, help="Deposit amount (e.g. 100 for £100, default: 0)"),
+    deposit_frequency: Optional[str] = typer.Option(None, help="Deposit frequency: 'monthly' or 'weekly' (default: None)"),
+    deposit_day: int = typer.Option(1, help="Deposit day: for monthly, day of month (1-28); for weekly, weekday (0=Mon, 6=Sun)")
 ):
     """
     📊 [bold cyan]Compare realistic backtest results[/bold cyan] across all price types and dual-rebalance.
@@ -314,7 +329,15 @@ def backtest_compare(
         raise typer.Exit(1)
     
     console.print(f"[bold green]Running realistic backtest comparison from {start} to {end} for all modes with {slippage_bps} bps slippage and {noise_factor*100:.3f}% noise...")
-    run_backtest_comparison(start_dt, end_dt, initial_equity=initial_equity, slippage_bps=slippage_bps, noise_factor=noise_factor)
+    run_backtest_comparison(
+        start_dt, end_dt,
+        initial_equity=initial_equity,
+        slippage_bps=slippage_bps,
+        noise_factor=noise_factor,
+        deposit_amount=deposit_amount,
+        deposit_frequency=deposit_frequency,
+        deposit_day=deposit_day
+    )
 
 @app.command()
 def backtest_dual(
@@ -322,7 +345,10 @@ def backtest_dual(
     end: str = typer.Option("2025-07-15", help="End date (YYYY-MM-DD)"),
     initial_equity: float = typer.Option(10000, help="Initial equity for backtest"),
     slippage_bps: int = typer.Option(5, help="Slippage in basis points (default: 5 bps)"),
-    noise_factor: float = typer.Option(0.001, help="Market noise factor (default: 0.1%)")
+    noise_factor: float = typer.Option(0.001, help="Market noise factor (default: 0.1%)"),
+    deposit_amount: float = typer.Option(0.0, help="Deposit amount (e.g. 100 for £100, default: 0)"),
+    deposit_frequency: Optional[str] = typer.Option(None, help="Deposit frequency: 'monthly' or 'weekly' (default: None)"),
+    deposit_day: int = typer.Option(1, help="Deposit day: for monthly, day of month (1-28); for weekly, weekday (0=Mon, 6=Sun)")
 ):
     """
     🔄 [bold cyan]Run a dual-rebalance realistic backtest[/bold cyan] with 2 rebalances per day.
@@ -340,7 +366,15 @@ def backtest_dual(
         raise typer.Exit(1)
     
     console.print(f"[bold green]Running dual-rebalance realistic backtest from {start} to {end} with {slippage_bps} bps slippage and {noise_factor*100:.3f}% noise...")
-    run_backtest_dual_rebalance(start_dt, end_dt, initial_equity=initial_equity, slippage_bps=slippage_bps, noise_factor=noise_factor)
+    run_backtest_dual_rebalance(
+        start_dt, end_dt,
+        initial_equity=initial_equity,
+        slippage_bps=slippage_bps,
+        noise_factor=noise_factor,
+        deposit_amount=deposit_amount,
+        deposit_frequency=deposit_frequency,
+        deposit_day=deposit_day
+    )
 
 @app.callback()
 def main(

@@ -64,12 +64,8 @@ class MultiStrategyAlpacaTrader(AlpacaTradingBot):
         # Store config reference
         self.config = config
         
-        # Logging setup - use local files for paper trading, S3 for live trading
-        if paper_trading:
-            self.multi_strategy_log = 'data/logs/multi_strategy_execution.log'
-        else:
-            self.multi_strategy_log = self.config['logging'].get('multi_strategy_log', 
-                                                                'data/logs/multi_strategy_execution.log')
+        # Logging setup - always use config for log path
+        self.multi_strategy_log = self.config['logging'].get('multi_strategy_log', 'data/logs/multi_strategy_execution.log')
     
     def execute_multi_strategy(self) -> MultiStrategyExecutionResult:
         """
