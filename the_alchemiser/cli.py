@@ -251,14 +251,15 @@ def version():
     ))
 
 # Clean imports now that backtest functions are in the main package
-from the_alchemiser.backtest.test_backtest import run_backtest, run_backtest_comparison
+from the_alchemiser.backtest.test_backtest import run_backtest, run_backtest_comparison, run_backtest_dual_rebalance
 
 @app.command()
 def backtest(
     start: str = typer.Option("2023-01-01", help="Start date (YYYY-MM-DD)"),
     end: str = typer.Option("2025-07-15", help="End date (YYYY-MM-DD)"),
     initial_equity: float = typer.Option(10000, help="Initial equity for backtest"),
-    price_type: str = typer.Option("open", help="Price type: close, open, or mid")
+    price_type: str = typer.Option("open", help="Price type: close, open, or mid"),
+    slippage_bps: int = typer.Option(5, help="Slippage in basis points (default: 5 bps)")
 ):
     """
     🧪 [bold cyan]Run a backtest[/bold cyan] for a given date range and price type.
@@ -272,17 +273,18 @@ def backtest(
         console.print(f"[red]Invalid date format: {e}[/red]")
         raise typer.Exit(1)
     
-    console.print(f"[bold green]Running backtest from {start} to {end} using {price_type} prices...")
-    run_backtest(start_dt, end_dt, initial_equity=initial_equity, price_type=price_type)
+    console.print(f"[bold green]Running backtest from {start} to {end} using {price_type} prices with {slippage_bps} bps slippage...")
+    run_backtest(start_dt, end_dt, initial_equity=initial_equity, price_type=price_type, slippage_bps=slippage_bps)
 
 @app.command()
 def backtest_compare(
     start: str = typer.Option("2023-01-01", help="Start date (YYYY-MM-DD)"),
     end: str = typer.Option("2025-07-15", help="End date (YYYY-MM-DD)"),
-    initial_equity: float = typer.Option(10000, help="Initial equity for backtest")
+    initial_equity: float = typer.Option(10000, help="Initial equity for backtest"),
+    slippage_bps: int = typer.Option(5, help="Slippage in basis points (default: 5 bps)")
 ):
     """
-    📊 [bold cyan]Compare backtest results[/bold cyan] across all price types (close, open, mid).
+    📊 [bold cyan]Compare backtest results[/bold cyan] across all price types (close, open, mid) and dual-rebalance.
     """
     import datetime as dt
     
@@ -293,8 +295,33 @@ def backtest_compare(
         console.print(f"[red]Invalid date format: {e}[/red]")
         raise typer.Exit(1)
     
-    console.print(f"[bold green]Running backtest comparison from {start} to {end} for all price types...")
-    run_backtest_comparison(start_dt, end_dt, initial_equity=initial_equity)
+    console.print(f"[bold green]Running backtest comparison from {start} to {end} for all modes with {slippage_bps} bps slippage...")
+    run_backtest_comparison(start_dt, end_dt, initial_equity=initial_equity, slippage_bps=slippage_bps)
+
+@app.command()
+def backtest_dual(
+    start: str = typer.Option("2023-01-01", help="Start date (YYYY-MM-DD)"),
+    end: str = typer.Option("2025-07-15", help="End date (YYYY-MM-DD)"),
+    initial_equity: float = typer.Option(10000, help="Initial equity for backtest"),
+    slippage_bps: int = typer.Option(5, help="Slippage in basis points (default: 5 bps)")
+):
+    """
+    🔄 [bold cyan]Run a dual-rebalance backtest[/bold cyan] with 2 rebalances per day (open & close).
+    
+    This mode performs portfolio rebalancing at both market open and close,
+    providing insights into the impact of more frequent trading with realistic slippage costs.
+    """
+    import datetime as dt
+    
+    try:
+        start_dt = dt.datetime.strptime(start, "%Y-%m-%d")
+        end_dt = dt.datetime.strptime(end, "%Y-%m-%d")
+    except Exception as e:
+        console.print(f"[red]Invalid date format: {e}[/red]")
+        raise typer.Exit(1)
+    
+    console.print(f"[bold green]Running dual-rebalance backtest from {start} to {end} with {slippage_bps} bps slippage...")
+    run_backtest_dual_rebalance(start_dt, end_dt, initial_equity=initial_equity, slippage_bps=slippage_bps)
 
 @app.callback()
 def main(
@@ -309,10 +336,15 @@ def main(
     with beautiful CLI interface and comprehensive market analysis.
     
     [bold]Quick Start:[/bold]
-    • [cyan]alchemiser bot[/cyan]           - Show strategy signals
-    • [cyan]alchemiser trade[/cyan]         - Paper trading
-    • [cyan]alchemiser trade --live[/cyan]  - Live trading (⚠️ real money)
-    • [cyan]alchemiser status[/cyan]        - Account information
+    • [cyan]alchemiser bot[/cyan]               - Show strategy signals
+    • [cyan]alchemiser trade[/cyan]             - Paper trading
+    • [cyan]alchemiser trade --live[/cyan]      - Live trading (⚠️ real money)
+    • [cyan]alchemiser status[/cyan]            - Account information
+    
+    [bold]Backtesting:[/bold]
+    • [cyan]alchemiser backtest[/cyan]          - Single rebalance backtest
+    • [cyan]alchemiser backtest-dual[/cyan]     - Dual rebalance (2x daily)
+    • [cyan]alchemiser backtest-compare[/cyan]  - Compare all modes
     
     [dim]Use --help with any command for detailed information.[/dim]
     """
