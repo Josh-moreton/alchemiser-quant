@@ -121,45 +121,34 @@ def trade(
     mode_display = "[bold red]LIVE[/bold red]" if live else "[bold blue]PAPER[/bold blue]"
     console.print(f"[bold yellow]🚀 Starting {mode_display} trading...[/bold yellow]")
     
-    # Progress indicator while trading
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        BarColumn(),
-        TimeElapsedColumn(),
-        console=console,
-        transient=True
-    ) as progress:
-        task = progress.add_task("Executing multi-strategy trading...", total=100)
-        
-        try:
-            # Import and run the main trading logic
-            from the_alchemiser.main import run_multi_strategy_trading
-            
-            progress.update(task, advance=25, description="Analyzing market conditions...")
-            time.sleep(0.5)  # Brief pause for UI
-            
-            progress.update(task, advance=25, description="Generating strategy signals...")
-            result = run_multi_strategy_trading(
-                live_trading=live, 
-                ignore_market_hours=ignore_market_hours
-            )
-            
-            progress.update(task, advance=50, description="Trading completed!")
-            
-            if result == "market_closed":
-                console.print("\n[bold yellow]⏰ Market is closed - no trades executed[/bold yellow]")
-            elif result:
-                console.print(f"\n[bold green]✅ {mode_display} trading completed successfully![/bold green]")
-            else:
-                console.print(f"\n[bold red]❌ {mode_display} trading failed![/bold red]")
-                raise typer.Exit(1)
-                
-        except Exception as e:
-            console.print(f"\n[bold red]❌ Error: {e}[/bold red]")
-            if verbose:
-                console.print_exception()
+    try:
+        # Import and run the main trading logic
+        from the_alchemiser.main import run_multi_strategy_trading
+
+        console.print("[dim]Analyzing market conditions...[/dim]")
+        time.sleep(0.5)  # Brief pause for UI
+
+        console.print("[dim]Generating strategy signals...[/dim]")
+        result = run_multi_strategy_trading(
+            live_trading=live,
+            ignore_market_hours=ignore_market_hours
+        )
+
+        console.print("[dim]Trading completed![/dim]")
+
+        if result == "market_closed":
+            console.print("\n[bold yellow]⏰ Market is closed - no trades executed[/bold yellow]")
+        elif result:
+            console.print(f"\n[bold green]✅ {mode_display} trading completed successfully![/bold green]")
+        else:
+            console.print(f"\n[bold red]❌ {mode_display} trading failed![/bold red]")
             raise typer.Exit(1)
+
+    except Exception as e:
+        console.print(f"\n[bold red]❌ Error: {e}[/bold red]")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
 
 @app.command()
 def status():

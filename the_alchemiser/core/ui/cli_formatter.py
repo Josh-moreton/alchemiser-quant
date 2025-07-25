@@ -276,33 +276,24 @@ def render_target_vs_current_allocations(target_portfolio: Dict[str, float],
     }
     
     # Create comparison table
-    table = Table(title="🎯 Target vs Current Allocations", show_lines=True, expand=True)
+    table = Table(title="🎯 Target vs Current Allocations (trades only if % difference > 1.0)", show_lines=True, expand=True)
     table.add_column("Symbol", style="bold cyan", justify="center")
     table.add_column("Target %", style="green", justify="right")
-    table.add_column("Target $", style="green", justify="right") 
     table.add_column("Current %", style="blue", justify="right")
-    table.add_column("Current $", style="blue", justify="right")
-    table.add_column("Difference", style="yellow", justify="right")
-    
+    table.add_column("Δ pct pts", style="bold magenta", justify="right")
+
     all_symbols = set(target_portfolio.keys()) | set(current_positions.keys())
     for symbol in sorted(all_symbols):
         target_weight = target_portfolio.get(symbol, 0.0)
-        target_value = target_values.get(symbol, 0.0)
         current_value = current_values.get(symbol, 0.0)
         current_weight = current_value / portfolio_value if portfolio_value > 0 else 0.0
-        
-        diff = target_value - current_value
-        diff_color = "green" if diff > 0 else "red" if diff < 0 else "white"
-        
+        percent_diff = abs(target_weight - current_weight)
         table.add_row(
             symbol,
             f"{target_weight:.1%}",
-            f"${target_value:,.2f}",
-            f"{current_weight:.1%}", 
-            f"${current_value:,.2f}",
-            f"[{diff_color}]${diff:+,.2f}[/{diff_color}]"
+            f"{current_weight:.1%}",
+            f"{percent_diff:.1%}"
         )
-    
     c.print(table)
 
 

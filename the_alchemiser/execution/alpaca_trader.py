@@ -84,8 +84,12 @@ class AlpacaTradingBot:
         # User-facing message with rich
         from rich.console import Console
         console = Console()
-        console.print("[green]Successfully retrieved Alpaca paper trading keys[/green]")
-        console.print(f"[bold blue]Alpaca Trading Bot initialized - Paper Trading: {self.paper_trading}[/bold blue]")
+        if self.paper_trading:
+            console.print("[green]Successfully retrieved Alpaca paper trading keys[/green]")
+            console.print(f"[bold blue]Alpaca Trading Bot initialized - Paper Trading: {self.paper_trading}[/bold blue]")
+        else:
+            console.print("[green]Successfully retrieved Alpaca live trading keys[/green]")
+            console.print(f"[bold blue]Alpaca Trading Bot initialized - Paper Trading: {self.paper_trading}[/bold blue]")
     
     def get_account_info(self) -> Dict:
         """Get account information via UnifiedDataProvider, returns dict for compatibility"""
@@ -400,46 +404,47 @@ class AlpacaTradingBot:
             for symbol, pos in current_positions.items()
         }
         
-        # Display allocations
-        print(f"🎯 Target vs Current Allocations:")
+        # Display allocations (focus on percentage points, not dollar difference)
+        print(f"🎯 Target vs Current Allocations (trades only if % difference > 1.0):")
         all_symbols = set(target_portfolio.keys()) | set(current_positions.keys())
         for symbol in sorted(all_symbols):
             target_weight = target_portfolio.get(symbol, 0.0)
             target_value = target_values.get(symbol, 0.0)
             current_value = current_values.get(symbol, 0.0)
             current_weight = current_value / portfolio_value if portfolio_value > 0 else 0.0
-            
-            print(f"   {symbol:>4}: Target {target_weight:>5.1%} (${target_value:>8,.2f}) | Current {current_weight:>5.1%} (${current_value:>8,.2f})")
-            logging.info(f"   {symbol}: Target {target_weight:.1%} (${target_value:.2f}) | Current {current_weight:.1%} (${current_value:.2f})")
-        
+            percent_diff = abs(target_weight - current_weight) * 100
+            print(f"   {symbol:>4}: Target {target_weight:>5.1%} | Current {current_weight:>5.1%} | Δ = {percent_diff:>4.2f} pct pts")
+            logging.info(f"   {symbol}: Target {target_weight:.1%} | Current {current_weight:.1%} | Δ = {percent_diff:.2f} pct pts")
         return target_values, current_values
 
     def check_allocation_discrepancies(self, target_values: Dict[str, float], current_values: Dict[str, float], tolerance: float = 1.0) -> bool:
         """
         Check if there are significant discrepancies between target and current allocations.
-        
+        Uses percentage point difference only (absolute percent difference > 1.0%).
         Args:
             target_values: Target dollar values by symbol
             current_values: Current dollar values by symbol
-            tolerance: Tolerance in dollars for considering positions aligned
-            
+            tolerance: Tolerance in percentage points (default 1.0)
         Returns:
             True if there are discrepancies that need rebalancing, False otherwise
         """
         all_symbols = set(target_values.keys()) | set(current_values.keys())
-        
+        total_portfolio_value = sum(target_values.values()) + sum(current_values.values())
+        # Use the larger of the two for denominator to avoid division by zero
+        portfolio_value = max(sum(target_values.values()), sum(current_values.values()), 1.0)
+
         for symbol in all_symbols:
             target_value = target_values.get(symbol, 0.0)
             current_value = current_values.get(symbol, 0.0)
-            
-            # Check for significant discrepancies
-            if abs(target_value - current_value) > tolerance:
+            target_pct = target_value / portfolio_value if portfolio_value > 0 else 0.0
+            current_pct = current_value / portfolio_value if portfolio_value > 0 else 0.0
+            percent_diff = abs(target_pct - current_pct) * 100
+            # Only check percentage point difference
+            if percent_diff > tolerance:
                 return True
-                
             # Special check: if target is 0 but we still have a position
-            if target_value <= 0.0 and current_value > 0.0:
+            if target_pct <= 0.0 and current_pct > 0.0:
                 return True
-        
         return False
 
     def rebalance_portfolio(self, target_portfolio: Dict[str, float]) -> List[Dict]:
@@ -519,6 +524,7 @@ class AlpacaTradingBot:
                     # Calculate allocation percentages
                     target_percent = target_value / portfolio_value if portfolio_value > 0 else 0.0
                     current_percent = current_value / portfolio_value if portfolio_value > 0 else 0.0
+                    percent_diff = abs(target_percent - current_percent) * 100
 
                     # If the target is zero (or very close), liquidate the entire position, even if tiny
                     if target_value <= 0.0 and pos['qty'] > 0:
@@ -535,8 +541,8 @@ class AlpacaTradingBot:
                             'reason': 'entire position (target 0%)'
                         })
                         total_proceeds_expected += estimated_proceeds
-                    # Only sell if allocation difference is at least 1%
-                    elif (current_value > target_value + 1.0) and (abs(target_percent - current_percent) >= 0.01):
+                    # Only sell if allocation percentage point difference is at least 1.0
+                    elif percent_diff >= 1.0 and current_percent > target_percent:
                         value_to_sell = current_value - target_value
                         current_price = self.get_current_price(symbol)
                         if current_price <= 0:
@@ -551,7 +557,7 @@ class AlpacaTradingBot:
                                 'symbol': symbol,
                                 'qty': shares_to_sell,
                                 'estimated_proceeds': estimated_proceeds,
-                                'reason': f'excess ${value_to_sell:.2f}'
+                                'reason': f'excess allocation ({percent_diff:.2f} pct pts)'
                             })
                             total_proceeds_expected += estimated_proceeds
 
@@ -560,9 +566,10 @@ class AlpacaTradingBot:
                     current_value = current_values.get(symbol, 0.0)
                     target_percent = target_value / portfolio_value if portfolio_value > 0 else 0.0
                     current_percent = current_value / portfolio_value if portfolio_value > 0 else 0.0
+                    percent_diff = abs(target_percent - current_percent) * 100
 
-                    # Only buy if allocation difference is at least 1%
-                    if (target_value > current_value + 1.0) and (abs(target_percent - current_percent) >= 0.01):
+                    # Only buy if allocation percentage point difference is at least 1.0
+                    if percent_diff >= 1.0 and target_percent > current_percent:
                         value_to_buy = target_value - current_value
                         current_price = self.get_current_price(symbol)
 
