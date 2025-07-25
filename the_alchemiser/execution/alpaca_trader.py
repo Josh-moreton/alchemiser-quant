@@ -565,7 +565,7 @@ class AlpacaTradingBot:
                         print(f"⚠️  Insufficient cash, but within 1% or $1. Scaling down buys by 1%.")
                     else:
                         scale_factor = projected_cash / total_cash_needed if total_cash_needed > 0 else 0
-                        print(f"⚠️  Insufficient cash, scaling down buys by {scale_factor:.1%}")
+                        print(f"⚠️  Insufficient cash, scaling down buys to {scale_factor:.1%}")
                     for buy_plan in buy_orders_plan:
                         buy_plan['value_needed'] *= scale_factor
                 
