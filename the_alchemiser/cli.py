@@ -243,15 +243,41 @@ def version():
 from the_alchemiser.backtest.test_backtest import run_backtest, run_backtest_comparison, run_backtest_dual_rebalance
 
 @app.command()
+def backtest_nuclear_compare(
+    start: str = typer.Option("2023-08-01", help="Start date (YYYY-MM-DD)"),
+    end: str = typer.Option("2025-07-15", help="End date (YYYY-MM-DD)"),
+    initial_equity: float = typer.Option(10000, help="Initial equity for backtest"),
+    slippage_bps: int = typer.Option(5, help="Slippage in basis points (default: 5 bps)"),
+    noise_factor: float = typer.Option(0.001, help="Market noise factor (default: 0.1%)")
+):
+    """
+    ⚖️ [bold cyan]Compare nuclear portfolio strategies[/bold cyan]
+    
+    Runs a comprehensive backtest comparison with realistic execution pricing.
+    """
+    import datetime as dt
+    try:
+        start_dt = dt.datetime.strptime(start, "%Y-%m-%d")
+        end_dt = dt.datetime.strptime(end, "%Y-%m-%d")
+    except Exception as e:
+        console.print(f"[red]Invalid date format: {e}[/red]")
+        raise typer.Exit(1)
+    console.print(f"[bold green]Running comprehensive backtest comparison from {start} to {end} with {slippage_bps} bps slippage and {noise_factor*100:.3f}% noise...")
+    run_backtest_comparison(start_dt, end_dt, initial_equity=initial_equity, slippage_bps=slippage_bps, noise_factor=noise_factor)
+
+@app.command()
 def backtest(
     start: str = typer.Option("2023-01-01", help="Start date (YYYY-MM-DD)"),
     end: str = typer.Option("2025-07-15", help="End date (YYYY-MM-DD)"),
     initial_equity: float = typer.Option(10000, help="Initial equity for backtest"),
-    price_type: str = typer.Option("open", help="Price type: close, open, or mid"),
-    slippage_bps: int = typer.Option(5, help="Slippage in basis points (default: 5 bps)")
+    price_type: str = typer.Option("open", help="Price type: close, open, mid, or vwap"),
+    slippage_bps: int = typer.Option(5, help="Slippage in basis points (default: 5 bps)"),
+    noise_factor: float = typer.Option(0.001, help="Market noise factor (default: 0.1%)")
 ):
     """
-    🧪 [bold cyan]Run a backtest[/bold cyan] for a given date range and price type.
+    🧪 [bold cyan]Run a realistic backtest[/bold cyan] for a given date range and price type.
+    
+    Uses 1-minute candles for realistic execution pricing with market noise simulation.
     """
     import datetime as dt
     
@@ -262,18 +288,21 @@ def backtest(
         console.print(f"[red]Invalid date format: {e}[/red]")
         raise typer.Exit(1)
     
-    console.print(f"[bold green]Running backtest from {start} to {end} using {price_type} prices with {slippage_bps} bps slippage...")
-    run_backtest(start_dt, end_dt, initial_equity=initial_equity, price_type=price_type, slippage_bps=slippage_bps)
+    console.print(f"[bold green]Running realistic backtest from {start} to {end} using {price_type} prices with {slippage_bps} bps slippage and {noise_factor*100:.3f}% noise...")
+    run_backtest(start_dt, end_dt, initial_equity=initial_equity, price_type=price_type, slippage_bps=slippage_bps, noise_factor=noise_factor)
 
 @app.command()
 def backtest_compare(
     start: str = typer.Option("2023-01-01", help="Start date (YYYY-MM-DD)"),
     end: str = typer.Option("2025-07-15", help="End date (YYYY-MM-DD)"),
     initial_equity: float = typer.Option(10000, help="Initial equity for backtest"),
-    slippage_bps: int = typer.Option(5, help="Slippage in basis points (default: 5 bps)")
+    slippage_bps: int = typer.Option(5, help="Slippage in basis points (default: 5 bps)"),
+    noise_factor: float = typer.Option(0.001, help="Market noise factor (default: 0.1%)")
 ):
     """
-    📊 [bold cyan]Compare backtest results[/bold cyan] across all price types (close, open, mid) and dual-rebalance.
+    📊 [bold cyan]Compare realistic backtest results[/bold cyan] across all price types and dual-rebalance.
+    
+    Tests close, open, mid, VWAP execution with 1-minute realistic pricing and market noise.
     """
     import datetime as dt
     
@@ -284,21 +313,22 @@ def backtest_compare(
         console.print(f"[red]Invalid date format: {e}[/red]")
         raise typer.Exit(1)
     
-    console.print(f"[bold green]Running backtest comparison from {start} to {end} for all modes with {slippage_bps} bps slippage...")
-    run_backtest_comparison(start_dt, end_dt, initial_equity=initial_equity, slippage_bps=slippage_bps)
+    console.print(f"[bold green]Running realistic backtest comparison from {start} to {end} for all modes with {slippage_bps} bps slippage and {noise_factor*100:.3f}% noise...")
+    run_backtest_comparison(start_dt, end_dt, initial_equity=initial_equity, slippage_bps=slippage_bps, noise_factor=noise_factor)
 
 @app.command()
 def backtest_dual(
     start: str = typer.Option("2023-01-01", help="Start date (YYYY-MM-DD)"),
     end: str = typer.Option("2025-07-15", help="End date (YYYY-MM-DD)"),
     initial_equity: float = typer.Option(10000, help="Initial equity for backtest"),
-    slippage_bps: int = typer.Option(5, help="Slippage in basis points (default: 5 bps)")
+    slippage_bps: int = typer.Option(5, help="Slippage in basis points (default: 5 bps)"),
+    noise_factor: float = typer.Option(0.001, help="Market noise factor (default: 0.1%)")
 ):
     """
-    🔄 [bold cyan]Run a dual-rebalance backtest[/bold cyan] with 2 rebalances per day (open & close).
+    🔄 [bold cyan]Run a dual-rebalance realistic backtest[/bold cyan] with 2 rebalances per day.
     
-    This mode performs portfolio rebalancing at both market open and close,
-    providing insights into the impact of more frequent trading with realistic slippage costs.
+    Performs portfolio rebalancing at both market open and close using 1-minute candles
+    for realistic execution pricing with market noise simulation.
     """
     import datetime as dt
     
@@ -309,8 +339,8 @@ def backtest_dual(
         console.print(f"[red]Invalid date format: {e}[/red]")
         raise typer.Exit(1)
     
-    console.print(f"[bold green]Running dual-rebalance backtest from {start} to {end} with {slippage_bps} bps slippage...")
-    run_backtest_dual_rebalance(start_dt, end_dt, initial_equity=initial_equity, slippage_bps=slippage_bps)
+    console.print(f"[bold green]Running dual-rebalance realistic backtest from {start} to {end} with {slippage_bps} bps slippage and {noise_factor*100:.3f}% noise...")
+    run_backtest_dual_rebalance(start_dt, end_dt, initial_equity=initial_equity, slippage_bps=slippage_bps, noise_factor=noise_factor)
 
 @app.callback()
 def main(
@@ -330,10 +360,11 @@ def main(
     • [cyan]alchemiser trade --live[/cyan]      - Live trading (⚠️ real money)
     • [cyan]alchemiser status[/cyan]            - Account information
     
-    [bold]Backtesting:[/bold]
+    [bold]Backtesting (Realistic with 1-min data):[/bold]
     • [cyan]alchemiser backtest[/cyan]          - Single rebalance backtest
     • [cyan]alchemiser backtest-dual[/cyan]     - Dual rebalance (2x daily)
-    • [cyan]alchemiser backtest-compare[/cyan]  - Compare all modes
+    • [cyan]alchemiser backtest-compare[/cyan]  - Compare all execution modes
+    • [cyan]alchemiser backtest-nuclear-compare[/cyan] - Nuclear strategy comparison
     
     [dim]Use --help with any command for detailed information.[/dim]
     """

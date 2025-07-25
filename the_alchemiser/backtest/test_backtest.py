@@ -4,6 +4,7 @@ import time
 import datetime as dt
 import pandas as pd
 import pytest
+import numpy as np
 from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
@@ -20,25 +21,45 @@ console = Console()
 
 
 def _preload_symbol_data(data_provider, symbols, start, end):
-    """Fetch all required historical data in one shot."""
+    """Fetch all required historical data in one shot - both daily and 1-minute."""
     console.print(f"[yellow]Loading historical data for {len(symbols)} symbols...")
     symbol_data = {}
+    symbol_minute_data = {}
+    
     for sym in track(symbols, description="Fetching data"):
-        bars = data_provider.get_historical_data(sym, start=start, end=end, timeframe="1Day")
-        rows = []
-        dates = []
-        for bar in bars:
-            rows.append({
+        # Fetch daily data for indicators
+        daily_bars = data_provider.get_historical_data(sym, start=start, end=end, timeframe="1Day")
+        daily_rows = []
+        daily_dates = []
+        for bar in daily_bars:
+            daily_rows.append({
                 'Open': float(bar.open),
                 'High': float(bar.high),
                 'Low': float(bar.low),
                 'Close': float(bar.close),
                 'Volume': getattr(bar, 'volume', 0)
             })
-            dates.append(bar.timestamp)
-        symbol_data[sym] = pd.DataFrame(rows, index=pd.to_datetime(dates))
-    console.print(f"[green]✓ Data loaded for {len(symbols)} symbols")
-    return symbol_data
+            daily_dates.append(bar.timestamp)
+        symbol_data[sym] = pd.DataFrame(daily_rows, index=pd.to_datetime(daily_dates))
+        
+        # Fetch 1-minute data for realistic execution pricing (last 90 days to limit data)
+        minute_start = max(start, end - dt.timedelta(days=90))
+        minute_bars = data_provider.get_historical_data(sym, start=minute_start, end=end, timeframe="1m")
+        minute_rows = []
+        minute_dates = []
+        for bar in minute_bars:
+            minute_rows.append({
+                'Open': float(bar.open),
+                'High': float(bar.high),
+                'Low': float(bar.low),
+                'Close': float(bar.close),
+                'Volume': getattr(bar, 'volume', 0)
+            })
+            minute_dates.append(bar.timestamp)
+        symbol_minute_data[sym] = pd.DataFrame(minute_rows, index=pd.to_datetime(minute_dates))
+        
+    console.print(f"[green]✓ Data loaded for {len(symbols)} symbols (daily + 1min)")
+    return symbol_data, symbol_minute_data
 
 
 def _calculate_slippage_cost(weight_change, price, slippage_bps=5):
@@ -60,7 +81,79 @@ def _calculate_slippage_cost(weight_change, price, slippage_bps=5):
     return (slippage_bps / 10000) * abs(weight_change)
 
 
-def run_backtest(start, end, initial_equity=1000.0, price_type="close", slippage_bps=5):
+def _add_market_noise(price, volatility_factor=0.001):
+    """Add realistic market noise to execution prices.
+    
+    Args:
+        price: Base price
+        volatility_factor: Noise factor (default 0.001 = 0.1% noise)
+    
+    Returns:
+        Price with added noise
+    """
+    # Add random noise with normal distribution
+    noise = np.random.normal(0, volatility_factor)
+    return price * (1 + noise)
+
+
+def _get_realistic_execution_price(symbol_minute_data, symbol, target_time, price_type="mid", noise_factor=0.001):
+    """Get realistic execution price using 1-minute data with market noise.
+    
+    Args:
+        symbol_minute_data: Dict of minute-level DataFrames
+        symbol: Stock symbol
+        target_time: Target execution time
+        price_type: 'open', 'close', 'mid', 'vwap'
+        noise_factor: Market noise factor
+        
+    Returns:
+        Realistic execution price with noise
+    """
+    if symbol not in symbol_minute_data:
+        return None
+        
+    minute_df = symbol_minute_data[symbol]
+    if minute_df.empty:
+        return None
+    
+    # Find closest minute data to target time
+    target_date = target_time.date()
+    same_day_data = minute_df[minute_df.index.date == target_date]
+    
+    if same_day_data.empty:
+        # Fall back to daily close price if no minute data
+        return None
+    
+    # Get execution price based on type
+    if price_type == "open":
+        # Use first available price of the day with some noise
+        base_price = same_day_data.iloc[0]['Open']
+    elif price_type == "close":
+        # Use last available price of the day
+        base_price = same_day_data.iloc[-1]['Close']
+    elif price_type == "mid":
+        # Use average of high/low/close for the closest minute
+        closest_idx = same_day_data.index.get_indexer([target_time], method='nearest')[0]
+        if closest_idx >= 0:
+            closest_bar = same_day_data.iloc[closest_idx]
+            base_price = (closest_bar['High'] + closest_bar['Low'] + closest_bar['Close']) / 3
+        else:
+            base_price = same_day_data.iloc[-1]['Close']
+    elif price_type == "vwap":
+        # Calculate volume-weighted average price for the day
+        if 'Volume' in same_day_data.columns and same_day_data['Volume'].sum() > 0:
+            typical_price = (same_day_data['High'] + same_day_data['Low'] + same_day_data['Close']) / 3
+            base_price = (typical_price * same_day_data['Volume']).sum() / same_day_data['Volume'].sum()
+        else:
+            base_price = same_day_data['Close'].mean()
+    else:
+        base_price = same_day_data.iloc[-1]['Close']
+    
+    # Add market noise
+    return _add_market_noise(base_price, noise_factor)
+
+
+def run_backtest(start, end, initial_equity=1000.0, price_type="close", slippage_bps=5, noise_factor=0.001):
 
     price_type = price_type.lower()
     if price_type == 'close':
@@ -72,21 +165,26 @@ def run_backtest(start, end, initial_equity=1000.0, price_type="close", slippage
     elif price_type == 'mid':
         price_selector = lambda row: (row['High'] + row['Low'] + row['Close']) / 3
         price_label = 'Mid (HLC/3)'
+    elif price_type == 'vwap':
+        price_selector = lambda row: (row['High'] + row['Low'] + row['Close']) / 3  # Simplified VWAP
+        price_label = 'VWAP (simplified)'
     else:
         raise ValueError(f"Unknown price_type: {price_type}")
 
-    console.print(Panel(f"[bold cyan]Starting Backtest[/bold cyan]\n"
+    console.print(Panel(f"[bold cyan]Starting Realistic Backtest[/bold cyan]\n"
                        f"Period: {start.strftime('%Y-%m-%d')} to {end.strftime('%Y-%m-%d')}\n"
                        f"Initial Equity: ${initial_equity:,.2f}\n"
                        f"Price Type: {price_label}\n"
-                       f"Slippage: {slippage_bps} bps",
-                       title="📊 Backtest Configuration"))
+                       f"Slippage: {slippage_bps} bps\n"
+                       f"Market Noise: {noise_factor*100:.3f}%",
+                       title="📊 Realistic Backtest Configuration"))
 
     dp = UnifiedDataProvider(paper_trading=True, cache_duration=0)
     manager = MultiStrategyManager(shared_data_provider=dp)
     all_syms = list(set(manager.nuclear_engine.all_symbols + manager.tecl_engine.all_symbols))
 
-    symbol_data = _preload_symbol_data(dp, all_syms, start - dt.timedelta(days=400), end)
+    # Fetch both daily and minute data
+    symbol_data, symbol_minute_data = _preload_symbol_data(dp, all_syms, start - dt.timedelta(days=400), end)
 
     equity = initial_equity
     equity_curve = []
@@ -124,20 +222,29 @@ def run_backtest(start, end, initial_equity=1000.0, price_type="close", slippage
             dp._fetch_historical_data = original_fetch_method
         current_weights = {sym: portfolio.get(sym, 0) for sym in all_syms}
         
-        # Calculate slippage costs from weight changes
+        # Calculate slippage costs from weight changes using realistic execution prices
         total_slippage_cost = 0.0
         for sym, new_weight in current_weights.items():
             old_weight = prev_weights.get(sym, 0)
             weight_change = abs(new_weight - old_weight)
-            if weight_change > 1e-6 and sym in symbol_data and current_day in symbol_data[sym].index:
-                curr_row = symbol_data[sym].loc[current_day]
-                curr_price = price_selector(curr_row)
-                slippage_cost = _calculate_slippage_cost(weight_change, curr_price, slippage_bps)
-                total_slippage_cost += slippage_cost
+            if weight_change > 1e-6:
+                # Get realistic execution price using 1-minute data
+                execution_price = _get_realistic_execution_price(
+                    symbol_minute_data, sym, current_day, price_type, noise_factor
+                )
+                if execution_price is None and sym in symbol_data and current_day in symbol_data[sym].index:
+                    # Fall back to daily data if no minute data
+                    curr_row = symbol_data[sym].loc[current_day]
+                    execution_price = price_selector(curr_row)
+                
+                if execution_price:
+                    slippage_cost = _calculate_slippage_cost(weight_change, execution_price, slippage_bps)
+                    total_slippage_cost += slippage_cost
         
         # Apply slippage cost to equity
         equity *= (1 - total_slippage_cost)
         
+        # Calculate returns using realistic pricing with daily data for consistency
         daily_ret = 0.0
         for sym, weight in current_weights.items():
             if weight == 0:
@@ -150,8 +257,21 @@ def run_backtest(start, end, initial_equity=1000.0, price_type="close", slippage
                 continue
             prev_row = df.loc[prev_dates[-1]]
             curr_row = df.loc[current_day]
-            prev_price = price_selector(prev_row)
-            curr_price = price_selector(curr_row)
+            
+            # Use realistic execution pricing for returns too
+            prev_price = _get_realistic_execution_price(
+                symbol_minute_data, sym, prev_dates[-1], price_type, noise_factor
+            )
+            curr_price = _get_realistic_execution_price(
+                symbol_minute_data, sym, current_day, price_type, noise_factor
+            )
+            
+            # Fall back to daily prices if minute data unavailable
+            if prev_price is None:
+                prev_price = price_selector(prev_row)
+            if curr_price is None:
+                curr_price = price_selector(curr_row)
+                
             if prev_price == 0:
                 continue
             ret = (curr_price - prev_price) / prev_price
@@ -193,24 +313,26 @@ def run_backtest(start, end, initial_equity=1000.0, price_type="close", slippage
     return equity_curve
 
 
-def run_backtest_dual_rebalance(start, end, initial_equity=1000.0, slippage_bps=5):
+def run_backtest_dual_rebalance(start, end, initial_equity=1000.0, slippage_bps=5, noise_factor=0.001):
     """Run backtest with two rebalances per day: at open and at close.
     
     This simulates a more active trading strategy that adjusts positions twice daily,
-    accounting for slippage costs on each rebalance.
+    accounting for slippage costs on each rebalance and using realistic pricing.
     """
-    console.print(Panel(f"[bold cyan]Starting Dual-Rebalance Backtest[/bold cyan]\n"
+    console.print(Panel(f"[bold cyan]Starting Dual-Rebalance Realistic Backtest[/bold cyan]\n"
                        f"Period: {start.strftime('%Y-%m-%d')} to {end.strftime('%Y-%m-%d')}\n"
                        f"Initial Equity: ${initial_equity:,.2f}\n"
                        f"Rebalances: Open + Close (2x daily)\n"
-                       f"Slippage: {slippage_bps} bps per trade",
-                       title="📊 Dual-Rebalance Backtest Configuration"))
+                       f"Slippage: {slippage_bps} bps per trade\n"
+                       f"Market Noise: {noise_factor*100:.3f}%",
+                       title="📊 Dual-Rebalance Realistic Backtest Configuration"))
 
     dp = UnifiedDataProvider(paper_trading=True, cache_duration=0)
     manager = MultiStrategyManager(shared_data_provider=dp)
     all_syms = list(set(manager.nuclear_engine.all_symbols + manager.tecl_engine.all_symbols))
 
-    symbol_data = _preload_symbol_data(dp, all_syms, start - dt.timedelta(days=400), end)
+    # Fetch both daily and minute data
+    symbol_data, symbol_minute_data = _preload_symbol_data(dp, all_syms, start - dt.timedelta(days=400), end)
 
     equity = initial_equity
     equity_curve = []
@@ -250,21 +372,29 @@ def run_backtest_dual_rebalance(start, end, initial_equity=1000.0, slippage_bps=
             
         morning_weights = {sym: portfolio.get(sym, 0) for sym in all_syms}
         
-        # Calculate slippage costs for morning rebalance
+        # Calculate slippage costs for morning rebalance using realistic execution prices
         morning_slippage_cost = 0.0
         for sym, new_weight in morning_weights.items():
             old_weight = prev_weights.get(sym, 0)
             weight_change = abs(new_weight - old_weight)
-            if weight_change > 1e-6 and sym in symbol_data and current_day in symbol_data[sym].index:
-                curr_row = symbol_data[sym].loc[current_day]
-                open_price = curr_row['Open']
-                slippage_cost = _calculate_slippage_cost(weight_change, open_price, slippage_bps)
-                morning_slippage_cost += slippage_cost
+            if weight_change > 1e-6:
+                # Get realistic execution price at market open
+                execution_price = _get_realistic_execution_price(
+                    symbol_minute_data, sym, current_day, "open", noise_factor
+                )
+                if execution_price is None and sym in symbol_data and current_day in symbol_data[sym].index:
+                    # Fall back to daily open price
+                    curr_row = symbol_data[sym].loc[current_day]
+                    execution_price = curr_row['Open']
+                
+                if execution_price:
+                    slippage_cost = _calculate_slippage_cost(weight_change, execution_price, slippage_bps)
+                    morning_slippage_cost += slippage_cost
         
         # Apply morning slippage cost
         equity *= (1 - morning_slippage_cost)
         
-        # Calculate returns from open to close with morning weights
+        # Calculate returns from open to close with morning weights using realistic pricing
         morning_ret = 0.0
         for sym, weight in morning_weights.items():
             if weight == 0:
@@ -273,8 +403,21 @@ def run_backtest_dual_rebalance(start, end, initial_equity=1000.0, slippage_bps=
             if current_day not in df.index:
                 continue
             curr_row = df.loc[current_day]
-            open_price = curr_row['Open']
-            close_price = curr_row['Close']
+            
+            # Get realistic execution prices
+            open_price = _get_realistic_execution_price(
+                symbol_minute_data, sym, current_day, "open", noise_factor
+            )
+            close_price = _get_realistic_execution_price(
+                symbol_minute_data, sym, current_day, "close", noise_factor
+            )
+            
+            # Fall back to daily prices if minute data unavailable
+            if open_price is None:
+                open_price = curr_row['Open']
+            if close_price is None:
+                close_price = curr_row['Close']
+                
             if open_price == 0:
                 continue
             ret = (close_price - open_price) / open_price
@@ -301,16 +444,24 @@ def run_backtest_dual_rebalance(start, end, initial_equity=1000.0, slippage_bps=
             
         evening_weights = {sym: portfolio.get(sym, 0) for sym in all_syms}
         
-        # Calculate slippage costs for evening rebalance
+        # Calculate slippage costs for evening rebalance using realistic execution prices
         evening_slippage_cost = 0.0
         for sym, new_weight in evening_weights.items():
             old_weight = morning_weights.get(sym, 0)
             weight_change = abs(new_weight - old_weight)
-            if weight_change > 1e-6 and sym in symbol_data and current_day in symbol_data[sym].index:
-                curr_row = symbol_data[sym].loc[current_day]
-                close_price = curr_row['Close']
-                slippage_cost = _calculate_slippage_cost(weight_change, close_price, slippage_bps)
-                evening_slippage_cost += slippage_cost
+            if weight_change > 1e-6:
+                # Get realistic execution price at market close
+                execution_price = _get_realistic_execution_price(
+                    symbol_minute_data, sym, current_day, "close", noise_factor
+                )
+                if execution_price is None and sym in symbol_data and current_day in symbol_data[sym].index:
+                    # Fall back to daily close price
+                    curr_row = symbol_data[sym].loc[current_day]
+                    execution_price = curr_row['Close']
+                
+                if execution_price:
+                    slippage_cost = _calculate_slippage_cost(weight_change, execution_price, slippage_bps)
+                    evening_slippage_cost += slippage_cost
         
         # Apply evening slippage cost
         equity *= (1 - evening_slippage_cost)
@@ -354,21 +505,22 @@ def run_backtest_dual_rebalance(start, end, initial_equity=1000.0, slippage_bps=
     return equity_curve
 
 
-def run_backtest_comparison(start, end, initial_equity=1000.0, slippage_bps=5):
+def run_backtest_comparison(start, end, initial_equity=1000.0, slippage_bps=5, noise_factor=0.001):
     """Run backtest for all price types and dual-rebalance mode, compare results."""
-    console.print(Panel(f"[bold cyan]Starting Extended Backtest Comparison[/bold cyan]\n"
+    console.print(Panel(f"[bold cyan]Starting Extended Realistic Backtest Comparison[/bold cyan]\n"
                        f"Period: {start.strftime('%Y-%m-%d')} to {end.strftime('%Y-%m-%d')}\n"
                        f"Initial Equity: ${initial_equity:,.2f}\n"
-                       f"Testing: Close, Open, Mid (HLC/3) prices + Dual-Rebalance\n"
-                       f"Slippage: {slippage_bps} bps per trade",
-                       title="📊 Extended Backtest Comparison"))
+                       f"Testing: Close, Open, Mid, VWAP prices + Dual-Rebalance\n"
+                       f"Slippage: {slippage_bps} bps per trade\n"
+                       f"Market Noise: {noise_factor*100:.3f}%",
+                       title="📊 Extended Realistic Backtest Comparison"))
     
     results = {}
     
-    # Run backtest for each price type with slippage
-    for price_type in ["close", "open", "mid"]:
-        console.print(f"\n[bold yellow]Running {price_type.upper()} price backtest (with slippage)...[/bold yellow]")
-        equity_curve = run_backtest(start, end, initial_equity, price_type, slippage_bps)
+    # Run backtest for each price type with slippage and noise
+    for price_type in ["close", "open", "mid", "vwap"]:
+        console.print(f"\n[bold yellow]Running {price_type.upper()} price backtest (realistic execution)...[/bold yellow]")
+        equity_curve = run_backtest(start, end, initial_equity, price_type, slippage_bps, noise_factor)
         
         # Calculate metrics
         final_equity = equity_curve[-1]
@@ -384,12 +536,12 @@ def run_backtest_comparison(start, end, initial_equity=1000.0, slippage_bps=5):
             'volatility': volatility,
             'sharpe_ratio': sharpe_ratio,
             'equity_curve': equity_curve,
-            'mode': f'{price_type.title()} (1x daily)'
+            'mode': f'{price_type.title()} (1x daily, realistic)'
         }
     
     # Run dual-rebalance backtest
-    console.print(f"\n[bold yellow]Running DUAL-REBALANCE backtest (2x daily)...[/bold yellow]")
-    dual_equity_curve = run_backtest_dual_rebalance(start, end, initial_equity, slippage_bps)
+    console.print(f"\n[bold yellow]Running DUAL-REBALANCE backtest (2x daily, realistic)...[/bold yellow]")
+    dual_equity_curve = run_backtest_dual_rebalance(start, end, initial_equity, slippage_bps, noise_factor)
     
     # Calculate dual-rebalance metrics
     dual_final_equity = dual_equity_curve[-1]
@@ -405,17 +557,18 @@ def run_backtest_comparison(start, end, initial_equity=1000.0, slippage_bps=5):
         'volatility': dual_volatility,
         'sharpe_ratio': dual_sharpe_ratio,
         'equity_curve': dual_equity_curve,
-        'mode': 'Dual-Rebalance (2x daily)'
+        'mode': 'Dual-Rebalance (2x daily, realistic)'
     }
     
     # Create comparison table
-    console.print(f"\n[bold cyan]📊 Extended Backtest Comparison Summary[/bold cyan]")
+    console.print(f"\n[bold cyan]📊 Extended Realistic Backtest Comparison Summary[/bold cyan]")
     
-    comparison_table = Table(title="Strategy Comparison (All Modes)")
+    comparison_table = Table(title="Strategy Comparison (All Modes - Realistic Execution)")
     comparison_table.add_column("Metric", style="bold cyan")
     comparison_table.add_column("Close (1x)", style="green")
     comparison_table.add_column("Open (1x)", style="yellow")
     comparison_table.add_column("Mid (1x)", style="blue")
+    comparison_table.add_column("VWAP (1x)", style="magenta")
     comparison_table.add_column("Dual-Rebal (2x)", style="red")
     
     comparison_table.add_row(
@@ -423,6 +576,7 @@ def run_backtest_comparison(start, end, initial_equity=1000.0, slippage_bps=5):
         f"${results['close']['final_equity']:,.2f}",
         f"${results['open']['final_equity']:,.2f}",
         f"${results['mid']['final_equity']:,.2f}",
+        f"${results['vwap']['final_equity']:,.2f}",
         f"${results['dual_rebalance']['final_equity']:,.2f}"
     )
     
@@ -431,6 +585,7 @@ def run_backtest_comparison(start, end, initial_equity=1000.0, slippage_bps=5):
         f"{results['close']['total_return']:+.2f}%",
         f"{results['open']['total_return']:+.2f}%",
         f"{results['mid']['total_return']:+.2f}%",
+        f"{results['vwap']['total_return']:+.2f}%",
         f"{results['dual_rebalance']['total_return']:+.2f}%"
     )
     
@@ -439,6 +594,7 @@ def run_backtest_comparison(start, end, initial_equity=1000.0, slippage_bps=5):
         f"{results['close']['volatility']:.2f}%",
         f"{results['open']['volatility']:.2f}%",
         f"{results['mid']['volatility']:.2f}%",
+        f"{results['vwap']['volatility']:.2f}%",
         f"{results['dual_rebalance']['volatility']:.2f}%"
     )
     
@@ -447,13 +603,14 @@ def run_backtest_comparison(start, end, initial_equity=1000.0, slippage_bps=5):
         f"{results['close']['sharpe_ratio']:.2f}",
         f"{results['open']['sharpe_ratio']:.2f}",
         f"{results['mid']['sharpe_ratio']:.2f}",
+        f"{results['vwap']['sharpe_ratio']:.2f}",
         f"{results['dual_rebalance']['sharpe_ratio']:.2f}"
     )
     
     console.print(comparison_table)
     
     # Find best performing strategies
-    all_strategies = ['close', 'open', 'mid', 'dual_rebalance']
+    all_strategies = ['close', 'open', 'mid', 'vwap', 'dual_rebalance']
     best_return = max(all_strategies, key=lambda x: results[x]['total_return'])
     best_sharpe = max(all_strategies, key=lambda x: results[x]['sharpe_ratio'])
     
@@ -471,60 +628,64 @@ def run_backtest_comparison(start, end, initial_equity=1000.0, slippage_bps=5):
     else:
         console.print("  [red]→ Transaction costs outweighed rebalancing benefits[/red]")
     
-    avg_single_rebal_return = (results['close']['total_return'] + results['open']['total_return'] + results['mid']['total_return']) / 3
+    avg_single_rebal_return = (results['close']['total_return'] + results['open']['total_return'] + 
+                              results['mid']['total_return'] + results['vwap']['total_return']) / 4
     console.print(f"• Average single-rebalance return: {avg_single_rebal_return:.2f}%")
     console.print(f"• Dual-rebalance return: {results['dual_rebalance']['total_return']:.2f}%")
+    console.print(f"• VWAP execution vs Close: {results['vwap']['total_return'] - results['close']['total_return']:+.2f}% difference")
     
     return results
 
 
 @pytest.mark.slow
 def test_backtest_all_price_types():
+    """Test realistic backtest with 1-minute data for all price types."""
     if not (os.getenv('ALPACA_PAPER_KEY') and os.getenv('ALPACA_PAPER_SECRET')):
         pytest.skip('Alpaca credentials not available')
 
     end = dt.datetime.now() - dt.timedelta(days=5)
     start = end - dt.timedelta(days=365*1)  # Run for the past year, not including last 5 days
-    for price_type in ["close", "open", "mid"]:
-        curve = run_backtest(start, end, price_type=price_type, slippage_bps=5)
+    for price_type in ["close", "open", "mid", "vwap"]:
+        curve = run_backtest(start, end, price_type=price_type, slippage_bps=5, noise_factor=0.001)
         assert len(curve) > 0
 
 
 @pytest.mark.slow
 def test_backtest_dual_rebalance():
-    """Test the dual-rebalance mode with realistic slippage."""
+    """Test the dual-rebalance mode with realistic slippage and 1-minute pricing."""
     if not (os.getenv('ALPACA_PAPER_KEY') and os.getenv('ALPACA_PAPER_SECRET')):
         pytest.skip('Alpaca credentials not available')
 
     end = dt.datetime.now() - dt.timedelta(days=5)
     start = end - dt.timedelta(days=90)  # Shorter period for dual-rebalance test
-    curve = run_backtest_dual_rebalance(start, end, slippage_bps=5)
+    curve = run_backtest_dual_rebalance(start, end, slippage_bps=5, noise_factor=0.001)
     assert len(curve) > 0
     assert curve[-1] > 0  # Final equity should be positive
 
 
 @pytest.mark.slow
 def test_backtest_comparison():
-    """Test that runs all price types and dual-rebalance mode, compares them."""
+    """Test that runs all price types and dual-rebalance mode with realistic execution."""
     if not (os.getenv('ALPACA_PAPER_KEY') and os.getenv('ALPACA_PAPER_SECRET')):
         pytest.skip('Alpaca credentials not available')
 
     end = dt.datetime.now() - dt.timedelta(days=5)
     start = end - dt.timedelta(days=365*1)  # Run for the past year, not including last 5 days
-    results = run_backtest_comparison(start, end, slippage_bps=5)
+    results = run_backtest_comparison(start, end, slippage_bps=5, noise_factor=0.001)
     
     # Assert all strategies have positive equity curves
     for strategy_name, result in results.items():
         assert len(result['equity_curve']) > 0
         assert result['final_equity'] > 0
         
-    # Ensure dual-rebalance is included
+    # Ensure dual-rebalance and vwap are included
     assert 'dual_rebalance' in results
+    assert 'vwap' in results
 
 
 @pytest.mark.slow
 def test_slippage_impact():
-    """Test that higher slippage reduces returns."""
+    """Test that higher slippage reduces returns with realistic execution."""
     if not (os.getenv('ALPACA_PAPER_KEY') and os.getenv('ALPACA_PAPER_SECRET')):
         pytest.skip('Alpaca credentials not available')
 
@@ -532,8 +693,8 @@ def test_slippage_impact():
     start = end - dt.timedelta(days=180)  # 6 months
     
     # Run with low and high slippage
-    low_slippage_curve = run_backtest(start, end, price_type="close", slippage_bps=1)
-    high_slippage_curve = run_backtest(start, end, price_type="close", slippage_bps=10)
+    low_slippage_curve = run_backtest(start, end, price_type="close", slippage_bps=1, noise_factor=0.001)
+    high_slippage_curve = run_backtest(start, end, price_type="close", slippage_bps=10, noise_factor=0.001)
     
     # Higher slippage should generally result in lower final equity
     low_final = low_slippage_curve[-1]
@@ -545,3 +706,29 @@ def test_slippage_impact():
     # This should generally be true, but we'll just ensure both are positive
     assert low_final > 0
     assert high_final > 0
+
+
+@pytest.mark.slow
+def test_market_noise_impact():
+    """Test that market noise affects execution but doesn't break the backtest."""
+    if not (os.getenv('ALPACA_PAPER_KEY') and os.getenv('ALPACA_PAPER_SECRET')):
+        pytest.skip('Alpaca credentials not available')
+
+    end = dt.datetime.now() - dt.timedelta(days=5)
+    start = end - dt.timedelta(days=90)  # 3 months
+    
+    # Run with no noise and with noise
+    no_noise_curve = run_backtest(start, end, price_type="close", slippage_bps=5, noise_factor=0.0)
+    with_noise_curve = run_backtest(start, end, price_type="close", slippage_bps=5, noise_factor=0.002)
+    
+    # Both should be positive and have similar length
+    assert len(no_noise_curve) > 0
+    assert len(with_noise_curve) > 0
+    assert no_noise_curve[-1] > 0
+    assert with_noise_curve[-1] > 0
+    
+    console.print(f"No noise final equity: ${no_noise_curve[-1]:,.2f}")
+    console.print(f"With noise final equity: ${with_noise_curve[-1]:,.2f}")
+    
+    # The results should be different due to noise (very unlikely to be exactly the same)
+    assert abs(no_noise_curve[-1] - with_noise_curve[-1]) > 0.01
