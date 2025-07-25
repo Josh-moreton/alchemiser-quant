@@ -4,8 +4,8 @@ logging:
   multi_strategy_log: "s3://the-alchemiser-s3/multi_strategy_execution.log"
   alpaca_log: "s3://the-alchemiser-s3/alpaca_trader.log"
   trading_bot_log: "the_alchemiser/data/logs/trading_bot.log"
-  alpaca_trades_json: "/tmp/alpaca_trades.json"
-  nuclear_alerts_json: "/tmp/nuclear_alerts.json"
+  alpaca_trades_json: "s3://the-alchemiser-s3/trades_live.json"
+  nuclear_alerts_json: "s3://the-alchemiser-s3/signals_live.json"
 
 # Alpaca configuration
 alpaca:
