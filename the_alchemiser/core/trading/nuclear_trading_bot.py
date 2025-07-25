@@ -151,7 +151,7 @@ class NuclearStrategyEngine:
         Returns: (recommended_symbol, action, reason)
         """
         from the_alchemiser.core.trading.strategy_engine import (
-            BullMarketStrategy, BearMarketStrategy, OverboughtStrategy, SecondaryOverboughtStrategy, VoxOverboughtStrategy
+            BullMarketStrategy, BearMarketStrategy, VoxOverboughtStrategy
         )
         if 'SPY' not in indicators:
             return 'SPY', ActionType.HOLD.value, "Missing SPY data"
@@ -159,19 +159,21 @@ class NuclearStrategyEngine:
         # Hierarchical logic matching the Clojure canonical strategy
         spy_rsi_10 = indicators['SPY']['rsi_10']
         
-        # Primary overbought check: SPY RSI > 79
+        # PRIMARY BRANCH: SPY RSI > 79 (ALL nested overbought checks happen HERE)
         if spy_rsi_10 > 79:
-            result = OverboughtStrategy().recommend(indicators)
-            if result:
-                return result
+            # First: SPY extremely overbought (> 81)
+            if spy_rsi_10 > 81:
+                return 'UVXY', ActionType.BUY.value, "SPY extremely overbought (RSI > 81)"
+            
+            # Then: Nested checks for IOO, TQQQ, VTV, XLF (RSI > 81) - IN ORDER
+            for symbol in ['IOO', 'TQQQ', 'VTV', 'XLF']:
+                if symbol in indicators and indicators[symbol]['rsi_10'] > 81:
+                    return 'UVXY', ActionType.BUY.value, f"{symbol} extremely overbought (RSI > 81)"
+            
+            # Finally: SPY moderately overbought (79-81) - hedge portfolio
+            return 'UVXY_BTAL_PORTFOLIO', ActionType.BUY.value, "SPY overbought (79-81), UVXY 75% + BTAL 25% allocation"
         
-        # Secondary overbought checks in order: IOO, TQQQ, VTV, XLF
-        for symbol in ['IOO', 'TQQQ', 'VTV', 'XLF']:
-            if symbol in indicators:
-                if indicators[symbol]['rsi_10'] > 79:
-                    result = SecondaryOverboughtStrategy().recommend(indicators, symbol)
-                    if result:
-                        return result
+        # PRIMARY BRANCH: SPY RSI <= 79 - Continue with VOX, oversold checks, bull/bear logic
         
         # VOX overbought check  
         if 'VOX' in indicators and indicators['VOX']['rsi_10'] > 79:
