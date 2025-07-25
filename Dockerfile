@@ -7,7 +7,7 @@ RUN yum install -y gcc llvm-devel
 # Copy project source code
 COPY the_alchemiser/ /var/task/the_alchemiser/
 COPY scripts/ /var/task/scripts/
-COPY config.yaml requirements.txt /var/task/
+COPY requirements.txt /var/task/
 
 # Install Python dependencies
 RUN pip install --upgrade pip && \

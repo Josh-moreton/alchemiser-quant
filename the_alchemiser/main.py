@@ -32,13 +32,13 @@ import sys
 import os
 import logging
 from logging.handlers import RotatingFileHandler
-from the_alchemiser.core.config import Config
+from the_alchemiser.core.config import get_config
 from the_alchemiser.core.ui.cli_formatter import render_technical_indicators
 from the_alchemiser.core.ui.telegram_formatter import build_single_strategy_message, build_multi_strategy_message
 from the_alchemiser.core.trading.strategy_manager import StrategyType
 
-# Load config and set logging level from config
-config = Config()
+# Load config once at module level
+config = get_config()
 logging_config = config['logging']
 
 def setup_file_logging():
@@ -188,7 +188,8 @@ def run_multi_strategy_trading(live_trading: bool = False, ignore_market_hours: 
                 StrategyType.NUCLEAR: 0.5,
                 StrategyType.TECL: 0.5
             },
-            ignore_market_hours=ignore_market_hours
+            ignore_market_hours=ignore_market_hours,
+            config=config
         )
         
         # Check market hours unless ignore_market_hours is set

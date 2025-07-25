@@ -26,12 +26,12 @@ import numpy as np
 
 # Local imports
 from the_alchemiser.core.logging.logging_utils import setup_logging
-from the_alchemiser.core.config import Config
+from the_alchemiser.core.config import get_config
 from the_alchemiser.core.indicators.indicators import TechnicalIndicators
 
 # Setup
 warnings.filterwarnings('ignore')
-config = Config()
+config = get_config()
 logging_config = config['logging']
 
 # Initialize logging once

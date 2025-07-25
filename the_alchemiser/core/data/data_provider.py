@@ -24,16 +24,22 @@ class UnifiedDataProvider:
     - Proper type safety
     """
     
-    def __init__(self, paper_trading=True, cache_duration=None):
+    def __init__(self, paper_trading=True, cache_duration=None, config=None):
         """
-        Initialize unified data provider.
+        Initialize UnifiedDataProvider for Alpaca market data and trading.
         
         Args:
             paper_trading: Whether to use paper trading keys (default: True for safety)
             cache_duration: Cache duration in seconds (default from config)
+            config: Configuration object. If None, will load from global config.
         """
         self.paper_trading = paper_trading
-        self.config = Config()
+        
+        # Use provided config or load global config
+        if config is None:
+            from the_alchemiser.core.config import get_config
+            config = get_config()
+        self.config = config
         
         # Set cache duration
         if cache_duration is None:
