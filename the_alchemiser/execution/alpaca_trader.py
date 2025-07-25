@@ -991,7 +991,12 @@ class AlpacaTradingBot:
             }
             from the_alchemiser.core.config import get_config
             config = get_config()
-            log_file = config['logging']['alpaca_trades_json']
+            
+            # Use local files for paper trading, S3/configured path for live trading
+            if self.paper_trading:
+                log_file = 'data/logs/alpaca_trades.json'
+            else:
+                log_file = config['logging'].get('alpaca_trades_json', 'data/logs/alpaca_trades.json')
             
             from the_alchemiser.core.utils.s3_utils import get_s3_handler
             s3_handler = get_s3_handler()

@@ -64,9 +64,12 @@ class MultiStrategyAlpacaTrader(AlpacaTradingBot):
         # Store config reference
         self.config = config
         
-        # Logging setup
-        self.multi_strategy_log = self.config['logging'].get('multi_strategy_log', 
-                                                            'data/logs/multi_strategy_execution.log')
+        # Logging setup - use local files for paper trading, S3 for live trading
+        if paper_trading:
+            self.multi_strategy_log = 'data/logs/multi_strategy_execution.log'
+        else:
+            self.multi_strategy_log = self.config['logging'].get('multi_strategy_log', 
+                                                                'data/logs/multi_strategy_execution.log')
     
     def execute_multi_strategy(self) -> MultiStrategyExecutionResult:
         """
@@ -259,34 +262,30 @@ class MultiStrategyAlpacaTrader(AlpacaTradingBot):
                                    account_info: Dict, current_positions: Dict) -> Dict:
         """
         Build portfolio state data for reporting purposes
-        
-        Args:
-            target_portfolio: Target allocation weights by symbol
-            account_info: Current account information
-            current_positions: Current positions from get_positions()
-            
-        Returns:
-            Dictionary with portfolio state data for Telegram reporting
+        Handles both dict and float for current_positions values.
         """
         portfolio_value = account_info.get('portfolio_value', 0.0)
-        
-        # Calculate target and current values
         allocations = {}
         all_symbols = set(target_portfolio.keys()) | set(current_positions.keys())
-        
         for symbol in all_symbols:
             target_weight = target_portfolio.get(symbol, 0.0)
             target_value = portfolio_value * target_weight
-            current_value = current_positions.get(symbol, {}).get('market_value', 0.0)
+            pos = current_positions.get(symbol, {})
+            # If pos is a dict, get 'market_value', else assume it's a float
+            if isinstance(pos, dict):
+                current_value = pos.get('market_value', 0.0)
+            else:
+                try:
+                    current_value = float(pos) if pos else 0.0
+                except Exception:
+                    current_value = 0.0
             current_weight = current_value / portfolio_value if portfolio_value > 0 else 0.0
-            
             allocations[symbol] = {
                 'target_percent': target_weight * 100,
                 'current_percent': current_weight * 100,
                 'target_value': target_value,
                 'current_value': current_value
             }
-        
         return {
             'total_value': portfolio_value,
             'allocations': allocations
@@ -298,7 +297,7 @@ class MultiStrategyAlpacaTrader(AlpacaTradingBot):
             render_strategy_signals, render_portfolio_allocation, 
             render_trading_summary, render_header, render_footer
         )
-        
+
         if not execution_result.success:
             render_header("❌ EXECUTION FAILED", "Multi-Strategy Trading")
             from rich.console import Console
@@ -306,16 +305,29 @@ class MultiStrategyAlpacaTrader(AlpacaTradingBot):
             return
 
         summary = execution_result.execution_summary
-        
+
         # Display strategy signals
         render_strategy_signals(execution_result.strategy_signals)
-        
-        # Display portfolio allocation  
-        render_portfolio_allocation(execution_result.consolidated_portfolio)
-        
-        # Display trading summary
+
+        # Display actual portfolio allocation after trades, if available
+        if execution_result.final_portfolio_state and 'allocations' in execution_result.final_portfolio_state:
+            # Convert the final portfolio state to the format expected by render_portfolio_allocation
+            allocations = execution_result.final_portfolio_state['allocations']
+            current_portfolio = {
+                symbol: data['current_percent'] / 100.0 
+                for symbol, data in allocations.items() 
+                if data['current_percent'] > 0.1  # Only show positions > 0.1%
+            }
+            if current_portfolio:
+                render_portfolio_allocation(current_portfolio, "🏁 CURRENT PORTFOLIO ALLOCATION")
+            else:
+                render_portfolio_allocation(execution_result.consolidated_portfolio)
+        else:
+            render_portfolio_allocation(execution_result.consolidated_portfolio)
+
+        # Display trading summary using executed orders
         render_trading_summary(execution_result.orders_executed)
-        
+
         render_footer("Operation completed successfully!")
     
     def _trigger_post_trade_validation(self, strategy_signals: Dict[StrategyType, Any], 
