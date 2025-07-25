@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python3
 """
 Modern CLI for The Alchemiser Trading Bot
@@ -248,6 +249,122 @@ def version():
         title="[bold]Version Info[/bold]",
         border_style="cyan"
     ))
+
+@app.command()
+def backtest(
+    start: str = typer.Option(None, help="Start date (YYYY-MM-DD)", prompt=True),
+    end: str = typer.Option(None, help="End date (YYYY-MM-DD)", prompt=True),
+    initial_equity: float = typer.Option(1000, help="Initial equity for backtest"),
+    price_type: str = typer.Option("close", help="Price type: close, open, or mid")
+):
+    """
+    🧪 [bold cyan]Run a backtest[/bold cyan] for a given date range and price type.
+    """
+    import datetime as dt
+    import sys
+    import os
+    
+    # Try multiple import strategies to find run_backtest
+    run_backtest = None
+    
+    # Strategy 1: Try direct import from tests
+    try:
+        from tests.test_backtest import run_backtest
+    except ImportError:
+        pass
+    
+    # Strategy 2: Add project root to path and try again
+    if run_backtest is None:
+        try:
+            project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            if project_root not in sys.path:
+                sys.path.insert(0, project_root)
+            from tests.test_backtest import run_backtest
+        except ImportError:
+            pass
+    
+    # Strategy 3: Try importing using absolute path
+    if run_backtest is None:
+        try:
+            import importlib.util
+            test_file = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'tests', 'test_backtest.py')
+            spec = importlib.util.spec_from_file_location("test_backtest", test_file)
+            test_module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(test_module)
+            run_backtest = test_module.run_backtest
+        except Exception:
+            pass
+    
+    if run_backtest is None:
+        console.print("[red]Could not import run_backtest. Please run from the project root directory.[/red]")
+        raise typer.Exit(1)
+    try:
+        start_dt = dt.datetime.strptime(start, "%Y-%m-%d")
+        end_dt = dt.datetime.strptime(end, "%Y-%m-%d")
+    except Exception as e:
+        console.print(f"[red]Invalid date format: {e}[/red]")
+        raise typer.Exit(1)
+    console.print(f"[bold green]Running backtest from {start} to {end} using {price_type} prices...")
+    run_backtest(start_dt, end_dt, initial_equity=initial_equity, price_type=price_type)
+
+@app.command()
+def backtest_compare(
+    start: str = typer.Option(None, help="Start date (YYYY-MM-DD)", prompt=True),
+    end: str = typer.Option(None, help="End date (YYYY-MM-DD)", prompt=True),
+    initial_equity: float = typer.Option(1000, help="Initial equity for backtest")
+):
+    """
+    📊 [bold cyan]Compare backtest results[/bold cyan] across all price types (close, open, mid).
+    """
+    import datetime as dt
+    import sys
+    import os
+    
+    # Try multiple import strategies to find run_backtest_comparison
+    run_backtest_comparison = None
+    
+    # Strategy 1: Try direct import from tests
+    try:
+        from tests.test_backtest import run_backtest_comparison
+    except ImportError:
+        pass
+    
+    # Strategy 2: Add project root to path and try again
+    if run_backtest_comparison is None:
+        try:
+            project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            if project_root not in sys.path:
+                sys.path.insert(0, project_root)
+            from tests.test_backtest import run_backtest_comparison
+        except ImportError:
+            pass
+    
+    # Strategy 3: Try importing using absolute path
+    if run_backtest_comparison is None:
+        try:
+            import importlib.util
+            test_file = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'tests', 'test_backtest.py')
+            spec = importlib.util.spec_from_file_location("test_backtest", test_file)
+            if spec and spec.loader:
+                test_module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(test_module)
+                run_backtest_comparison = test_module.run_backtest_comparison
+        except Exception:
+            pass
+    
+    if run_backtest_comparison is None:
+        console.print("[red]Could not import run_backtest_comparison. Please run from the project root directory.[/red]")
+        raise typer.Exit(1)
+    
+    try:
+        start_dt = dt.datetime.strptime(start, "%Y-%m-%d")
+        end_dt = dt.datetime.strptime(end, "%Y-%m-%d")
+    except Exception as e:
+        console.print(f"[red]Invalid date format: {e}[/red]")
+        raise typer.Exit(1)
+    
+    console.print(f"[bold green]Running backtest comparison from {start} to {end} for all price types...")
+    run_backtest_comparison(start_dt, end_dt, initial_equity=initial_equity)
 
 @app.callback()
 def main(
