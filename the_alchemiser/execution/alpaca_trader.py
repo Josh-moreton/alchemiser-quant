@@ -248,7 +248,7 @@ class AlpacaTradingBot:
 
         # Use config slippage if not provided
         if slippage_bps is None:
-            slippage_bps = self.config['alpaca'].get('slippage_bps', 30.0)
+            slippage_bps = self.config['alpaca'].get('slippage_bps', 5)
 
         # Check if market is open
         market_open = is_market_open(self.trading_client)

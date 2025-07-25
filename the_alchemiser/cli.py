@@ -247,7 +247,7 @@ def backtest_nuclear_compare(
     start: str = typer.Option("2023-08-01", help="Start date (YYYY-MM-DD)"),
     end: str = typer.Option("2025-07-15", help="End date (YYYY-MM-DD)"),
     initial_equity: float = typer.Option(10000, help="Initial equity for backtest"),
-    slippage_bps: int = typer.Option(5, help="Slippage in basis points (default: 5 bps)"),
+    slippage_bps: int = typer.Option(None, help="Slippage in basis points (default: from config.yaml)"),
     noise_factor: float = typer.Option(0.001, help="Market noise factor (default: 0.1%)")
 ):
     """
@@ -262,6 +262,10 @@ def backtest_nuclear_compare(
     except Exception as e:
         console.print(f"[red]Invalid date format: {e}[/red]")
         raise typer.Exit(1)
+    from the_alchemiser.core.config import get_config
+    config = get_config()
+    if slippage_bps is None:
+        slippage_bps = config['alpaca'].get('slippage_bps', 5)
     console.print(f"[bold green]Running comprehensive backtest comparison from {start} to {end} with {slippage_bps} bps slippage and {noise_factor*100:.3f}% noise...")
     run_backtest_comparison(start_dt, end_dt, initial_equity=initial_equity, slippage_bps=slippage_bps, noise_factor=noise_factor)
 
@@ -271,7 +275,7 @@ def backtest(
     end: str = typer.Option("2025-07-15", help="End date (YYYY-MM-DD)"),
     initial_equity: float = typer.Option(10000, help="Initial equity for backtest"),
     price_type: str = typer.Option("open", help="Price type: close, open, mid, or vwap"),
-    slippage_bps: int = typer.Option(5, help="Slippage in basis points (default: 5 bps)"),
+    slippage_bps: int = typer.Option(None, help="Slippage in basis points (default: from config.yaml)"),
     noise_factor: float = typer.Option(0.001, help="Market noise factor (default: 0.1%)"),
     deposit_amount: float = typer.Option(0.0, help="Deposit amount (e.g. 100 for £100, default: 0)"),
     deposit_frequency: Optional[str] = typer.Option(None, help="Deposit frequency: 'monthly' or 'weekly' (default: None)"),
@@ -291,6 +295,10 @@ def backtest(
         console.print(f"[red]Invalid date format: {e}[/red]")
         raise typer.Exit(1)
     
+    from the_alchemiser.core.config import get_config
+    config = get_config()
+    if slippage_bps is None:
+        slippage_bps = config['alpaca'].get('slippage_bps', 5)
     console.print(f"[bold green]Running realistic backtest from {start} to {end} using {price_type} prices with {slippage_bps} bps slippage and {noise_factor*100:.3f}% noise...")
     run_backtest(
         start_dt, end_dt,
@@ -308,7 +316,7 @@ def backtest_compare(
     start: str = typer.Option("2023-01-01", help="Start date (YYYY-MM-DD)"),
     end: str = typer.Option("2025-07-15", help="End date (YYYY-MM-DD)"),
     initial_equity: float = typer.Option(10000, help="Initial equity for backtest"),
-    slippage_bps: int = typer.Option(5, help="Slippage in basis points (default: 5 bps)"),
+    slippage_bps: int = typer.Option(None, help="Slippage in basis points (default: from config.yaml)"),
     noise_factor: float = typer.Option(0.001, help="Market noise factor (default: 0.1%)"),
     deposit_amount: float = typer.Option(0.0, help="Deposit amount (e.g. 100 for £100, default: 0)"),
     deposit_frequency: Optional[str] = typer.Option(None, help="Deposit frequency: 'monthly' or 'weekly' (default: None)"),
@@ -328,6 +336,10 @@ def backtest_compare(
         console.print(f"[red]Invalid date format: {e}[/red]")
         raise typer.Exit(1)
     
+    from the_alchemiser.core.config import get_config
+    config = get_config()
+    if slippage_bps is None:
+        slippage_bps = config['alpaca'].get('slippage_bps', 5)
     console.print(f"[bold green]Running realistic backtest comparison from {start} to {end} for all modes with {slippage_bps} bps slippage and {noise_factor*100:.3f}% noise...")
     run_backtest_comparison(
         start_dt, end_dt,
@@ -344,7 +356,7 @@ def backtest_dual(
     start: str = typer.Option("2023-01-01", help="Start date (YYYY-MM-DD)"),
     end: str = typer.Option("2025-07-15", help="End date (YYYY-MM-DD)"),
     initial_equity: float = typer.Option(10000, help="Initial equity for backtest"),
-    slippage_bps: int = typer.Option(5, help="Slippage in basis points (default: 5 bps)"),
+    slippage_bps: int = typer.Option(None, help="Slippage in basis points (default: from config.yaml)"),
     noise_factor: float = typer.Option(0.001, help="Market noise factor (default: 0.1%)"),
     deposit_amount: float = typer.Option(0.0, help="Deposit amount (e.g. 100 for £100, default: 0)"),
     deposit_frequency: Optional[str] = typer.Option(None, help="Deposit frequency: 'monthly' or 'weekly' (default: None)"),
@@ -365,6 +377,10 @@ def backtest_dual(
         console.print(f"[red]Invalid date format: {e}[/red]")
         raise typer.Exit(1)
     
+    from the_alchemiser.core.config import get_config
+    config = get_config()
+    if slippage_bps is None:
+        slippage_bps = config['alpaca'].get('slippage_bps', 5)
     console.print(f"[bold green]Running dual-rebalance realistic backtest from {start} to {end} with {slippage_bps} bps slippage and {noise_factor*100:.3f}% noise...")
     run_backtest_dual_rebalance(
         start_dt, end_dt,

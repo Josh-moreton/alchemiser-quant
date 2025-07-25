@@ -62,7 +62,7 @@ def _preload_symbol_data(data_provider, symbols, start, end):
     return symbol_data, symbol_minute_data
 
 
-def _calculate_slippage_cost(weight_change, price, slippage_bps=5):
+def _calculate_slippage_cost(weight_change, price, slippage_bps=None):
     """Calculate transaction cost based on weight change and slippage.
     
     Args:
@@ -76,7 +76,13 @@ def _calculate_slippage_cost(weight_change, price, slippage_bps=5):
     # Only apply slippage to trades (weight changes)
     if abs(weight_change) < 1e-6:  # No meaningful trade
         return 0.0
-    
+    if slippage_bps is None:
+        try:
+            from the_alchemiser.core.config import get_config
+            config = get_config()
+            slippage_bps = config['alpaca'].get('slippage_bps', 5)
+        except Exception:
+            slippage_bps = 5
     # Slippage cost = (slippage_bps / 10000) * abs(weight_change)
     return (slippage_bps / 10000) * abs(weight_change)
 
@@ -153,13 +159,13 @@ def _get_realistic_execution_price(symbol_minute_data, symbol, target_time, pric
     return _add_market_noise(base_price, noise_factor)
 
 
-def run_backtest(start, end, initial_equity=1000.0, price_type="close", slippage_bps=5, noise_factor=0.001, deposit_amount=0.0, deposit_frequency=None, deposit_day=1):
+def run_backtest(start, end, initial_equity=1000.0, price_type="close", slippage_bps=None, noise_factor=0.001, deposit_amount=0.0, deposit_frequency=None, deposit_day=1):
 
     # --- Deposit feature additions ---
     # New params: deposit_amount, deposit_frequency, deposit_day
     import calendar
     def run_backtest_with_deposit(
-        start, end, initial_equity=1000.0, price_type="close", slippage_bps=5, noise_factor=0.001,
+        start, end, initial_equity=1000.0, price_type="close", slippage_bps=None, noise_factor=0.001,
         deposit_amount=0.0, deposit_frequency=None, deposit_day=1
     ):
         price_type_l = price_type.lower()
@@ -181,6 +187,13 @@ def run_backtest(start, end, initial_equity=1000.0, price_type="close", slippage
         deposit_str = ""
         if deposit_amount and deposit_frequency:
             deposit_str = f"\nDeposit: £{deposit_amount:,.2f} {deposit_frequency}"
+        if slippage_bps is None:
+            try:
+                from the_alchemiser.core.config import get_config
+                config = get_config()
+                slippage_bps = config['alpaca'].get('slippage_bps', 5)
+            except Exception:
+                slippage_bps = 5
         console.print(Panel(f"[bold cyan]Starting Realistic Backtest[/bold cyan]\n"
                            f"Period: {start.strftime('%Y-%m-%d')} to {end.strftime('%Y-%m-%d')}\n"
                            f"Initial Equity: £{initial_equity:,.2f}\n"
