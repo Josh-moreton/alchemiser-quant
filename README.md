@@ -5,26 +5,39 @@ The Alchemiser is a Python-based trading bot supporting both single and multi-st
 
 ## 🚀 Quick Start
 
-### Main Entry Point
+### Modern CLI Entry Point
 
-All bot operations are accessed via:
+All bot operations are now accessed via the [Typer](https://typer.tiangolo.com/) + [Rich](https://rich.readthedocs.io/) CLI:
 
 ```bash
-python main.py <mode> [options]
+alchemiser <command> [options]
 ```
 
-### Modes
+Or, using the Makefile (recommended for MacOS/venv users):
 
-| Mode      | Command                  | Description                                      |
-|-----------|--------------------------|--------------------------------------------------|
-| bot       | python main.py bot       | Generate multi-strategy signals (no trading)     |
-| trade     | python main.py trade     | Execute multi-strategy trading (paper)           |
-| trade --live | python main.py trade --live | Execute multi-strategy trading (live) ⚠️      |
+```bash
+make run-bot           # Show signals only
+make run-trade         # Paper trading
+make run-trade-live    # Live trading (⚠️ real money)
+make status            # Account info
+make deploy            # Deploy to AWS Lambda
+```
+
+### CLI Commands
+
+| Command         | Purpose                                 | Output                |
+|-----------------|-----------------------------------------|-----------------------|
+| `alchemiser bot`| Multi-strategy signal generation        | Console + JSON logs   |
+| `alchemiser trade` | Paper trading (multi-strategy)       | Console + Telegram    |
+| `alchemiser trade --live` | Live trading (multi-strategy) ⚠️ | Console + Telegram    |
+| `alchemiser status` | Show account status and positions   | Console               |
+| `alchemiser deploy` | Build & deploy Lambda Docker image  | Console               |
+| `alchemiser version`| Show version info                   | Console               |
 
 #### Example: Live Trading & Telegram
 
 ```bash
-python main.py trade --live
+alchemiser trade --live
 ```
 
 **Requirements:**
@@ -65,12 +78,13 @@ export TELEGRAM_CHAT_ID="your-chat-id"
 
 ## 🤖 Automated Execution
 
-The bot runs automatically via **GitHub Actions**:
+The bot can run automatically via **GitHub Actions** or AWS Lambda:
 
-- **Command:** `python main.py live`
-- **Functions:** Multi-strategy signal generation, trade execution, Telegram update
-- **Manual Trigger:** Available via GitHub Actions UI
-- **Environment:** `ALPACA_KEY`, `ALPACA_SECRET`, `TELEGRAM_TOKEN`, `TELEGRAM_CHAT_ID`
+- **GitHub Actions:**
+  - **Command:** `alchemiser trade --live`
+  - **Functions:** Multi-strategy signal generation, trade execution, Telegram update
+  - **Manual Trigger:** Available via GitHub Actions UI
+  - **Environment:** `ALPACA_KEY`, `ALPACA_SECRET`, `TELEGRAM_TOKEN`, `TELEGRAM_CHAT_ID`
 
 **GitHub Actions Workflow:**
 
@@ -81,8 +95,12 @@ The bot runs automatically via **GitHub Actions**:
     ALPACA_SECRET: ${{ secrets.ALPACA_SECRET }}
     TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
     TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-  run: python main.py live
+  run: alchemiser trade --live
 ```
+
+- **AWS Lambda:**
+  - Use the CLI command `alchemiser deploy` (or `make deploy`) to build and push the Docker image and update the Lambda function.
+  - Lambda will run the container as configured (see `scripts/build_and_push_lambda.sh`).
 
 ## 📁 Project Structure
 
@@ -190,20 +208,26 @@ export TELEGRAM_CHAT_ID="your-chat-id"
 ### Daily Operations
 
 ```bash
-# Generate multi-strategy signals (no trading)
-python main.py bot
+# Show multi-strategy signals (no trading)
+alchemiser bot
 
 # Run multi-strategy paper trading
-python main.py trade
+alchemiser trade
 
 # Run multi-strategy live trading with Telegram
-python main.py trade --live
+alchemiser trade --live
+
+# Show account status
+alchemiser status
+
+# Deploy to AWS Lambda
+alchemiser deploy
 ```
 
 ### Development & Testing
 
 ```bash
-python tests/test_multi_strategy.py
+pytest tests/ -v
 ```
 
 ## 🧠 Advanced Features
@@ -215,16 +239,21 @@ python tests/test_multi_strategy.py
 
 ## 📋 Quick Reference
 
-| Mode   | Command                    | Purpose                              | Output                |
-|--------|----------------------------|--------------------------------------|-----------------------|
-| bot    | `python main.py bot`       | Multi-strategy signal generation     | Console + JSON logs   |
-| trade  | `python main.py trade`     | Paper trading (multi-strategy)       | Console + Telegram    |
-| trade --live | `python main.py trade --live` | Live trading (multi-strategy) ⚠️ | Console + Telegram    |
+| Command                | Purpose                              | Output                |
+|------------------------|--------------------------------------|-----------------------|
+| `alchemiser bot`       | Multi-strategy signal generation     | Console + JSON logs   |
+| `alchemiser trade`     | Paper trading (multi-strategy)       | Console + Telegram    |
+| `alchemiser trade --live` | Live trading (multi-strategy) ⚠️ | Console + Telegram    |
+| `alchemiser status`    | Show account status and positions    | Console               |
+| `alchemiser deploy`    | Build & deploy Lambda Docker image   | Console               |
+| `alchemiser version`   | Show version info                    | Console               |
 
 ## 🛠️ Troubleshooting
 
 - Run from project root directory
-- Ensure all dependencies installed: `pip install -r requirements.txt`
+- Ensure all dependencies installed: `pip install -e .` (for CLI) or `pip install -r requirements.txt`
+- Activate your venv: `source .venv/bin/activate` (macOS recommended)
+- Use Makefile targets for common tasks: `make run-bot`, `make deploy`, etc.
 - Check API credentials and network connectivity
 - For multi-strategy: check logs for details
 
@@ -232,6 +261,7 @@ python tests/test_multi_strategy.py
 
 - See `docs/MULTI_STRATEGY.md` for multi-strategy details
 - See `execution/README.md` for Alpaca integration
+- See `the_alchemiser/cli.py` for CLI source and available commands
 
 ## 🏆 Performance
 
@@ -245,4 +275,4 @@ Performance varies by strategy and market conditions. Example metrics (Nuclear s
 
 - Issues: GitHub Issues
 - Telegram: See bot output for contact info
-- Test suite: `python tests/test_multi_strategy.py`
+- Test suite: `pytest tests/ -v`

@@ -1,0 +1,71 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "the-alchemiser"
+version = "2.0.0"
+description = "Advanced Multi-Strategy Trading Bot with Nuclear and TECL strategies"
+readme = "README.md"
+authors = [
+    {name = "Josh Moreton", email = "josh@example.com"}
+]
+license = {text = "MIT"}
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Financial and Insurance Industry",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+requires-python = ">=3.8"
+dependencies = [
+    "alpaca-py==0.42.0",
+    "numpy==1.26.4",
+    "pandas==2.3.0",
+    "python-dateutil==2.9.0.post0",
+    "tqdm==4.67.1",
+    "setuptools==80.9.0",
+    "python-telegram-bot==20.7",
+    "requests==2.31.0",
+    "PyYAML==6.0.1",
+    "boto3==1.34.131",
+    "rich>=13.0.0",
+    "typer>=0.9.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "black>=22.0.0",
+    "flake8>=5.0.0",
+    "mypy>=1.0.0",
+]
+
+[project.scripts]
+alchemiser = "the_alchemiser.cli:app"
+
+[project.urls]
+Homepage = "https://github.com/Josh-moreton/The-Alchemiser"
+Repository = "https://github.com/Josh-moreton/The-Alchemiser"
+Issues = "https://github.com/Josh-moreton/The-Alchemiser/issues"
+
+[tool.setuptools]
+packages = ["the_alchemiser"]
+
+[tool.setuptools.package-data]
+the_alchemiser = ["config.yaml"]
+
+[tool.black]
+line-length = 100
+target-version = ['py38']
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
