@@ -255,10 +255,10 @@ from the_alchemiser.backtest.test_backtest import run_backtest, run_backtest_com
 
 @app.command()
 def backtest(
-    start: str = typer.Option("2025-01-01", help="Start date (YYYY-MM-DD)"),
+    start: str = typer.Option("2023-01-01", help="Start date (YYYY-MM-DD)"),
     end: str = typer.Option("2025-07-15", help="End date (YYYY-MM-DD)"),
-    initial_equity: float = typer.Option(1000, help="Initial equity for backtest"),
-    price_type: str = typer.Option("close", help="Price type: close, open, or mid")
+    initial_equity: float = typer.Option(10000, help="Initial equity for backtest"),
+    price_type: str = typer.Option("open", help="Price type: close, open, or mid")
 ):
     """
     🧪 [bold cyan]Run a backtest[/bold cyan] for a given date range and price type.
@@ -277,9 +277,9 @@ def backtest(
 
 @app.command()
 def backtest_compare(
-    start: str = typer.Option("2025-01-01", help="Start date (YYYY-MM-DD)"),
+    start: str = typer.Option("2023-01-01", help="Start date (YYYY-MM-DD)"),
     end: str = typer.Option("2025-07-15", help="End date (YYYY-MM-DD)"),
-    initial_equity: float = typer.Option(1000, help="Initial equity for backtest")
+    initial_equity: float = typer.Option(10000, help="Initial equity for backtest")
 ):
     """
     📊 [bold cyan]Compare backtest results[/bold cyan] across all price types (close, open, mid).
