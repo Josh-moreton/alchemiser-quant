@@ -4,7 +4,7 @@
 # Set these variables for your AWS account and region
 ACCOUNT_ID=211125653762
 REGION=eu-west-2
-REPO_NAME=lqq3-lambda
+REPO_NAME=the-alchemiser-repository
 IMAGE_TAG=latest
 
 # Build the Docker image
@@ -26,7 +26,7 @@ docker push ${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com/${REPO_NAME}:${IMAGE_T
 echo "Done! Image pushed to ECR."
 
 # Update the Lambda function to use the new image
-LAMBDA_ARN="arn:aws:lambda:eu-west-2:211125653762:function:nuclear-finance"
+LAMBDA_ARN="arn:aws:lambda:eu-west-2:211125653762:function:the-alchemiser-lambda"
 IMAGE_URI="${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com/${REPO_NAME}:${IMAGE_TAG}"
 echo "Updating Lambda function to use new image..."
 aws lambda update-function-code --function-name "$LAMBDA_ARN" --image-uri "$IMAGE_URI" --region "$REGION" --no-cli-pager

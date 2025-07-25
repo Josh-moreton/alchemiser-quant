@@ -41,7 +41,7 @@ def _preload_symbol_data(data_provider, symbols, start, end):
     return symbol_data
 
 
-def run_backtest(start, end, initial_equity=100000):
+def run_backtest(start, end, initial_equity=1000):
     console.print(Panel(f"[bold cyan]Starting Backtest[/bold cyan]\n"
                        f"Period: {start.strftime('%Y-%m-%d')} to {end.strftime('%Y-%m-%d')}\n"
                        f"Initial Equity: ${initial_equity:,.2f}", 
@@ -146,6 +146,6 @@ def test_backtest_smoke():
         pytest.skip('Alpaca credentials not available')
 
     end = dt.datetime.now() - dt.timedelta(days=5)
-    start = end - dt.timedelta(days=365)  # Run for the past year, not including last 5 days
+    start = end - dt.timedelta(days=365*1)  # Run for the past year, not including last 5 days
     curve = run_backtest(start, end)
     assert len(curve) > 0
