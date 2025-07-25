@@ -170,8 +170,22 @@ def render_trading_summary(orders_executed: List[Dict], console: Console | None 
         return
     
     # Analyze orders
-    buy_orders = [o for o in orders_executed if str(o.get('side', '')).upper() in ['BUY', 'OrderSide.BUY']]
-    sell_orders = [o for o in orders_executed if str(o.get('side', '')).upper() in ['SELL', 'OrderSide.SELL']]
+    buy_orders = []
+    sell_orders = []
+    
+    for order in orders_executed:
+        side = order.get('side')
+        if side:
+            # Handle both string and enum values
+            if hasattr(side, 'value'):
+                side_value = side.value.upper()
+            else:
+                side_value = str(side).upper()
+            
+            if side_value == 'BUY':
+                buy_orders.append(order)
+            elif side_value == 'SELL':
+                sell_orders.append(order)
     
     total_buy_value = sum(o.get('estimated_value', 0) for o in buy_orders)
     total_sell_value = sum(o.get('estimated_value', 0) for o in sell_orders)
