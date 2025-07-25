@@ -3,6 +3,9 @@ logging:
   level: "INFO"
   multi_strategy_log: "s3://the-alchemiser-s3/multi_strategy_execution.log"
   alpaca_log: "s3://the-alchemiser-s3/alpaca_trader.log"
+  trading_bot_log: "the_alchemiser/data/logs/trading_bot.log"
+  alpaca_trades_json: "/tmp/alpaca_trades.json"
+  nuclear_alerts_json: "/tmp/nuclear_alerts.json"
 
 # Alpaca configuration
 alpaca:
@@ -10,8 +13,30 @@ alpaca:
   endpoint: "https://api.alpaca.markets"
   paper_endpoint: "https://paper-api.alpaca.markets/v2"
   cash_reserve_pct: 0.05
+  slippage_bps: 5
 
-# Data configuration
-data:
-  cache_duration: 300
-  default_symbol: "AAPL"
+# AWS/Lambda deployment
+aws:
+  account_id: "YOUR_ACCOUNT_ID"
+  region: "eu-west-2"
+  repo_name: "the-alchemiser"
+  lambda_arn: "arn:aws:lambda:eu-west-2:YOUR_ACCOUNT_ID:function:the-alchemiser"
+  image_tag: "latest"
+
+# Alert settings
+alerts:
+  alert_config_s3: "s3://the-alchemiser-s3/alert_config.json"
+  cooldown_minutes: 30
+
+# Secrets Manager
+secrets_manager:
+  region_name: "eu-west-2"
+  secret_name: "the-alchemiser-secrets"
+
+# Strategy defaults
+strategy:
+  default_strategy_allocations:
+    nuclear: 0.5
+    tecl: 0.5
+  poll_timeout: 30
+  poll_interval: 2.0
