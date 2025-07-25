@@ -27,13 +27,16 @@ class NuclearStrategyEngine:
     def __init__(self):
         # Nuclear energy stocks (the core of this strategy)
         self.nuclear_symbols = ['SMR', 'BWXT', 'LEU', 'EXC', 'NLR', 'OKLO']
+        self.weighting_mode = 'equal'  # Default to equal weighting (matches Composer logic)
         logging.debug("NuclearStrategyEngine initialized")
     
     def get_nuclear_portfolio(self, indicators, market_data=None, top_n=3):
         """
-        Get nuclear energy portfolio with top N stocks and their allocations using inverse volatility weighting.
+        Get nuclear energy portfolio with top N stocks and their allocations.
+        Weighting mode: 'inverse_vol' (default) or 'equal' (for Composer logic).
         Returns a dict: {symbol: {weight, performance}}
         """
+        weighting_mode = getattr(self, 'weighting_mode', 'inverse_vol')
         nuclear_performance = []
         for symbol in self.nuclear_symbols:
             if symbol in indicators:
@@ -50,7 +53,16 @@ class NuclearStrategyEngine:
                     top_stocks.append((s, 0.0))
                 if len(top_stocks) >= top_n:
                     break
-        # Calculate 90-day volatility for each stock
+        
+        portfolio = {}
+        if weighting_mode == 'equal':
+            # Equal weighting (Composer logic)
+            weight_per_stock = 1.0 / len(top_stocks)
+            for symbol, perf in top_stocks:
+                portfolio[symbol] = {'weight': weight_per_stock, 'performance': perf}
+            return portfolio
+        
+        # Default: inverse volatility weighting
         volatilities = []
         for symbol, _ in top_stocks:
             if market_data and symbol in market_data:
@@ -58,21 +70,18 @@ class NuclearStrategyEngine:
                 returns = close.pct_change().dropna()
                 if len(returns) >= 90:
                     vol = returns[-90:].std() * np.sqrt(252)
-                    # Ensure vol is a scalar, not a Series
                     if hasattr(vol, 'item'):
                         vol = vol.item()
                     vol = float(vol) if pd.notna(vol) else 0.3
                 else:
                     vol = 0.3
             else:
-                vol = 0.3  # fallback
+                vol = 0.3
             volatilities.append(max(vol, 0.01))
-        # Inverse volatility weighting
         inv_vols = [1/v for v in volatilities]
         total_inv = sum(inv_vols)
-        portfolio = {}
         for i, (symbol, perf) in enumerate(top_stocks):
-            weight = inv_vols[i] / total_inv if total_inv > 0 else 1.0/top_n
+            weight = inv_vols[i] / total_inv if total_inv > 0 else 1.0/len(top_stocks)
             portfolio[symbol] = {'weight': weight, 'performance': perf}
         return portfolio
 
