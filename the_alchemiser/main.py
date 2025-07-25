@@ -59,8 +59,10 @@ def setup_file_logging():
                 root_logger.addHandler(s3_handler)
     else:
         # Local/dev: Ensure logs directory exists and log to file
-        os.makedirs('the_alchemiser/data/logs', exist_ok=True)
-        log_path = "the_alchemiser/data/logs/trading_bot.log"
+        log_path = logging_config.get('trading_bot_log', 'the_alchemiser/data/logs/trading_bot.log')
+        log_dir = os.path.dirname(log_path)
+        if log_dir:
+            os.makedirs(log_dir, exist_ok=True)
         file_handler = RotatingFileHandler(
             log_path,
             maxBytes=10*1024*1024,  # 10MB

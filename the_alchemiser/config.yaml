@@ -17,10 +17,10 @@ alpaca:
 
 # AWS/Lambda deployment
 aws:
-  account_id: "YOUR_ACCOUNT_ID"
+  account_id: "211125653762"
   region: "eu-west-2"
   repo_name: "the-alchemiser"
-  lambda_arn: "arn:aws:lambda:eu-west-2:YOUR_ACCOUNT_ID:function:the-alchemiser"
+  lambda_arn: "arn:aws:lambda:eu-west-2:211125653762:function:the-alchemiser"
   image_tag: "latest"
 
 # Alert settings
@@ -31,7 +31,7 @@ alerts:
 # Secrets Manager
 secrets_manager:
   region_name: "eu-west-2"
-  secret_name: "the-alchemiser-secrets"
+  secret_name: "nuclear-secrets"
 
 # Strategy defaults
 strategy:
@@ -40,3 +40,8 @@ strategy:
     tecl: 0.5
   poll_timeout: 30
   poll_interval: 2.0
+
+# Data configuration (preserved from previous config)
+data:
+  cache_duration: 300
+  default_symbol: "AAPL"

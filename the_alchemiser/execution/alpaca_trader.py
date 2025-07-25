@@ -51,25 +51,30 @@ class AlpacaTradingBot:
             config = get_config()
         
         alpaca_cfg = config['alpaca']
-        
+        logging_cfg = config['logging']
+        self.config = config
+
         # Use parameter if provided, otherwise default to paper trading for safety
         if paper_trading is not None:
             self.paper_trading = paper_trading
         else:
             self.paper_trading = True  # Default to paper trading for safety
-            
+
         self.endpoint = alpaca_cfg.get('endpoint', 'https://api.alpaca.markets')
         self.paper_endpoint = alpaca_cfg.get('paper_endpoint', 'https://paper-api.alpaca.markets/v2')
-        
+
         # Store the ignore_market_hours setting
         self.ignore_market_hours = ignore_market_hours
 
+        # Set up log file path from config
+        self.alpaca_log = logging_cfg.get('alpaca_log', 'the_alchemiser/data/logs/alpaca_trader.log')
+
         # Log trading mode to file only
         logging.info(f"Trading Mode: {'PAPER' if self.paper_trading else 'LIVE'} (from CLI mode)")
-        
+
         # Display trading mode cleanly to user using rich
         from the_alchemiser.core.ui.cli_formatter import render_header
-        mode_str = "PAPER" if self.paper_trading else "LIVE" 
+        mode_str = "PAPER" if self.paper_trading else "LIVE"
         render_header(f"🏦 Trading Mode: {mode_str}", "Alpaca Trading Bot Initialized")
 
         # Use UnifiedDataProvider for all Alpaca data access
@@ -78,7 +83,7 @@ class AlpacaTradingBot:
             config=config
         )
         self.trading_client = self.data_provider.trading_client  # For order placement
-        
+
         # Log to file
         logging.info(f"Alpaca Trading Bot initialized - Paper Trading: {self.paper_trading}")
         # User-facing message with rich
@@ -220,7 +225,7 @@ class AlpacaTradingBot:
     def place_order(
         self, symbol: str, qty: float, side: OrderSide, 
         max_retries: int = 3, poll_timeout: int = 30, poll_interval: float = 2.0, 
-        slippage_bps: float = 30.0
+        slippage_bps: Optional[float] = None
     ) -> Optional[str]:
         """
         Place a limit order with a small slippage buffer. Fallback to market order if not filled.
@@ -240,6 +245,10 @@ class AlpacaTradingBot:
         if qty <= 0:
             logging.warning(f"Invalid quantity for {symbol}: {qty}")
             return None
+
+        # Use config slippage if not provided
+        if slippage_bps is None:
+            slippage_bps = self.config['alpaca'].get('slippage_bps', 5)
 
         # Check if market is open
         market_open = is_market_open(self.trading_client)

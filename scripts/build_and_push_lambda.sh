@@ -1,11 +1,15 @@
 #!/bin/bash
 # filepath: scripts/build_and_push_lambda.sh
 
-# Set these variables for your AWS account and region
-ACCOUNT_ID=211125653762
-REGION=eu-west-2
-REPO_NAME=the-alchemiser-repository
-IMAGE_TAG=latest
+# Read AWS parameters from config.yaml using Python
+echo "Reading AWS configuration from config.yaml..."
+ACCOUNT_ID=$(python -c "import yaml; import os; os.chdir('..'); print(yaml.safe_load(open('the_alchemiser/config.yaml'))['aws']['account_id'])")
+REGION=$(python -c "import yaml; import os; os.chdir('..'); print(yaml.safe_load(open('the_alchemiser/config.yaml'))['aws']['region'])")
+REPO_NAME=$(python -c "import yaml; import os; os.chdir('..'); print(yaml.safe_load(open('the_alchemiser/config.yaml'))['aws']['repo_name'])")
+IMAGE_TAG=$(python -c "import yaml; import os; os.chdir('..'); print(yaml.safe_load(open('the_alchemiser/config.yaml'))['aws']['image_tag'])")
+LAMBDA_ARN=$(python -c "import yaml; import os; os.chdir('..'); print(yaml.safe_load(open('the_alchemiser/config.yaml'))['aws']['lambda_arn'])")
+
+echo "Using AWS configuration: Account=${ACCOUNT_ID}, Region=${REGION}, Repo=${REPO_NAME}, Tag=${IMAGE_TAG}"
 
 # Build the Docker image
 echo "Building Docker image..."
@@ -26,7 +30,6 @@ docker push ${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com/${REPO_NAME}:${IMAGE_T
 echo "Done! Image pushed to ECR."
 
 # Update the Lambda function to use the new image
-LAMBDA_ARN="arn:aws:lambda:eu-west-2:211125653762:function:the-alchemiser-lambda"
 IMAGE_URI="${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com/${REPO_NAME}:${IMAGE_TAG}"
 echo "Updating Lambda function to use new image..."
 aws lambda update-function-code --function-name "$LAMBDA_ARN" --image-uri "$IMAGE_URI" --region "$REGION" --no-cli-pager
