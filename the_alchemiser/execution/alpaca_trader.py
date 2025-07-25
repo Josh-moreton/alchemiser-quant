@@ -14,8 +14,8 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 
 # Centralized logging setup
-from the_alchemiser.core.logging_utils import setup_logging
-from the_alchemiser.core.data_provider import UnifiedDataProvider
+from the_alchemiser.core.logging.logging_utils import setup_logging
+from the_alchemiser.core.data.data_provider import UnifiedDataProvider
 from the_alchemiser.core.config import Config
 
 # Alpaca imports
@@ -780,7 +780,7 @@ class AlpacaTradingBot:
             config = Config()
             alerts_file = config['logging']['nuclear_alerts_json']
             
-            from the_alchemiser.core.s3_utils import get_s3_handler
+            from the_alchemiser.core.utils.s3_utils import get_s3_handler
             s3_handler = get_s3_handler()
             
             if alerts_file.startswith('s3://'):
@@ -954,7 +954,7 @@ class AlpacaTradingBot:
             config = Config()
             log_file = config['logging']['alpaca_trades_json']
             
-            from the_alchemiser.core.s3_utils import get_s3_handler
+            from the_alchemiser.core.utils.s3_utils import get_s3_handler
             s3_handler = get_s3_handler()
             
             if log_file.startswith('s3://'):

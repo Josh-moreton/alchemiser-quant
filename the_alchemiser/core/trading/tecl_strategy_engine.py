@@ -29,17 +29,17 @@ import pandas as pd
 import numpy as np
 from enum import Enum
 
-from the_alchemiser.core.indicators import TechnicalIndicators
-from the_alchemiser.core.data_provider import UnifiedDataProvider
+from the_alchemiser.core.indicators.indicators import TechnicalIndicators
+from the_alchemiser.core.data.data_provider import UnifiedDataProvider
 from the_alchemiser.core.config import Config
-from the_alchemiser.core.logging_utils import setup_logging  # Centralized logging setup
+from the_alchemiser.core.logging.logging_utils import setup_logging  # Centralized logging setup
 
 warnings.filterwarnings('ignore')
 setup_logging()
 
 
 # Import ActionType from common module
-from the_alchemiser.core.common import ActionType
+from the_alchemiser.core.utils.common import ActionType
 
 
 class TECLStrategyEngine:

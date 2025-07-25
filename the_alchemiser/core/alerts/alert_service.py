@@ -129,7 +129,7 @@ def log_alert_to_file(alert, log_file_path=None):
     }
     
     try:
-        from the_alchemiser.core.s3_utils import get_s3_handler
+        from the_alchemiser.core.utils.s3_utils import get_s3_handler
         s3_handler = get_s3_handler()
         
         if log_file_path.startswith('s3://'):

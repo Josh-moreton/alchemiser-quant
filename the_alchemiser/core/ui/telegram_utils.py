@@ -1,6 +1,6 @@
 import os
 import requests
-from the_alchemiser.core.secrets_manager import SecretsManager
+from the_alchemiser.core.secrets.secrets_manager import SecretsManager
 
 # Initialize secrets manager
 secrets_manager = SecretsManager(region_name="eu-west-2")

@@ -21,7 +21,7 @@ from typing import Dict, List, Optional, Tuple, Any
 from dataclasses import dataclass
 
 from the_alchemiser.core.config import Config
-from the_alchemiser.core.strategy_manager import MultiStrategyManager, StrategyType
+from the_alchemiser.core.trading.strategy_manager import MultiStrategyManager, StrategyType
 from the_alchemiser.execution.alpaca_trader import AlpacaTradingBot
 
 
@@ -210,7 +210,7 @@ class MultiStrategyAlpacaTrader(AlpacaTradingBot):
     def _log_multi_strategy_execution(self, execution_summary: Dict):
         """Log detailed execution summary to file"""
         try:
-            from the_alchemiser.core.s3_utils import get_s3_handler
+            from the_alchemiser.core.utils.s3_utils import get_s3_handler
             s3_handler = get_s3_handler()
             
             if self.multi_strategy_log.startswith('s3://'):
