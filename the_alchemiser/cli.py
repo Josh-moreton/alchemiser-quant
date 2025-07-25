@@ -13,8 +13,9 @@ from rich.text import Text
 from rich.prompt import Confirm
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TimeElapsedColumn
 from rich.live import Live
+
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from the_alchemiser.core.ui.cli_formatter import render_header, render_footer
 
@@ -246,9 +247,13 @@ from the_alchemiser.backtest.test_backtest import run_backtest, run_backtest_com
 # --- New CLI command for all-splits backtest ---
 @app.command()
 def backtest_all_splits(
-    start: str = typer.Option("2023-01-01", help="Start date (YYYY-MM-DD)"),
-    end: str = typer.Option("2025-07-15", help="End date (YYYY-MM-DD)"),
-    initial_equity: float = typer.Option(10000, help="Initial equity for backtest"),
+    start: str = typer.Option("2022-04-25", help="Start date (YYYY-MM-DD)"),
+    end: str = typer.Option(
+        None,
+        help="End date (YYYY-MM-DD, default: yesterday)",
+        callback=lambda v: v or (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
+    ),
+    initial_equity: float = typer.Option(4000, help="Initial equity for backtest"),
     slippage_bps: int = typer.Option(None, help="Slippage in basis points (default: from config.yaml)"),
     noise_factor: float = typer.Option(0.001, help="Market noise factor (default: 0.1%)"),
     deposit_amount: float = typer.Option(0.0, help="Deposit amount (e.g. 100 for £100, default: 0)"),
