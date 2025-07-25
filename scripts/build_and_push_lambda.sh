@@ -46,3 +46,8 @@ else
   echo "No old images to delete."
 fi
 echo "Old ECR images cleanup complete."
+
+# Clean up local Docker disk usage
+echo "Cleaning up local Docker disk usage..."
+docker system prune -f
+echo "Local Docker cleanup complete."
