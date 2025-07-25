@@ -1,0 +1,276 @@
+{
+  "strategy_name": "TECL for the Long Term",
+  "strategy_description": "TECL for the Long Term | BT 2022-07-05",
+  "asset_class": "EQUITIES",
+  "rebalance_frequency": "daily",
+  "strategy_logic": {
+    "type": "weight_equal",
+    "children": [
+      {
+        "type": "group",
+        "name": "TECL for the Long Term",
+        "children": [
+          {
+            "type": "weight_equal",
+            "children": [
+              {
+                "type": "if_condition",
+                "condition": {
+                  "operator": ">",
+                  "left": {
+                    "type": "indicator",
+                    "indicator": "current_price",
+                    "symbol": "SPY"
+                  },
+                  "right": {
+                    "type": "indicator",
+                    "indicator": "moving_average_price",
+                    "symbol": "SPY",
+                    "params": { "window": 200 }
+                  }
+                },
+                "true_branch": {
+                  "type": "group",
+                  "name": "Bull",
+                  "children": [
+                    {
+                      "type": "weight_equal",
+                      "children": [
+                        {
+                          "type": "if_condition",
+                          "condition": {
+                            "operator": ">",
+                            "left": {
+                              "type": "indicator",
+                              "indicator": "rsi",
+                              "symbol": "TQQQ",
+                              "params": { "window": 10 }
+                            },
+                            "right": 80
+                          },
+                          "true_branch": {
+                            "type": "weight_equal",
+                            "children": [
+                              {
+                                "type": "if_condition",
+                                "condition": {
+                                  "operator": ">",
+                                  "left": {
+                                    "type": "indicator",
+                                    "indicator": "rsi",
+                                    "symbol": "SPY",
+                                    "params": { "window": 10 }
+                                  },
+                                  "right": 80
+                                },
+                                "true_branch": {
+                                  "type": "asset",
+                                  "symbol": "KMLM",
+                                  "name": "KraneShares Msci All China Leaders Index Fund"
+                                },
+                                "false_branch": {
+                                  "type": "weight_equal",
+                                  "children": [
+                                    {
+                                      "type": "if_condition",
+                                      "condition": {
+                                        "operator": ">",
+                                        "left": {
+                                          "type": "indicator",
+                                          "indicator": "current_price",
+                                          "symbol": "UVXY"
+                                        },
+                                        "right": {
+                                          "type": "indicator",
+                                          "indicator": "moving_average_price",
+                                          "symbol": "UVXY",
+                                          "params": { "window": 20 }
+                                        }
+                                      },
+                                      "true_branch": {
+                                        "type": "asset",
+                                        "symbol": "KMLM",
+                                        "name": "KraneShares Msci All China Leaders Index Fund"
+                                      },
+                                      "false_branch": {
+                                        "type": "asset",
+                                        "symbol": "SPXS",
+                                        "name": "Direxion Daily S&P 500 Bear 3X Shares"
+                                      }
+                                    }
+                                  ]
+                                }
+                              }
+                            ]
+                          },
+                          "false_branch": {
+                            "type": "weight_equal",
+                            "children": [
+                              {
+                                "type": "if_condition",
+                                "condition": {
+                                  "operator": ">",
+                                  "left": {
+                                    "type": "indicator",
+                                    "indicator": "rsi",
+                                    "symbol": "SPY",
+                                    "params": { "window": 10 }
+                                  },
+                                  "right": 80
+                                },
+                                "true_branch": {
+                                  "type": "weight_equal",
+                                  "children": [
+                                    {
+                                      "type": "if_condition",
+                                      "condition": {
+                                        "operator": ">",
+                                        "left": {
+                                          "type": "indicator",
+                                          "indicator": "current_price",
+                                          "symbol": "UVXY"
+                                        },
+                                        "right": {
+                                          "type": "indicator",
+                                          "indicator": "moving_average_price",
+                                          "symbol": "UVXY",
+                                          "params": { "window": 20 }
+                                        }
+                                      },
+                                      "true_branch": {
+                                        "type": "asset",
+                                        "symbol": "KMLM",
+                                        "name": "KraneShares Msci All China Leaders Index Fund"
+                                      },
+                                      "false_branch": {
+                                        "type": "weight_equal",
+                                        "children": [
+                                          {
+                                            "type": "if_condition",
+                                            "condition": {
+                                              "operator": ">",
+                                              "left": {
+                                                "type": "indicator",
+                                                "indicator": "rsi",
+                                                "symbol": "TLT",
+                                                "params": { "window": 10 }
+                                              },
+                                              "right": {
+                                                "type": "indicator",
+                                                "indicator": "rsi",
+                                                "symbol": "QQQ",
+                                                "params": { "window": 10 }
+                                              }
+                                            },
+                                            "true_branch": {
+                                              "type": "asset",
+                                              "symbol": "SPXS",
+                                              "name": "Direxion Daily S&P 500 Bear 3X Shares"
+                                            },
+                                            "false_branch": {
+                                              "type": "asset",
+                                              "symbol": "TECL",
+                                              "name": "Direxion Daily Technology Bull 3X Shares"
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    }
+                                  ]
+                                },
+                                "false_branch": {
+                                  "type": "asset",
+                                  "symbol": "TECL",
+                                  "name": "Direxion Daily Technology Bull 3X Shares"
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "false_branch": {
+                  "type": "group",
+                  "name": "Bear",
+                  "children": [
+                    {
+                      "type": "weight_equal",
+                      "children": [
+                        {
+                          "type": "filter",
+                          "filter_type": "momentum",
+                          "filter_params": { "window": 60 },
+                          "select_type": "select_top",
+                          "select_count": 1,
+                          "children": [
+                            {
+                              "type": "asset",
+                              "symbol": "TLT",
+                              "name": "iShares 20+ Year Treasury Bond ETF"
+                            },
+                            {
+                              "type": "asset",
+                              "symbol": "SHY",
+                              "name": "iShares 1-3 Year Treasury Bond ETF"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "technical_indicators": {
+    "rsi_windows": [9, 10, 20],
+    "moving_average_windows": [20, 200],
+    "momentum_windows": [60]
+  },
+  "assets": {
+    "equities": [
+      { "symbol": "SPY", "name": "SPDR S&P 500 ETF Trust" },
+      { "symbol": "TQQQ", "name": "ProShares UltraPro QQQ" },
+      { "symbol": "QQQ", "name": "Invesco QQQ Trust Series I" },
+      { "symbol": "TECL", "name": "Direxion Daily Technology Bull 3X Shares" },
+      { "symbol": "SPXS", "name": "Direxion Daily S&P 500 Bear 3X Shares" },
+      {
+        "symbol": "KMLM",
+        "name": "KraneShares Msci All China Leaders Index Fund"
+      },
+      { "symbol": "UVXY", "name": "ProShares Ultra VIX Short-Term Futures ETF" }
+    ],
+    "bonds": [
+      { "symbol": "TLT", "name": "iShares 20+ Year Treasury Bond ETF" },
+      { "symbol": "SHY", "name": "iShares 1-3 Year Treasury Bond ETF" }
+    ]
+  },
+  "conditions": {
+    "bull_market": {
+      "description": "SPY price above 200-day moving average",
+      "condition": "SPY > SPY.MA(200)"
+    },
+    "overbought_tqqq": {
+      "description": "TQQQ RSI(10) above 80",
+      "condition": "TQQQ.RSI(10) > 80"
+    },
+    "overbought_spy": {
+      "description": "SPY RSI(10) above 80",
+      "condition": "SPY.RSI(10) > 80"
+    },
+    "volatility_spike": {
+      "description": "UVXY price above 20-day moving average",
+      "condition": "UVXY > UVXY.MA(20)"
+    },
+    "bond_relative_strength": {
+      "description": "TLT RSI(10) greater than QQQ RSI(10)",
+      "condition": "TLT.RSI(10) > QQQ.RSI(10)"
+    }
+  }
+}

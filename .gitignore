@@ -24,7 +24,6 @@ Icon?
 # Data outputs and logs
 *.log
 *.csv
-*.json
 
 # Ignore backtest results and logs
 /data/backtest_results/
