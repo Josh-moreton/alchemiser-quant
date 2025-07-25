@@ -191,7 +191,7 @@ def deploy():
     
     console.print("[bold yellow]🔨 Building and deploying to AWS Lambda...[/bold yellow]")
     
-    deploy_script = "/Users/joshmoreton/GitHub/The-Alchemiser/scripts/build_and_push_lambda.sh"
+    deploy_script = "scripts/build_and_push_lambda.sh"
     
     with Progress(
         SpinnerColumn(),
