@@ -216,7 +216,7 @@ class AlpacaTradingBot:
     def place_order(
         self, symbol: str, qty: float, side: OrderSide, 
         max_retries: int = 3, poll_timeout: int = 30, poll_interval: float = 2.0, 
-        slippage_bps: float = 0.3
+        slippage_bps: float = 30.0
     ) -> Optional[str]:
         """
         Place a limit order with a small slippage buffer. Fallback to market order if not filled.
@@ -227,6 +227,9 @@ class AlpacaTradingBot:
             qty: Quantity of shares (float for fractional shares)
             side: OrderSide.BUY or OrderSide.SELL
             max_retries: Maximum number of retry attempts
+            poll_timeout: Time to wait for limit order fill before canceling
+            poll_interval: Time between status checks
+            slippage_bps: Slippage buffer in basis points (default 30 bps = 0.3%)
         Returns:
             Order ID if successful, None if failed
         """
@@ -271,9 +274,16 @@ class AlpacaTradingBot:
 
                 # Calculate limit price with slippage buffer
                 if side == OrderSide.BUY:
-                    limit_price = round(current_price * (1 + slippage_bps / 100), 2)
+                    limit_price = round(current_price * (1 + slippage_bps / 10000), 2)
                 else:
-                    limit_price = round(current_price * (1 - slippage_bps / 100), 2)
+                    limit_price = round(current_price * (1 - slippage_bps / 10000), 2)
+
+                # Log the price calculation for debugging
+                slippage_percent = slippage_bps / 10000 * 100
+                price_diff = abs(limit_price - current_price)
+                price_diff_percent = (price_diff / current_price) * 100
+                logging.info(f"Price calculation for {symbol}: current=${current_price:.2f}, limit=${limit_price:.2f} "
+                           f"(slippage={slippage_bps}bps={slippage_percent:.3f}%, diff=${price_diff:.2f}={price_diff_percent:.3f}%)")
 
                 logging.info(f"Placing LIMIT {side.value} order for {symbol}: qty={qty}, limit_price={limit_price}")
 
@@ -305,7 +315,7 @@ class AlpacaTradingBot:
                 # If not filled, cancel and retry with wider slippage
                 self.trading_client.cancel_order_by_id(order_id)
                 logging.warning(f"Limit order {order_id} not filled in time, canceled. Retrying with wider slippage.")
-                slippage_bps *= 2  # Double the slippage for next attempt
+                slippage_bps *= 1.5  # Increase slippage by 50% for next attempt
                 attempt += 1
 
             except Exception as e:
@@ -326,34 +336,49 @@ class AlpacaTradingBot:
                     continue
                 else:
                     logging.error(f"Exception placing limit order for {symbol}: {e}", exc_info=True)
-                    if attempt == max_retries:
-                        # As a last resort, fallback to market order
-                        try:
-                            logging.warning(f"Falling back to MARKET order for {symbol}")
-                            market_order_data = MarketOrderRequest(
-                                symbol=symbol,
-                                qty=qty,
-                                side=side,
-                                time_in_force=TimeInForce.DAY
-                            )
-                            order = self.trading_client.submit_order(market_order_data)
-                            return str(getattr(order, 'id', 'unknown'))
-                        except Exception as e2:
-                            # Check for insufficient buying power again
-                            error_str2 = str(e2)
-                            match2 = re.search(r'"code":\s*40310000', error_str2)
-                            if match2 and attempt < max_retries:
-                                old_qty = qty
-                                qty = round(qty * 0.95, 6)
-                                logging.warning(f"Market order failed for {symbol} due to insufficient buying power (code 40310000). Retrying with 5% lower qty: {old_qty} -> {qty}")
-                                print(f"   ⚠️  {symbol}: Insufficient buying power (market), retrying with 5% lower qty ({old_qty} -> {qty})")
-                                attempt += 1
-                                continue
-                            logging.error(f"Market order also failed for {symbol}: {e2}", exc_info=True)
-                            return None
-                    else:
-                        attempt += 1
-        return None
+                    attempt += 1
+
+        # If all limit order attempts failed, try a market order as final fallback
+        logging.warning(f"All limit order attempts failed for {symbol}. Falling back to MARKET order.")
+        print(f"   🎯 {symbol}: Limit orders failed, placing market order as fallback")
+        try:
+            market_order_data = MarketOrderRequest(
+                symbol=symbol,
+                qty=qty,
+                side=side,
+                time_in_force=TimeInForce.DAY
+            )
+            order = self.trading_client.submit_order(market_order_data)
+            order_id = str(getattr(order, 'id', 'unknown'))
+            logging.info(f"Market order placed as fallback: {order_id}")
+            return order_id
+        except Exception as e2:
+            # Check for insufficient buying power again
+            error_str2 = str(e2)
+            match2 = re.search(r'"code":\s*40310000', error_str2)
+            if match2:
+                # One final attempt with reduced quantity
+                old_qty = qty
+                qty = round(qty * 0.9, 6)
+                logging.warning(f"Market order failed for {symbol} due to insufficient buying power. Final attempt with 10% lower qty: {old_qty} -> {qty}")
+                print(f"   ⚠️  {symbol}: Market order insufficient buying power, final attempt with 10% lower qty ({old_qty} -> {qty})")
+                try:
+                    market_order_data = MarketOrderRequest(
+                        symbol=symbol,
+                        qty=qty,
+                        side=side,
+                        time_in_force=TimeInForce.DAY
+                    )
+                    order = self.trading_client.submit_order(market_order_data)
+                    order_id = str(getattr(order, 'id', 'unknown'))
+                    logging.info(f"Final market order placed: {order_id}")
+                    return order_id
+                except Exception as e3:
+                    logging.error(f"Final market order also failed for {symbol}: {e3}", exc_info=True)
+                    return None
+            else:
+                logging.error(f"Market order fallback failed for {symbol}: {e2}", exc_info=True)
+                return None
     
     def display_target_vs_current_allocations(self, target_portfolio: Dict[str, float], account_info: Dict, current_positions: Dict) -> Tuple[Dict[str, float], Dict[str, float]]:
         """
