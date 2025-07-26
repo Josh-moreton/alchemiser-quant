@@ -226,23 +226,101 @@ def render_trading_summary(orders_executed: List[Dict], console: Console | None 
 
 
 def render_account_info(account_info: Dict, console: Console | None = None) -> None:
-    """Pretty-print account information."""
+    """Render account information including P&L data"""
     c = console or Console()
     
     if not account_info:
         c.print(Panel("Account information not available", title="🏦 ACCOUNT INFO", style="red"))
         return
     
-    portfolio_value = account_info.get('portfolio_value', 0)
-    cash = account_info.get('cash', 0)
-    buying_power = account_info.get('buying_power', 0)
+    account_data = account_info.get('account', account_info)  # Support both formats
+    portfolio_history = account_info.get('portfolio_history', {})
+    open_positions = account_info.get('open_positions', [])
     
-    # Create account summary
-    content = f"""[bold green]Portfolio Value:[/bold green] ${portfolio_value:,.2f}
-[bold blue]Available Cash:[/bold blue] ${cash:,.2f}
-[bold yellow]Buying Power:[/bold yellow] ${buying_power:,.2f}"""
+    # Account basics
+    portfolio_value = account_data.get('portfolio_value', account_data.get('equity', 0))
+    cash = account_data.get('cash', 0)
+    buying_power = account_data.get('buying_power', 0)
     
+    # Create account summary with P&L
+    content_lines = [
+        f"[bold green]Portfolio Value:[/bold green] ${float(portfolio_value):,.2f}",
+        f"[bold blue]Available Cash:[/bold blue] ${float(cash):,.2f}",
+        f"[bold yellow]Buying Power:[/bold yellow] ${float(buying_power):,.2f}"
+    ]
+    
+    # Add P&L from portfolio history if available
+    if portfolio_history and 'profit_loss' in portfolio_history:
+        profit_loss = portfolio_history['profit_loss']
+        profit_loss_pct = portfolio_history['profit_loss_pct']
+        
+        if profit_loss and len(profit_loss) > 0:
+            latest_pl = profit_loss[-1]
+            latest_pl_pct = profit_loss_pct[-1] if profit_loss_pct else 0
+            
+            pl_color = "green" if latest_pl >= 0 else "red"
+            pl_sign = "+" if latest_pl >= 0 else ""
+            
+            content_lines.append(f"[bold {pl_color}]Total P&L:[/bold {pl_color}] {pl_sign}${latest_pl:,.2f} ({pl_sign}{latest_pl_pct:.2%})")
+    
+    content = "\n".join(content_lines)
     c.print(Panel(content, title="🏦 ACCOUNT INFO", style="bold white"))
+    
+    # Open positions table if we have positions
+    if open_positions:
+        positions_table = Table(title="📊 Open Positions", show_lines=True, box=None)
+        positions_table.add_column("Symbol", style="bold cyan")
+        positions_table.add_column("Qty", style="white", justify="right")
+        positions_table.add_column("Avg Price", style="white", justify="right")
+        positions_table.add_column("Current Price", style="white", justify="right")
+        positions_table.add_column("Market Value", style="white", justify="right")
+        positions_table.add_column("Unrealized P&L", style="white", justify="right")
+        
+        total_market_value = 0
+        total_unrealized_pl = 0
+        
+        for position in open_positions:
+            symbol = position.get('symbol', 'N/A')
+            qty = float(position.get('qty', 0))
+            avg_price = float(position.get('avg_entry_price', 0))
+            current_price = float(position.get('current_price', 0))
+            market_value = float(position.get('market_value', 0))
+            unrealized_pl = float(position.get('unrealized_pl', 0))
+            unrealized_plpc = float(position.get('unrealized_plpc', 0))
+            
+            total_market_value += market_value
+            total_unrealized_pl += unrealized_pl
+            
+            # Color coding for P&L
+            pl_color = "green" if unrealized_pl >= 0 else "red"
+            pl_sign = "+" if unrealized_pl >= 0 else ""
+            
+            positions_table.add_row(
+                symbol,
+                f"{qty:.4f}",
+                f"${avg_price:.2f}",
+                f"${current_price:.2f}",
+                f"${market_value:.2f}",
+                f"[{pl_color}]{pl_sign}${unrealized_pl:.2f} ({pl_sign}{unrealized_plpc:.2%})[/{pl_color}]"
+            )
+        
+        # Add totals row
+        if len(open_positions) > 1:
+            total_pl_color = "green" if total_unrealized_pl >= 0 else "red"
+            total_pl_sign = "+" if total_unrealized_pl >= 0 else ""
+            total_pl_pct = (total_unrealized_pl / total_market_value) * 100 if total_market_value > 0 else 0
+            
+            positions_table.add_row(
+                "[bold]TOTAL[/bold]",
+                "",
+                "",
+                "",
+                f"[bold]${total_market_value:.2f}[/bold]",
+                f"[bold {total_pl_color}]{total_pl_sign}${total_unrealized_pl:.2f} ({total_pl_sign}{total_pl_pct:.2%})[/bold {total_pl_color}]"
+            )
+        
+        c.print()
+        c.print(positions_table)
 
 
 def render_header(title: str, subtitle: str = "", console: Console | None = None) -> None:

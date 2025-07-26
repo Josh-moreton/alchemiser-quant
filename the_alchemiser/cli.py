@@ -156,7 +156,7 @@ def status():
     """
     📈 [bold blue]Show account status and positions[/bold blue]
     
-    Displays current account balance, positions, and portfolio performance.
+    Displays current account balance, positions, portfolio performance, and P&L.
     """
     show_welcome()
     
@@ -165,13 +165,105 @@ def status():
     try:
         from the_alchemiser.execution.alpaca_trader import AlpacaTradingBot
         from the_alchemiser.core.ui.cli_formatter import render_account_info
+        from the_alchemiser.core.data.data_provider import UnifiedDataProvider
+        from rich.table import Table
+        from rich.panel import Panel
         
-        # Create trader to get account info
+        # Create trader and data provider to get account info
         trader = AlpacaTradingBot(paper_trading=True)  # Always use paper for status
+        data_provider = UnifiedDataProvider(paper_trading=True)
+        
         account_info = trader.get_account_info()
         
         if account_info:
             render_account_info(account_info)
+            
+            # Get portfolio history for P&L trends
+            console.print("\n[bold yellow]📈 Fetching portfolio history...[/bold yellow]")
+            portfolio_history = data_provider.get_portfolio_history()
+            
+            if portfolio_history and 'equity' in portfolio_history:
+                equity_data = portfolio_history['equity']
+                profit_loss = portfolio_history.get('profit_loss', [])
+                profit_loss_pct = portfolio_history.get('profit_loss_pct', [])
+                
+                if len(equity_data) >= 2:
+                    current_equity = equity_data[-1]
+                    prev_equity = equity_data[-2] if len(equity_data) > 1 else equity_data[0]
+                    daily_change = current_equity - prev_equity
+                    daily_change_pct = (daily_change / prev_equity * 100) if prev_equity > 0 else 0
+                    
+                    # Recent P&L summary
+                    recent_pl = profit_loss[-1] if profit_loss else 0
+                    recent_pl_pct = profit_loss_pct[-1] if profit_loss_pct else 0
+                    
+                    pl_content = f"""[bold green]Current Equity:[/bold green] ${current_equity:,.2f}
+[bold blue]Daily Change:[/bold blue] ${daily_change:+,.2f} ({daily_change_pct:+.2f}%)
+[bold yellow]Recent P&L:[/bold yellow] ${recent_pl:+,.2f} ({recent_pl_pct:+.2f}%)
+[bold cyan]Base Value:[/bold cyan] ${portfolio_history.get('base_value', 0):,.2f}"""
+                    
+                    console.print(Panel(pl_content, title="💰 PORTFOLIO PERFORMANCE", style="bold white"))
+            
+            # Get open positions for detailed P&L
+            console.print("\n[bold yellow]📊 Fetching current positions...[/bold yellow]")
+            open_positions = data_provider.get_open_positions()
+            
+            if open_positions:
+                table = Table(title="📈 CURRENT POSITIONS", show_lines=True, expand=True)
+                table.add_column("Symbol", style="bold cyan", justify="center")
+                table.add_column("Quantity", style="white", justify="right")
+                table.add_column("Avg Price", style="white", justify="right")
+                table.add_column("Current Price", style="white", justify="right")
+                table.add_column("Market Value", style="green", justify="right")
+                table.add_column("Unrealized P&L", style="bold", justify="right")
+                table.add_column("P&L %", style="bold", justify="right")
+                
+                total_market_value = 0
+                total_unrealized_pl = 0
+                
+                for position in open_positions:
+                    symbol = position.get('symbol', 'N/A')
+                    qty = float(position.get('qty', 0))
+                    avg_price = float(position.get('avg_entry_price', 0))
+                    current_price = float(position.get('current_price', 0))
+                    market_value = float(position.get('market_value', 0))
+                    unrealized_pl = float(position.get('unrealized_pl', 0))
+                    unrealized_plpc = float(position.get('unrealized_plpc', 0)) * 100
+                    
+                    total_market_value += market_value
+                    total_unrealized_pl += unrealized_pl
+                    
+                    # Color coding for P&L
+                    pl_color = "green" if unrealized_pl >= 0 else "red"
+                    pl_sign = "+" if unrealized_pl >= 0 else ""
+                    
+                    table.add_row(
+                        symbol,
+                        f"{qty:.6f}",
+                        f"${avg_price:.2f}",
+                        f"${current_price:.2f}",
+                        f"${market_value:,.2f}",
+                        f"[{pl_color}]{pl_sign}${unrealized_pl:,.2f}[/{pl_color}]",
+                        f"[{pl_color}]{pl_sign}{unrealized_plpc:.2f}%[/{pl_color}]"
+                    )
+                
+                # Add totals row
+                total_pl_color = "green" if total_unrealized_pl >= 0 else "red"
+                total_pl_sign = "+" if total_unrealized_pl >= 0 else ""
+                table.add_row(
+                    "[bold]TOTAL[/bold]",
+                    "-",
+                    "-",
+                    "-",
+                    f"[bold]${total_market_value:,.2f}[/bold]",
+                    f"[bold {total_pl_color}]{total_pl_sign}${total_unrealized_pl:,.2f}[/bold {total_pl_color}]",
+                    f"[bold {total_pl_color}]{total_pl_sign}{(total_unrealized_pl/total_market_value*100) if total_market_value > 0 else 0:.2f}%[/bold {total_pl_color}]"
+                )
+                
+                console.print(table)
+            else:
+                console.print(Panel("No open positions", title="📈 CURRENT POSITIONS", style="yellow"))
+            
             console.print("[bold green]✅ Account status retrieved successfully![/bold green]")
         else:
             console.print("[bold red]❌ Could not retrieve account status![/bold red]")

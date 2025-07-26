@@ -97,17 +97,28 @@ class AlpacaTradingBot:
             console.print(f"[bold blue]Alpaca Trading Bot initialized - Paper Trading: {self.paper_trading}[/bold blue]")
     
     def get_account_info(self) -> Dict:
-        """Get account information via UnifiedDataProvider, returns dict for compatibility"""
+        """Get comprehensive account information including P&L data"""
+        # Get basic account info
         account = self.data_provider.get_account_info()
         if not account:
             return {}
+        
+        # Get portfolio history for P&L data
+        portfolio_history = self.data_provider.get_portfolio_history()
+        
+        # Get open positions for current P&L
+        open_positions = self.data_provider.get_open_positions()
+        
         return {
             'account_number': getattr(account, 'account_number', 'N/A'),
             'portfolio_value': float(getattr(account, 'portfolio_value', 0) or 0),
+            'equity': float(getattr(account, 'equity', 0) or 0),
             'buying_power': float(getattr(account, 'buying_power', 0) or 0),
             'cash': float(getattr(account, 'cash', 0) or 0),
             'day_trade_count': getattr(account, 'day_trade_count', 0),
-            'status': getattr(account, 'status', 'unknown')
+            'status': getattr(account, 'status', 'unknown'),
+            'portfolio_history': portfolio_history,
+            'open_positions': open_positions
         }
     
     def get_positions(self) -> Dict:

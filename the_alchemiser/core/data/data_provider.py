@@ -2,6 +2,7 @@ import pandas as pd
 import time
 import os
 import logging
+import requests
 from typing import cast
 from datetime import datetime, timedelta
 from alpaca.trading.client import TradingClient
@@ -10,6 +11,7 @@ from alpaca.data.requests import StockBarsRequest, StockLatestQuoteRequest
 from alpaca.data.timeframe import TimeFrame
 from the_alchemiser.core.config import Config
 from the_alchemiser.core.secrets.secrets_manager import SecretsManager
+import requests
 
 
 class UnifiedDataProvider:
@@ -326,3 +328,48 @@ class UnifiedDataProvider:
             'cache_duration': self.cache_duration,
             'paper_trading': self.paper_trading
         }
+    
+    def get_portfolio_history(self, intraday_reporting="market_hours", pnl_reset="per_day", timeframe="1D"):
+        """
+        Get account portfolio history (closed P&L, equity curve).
+        Returns: dict with keys: timestamp, equity, profit_loss, profit_loss_pct, base_value, etc.
+        """
+        url = f"{self.api_endpoint}/account/portfolio/history"
+        params = {
+            "intraday_reporting": intraday_reporting,
+            "pnl_reset": pnl_reset,
+            "timeframe": timeframe
+        }
+        headers = {
+            "accept": "application/json",
+            "APCA-API-KEY-ID": self.api_key,
+            "APCA-API-SECRET-KEY": self.secret_key
+        }
+        try:
+            import requests
+            response = requests.get(url, headers=headers, params=params, timeout=10)
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            logging.error(f"Error fetching portfolio history: {e}")
+            return {}
+
+    def get_open_positions(self):
+        """
+        Get all open positions (for open P&L, market value, etc).
+        Returns: list of position dicts.
+        """
+        url = f"{self.api_endpoint}/positions"
+        headers = {
+            "accept": "application/json",
+            "APCA-API-KEY-ID": self.api_key,
+            "APCA-API-SECRET-KEY": self.secret_key
+        }
+        try:
+            import requests
+            response = requests.get(url, headers=headers, timeout=10)
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            logging.error(f"Error fetching open positions: {e}")
+            return []
