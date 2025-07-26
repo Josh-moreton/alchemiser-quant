@@ -238,6 +238,20 @@ class UnifiedDataProvider:
         except Exception as e:
             logging.error(f"Error getting current price for {symbol}: {e}")
             return None
+
+    def get_latest_quote(self, symbol):
+        """Get the latest bid and ask quote for a symbol."""
+        try:
+            request = StockLatestQuoteRequest(symbol_or_symbols=symbol)
+            latest_quote = self.data_client.get_stock_latest_quote(request)
+            if latest_quote and symbol in latest_quote:
+                quote = latest_quote[symbol]
+                bid = float(getattr(quote, 'bid_price', 0) or 0)
+                ask = float(getattr(quote, 'ask_price', 0) or 0)
+                return bid, ask
+        except Exception as e:
+            logging.error(f"Error fetching latest quote for {symbol}: {e}")
+        return 0.0, 0.0
     
     def get_historical_data(self, symbol, start, end, timeframe=None):
         """
