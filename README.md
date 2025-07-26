@@ -1,7 +1,7 @@
 
 # The Alchemiser: Multi-Strategy Trading Bot
 
-The Alchemiser is a Python-based trading bot supporting both single and multi-strategy portfolio management, with automated execution via Alpaca and Telegram integration. It is designed for robust, diversified trading across nuclear energy, technology, and volatility hedges, with full position tracking and reporting.
+The Alchemiser is a Python-based trading bot supporting both single and multi-strategy portfolio management, with automated execution via Alpaca and beautiful HTML email notifications. It is designed for robust, diversified trading across nuclear energy, technology, and volatility hedges, with full position tracking and reporting.
 
 ## 🚀 Quick Start
 
@@ -28,13 +28,13 @@ make deploy            # Deploy to AWS Lambda
 | Command         | Purpose                                 | Output                |
 |-----------------|-----------------------------------------|-----------------------|
 | `alchemiser bot`| Multi-strategy signal generation        | Console + JSON logs   |
-| `alchemiser trade` | Paper trading (multi-strategy)       | Console + Telegram    |
-| `alchemiser trade --live` | Live trading (multi-strategy) ⚠️ | Console + Telegram    |
+| `alchemiser trade` | Paper trading (multi-strategy)       | Console only          |
+| `alchemiser trade --live` | Live trading (multi-strategy) ⚠️ | Console + Email       |
 | `alchemiser status` | Show account status and positions   | Console               |
 | `alchemiser deploy` | Build & deploy Lambda Docker image  | Console               |
 | `alchemiser version`| Show version info                   | Console               |
 
-#### Example: Live Trading & Telegram
+#### Example: Live Trading & Email Notifications
 
 ```bash
 alchemiser trade --live
@@ -42,27 +42,34 @@ alchemiser trade --live
 
 **Requirements:**
 
-- Environment variables: `ALPACA_KEY`, `ALPACA_SECRET`, `TELEGRAM_TOKEN`, `TELEGRAM_CHAT_ID`
+- Environment variables: `ALPACA_KEY`, `ALPACA_SECRET`
+- Email configuration: See [EMAIL_SETUP.md](EMAIL_SETUP.md) for detailed setup
 
-**Telegram Output:**
+**Email Output:**
 
-```text
-🚀 Alchemiser Multi-Strategy Execution Report
+- Beautiful HTML emails with responsive design
+- Real-time portfolio and P&L reporting
+- Strategy allocation breakdowns
+- Trading activity summaries
+- Error alerts and market status notifications
 
 ✅ EXECUTION STATUS: SUCCESS
 Portfolio Value: $101,250.00 (+1,250.00 / +1.3%)
 Cash: $5,000.00 (4.9% of portfolio)
 
 📊 Positions:
- - SMR: 156 @ $40.00 (P&L +12.0%, 31.2% alloc)
- - LEU: 198 @ $200.00 (P&L +8.5%, 39.5% alloc)
- - OKLO: 487 @ $60.00 (P&L -2.3%, 29.3% alloc)
- - TECL: 100 @ $60.00 (P&L +5.0%, 20% alloc)
+
+- SMR: 156 @ $40.00 (P&L +12.0%, 31.2% alloc)
+- LEU: 198 @ $200.00 (P&L +8.5%, 39.5% alloc)
+- OKLO: 487 @ $60.00 (P&L -2.3%, 29.3% alloc)
+- TECL: 100 @ $60.00 (P&L +5.0%, 20% alloc)
 Top gainer: SMR (+12.0%), Worst: OKLO (-2.3%)
 
 📝 Orders:
- - BUY SMR 50 ($2,000.00)
- - SELL LEU 30 ($6,000.00)
+
+- BUY SMR 50 ($2,000.00)
+- SELL LEU 30 ($6,000.00)
+
 ```
 
 ### Alpaca & Telegram Setup

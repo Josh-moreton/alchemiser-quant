@@ -5,7 +5,7 @@ logging:
 # Alpaca configuration
 alpaca:
   # api_key and api_secret loaded from .env
-  endpoint: "https://api.alpaca.markets"
+  endpoint: "https://api.alpaca.markets/v2"
   paper_endpoint: "https://paper-api.alpaca.markets/v2"
   cash_reserve_pct: 0.05
   slippage_bps: 5
@@ -35,6 +35,13 @@ strategy:
     tecl: 0.6
   poll_timeout: 30
   poll_interval: 2.0
+
+# Email notification configuration
+email:
+  smtp_server: "smtp.mail.me.com"
+  smtp_port: 587
+  from_email: "josh@rwxt.org"
+  to_email: "josh@rwxt.org" # Optional, defaults to from_email
 
 # Data configuration (preserved from previous config)
 data:

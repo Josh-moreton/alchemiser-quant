@@ -34,7 +34,6 @@ import logging
 from logging.handlers import RotatingFileHandler
 from the_alchemiser.core.config import get_config
 from the_alchemiser.core.ui.cli_formatter import render_technical_indicators
-from the_alchemiser.core.ui.telegram_formatter import build_single_strategy_message, build_multi_strategy_message
 from the_alchemiser.core.trading.strategy_manager import StrategyType
 
 # Load config once at module level
@@ -161,7 +160,6 @@ def run_multi_strategy_trading(live_trading: bool = False, ignore_market_hours: 
     mode_str = "LIVE" if live_trading else "PAPER"
     
     try:
-        from the_alchemiser.core.ui.telegram_utils import send_telegram_message
         from the_alchemiser.execution.multi_strategy_trader import MultiStrategyAlpacaTrader, StrategyType
         from the_alchemiser.execution.alpaca_trader import is_market_open
         
@@ -179,8 +177,17 @@ def run_multi_strategy_trading(live_trading: bool = False, ignore_market_hours: 
         # Check market hours unless ignore_market_hours is set
         if not ignore_market_hours and not is_market_open(trader.trading_client):
             from rich.console import Console
+            from the_alchemiser.core.ui.email_utils import send_email_notification, build_error_email_html
             Console().print("[bold red]❌ Market is CLOSED. No trades will be placed.[/bold red]")
-            send_telegram_message("❌ Market is CLOSED. No trades will be placed.")
+            html_content = build_error_email_html(
+                "Market Closed Alert", 
+                "Market is currently closed. No trades will be placed."
+            )
+            send_email_notification(
+                subject="📈 The Alchemiser - Market Closed Alert",
+                html_content=html_content,
+                text_content="Market is CLOSED. No trades will be placed."
+            )
             return "market_closed"
         
         # Generate strategy signals to get technical indicators for display
@@ -196,14 +203,19 @@ def run_multi_strategy_trading(live_trading: bool = False, ignore_market_hours: 
         # Display results
         trader.display_multi_strategy_summary(result)
         
-        # Only send Telegram notification in live trading mode
+        # Only send email notification in live trading mode
         if live_trading:
             try:
-                message = build_multi_strategy_message(result, mode_str)
-                send_telegram_message(message)
+                from the_alchemiser.core.ui.email_utils import send_email_notification, build_multi_strategy_email_html
+                html_content = build_multi_strategy_email_html(result, mode_str)
+                send_email_notification(
+                    subject=f"📈 The Alchemiser - {mode_str.upper()} Multi-Strategy Report",
+                    html_content=html_content,
+                    text_content=f"Multi-strategy execution completed. Success: {result.success}"
+                )
             except Exception as e:
                 from rich.console import Console
-                Console().print(f"[bold yellow]⚠️ Telegram notification failed: {e}[/bold yellow]")
+                Console().print(f"[bold yellow]⚠️ Email notification failed: {e}[/bold yellow]")
         
         return result.success
         

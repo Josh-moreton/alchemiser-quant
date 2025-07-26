@@ -30,8 +30,33 @@ class Config:
                 self._config = yaml.safe_load(f)
             logging.info(f"Configuration loaded from {config_path}")
         except FileNotFoundError:
-            logging.warning(f"Configuration file not found: {config_path}, using defaults")
-            self._config = {}
+            logging.error(f"Configuration file not found: {config_path}")
+            raise
+        except yaml.YAMLError as e:
+            logging.error(f"Error parsing YAML configuration: {e}")
+            raise
+        return cls._instance
+    
+    def __init__(self, config_path=None):
+        # Only initialize once, even if __init__ is called multiple times
+        if not Config._initialized:
+            self._load_config(config_path)
+            Config._initialized = True
+    
+    def _load_config(self, config_path=None):
+        """Load configuration from YAML file."""
+        if config_path is None:
+            # Look for config.yaml in the_alchemiser directory (parent of core)
+            the_alchemiser_root = os.path.dirname(os.path.dirname(__file__))
+            config_path = os.path.join(the_alchemiser_root, 'config.yaml')
+        
+        try:
+            with open(config_path, 'r') as f:
+                self._config = yaml.safe_load(f)
+            logging.info(f"Configuration loaded from {config_path}")
+        except FileNotFoundError:
+            logging.error(f"Configuration file not found: {config_path}")
+            raise
         except yaml.YAMLError as e:
             logging.error(f"Error parsing YAML configuration: {e}")
             raise
@@ -68,7 +93,7 @@ class Config:
             if key == 'secrets_manager':
                 return {
                     'region_name': 'eu-west-2',
-                    'secret_name': 'nuclear-secrets',
+                    'secret_name': 'the-alchemiser-secrets',
                 }
             if key == 'strategy':
                 return {
@@ -80,8 +105,8 @@ class Config:
                 return {
                     'smtp_server': 'smtp.mail.me.com',
                     'smtp_port': 587,
-                    'from_email': None,  # Must be configured in config.yaml
-                    'to_email': None,    # Must be configured in config.yaml
+                    'from_email': None,  # Must be configured
+                    'to_email': None,    # Must be configured
                     # smtp_password is stored in AWS Secrets Manager
                 }
         return self._config.get(key, default)
