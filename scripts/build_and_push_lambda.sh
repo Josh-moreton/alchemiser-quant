@@ -3,11 +3,11 @@
 
 # Read AWS parameters from config.yaml using Python
 echo "Reading AWS configuration from config.yaml..."
-ACCOUNT_ID=$(python -c "import yaml; import os; os.chdir('..'); print(yaml.safe_load(open('the_alchemiser/config.yaml'))['aws']['account_id'])")
-REGION=$(python -c "import yaml; import os; os.chdir('..'); print(yaml.safe_load(open('the_alchemiser/config.yaml'))['aws']['region'])")
-REPO_NAME=$(python -c "import yaml; import os; os.chdir('..'); print(yaml.safe_load(open('the_alchemiser/config.yaml'))['aws']['repo_name'])")
-IMAGE_TAG=$(python -c "import yaml; import os; os.chdir('..'); print(yaml.safe_load(open('the_alchemiser/config.yaml'))['aws']['image_tag'])")
-LAMBDA_ARN=$(python -c "import yaml; import os; os.chdir('..'); print(yaml.safe_load(open('the_alchemiser/config.yaml'))['aws']['lambda_arn'])")
+ACCOUNT_ID="211125653762"
+REGION="eu-west-2"
+REPO_NAME="the-alchemiser-repository"
+IMAGE_TAG=$(python -c "import yaml; print(yaml.safe_load(open('the_alchemiser/config.yaml'))['aws']['image_tag'])")
+LAMBDA_ARN="arn:aws:lambda:eu-west-2:211125653762:function:the-alchemiser-lambda"
 
 echo "Using AWS configuration: Account=${ACCOUNT_ID}, Region=${REGION}, Repo=${REPO_NAME}, Tag=${IMAGE_TAG}"
 
