@@ -35,7 +35,6 @@ ALPACA_SECRET=your_live_secret_here
 
 ## Usage
 
-
 ### Manual Trading Bot
 
 Run the nuclear bot with Alpaca execution:
@@ -53,7 +52,6 @@ cd src/execution
 python alpaca_trader.py
 ```
 
-
 ## How It Works
 
 1. **Signal Generation**: The nuclear trading bot generates signals and saves them to `/tmp/nuclear_alerts.json`
@@ -62,14 +60,12 @@ python alpaca_trader.py
 
 3. **Portfolio Parsing**: Extracts allocation percentages from signal reasons (e.g., "31.2%" becomes 0.312 weight)
 
-
 5. **Trade Execution**:
    - Sells excess positions first
    - Buys new/additional positions
    - Uses market orders with day duration
 
-6. **Logging**: All trades logged to `/tmp/alpaca_trades.json`
-
+6. **Logging**: All trades logged to `/tmp/trades_live.json`
 
 ### Supported Signals
 

@@ -1,11 +1,10 @@
 # Logging configuration
 logging:
   level: "INFO"
-  multi_strategy_log: "s3://the-alchemiser-s3/multi_strategy_execution.log"
-  alpaca_log: "s3://the-alchemiser-s3/alpaca_trader.log"
-  trading_bot_log: "the_alchemiser/data/logs/trading_bot.log"
-  alpaca_trades_json: "s3://the-alchemiser-s3/trades_live.json"
-  nuclear_alerts_json: "s3://the-alchemiser-s3/signals_live.json"
+  trades_live_json: "s3://the-alchemiser-s3/trades_live.json"
+  signals_live_json: "s3://the-alchemiser-s3/signals_live.json"
+  trades_paper_json: "s3://the-alchemiser-s3/trades_paper.json"
+  signals_paper_json: "s3://the-alchemiser-s3/signals_paper.json"
 
 # Alpaca configuration
 alpaca:

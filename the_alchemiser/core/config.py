@@ -100,8 +100,8 @@ class Config:
                     'multi_strategy_log': '',
                     'alpaca_log': '',
                     'trading_bot_log': '',
-                    'alpaca_trades_json': '',
-                    'nuclear_alerts_json': '',
+                    'trades_live_json': '',
+                    'signals_live_json': '',
                 }
             if key == 'alerts':
                 return {

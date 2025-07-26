@@ -118,7 +118,7 @@ def log_alert_to_file(alert, log_file_path=None):
     """Log alert to file - centralized logging logic"""
     if log_file_path is None:
         config = get_config()
-        log_file_path = config['logging']['nuclear_alerts_json']
+        log_file_path = config['logging']['signals_live_json']
     
     alert_data = {
         'timestamp': alert.timestamp.isoformat(),
@@ -146,7 +146,7 @@ def log_alerts_to_file(alerts, log_file_path=None):
     """Log multiple alerts to file"""
     if log_file_path is None:
         config = get_config()
-        log_file_path = config['logging']['nuclear_alerts_json']
+        log_file_path = config['logging']['signals_live_json']
     
     for alert in alerts:
         log_alert_to_file(alert, log_file_path)

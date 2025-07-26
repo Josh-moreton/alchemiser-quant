@@ -836,7 +836,7 @@ class AlpacaTradingBot:
             signals = []
             from the_alchemiser.core.config import get_config
             config = get_config()
-            alerts_file = config['logging']['nuclear_alerts_json']
+            alerts_file = config['logging']['signals_live_json']
             
             from the_alchemiser.core.utils.s3_utils import get_s3_handler
             s3_handler = get_s3_handler()
@@ -1014,9 +1014,9 @@ class AlpacaTradingBot:
             
             # Use local files for paper trading, S3/configured path for live trading
             if self.paper_trading:
-                log_file = 'data/logs/alpaca_trades.json'
+                log_file = 'data/logs/trades_live.json'
             else:
-                log_file = config['logging'].get('alpaca_trades_json', 'data/logs/alpaca_trades.json')
+                log_file = config['logging'].get('trades_live_json', 'data/logs/trades_live.json')
             
             from the_alchemiser.core.utils.s3_utils import get_s3_handler
             s3_handler = get_s3_handler()
