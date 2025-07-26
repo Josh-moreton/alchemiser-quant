@@ -18,7 +18,7 @@ This document provides an in-depth review of the order placement logic in The Al
 - The rebalancing logic:
   - Calculates the difference between current and target portfolio weights.
   - Sells excess positions first, then buys new/additional positions.
-  - Uses market orders with day duration (per README and code comments).
+  - Uses limit orders with a dynamic pegging strategy, falling back to market orders if needed.
 
 ### 2.3 Order Execution
 
@@ -63,9 +63,9 @@ This document provides an in-depth review of the order placement logic in The Al
 
 ### 5.1 Order Types
 
-- The system uses market orders for all trades (per README and code comments).
-- Market orders provide high fill probability but may suffer from slippage, especially in illiquid or volatile markets.
-- There is no support for limit, stop, or algorithmic order types.
+- The system primarily uses limit orders with a dynamic pegging approach.
+- Orders start near the midpoint and adjust toward the market on each retry.
+- If all limit attempts fail, a market order is used as a fallback.
 
 ### 5.2 Slippage and Market Impact
 
@@ -82,7 +82,7 @@ This document provides an in-depth review of the order placement logic in The Al
 | Best Practice                        | Current Implementation         | Gaps/Recommendations                |
 |--------------------------------------|-------------------------------|-------------------------------------|
 | Pre-trade risk checks                | Not present                   | Add checks for order size, exposure |
-| Order type flexibility               | Market orders only            | Add support for limit/stop orders   |
+| Order type flexibility               | Limit orders with dynamic pegging | Consider adding stop or algorithmic orders |
 | Partial fill management              | Not handled                   | Poll order status, aggregate fills  |
 | Order retry/failover                 | Not handled                   | Add retry and alternative routing   |
 | Smart order routing                  | Not present                   | Integrate with SOR/venue selection  |

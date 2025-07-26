@@ -141,6 +141,31 @@ class AlpacaTradingBot:
     def get_current_price(self, symbol: str) -> float:
         """Get current price for a symbol via UnifiedDataProvider"""
         return self.data_provider.get_current_price(symbol)
+
+    def calculate_dynamic_limit_price(
+        self,
+        side: OrderSide,
+        bid: float,
+        ask: float,
+        step: int = 0,
+        tick_size: float = 0.01,
+        max_steps: int = 5,
+    ) -> float:
+        """Calculate a limit price using a dynamic pegging strategy."""
+        if bid > 0 and ask > 0:
+            mid = (bid + ask) / 2
+        else:
+            mid = bid if side == OrderSide.BUY else ask
+
+        if step > max_steps:
+            return round(ask if side == OrderSide.BUY else bid, 2)
+
+        if side == OrderSide.BUY:
+            price = min(mid + step * tick_size, ask if ask > 0 else mid)
+        else:
+            price = max(mid - step * tick_size, bid if bid > 0 else mid)
+
+        return round(price, 2)
     
     def calculate_position_size(self, symbol: str, portfolio_weight: float, account_value: float) -> float:
         """
@@ -239,8 +264,10 @@ class AlpacaTradingBot:
         slippage_bps: Optional[float] = None
     ) -> Optional[str]:
         """
-        Place a limit order with a small slippage buffer. Fallback to market order if not filled.
-        If ignore_market_hours is set, will use a market order directly when market is closed.
+        Place a limit order using a dynamic pegging strategy. Orders start near
+        the bid/ask midpoint and move toward the market on each retry. Falls back
+        to a market order if all retries fail. When ignore_market_hours is set,
+        a market order is used directly if the market is closed.
         
         Args:
             symbol: Stock symbol
@@ -287,7 +314,7 @@ class AlpacaTradingBot:
             logging.warning(f"Market is closed. Order for {symbol} not placed.")
             return None
 
-        # Standard limit order flow for open market
+        # Standard limit order flow for open market using dynamic pegging
         attempt = 0
         while attempt <= max_retries:
             try:
@@ -296,32 +323,31 @@ class AlpacaTradingBot:
                     logging.error(f"Invalid current price for {symbol}")
                     return None
 
-                # Calculate limit price with slippage buffer
-                if side == OrderSide.BUY:
-                    limit_price = round(current_price * (1 + slippage_bps / 10000), 2)
-                else:
-                    limit_price = round(current_price * (1 - slippage_bps / 10000), 2)
+                bid, ask = self.data_provider.get_latest_quote(symbol)
+                tick_size = current_price * (slippage_bps / 10000)
+                limit_price = self.calculate_dynamic_limit_price(
+                    side,
+                    bid,
+                    ask,
+                    step=attempt,
+                    tick_size=tick_size,
+                    max_steps=max_retries,
+                )
 
-                # Log the price calculation for debugging
-                slippage_percent = slippage_bps / 10000 * 100
-                price_diff = abs(limit_price - current_price)
-                price_diff_percent = (price_diff / current_price) * 100
-                logging.info(f"Price calculation for {symbol}: current=${current_price:.2f}, limit=${limit_price:.2f} "
-                           f"(slippage={slippage_bps}bps={slippage_percent:.3f}%, diff=${price_diff:.2f}={price_diff_percent:.3f}%)")
-
-                logging.info(f"Placing LIMIT {side.value} order for {symbol}: qty={qty}, limit_price={limit_price}")
+                logging.info(
+                    f"Placing LIMIT {side.value} order for {symbol}: qty={qty}, limit_price={limit_price}"
+                )
 
                 limit_order_data = LimitOrderRequest(
                     symbol=symbol,
                     qty=qty,
                     side=side,
                     time_in_force=TimeInForce.DAY,
-                    limit_price=limit_price
+                    limit_price=limit_price,
                 )
                 # Place order
                 order = self.trading_client.submit_order(limit_order_data)
                 order_id = str(getattr(order, 'id', 'unknown'))
-                order_status = getattr(order, 'status', 'unknown')
 
                 # Poll for order status
                 poll_start = time.time()
@@ -336,10 +362,11 @@ class AlpacaTradingBot:
                         break
                     time.sleep(poll_interval)
 
-                # If not filled, cancel and retry with wider slippage
+                # If not filled, cancel and retry closer to market
                 self.trading_client.cancel_order_by_id(order_id)
-                logging.warning(f"Limit order {order_id} not filled in time, canceled. Retrying with wider slippage.")
-                slippage_bps *= 1.5  # Increase slippage by 50% for next attempt
+                logging.warning(
+                    f"Limit order {order_id} not filled in time, increasing aggressiveness."
+                )
                 attempt += 1
 
             except Exception as e:
