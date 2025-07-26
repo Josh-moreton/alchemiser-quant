@@ -126,9 +126,9 @@ def log_alert_to_file(alert, log_file_path=None, paper_trading=None):
         
         # Use appropriate JSON file based on trading mode
         if paper_trading:
-            log_file_path = config['logging']['signals_paper_json']
+            log_file_path = "s3://the-alchemiser-s3/dashboard/paper_signals.json"
         else:
-            log_file_path = config['logging']['signals_live_json']
+            log_file_path = "s3://the-alchemiser-s3/dashboard/signals.json"
     
     alert_data = {
         'timestamp': alert.timestamp.isoformat(),
@@ -164,9 +164,9 @@ def log_alerts_to_file(alerts, log_file_path=None, paper_trading=None):
         
         # Use appropriate JSON file based on trading mode
         if paper_trading:
-            log_file_path = config['logging']['signals_paper_json']
+            log_file_path = "s3://the-alchemiser-s3/dashboard/paper_signals.json"
         else:
-            log_file_path = config['logging']['signals_live_json']
+            log_file_path = "s3://the-alchemiser-s3/dashboard/signals.json"
     
     for alert in alerts:
         log_alert_to_file(alert, log_file_path, paper_trading)

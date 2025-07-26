@@ -839,14 +839,10 @@ class AlpacaTradingBot:
         """Read the latest nuclear trading signals from the alerts file"""
         try:
             signals = []
-            from the_alchemiser.core.config import get_config
-            config = get_config()
+            # Signal logging files removed - signals now only tracked through dashboard data
             
-            # Use appropriate signals JSON file based on trading mode
-            if self.paper_trading:
-                alerts_file = config['logging']['signals_paper_json']
-            else:
-                alerts_file = config['logging']['signals_live_json']
+            # Define default alerts file path based on trading mode
+            alerts_file = f"s3://the-alchemiser-s3/dashboard/{'paper_' if self.paper_trading else ''}signals.json"
             
             from the_alchemiser.core.utils.s3_utils import get_s3_handler
             s3_handler = get_s3_handler()
@@ -1022,11 +1018,8 @@ class AlpacaTradingBot:
             from the_alchemiser.core.config import get_config
             config = get_config()
             
-            # Use appropriate trades JSON file based on trading mode
-            if self.paper_trading:
-                log_file = config['logging'].get('trades_paper_json', 's3://the-alchemiser-s3/trades_paper.json')
-            else:
-                log_file = config['logging'].get('trades_live_json', 's3://the-alchemiser-s3/trades_live.json')
+            # Trade logging simplified - trades now tracked through dashboard data only
+            log_file = f"s3://the-alchemiser-s3/dashboard/{'paper_' if self.paper_trading else ''}trades.json"
             
             from the_alchemiser.core.utils.s3_utils import get_s3_handler
             s3_handler = get_s3_handler()

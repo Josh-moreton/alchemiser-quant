@@ -97,10 +97,6 @@ class Config:
             if key == 'logging':
                 return {
                     'level': 'INFO',
-                    'trades_live_json': '',
-                    'signals_live_json': '',
-                    'trades_paper_json': '',
-                    'signals_paper_json': '',
                 }
             if key == 'alerts':
                 return {
