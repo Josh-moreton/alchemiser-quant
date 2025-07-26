@@ -58,15 +58,18 @@ Portfolio Value: $101,250.00 (+1,250.00 / +1.3%)
 Cash: $5,000.00 (4.9% of portfolio)
 
 📊 Positions:
- - SMR: 156 @ $40.00 (P&L +12.0%, 31.2% alloc)
- - LEU: 198 @ $200.00 (P&L +8.5%, 39.5% alloc)
- - OKLO: 487 @ $60.00 (P&L -2.3%, 29.3% alloc)
- - TECL: 100 @ $60.00 (P&L +5.0%, 20% alloc)
+
+- SMR: 156 @ $40.00 (P&L +12.0%, 31.2% alloc)
+- LEU: 198 @ $200.00 (P&L +8.5%, 39.5% alloc)
+- OKLO: 487 @ $60.00 (P&L -2.3%, 29.3% alloc)
+- TECL: 100 @ $60.00 (P&L +5.0%, 20% alloc)
 Top gainer: SMR (+12.0%), Worst: OKLO (-2.3%)
 
 📝 Orders:
- - BUY SMR 50 ($2,000.00)
- - SELL LEU 30 ($6,000.00)
+
+- BUY SMR 50 ($2,000.00)
+- SELL LEU 30 ($6,000.00)
+
 ```
 
 ### Alpaca & Telegram Setup

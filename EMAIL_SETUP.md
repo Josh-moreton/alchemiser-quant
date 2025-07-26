@@ -1,6 +1,7 @@
 # Email Notification Setup Guide
 
 ## Overview
+
 The Alchemiser now uses beautiful HTML email notifications instead of Telegram. These emails are built with Maizzle-inspired responsive design and provide comprehensive trading reports.
 
 ## Email Configuration Options
@@ -8,6 +9,7 @@ The Alchemiser now uses beautiful HTML email notifications instead of Telegram. 
 ### Option 1: Config.yaml + AWS Secrets (Recommended)
 
 1. **Update config.yaml** with your email settings:
+
 ```yaml
 # Email notification configuration
 email:
@@ -19,6 +21,7 @@ email:
 ```
 
 2. **Store password in AWS Secrets Manager** under your existing `nuclear-secrets`:
+
 ```json
 {
   "email_password": "your-app-specific-password",
@@ -27,6 +30,7 @@ email:
 ```
 
 ### Option 2: Environment Variables (Local Development)
+
 Set the following environment variables:
 
 ```bash
@@ -57,24 +61,28 @@ export RECIPIENT_EMAIL="your-email@icloud.com"
 ## Other Email Providers
 
 ### Gmail
+
 ```bash
 SMTP_SERVER=smtp.gmail.com
 SMTP_PORT=587
 ```
 
 ### Outlook/Hotmail
+
 ```
 SMTP_SERVER=smtp.live.com
 SMTP_PORT=587
 ```
 
 ### Yahoo Mail
+
 ```
 SMTP_SERVER=smtp.mail.yahoo.com
 SMTP_PORT=587
 ```
 
 ### Custom SMTP Server
+
 Use your hosting provider's SMTP settings.
 
 ## Email Templates
@@ -82,8 +90,9 @@ Use your hosting provider's SMTP settings.
 The system includes several beautiful HTML email templates:
 
 ### 1. Trading Report Email
+
 - **Trigger**: After successful multi-strategy execution (live trading only)
-- **Content**: 
+- **Content**:
   - Account summary with portfolio value and cash
   - Strategy signals and allocations
   - Trading activity with buy/sell orders
@@ -91,6 +100,7 @@ The system includes several beautiful HTML email templates:
   - Beautiful responsive design with The Alchemiser branding
 
 ### 2. Error Alert Email
+
 - **Trigger**: When trading errors occur or market is closed
 - **Content**:
   - Error details and timestamps
@@ -98,6 +108,7 @@ The system includes several beautiful HTML email templates:
   - Technical error information for debugging
 
 ### 3. Multi-Strategy Email
+
 - **Trigger**: Multi-strategy execution completion
 - **Content**:
   - Strategy allocation breakdown
@@ -108,12 +119,14 @@ The system includes several beautiful HTML email templates:
 ## Features
 
 ### Responsive Design
+
 - Mobile-friendly layout
 - Professional styling with gradients and shadows
 - Clear typography and color coding
 - The Alchemiser brand colors (orange/red gradient)
 
 ### Rich Content
+
 - 📊 Portfolio allocations with percentages
 - ⚡ Trading activity tables
 - 💰 P&L calculations with color coding
@@ -121,6 +134,7 @@ The system includes several beautiful HTML email templates:
 - 📈 Technical indicator summaries
 
 ### Fallback Support
+
 - HTML content with plain text fallback
 - MSO/Outlook compatibility
 - Robust error handling
@@ -164,6 +178,7 @@ The following changes have been made:
 5. **Updated**: `main.py` to use email notifications instead of Telegram
 
 ### Email vs Telegram Benefits
+
 - ✅ **Rich formatting**: HTML tables, colors, responsive design
 - ✅ **No API limits**: No bot token or chat ID required
 - ✅ **Better archival**: Emails are automatically stored
@@ -193,6 +208,7 @@ The following changes have been made:
    - Most modern email clients support HTML
 
 ### Debug Mode
+
 Enable verbose logging to troubleshoot issues:
 
 ```python
