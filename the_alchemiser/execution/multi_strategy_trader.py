@@ -289,14 +289,20 @@ class MultiStrategyAlpacaTrader(AlpacaTradingBot):
                     })
             
             # Save to S3 bucket for dashboard consumption
-            dashboard_s3_path = "s3://the-alchemiser-s3/dashboard/latest_execution.json"
+            # Use different paths for paper and live trading
+            if self.paper_trading:
+                dashboard_s3_path = "s3://the-alchemiser-s3/dashboard/latest_paper_execution.json"
+            else:
+                dashboard_s3_path = "s3://the-alchemiser-s3/dashboard/latest_execution.json"
+                
             success = s3_handler.write_json(dashboard_s3_path, dashboard_data)
             
             if success:
                 logging.info(f"Dashboard data saved to {dashboard_s3_path}")
                 
                 # Also save historical data with timestamp
-                historical_s3_path = f"s3://the-alchemiser-s3/dashboard/executions/{datetime.now().strftime('%Y/%m/%d')}/execution_{datetime.now().strftime('%H%M%S')}.json"
+                mode_str = "paper" if self.paper_trading else "live"
+                historical_s3_path = f"s3://the-alchemiser-s3/dashboard/executions/{mode_str}/{datetime.now().strftime('%Y/%m/%d')}/execution_{datetime.now().strftime('%H%M%S')}.json"
                 s3_handler.write_json(historical_s3_path, dashboard_data)
                 logging.info(f"Historical dashboard data saved to {historical_s3_path}")
             else:
