@@ -1,6 +1,15 @@
 #!/usr/bin/env python3
 """
-Email Configuration Test Script
+Email        if not email_address or not email_password:
+            print("❌ Email credentials not configured!")
+            print("\n📝 Please set up your email configuration:")
+            print("   Option 1: config.yaml + AWS Secrets Manager")
+            print("     - Add email settings to config.yaml")
+            print("     - Store SMTP_PASSWORD in nuclear-secrets")
+            print("   Option 2: Environment variables (EMAIL_ADDRESS, SMTP_PASSWORD, etc.)")
+            print("\n📧 For iCloud users:")
+            print("   - Use smtp.mail.me.com as SMTP server")
+            print("   - Generate an app-specific password at appleid.apple.com")ration Test Script
 
 This script helps you test your email notification setup for The Alchemiser.
 Run this script to verify that your email configuration is working correctly
@@ -28,7 +37,22 @@ def test_email_configuration():
         
         # Test 1: Check email configuration
         print("\n📋 Step 1: Checking email configuration...")
-        smtp_server, smtp_port, email_address, email_password, recipient_email = get_email_config()
+        email_config = get_email_config()
+        
+        if not email_config:
+            print("❌ Email configuration failed to load!")
+            print("\n📝 Please set up your email configuration:")
+            print("   Option 1: config.yaml + AWS Secrets Manager")
+            print("     - Add email settings to config.yaml")
+            print("     - Store SMTP_PASSWORD in nuclear-secrets")
+            print("   Option 2: Environment variables (EMAIL_ADDRESS, SMTP_PASSWORD, etc.)")
+            print("\n📧 For iCloud users:")
+            print("   - Use smtp.mail.me.com as SMTP server")
+            print("   - Generate an app-specific password at appleid.apple.com")
+            print("\n📖 See EMAIL_SETUP.md for detailed instructions")
+            return False
+            
+        smtp_server, smtp_port, email_address, email_password, recipient_email = email_config
         
         if not email_address or not email_password:
             print("❌ Email credentials not configured!")

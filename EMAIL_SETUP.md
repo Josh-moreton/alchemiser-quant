@@ -24,8 +24,10 @@ email:
 
 ```json
 {
-  "email_password": "your-app-specific-password",
-  // ... your other secrets like ALPACA_KEY, etc.
+  "SMTP_PASSWORD": "your-icloud-app-specific-password",
+  "ALPACA_KEY": "your-alpaca-key",
+  "ALPACA_SECRET": "your-alpaca-secret"
+  // ... your other secrets
 }
 ```
 

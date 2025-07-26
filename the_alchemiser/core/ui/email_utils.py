@@ -9,6 +9,7 @@ import logging
 from typing import Optional, Dict, List, Any
 
 from the_alchemiser.core.secrets.secrets_manager import SecretsManager
+from the_alchemiser.core.config import get_config
 
 # Initialize secrets manager
 secrets_manager = SecretsManager()
@@ -17,56 +18,54 @@ secrets_manager = SecretsManager()
 def get_email_config():
     """Get email configuration from config.yaml and secrets manager"""
     try:
-        # Import config here to avoid circular imports
-        from the_alchemiser.core.config import get_config
+        # Get configuration instance
         config = get_config()
         
-        # Get non-sensitive config from config.yaml
+        # Get email config section from config.yaml
         email_config = config.get('email', {})
+        
+        # Extract values from config.yaml
         smtp_server = email_config.get('smtp_server', 'smtp.mail.me.com')
         smtp_port = int(email_config.get('smtp_port', 587))
-        email_address = email_config.get('from_email')
-        recipient_email = email_config.get('to_email')
+        from_email = email_config.get('from_email')
+        to_email = email_config.get('to_email')
+        
+        # Get secrets manager config
+        secrets_config = config.get('secrets_manager', {})
+        secret_name = secrets_config.get('secret_name', 'nuclear-secrets')
         
         # Get sensitive password from AWS Secrets Manager
         email_password = None
         try:
-            # Try to get password from secrets manager
-            secrets = secrets_manager.get_secret('nuclear-secrets')  # Using existing secret
+            secrets = secrets_manager.get_secret(secret_name)
             if secrets:
-                email_password = secrets.get('email_password') or secrets.get('SMTP_PASSWORD')
+                # Look for email password in secrets (prioritize SMTP_PASSWORD)
+                email_password = (secrets.get('SMTP_PASSWORD') or 
+                                secrets.get('email_password') or 
+                                secrets.get('EMAIL_PASSWORD'))
         except Exception as e:
             logging.warning(f"Could not get email password from secrets manager: {e}")
         
-        # Fallback to environment variables if needed
-        if not email_address:
-            email_address = os.getenv('EMAIL_ADDRESS')
+        # Validate required fields
+        if not from_email:
+            logging.error("from_email not configured in config.yaml email section")
+            return None
+            
         if not email_password:
-            email_password = os.getenv('EMAIL_PASSWORD') or os.getenv('SMTP_PASSWORD')
-        if not recipient_email:
-            recipient_email = os.getenv('RECIPIENT_EMAIL') or email_address
+            logging.error("email_password not found in AWS Secrets Manager")
+            return None
+            
+        # Use from_email as to_email if to_email is not specified
+        if not to_email:
+            to_email = from_email
+            
+        logging.info(f"Email config loaded: SMTP={smtp_server}:{smtp_port}, from={from_email}, to={to_email}")
         
-        return (smtp_server, smtp_port, email_address, email_password, recipient_email)
+        return (smtp_server, smtp_port, from_email, email_password, to_email)
         
     except Exception as e:
-        logging.warning(f"Could not get email config from config.yaml: {e}")
-        # Fallback to environment variables and config values from config.yaml
-        smtp_server = os.getenv('SMTP_SERVER', 'smtp.mail.me.com')
-        smtp_port = int(os.getenv('SMTP_PORT', 587))
-        email_address = os.getenv('EMAIL_ADDRESS')
-        email_password = os.getenv('EMAIL_PASSWORD') or os.getenv('SMTP_PASSWORD')
-        recipient_email = os.getenv('RECIPIENT_EMAIL') or email_address
-        
-        # Still try to get password from secrets if env vars don't have it
-        if not email_password:
-            try:
-                secrets = secrets_manager.get_secret('nuclear-secrets')
-                if secrets:
-                    email_password = secrets.get('email_password') or secrets.get('SMTP_PASSWORD')
-            except Exception:
-                pass
-        
-        return (smtp_server, smtp_port, email_address, email_password, recipient_email)
+        logging.error(f"Error loading email configuration: {e}")
+        return None
 
 
 def send_email_notification(
@@ -87,11 +86,12 @@ def send_email_notification(
     Returns:
         bool: True if sent successfully, False otherwise
     """
-    smtp_server, smtp_port, email_address, email_password, default_recipient = get_email_config()
-    
-    if not email_address or not email_password:
-        logging.error("Email credentials not configured")
+    email_config = get_email_config()
+    if not email_config:
+        logging.error("Email configuration not available")
         return False
+    
+    smtp_server, smtp_port, from_email, email_password, default_recipient = email_config
     
     recipient = recipient_email or default_recipient
     if not recipient:
@@ -102,7 +102,7 @@ def send_email_notification(
         # Create message
         msg = MIMEMultipart('alternative')
         msg['Subject'] = subject
-        msg['From'] = email_address
+        msg['From'] = from_email
         msg['To'] = recipient
         
         # Add text version if provided
@@ -117,7 +117,7 @@ def send_email_notification(
         # Send email
         with smtplib.SMTP(smtp_server, smtp_port) as server:
             server.starttls()
-            server.login(email_address, email_password)
+            server.login(from_email, email_password)
             server.send_message(msg)
         
         logging.info(f"Email notification sent successfully to {recipient}")

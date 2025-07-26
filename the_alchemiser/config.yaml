@@ -5,7 +5,7 @@ logging:
 # Alpaca configuration
 alpaca:
   # api_key and api_secret loaded from .env
-  endpoint: "https://api.alpaca.markets"
+  endpoint: "https://api.alpaca.markets/v2"
   paper_endpoint: "https://paper-api.alpaca.markets/v2"
   cash_reserve_pct: 0.05
   slippage_bps: 5
@@ -40,9 +40,8 @@ strategy:
 email:
   smtp_server: "smtp.mail.me.com"
   smtp_port: 587
-  from_email: "your-email@icloud.com" # Update this to your iCloud email
-  to_email: "your-email@icloud.com" # Update this to where you want notifications sent
-  # smtp_password is stored in AWS Secrets Manager under 'email-password' key
+  from_email: "josh@rwxt.org"
+  to_email: "josh@rwxt.org" # Optional, defaults to from_email
 
 # Data configuration (preserved from previous config)
 data:
