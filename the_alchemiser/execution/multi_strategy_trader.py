@@ -128,6 +128,9 @@ class MultiStrategyAlpacaTrader(AlpacaTradingBot):
                 final_portfolio_state=final_portfolio_state
             )
             
+            # Save dashboard data to S3
+            self._save_dashboard_data(result)
+            
             return result
             
         except Exception as e:
@@ -231,6 +234,116 @@ class MultiStrategyAlpacaTrader(AlpacaTradingBot):
             
         except Exception as e:
             logging.error(f"Error logging multi-strategy execution: {e}")
+    
+    def _save_dashboard_data(self, execution_result: MultiStrategyExecutionResult):
+        """Save structured data for dashboard consumption to S3"""
+        try:
+            from the_alchemiser.core.utils.s3_utils import get_s3_handler
+            s3_handler = get_s3_handler()
+            
+            # Create dashboard-specific data structure
+            dashboard_data = {
+                "timestamp": datetime.now().isoformat(),
+                "execution_mode": "PAPER" if self.paper_trading else "LIVE",
+                "success": execution_result.success,
+                "strategies": {},
+                "portfolio": {
+                    "total_value": 0,
+                    "total_pl": 0,
+                    "total_pl_percent": 0,
+                    "daily_pl": 0,
+                    "daily_pl_percent": 0,
+                    "cash": 0,
+                    "equity": 0
+                },
+                "positions": [],
+                "recent_trades": [],
+                "signals": {},
+                "performance": {
+                    "last_30_days": {},
+                    "last_7_days": {},
+                    "today": {}
+                }
+            }
+            
+            # Extract portfolio data from account info
+            if execution_result.account_info_after:
+                account = execution_result.account_info_after
+                dashboard_data["portfolio"]["total_value"] = float(account.get('equity', 0))
+                dashboard_data["portfolio"]["cash"] = float(account.get('cash', 0))
+                dashboard_data["portfolio"]["equity"] = float(account.get('equity', 0))
+                
+                # Extract portfolio history if available
+                portfolio_history = account.get('portfolio_history', {})
+                if portfolio_history:
+                    profit_loss = portfolio_history.get('profit_loss', [])
+                    profit_loss_pct = portfolio_history.get('profit_loss_pct', [])
+                    
+                    if profit_loss:
+                        latest_pl = profit_loss[-1] if profit_loss else 0
+                        latest_pl_pct = profit_loss_pct[-1] if profit_loss_pct else 0
+                        
+                        dashboard_data["portfolio"]["daily_pl"] = float(latest_pl)
+                        dashboard_data["portfolio"]["daily_pl_percent"] = float(latest_pl_pct) * 100
+                
+                # Extract open positions
+                open_positions = account.get('open_positions', [])
+                for position in open_positions:
+                    dashboard_data["positions"].append({
+                        "symbol": position.get('symbol', ''),
+                        "quantity": float(position.get('qty', 0)),
+                        "market_value": float(position.get('market_value', 0)),
+                        "unrealized_pl": float(position.get('unrealized_pl', 0)),
+                        "unrealized_pl_percent": float(position.get('unrealized_plpc', 0)) * 100,
+                        "current_price": float(position.get('current_price', 0)),
+                        "avg_entry_price": float(position.get('avg_entry_price', 0)),
+                        "side": position.get('side', 'long'),
+                        "change_today": float(position.get('change_today', 0))
+                    })
+            
+            # Extract strategy information
+            for strategy_type, signal_data in execution_result.strategy_signals.items():
+                strategy_name = strategy_type.value if hasattr(strategy_type, 'value') else str(strategy_type)
+                dashboard_data["strategies"][strategy_name] = {
+                    "signal": signal_data.get('action', 'HOLD'),
+                    "symbol": signal_data.get('symbol', ''),
+                    "reason": signal_data.get('reason', ''),
+                    "timestamp": signal_data.get('timestamp', datetime.now().isoformat()),
+                    "allocation": self.strategy_manager.strategy_allocations.get(strategy_type, 0)
+                }
+                
+                # Store detailed signal data
+                dashboard_data["signals"][strategy_name] = signal_data
+            
+            # Extract recent trades from execution
+            if execution_result.orders_executed:
+                for order in execution_result.orders_executed[-10:]:  # Last 10 trades
+                    dashboard_data["recent_trades"].append({
+                        "symbol": order.get('symbol', ''),
+                        "side": order.get('side', ''),
+                        "quantity": float(order.get('qty', 0)),
+                        "price": float(order.get('price', 0)),
+                        "value": float(order.get('estimated_value', 0)),
+                        "timestamp": order.get('timestamp', datetime.now().isoformat()),
+                        "status": order.get('status', 'executed')
+                    })
+            
+            # Save to S3 bucket for dashboard consumption
+            dashboard_s3_path = "s3://the-alchemiser-s3/dashboard/latest_execution.json"
+            success = s3_handler.write_json(dashboard_s3_path, dashboard_data)
+            
+            if success:
+                logging.info(f"Dashboard data saved to {dashboard_s3_path}")
+                
+                # Also save historical data with timestamp
+                historical_s3_path = f"s3://the-alchemiser-s3/dashboard/executions/{datetime.now().strftime('%Y/%m/%d')}/execution_{datetime.now().strftime('%H%M%S')}.json"
+                s3_handler.write_json(historical_s3_path, dashboard_data)
+                logging.info(f"Historical dashboard data saved to {historical_s3_path}")
+            else:
+                logging.error("Failed to save dashboard data to S3")
+                
+        except Exception as e:
+            logging.error(f"Error saving dashboard data: {e}")
     
     def get_multi_strategy_performance_report(self) -> Dict:
         """Generate comprehensive performance report for all strategies"""
