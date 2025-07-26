@@ -60,14 +60,17 @@ class AlpacaTradingBot:
         else:
             self.paper_trading = True  # Default to paper trading for safety
 
+        # Set environment variable for alert service to use correct JSON file
+        import os
+        os.environ['ALPACA_PAPER_TRADING'] = 'true' if self.paper_trading else 'false'
+
         self.endpoint = alpaca_cfg.get('endpoint', 'https://api.alpaca.markets')
         self.paper_endpoint = alpaca_cfg.get('paper_endpoint', 'https://paper-api.alpaca.markets/v2')
 
         # Store the ignore_market_hours setting
         self.ignore_market_hours = ignore_market_hours
 
-        # Set up log file path from config
-        self.alpaca_log = logging_cfg.get('alpaca_log', 'the_alchemiser/data/logs/alpaca_trader.log')
+        # Removed alpaca_log reference; logging now handled by Cloudwatch/S3 trades/signals JSON
 
         # Log trading mode to file only
         logging.info(f"Trading Mode: {'PAPER' if self.paper_trading else 'LIVE'} (from CLI mode)")
@@ -297,13 +300,16 @@ class AlpacaTradingBot:
                     return None
 
                 # Calculate limit price with slippage buffer
+                if slippage_bps is None:
+                    slippage_bps = 5  # Default fallback
+                slippage_bps_float = float(slippage_bps)
                 if side == OrderSide.BUY:
-                    limit_price = round(current_price * (1 + slippage_bps / 10000), 2)
+                    limit_price = round(current_price * (1 + slippage_bps_float / 10000), 2)
                 else:
-                    limit_price = round(current_price * (1 - slippage_bps / 10000), 2)
+                    limit_price = round(current_price * (1 - slippage_bps_float / 10000), 2)
 
                 # Log the price calculation for debugging
-                slippage_percent = slippage_bps / 10000 * 100
+                slippage_percent = slippage_bps_float / 10000 * 100
                 price_diff = abs(limit_price - current_price)
                 price_diff_percent = (price_diff / current_price) * 100
                 logging.info(f"Price calculation for {symbol}: current=${current_price:.2f}, limit=${limit_price:.2f} "
@@ -339,7 +345,10 @@ class AlpacaTradingBot:
                 # If not filled, cancel and retry with wider slippage
                 self.trading_client.cancel_order_by_id(order_id)
                 logging.warning(f"Limit order {order_id} not filled in time, canceled. Retrying with wider slippage.")
-                slippage_bps *= 1.5  # Increase slippage by 50% for next attempt
+                if slippage_bps is not None:
+                    slippage_bps *= 1.5  # Increase slippage by 50% for next attempt
+                else:
+                    slippage_bps = 7.5  # Start with 7.5 if somehow None
                 attempt += 1
 
             except Exception as e:
@@ -364,7 +373,6 @@ class AlpacaTradingBot:
 
         # If all limit order attempts failed, try a market order as final fallback
         logging.warning(f"All limit order attempts failed for {symbol}. Falling back to MARKET order.")
-        print(f"   🎯 {symbol}: Limit orders failed, placing market order as fallback")
         try:
             market_order_data = MarketOrderRequest(
                 symbol=symbol,
@@ -377,15 +385,13 @@ class AlpacaTradingBot:
             logging.info(f"Market order placed as fallback: {order_id}")
             return order_id
         except Exception as e2:
-            # Check for insufficient buying power again
             error_str2 = str(e2)
             match2 = re.search(r'"code":\s*40310000', error_str2)
             if match2:
-                # One final attempt with reduced quantity
-                old_qty = qty
-                qty = round(qty * 0.9, 6)
-                logging.warning(f"Market order failed for {symbol} due to insufficient buying power. Final attempt with 10% lower qty: {old_qty} -> {qty}")
-                print(f"   ⚠️  {symbol}: Market order insufficient buying power, final attempt with 10% lower qty ({old_qty} -> {qty})")
+                # Reduce qty by 10% for final attempt
+                qty = round(qty * 0.90, 6)
+                logging.warning(f"Market order failed for {symbol} due to insufficient buying power. Final attempt with 10% lower qty: {qty}")
+                print(f"   ⚠️  {symbol}: Market order insufficient buying power, final attempt with 10% lower qty ({qty})")
                 try:
                     market_order_data = MarketOrderRequest(
                         symbol=symbol,
@@ -424,7 +430,6 @@ class AlpacaTradingBot:
             for symbol, pos in current_positions.items()
         }
         
-        # Display allocations (focus on percentage points, not dollar difference)
         print(f"🎯 Target vs Current Allocations (trades only if % difference > 1.0):")
         all_symbols = set(target_portfolio.keys()) | set(current_positions.keys())
         for symbol in sorted(all_symbols):
@@ -463,7 +468,7 @@ class AlpacaTradingBot:
             if percent_diff > tolerance:
                 return True
             # Special check: if target is 0 but we still have a position
-            if target_pct <= 0.0 and current_pct > 0.0:
+            if target_value == 0.0 and current_value > 0.0:
                 return True
         return False
 
@@ -836,7 +841,12 @@ class AlpacaTradingBot:
             signals = []
             from the_alchemiser.core.config import get_config
             config = get_config()
-            alerts_file = config['logging']['signals_live_json']
+            
+            # Use appropriate signals JSON file based on trading mode
+            if self.paper_trading:
+                alerts_file = config['logging']['signals_paper_json']
+            else:
+                alerts_file = config['logging']['signals_live_json']
             
             from the_alchemiser.core.utils.s3_utils import get_s3_handler
             s3_handler = get_s3_handler()
@@ -1012,22 +1022,15 @@ class AlpacaTradingBot:
             from the_alchemiser.core.config import get_config
             config = get_config()
             
-            # Use local files for paper trading, S3/configured path for live trading
+            # Use appropriate trades JSON file based on trading mode
             if self.paper_trading:
-                log_file = 'data/logs/trades_live.json'
+                log_file = config['logging'].get('trades_paper_json', 's3://the-alchemiser-s3/trades_paper.json')
             else:
-                log_file = config['logging'].get('trades_live_json', 'data/logs/trades_live.json')
+                log_file = config['logging'].get('trades_live_json', 's3://the-alchemiser-s3/trades_live.json')
             
             from the_alchemiser.core.utils.s3_utils import get_s3_handler
             s3_handler = get_s3_handler()
-            
-            if log_file.startswith('s3://'):
-                # Write to S3
-                s3_handler.append_text(log_file, json.dumps(trade_log) + '\n')
-            else:
-                # Write to local file
-                with open(log_file, 'a') as f:
-                    f.write(json.dumps(trade_log) + '\n')
+            s3_handler.append_text(log_file, json.dumps(trade_log) + '\n')
         except Exception as e:
             logging.error(f"Error logging trade execution: {e}")
     

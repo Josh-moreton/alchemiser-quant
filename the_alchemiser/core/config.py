@@ -97,11 +97,10 @@ class Config:
             if key == 'logging':
                 return {
                     'level': 'INFO',
-                    'multi_strategy_log': '',
-                    'alpaca_log': '',
-                    'trading_bot_log': '',
                     'trades_live_json': '',
                     'signals_live_json': '',
+                    'trades_paper_json': '',
+                    'signals_paper_json': '',
                 }
             if key == 'alerts':
                 return {

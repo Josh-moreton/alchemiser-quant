@@ -49,27 +49,7 @@ def setup_file_logging():
     root_logger.setLevel(logging.INFO)
     root_logger.handlers.clear()  # Remove any existing handlers
 
-    if os.environ.get("AWS_LAMBDA_FUNCTION_NAME"):
-        # Lambda: log to CloudWatch by default. To enable S3 logging, set S3_LOGGING_ENABLED=1 in Lambda env vars.
-        if os.environ.get("S3_LOGGING_ENABLED", "0") == "1":
-            s3_log_path = logging_config.get('alpaca_log')
-            if s3_log_path:
-                s3_handler = S3FileHandler(s3_log_path)
-                s3_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
-                root_logger.addHandler(s3_handler)
-    else:
-        # Local/dev: Ensure logs directory exists and log to file
-        log_path = logging_config.get('trading_bot_log', 'the_alchemiser/data/logs/trading_bot.log')
-        log_dir = os.path.dirname(log_path)
-        if log_dir:
-            os.makedirs(log_dir, exist_ok=True)
-        file_handler = RotatingFileHandler(
-            log_path,
-            maxBytes=10*1024*1024,  # 10MB
-            backupCount=5
-        )
-        file_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
-        root_logger.addHandler(file_handler)
+    # Logging now handled by Cloudwatch and S3 trades/signals JSON. File logging setup removed.
 
     # Set appropriate levels for third-party loggers
     logging.getLogger('botocore').setLevel(logging.WARNING)

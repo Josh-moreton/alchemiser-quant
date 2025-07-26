@@ -65,7 +65,7 @@ class MultiStrategyAlpacaTrader(AlpacaTradingBot):
         self.config = config
         
         # Logging setup - always use config for log path
-        self.multi_strategy_log = self.config['logging'].get('multi_strategy_log', 'data/logs/multi_strategy_execution.log')
+        # Removed multi_strategy_log reference; logging now handled by Cloudwatch/S3 trades/signals JSON
     
     def execute_multi_strategy(self) -> MultiStrategyExecutionResult:
         """
@@ -104,7 +104,7 @@ class MultiStrategyAlpacaTrader(AlpacaTradingBot):
             )
             
             # Log execution details
-            self._log_multi_strategy_execution(execution_summary)
+            # self._log_multi_strategy_execution(execution_summary)  # Deprecated
             
             # Post-trade validation (live trading only)
             if not self.paper_trading and orders_executed:
@@ -185,55 +185,15 @@ class MultiStrategyAlpacaTrader(AlpacaTradingBot):
                     sell_orders.append(order)
         
         total_buy_value = sum(o.get('estimated_value', 0) for o in buy_orders)
-        total_sell_value = sum(o.get('estimated_value', 0) for o in sell_orders)
         
-        # Strategy allocation summary
-        strategy_allocations = {}
-        for strategy_type, allocation in self.strategy_manager.strategy_allocations.items():
-            signal = strategy_signals.get(strategy_type, {})
-            strategy_allocations[strategy_type.value] = {
-                'allocation': allocation,
-                'signal': f"{signal.get('action', 'HOLD')} {signal.get('symbol', 'N/A')}",
-                'reason': signal.get('reason', 'No signal')
-            }
-        
-        return {
-            'timestamp': datetime.now().isoformat(),
-            'execution_mode': 'PAPER' if self.paper_trading else 'LIVE',
-            'strategy_summary': strategy_allocations,
-            'portfolio_allocation': consolidated_portfolio,
-            'trading_summary': {
-                'total_trades': total_trades,
-                'buy_orders': len(buy_orders),
-                'sell_orders': len(sell_orders),
-                'total_buy_value': total_buy_value,
-                'total_sell_value': total_sell_value,
-                'net_trading_value': total_buy_value - total_sell_value
-            },
-            'orders_executed': orders_executed
+        # Create allocations from consolidated portfolio
+        allocations = {
+            symbol: {'target_percent': weight * 100} 
+            for symbol, weight in consolidated_portfolio.items()
         }
-    
-    def _log_multi_strategy_execution(self, execution_summary: Dict):
-        """Log detailed execution summary to file"""
-        try:
-            from the_alchemiser.core.utils.s3_utils import get_s3_handler
-            s3_handler = get_s3_handler()
-            
-            if self.multi_strategy_log.startswith('s3://'):
-                # Log to S3
-                s3_handler.append_text(self.multi_strategy_log, json.dumps(execution_summary, indent=2, default=str) + '\n')
-            else:
-                # Log to local file
-                import os
-                os.makedirs(os.path.dirname(self.multi_strategy_log), exist_ok=True)
-                with open(self.multi_strategy_log, 'a') as f:
-                    f.write(json.dumps(execution_summary, indent=2, default=str) + '\n')
-            
-            # Only log to file, no terminal output
-            logging.info(f"Multi-strategy execution logged to {self.multi_strategy_log}")
-            
-        except Exception as e:
-            logging.error(f"Error logging multi-strategy execution: {e}")
+        
+        # Return allocations dict for reporting
+        return {'allocations': allocations}
     
     def _save_dashboard_data(self, execution_result: MultiStrategyExecutionResult):
         """Save structured data for dashboard consumption to S3"""
@@ -367,8 +327,7 @@ class MultiStrategyAlpacaTrader(AlpacaTradingBot):
             logging.error(f"Error generating performance report: {e}")
             return {'error': str(e)}
     
-    def _build_portfolio_state_data(self, target_portfolio: Dict[str, float], 
-                                   account_info: Dict, current_positions: Dict) -> Dict:
+    def _build_portfolio_state_data(self, target_portfolio: Dict[str, float], account_info: Dict, current_positions: Dict) -> Dict:
         """
         Build portfolio state data for reporting purposes
         Handles both dict and float for current_positions values.
@@ -395,50 +354,9 @@ class MultiStrategyAlpacaTrader(AlpacaTradingBot):
                 'target_value': target_value,
                 'current_value': current_value
             }
-        return {
-            'total_value': portfolio_value,
-            'allocations': allocations
-        }
-    
-    def display_multi_strategy_summary(self, execution_result: MultiStrategyExecutionResult):
-        """Display comprehensive summary of multi-strategy execution using rich formatting"""
-        from the_alchemiser.core.ui.cli_formatter import (
-            render_strategy_signals, render_portfolio_allocation, 
-            render_trading_summary, render_header, render_footer
-        )
+        # Return allocations dict for reporting
+        return {'allocations': allocations}
 
-        if not execution_result.success:
-            render_header("❌ EXECUTION FAILED", "Multi-Strategy Trading")
-            from rich.console import Console
-            Console().print(f"[bold red]Error: {execution_result.execution_summary.get('error', 'Unknown error')}[/bold red]")
-            return
-
-        summary = execution_result.execution_summary
-
-        # Display strategy signals
-        render_strategy_signals(execution_result.strategy_signals)
-
-        # Display actual portfolio allocation after trades, if available
-        if execution_result.final_portfolio_state and 'allocations' in execution_result.final_portfolio_state:
-            # Convert the final portfolio state to the format expected by render_portfolio_allocation
-            allocations = execution_result.final_portfolio_state['allocations']
-            current_portfolio = {
-                symbol: data['current_percent'] / 100.0 
-                for symbol, data in allocations.items() 
-                if data['current_percent'] > 0.1  # Only show positions > 0.1%
-            }
-            if current_portfolio:
-                render_portfolio_allocation(current_portfolio, "🏁 CURRENT PORTFOLIO ALLOCATION")
-            else:
-                render_portfolio_allocation(execution_result.consolidated_portfolio)
-        else:
-            render_portfolio_allocation(execution_result.consolidated_portfolio)
-
-        # Display trading summary using executed orders
-        render_trading_summary(execution_result.orders_executed)
-
-        render_footer("Operation completed successfully!")
-    
     def _trigger_post_trade_validation(self, strategy_signals: Dict[StrategyType, Any], 
                                      orders_executed: List[Dict]):
         """
@@ -491,6 +409,58 @@ class MultiStrategyAlpacaTrader(AlpacaTradingBot):
         except Exception as e:
             logging.error(f"❌ Post-trade validation failed: {e}")
             # Don't raise - validation failure shouldn't affect trading
+            
+    def display_multi_strategy_summary(self, execution_result: MultiStrategyExecutionResult):
+        """
+        Display a summary of multi-strategy execution results
+        
+        Args:
+            execution_result: The execution result to display
+        """
+        if not execution_result.success:
+            logging.error(f"❌ Multi-strategy execution failed: {execution_result.execution_summary.get('error', 'Unknown error')}")
+            return
+            
+        # Print strategy signals
+        print("\n📊 Strategy Signals:")
+        for strategy_type, signal in execution_result.strategy_signals.items():
+            strategy_name = strategy_type.value if hasattr(strategy_type, 'value') else str(strategy_type)
+            signal_action = signal.get('action', 'HOLD')
+            signal_symbol = signal.get('symbol', 'N/A')
+            print(f"  {strategy_name:<10}: {signal_action:<5} {signal_symbol}")
+            
+        # Print consolidated portfolio
+        print("\n📈 Consolidated Portfolio:")
+        sorted_portfolio = sorted(
+            execution_result.consolidated_portfolio.items(), 
+            key=lambda x: x[1], 
+            reverse=True
+        )
+        for symbol, weight in sorted_portfolio:
+            print(f"  {symbol:<6}: {weight:.1%}")
+            
+        # Print orders executed
+        if execution_result.orders_executed:
+            print(f"\n🔄 Orders Executed: {len(execution_result.orders_executed)}")
+            for order in execution_result.orders_executed:
+                side = order.get('side', '')
+                if hasattr(side, 'value'):
+                    side_value = side.value
+                else:
+                    side_value = str(side)
+                    
+                print(f"  {side_value:<4} {order.get('symbol', ''):<5} x{order.get('qty', 0):<7} @ ${order.get('price', 0):.2f}")
+        else:
+            print("\n✅ No orders executed (portfolio already balanced)")
+            
+        # Print account summary
+        if execution_result.account_info_after:
+            account = execution_result.account_info_after
+            print(f"\n💰 Account Summary:")
+            print(f"  Portfolio Value: ${float(account.get('portfolio_value', 0)):.2f}")
+            print(f"  Cash Balance: ${float(account.get('cash', 0)):.2f}")
+            
+        print("\n✅ Multi-strategy execution completed successfully")
 
 
 def main():

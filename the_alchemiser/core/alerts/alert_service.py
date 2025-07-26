@@ -114,11 +114,21 @@ def create_alerts_from_signal(symbol, action, reason, indicators, market_data, d
         ))
         return alerts
 
-def log_alert_to_file(alert, log_file_path=None):
+def log_alert_to_file(alert, log_file_path=None, paper_trading=None):
     """Log alert to file - centralized logging logic"""
     if log_file_path is None:
         config = get_config()
-        log_file_path = config['logging']['signals_live_json']
+        # Determine trading mode for appropriate JSON file
+        if paper_trading is None:
+            # Try to detect paper trading from environment or default to paper
+            import os
+            paper_trading = os.getenv('ALPACA_PAPER_TRADING', 'true').lower() == 'true'
+        
+        # Use appropriate JSON file based on trading mode
+        if paper_trading:
+            log_file_path = config['logging']['signals_paper_json']
+        else:
+            log_file_path = config['logging']['signals_live_json']
     
     alert_data = {
         'timestamp': alert.timestamp.isoformat(),
@@ -142,11 +152,21 @@ def log_alert_to_file(alert, log_file_path=None):
     except Exception as e:
         logging.error(f"Failed to log alert: {e}")
 
-def log_alerts_to_file(alerts, log_file_path=None):
+def log_alerts_to_file(alerts, log_file_path=None, paper_trading=None):
     """Log multiple alerts to file"""
     if log_file_path is None:
         config = get_config()
-        log_file_path = config['logging']['signals_live_json']
+        # Determine trading mode for appropriate JSON file
+        if paper_trading is None:
+            # Try to detect paper trading from environment or default to paper
+            import os
+            paper_trading = os.getenv('ALPACA_PAPER_TRADING', 'true').lower() == 'true'
+        
+        # Use appropriate JSON file based on trading mode
+        if paper_trading:
+            log_file_path = config['logging']['signals_paper_json']
+        else:
+            log_file_path = config['logging']['signals_live_json']
     
     for alert in alerts:
-        log_alert_to_file(alert, log_file_path)
+        log_alert_to_file(alert, log_file_path, paper_trading)
