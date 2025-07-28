@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """
-Trading Math Utilities
-Pure mathematical functions for trading calculations without side effects.
+Trading Math Utilities.
+
+Contains pure mathematical functions for trading calculations, such as position sizing,
+dynamic limit price calculation, slippage buffer, and allocation discrepancy analysis.
+All functions are side-effect free and unit-testable.
 """
 
 import logging

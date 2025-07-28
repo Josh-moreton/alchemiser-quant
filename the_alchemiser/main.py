@@ -1,27 +1,9 @@
 #!/usr/bin/env python3
 """
-Nuclear Trading Strategy - Main Entry Point
-Unified launcher for all nuclear trading operations
+Main Entry Point for The Alchemiser Trading Bot.
 
-This file is a thin runner. It only handles CLI, orchestration, and logging.
-All business logic is delegated to orchestrator and service classes in core/.
-No business logic should be added here.
-
-Supported modes:
-- bot: Generate and display all strategy signals (no trading)
-- single: Run single strategy trading (requires --nuclear or --tecl)
-- multi: Run multi-strategy trading (Nuclear + TECL combined)
-
-Trading modes:
-- Default: Paper trading (safe default)
-- --live: Live trading (requires explicit flag)
-
-Examples:
-  python main.py bot                    # Show all strategy signals
-  python main.py single --nuclear       # Nuclear strategy paper trading
-  python main.py single --tecl --live   # TECL strategy live trading
-  python main.py multi                  # Multi-strategy paper trading
-  python main.py multi --live           # Multi-strategy live trading
+Handles CLI argument parsing, orchestration, and logging. Delegates all business logic
+to orchestrator and service classes in core/. Supports bot, single, and multi-strategy modes.
 """
 
 # Standard library imports

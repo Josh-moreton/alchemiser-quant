@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """
-Alpaca Trading Bot
-Executes trades based on nuclear trading signals using Alpaca paper trading account
+Alpaca Trading Bot Execution Module.
+
+Implements the main trading bot logic for executing trades based on nuclear and TECL strategy signals
+using Alpaca's paper trading or live trading API. Handles orchestration, portfolio rebalancing,
+signal parsing, and trade logging.
 """
 
 import os

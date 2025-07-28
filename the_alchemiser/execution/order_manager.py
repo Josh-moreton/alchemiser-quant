@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """
-Order Manager for Alpaca Trading
-Handles order placement, dynamic limit pricing, and settlement waiting.
+Order Manager for Alpaca Trading.
+
+Encapsulates order placement, dynamic limit price calculation, and settlement
+waiting.
 """
 
 import logging
