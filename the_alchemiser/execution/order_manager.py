@@ -37,6 +37,7 @@ class OrderManager:
     - Order status polling and settlement waiting
     - Fallback to market orders when limit orders fail
     - Handling of insufficient buying power with quantity reduction
+    - Safe position liquidation using Alpaca's liquidation API
     """
 
     def __init__(self, trading_client: TradingClient, data_provider: UnifiedDataProvider, 
@@ -67,8 +68,11 @@ class OrderManager:
         """
         Calculate a limit price using a dynamic pegging strategy.
         
-        The strategy starts near the bid/ask midpoint and progressively moves
-        toward the market on each retry attempt.
+        The strategy starts conservative and progressively becomes more aggressive:
+        - Step 0: Start at bid (sell) or ask (buy) for immediate fill potential
+        - Step 1: Move slightly toward market
+        - Step 2+: Move progressively closer to market price
+        - Final step: Use market price (bid for sell, ask for buy)
         
         Args:
             side: OrderSide.BUY or OrderSide.SELL
@@ -81,18 +85,40 @@ class OrderManager:
         Returns:
             Calculated limit price rounded to 2 decimal places
         """
-        if bid > 0 and ask > 0:
-            mid = (bid + ask) / 2
-        else:
-            mid = bid if side == OrderSide.BUY else ask
+        # Validate inputs
+        if bid <= 0 or ask <= 0 or bid >= ask:
+            logging.warning(f"Invalid bid/ask: bid={bid}, ask={ask}")
+            # Use the available price if one is invalid
+            if side == OrderSide.BUY:
+                return round(ask if ask > 0 else bid, 2)
+            else:
+                return round(bid if bid > 0 else ask, 2)
 
-        if step > max_steps:
+        spread = ask - bid
+        mid = (bid + ask) / 2
+
+        # If final step, use market price for immediate execution
+        if step >= max_steps:
             return round(ask if side == OrderSide.BUY else bid, 2)
 
         if side == OrderSide.BUY:
-            price = min(mid + step * tick_size, ask if ask > 0 else mid)
-        else:
-            price = max(mid - step * tick_size, bid if bid > 0 else mid)
+            # Start at ask and work toward mid, then toward ask again
+            if step == 0:
+                # First attempt: slightly below ask for better price
+                price = ask - min(tick_size, spread * 0.1)
+            else:
+                # Progressive steps toward ask (market price)
+                progress = step / max_steps
+                price = mid + (ask - mid) * progress
+        else:  # SELL
+            # Start at bid and work toward mid, then toward bid again  
+            if step == 0:
+                # First attempt: slightly above bid for better price
+                price = bid + min(tick_size, spread * 0.1)
+            else:
+                # Progressive steps toward bid (market price)
+                progress = step / max_steps
+                price = mid - (mid - bid) * progress
 
         return round(price, 2)
 
@@ -148,9 +174,112 @@ class OrderManager:
             logging.warning(f"Market is closed. Order for {symbol} not placed.")
             return None
 
+        
         # Standard limit order flow for open market using dynamic pegging
         return self._place_limit_order_with_retries(
             symbol, qty, side, max_retries, poll_timeout, poll_interval, slippage_bps
+        )
+
+    def liquidate_position(self, symbol: str) -> Optional[str]:
+        """
+        Liquidate an entire position using Alpaca's position liquidation API.
+        This is safer than manual sell orders as it prevents overselling.
+        
+        Args:
+            symbol: Symbol to liquidate
+            
+        Returns:
+            Order ID if successful, None if failed
+        """
+        try:
+            logging.info(f"Liquidating entire position for {symbol}")
+            
+            # Use Alpaca's liquidation endpoint - this creates a market order
+            # to close the entire position safely
+            response = self.trading_client.close_position(symbol)
+            
+            if response:
+                order_id = str(getattr(response, 'id', 'unknown'))
+                logging.info(f"Position liquidation order placed for {symbol}: {order_id}")
+                return order_id
+            else:
+                logging.error(f"Failed to liquidate position for {symbol}: No response")
+                return None
+                
+        except Exception as e:
+            logging.error(f"Exception liquidating position for {symbol}: {e}", exc_info=True)
+            return None
+
+    def get_position_qty(self, symbol: str) -> float:
+        """
+        Get the actual quantity of shares we own for a symbol.
+        
+        Args:
+            symbol: Symbol to check
+            
+        Returns:
+            Quantity of shares owned (float, can be fractional)
+        """
+        try:
+            positions = self.trading_client.get_all_positions()
+            for position in positions:
+                if getattr(position, 'symbol', '') == symbol:
+                    return float(getattr(position, 'qty', 0))
+            return 0.0
+        except Exception as e:
+            logging.error(f"Error getting position quantity for {symbol}: {e}")
+            return 0.0
+
+    def place_safe_sell_order(
+        self,
+        symbol: str,
+        target_qty: float,
+        max_retries: int = 3,
+        poll_timeout: int = 30,
+        poll_interval: float = 2.0,
+        slippage_bps: Optional[float] = None
+    ) -> Optional[str]:
+        """
+        Place a sell order with safety checks to prevent overselling.
+        
+        Args:
+            symbol: Symbol to sell
+            target_qty: Desired quantity to sell
+            max_retries: Maximum retry attempts
+            poll_timeout: Order polling timeout
+            poll_interval: Polling interval
+            slippage_bps: Slippage buffer in basis points
+            
+        Returns:
+            Order ID if successful, None if failed
+        """
+        # Get actual position size to prevent overselling
+        actual_qty = self.get_position_qty(symbol)
+        
+        if actual_qty <= 0:
+            logging.warning(f"No position found for {symbol}, cannot sell")
+            return None
+            
+        # Cap sell quantity to actual position size to prevent overselling
+        safe_qty = min(target_qty, actual_qty)
+        
+        if safe_qty != target_qty:
+            logging.warning(f"Adjusting sell quantity for {symbol}: {target_qty} -> {safe_qty} (actual position)")
+        
+        # If we're selling the entire position (within 0.1% tolerance), use liquidation API
+        tolerance = 0.001  # 0.1% tolerance for rounding
+        if actual_qty > 0 and abs(safe_qty - actual_qty) / actual_qty < tolerance:
+            logging.info(f"Selling entire position for {symbol}, using liquidation API")
+            return self.liquidate_position(symbol)
+        
+        # For very small positions or if safe_qty equals actual_qty exactly, also use liquidation
+        if safe_qty >= actual_qty * 0.999:  # 99.9% or more of position
+            logging.info(f"Selling {safe_qty}/{actual_qty} shares ({safe_qty/actual_qty:.1%}) for {symbol}, using liquidation API")
+            return self.liquidate_position(symbol)
+        
+        # Otherwise use regular sell order
+        return self.place_limit_or_market(
+            symbol, safe_qty, OrderSide.SELL, max_retries, poll_timeout, poll_interval, slippage_bps
         )
 
     def _place_limit_order_with_retries(
@@ -167,6 +296,16 @@ class OrderManager:
         attempt = 0
         current_qty = qty
         
+        # For sell orders, validate we don't try to sell more than we own
+        if side == OrderSide.SELL:
+            actual_qty = self.get_position_qty(symbol)
+            if actual_qty <= 0:
+                logging.warning(f"No position found for {symbol}, cannot sell")
+                return None
+            current_qty = min(current_qty, actual_qty)
+            if current_qty != qty:
+                logging.warning(f"Reduced sell quantity for {symbol}: {qty} -> {current_qty} (max position)")
+        
         while attempt <= max_retries:
             try:
                 current_price = self.data_provider.get_current_price(symbol)
@@ -175,7 +314,7 @@ class OrderManager:
                     return None
 
                 bid, ask = self.data_provider.get_latest_quote(symbol)
-                tick_size = current_price * (slippage_bps / 10000)
+                tick_size = max(current_price * (slippage_bps / 10000), 0.01)  # Minimum 1 cent
                 
                 limit_price = self.calculate_dynamic_limit_price(
                     side,
@@ -187,7 +326,7 @@ class OrderManager:
                 )
 
                 logging.info(
-                    f"Placing LIMIT {side.value} order for {symbol}: qty={current_qty}, limit_price={limit_price}"
+                    f"Placing LIMIT {side.value} order for {symbol}: qty={current_qty}, limit_price={limit_price:.2f} (attempt {attempt + 1}/{max_retries + 1})"
                 )
 
                 limit_order_data = LimitOrderRequest(
@@ -202,28 +341,68 @@ class OrderManager:
                 order = self.trading_client.submit_order(limit_order_data)
                 order_id = str(getattr(order, 'id', 'unknown'))
 
-                # Poll for order status
-                if self._poll_order_status(order_id, poll_timeout, poll_interval):
+                # Poll for order status with shorter timeout for aggressive attempts
+                poll_time = max(poll_timeout - (attempt * 5), 10)  # Reduce timeout with each attempt
+                if self._poll_order_status(order_id, poll_time, poll_interval):
                     return order_id
 
                 # If not filled, cancel and retry closer to market
-                self.trading_client.cancel_order_by_id(order_id)
-                logging.warning(
-                    f"Limit order {order_id} not filled in time, increasing aggressiveness."
-                )
+                try:
+                    self.trading_client.cancel_order_by_id(order_id)
+                    logging.warning(f"Limit order {order_id} not filled in {poll_time}s, retrying with more aggressive pricing")
+                except Exception as cancel_e:
+                    logging.warning(f"Could not cancel order {order_id}: {cancel_e}")
+                
                 attempt += 1
 
             except Exception as e:
+                error_code = self._extract_error_code(e)
+                error_msg = str(e).lower()
+                
                 # Handle insufficient buying power by reducing quantity
-                if self._is_insufficient_buying_power_error(e) and attempt < max_retries:
-                    old_qty = current_qty
-                    current_qty = round(current_qty * 0.95, 6)
-                    logging.warning(
-                        f"Order failed for {symbol} due to insufficient buying power. "
-                        f"Retrying with 5% lower qty: {old_qty} -> {current_qty}"
-                    )
-                    print(f"   ⚠️  {symbol}: Insufficient buying power, retrying with 5% lower qty ({old_qty} -> {current_qty})")
-                    attempt += 1
+                if error_code == "40310000":
+                    # Check if this is actually a "not allowed to short" error
+                    if "not allowed to short" in error_msg:
+                        logging.error(f"Account not allowed to short {symbol}. Sell quantity might exceed position.")
+                        # For sell orders, this likely means we're trying to sell more than we own
+                        if side == OrderSide.SELL:
+                            # Re-check actual position and ensure we don't exceed it
+                            actual_qty = self.get_position_qty(symbol)
+                            if actual_qty <= 0:
+                                logging.error(f"No position found for {symbol}, cannot sell")
+                                break
+                            # Use 95% of actual position to be safe
+                            current_qty = round(actual_qty * 0.95, 6)
+                            if current_qty <= 0:
+                                logging.error(f"Position too small for {symbol}, cannot sell")
+                                break
+                            logging.warning(f"Reducing sell quantity for {symbol} to avoid short: {qty} -> {current_qty}")
+                        else:
+                            logging.error(f"Unexpected 'not allowed to short' error for BUY order: {symbol}")
+                            break
+                    else:
+                        # Regular insufficient buying power
+                        old_qty = current_qty
+                        
+                        if side == OrderSide.SELL:
+                            # For sell orders, re-check actual position and use 90% of it
+                            actual_qty = self.get_position_qty(symbol)
+                            current_qty = round(actual_qty * 0.9, 6)
+                        else:
+                            # For buy orders, reduce by 10%
+                            current_qty = round(current_qty * 0.9, 6)
+                        
+                        if current_qty <= 0:
+                            logging.error(f"Quantity reduced to zero for {symbol}, cannot continue")
+                            break
+                            
+                        logging.warning(
+                            f"Order failed for {symbol} due to insufficient buying power (code {error_code}). "
+                            f"Retrying with reduced qty: {old_qty} -> {current_qty}"
+                        )
+                        print(f"   ⚠️  {symbol}: Insufficient buying power, retrying with reduced qty ({old_qty} -> {current_qty})")
+                    
+                    # Don't increment attempt for quantity adjustments
                     continue
                 else:
                     logging.error(f"Exception placing limit order for {symbol}: {e}", exc_info=True)
@@ -232,6 +411,23 @@ class OrderManager:
         # If all limit order attempts failed, try a market order as final fallback
         logging.warning(f"All limit order attempts failed for {symbol}. Falling back to MARKET order.")
         return self._place_market_order_with_fallback(symbol, current_qty, side)
+
+    def _extract_error_code(self, error: Exception) -> Optional[str]:
+        """Extract Alpaca error code from exception."""
+        # Try to get code from APIError directly if available
+        if hasattr(error, 'code'):
+            return str(getattr(error, 'code'))
+        
+        # Try to get from error args if it's a dict
+        if hasattr(error, 'args') and error.args:
+            arg = error.args[0]
+            if isinstance(arg, dict) and 'code' in arg:
+                return str(arg['code'])
+        
+        # Fallback to string parsing
+        error_str = str(error)
+        match = re.search(r'"code":\s*(\d+)', error_str)
+        return match.group(1) if match else None
 
     def _poll_order_status(self, order_id: str, poll_timeout: int, poll_interval: float) -> bool:
         """Poll order status until filled, cancelled, or timeout."""
@@ -277,29 +473,43 @@ class OrderManager:
         try:
             return self._place_market_order(symbol, qty, side)
         except Exception as e:
-            if self._is_insufficient_buying_power_error(e):
-                # Reduce qty by 10% for final attempt
-                reduced_qty = round(qty * 0.90, 6)
-                logging.warning(
-                    f"Market order failed for {symbol} due to insufficient buying power. "
-                    f"Final attempt with 10% lower qty: {reduced_qty}"
-                )
-                print(f"   ⚠️  {symbol}: Market order insufficient buying power, final attempt with 10% lower qty ({reduced_qty})")
-                
-                try:
-                    return self._place_market_order(symbol, reduced_qty, side)
-                except Exception as e2:
-                    logging.error(f"Final market order also failed for {symbol}: {e2}", exc_info=True)
-                    return None
+            error_code = self._extract_error_code(e)
+            error_msg = str(e).lower()
+            
+            if error_code == "40310000":
+                if "not allowed to short" in error_msg and side == OrderSide.SELL:
+                    # This is definitely a shorting issue, not buying power
+                    logging.error(f"Cannot short {symbol}. Sell quantity exceeds position.")
+                    actual_qty = self.get_position_qty(symbol)
+                    if actual_qty <= 0:
+                        logging.error(f"No position to sell for {symbol}")
+                        return None
+                    
+                    # Use liquidation API instead
+                    logging.info(f"Falling back to liquidation API for {symbol}")
+                    return self.liquidate_position(symbol)
+                    
+                else:
+                    # Regular buying power issue
+                    reduced_qty = round(qty * 0.90, 6)
+                    logging.warning(
+                        f"Market order failed for {symbol} due to insufficient buying power. "
+                        f"Final attempt with 10% lower qty: {reduced_qty}"
+                    )
+                    print(f"   ⚠️  {symbol}: Market order insufficient buying power, final attempt with 10% lower qty ({reduced_qty})")
+                    
+                    try:
+                        return self._place_market_order(symbol, reduced_qty, side)
+                    except Exception as e2:
+                        logging.error(f"Final market order also failed for {symbol}: {e2}", exc_info=True)
+                        return None
             else:
                 logging.error(f"Market order fallback failed for {symbol}: {e}", exc_info=True)
                 return None
 
     def _is_insufficient_buying_power_error(self, error: Exception) -> bool:
         """Check if error is due to insufficient buying power (Alpaca error code 40310000)."""
-        error_str = str(error)
-        match = re.search(r'"code":\s*40310000', error_str)
-        return match is not None
+        return self._extract_error_code(error) == "40310000"
 
     def wait_for_settlement(
         self, 

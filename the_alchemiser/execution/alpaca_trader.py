@@ -27,7 +27,8 @@ from alpaca.trading.requests import MarketOrderRequest, GetOrdersRequest, LimitO
 from alpaca.trading.enums import OrderSide, TimeInForce
 
 # Import new order management components
-from the_alchemiser.execution.order_manager import OrderManager, is_market_open
+from the_alchemiser.execution.order_manager_adapter import OrderManagerAdapter
+from the_alchemiser.execution.order_manager import is_market_open  # Keep this utility function
 from the_alchemiser.utils.trading_math import calculate_position_size as calc_position_size
 
 # Initialize logging once
@@ -103,7 +104,7 @@ class AlpacaTradingBot:
             except Exception:
                 config_dict = {}
         
-        self.order_manager = OrderManager(
+        self.order_manager = OrderManagerAdapter(
             trading_client=self.trading_client,
             data_provider=self.data_provider,
             ignore_market_hours=self.ignore_market_hours,
@@ -426,15 +427,20 @@ class AlpacaTradingBot:
                 print(f"   Cash needed for targets: ${total_cash_needed:.2f}")
                 
                 if total_cash_needed > projected_cash:
-                    # If cash shortfall is less than 1% or $1, scale down by 1% only
+                    # If cash shortfall is less than 2% or $10, scale down silently 
                     cash_shortfall = total_cash_needed - projected_cash
-                    one_percent = total_cash_needed * 0.01
-                    if cash_shortfall <= max(one_percent, 1.0):
-                        scale_factor = 0.99
-                        print(f"⚠️  Insufficient cash, but within 1% or $1. Scaling down buys by 1%.")
+                    two_percent = total_cash_needed * 0.02
+                    tolerance_threshold = max(two_percent, 10.0)
+                    
+                    if cash_shortfall <= tolerance_threshold:
+                        # Minor shortfall - scale down silently without warning
+                        scale_factor = 0.98  # Scale down by 2% to be safe
+                        # No warning message for small adjustments
                     else:
+                        # Significant shortfall - show warning and scale appropriately
                         scale_factor = projected_cash / total_cash_needed if total_cash_needed > 0 else 0
-                        print(f"⚠️  Insufficient cash, scaling down buys to {scale_factor:.1%}")
+                        print(f"⚠️  Significant cash shortfall (${cash_shortfall:.2f}), scaling down buys to {scale_factor:.1%}")
+                    
                     for buy_plan in buy_orders_plan:
                         buy_plan['value_needed'] *= scale_factor
                 
@@ -473,7 +479,8 @@ class AlpacaTradingBot:
                         print(f"   {symbol}: Selling {qty} shares ({sell_plan['reason']})")
                         
                         try:
-                            order_id = self.place_order(symbol, qty, OrderSide.SELL)
+                            # Use safe sell order method to prevent overselling
+                            order_id = self.order_manager.place_safe_sell_order(symbol, qty)
                             if order_id:
                                 orders_executed.append({
                                     'symbol': symbol,

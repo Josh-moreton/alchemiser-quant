@@ -88,7 +88,7 @@ def run_all_signals_display():
         # Display technical indicators
         render_technical_indicators(strategy_signals)
         
-        # Display strategy signals
+        # Display strategy signals IMMEDIATELY after indicators
         render_strategy_signals(strategy_signals)
         
         # Display consolidated portfolio
@@ -178,6 +178,10 @@ def run_multi_strategy_trading(live_trading: bool = False, ignore_market_hours: 
         
         # Display technical indicators
         render_technical_indicators(strategy_signals)
+        
+        # Display strategy signals right after indicators
+        from the_alchemiser.core.ui.cli_formatter import render_strategy_signals
+        render_strategy_signals(strategy_signals)
         
         # Execute multi-strategy
         result = trader.execute_multi_strategy()

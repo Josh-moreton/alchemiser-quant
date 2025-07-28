@@ -427,14 +427,6 @@ class MultiStrategyAlpacaTrader(AlpacaTradingBot):
             logging.error(f"❌ Multi-strategy execution failed: {execution_result.execution_summary.get('error', 'Unknown error')}")
             return
             
-        # Print strategy signals
-        print("\n📊 Strategy Signals:")
-        for strategy_type, signal in execution_result.strategy_signals.items():
-            strategy_name = strategy_type.value if hasattr(strategy_type, 'value') else str(strategy_type)
-            signal_action = signal.get('action', 'HOLD')
-            signal_symbol = signal.get('symbol', 'N/A')
-            print(f"  {strategy_name:<10}: {signal_action:<5} {signal_symbol}")
-            
         # Print consolidated portfolio
         print("\n📈 Consolidated Portfolio:")
         sorted_portfolio = sorted(
