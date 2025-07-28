@@ -1,8 +1,9 @@
-
 #!/usr/bin/env python3
 """
-Modern CLI for The Alchemiser Trading Bot
-Built with Typer and Rich for a beautiful command-line experience
+Command-Line Interface for The Alchemiser Trading Bot.
+
+Provides a modern CLI built with Typer and Rich for user interaction, strategy selection,
+backtesting, and reporting. Handles user commands and displays formatted output.
 """
 
 import typer
