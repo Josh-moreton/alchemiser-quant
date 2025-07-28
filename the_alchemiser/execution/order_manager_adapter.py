@@ -9,8 +9,18 @@ SimpleOrderManager internally for much more reliable order placement.
 import logging
 from typing import Dict, List, Optional
 from alpaca.trading.enums import OrderSide
+from alpaca.trading.client import TradingClient
 
 from the_alchemiser.execution.simple_order_manager import SimpleOrderManager
+
+
+def is_market_open(trading_client: TradingClient) -> bool:
+    """Check if the market is currently open."""
+    try:
+        clock = trading_client.get_clock()
+        return getattr(clock, 'is_open', False)
+    except Exception:
+        return False
 
 
 class OrderManagerAdapter:

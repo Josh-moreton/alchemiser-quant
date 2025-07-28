@@ -27,8 +27,7 @@ from alpaca.trading.requests import MarketOrderRequest, GetOrdersRequest, LimitO
 from alpaca.trading.enums import OrderSide, TimeInForce
 
 # Import new order management components
-from the_alchemiser.execution.order_manager_adapter import OrderManagerAdapter
-from the_alchemiser.execution.order_manager import is_market_open  # Keep this utility function
+from the_alchemiser.execution.order_manager_adapter import OrderManagerAdapter, is_market_open
 from the_alchemiser.utils.trading_math import calculate_position_size as calc_position_size
 
 # Initialize logging once
