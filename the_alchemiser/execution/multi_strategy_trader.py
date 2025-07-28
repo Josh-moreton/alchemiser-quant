@@ -185,15 +185,41 @@ class MultiStrategyAlpacaTrader(AlpacaTradingBot):
                     sell_orders.append(order)
         
         total_buy_value = sum(o.get('estimated_value', 0) for o in buy_orders)
+        total_sell_value = sum(o.get('estimated_value', 0) for o in sell_orders)
         
-        # Create allocations from consolidated portfolio
+        # Create strategy summary
+        strategy_summary = {}
+        for strategy_type, signal_data in strategy_signals.items():
+            strategy_name = strategy_type.value if hasattr(strategy_type, 'value') else str(strategy_type)
+            strategy_summary[strategy_name] = {
+                'signal': signal_data.get('action', 'HOLD'),
+                'symbol': signal_data.get('symbol', 'N/A'),
+                'allocation': self.strategy_manager.strategy_allocations.get(strategy_type, 0.0)
+            }
+        
+        # Create trading summary
+        trading_summary = {
+            'total_trades': total_trades,
+            'buy_orders': len(buy_orders),
+            'sell_orders': len(sell_orders),
+            'total_buy_value': total_buy_value,
+            'total_sell_value': total_sell_value
+        }
+        
+        # Create allocations from consolidated portfolio (for target allocation)
         allocations = {
             symbol: {'target_percent': weight * 100} 
             for symbol, weight in consolidated_portfolio.items()
         }
         
-        # Return allocations dict for reporting
-        return {'allocations': allocations}
+        # Return complete execution summary
+        return {
+            'allocations': allocations,
+            'strategy_summary': strategy_summary,
+            'trading_summary': trading_summary,
+            'account_info_before': account_before,
+            'account_info_after': account_after
+        }
     
     def _save_dashboard_data(self, execution_result: MultiStrategyExecutionResult):
         """Save structured data for dashboard consumption to S3"""

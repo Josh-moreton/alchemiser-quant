@@ -415,6 +415,35 @@ def build_trading_report_html(
     return html_content
 
 
+def _build_portfolio_display(result) -> str:
+    """Build portfolio allocation display showing final actual positions"""
+    try:
+        # Try to get actual final portfolio state first
+        if hasattr(result, 'final_portfolio_state') and result.final_portfolio_state:
+            allocations = result.final_portfolio_state.get('allocations', {})
+            if allocations:
+                # Show actual current positions
+                portfolio_lines = []
+                for symbol, data in allocations.items():
+                    current_percent = data.get('current_percent', 0)
+                    if current_percent > 0.1:  # Only show positions > 0.1%
+                        portfolio_lines.append(f"<span style='font-weight: 600;'>{symbol}:</span> {current_percent:.1f}%")
+                
+                if portfolio_lines:
+                    return "<br>".join(portfolio_lines)
+        
+        # Fallback to target allocations from consolidated portfolio
+        if hasattr(result, 'consolidated_portfolio') and result.consolidated_portfolio:
+            return "<br>".join([
+                f"<span style='font-weight: 600;'>{symbol}:</span> {weight:.1%}" 
+                for symbol, weight in list(result.consolidated_portfolio.items())[:5]
+            ])
+        
+        return "<span style='color: #6B7280; font-style: italic;'>Portfolio data unavailable</span>"
+    except Exception as e:
+        return f"<span style='color: #EF4444;'>Error loading portfolio: {str(e)}</span>"
+
+
 def build_multi_strategy_email_html(result: Any, mode: str) -> str:
     """
     Build HTML email for multi-strategy execution results.
@@ -526,7 +555,7 @@ def build_multi_strategy_email_html(result: Any, mode: str) -> str:
                 <div style="margin: 24px 0;">
                     <h3 style="margin: 0 0 16px 0; color: #1F2937; font-size: 18px; font-weight: 600;">🎯 Portfolio Allocation</h3>
                     <div style="padding: 16px; background-color: #F9FAFB; border-radius: 8px;">
-                        {"<br>".join([f"<span style='font-weight: 600;'>{symbol}:</span> {weight:.1%}" for symbol, weight in list(result.consolidated_portfolio.items())[:5]])}
+                        {_build_portfolio_display(result)}
                     </div>
                 </div>
             </div>
