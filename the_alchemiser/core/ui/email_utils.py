@@ -446,7 +446,8 @@ def _build_portfolio_display(result) -> str:
 
 def build_multi_strategy_email_html(result: Any, mode: str) -> str:
     """
-    Build HTML email for multi-strategy execution results.
+    Build comprehensive multi-strategy email HTML with detailed signal explanations.
+    Matches the rich CLI output with technical indicators and detailed reasoning.
     """
     if not result.success:
         error_msg = result.execution_summary.get('error', 'Unknown error')
@@ -458,72 +459,16 @@ def build_multi_strategy_email_html(result: Any, mode: str) -> str:
     trading_summary = execution_summary.get('trading_summary', {})
     account_info = execution_summary.get('account_info_after', {})
     
-    # Build strategy signals section
-    strategies_html = ""
-    if strategy_summary:
-        strategies_rows = ""
-        for strategy, details in strategy_summary.items():
-            allocation = details.get('allocation', 0)
-            signal = details.get('signal', 'UNKNOWN')
-            
-            signal_color = "#10B981" if signal == "BUY" else "#EF4444" if signal == "SELL" else "#6B7280"
-            
-            strategies_rows += f"""
-            <tr>
-                <td style="padding: 8px 12px; border-bottom: 1px solid #E5E7EB; font-weight: 600;">
-                    {strategy}
-                </td>
-                <td style="padding: 8px 12px; border-bottom: 1px solid #E5E7EB; text-align: right;">
-                    {allocation:.0%}
-                </td>
-                <td style="padding: 8px 12px; border-bottom: 1px solid #E5E7EB; text-align: right; color: {signal_color}; font-weight: 600;">
-                    {signal}
-                </td>
-            </tr>
-            """
-        
-        strategies_html = f"""
-        <div style="margin: 24px 0;">
-            <h3 style="margin: 0 0 16px 0; color: #1F2937; font-size: 18px; font-weight: 600;">📊 Strategy Signals</h3>
-            <table style="width: 100%; border-collapse: collapse; background-color: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                <thead>
-                    <tr style="background-color: #F9FAFB;">
-                        <th style="padding: 12px; text-align: left; font-weight: 600; color: #374151; border-bottom: 1px solid #E5E7EB;">Strategy</th>
-                        <th style="padding: 12px; text-align: right; font-weight: 600; color: #374151; border-bottom: 1px solid #E5E7EB;">Allocation</th>
-                        <th style="padding: 12px; text-align: right; font-weight: 600; color: #374151; border-bottom: 1px solid #E5E7EB;">Signal</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {strategies_rows}
-                </tbody>
-            </table>
-        </div>
-        """
+    # Get strategy signals with detailed explanations
+    strategy_signals = getattr(result, 'strategy_signals', {})
     
-    # Build trading summary
-    trading_html = ""
-    if trading_summary.get('total_trades', 0) > 0:
-        total_trades = trading_summary.get('total_trades', 0)
-        total_buy_value = trading_summary.get('total_buy_value', 0)
-        total_sell_value = trading_summary.get('total_sell_value', 0)
-        
-        trading_html = f"""
-        <div style="margin: 24px 0; padding: 16px; background-color: #EEF2FF; border-left: 4px solid #6366F1; border-radius: 8px;">
-            <h3 style="margin: 0 0 12px 0; color: #3730A3; font-size: 16px; font-weight: 600;">⚡ Trading Summary</h3>
-            <p style="margin: 0; color: #3730A3;">
-                <strong>{total_trades} orders executed</strong><br>
-                Buy: ${total_buy_value:,.0f} | Sell: ${total_sell_value:,.0f}
-            </p>
-        </div>
-        """
-    else:
-        trading_html = f"""
-        <div style="margin: 24px 0; padding: 16px; background-color: #F3F4F6; border-radius: 8px; text-align: center;">
-            <span style="color: #6B7280; font-style: italic;">⚡ No trades executed</span>
-        </div>
-        """
+    # Build technical indicators table
+    technical_indicators_html = _build_technical_indicators_email_html(strategy_signals)
     
-    # Main template with multi-strategy specific content
+    # Build detailed strategy signals section with explanations
+    strategies_html = _build_detailed_strategy_signals_email_html(strategy_signals, strategy_summary)
+    
+    # Main template with comprehensive content
     html_content = f"""
     <!DOCTYPE html>
     <html lang="en">
@@ -531,9 +476,57 @@ def build_multi_strategy_email_html(result: Any, mode: str) -> str:
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <title>The Alchemiser - Multi-Strategy Report</title>
+        <style>
+            .progress-bar {{
+                background-color: #E5E7EB;
+                border-radius: 4px;
+                overflow: hidden;
+                height: 8px;
+                margin: 4px 0;
+            }}
+            .progress-fill {{
+                background: linear-gradient(90deg, #10B981, #059669);
+                height: 100%;
+                transition: width 0.3s ease;
+            }}
+            .signal-explanation {{
+                background-color: #F8FAFC;
+                border-left: 4px solid #3B82F6;
+                padding: 16px;
+                margin: 12px 0;
+                border-radius: 0 8px 8px 0;
+                font-family: 'Segoe UI', sans-serif;
+                line-height: 1.6;
+                white-space: pre-line;
+            }}
+            .indicator-table {{
+                width: 100%;
+                border-collapse: collapse;
+                margin: 16px 0;
+                background: white;
+                border-radius: 8px;
+                overflow: hidden;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            }}
+            .indicator-table th {{
+                background-color: #F3F4F6;
+                padding: 12px;
+                text-align: left;
+                font-weight: 600;
+                color: #374151;
+                border-bottom: 1px solid #E5E7EB;
+                font-size: 14px;
+            }}
+            .indicator-table td {{
+                padding: 10px 12px;
+                border-bottom: 1px solid #F3F4F6;
+                color: #1F2937;
+                font-size: 14px;
+            }}
+        </style>
     </head>
     <body style="margin: 0; font-family: 'Segoe UI', sans-serif; background-color: #F3F4F6;">
-        <div style="max-width: 600px; margin: 0 auto; background-color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+        <div style="max-width: 700px; margin: 0 auto; background-color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
             <!-- Header -->
             <div style="padding: 32px 24px; text-align: center; background: linear-gradient(135deg, #FF6B35, #F7931E); color: white;">
                 <h1 style="margin: 0; font-size: 28px; font-weight: 700;">🧪 The Alchemiser</h1>
@@ -548,21 +541,15 @@ def build_multi_strategy_email_html(result: Any, mode: str) -> str:
             
             <!-- Content -->
             <div style="padding: 32px 24px;">
-                {strategies_html}
-                {trading_html}
-                
-                <!-- Portfolio Allocation -->
-                <div style="margin: 24px 0;">
-                    <h3 style="margin: 0 0 16px 0; color: #1F2937; font-size: 18px; font-weight: 600;">🎯 Portfolio Allocation</h3>
-                    <div style="padding: 16px; background-color: #F9FAFB; border-radius: 8px;">
-                        {_build_portfolio_display(result)}
-                    </div>
-                </div>
+                {_build_technical_indicators_email_html(strategy_signals)}
+                {_build_detailed_strategy_signals_email_html(strategy_signals, strategy_summary)}
+                {_build_enhanced_trading_summary_email_html(trading_summary)}
+                {_build_enhanced_portfolio_email_html(result)}
             </div>
             
             <!-- Footer -->
             <div style="padding: 24px; background-color: #1F2937; color: #9CA3AF; text-align: center; font-size: 14px;">
-                Generated by The Alchemiser Trading Bot
+                Generated by The Alchemiser Trading Bot • Advanced Multi-Strategy Analysis
             </div>
         </div>
     </body>
@@ -613,4 +600,250 @@ def build_error_email_html(title: str, error_message: str) -> str:
         </div>
     </body>
     </html>
+    """
+
+
+def _build_technical_indicators_html(strategy_signals: Dict[Any, Any]) -> str:
+    """Build technical indicators table for email - corrected function name"""
+    return _build_technical_indicators_email_html(strategy_signals)
+
+
+def _build_detailed_strategy_signals_html(strategy_signals: Dict[Any, Any], strategy_summary: Dict) -> str:
+    """Build detailed strategy signals with explanations - corrected function name"""
+    return _build_detailed_strategy_signals_email_html(strategy_signals, strategy_summary)
+
+
+def _build_enhanced_trading_summary_html(trading_summary: Dict) -> str:
+    """Build enhanced trading summary - corrected function name"""
+    return _build_enhanced_trading_summary_email_html(trading_summary)
+
+
+def _build_enhanced_portfolio_html(result: Any) -> str:
+    """Build enhanced portfolio allocation display - corrected function name"""
+    return _build_enhanced_portfolio_email_html(result)
+
+
+def _build_technical_indicators_email_html(strategy_signals: Dict[Any, Any]) -> str:
+    """Build technical indicators table for email"""
+    if not strategy_signals:
+        return ""
+    
+    # Extract technical indicators from strategy signals
+    indicators_rows = ""
+    
+    # Key symbols to display
+    key_symbols = ['SPY', 'IOO', 'TQQQ', 'VTV', 'XLF', 'VOX', 'UVXY', 'XLK', 'KMLM', 'TECL', 'SMR', 'BWXT', 'LEU']
+    
+    # Collect all technical indicators from all strategies
+    all_indicators = {}
+    
+    for strategy_type, signal_data in strategy_signals.items():
+        if isinstance(signal_data, dict):
+            # Check for technical_indicators key
+            if 'technical_indicators' in signal_data:
+                all_indicators.update(signal_data['technical_indicators'])
+            # Also check for indicators key  
+            elif 'indicators' in signal_data:
+                all_indicators.update(signal_data['indicators'])
+    
+    # Build table rows for symbols that have data
+    for symbol in key_symbols:
+        if symbol in all_indicators:
+            data = all_indicators[symbol]
+            rsi_10 = data.get('rsi_10', 0)
+            rsi_20 = data.get('rsi_20', 0)
+            price = data.get('current_price', 0)
+            ma_200 = data.get('ma_200', 0)
+            
+            # Color code RSI values
+            rsi_color = "#EF4444" if rsi_10 > 79 else "#10B981" if rsi_10 < 30 else "#6B7280"
+            
+            # Show trend vs 200MA
+            trend_symbol = "↗️" if price > ma_200 else "↘️"
+            trend_color = "#10B981" if price > ma_200 else "#EF4444"
+            
+            indicators_rows += f"""
+            <tr>
+                <td style="padding: 8px 12px; border-bottom: 1px solid #F3F4F6; font-weight: 600;">{symbol}</td>
+                <td style="padding: 8px 12px; border-bottom: 1px solid #F3F4F6;">${price:.2f}</td>
+                <td style="padding: 8px 12px; border-bottom: 1px solid #F3F4F6; color: {rsi_color}; font-weight: 600;">{rsi_10:.1f}</td>
+                <td style="padding: 8px 12px; border-bottom: 1px solid #F3F4F6; color: {trend_color};">{trend_symbol} ${ma_200:.2f}</td>
+            </tr>
+            """
+    
+    if not indicators_rows:
+        return ""
+    
+    return f"""
+    <div style="margin: 24px 0;">
+        <h3 style="margin: 0 0 16px 0; color: #1F2937; font-size: 18px; font-weight: 600;">📈 Technical Indicators</h3>
+        <table class="indicator-table">
+            <thead>
+                <tr>
+                    <th>Symbol</th>
+                    <th>Price</th>
+                    <th>RSI(10)</th>
+                    <th>200MA Trend</th>
+                </tr>
+            </thead>
+            <tbody>
+                {indicators_rows}
+            </tbody>
+        </table>
+    </div>
+    """
+
+
+def _build_detailed_strategy_signals_email_html(strategy_signals: Dict[Any, Any], strategy_summary: Dict) -> str:
+    """Build detailed strategy signals with explanations for email"""
+    if not strategy_signals:
+        return ""
+    
+    signals_html = ""
+    
+    for strategy_type, signal_data in strategy_signals.items():
+        # Extract signal information
+        action = signal_data.get('action', 'HOLD')
+        symbol = signal_data.get('symbol', 'N/A')
+        reason = signal_data.get('reason', 'No explanation available')
+        
+        # Get allocation from strategy summary
+        allocation = 0
+        strategy_name = str(strategy_type).replace('StrategyType.', '').upper()
+        if strategy_summary and strategy_name in strategy_summary:
+            allocation = strategy_summary[strategy_name].get('allocation', 0)
+        
+        # Color code by action
+        if action == 'BUY':
+            signal_color = "#10B981"
+            action_icon = "📈"
+        elif action == 'SELL':
+            signal_color = "#EF4444"
+            action_icon = "📉"
+        else:
+            signal_color = "#6B7280"
+            action_icon = "⏸️"
+        
+        signals_html += f"""
+        <div style="margin: 24px 0; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+            <!-- Strategy Header -->
+            <div style="padding: 16px 20px; background-color: {signal_color}; color: white;">
+                <h3 style="margin: 0; font-size: 18px; font-weight: 600;">
+                    {action_icon} {strategy_name} Strategy
+                </h3>
+                <div style="margin-top: 8px; display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-weight: 600; font-size: 16px;">{action} {symbol}</span>
+                    <span style="opacity: 0.9;">{allocation:.0%} Allocation</span>
+                </div>
+            </div>
+            
+            <!-- Signal Explanation -->
+            <div class="signal-explanation">
+                {reason}
+            </div>
+        </div>
+        """
+    
+    return f"""
+    <div style="margin: 32px 0;">
+        <h3 style="margin: 0 0 20px 0; color: #1F2937; font-size: 20px; font-weight: 700;">🎯 Strategy Signals & Analysis</h3>
+        {signals_html}
+    </div>
+    """
+
+
+def _build_enhanced_trading_summary_email_html(trading_summary: Dict) -> str:
+    """Build enhanced trading summary for email"""
+    if not trading_summary or trading_summary.get('total_trades', 0) == 0:
+        return f"""
+        <div style="margin: 24px 0; padding: 20px; background-color: #F3F4F6; border-radius: 12px; text-align: center;">
+            <h3 style="margin: 0 0 8px 0; color: #6B7280; font-size: 18px;">⚡ Trading Summary</h3>
+            <p style="margin: 0; color: #6B7280; font-style: italic;">No trades executed this session</p>
+        </div>
+        """
+    
+    total_trades = trading_summary.get('total_trades', 0)
+    total_buy_value = trading_summary.get('total_buy_value', 0)
+    total_sell_value = trading_summary.get('total_sell_value', 0)
+    net_value = total_buy_value - total_sell_value
+    
+    net_color = "#10B981" if net_value >= 0 else "#EF4444"
+    net_symbol = "+" if net_value >= 0 else ""
+    
+    return f"""
+    <div style="margin: 24px 0; padding: 20px; background: linear-gradient(135deg, #EEF2FF, #E0E7FF); border-radius: 12px; border-left: 4px solid #6366F1;">
+        <h3 style="margin: 0 0 16px 0; color: #3730A3; font-size: 18px; font-weight: 600;">⚡ Trading Summary</h3>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin: 16px 0;">
+            <div style="text-align: center; padding: 12px; background-color: rgba(255,255,255,0.7); border-radius: 8px;">
+                <div style="font-size: 24px; font-weight: 700; color: #3730A3;">{total_trades}</div>
+                <div style="font-size: 12px; color: #6B7280; text-transform: uppercase; letter-spacing: 0.5px;">Orders</div>
+            </div>
+            <div style="text-align: center; padding: 12px; background-color: rgba(255,255,255,0.7); border-radius: 8px;">
+                <div style="font-size: 20px; font-weight: 700; color: #10B981;">${total_buy_value:,.0f}</div>
+                <div style="font-size: 12px; color: #6B7280; text-transform: uppercase; letter-spacing: 0.5px;">Purchases</div>
+            </div>
+            <div style="text-align: center; padding: 12px; background-color: rgba(255,255,255,0.7); border-radius: 8px;">
+                <div style="font-size: 20px; font-weight: 700; color: #EF4444;">${total_sell_value:,.0f}</div>
+                <div style="font-size: 12px; color: #6B7280; text-transform: uppercase; letter-spacing: 0.5px;">Sales</div>
+            </div>
+        </div>
+        
+        <div style="text-align: center; margin-top: 16px; padding: 12px; background-color: rgba(255,255,255,0.9); border-radius: 8px;">
+            <span style="color: #6B7280; font-size: 14px;">Net Flow: </span>
+            <span style="color: {net_color}; font-weight: 700; font-size: 16px;">{net_symbol}${abs(net_value):,.0f}</span>
+        </div>
+    </div>
+    """
+
+
+def _build_enhanced_portfolio_email_html(result: Any) -> str:
+    """Build enhanced portfolio allocation display for email"""
+    portfolio = getattr(result, 'consolidated_portfolio', {})
+    
+    if not portfolio:
+        return f"""
+        <div style="margin: 24px 0; padding: 20px; background-color: #F3F4F6; border-radius: 12px; text-align: center;">
+            <h3 style="margin: 0 0 8px 0; color: #6B7280; font-size: 18px;">🎯 Portfolio Allocation</h3>
+            <p style="margin: 0; color: #6B7280; font-style: italic;">No portfolio data available</p>
+        </div>
+        """
+    
+    portfolio_rows = ""
+    for symbol, weight in sorted(portfolio.items(), key=lambda x: x[1], reverse=True):
+        # Create visual progress bar
+        bar_width = int(weight * 100)
+        
+        portfolio_rows += f"""
+        <tr>
+            <td style="padding: 12px; border-bottom: 1px solid #F3F4F6; font-weight: 600; color: #1F2937;">
+                {symbol}
+            </td>
+            <td style="padding: 12px; border-bottom: 1px solid #F3F4F6; text-align: right; font-weight: 600; color: #059669;">
+                {weight:.1%}
+            </td>
+            <td style="padding: 12px; border-bottom: 1px solid #F3F4F6; width: 40%;">
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: {bar_width}%;"></div>
+                </div>
+            </td>
+        </tr>
+        """
+    
+    return f"""
+    <div style="margin: 24px 0;">
+        <h3 style="margin: 0 0 16px 0; color: #1F2937; font-size: 18px; font-weight: 600;">🎯 Portfolio Allocation</h3>
+        <table style="width: 100%; border-collapse: collapse; background-color: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+            <thead>
+                <tr style="background: linear-gradient(135deg, #F9FAFB, #F3F4F6);">
+                    <th style="padding: 16px 12px; text-align: left; font-weight: 600; color: #374151; border-bottom: 2px solid #E5E7EB;">Symbol</th>
+                    <th style="padding: 16px 12px; text-align: right; font-weight: 600; color: #374151; border-bottom: 2px solid #E5E7EB;">Allocation</th>
+                    <th style="padding: 16px 12px; text-align: left; font-weight: 600; color: #374151; border-bottom: 2px solid #E5E7EB;">Visual</th>
+                </tr>
+            </thead>
+            <tbody>
+                {portfolio_rows}
+            </tbody>
+        </table>
+    </div>
     """
