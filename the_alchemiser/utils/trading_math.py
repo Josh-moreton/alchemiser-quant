@@ -115,6 +115,12 @@ def calculate_allocation_discrepancy(
     """
     if total_portfolio_value <= 0:
         return 0.0, target_weight
+    
+    # Ensure current_value is a float
+    try:
+        current_value = float(current_value)
+    except (ValueError, TypeError):
+        current_value = 0.0
         
     current_weight = current_value / total_portfolio_value
     weight_difference = target_weight - current_weight
@@ -156,6 +162,12 @@ def calculate_rebalance_amounts(
     for symbol in all_symbols:
         target_weight = target_weights.get(symbol, 0.0)
         current_value = current_values.get(symbol, 0.0)
+        
+        # Ensure current_value is a float
+        try:
+            current_value = float(current_value)
+        except (ValueError, TypeError):
+            current_value = 0.0
         
         current_weight, weight_diff = calculate_allocation_discrepancy(
             target_weight, current_value, total_portfolio_value

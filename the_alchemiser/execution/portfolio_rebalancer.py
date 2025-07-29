@@ -46,7 +46,7 @@ class PortfolioRebalancer:
             symbol: portfolio_value * weight for symbol, weight in target_portfolio.items()
         }
         current_values = {
-            symbol: pos.get("market_value", 0.0) for symbol, pos in current_positions.items()
+            symbol: float(getattr(pos, 'market_value', 0.0)) for symbol, pos in current_positions.items()
         }
 
         # Use threshold-aware rebalancing logic
@@ -64,16 +64,16 @@ class PortfolioRebalancer:
             target_value = plan_data.get('target_value', 0.0)
             current_value = plan_data.get('current_value', 0.0)
             
-            if target_value <= 0 and pos.get("qty", 0) > 0:
+            if target_value <= 0 and float(getattr(pos, 'qty', 0)) > 0:
                 price = self.bot.get_current_price(symbol)
-                qty = pos["qty"]
+                qty = float(pos.qty)
                 if price > 0 and qty > 0:
                     sell_plans.append({"symbol": symbol, "qty": qty, "est": qty * price})
             elif current_value > target_value:
                 price = self.bot.get_current_price(symbol)
                 diff_value = current_value - target_value
                 if price > 0:
-                    qty = min(int(diff_value / price * 1e6) / 1e6, pos["qty"])
+                    qty = min(int(diff_value / price * 1e6) / 1e6, float(getattr(pos, 'qty', 0)))
                     if qty > 0:
                         sell_plans.append({"symbol": symbol, "qty": qty, "est": qty * price})
 
@@ -101,7 +101,7 @@ class PortfolioRebalancer:
         
         # Recalculate current values after sells
         current_values = {
-            symbol: pos.get("market_value", 0.0) for symbol, pos in current_positions.items()
+            symbol: float(getattr(pos, 'market_value', 0.0)) for symbol, pos in current_positions.items()
         }
         
         # Recalculate rebalance plan with updated portfolio state

@@ -47,7 +47,7 @@ class AlchemiserTradingBot:
             for symbol, weight in target_portfolio.items()
         }
         current_values = {
-            symbol: pos.get('market_value', 0.0) 
+            symbol: float(getattr(pos, 'market_value', 0.0)) 
             for symbol, pos in current_positions.items()
         }
         print(f"🎯 Target vs Current Allocations (trades only if % difference > 1.0):")
@@ -339,15 +339,15 @@ class AlchemiserTradingBot:
                 open_positions = account.get('open_positions', [])
                 for position in open_positions:
                     dashboard_data["positions"].append({
-                        "symbol": position.get('symbol', ''),
-                        "quantity": float(position.get('qty', 0)),
-                        "market_value": float(position.get('market_value', 0)),
-                        "unrealized_pl": float(position.get('unrealized_pl', 0)),
-                        "unrealized_pl_percent": float(position.get('unrealized_plpc', 0)) * 100,
-                        "current_price": float(position.get('current_price', 0)),
-                        "avg_entry_price": float(position.get('avg_entry_price', 0)),
-                        "side": position.get('side', 'long'),
-                        "change_today": float(position.get('change_today', 0))
+                        "symbol": getattr(position, 'symbol', ''),
+                        "quantity": float(getattr(position, 'qty', 0)),
+                        "market_value": float(getattr(position, 'market_value', 0)),
+                        "unrealized_pl": float(getattr(position, 'unrealized_pl', 0)),
+                        "unrealized_pl_percent": float(getattr(position, 'unrealized_plpc', 0)) * 100,
+                        "current_price": float(getattr(position, 'current_price', 0)),
+                        "avg_entry_price": float(getattr(position, 'avg_entry_price', 0)),
+                        "side": getattr(position, 'side', 'long'),
+                        "change_today": float(getattr(position, 'change_today', 0))
                     })
             for strategy_type, signal_data in execution_result.strategy_signals.items():
                 strategy_name = strategy_type.value if hasattr(strategy_type, 'value') else str(strategy_type)
@@ -419,7 +419,7 @@ class AlchemiserTradingBot:
                 current_value = pos.get('market_value', 0.0)
             else:
                 try:
-                    current_value = float(pos) if pos else 0.0
+                    current_value = getattr(pos, 'market_value', 0.0) if pos else 0.0
                 except Exception:
                     current_value = 0.0
             current_weight = current_value / portfolio_value if portfolio_value > 0 else 0.0
