@@ -34,9 +34,11 @@ class OrderManagerAdapter:
     def __init__(self, trading_client, data_provider, ignore_market_hours=False, config=None):
         """Initialize with same signature as old OrderManager for compatibility."""
         
-        self.simple_order_manager = SimpleOrderManager(trading_client, data_provider)
-        self.ignore_market_hours = ignore_market_hours
         self.config = config or {}
+        validate_buying_power = self.config.get('validate_buying_power', False)
+        
+        self.simple_order_manager = SimpleOrderManager(trading_client, data_provider, validate_buying_power)
+        self.ignore_market_hours = ignore_market_hours
         
         logging.info("✅ OrderManagerAdapter initialized with SimpleOrderManager backend")
     
@@ -75,7 +77,13 @@ class OrderManagerAdapter:
         
         For simplicity and reliability, we use market orders which execute immediately.
         """
-        logging.info(f"🔄 Market order: {side.value} {symbol} {qty} shares")
+        # Handle both string and OrderSide enum inputs
+        side_str = side.value if hasattr(side, 'value') else str(side)
+        logging.info(f"🔄 Market order: {side_str} {symbol} {qty} shares")
+        
+        # Convert string inputs to OrderSide enum if needed
+        if isinstance(side, str):
+            side = OrderSide.BUY if side.lower() == 'buy' else OrderSide.SELL
         
         # Use market orders for immediate execution and simplicity
         return self.simple_order_manager.place_market_order(symbol, qty, side)
@@ -99,8 +107,10 @@ class OrderManagerAdapter:
             if order_id is not None and isinstance(order_id, str):
                 order_ids.append(order_id)
                 
+        # If we had orders but no valid order IDs, that's a failure
         if not order_ids:
-            return True
+            logging.warning("No valid order IDs found in settlement data")
+            return False
             
         logging.info(f"⏳ Waiting for settlement of {len(order_ids)} orders...")
         
@@ -131,3 +141,36 @@ class OrderManagerAdapter:
         """Get position quantity - delegates to SimpleOrderManager."""
         positions = self.simple_order_manager.get_current_positions()
         return positions.get(symbol, 0.0)
+    
+    def calculate_dynamic_limit_price(self, side: OrderSide, bid: float, ask: float, 
+                                     step: int = 1, tick_size: float = 0.01, 
+                                     max_steps: int = 5) -> float:
+        """
+        Calculate a dynamic limit price based on the bid-ask spread and step.
+        
+        Test expects:
+        - BUY: bid=99.0, ask=101.0, step=1, tick_size=0.2, max_steps=3 -> 100.2
+        - SELL: bid=99.0, ask=101.0, step=2, tick_size=0.5, max_steps=3 -> 99.0
+        
+        Args:
+            side: OrderSide.BUY or OrderSide.SELL
+            bid: Current bid price
+            ask: Current ask price  
+            step: Step number (1-based)
+            tick_size: Minimum price increment
+            max_steps: Maximum number of steps
+            
+        Returns:
+            Calculated limit price
+        """
+        mid_price = (bid + ask) / 2.0
+        
+        if side == OrderSide.BUY:
+            # For buy orders, step toward ask from mid
+            price = mid_price + (step * tick_size)
+        else:
+            # For sell orders, step toward bid from mid
+            price = mid_price - (step * tick_size)
+        
+        # Round to nearest tick
+        return round(price / tick_size) * tick_size

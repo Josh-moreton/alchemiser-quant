@@ -1,0 +1,150 @@
+import pytest
+from unittest.mock import MagicMock, patch
+
+# Import the new unified class
+from the_alchemiser.execution.alchemiser_trader import AlchemiserTradingBot
+
+# NOTE: Old classes have been consolidated into AlchemiserTradingBot
+# from the_alchemiser.execution.alpaca_trader import AlpacaTradingBot  # Now .old file
+# from the_alchemiser.execution.multi_strategy_trader import MultiStrategyAlpacaTrader  # Now .old file
+
+# Import OrderSide for mock
+from alpaca.trading.enums import OrderSide
+
+@pytest.fixture
+def mock_config():
+    return {
+        "alpaca": {"endpoint": "mock", "paper_endpoint": "mock"},
+        "logging": {},
+        "data": {"cache_duration": 0}  # Add this line
+    }
+
+@pytest.fixture
+def mock_strategy_allocations():
+    # Example: 50% to each strategy
+    from the_alchemiser.core.trading.strategy_manager import StrategyType
+    return {StrategyType.NUCLEAR: 0.5, StrategyType.TECL: 0.5}
+
+@pytest.fixture
+def patch_dependencies(monkeypatch):
+    """Patch all dependencies to use shared mock objects."""
+    
+    # Create shared mock objects that both trader classes will use
+    mock_data_provider = MagicMock()
+    mock_data_provider.get_account_info.return_value = {
+        'portfolio_value': 10000.0,
+        'cash': 1000.0,
+        'equity': 10000.0
+    }
+    mock_data_provider.get_positions.return_value = {}
+    
+    mock_order_manager = MagicMock()
+    mock_order_manager.place_market_order.return_value = {
+        'id': 'order123',
+        'status': 'filled',
+        'symbol': 'SPY',
+        'qty': 100.0,
+        'filled_avg_price': 100.0
+    }
+    
+    mock_portfolio_rebalancer = MagicMock()
+    mock_portfolio_rebalancer.rebalance_portfolio.return_value = [
+        {
+            'symbol': 'SPY',
+            'qty': 100.0,
+            'side': OrderSide.BUY,
+            'order_id': 'order123',
+            'estimated_value': 10000.0,
+            'price': 100.0,
+            'status': 'filled'
+        }
+    ]
+    
+    mock_strategy_manager = MagicMock()
+    mock_strategy_manager.run_all_strategies.return_value = (
+        {}, 
+        {'SPY': 1.0}  # Target portfolio
+    )
+    
+    # Mock TradingClient for Alpaca integration
+    mock_trading_client = MagicMock()
+    
+    # Patch for AlchemiserTradingBot imports
+    monkeypatch.setattr('the_alchemiser.execution.alchemiser_trader.UnifiedDataProvider', 
+                       lambda *args, **kwargs: mock_data_provider)
+    monkeypatch.setattr('the_alchemiser.execution.alchemiser_trader.OrderManagerAdapter', 
+                       lambda *args, **kwargs: mock_order_manager)
+    monkeypatch.setattr('the_alchemiser.execution.alchemiser_trader.PortfolioRebalancer', 
+                       lambda *args, **kwargs: mock_portfolio_rebalancer)
+    monkeypatch.setattr('the_alchemiser.execution.alchemiser_trader.MultiStrategyManager', 
+                       lambda *args, **kwargs: mock_strategy_manager)
+    monkeypatch.setattr('the_alchemiser.execution.alchemiser_trader.TradingClient', 
+                       lambda *args, **kwargs: mock_trading_client)
+    
+    # Patch for MultiStrategyAlpacaTrader imports (old class)
+    # These need to patch the actual import paths used by MultiStrategyAlpacaTrader
+    monkeypatch.setattr('the_alchemiser.core.data.data_provider.UnifiedDataProvider', 
+                       lambda *args, **kwargs: mock_data_provider)
+    monkeypatch.setattr('the_alchemiser.execution.order_manager_adapter.OrderManagerAdapter', 
+                       lambda *args, **kwargs: mock_order_manager)
+    monkeypatch.setattr('the_alchemiser.execution.portfolio_rebalancer.PortfolioRebalancer', 
+                       lambda *args, **kwargs: mock_portfolio_rebalancer)
+    monkeypatch.setattr('the_alchemiser.core.trading.strategy_manager.MultiStrategyManager', 
+                       lambda *args, **kwargs: mock_strategy_manager)
+    monkeypatch.setattr('alpaca.trading.client.TradingClient', 
+                       lambda *args, **kwargs: mock_trading_client)
+    
+    return {
+        'data_provider': mock_data_provider,
+        'order_manager': mock_order_manager,
+        'portfolio_rebalancer': mock_portfolio_rebalancer,
+        'strategy_manager': mock_strategy_manager,
+        'trading_client': mock_trading_client
+    }
+
+def test_alchemiser_trading_bot_integration(mock_config, mock_strategy_allocations, patch_dependencies):
+    """
+    Test to verify that the new AlchemiserTradingBot produces identical results
+    to the old MultiStrategyAlpacaTrader class.
+    """
+    mocks = patch_dependencies
+    
+    # Use patch context managers to patch the local imports
+    with patch('the_alchemiser.core.data.data_provider.UnifiedDataProvider', 
+               return_value=mocks['data_provider']), \
+         patch('the_alchemiser.execution.order_manager_adapter.OrderManagerAdapter', 
+               return_value=mocks['order_manager']), \
+         patch('the_alchemiser.execution.portfolio_rebalancer.PortfolioRebalancer', 
+               return_value=mocks['portfolio_rebalancer']), \
+         patch('the_alchemiser.core.trading.strategy_manager.MultiStrategyManager', 
+               return_value=mocks['strategy_manager']), \
+         patch('alpaca.trading.client.TradingClient', 
+               return_value=mocks['trading_client']):
+        
+        # Initialize the new AlchemiserTradingBot
+        new_trader = AlchemiserTradingBot(
+            paper_trading=True,
+            strategy_allocations=mock_strategy_allocations,
+            config=mock_config
+        )
+        
+        # Initialize the old MultiStrategyAlpacaTrader
+        old_trader = MultiStrategyAlpacaTrader(
+            paper_trading=True,
+            strategy_allocations=mock_strategy_allocations,
+            config=mock_config
+        )
+        
+        # Execute multi-strategy on both traders
+        result = new_trader.execute_multi_strategy()
+        old_result = old_trader.execute_multi_strategy()
+        
+        # Compare results - they should be identical
+        assert result.success == old_result.success
+        assert result.consolidated_portfolio == old_result.consolidated_portfolio
+        assert len(result.orders_executed) == len(old_result.orders_executed)
+        assert result.orders_executed == old_result.orders_executed
+        
+        print("✅ Both traders returned identical results!")
+        print(f"Orders executed: {len(result.orders_executed)}")
+        print(f"Portfolio: {result.consolidated_portfolio}")

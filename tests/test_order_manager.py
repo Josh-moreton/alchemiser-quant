@@ -12,6 +12,10 @@ def order_manager():
     trading_client.submit_order.side_effect = lambda order_data: MagicMock(id='1', status='filled')
     trading_client.get_order_by_id.side_effect = lambda order_id: MagicMock(id=order_id, status='filled')
     trading_client.cancel_order_by_id.return_value = None
+    # Mock position for sell tests
+    trading_client.get_all_positions.return_value = [
+        MagicMock(symbol='AAPL', qty=10.0, market_value=1000.0)
+    ]
 
     data_provider = MagicMock()
     data_provider.get_current_price.return_value = 100.0

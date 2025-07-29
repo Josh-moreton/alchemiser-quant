@@ -178,11 +178,16 @@ class TestMultiAssetSignals:
 class TestSignalValidation:
     """Test validation of signal parameters."""
     
-    def test_valid_signal_parameters(self, order_manager):
+    def test_valid_signal_parameters(self, order_manager, mock_trading_client):
         """Test that valid signal parameters are accepted."""
         # Valid buy signal
         order_id = order_manager.place_limit_or_market('AAPL', 1.0, OrderSide.BUY)
         assert order_id is not None
+        
+        # Mock position for sell signal
+        mock_trading_client.get_all_positions.return_value = [
+            MagicMock(symbol='AAPL', qty=10.0, market_value=1500.0)
+        ]
         
         # Valid sell signal  
         order_id = order_manager.place_limit_or_market('AAPL', 1.0, OrderSide.SELL)
