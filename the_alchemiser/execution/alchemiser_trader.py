@@ -419,7 +419,7 @@ class AlchemiserTradingBot:
                 current_value = pos.get('market_value', 0.0)
             else:
                 try:
-                    current_value = getattr(pos, 'market_value', 0.0) if pos else 0.0
+                    current_value = float(getattr(pos, 'market_value', 0.0)) if pos else 0.0
                 except Exception:
                     current_value = 0.0
             current_weight = current_value / portfolio_value if portfolio_value > 0 else 0.0
