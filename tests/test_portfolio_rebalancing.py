@@ -142,15 +142,30 @@ class TestPartialRebalance:
     def test_small_allocation_change(self, multi_strategy_trader, mock_trading_client):
         """Test rebalancing with small allocation changes below threshold."""
         # Mock current positions close to target
-        mock_trading_client.get_all_positions.return_value = [
+        mock_positions = [
             MagicMock(symbol='AAPL', qty=33.0, market_value=4950.0),  # 49.5%
             MagicMock(symbol='GOOGL', qty=2.02, market_value=5050.0)   # 50.5%
         ]
-        mock_trading_client.get_account.return_value = MagicMock(
+        mock_trading_client.get_all_positions.return_value = mock_positions
+        
+        # Mock the trading client used by the SimpleOrderManager inside OrderManagerAdapter
+        multi_strategy_trader.order_manager.simple_order_manager.trading_client.get_all_positions.return_value = mock_positions
+        multi_strategy_trader.order_manager.simple_order_manager.trading_client.submit_order.return_value = MagicMock(id='test_order_123')
+        
+        # Mock data provider positions (this is what AlchemiserTradingBot.get_positions() calls)
+        multi_strategy_trader.data_provider.get_positions.return_value = [
+            {'symbol': 'AAPL', 'qty': 33.0, 'market_value': 4950.0},
+            {'symbol': 'GOOGL', 'qty': 2.02, 'market_value': 5050.0}
+        ]
+        
+        # Mock account info for both trading client and data provider
+        mock_account = MagicMock(
             buying_power=1000.0,
             cash=0.0,
             portfolio_value=10000.0
         )
+        mock_trading_client.get_account.return_value = mock_account
+        multi_strategy_trader.data_provider.get_account_info.return_value = mock_account
         
         # Target: 50% each (very small change)
         target_allocations = {
@@ -164,22 +179,38 @@ class TestPartialRebalance:
             result = multi_strategy_trader.execute_rebalancing(target_allocations, mode='market')
         
         # Should not place any orders (below rebalance threshold)
-        assert mock_trading_client.submit_order.call_count == 0
+        assert multi_strategy_trader.order_manager.simple_order_manager.trading_client.submit_order.call_count == 0
         assert result is not None
         assert result['trading_summary']['total_orders'] == 0
     
     def test_single_symbol_rebalance(self, multi_strategy_trader, mock_trading_client):
         """Test rebalancing that only affects one symbol."""
         # Mock current: 70% AAPL, 30% GOOGL
-        mock_trading_client.get_all_positions.return_value = [
+        mock_positions = [
             MagicMock(symbol='AAPL', qty=46.67, market_value=7000.0),
             MagicMock(symbol='GOOGL', qty=1.2, market_value=3000.0)
         ]
-        mock_trading_client.get_account.return_value = MagicMock(
+        # Mock for multiple places that need position data
+        mock_trading_client.get_all_positions.return_value = mock_positions
+        
+        # Mock the trading client used by the SimpleOrderManager inside OrderManagerAdapter
+        multi_strategy_trader.order_manager.simple_order_manager.trading_client.get_all_positions.return_value = mock_positions
+        multi_strategy_trader.order_manager.simple_order_manager.trading_client.submit_order.return_value = MagicMock(id='test_order_123')
+        
+        # Mock data provider positions (this is what AlchemiserTradingBot.get_positions() calls)
+        multi_strategy_trader.data_provider.get_positions.return_value = [
+            {'symbol': 'AAPL', 'qty': 46.67, 'market_value': 7000.0},
+            {'symbol': 'GOOGL', 'qty': 1.2, 'market_value': 3000.0}
+        ]
+        
+        # Mock account info for both trading client and data provider
+        mock_account = MagicMock(
             buying_power=1000.0,
             cash=0.0,
             portfolio_value=10000.0
         )
+        mock_trading_client.get_account.return_value = mock_account
+        multi_strategy_trader.data_provider.get_account_info.return_value = mock_account
         
         # Target: 60% AAPL, 40% GOOGL (sell AAPL, buy GOOGL)
         target_allocations = {
@@ -193,7 +224,7 @@ class TestPartialRebalance:
             result = multi_strategy_trader.execute_rebalancing(target_allocations, mode='market')
         
         # Should place orders to adjust allocations
-        assert mock_trading_client.submit_order.call_count >= 1
+        assert multi_strategy_trader.order_manager.simple_order_manager.trading_client.submit_order.call_count >= 1
         assert result is not None
 
 
