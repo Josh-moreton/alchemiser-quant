@@ -50,15 +50,11 @@ class AlchemiserTradingBot:
             symbol: float(getattr(pos, 'market_value', 0.0)) 
             for symbol, pos in current_positions.items()
         }
-        print(f"🎯 Target vs Current Allocations (trades only if % difference > 1.0):")
-        all_symbols = set(target_portfolio.keys()) | set(current_positions.keys())
-        for symbol in sorted(all_symbols):
-            target = target_values.get(symbol, 0.0)
-            current = current_values.get(symbol, 0.0)
-            pct_diff = 0.0
-            if max(target, current) > 0:
-                pct_diff = 100 * abs(target - current) / max(target, current)
-            print(f"  {symbol:<6} Target: ${target:,.2f} | Current: ${current:,.2f} | Diff: {pct_diff:.2f}%")
+        
+        # Use Rich table for beautiful display
+        from the_alchemiser.core.ui.cli_formatter import render_target_vs_current_allocations
+        render_target_vs_current_allocations(target_portfolio, account_info, current_positions)
+        
         return target_values, current_values
     """Unified multi-strategy trading bot for Alpaca"""
 
@@ -470,44 +466,119 @@ class AlchemiserTradingBot:
 
     def display_multi_strategy_summary(self, execution_result: MultiStrategyExecutionResult):
         """
-        Display a summary of multi-strategy execution results
+        Display a summary of multi-strategy execution results using Rich
         Args:
             execution_result: The execution result to display
         """
+        from rich.console import Console
+        from rich.panel import Panel
+        from rich.table import Table
+        from rich.columns import Columns
+        from rich.text import Text
+        
+        console = Console()
+        
         if not execution_result.success:
-            logging.error(f"❌ Multi-strategy execution failed: {execution_result.execution_summary.get('error', 'Unknown error')}")
+            console.print(Panel(
+                f"[bold red]Execution failed: {execution_result.execution_summary.get('error', 'Unknown error')}[/bold red]",
+                title="Execution Result",
+                style="red"
+            ))
             return
-        print("\n📈 Consolidated Portfolio:")
+
+        # Portfolio allocation display
+        portfolio_table = Table(title="Consolidated Portfolio", show_lines=False)
+        portfolio_table.add_column("Symbol", style="bold cyan", justify="center")
+        portfolio_table.add_column("Allocation", style="bold green", justify="right")
+        portfolio_table.add_column("Visual", style="white", justify="left")
+        
         sorted_portfolio = sorted(
             execution_result.consolidated_portfolio.items(), 
             key=lambda x: x[1], 
             reverse=True
         )
+        
         for symbol, weight in sorted_portfolio:
-            print(f"  {symbol:<6}: {weight:.1%}")
+            # Create visual bar
+            bar_length = int(weight * 20)  # Scale to 20 chars max
+            bar = "█" * bar_length + "░" * (20 - bar_length)
+            
+            portfolio_table.add_row(
+                symbol,
+                f"{weight:.1%}",
+                f"[green]{bar}[/green]"
+            )
+        
+        # Orders executed table
         if execution_result.orders_executed:
-            print(f"\n🔄 Orders Executed: {len(execution_result.orders_executed)}")
+            orders_table = Table(title=f"Orders Executed ({len(execution_result.orders_executed)})", show_lines=False)
+            orders_table.add_column("Type", style="bold", justify="center")
+            orders_table.add_column("Symbol", style="cyan", justify="center")
+            orders_table.add_column("Quantity", style="white", justify="right")
+            orders_table.add_column("Estimated Value", style="green", justify="right")
+            
             for order in execution_result.orders_executed:
                 side = order.get('side', '')
                 if hasattr(side, 'value'):
                     side_value = side.value
                 else:
                     side_value = str(side)
-                print(f"  {side_value:<4} {order.get('symbol', ''):<5} x{order.get('qty', 0):<7} @ ${order.get('price', 0):.2f}")
+                
+                side_color = "green" if side_value == 'BUY' else "red"
+                
+                orders_table.add_row(
+                    f"[{side_color}]{side_value}[/{side_color}]",
+                    order.get('symbol', ''),
+                    f"{order.get('qty', 0):.6f}",
+                    f"${order.get('estimated_value', 0):.2f}"
+                )
         else:
-            print("\n✅ No orders executed (portfolio already balanced)")
+            orders_table = Panel(
+                "[green]Portfolio already balanced - no trades needed[/green]",
+                title="Orders Executed",
+                style="green"
+            )
+
+        # Account summary
         if execution_result.account_info_after:
             account = execution_result.account_info_after
-            print(f"\n💰 Account Summary:")
-            print(f"  Portfolio Value: ${float(account.get('portfolio_value', 0)):.2f}")
-            print(f"  Cash Balance: ${float(account.get('cash', 0)):.2f}")
-        print("\n✅ Multi-strategy execution completed successfully")
+            account_content = Text()
+            account_content.append(f"Portfolio Value: ${float(account.get('portfolio_value', 0)):,.2f}\n", style="bold green")
+            account_content.append(f"Cash Balance: ${float(account.get('cash', 0)):,.2f}", style="bold blue")
+            
+            account_panel = Panel(account_content, title="Account Summary", style="bold white")
+        else:
+            account_panel = Panel("Account information not available", title="Account Summary", style="yellow")
+
+        # Display everything
+        console.print()
+        console.print(portfolio_table)
+        console.print()
+        
+        if isinstance(orders_table, Table):
+            console.print(orders_table)
+        else:
+            console.print(orders_table)
+        console.print()
+        
+        console.print(account_panel)
+        console.print()
+        
+        console.print(Panel(
+            "[bold green]Multi-strategy execution completed successfully[/bold green]",
+            title="Execution Complete",
+            style="green"
+        ))
 
 def main():
     """Test AlchemiserTradingBot multi-strategy execution"""
-    logging.basicConfig(level=logging.INFO)
-    print("🚀 Alchemiser Trading Bot Test")
-    print("=" * 50)
+    from rich.console import Console
+    console = Console()
+    
+    logging.basicConfig(level=logging.WARNING)  # Reduced verbosity
+    console.print("[bold cyan]Alchemiser Trading Bot Test[/bold cyan]")
+    console.print("─" * 50)
+    
     trader = AlchemiserTradingBot(
         paper_trading=True,
         strategy_allocations={
@@ -515,17 +586,19 @@ def main():
             StrategyType.TECL: 0.5
         }
     )
-    print("⚡ Executing multi-strategy...")
+    
+    console.print("[yellow]Executing multi-strategy...[/yellow]")
     result = trader.execute_multi_strategy()
     trader.display_multi_strategy_summary(result)
-    print("\n📈 Getting performance report...")
+    
+    console.print("[yellow]Getting performance report...[/yellow]")
     report = trader.get_multi_strategy_performance_report()
     if 'error' not in report:
-        print(f"✅ Performance report generated successfully")
-        print(f"   Current positions: {len(report['current_positions'])}")
-        print(f"   Strategy tracking: {len(report['performance_summary'])}")
+        console.print("[green]Performance report generated successfully[/green]")
+        console.print(f"   Current positions: {len(report['current_positions'])}")
+        console.print(f"   Strategy tracking: {len(report['performance_summary'])}")
     else:
-        print(f"❌ Error generating report: {report['error']}")
+        console.print(f"[red]Error generating report: {report['error']}[/red]")
 
 if __name__ == "__main__":
     main()

@@ -24,10 +24,10 @@ def render_technical_indicators(strategy_signals: Dict[Any, Any], console: Conso
             all_indicators.update(data['indicators'])
 
     if not all_indicators:
-        (console or Console()).print(Panel("No indicator data available", title="📊 TECHNICAL INDICATORS", style="yellow"))
+        (console or Console()).print(Panel("No indicator data available", title="TECHNICAL INDICATORS", style="yellow"))
         return
 
-    table = Table(title="📊 Technical Indicators", show_lines=True, expand=True, box=None)
+    table = Table(title="Technical Indicators", show_lines=True, expand=True, box=None)
     table.add_column("Symbol", style="bold cyan", justify="right")
     table.add_column("Price", style="bold", justify="right")
     table.add_column("RSI", style="magenta", justify="center")
@@ -60,13 +60,15 @@ def render_technical_indicators(strategy_signals: Dict[Any, Any], console: Conso
             if k not in ('current_price',) and not k.startswith('rsi_') and not k.startswith('ma_'):
                 other_parts.append(f"{k}:{v:.2f}")
 
-        # RSI color/emoji for rsi_10 if present
+        # RSI indicator for rsi_10 if present
         rsi_10 = ind.get('rsi_10', ind.get('rsi_9', 50))
-        rsi_level = "⚪"
+        rsi_level = ""
         if rsi_10 > 80:
-            rsi_level = "🔴"
+            rsi_level = "HIGH"
         elif rsi_10 < 30:
-            rsi_level = "🟢"
+            rsi_level = "LOW"
+        else:
+            rsi_level = "MID"
 
         # Trend indicator for ma_200 if present
         ma_200 = ind.get('ma_200')
@@ -107,7 +109,7 @@ def render_strategy_signals(strategy_signals: Dict[Any, Any], console: Console |
     c = console or Console()
     
     if not strategy_signals:
-        c.print(Panel("No strategy signals available", title="🎯 STRATEGY SIGNALS", style="yellow"))
+        c.print(Panel("No strategy signals available", title="STRATEGY SIGNALS", style="yellow"))
         return
     
     panels = []
@@ -119,22 +121,22 @@ def render_strategy_signals(strategy_signals: Dict[Any, Any], console: Console |
         # Color code by action
         if action == 'BUY':
             style = "green"
-            emoji = "🟢"
+            indicator = "BUY"
         elif action == 'SELL':
             style = "red" 
-            emoji = "🔴"
+            indicator = "SELL"
         else:
             style = "yellow"
-            emoji = "⚪"
+            indicator = "HOLD"
             
-        content = f"{emoji} [bold]{action} {symbol}[/bold]\n{reason}"
+        content = f"[bold]{indicator} {symbol}[/bold]\n{reason}"
         panel = Panel(content, title=f"{strategy_type.value if hasattr(strategy_type, 'value') else strategy_type}", style=style)
         panels.append(panel)
     
     c.print(Columns(panels, equal=True, expand=True))
 
 
-def render_portfolio_allocation(portfolio: Dict[str, float], title: str = "🎯 PORTFOLIO ALLOCATION", console: Console | None = None) -> None:
+def render_portfolio_allocation(portfolio: Dict[str, float], title: str = "PORTFOLIO ALLOCATION", console: Console | None = None) -> None:
     """Pretty-print portfolio allocation using rich table."""
     c = console or Console()
     
@@ -166,7 +168,7 @@ def render_trading_summary(orders_executed: List[Dict], console: Console | None 
     c = console or Console()
     
     if not orders_executed:
-        c.print(Panel("No trades executed", title="⚡ TRADING SUMMARY", style="yellow"))
+        c.print(Panel("No trades executed", title="TRADING SUMMARY", style="yellow"))
         return
     
     # Analyze orders
@@ -192,13 +194,13 @@ def render_trading_summary(orders_executed: List[Dict], console: Console | None 
     net_value = total_buy_value - total_sell_value
     
     # Create summary table
-    table = Table(title="⚡ TRADING SUMMARY", show_lines=True, expand=True)
+    table = Table(title="TRADING SUMMARY", show_lines=True, expand=True)
     table.add_column("Type", style="bold", justify="center")
     table.add_column("Orders", style="cyan", justify="center")
     table.add_column("Total Value", style="green", justify="right")
     
-    table.add_row("🟢 Buys", str(len(buy_orders)), f"${total_buy_value:,.2f}")
-    table.add_row("🔴 Sells", str(len(sell_orders)), f"${total_sell_value:,.2f}")
+    table.add_row("Buys", str(len(buy_orders)), f"${total_buy_value:,.2f}")
+    table.add_row("Sells", str(len(sell_orders)), f"${total_sell_value:,.2f}")
     table.add_row("[bold]Net", f"[bold]{len(orders_executed)}", f"[bold]${net_value:+,.2f}")
     
     c.print(table)
@@ -230,7 +232,7 @@ def render_account_info(account_info: Dict, console: Console | None = None) -> N
     c = console or Console()
     
     if not account_info:
-        c.print(Panel("Account information not available", title="🏦 ACCOUNT INFO", style="red"))
+        c.print(Panel("Account information not available", title="ACCOUNT INFO", style="red"))
         return
     
     account_data = account_info.get('account', account_info)  # Support both formats
@@ -264,11 +266,11 @@ def render_account_info(account_info: Dict, console: Console | None = None) -> N
             content_lines.append(f"[bold {pl_color}]Total P&L:[/bold {pl_color}] {pl_sign}${latest_pl:,.2f} ({pl_sign}{latest_pl_pct:.2%})")
     
     content = "\n".join(content_lines)
-    c.print(Panel(content, title="🏦 ACCOUNT INFO", style="bold white"))
+    c.print(Panel(content, title="ACCOUNT INFO", style="bold white"))
     
     # Open positions table if we have positions
     if open_positions:
-        positions_table = Table(title="📊 Open Positions", show_lines=True, box=None)
+        positions_table = Table(title="Open Positions", show_lines=True, box=None)
         positions_table.add_column("Symbol", style="bold cyan")
         positions_table.add_column("Qty", style="white", justify="right")
         positions_table.add_column("Avg Price", style="white", justify="right")
@@ -339,11 +341,11 @@ def render_footer(message: str, success: bool = True, console: Console | None = 
     c = console or Console()
     
     style = "bold green" if success else "bold red"
-    emoji = "✅" if success else "❌"
+    indicator = "SUCCESS" if success else "ERROR"
     
     c.print()
     c.print(Rule())
-    c.print(Align.center(f"[{style}]{emoji} {message}[/{style}]"))
+    c.print(Align.center(f"[{style}]{indicator}: {message}[/{style}]"))
     c.print()
 
 
@@ -351,7 +353,7 @@ def render_target_vs_current_allocations(target_portfolio: Dict[str, float],
                                        account_info: Dict, 
                                        current_positions: Dict, 
                                        console: Console | None = None) -> None:
-    """Pretty-print target vs current allocations comparison."""
+    """Pretty-print target vs current allocations comparison with enhanced Rich table."""
     c = console or Console()
     
     portfolio_value = account_info.get('portfolio_value', 0.0)
@@ -363,29 +365,58 @@ def render_target_vs_current_allocations(target_portfolio: Dict[str, float],
     }
     
     current_values = {
-        symbol: pos.get('market_value', 0.0) 
+        symbol: float(getattr(pos, 'market_value', 0.0)) 
         for symbol, pos in current_positions.items()
     }
     
-    # Create comparison table
-    table = Table(title="🎯 Target vs Current Allocations (trades only if % difference > 1.0)", show_lines=True, expand=True)
-    table.add_column("Symbol", style="bold cyan", justify="center")
-    table.add_column("Target %", style="green", justify="right")
-    table.add_column("Current %", style="blue", justify="right")
-    table.add_column("Δ pct pts", style="bold magenta", justify="right")
+    # Create enhanced comparison table
+    table = Table(title="Portfolio Rebalancing Summary", show_lines=True, expand=True, box=None)
+    table.add_column("Symbol", style="bold cyan", justify="center", width=8)
+    table.add_column("Target", style="green", justify="right", width=14)
+    table.add_column("Current", style="blue", justify="right", width=14)
+    table.add_column("Dollar Diff", style="yellow", justify="right", width=12)
+    table.add_column("Action", style="bold", justify="center", width=10)
 
     all_symbols = set(target_portfolio.keys()) | set(current_positions.keys())
+    
     for symbol in sorted(all_symbols):
         target_weight = target_portfolio.get(symbol, 0.0)
+        target_value = target_values.get(symbol, 0.0)
         current_value = current_values.get(symbol, 0.0)
         current_weight = current_value / portfolio_value if portfolio_value > 0 else 0.0
         percent_diff = abs(target_weight - current_weight)
+        dollar_diff = target_value - current_value
+        
+        # Determine action based on difference
+        if percent_diff > 0.01:  # 1% threshold
+            if dollar_diff > 50:
+                action = "[green]BUY[/green]"
+            elif dollar_diff < -50:
+                action = "[red]SELL[/red]"
+            else:
+                action = "[yellow]REBAL[/yellow]"
+        else:
+            action = "[dim]HOLD[/dim]"
+        
+        # Color coding for dollar difference
+        if dollar_diff > 0:
+            dollar_color = "green"
+            dollar_sign = "+"
+        elif dollar_diff < 0:
+            dollar_color = "red"
+            dollar_sign = ""
+        else:
+            dollar_color = "dim"
+            dollar_sign = ""
+        
         table.add_row(
             symbol,
-            f"{target_weight:.1%}",
-            f"{current_weight:.1%}",
-            f"{percent_diff:.1%}"
+            f"{target_weight:.1%}\n[dim]${target_value:,.0f}[/dim]",
+            f"{current_weight:.1%}\n[dim]${current_value:,.0f}[/dim]",
+            f"[{dollar_color}]{dollar_sign}${abs(dollar_diff):,.0f}[/{dollar_color}]",
+            action
         )
+    
     c.print(table)
 
 
@@ -397,7 +428,7 @@ def render_execution_plan(sell_orders: List[Dict], buy_orders: List[Dict], conso
     total_buy_cost = sum(o.get('estimated_cost', 0) for o in buy_orders)
     
     # Create execution plan table
-    table = Table(title="📋 Execution Plan", show_lines=True, expand=True)
+    table = Table(title="Execution Plan", show_lines=True, expand=True)
     table.add_column("Phase", style="bold", justify="center")
     table.add_column("Orders", style="cyan", justify="center")
     table.add_column("Total Value", style="green", justify="right")
@@ -411,8 +442,8 @@ def render_execution_plan(sell_orders: List[Dict], buy_orders: List[Dict], conso
     if len(buy_orders) > 3:
         buy_details += f" +{len(buy_orders)-3} more"
     
-    table.add_row("🔴 Sells", str(len(sell_orders)), f"${total_sell_proceeds:,.2f}", sell_details)
-    table.add_row("🟢 Buys", str(len(buy_orders)), f"${total_buy_cost:,.2f}", buy_details)
+    table.add_row("Sells", str(len(sell_orders)), f"${total_sell_proceeds:,.2f}", sell_details)
+    table.add_row("Buys", str(len(buy_orders)), f"${total_buy_cost:,.2f}", buy_details)
     
     c.print(table)
 

@@ -59,7 +59,7 @@ def bot(
     if not no_header:
         show_welcome()
     
-    console.print("[bold yellow]📊 Analyzing market conditions...[/bold yellow]")
+    console.print("[bold yellow]Analyzing market conditions...[/bold yellow]")
     
     # Progress indicator while analyzing
     with Progress(
@@ -76,13 +76,13 @@ def bot(
             success = run_all_signals_display()
             
             if success:
-                console.print("\n[bold green]✅ Signal analysis completed successfully![/bold green]")
+                console.print("\n[bold green]Signal analysis completed successfully![/bold green]")
             else:
-                console.print("\n[bold red]❌ Signal analysis failed![/bold red]")
+                console.print("\n[bold red]Signal analysis failed![/bold red]")
                 raise typer.Exit(1)
                 
         except Exception as e:
-            console.print(f"\n[bold red]❌ Error: {e}[/bold red]")
+            console.print(f"\n[bold red]Error: {e}[/bold red]")
             if verbose:
                 console.print_exception()
             raise typer.Exit(1)
@@ -121,7 +121,7 @@ def trade(
             raise typer.Exit(0)
     
     mode_display = "[bold red]LIVE[/bold red]" if live else "[bold blue]PAPER[/bold blue]"
-    console.print(f"[bold yellow]🚀 Starting {mode_display} trading...[/bold yellow]")
+    console.print(f"[bold yellow]Starting {mode_display} trading...[/bold yellow]")
     
     try:
         # Import and run the main trading logic
@@ -139,15 +139,15 @@ def trade(
         console.print("[dim]Trading completed![/dim]")
 
         if result == "market_closed":
-            console.print("\n[bold yellow]⏰ Market is closed - no trades executed[/bold yellow]")
+            console.print("\n[bold yellow]Market is closed - no trades executed[/bold yellow]")
         elif result:
-            console.print(f"\n[bold green]✅ {mode_display} trading completed successfully![/bold green]")
+            console.print(f"\n[bold green]{mode_display} trading completed successfully![/bold green]")
         else:
-            console.print(f"\n[bold red]❌ {mode_display} trading failed![/bold red]")
+            console.print(f"\n[bold red]{mode_display} trading failed![/bold red]")
             raise typer.Exit(1)
 
     except Exception as e:
-        console.print(f"\n[bold red]❌ Error: {e}[/bold red]")
+        console.print(f"\n[bold red]Error: {e}[/bold red]")
         if verbose:
             console.print_exception()
         raise typer.Exit(1)
@@ -161,7 +161,7 @@ def status():
     """
     show_welcome()
     
-    console.print("[bold yellow]📊 Fetching account status...[/bold yellow]")
+    console.print("[bold yellow]Fetching account status...[/bold yellow]")
     
     try:
         from the_alchemiser.execution.alpaca_trader import AlpacaTradingBot
@@ -180,7 +180,7 @@ def status():
             render_account_info(account_info)
             
             # Get portfolio history for P&L trends
-            console.print("\n[bold yellow]📈 Fetching portfolio history...[/bold yellow]")
+            console.print("\n[bold yellow]Fetching portfolio history...[/bold yellow]")
             portfolio_history = data_provider.get_portfolio_history()
             
             if portfolio_history and 'equity' in portfolio_history:
@@ -203,10 +203,10 @@ def status():
 [bold yellow]Recent P&L:[/bold yellow] ${recent_pl:+,.2f} ({recent_pl_pct:+.2f}%)
 [bold cyan]Base Value:[/bold cyan] ${portfolio_history.get('base_value', 0):,.2f}"""
                     
-                    console.print(Panel(pl_content, title="💰 PORTFOLIO PERFORMANCE", style="bold white"))
+                    console.print(Panel(pl_content, title="PORTFOLIO PERFORMANCE", style="bold white"))
             
             # Get open positions for detailed P&L
-            console.print("\n[bold yellow]📊 Fetching current positions...[/bold yellow]")
+            console.print("\n[bold yellow]Fetching current positions...[/bold yellow]")
             open_positions = data_provider.get_open_positions()
             
             if open_positions:
@@ -263,15 +263,15 @@ def status():
                 
                 console.print(table)
             else:
-                console.print(Panel("No open positions", title="📈 CURRENT POSITIONS", style="yellow"))
+                console.print(Panel("No open positions", title="CURRENT POSITIONS", style="yellow"))
             
-            console.print("[bold green]✅ Account status retrieved successfully![/bold green]")
+            console.print("[bold green]Account status retrieved successfully![/bold green]")
         else:
-            console.print("[bold red]❌ Could not retrieve account status![/bold red]")
+            console.print("[bold red]Could not retrieve account status![/bold red]")
             raise typer.Exit(1)
             
     except Exception as e:
-        console.print(f"[bold red]❌ Error: {e}[/bold red]")
+        console.print(f"[bold red]Error: {e}[/bold red]")
         raise typer.Exit(1)
 
 @app.command()

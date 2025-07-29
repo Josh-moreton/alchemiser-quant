@@ -64,30 +64,48 @@ class PortfolioRebalancer:
             current_value = plan_data.get('current_value', 0.0)
             needs_rebalance = plan_data.get('needs_rebalance', False)
             
-            # Debug logging for BTAL specifically
-            if symbol == 'BTAL':
-                logging.info(f"🔍 BTAL debug: target_value={target_value}, current_value={current_value}, needs_rebalance={needs_rebalance}")
-                logging.info(f"🔍 BTAL plan_data: {plan_data}")
-            
             # Force liquidation if symbol not in target portfolio (regardless of rebalance plan)
             if symbol not in target_portfolio:
                 qty = float(getattr(pos, 'qty', 0))
-                if qty > 0:
-                    price = self.bot.get_current_price(symbol)
-                    if price > 0:
-                        logging.info(f"🔄 Liquidating {symbol} (not in target portfolio): {qty} shares @ ${price:.2f}")
-                        sell_plans.append({"symbol": symbol, "qty": qty, "est": qty * price})
-                        continue
+                if abs(qty) > 0:  # Check for any position (positive or negative)
+                    from rich.console import Console
+                    Console().print(f"[yellow]Liquidating {symbol} (not in target portfolio)[/yellow]")
+                    # Use Alpaca's liquidate_position API instead of manual calculation
+                    order_id = self.order_manager.liquidate_position(symbol)
+                    if order_id:
+                        # Estimate value for tracking purposes
+                        price = self.bot.get_current_price(symbol)
+                        estimated_value = abs(qty) * price if price > 0 else 0
+                        orders_executed.append({
+                            "symbol": symbol,
+                            "qty": abs(qty),
+                            "side": OrderSide.SELL,
+                            "order_id": order_id,
+                            "estimated_value": estimated_value,
+                        })
+                    continue
             
             # Continue with normal rebalance plan logic
             if not needs_rebalance:
                 continue
             
             if target_value <= 0 and float(getattr(pos, 'qty', 0)) > 0:
-                price = self.bot.get_current_price(symbol)
-                qty = float(pos.qty)
-                if price > 0 and qty > 0:
-                    sell_plans.append({"symbol": symbol, "qty": qty, "est": qty * price})
+                # Target is 0, liquidate the entire position using Alpaca API
+                from rich.console import Console
+                Console().print(f"[yellow]Liquidating {symbol} (target allocation: 0%)[/yellow]")
+                order_id = self.order_manager.liquidate_position(symbol)
+                if order_id:
+                    # Estimate value for tracking purposes
+                    qty = float(getattr(pos, 'qty', 0))
+                    price = self.bot.get_current_price(symbol)
+                    estimated_value = abs(qty) * price if price > 0 else 0
+                    orders_executed.append({
+                        "symbol": symbol,
+                        "qty": abs(qty),
+                        "side": OrderSide.SELL,
+                        "order_id": order_id,
+                        "estimated_value": estimated_value,
+                    })
             elif current_value > target_value:
                 price = self.bot.get_current_price(symbol)
                 diff_value = current_value - target_value
@@ -108,8 +126,9 @@ class PortfolioRebalancer:
                     "estimated_value": plan["est"],
                 })
 
-        if sell_plans:
-            sell_orders = [o for o in orders_executed if o["side"] == OrderSide.SELL]
+        # Wait for all sell orders (liquidations + partial sells) to settle
+        sell_orders = [o for o in orders_executed if o["side"] == OrderSide.SELL]
+        if sell_orders:
             self.bot.wait_for_settlement(sell_orders)
             account_info = self.bot.get_account_info()
         available_cash = account_info.get("cash", cash)
@@ -163,7 +182,16 @@ class PortfolioRebalancer:
             # Use the minimum of: target dollar amount or available cash (with small buffer)
             target_dollar_amount = min(estimated_cost, available_cash * 0.99)  # 99% to leave small buffer
             
-            logging.info(f"Using notional order for {symbol}: ${target_dollar_amount:.2f} (available: ${available_cash:.2f})")
+            # Get bid/ask for display
+            quote = self.bot.data_provider.get_latest_quote(symbol)
+            bid = quote.bid_price if quote and hasattr(quote, 'bid_price') else 0
+            ask = quote.ask_price if quote and hasattr(quote, 'ask_price') else 0
+            
+            from rich.console import Console
+            if bid > 0 and ask > 0:
+                Console().print(f"[green]Buying {symbol}: ${target_dollar_amount:.2f} (bid=${bid:.2f}, ask=${ask:.2f})[/green]")
+            else:
+                Console().print(f"[green]Buying {symbol}: ${target_dollar_amount:.2f}[/green]")
             
             # Use notional order directly via the order manager adapter
             order_id = self.order_manager.place_limit_or_market(
@@ -183,21 +211,15 @@ class PortfolioRebalancer:
                 })
                 
                 # Wait for this individual order to settle before moving to the next
-                logging.info(f"⏳ Waiting for {symbol} order to settle...")
                 self.bot.wait_for_settlement([{
                     "symbol": symbol,
                     "order_id": order_id,
                     "qty": target_qty,
                     "side": OrderSide.BUY
                 }])
-                
-                logging.info(f"✅ {symbol} order settled, moving to next buy order")
 
         # Final summary
         final_positions = self.bot.get_positions()
         self.bot.display_target_vs_current_allocations(target_portfolio, account_info, final_positions)
 
-        logging.info(
-            f"Rebalance complete with {len(orders_executed)} orders"
-        )
         return orders_executed

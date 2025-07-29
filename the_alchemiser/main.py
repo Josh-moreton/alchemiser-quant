@@ -27,7 +27,9 @@ def setup_file_logging():
     import os
     from the_alchemiser.core.utils.s3_utils import S3FileHandler
     root_logger = logging.getLogger()
-    root_logger.setLevel(logging.INFO)
+    
+    # Set to WARNING level for cleaner CLI output - important info shown via Rich
+    root_logger.setLevel(logging.WARNING)
     root_logger.handlers.clear()  # Remove any existing handlers
 
     # Logging now handled by Cloudwatch and S3 trades/signals JSON. File logging setup removed.
@@ -35,7 +37,7 @@ def setup_file_logging():
     # Set appropriate levels for third-party loggers
     logging.getLogger('botocore').setLevel(logging.WARNING)
     logging.getLogger('urllib3').setLevel(logging.WARNING)
-    logging.getLogger('alpaca').setLevel(logging.INFO)
+    logging.getLogger('alpaca').setLevel(logging.WARNING)
     logging.getLogger('boto3').setLevel(logging.WARNING)
     logging.getLogger('s3transfer').setLevel(logging.WARNING)
 
@@ -82,7 +84,7 @@ def run_all_signals_display():
         manager, strategy_signals, consolidated_portfolio = generate_multi_strategy_signals()
         if not strategy_signals:
             from rich.console import Console
-            Console().print("[bold red]⚠️  Failed to generate multi-strategy signals[/bold red]")
+            Console().print("[bold red]Failed to generate multi-strategy signals[/bold red]")
             return False
             
         # Display technical indicators
@@ -118,13 +120,13 @@ def run_all_signals_display():
         strategy_summary = f"""[bold cyan]NUCLEAR:[/bold cyan] {nuclear_positions} positions, 50% allocation
 [bold cyan]TECL:[/bold cyan] {tecl_positions} positions, 50% allocation"""
         
-        console.print(Panel(strategy_summary, title="📋 Strategy Summary", border_style="blue"))
+        console.print(Panel(strategy_summary, title="Strategy Summary", border_style="blue"))
         
         render_footer("Signal analysis completed successfully!")
         return True
     except Exception as e:
         from rich.console import Console
-        Console().print(f"[bold red]❌ Error analyzing strategies: {e}[/bold red]")
+        Console().print(f"[bold red]Error analyzing strategies: {e}[/bold red]")
         import traceback
         traceback.print_exc()
         return False
@@ -160,7 +162,7 @@ def run_multi_strategy_trading(live_trading: bool = False, ignore_market_hours: 
         if not ignore_market_hours and not is_market_open(trader.trading_client):
             from rich.console import Console
             from the_alchemiser.core.ui.email_utils import send_email_notification, build_error_email_html
-            Console().print("[bold red]❌ Market is CLOSED. No trades will be placed.[/bold red]")
+            Console().print("[bold red]Market is CLOSED. No trades will be placed.[/bold red]")
             html_content = build_error_email_html(
                 "Market Closed Alert", 
                 "Market is currently closed. No trades will be placed."
@@ -183,8 +185,20 @@ def run_multi_strategy_trading(live_trading: bool = False, ignore_market_hours: 
         from the_alchemiser.core.ui.cli_formatter import render_strategy_signals
         render_strategy_signals(strategy_signals)
         
-        # Execute multi-strategy
-        result = trader.execute_multi_strategy()
+        # Execute multi-strategy with progress indicator
+        from rich.progress import Progress, SpinnerColumn, TextColumn
+        from rich.console import Console
+        
+        console = Console()
+        
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console,
+            transient=True
+        ) as progress:
+            task = progress.add_task("Executing trading strategy...", total=None)
+            result = trader.execute_multi_strategy()
         
         # Display results
         trader.display_multi_strategy_summary(result)
@@ -201,13 +215,13 @@ def run_multi_strategy_trading(live_trading: bool = False, ignore_market_hours: 
                 )
             except Exception as e:
                 from rich.console import Console
-                Console().print(f"[bold yellow]⚠️ Email notification failed: {e}[/bold yellow]")
+                Console().print(f"[bold yellow]Email notification failed: {e}[/bold yellow]")
         
         return result.success
         
     except Exception as e:
         from rich.console import Console
-        Console().print(f"[bold red]❌ Error: {e}[/bold red]")
+        Console().print(f"[bold red]Error: {e}[/bold red]")
         return False
 
 
@@ -258,7 +272,7 @@ def main(argv=None):
                 success = result
     except Exception as e:
         from rich.console import Console
-        Console().print(f"[bold red]❌ Error: {e}[/bold red]")
+        Console().print(f"[bold red]Error: {e}[/bold red]")
         success = False
     
     if success:
