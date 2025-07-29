@@ -209,8 +209,7 @@
                                           [(weight-equal
                                             [(group
                                               "Nuclear Energy Portfolio"
-                                              [(weight-inverse-volatility
-                                                90
+                                              [(weight-equal
                                                 [(filter
                                                   (moving-average-return
                                                    {:window 90})
