@@ -365,7 +365,7 @@ def render_target_vs_current_allocations(target_portfolio: Dict[str, float],
     }
     
     current_values = {
-        symbol: pos.get('market_value', 0.0) 
+        symbol: float(getattr(pos, 'market_value', 0.0)) 
         for symbol, pos in current_positions.items()
     }
     

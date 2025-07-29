@@ -50,15 +50,11 @@ class AlchemiserTradingBot:
             symbol: float(getattr(pos, 'market_value', 0.0)) 
             for symbol, pos in current_positions.items()
         }
-        print(f"🎯 Target vs Current Allocations (trades only if % difference > 1.0):")
-        all_symbols = set(target_portfolio.keys()) | set(current_positions.keys())
-        for symbol in sorted(all_symbols):
-            target = target_values.get(symbol, 0.0)
-            current = current_values.get(symbol, 0.0)
-            pct_diff = 0.0
-            if max(target, current) > 0:
-                pct_diff = 100 * abs(target - current) / max(target, current)
-            print(f"  {symbol:<6} Target: ${target:,.2f} | Current: ${current:,.2f} | Diff: {pct_diff:.2f}%")
+        
+        # Use Rich table for beautiful display
+        from the_alchemiser.core.ui.cli_formatter import render_target_vs_current_allocations
+        render_target_vs_current_allocations(target_portfolio, account_info, current_positions)
+        
         return target_values, current_values
     """Unified multi-strategy trading bot for Alpaca"""
 
