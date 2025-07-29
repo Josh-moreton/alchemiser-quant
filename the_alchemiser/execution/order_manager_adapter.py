@@ -7,6 +7,7 @@ SimpleOrderManager internally for much more reliable order placement.
 """
 
 import logging
+import time
 from typing import Dict, List, Optional
 from alpaca.trading.enums import OrderSide
 from alpaca.trading.client import TradingClient
@@ -74,11 +75,15 @@ class OrderManagerAdapter:
         notional: Optional[float] = None
     ) -> Optional[str]:
         """
-        Place limit or market order - delegates to SimpleOrderManager.place_market_order.
+        Place limit or market order with smart execution strategy.
         
-        For simplicity and reliability, we use market orders which execute immediately.
-        Can use either quantity-based or notional (dollar amount) orders.
+        For BUY orders: Try limit order first (between bid/ask for quick fill), 
+        then fallback to market order if not filled in 15 seconds.
+        
+        For SELL orders: Use market orders for immediate execution.
         """
+        import time
+        
         # Handle both string and OrderSide enum inputs
         side_str = side.value if hasattr(side, 'value') else str(side)
         
@@ -86,12 +91,108 @@ class OrderManagerAdapter:
         if isinstance(side, str):
             side = OrderSide.BUY if side.lower() == 'buy' else OrderSide.SELL
         
-        if notional is not None:
-            logging.info(f"🔄 Market order (notional): {side_str} ${notional:.2f} of {symbol}")
-            return self.simple_order_manager.place_market_order(symbol, side, notional=notional)
-        else:
-            logging.info(f"🔄 Market order: {side_str} {symbol} {qty} shares")
-            return self.simple_order_manager.place_market_order(symbol, side, qty=qty)
+        # For SELL orders, always use market orders for immediate execution
+        if side == OrderSide.SELL:
+            if notional is not None:
+                logging.info(f"🔄 Market order (notional): {side_str} ${notional:.2f} of {symbol}")
+                return self.simple_order_manager.place_market_order(symbol, side, notional=notional)
+            else:
+                logging.info(f"🔄 Market order: {side_str} {symbol} {qty} shares")
+                return self.simple_order_manager.place_market_order(symbol, side, qty=qty)
+        
+        # For BUY orders, implement smart limit-then-market strategy
+        if side == OrderSide.BUY:
+            # Handle notional vs quantity orders
+            if notional is not None:
+                # For notional orders, calculate quantity from current price and apply scaling
+                try:
+                    current_price = self.simple_order_manager.data_provider.get_current_price(symbol)
+                    if current_price <= 0:
+                        logging.warning(f"Invalid price for {symbol}, falling back to market order")
+                        return self.simple_order_manager.place_market_order(symbol, side, notional=notional)
+                    
+                    # Calculate max quantity we can afford, round down to 6 decimals, then scale to 99%
+                    raw_qty = notional / current_price
+                    rounded_qty = int(raw_qty * 1e6) / 1e6  # Round down to 6 decimals
+                    scaled_qty = rounded_qty * 0.99  # Scale to 99% to avoid buying power issues
+                    
+                    if scaled_qty <= 0:
+                        logging.warning(f"Calculated quantity too small for {symbol}, falling back to market order")
+                        return self.simple_order_manager.place_market_order(symbol, side, notional=notional)
+                    
+                    qty = scaled_qty
+                    
+                except Exception as e:
+                    logging.warning(f"Error calculating quantity for {symbol}: {e}, falling back to market order")
+                    return self.simple_order_manager.place_market_order(symbol, side, notional=notional)
+            else:
+                # For quantity orders, round down to 6 decimals and scale to 99%
+                rounded_qty = int(qty * 1e6) / 1e6
+                qty = rounded_qty * 0.99
+            
+            # Get bid/ask for smart limit price calculation
+            try:
+                quote = self.simple_order_manager.data_provider.get_latest_quote(symbol)
+                if quote and len(quote) >= 2:  # Expecting (bid, ask) tuple
+                    bid = float(quote[0])
+                    ask = float(quote[1])
+                    
+                    if bid > 0 and ask > 0 and ask > bid:
+                        # Calculate limit price between bid and ask, favoring quick fill
+                        # Place limit closer to ask for faster execution (75% toward ask from bid)
+                        limit_price = bid + (ask - bid) * 0.75
+                        limit_price = round(limit_price, 2)  # Round to cents
+                        
+                        logging.info(f"📋 Attempting limit order: buy {qty:.6f} {symbol} @ ${limit_price:.2f} (bid=${bid:.2f}, ask=${ask:.2f})")
+                        
+                        # Try limit order first
+                        limit_order_id = self.simple_order_manager.place_limit_order(
+                            symbol, qty, side, limit_price
+                        )
+                        
+                        if limit_order_id:
+                            # Wait 15 seconds for fill, checking every 2 seconds
+                            logging.info(f"⏳ Waiting 15 seconds for limit order {limit_order_id} to fill...")
+                            
+                            for i in range(8):  # 8 checks over 15 seconds (15/2 = 7.5, round up)
+                                time.sleep(2)
+                                
+                                # Check if order is filled
+                                try:
+                                    order = self.simple_order_manager.trading_client.get_order_by_id(limit_order_id)
+                                    status = str(getattr(order, 'status', 'unknown'))
+                                    
+                                    if 'FILLED' in status or 'filled' in status.lower():
+                                        logging.info(f"✅ Limit order filled: {symbol} @ ${limit_price:.2f}")
+                                        return limit_order_id
+                                    elif 'CANCELED' in status or 'REJECTED' in status:
+                                        logging.warning(f"❌ Limit order {status.lower()}: {symbol}")
+                                        break
+                                        
+                                except Exception as e:
+                                    logging.warning(f"Error checking limit order status: {e}")
+                                    break
+                            
+                            # If we get here, order didn't fill - cancel it
+                            try:
+                                self.simple_order_manager.trading_client.cancel_order_by_id(limit_order_id)
+                                logging.info(f"🚫 Cancelled unfilled limit order for {symbol}")
+                            except Exception as e:
+                                logging.warning(f"Error cancelling limit order: {e}")
+                        
+                        # Limit order didn't work, fall back to market order
+                        logging.info(f"💨 Limit order timeout, placing market order for {symbol}")
+                    
+            except Exception as e:
+                logging.warning(f"Error getting quote for {symbol}: {e}, using market order")
+            
+            # Fallback to market order
+            if notional is not None:
+                logging.info(f"🔄 Market order (notional fallback): buy ${notional:.2f} of {symbol}")
+                return self.simple_order_manager.place_market_order(symbol, side, notional=notional)
+            else:
+                logging.info(f"🔄 Market order (fallback): buy {qty:.6f} {symbol}")
+                return self.simple_order_manager.place_market_order(symbol, side, qty=qty)
     
     def wait_for_settlement(
         self, 
