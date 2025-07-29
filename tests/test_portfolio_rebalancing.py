@@ -9,6 +9,8 @@ from unittest.mock import MagicMock, patch, call
 from alpaca.trading.enums import OrderSide
 
 from the_alchemiser.execution.order_manager_adapter import OrderManagerAdapter
+from the_alchemiser.execution.alchemiser_trader import AlchemiserTradingBot
+from the_alchemiser.core.trading.strategy_manager import StrategyType
 
 
 @pytest.fixture
@@ -37,6 +39,23 @@ def mock_data_provider():
 def order_manager(mock_trading_client, mock_data_provider):
     """Create OrderManagerAdapter for testing."""
     return OrderManagerAdapter(mock_trading_client, mock_data_provider)
+
+
+@pytest.fixture
+def multi_strategy_trader(mock_trading_client, mock_data_provider):
+    """Create AlchemiserTradingBot (formerly MultiStrategyAlpacaTrader) for testing."""
+    mock_config = {
+        'data': {'cache_duration': 300},
+        'alpaca': {'cash_reserve_pct': 0.05, 'slippage_bps': 5},
+        'strategy': {'poll_timeout': 30, 'poll_interval': 2.0}
+    }
+    
+    with patch('the_alchemiser.core.data.data_provider.UnifiedDataProvider') as mock_provider_class:
+        mock_provider_class.return_value = mock_data_provider
+        trader = AlchemiserTradingBot(paper_trading=True, config=mock_config)
+        trader.trading_client = mock_trading_client
+        trader.data_provider = mock_data_provider
+        return trader
 
 
 class TestFullRebalance:

@@ -248,7 +248,16 @@ class SimpleOrderManager:
         Returns:
             Order ID if successful, None if failed
         """
-        if qty <= 0:
+        # Convert qty to float if it's a string
+        try:
+            qty = float(qty)
+        except (ValueError, TypeError):
+            logging.warning(f"Invalid quantity type for {symbol}: {qty}")
+            return None
+        
+        # Check for invalid numeric values
+        import math
+        if math.isnan(qty) or math.isinf(qty) or qty <= 0:
             logging.warning(f"Invalid quantity for {symbol}: {qty}")
             return None
 

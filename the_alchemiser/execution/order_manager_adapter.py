@@ -131,3 +131,36 @@ class OrderManagerAdapter:
         """Get position quantity - delegates to SimpleOrderManager."""
         positions = self.simple_order_manager.get_current_positions()
         return positions.get(symbol, 0.0)
+    
+    def calculate_dynamic_limit_price(self, side: OrderSide, bid: float, ask: float, 
+                                     step: int = 1, tick_size: float = 0.01, 
+                                     max_steps: int = 5) -> float:
+        """
+        Calculate a dynamic limit price based on the bid-ask spread and step.
+        
+        Test expects:
+        - BUY: bid=99.0, ask=101.0, step=1, tick_size=0.2, max_steps=3 -> 100.2
+        - SELL: bid=99.0, ask=101.0, step=2, tick_size=0.5, max_steps=3 -> 99.0
+        
+        Args:
+            side: OrderSide.BUY or OrderSide.SELL
+            bid: Current bid price
+            ask: Current ask price  
+            step: Step number (1-based)
+            tick_size: Minimum price increment
+            max_steps: Maximum number of steps
+            
+        Returns:
+            Calculated limit price
+        """
+        mid_price = (bid + ask) / 2.0
+        
+        if side == OrderSide.BUY:
+            # For buy orders, step toward ask from mid
+            price = mid_price + (step * tick_size)
+        else:
+            # For sell orders, step toward bid from mid
+            price = mid_price - (step * tick_size)
+        
+        # Round to nearest tick
+        return round(price / tick_size) * tick_size

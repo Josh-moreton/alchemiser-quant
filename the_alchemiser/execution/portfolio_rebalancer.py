@@ -5,6 +5,7 @@ import logging
 from typing import Dict, List
 
 from alpaca.trading.enums import OrderSide
+from ..utils.trading_math import calculate_rebalance_amounts
 
 
 class PortfolioRebalancer:
@@ -48,11 +49,21 @@ class PortfolioRebalancer:
             symbol: pos.get("market_value", 0.0) for symbol, pos in current_positions.items()
         }
 
+        # Use threshold-aware rebalancing logic
+        rebalance_plan = calculate_rebalance_amounts(
+            target_portfolio, current_values, portfolio_value
+        )
+
         # --- Step 4: Build list of sells ---
         sell_plans: List[Dict] = []
         for symbol, pos in current_positions.items():
-            target_value = target_values.get(symbol, 0.0)
-            current_value = current_values.get(symbol, 0.0)
+            plan_data = rebalance_plan.get(symbol, {})
+            if not plan_data.get('needs_rebalance', False):
+                continue
+                
+            target_value = plan_data.get('target_value', 0.0)
+            current_value = plan_data.get('current_value', 0.0)
+            
             if target_value <= 0 and pos.get("qty", 0) > 0:
                 price = self.bot.get_current_price(symbol)
                 qty = pos["qty"]
@@ -87,16 +98,25 @@ class PortfolioRebalancer:
         # --- Step 6: Build list of buys using refreshed info ---
         current_positions = self.bot.get_positions()
         portfolio_value = account_info.get("portfolio_value", portfolio_value)
-        target_values = {
-            symbol: portfolio_value * weight for symbol, weight in target_portfolio.items()
-        }
+        
+        # Recalculate current values after sells
         current_values = {
             symbol: pos.get("market_value", 0.0) for symbol, pos in current_positions.items()
         }
+        
+        # Recalculate rebalance plan with updated portfolio state
+        rebalance_plan = calculate_rebalance_amounts(
+            target_portfolio, current_values, portfolio_value
+        )
 
         buy_plans: List[Dict] = []
-        for symbol, target_value in target_values.items():
-            current_value = current_values.get(symbol, 0.0)
+        for symbol, plan_data in rebalance_plan.items():
+            if not plan_data.get('needs_rebalance', False):
+                continue
+                
+            target_value = plan_data.get('target_value', 0.0)
+            current_value = plan_data.get('current_value', 0.0)
+            
             if target_value > current_value:
                 price = self.bot.get_current_price(symbol)
                 diff_value = target_value - current_value

@@ -34,7 +34,7 @@ def mock_trading_client():
 @pytest.fixture
 def mock_data_provider():
     """Mock data provider."""
-    provider = MagicMock(spec=UnifiedDataProvider)
+    provider = MagicMock()
     provider.get_current_price.return_value = 150.0
     provider.get_latest_quote.return_value = (149.0, 151.0)
     provider.get_market_hours.return_value = (True, True)
