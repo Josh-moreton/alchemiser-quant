@@ -116,50 +116,85 @@ class TECLStrategyEngine:
     
     def evaluate_tecl_strategy(self, indicators, market_data=None):
         """
-        Evaluate the TECL strategy using hierarchical logic from Clojure implementation.
+        Evaluate the TECL (Technology) strategy with detailed reasoning.
         
-        Returns: (recommended_symbol_or_allocation, action, reason)
+        Returns: (recommended_symbol_or_allocation, action, detailed_reason)
         - For single symbols: returns symbol string
         - For multi-asset allocations: returns dict with symbol:weight pairs
         """
         if 'SPY' not in indicators:
-            return 'BIL', ActionType.HOLD.value, "Missing SPY data for market regime detection"
+            return 'BIL', ActionType.HOLD.value, "Missing SPY data for market regime detection - cannot determine bull/bear market"
         
         # Primary market regime detection: SPY vs 200 MA
         spy_price = indicators['SPY']['current_price']
         spy_ma_200 = indicators['SPY']['ma_200']
+        spy_rsi = indicators['SPY']['rsi_10']
+        
+        market_analysis = f"Market Regime Analysis:\n"
+        market_analysis += f"• SPY Price: ${spy_price:.2f} vs 200MA: ${spy_ma_200:.2f}\n"
+        market_analysis += f"• SPY RSI(10): {spy_rsi:.1f}\n"
         
         if spy_price > spy_ma_200:
             # BULL MARKET PATH
-            return self._evaluate_bull_market_path(indicators)
+            market_analysis += f"• Regime: BULL MARKET (SPY above 200MA)\n"
+            return self._evaluate_bull_market_path(indicators, market_analysis)
         else:
             # BEAR MARKET PATH  
-            return self._evaluate_bear_market_path(indicators)
+            market_analysis += f"• Regime: BEAR MARKET (SPY below 200MA)\n"
+            return self._evaluate_bear_market_path(indicators, market_analysis)
     
-    def _evaluate_bull_market_path(self, indicators):
+    def _evaluate_bull_market_path(self, indicators, market_analysis):
         """Evaluate strategy when SPY is above 200-day MA (bull market)"""
         
         # First check: TQQQ overbought > 79 - Mixed allocation (25% UVXY + 75% BIL)
         if 'TQQQ' in indicators and indicators['TQQQ']['rsi_10'] > 79:
-            return {'UVXY': 0.25, 'BIL': 0.75}, ActionType.BUY.value, "Bull market: TQQQ overbought (RSI > 79), UVXY+BIL hedge"
+            tqqq_rsi = indicators['TQQQ']['rsi_10']
+            reasoning = f"{market_analysis}\n\nTechnology Overbought Signal:\n"
+            reasoning += f"• TQQQ RSI(10): {tqqq_rsi:.1f} > 79 (overbought threshold)\n"
+            reasoning += f"• Strategy: Defensive hedge against tech weakness\n"
+            reasoning += f"• Allocation: UVXY 25% (volatility) + BIL 75% (cash)\n"
+            reasoning += f"• Rationale: Tech strength may reverse, partial protection needed"
+            
+            return {'UVXY': 0.25, 'BIL': 0.75}, ActionType.BUY.value, reasoning
         
         # Second check: SPY overbought > 80 - Mixed allocation (25% UVXY + 75% BIL)
         if indicators['SPY']['rsi_10'] > 80:
-            return {'UVXY': 0.25, 'BIL': 0.75}, ActionType.BUY.value, "Bull market: SPY overbought (RSI > 80), UVXY+BIL hedge"
+            spy_rsi = indicators['SPY']['rsi_10']
+            reasoning = f"{market_analysis}\n\nMarket Overbought Signal:\n"
+            reasoning += f"• SPY RSI(10): {spy_rsi:.1f} > 80 (high overbought threshold)\n"
+            reasoning += f"• Strategy: Broad market protection in bull market\n"
+            reasoning += f"• Allocation: UVXY 25% (volatility) + BIL 75% (cash)\n"
+            reasoning += f"• Rationale: Market stretched, preparing for pullback"
+            
+            return {'UVXY': 0.25, 'BIL': 0.75}, ActionType.BUY.value, reasoning
         
         # Third check: KMLM Switcher logic
-        return self._evaluate_kmlm_switcher(indicators, "Bull market")
+        return self._evaluate_kmlm_switcher(indicators, market_analysis, "Bull market")
     
-    def _evaluate_bear_market_path(self, indicators):
+    def _evaluate_bear_market_path(self, indicators, market_analysis):
         """Evaluate strategy when SPY is below 200-day MA (bear market)"""
         
         # First check: TQQQ oversold < 31 (buy the dip even in bear market)
         if 'TQQQ' in indicators and indicators['TQQQ']['rsi_10'] < 31:
-            return 'TECL', ActionType.BUY.value, "Bear market: TQQQ oversold (RSI < 31), buying tech dip"
+            tqqq_rsi = indicators['TQQQ']['rsi_10']
+            reasoning = f"{market_analysis}\n\nOversold Dip-Buying Signal:\n"
+            reasoning += f"• TQQQ RSI(10): {tqqq_rsi:.1f} < 31 (oversold)\n"
+            reasoning += f"• Strategy: Counter-trend tech dip buying in bear market\n"
+            reasoning += f"• Target: TECL (3x leveraged tech) for maximum bounce\n"
+            reasoning += f"• Rationale: Tech oversold provides opportunity even in bear market"
+            
+            return 'TECL', ActionType.BUY.value, reasoning
         
         # Second check: SPXL oversold < 29 
         if 'SPXL' in indicators and indicators['SPXL']['rsi_10'] < 29:
-            return 'SPXL', ActionType.BUY.value, "Bear market: SPXL oversold (RSI < 29), buying S&P dip"
+            spxl_rsi = indicators['SPXL']['rsi_10']
+            reasoning = f"{market_analysis}\n\nBroad Market Oversold Signal:\n"
+            reasoning += f"• SPXL RSI(10): {spxl_rsi:.1f} < 29 (extremely oversold)\n"
+            reasoning += f"• Strategy: Leveraged S&P dip buying\n"
+            reasoning += f"• Target: SPXL (3x S&P 500) for oversold bounce\n"
+            reasoning += f"• Rationale: Extreme oversold conditions create opportunity"
+            
+            return 'SPXL', ActionType.BUY.value, reasoning
         
         # Third check: UVXY volatility conditions
         if 'UVXY' in indicators:
@@ -167,22 +202,40 @@ class TECLStrategyEngine:
             
             if uvxy_rsi > 84:
                 # Extreme UVXY spike - mixed position (15% UVXY + 85% BIL)
-                return {'UVXY': 0.15, 'BIL': 0.85}, ActionType.BUY.value, "Bear market: UVXY extremely high (RSI > 84), UVXY+BIL volatility trade"
+                reasoning = f"{market_analysis}\n\nExtreme Volatility Spike:\n"
+                reasoning += f"• UVXY RSI(10): {uvxy_rsi:.1f} > 84 (extreme spike)\n"
+                reasoning += f"• Strategy: Volatility momentum + defensive cash\n"
+                reasoning += f"• Allocation: UVXY 15% (volatility) + BIL 85% (cash)\n"
+                reasoning += f"• Rationale: Ride volatility spike while staying defensive"
+                
+                return {'UVXY': 0.15, 'BIL': 0.85}, ActionType.BUY.value, reasoning
             elif uvxy_rsi > 74:
                 # High UVXY - defensive
-                return 'BIL', ActionType.BUY.value, "Bear market: UVXY high (RSI > 74), defensive cash position"
+                reasoning = f"{market_analysis}\n\nHigh Volatility Environment:\n"
+                reasoning += f"• UVXY RSI(10): {uvxy_rsi:.1f} > 74 (elevated)\n"
+                reasoning += f"• Strategy: Full defensive positioning\n"
+                reasoning += f"• Target: BIL (cash equivalent) for capital preservation\n"
+                reasoning += f"• Rationale: High volatility suggests more downside risk"
+                
+                return 'BIL', ActionType.BUY.value, reasoning
         
         # Fourth check: KMLM Switcher for bear market
-        return self._evaluate_kmlm_switcher(indicators, "Bear market")
+        return self._evaluate_kmlm_switcher(indicators, market_analysis, "Bear market")
     
-    def _evaluate_kmlm_switcher(self, indicators, market_regime):
+    def _evaluate_kmlm_switcher(self, indicators, market_analysis, market_regime):
         """
         KMLM Switcher logic: Compare XLK vs KMLM RSI to determine technology timing
         
         This is the core technology timing mechanism of the strategy.
         """
         if 'XLK' not in indicators or 'KMLM' not in indicators:
-            return 'BIL', ActionType.BUY.value, f"{market_regime}: Missing XLK/KMLM data, defensive position"
+            reasoning = f"{market_analysis}\n\nKMLM Switcher - Data Missing:\n"
+            reasoning += f"• Missing XLK and/or KMLM technical data\n"
+            reasoning += f"• Cannot perform technology vs materials comparison\n"
+            reasoning += f"• Strategy: Full defensive cash position\n"
+            reasoning += f"• Target: BIL (cash equivalent) for capital preservation"
+            
+            return 'BIL', ActionType.BUY.value, reasoning
         
         xlk_rsi = indicators['XLK']['rsi_10']
         kmlm_rsi = indicators['KMLM']['rsi_10']
@@ -190,35 +243,61 @@ class TECLStrategyEngine:
         # Debug logging for RSI comparison
         logging.debug(f"KMLM Switcher - XLK RSI(10) = {xlk_rsi:.2f}, KMLM RSI(10) = {kmlm_rsi:.2f}")
         
+        switcher_analysis = f"{market_analysis}\n\nKMLM Switcher Analysis:\n"
+        switcher_analysis += f"• XLK (Technology) RSI(10): {xlk_rsi:.1f}\n"
+        switcher_analysis += f"• KMLM (Materials) RSI(10): {kmlm_rsi:.1f}\n"
+        
         if xlk_rsi > kmlm_rsi:
             # Technology (XLK) is stronger than materials (KMLM)
+            switcher_analysis += f"• Sector Comparison: Technology STRONGER than Materials\n"
             
             if xlk_rsi > 81:
                 # XLK extremely overbought - defensive
+                reasoning = f"{switcher_analysis}• XLK Status: Extremely overbought (>81)\n"
+                reasoning += f"• Strategy: Defensive despite tech strength\n"
+                reasoning += f"• Target: BIL (cash) - tech too extended for entry\n"
+                reasoning += f"• Rationale: Tech leadership unsustainable at extreme levels"
+                
                 logging.debug(f"XLK extremely overbought: {xlk_rsi:.2f} > 81")
-                return 'BIL', ActionType.BUY.value, f"{market_regime}: XLK extremely overbought (RSI > 81), defensive"
+                return 'BIL', ActionType.BUY.value, reasoning
             else:
                 # XLK strong but not extreme - buy technology
+                reasoning = f"{switcher_analysis}• XLK Status: Strong but sustainable (<81)\n"
+                reasoning += f"• Strategy: Technology momentum play\n"
+                reasoning += f"• Target: TECL (3x leveraged tech) for sector strength\n"
+                reasoning += f"• Rationale: Tech outperforming materials, trend continuation"
+                
                 logging.debug(f"XLK stronger than KMLM: {xlk_rsi:.2f} > {kmlm_rsi:.2f}")
-                return 'TECL', ActionType.BUY.value, f"{market_regime}: XLK stronger than KMLM, technology favored"
+                return 'TECL', ActionType.BUY.value, reasoning
         
         else:
             # Materials (KMLM) is stronger than technology (XLK) 
+            switcher_analysis += f"• Sector Comparison: Materials STRONGER than Technology\n"
             
             if xlk_rsi < 29:
                 # XLK oversold - buy the dip
+                reasoning = f"{switcher_analysis}• XLK Status: Oversold (<29) despite weakness\n"
+                reasoning += f"• Strategy: Counter-trend tech dip buying\n"
+                reasoning += f"• Target: TECL (3x leveraged tech) for oversold bounce\n"
+                reasoning += f"• Rationale: Tech oversold creates opportunity despite sector weakness"
+                
                 logging.debug(f"XLK oversold: {xlk_rsi:.2f} < 29")
-                return 'TECL', ActionType.BUY.value, f"{market_regime}: XLK oversold (RSI < 29), buying tech dip"
+                return 'TECL', ActionType.BUY.value, reasoning
             else:
                 # XLK weak - return BIL directly in bull market, use selection in bear market
                 logging.debug(f"KMLM stronger than XLK: {kmlm_rsi:.2f} > {xlk_rsi:.2f}")
                 if market_regime == "Bull market":
-                    return 'BIL', ActionType.BUY.value, f"{market_regime}: XLK weaker than KMLM, defensive cash position"
+                    reasoning = f"{switcher_analysis}• Tech Status: Weak relative to materials\n"
+                    reasoning += f"• Strategy: Defensive positioning in bull market\n"
+                    reasoning += f"• Target: BIL (cash) - avoid weak tech sector\n"
+                    reasoning += f"• Rationale: Materials strength suggests rotation away from tech"
+                    
+                    return 'BIL', ActionType.BUY.value, reasoning
                 else:
                     # Bear market - use bond vs short selection
-                    return self._evaluate_bond_vs_short_selection(indicators, market_regime)
+                    return self._evaluate_bond_vs_short_selection(indicators, switcher_analysis, market_regime)
     
-    def _evaluate_bond_vs_short_selection(self, indicators, market_regime):
+    def _evaluate_bond_vs_short_selection(self, indicators, switcher_analysis, market_regime):
         """
         Final selection between bonds and short positions using RSI filter mechanism.
         This implements the filter/select-top logic from the Clojure version.
@@ -233,13 +312,26 @@ class TECLStrategyEngine:
             candidates.append(('BSV', indicators['BSV']['rsi_9']))
         
         if not candidates:
-            return 'BIL', ActionType.BUY.value, f"{market_regime}: No candidates available, default cash"
+            reasoning = f"{switcher_analysis}• Final Selection: No SQQQ/BSV data available\n"
+            reasoning += f"• Strategy: Default to cash position\n"
+            reasoning += f"• Target: BIL (cash equivalent)\n"
+            reasoning += f"• Rationale: Cannot execute bond vs short selection without data"
+            
+            return 'BIL', ActionType.BUY.value, reasoning
         
         # Select the candidate with the highest RSI(9) - "select-top 1" from Clojure
         best_candidate = max(candidates, key=lambda x: x[1])
         symbol, rsi_value = best_candidate
         
-        return symbol, ActionType.BUY.value, f"{market_regime}: Selected {symbol} (RSI 9: {rsi_value:.1f}) via bond/short filter"
+        candidate_desc = ", ".join([f"{sym} (RSI9: {rsi:.1f})" for sym, rsi in candidates])
+        
+        reasoning = f"{switcher_analysis}• Final Selection Process: Bond vs Short Selection\n"
+        reasoning += f"• Candidates: {candidate_desc}\n"
+        reasoning += f"• Selection Rule: Highest RSI(9) value\n"
+        reasoning += f"• Winner: {symbol} with RSI(9) {rsi_value:.1f}\n"
+        reasoning += f"• Rationale: Mean reversion play - buy strength in bear market"
+        
+        return symbol, ActionType.BUY.value, reasoning
     
     def get_strategy_summary(self) -> str:
         """Get a summary description of the TECL strategy"""

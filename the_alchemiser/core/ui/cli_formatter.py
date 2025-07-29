@@ -105,7 +105,7 @@ def render_technical_indicators(strategy_signals: Dict[Any, Any], console: Conso
 
 
 def render_strategy_signals(strategy_signals: Dict[Any, Any], console: Console | None = None) -> None:
-    """Pretty-print strategy signals using rich panels."""
+    """Pretty-print strategy signals using rich panels with detailed explanations."""
     c = console or Console()
     
     if not strategy_signals:
@@ -128,12 +128,27 @@ def render_strategy_signals(strategy_signals: Dict[Any, Any], console: Console |
         else:
             style = "yellow"
             indicator = "HOLD"
-            
-        content = f"[bold]{indicator} {symbol}[/bold]\n{reason}"
-        panel = Panel(content, title=f"{strategy_type.value if hasattr(strategy_type, 'value') else strategy_type}", style=style)
+        
+        # Create header with action and symbol
+        header = f"[bold]{indicator} {symbol}[/bold]"
+        
+        # Format the detailed explanation with better spacing
+        formatted_reason = reason.replace('\n', '\n\n')  # Add extra spacing between sections
+        
+        content = f"{header}\n\n{formatted_reason}"
+        panel = Panel(
+            content, 
+            title=f"{strategy_type.value if hasattr(strategy_type, 'value') else strategy_type}", 
+            style=style,
+            padding=(1, 2),  # Add more padding for readability
+            expand=False
+        )
         panels.append(panel)
     
-    c.print(Columns(panels, equal=True, expand=True))
+    # Display panels in a column layout for better readability of detailed explanations
+    for panel in panels:
+        c.print(panel)
+        c.print()  # Add spacing between strategy panels
 
 
 def render_portfolio_allocation(portfolio: Dict[str, float], title: str = "PORTFOLIO ALLOCATION", console: Console | None = None) -> None:

@@ -148,55 +148,79 @@ class NuclearStrategyEngine:
     def evaluate_nuclear_strategy(self, indicators, market_data=None):
         """
         Evaluate the Nuclear Energy strategy using the canonical hierarchical logic from Clojure implementation.
-        Returns: (recommended_symbol, action, reason)
+        Returns: (recommended_symbol, action, detailed_reason)
         """
         from the_alchemiser.core.trading.strategy_engine import (
             BullMarketStrategy, BearMarketStrategy, VoxOverboughtStrategy
         )
         if 'SPY' not in indicators:
-            return 'SPY', ActionType.HOLD.value, "Missing SPY data"
+            return 'SPY', ActionType.HOLD.value, "Missing SPY data - cannot evaluate market conditions"
 
-        # Hierarchical logic matching the Clojure canonical strategy
+        # Get key market indicators for detailed reasoning
         spy_rsi_10 = indicators['SPY']['rsi_10']
+        spy_price = indicators['SPY']['current_price']
+        spy_ma_200 = indicators['SPY']['ma_200']
+        market_trend = "Bull Market" if spy_price > spy_ma_200 else "Bear Market"
         
         # PRIMARY BRANCH: SPY RSI > 79 (ALL nested overbought checks happen HERE)
         if spy_rsi_10 > 79:
+            base_explanation = f"Market Analysis: {market_trend} (SPY ${spy_price:.2f} vs 200MA ${spy_ma_200:.2f})\nSPY RSI(10): {spy_rsi_10:.1f} - Primary overbought condition triggered (>79)"
+            
             # First: SPY extremely overbought (> 81)
             if spy_rsi_10 > 81:
-                return 'UVXY', ActionType.BUY.value, "SPY extremely overbought (RSI > 81)"
+                explanation = f"{base_explanation}\n\nSignal: SPY extremely overbought (RSI {spy_rsi_10:.1f} > 81)\nAction: Buy UVXY volatility hedge - expect major market correction"
+                return 'UVXY', ActionType.BUY.value, explanation
             
             # Then: Nested checks for IOO, TQQQ, VTV, XLF (RSI > 81) - IN ORDER
             for symbol in ['IOO', 'TQQQ', 'VTV', 'XLF']:
                 if symbol in indicators and indicators[symbol]['rsi_10'] > 81:
-                    return 'UVXY', ActionType.BUY.value, f"{symbol} extremely overbought (RSI > 81)"
+                    symbol_rsi = indicators[symbol]['rsi_10']
+                    explanation = f"{base_explanation}\n\nSecondary Check: {symbol} RSI(10): {symbol_rsi:.1f} - Extremely overbought (>81)\nAction: Buy UVXY volatility hedge - sector rotation imminent"
+                    return 'UVXY', ActionType.BUY.value, explanation
             
             # Finally: SPY moderately overbought (79-81) - hedge portfolio
-            return 'UVXY_BTAL_PORTFOLIO', ActionType.BUY.value, "SPY overbought (79-81), UVXY 75% + BTAL 25% allocation"
+            explanation = f"{base_explanation}\n\nSignal: SPY moderately overbought (79 < RSI {spy_rsi_10:.1f} < 81)\nAction: Defensive hedged position - UVXY 75% + BTAL 25%\nRationale: Partial volatility hedge while maintaining some upside exposure"
+            return 'UVXY_BTAL_PORTFOLIO', ActionType.BUY.value, explanation
         
         # PRIMARY BRANCH: SPY RSI <= 79 - Continue with VOX, oversold checks, bull/bear logic
+        base_explanation = f"Market Analysis: {market_trend} (SPY ${spy_price:.2f} vs 200MA ${spy_ma_200:.2f})\nSPY RSI(10): {spy_rsi_10:.1f} - Not overbought, checking secondary conditions"
         
         # VOX overbought check  
         if 'VOX' in indicators and indicators['VOX']['rsi_10'] > 79:
+            vox_rsi = indicators['VOX']['rsi_10']
             result = VoxOverboughtStrategy().recommend(indicators)
             if result:
-                return result
+                symbol, action, basic_reason = result
+                explanation = f"{base_explanation}\n\nVOX Telecom Analysis: RSI(10) {vox_rsi:.1f} > 79 (overbought)\n{basic_reason}"
+                return symbol, action, explanation
         
         # Oversold conditions (TQQQ first, then SPY)
         if 'TQQQ' in indicators and indicators['TQQQ']['rsi_10'] < 30:
-            return 'TQQQ', ActionType.BUY.value, "TQQQ oversold, buying dip"
+            tqqq_rsi = indicators['TQQQ']['rsi_10']
+            explanation = f"{base_explanation}\n\nOversold Opportunity: TQQQ RSI(10) {tqqq_rsi:.1f} < 30\nAction: Buy the dip in leveraged tech - oversold bounce expected"
+            return 'TQQQ', ActionType.BUY.value, explanation
         
         if indicators['SPY']['rsi_10'] < 30:
-            return 'UPRO', ActionType.BUY.value, "SPY oversold, buying dip with leverage"
+            explanation = f"{base_explanation}\n\nOversold Opportunity: SPY RSI(10) {spy_rsi_10:.1f} < 30\nAction: Buy UPRO (3x leveraged SPY) - market oversold, strong bounce expected"
+            return 'UPRO', ActionType.BUY.value, explanation
             
         # Bull vs Bear market determination (SPY above/below 200 MA)
-        if 'SPY' in indicators and indicators['SPY']['current_price'] > indicators['SPY']['ma_200']:
+        if 'SPY' in indicators and spy_price > spy_ma_200:
             result = BullMarketStrategy(self.strategy).recommend(indicators, market_data)
             if result:
-                return result
+                symbol, action, basic_reason = result
+                explanation = f"{base_explanation}\n\nBull Market Strategy: SPY above 200MA (${spy_price:.2f} > ${spy_ma_200:.2f})\n{basic_reason}"
+                return symbol, action, explanation
         else:
             result = BearMarketStrategy(self.strategy).recommend(indicators)
             if result:
-                return result
+                symbol, action, basic_reason = result
+                explanation = f"{base_explanation}\n\nBear Market Strategy: SPY below 200MA (${spy_price:.2f} < ${spy_ma_200:.2f})\n{basic_reason}"
+                return symbol, action, explanation
+        
+        # Fallback - no clear signal
+        explanation = f"{base_explanation}\n\nNo Clear Signal: Market conditions neutral\nRSI not overbought/oversold, no strong trend signals\nAction: Hold current positions, wait for clearer market direction"
+        return 'SPY', ActionType.HOLD.value, explanation
         
         # Fallback if no strategy returns a result
         return 'SPY', ActionType.HOLD.value, "No clear signal, holding cash equivalent"

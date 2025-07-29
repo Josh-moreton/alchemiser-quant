@@ -226,8 +226,24 @@ class BullMarketStrategy:
             portfolio_desc = ", ".join([
                 f"{s} ({nuclear_portfolio[s]['weight']:.1%})" for s in portfolio_stocks
             ])
-            return 'NUCLEAR_PORTFOLIO', 'BUY', f"Bull market - Nuclear portfolio: {portfolio_desc}"
-        return 'SMR', 'BUY', "Bull market - default nuclear energy play"
+            
+            # Add detailed reasoning for nuclear portfolio selection
+            reasoning = f"Nuclear Energy Growth Strategy:\n"
+            reasoning += f"• Portfolio: {portfolio_desc}\n"
+            reasoning += f"• Rationale: Bull market favors growth sectors\n"
+            reasoning += f"• Nuclear renaissance theme with clean energy transition\n"
+            reasoning += f"• Diversified across uranium miners, utilities, and tech"
+            
+            return 'NUCLEAR_PORTFOLIO', 'BUY', reasoning
+        
+        # Fallback to SMR with detailed explanation
+        reasoning = f"Nuclear Energy Defensive Play:\n"
+        reasoning += f"• SMR (NuScale Power) - Small Modular Reactor technology\n"
+        reasoning += f"• Bull market default when nuclear portfolio unavailable\n"
+        reasoning += f"• Next-generation nuclear technology leader\n"
+        reasoning += f"• Government backing and regulatory approval progress"
+        
+        return 'SMR', 'BUY', reasoning
 
 class BearMarketStrategy:
     def __init__(self, nuclear_strategy_engine):
@@ -238,8 +254,17 @@ class BearMarketStrategy:
         bear2_signal = self.nuclear_strategy_engine.bear_subgroup_2(indicators)
         bear1_symbol = bear1_signal[0]
         bear2_symbol = bear2_signal[0]
+        
         if bear1_symbol == bear2_symbol:
-            return bear1_signal
+            # Both strategies agree - strengthen the reasoning
+            symbol, action, basic_reason = bear1_signal
+            enhanced_reason = f"Bear Market Defensive Strategy:\n"
+            enhanced_reason += f"• Consensus Signal: Both bear sub-strategies recommend {symbol}\n"
+            enhanced_reason += f"• Strategy Alignment: High confidence defensive position\n"
+            enhanced_reason += f"• {basic_reason}\n"
+            enhanced_reason += f"• Bear market requires defensive nuclear positioning"
+            return symbol, action, enhanced_reason
+            
         bear_portfolio = self.nuclear_strategy_engine.combine_bear_strategies_with_inverse_volatility(
             bear1_symbol, bear2_symbol, indicators
         )
@@ -247,8 +272,24 @@ class BearMarketStrategy:
             portfolio_desc = ", ".join([
                 f"{s} ({bear_portfolio[s]['weight']:.1%})" for s in bear_portfolio.keys()
             ])
-            return 'BEAR_PORTFOLIO', 'BUY', f"Bear market portfolio: {portfolio_desc}"
-        return bear1_signal
+            
+            reasoning = f"Bear Market Diversified Strategy:\n"
+            reasoning += f"• Mixed Signals: Bear strategies disagree ({bear1_symbol} vs {bear2_symbol})\n"
+            reasoning += f"• Solution: Inverse volatility weighted portfolio\n"
+            reasoning += f"• Portfolio: {portfolio_desc}\n"
+            reasoning += f"• Risk Management: Diversification across defensive nuclear plays\n"
+            reasoning += f"• Lower volatility assets get higher allocation weights"
+            
+            return 'BEAR_PORTFOLIO', 'BUY', reasoning
+        
+        # Fallback to first bear signal with enhanced reasoning
+        symbol, action, basic_reason = bear1_signal
+        enhanced_reason = f"Bear Market Fallback Strategy:\n"
+        enhanced_reason += f"• Primary Signal: {basic_reason}\n"
+        enhanced_reason += f"• Portfolio construction failed, using primary bear signal\n"
+        enhanced_reason += f"• Defensive positioning in uncertain market conditions"
+        
+        return symbol, action, enhanced_reason
 
 class OverboughtStrategy:
     def recommend(self, indicators):
@@ -293,13 +334,30 @@ class SecondaryOverboughtStrategy:
 
 class VoxOverboughtStrategy:
     def recommend(self, indicators):
+        vox_rsi = indicators.get('VOX', {}).get('rsi_10', 0) if 'VOX' in indicators else 0
+        xlf_rsi = indicators.get('XLF', {}).get('rsi_10', 0) if 'XLF' in indicators else 0
+        
         # Check if XLF is extremely overbought 
-        if 'XLF' in indicators and indicators['XLF']['rsi_10'] > 81:
-            return 'UVXY', 'BUY', "XLF extremely overbought (RSI > 81)"
+        if 'XLF' in indicators and xlf_rsi > 81:
+            reasoning = f"Telecom Sector Extreme Overbought:\n"
+            reasoning += f"• VOX (Telecom) RSI: {vox_rsi:.1f} (>79 threshold)\n"
+            reasoning += f"• XLF (Financials) RSI: {xlf_rsi:.1f} (>81 extreme threshold)\n"
+            reasoning += f"• Cross-sector overbought condition detected\n"
+            reasoning += f"• UVXY volatility spike expected from sector rotation\n"
+            reasoning += f"• High probability of telecom/financial sector correction"
+            
+            return 'UVXY', 'BUY', reasoning
         
         # If VOX is moderately overbought (79-81), return hedge portfolio
-        if 'VOX' in indicators and indicators['VOX']['rsi_10'] > 79:
-            return 'UVXY_BTAL_PORTFOLIO', 'BUY', "VOX overbought (79-81), UVXY 75% + BTAL 25% allocation"
+        if 'VOX' in indicators and vox_rsi > 79:
+            reasoning = f"Telecom Sector Moderate Overbought:\n"
+            reasoning += f"• VOX (Telecom) RSI: {vox_rsi:.1f} (79-81 range)\n"
+            reasoning += f"• Sector showing signs of exhaustion but not extreme\n"
+            reasoning += f"• Hedged approach: UVXY 75% + BTAL 25%\n"
+            reasoning += f"• UVXY for volatility protection, BTAL for trend continuation\n"
+            reasoning += f"• Balanced risk management for telecom sector weakness"
+            
+            return 'UVXY_BTAL_PORTFOLIO', 'BUY', reasoning
             
         return None
 
