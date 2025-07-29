@@ -353,7 +353,7 @@ def render_target_vs_current_allocations(target_portfolio: Dict[str, float],
                                        account_info: Dict, 
                                        current_positions: Dict, 
                                        console: Console | None = None) -> None:
-    """Pretty-print target vs current allocations comparison."""
+    """Pretty-print target vs current allocations comparison with enhanced Rich table."""
     c = console or Console()
     
     portfolio_value = account_info.get('portfolio_value', 0.0)
@@ -369,25 +369,54 @@ def render_target_vs_current_allocations(target_portfolio: Dict[str, float],
         for symbol, pos in current_positions.items()
     }
     
-    # Create comparison table
-    table = Table(title="Target vs Current Allocations (trades only if % difference > 1.0)", show_lines=True, expand=True)
-    table.add_column("Symbol", style="bold cyan", justify="center")
-    table.add_column("Target %", style="green", justify="right")
-    table.add_column("Current %", style="blue", justify="right")
-    table.add_column("Δ pct pts", style="bold magenta", justify="right")
+    # Create enhanced comparison table
+    table = Table(title="Portfolio Rebalancing Summary", show_lines=True, expand=True, box=None)
+    table.add_column("Symbol", style="bold cyan", justify="center", width=8)
+    table.add_column("Target", style="green", justify="right", width=14)
+    table.add_column("Current", style="blue", justify="right", width=14)
+    table.add_column("Dollar Diff", style="yellow", justify="right", width=12)
+    table.add_column("Action", style="bold", justify="center", width=10)
 
     all_symbols = set(target_portfolio.keys()) | set(current_positions.keys())
+    
     for symbol in sorted(all_symbols):
         target_weight = target_portfolio.get(symbol, 0.0)
+        target_value = target_values.get(symbol, 0.0)
         current_value = current_values.get(symbol, 0.0)
         current_weight = current_value / portfolio_value if portfolio_value > 0 else 0.0
         percent_diff = abs(target_weight - current_weight)
+        dollar_diff = target_value - current_value
+        
+        # Determine action based on difference
+        if percent_diff > 0.01:  # 1% threshold
+            if dollar_diff > 50:
+                action = "[green]BUY[/green]"
+            elif dollar_diff < -50:
+                action = "[red]SELL[/red]"
+            else:
+                action = "[yellow]REBAL[/yellow]"
+        else:
+            action = "[dim]HOLD[/dim]"
+        
+        # Color coding for dollar difference
+        if dollar_diff > 0:
+            dollar_color = "green"
+            dollar_sign = "+"
+        elif dollar_diff < 0:
+            dollar_color = "red"
+            dollar_sign = ""
+        else:
+            dollar_color = "dim"
+            dollar_sign = ""
+        
         table.add_row(
             symbol,
-            f"{target_weight:.1%}",
-            f"{current_weight:.1%}",
-            f"{percent_diff:.1%}"
+            f"{target_weight:.1%}\n[dim]${target_value:,.0f}[/dim]",
+            f"{current_weight:.1%}\n[dim]${current_value:,.0f}[/dim]",
+            f"[{dollar_color}]{dollar_sign}${abs(dollar_diff):,.0f}[/{dollar_color}]",
+            action
         )
+    
     c.print(table)
 
 

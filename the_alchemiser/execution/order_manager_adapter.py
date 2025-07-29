@@ -144,7 +144,7 @@ class OrderManagerAdapter:
                         limit_price = round(limit_price, 2)  # Round to cents
                         
                         from rich.console import Console
-                        Console().print(f"[cyan]Limit order: {symbol} @ ${limit_price:.2f}[/cyan]")
+                        Console().print(f"[cyan]Limit order: {symbol} @ ${limit_price:.2f} (bid=${bid:.2f}, ask=${ask:.2f})[/cyan]")
                         
                         # Try limit order first
                         limit_order_id = self.simple_order_manager.place_limit_order(
