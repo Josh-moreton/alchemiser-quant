@@ -64,18 +64,14 @@ class PortfolioRebalancer:
             current_value = plan_data.get('current_value', 0.0)
             needs_rebalance = plan_data.get('needs_rebalance', False)
             
-            # Debug logging for BTAL specifically
-            if symbol == 'BTAL':
-                logging.info(f"🔍 BTAL debug: target_value={target_value}, current_value={current_value}, needs_rebalance={needs_rebalance}")
-                logging.info(f"🔍 BTAL plan_data: {plan_data}")
-            
             # Force liquidation if symbol not in target portfolio (regardless of rebalance plan)
             if symbol not in target_portfolio:
                 qty = float(getattr(pos, 'qty', 0))
                 if qty > 0:
                     price = self.bot.get_current_price(symbol)
                     if price > 0:
-                        logging.info(f"🔄 Liquidating {symbol} (not in target portfolio): {qty} shares @ ${price:.2f}")
+                        from rich.console import Console
+                        Console().print(f"[yellow]Liquidating {symbol} (not in target): {qty:.4f} shares @ ${price:.2f}[/yellow]")
                         sell_plans.append({"symbol": symbol, "qty": qty, "est": qty * price})
                         continue
             
@@ -163,7 +159,8 @@ class PortfolioRebalancer:
             # Use the minimum of: target dollar amount or available cash (with small buffer)
             target_dollar_amount = min(estimated_cost, available_cash * 0.99)  # 99% to leave small buffer
             
-            logging.info(f"Using notional order for {symbol}: ${target_dollar_amount:.2f} (available: ${available_cash:.2f})")
+            from rich.console import Console
+            Console().print(f"[green]Buying {symbol}: ${target_dollar_amount:.2f}[/green]")
             
             # Use notional order directly via the order manager adapter
             order_id = self.order_manager.place_limit_or_market(
@@ -183,21 +180,15 @@ class PortfolioRebalancer:
                 })
                 
                 # Wait for this individual order to settle before moving to the next
-                logging.info(f"⏳ Waiting for {symbol} order to settle...")
                 self.bot.wait_for_settlement([{
                     "symbol": symbol,
                     "order_id": order_id,
                     "qty": target_qty,
                     "side": OrderSide.BUY
                 }])
-                
-                logging.info(f"✅ {symbol} order settled, moving to next buy order")
 
         # Final summary
         final_positions = self.bot.get_positions()
         self.bot.display_target_vs_current_allocations(target_portfolio, account_info, final_positions)
 
-        logging.info(
-            f"Rebalance complete with {len(orders_executed)} orders"
-        )
         return orders_executed

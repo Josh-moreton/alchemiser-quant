@@ -41,7 +41,7 @@ class OrderManagerAdapter:
         self.simple_order_manager = SimpleOrderManager(trading_client, data_provider, validate_buying_power)
         self.ignore_market_hours = ignore_market_hours
         
-        logging.info("✅ OrderManagerAdapter initialized with SimpleOrderManager backend")
+        # OrderManagerAdapter initialized silently
     
     def place_safe_sell_order(
         self,
@@ -58,7 +58,7 @@ class OrderManagerAdapter:
         This method provides the same interface as the old OrderManager but uses
         the much more reliable SimpleOrderManager internally.
         """
-        logging.info(f"🔄 Safe sell order: {symbol} {target_qty} shares")
+        # Safe sell order execution
         
         # The SimpleOrderManager handles all the safety checks internally
         return self.simple_order_manager.place_smart_sell_order(symbol, target_qty)
@@ -94,10 +94,10 @@ class OrderManagerAdapter:
         # For SELL orders, always use market orders for immediate execution
         if side == OrderSide.SELL:
             if notional is not None:
-                logging.info(f"🔄 Market order (notional): {side_str} ${notional:.2f} of {symbol}")
+                # Market order (notional) execution
                 return self.simple_order_manager.place_market_order(symbol, side, notional=notional)
             else:
-                logging.info(f"🔄 Market order: {side_str} {symbol} {qty} shares")
+                # Market order execution
                 return self.simple_order_manager.place_market_order(symbol, side, qty=qty)
         
         # For BUY orders, implement smart limit-then-market strategy
@@ -143,7 +143,8 @@ class OrderManagerAdapter:
                         limit_price = bid + (ask - bid) * 0.75
                         limit_price = round(limit_price, 2)  # Round to cents
                         
-                        logging.info(f"📋 Attempting limit order: buy {qty:.6f} {symbol} @ ${limit_price:.2f} (bid=${bid:.2f}, ask=${ask:.2f})")
+                        from rich.console import Console
+                        Console().print(f"[cyan]Limit order: {symbol} @ ${limit_price:.2f}[/cyan]")
                         
                         # Try limit order first
                         limit_order_id = self.simple_order_manager.place_limit_order(
@@ -152,7 +153,7 @@ class OrderManagerAdapter:
                         
                         if limit_order_id:
                             # Wait 15 seconds for fill, checking every 2 seconds
-                            logging.info(f"⏳ Waiting 15 seconds for limit order {limit_order_id} to fill...")
+                            # Wait for limit order to fill
                             
                             for i in range(8):  # 8 checks over 15 seconds (15/2 = 7.5, round up)
                                 time.sleep(2)
@@ -163,10 +164,11 @@ class OrderManagerAdapter:
                                     status = str(getattr(order, 'status', 'unknown'))
                                     
                                     if 'FILLED' in status or 'filled' in status.lower():
-                                        logging.info(f"✅ Limit order filled: {symbol} @ ${limit_price:.2f}")
+                                        from rich.console import Console
+                                        Console().print(f"[green]✓ {symbol} @ ${limit_price:.2f}[/green]")
                                         return limit_order_id
                                     elif 'CANCELED' in status or 'REJECTED' in status:
-                                        logging.warning(f"❌ Limit order {status.lower()}: {symbol}")
+                                        logging.warning(f"Limit order {status.lower()}: {symbol}")
                                         break
                                         
                                 except Exception as e:
@@ -176,22 +178,23 @@ class OrderManagerAdapter:
                             # If we get here, order didn't fill - cancel it
                             try:
                                 self.simple_order_manager.trading_client.cancel_order_by_id(limit_order_id)
-                                logging.info(f"🚫 Cancelled unfilled limit order for {symbol}")
+                                logging.warning(f"Cancelled unfilled limit order for {symbol}")
                             except Exception as e:
                                 logging.warning(f"Error cancelling limit order: {e}")
                         
                         # Limit order didn't work, fall back to market order
-                        logging.info(f"💨 Limit order timeout, placing market order for {symbol}")
+                        from rich.console import Console
+                        Console().print(f"[yellow]Limit order timeout, using market order for {symbol}[/yellow]")
                     
             except Exception as e:
                 logging.warning(f"Error getting quote for {symbol}: {e}, using market order")
             
             # Fallback to market order
             if notional is not None:
-                logging.info(f"🔄 Market order (notional fallback): buy ${notional:.2f} of {symbol}")
+                # Market order (notional fallback)
                 return self.simple_order_manager.place_market_order(symbol, side, notional=notional)
             else:
-                logging.info(f"🔄 Market order (fallback): buy {qty:.6f} {symbol}")
+                # Market order (fallback)
                 return self.simple_order_manager.place_market_order(symbol, side, qty=qty)
     
     def wait_for_settlement(
@@ -218,7 +221,7 @@ class OrderManagerAdapter:
             logging.warning("No valid order IDs found in settlement data")
             return False
             
-        logging.info(f"⏳ Waiting for settlement of {len(order_ids)} orders...")
+        # Wait for order settlement
         
         # Use the SimpleOrderManager's order completion waiting
         completion_statuses = self.simple_order_manager.wait_for_order_completion(
@@ -236,9 +239,9 @@ class OrderManagerAdapter:
         
         success = settled_count == len(order_ids)
         if success:
-            logging.info(f"✅ All {len(order_ids)} orders settled successfully")
+            pass  # All orders settled successfully
         else:
-            logging.warning(f"⚠️ Only {settled_count}/{len(order_ids)} orders settled")
+            logging.warning(f"Only {settled_count}/{len(order_ids)} orders settled")
             
         return success
     
