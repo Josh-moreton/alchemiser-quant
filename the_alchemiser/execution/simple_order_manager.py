@@ -248,6 +248,11 @@ class SimpleOrderManager:
         Returns:
             Order ID if successful, None if failed
         """
+        # Check for invalid types first (before float conversion)
+        if isinstance(qty, bool) or qty is None or isinstance(qty, (list, dict)):
+            logging.warning(f"Invalid quantity type for {symbol}: {qty}")
+            return None
+            
         # Convert qty to float if it's a string
         try:
             qty = float(qty)
