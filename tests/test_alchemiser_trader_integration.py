@@ -2,15 +2,16 @@
 """
 Integration Test for AlchemiserTradingBot
 
-Tests the new unified AlchemiserTradingBot against the old AlpacaTradingBot 
-and MultiStrategyAlpacaTrader to ensure no functionality is lost during refactoring.
+Tests the unified AlchemiserTradingBot functionality to ensure all components
+work together correctly after the consolidation refactoring.
 
 This test verifies:
-1. Account info retrieval is identical
-2. Position data is identical  
-3. Multi-strategy execution produces same results
-4. Portfolio rebalancing behavior is consistent
+1. Account info retrieval works correctly
+2. Position data is correctly structured and accessible
+3. Multi-strategy execution produces expected results
+4. Portfolio rebalancing behavior works as expected
 5. Order execution logic is preserved
+6. Error handling is robust
 """
 
 import pytest
@@ -20,8 +21,9 @@ from dataclasses import dataclass
 
 # Import the classes we're testing
 from the_alchemiser.execution.alchemiser_trader import AlchemiserTradingBot, MultiStrategyExecutionResult
-# from the_alchemiser.execution.alpaca_trader import AlpacaTradingBot
-# from the_alchemiser.execution.multi_strategy_trader import MultiStrategyAlpacaTrader
+# NOTE: Old classes have been consolidated into AlchemiserTradingBot
+# from the_alchemiser.execution.alpaca_trader import AlpacaTradingBot  # Now .old file
+# from the_alchemiser.execution.multi_strategy_trader import MultiStrategyAlpacaTrader  # Now .old file
 from the_alchemiser.core.trading.strategy_manager import StrategyType
 from alpaca.trading.enums import OrderSide
 
@@ -177,10 +179,10 @@ def mock_orders_executed():
 
 
 class TestAlchemiserTradingBotIntegration:
-    """Integration tests comparing AlchemiserTradingBot with legacy classes"""
+    """Integration tests for the unified AlchemiserTradingBot"""
 
     def test_account_info_consistency(self, mock_config, mock_account_data):
-        """Test that account info retrieval is identical across all implementations"""
+        """Test that account info retrieval works correctly with the unified AlchemiserTradingBot"""
         
         with patch('the_alchemiser.core.data.data_provider.UnifiedDataProvider.get_account_info') as mock_get_account, \
              patch('the_alchemiser.core.data.data_provider.UnifiedDataProvider.get_portfolio_history') as mock_get_history, \
@@ -191,63 +193,56 @@ class TestAlchemiserTradingBotIntegration:
             mock_get_history.return_value = mock_account_data['portfolio_history']
             mock_get_open_pos.return_value = mock_account_data['positions_dict'].values()  # Use dict format for open positions
             
-            # Initialize all three trader types
+            # Initialize the unified trader
             new_trader = AlchemiserTradingBot(paper_trading=True, config=mock_config)
-            old_trader = AlpacaTradingBot(paper_trading=True, config=mock_config)
-            multi_trader = MultiStrategyAlpacaTrader(paper_trading=True, config=mock_config)
             
-            # Get account info from all traders
-            new_account_info = new_trader.get_account_info()
-            old_account_info = old_trader.get_account_info()
-            multi_account_info = multi_trader.get_account_info()
+            # Get account info from the trader
+            account_info = new_trader.get_account_info()
             
-            # Verify all traders return the same account info
-            assert new_account_info['account_number'] == old_account_info['account_number']
-            assert new_account_info['portfolio_value'] == old_account_info['portfolio_value']
-            assert new_account_info['equity'] == old_account_info['equity']
-            assert new_account_info['buying_power'] == old_account_info['buying_power']
-            assert new_account_info['cash'] == old_account_info['cash']
+            # Verify account info is correctly structured and contains expected data
+            assert account_info['account_number'] == "TEST123"
+            assert account_info['portfolio_value'] == 10000.0
+            assert account_info['equity'] == 10000.0
+            assert account_info['buying_power'] == 5000.0
+            assert account_info['cash'] == 1000.0
+            assert account_info['day_trade_count'] == 0
+            assert account_info['status'] == "ACTIVE"
             
-            # Multi-strategy trader should have same account info too
-            assert multi_account_info['portfolio_value'] == new_account_info['portfolio_value']
-            assert multi_account_info['equity'] == new_account_info['equity']
+            # Verify portfolio history is included
+            assert 'portfolio_history' in account_info
+            assert account_info['portfolio_history']['equity'] == [9900, 10000]
 
     def test_positions_consistency(self, mock_config, mock_account_data):
-        """Test that position retrieval is identical across implementations"""
+        """Test that position retrieval works correctly with the unified AlchemiserTradingBot"""
         
-        # Initialize traders first  
+        # Initialize trader
         new_trader = AlchemiserTradingBot(paper_trading=True, config=mock_config)
-        old_trader = AlpacaTradingBot(paper_trading=True, config=mock_config)
-        multi_trader = MultiStrategyAlpacaTrader(paper_trading=True, config=mock_config)
         
-        # Mock get_positions for each trader to return appropriate format
-        with patch.object(new_trader.data_provider, 'get_positions', return_value=mock_account_data['positions_dict'].values()), \
-             patch.object(old_trader.data_provider, 'get_positions', return_value=mock_account_data['positions']), \
-             patch.object(multi_trader.data_provider, 'get_positions', return_value=mock_account_data['positions']):
+        # Mock get_positions for the trader to return appropriate format
+        with patch.object(new_trader.data_provider, 'get_positions', return_value=list(mock_account_data['positions_dict'].values())):
             
-            # Get positions from all traders
-            new_positions = new_trader.get_positions()
-            old_positions = old_trader.get_positions()
-            multi_positions = multi_trader.get_positions()
+            # Get positions from the trader
+            positions = new_trader.get_positions()
             
-            # Verify positions are consistent
-            assert len(new_positions) == len(old_positions)
-            assert len(new_positions) == len(multi_positions)
+            # Verify positions are correctly structured
+            assert len(positions) == 2
             
             # Check specific position data
             for symbol in ['SPY', 'QQQ']:
-                assert symbol in new_positions
-                assert symbol in old_positions
-                assert symbol in multi_positions
+                assert symbol in positions
                 
-                # Verify position values are identical (within small tolerance for float comparison)
-                assert new_positions[symbol]['qty'] == old_positions[symbol]['qty']
-                assert abs(new_positions[symbol]['market_value'] - old_positions[symbol]['market_value']) < 0.01
+                # Verify position values are correctly retrieved
+                if symbol == 'SPY':
+                    assert positions[symbol]['qty'] == 10
+                    assert positions[symbol]['market_value'] == 4500.0
+                elif symbol == 'QQQ':
+                    assert positions[symbol]['qty'] == 5
+                    assert positions[symbol]['market_value'] == 2000.0
 
     def test_multi_strategy_execution_parity(self, mock_config, mock_account_data, 
                                            mock_strategy_signals, mock_consolidated_portfolio, 
                                            mock_orders_executed):
-        """Test that multi-strategy execution produces identical results"""
+        """Test that multi-strategy execution works correctly with the unified AlchemiserTradingBot"""
         
         # Create comprehensive mocks for all dependencies
         with patch('the_alchemiser.core.data.data_provider.UnifiedDataProvider.get_account_info') as mock_get_account, \
@@ -255,19 +250,17 @@ class TestAlchemiserTradingBotIntegration:
              patch('the_alchemiser.core.data.data_provider.UnifiedDataProvider.get_open_positions') as mock_get_open_pos, \
              patch('the_alchemiser.core.data.data_provider.UnifiedDataProvider.get_positions') as mock_get_positions, \
              patch('the_alchemiser.core.trading.strategy_manager.MultiStrategyManager.run_all_strategies') as mock_run_strategies, \
-             patch('the_alchemiser.execution.portfolio_rebalancer.PortfolioRebalancer.rebalance_portfolio') as mock_rebalance_new, \
-             patch('the_alchemiser.execution.multi_strategy_trader.MultiStrategyAlpacaTrader.rebalance_portfolio_with_tracking') as mock_rebalance_old:
+             patch('the_alchemiser.execution.portfolio_rebalancer.PortfolioRebalancer.rebalance_portfolio') as mock_rebalance_new:
             
             # Set up mocks
             mock_get_account.return_value = mock_account_data['account']
             mock_get_history.return_value = mock_account_data['portfolio_history']
             mock_get_open_pos.return_value = mock_account_data['positions_dict'].values()
-            mock_get_positions.return_value = mock_account_data['positions']
+            mock_get_positions.return_value = list(mock_account_data['positions_dict'].values())
             mock_run_strategies.return_value = (mock_strategy_signals, mock_consolidated_portfolio)
             mock_rebalance_new.return_value = mock_orders_executed
-            mock_rebalance_old.return_value = mock_orders_executed
             
-            # Initialize traders
+            # Initialize trader
             strategy_allocations = {
                 StrategyType.NUCLEAR: 0.6,
                 StrategyType.TECL: 0.4
@@ -278,70 +271,58 @@ class TestAlchemiserTradingBotIntegration:
                 strategy_allocations=strategy_allocations,
                 config=mock_config
             )
-            multi_trader = MultiStrategyAlpacaTrader(
-                paper_trading=True,
-                strategy_allocations=strategy_allocations, 
-                config=mock_config
-            )
             
-            # Execute multi-strategy on both
-            new_result = new_trader.execute_multi_strategy()
-            old_result = multi_trader.execute_multi_strategy()
+            # Execute multi-strategy 
+            result = new_trader.execute_multi_strategy()
             
-            # Verify both executions were successful
-            assert new_result.success == True
-            assert old_result.success == True
+            # Verify execution was successful
+            assert result.success == True
             
-            # Verify strategy signals are identical
-            assert new_result.strategy_signals == old_result.strategy_signals
+            # Verify strategy signals are present
+            assert result.strategy_signals is not None
+            assert len(result.strategy_signals) == 2  # NUCLEAR and TECL
             
-            # Verify consolidated portfolio is identical
-            assert new_result.consolidated_portfolio == old_result.consolidated_portfolio
+            # Verify consolidated portfolio is present
+            assert result.consolidated_portfolio is not None
+            assert 'SPY' in result.consolidated_portfolio
             
-            # Verify orders executed are identical
-            assert len(new_result.orders_executed) == len(old_result.orders_executed)
+            # Verify orders were executed
+            assert result.orders_executed is not None
+            assert len(result.orders_executed) == len(mock_orders_executed)
             
-            # Compare order details
-            for new_order, old_order in zip(new_result.orders_executed, old_result.orders_executed):
-                assert new_order['symbol'] == old_order['symbol']
-                assert new_order['qty'] == old_order['qty']
-                assert new_order['side'] == old_order['side']
-                assert new_order['estimated_value'] == old_order['estimated_value']
-            
-            # Verify account info consistency
-            assert new_result.account_info_before['portfolio_value'] == old_result.account_info_before['portfolio_value']
-            assert new_result.account_info_after['portfolio_value'] == old_result.account_info_after['portfolio_value']
+            # Verify account info is captured
+            assert result.account_info_before is not None
+            assert result.account_info_after is not None
+            assert result.account_info_before['portfolio_value'] == 10000.0
 
     def test_portfolio_rebalancing_consistency(self, mock_config, mock_account_data, 
                                              mock_consolidated_portfolio, mock_orders_executed):
-        """Test that portfolio rebalancing produces consistent results"""
+        """Test that portfolio rebalancing works correctly with the unified AlchemiserTradingBot"""
         
         with patch('the_alchemiser.core.data.data_provider.UnifiedDataProvider.get_account_info') as mock_get_account, \
              patch('the_alchemiser.core.data.data_provider.UnifiedDataProvider.get_positions') as mock_get_positions, \
-             patch('the_alchemiser.execution.portfolio_rebalancer.PortfolioRebalancer.rebalance_portfolio') as mock_rebalance_new, \
-             patch('the_alchemiser.execution.alpaca_trader.AlpacaTradingBot.rebalance_portfolio') as mock_rebalance_old:
+             patch('the_alchemiser.execution.portfolio_rebalancer.PortfolioRebalancer.rebalance_portfolio') as mock_rebalance_new:
             
             # Set up mocks
             mock_get_account.return_value = mock_account_data['account']
-            mock_get_positions.return_value = mock_account_data['positions']
+            mock_get_positions.return_value = list(mock_account_data['positions_dict'].values())
             mock_rebalance_new.return_value = mock_orders_executed
-            mock_rebalance_old.return_value = mock_orders_executed
             
-            # Initialize traders
+            # Initialize trader
             new_trader = AlchemiserTradingBot(paper_trading=True, config=mock_config)
-            old_trader = AlpacaTradingBot(paper_trading=True, config=mock_config)
             
-            # Execute rebalancing on both
-            new_orders = new_trader.rebalance_portfolio(mock_consolidated_portfolio)
-            old_orders = old_trader.rebalance_portfolio(mock_consolidated_portfolio)
+            # Execute rebalancing
+            orders = new_trader.rebalance_portfolio(mock_consolidated_portfolio)
             
-            # Verify identical results
-            assert len(new_orders) == len(old_orders)
+            # Verify orders were returned
+            assert orders is not None
+            assert len(orders) == len(mock_orders_executed)
             
-            for new_order, old_order in zip(new_orders, old_orders):
-                assert new_order['symbol'] == old_order['symbol']
-                assert new_order['qty'] == old_order['qty']
-                assert new_order['side'] == old_order['side']
+            # Verify order structure
+            for order in orders:
+                assert 'symbol' in order
+                assert 'qty' in order
+                assert 'side' in order
 
     def test_display_target_vs_current_allocations(self, mock_config, mock_account_data):
         """Test the display_target_vs_current_allocations method works correctly"""
@@ -369,36 +350,32 @@ class TestAlchemiserTradingBotIntegration:
             assert current_values['QQQ'] == 3000.0
 
     def test_error_handling_consistency(self, mock_config):
-        """Test that error handling is consistent across implementations"""
+        """Test that error handling works correctly in the unified AlchemiserTradingBot"""
         
         # Mock a failure scenario
         with patch('the_alchemiser.core.data.data_provider.UnifiedDataProvider.get_account_info') as mock_get_account:
             mock_get_account.side_effect = Exception("API Error")
             
             new_trader = AlchemiserTradingBot(paper_trading=True, config=mock_config)
-            multi_trader = MultiStrategyAlpacaTrader(paper_trading=True, config=mock_config)
             
-            # Both should handle errors gracefully
-            new_result = new_trader.execute_multi_strategy()
-            old_result = multi_trader.execute_multi_strategy()
+            # Should handle errors gracefully
+            result = new_trader.execute_multi_strategy()
             
-            # Both should return failed results
-            assert new_result.success == False
-            assert old_result.success == False
+            # Should return failed result
+            assert result.success == False
             
-            # Both should have error information
-            assert 'error' in new_result.execution_summary
-            assert 'error' in old_result.execution_summary
+            # Should have error information
+            assert 'error' in result.execution_summary
 
     def test_initialization_consistency(self, mock_config):
-        """Test that all trader classes initialize with consistent configuration"""
+        """Test that the unified AlchemiserTradingBot initializes correctly with consistent configuration"""
         
         strategy_allocations = {
             StrategyType.NUCLEAR: 0.7,
             StrategyType.TECL: 0.3
         }
         
-        # Initialize all traders with same parameters
+        # Initialize trader with parameters
         new_trader = AlchemiserTradingBot(
             paper_trading=True,
             strategy_allocations=strategy_allocations,
@@ -406,20 +383,14 @@ class TestAlchemiserTradingBotIntegration:
             config=mock_config
         )
         
-        multi_trader = MultiStrategyAlpacaTrader(
-            paper_trading=True,
-            strategy_allocations=strategy_allocations,
-            ignore_market_hours=True,
-            config=mock_config
-        )
-        
         # Verify consistent configuration
-        assert new_trader.paper_trading == multi_trader.paper_trading
-        assert new_trader.ignore_market_hours == multi_trader.ignore_market_hours
-        assert new_trader.config == multi_trader.config
+        assert new_trader.paper_trading == True
+        assert new_trader.ignore_market_hours == True
+        assert new_trader.config == mock_config
         
         # Verify strategy allocations are correctly set
-        assert new_trader.strategy_manager.strategy_allocations == multi_trader.strategy_manager.strategy_allocations
+        assert new_trader.strategy_manager.strategy_allocations[StrategyType.NUCLEAR] == 0.7
+        assert new_trader.strategy_manager.strategy_allocations[StrategyType.TECL] == 0.3
 
 
 if __name__ == "__main__":

@@ -1,12 +1,12 @@
 import pytest
 from unittest.mock import MagicMock, patch
 
-# Import the new class
+# Import the new unified class
 from the_alchemiser.execution.alchemiser_trader import AlchemiserTradingBot
 
-# Optionally import the old classes if they still exist
-from the_alchemiser.execution.alpaca_trader import AlpacaTradingBot
-from the_alchemiser.execution.multi_strategy_trader import MultiStrategyAlpacaTrader
+# NOTE: Old classes have been consolidated into AlchemiserTradingBot
+# from the_alchemiser.execution.alpaca_trader import AlpacaTradingBot  # Now .old file
+# from the_alchemiser.execution.multi_strategy_trader import MultiStrategyAlpacaTrader  # Now .old file
 
 # Import OrderSide for mock
 from alpaca.trading.enums import OrderSide

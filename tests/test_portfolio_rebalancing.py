@@ -234,15 +234,30 @@ class TestNoTradesNeeded:
     def test_already_at_target_allocation(self, multi_strategy_trader, mock_trading_client):
         """Test when portfolio is already at target allocation."""
         # Mock positions exactly at target
-        mock_trading_client.get_all_positions.return_value = [
+        mock_positions = [
             MagicMock(symbol='AAPL', qty=33.33, market_value=5000.0),  # 50%
             MagicMock(symbol='GOOGL', qty=2.0, market_value=5000.0)    # 50%
         ]
-        mock_trading_client.get_account.return_value = MagicMock(
+        mock_trading_client.get_all_positions.return_value = mock_positions
+        
+        # Mock the trading client used by the SimpleOrderManager inside OrderManagerAdapter
+        multi_strategy_trader.order_manager.simple_order_manager.trading_client.get_all_positions.return_value = mock_positions
+        multi_strategy_trader.order_manager.simple_order_manager.trading_client.submit_order.return_value = MagicMock(id='test_order_123')
+        
+        # Mock data provider positions (this is what AlchemiserTradingBot.get_positions() calls)
+        multi_strategy_trader.data_provider.get_positions.return_value = [
+            {'symbol': 'AAPL', 'qty': 33.33, 'market_value': 5000.0},
+            {'symbol': 'GOOGL', 'qty': 2.0, 'market_value': 5000.0}
+        ]
+        
+        # Mock account info for both trading client and data provider
+        mock_account = MagicMock(
             buying_power=1000.0,
             cash=0.0,
             portfolio_value=10000.0
         )
+        mock_trading_client.get_account.return_value = mock_account
+        multi_strategy_trader.data_provider.get_account_info.return_value = mock_account
         
         # Target matches current
         target_allocations = {
@@ -256,21 +271,37 @@ class TestNoTradesNeeded:
             result = multi_strategy_trader.execute_rebalancing(target_allocations, mode='market')
         
         # Should not place any orders
-        assert mock_trading_client.submit_order.call_count == 0
+        assert multi_strategy_trader.order_manager.simple_order_manager.trading_client.submit_order.call_count == 0
         assert result['trading_summary']['total_orders'] == 0
     
     def test_within_tolerance_threshold(self, multi_strategy_trader, mock_trading_client):
         """Test when differences are within tolerance threshold."""
+        # Mock positions data that will be returned by data provider
+        mock_positions = [
+            {'symbol': 'AAPL', 'qty': 33.67, 'market_value': 5050.0},  # 50.5%
+            {'symbol': 'GOOGL', 'qty': 1.98, 'market_value': 4950.0}   # 49.5%
+        ]
+        
+        # Mock account info for both trading client and data provider
+        mock_account = MagicMock(
+            buying_power=1000.0,
+            cash=0.0,
+            portfolio_value=10000.0
+        )
+        
         # Mock positions within 1% of target
         mock_trading_client.get_all_positions.return_value = [
             MagicMock(symbol='AAPL', qty=33.67, market_value=5050.0),  # 50.5%
             MagicMock(symbol='GOOGL', qty=1.98, market_value=4950.0)   # 49.5%
         ]
-        mock_trading_client.get_account.return_value = MagicMock(
-            buying_power=1000.0,
-            cash=0.0,
-            portfolio_value=10000.0
-        )
+        mock_trading_client.get_account.return_value = mock_account
+        
+        # Mock data provider to return proper position data
+        multi_strategy_trader.data_provider.get_positions.return_value = mock_positions
+        multi_strategy_trader.data_provider.get_account_info.return_value = mock_account
+        
+        # Mock order manager trading client
+        multi_strategy_trader.order_manager.simple_order_manager.trading_client = mock_trading_client
         
         target_allocations = {
             'AAPL': 0.5,
@@ -396,12 +427,26 @@ class TestRebalanceWithDifferentModes:
     
     def test_market_mode_rebalance(self, multi_strategy_trader, mock_trading_client):
         """Test rebalancing using market orders."""
+        # Mock positions data - no current positions, starting from cash
+        mock_positions = []
+        
         mock_trading_client.get_all_positions.return_value = []
         mock_trading_client.get_account.return_value = MagicMock(
             buying_power=10000.0,
             cash=10000.0,
             portfolio_value=10000.0
         )
+        
+        # Mock data provider to return proper position data (empty in this case)
+        multi_strategy_trader.data_provider.get_positions.return_value = mock_positions
+        multi_strategy_trader.data_provider.get_account_info.return_value = MagicMock(
+            buying_power=10000.0,
+            cash=10000.0,
+            portfolio_value=10000.0
+        )
+        
+        # Mock order manager trading client
+        multi_strategy_trader.order_manager.simple_order_manager.trading_client = mock_trading_client
         
         target_allocations = {'AAPL': 1.0}
         
@@ -415,12 +460,26 @@ class TestRebalanceWithDifferentModes:
     
     def test_limit_mode_rebalance(self, multi_strategy_trader, mock_trading_client):
         """Test rebalancing using limit orders."""
+        # Mock positions data - no current positions, starting from cash
+        mock_positions = []
+        
         mock_trading_client.get_all_positions.return_value = []
         mock_trading_client.get_account.return_value = MagicMock(
             buying_power=10000.0,
             cash=10000.0,
             portfolio_value=10000.0
         )
+        
+        # Mock data provider to return proper position data (empty in this case)
+        multi_strategy_trader.data_provider.get_positions.return_value = mock_positions
+        multi_strategy_trader.data_provider.get_account_info.return_value = MagicMock(
+            buying_power=10000.0,
+            cash=10000.0,
+            portfolio_value=10000.0
+        )
+        
+        # Mock order manager trading client
+        multi_strategy_trader.order_manager.simple_order_manager.trading_client = mock_trading_client
         
         target_allocations = {'AAPL': 1.0}
         
@@ -433,12 +492,26 @@ class TestRebalanceWithDifferentModes:
     
     def test_paper_mode_rebalance(self, multi_strategy_trader, mock_trading_client):
         """Test rebalancing in paper trading mode."""
+        # Mock positions data - no current positions, starting from cash
+        mock_positions = []
+        
         mock_trading_client.get_all_positions.return_value = []
         mock_trading_client.get_account.return_value = MagicMock(
             buying_power=10000.0,
             cash=10000.0,
             portfolio_value=10000.0
         )
+        
+        # Mock data provider to return proper position data (empty in this case)
+        multi_strategy_trader.data_provider.get_positions.return_value = mock_positions
+        multi_strategy_trader.data_provider.get_account_info.return_value = MagicMock(
+            buying_power=10000.0,
+            cash=10000.0,
+            portfolio_value=10000.0
+        )
+        
+        # Mock order manager trading client
+        multi_strategy_trader.order_manager.simple_order_manager.trading_client = mock_trading_client
         
         target_allocations = {'AAPL': 1.0}
         

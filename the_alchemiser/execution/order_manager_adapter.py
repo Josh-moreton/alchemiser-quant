@@ -75,7 +75,13 @@ class OrderManagerAdapter:
         
         For simplicity and reliability, we use market orders which execute immediately.
         """
-        logging.info(f"🔄 Market order: {side.value} {symbol} {qty} shares")
+        # Handle both string and OrderSide enum inputs
+        side_str = side.value if hasattr(side, 'value') else str(side)
+        logging.info(f"🔄 Market order: {side_str} {symbol} {qty} shares")
+        
+        # Convert string inputs to OrderSide enum if needed
+        if isinstance(side, str):
+            side = OrderSide.BUY if side.lower() == 'buy' else OrderSide.SELL
         
         # Use market orders for immediate execution and simplicity
         return self.simple_order_manager.place_market_order(symbol, qty, side)

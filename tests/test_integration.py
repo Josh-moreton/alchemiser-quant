@@ -5,13 +5,14 @@ paper trading, live trading simulation, and backtest mode.
 """
 
 import pytest
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import MagicMock, Mock, patch, call
 from datetime import datetime, timedelta
 import tempfile
 import os
 
 from the_alchemiser.execution.order_manager_adapter import OrderManagerAdapter
 from the_alchemiser.core.data.data_provider import UnifiedDataProvider
+from alpaca.trading.enums import OrderSide
 
 
 @pytest.fixture
@@ -67,25 +68,26 @@ class TestPaperTradingIntegration:
         order_manager = OrderManagerAdapter(mock_trading_client, mock_data_provider)
         
         # Simulate complete trading session
-        with patch('the_alchemiser.execution.multi_strategy_trader.MultiStrategyTrader') as MockTrader:
+        with patch('the_alchemiser.execution.alchemiser_trader.AlchemiserTradingBot') as MockTrader:
             # Mock the trader to simulate execution
             mock_trader_instance = MockTrader.return_value
-            mock_trader_instance.execute_strategies.return_value = {
-                'strategy_summary': {
-                    'TestStrategy_1': {'signal': 'buy', 'confidence': 0.7},
-                    'TestStrategy_2': {'signal': 'buy', 'confidence': 0.7}
-                },
-                'trading_summary': {
-                    'total_orders': 2,
-                    'successful_orders': 2,
-                    'failed_orders': 0,
-                    'total_value_traded': 15000.0
-                },
+            mock_result = Mock()
+            mock_result.success = True
+            mock_result.strategy_signals = {
+                'TestStrategy_1': {'signal': 'buy', 'confidence': 0.7},
+                'TestStrategy_2': {'signal': 'buy', 'confidence': 0.7}
+            }
+            mock_result.execution_summary = {
+                'total_orders': 2,
+                'successful_orders': 2,
+                'failed_orders': 0,
+                'total_value_traded': 15000.0,
                 'final_portfolio_state': {
                     'AAPL': {'shares': 50.0, 'value': 7500.0},
                     'GOOGL': {'shares': 3.0, 'value': 7500.0}
                 }
             }
+            mock_trader_instance.execute_multi_strategy.return_value = mock_result
             
             # Execute trading session
             trader = MockTrader(order_manager, mock_strategies)
