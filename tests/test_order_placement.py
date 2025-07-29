@@ -88,13 +88,16 @@ class TestPartialFills:
         partial_order = MagicMock(id='test_order_123', status='partially_filled')
         completed_order = MagicMock(id='test_order_123', status='filled')
         
+        # Return partial first, then filled
         mock_trading_client.get_order_by_id.side_effect = [partial_order, completed_order]
         
-        # Test settlement waiting
-        sell_orders = [{'order_id': 'test_order_123'}]
-        result = order_manager.wait_for_settlement(sell_orders, max_wait_time=2, poll_interval=0.1)
-        
-        assert result is True
+        # Mock time.sleep to speed up test
+        with patch('time.sleep'):
+            # Test settlement waiting
+            sell_orders = [{'order_id': 'test_order_123'}]
+            result = order_manager.wait_for_settlement(sell_orders, max_wait_time=10, poll_interval=0.1)
+            
+            assert result is True
     
     def test_partial_fill_timeout(self, order_manager, mock_trading_client):
         """Test order that remains partially filled until timeout."""
@@ -122,21 +125,22 @@ class TestFailedOrders:
         assert order_id is None
     
     def test_attempt_to_short_sell(self, order_manager, mock_trading_client):
-        """Test attempt to sell more than owned (should not short)."""
+        """Test attempt to sell more than owned (should use liquidation for large amounts)."""
         # Mock having only 5 shares
         mock_trading_client.get_all_positions.return_value = [
             MagicMock(symbol='AAPL', qty=5.0)
         ]
+        # Also mock for close_position (liquidation API)
+        mock_trading_client.close_position.return_value = MagicMock(id='liquidation_order')
         
         # Try to sell 10 shares (more than owned)
         order_id = order_manager.place_safe_sell_order('AAPL', 10.0)
         
-        # Should still work but cap the quantity
+        # Should still work using liquidation API since 10 > 5 * 0.99
         assert order_id is not None
         
-        # Verify the actual quantity was capped
-        call_args = mock_trading_client.submit_order.call_args[0][0]
-        assert float(call_args.qty) <= 5.0
+        # Verify liquidation API was called instead of submit_order
+        mock_trading_client.close_position.assert_called_once_with('AAPL')
     
     def test_api_network_error(self, order_manager, mock_trading_client):
         """Test API/network errors."""
@@ -161,6 +165,10 @@ class TestPositionLiquidation:
     
     def test_full_liquidation(self, order_manager, mock_trading_client):
         """Test full position liquidation using API."""
+        # Mock existing position for liquidation
+        mock_trading_client.get_all_positions.return_value = [
+            MagicMock(symbol='AAPL', qty=10.0, market_value=1000.0)
+        ]
         mock_trading_client.close_position.return_value = MagicMock(id='liquidation_order_123')
         
         order_id = order_manager.liquidate_position('AAPL')

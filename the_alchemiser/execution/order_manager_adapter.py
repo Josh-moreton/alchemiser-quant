@@ -34,9 +34,11 @@ class OrderManagerAdapter:
     def __init__(self, trading_client, data_provider, ignore_market_hours=False, config=None):
         """Initialize with same signature as old OrderManager for compatibility."""
         
-        self.simple_order_manager = SimpleOrderManager(trading_client, data_provider)
-        self.ignore_market_hours = ignore_market_hours
         self.config = config or {}
+        validate_buying_power = self.config.get('validate_buying_power', False)
+        
+        self.simple_order_manager = SimpleOrderManager(trading_client, data_provider, validate_buying_power)
+        self.ignore_market_hours = ignore_market_hours
         
         logging.info("✅ OrderManagerAdapter initialized with SimpleOrderManager backend")
     
@@ -105,8 +107,10 @@ class OrderManagerAdapter:
             if order_id is not None and isinstance(order_id, str):
                 order_ids.append(order_id)
                 
+        # If we had orders but no valid order IDs, that's a failure
         if not order_ids:
-            return True
+            logging.warning("No valid order IDs found in settlement data")
+            return False
             
         logging.info(f"⏳ Waiting for settlement of {len(order_ids)} orders...")
         

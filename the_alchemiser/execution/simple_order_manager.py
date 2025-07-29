@@ -105,16 +105,18 @@ class SimpleOrderManager:
     5. No complex retry logic - fail fast and clear
     """
 
-    def __init__(self, trading_client: TradingClient, data_provider: UnifiedDataProvider):
+    def __init__(self, trading_client: TradingClient, data_provider: UnifiedDataProvider, validate_buying_power: bool = False):
         """
         Initialize SimpleOrderManager.
         
         Args:
             trading_client: Alpaca trading client
             data_provider: Data provider for quotes (optional for market orders)
+            validate_buying_power: Whether to validate buying power for buy orders
         """
         self.trading_client = trading_client
         self.data_provider = data_provider
+        self.validate_buying_power = validate_buying_power
 
     def get_current_positions(self) -> Dict[str, float]:
         """
@@ -271,6 +273,21 @@ class SimpleOrderManager:
             if cancel_existing:
                 self.cancel_all_orders(symbol)
                 time.sleep(0.5)  # Brief pause for cancellations to process
+
+            # For buy orders, validate buying power (if enabled)
+            if side == OrderSide.BUY and self.validate_buying_power:
+                try:
+                    account = self.trading_client.get_account()
+                    buying_power = float(getattr(account, 'buying_power', 0) or 0)
+                    current_price = self.data_provider.get_current_price(symbol)
+                    order_value = qty * current_price
+                    
+                    if order_value > buying_power:
+                        logging.warning(f"Order value ${order_value:.2f} exceeds buying power ${buying_power:.2f} for {symbol}")
+                        return None
+                except Exception as e:
+                    logging.warning(f"Unable to validate buying power for {symbol}: {e}")
+                    # Continue with order despite validation error
 
             # For sell orders, validate we have enough to sell
             if side == OrderSide.SELL:

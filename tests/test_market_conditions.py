@@ -121,6 +121,11 @@ class TestLowLiquidity:
     
     def test_large_spread_handling(self, order_manager, mock_data_provider):
         """Test handling of very large spreads."""
+        # Mock existing position for sell order
+        order_manager.simple_order_manager.trading_client.get_all_positions.return_value = [
+            MagicMock(symbol='WIDE_SPREAD_STOCK', qty=10.0, market_value=1000.0)
+        ]
+        
         # 20% spread
         mock_data_provider.get_latest_quote.return_value = (80.0, 120.0)
         mock_data_provider.get_current_price.return_value = 100.0

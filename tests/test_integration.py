@@ -87,7 +87,15 @@ class TestPaperTradingIntegration:
                     'GOOGL': {'shares': 3.0, 'value': 7500.0}
                 }
             }
+            # Mock both methods to return proper structure
             mock_trader_instance.execute_multi_strategy.return_value = mock_result
+            mock_trader_instance.execute_strategies.return_value = {
+                'trading_summary': {
+                    'total_orders': 2,
+                    'successful_orders': 2,
+                    'failed_orders': 0
+                }
+            }
             
             # Execute trading session
             trader = MockTrader(order_manager, mock_strategies)
@@ -116,7 +124,7 @@ class TestPaperTradingIntegration:
         orders_placed = []
         for symbol, allocation in target_allocations.items():
             shares = (10000.0 * allocation) / price_data[symbol]
-            order_id = order_manager.place_limit_or_market(symbol, shares, 'buy')
+            order_id = order_manager.place_limit_or_market(symbol, shares, OrderSide.BUY)
             orders_placed.append(order_id)
         
         # Verify all orders were placed
@@ -140,7 +148,7 @@ class TestPaperTradingIntegration:
         results = []
         
         for symbol in symbols:
-            order_id = order_manager.place_limit_or_market(symbol, 10.0, 'buy')
+            order_id = order_manager.place_limit_or_market(symbol, 10.0, OrderSide.BUY)
             results.append(order_id)
         
         # Should have 2 successful orders and 2 failures
@@ -156,7 +164,8 @@ class TestLiveTradingSimulation:
     
     def test_live_trading_safety_checks(self, mock_trading_client, mock_data_provider):
         """Test safety checks in live trading mode."""
-        order_manager = OrderManagerAdapter(mock_trading_client, mock_data_provider)
+        config = {'validate_buying_power': True}  # Enable buying power validation
+        order_manager = OrderManagerAdapter(mock_trading_client, mock_data_provider, config=config)
         
         # Mock account with limited funds for safety
         mock_trading_client.get_account.return_value = MagicMock(
@@ -166,7 +175,7 @@ class TestLiveTradingSimulation:
         )
         
         # Test position size limits
-        large_order_id = order_manager.place_limit_or_market('AAPL', 100.0, 'buy')  # $15k order
+        large_order_id = order_manager.place_limit_or_market('AAPL', 100.0, OrderSide.BUY)  # $15k order
         
         # Should be rejected due to insufficient funds
         if large_order_id is None:
@@ -203,7 +212,7 @@ class TestLiveTradingSimulation:
         
         # Test during market hours
         mock_trading_client.get_clock.return_value = MagicMock(is_open=True)
-        order_id = order_manager.place_limit_or_market('AAPL', 1.0, 'buy')
+        order_id = order_manager.place_limit_or_market('AAPL', 1.0, OrderSide.BUY)
         assert order_id is not None
         
         # Test after market hours
@@ -245,7 +254,7 @@ class TestBacktestMode:
             mock_data_provider.get_current_price.return_value = current_price
             
             # Execute strategy for this day
-            order_id = order_manager.place_limit_or_market('AAPL', 1.0, 'buy')
+            order_id = order_manager.place_limit_or_market('AAPL', 1.0, OrderSide.BUY)
             backtest_results.append({
                 'day': day,
                 'price': current_price,
@@ -277,12 +286,12 @@ class TestBacktestMode:
         # Track portfolio evolution
         portfolio_evolution = []
         for day in range(10):
-            positions = order_manager.order_manager.trading_client.get_all_positions()
-            total_value = sum(pos.market_value for pos in positions)
+            positions = order_manager.simple_order_manager.trading_client.get_all_positions()
+            total_value = sum(getattr(pos, 'market_value', 0) for pos in positions)
             portfolio_evolution.append(total_value)
             
             # Place order for next day
-            order_manager.place_limit_or_market('AAPL', 10.0, 'buy')
+            order_manager.place_limit_or_market('AAPL', 10.0, OrderSide.BUY)
         
         # Verify portfolio grew over time
         assert portfolio_evolution[0] == 0.0  # Started empty
@@ -310,11 +319,11 @@ class TestBacktestMode:
         # Collect performance data
         performance_data = []
         for day in range(20):
-            account = order_manager.order_manager.trading_client.get_account()
+            account = order_manager.simple_order_manager.trading_client.get_account()
             performance_data.append({
                 'day': day,
-                'portfolio_value': account.portfolio_value,
-                'buying_power': account.buying_power
+                'portfolio_value': getattr(account, 'portfolio_value', 0),
+                'buying_power': getattr(account, 'buying_power', 0)
             })
         
         # Calculate basic metrics
@@ -359,7 +368,7 @@ class TestEndToEndWorkflows:
             current_price = mock_data_provider.get_current_price(symbol)
             target_shares = target_value / current_price
             
-            order_id = order_manager.place_limit_or_market(symbol, target_shares, 'buy')
+            order_id = order_manager.place_limit_or_market(symbol, target_shares, OrderSide.BUY)
             rebalance_orders.append(order_id)
         
         # Verify rebalancing executed
@@ -392,7 +401,7 @@ class TestEndToEndWorkflows:
             # Execute strategy
             signal = mock_strategies[0].get_signal()
             if signal['action'] == 'buy':
-                order_id = order_manager.place_limit_or_market('AAPL', 10.0, 'buy')
+                order_id = order_manager.place_limit_or_market('AAPL', 10.0, OrderSide.BUY)
             else:
                 order_id = order_manager.place_safe_sell_order('AAPL', 5.0)
             
@@ -437,7 +446,7 @@ class TestEndToEndWorkflows:
         # Wait for settlement
         settlement_result = order_manager.wait_for_settlement(
             pending_orders, 
-            max_wait_time=1.0, 
+            max_wait_time=1, 
             poll_interval=0.1
         )
         
