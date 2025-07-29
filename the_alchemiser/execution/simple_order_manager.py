@@ -234,8 +234,9 @@ class SimpleOrderManager:
     def place_market_order(
         self, 
         symbol: str, 
-        qty: float, 
-        side: OrderSide, 
+        side: OrderSide,
+        qty: Optional[float] = None,
+        notional: Optional[float] = None,
         cancel_existing: bool = True
     ) -> Optional[str]:
         """
@@ -243,30 +244,57 @@ class SimpleOrderManager:
         
         Args:
             symbol: Stock symbol
-            qty: Quantity to trade
             side: OrderSide.BUY or OrderSide.SELL
+            qty: Quantity to trade (use either qty OR notional, not both)
+            notional: Dollar amount to trade (use either qty OR notional, not both)
             cancel_existing: Whether to cancel existing orders for this symbol first
             
         Returns:
             Order ID if successful, None if failed
         """
-        # Check for invalid types first (before float conversion)
-        if isinstance(qty, bool) or qty is None or isinstance(qty, (list, dict)):
-            logging.warning(f"Invalid quantity type for {symbol}: {qty}")
+        # Validate that exactly one of qty or notional is provided
+        if (qty is None and notional is None) or (qty is not None and notional is not None):
+            logging.warning(f"Must provide exactly one of qty OR notional for {symbol}")
             return None
             
-        # Convert qty to float if it's a string
-        try:
-            qty = float(qty)
-        except (ValueError, TypeError):
-            logging.warning(f"Invalid quantity type for {symbol}: {qty}")
-            return None
-        
-        # Check for invalid numeric values
-        import math
-        if math.isnan(qty) or math.isinf(qty) or qty <= 0:
-            logging.warning(f"Invalid quantity for {symbol}: {qty}")
-            return None
+        # Validate the provided parameter
+        if qty is not None:
+            # Check for invalid types first (before float conversion)
+            if isinstance(qty, bool) or isinstance(qty, (list, dict)):
+                logging.warning(f"Invalid quantity type for {symbol}: {qty}")
+                return None
+                
+            # Convert qty to float if it's a string
+            try:
+                qty = float(qty)
+            except (ValueError, TypeError):
+                logging.warning(f"Invalid quantity type for {symbol}: {qty}")
+                return None
+            
+            # Check for invalid numeric values
+            import math
+            if math.isnan(qty) or math.isinf(qty) or qty <= 0:
+                logging.warning(f"Invalid quantity for {symbol}: {qty}")
+                return None
+                
+        if notional is not None:
+            # Check for invalid types first (before float conversion)
+            if isinstance(notional, bool) or isinstance(notional, (list, dict)):
+                logging.warning(f"Invalid notional type for {symbol}: {notional}")
+                return None
+                
+            # Convert notional to float if it's a string
+            try:
+                notional = float(notional)
+            except (ValueError, TypeError):
+                logging.warning(f"Invalid notional type for {symbol}: {notional}")
+                return None
+            
+            # Check for invalid numeric values
+            import math
+            if math.isnan(notional) or math.isinf(notional) or notional <= 0:
+                logging.warning(f"Invalid notional for {symbol}: {notional}")
+                return None
 
         try:
             # Cancel existing orders if requested
@@ -289,8 +317,8 @@ class SimpleOrderManager:
                     logging.warning(f"Unable to validate buying power for {symbol}: {e}")
                     # Continue with order despite validation error
 
-            # For sell orders, validate we have enough to sell
-            if side == OrderSide.SELL:
+            # For sell orders, validate we have enough to sell (only applies to qty orders)
+            if side == OrderSide.SELL and qty is not None:
                 positions = self.get_current_positions()
                 available = positions.get(symbol, 0)
                 
@@ -302,21 +330,45 @@ class SimpleOrderManager:
                     logging.warning(f"Reducing sell quantity for {symbol}: {qty} -> {available}")
                     qty = available
 
-            # Round quantity to avoid fractional share issues
-            qty = float(Decimal(str(qty)).quantize(Decimal('0.000001'), rounding=ROUND_DOWN))
-            
-            if qty <= 0:
-                logging.warning(f"Quantity rounded to zero for {symbol}")
-                return None
+            # For notional sell orders, we can't pre-validate but Alpaca will handle it
+            if side == OrderSide.SELL and notional is not None:
+                positions = self.get_current_positions()
+                available = positions.get(symbol, 0)
+                
+                if available <= 0:
+                    logging.warning(f"No position to sell for {symbol}")
+                    return None
 
-            logging.info(f"Placing MARKET {side.value} order for {symbol}: qty={qty}")
+            # Prepare order parameters
+            if qty is not None:
+                # Round quantity to avoid fractional share issues
+                qty = float(Decimal(str(qty)).quantize(Decimal('0.000001'), rounding=ROUND_DOWN))
+                
+                if qty <= 0:
+                    logging.warning(f"Quantity rounded to zero for {symbol}")
+                    return None
 
-            market_order_data = MarketOrderRequest(
-                symbol=symbol,
-                qty=qty,
-                side=side,
-                time_in_force=TimeInForce.DAY
-            )
+                logging.info(f"Placing MARKET {side.value} order for {symbol}: qty={qty}")
+                
+                market_order_data = MarketOrderRequest(
+                    symbol=symbol,
+                    qty=qty,
+                    side=side,
+                    time_in_force=TimeInForce.DAY
+                )
+            else:
+                # Notional order
+                assert notional is not None  # Type hint for mypy
+                notional = round(notional, 2)  # Round to cents
+                
+                logging.info(f"Placing MARKET {side.value} order for {symbol}: notional=${notional}")
+                
+                market_order_data = MarketOrderRequest(
+                    symbol=symbol,
+                    notional=notional,
+                    side=side,
+                    time_in_force=TimeInForce.DAY
+                )
             
             order = self.trading_client.submit_order(market_order_data)
             order_id = str(getattr(order, 'id', 'unknown'))
@@ -428,7 +480,7 @@ class SimpleOrderManager:
             return self.liquidate_position(symbol)
         else:
             logging.info(f"Selling {qty}/{available} shares ({qty/available:.1%}) - using market order")
-            return self.place_market_order(symbol, qty, OrderSide.SELL)
+            return self.place_market_order(symbol, OrderSide.SELL, qty=qty)
 
     def get_smart_limit_price(self, symbol: str, side: OrderSide, aggressiveness: float = 0.5) -> Optional[float]:
         """
@@ -521,20 +573,14 @@ class SimpleOrderManager:
                 continue
                 
             try:
-                current_price = self.data_provider.get_current_price(symbol)
-                if current_price <= 0:
-                    logging.error(f"Invalid price for {symbol}")
-                    results[symbol] = None
-                    continue
-                    
-                target_qty = target_value / current_price
-                logging.info(f"Buying {symbol}: ${target_value:.2f} ≈ {target_qty:.6f} shares @ ${current_price:.2f}")
+                logging.info(f"Buying {symbol}: ${target_value:.2f} (notional order)")
                 
-                order_id = self.place_market_order(symbol, target_qty, OrderSide.BUY)
+                # Use notional order - no need to calculate quantity or get price!
+                order_id = self.place_market_order(symbol, OrderSide.BUY, notional=target_value)
                 results[symbol] = order_id
                 
             except Exception as e:
-                logging.error(f"Error calculating buy order for {symbol}: {e}")
+                logging.error(f"Error placing notional buy order for {symbol}: {e}")
                 results[symbol] = None
         
         # Summary
@@ -569,28 +615,43 @@ class SimpleOrderManager:
         completed = {}
         
         while time.time() - start_time < max_wait_seconds and len(completed) < len(order_ids):
+            logging.info(f"🔍 Checking {len(order_ids)} orders, {len(completed)} completed so far...")
             for order_id in order_ids:
                 if order_id in completed:
                     continue
                     
                 try:
                     order = self.trading_client.get_order_by_id(order_id)
-                    status = str(getattr(order, 'status', 'unknown'))
+                    status = getattr(order, 'status', 'unknown')
+                    status_str = str(status)
+                    logging.info(f"📋 Order {order_id}: status={status_str}")
                     
-                    if status in ['filled', 'canceled', 'rejected', 'expired']:
-                        completed[order_id] = status
-                        logging.info(f"Order {order_id}: {status}")
+                    # Check if order is in a final state
+                    # Handle both enum values and string representations
+                    final_states = ['filled', 'canceled', 'rejected', 'expired', 
+                                  'OrderStatus.FILLED', 'OrderStatus.CANCELED', 
+                                  'OrderStatus.REJECTED', 'OrderStatus.EXPIRED']
+                    if status_str in final_states or str(status).lower() in ['filled', 'canceled', 'rejected', 'expired']:
+                        completed[order_id] = status_str
+                        logging.info(f"✅ Order {order_id}: {status_str}")
                         
                 except Exception as e:
-                    logging.warning(f"Error checking order {order_id}: {e}")
+                    logging.warning(f"❌ Error checking order {order_id}: {e}")
                     completed[order_id] = 'error'
             
             if len(completed) < len(order_ids):
+                logging.info(f"⏳ {len(order_ids) - len(completed)} orders still pending, waiting 2 seconds...")
                 time.sleep(2)  # Wait 2 seconds before checking again
         
         # Handle any remaining orders
+        if len(completed) < len(order_ids):
+            elapsed_time = time.time() - start_time
+            logging.warning(f"⏰ Timeout after {elapsed_time:.1f}s: {len(order_ids) - len(completed)} orders did not complete")
+            
         for order_id in order_ids:
             if order_id not in completed:
                 completed[order_id] = 'timeout'
+                logging.warning(f"⏰ Order {order_id}: timeout")
                 
+        logging.info(f"🏁 Order settlement complete: {len(completed)} orders processed")
         return completed

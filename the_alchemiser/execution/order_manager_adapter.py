@@ -70,23 +70,28 @@ class OrderManagerAdapter:
         max_retries: int = 3, 
         poll_timeout: int = 30, 
         poll_interval: float = 2.0, 
-        slippage_bps: Optional[float] = None
+        slippage_bps: Optional[float] = None,
+        notional: Optional[float] = None
     ) -> Optional[str]:
         """
         Place limit or market order - delegates to SimpleOrderManager.place_market_order.
         
         For simplicity and reliability, we use market orders which execute immediately.
+        Can use either quantity-based or notional (dollar amount) orders.
         """
         # Handle both string and OrderSide enum inputs
         side_str = side.value if hasattr(side, 'value') else str(side)
-        logging.info(f"🔄 Market order: {side_str} {symbol} {qty} shares")
         
         # Convert string inputs to OrderSide enum if needed
         if isinstance(side, str):
             side = OrderSide.BUY if side.lower() == 'buy' else OrderSide.SELL
         
-        # Use market orders for immediate execution and simplicity
-        return self.simple_order_manager.place_market_order(symbol, qty, side)
+        if notional is not None:
+            logging.info(f"🔄 Market order (notional): {side_str} ${notional:.2f} of {symbol}")
+            return self.simple_order_manager.place_market_order(symbol, side, notional=notional)
+        else:
+            logging.info(f"🔄 Market order: {side_str} {symbol} {qty} shares")
+            return self.simple_order_manager.place_market_order(symbol, side, qty=qty)
     
     def wait_for_settlement(
         self, 
@@ -120,9 +125,12 @@ class OrderManagerAdapter:
         )
         
         # Consider orders settled if they're filled, canceled, or rejected
+        # Handle both enum values and string representations
         settled_count = sum(
             1 for status in completion_statuses.values() 
-            if status in ['filled', 'canceled', 'rejected', 'expired']
+            if status in ['filled', 'canceled', 'rejected', 'expired'] or
+               str(status).lower() in ['filled', 'canceled', 'rejected', 'expired'] or
+               status in ['OrderStatus.FILLED', 'OrderStatus.CANCELED', 'OrderStatus.REJECTED', 'OrderStatus.EXPIRED']
         )
         
         success = settled_count == len(order_ids)

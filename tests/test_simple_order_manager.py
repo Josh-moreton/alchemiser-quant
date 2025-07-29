@@ -63,7 +63,7 @@ def test_simple_order_flow():
     mock_market_order.id = "market-456"
     mock_trading_client.submit_order.return_value = mock_market_order
     
-    order_id = order_manager.place_market_order("NVDA", 2.5, OrderSide.BUY)
+    order_id = order_manager.place_market_order("NVDA", OrderSide.BUY, qty=2.5)
     assert order_id == "market-456"
     print("   ✅ Market order placement works correctly")
     
@@ -138,7 +138,7 @@ def test_error_handling():
     print("   ✅ Correctly handles selling non-existent position")
     
     print("\n   Test: Invalid quantity")
-    order_id = order_manager.place_market_order("AAPL", 0, OrderSide.BUY)
+    order_id = order_manager.place_market_order("AAPL", OrderSide.BUY, qty=0)
     assert order_id is None
     print("   ✅ Correctly handles invalid quantity")
 

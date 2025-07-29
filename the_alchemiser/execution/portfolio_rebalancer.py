@@ -56,13 +56,32 @@ class PortfolioRebalancer:
 
         # --- Step 4: Build list of sells ---
         sell_plans: List[Dict] = []
+        
+        # Check ALL current positions for liquidation needs
         for symbol, pos in current_positions.items():
             plan_data = rebalance_plan.get(symbol, {})
-            if not plan_data.get('needs_rebalance', False):
-                continue
-                
             target_value = plan_data.get('target_value', 0.0)
             current_value = plan_data.get('current_value', 0.0)
+            needs_rebalance = plan_data.get('needs_rebalance', False)
+            
+            # Debug logging for BTAL specifically
+            if symbol == 'BTAL':
+                logging.info(f"🔍 BTAL debug: target_value={target_value}, current_value={current_value}, needs_rebalance={needs_rebalance}")
+                logging.info(f"🔍 BTAL plan_data: {plan_data}")
+            
+            # Force liquidation if symbol not in target portfolio (regardless of rebalance plan)
+            if symbol not in target_portfolio:
+                qty = float(getattr(pos, 'qty', 0))
+                if qty > 0:
+                    price = self.bot.get_current_price(symbol)
+                    if price > 0:
+                        logging.info(f"🔄 Liquidating {symbol} (not in target portfolio): {qty} shares @ ${price:.2f}")
+                        sell_plans.append({"symbol": symbol, "qty": qty, "est": qty * price})
+                        continue
+            
+            # Continue with normal rebalance plan logic
+            if not needs_rebalance:
+                continue
             
             if target_value <= 0 and float(getattr(pos, 'qty', 0)) > 0:
                 price = self.bot.get_current_price(symbol)
@@ -125,32 +144,54 @@ class PortfolioRebalancer:
                     if qty > 0:
                         buy_plans.append({"symbol": symbol, "qty": qty, "est": qty * price})
 
+        # Execute buy orders SEQUENTIALLY with fresh buying power checks
         for plan in buy_plans:
-            if available_cash <= 0:
+            # Refresh account info and buying power before each order
+            account_info = self.bot.get_account_info()
+            available_cash = account_info.get("cash", 0.0)
+            
+            if available_cash <= 1.0:  # Less than $1 left
+                logging.warning(f"Insufficient buying power (${available_cash:.2f}) for {plan['symbol']}, skipping remaining orders")
                 break
-            price = self.bot.get_current_price(plan["symbol"])
-            qty = plan["qty"]
-            cost = qty * price
-            if cost > available_cash:
-                qty = int(available_cash / price * 1e6) / 1e6
-                cost = qty * price
-            if qty <= 0:
-                continue
-            order_id = self.bot.place_order(plan["symbol"], qty, OrderSide.BUY)
+                
+            symbol = plan["symbol"]
+            target_qty = plan["qty"]
+            price = self.bot.get_current_price(symbol)
+            estimated_cost = target_qty * price
+            
+            # Always use notional orders for buy orders to avoid insufficient buying power issues
+            # Use the minimum of: target dollar amount or available cash (with small buffer)
+            target_dollar_amount = min(estimated_cost, available_cash * 0.99)  # 99% to leave small buffer
+            
+            logging.info(f"Using notional order for {symbol}: ${target_dollar_amount:.2f} (available: ${available_cash:.2f})")
+            
+            # Use notional order directly via the order manager adapter
+            order_id = self.order_manager.place_limit_or_market(
+                symbol, 
+                qty=0,  # Ignored when notional is used
+                side=OrderSide.BUY, 
+                notional=target_dollar_amount
+            )
+                
             if order_id:
                 orders_executed.append({
-                    "symbol": plan["symbol"],
-                    "qty": qty,
+                    "symbol": symbol,
+                    "qty": target_qty,  # Estimated quantity for display
                     "side": OrderSide.BUY,
                     "order_id": order_id,
-                    "estimated_value": cost,
+                    "estimated_value": target_dollar_amount,
                 })
-                available_cash -= cost
-
-        if buy_plans:
-            buy_orders = [o for o in orders_executed if o["side"] == OrderSide.BUY]
-            self.bot.wait_for_settlement(buy_orders)
-            account_info = self.bot.get_account_info()
+                
+                # Wait for this individual order to settle before moving to the next
+                logging.info(f"⏳ Waiting for {symbol} order to settle...")
+                self.bot.wait_for_settlement([{
+                    "symbol": symbol,
+                    "order_id": order_id,
+                    "qty": target_qty,
+                    "side": OrderSide.BUY
+                }])
+                
+                logging.info(f"✅ {symbol} order settled, moving to next buy order")
 
         # Final summary
         final_positions = self.bot.get_positions()
