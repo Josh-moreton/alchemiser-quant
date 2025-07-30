@@ -1,9 +1,25 @@
 #!/usr/bin/env python3
-"""
-Main Entry Point for The Alchemiser Trading Bot.
+"""Main Entry Point for The Alchemiser Trading Engine.
 
-Handles CLI argument parsing, orchestration, and logging. Delegates all business logic
-to orchestrator and service classes in core/. Supports bot, single, and multi-strategy modes.
+This module provides the command-line interface and orchestration for the multi-strategy
+trading system. It handles argument parsing, logging configuration, and delegates business
+logic to specialized components in the core/ package.
+
+The main functions support:
+    - Signal analysis mode: Display strategy signals without executing trades
+    - Trading mode: Execute multi-strategy trading with Nuclear and TECL strategies
+    - Paper and live trading modes with market hours validation
+    - Rich console output with email notifications for live trading
+
+Example:
+    Run signal analysis only:
+        $ python main.py bot
+        
+    Execute paper trading:
+        $ python main.py trade
+        
+    Execute live trading:
+        $ python main.py trade --live
 """
 
 # Standard library imports
@@ -23,7 +39,15 @@ config = get_config()
 logging_config = config['logging']
 
 def setup_file_logging():
-    """Configure logging to send all logs to S3 in Lambda, file locally."""
+    """Configure logging for both local and cloud environments.
+    
+    Sets up logging to send all logs to S3 in Lambda environments and files locally.
+    Configures appropriate log levels for third-party libraries to reduce noise.
+    
+    Note:
+        In production, logging is handled by CloudWatch and S3 for trades/signals JSON.
+        File logging setup is removed in favor of cloud-based logging.
+    """
     import os
     from the_alchemiser.core.utils.s3_utils import S3FileHandler
     root_logger = logging.getLogger()
@@ -48,8 +72,27 @@ setup_file_logging()
 
 
 def generate_multi_strategy_signals():
-    """
-    Generate signals for all strategies (Nuclear + TECL) and return consolidated results.
+    """Generate signals for all strategies and return consolidated results.
+    
+    Creates a shared data provider and multi-strategy manager to generate signals
+    for both Nuclear and TECL strategies with equal allocation (50% each).
+    
+    Returns:
+        tuple: A 3-tuple containing:
+            - manager (MultiStrategyManager): The strategy manager instance
+            - strategy_signals (dict): Individual strategy signals by type
+            - consolidated_portfolio (dict): Consolidated portfolio allocation
+            
+        Returns (None, None, None) if signal generation fails.
+        
+    Example:
+        >>> manager, signals, portfolio = generate_multi_strategy_signals()
+        >>> if signals:
+        ...     nuclear_signal = signals[StrategyType.NUCLEAR]
+        ...     tecl_signal = signals[StrategyType.TECL]
+        
+    Raises:
+        Exception: If data provider initialization or strategy execution fails.
     """
     from the_alchemiser.core.trading.strategy_manager import MultiStrategyManager, StrategyType
     from the_alchemiser.core.data.data_provider import UnifiedDataProvider
@@ -68,9 +111,22 @@ def generate_multi_strategy_signals():
         return None, None, None
 
 def run_all_signals_display():
-    """
-    Generate and display multi-strategy signals without any trading.
-    Shows Nuclear, TECL, and consolidated multi-strategy results.
+    """Generate and display multi-strategy signals without executing trades.
+    
+    Shows comprehensive analysis including Nuclear and TECL strategy signals,
+    technical indicators, and consolidated multi-strategy portfolio allocation.
+    This is a read-only operation that performs analysis without trading.
+    
+    Returns:
+        bool: True if signals were successfully generated and displayed,
+              False if signal generation failed.
+              
+    Note:
+        This function displays results using Rich console formatting with:
+        - Technical indicators for all tracked symbols
+        - Individual strategy signals and reasoning
+        - Consolidated portfolio allocation
+        - Strategy execution summary
     """
     from the_alchemiser.core.ui.cli_formatter import (
         render_header, render_footer, render_technical_indicators, 
@@ -133,22 +189,37 @@ def run_all_signals_display():
 
 
 def run_multi_strategy_trading(live_trading: bool = False, ignore_market_hours: bool = False):
-    """
-    Run multi-strategy trading with both Nuclear and TECL strategies
+    """Execute multi-strategy trading with both Nuclear and TECL strategies.
+    
+    Initializes the trading engine with equal allocation between Nuclear and TECL
+    strategies, checks market hours, generates signals, and executes trades.
     
     Args:
-        live_trading: True for live trading, False for paper trading
+        live_trading: True for live trading, False for paper trading.
+            Defaults to False for safety.
+        ignore_market_hours: Whether to ignore market hours and trade
+            during closed market periods. Defaults to False.
+                                  
+    Returns:
+        Union[bool, str]: Returns True if trading was successful, False if failed,
+            or "market_closed" if market is closed and trading was skipped.
+                         
+    Note:
+        - Market hours are checked unless ignore_market_hours is True
+        - Email notifications are only sent in live trading mode
+        - Technical indicators and strategy signals are displayed before execution
+        - Error notifications are sent via email if configured
     """
     from the_alchemiser.core.ui.cli_formatter import render_header, render_technical_indicators
     
     mode_str = "LIVE" if live_trading else "PAPER"
     
     try:
-        from the_alchemiser.execution.alchemiser_trader import AlchemiserTradingBot, StrategyType
-        from the_alchemiser.execution.order_manager_adapter import is_market_open
+        from the_alchemiser.execution.trading_engine import TradingEngine, StrategyType
+        from the_alchemiser.execution.smart_execution import is_market_open
         
         # Initialize multi-strategy trader
-        trader = AlchemiserTradingBot(
+        trader = TradingEngine(
             paper_trading=not live_trading,
             strategy_allocations={
                 StrategyType.NUCLEAR: 0.5,
@@ -220,16 +291,33 @@ def run_multi_strategy_trading(live_trading: bool = False, ignore_market_hours: 
 
 
 def main(argv=None):
-    """
-    Main entry point for the Multi-Strategy Nuclear Trading Bot.
+    """Main entry point for the Multi-Strategy Nuclear Trading Bot.
     
+    Provides command-line interface for running the trading bot in different modes.
+    Supports both signal analysis and actual trading execution.
+    
+    Args:
+        argv: Command line arguments. If None, uses sys.argv.
+        
+    Returns:
+        True if operation completed successfully, False otherwise.
+        
     Modes:
-      - 'bot': Display multi-strategy signals (no trading)
-      - 'trade': Execute multi-strategy trading (Nuclear + TECL combined)
+        bot: Display multi-strategy signals without trading
+        trade: Execute multi-strategy trading (Nuclear + TECL combined)
     
-    Trading modes:
-      - Default: Paper trading (safe default)
-      - --live: Live trading (requires explicit flag)
+    Trading Modes:
+        Default: Paper trading (safe default)
+        --live: Live trading (requires explicit flag)
+        
+    Options:
+        --ignore-market-hours: Override market hours check for testing
+        
+    Examples:
+        $ python main.py bot                    # Show signals only
+        $ python main.py trade                  # Paper trading
+        $ python main.py trade --live           # Live trading
+        $ python main.py trade --ignore-market-hours  # Test during market close
     """
     from the_alchemiser.core.ui.cli_formatter import render_header, render_footer
     

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Nuclear Trading Bot Engine
+Nuclear Signal Generator
 
-This module provides orchestration and execution for the Nuclear Energy trading strategy, including:
+This module provides signal generation for the Nuclear Energy trading strategy, including:
 - Data fetching and technical indicator calculation
 - Strategy evaluation using pure logic from strategy_engine.py
 - Alert generation, logging, and S3 integration
@@ -10,7 +10,7 @@ This module provides orchestration and execution for the Nuclear Energy trading 
 - Both continuous and one-shot execution modes
 
 Pure strategy logic (portfolio construction, signal generation) resides in strategy_engine.py.
-This file handles the real-world orchestration, data management, and execution layers.
+This file handles the real-world orchestration, data management, and signal generation layers.
 """
 
 
@@ -226,8 +226,8 @@ class NuclearStrategyEngine:
         return 'SPY', ActionType.HOLD.value, "No clear signal, holding cash equivalent"
 
 
-class NuclearTradingBot:
-    """Nuclear Energy Trading Bot"""
+class NuclearSignalGenerator:
+    """Nuclear Energy Signal Generator"""
     
     def __init__(self):
         self.strategy = NuclearStrategyEngine()
@@ -376,22 +376,33 @@ class NuclearTradingBot:
             logging.info("Unable to generate nuclear energy signal")
             return None
     
-    def run_continuous(self, interval_minutes=15):
-        """Run analysis continuously"""
+    def run_continuous(self, interval_minutes=15, max_errors=10):
+        """Run analysis continuously with error limits"""
         import time
         
         logging.info(f"Starting continuous Nuclear Energy analysis (every {interval_minutes} minutes)")
+        error_count = 0
         
         while True:
             try:
                 self.run_once()
+                error_count = 0  # Reset error count on success
                 time.sleep(interval_minutes * 60)
             except KeyboardInterrupt:
                 logging.info("Stopping Nuclear Energy bot...")
                 break
             except Exception as e:
-                logging.error(f"Error in continuous run: {e}")
-                time.sleep(60)
+                error_count += 1
+                logging.error(f"Error in continuous run ({error_count}/{max_errors}): {e}")
+                
+                if error_count >= max_errors:
+                    logging.error(f"Too many consecutive errors ({max_errors}), stopping...")
+                    break
+                    
+                # Exponential backoff for errors
+                backoff_time = min(60 * (2 ** min(error_count, 5)), 300)  # Max 5 minutes
+                logging.info(f"Backing off for {backoff_time} seconds...")
+                time.sleep(backoff_time)
     
     def get_current_portfolio_allocation(self):
         """Get current portfolio allocation for display purposes"""

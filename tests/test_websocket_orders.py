@@ -15,14 +15,14 @@ def test_websocket_order_flow():
     print("=" * 40)
     
     try:
-        from the_alchemiser.execution.simple_order_manager import SimpleOrderManager
+        from the_alchemiser.execution.alpaca_client import AlpacaClient
         from the_alchemiser.core.data.data_provider import UnifiedDataProvider
         from alpaca.trading.client import TradingClient
         
         # Initialize with paper trading
         data_provider = UnifiedDataProvider(paper_trading=True)
         trading_client = TradingClient(data_provider.api_key, data_provider.secret_key, paper=True)
-        simple_order_manager = SimpleOrderManager(trading_client, data_provider)
+        simple_order_manager = AlpacaClient(trading_client, data_provider)
         
         print("✅ Order manager initialized")
         

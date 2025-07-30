@@ -30,7 +30,7 @@ def test_progressive_limit_orders():
     try:
         # Import our components
         from the_alchemiser.core.data.data_provider import UnifiedDataProvider
-        from the_alchemiser.execution.order_manager_adapter import OrderManagerAdapter
+        from the_alchemiser.execution.smart_execution import SmartExecution
         
         # Initialize data provider
         console.print("[cyan]Initializing data provider with WebSocket pricing...[/cyan]")
@@ -42,7 +42,7 @@ def test_progressive_limit_orders():
         
         # Initialize order manager adapter
         console.print("[cyan]Initializing order manager adapter...[/cyan]")
-        order_manager = OrderManagerAdapter(
+        order_manager = SmartExecution(
             data_provider.trading_client, 
             data_provider,
             ignore_market_hours=True

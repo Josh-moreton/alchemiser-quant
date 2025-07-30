@@ -12,8 +12,8 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from the_alchemiser.core.data.data_provider import UnifiedDataProvider
-from the_alchemiser.execution.order_manager_adapter import OrderManagerAdapter
-from the_alchemiser.execution.simple_order_manager import SimpleOrderManager
+from the_alchemiser.execution.smart_execution import SmartExecution
+from the_alchemiser.execution.alpaca_client import AlpacaClient
 from alpaca.trading.enums import OrderSide
 from alpaca.trading.client import TradingClient
 from unittest.mock import Mock
@@ -27,8 +27,8 @@ def test_intelligent_sell_orders():
         # Initialize with paper trading
         data_provider = UnifiedDataProvider(paper_trading=True)
         trading_client = TradingClient(data_provider.api_key, data_provider.secret_key, paper=True)
-        simple_order_manager = SimpleOrderManager(trading_client, data_provider)
-        order_manager = OrderManagerAdapter(simple_order_manager)
+        simple_order_manager = AlpacaClient(trading_client, data_provider)
+        order_manager = SmartExecution(simple_order_manager)
         
         print("✅ Order management system initialized")
         

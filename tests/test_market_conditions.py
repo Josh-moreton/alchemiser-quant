@@ -8,8 +8,8 @@ from unittest.mock import MagicMock, patch
 from datetime import datetime, time
 from alpaca.trading.enums import OrderSide
 
-from the_alchemiser.execution.order_manager_adapter import OrderManagerAdapter, is_market_open
-from the_alchemiser.execution.simple_order_manager import SimpleOrderManager
+from the_alchemiser.execution.smart_execution import SmartExecution, is_market_open
+from the_alchemiser.execution.alpaca_client import AlpacaClient
 
 
 @pytest.fixture
@@ -33,8 +33,8 @@ def mock_data_provider():
 
 @pytest.fixture
 def order_manager(mock_trading_client, mock_data_provider):
-    """Create OrderManagerAdapter for testing."""
-    return OrderManagerAdapter(mock_trading_client, mock_data_provider)
+    """Create SmartExecution for testing."""
+    return SmartExecution(mock_trading_client, mock_data_provider)
 
 
 class TestMarketOpen:
@@ -72,7 +72,7 @@ class TestMarketClosed:
         """Test orders with ignore_market_hours=True when market closed."""
         mock_trading_client.get_clock.return_value = MagicMock(is_open=False)
         
-        order_manager = OrderManagerAdapter(
+        order_manager = SmartExecution(
             mock_trading_client, mock_data_provider, ignore_market_hours=True
         )
         

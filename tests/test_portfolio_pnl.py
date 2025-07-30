@@ -10,7 +10,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from the_alchemiser.core.data.data_provider import UnifiedDataProvider
-from the_alchemiser.execution.alchemiser_trader import AlchemiserTradingBot
+from the_alchemiser.execution.trading_engine import TradingEngine
 
 def test_data_provider_methods():
     """Test the new data provider methods"""
@@ -61,13 +61,13 @@ def test_data_provider_methods():
 
 def test_trading_bot_integration():
     """Test the trading bot integration with new P&L data"""
-    print("\n🤖 Testing AlchemiserTradingBot integration...")
+    print("\n🤖 Testing TradingEngine integration...")
     
     try:
         # Create trading bot (paper trading)
-        trader = AlchemiserTradingBot(paper_trading=True)
+        trader = TradingEngine(paper_trading=True)
         
-        print("✅ AlchemiserTradingBot initialized successfully")
+        print("✅ TradingEngine initialized successfully")
         
         # Test enhanced account info
         print("\n📈 Testing enhanced account info...")

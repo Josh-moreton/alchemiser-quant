@@ -8,8 +8,8 @@ import pytest
 from unittest.mock import MagicMock, patch, call
 from alpaca.trading.enums import OrderSide
 
-from the_alchemiser.execution.order_manager_adapter import OrderManagerAdapter
-from the_alchemiser.execution.alchemiser_trader import AlchemiserTradingBot
+from the_alchemiser.execution.smart_execution import SmartExecution
+from the_alchemiser.execution.trading_engine import TradingEngine
 from the_alchemiser.core.trading.strategy_manager import StrategyType
 
 
@@ -37,13 +37,13 @@ def mock_data_provider():
 
 @pytest.fixture
 def order_manager(mock_trading_client, mock_data_provider):
-    """Create OrderManagerAdapter for testing."""
-    return OrderManagerAdapter(mock_trading_client, mock_data_provider)
+    """Create SmartExecution for testing."""
+    return SmartExecution(mock_trading_client, mock_data_provider)
 
 
 @pytest.fixture
 def multi_strategy_trader(mock_trading_client, mock_data_provider):
-    """Create AlchemiserTradingBot (formerly MultiStrategyAlpacaTrader) for testing."""
+    """Create TradingEngine (formerly MultiStrategyAlpacaTrader) for testing."""
     mock_config = {
         'data': {'cache_duration': 300},
         'alpaca': {'cash_reserve_pct': 0.05, 'slippage_bps': 5},
@@ -52,7 +52,7 @@ def multi_strategy_trader(mock_trading_client, mock_data_provider):
     
     with patch('the_alchemiser.core.data.data_provider.UnifiedDataProvider') as mock_provider_class:
         mock_provider_class.return_value = mock_data_provider
-        trader = AlchemiserTradingBot(paper_trading=True, config=mock_config)
+        trader = TradingEngine(paper_trading=True, config=mock_config)
         trader.trading_client = mock_trading_client
         trader.data_provider = mock_data_provider
         return trader
@@ -148,11 +148,11 @@ class TestPartialRebalance:
         ]
         mock_trading_client.get_all_positions.return_value = mock_positions
         
-        # Mock the trading client used by the SimpleOrderManager inside OrderManagerAdapter
+        # Mock the trading client used by the AlpacaClient inside SmartExecution
         multi_strategy_trader.order_manager.simple_order_manager.trading_client.get_all_positions.return_value = mock_positions
         multi_strategy_trader.order_manager.simple_order_manager.trading_client.submit_order.return_value = MagicMock(id='test_order_123')
         
-        # Mock data provider positions (this is what AlchemiserTradingBot.get_positions() calls)
+        # Mock data provider positions (this is what TradingEngine.get_positions() calls)
         multi_strategy_trader.data_provider.get_positions.return_value = [
             {'symbol': 'AAPL', 'qty': 33.0, 'market_value': 4950.0},
             {'symbol': 'GOOGL', 'qty': 2.02, 'market_value': 5050.0}
@@ -193,11 +193,11 @@ class TestPartialRebalance:
         # Mock for multiple places that need position data
         mock_trading_client.get_all_positions.return_value = mock_positions
         
-        # Mock the trading client used by the SimpleOrderManager inside OrderManagerAdapter
+        # Mock the trading client used by the AlpacaClient inside SmartExecution
         multi_strategy_trader.order_manager.simple_order_manager.trading_client.get_all_positions.return_value = mock_positions
         multi_strategy_trader.order_manager.simple_order_manager.trading_client.submit_order.return_value = MagicMock(id='test_order_123')
         
-        # Mock data provider positions (this is what AlchemiserTradingBot.get_positions() calls)
+        # Mock data provider positions (this is what TradingEngine.get_positions() calls)
         multi_strategy_trader.data_provider.get_positions.return_value = [
             {'symbol': 'AAPL', 'qty': 46.67, 'market_value': 7000.0},
             {'symbol': 'GOOGL', 'qty': 1.2, 'market_value': 3000.0}
@@ -240,11 +240,11 @@ class TestNoTradesNeeded:
         ]
         mock_trading_client.get_all_positions.return_value = mock_positions
         
-        # Mock the trading client used by the SimpleOrderManager inside OrderManagerAdapter
+        # Mock the trading client used by the AlpacaClient inside SmartExecution
         multi_strategy_trader.order_manager.simple_order_manager.trading_client.get_all_positions.return_value = mock_positions
         multi_strategy_trader.order_manager.simple_order_manager.trading_client.submit_order.return_value = MagicMock(id='test_order_123')
         
-        # Mock data provider positions (this is what AlchemiserTradingBot.get_positions() calls)
+        # Mock data provider positions (this is what TradingEngine.get_positions() calls)
         multi_strategy_trader.data_provider.get_positions.return_value = [
             {'symbol': 'AAPL', 'qty': 33.33, 'market_value': 5000.0},
             {'symbol': 'GOOGL', 'qty': 2.0, 'market_value': 5000.0}

@@ -1,86 +1,47 @@
 #!/usr/bin/env python3
-"""
-Simple Order Manager for Alpaca Trading.
+"""Alpaca Client for Direct API Access.
 
-A straightforward, robust order placement system that uses Alpaca's APIs directly.
-No complex retry logic or dynamic pegging - just simple, reliable order placement.
+A straightforward, robust wrapper around Alpaca's trading APIs that provides direct access
+to core trading functions without complex retry logic or dynamic adjustments.
 
-DESIGN PHILOSOPHY:
-=================
-This order manager prioritizes simplicity, reliability, and transparency over complexity.
+This client prioritizes simplicity, reliability, and transparency over complexity.
 It follows a "fail-fast, clear errors" approach rather than trying to be overly clever
 with retries and dynamic adjustments that can mask underlying issues.
 
-KEY PRINCIPLES:
-==============
-1. USE ALPACA'S APIS DIRECTLY
-   - get_all_positions() for current holdings
-   - close_position() for safe liquidation of entire positions
-   - get_orders() for pending order status
-   - cancel_orders() for cleanup before new trades
-   - submit_order() for straightforward order placement
+Key Features:
+    - Direct Alpaca API usage for positions, orders, and trades
+    - Position validation to prevent overselling
+    - Clean order management with automatic cancellation
+    - Liquidation API for safe full position exits
+    - Clear error handling with transparent logging
 
-2. PREVENT OVERSELLING WITH POSITION VALIDATION
-   - Always check actual positions before selling
-   - Cap sell quantities to available shares
-   - Use liquidation API for full position exits (99%+)
-   - Never attempt to sell more than we own
+Order Placement Logic:
+    Selling Positions:
+        - Partial sales (< 99%): Use market orders
+        - Full sales (≥ 99%): Use Alpaca's close_position() API
+        - Always validate position exists before selling
+        - Automatically cap sell quantity to available shares
+    
+    Buying Positions:
+        - Use market orders for immediate execution
+        - Cancel existing orders first to avoid conflicts
+        - Round quantities to avoid fractional share issues
+        - Validate positive quantities and prices
 
-3. CLEAN ORDER MANAGEMENT
-   - Cancel existing orders before placing new ones
-   - Wait briefly for cancellations to process
-   - Use simple market orders for immediate execution
-   - Use limit orders only when price control is needed
+Safety Features:
+    - Position validation before every sell order
+    - Automatic quantity capping to prevent overselling
+    - Order cancellation before new orders to prevent conflicts
+    - Liquidation API usage for full position exits
+    - Decimal rounding to handle fractional shares properly
+    - Clear logging of all order attempts and results
 
-4. CLEAR ERROR HANDLING
-   - Fail fast with clear error messages
-   - No complex retry logic that can hide problems
-   - Log all important actions and failures
-   - Return None for failures, order_id for success
-
-ORDER PLACEMENT LOGIC:
-=====================
-
-SELLING POSITIONS:
-- For partial sales (< 99% of position): Use market order
-- For full sales (≥ 99% of position): Use Alpaca's close_position() API
-- Always validate position exists before attempting to sell
-- Automatically cap sell quantity to available shares
-
-BUYING POSITIONS:
-- Use market orders for immediate execution
-- Cancel any existing orders first to avoid conflicts
-- Round quantities to avoid fractional share issues
-- Validate positive quantities and prices
-
-REBALANCING WORKFLOW:
-1. Get current positions from Alpaca
-2. Calculate what needs to be sold (target = 0%)
-3. Execute all sell orders first (using liquidation API for full exits)
-4. Wait for sells to process
-5. Execute buy orders with remaining cash
-6. Return order IDs for all trades
-
-SAFETY FEATURES:
-===============
-- Position validation before every sell order
-- Automatic quantity capping to prevent overselling
-- Order cancellation before new orders to prevent conflicts
-- Liquidation API usage for full position exits
-- Decimal rounding to handle fractional shares properly
-- Clear logging of all order attempts and results
-
-ERROR SCENARIOS HANDLED:
-=======================
-- Attempting to sell non-existent positions → Returns None
-- Attempting to sell more than owned → Automatically caps to available
-- Invalid quantities (≤ 0) → Returns None with warning
-- API failures → Returns None with error logging
-- Missing market data → Returns None with error logging
-
-This approach trades sophistication for reliability. It's designed to work
-consistently in live trading environments where clarity and predictability
-are more valuable than complex optimization.
+Example:
+    Basic usage for order placement:
+    
+    >>> client = AlpacaClient(trading_client, data_provider)
+    >>> positions = client.get_current_positions()
+    >>> order_id = client.place_market_order('AAPL', 10, OrderSide.BUY)
 """
 
 import logging
@@ -97,35 +58,40 @@ import threading
 from the_alchemiser.core.data.data_provider import UnifiedDataProvider
 
 
-class SimpleOrderManager:
-    """
-    Simple, robust order manager that:
-    1. Gets current positions from Alpaca
-    2. Cancels any pending orders before placing new ones
-    3. Uses liquidation API for selling entire positions
-    4. Places straightforward market or limit orders
+class AlpacaClient:
+    """Direct Alpaca API client for reliable order execution.
+    
+    Provides straightforward access to Alpaca trading APIs with focus on:
+    1. Getting current positions from Alpaca
+    2. Canceling pending orders before placing new ones  
+    3. Using liquidation API for selling entire positions
+    4. Placing market or limit orders with clear error handling
     5. No complex retry logic - fail fast and clear
+    
+    Attributes:
+        trading_client: Alpaca trading client for API calls.
+        data_provider: Data provider for market quotes and prices.
+        validate_buying_power: Whether to validate buying power for buy orders.
     """
 
     def __init__(self, trading_client: TradingClient, data_provider: UnifiedDataProvider, validate_buying_power: bool = False):
-        """
-        Initialize SimpleOrderManager.
+        """Initialize AlpacaClient.
         
         Args:
-            trading_client: Alpaca trading client
-            data_provider: Data provider for quotes (optional for market orders)
-            validate_buying_power: Whether to validate buying power for buy orders
+            trading_client: Alpaca trading client instance.
+            data_provider: Data provider for quotes (optional for market orders).
+            validate_buying_power: Whether to validate buying power for buy orders.
+                Defaults to False.
         """
         self.trading_client = trading_client
         self.data_provider = data_provider
         self.validate_buying_power = validate_buying_power
 
     def get_current_positions(self) -> Dict[str, float]:
-        """
-        Get all current positions from Alpaca.
+        """Get all current positions from Alpaca.
         
         Returns:
-            Dictionary mapping symbol -> quantity owned
+            Dictionary mapping symbol to quantity owned. Only includes non-zero positions.
         """
         try:
             positions = self.trading_client.get_all_positions()
@@ -139,11 +105,10 @@ class SimpleOrderManager:
             return {}
 
     def get_pending_orders(self) -> List[Dict]:
-        """
-        Get all pending orders from Alpaca.
+        """Get all pending orders from Alpaca.
         
         Returns:
-            List of pending order information
+            List of pending order information dictionaries.
         """
         try:
             # Get all orders (Alpaca defaults to open orders)
@@ -310,11 +275,14 @@ class SimpleOrderManager:
                     account = self.trading_client.get_account()
                     buying_power = float(getattr(account, 'buying_power', 0) or 0)
                     current_price = self.data_provider.get_current_price(symbol)
-                    order_value = qty * current_price
-                    
-                    if order_value > buying_power:
-                        logging.warning(f"Order value ${order_value:.2f} exceeds buying power ${buying_power:.2f} for {symbol}")
-                        return None
+                    if current_price is not None and current_price > 0 and qty is not None:
+                        price_value = float(current_price)
+                        qty_value = float(qty)
+                        order_value = qty_value * price_value
+                        
+                        if order_value > buying_power:
+                            logging.warning(f"Order value ${order_value:.2f} exceeds buying power ${buying_power:.2f} for {symbol}")
+                            return None
                 except Exception as e:
                     logging.warning(f"Unable to validate buying power for {symbol}: {e}")
                     # Continue with order despite validation error
@@ -606,12 +574,19 @@ class SimpleOrderManager:
         secret_key = getattr(self.trading_client, "_secret_key", None)
         has_keys = isinstance(api_key, str) and isinstance(secret_key, str)
 
+        from rich.console import Console
+        console = Console()
+        console.print(f"[blue]🔑 API keys available: {has_keys}[/blue]")
+        
         if has_keys:
             try:
+                console.print("[blue]🚀 Attempting WebSocket streaming method for order completion[/blue]")
                 return self._wait_for_order_completion_stream(order_ids, max_wait_seconds)
             except Exception as e:  # pragma: no cover - streaming errors fallback
-                logging.warning(f"Falling back to polling due to streaming error: {e}")
+                console.print(f"[red]❌ Falling back to polling due to streaming error: {e}[/red]")
+                logging.warning(f"❌ Falling back to polling due to streaming error: {e}")
 
+        console.print("[blue]🔄 Using polling method for order completion[/blue]")
         return self._wait_for_order_completion_polling(order_ids, max_wait_seconds)
 
     def _wait_for_order_completion_polling(self, order_ids: List[str], max_wait_seconds: int) -> Dict[str, str]:
@@ -661,10 +636,12 @@ class SimpleOrderManager:
                     completed[order_id] = "error"
 
             if len(completed) < len(order_ids):
+                # Use shorter polling interval for faster detection
+                sleep_time = min(1.0, max_wait_seconds / 10)  # More frequent checks
                 logging.info(
-                    f"⏳ {len(order_ids) - len(completed)} orders still pending, waiting 2 seconds..."
+                    f"⏳ {len(order_ids) - len(completed)} orders still pending, waiting {sleep_time}s..."
                 )
-                time.sleep(2)
+                time.sleep(sleep_time)
 
         if len(completed) < len(order_ids):
             elapsed_time = time.time() - start_time
@@ -682,50 +659,292 @@ class SimpleOrderManager:
 
     def _wait_for_order_completion_stream(self, order_ids: List[str], max_wait_seconds: int) -> Dict[str, str]:
         """Use Alpaca's TradingStream to monitor order status."""
+        from rich.console import Console
+        console = Console()
+        
+        console.print(f"[blue]⏳ Waiting for {len(order_ids)} orders to complete via websocket...[/blue]")
+        console.print(f"[blue]🔍 Order IDs to monitor: {order_ids}[/blue]")
+        
         logging.info(
             f"⏳ Waiting for {len(order_ids)} orders to complete via websocket..."
         )
+        logging.info(f"🔍 Order IDs to monitor: {order_ids}")
 
-        api_key = getattr(self.trading_client, "_api_key")
-        secret_key = getattr(self.trading_client, "_secret_key")
-        paper = getattr(self.trading_client, "_sandbox", True)
-
+        # First, check if any orders are already completed before starting websocket monitoring
         completed: Dict[str, str] = {}
         remaining = set(order_ids)
+        
+        # Quick API check for already completed orders
+        for order_id in list(remaining):
+            try:
+                order = self.trading_client.get_order_by_id(order_id)
+                status = str(getattr(order, "status", "")).lower()
+                if 'orderstatus.' in status:
+                    actual_status = status.split('.')[-1]
+                else:
+                    actual_status = status
+                    
+                final_states = {"filled", "canceled", "rejected", "expired"}
+                if actual_status in final_states:
+                    console.print(f"[green]✅ Order {order_id} already completed with status: {actual_status}[/green]")
+                    logging.info(f"✅ Order {order_id} already completed with status: {actual_status}")
+                    completed[order_id] = actual_status
+                    remaining.remove(order_id)
+            except Exception as e:
+                logging.warning(f"❌ Error checking initial order status for {order_id}: {e}")
+        
+        # If all orders are already completed, return immediately
+        if not remaining:
+            console.print(f"[green]🎯 All {len(order_ids)} orders already completed, no websocket monitoring needed[/green]")
+            logging.info(f"🎯 All {len(order_ids)} orders already completed, no websocket monitoring needed")
+            return completed
 
         final_states = {"filled", "canceled", "rejected", "expired"}
+        stream_stopped = False
 
         async def on_update(data) -> None:
+            nonlocal stream_stopped
+            if stream_stopped:
+                return
+                
+            # Reduce websocket message logging - only log if debug mode
+            if logging.getLogger().level <= logging.DEBUG:
+                console.print(f"[dim]📡 WebSocket trade update received: {data}[/dim]")
+                logging.debug(f"📡 WebSocket trade update received: {data}")
+            
             order = getattr(data, "order", None)
             if not order:
                 return
+                
             oid = str(getattr(order, "id", ""))
             status = str(getattr(order, "status", ""))
-            if oid in remaining and status.lower() in final_states:
-                completed[oid] = status
-                remaining.remove(oid)
-                logging.info(f"✅ Order {oid}: {status}")
-                if not remaining:
-                    stream.stop()
+            
+            if oid in remaining:
+                console.print(f"[green]📋 WebSocket order update: ID={oid}, status={status}[/green]")
+                logging.info(f"📋 WebSocket order update: ID={oid}, status={status}")
+                
+                # Handle both string status and enum status
+                status_str = str(status).lower()
+                # Extract the actual status from enum strings like 'OrderStatus.FILLED'
+                if 'orderstatus.' in status_str:
+                    actual_status = status_str.split('.')[-1]  # Gets 'filled' from 'orderstatus.filled'
+                else:
+                    actual_status = status_str
+                
+                if actual_status in final_states:
+                    console.print(f"[green]✅ Order {oid} reached final state: {status} -> {actual_status}[/green]")
+                    logging.info(f"✅ Order {oid} reached final state: {status} -> {actual_status}")
+                    completed[oid] = actual_status
+                    remaining.remove(oid)
+                    console.print(f"[green]📊 Completed orders: {completed}, remaining: {remaining}[/green]")
+                    logging.info(f"📊 Completed orders: {completed}, remaining: {remaining}")
+                    if not remaining:
+                        console.print("[green]🏁 All orders completed, stopping stream[/green]")
+                        logging.info("🏁 All orders completed, stopping stream")
+                        stream_stopped = True
+                else:
+                    console.print(f"[yellow]⏳ Order {oid} status '{actual_status}' not final, continuing to monitor[/yellow]")
+                    logging.info(f"⏳ Order {oid} status '{status}' -> '{actual_status}' not in final states {final_states}")
 
-        stream = TradingStream(api_key, secret_key, paper=paper)
-        stream.subscribe_trade_updates(on_update)
+        # Check if we have a pre-connected WebSocket stream
+        if hasattr(self, '_websocket_stream') and hasattr(self, '_websocket_thread'):
+            console.print("[green]🎯 Using pre-connected WebSocket stream[/green]")
+            logging.info("🎯 Using pre-connected WebSocket stream")
+            
+            try:
+                # Re-subscribe with our actual order monitoring handler
+                self._websocket_stream.subscribe_trade_updates(on_update)
+                console.print("[green]✅ Subscribed to trade updates on pre-connected stream[/green]")
+                logging.info("✅ Subscribed to trade updates on pre-connected stream")
+                
+                # Wait for orders to complete
+                console.print("[blue]⏱️ Starting timeout monitoring with pre-connected stream...[/blue]")
+                logging.info("⏱️ Starting timeout monitoring with pre-connected stream...")
+                start_time = time.time()
+                last_log_time = 0
+                
+                while remaining and time.time() - start_time < max_wait_seconds and not stream_stopped:
+                    elapsed = time.time() - start_time
+                    # Only log every 2 seconds to reduce noise
+                    if elapsed - last_log_time >= 2.0:
+                        console.print(f"[blue]⌛ Waiting... elapsed={elapsed:.1f}s, remaining orders: {remaining}[/blue]")
+                        logging.info(f"⌛ Waiting... elapsed={elapsed:.1f}s, remaining orders: {remaining}")
+                        last_log_time = elapsed
+                    time.sleep(0.1)  # Smaller sleep for faster response
 
-        thread = threading.Thread(target=stream.run, daemon=True)
-        thread.start()
+                if remaining and not stream_stopped:
+                    console.print(f"[red]⏰ Timeout reached! Remaining orders: {remaining}[/red]")
+                    logging.warning(f"⏰ Timeout reached! Remaining orders: {remaining}")
+                    for oid in remaining:
+                        completed[oid] = "timeout"
+                        console.print(f"[red]⏰ Order {oid}: timeout[/red]")
+                        logging.warning(f"⏰ Order {oid}: timeout")
+                else:
+                    console.print("[green]✅ All orders completed before timeout[/green]")
+                    logging.info("✅ All orders completed before timeout")
 
+                console.print(f"[blue]🏁 Order settlement complete: {len(completed)} orders processed[/blue]")
+                console.print(f"[blue]📋 Final completion status: {completed}[/blue]")
+                logging.info(f"🏁 Order settlement complete: {len(completed)} orders processed")
+                logging.info(f"📋 Final completion status: {completed}")
+                return completed
+                
+            except Exception as e:
+                console.print(f"[red]❌ Error using pre-connected WebSocket: {e}[/red]")
+                logging.error(f"❌ Error using pre-connected WebSocket: {e}")
+                # Fall through to create new connection
+        
+        # If no pre-connected stream, create a new one (original behavior)
+        api_key = getattr(self.trading_client, "_api_key")
+        secret_key = getattr(self.trading_client, "_secret_key")
+        paper = getattr(self.trading_client, "_sandbox", True)
+        
+        console.print(f"[blue]🔧 Creating new WebSocket connection: paper={paper}, api_key={api_key[:8]}...[/blue]")
+        logging.info(f"🔧 Creating new WebSocket connection: paper={paper}, api_key={api_key[:8]}...")
+
+        # Import here to avoid circular imports
+        from alpaca.trading.stream import TradingStream
+        import threading
+        
+        try:
+            console.print("[blue]🔌 Initializing new WebSocket stream...[/blue]")
+            stream = TradingStream(api_key, secret_key, paper=paper)
+            
+            stream.subscribe_trade_updates(on_update)
+            
+            console.print("[blue]🚀 Starting new WebSocket stream...[/blue]")
+            logging.info("🚀 Starting new WebSocket stream...")
+            thread = threading.Thread(target=stream.run, daemon=True)
+            thread.start()
+            console.print(f"[blue]🧵 WebSocket thread started: {thread.name} (daemon={thread.daemon})[/blue]")
+            
+            # Give WebSocket time to connect (up to 3 seconds)
+            console.print("[blue]⏳ Waiting for new WebSocket connection (up to 3 seconds)...[/blue]")
+            time.sleep(3)
+                
+        except Exception as e:
+            console.print(f"[red]❌ Failed to initialize new WebSocket stream: {e}[/red]")
+            logging.error(f"❌ Failed to initialize new WebSocket stream: {e}")
+            # Fall back to polling
+            return self._wait_for_order_completion_polling(order_ids, max_wait_seconds)
+        
+        console.print("[blue]⏱️ Starting timeout monitoring with new stream...[/blue]")
+        logging.info("⏱️ Starting timeout monitoring with new stream...")
         start_time = time.time()
         while remaining and time.time() - start_time < max_wait_seconds:
+            elapsed = time.time() - start_time
+            if elapsed % 2 < 0.5:  # Print every 2 seconds
+                console.print(f"[blue]⌛ Waiting... elapsed={elapsed:.1f}s, remaining orders: {remaining}[/blue]")
+            logging.info(f"⌛ Waiting... elapsed={elapsed:.1f}s, remaining orders: {remaining}")
             time.sleep(0.5)
 
         if remaining:
+            console.print(f"[red]⏰ Timeout reached! Stopping stream. Remaining orders: {remaining}[/red]")
+            logging.warning(f"⏰ Timeout reached! Stopping stream. Remaining orders: {remaining}")
             stream.stop()
             thread.join(timeout=2)
             for oid in remaining:
                 completed[oid] = "timeout"
+                console.print(f"[red]⏰ Order {oid}: timeout[/red]")
                 logging.warning(f"⏰ Order {oid}: timeout")
         else:
-            thread.join()
+            console.print("[green]✅ All orders completed before timeout[/green]")
+            logging.info("✅ All orders completed before timeout")
+            
+            # Skip cleanup entirely - just let the daemon thread die naturally
+            console.print("[blue]⚡ Skipping WebSocket cleanup (daemon thread will terminate automatically)[/blue]")
+            console.print("[green]🚀 WebSocket monitoring complete, proceeding...[/green]")
 
+        console.print(f"[blue]🏁 Order settlement complete: {len(completed)} orders processed[/blue]")
+        console.print(f"[blue]📋 Final completion status: {completed}[/blue]")
         logging.info(f"🏁 Order settlement complete: {len(completed)} orders processed")
+        logging.info(f"📋 Final completion status: {completed}")
         return completed
+
+    def _prepare_websocket_connection(self) -> bool:
+        """
+        Pre-initialize WebSocket connection and wait for it to be ready.
+        
+        Returns:
+            True if WebSocket is ready, False if it failed to connect
+        """
+        from rich.console import Console
+        console = Console()
+        
+        api_key = getattr(self.trading_client, "_api_key", None)
+        secret_key = getattr(self.trading_client, "_secret_key", None)
+        has_keys = isinstance(api_key, str) and isinstance(secret_key, str)
+        
+        if not has_keys:
+            console.print("[yellow]⚠️ No API keys available for WebSocket[/yellow]")
+            return False
+        
+        paper = getattr(self.trading_client, "_sandbox", True)
+        
+        try:
+            from alpaca.trading.stream import TradingStream
+            import threading
+            import time
+            
+            # Clean up any existing connection first
+            self._cleanup_websocket_connection()
+            
+            console.print("[blue]🔌 Initializing WebSocket stream for pre-connection...[/blue]")
+            
+            # Create the stream - we know api_key and secret_key are strings at this point
+            stream = TradingStream(str(api_key), str(secret_key), paper=paper)
+            
+            # Track connection status - be more optimistic about connection
+            connection_started = threading.Event()
+            connection_error = None
+            
+            # Dummy handler for trade updates (we'll replace this later)
+            async def dummy_handler(data):
+                if logging.getLogger().level <= logging.DEBUG:
+                    console.print(f"[dim]📡 Pre-connection WebSocket message: {data}[/dim]")
+            
+            # Subscribe to trade updates
+            stream.subscribe_trade_updates(dummy_handler)
+            
+            # Send the explicit subscription message as per Alpaca documentation
+            console.print("[blue]📡 Sending explicit trade_updates subscription...[/blue]")
+            
+            # Start the stream
+            console.print("[blue]🚀 Starting WebSocket pre-connection...[/blue]")
+            thread = threading.Thread(target=stream.run, daemon=True)
+            thread.start()
+            connection_started.set()  # Assume connection will work if thread starts
+            
+            # Give it a short time to connect
+            console.print("[blue]⏳ Waiting for WebSocket initialization (2 seconds)...[/blue]")
+            time.sleep(2.0)
+            
+            # Store the stream for later use optimistically
+            self._websocket_stream = stream
+            self._websocket_thread = thread
+            
+            console.print("[green]🎯 WebSocket pre-connection established![/green]")
+            logging.info("🎯 WebSocket pre-connection established!")
+            return True
+                
+        except Exception as e:
+            console.print(f"[red]❌ Failed to pre-initialize WebSocket: {e}[/red]")
+            logging.error(f"❌ Failed to pre-initialize WebSocket: {e}")
+            return False
+
+    def _cleanup_websocket_connection(self) -> None:
+        """Clean up any existing WebSocket connection."""
+        if hasattr(self, '_websocket_stream'):
+            try:
+                self._websocket_stream.stop()
+            except:
+                pass
+            delattr(self, '_websocket_stream')
+        
+        if hasattr(self, '_websocket_thread'):
+            try:
+                if self._websocket_thread.is_alive():
+                    self._websocket_thread.join(timeout=1.0)
+            except:
+                pass
+            delattr(self, '_websocket_thread')
