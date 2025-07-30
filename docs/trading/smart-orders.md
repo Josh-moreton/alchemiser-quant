@@ -29,11 +29,13 @@ step_5 = market_order  # Guaranteed execution
 ### Buy vs Sell Strategy
 
 **Buy Orders** (Conservative approach):
+
 - Timeout: 15 seconds per step
 - Pricing: Steps toward ask price
 - Goal: Minimize purchase cost
 
 **Sell Orders** (Aggressive approach):
+
 - Timeout: 10 seconds per step  
 - Pricing: 85% toward bid (vs 75% for buys)
 - Goal: Quick liquidation over maximum profit
@@ -79,10 +81,12 @@ def get_current_price_info(symbol: str) -> Dict:
 ### UVXY Example (High Volatility)
 
 **Market Conditions:**
+
 - Bid: $15.23, Ask: $15.32
 - Spread: $0.09 (0.59%)
 
 **BUY Order Progression:**
+
 ```
 Step 1: $15.28 (midpoint) → Wait 15s
 Step 2: $15.28 (10% toward ask) → Wait 15s  
@@ -92,6 +96,7 @@ Step 5: Market order (guaranteed fill)
 ```
 
 **SELL Order Progression:**
+
 ```
 Step 1: $15.28 (midpoint) → Wait 10s
 Step 2: $15.27 (10% toward bid) → Wait 10s
@@ -103,10 +108,12 @@ Step 5: Market order (guaranteed fill)
 ### TSLA Example (Wide Spread)
 
 **Market Conditions:**
+
 - Bid: $319.00, Ask: $325.68  
 - Spread: $6.68 (2.07%)
 
 **BUY Order Progression:**
+
 ```
 Step 1: $322.34 (midpoint)
 Step 2: $322.67 (saves $3.01 vs market)
@@ -136,6 +143,7 @@ async def on_trade_update(data):
 ```
 
 **Performance Benefits:**
+
 - Response time: <100ms vs up to 2 seconds
 - API efficiency: 0 polling calls vs 8+ calls per order
 - Real-time notifications vs delayed discovery
@@ -189,11 +197,13 @@ else:
 Based on real trading data:
 
 **Price Improvement vs Market Orders:**
+
 - Narrow spreads (<0.5%): 0.1-0.2% improvement
 - Normal spreads (0.5-1.5%): 0.3-0.8% improvement  
 - Wide spreads (>1.5%): 0.8-2.0% improvement
 
 **Fill Rates by Step:**
+
 - Step 1 (midpoint): 15-25% fill rate
 - Step 2 (10% step): 35-50% fill rate
 - Step 3 (20% step): 65-80% fill rate
@@ -203,11 +213,13 @@ Based on real trading data:
 ### Speed vs Price Trade-offs
 
 **Conservative Strategy** (Buys):
+
 - Average execution time: 30-45 seconds
 - Average price improvement: 0.5-1.2%
 - Fill rate before market order: 85%
 
 **Aggressive Strategy** (Sells):
+
 - Average execution time: 20-30 seconds  
 - Average price improvement: 0.3-0.8%
 - Fill rate before market order: 90%
@@ -248,16 +260,19 @@ websocket:
 ### Common Issues
 
 **Slow Order Execution:**
+
 - Check WebSocket connectivity
 - Verify spread isn't too wide
 - Consider more aggressive step parameters
 
 **Orders Not Filling:**
+
 - Market may be moving rapidly
 - Spread may be wider than expected
 - Consider reducing step timeout
 
 **WebSocket Connection Issues:**
+
 - Falls back to REST API automatically
 - Check network connectivity
 - Verify API credentials

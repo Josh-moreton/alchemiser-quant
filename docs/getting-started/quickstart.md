@@ -69,6 +69,7 @@ alchemiser status
 ```
 
 Expected output:
+
 ```
 📊 ACCOUNT OVERVIEW
 Portfolio Value: $100,000.00
@@ -83,6 +84,7 @@ alchemiser bot
 ```
 
 This will:
+
 - Analyze current market conditions
 - Generate strategy signals
 - Display recommended allocations
@@ -95,6 +97,7 @@ alchemiser trade
 ```
 
 This will:
+
 - Generate signals
 - Execute trades in your paper account
 - Show execution results
@@ -172,6 +175,7 @@ See [Lambda Deployment Guide](../deployment/lambda.md) for details.
 ### Common Issues
 
 **"Command not found: alchemiser"**
+
 ```bash
 # Ensure virtual environment is activated
 source .venv/bin/activate
@@ -179,6 +183,7 @@ pip install -e .
 ```
 
 **"Invalid API credentials"**
+
 ```bash
 # Check your .env file format
 cat .env
@@ -187,6 +192,7 @@ cat .env
 ```
 
 **"Market is closed"**
+
 ```bash
 # Paper trading works 24/7, but signals may warn about market hours
 alchemiser trade --force  # Override market hours check

@@ -18,19 +18,23 @@ The Nuclear Strategy operates on the principle that different market conditions 
 The strategy trades across three main asset categories:
 
 **Growth Assets:**
+
 - `TQQQ` - 3x Leveraged NASDAQ ETF
 - `TECL` - 3x Leveraged Technology ETF  
 - `SPXL` - 3x Leveraged S&P 500 ETF
 
 **Defensive Assets:**
+
 - `BIL` - 1-3 Month Treasury Bills
 - `SHY` - 1-3 Year Treasury Bonds
 
 **Volatility Hedges:**
+
 - `UVXY` - Ultra VIX Short-Term Futures
 - `VXX` - VIX Short-Term Futures
 
 **Short Positions:**
+
 - `PSQ` - Short QQQ ETF
 - `SPXS` - 3x Inverse S&P 500 ETF
 
@@ -55,6 +59,7 @@ indicators = {
 ### Bear Market Scenarios
 
 **Primary Bear Market Signal:**
+
 ```python
 if (RSI_14 < 40 and price_below_sma_20 and high_volatility):
     return {
@@ -65,6 +70,7 @@ if (RSI_14 < 40 and price_below_sma_20 and high_volatility):
 ```
 
 **Extreme Bear Market:**
+
 ```python
 if (RSI_14 < 30 and RSI_2 < 20 and VIX > 30):
     return {
@@ -77,6 +83,7 @@ if (RSI_14 < 30 and RSI_2 < 20 and VIX > 30):
 ### Bull Market Scenarios
 
 **Primary Bull Market:**
+
 ```python
 if (RSI_14 > 60 and price_above_sma_20 and low_volatility):
     return {
@@ -87,6 +94,7 @@ if (RSI_14 > 60 and price_above_sma_20 and low_volatility):
 ```
 
 **Strong Bull Market:**
+
 ```python
 if (RSI_14 > 70 and RSI_2 > 80 and VIX < 15):
     return {
@@ -99,6 +107,7 @@ if (RSI_14 > 70 and RSI_2 > 80 and VIX < 15):
 ### Transitional Scenarios
 
 **Overbought Conditions:**
+
 ```python
 if (RSI_14 > 80 and recent_high_volatility):
     return {
@@ -109,6 +118,7 @@ if (RSI_14 > 80 and recent_high_volatility):
 ```
 
 **Oversold Bounce:**
+
 ```python
 if (RSI_14 < 30 and showing_reversal_signals):
     return {
@@ -213,6 +223,7 @@ def analyze_trend_strength(price: float, sma_20: float, sma_50: float) -> str:
 The strategy supports two portfolio weighting methods:
 
 **Equal Weight (Default):**
+
 ```python
 # Simple equal allocation among selected assets
 if selected_assets = ["TQQQ", "BIL", "UVXY"]:
@@ -221,6 +232,7 @@ if selected_assets = ["TQQQ", "BIL", "UVXY"]:
 ```
 
 **Inverse Volatility Weighting:**
+
 ```python
 def calculate_inverse_volatility_weights(assets: List[str]) -> Dict:
     """Weight by inverse of individual asset volatility."""

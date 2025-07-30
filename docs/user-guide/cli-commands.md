@@ -27,6 +27,7 @@ alchemiser bot [OPTIONS]
 **Purpose**: Analyze market conditions and generate strategy signals for review.
 
 **Options**:
+
 - `--output-format [console|json]` - Output format (default: console)
 - `--save-signals / --no-save-signals` - Save signals to file (default: true)
 - `--config FILE` - Custom configuration file path
@@ -72,6 +73,7 @@ alchemiser trade [OPTIONS]
 **Purpose**: Execute automated trading based on generated signals.
 
 **Options**:
+
 - `--live / --paper` - Live trading vs paper trading (default: paper)
 - `--email / --no-email` - Send email notifications (default: true for live)
 - `--dry-run` - Show what would be traded without executing
@@ -122,6 +124,7 @@ alchemiser status [OPTIONS]
 **Purpose**: View account overview, positions, and recent performance.
 
 **Options**:
+
 - `--detailed` - Show detailed position information
 - `--history [1|7|30]` - Days of history to include (default: 7)
 - `--format [table|json]` - Output format (default: table)
@@ -169,6 +172,7 @@ alchemiser deploy [OPTIONS]
 **Purpose**: Build and deploy containerized Lambda function for scheduled trading.
 
 **Options**:
+
 - `--environment [staging|production]` - Deployment environment
 - `--schedule TEXT` - Cron schedule (default: daily at 9:35 AM ET)
 - `--timeout INTEGER` - Lambda timeout in seconds (default: 300)
@@ -224,6 +228,7 @@ alchemiser version [OPTIONS]
 **Purpose**: Show version, dependencies, and system information for debugging.
 
 **Options**:
+
 - `--check-updates` - Check for available updates
 - `--dependencies` - Show all dependency versions
 

@@ -7,6 +7,7 @@ This document outlines the migration of existing documentation into the new stru
 ### ✅ Completed - New Documentation Framework
 
 **Core Structure Created:**
+
 - `docs/README.md` - Main documentation index
 - `docs/getting-started/quickstart.md` - Quick start guide
 - `docs/getting-started/installation.md` - Installation guide
@@ -19,6 +20,7 @@ This document outlines the migration of existing documentation into the new stru
 ### 📋 Files to Migrate
 
 **Implementation Documentation (High Priority):**
+
 1. `INTELLIGENT_SELL_ORDERS_IMPLEMENTATION.md` → `docs/trading/intelligent-sell-orders.md`
 2. `PROGRESSIVE_LIMIT_ORDER_STRATEGY.md` → `docs/trading/progressive-orders.md`
 3. `REAL_TIME_PRICING_SUMMARY.md` → `docs/trading/real-time-pricing.md`
@@ -92,11 +94,13 @@ mv the_alchemiser/execution/README.md docs/development/archive/execution-readme.
 ### 1. Smart Orders Documentation
 
 **Consolidate overlapping content:**
+
 - `INTELLIGENT_SELL_ORDERS_IMPLEMENTATION.md` - Sell order specifics
 - `PROGRESSIVE_LIMIT_ORDER_STRATEGY.md` - General progressive strategy
 - Existing `docs/trading/smart-orders.md` - Overview
 
 **New structure:**
+
 ```
 docs/trading/
 ├── smart-orders.md (overview - already created)
@@ -108,11 +112,13 @@ docs/trading/
 ### 2. WebSocket Documentation
 
 **Combine WebSocket files:**
+
 - `WEBSOCKET_ANALYSIS.md` - Implementation analysis
 - `WEBSOCKET_URL_VERIFICATION.md` - Configuration verification
 - `REAL_TIME_PRICING_SUMMARY.md` - Pricing integration
 
 **New structure:**
+
 ```
 docs/trading/
 ├── real-time-pricing.md (user guide)
@@ -123,12 +129,14 @@ docs/trading/
 ### 3. Testing Documentation
 
 **Consolidate test files:**
+
 - `tests/test-fails.md` - Test failure analysis
 - `tests/tests to make.md` - Test planning
 - `tests/test.md` - Test gaps analysis
 - Existing `docs/development/testing.md` - Framework guide
 
 **New structure:**
+
 ```
 docs/development/
 ├── testing.md (framework guide - already created)
@@ -146,6 +154,7 @@ docs/development/
 **Target**: `docs/trading/intelligent-sell-orders.md`
 
 **Content Updates:**
+
 - Add overview section explaining sell vs buy differences
 - Update code examples with current class names
 - Add links to related documentation
@@ -156,6 +165,7 @@ docs/development/
 **Target**: `docs/trading/progressive-orders.md`
 
 **Content Updates:**
+
 - Expand with more detailed examples
 - Add configuration options
 - Include troubleshooting section
@@ -166,6 +176,7 @@ docs/development/
 **Target**: `docs/trading/real-time-pricing.md`
 
 **Content Updates:**
+
 - Convert to user-focused guide
 - Add setup instructions
 - Include monitoring and debugging
@@ -178,6 +189,7 @@ docs/development/
 **Target**: `docs/architecture/data-flow.md`
 
 **Content Updates:**
+
 - Update class names (bot → engine terminology)
 - Add sequence diagrams
 - Include error handling flows
@@ -188,6 +200,7 @@ docs/development/
 **Targets**: Various `docs/development/` files
 
 **Content Updates:**
+
 - Consolidate duplicated information
 - Update test examples with current codebase
 - Add new test categories discovered
@@ -200,6 +213,7 @@ docs/development/
 All migrated documentation should follow:
 
 **Headers:**
+
 ```markdown
 # Page Title
 
@@ -211,6 +225,7 @@ Use consistent heading hierarchy.
 ```
 
 **Code Blocks:**
+
 ```markdown
 # Always specify language
 ```python
@@ -219,11 +234,13 @@ def example_function():
 ```
 
 **Cross-References:**
+
 ```markdown
 See [Related Topic](./related-topic.md) for details.
 ```
 
 **Admonitions:**
+
 ```markdown
 > **Warning**: Important safety information
 
@@ -233,6 +250,7 @@ See [Related Topic](./related-topic.md) for details.
 ### Content Organization
 
 **Each document should include:**
+
 1. **Overview** - What this covers
 2. **Prerequisites** - What you need to know first
 3. **Main Content** - Detailed information
@@ -244,34 +262,40 @@ See [Related Topic](./related-topic.md) for details.
 ### Link Structure
 
 **Internal Links:**
+
 - Use relative paths: `./filename.md`
 - Include section anchors: `./filename.md#section-name`
 
 **External Links:**
+
 - Always include description
 - Verify links are still valid
 
 ## Timeline
 
 ### Week 1: High Priority (Trading Features)
+
 - [ ] Migrate smart order documentation
 - [ ] Consolidate WebSocket documentation  
 - [ ] Update real-time pricing guide
 - [ ] Test all internal links
 
 ### Week 2: Medium Priority (Architecture)
+
 - [ ] Migrate process documentation
 - [ ] Update architecture diagrams
 - [ ] Consolidate test documentation
 - [ ] Review cross-references
 
 ### Week 3: Cleanup and Polish
+
 - [ ] Archive old documentation
 - [ ] Update main README links
 - [ ] Verify all documentation builds
 - [ ] Create documentation index
 
 ### Week 4: Validation
+
 - [ ] User testing of new structure
 - [ ] Fix any broken links
 - [ ] Update search/navigation
@@ -280,21 +304,25 @@ See [Related Topic](./related-topic.md) for details.
 ## Success Criteria
 
 ✅ **Complete Migration:**
+
 - All existing documentation moved to new structure
 - No broken internal links
 - Consistent formatting and style
 
 ✅ **Improved Organization:**
+
 - Logical grouping by user journey
 - Clear navigation paths
 - Reduced duplication
 
 ✅ **Enhanced Content:**
+
 - Updated examples and code
 - Current terminology throughout
 - Comprehensive cross-references
 
 ✅ **User Validation:**
+
 - New users can follow getting started
 - Developers can find technical details
 - Traders can understand strategies
@@ -302,16 +330,19 @@ See [Related Topic](./related-topic.md) for details.
 ## Maintenance Plan
 
 **Regular Reviews:**
+
 - Monthly documentation updates
 - Quarterly structure review
 - Annual major reorganization if needed
 
 **Quality Checks:**
+
 - Automated link checking in CI
 - Documentation builds verification
 - User feedback integration
 
 **Content Updates:**
+
 - Keep examples current with codebase
 - Update performance metrics
 - Add new features documentation

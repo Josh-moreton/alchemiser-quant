@@ -36,6 +36,7 @@ make install
 ```
 
 This will:
+
 - Create virtual environment
 - Install all dependencies
 - Setup CLI commands
@@ -364,6 +365,7 @@ pre-commit>=3.4.0
 ### Common Installation Issues
 
 **Python Version Error**:
+
 ```bash
 # Error: Python 3.11+ required
 python --version  # Check version
@@ -373,6 +375,7 @@ python --version  # Check version
 ```
 
 **Permission Denied**:
+
 ```bash
 # Error: Permission denied during installation
 # Solution: Don't use sudo with pip in virtual environment
@@ -381,6 +384,7 @@ pip install -e .
 ```
 
 **SSL Certificate Error**:
+
 ```bash
 # Error: SSL certificate verification failed
 # Solution: Update certificates
@@ -389,6 +393,7 @@ pip install --upgrade certifi
 ```
 
 **Module Not Found**:
+
 ```bash
 # Error: ModuleNotFoundError after installation
 # Solution: Ensure virtual environment is activated
@@ -399,6 +404,7 @@ which python  # Should point to .venv/bin/python
 ### API Connection Issues
 
 **Alpaca Authentication Failed**:
+
 ```bash
 # Check API keys in .env file
 cat .env | grep ALPACA
@@ -408,6 +414,7 @@ cat .env | grep ALPACA
 ```
 
 **Network Connection Error**:
+
 ```bash
 # Test basic connectivity
 curl -I https://paper-api.alpaca.markets/v2/account
@@ -419,6 +426,7 @@ curl -I https://paper-api.alpaca.markets/v2/account
 ### Performance Issues
 
 **Slow Installation**:
+
 ```bash
 # Use pip cache and upgrade pip
 pip install --upgrade pip
@@ -426,6 +434,7 @@ pip install -e . --cache-dir ~/.pip/cache
 ```
 
 **Memory Issues During Install**:
+
 ```bash
 # Install dependencies individually
 pip install alpaca-py

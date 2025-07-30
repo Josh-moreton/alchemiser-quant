@@ -18,12 +18,14 @@ The Alchemiser is designed as a modular, layered system that separates concerns 
 **Purpose**: Generate trading signals based on market analysis
 
 **Key Components**:
+
 - `strategy_manager.py` - Orchestrates multiple strategies
 - `strategy_engine.py` - Nuclear strategy implementation  
 - `tecl_strategy_engine.py` - TECL momentum strategy
 - `technical_indicators.py` - Market analysis tools
 
 **Responsibilities**:
+
 - Fetch and analyze market data
 - Calculate technical indicators (RSI, moving averages)
 - Generate portfolio allocation signals
@@ -34,12 +36,14 @@ The Alchemiser is designed as a modular, layered system that separates concerns 
 **Purpose**: Execute trades and manage orders
 
 **Key Components**:
+
 - `trading_engine.py` - Main trading orchestrator
 - `smart_execution.py` - Intelligent order placement
 - `alpaca_client.py` - Direct Alpaca API wrapper
 - `portfolio_rebalancer.py` - Portfolio management
 
 **Responsibilities**:
+
 - Transform signals into executable orders
 - Place orders with smart execution logic
 - Monitor order status and settlement
@@ -50,6 +54,7 @@ The Alchemiser is designed as a modular, layered system that separates concerns 
 **Purpose**: External data and service integration
 
 **Key Components**:
+
 - `data_provider.py` - Market data aggregation
 - `real_time_pricing.py` - WebSocket price feeds
 - `email_utils.py` - Notification system

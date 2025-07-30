@@ -33,21 +33,25 @@ alchemiser status
 ## ✨ Key Features
 
 ### 🧠 **Multi-Strategy Intelligence**
+
 - **Nuclear Strategy**: Market regime detection with volatility hedging
 - **TECL Strategy**: Technology sector momentum and rotation
 - **Dynamic Allocation**: Intelligent portfolio weighting and risk management
 
 ### ⚡ **Smart Order Execution**
+
 - **Progressive Limit Orders**: Start at mid-price, step toward market price
 - **WebSocket Integration**: Real-time pricing and order monitoring
 - **Sub-100ms Latency**: Instant fill notifications vs 2-second polling
 
 ### 🛡️ **Risk Management**
+
 - **Paper Trading First**: Safe testing with $100K virtual portfolio
 - **Position Limits**: Configurable maximum allocations by asset type
 - **Spread Protection**: Reject orders with excessive bid-ask spreads
 
 ### 📊 **Professional Reporting**
+
 - **Rich CLI Output**: Beautiful terminal interface with live updates
 - **Email Notifications**: HTML reports with P&L tracking and charts
 - **Portfolio Analytics**: Detailed performance metrics and attribution
@@ -175,6 +179,7 @@ docker run --env-file .env alchemiser trade
 ### Email Notifications
 
 Professional HTML email reports with:
+
 - 📈 Portfolio performance and P&L tracking
 - 🎯 Strategy allocation breakdowns  
 - 📋 Detailed trade execution summaries
@@ -321,6 +326,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ---
 
 **Built with ❤️ for systematic trading**
+
 - Real-time portfolio and P&L reporting
 - Strategy allocation breakdowns
 - Trading activity summaries
