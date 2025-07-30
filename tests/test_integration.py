@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 import tempfile
 import os
 
-from the_alchemiser.execution.order_manager_adapter import OrderManagerAdapter
+from the_alchemiser.execution.smart_execution import SmartExecution
 from the_alchemiser.core.data.data_provider import UnifiedDataProvider
 from alpaca.trading.enums import OrderSide
 
@@ -65,10 +65,10 @@ class TestPaperTradingIntegration:
     def test_complete_paper_trading_session(self, mock_trading_client, mock_data_provider, mock_strategies):
         """Test complete paper trading session from start to finish."""
         # Setup order manager
-        order_manager = OrderManagerAdapter(mock_trading_client, mock_data_provider)
+        order_manager = SmartExecution(mock_trading_client, mock_data_provider)
         
         # Simulate complete trading session
-        with patch('the_alchemiser.execution.alchemiser_trader.AlchemiserTradingBot') as MockTrader:
+        with patch('the_alchemiser.execution.alchemiser_trader.TradingEngine') as MockTrader:
             # Mock the trader to simulate execution
             mock_trader_instance = MockTrader.return_value
             mock_result = Mock()
@@ -111,7 +111,7 @@ class TestPaperTradingIntegration:
     
     def test_paper_trading_with_market_data(self, mock_trading_client, mock_data_provider):
         """Test paper trading with real market data integration."""
-        order_manager = OrderManagerAdapter(mock_trading_client, mock_data_provider)
+        order_manager = SmartExecution(mock_trading_client, mock_data_provider)
         
         # Mock market data for multiple symbols
         price_data = {'AAPL': 150.0, 'GOOGL': 2500.0, 'MSFT': 350.0}
@@ -133,7 +133,7 @@ class TestPaperTradingIntegration:
     
     def test_paper_trading_error_recovery(self, mock_trading_client, mock_data_provider):
         """Test paper trading with error recovery."""
-        order_manager = OrderManagerAdapter(mock_trading_client, mock_data_provider)
+        order_manager = SmartExecution(mock_trading_client, mock_data_provider)
         
         # Simulate intermittent failures
         mock_trading_client.submit_order.side_effect = [
@@ -165,7 +165,7 @@ class TestLiveTradingSimulation:
     def test_live_trading_safety_checks(self, mock_trading_client, mock_data_provider):
         """Test safety checks in live trading mode."""
         config = {'validate_buying_power': True}  # Enable buying power validation
-        order_manager = OrderManagerAdapter(mock_trading_client, mock_data_provider, config=config)
+        order_manager = SmartExecution(mock_trading_client, mock_data_provider, config=config)
         
         # Mock account with limited funds for safety
         mock_trading_client.get_account.return_value = MagicMock(
@@ -189,7 +189,7 @@ class TestLiveTradingSimulation:
     
     def test_live_trading_position_tracking(self, mock_trading_client, mock_data_provider):
         """Test position tracking in live trading."""
-        order_manager = OrderManagerAdapter(mock_trading_client, mock_data_provider)
+        order_manager = SmartExecution(mock_trading_client, mock_data_provider)
         
         # Mock existing positions
         mock_trading_client.get_all_positions.return_value = [
@@ -208,7 +208,7 @@ class TestLiveTradingSimulation:
     
     def test_live_trading_market_hours_check(self, mock_trading_client, mock_data_provider):
         """Test market hours checking in live trading."""
-        order_manager = OrderManagerAdapter(mock_trading_client, mock_data_provider)
+        order_manager = SmartExecution(mock_trading_client, mock_data_provider)
         
         # Test during market hours
         mock_trading_client.get_clock.return_value = MagicMock(is_open=True)
@@ -244,7 +244,7 @@ class TestBacktestMode:
             portfolio_value=10000.0
         )
         
-        order_manager = OrderManagerAdapter(backtest_client, mock_data_provider)
+        order_manager = SmartExecution(backtest_client, mock_data_provider)
         
         # Simulate backtest execution
         backtest_results = []
@@ -281,7 +281,7 @@ class TestBacktestMode:
         backtest_client.get_all_positions.side_effect = portfolio_states
         backtest_client.submit_order.return_value = MagicMock(id='order')
         
-        order_manager = OrderManagerAdapter(backtest_client, mock_data_provider)
+        order_manager = SmartExecution(backtest_client, mock_data_provider)
         
         # Track portfolio evolution
         portfolio_evolution = []
@@ -314,7 +314,7 @@ class TestBacktestMode:
         backtest_client.get_account.side_effect = account_states
         backtest_client.submit_order.return_value = MagicMock(id='order')
         
-        order_manager = OrderManagerAdapter(backtest_client, mock_data_provider)
+        order_manager = SmartExecution(backtest_client, mock_data_provider)
         
         # Collect performance data
         performance_data = []
@@ -341,7 +341,7 @@ class TestEndToEndWorkflows:
     
     def test_morning_portfolio_rebalance(self, mock_trading_client, mock_data_provider, mock_strategies):
         """Test complete morning portfolio rebalancing workflow."""
-        order_manager = OrderManagerAdapter(mock_trading_client, mock_data_provider)
+        order_manager = SmartExecution(mock_trading_client, mock_data_provider)
         
         # Mock morning market conditions
         mock_trading_client.get_clock.return_value = MagicMock(
@@ -377,7 +377,7 @@ class TestEndToEndWorkflows:
     
     def test_intraday_strategy_execution(self, mock_trading_client, mock_data_provider, mock_strategies):
         """Test intraday strategy execution workflow."""
-        order_manager = OrderManagerAdapter(mock_trading_client, mock_data_provider)
+        order_manager = SmartExecution(mock_trading_client, mock_data_provider)
         
         # Simulate intraday price movements
         price_timeline = [150.0, 152.0, 148.0, 155.0, 147.0]  # Volatile day
@@ -422,7 +422,7 @@ class TestEndToEndWorkflows:
     
     def test_end_of_day_settlement(self, mock_trading_client, mock_data_provider):
         """Test end-of-day settlement workflow."""
-        order_manager = OrderManagerAdapter(mock_trading_client, mock_data_provider)
+        order_manager = SmartExecution(mock_trading_client, mock_data_provider)
         
         # Mock pending orders from the day
         pending_orders = [

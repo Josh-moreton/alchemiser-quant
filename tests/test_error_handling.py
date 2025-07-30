@@ -10,7 +10,7 @@ from alpaca.trading.enums import OrderSide
 from alpaca.common.exceptions import APIError
 import requests.exceptions
 
-from the_alchemiser.execution.order_manager_adapter import OrderManagerAdapter
+from the_alchemiser.execution.smart_execution import SmartExecution
 
 
 @pytest.fixture
@@ -35,8 +35,8 @@ def mock_data_provider():
 
 @pytest.fixture
 def order_manager(mock_trading_client, mock_data_provider):
-    """Create OrderManagerAdapter for testing."""
-    return OrderManagerAdapter(mock_trading_client, mock_data_provider)
+    """Create SmartExecution for testing."""
+    return SmartExecution(mock_trading_client, mock_data_provider)
 
 
 class TestAPIErrors:

@@ -9,7 +9,7 @@ from unittest.mock import MagicMock, patch
 from collections import defaultdict
 from alpaca.trading.enums import OrderSide
 
-from the_alchemiser.execution.order_manager_adapter import OrderManagerAdapter
+from the_alchemiser.execution.smart_execution import SmartExecution
 
 
 @pytest.fixture
@@ -47,8 +47,8 @@ def create_mock_strategy():
 
 @pytest.fixture
 def order_manager(mock_trading_client, mock_data_provider):
-    """Create OrderManagerAdapter for testing."""
-    return OrderManagerAdapter(mock_trading_client, mock_data_provider)
+    """Create SmartExecution for testing."""
+    return SmartExecution(mock_trading_client, mock_data_provider)
 
 
 #!/usr/bin/env python3
@@ -60,7 +60,7 @@ import pytest
 from unittest.mock import MagicMock
 from alpaca.trading.enums import OrderSide
 
-from the_alchemiser.execution.order_manager_adapter import OrderManagerAdapter
+from the_alchemiser.execution.smart_execution import SmartExecution
 
 
 @pytest.fixture
@@ -87,8 +87,8 @@ def mock_data_provider():
 
 @pytest.fixture
 def order_manager(mock_trading_client, mock_data_provider):
-    """Create OrderManagerAdapter for testing."""
-    return OrderManagerAdapter(mock_trading_client, mock_data_provider)
+    """Create SmartExecution for testing."""
+    return SmartExecution(mock_trading_client, mock_data_provider)
 
 
 class TestSignalExecution:

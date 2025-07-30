@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
-Simple Order Manager for Alpaca Trading.
+Alpaca Client for Direct API Access.
 
-A straightforward, robust order placement system that uses Alpaca's APIs directly.
-No complex retry logic or dynamic pegging - just simple, reliable order placement.
+A straightforward, robust wrapper around Alpaca's trading APIs.
+Provides direct access to core trading functions without complex retry logic or dynamic adjustments.
 
 DESIGN PHILOSOPHY:
 =================
-This order manager prioritizes simplicity, reliability, and transparency over complexity.
+This client prioritizes simplicity, reliability, and transparency over complexity.
 It follows a "fail-fast, clear errors" approach rather than trying to be overly clever
 with retries and dynamic adjustments that can mask underlying issues.
 
@@ -97,9 +97,9 @@ import threading
 from the_alchemiser.core.data.data_provider import UnifiedDataProvider
 
 
-class SimpleOrderManager:
+class AlpacaClient:
     """
-    Simple, robust order manager that:
+    Direct Alpaca API client that:
     1. Gets current positions from Alpaca
     2. Cancels any pending orders before placing new ones
     3. Uses liquidation API for selling entire positions
@@ -109,7 +109,7 @@ class SimpleOrderManager:
 
     def __init__(self, trading_client: TradingClient, data_provider: UnifiedDataProvider, validate_buying_power: bool = False):
         """
-        Initialize SimpleOrderManager.
+        Initialize AlpacaClient.
         
         Args:
             trading_client: Alpaca trading client

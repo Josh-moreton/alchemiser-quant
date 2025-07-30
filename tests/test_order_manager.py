@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import MagicMock
 from alpaca.trading.enums import OrderSide
-from the_alchemiser.execution.order_manager_adapter import OrderManagerAdapter
+from the_alchemiser.execution.smart_execution import SmartExecution
 
 
 @pytest.fixture
@@ -22,7 +22,7 @@ def order_manager():
     data_provider.get_latest_quote.return_value = (99.0, 101.0)
 
     config = {'alpaca': {'slippage_bps': 10}}
-    return OrderManagerAdapter(trading_client, data_provider, ignore_market_hours=False, config=config)
+    return SmartExecution(trading_client, data_provider, ignore_market_hours=False, config=config)
 
 def test_place_limit_or_market_buy(order_manager):
     order_id = order_manager.place_limit_or_market('AAPL', 1.0, OrderSide.BUY)

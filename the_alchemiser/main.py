@@ -144,11 +144,11 @@ def run_multi_strategy_trading(live_trading: bool = False, ignore_market_hours: 
     mode_str = "LIVE" if live_trading else "PAPER"
     
     try:
-        from the_alchemiser.execution.alchemiser_trader import AlchemiserTradingBot, StrategyType
-        from the_alchemiser.execution.order_manager_adapter import is_market_open
+        from the_alchemiser.execution.trading_engine import TradingEngine, StrategyType
+        from the_alchemiser.execution.smart_execution import is_market_open
         
         # Initialize multi-strategy trader
-        trader = AlchemiserTradingBot(
+        trader = TradingEngine(
             paper_trading=not live_trading,
             strategy_allocations={
                 StrategyType.NUCLEAR: 0.5,

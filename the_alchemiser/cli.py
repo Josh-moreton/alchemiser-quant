@@ -184,14 +184,14 @@ def status(
     console.print(f"[bold yellow]Fetching {mode_display} account status...[/bold yellow]")
     
     try:
-        from the_alchemiser.execution.alchemiser_trader import AlchemiserTradingBot
+        from the_alchemiser.execution.trading_engine import TradingEngine
         from the_alchemiser.core.ui.cli_formatter import render_account_info
         from the_alchemiser.core.data.data_provider import UnifiedDataProvider
         from rich.table import Table
         from rich.panel import Panel
         
         # Create trader and data provider for the specified mode
-        trader = AlchemiserTradingBot(paper_trading=paper_trading)
+        trader = TradingEngine(paper_trading=paper_trading)
         data_provider = UnifiedDataProvider(paper_trading=paper_trading)
         
         account_info = trader.get_account_info()

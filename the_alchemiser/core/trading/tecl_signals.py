@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-TECL Trading Bot Engine
+TECL Signal Generator
 
-This module implements the orchestration and execution layer for the TECL strategy, including:
+This module implements the signal generation layer for the TECL strategy, including:
 - Market regime detection using SPY vs 200-day MA
 - RSI-based timing signals and sector rotation (XLK vs KMLM)
 - Dynamic allocation between TECL, BIL, UVXY, SQQQ, and BSV
@@ -10,7 +10,7 @@ This module implements the orchestration and execution layer for the TECL strate
 - Technical indicator calculation, alert generation, and S3 integration
 - Both continuous and one-shot execution modes
 
-This file handles data fetching, orchestration, and execution for the TECL strategy,
+This file handles data fetching, orchestration, and signal generation for the TECL strategy,
 while pure strategy logic resides in tecl_strategy_engine.py.
 """
 
@@ -126,8 +126,8 @@ class TECLStrategyEngine:
         return self.strategy.evaluate_tecl_strategy(indicators, market_data)
 
 
-class TECLTradingBot:
-    """TECL Trading Bot"""
+class TECLSignalGenerator:
+    """TECL Signal Generator"""
     
     def __init__(self):
         self.strategy = TECLStrategyEngine()

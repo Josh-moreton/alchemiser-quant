@@ -10,7 +10,7 @@ from alpaca.trading.enums import OrderSide
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(levelname)s:%(name)s:%(message)s')
 
-from the_alchemiser.execution.simple_order_manager import SimpleOrderManager
+from the_alchemiser.execution.alpaca_client import AlpacaClient
 
 
 def test_simple_order_flow():
@@ -22,7 +22,7 @@ def test_simple_order_flow():
     mock_data_provider = Mock()
     
     # Create order manager
-    order_manager = SimpleOrderManager(mock_trading_client, mock_data_provider)
+    order_manager = AlpacaClient(mock_trading_client, mock_data_provider)
     
     print("\n🧪 Test 1: Get current positions")
     # Mock position data
@@ -128,7 +128,7 @@ def test_error_handling():
     
     mock_trading_client = Mock()
     mock_data_provider = Mock()
-    order_manager = SimpleOrderManager(mock_trading_client, mock_data_provider)
+    order_manager = AlpacaClient(mock_trading_client, mock_data_provider)
     
     print("\n   Test: Selling non-existent position")
     mock_trading_client.get_all_positions.return_value = []

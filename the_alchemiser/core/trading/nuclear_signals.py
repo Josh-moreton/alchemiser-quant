@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Nuclear Trading Bot Engine
+Nuclear Signal Generator
 
-This module provides orchestration and execution for the Nuclear Energy trading strategy, including:
+This module provides signal generation for the Nuclear Energy trading strategy, including:
 - Data fetching and technical indicator calculation
 - Strategy evaluation using pure logic from strategy_engine.py
 - Alert generation, logging, and S3 integration
@@ -10,7 +10,7 @@ This module provides orchestration and execution for the Nuclear Energy trading 
 - Both continuous and one-shot execution modes
 
 Pure strategy logic (portfolio construction, signal generation) resides in strategy_engine.py.
-This file handles the real-world orchestration, data management, and execution layers.
+This file handles the real-world orchestration, data management, and signal generation layers.
 """
 
 
@@ -226,8 +226,8 @@ class NuclearStrategyEngine:
         return 'SPY', ActionType.HOLD.value, "No clear signal, holding cash equivalent"
 
 
-class NuclearTradingBot:
-    """Nuclear Energy Trading Bot"""
+class NuclearSignalGenerator:
+    """Nuclear Energy Signal Generator"""
     
     def __init__(self):
         self.strategy = NuclearStrategyEngine()

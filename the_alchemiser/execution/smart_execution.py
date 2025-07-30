@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 """
-OrderManager Compatibility Adapter for SimpleOrderManager.
+Smart Execution Engine with Progressive Limit Order Strategy.
 
-This adapter provides the same interface as the complex OrderManager but uses
-SimpleOrderManager internally for much more reliable order placement.
+This module provides sophisticated order execution with progressive limit pricing that:
+- Starts at midpoint of bid/ask spread for optimal price improvement
+- Steps progressively toward less favorable prices (10% increments)
+- Uses WebSocket notifications for instant fill detection
+- Falls back to market orders if all limit attempts fail
 """
 
 import logging
@@ -12,7 +15,7 @@ from typing import Dict, List, Optional
 from alpaca.trading.enums import OrderSide
 from alpaca.trading.client import TradingClient
 
-from the_alchemiser.execution.simple_order_manager import SimpleOrderManager
+from the_alchemiser.execution.alpaca_client import AlpacaClient
 
 
 def is_market_open(trading_client: TradingClient) -> bool:
@@ -24,12 +27,12 @@ def is_market_open(trading_client: TradingClient) -> bool:
         return False
 
 
-class OrderManagerAdapter:
+class SmartExecution:
     """
-    Adapter to make SimpleOrderManager compatible with existing AlpacaTradingBot code.
+    Advanced execution engine with progressive limit order strategy.
     
-    This provides the same interface as the old OrderManager but uses SimpleOrderManager
-    internally for much more reliable order placement.
+    This provides sophisticated order execution using the AlpacaClient internally
+    for reliable order placement with intelligent limit pricing.
     """
     
     def __init__(self, trading_client, data_provider, ignore_market_hours=False, config=None):
@@ -38,7 +41,7 @@ class OrderManagerAdapter:
         self.config = config or {}
         validate_buying_power = self.config.get('validate_buying_power', False)
         
-        self.simple_order_manager = SimpleOrderManager(trading_client, data_provider, validate_buying_power)
+        self.alpaca_client = AlpacaClient(trading_client, data_provider, validate_buying_power)
         self.ignore_market_hours = ignore_market_hours
         
         # OrderManagerAdapter initialized silently
@@ -53,15 +56,15 @@ class OrderManagerAdapter:
         slippage_bps: Optional[float] = None
     ) -> Optional[str]:
         """
-        Place a safe sell order - delegates to SimpleOrderManager.place_smart_sell_order.
+        Place a safe sell order - delegates to AlpacaClient.place_smart_sell_order.
         
         This method provides the same interface as the old OrderManager but uses
-        the much more reliable SimpleOrderManager internally.
+        the much more reliable AlpacaClient internally.
         """
         # Safe sell order execution
         
-        # The SimpleOrderManager handles all the safety checks internally
-        return self.simple_order_manager.place_smart_sell_order(symbol, target_qty)
+        # The AlpacaClient handles all the safety checks internally
+        return self.alpaca_client.place_smart_sell_order(symbol, target_qty)
     
     def place_limit_or_market(
         self, 
@@ -96,10 +99,10 @@ class OrderManagerAdapter:
         # Handle notional orders for BUY by converting to quantity
         if side == OrderSide.BUY and notional is not None:
             try:
-                current_price = self.simple_order_manager.data_provider.get_current_price(symbol)
+                current_price = self.alpaca_client.data_provider.get_current_price(symbol)
                 if current_price <= 0:
                     logging.warning(f"Invalid price for {symbol}, falling back to market order")
-                    return self.simple_order_manager.place_market_order(symbol, side, notional=notional)
+                    return self.alpaca_client.place_market_order(symbol, side, notional=notional)
                 
                 # Calculate max quantity we can afford, round down to 6 decimals, then scale to 99%
                 raw_qty = notional / current_price
@@ -108,13 +111,13 @@ class OrderManagerAdapter:
                 
                 if scaled_qty <= 0:
                     logging.warning(f"Calculated quantity too small for {symbol}, falling back to market order")
-                    return self.simple_order_manager.place_market_order(symbol, side, notional=notional)
+                    return self.alpaca_client.place_market_order(symbol, side, notional=notional)
                 
                 qty = scaled_qty
                 
             except Exception as e:
                 logging.warning(f"Error calculating quantity for {symbol}: {e}, falling back to market order")
-                return self.simple_order_manager.place_market_order(symbol, side, notional=notional)
+                return self.alpaca_client.place_market_order(symbol, side, notional=notional)
         elif side == OrderSide.BUY:
             # For quantity orders, round down to 6 decimals and scale to 99%
             rounded_qty = int(qty * 1e6) / 1e6
@@ -122,19 +125,19 @@ class OrderManagerAdapter:
         
         # For SELL notional orders, use market order (can't easily implement progressive limits)
         if side == OrderSide.SELL and notional is not None:
-            return self.simple_order_manager.place_market_order(symbol, side, notional=notional)
+            return self.alpaca_client.place_market_order(symbol, side, notional=notional)
         
         # Get bid/ask for progressive limit order strategy
         try:
-            quote = self.simple_order_manager.data_provider.get_latest_quote(symbol)
+            quote = self.alpaca_client.data_provider.get_latest_quote(symbol)
             if not quote or len(quote) < 2:
                 # No quote available, use market order
                 from rich.console import Console
                 Console().print(f"[yellow]No bid/ask quote available for {symbol}, using market order[/yellow]")
                 if notional is not None:
-                    return self.simple_order_manager.place_market_order(symbol, side, notional=notional)
+                    return self.alpaca_client.place_market_order(symbol, side, notional=notional)
                 else:
-                    return self.simple_order_manager.place_market_order(symbol, side, qty=qty)
+                    return self.alpaca_client.place_market_order(symbol, side, qty=qty)
             
             bid = float(quote[0])
             ask = float(quote[1])
@@ -144,9 +147,9 @@ class OrderManagerAdapter:
                 from rich.console import Console
                 Console().print(f"[yellow]Invalid bid/ask quote for {symbol} (bid=${bid:.2f}, ask=${ask:.2f}), using market order[/yellow]")
                 if notional is not None:
-                    return self.simple_order_manager.place_market_order(symbol, side, notional=notional)
+                    return self.alpaca_client.place_market_order(symbol, side, notional=notional)
                 else:
-                    return self.simple_order_manager.place_market_order(symbol, side, qty=qty)
+                    return self.alpaca_client.place_market_order(symbol, side, qty=qty)
             
             # Calculate midpoint and spread
             midpoint = (bid + ask) / 2.0
@@ -182,7 +185,7 @@ class OrderManagerAdapter:
                 console.print(f"[{color}]{step_name}: {side.value} {symbol} @ ${limit_price:.2f}[/{color}]")
                 
                 # Place limit order
-                limit_order_id = self.simple_order_manager.place_limit_order(
+                limit_order_id = self.alpaca_client.place_limit_order(
                     symbol, qty, side, limit_price
                 )
                 
@@ -193,7 +196,7 @@ class OrderManagerAdapter:
                 # Wait 10 seconds for fill using WebSocket notifications
                 console.print(f"[dim]Waiting 10 seconds for fill via WebSocket...[/dim]")
                 
-                order_results = self.simple_order_manager.wait_for_order_completion(
+                order_results = self.alpaca_client.wait_for_order_completion(
                     [limit_order_id], max_wait_seconds=10
                 )
                 
@@ -213,9 +216,9 @@ class OrderManagerAdapter:
         
         # Final fallback to market order
         if notional is not None:
-            return self.simple_order_manager.place_market_order(symbol, side, notional=notional)
+            return self.alpaca_client.place_market_order(symbol, side, notional=notional)
         else:
-            return self.simple_order_manager.place_market_order(symbol, side, qty=qty)
+            return self.alpaca_client.place_market_order(symbol, side, qty=qty)
     
     def wait_for_settlement(
         self, 
@@ -244,7 +247,7 @@ class OrderManagerAdapter:
         # Wait for order settlement
         
         # Use the SimpleOrderManager's order completion waiting
-        completion_statuses = self.simple_order_manager.wait_for_order_completion(
+        completion_statuses = self.alpaca_client.wait_for_order_completion(
             order_ids, max_wait_time
         )
         
@@ -267,11 +270,11 @@ class OrderManagerAdapter:
     
     def liquidate_position(self, symbol: str) -> Optional[str]:
         """Liquidate position - delegates to SimpleOrderManager."""
-        return self.simple_order_manager.liquidate_position(symbol)
+        return self.alpaca_client.liquidate_position(symbol)
     
     def get_position_qty(self, symbol: str) -> float:
         """Get position quantity - delegates to SimpleOrderManager."""
-        positions = self.simple_order_manager.get_current_positions()
+        positions = self.alpaca_client.get_current_positions()
         return positions.get(symbol, 0.0)
     
     def calculate_dynamic_limit_price(self, side: OrderSide, bid: float, ask: float, 

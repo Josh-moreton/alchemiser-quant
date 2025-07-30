@@ -21,8 +21,8 @@ from datetime import datetime, timedelta
 from enum import Enum
 
 from the_alchemiser.core.config import Config
-from the_alchemiser.core.trading.nuclear_trading_bot import NuclearStrategyEngine, ActionType
-from the_alchemiser.core.trading.tecl_trading_bot import TECLStrategyEngine
+from the_alchemiser.core.trading.nuclear_signals import NuclearStrategyEngine, ActionType
+from the_alchemiser.core.trading.tecl_signals import TECLStrategyEngine
 
 
 class StrategyType(Enum):

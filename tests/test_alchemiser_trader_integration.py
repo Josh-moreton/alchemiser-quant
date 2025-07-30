@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Integration Test for AlchemiserTradingBot
+Integration Test for TradingEngine
 
-Tests the unified AlchemiserTradingBot functionality to ensure all components
+Tests the unified TradingEngine functionality to ensure all components
 work together correctly after the consolidation refactoring.
 
 This test verifies:
@@ -20,8 +20,8 @@ from typing import Dict, List
 from dataclasses import dataclass
 
 # Import the classes we're testing
-from the_alchemiser.execution.alchemiser_trader import AlchemiserTradingBot, MultiStrategyExecutionResult
-# NOTE: Old classes have been consolidated into AlchemiserTradingBot
+from the_alchemiser.execution.trading_engine import TradingEngine, MultiStrategyExecutionResult
+# NOTE: Old classes have been consolidated into TradingEngine
 # from the_alchemiser.execution.alpaca_trader import AlpacaTradingBot  # Now .old file
 # from the_alchemiser.execution.multi_strategy_trader import MultiStrategyAlpacaTrader  # Now .old file
 from the_alchemiser.core.trading.strategy_manager import StrategyType
@@ -178,11 +178,11 @@ def mock_orders_executed():
     ]
 
 
-class TestAlchemiserTradingBotIntegration:
-    """Integration tests for the unified AlchemiserTradingBot"""
+class TestTradingEngineIntegration:
+    """Integration tests for the unified TradingEngine"""
 
     def test_account_info_consistency(self, mock_config, mock_account_data):
-        """Test that account info retrieval works correctly with the unified AlchemiserTradingBot"""
+        """Test that account info retrieval works correctly with the unified TradingEngine"""
         
         with patch('the_alchemiser.core.data.data_provider.UnifiedDataProvider.get_account_info') as mock_get_account, \
              patch('the_alchemiser.core.data.data_provider.UnifiedDataProvider.get_portfolio_history') as mock_get_history, \
@@ -194,7 +194,7 @@ class TestAlchemiserTradingBotIntegration:
             mock_get_open_pos.return_value = mock_account_data['positions_dict'].values()  # Use dict format for open positions
             
             # Initialize the unified trader
-            new_trader = AlchemiserTradingBot(paper_trading=True, config=mock_config)
+            new_trader = TradingEngine(paper_trading=True, config=mock_config)
             
             # Get account info from the trader
             account_info = new_trader.get_account_info()
@@ -213,10 +213,10 @@ class TestAlchemiserTradingBotIntegration:
             assert account_info['portfolio_history']['equity'] == [9900, 10000]
 
     def test_positions_consistency(self, mock_config, mock_account_data):
-        """Test that position retrieval works correctly with the unified AlchemiserTradingBot"""
+        """Test that position retrieval works correctly with the unified TradingEngine"""
         
         # Initialize trader
-        new_trader = AlchemiserTradingBot(paper_trading=True, config=mock_config)
+        new_trader = TradingEngine(paper_trading=True, config=mock_config)
         
         # Mock get_positions for the trader to return appropriate format
         with patch.object(new_trader.data_provider, 'get_positions', return_value=list(mock_account_data['positions_dict'].values())):
@@ -242,7 +242,7 @@ class TestAlchemiserTradingBotIntegration:
     def test_multi_strategy_execution_parity(self, mock_config, mock_account_data, 
                                            mock_strategy_signals, mock_consolidated_portfolio, 
                                            mock_orders_executed):
-        """Test that multi-strategy execution works correctly with the unified AlchemiserTradingBot"""
+        """Test that multi-strategy execution works correctly with the unified TradingEngine"""
         
         # Create comprehensive mocks for all dependencies
         with patch('the_alchemiser.core.data.data_provider.UnifiedDataProvider.get_account_info') as mock_get_account, \
@@ -266,7 +266,7 @@ class TestAlchemiserTradingBotIntegration:
                 StrategyType.TECL: 0.4
             }
             
-            new_trader = AlchemiserTradingBot(
+            new_trader = TradingEngine(
                 paper_trading=True, 
                 strategy_allocations=strategy_allocations,
                 config=mock_config
@@ -297,7 +297,7 @@ class TestAlchemiserTradingBotIntegration:
 
     def test_portfolio_rebalancing_consistency(self, mock_config, mock_account_data, 
                                              mock_consolidated_portfolio, mock_orders_executed):
-        """Test that portfolio rebalancing works correctly with the unified AlchemiserTradingBot"""
+        """Test that portfolio rebalancing works correctly with the unified TradingEngine"""
         
         with patch('the_alchemiser.core.data.data_provider.UnifiedDataProvider.get_account_info') as mock_get_account, \
              patch('the_alchemiser.core.data.data_provider.UnifiedDataProvider.get_positions') as mock_get_positions, \
@@ -309,7 +309,7 @@ class TestAlchemiserTradingBotIntegration:
             mock_rebalance_new.return_value = mock_orders_executed
             
             # Initialize trader
-            new_trader = AlchemiserTradingBot(paper_trading=True, config=mock_config)
+            new_trader = TradingEngine(paper_trading=True, config=mock_config)
             
             # Execute rebalancing
             orders = new_trader.rebalance_portfolio(mock_consolidated_portfolio)
@@ -330,7 +330,7 @@ class TestAlchemiserTradingBotIntegration:
         with patch('the_alchemiser.core.data.data_provider.UnifiedDataProvider.get_account_info') as mock_get_account:
             mock_get_account.return_value = mock_account_data['account']
             
-            new_trader = AlchemiserTradingBot(paper_trading=True, config=mock_config)
+            new_trader = TradingEngine(paper_trading=True, config=mock_config)
             
             target_portfolio = {'SPY': 0.6, 'QQQ': 0.4}
             account_info = {'portfolio_value': 10000.0}
@@ -350,13 +350,13 @@ class TestAlchemiserTradingBotIntegration:
             assert current_values['QQQ'] == 3000.0
 
     def test_error_handling_consistency(self, mock_config):
-        """Test that error handling works correctly in the unified AlchemiserTradingBot"""
+        """Test that error handling works correctly in the unified TradingEngine"""
         
         # Mock a failure scenario
         with patch('the_alchemiser.core.data.data_provider.UnifiedDataProvider.get_account_info') as mock_get_account:
             mock_get_account.side_effect = Exception("API Error")
             
-            new_trader = AlchemiserTradingBot(paper_trading=True, config=mock_config)
+            new_trader = TradingEngine(paper_trading=True, config=mock_config)
             
             # Should handle errors gracefully
             result = new_trader.execute_multi_strategy()
@@ -368,7 +368,7 @@ class TestAlchemiserTradingBotIntegration:
             assert 'error' in result.execution_summary
 
     def test_initialization_consistency(self, mock_config):
-        """Test that the unified AlchemiserTradingBot initializes correctly with consistent configuration"""
+        """Test that the unified TradingEngine initializes correctly with consistent configuration"""
         
         strategy_allocations = {
             StrategyType.NUCLEAR: 0.7,
@@ -376,7 +376,7 @@ class TestAlchemiserTradingBotIntegration:
         }
         
         # Initialize trader with parameters
-        new_trader = AlchemiserTradingBot(
+        new_trader = TradingEngine(
             paper_trading=True,
             strategy_allocations=strategy_allocations,
             ignore_market_hours=True,

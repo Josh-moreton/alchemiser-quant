@@ -81,17 +81,17 @@ class TestNuclearStrategyEngine(unittest.TestCase):
 
     def create_evaluation_context(self, mock_data_provider, indicators, market_data=None):
         """Create evaluation context with proper mocking"""
-        from the_alchemiser.core.trading.nuclear_trading_bot import NuclearStrategyEngine as TradingBotEngine
+        from the_alchemiser.core.trading.nuclear_signals import NuclearStrategyEngine as StrategyEngine
         
         # Create mock data provider if none provided
         if mock_data_provider is None:
             mock_data_provider = Mock()
         
-        # Create trading bot engine instance with mocked dependencies
-        bot_engine = TradingBotEngine(data_provider=mock_data_provider)
-        bot_engine.strategy = self.engine  # Use our pure strategy engine
+        # Create strategy engine instance with mocked dependencies
+        strategy_engine = StrategyEngine(data_provider=mock_data_provider)
+        strategy_engine.strategy = self.engine  # Use our pure strategy engine
         
-        return bot_engine.evaluate_nuclear_strategy(indicators, market_data)
+        return strategy_engine.evaluate_nuclear_strategy(indicators, market_data)
 
     # ===== PRIMARY OVERBOUGHT BRANCH TESTS (SPY RSI > 79) =====
     
