@@ -476,3 +476,148 @@ class UnifiedDataProvider:
         except Exception as e:
             logging.error(f"Error fetching open positions: {e}")
             return []
+
+    def get_account_activities(self, activity_type="FILL", direction="desc", page_size=50):
+        """
+        Get account activities including filled orders to track closed position P&L.
+        
+        Args:
+            activity_type: Type of activity ('FILL', 'TRANS', 'DIV', etc.)
+            direction: Sort direction ('desc' for most recent first)
+            page_size: Number of results to return (max 100)
+            
+        Returns:
+            List of activity dicts including recent fills/trades
+        """
+        url = f"{self.api_endpoint}/account/activities/{activity_type}"
+        headers = {
+            "accept": "application/json",
+            "APCA-API-KEY-ID": self.api_key,
+            "APCA-API-SECRET-KEY": self.secret_key
+        }
+        params = {
+            "direction": direction,
+            "page_size": min(page_size, 100)  # Alpaca max is 100
+        }
+        try:
+            import requests
+            response = requests.get(url, headers=headers, params=params, timeout=10)
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            logging.error(f"Error fetching account activities: {e}")
+            return []
+
+    def get_recent_closed_positions_pnl(self, days_back=7):
+        """
+        Calculate P&L from recent closed positions by analyzing filled orders.
+        
+        Args:
+            days_back: Number of days to look back for closed positions
+            
+        Returns:
+            List of dicts with closed position P&L information
+        """
+        try:
+            from datetime import datetime, timedelta
+            from collections import defaultdict
+            
+            # Get recent fill activities
+            activities = self.get_account_activities(activity_type="FILL", page_size=100)
+            
+            if not activities:
+                return []
+            
+            # Filter activities to last N days
+            cutoff_date = datetime.now() - timedelta(days=days_back)
+            recent_activities = []
+            
+            for activity in activities:
+                try:
+                    activity_time_str = activity.get('transaction_time', '')
+                    # Handle timezone-aware datetime parsing
+                    if activity_time_str.endswith('Z'):
+                        activity_time_str = activity_time_str[:-1] + '+00:00'
+                    
+                    activity_date = datetime.fromisoformat(activity_time_str)
+                    
+                    # Make cutoff_date timezone-aware if activity_date is timezone-aware
+                    if activity_date.tzinfo is not None and cutoff_date.tzinfo is None:
+                        from datetime import timezone
+                        cutoff_date = cutoff_date.replace(tzinfo=timezone.utc)
+                    elif activity_date.tzinfo is None and cutoff_date.tzinfo is not None:
+                        cutoff_date = cutoff_date.replace(tzinfo=None)
+                    
+                    if activity_date >= cutoff_date:
+                        recent_activities.append(activity)
+                except (ValueError, AttributeError) as e:
+                    logging.debug(f"Error parsing activity date {activity_time_str}: {e}")
+                    continue
+            
+            # Group activities by symbol to calculate position P&L
+            symbol_trades = defaultdict(list)
+            for activity in recent_activities:
+                symbol = activity.get('symbol')
+                if symbol:
+                    symbol_trades[symbol].append(activity)
+            
+            closed_positions = []
+            
+            for symbol, trades in symbol_trades.items():
+                # Sort trades by date
+                trades.sort(key=lambda x: x.get('transaction_time', ''))
+                
+                position_qty = 0
+                total_cost = 0
+                realized_pnl = 0
+                total_sold_cost_basis = 0  # Track cost basis of sold shares for % calculation
+                
+                for trade in trades:
+                    side = trade.get('side', '').upper()
+                    qty = float(trade.get('qty', 0))
+                    price = float(trade.get('price', 0))
+                    
+                    if side == 'BUY':
+                        position_qty += qty
+                        total_cost += qty * price
+                    elif side == 'SELL' and position_qty > 0:
+                        # Calculate realized P&L for the sale
+                        avg_cost = total_cost / position_qty if position_qty > 0 else 0
+                        sale_pnl = qty * (price - avg_cost)
+                        realized_pnl += sale_pnl
+                        
+                        # Track the cost basis of shares sold for percentage calculation
+                        total_sold_cost_basis += qty * avg_cost
+                        
+                        # Update position
+                        position_qty -= qty
+                        if position_qty <= 0:
+                            # Position fully closed
+                            total_cost = 0
+                            position_qty = 0
+                        else:
+                            # Partial close - adjust cost basis proportionally
+                            total_cost = position_qty * avg_cost
+                
+                # If we have realized P&L from this symbol, record it
+                if abs(realized_pnl) > 0.01:  # Only include if P&L > 1 cent
+                    latest_trade = trades[-1]
+                    # Calculate percentage based on the total cost basis of sold shares
+                    realized_pnl_pct = (realized_pnl / total_sold_cost_basis) * 100 if total_sold_cost_basis > 0 else 0
+                    closed_positions.append({
+                        'symbol': symbol,
+                        'realized_pnl': realized_pnl,
+                        'realized_pnl_pct': realized_pnl_pct,
+                        'last_trade_date': latest_trade.get('transaction_time'),
+                        'trade_count': len(trades),
+                        'final_position_qty': position_qty
+                    })
+            
+            # Sort by absolute P&L (biggest movers first)
+            closed_positions.sort(key=lambda x: abs(x['realized_pnl']), reverse=True)
+            
+            return closed_positions
+            
+        except Exception as e:
+            logging.error(f"Error calculating closed positions P&L: {e}")
+            return []

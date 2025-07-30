@@ -308,6 +308,11 @@ def build_trading_report_html(
             </div>
             """
     
+    # Build closed position P&L section
+    closed_pnl_html = ""
+    if account_after and account_after.get('recent_closed_pnl'):
+        closed_pnl_html = _build_closed_positions_pnl_email_html(account_after)
+    
     # Main HTML template
     html_content = f"""
     <!DOCTYPE html>
@@ -386,6 +391,8 @@ def build_trading_report_html(
                                     {trading_html}
                                     
                                     {positions_html}
+                                    
+                                    {closed_pnl_html}
                                     
                                     {"<div style='margin: 24px 0; padding: 16px; background-color: #FEE2E2; border-left: 4px solid #EF4444; border-radius: 8px;'><p style='margin: 0; color: #DC2626; font-weight: 600;'>⚠️ Check logs for error details</p></div>" if not success else ""}
                                     
@@ -545,6 +552,7 @@ def build_multi_strategy_email_html(result: Any, mode: str) -> str:
                 {_build_detailed_strategy_signals_email_html(strategy_signals, strategy_summary)}
                 {_build_enhanced_trading_summary_email_html(trading_summary)}
                 {_build_enhanced_portfolio_email_html(result)}
+                {_build_closed_positions_pnl_email_html(account_info)}
             </div>
             
             <!-- Footer -->
@@ -843,6 +851,107 @@ def _build_enhanced_portfolio_email_html(result: Any) -> str:
             </thead>
             <tbody>
                 {portfolio_rows}
+            </tbody>
+        </table>
+    </div>
+    """
+
+
+def _build_closed_positions_pnl_email_html(account_info: Dict) -> str:
+    """Build recent closed positions P&L display for email"""
+    recent_closed_pnl = account_info.get('recent_closed_pnl', [])
+    
+    if not recent_closed_pnl:
+        return f"""
+        <div style="margin: 24px 0; padding: 20px; background-color: #F3F4F6; border-radius: 12px; text-align: center;">
+            <h3 style="margin: 0 0 8px 0; color: #6B7280; font-size: 18px;">📊 Recent Closed Positions P&L</h3>
+            <p style="margin: 0; color: #6B7280; font-style: italic;">No closed positions in last 7 days</p>
+        </div>
+        """
+    
+    closed_pnl_rows = ""
+    total_realized_pnl = 0
+    
+    for position in recent_closed_pnl[:8]:  # Show top 8 closed positions in email
+        symbol = position.get('symbol', 'N/A')
+        realized_pnl = position.get('realized_pnl', 0)
+        realized_pnl_pct = position.get('realized_pnl_pct', 0)
+        trade_count = position.get('trade_count', 0)
+        last_trade = position.get('last_trade_date', '')
+        
+        total_realized_pnl += realized_pnl
+        
+        # Color coding for P&L
+        pnl_color = "#10B981" if realized_pnl >= 0 else "#EF4444"
+        pnl_sign = "+" if realized_pnl >= 0 else ""
+        
+        # Format last trade date
+        try:
+            from datetime import datetime
+            trade_date = datetime.fromisoformat(last_trade.replace('Z', '+00:00'))
+            formatted_date = trade_date.strftime('%m/%d %H:%M')
+        except:
+            formatted_date = last_trade[:10] if last_trade else 'N/A'
+        
+        closed_pnl_rows += f"""
+        <tr>
+            <td style="padding: 12px; border-bottom: 1px solid #F3F4F6; font-weight: 600; color: #1F2937;">
+                {symbol}
+            </td>
+            <td style="padding: 12px; border-bottom: 1px solid #F3F4F6; text-align: right; font-weight: 600; color: {pnl_color};">
+                {pnl_sign}${realized_pnl:,.2f}
+            </td>
+            <td style="padding: 12px; border-bottom: 1px solid #F3F4F6; text-align: right; font-weight: 600; color: {pnl_color};">
+                {pnl_sign}{realized_pnl_pct:.2f}%
+            </td>
+            <td style="padding: 12px; border-bottom: 1px solid #F3F4F6; text-align: center; color: #6B7280;">
+                {trade_count}
+            </td>
+            <td style="padding: 12px; border-bottom: 1px solid #F3F4F6; text-align: center; color: #6B7280; font-size: 12px;">
+                {formatted_date}
+            </td>
+        </tr>
+        """
+    
+    # Add total row if we have multiple positions
+    if len(recent_closed_pnl) > 1:
+        total_pnl_color = "#10B981" if total_realized_pnl >= 0 else "#EF4444"
+        total_pnl_sign = "+" if total_realized_pnl >= 0 else ""
+        closed_pnl_rows += f"""
+        <tr style="background-color: #F9FAFB; border-top: 2px solid #E5E7EB;">
+            <td style="padding: 12px; font-weight: 700; color: #1F2937;">
+                TOTAL REALIZED
+            </td>
+            <td style="padding: 12px; text-align: right; font-weight: 700; color: {total_pnl_color};">
+                {total_pnl_sign}${total_realized_pnl:,.2f}
+            </td>
+            <td style="padding: 12px; text-align: right; color: #6B7280;">
+                -
+            </td>
+            <td style="padding: 12px; text-align: center; color: #6B7280;">
+                -
+            </td>
+            <td style="padding: 12px; text-align: center; color: #6B7280;">
+                -
+            </td>
+        </tr>
+        """
+    
+    return f"""
+    <div style="margin: 24px 0;">
+        <h3 style="margin: 0 0 16px 0; color: #1F2937; font-size: 18px; font-weight: 600;">📊 Recent Closed Positions P&L (Last 7 Days)</h3>
+        <table style="width: 100%; border-collapse: collapse; background-color: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+            <thead>
+                <tr style="background: linear-gradient(135deg, #F9FAFB, #F3F4F6);">
+                    <th style="padding: 16px 12px; text-align: left; font-weight: 600; color: #374151; border-bottom: 2px solid #E5E7EB;">Symbol</th>
+                    <th style="padding: 16px 12px; text-align: right; font-weight: 600; color: #374151; border-bottom: 2px solid #E5E7EB;">Realized P&L</th>
+                    <th style="padding: 16px 12px; text-align: right; font-weight: 600; color: #374151; border-bottom: 2px solid #E5E7EB;">P&L %</th>
+                    <th style="padding: 16px 12px; text-align: center; font-weight: 600; color: #374151; border-bottom: 2px solid #E5E7EB;">Trades</th>
+                    <th style="padding: 16px 12px; text-align: center; font-weight: 600; color: #374151; border-bottom: 2px solid #E5E7EB;">Last Trade</th>
+                </tr>
+            </thead>
+            <tbody>
+                {closed_pnl_rows}
             </tbody>
         </table>
     </div>

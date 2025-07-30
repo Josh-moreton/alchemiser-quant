@@ -111,6 +111,10 @@ class AlchemiserTradingBot:
             return {}
         portfolio_history = self.data_provider.get_portfolio_history()
         open_positions = self.data_provider.get_open_positions()
+        
+        # Get recent closed position P&L
+        recent_closed_pnl = self.data_provider.get_recent_closed_positions_pnl(days_back=7)
+        
         return {
             'account_number': getattr(account, 'account_number', 'N/A'),
             'portfolio_value': float(getattr(account, 'portfolio_value', 0) or 0),
@@ -120,7 +124,8 @@ class AlchemiserTradingBot:
             'day_trade_count': getattr(account, 'day_trade_count', 0),
             'status': getattr(account, 'status', 'unknown'),
             'portfolio_history': portfolio_history,
-            'open_positions': open_positions
+            'open_positions': open_positions,
+            'recent_closed_pnl': recent_closed_pnl
         }
 
     def get_positions(self) -> Dict:
@@ -544,11 +549,66 @@ class AlchemiserTradingBot:
             account = execution_result.account_info_after
             account_content = Text()
             account_content.append(f"Portfolio Value: ${float(account.get('portfolio_value', 0)):,.2f}\n", style="bold green")
-            account_content.append(f"Cash Balance: ${float(account.get('cash', 0)):,.2f}", style="bold blue")
+            account_content.append(f"Cash Balance: ${float(account.get('cash', 0)):,.2f}\n", style="bold blue")
+            
+            # Add portfolio history P&L if available
+            portfolio_history = account.get('portfolio_history', {})
+            if portfolio_history and 'profit_loss' in portfolio_history:
+                profit_loss = portfolio_history.get('profit_loss', [])
+                profit_loss_pct = portfolio_history.get('profit_loss_pct', [])
+                if profit_loss:
+                    recent_pl = profit_loss[-1]
+                    recent_pl_pct = profit_loss_pct[-1] if profit_loss_pct else 0
+                    pl_color = "green" if recent_pl >= 0 else "red"
+                    pl_sign = "+" if recent_pl >= 0 else ""
+                    account_content.append(f"Recent P&L: {pl_sign}${recent_pl:,.2f} ({pl_sign}{recent_pl_pct*100:.2f}%)", style=f"bold {pl_color}")
             
             account_panel = Panel(account_content, title="Account Summary", style="bold white")
         else:
             account_panel = Panel("Account information not available", title="Account Summary", style="yellow")
+
+        # Recent closed positions P&L table
+        closed_pnl_table = None
+        if execution_result.account_info_after and execution_result.account_info_after.get('recent_closed_pnl'):
+            closed_pnl = execution_result.account_info_after['recent_closed_pnl']
+            if closed_pnl:
+                closed_pnl_table = Table(title="Recent Closed Positions P&L (Last 7 Days)", show_lines=False)
+                closed_pnl_table.add_column("Symbol", style="bold cyan", justify="center")
+                closed_pnl_table.add_column("Realized P&L", style="bold", justify="right")
+                closed_pnl_table.add_column("P&L %", style="bold", justify="right")
+                closed_pnl_table.add_column("Trades", style="white", justify="center")
+                
+                total_realized_pnl = 0
+                
+                for position in closed_pnl[:8]:  # Show top 8 in CLI summary
+                    symbol = position.get('symbol', 'N/A')
+                    realized_pnl = position.get('realized_pnl', 0)
+                    realized_pnl_pct = position.get('realized_pnl_pct', 0)
+                    trade_count = position.get('trade_count', 0)
+                    
+                    total_realized_pnl += realized_pnl
+                    
+                    # Color coding for P&L
+                    pnl_color = "green" if realized_pnl >= 0 else "red"
+                    pnl_sign = "+" if realized_pnl >= 0 else ""
+                    
+                    closed_pnl_table.add_row(
+                        symbol,
+                        f"[{pnl_color}]{pnl_sign}${realized_pnl:,.2f}[/{pnl_color}]",
+                        f"[{pnl_color}]{pnl_sign}{realized_pnl_pct:.2f}%[/{pnl_color}]",
+                        str(trade_count)
+                    )
+                
+                # Add total row
+                if len(closed_pnl) > 0:
+                    total_pnl_color = "green" if total_realized_pnl >= 0 else "red"
+                    total_pnl_sign = "+" if total_realized_pnl >= 0 else ""
+                    closed_pnl_table.add_row(
+                        "[bold]TOTAL[/bold]",
+                        f"[bold {total_pnl_color}]{total_pnl_sign}${total_realized_pnl:,.2f}[/bold {total_pnl_color}]",
+                        "-",
+                        "-"
+                    )
 
         # Display everything
         console.print()
@@ -560,6 +620,11 @@ class AlchemiserTradingBot:
         else:
             console.print(orders_table)
         console.print()
+        
+        # Display closed P&L table if available
+        if closed_pnl_table:
+            console.print(closed_pnl_table)
+            console.print()
         
         console.print(account_panel)
         console.print()

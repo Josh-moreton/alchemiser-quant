@@ -154,26 +154,45 @@ def trade(
         raise typer.Exit(1)
 
 @app.command()
-def status():
+def status(
+    live: bool = typer.Option(False, "--live", help="🚨 Show LIVE account status (real account)")
+):
     """
     📈 [bold blue]Show account status and positions[/bold blue]
     
     Displays current account balance, positions, portfolio performance, and P&L.
+    Use --live flag to view live account instead of paper account.
     """
     show_welcome()
     
-    console.print("[bold yellow]Fetching account status...[/bold yellow]")
+    # Determine mode and add safety warning for live mode
+    paper_trading = not live
+    mode_display = "[bold red]LIVE[/bold red]" if live else "[bold blue]PAPER[/bold blue]"
+    
+    if live:
+        from rich.panel import Panel
+        console.print(
+            Panel(
+                "[bold red]⚠️  LIVE ACCOUNT STATUS[/bold red]\n\n"
+                "You are viewing your LIVE trading account with real money.\n"
+                "This shows actual positions and P&L from your live account.",
+                style="bold red",
+                expand=False
+            )
+        )
+    
+    console.print(f"[bold yellow]Fetching {mode_display} account status...[/bold yellow]")
     
     try:
-        from the_alchemiser.execution.alpaca_trader import AlpacaTradingBot
+        from the_alchemiser.execution.alchemiser_trader import AlchemiserTradingBot
         from the_alchemiser.core.ui.cli_formatter import render_account_info
         from the_alchemiser.core.data.data_provider import UnifiedDataProvider
         from rich.table import Table
         from rich.panel import Panel
         
-        # Create trader and data provider to get account info
-        trader = AlpacaTradingBot(paper_trading=True)  # Always use paper for status
-        data_provider = UnifiedDataProvider(paper_trading=True)
+        # Create trader and data provider for the specified mode
+        trader = AlchemiserTradingBot(paper_trading=paper_trading)
+        data_provider = UnifiedDataProvider(paper_trading=paper_trading)
         
         account_info = trader.get_account_info()
         
@@ -265,6 +284,65 @@ def status():
                 console.print(table)
             else:
                 console.print(Panel("No open positions", title="CURRENT POSITIONS", style="yellow"))
+            
+            # Display recent closed position P&L
+            if account_info.get('recent_closed_pnl'):
+                console.print("\n[bold yellow]Analyzing recent closed positions P&L...[/bold yellow]")
+                closed_pnl = account_info['recent_closed_pnl']
+                
+                if closed_pnl:
+                    closed_table = Table(title="📊 RECENT CLOSED POSITIONS P&L (Last 7 Days)", show_lines=True, expand=True)
+                    closed_table.add_column("Symbol", style="bold cyan", justify="center")
+                    closed_table.add_column("Realized P&L", style="bold", justify="right")
+                    closed_table.add_column("P&L %", style="bold", justify="right")
+                    closed_table.add_column("Trade Count", style="white", justify="center")
+                    closed_table.add_column("Last Trade", style="white", justify="center")
+                    
+                    total_realized_pnl = 0
+                    
+                    for position in closed_pnl[:10]:  # Show top 10 closed positions
+                        symbol = position.get('symbol', 'N/A')
+                        realized_pnl = position.get('realized_pnl', 0)
+                        realized_pnl_pct = position.get('realized_pnl_pct', 0)
+                        trade_count = position.get('trade_count', 0)
+                        last_trade = position.get('last_trade_date', '')
+                        
+                        total_realized_pnl += realized_pnl
+                        
+                        # Color coding for P&L
+                        pnl_color = "green" if realized_pnl >= 0 else "red"
+                        pnl_sign = "+" if realized_pnl >= 0 else ""
+                        
+                        # Format last trade date
+                        try:
+                            from datetime import datetime
+                            trade_date = datetime.fromisoformat(last_trade.replace('Z', '+00:00'))
+                            formatted_date = trade_date.strftime('%m/%d %H:%M')
+                        except:
+                            formatted_date = last_trade[:10] if last_trade else 'N/A'
+                        
+                        closed_table.add_row(
+                            symbol,
+                            f"[{pnl_color}]{pnl_sign}${realized_pnl:,.2f}[/{pnl_color}]",
+                            f"[{pnl_color}]{pnl_sign}{realized_pnl_pct:.2f}%[/{pnl_color}]",
+                            str(trade_count),
+                            formatted_date
+                        )
+                    
+                    # Add total row
+                    total_pnl_color = "green" if total_realized_pnl >= 0 else "red"
+                    total_pnl_sign = "+" if total_realized_pnl >= 0 else ""
+                    closed_table.add_row(
+                        "[bold]TOTAL REALIZED[/bold]",
+                        f"[bold {total_pnl_color}]{total_pnl_sign}${total_realized_pnl:,.2f}[/bold {total_pnl_color}]",
+                        "-",
+                        "-",
+                        "-"
+                    )
+                    
+                    console.print(closed_table)
+                else:
+                    console.print(Panel("No closed positions in last 7 days", title="RECENT CLOSED POSITIONS", style="yellow"))
             
             console.print("[bold green]Account status retrieved successfully![/bold green]")
         else:
