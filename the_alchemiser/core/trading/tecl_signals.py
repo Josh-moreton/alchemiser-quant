@@ -28,6 +28,7 @@ import numpy as np
 from the_alchemiser.core.indicators.indicators import TechnicalIndicators
 from the_alchemiser.core.config import get_config
 from the_alchemiser.core.logging.logging_utils import setup_logging
+from the_alchemiser.utils.indicator_utils import safe_get_indicator
 
 warnings.filterwarnings('ignore')
 setup_logging()  # Centralized logging setup
@@ -79,28 +80,6 @@ class TECLStrategyEngine:
                 logging.warning(f"Could not fetch data for {symbol}")
         return market_data
 
-    def safe_get_indicator(self, data, indicator_func, *args, **kwargs):
-        """Safely get indicator value, logging exceptions to surface data problems."""
-        try:
-            result = indicator_func(data, *args, **kwargs)
-            if hasattr(result, 'iloc') and len(result) > 0:
-                value = result.iloc[-1]
-                # Check if value is NaN - if so, try to find the last valid value
-                if pd.isna(value):
-                    # Find the last non-NaN value
-                    valid_values = result.dropna()
-                    if len(valid_values) > 0:
-                        value = valid_values.iloc[-1]
-                    else:
-                        logging.error(f"No valid values for indicator {indicator_func.__name__} on data: {data}")
-                        return 50.0  # Fallback only if no valid values
-                return float(value)
-            logging.error(f"Indicator {indicator_func.__name__} returned no results for data: {data}")
-            return 50.0
-        except Exception as e:
-            logging.error(f"Exception in safe_get_indicator for {indicator_func.__name__}: {e}\nData: {data}")
-            return 50.0
-
     def calculate_indicators(self, market_data):
         """Calculate all technical indicators needed for TECL strategy"""
         indicators = {}
@@ -109,11 +88,11 @@ class TECLStrategyEngine:
                 continue
             close = df['Close']
             indicators[symbol] = {
-                'rsi_9': self.safe_get_indicator(close, self.indicators.rsi, 9),
-                'rsi_10': self.safe_get_indicator(close, self.indicators.rsi, 10),
-                'rsi_20': self.safe_get_indicator(close, self.indicators.rsi, 20),
-                'ma_200': self.safe_get_indicator(close, self.indicators.moving_average, 200),
-                'ma_20': self.safe_get_indicator(close, self.indicators.moving_average, 20),
+                'rsi_9': safe_get_indicator(close, self.indicators.rsi, 9),
+                'rsi_10': safe_get_indicator(close, self.indicators.rsi, 10),
+                'rsi_20': safe_get_indicator(close, self.indicators.rsi, 20),
+                'ma_200': safe_get_indicator(close, self.indicators.moving_average, 200),
+                'ma_20': safe_get_indicator(close, self.indicators.moving_average, 20),
                 'current_price': float(close.iloc[-1]),
             }
         return indicators
