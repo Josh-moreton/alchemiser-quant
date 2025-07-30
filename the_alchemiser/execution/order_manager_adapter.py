@@ -75,12 +75,14 @@ class OrderManagerAdapter:
         notional: Optional[float] = None
     ) -> Optional[str]:
         """
-        Place limit or market order with smart execution strategy.
+        Place progressive limit order starting at midpoint, stepping toward less favorable price.
         
-        For BUY orders: Try limit order first (between bid/ask for quick fill), 
-        then fallback to market order if not filled in 15 seconds.
-        
-        For SELL orders: Use market orders for immediate execution.
+        Strategy:
+        1. Start at midpoint of bid/ask
+        2. Wait 10 seconds for fill
+        3. Step 10% toward less favorable price (toward ask for BUY, toward bid for SELL)
+        4. Repeat steps until reaching the unfavorable extreme
+        5. Finally place market order if all limit attempts fail
         """
         import time
         
@@ -91,152 +93,129 @@ class OrderManagerAdapter:
         if isinstance(side, str):
             side = OrderSide.BUY if side.lower() == 'buy' else OrderSide.SELL
         
-        # For SELL orders, implement smart limit-then-market strategy favoring quick fills
-        if side == OrderSide.SELL:
-            # For notional sell orders, use market order (can't easily implement limit for notional sells)
-            if notional is not None:
-                return self.simple_order_manager.place_market_order(symbol, side, notional=notional)
-            
-            # For quantity sell orders, try intelligent limit order first
+        # Handle notional orders for BUY by converting to quantity
+        if side == OrderSide.BUY and notional is not None:
             try:
-                # Get bid/ask for smart limit price calculation using WebSocket pricing
-                quote = self.simple_order_manager.data_provider.get_latest_quote(symbol)
-                if quote and len(quote) >= 2:  # Expecting (bid, ask) tuple
-                    bid = float(quote[0])
-                    ask = float(quote[1])
-                    
-                    if bid > 0 and ask > 0 and ask > bid:
-                        # Calculate aggressive limit price for SELLS favoring quick fills
-                        # Place limit closer to bid for faster execution (85% toward bid from ask)
-                        # This is more aggressive than buys to ensure quick liquidation
-                        limit_price = ask - (ask - bid) * 0.85
-                        limit_price = round(limit_price, 2)  # Round to cents
-                        
-                        from rich.console import Console
-                        Console().print(f"[red]Aggressive SELL limit: {symbol} @ ${limit_price:.2f} (bid=${bid:.2f}, ask=${ask:.2f})[/red]")
-                        
-                        # Try limit order first with shorter timeout for sells (10 seconds vs 15 for buys)
-                        limit_order_id = self.simple_order_manager.place_limit_order(
-                            symbol, qty, side, limit_price
-                        )
-                        
-                        if limit_order_id:
-                            # Use WebSocket to get instant fill notifications instead of polling
-                            from rich.console import Console
-                            Console().print(f"[red]Waiting for SELL limit order fill via WebSocket...[/red]")
-                            
-                            # Wait for order completion using WebSocket trading stream (10 seconds for aggressive sells)
-                            order_results = self.simple_order_manager.wait_for_order_completion(
-                                [limit_order_id], max_wait_seconds=10
-                            )
-                            
-                            final_status = order_results.get(limit_order_id, '').lower()
-                            if 'filled' in final_status:
-                                Console().print(f"[green]✓ SELL {symbol} @ ${limit_price:.2f} (WebSocket fill notification)[/green]")
-                                return limit_order_id
-                            else:
-                                # Order didn't fill - it was cancelled or timed out via WebSocket
-                                Console().print(f"[yellow]SELL limit order {final_status}, using market order for {symbol}[/yellow]")
-                        else:
-                            # Limit order placement failed
-                            Console().print(f"[yellow]SELL limit order placement failed, using market order for {symbol}[/yellow]")
-                        
-                        # Limit order didn't work, fall back to market order
-                        from rich.console import Console
-                        Console().print(f"[yellow]SELL limit timeout, using market order for {symbol}[/yellow]")
-                    
-            except Exception as e:
-                logging.warning(f"Error getting quote for SELL {symbol}: {e}, using market order")
-            
-            # Fallback to market order for sells
-            return self.simple_order_manager.place_market_order(symbol, side, qty=qty)
-        
-        # For BUY orders, implement smart limit-then-market strategy
-        if side == OrderSide.BUY:
-            # Handle notional vs quantity orders
-            if notional is not None:
-                # For notional orders, calculate quantity from current price and apply scaling
-                try:
-                    current_price = self.simple_order_manager.data_provider.get_current_price(symbol)
-                    if current_price <= 0:
-                        logging.warning(f"Invalid price for {symbol}, falling back to market order")
-                        return self.simple_order_manager.place_market_order(symbol, side, notional=notional)
-                    
-                    # Calculate max quantity we can afford, round down to 6 decimals, then scale to 99%
-                    raw_qty = notional / current_price
-                    rounded_qty = int(raw_qty * 1e6) / 1e6  # Round down to 6 decimals
-                    scaled_qty = rounded_qty * 0.99  # Scale to 99% to avoid buying power issues
-                    
-                    if scaled_qty <= 0:
-                        logging.warning(f"Calculated quantity too small for {symbol}, falling back to market order")
-                        return self.simple_order_manager.place_market_order(symbol, side, notional=notional)
-                    
-                    qty = scaled_qty
-                    
-                except Exception as e:
-                    logging.warning(f"Error calculating quantity for {symbol}: {e}, falling back to market order")
+                current_price = self.simple_order_manager.data_provider.get_current_price(symbol)
+                if current_price <= 0:
+                    logging.warning(f"Invalid price for {symbol}, falling back to market order")
                     return self.simple_order_manager.place_market_order(symbol, side, notional=notional)
-            else:
-                # For quantity orders, round down to 6 decimals and scale to 99%
-                rounded_qty = int(qty * 1e6) / 1e6
-                qty = rounded_qty * 0.99
-            
-            # Get bid/ask for smart limit price calculation
-            try:
-                quote = self.simple_order_manager.data_provider.get_latest_quote(symbol)
-                if quote and len(quote) >= 2:  # Expecting (bid, ask) tuple
-                    bid = float(quote[0])
-                    ask = float(quote[1])
-                    
-                    if bid > 0 and ask > 0 and ask > bid:
-                        # Calculate limit price between bid and ask, favoring quick fill
-                        # Place limit closer to ask for faster execution (75% toward ask from bid)
-                        limit_price = bid + (ask - bid) * 0.75
-                        limit_price = round(limit_price, 2)  # Round to cents
-                        
-                        from rich.console import Console
-                        Console().print(f"[cyan]Limit order: {symbol} @ ${limit_price:.2f} (bid=${bid:.2f}, ask=${ask:.2f})[/cyan]")
-                        
-                        # Try limit order first
-                        limit_order_id = self.simple_order_manager.place_limit_order(
-                            symbol, qty, side, limit_price
-                        )
-                        
-                        if limit_order_id:
-                            # Use WebSocket to get instant fill notifications instead of polling
-                            from rich.console import Console
-                            Console().print(f"[cyan]Waiting for limit order fill via WebSocket...[/cyan]")
-                            
-                            # Wait for order completion using WebSocket trading stream (max 15 seconds)
-                            order_results = self.simple_order_manager.wait_for_order_completion(
-                                [limit_order_id], max_wait_seconds=15
-                            )
-                            
-                            final_status = order_results.get(limit_order_id, '').lower()
-                            if 'filled' in final_status:
-                                Console().print(f"[green]✓ BUY {symbol} @ ${limit_price:.2f} (WebSocket fill notification)[/green]")
-                                return limit_order_id
-                            else:
-                                # Order didn't fill - it was cancelled or rejected via WebSocket
-                                Console().print(f"[yellow]Limit order {final_status}, using market order for {symbol}[/yellow]")
-                        else:
-                            # Limit order placement failed
-                            Console().print(f"[yellow]Limit order placement failed, using market order for {symbol}[/yellow]")
-                        
-                        # Limit order didn't work, fall back to market order
-                        from rich.console import Console
-                        Console().print(f"[yellow]Limit order timeout, using market order for {symbol}[/yellow]")
-                    
+                
+                # Calculate max quantity we can afford, round down to 6 decimals, then scale to 99%
+                raw_qty = notional / current_price
+                rounded_qty = int(raw_qty * 1e6) / 1e6  # Round down to 6 decimals
+                scaled_qty = rounded_qty * 0.99  # Scale to 99% to avoid buying power issues
+                
+                if scaled_qty <= 0:
+                    logging.warning(f"Calculated quantity too small for {symbol}, falling back to market order")
+                    return self.simple_order_manager.place_market_order(symbol, side, notional=notional)
+                
+                qty = scaled_qty
+                
             except Exception as e:
-                logging.warning(f"Error getting quote for {symbol}: {e}, using market order")
-            
-            # Fallback to market order
-            if notional is not None:
-                # Market order (notional fallback)
+                logging.warning(f"Error calculating quantity for {symbol}: {e}, falling back to market order")
                 return self.simple_order_manager.place_market_order(symbol, side, notional=notional)
-            else:
-                # Market order (fallback)
-                return self.simple_order_manager.place_market_order(symbol, side, qty=qty)
+        elif side == OrderSide.BUY:
+            # For quantity orders, round down to 6 decimals and scale to 99%
+            rounded_qty = int(qty * 1e6) / 1e6
+            qty = rounded_qty * 0.99
+        
+        # For SELL notional orders, use market order (can't easily implement progressive limits)
+        if side == OrderSide.SELL and notional is not None:
+            return self.simple_order_manager.place_market_order(symbol, side, notional=notional)
+        
+        # Get bid/ask for progressive limit order strategy
+        try:
+            quote = self.simple_order_manager.data_provider.get_latest_quote(symbol)
+            if not quote or len(quote) < 2:
+                # No quote available, use market order
+                from rich.console import Console
+                Console().print(f"[yellow]No bid/ask quote available for {symbol}, using market order[/yellow]")
+                if notional is not None:
+                    return self.simple_order_manager.place_market_order(symbol, side, notional=notional)
+                else:
+                    return self.simple_order_manager.place_market_order(symbol, side, qty=qty)
+            
+            bid = float(quote[0])
+            ask = float(quote[1])
+            
+            if not (bid > 0 and ask > 0 and ask > bid):
+                # Invalid quote, use market order
+                from rich.console import Console
+                Console().print(f"[yellow]Invalid bid/ask quote for {symbol} (bid=${bid:.2f}, ask=${ask:.2f}), using market order[/yellow]")
+                if notional is not None:
+                    return self.simple_order_manager.place_market_order(symbol, side, notional=notional)
+                else:
+                    return self.simple_order_manager.place_market_order(symbol, side, qty=qty)
+            
+            # Calculate midpoint and spread
+            midpoint = (bid + ask) / 2.0
+            spread = ask - bid
+            
+            from rich.console import Console
+            console = Console()
+            
+            # Progressive limit order strategy
+            console.print(f"[cyan]Starting progressive limit order for {side.value} {symbol}[/cyan]")
+            console.print(f"[dim]Bid: ${bid:.2f}, Ask: ${ask:.2f}, Midpoint: ${midpoint:.2f}, Spread: ${spread:.2f}[/dim]")
+            
+            # Define the steps: 0%, 10%, 20%, 30% toward unfavorable price
+            steps = [0.0, 0.1, 0.2, 0.3]
+            
+            for step_idx, step_pct in enumerate(steps):
+                # Calculate limit price for this step
+                if side == OrderSide.BUY:
+                    # For BUY: start at midpoint, step toward ask (less favorable)
+                    limit_price = midpoint + (spread / 2 * step_pct)
+                    direction_desc = "toward ask"
+                else:
+                    # For SELL: start at midpoint, step toward bid (less favorable)
+                    limit_price = midpoint - (spread / 2 * step_pct)
+                    direction_desc = "toward bid"
+                
+                # Round to cents
+                limit_price = round(limit_price, 2)
+                
+                # Display step information
+                step_name = "Midpoint" if step_idx == 0 else f"Step {step_idx} ({step_pct*100:.0f}% {direction_desc})"
+                color = "cyan" if side == OrderSide.BUY else "red"
+                console.print(f"[{color}]{step_name}: {side.value} {symbol} @ ${limit_price:.2f}[/{color}]")
+                
+                # Place limit order
+                limit_order_id = self.simple_order_manager.place_limit_order(
+                    symbol, qty, side, limit_price
+                )
+                
+                if not limit_order_id:
+                    console.print(f"[yellow]Failed to place limit order at ${limit_price:.2f}[/yellow]")
+                    continue
+                
+                # Wait 10 seconds for fill using WebSocket notifications
+                console.print(f"[dim]Waiting 10 seconds for fill via WebSocket...[/dim]")
+                
+                order_results = self.simple_order_manager.wait_for_order_completion(
+                    [limit_order_id], max_wait_seconds=10
+                )
+                
+                final_status = order_results.get(limit_order_id, '').lower()
+                if 'filled' in final_status:
+                    console.print(f"[green]✓ {side.value} {symbol} filled @ ${limit_price:.2f} ({step_name})[/green]")
+                    return limit_order_id
+                else:
+                    console.print(f"[yellow]{step_name} not filled ({final_status}), trying next step...[/yellow]")
+                    # Order was automatically cancelled by wait_for_order_completion timeout
+            
+            # All limit order steps failed, use market order as final fallback
+            console.print(f"[yellow]All progressive limit orders failed for {symbol}, placing market order[/yellow]")
+            
+        except Exception as e:
+            logging.warning(f"Error in progressive limit order strategy for {symbol}: {e}, using market order")
+        
+        # Final fallback to market order
+        if notional is not None:
+            return self.simple_order_manager.place_market_order(symbol, side, notional=notional)
+        else:
+            return self.simple_order_manager.place_market_order(symbol, side, qty=qty)
     
     def wait_for_settlement(
         self, 
