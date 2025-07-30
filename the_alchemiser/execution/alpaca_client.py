@@ -1,86 +1,47 @@
 #!/usr/bin/env python3
-"""
-Alpaca Client for Direct API Access.
+"""Alpaca Client for Direct API Access.
 
-A straightforward, robust wrapper around Alpaca's trading APIs.
-Provides direct access to core trading functions without complex retry logic or dynamic adjustments.
+A straightforward, robust wrapper around Alpaca's trading APIs that provides direct access
+to core trading functions without complex retry logic or dynamic adjustments.
 
-DESIGN PHILOSOPHY:
-=================
 This client prioritizes simplicity, reliability, and transparency over complexity.
 It follows a "fail-fast, clear errors" approach rather than trying to be overly clever
 with retries and dynamic adjustments that can mask underlying issues.
 
-KEY PRINCIPLES:
-==============
-1. USE ALPACA'S APIS DIRECTLY
-   - get_all_positions() for current holdings
-   - close_position() for safe liquidation of entire positions
-   - get_orders() for pending order status
-   - cancel_orders() for cleanup before new trades
-   - submit_order() for straightforward order placement
+Key Features:
+    - Direct Alpaca API usage for positions, orders, and trades
+    - Position validation to prevent overselling
+    - Clean order management with automatic cancellation
+    - Liquidation API for safe full position exits
+    - Clear error handling with transparent logging
 
-2. PREVENT OVERSELLING WITH POSITION VALIDATION
-   - Always check actual positions before selling
-   - Cap sell quantities to available shares
-   - Use liquidation API for full position exits (99%+)
-   - Never attempt to sell more than we own
+Order Placement Logic:
+    Selling Positions:
+        - Partial sales (< 99%): Use market orders
+        - Full sales (≥ 99%): Use Alpaca's close_position() API
+        - Always validate position exists before selling
+        - Automatically cap sell quantity to available shares
+    
+    Buying Positions:
+        - Use market orders for immediate execution
+        - Cancel existing orders first to avoid conflicts
+        - Round quantities to avoid fractional share issues
+        - Validate positive quantities and prices
 
-3. CLEAN ORDER MANAGEMENT
-   - Cancel existing orders before placing new ones
-   - Wait briefly for cancellations to process
-   - Use simple market orders for immediate execution
-   - Use limit orders only when price control is needed
+Safety Features:
+    - Position validation before every sell order
+    - Automatic quantity capping to prevent overselling
+    - Order cancellation before new orders to prevent conflicts
+    - Liquidation API usage for full position exits
+    - Decimal rounding to handle fractional shares properly
+    - Clear logging of all order attempts and results
 
-4. CLEAR ERROR HANDLING
-   - Fail fast with clear error messages
-   - No complex retry logic that can hide problems
-   - Log all important actions and failures
-   - Return None for failures, order_id for success
-
-ORDER PLACEMENT LOGIC:
-=====================
-
-SELLING POSITIONS:
-- For partial sales (< 99% of position): Use market order
-- For full sales (≥ 99% of position): Use Alpaca's close_position() API
-- Always validate position exists before attempting to sell
-- Automatically cap sell quantity to available shares
-
-BUYING POSITIONS:
-- Use market orders for immediate execution
-- Cancel any existing orders first to avoid conflicts
-- Round quantities to avoid fractional share issues
-- Validate positive quantities and prices
-
-REBALANCING WORKFLOW:
-1. Get current positions from Alpaca
-2. Calculate what needs to be sold (target = 0%)
-3. Execute all sell orders first (using liquidation API for full exits)
-4. Wait for sells to process
-5. Execute buy orders with remaining cash
-6. Return order IDs for all trades
-
-SAFETY FEATURES:
-===============
-- Position validation before every sell order
-- Automatic quantity capping to prevent overselling
-- Order cancellation before new orders to prevent conflicts
-- Liquidation API usage for full position exits
-- Decimal rounding to handle fractional shares properly
-- Clear logging of all order attempts and results
-
-ERROR SCENARIOS HANDLED:
-=======================
-- Attempting to sell non-existent positions → Returns None
-- Attempting to sell more than owned → Automatically caps to available
-- Invalid quantities (≤ 0) → Returns None with warning
-- API failures → Returns None with error logging
-- Missing market data → Returns None with error logging
-
-This approach trades sophistication for reliability. It's designed to work
-consistently in live trading environments where clarity and predictability
-are more valuable than complex optimization.
+Example:
+    Basic usage for order placement:
+    
+    >>> client = AlpacaClient(trading_client, data_provider)
+    >>> positions = client.get_current_positions()
+    >>> order_id = client.place_market_order('AAPL', 10, OrderSide.BUY)
 """
 
 import logging
@@ -98,34 +59,39 @@ from the_alchemiser.core.data.data_provider import UnifiedDataProvider
 
 
 class AlpacaClient:
-    """
-    Direct Alpaca API client that:
-    1. Gets current positions from Alpaca
-    2. Cancels any pending orders before placing new ones
-    3. Uses liquidation API for selling entire positions
-    4. Places straightforward market or limit orders
+    """Direct Alpaca API client for reliable order execution.
+    
+    Provides straightforward access to Alpaca trading APIs with focus on:
+    1. Getting current positions from Alpaca
+    2. Canceling pending orders before placing new ones  
+    3. Using liquidation API for selling entire positions
+    4. Placing market or limit orders with clear error handling
     5. No complex retry logic - fail fast and clear
+    
+    Attributes:
+        trading_client: Alpaca trading client for API calls.
+        data_provider: Data provider for market quotes and prices.
+        validate_buying_power: Whether to validate buying power for buy orders.
     """
 
     def __init__(self, trading_client: TradingClient, data_provider: UnifiedDataProvider, validate_buying_power: bool = False):
-        """
-        Initialize AlpacaClient.
+        """Initialize AlpacaClient.
         
         Args:
-            trading_client: Alpaca trading client
-            data_provider: Data provider for quotes (optional for market orders)
-            validate_buying_power: Whether to validate buying power for buy orders
+            trading_client: Alpaca trading client instance.
+            data_provider: Data provider for quotes (optional for market orders).
+            validate_buying_power: Whether to validate buying power for buy orders.
+                Defaults to False.
         """
         self.trading_client = trading_client
         self.data_provider = data_provider
         self.validate_buying_power = validate_buying_power
 
     def get_current_positions(self) -> Dict[str, float]:
-        """
-        Get all current positions from Alpaca.
+        """Get all current positions from Alpaca.
         
         Returns:
-            Dictionary mapping symbol -> quantity owned
+            Dictionary mapping symbol to quantity owned. Only includes non-zero positions.
         """
         try:
             positions = self.trading_client.get_all_positions()
@@ -139,11 +105,10 @@ class AlpacaClient:
             return {}
 
     def get_pending_orders(self) -> List[Dict]:
-        """
-        Get all pending orders from Alpaca.
+        """Get all pending orders from Alpaca.
         
         Returns:
-            List of pending order information
+            List of pending order information dictionaries.
         """
         try:
             # Get all orders (Alpaca defaults to open orders)
@@ -310,11 +275,14 @@ class AlpacaClient:
                     account = self.trading_client.get_account()
                     buying_power = float(getattr(account, 'buying_power', 0) or 0)
                     current_price = self.data_provider.get_current_price(symbol)
-                    order_value = qty * current_price
-                    
-                    if order_value > buying_power:
-                        logging.warning(f"Order value ${order_value:.2f} exceeds buying power ${buying_power:.2f} for {symbol}")
-                        return None
+                    if current_price is not None and current_price > 0 and qty is not None:
+                        price_value = float(current_price)
+                        qty_value = float(qty)
+                        order_value = qty_value * price_value
+                        
+                        if order_value > buying_power:
+                            logging.warning(f"Order value ${order_value:.2f} exceeds buying power ${buying_power:.2f} for {symbol}")
+                            return None
                 except Exception as e:
                     logging.warning(f"Unable to validate buying power for {symbol}: {e}")
                     # Continue with order despite validation error
