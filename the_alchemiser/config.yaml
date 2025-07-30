@@ -31,8 +31,8 @@ secrets_manager:
 # Strategy defaults
 strategy:
   default_strategy_allocations:
-    nuclear: 0.25
-    tecl: 0.75
+    nuclear: 0.2
+    tecl: 0.8
   poll_timeout: 30
   poll_interval: 2.0
 

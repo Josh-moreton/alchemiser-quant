@@ -425,7 +425,7 @@ def backtest_all_splits(
         help="End date (YYYY-MM-DD, default: yesterday)",
         callback=lambda v: v or (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
     ),
-    initial_equity: float = typer.Option(4000, help="Initial equity for backtest"),
+    initial_equity: float = typer.Option(1000, help="Initial equity for backtest"),
     slippage_bps: int = typer.Option(None, help="Slippage in basis points (default: from config.yaml)"),
     noise_factor: float = typer.Option(0.001, help="Market noise factor (default: 0.1%)"),
     deposit_amount: float = typer.Option(0.0, help="Deposit amount (e.g. 100 for £100, default: 0)"),
@@ -489,11 +489,11 @@ def backtest_nuclear_compare(
 @app.command()
 def backtest(
     start: str = typer.Option("2022-04-25", help="Start date (YYYY-MM-DD)"),
-    end: str = typer.Option("2025-07-15", help="End date (YYYY-MM-DD)"),
-    initial_equity: float = typer.Option(3000, help="Initial equity for backtest"),
+    end: str = typer.Option("2025-07-25", help="End date (YYYY-MM-DD)"),
+    initial_equity: float = typer.Option(1000, help="Initial equity for backtest"),
     price_type: str = typer.Option("open", help="Price type: close, open, mid, or vwap"),
-    slippage_bps: int = typer.Option(None, help="Slippage in basis points (default: from config.yaml)"),
-    noise_factor: float = typer.Option(0.001, help="Market noise factor (default: 0.1%)"),
+    slippage_bps: int = typer.Option(10, help="Slippage in basis points (default: from config.yaml)"),
+    noise_factor: float = typer.Option(0.002, help="Market noise factor (default: 0.1%)"),
     deposit_amount: float = typer.Option(0.0, help="Deposit amount (e.g. 100 for £100, default: 0)"),
     deposit_frequency: Optional[str] = typer.Option(None, help="Deposit frequency: 'monthly' or 'weekly' (default: None)"),
     deposit_day: int = typer.Option(1, help="Deposit day: for monthly, day of month (1-28); for weekly, weekday (0=Mon, 6=Sun)"),
