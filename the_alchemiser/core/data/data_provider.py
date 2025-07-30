@@ -3,7 +3,7 @@ import time
 import os
 import logging
 import requests
-from typing import cast
+from typing import cast, Optional
 from datetime import datetime, timedelta
 from alpaca.trading.client import TradingClient
 from alpaca.data.historical import StockHistoricalDataClient
@@ -26,7 +26,7 @@ class UnifiedDataProvider:
     - Proper type safety
     """
     
-    def __init__(self, paper_trading=True, cache_duration=None, config=None):
+    def __init__(self, paper_trading=True, cache_duration=None, config=None, enable_real_time=True):
         """
         Initialize UnifiedDataProvider for Alpaca market data and trading.
         
@@ -34,6 +34,7 @@ class UnifiedDataProvider:
             paper_trading: Whether to use paper trading keys (default: True for safety)
             cache_duration: Cache duration in seconds (default from config)
             config: Configuration object. If None, will load from global config.
+            enable_real_time: Whether to enable real-time WebSocket pricing (default: True)
         """
         self.paper_trading = paper_trading
         
@@ -67,6 +68,23 @@ class UnifiedDataProvider:
             self.api_endpoint = self.config['alpaca'].get('paper_endpoint', 'https://paper-api.alpaca.markets/v2')
         else:
             self.api_endpoint = self.config['alpaca'].get('endpoint', 'https://api.alpaca.markets')
+        
+        # Initialize real-time pricing service
+        self.real_time_pricing: Optional['RealTimePricingManager'] = None
+        if enable_real_time:
+            try:
+                from the_alchemiser.core.data.real_time_pricing import RealTimePricingManager
+                self.real_time_pricing = RealTimePricingManager(
+                    self.api_key, 
+                    self.secret_key, 
+                    paper_trading
+                )
+                self.real_time_pricing.set_fallback_provider(self.get_current_price_rest)
+                self.real_time_pricing.start()
+                logging.info("✅ Real-time pricing enabled")
+            except Exception as e:
+                logging.warning(f"Failed to initialize real-time pricing: {e}")
+                self.real_time_pricing = None
         
         logging.debug(f"Initialized UnifiedDataProvider with {'paper' if paper_trading else 'live'} trading keys")
     
@@ -197,7 +215,78 @@ class UnifiedDataProvider:
     
     def get_current_price(self, symbol):
         """
-        Get current market price for a symbol.
+        Get current market price for a symbol with real-time data priority.
+        Uses just-in-time subscription for efficient resource usage.
+        
+        Args:
+            symbol: Stock symbol
+        Returns:
+            float: Current price or None if unavailable
+        """
+        # Try real-time pricing first if available
+        if self.real_time_pricing and self.real_time_pricing.is_connected():
+            # Just-in-time subscription: subscribe only when we need pricing
+            self.real_time_pricing.subscribe_for_trading(symbol)
+            
+            # Give a moment for real-time data to flow
+            import time
+            time.sleep(0.5)  # Brief wait for subscription to activate
+            
+            # Get real-time price
+            price = self.real_time_pricing.get_current_price(symbol)
+            if price is not None:
+                logging.debug(f"Real-time price for {symbol}: ${price:.2f}")
+                return price
+        
+        # Fallback to REST API
+        return self.get_current_price_rest(symbol)
+    
+    def get_current_price_for_order(self, symbol):
+        """
+        Get current price specifically for order placement with optimized subscription management.
+        
+        This method:
+        1. Subscribes to real-time data for the symbol
+        2. Gets the most accurate price available
+        3. Returns both price and cleanup function
+        
+        Args:
+            symbol: Stock symbol
+        Returns:
+            tuple: (price, cleanup_function) where cleanup_function unsubscribes
+        """
+        def cleanup():
+            """Cleanup function to unsubscribe after order placement."""
+            if self.real_time_pricing:
+                self.real_time_pricing.unsubscribe_after_trading(symbol)
+                logging.debug(f"Unsubscribed from real-time data for {symbol}")
+        
+        # Try real-time pricing with just-in-time subscription
+        if self.real_time_pricing and self.real_time_pricing.is_connected():
+            # Subscribe for trading with high priority
+            self.real_time_pricing.subscribe_for_trading(symbol)
+            logging.debug(f"Subscribed to real-time data for {symbol} (order placement)")
+            
+            # Give a moment for real-time data to flow
+            import time
+            time.sleep(0.8)  # Slightly longer wait for order placement accuracy
+            
+            # Try to get real-time price
+            price = self.real_time_pricing.get_current_price(symbol)
+            if price is not None:
+                logging.info(f"Using real-time price for {symbol} order: ${price:.2f}")
+                return price, cleanup
+            else:
+                logging.debug(f"Real-time price not yet available for {symbol}, using REST API")
+        
+        # Fallback to REST API
+        price = self.get_current_price_rest(symbol)
+        logging.info(f"Using REST API price for {symbol} order: ${price:.2f}")
+        return price, cleanup
+    
+    def get_current_price_rest(self, symbol):
+        """
+        Get current market price for a symbol using REST API.
         
         Args:
             symbol: Stock symbol
