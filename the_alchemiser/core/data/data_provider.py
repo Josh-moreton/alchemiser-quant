@@ -255,29 +255,23 @@ class UnifiedDataProvider:
         Returns:
             tuple: (price, cleanup_function) where cleanup_function unsubscribes
         """
-        def cleanup():
-            """Cleanup function to unsubscribe after order placement."""
-            if self.real_time_pricing:
-                self.real_time_pricing.unsubscribe_after_trading(symbol)
-                logging.debug(f"Unsubscribed from real-time data for {symbol}")
+        from the_alchemiser.utils.price_fetching_utils import (
+            subscribe_for_real_time, create_cleanup_function
+        )
+        
+        # Create cleanup function
+        cleanup = create_cleanup_function(self.real_time_pricing, symbol)
         
         # Try real-time pricing with just-in-time subscription
-        if self.real_time_pricing and self.real_time_pricing.is_connected():
-            # Subscribe for trading with high priority
-            self.real_time_pricing.subscribe_for_trading(symbol)
-            logging.debug(f"Subscribed to real-time data for {symbol} (order placement)")
-            
-            # Give a moment for real-time data to flow
-            import time
-            time.sleep(0.8)  # Slightly longer wait for order placement accuracy
-            
+        if subscribe_for_real_time(self.real_time_pricing, symbol):
             # Try to get real-time price
-            price = self.real_time_pricing.get_current_price(symbol)
-            if price is not None:
-                logging.info(f"Using real-time price for {symbol} order: ${price:.2f}")
-                return price, cleanup
-            else:
-                logging.debug(f"Real-time price not yet available for {symbol}, using REST API")
+            if self.real_time_pricing:
+                price = self.real_time_pricing.get_current_price(symbol)
+                if price is not None:
+                    logging.info(f"Using real-time price for {symbol} order: ${price:.2f}")
+                    return price, cleanup
+                else:
+                    logging.debug(f"Real-time price not yet available for {symbol}, using REST API")
         
         # Fallback to REST API
         price = self.get_current_price_rest(symbol)
@@ -293,37 +287,19 @@ class UnifiedDataProvider:
         Returns:
             float: Current price or None if unavailable
         """
+        from the_alchemiser.utils.price_fetching_utils import (
+            get_price_from_quote_api, get_price_from_historical_fallback
+        )
+        
         try:
-            # Try to get latest quote
-            request = StockLatestQuoteRequest(symbol_or_symbols=symbol)
-            latest_quote = self.data_client.get_stock_latest_quote(request)
-            if latest_quote and symbol in latest_quote:
-                quote = latest_quote[symbol]
-                # Extract bid/ask prices safely
-                bid = 0.0
-                ask = 0.0
-                if hasattr(quote, 'bid_price') and quote.bid_price:
-                    bid = float(quote.bid_price)
-                if hasattr(quote, 'ask_price') and quote.ask_price:
-                    ask = float(quote.ask_price)
-                # Return midpoint if both available
-                if bid > 0 and ask > 0:
-                    return (bid + ask) / 2
-                elif bid > 0:
-                    return bid
-                elif ask > 0:
-                    return ask
+            # Try to get price from quote API
+            price = get_price_from_quote_api(self.data_client, symbol)
+            if price is not None:
+                return price
+                
             # Fallback to recent historical data
-            logging.debug(f"No current quote for {symbol}, falling back to historical data")
-            df = self.get_data(symbol, period="1d", interval="1m")
-            if df is not None and not df.empty and 'Close' in df.columns:
-                price = df['Close'].iloc[-1]
-                # Ensure scalar value
-                if hasattr(price, 'item'):
-                    price = price.item()
-                price = float(price)
-                return price if not pd.isna(price) else None
-            return None
+            return get_price_from_historical_fallback(self, symbol)
+            
         except Exception as e:
             logging.error(f"Error getting current price for {symbol}: {e}")
             return None

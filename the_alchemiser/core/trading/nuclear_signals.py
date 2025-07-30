@@ -260,53 +260,20 @@ class NuclearSignalGenerator:
         """Run analysis once"""
         alerts = self.run_analysis()
         
-        if alerts and len(alerts) > 0:
-            # Log all alerts
-            for alert in alerts:
-                self.log_alert(alert)
+        # Use the consolidated display utility
+        from the_alchemiser.utils.signal_display_utils import display_signal_results, display_technical_indicators, display_portfolio_details
+        
+        result = display_signal_results(alerts, "NUCLEAR", ['IOO', 'SPY', 'TQQQ', 'VTV', 'XLF'])
+        
+        # Display technical indicators for key symbols
+        if alerts:
+            display_technical_indicators(self.strategy, ['IOO', 'SPY', 'TQQQ', 'VTV', 'XLF'])
             
-            # Display results
+            # Show portfolio allocation details for multi-asset signals
             if len(alerts) > 1:
-                # Nuclear portfolio signal
-                logging.info(f"NUCLEAR PORTFOLIO SIGNAL: {len(alerts)} stocks allocated")
-                logging.info(f"NUCLEAR PORTFOLIO ALLOCATION:")
-                for alert in alerts:
-                    if alert.action != 'HOLD':
-                        logging.info(f"   {alert.action} {alert.symbol} at ${alert.price:.2f}")
-                        logging.info(f"      Reason: {alert.reason}")
-                    else:
-                        logging.info(f"   {alert.action} {alert.symbol} at ${alert.price:.2f}")
-                        logging.info(f"      Reason: {alert.reason}")
-                        
-                # Show portfolio allocation details
-                portfolio = self.get_current_portfolio_allocation()
-                if portfolio:
-                    logging.info(f"PORTFOLIO DETAILS:")
-                    for symbol, data in portfolio.items():
-                        logging.info(f"   {symbol}: {data['weight']:.1%}")
-            else:
-                # Single signal
-                alert = alerts[0]
-                if alert.action != 'HOLD':
-                    logging.info(f"NUCLEAR TRADING SIGNAL: {alert.action} {alert.symbol} at ${alert.price:.2f}")
-                    logging.info(f"   Reason: {alert.reason}")
-                else:
-                    logging.info(f"Nuclear Analysis: {alert.action} {alert.symbol} at ${alert.price:.2f}")
-                    logging.info(f"   Reason: {alert.reason}")
-            
-            # Print technical indicator values for key symbols
-            if alerts and hasattr(self.strategy, 'calculate_indicators'):
-                market_data = self.strategy.get_market_data()
-                indicators = self.strategy.calculate_indicators(market_data)
-                logging.info("Technical Indicators Used for Signal Generation:")
-                for symbol in ['IOO', 'SPY', 'TQQQ', 'VTV', 'XLF']:
-                    if symbol in indicators:
-                        logging.info(f"  {symbol}: RSI(10)={indicators[symbol].get('rsi_10')}, RSI(20)={indicators[symbol].get('rsi_20')}")
-            
-            return alerts[0]  # Return first alert for compatibility
-        else:
-            logging.info("Unable to generate nuclear energy signal")
-            return None
+                display_portfolio_details(self, "NUCLEAR")
+        
+        return result
     
     def run_continuous(self, interval_minutes=15, max_errors=10):
         """Run analysis continuously with error limits"""

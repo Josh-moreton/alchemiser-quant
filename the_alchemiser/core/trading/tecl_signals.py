@@ -160,46 +160,16 @@ class TECLSignalGenerator:
         """Run analysis once"""
         alerts = self.run_analysis()
         
-        if alerts and len(alerts) > 0:
-            # Log all alerts
-            for alert in alerts:
-                self.log_alert(alert)
-            
-            # Display results
-            if len(alerts) > 1:
-                # Multi-asset TECL portfolio signal
-                print(f"🚨 TECL PORTFOLIO SIGNAL: {len(alerts)} assets allocated")
-                print(f"\n🔵 TECL PORTFOLIO ALLOCATION:")
-                for alert in alerts:
-                    if alert.action != 'HOLD':
-                        print(f"   🟢 {alert.action} {alert.symbol} at ${alert.price:.2f}")
-                        print(f"      Reason: {alert.reason}")
-                    else:
-                        print(f"   ⚪ {alert.action} {alert.symbol} at ${alert.price:.2f}")
-                        print(f"      Reason: {alert.reason}")
-            else:
-                # Single signal
-                alert = alerts[0]
-                if alert.action != 'HOLD':
-                    print(f"🚨 TECL TRADING SIGNAL: {alert.action} {alert.symbol} at ${alert.price:.2f}")
-                    print(f"   Reason: {alert.reason}")
-                else:
-                    print(f"📊 TECL Analysis: {alert.action} {alert.symbol} at ${alert.price:.2f}")
-                    print(f"   Reason: {alert.reason}")
-            
-            # Print technical indicator values for key symbols
-            if alerts and hasattr(self.strategy, 'calculate_indicators'):
-                market_data = self.strategy.get_market_data()
-                indicators = self.strategy.calculate_indicators(market_data)
-                logging.info("\n🔬 Technical Indicators Used for TECL Signal Generation:")
-                for symbol in ['SPY', 'XLK', 'KMLM', 'TECL']:
-                    if symbol in indicators:
-                        logging.info(f"  {symbol}: RSI(10)={indicators[symbol].get('rsi_10'):.1f}, RSI(20)={indicators[symbol].get('rsi_20'):.1f}")
-            
-            return alerts[0]  # Return first alert for compatibility
-        else:
-            print("❌ Unable to generate TECL strategy signal")
-            return None
+        # Use the consolidated display utility
+        from the_alchemiser.utils.signal_display_utils import display_signal_results, display_technical_indicators
+        
+        result = display_signal_results(alerts, "TECL", ['SPY', 'XLK', 'KMLM', 'TECL'])
+        
+        # Display technical indicators for key symbols
+        if alerts:
+            display_technical_indicators(self.strategy, ['SPY', 'XLK', 'KMLM', 'TECL'])
+        
+        return result
     
     def run_continuous(self, interval_minutes=15, max_errors=10):
         """Run analysis continuously with error limits"""
