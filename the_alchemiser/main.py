@@ -185,20 +185,13 @@ def run_multi_strategy_trading(live_trading: bool = False, ignore_market_hours: 
         from the_alchemiser.core.ui.cli_formatter import render_strategy_signals
         render_strategy_signals(strategy_signals)
         
-        # Execute multi-strategy with progress indicator
-        from rich.progress import Progress, SpinnerColumn, TextColumn
+        # Execute multi-strategy with clean progress indication
         from rich.console import Console
         
         console = Console()
+        console.print("[dim]🔄 Executing trading strategy...[/dim]")
         
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            console=console,
-            transient=True
-        ) as progress:
-            task = progress.add_task("Executing trading strategy...", total=None)
-            result = trader.execute_multi_strategy()
+        result = trader.execute_multi_strategy()
         
         # Display results
         trader.display_multi_strategy_summary(result)

@@ -46,46 +46,47 @@ def show_welcome():
     console.print()
 
 @app.command()
-def bot(
+def signal(
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable verbose output"),
     no_header: bool = typer.Option(False, "--no-header", help="Skip welcome header")
 ):
     """
-    🎯 [bold cyan]Show multi-strategy signals[/bold cyan] (no trading)
+    🎯 [bold cyan]Generate and display strategy signals[/bold cyan] (analysis only, no trading)
     
-    Displays signals from Nuclear and TECL strategies with technical indicators,
-    portfolio allocations, and market analysis without executing any trades.
+    Analyzes market conditions and generates trading signals from multiple strategies:
+    • Nuclear strategy (nuclear sector + market conditions)
+    • TECL strategy (tech leverage + volatility hedging)
+    • Market regime analysis (bull/bear/overbought conditions)
+    
+    Perfect for:
+    • Market analysis without trading
+    • Strategy validation and backtesting
+    • Understanding current market signals
     """
     if not no_header:
         show_welcome()
     
     console.print("[bold yellow]Analyzing market conditions...[/bold yellow]")
     
-    # Progress indicator while analyzing
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        console=console,
-        transient=True
-    ) as progress:
-        task = progress.add_task("Generating strategy signals...", total=None)
+    # Clean progress indication without spinner interference
+    console.print("[dim]📊 Generating strategy signals...[/dim]")
+    
+    try:
+        # Import and run the main logic
+        from the_alchemiser.main import run_all_signals_display
+        success = run_all_signals_display()
         
-        try:
-            # Import and run the main logic
-            from the_alchemiser.main import run_all_signals_display
-            success = run_all_signals_display()
-            
-            if success:
-                console.print("\n[bold green]Signal analysis completed successfully![/bold green]")
-            else:
-                console.print("\n[bold red]Signal analysis failed![/bold red]")
-                raise typer.Exit(1)
-                
-        except Exception as e:
-            console.print(f"\n[bold red]Error: {e}[/bold red]")
-            if verbose:
-                console.print_exception()
+        if success:
+            console.print("\n[bold green]Signal analysis completed successfully![/bold green]")
+        else:
+            console.print("\n[bold red]Signal analysis failed![/bold red]")
             raise typer.Exit(1)
+            
+    except Exception as e:
+        console.print(f"\n[bold red]Error: {e}[/bold red]")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
 
 @app.command()
 def trade(
@@ -127,16 +128,16 @@ def trade(
         # Import and run the main trading logic
         from the_alchemiser.main import run_multi_strategy_trading
 
-        console.print("[dim]Analyzing market conditions...[/dim]")
+        console.print("[dim]📊 Analyzing market conditions...[/dim]")
         time.sleep(0.5)  # Brief pause for UI
 
-        console.print("[dim]Generating strategy signals...[/dim]")
+        console.print("[dim]⚡ Generating strategy signals...[/dim]")
         result = run_multi_strategy_trading(
             live_trading=live,
             ignore_market_hours=ignore_market_hours
         )
 
-        console.print("[dim]Trading completed![/dim]")
+        console.print("[dim]✅ Trading completed![/dim]")
 
         if result == "market_closed":
             console.print("\n[bold yellow]Market is closed - no trades executed[/bold yellow]")
