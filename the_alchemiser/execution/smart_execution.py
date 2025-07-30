@@ -80,16 +80,13 @@ class SmartExecution:
         """
         Place progressive limit order starting at midpoint, stepping toward less favorable price.
         
-        Enhanced Strategy (6 steps + market order fallback):
+        Simplified Strategy (3 steps + market order fallback):
         1. Start at midpoint of bid/ask (most favorable)
-        2. Step to 60% toward unfavorable price  
-        3. Step to 70% toward unfavorable price
-        4. Step to 80% toward unfavorable price
-        5. Step to 90% toward unfavorable price
-        6. Step to bid/ask price (100% unfavorable)
-        7. Finally place market order if all limit attempts fail
+        2. Step to 50% toward unfavorable price  
+        3. Step to bid/ask price (100% unfavorable)
+        4. Finally place market order if all limit attempts fail
         
-        Each step waits 10 seconds for WebSocket fill notification before proceeding.
+        Each step waits 2 seconds for WebSocket fill notification before proceeding.
         For BUY orders: midpoint → ask direction
         For SELL orders: midpoint → bid direction
         """
@@ -198,13 +195,10 @@ class SmartExecution:
             else:
                 console.print(f"[yellow]⚠️ WebSocket not ready, will use polling fallback[/yellow]")
             
-            # Define the steps: midpoint -> 60% -> 70% -> 80% -> 90% -> bid/ask -> market order
+            # Define the steps: midpoint -> 50% -> 100% -> market order
             steps = [
                 (0.0, "Midpoint"),
-                (0.6, "60% toward unfavorable"),
-                (0.7, "70% toward unfavorable"), 
-                (0.8, "80% toward unfavorable"),
-                (0.9, "90% toward unfavorable"),
+                (0.5, "50% toward unfavorable"),
                 (1.0, "Bid/Ask price")
             ]
             
@@ -279,8 +273,8 @@ class SmartExecution:
                 console.print(f"[yellow]{step_name} not filled ({final_status}), trying next step...[/yellow]")
                 # Order was automatically cancelled by wait_for_order_completion timeout
             
-            # All 6 limit order steps failed, use market order as final fallback
-            console.print(f"[yellow]All 6 progressive limit orders failed for {symbol}, checking final status before market order...[/yellow]")
+            # All 3 limit order steps failed, use market order as final fallback
+            console.print(f"[yellow]All 3 progressive limit orders failed for {symbol}, checking final status before market order...[/yellow]")
             
             # Final safety check: verify no orders actually filled before placing market order
             try:
