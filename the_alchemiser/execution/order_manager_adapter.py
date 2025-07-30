@@ -91,14 +91,65 @@ class OrderManagerAdapter:
         if isinstance(side, str):
             side = OrderSide.BUY if side.lower() == 'buy' else OrderSide.SELL
         
-        # For SELL orders, always use market orders for immediate execution
+        # For SELL orders, implement smart limit-then-market strategy favoring quick fills
         if side == OrderSide.SELL:
+            # For notional sell orders, use market order (can't easily implement limit for notional sells)
             if notional is not None:
-                # Market order (notional) execution
                 return self.simple_order_manager.place_market_order(symbol, side, notional=notional)
-            else:
-                # Market order execution
-                return self.simple_order_manager.place_market_order(symbol, side, qty=qty)
+            
+            # For quantity sell orders, try intelligent limit order first
+            try:
+                # Get bid/ask for smart limit price calculation using WebSocket pricing
+                quote = self.simple_order_manager.data_provider.get_latest_quote(symbol)
+                if quote and len(quote) >= 2:  # Expecting (bid, ask) tuple
+                    bid = float(quote[0])
+                    ask = float(quote[1])
+                    
+                    if bid > 0 and ask > 0 and ask > bid:
+                        # Calculate aggressive limit price for SELLS favoring quick fills
+                        # Place limit closer to bid for faster execution (85% toward bid from ask)
+                        # This is more aggressive than buys to ensure quick liquidation
+                        limit_price = ask - (ask - bid) * 0.85
+                        limit_price = round(limit_price, 2)  # Round to cents
+                        
+                        from rich.console import Console
+                        Console().print(f"[red]Aggressive SELL limit: {symbol} @ ${limit_price:.2f} (bid=${bid:.2f}, ask=${ask:.2f})[/red]")
+                        
+                        # Try limit order first with shorter timeout for sells (10 seconds vs 15 for buys)
+                        limit_order_id = self.simple_order_manager.place_limit_order(
+                            symbol, qty, side, limit_price
+                        )
+                        
+                        if limit_order_id:
+                            # Use WebSocket to get instant fill notifications instead of polling
+                            from rich.console import Console
+                            Console().print(f"[red]Waiting for SELL limit order fill via WebSocket...[/red]")
+                            
+                            # Wait for order completion using WebSocket trading stream (10 seconds for aggressive sells)
+                            order_results = self.simple_order_manager.wait_for_order_completion(
+                                [limit_order_id], max_wait_seconds=10
+                            )
+                            
+                            final_status = order_results.get(limit_order_id, '').lower()
+                            if 'filled' in final_status:
+                                Console().print(f"[green]✓ SELL {symbol} @ ${limit_price:.2f} (WebSocket fill notification)[/green]")
+                                return limit_order_id
+                            else:
+                                # Order didn't fill - it was cancelled or timed out via WebSocket
+                                Console().print(f"[yellow]SELL limit order {final_status}, using market order for {symbol}[/yellow]")
+                        else:
+                            # Limit order placement failed
+                            Console().print(f"[yellow]SELL limit order placement failed, using market order for {symbol}[/yellow]")
+                        
+                        # Limit order didn't work, fall back to market order
+                        from rich.console import Console
+                        Console().print(f"[yellow]SELL limit timeout, using market order for {symbol}[/yellow]")
+                    
+            except Exception as e:
+                logging.warning(f"Error getting quote for SELL {symbol}: {e}, using market order")
+            
+            # Fallback to market order for sells
+            return self.simple_order_manager.place_market_order(symbol, side, qty=qty)
         
         # For BUY orders, implement smart limit-then-market strategy
         if side == OrderSide.BUY:
@@ -152,35 +203,25 @@ class OrderManagerAdapter:
                         )
                         
                         if limit_order_id:
-                            # Wait 15 seconds for fill, checking every 2 seconds
-                            # Wait for limit order to fill
+                            # Use WebSocket to get instant fill notifications instead of polling
+                            from rich.console import Console
+                            Console().print(f"[cyan]Waiting for limit order fill via WebSocket...[/cyan]")
                             
-                            for i in range(8):  # 8 checks over 15 seconds (15/2 = 7.5, round up)
-                                time.sleep(2)
-                                
-                                # Check if order is filled
-                                try:
-                                    order = self.simple_order_manager.trading_client.get_order_by_id(limit_order_id)
-                                    status = str(getattr(order, 'status', 'unknown'))
-                                    
-                                    if 'FILLED' in status or 'filled' in status.lower():
-                                        from rich.console import Console
-                                        Console().print(f"[green]✓ {symbol} @ ${limit_price:.2f}[/green]")
-                                        return limit_order_id
-                                    elif 'CANCELED' in status or 'REJECTED' in status:
-                                        logging.warning(f"Limit order {status.lower()}: {symbol}")
-                                        break
-                                        
-                                except Exception as e:
-                                    logging.warning(f"Error checking limit order status: {e}")
-                                    break
+                            # Wait for order completion using WebSocket trading stream (max 15 seconds)
+                            order_results = self.simple_order_manager.wait_for_order_completion(
+                                [limit_order_id], max_wait_seconds=15
+                            )
                             
-                            # If we get here, order didn't fill - cancel it
-                            try:
-                                self.simple_order_manager.trading_client.cancel_order_by_id(limit_order_id)
-                                logging.warning(f"Cancelled unfilled limit order for {symbol}")
-                            except Exception as e:
-                                logging.warning(f"Error cancelling limit order: {e}")
+                            final_status = order_results.get(limit_order_id, '').lower()
+                            if 'filled' in final_status:
+                                Console().print(f"[green]✓ BUY {symbol} @ ${limit_price:.2f} (WebSocket fill notification)[/green]")
+                                return limit_order_id
+                            else:
+                                # Order didn't fill - it was cancelled or rejected via WebSocket
+                                Console().print(f"[yellow]Limit order {final_status}, using market order for {symbol}[/yellow]")
+                        else:
+                            # Limit order placement failed
+                            Console().print(f"[yellow]Limit order placement failed, using market order for {symbol}[/yellow]")
                         
                         # Limit order didn't work, fall back to market order
                         from rich.console import Console
