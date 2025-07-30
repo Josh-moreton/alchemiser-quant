@@ -28,6 +28,9 @@ import numpy as np
 from the_alchemiser.core.logging.logging_utils import setup_logging
 from the_alchemiser.core.config import get_config
 from the_alchemiser.core.indicators.indicators import TechnicalIndicators
+from the_alchemiser.utils.indicator_utils import safe_get_indicator
+from the_alchemiser.utils.price_utils import ensure_scalar_price
+from the_alchemiser.utils.config_utils import load_alert_config
 
 # Setup
 warnings.filterwarnings('ignore')
@@ -105,28 +108,6 @@ class NuclearStrategyEngine:
                 logging.warning(f"Could not fetch data for {symbol}")
         return market_data
 
-    def safe_get_indicator(self, data, indicator_func, *args, **kwargs):
-        """Safely get indicator value, logging exceptions to surface data problems."""
-        try:
-            result = indicator_func(data, *args, **kwargs)
-            if hasattr(result, 'iloc') and len(result) > 0:
-                value = result.iloc[-1]
-                # Check if value is NaN - if so, try to find the last valid value
-                if pd.isna(value):
-                    # Find the last non-NaN value
-                    valid_values = result.dropna()
-                    if len(valid_values) > 0:
-                        value = valid_values.iloc[-1]
-                    else:
-                        logging.error(f"No valid values for indicator {indicator_func.__name__} on data: {data}")
-                        return 50.0  # Fallback only if no valid values
-                return float(value)
-            logging.error(f"Indicator {indicator_func.__name__} returned no results for data: {data}")
-            return 50.0
-        except Exception as e:
-            logging.error(f"Exception in safe_get_indicator for {indicator_func.__name__}: {e}\nData: {data}")
-            return 50.0
-
     def calculate_indicators(self, market_data):
         """Calculate all technical indicators"""
         indicators = {}
@@ -135,12 +116,12 @@ class NuclearStrategyEngine:
                 continue
             close = df['Close']
             indicators[symbol] = {
-                'rsi_10': self.safe_get_indicator(close, self.indicators.rsi, 10),
-                'rsi_20': self.safe_get_indicator(close, self.indicators.rsi, 20),
-                'ma_200': self.safe_get_indicator(close, self.indicators.moving_average, 200),
-                'ma_20': self.safe_get_indicator(close, self.indicators.moving_average, 20),
-                'ma_return_90': self.safe_get_indicator(close, self.indicators.moving_average_return, 90),
-                'cum_return_60': self.safe_get_indicator(close, self.indicators.cumulative_return, 60),
+                'rsi_10': safe_get_indicator(close, self.indicators.rsi, 10),
+                'rsi_20': safe_get_indicator(close, self.indicators.rsi, 20),
+                'ma_200': safe_get_indicator(close, self.indicators.moving_average, 200),
+                'ma_20': safe_get_indicator(close, self.indicators.moving_average, 20),
+                'ma_return_90': safe_get_indicator(close, self.indicators.moving_average_return, 90),
+                'cum_return_60': safe_get_indicator(close, self.indicators.cumulative_return, 60),
                 'current_price': float(close.iloc[-1]),
             }
         return indicators
@@ -232,66 +213,17 @@ class NuclearSignalGenerator:
     def __init__(self):
         self.strategy = NuclearStrategyEngine()
         self.load_config()
-    
-    def _ensure_scalar_price(self, price):
-        """Ensure price is a scalar value for JSON serialization and string formatting"""
-        if price is None:
-            return None
-        try:
-            # If it's a pandas Series or similar, get the scalar value
-            if hasattr(price, 'item') and callable(getattr(price, 'item')):
-                price = price.item()
-            elif hasattr(price, 'iloc'):
-                # If it's still a Series, get the first element
-                price = price.iloc[0]
-            # Convert to float
-            price = float(price)
-            return price if not pd.isna(price) else None
-        except (ValueError, TypeError, AttributeError) as e:
-            return None
-        
+
     def load_config(self):
         """Load configuration"""
-        try:
-            # Try to load from S3 first, then local
-            from the_alchemiser.core.utils.s3_utils import get_s3_handler
-            import os
-            s3_handler = get_s3_handler()
-            
-            # Check if file exists in S3 bucket
-            from the_alchemiser.core.config import get_config
-            global_config = get_config()
-            s3_uri = global_config['alerts'].get('alert_config_s3', 's3://the-alchemiser-s3/alert_config.json')
-            if s3_handler.file_exists(s3_uri):
-                content = s3_handler.read_text(s3_uri)
-                if content:
-                    self.config = json.loads(content)
-                    return
-            
-            # Fallback to local file
-            if os.path.exists('alert_config.json'):
-                with open('alert_config.json', 'r') as f:
-                    self.config = json.load(f)
-                    return
-                    
-        except Exception as e:
-            logging.warning(f"Could not load alert config: {e}")
-            
-        # Default config if nothing found - use global config values
-        from the_alchemiser.core.config import get_config
-        global_config = get_config()
-        self.config = {
-            "alerts": {
-                "cooldown_minutes": global_config['alerts'].get('cooldown_minutes', 30)
-            }
-        }
-    
+        self.config = load_alert_config()
+
     def handle_nuclear_portfolio_signal(self, symbol, action, reason, indicators, market_data=None):
         """Delegate alert creation to alert_service.create_alerts_from_signal"""
         from the_alchemiser.core.alerts.alert_service import create_alerts_from_signal
         return create_alerts_from_signal(
             symbol, action, reason, indicators, market_data,
-            self.strategy.data_provider, self._ensure_scalar_price, self.strategy
+            self.strategy.data_provider, ensure_scalar_price, self.strategy
         )
     
     def run_analysis(self):

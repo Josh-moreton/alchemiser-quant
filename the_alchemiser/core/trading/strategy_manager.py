@@ -82,12 +82,12 @@ class MultiStrategyManager:
         # Default allocation from config if not specified
         if strategy_allocations is None:
             default_allocations = self.config['strategy'].get('default_strategy_allocations', {
-                'nuclear': 0.5,
-                'tecl': 0.5
+                'nuclear': 0.4,
+                'tecl': 0.6
             })
             self.strategy_allocations = {
-                StrategyType.NUCLEAR: default_allocations.get('nuclear', 0.5),
-                StrategyType.TECL: default_allocations.get('tecl', 0.5)
+                StrategyType.NUCLEAR: default_allocations.get('nuclear', 0.4),
+                StrategyType.TECL: default_allocations.get('tecl', 0.6)
             }
         else:
             self.strategy_allocations = strategy_allocations
