@@ -159,7 +159,7 @@ class Config:
                 }
             if key == 'strategy':
                 return {
-                    'default_strategy_allocations': {'nuclear': 0.5, 'tecl': 0.5},
+                    'default_strategy_allocations': {'nuclear': 0.4, 'tecl': 0.6},
                     'poll_timeout': 30,
                     'poll_interval': 2.0,
                 }

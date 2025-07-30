@@ -22,92 +22,15 @@ The duplicated `_ensure_scalar_price` logic has been successfully consolidated:
 - Updated: `tecl_signals.py` and `nuclear_signals.py` to import and use the utility
 - Removed: All duplicate implementations
 
-## 3. Configuration Loading
+## ✅ 3. Configuration Loading (COMPLETED)
 
-`load_config` is almost identical in both signal generators.
+**Status**: ✅ COMPLETED - Consolidated into `the_alchemiser/utils/config_utils.py`
 
-```python
-# the_alchemiser/core/trading/tecl_signals.py
-   154     def load_config(self):
-   155         """Load configuration"""
-   156         try:
-   157             # Try to load from S3 first, then local
-   158             from the_alchemiser.core.utils.s3_utils import get_s3_handler
-   159             import os
-   160             s3_handler = get_s3_handler()
-   161             
-   162             # Check if file exists in S3 bucket
-   163             from the_alchemiser.core.config import get_config
-   164             global_config = get_config()
-   165             s3_uri = global_config['alerts'].get('alert_config_s3', 's3://the-alchemiser-s3/alert_config.json')
-   166             if s3_handler.file_exists(s3_uri):
-   167                 content = s3_handler.read_text(s3_uri)
-   168                 if content:
-   169                     self.config = json.loads(content)
-   170                     return
-   171             
-   172             # Fallback to local file
-   173             if os.path.exists('alert_config.json'):
-   174                 with open('alert_config.json', 'r') as f:
-   175                     self.config = json.load(f)
-   176                     return
-   177                     
-   178         except Exception as e:
-   179             logging.warning(f"Could not load alert config: {e}")
-   180             
-   181         # Default config if nothing found - use global config values
-   182         from the_alchemiser.core.config import get_config
-   183         global_config = get_config()
-   184         self.config = {
-   185             "alerts": {
-   186                 "cooldown_minutes": global_config['alerts'].get('cooldown_minutes', 30)
-   187             }
-   188         }
-   189     
-```
+The duplicated `load_config` logic has been successfully consolidated:
 
-Corresponding section in **nuclear_signals.py**:
-
-```python
-   254         """Load configuration"""
-   255         try:
-   256             # Try to load from S3 first, then local
-   257             from the_alchemiser.core.utils.s3_utils import get_s3_handler
-   258             import os
-   259             s3_handler = get_s3_handler()
-   260             
-   261             # Check if file exists in S3 bucket
-   262             from the_alchemiser.core.config import get_config
-   263             global_config = get_config()
-   264             s3_uri = global_config['alerts'].get('alert_config_s3', 's3://the-alchemiser-s3/alert_config.json')
-   265             if s3_handler.file_exists(s3_uri):
-   266                 content = s3_handler.read_text(s3_uri)
-   267                 if content:
-   268                     self.config = json.loads(content)
-   269                     return
-   270             
-   271             # Fallback to local file
-   272             if os.path.exists('alert_config.json'):
-   273                 with open('alert_config.json', 'r') as f:
-   274                     self.config = json.load(f)
-   275                     return
-   276                     
-   277         except Exception as e:
-   278             logging.warning(f"Could not load alert config: {e}")
-   279             
-   280         # Default config if nothing found - use global config values
-   281         from the_alchemiser.core.config import get_config
-   282         global_config = get_config()
-   283         self.config = {
-   284             "alerts": {
-   285                 "cooldown_minutes": global_config['alerts'].get('cooldown_minutes', 30)
-   286             }
-   287         }
-   288     
-   289     def handle_nuclear_portfolio_signal(self, symbol, action, reason, indicators, market_data=None):
-```
-
-**Refactor idea:** create a single helper (e.g., `config_loader.load_alert_config()`) used by both classes.
+- Created: `the_alchemiser/utils/config_utils.py` with the `load_alert_config` function
+- Updated: `tecl_signals.py` and `nuclear_signals.py` to import and use the utility
+- Removed: All duplicate implementations
 
 ## 4. Repeated `run_once` Routines
 

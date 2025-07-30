@@ -30,6 +30,7 @@ from the_alchemiser.core.config import get_config
 from the_alchemiser.core.logging.logging_utils import setup_logging
 from the_alchemiser.utils.indicator_utils import safe_get_indicator
 from the_alchemiser.utils.price_utils import ensure_scalar_price
+from the_alchemiser.utils.config_utils import load_alert_config
 
 warnings.filterwarnings('ignore')
 setup_logging()  # Centralized logging setup
@@ -115,40 +116,8 @@ class TECLSignalGenerator:
 
     def load_config(self):
         """Load configuration"""
-        try:
-            # Try to load from S3 first, then local
-            from the_alchemiser.core.utils.s3_utils import get_s3_handler
-            import os
-            s3_handler = get_s3_handler()
-            
-            # Check if file exists in S3 bucket
-            from the_alchemiser.core.config import get_config
-            global_config = get_config()
-            s3_uri = global_config['alerts'].get('alert_config_s3', 's3://the-alchemiser-s3/alert_config.json')
-            if s3_handler.file_exists(s3_uri):
-                content = s3_handler.read_text(s3_uri)
-                if content:
-                    self.config = json.loads(content)
-                    return
-            
-            # Fallback to local file
-            if os.path.exists('alert_config.json'):
-                with open('alert_config.json', 'r') as f:
-                    self.config = json.load(f)
-                    return
-                    
-        except Exception as e:
-            logging.warning(f"Could not load alert config: {e}")
-            
-        # Default config if nothing found - use global config values
-        from the_alchemiser.core.config import get_config
-        global_config = get_config()
-        self.config = {
-            "alerts": {
-                "cooldown_minutes": global_config['alerts'].get('cooldown_minutes', 30)
-            }
-        }
-    
+        self.config = load_alert_config()
+
     def handle_tecl_portfolio_signal(self, symbol, action, reason, indicators, market_data=None):
         """Delegate alert creation to alert_service.create_alerts_from_signal"""
         from the_alchemiser.core.alerts.alert_service import create_alerts_from_signal
