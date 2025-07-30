@@ -12,130 +12,15 @@ The same `safe_get_indicator` logic appeared in multiple modules and has been su
 - Updated: `tecl_signals.py`, `nuclear_signals.py`, and `tecl_strategy_engine.py` to import and use the utility
 - Removed: All duplicate implementations
 
-```python
-# the_alchemiser/core/trading/tecl_signals.py
-```
+## ✅ 2. Scalar Price Conversion (COMPLETED)
 
-    82     def safe_get_indicator(self, data, indicator_func, *args, **kwargs):
-    83         """Safely get indicator value, logging exceptions to surface data problems."""
-    84         try:
-    85             result = indicator_func(data, *args, **kwargs)
-    86             if hasattr(result, 'iloc') and len(result) > 0:
-    87                 value = result.iloc[-1]
-    88                 # Check if value is NaN - if so, try to find the last valid value
-    89                 if pd.isna(value):
-    90                     # Find the last non-NaN value
-    91                     valid_values = result.dropna()
-    92                     if len(valid_values) > 0:
-    93                         value = valid_values.iloc[-1]
-    94                     else:
-    95                         logging.error(f"No valid values for indicator {indicator_func.__name__} on data: {data}")
-    96                         return 50.0  # Fallback only if no valid values
-    97                 return float(value)
-    98             logging.error(f"Indicator {indicator_func.__name__} returned no results for data: {data}")
-    99             return 50.0
-   100         except Exception as e:
-   101             logging.error(f"Exception in safe_get_indicator for {indicator_func.**name**}: {e}\nData: {data}")
-   102             return 50.0
+**Status**: ✅ COMPLETED - Consolidated into `the_alchemiser/utils/price_utils.py`
 
-Similar code in **nuclear_signals.py**:
+The duplicated `_ensure_scalar_price` logic has been successfully consolidated:
 
-```python
-   108     def safe_get_indicator(self, data, indicator_func, *args, **kwargs):
-   109         """Safely get indicator value, logging exceptions to surface data problems."""
-   110         try:
-   111             result = indicator_func(data, *args, **kwargs)
-   112             if hasattr(result, 'iloc') and len(result) > 0:
-   113                 value = result.iloc[-1]
-   114                 # Check if value is NaN - if so, try to find the last valid value
-   115                 if pd.isna(value):
-   116                     # Find the last non-NaN value
-   117                     valid_values = result.dropna()
-   118                     if len(valid_values) > 0:
-   119                         value = valid_values.iloc[-1]
-   120                     else:
-   121                         logging.error(f"No valid values for indicator {indicator_func.__name__} on data: {data}")
-   122                         return 50.0  # Fallback only if no valid values
-   123                 return float(value)
-   124             logging.error(f"Indicator {indicator_func.__name__} returned no results for data: {data}")
-   125             return 50.0
-   126         except Exception as e:
-   127             logging.error(f"Exception in safe_get_indicator for {indicator_func.__name__}: {e}\nData: {data}")
-   128             return 50.0
-```
-
-A third copy appears in **tecl_strategy_engine.py**:
-
-```python
-    80     def safe_get_indicator(self, data, indicator_func, *args, **kwargs):
-    81         """Safely get indicator value, logging exceptions to surface data problems."""
-    82         try:
-    83             result = indicator_func(data, *args, **kwargs)
-    84             if hasattr(result, 'iloc') and len(result) > 0:
-    85                 value = result.iloc[-1]
-    86                 # Check if value is NaN - if so, try to find the last valid value
-    87                 if pd.isna(value):
-    88                     # Find the last non-NaN value
-    89                     valid_values = result.dropna()
-    90                     if len(valid_values) > 0:
-    91                         value = valid_values.iloc[-1]
-    92                     else:
-    93                         logging.error(f"No valid values for indicator {indicator_func.__name__} on data: {data}")
-    94                         return 50.0  # Fallback only if no valid values
-    95                 return float(value)
-    96             logging.error(f"Indicator {indicator_func.__name__} returned no results for data: {data}")
-    97             return 50.0
-    98         except Exception as e:
-    99             logging.error(f"Exception in safe_get_indicator for {indicator_func.__name__}: {e}\nData: {data}")
-   100             return 50.0
-```
-
-**Refactor idea:** create a shared utility like `indicator_utils.safe_get_indicator(data, func, *args, **kwargs)`.
-
-## 2. Scalar Price Conversion
-
-Both signal generators implement `_ensure_scalar_price` with identical logic.
-
-```python
-# the_alchemiser/core/trading/tecl_signals.py
-   136     def _ensure_scalar_price(self, price):
-   137         """Ensure price is a scalar value for JSON serialization and string formatting"""
-   138         if price is None:
-   139             return None
-   140         try:
-   141             # If it's a pandas Series or similar, get the scalar value
-   142             if hasattr(price, 'item') and callable(getattr(price, 'item')):
-   143                 price = price.item()
-   144             elif hasattr(price, 'iloc'):
-   145                 # If it's still a Series, get the first element
-   146                 price = price.iloc[0]
-   147             # Convert to float
-   148             price = float(price)
-   149             return price if not pd.isna(price) else None
-   150         except (ValueError, TypeError, AttributeError) as e:
-```
-
-Same logic in **nuclear_signals.py**:
-
-```python
-   236     def _ensure_scalar_price(self, price):
-   237         """Ensure price is a scalar value for JSON serialization and string formatting"""
-   238         if price is None:
-   239             return None
-   240         try:
-   241             # If it's a pandas Series or similar, get the scalar value
-   242             if hasattr(price, 'item') and callable(getattr(price, 'item')):
-   243                 price = price.item()
-   244             elif hasattr(price, 'iloc'):
-   245                 # If it's still a Series, get the first element
-   246                 price = price.iloc[0]
-   247             # Convert to float
-   248             price = float(price)
-   249             return price if not pd.isna(price) else None
-   250         except (ValueError, TypeError, AttributeError) as e:
-```
-
-**Refactor idea:** move this logic to `utils.price.ensure_scalar(value)`.
+- Created: `the_alchemiser/utils/price_utils.py` with the `ensure_scalar_price` function
+- Updated: `tecl_signals.py` and `nuclear_signals.py` to import and use the utility
+- Removed: All duplicate implementations
 
 ## 3. Configuration Loading
 

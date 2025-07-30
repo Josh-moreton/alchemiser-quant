@@ -29,6 +29,7 @@ from the_alchemiser.core.logging.logging_utils import setup_logging
 from the_alchemiser.core.config import get_config
 from the_alchemiser.core.indicators.indicators import TechnicalIndicators
 from the_alchemiser.utils.indicator_utils import safe_get_indicator
+from the_alchemiser.utils.price_utils import ensure_scalar_price
 
 # Setup
 warnings.filterwarnings('ignore')
@@ -211,24 +212,7 @@ class NuclearSignalGenerator:
     def __init__(self):
         self.strategy = NuclearStrategyEngine()
         self.load_config()
-    
-    def _ensure_scalar_price(self, price):
-        """Ensure price is a scalar value for JSON serialization and string formatting"""
-        if price is None:
-            return None
-        try:
-            # If it's a pandas Series or similar, get the scalar value
-            if hasattr(price, 'item') and callable(getattr(price, 'item')):
-                price = price.item()
-            elif hasattr(price, 'iloc'):
-                # If it's still a Series, get the first element
-                price = price.iloc[0]
-            # Convert to float
-            price = float(price)
-            return price if not pd.isna(price) else None
-        except (ValueError, TypeError, AttributeError) as e:
-            return None
-        
+
     def load_config(self):
         """Load configuration"""
         try:
@@ -270,7 +254,7 @@ class NuclearSignalGenerator:
         from the_alchemiser.core.alerts.alert_service import create_alerts_from_signal
         return create_alerts_from_signal(
             symbol, action, reason, indicators, market_data,
-            self.strategy.data_provider, self._ensure_scalar_price, self.strategy
+            self.strategy.data_provider, ensure_scalar_price, self.strategy
         )
     
     def run_analysis(self):
