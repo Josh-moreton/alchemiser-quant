@@ -75,7 +75,7 @@ def generate_multi_strategy_signals():
     """Generate signals for all strategies and return consolidated results.
     
     Creates a shared data provider and multi-strategy manager to generate signals
-    for both Nuclear and TECL strategies with equal allocation (50% each).
+    for both Nuclear and TECL strategies with configurable allocation weights.
     
     Returns:
         tuple: A 3-tuple containing:
@@ -100,10 +100,11 @@ def generate_multi_strategy_signals():
     try:
         # Create shared UnifiedDataProvider once
         shared_data_provider = UnifiedDataProvider(paper_trading=True)
-        # Pass shared data provider to MultiStrategyManager
+        # Pass shared data provider to MultiStrategyManager with config allocations
+        allocations = config['strategy']['default_strategy_allocations']
         manager = MultiStrategyManager({
-            StrategyType.NUCLEAR: 0.5,
-            StrategyType.TECL: 0.5
+            StrategyType.NUCLEAR: allocations['nuclear'],
+            StrategyType.TECL: allocations['tecl']
         }, shared_data_provider=shared_data_provider)
         strategy_signals, consolidated_portfolio = manager.run_all_strategies()
         return manager, strategy_signals, consolidated_portfolio
@@ -173,8 +174,15 @@ def run_all_signals_display():
         from rich.panel import Panel
         console = Console()
         
-        strategy_summary = f"""[bold cyan]NUCLEAR:[/bold cyan] {nuclear_positions} positions, 50% allocation
-[bold cyan]TECL:[/bold cyan] {tecl_positions} positions, 50% allocation"""
+        # Get actual allocation percentages from config
+        from the_alchemiser.core.config import Config
+        config = Config()
+        allocations = config['strategy']['default_strategy_allocations']
+        nuclear_pct = int(allocations['nuclear'] * 100)
+        tecl_pct = int(allocations['tecl'] * 100)
+        
+        strategy_summary = f"""[bold cyan]NUCLEAR:[/bold cyan] {nuclear_positions} positions, {nuclear_pct}% allocation
+[bold cyan]TECL:[/bold cyan] {tecl_positions} positions, {tecl_pct}% allocation"""
         
         console.print(Panel(strategy_summary, title="Strategy Summary", border_style="blue"))
         
@@ -218,12 +226,13 @@ def run_multi_strategy_trading(live_trading: bool = False, ignore_market_hours: 
         from the_alchemiser.execution.trading_engine import TradingEngine, StrategyType
         from the_alchemiser.execution.smart_execution import is_market_open
         
-        # Initialize multi-strategy trader
+        # Initialize multi-strategy trader with config allocations
+        allocations = config['strategy']['default_strategy_allocations']
         trader = TradingEngine(
             paper_trading=not live_trading,
             strategy_allocations={
-                StrategyType.NUCLEAR: 0.5,
-                StrategyType.TECL: 0.5
+                StrategyType.NUCLEAR: allocations['nuclear'],
+                StrategyType.TECL: allocations['tecl']
             },
             ignore_market_hours=ignore_market_hours,
             config=config

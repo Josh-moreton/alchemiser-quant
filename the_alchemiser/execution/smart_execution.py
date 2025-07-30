@@ -16,6 +16,7 @@ from alpaca.trading.enums import OrderSide
 from alpaca.trading.client import TradingClient
 
 from the_alchemiser.execution.alpaca_client import AlpacaClient
+from the_alchemiser.execution.progressive_order_utils import ProgressiveOrderCalculator, get_market_urgency_level
 
 
 def is_market_open(trading_client: TradingClient) -> bool:
@@ -43,6 +44,9 @@ class SmartExecution:
         
         self.alpaca_client = AlpacaClient(trading_client, data_provider, validate_buying_power)
         self.ignore_market_hours = ignore_market_hours
+        
+        # Initialize progressive order calculator
+        self.order_calculator = ProgressiveOrderCalculator(config)
         
         # OrderManagerAdapter initialized silently
     
@@ -202,9 +206,31 @@ class SmartExecution:
             midpoint = (bid + ask) / 2.0
             spread = ask - bid
             
+            # Get intelligent execution parameters based on market conditions
+            urgency_level = get_market_urgency_level()
+            
+            # Try to get recent price data for volatility calculation
+            recent_high = None
+            recent_low = None
+            try:
+                # Get recent price range (you might want to implement this in data_provider)
+                current_price = self.alpaca_client.data_provider.get_current_price(symbol)
+                # For now, use a simple estimate based on spread
+                estimated_range = spread * 10  # Rough estimate
+                recent_high = current_price + estimated_range / 2
+                recent_low = current_price - estimated_range / 2
+            except Exception as e:
+                logging.warning(f"Could not get price range for {symbol}: {e}")
+            
+            # Calculate intelligent execution parameters
+            exec_params = self.order_calculator.calculate_execution_params(
+                symbol, bid, ask, side, urgency_level, recent_high, recent_low
+            )
+            
             # Progressive limit order strategy
-            console.print(f"[cyan]Starting progressive limit order for {side.value} {symbol}[/cyan]")
+            console.print(f"[cyan]Starting intelligent progressive limit order for {side.value} {symbol}[/cyan]")
             console.print(f"[dim]Bid: ${bid:.2f}, Ask: ${ask:.2f}, Midpoint: ${midpoint:.2f}, Spread: ${spread:.2f}[/dim]")
+            console.print(f"[blue]Strategy: {exec_params}[/blue]")
             
             # Pre-initialize WebSocket connection for faster order monitoring
             console.print(f"[blue]🔌 Pre-initializing WebSocket for order monitoring...[/blue]")
@@ -214,29 +240,22 @@ class SmartExecution:
             else:
                 console.print(f"[yellow]⚠️ WebSocket not ready, will use polling fallback[/yellow]")
             
-            # Define the steps: midpoint -> 50% -> 100% -> market order
-            steps = [
-                (0.0, "Midpoint"),
-                (0.5, "50% toward unfavorable"),
-                (1.0, "Bid/Ask price")
-            ]
-            
-            for step_idx, (step_pct, step_desc) in enumerate(steps):
-                # Calculate limit price for this step
-                if side == OrderSide.BUY:
-                    # For BUY: start at midpoint, step toward ask (less favorable)
-                    limit_price = midpoint + (spread / 2 * step_pct)
-                    direction_desc = "toward ask"
-                else:
-                    # For SELL: start at midpoint, step toward bid (less favorable)
-                    limit_price = midpoint - (spread / 2 * step_pct)
-                    direction_desc = "toward bid"
+            # Use intelligent step percentages instead of hardcoded steps
+            for step_idx, step_pct in enumerate(exec_params.step_percentages):
+                # Calculate limit price for this step using the new calculator
+                limit_price = self.order_calculator.calculate_step_price(
+                    bid, ask, side, step_pct, exec_params.tick_aggressiveness
+                )
                 
-                # Round to cents
-                limit_price = round(limit_price, 2)
+                # Generate step description
+                if step_pct == 0.0:
+                    step_name = "Midpoint (most favorable)"
+                elif step_pct == 1.0:
+                    step_name = "Bid/Ask price (least favorable)"
+                else:
+                    step_name = f"Step {step_idx + 1} ({step_pct*100:.0f}% through spread)"
                 
                 # Display step information
-                step_name = step_desc if step_idx == 0 else f"Step {step_idx} ({step_desc})"
                 color = "cyan" if side == OrderSide.BUY else "red"
                 console.print(f"[{color}]{step_name}: {side.value} {symbol} @ ${limit_price:.2f}[/{color}]")
                 
@@ -249,15 +268,15 @@ class SmartExecution:
                     console.print(f"[yellow]Failed to place limit order at ${limit_price:.2f}[/yellow]")
                     continue
                 
-                # Wait 3 seconds for fill using WebSocket notifications (increased timeout)
-                console.print(f"[dim]Waiting 3 seconds for fill via WebSocket...[/dim]")
+                # Wait using intelligent timeout (varies by market conditions)
+                console.print(f"[dim]Waiting {exec_params.max_wait_seconds} seconds for fill via WebSocket...[/dim]")
                 logging.info(f"🔍 Monitoring order {limit_order_id} for {symbol} @ ${limit_price:.2f}")
                 
                 # Give WebSocket a moment to catch up before monitoring
                 time.sleep(0.2)
                 
                 order_results = self.alpaca_client.wait_for_order_completion(
-                    [limit_order_id], max_wait_seconds=3
+                    [limit_order_id], max_wait_seconds=exec_params.max_wait_seconds
                 )
                 
                 console.print(f"[dim]📋 Order completion result: {order_results}[/dim]")
@@ -306,8 +325,8 @@ class SmartExecution:
                 console.print(f"[yellow]{step_name} not filled ({final_status}), trying next step...[/yellow]")
                 # Order was automatically cancelled by wait_for_order_completion timeout
             
-            # All 3 limit order steps failed, use market order as final fallback
-            console.print(f"[yellow]All 3 progressive limit orders failed for {symbol}, checking final status before market order...[/yellow]")
+            # All progressive limit order steps failed, use market order as final fallback
+            console.print(f"[yellow]All {len(exec_params.step_percentages)} progressive limit orders failed for {symbol}, checking final status before market order...[/yellow]")
             
             # Final safety check: verify no orders actually filled before placing market order
             try:
