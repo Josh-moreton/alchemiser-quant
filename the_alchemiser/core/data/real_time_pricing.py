@@ -382,6 +382,11 @@ class RealTimePricingService:
         quote = self.get_real_time_quote(symbol)
         if not quote or quote.bid <= 0 or quote.ask <= 0:
             return None
+        
+        # Additional validation: ensure ask > bid for a reasonable spread
+        if quote.ask <= quote.bid:
+            logging.warning(f"Invalid spread for {symbol}: bid={quote.bid}, ask={quote.ask} (ask <= bid)")
+            return None
             
         return quote.bid, quote.ask
     

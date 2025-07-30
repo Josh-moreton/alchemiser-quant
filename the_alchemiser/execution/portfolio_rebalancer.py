@@ -131,7 +131,7 @@ class PortfolioRebalancer:
         if sell_orders:
             self.bot.wait_for_settlement(sell_orders)
             account_info = self.bot.get_account_info()
-        available_cash = account_info.get("cash", cash)
+        available_cash = account_info.get("buying_power", cash)
 
         # --- Step 6: Build list of buys using refreshed info ---
         current_positions = self.bot.get_positions()
@@ -167,7 +167,10 @@ class PortfolioRebalancer:
         for plan in buy_plans:
             # Refresh account info and buying power before each order
             account_info = self.bot.get_account_info()
-            available_cash = account_info.get("cash", 0.0)
+            available_cash = account_info.get("buying_power", 0.0)
+            
+            # Debug logging for buying power issues
+            logging.info(f"Account info: cash=${account_info.get('cash', 0):.2f}, buying_power=${account_info.get('buying_power', 0):.2f}")
             
             if available_cash <= 1.0:  # Less than $1 left
                 logging.warning(f"Insufficient buying power (${available_cash:.2f}) for {plan['symbol']}, skipping remaining orders")
@@ -180,7 +183,9 @@ class PortfolioRebalancer:
             
             # Always use notional orders for buy orders to avoid insufficient buying power issues
             # Use the minimum of: target dollar amount or available cash (with small buffer)
+            logging.info(f"Order calculation for {symbol}: estimated_cost=${estimated_cost:.2f}, available_cash=${available_cash:.2f}")
             target_dollar_amount = min(estimated_cost, available_cash * 0.99)  # 99% to leave small buffer
+            logging.info(f"Final target_dollar_amount for {symbol}: ${target_dollar_amount:.2f}")
             
             # Get bid/ask for display
             quote = self.bot.data_provider.get_latest_quote(symbol)
@@ -217,6 +222,19 @@ class PortfolioRebalancer:
                     "qty": target_qty,
                     "side": OrderSide.BUY
                 }])
+                
+                # Refresh positions and account info to detect any fills
+                try:
+                    account_info = self.bot.get_account_info()
+                    current_positions = self.bot.get_positions()
+                    logging.info(f"Post-order account refresh: cash=${account_info.get('cash', 0):.2f}, buying_power=${account_info.get('buying_power', 0):.2f}")
+                    
+                    # Check if we now have the position we wanted
+                    current_value = float(getattr(current_positions.get(symbol), 'market_value', 0.0))
+                    if current_value > 0:
+                        logging.info(f"Detected {symbol} position after order: ${current_value:.2f}")
+                except Exception as e:
+                    logging.warning(f"Failed to refresh account info after order: {e}")
 
         # Final summary
         final_positions = self.bot.get_positions()

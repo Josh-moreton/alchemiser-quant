@@ -80,12 +80,18 @@ class SmartExecution:
         """
         Place progressive limit order starting at midpoint, stepping toward less favorable price.
         
-        Strategy:
-        1. Start at midpoint of bid/ask
-        2. Wait 10 seconds for fill
-        3. Step 10% toward less favorable price (toward ask for BUY, toward bid for SELL)
-        4. Repeat steps until reaching the unfavorable extreme
-        5. Finally place market order if all limit attempts fail
+        Enhanced Strategy (6 steps + market order fallback):
+        1. Start at midpoint of bid/ask (most favorable)
+        2. Step to 60% toward unfavorable price  
+        3. Step to 70% toward unfavorable price
+        4. Step to 80% toward unfavorable price
+        5. Step to 90% toward unfavorable price
+        6. Step to bid/ask price (100% unfavorable)
+        7. Finally place market order if all limit attempts fail
+        
+        Each step waits 10 seconds for WebSocket fill notification before proceeding.
+        For BUY orders: midpoint → ask direction
+        For SELL orders: midpoint → bid direction
         """
         import time
         
@@ -142,14 +148,36 @@ class SmartExecution:
             bid = float(quote[0])
             ask = float(quote[1])
             
+            # Enhanced validation with better logging
             if not (bid > 0 and ask > 0 and ask > bid):
-                # Invalid quote, use market order
-                from rich.console import Console
-                Console().print(f"[yellow]Invalid bid/ask quote for {symbol} (bid=${bid:.2f}, ask=${ask:.2f}), using market order[/yellow]")
-                if notional is not None:
-                    return self.alpaca_client.place_market_order(symbol, side, notional=notional)
-                else:
-                    return self.alpaca_client.place_market_order(symbol, side, qty=qty)
+                # Try fallback to data client for quotes
+                logging.warning(f"Real-time quote invalid for {symbol}: bid={bid}, ask={ask}, trying data client fallback")
+                fallback_quote = None
+                try:
+                    # Use the data client directly (bypassing real-time cache)
+                    from alpaca.data.requests import StockLatestQuoteRequest
+                    if hasattr(self.alpaca_client.data_provider, 'data_client'):
+                        request = StockLatestQuoteRequest(symbol_or_symbols=symbol)
+                        latest_quote = self.alpaca_client.data_provider.data_client.get_stock_latest_quote(request)
+                        if latest_quote and symbol in latest_quote:
+                            quote_obj = latest_quote[symbol]
+                            fallback_bid = float(getattr(quote_obj, 'bid_price', 0) or 0)
+                            fallback_ask = float(getattr(quote_obj, 'ask_price', 0) or 0)
+                            if fallback_bid > 0 and fallback_ask > 0 and fallback_ask > fallback_bid:
+                                logging.info(f"Using data client fallback quote for {symbol}: bid=${fallback_bid:.2f}, ask=${fallback_ask:.2f}")
+                                bid, ask = fallback_bid, fallback_ask
+                except Exception as e:
+                    logging.warning(f"Data client fallback failed for {symbol}: {e}")
+                
+                # If still invalid after fallback, use market order
+                if not (bid > 0 and ask > 0 and ask > bid):
+                    from rich.console import Console
+                    Console().print(f"[yellow]Invalid bid/ask quote for {symbol} (bid=${bid:.2f}, ask=${ask:.2f}), using market order[/yellow]")
+                    logging.warning(f"All quote sources failed for {symbol}: bid={bid}, ask={ask}, fallback to market order")
+                    if notional is not None:
+                        return self.alpaca_client.place_market_order(symbol, side, notional=notional)
+                    else:
+                        return self.alpaca_client.place_market_order(symbol, side, qty=qty)
             
             # Calculate midpoint and spread
             midpoint = (bid + ask) / 2.0
@@ -162,10 +190,25 @@ class SmartExecution:
             console.print(f"[cyan]Starting progressive limit order for {side.value} {symbol}[/cyan]")
             console.print(f"[dim]Bid: ${bid:.2f}, Ask: ${ask:.2f}, Midpoint: ${midpoint:.2f}, Spread: ${spread:.2f}[/dim]")
             
-            # Define the steps: 0%, 10%, 20%, 30% toward unfavorable price
-            steps = [0.0, 0.1, 0.2, 0.3]
+            # Pre-initialize WebSocket connection for faster order monitoring
+            console.print(f"[blue]🔌 Pre-initializing WebSocket for order monitoring...[/blue]")
+            websocket_ready = self.alpaca_client._prepare_websocket_connection()
+            if websocket_ready:
+                console.print(f"[green]✅ WebSocket ready for order monitoring[/green]")
+            else:
+                console.print(f"[yellow]⚠️ WebSocket not ready, will use polling fallback[/yellow]")
             
-            for step_idx, step_pct in enumerate(steps):
+            # Define the steps: midpoint -> 60% -> 70% -> 80% -> 90% -> bid/ask -> market order
+            steps = [
+                (0.0, "Midpoint"),
+                (0.6, "60% toward unfavorable"),
+                (0.7, "70% toward unfavorable"), 
+                (0.8, "80% toward unfavorable"),
+                (0.9, "90% toward unfavorable"),
+                (1.0, "Bid/Ask price")
+            ]
+            
+            for step_idx, (step_pct, step_desc) in enumerate(steps):
                 # Calculate limit price for this step
                 if side == OrderSide.BUY:
                     # For BUY: start at midpoint, step toward ask (less favorable)
@@ -180,7 +223,7 @@ class SmartExecution:
                 limit_price = round(limit_price, 2)
                 
                 # Display step information
-                step_name = "Midpoint" if step_idx == 0 else f"Step {step_idx} ({step_pct*100:.0f}% {direction_desc})"
+                step_name = step_desc if step_idx == 0 else f"Step {step_idx} ({step_desc})"
                 color = "cyan" if side == OrderSide.BUY else "red"
                 console.print(f"[{color}]{step_name}: {side.value} {symbol} @ ${limit_price:.2f}[/{color}]")
                 
@@ -193,26 +236,73 @@ class SmartExecution:
                     console.print(f"[yellow]Failed to place limit order at ${limit_price:.2f}[/yellow]")
                     continue
                 
-                # Wait 10 seconds for fill using WebSocket notifications
-                console.print(f"[dim]Waiting 10 seconds for fill via WebSocket...[/dim]")
+                # Wait 2 seconds for fill using WebSocket notifications (reduced for faster progression)
+                console.print(f"[dim]Waiting 2 seconds for fill via WebSocket...[/dim]")
+                logging.info(f"🔍 Monitoring order {limit_order_id} for {symbol} @ ${limit_price:.2f}")
+                
+                # Give WebSocket a moment to catch up before monitoring
+                time.sleep(0.2)
                 
                 order_results = self.alpaca_client.wait_for_order_completion(
-                    [limit_order_id], max_wait_seconds=10
+                    [limit_order_id], max_wait_seconds=2
                 )
                 
+                console.print(f"[dim]📋 Order completion result: {order_results}[/dim]")
+                logging.info(f"📋 Order completion result for {limit_order_id}: {order_results}")
                 final_status = order_results.get(limit_order_id, '').lower()
+                
+                # If order is filled, return immediately without double-checking
                 if 'filled' in final_status:
                     console.print(f"[green]✓ {side.value} {symbol} filled @ ${limit_price:.2f} ({step_name})[/green]")
                     return limit_order_id
-                else:
-                    console.print(f"[yellow]{step_name} not filled ({final_status}), trying next step...[/yellow]")
-                    # Order was automatically cancelled by wait_for_order_completion timeout
+                
+                # Double-check order status only if timeout was reported
+                if final_status == 'timeout' or not final_status:
+                    try:
+                        # Get fresh order status from API
+                        console.print(f"[dim]🔍 Double-checking order status via API...[/dim]")
+                        logging.info(f"🔍 Double-checking order status for {limit_order_id} due to timeout/empty status")
+                        order = self.alpaca_client.trading_client.get_order_by_id(limit_order_id)
+                        fresh_status = str(getattr(order, 'status', 'unknown')).lower()
+                        console.print(f"[dim]✨ Fresh API status: {fresh_status}[/dim]")
+                        logging.info(f"✨ Fresh order status for {limit_order_id}: {fresh_status}")
+                        if 'filled' in fresh_status:
+                            final_status = fresh_status
+                            console.print(f"[green]🎯 Order was actually filled! WebSocket missed it.[/green]")
+                            logging.info(f"🎯 Order {limit_order_id} was actually filled! WebSocket missed it.")
+                            return limit_order_id
+                    except Exception as e:
+                        console.print(f"[red]❌ Failed to get fresh order status: {e}[/red]")
+                        logging.warning(f"❌ Failed to get fresh order status: {e}")
+                
+                # Order was not filled
+                console.print(f"[yellow]{step_name} not filled ({final_status}), trying next step...[/yellow]")
+                # Order was automatically cancelled by wait_for_order_completion timeout
             
-            # All limit order steps failed, use market order as final fallback
-            console.print(f"[yellow]All progressive limit orders failed for {symbol}, placing market order[/yellow]")
+            # All 6 limit order steps failed, use market order as final fallback
+            console.print(f"[yellow]All 6 progressive limit orders failed for {symbol}, checking final status before market order...[/yellow]")
+            
+            # Final safety check: verify no orders actually filled before placing market order
+            try:
+                positions_before = self.alpaca_client.get_current_positions()
+                current_qty = positions_before.get(symbol, 0.0)
+                logging.info(f"Current {symbol} position before market order: {current_qty}")
+            except Exception as e:
+                logging.warning(f"Failed to check position before market order: {e}")
+            
+            console.print(f"[yellow]Final fallback: Placing market order for {symbol}[/yellow]")
             
         except Exception as e:
             logging.warning(f"Error in progressive limit order strategy for {symbol}: {e}, using market order")
+        
+        finally:
+            # Clean up WebSocket connection after progressive order completion
+            try:
+                if hasattr(self.alpaca_client, '_cleanup_websocket_connection'):
+                    self.alpaca_client._cleanup_websocket_connection()
+                    console.print(f"[dim]🔌 WebSocket connection cleaned up after {symbol} order[/dim]")
+            except Exception as e:
+                logging.warning(f"Error cleaning up WebSocket connection: {e}")
         
         # Final fallback to market order
         if notional is not None:
@@ -244,17 +334,51 @@ class SmartExecution:
             logging.warning("No valid order IDs found in settlement data")
             return False
             
-        # Wait for order settlement
+        # Quick pre-check: see if orders are already filled before starting websocket monitoring
+        already_completed = {}
+        remaining_order_ids = []
         
-        # Use the SimpleOrderManager's order completion waiting
+        for order_id in order_ids:
+            try:
+                order = self.alpaca_client.trading_client.get_order_by_id(order_id)
+                status = str(getattr(order, 'status', 'unknown')).lower()
+                if 'orderstatus.' in status:
+                    actual_status = status.split('.')[-1]
+                else:
+                    actual_status = status
+                    
+                if actual_status in ['filled', 'canceled', 'rejected', 'expired']:
+                    logging.info(f"✅ Order {order_id} already settled with status: {actual_status}")
+                    already_completed[order_id] = actual_status
+                else:
+                    remaining_order_ids.append(order_id)
+            except Exception as e:
+                logging.warning(f"❌ Error checking order {order_id} pre-settlement status: {e}")
+                remaining_order_ids.append(order_id)  # Include it in monitoring if we can't check
+        
+        # If all orders are already completed, no need to wait
+        if not remaining_order_ids:
+            logging.info(f"🎯 All {len(order_ids)} orders already settled, skipping settlement monitoring")
+            return True
+        
+        # Only monitor orders that aren't already completed
+        logging.info(f"📊 Settlement check: {len(already_completed)} already completed, {len(remaining_order_ids)} need monitoring")
+        
+        # Wait for order settlement
         completion_statuses = self.alpaca_client.wait_for_order_completion(
-            order_ids, max_wait_time
+            remaining_order_ids, max_wait_time
         )
+        
+        # Combine pre-completed orders with newly completed ones
+        all_completion_statuses = {**already_completed, **completion_statuses}
+        
+        # Log the completion statuses for debugging
+        logging.info(f"Order completion statuses: {all_completion_statuses}")
         
         # Consider orders settled if they're filled, canceled, or rejected
         # Handle both enum values and string representations
         settled_count = sum(
-            1 for status in completion_statuses.values() 
+            1 for status in all_completion_statuses.values() 
             if status in ['filled', 'canceled', 'rejected', 'expired'] or
                str(status).lower() in ['filled', 'canceled', 'rejected', 'expired'] or
                status in ['OrderStatus.FILLED', 'OrderStatus.CANCELED', 'OrderStatus.REJECTED', 'OrderStatus.EXPIRED']
