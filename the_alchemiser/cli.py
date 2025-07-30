@@ -386,7 +386,8 @@ def backtest_nuclear_compare(
     end: str = typer.Option("2025-07-15", help="End date (YYYY-MM-DD)"),
     initial_equity: float = typer.Option(3000, help="Initial equity for backtest"),
     slippage_bps: int = typer.Option(None, help="Slippage in basis points (default: from config.yaml)"),
-    noise_factor: float = typer.Option(0.001, help="Market noise factor (default: 0.1%)")
+    noise_factor: float = typer.Option(0.001, help="Market noise factor (default: 0.1%)"),
+    minute_candles: bool = typer.Option(False, "--minute-candles", help="Use minute candles for backtesting (limits historical range)")
 ):
     """
     ⚖️ [bold cyan]Compare nuclear portfolio strategies[/bold cyan]
@@ -405,7 +406,7 @@ def backtest_nuclear_compare(
     if slippage_bps is None:
         slippage_bps = config['alpaca'].get('slippage_bps', 5)
     console.print(f"[bold green]Running comprehensive backtest comparison from {start} to {end} with {slippage_bps} bps slippage and {noise_factor*100:.3f}% noise...")
-    run_backtest_comparison(start_dt, end_dt, initial_equity=initial_equity, slippage_bps=slippage_bps, noise_factor=noise_factor)
+    run_backtest_comparison(start_dt, end_dt, initial_equity=initial_equity, slippage_bps=slippage_bps, noise_factor=noise_factor, use_minute_candles=minute_candles)
 
 @app.command()
 def backtest(
@@ -417,12 +418,14 @@ def backtest(
     noise_factor: float = typer.Option(0.001, help="Market noise factor (default: 0.1%)"),
     deposit_amount: float = typer.Option(0.0, help="Deposit amount (e.g. 100 for £100, default: 0)"),
     deposit_frequency: Optional[str] = typer.Option(None, help="Deposit frequency: 'monthly' or 'weekly' (default: None)"),
-    deposit_day: int = typer.Option(1, help="Deposit day: for monthly, day of month (1-28); for weekly, weekday (0=Mon, 6=Sun)")
+    deposit_day: int = typer.Option(1, help="Deposit day: for monthly, day of month (1-28); for weekly, weekday (0=Mon, 6=Sun)"),
+    minute_candles: bool = typer.Option(False, "--minute-candles", help="Use 1-minute candles for precision (limited to ~90 days)")
 ):
     """
     🧪 [bold cyan]Run a realistic backtest[/bold cyan] for a given date range and price type.
     
-    Uses 1-minute candles for realistic execution pricing with market noise simulation.
+    Uses daily candles for extended historical backtests. For higher precision execution,
+    add the --minute-candles flag (limited to ~90 days of minute data).
     """
     import datetime as dt
     
@@ -437,7 +440,10 @@ def backtest(
     config = get_config()
     if slippage_bps is None:
         slippage_bps = config['alpaca'].get('slippage_bps', 5)
-    console.print(f"[bold green]Running realistic backtest from {start} to {end} using {price_type} prices with {slippage_bps} bps slippage and {noise_factor*100:.3f}% noise...")
+    
+    mode_str = "1-minute candles" if minute_candles else "daily candles"
+    console.print(f"[bold green]Running realistic backtest from {start} to {end} using {price_type} prices with {slippage_bps} bps slippage and {noise_factor*100:.3f}% noise ({mode_str})...")
+    
     run_backtest(
         start_dt, end_dt,
         initial_equity=initial_equity,
@@ -446,7 +452,8 @@ def backtest(
         noise_factor=noise_factor,
         deposit_amount=deposit_amount,
         deposit_frequency=deposit_frequency,
-        deposit_day=deposit_day
+        deposit_day=deposit_day,
+        use_minute_candles=minute_candles
     )
 
 @app.command()
@@ -458,7 +465,8 @@ def backtest_compare(
     noise_factor: float = typer.Option(0.001, help="Market noise factor (default: 0.1%)"),
     deposit_amount: float = typer.Option(0.0, help="Deposit amount (e.g. 100 for £100, default: 0)"),
     deposit_frequency: Optional[str] = typer.Option(None, help="Deposit frequency: 'monthly' or 'weekly' (default: None)"),
-    deposit_day: int = typer.Option(1, help="Deposit day: for monthly, day of month (1-28); for weekly, weekday (0=Mon, 6=Sun)")
+    deposit_day: int = typer.Option(1, help="Deposit day: for monthly, day of month (1-28); for weekly, weekday (0=Mon, 6=Sun)"),
+    minute_candles: bool = typer.Option(False, "--minute-candles", help="Use minute candles for backtesting (limits historical range)")
 ):
     """
     📊 [bold cyan]Compare realistic backtest results[/bold cyan] across all price types and dual-rebalance.
@@ -486,7 +494,8 @@ def backtest_compare(
         noise_factor=noise_factor,
         deposit_amount=deposit_amount,
         deposit_frequency=deposit_frequency,
-        deposit_day=deposit_day
+        deposit_day=deposit_day,
+        use_minute_candles=minute_candles
     )
 
 @app.command()
@@ -498,7 +507,8 @@ def backtest_dual(
     noise_factor: float = typer.Option(0.001, help="Market noise factor (default: 0.1%)"),
     deposit_amount: float = typer.Option(0.0, help="Deposit amount (e.g. 100 for £100, default: 0)"),
     deposit_frequency: Optional[str] = typer.Option(None, help="Deposit frequency: 'monthly' or 'weekly' (default: None)"),
-    deposit_day: int = typer.Option(1, help="Deposit day: for monthly, day of month (1-28); for weekly, weekday (0=Mon, 6=Sun)")
+    deposit_day: int = typer.Option(1, help="Deposit day: for monthly, day of month (1-28); for weekly, weekday (0=Mon, 6=Sun)"),
+    minute_candles: bool = typer.Option(False, "--minute-candles", help="Use minute candles for backtesting (limits historical range)")
 ):
     """
     🔄 [bold cyan]Run a dual-rebalance realistic backtest[/bold cyan] with 2 rebalances per day.
@@ -527,7 +537,8 @@ def backtest_dual(
         noise_factor=noise_factor,
         deposit_amount=deposit_amount,
         deposit_frequency=deposit_frequency,
-        deposit_day=deposit_day
+        deposit_day=deposit_day,
+        use_minute_candles=minute_candles
     )
 
 @app.callback()

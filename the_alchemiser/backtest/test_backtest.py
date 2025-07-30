@@ -1,4 +1,4 @@
-def run_backtest_all_splits(start, end, initial_equity=1000.0, slippage_bps=5, noise_factor=0.001, deposit_amount=0.0, deposit_frequency=None, deposit_day=1):
+def run_backtest_all_splits(start, end, initial_equity=1000.0, slippage_bps=5, noise_factor=0.001, deposit_amount=0.0, deposit_frequency=None, deposit_day=1, use_minute_candles=False):
     """
     Backtest all possible splits between nuclear and tecl strategies in 10% increments.
     """
@@ -38,14 +38,8 @@ def run_backtest_all_splits(start, end, initial_equity=1000.0, slippage_bps=5, n
 
         # Run the normal backtest (which will use the config-driven allocation)
         equity_curve = run_backtest(
-            start, end,
-            initial_equity=initial_equity,
-            price_type="close",
-            slippage_bps=slippage_bps,
-            noise_factor=noise_factor,
-            deposit_amount=deposit_amount,
-            deposit_frequency=deposit_frequency,
-            deposit_day=deposit_day
+            start, end, initial_equity, "close", slippage_bps, noise_factor,
+            deposit_amount, deposit_frequency, deposit_day, use_minute_candles
         )
 
         # Restore original global config
@@ -243,7 +237,7 @@ def _get_realistic_execution_price(symbol_minute_data, symbol, target_time, pric
     return _add_market_noise(base_price, noise_factor)
 
 
-def run_backtest(start, end, initial_equity=1000.0, price_type="close", slippage_bps=None, noise_factor=0.001, deposit_amount=0.0, deposit_frequency=None, deposit_day=1):
+def run_backtest(start, end, initial_equity=1000.0, price_type="close", slippage_bps=None, noise_factor=0.001, deposit_amount=0.0, deposit_frequency=None, deposit_day=1, use_minute_candles=False):
     # --- Deposit feature additions ---
     # New params: deposit_amount, deposit_frequency, deposit_day
     # New param: use_minute_candles (default False, can be set via CLI)
@@ -462,11 +456,11 @@ def run_backtest(start, end, initial_equity=1000.0, price_type="close", slippage
         return equity_curve
 
     # Call new function with backward compatibility
-    # Add use_minute_candles param, default False (can be set via CLI or global)
+    # use_minute_candles now passed as parameter (defaults to False)
     return run_backtest_with_deposit(
         start, end, initial_equity, price_type, slippage_bps, noise_factor,
         deposit_amount=deposit_amount, deposit_frequency=deposit_frequency, deposit_day=deposit_day,
-        use_minute_candles=globals().get('USE_MINUTE_CANDLES', False)
+        use_minute_candles=use_minute_candles
     )
 if __name__ == "__main__":
     import argparse
@@ -516,7 +510,7 @@ if __name__ == "__main__":
         )
 
 
-def run_backtest_dual_rebalance(start, end, initial_equity=1000.0, slippage_bps=5, noise_factor=0.001, deposit_amount=0.0, deposit_frequency=None, deposit_day=1):
+def run_backtest_dual_rebalance(start, end, initial_equity=1000.0, slippage_bps=5, noise_factor=0.001, deposit_amount=0.0, deposit_frequency=None, deposit_day=1, use_minute_candles=False):
 
     def run_backtest_dual_with_deposit(
         start, end, initial_equity=1000.0, slippage_bps=5, noise_factor=0.001,
@@ -717,10 +711,10 @@ def run_backtest_dual_rebalance(start, end, initial_equity=1000.0, slippage_bps=
     )
 
 
-def run_backtest_comparison(start, end, initial_equity=1000.0, slippage_bps=5, noise_factor=0.001, deposit_amount=0.0, deposit_frequency=None, deposit_day=1):
+def run_backtest_comparison(start, end, initial_equity=1000.0, slippage_bps=5, noise_factor=0.001, deposit_amount=0.0, deposit_frequency=None, deposit_day=1, use_minute_candles=False):
     def run_backtest_comparison_with_deposit(
         start, end, initial_equity=1000.0, slippage_bps=5, noise_factor=0.001,
-        deposit_amount=0.0, deposit_frequency=None, deposit_day=1
+        deposit_amount=0.0, deposit_frequency=None, deposit_day=1, use_minute_candles=False
     ):
         console.print(Panel(f"[bold cyan]Starting Extended Realistic Backtest Comparison[/bold cyan]\n"
                            f"Period: {start.strftime('%Y-%m-%d')} to {end.strftime('%Y-%m-%d')}\n"
@@ -735,7 +729,8 @@ def run_backtest_comparison(start, end, initial_equity=1000.0, slippage_bps=5, n
             console.print(f"\n[bold yellow]Running {price_type.upper()} price backtest (realistic execution)...[/bold yellow]")
             equity_curve = run_backtest(
                 start, end, initial_equity, price_type, slippage_bps, noise_factor,
-                deposit_amount=deposit_amount, deposit_frequency=deposit_frequency, deposit_day=deposit_day
+                deposit_amount=deposit_amount, deposit_frequency=deposit_frequency, deposit_day=deposit_day,
+                use_minute_candles=use_minute_candles
             )
             final_equity = equity_curve[-1]
             total_return = (final_equity / initial_equity - 1) * 100
@@ -753,7 +748,8 @@ def run_backtest_comparison(start, end, initial_equity=1000.0, slippage_bps=5, n
         console.print(f"\n[bold yellow]Running DUAL-REBALANCE backtest (2x daily, realistic)...[/bold yellow]")
         dual_equity_curve = run_backtest_dual_rebalance(
             start, end, initial_equity, slippage_bps, noise_factor,
-            deposit_amount=deposit_amount, deposit_frequency=deposit_frequency, deposit_day=deposit_day
+            deposit_amount=deposit_amount, deposit_frequency=deposit_frequency, deposit_day=deposit_day,
+            use_minute_candles=use_minute_candles
         )
         dual_final_equity = dual_equity_curve[-1]
         dual_total_return = (dual_final_equity / initial_equity - 1) * 100
@@ -789,7 +785,8 @@ def run_backtest_comparison(start, end, initial_equity=1000.0, slippage_bps=5, n
 
     return run_backtest_comparison_with_deposit(
         start, end, initial_equity, slippage_bps, noise_factor,
-        deposit_amount=deposit_amount, deposit_frequency=deposit_frequency, deposit_day=deposit_day
+        deposit_amount=deposit_amount, deposit_frequency=deposit_frequency, deposit_day=deposit_day,
+        use_minute_candles=use_minute_candles
     )
     
     comparison_table.add_row(
@@ -870,7 +867,7 @@ def test_backtest_dual_rebalance():
 
     end = dt.datetime.now() - dt.timedelta(days=5)
     start = end - dt.timedelta(days=90)  # Shorter period for dual-rebalance test
-    curve = run_backtest_dual_rebalance(start, end, slippage_bps=5, noise_factor=0.001)
+    curve = run_backtest_dual_rebalance(start, end, slippage_bps=5, noise_factor=0.001, use_minute_candles=False)
     assert len(curve) > 0
     assert curve[-1] > 0  # Final equity should be positive
 
@@ -883,7 +880,7 @@ def test_backtest_comparison():
 
     end = dt.datetime.now() - dt.timedelta(days=5)
     start = end - dt.timedelta(days=365*1)  # Run for the past year, not including last 5 days
-    results = run_backtest_comparison(start, end, slippage_bps=5, noise_factor=0.001)
+    results = run_backtest_comparison(start, end, slippage_bps=5, noise_factor=0.001, use_minute_candles=False)
     
     # Assert all strategies have positive equity curves
     for strategy_name, result in results.items():
