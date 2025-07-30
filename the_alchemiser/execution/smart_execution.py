@@ -92,6 +92,10 @@ class SmartExecution:
         """
         import time
         
+        # Initialize console at the very beginning for consistent access
+        from rich.console import Console
+        console = Console()
+        
         # Handle both string and OrderSide enum inputs
         side_str = side.value if hasattr(side, 'value') else str(side)
         
@@ -135,8 +139,7 @@ class SmartExecution:
             quote = self.alpaca_client.data_provider.get_latest_quote(symbol)
             if not quote or len(quote) < 2:
                 # No quote available, use market order
-                from rich.console import Console
-                Console().print(f"[yellow]No bid/ask quote available for {symbol}, using market order[/yellow]")
+                console.print(f"[yellow]No bid/ask quote available for {symbol}, using market order[/yellow]")
                 if notional is not None:
                     return self.alpaca_client.place_market_order(symbol, side, notional=notional)
                 else:
@@ -163,13 +166,32 @@ class SmartExecution:
                             if fallback_bid > 0 and fallback_ask > 0 and fallback_ask > fallback_bid:
                                 logging.info(f"Using data client fallback quote for {symbol}: bid=${fallback_bid:.2f}, ask=${fallback_ask:.2f}")
                                 bid, ask = fallback_bid, fallback_ask
+                            else:
+                                # Try using current price with estimated spread
+                                current_price = self.alpaca_client.data_provider.get_current_price(symbol)
+                                if current_price > 0:
+                                    # Estimate 0.5% spread around current price
+                                    estimated_spread = current_price * 0.005
+                                    bid = current_price - estimated_spread
+                                    ask = current_price + estimated_spread
+                                    logging.info(f"Using estimated spread for {symbol}: price=${current_price:.2f}, bid=${bid:.2f}, ask=${ask:.2f}")
                 except Exception as e:
                     logging.warning(f"Data client fallback failed for {symbol}: {e}")
+                    # Try using current price with estimated spread as final fallback
+                    try:
+                        current_price = self.alpaca_client.data_provider.get_current_price(symbol)
+                        if current_price > 0:
+                            # Estimate 0.5% spread around current price
+                            estimated_spread = current_price * 0.005
+                            bid = current_price - estimated_spread
+                            ask = current_price + estimated_spread
+                            logging.info(f"Using price-based spread estimate for {symbol}: price=${current_price:.2f}, bid=${bid:.2f}, ask=${ask:.2f}")
+                    except Exception as price_error:
+                        logging.warning(f"Price fallback also failed for {symbol}: {price_error}")
                 
-                # If still invalid after fallback, use market order
+                # If still invalid after all fallbacks, use market order
                 if not (bid > 0 and ask > 0 and ask > bid):
-                    from rich.console import Console
-                    Console().print(f"[yellow]Invalid bid/ask quote for {symbol} (bid=${bid:.2f}, ask=${ask:.2f}), using market order[/yellow]")
+                    console.print(f"[yellow]Invalid bid/ask quote for {symbol} (bid=${bid:.2f}, ask=${ask:.2f}), using market order[/yellow]")
                     logging.warning(f"All quote sources failed for {symbol}: bid={bid}, ask={ask}, fallback to market order")
                     if notional is not None:
                         return self.alpaca_client.place_market_order(symbol, side, notional=notional)
@@ -179,9 +201,6 @@ class SmartExecution:
             # Calculate midpoint and spread
             midpoint = (bid + ask) / 2.0
             spread = ask - bid
-            
-            from rich.console import Console
-            console = Console()
             
             # Progressive limit order strategy
             console.print(f"[cyan]Starting progressive limit order for {side.value} {symbol}[/cyan]")
@@ -230,15 +249,15 @@ class SmartExecution:
                     console.print(f"[yellow]Failed to place limit order at ${limit_price:.2f}[/yellow]")
                     continue
                 
-                # Wait 2 seconds for fill using WebSocket notifications (reduced for faster progression)
-                console.print(f"[dim]Waiting 2 seconds for fill via WebSocket...[/dim]")
+                # Wait 3 seconds for fill using WebSocket notifications (increased timeout)
+                console.print(f"[dim]Waiting 3 seconds for fill via WebSocket...[/dim]")
                 logging.info(f"🔍 Monitoring order {limit_order_id} for {symbol} @ ${limit_price:.2f}")
                 
                 # Give WebSocket a moment to catch up before monitoring
                 time.sleep(0.2)
                 
                 order_results = self.alpaca_client.wait_for_order_completion(
-                    [limit_order_id], max_wait_seconds=2
+                    [limit_order_id], max_wait_seconds=3
                 )
                 
                 console.print(f"[dim]📋 Order completion result: {order_results}[/dim]")
@@ -260,11 +279,25 @@ class SmartExecution:
                         fresh_status = str(getattr(order, 'status', 'unknown')).lower()
                         console.print(f"[dim]✨ Fresh API status: {fresh_status}[/dim]")
                         logging.info(f"✨ Fresh order status for {limit_order_id}: {fresh_status}")
+                        
+                        # Check if order is filled or partially filled (don't cancel partial fills)
                         if 'filled' in fresh_status:
                             final_status = fresh_status
                             console.print(f"[green]🎯 Order was actually filled! WebSocket missed it.[/green]")
                             logging.info(f"🎯 Order {limit_order_id} was actually filled! WebSocket missed it.")
                             return limit_order_id
+                        elif 'partially_filled' in fresh_status:
+                            # Let partially filled orders continue for next 2 seconds
+                            console.print(f"[yellow]⏳ Order partially filled, giving it 2 more seconds...[/yellow]")
+                            time.sleep(2)
+                            # Check again
+                            order = self.alpaca_client.trading_client.get_order_by_id(limit_order_id)
+                            final_check_status = str(getattr(order, 'status', 'unknown')).lower()
+                            if 'filled' in final_check_status:
+                                console.print(f"[green]✓ Order completed after partial fill wait[/green]")
+                                return limit_order_id
+                            else:
+                                console.print(f"[yellow]Order still partially filled, moving to next step[/yellow]")
                     except Exception as e:
                         console.print(f"[red]❌ Failed to get fresh order status: {e}[/red]")
                         logging.warning(f"❌ Failed to get fresh order status: {e}")
@@ -289,14 +322,13 @@ class SmartExecution:
         except Exception as e:
             logging.warning(f"Error in progressive limit order strategy for {symbol}: {e}, using market order")
         
-        finally:
-            # Clean up WebSocket connection after progressive order completion
-            try:
-                if hasattr(self.alpaca_client, '_cleanup_websocket_connection'):
-                    self.alpaca_client._cleanup_websocket_connection()
-                    console.print(f"[dim]🔌 WebSocket connection cleaned up after {symbol} order[/dim]")
-            except Exception as e:
-                logging.warning(f"Error cleaning up WebSocket connection: {e}")
+        # Always clean up WebSocket connection after progressive order completion
+        try:
+            if hasattr(self.alpaca_client, '_cleanup_websocket_connection'):
+                self.alpaca_client._cleanup_websocket_connection()
+                console.print(f"[dim]🔌 WebSocket connection cleaned up after {symbol} order[/dim]")
+        except Exception as e:
+            logging.warning(f"Error cleaning up WebSocket connection: {e}")
         
         # Final fallback to market order
         if notional is not None:
