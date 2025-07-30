@@ -91,6 +91,8 @@ from decimal import Decimal, ROUND_DOWN
 from alpaca.trading.client import TradingClient
 from alpaca.trading.requests import MarketOrderRequest, LimitOrderRequest
 from alpaca.trading.enums import OrderSide, TimeInForce, OrderStatus
+from alpaca.trading.stream import TradingStream
+import threading
 
 from the_alchemiser.core.data.data_provider import UnifiedDataProvider
 
@@ -592,66 +594,138 @@ class SimpleOrderManager:
         return results
 
     def wait_for_order_completion(
-        self, 
-        order_ids: List[str], 
-        max_wait_seconds: int = 60
+        self,
+        order_ids: List[str],
+        max_wait_seconds: int = 60,
     ) -> Dict[str, str]:
-        """
-        Wait for orders to complete (filled, canceled, or rejected).
-        
-        Args:
-            order_ids: List of order IDs to monitor
-            max_wait_seconds: Maximum time to wait
-            
-        Returns:
-            Dict of order_id -> final_status
-        """
+        """Wait for orders to reach a final state."""
         if not order_ids:
             return {}
-            
-        logging.info(f"⏳ Waiting for {len(order_ids)} orders to complete...")
-        
+
+        api_key = getattr(self.trading_client, "_api_key", None)
+        secret_key = getattr(self.trading_client, "_secret_key", None)
+        has_keys = isinstance(api_key, str) and isinstance(secret_key, str)
+
+        if has_keys:
+            try:
+                return self._wait_for_order_completion_stream(order_ids, max_wait_seconds)
+            except Exception as e:  # pragma: no cover - streaming errors fallback
+                logging.warning(f"Falling back to polling due to streaming error: {e}")
+
+        return self._wait_for_order_completion_polling(order_ids, max_wait_seconds)
+
+    def _wait_for_order_completion_polling(self, order_ids: List[str], max_wait_seconds: int) -> Dict[str, str]:
+        """Original polling-based settlement check."""
+        logging.info(
+            f"⏳ Waiting for {len(order_ids)} orders to complete via polling..."
+        )
+
         start_time = time.time()
-        completed = {}
-        
+        completed: Dict[str, str] = {}
+
         while time.time() - start_time < max_wait_seconds and len(completed) < len(order_ids):
-            logging.info(f"🔍 Checking {len(order_ids)} orders, {len(completed)} completed so far...")
+            logging.info(
+                f"🔍 Checking {len(order_ids)} orders, {len(completed)} completed so far..."
+            )
             for order_id in order_ids:
                 if order_id in completed:
                     continue
-                    
+
                 try:
                     order = self.trading_client.get_order_by_id(order_id)
-                    status = getattr(order, 'status', 'unknown')
+                    status = getattr(order, "status", "unknown")
                     status_str = str(status)
                     logging.info(f"📋 Order {order_id}: status={status_str}")
-                    
-                    # Check if order is in a final state
-                    # Handle both enum values and string representations
-                    final_states = ['filled', 'canceled', 'rejected', 'expired', 
-                                  'OrderStatus.FILLED', 'OrderStatus.CANCELED', 
-                                  'OrderStatus.REJECTED', 'OrderStatus.EXPIRED']
-                    if status_str in final_states or str(status).lower() in ['filled', 'canceled', 'rejected', 'expired']:
+
+                    final_states = [
+                        "filled",
+                        "canceled",
+                        "rejected",
+                        "expired",
+                        "OrderStatus.FILLED",
+                        "OrderStatus.CANCELED",
+                        "OrderStatus.REJECTED",
+                        "OrderStatus.EXPIRED",
+                    ]
+                    if status_str in final_states or str(status).lower() in [
+                        "filled",
+                        "canceled",
+                        "rejected",
+                        "expired",
+                    ]:
                         completed[order_id] = status_str
                         logging.info(f"✅ Order {order_id}: {status_str}")
-                        
+
                 except Exception as e:
                     logging.warning(f"❌ Error checking order {order_id}: {e}")
-                    completed[order_id] = 'error'
-            
+                    completed[order_id] = "error"
+
             if len(completed) < len(order_ids):
-                logging.info(f"⏳ {len(order_ids) - len(completed)} orders still pending, waiting 2 seconds...")
-                time.sleep(2)  # Wait 2 seconds before checking again
-        
-        # Handle any remaining orders
+                logging.info(
+                    f"⏳ {len(order_ids) - len(completed)} orders still pending, waiting 2 seconds..."
+                )
+                time.sleep(2)
+
         if len(completed) < len(order_ids):
             elapsed_time = time.time() - start_time
-            logging.warning(f"⏰ Timeout after {elapsed_time:.1f}s: {len(order_ids) - len(completed)} orders did not complete")
-            
+            logging.warning(
+                f"⏰ Timeout after {elapsed_time:.1f}s: {len(order_ids) - len(completed)} orders did not complete"
+            )
+
         for order_id in order_ids:
             if order_id not in completed:
-                completed[order_id] = 'timeout'
+                completed[order_id] = "timeout"
                 logging.warning(f"⏰ Order {order_id}: timeout")
-                
+
+        logging.info(f"🏁 Order settlement complete: {len(completed)} orders processed")
+        return completed
+
+    def _wait_for_order_completion_stream(self, order_ids: List[str], max_wait_seconds: int) -> Dict[str, str]:
+        """Use Alpaca's TradingStream to monitor order status."""
+        logging.info(
+            f"⏳ Waiting for {len(order_ids)} orders to complete via websocket..."
+        )
+
+        api_key = getattr(self.trading_client, "_api_key")
+        secret_key = getattr(self.trading_client, "_secret_key")
+        paper = getattr(self.trading_client, "_sandbox", True)
+
+        completed: Dict[str, str] = {}
+        remaining = set(order_ids)
+
+        final_states = {"filled", "canceled", "rejected", "expired"}
+
+        async def on_update(data) -> None:
+            order = getattr(data, "order", None)
+            if not order:
+                return
+            oid = str(getattr(order, "id", ""))
+            status = str(getattr(order, "status", ""))
+            if oid in remaining and status.lower() in final_states:
+                completed[oid] = status
+                remaining.remove(oid)
+                logging.info(f"✅ Order {oid}: {status}")
+                if not remaining:
+                    stream.stop()
+
+        stream = TradingStream(api_key, secret_key, paper=paper)
+        stream.subscribe_trade_updates(on_update)
+
+        thread = threading.Thread(target=stream.run, daemon=True)
+        thread.start()
+
+        start_time = time.time()
+        while remaining and time.time() - start_time < max_wait_seconds:
+            time.sleep(0.5)
+
+        if remaining:
+            stream.stop()
+            thread.join(timeout=2)
+            for oid in remaining:
+                completed[oid] = "timeout"
+                logging.warning(f"⏰ Order {oid}: timeout")
+        else:
+            thread.join()
+
         logging.info(f"🏁 Order settlement complete: {len(completed)} orders processed")
         return completed
