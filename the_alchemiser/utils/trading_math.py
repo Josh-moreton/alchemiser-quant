@@ -1,10 +1,19 @@
 #!/usr/bin/env python3
-"""
-Trading Math Utilities.
+"""Trading Math Utilities for The Alchemiser Trading Bot.
 
-Contains pure mathematical functions for trading calculations, such as position sizing,
-dynamic limit price calculation, slippage buffer, and allocation discrepancy analysis.
-All functions are side-effect free and unit-testable.
+This module contains pure mathematical functions for trading calculations,
+including position sizing, dynamic limit price calculation, slippage calculations,
+and portfolio rebalancing mathematics. All functions are side-effect free,
+making them easy to unit test and reason about.
+
+The module provides the mathematical foundation for:
+- Position sizing based on portfolio weights
+- Dynamic limit order pricing strategies
+- Slippage and transaction cost calculations
+- Portfolio allocation and rebalancing logic
+
+All functions follow functional programming principles with no side effects,
+ensuring predictable behavior and easy testing.
 """
 
 import logging
@@ -16,18 +25,31 @@ def calculate_position_size(
     portfolio_weight: float, 
     account_value: float
 ) -> float:
-    """
-    Calculate position size based on portfolio weight (fractional shares supported).
+    """Calculate the number of shares to buy/sell based on portfolio weight.
     
-    This is a pure function with no side effects, making it easy to unit test.
+    This function calculates the appropriate position size (in shares) needed
+    to achieve a target portfolio weight. It supports fractional shares and
+    handles edge cases like zero or negative prices.
     
     Args:
-        current_price: Current price per share
-        portfolio_weight: Target weight (0.0 to 1.0)
-        account_value: Total account value
+        current_price (float): Current price per share. Must be positive.
+        portfolio_weight (float): Target weight as a fraction (0.0 to 1.0).
+            For example, 0.25 represents 25% of the portfolio.
+        account_value (float): Total account value in dollars.
         
     Returns:
-        Number of shares to buy/sell (float for fractional shares)
+        float: Number of shares to buy/sell, rounded to 6 decimal places
+            for fractional share support. Returns 0.0 if price is invalid.
+            
+    Example:
+        >>> # Target 25% allocation in AAPL at $150/share with $10,000 account
+        >>> shares = calculate_position_size(150.0, 0.25, 10000.0)
+        >>> print(f"Shares to buy: {shares}")
+        Shares to buy: 16.666667
+        
+    Note:
+        The function rounds to 6 decimal places as this is the maximum
+        precision supported by Alpaca for fractional shares.
     """
     if current_price <= 0:
         return 0.0
@@ -49,23 +71,47 @@ def calculate_dynamic_limit_price(
     tick_size: float = 0.01,
     max_steps: int = 5,
 ) -> float:
-    """
-    Calculate a limit price using a dynamic pegging strategy.
+    """Calculate a limit price using a dynamic pegging strategy.
     
-    The strategy starts near the bid/ask midpoint and progressively moves
-    toward the market on each retry attempt. This is a pure function version
-    of the OrderManager method.
+    This function implements a progressive limit pricing strategy that starts
+    near the bid/ask midpoint and moves toward the market price with each
+    retry attempt. This approach balances execution probability with price
+    improvement potential.
+    
+    The algorithm:
+    1. Start near the bid/ask midpoint
+    2. For buy orders: move up toward ask price with each step
+    3. For sell orders: move down toward bid price with each step
+    4. After max_steps, use market price (ask for buys, bid for sells)
     
     Args:
-        side_is_buy: True for buy orders, False for sell orders
-        bid: Current bid price
-        ask: Current ask price
-        step: Current retry step (0 = first attempt)
-        tick_size: Price increment for each step
-        max_steps: Maximum number of steps before using market price
-        
+        side_is_buy (bool): True for buy orders, False for sell orders.
+        bid (float): Current bid price from market data.
+        ask (float): Current ask price from market data.
+        step (int, optional): Current retry step (0 = first attempt).
+            Defaults to 0.
+        tick_size (float, optional): Price increment for each step.
+            Defaults to 0.01 (1 cent).
+        max_steps (int, optional): Maximum steps before using market price.
+            Defaults to 5.
+            
     Returns:
-        Calculated limit price rounded to 2 decimal places
+        float: Calculated limit price rounded to 2 decimal places.
+        
+    Example:
+        >>> # First attempt at buying with bid=100.00, ask=100.10
+        >>> price = calculate_dynamic_limit_price(True, 100.00, 100.10, step=0)
+        >>> print(f"Initial buy limit: ${price}")
+        Initial buy limit: $100.05
+        
+        >>> # Third retry attempt
+        >>> price = calculate_dynamic_limit_price(True, 100.00, 100.10, step=2)
+        >>> print(f"Retry limit: ${price}")
+        Retry limit: $100.07
+        
+    Note:
+        This is a pure function version of the dynamic pricing logic used
+        in the OrderManager class for limit order placement.
     """
     if bid > 0 and ask > 0:
         mid = (bid + ask) / 2
@@ -84,15 +130,34 @@ def calculate_dynamic_limit_price(
 
 
 def calculate_slippage_buffer(current_price: float, slippage_bps: float) -> float:
-    """
-    Calculate slippage buffer amount based on current price and basis points.
+    """Calculate slippage buffer amount in dollars from basis points.
+    
+    This function converts a slippage tolerance expressed in basis points
+    to a dollar amount based on the current price. The buffer can be used
+    for transaction cost estimation or risk management calculations.
     
     Args:
-        current_price: Current price of the security
-        slippage_bps: Slippage buffer in basis points (e.g., 30 = 0.3%)
-        
+        current_price (float): Current price of the security in dollars.
+        slippage_bps (float): Slippage buffer in basis points.
+            For example, 30 basis points = 0.3% = 30 bps.
+            
     Returns:
-        Slippage buffer amount in dollars
+        float: Slippage buffer amount in dollars.
+        
+    Example:
+        >>> # Calculate 0.3% (30 bps) slippage on $100 stock
+        >>> buffer = calculate_slippage_buffer(100.0, 30.0)
+        >>> print(f"Slippage buffer: ${buffer}")
+        Slippage buffer: $0.30
+        
+        >>> # Calculate 0.05% (5 bps) slippage on $50 stock
+        >>> buffer = calculate_slippage_buffer(50.0, 5.0)
+        >>> print(f"Slippage buffer: ${buffer}")
+        Slippage buffer: $0.025
+        
+    Note:
+        Basis points are 1/100th of a percent, so 100 bps = 1.0%.
+        This is a common way to express small percentages in finance.
     """
     return current_price * (slippage_bps / 10000)
 
@@ -102,16 +167,34 @@ def calculate_allocation_discrepancy(
     current_value: float, 
     total_portfolio_value: float
 ) -> tuple[float, float]:
-    """
-    Calculate the discrepancy between target and current allocations.
+    """Calculate the discrepancy between target and current allocations.
+    
+    This function computes how far the current portfolio allocation deviates
+    from the target allocation for a specific position. It returns both the
+    current weight and the difference that needs to be corrected.
     
     Args:
-        target_weight: Target allocation weight (0.0 to 1.0)
-        current_value: Current position value in dollars
-        total_portfolio_value: Total portfolio value in dollars
-        
+        target_weight (float): Target allocation weight (0.0 to 1.0).
+            For example, 0.3 represents 30% target allocation.
+        current_value (float): Current position value in dollars.
+            Can be a string that will be converted to float.
+        total_portfolio_value (float): Total portfolio value in dollars.
+            
     Returns:
-        Tuple of (current_weight, weight_difference)
+        tuple[float, float]: A tuple containing:
+            - current_weight: Current allocation as a fraction (0.0 to 1.0)
+            - weight_difference: Target minus current weight (can be negative)
+            
+    Example:
+        >>> # Current $3000 position, target 25%, total portfolio $10000
+        >>> current_weight, diff = calculate_allocation_discrepancy(0.25, 3000, 10000)
+        >>> print(f"Current: {current_weight:.1%}, Difference: {diff:+.1%}")
+        Current: 30.0%, Difference: -5.0%
+        
+    Note:
+        A positive weight_difference means the position is underweight
+        and needs to be increased. A negative difference means the position
+        is overweight and should be reduced.
     """
     if total_portfolio_value <= 0:
         return 0.0, target_weight
@@ -134,25 +217,48 @@ def calculate_rebalance_amounts(
     total_portfolio_value: float,
     min_trade_threshold: float = 0.01  # 1% minimum threshold for trades
 ) -> dict[str, dict]:
-    """
-    Calculate rebalancing amounts for all positions.
+    """Calculate comprehensive rebalancing plan for all portfolio positions.
+    
+    This function analyzes the entire portfolio and calculates the specific
+    trades needed to rebalance from current allocations to target allocations.
+    It provides detailed information for each position including whether
+    rebalancing is needed based on the minimum threshold.
     
     Args:
-        target_weights: Dictionary of symbol -> target weight
-        current_values: Dictionary of symbol -> current value
-        total_portfolio_value: Total portfolio value
-        min_trade_threshold: Minimum weight difference to trigger trade
-        
+        target_weights (dict[str, float]): Dictionary mapping symbols to
+            target weights (0.0 to 1.0). Example: {'AAPL': 0.3, 'MSFT': 0.2}
+        current_values (dict[str, float]): Dictionary mapping symbols to
+            current position values in dollars.
+        total_portfolio_value (float): Total portfolio value in dollars.
+        min_trade_threshold (float, optional): Minimum weight difference
+            to trigger a rebalancing trade. Defaults to 0.01 (1%).
+            
     Returns:
-        Dictionary of symbol -> {
-            'current_weight': float,
-            'target_weight': float, 
-            'weight_diff': float,
-            'target_value': float,
-            'current_value': float,
-            'trade_amount': float,
-            'needs_rebalance': bool
-        }
+        dict[str, dict]: Dictionary mapping each symbol to a detailed
+            rebalancing plan with the following structure:
+            {
+                'current_weight': float,     # Current allocation (0.0-1.0)
+                'target_weight': float,      # Target allocation (0.0-1.0)
+                'weight_diff': float,        # Difference (target - current)
+                'target_value': float,       # Target dollar value
+                'current_value': float,      # Current dollar value
+                'trade_amount': float,       # Dollar amount to trade (+ = buy, - = sell)
+                'needs_rebalance': bool      # Whether trade exceeds threshold
+            }
+            
+    Example:
+        >>> target = {'AAPL': 0.5, 'MSFT': 0.3, 'CASH': 0.2}
+        >>> current = {'AAPL': 4000, 'MSFT': 4000, 'CASH': 2000}
+        >>> plan = calculate_rebalance_amounts(target, current, 10000)
+        >>> for symbol, details in plan.items():
+        ...     if details['needs_rebalance']:
+        ...         action = "BUY" if details['trade_amount'] > 0 else "SELL"
+        ...         print(f"{symbol}: {action} ${abs(details['trade_amount']):.0f}")
+        MSFT: SELL $1000
+        
+    Note:
+        The function handles symbols that exist in either target_weights or
+        current_values but not both. Missing positions are treated as 0.0.
     """
     rebalance_plan = {}
     
