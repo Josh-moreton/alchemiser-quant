@@ -242,49 +242,94 @@ def build_trading_report_html(
     trading_html = ""
     if orders and len(orders) > 0:
         orders_rows = ""
-        for order in orders[:5]:  # Show last 5 orders
+        for order in orders[:10]:  # Show up to 10 orders instead of 5
             side = order.get('side', 'N/A')
             symbol = order.get('symbol', 'N/A')
             qty = order.get('qty', 0)
+            estimated_value = order.get('estimated_value', 0)
             
-            side_color = "#10B981" if side.lower() == 'buy' else "#EF4444"
-            side_emoji = "🟢" if side.lower() == 'buy' else "🔴"
+            # Handle both string and enum values for side
+            if hasattr(side, 'value'):
+                side_str = side.value.upper()
+            else:
+                side_str = str(side).upper()
+            
+            side_color = "#10B981" if side_str == 'BUY' else "#EF4444"
+            side_emoji = "🟢" if side_str == 'BUY' else "🔴"
             
             orders_rows += f"""
             <tr>
                 <td style="padding: 8px 12px; border-bottom: 1px solid #E5E7EB;">
-                    <span style="color: {side_color}; font-weight: 600;">{side_emoji} {side.upper()}</span>
+                    <span style="color: {side_color}; font-weight: 600;">{side_emoji} {side_str}</span>
                 </td>
                 <td style="padding: 8px 12px; border-bottom: 1px solid #E5E7EB; font-weight: 600;">
                     {symbol}
                 </td>
                 <td style="padding: 8px 12px; border-bottom: 1px solid #E5E7EB; text-align: right;">
-                    {qty}
+                    {qty:.6f}
+                </td>
+                <td style="padding: 8px 12px; border-bottom: 1px solid #E5E7EB; text-align: right; color: #059669; font-weight: 600;">
+                    ${estimated_value:,.2f}
                 </td>
             </tr>
             """
         
+        # Calculate totals for summary
+        buy_orders = []
+        sell_orders = []
+        
+        for o in orders:
+            side = o.get('side')
+            if side:
+                if hasattr(side, 'value') and side.value and side.value.upper() == 'BUY':
+                    buy_orders.append(o)
+                elif hasattr(side, 'value') and side.value and side.value.upper() == 'SELL':
+                    sell_orders.append(o)
+                elif str(side).upper() in ['BUY', 'OrderSide.BUY']:
+                    buy_orders.append(o)
+                elif str(side).upper() in ['SELL', 'OrderSide.SELL']:
+                    sell_orders.append(o)
+        
+        total_buy_value = sum(o.get('estimated_value', 0) for o in buy_orders)
+        total_sell_value = sum(o.get('estimated_value', 0) for o in sell_orders)
+        
         trading_html = f"""
         <div style="margin: 24px 0;">
-            <h3 style="margin: 0 0 16px 0; color: #1F2937; font-size: 18px; font-weight: 600;">⚡ Trading Activity</h3>
+            <h3 style="margin: 0 0 16px 0; color: #1F2937; font-size: 18px; font-weight: 600;">📋 Orders Executed ({len(orders)})</h3>
             <table style="width: 100%; border-collapse: collapse; background-color: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
                 <thead>
                     <tr style="background-color: #F9FAFB;">
-                        <th style="padding: 12px; text-align: left; font-weight: 600; color: #374151; border-bottom: 1px solid #E5E7EB;">Action</th>
+                        <th style="padding: 12px; text-align: left; font-weight: 600; color: #374151; border-bottom: 1px solid #E5E7EB;">Type</th>
                         <th style="padding: 12px; text-align: left; font-weight: 600; color: #374151; border-bottom: 1px solid #E5E7EB;">Symbol</th>
                         <th style="padding: 12px; text-align: right; font-weight: 600; color: #374151; border-bottom: 1px solid #E5E7EB;">Quantity</th>
+                        <th style="padding: 12px; text-align: right; font-weight: 600; color: #374151; border-bottom: 1px solid #E5E7EB;">Estimated Value</th>
                     </tr>
                 </thead>
                 <tbody>
                     {orders_rows}
                 </tbody>
             </table>
+            <div style="margin-top: 12px; padding: 12px; background-color: #F3F4F6; border-radius: 8px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <span style="color: #6B7280; font-size: 14px;">Summary:</span>
+                    <span style="font-weight: 600; color: #1F2937;">{len(orders)} total orders</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                    <span style="color: #10B981; font-size: 14px;">📈 Purchases:</span>
+                    <span style="color: #10B981; font-weight: 600;">${total_buy_value:,.2f}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="color: #EF4444; font-size: 14px;">📉 Sales:</span>
+                    <span style="color: #EF4444; font-weight: 600;">${total_sell_value:,.2f}</span>
+                </div>
+            </div>
         </div>
         """
     else:
         trading_html = f"""
         <div style="margin: 24px 0; padding: 16px; background-color: #F3F4F6; border-radius: 8px; text-align: center;">
-            <span style="color: #6B7280; font-style: italic;">⚡ No trades executed</span>
+            <h3 style="margin: 0 0 8px 0; color: #6B7280; font-size: 18px;">📋 Orders Executed (0)</h3>
+            <span style="color: #6B7280; font-style: italic;">No trades executed this session</span>
         </div>
         """
     

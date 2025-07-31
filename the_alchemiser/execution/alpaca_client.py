@@ -931,13 +931,14 @@ class AlpacaClient:
                     time.sleep(0.1)  # Smaller sleep for faster response
 
                 if remaining and not stream_stopped:
-                    console.print(f"[red]⏰ Timeout reached! Remaining orders: {remaining}[/red]")
+                    console.print(f"[red]⏰ Timeout reached! {len(remaining)} orders timed out[/red]")
                     logging.warning(f"⏰ Timeout reached! Remaining orders: {remaining}")
                     for oid in remaining:
                         completed[oid] = "timeout"
+                        # Only log individual timeouts at DEBUG level to reduce noise
                         if logging.getLogger().level <= logging.DEBUG:
                             console.print(f"[red]⏰ Order {oid}: timeout[/red]")
-                        logging.warning(f"⏰ Order {oid}: timeout")
+                            logging.debug(f"⏰ Order {oid}: timeout")
                 else:
                     if logging.getLogger().level <= logging.DEBUG:
                         console.print("[green]✅ All orders completed before timeout[/green]")
@@ -1008,14 +1009,16 @@ class AlpacaClient:
             time.sleep(0.5)
 
         if remaining:
-            console.print(f"[red]⏰ Timeout reached! Stopping stream. Remaining orders: {remaining}[/red]")
-            logging.warning(f"⏰ Timeout reached! Stopping stream. Remaining orders: {remaining}")
+            console.print(f"[red]⏰ Timeout reached! {len(remaining)} orders timed out[/red]")
+            logging.warning(f"⏰ Timeout reached! Remaining orders: {remaining}")
             stream.stop()
             thread.join(timeout=2)
             for oid in remaining:
                 completed[oid] = "timeout"
-                console.print(f"[red]⏰ Order {oid}: timeout[/red]")
-                logging.warning(f"⏰ Order {oid}: timeout")
+                # Only log individual timeouts at DEBUG level to reduce noise
+                if logging.getLogger().level <= logging.DEBUG:
+                    console.print(f"[red]⏰ Order {oid}: timeout[/red]")
+                    logging.debug(f"⏰ Order {oid}: timeout")
         else:
             console.print("[green]✅ All orders completed before timeout[/green]")
             logging.info("✅ All orders completed before timeout")
