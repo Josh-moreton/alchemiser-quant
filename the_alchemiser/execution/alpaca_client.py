@@ -719,13 +719,15 @@ class AlpacaClient:
         
         if has_keys:
             try:
-                console.print("[blue]🚀 Attempting WebSocket streaming method for order completion[/blue]")
+                if logging.getLogger().level <= logging.DEBUG:
+                    console.print("[blue]🚀 Attempting WebSocket streaming method for order completion[/blue]")
                 return self._wait_for_order_completion_stream(order_ids, max_wait_seconds)
             except Exception as e:  # pragma: no cover - streaming errors fallback
                 console.print(f"[red]❌ Falling back to polling due to streaming error: {e}[/red]")
                 logging.warning(f"❌ Falling back to polling due to streaming error: {e}")
 
-        console.print("[blue]🔄 Using polling method for order completion[/blue]")
+        if logging.getLogger().level <= logging.DEBUG:
+            console.print("[blue]🔄 Using polling method for order completion[/blue]")
         return self._wait_for_order_completion_polling(order_ids, max_wait_seconds)
 
     def _wait_for_order_completion_polling(self, order_ids: List[str], max_wait_seconds: int) -> Dict[str, str]:
@@ -801,13 +803,17 @@ class AlpacaClient:
         from rich.console import Console
         console = Console()
         
-        console.print(f"[blue]⏳ Waiting for {len(order_ids)} orders to complete via websocket...[/blue]")
-        console.print(f"[blue]🔍 Order IDs to monitor: {order_ids}[/blue]")
+        # Only show detailed monitoring info at DEBUG level
+        if logging.getLogger().level <= logging.DEBUG:
+            if logging.getLogger().level <= logging.DEBUG:
+                console.print(f"[blue]⏳ Waiting for {len(order_ids)} orders to complete via websocket...[/blue]")
+            logging.info(f"⏳ Waiting for {len(order_ids)} orders via WebSocket")
+            if logging.getLogger().level <= logging.DEBUG:
+                console.print(f"[blue]🔍 Order IDs to monitor: {order_ids}[/blue]")
+            logging.info(f"Monitoring {len(order_ids)} orders via WebSocket")
         
-        logging.info(
-            f"⏳ Waiting for {len(order_ids)} orders to complete via websocket..."
-        )
-        logging.info(f"🔍 Order IDs to monitor: {order_ids}")
+        logging.info(f"⏳ Waiting for {len(order_ids)} orders to complete via websocket...")
+        logging.debug(f"🔍 Order IDs to monitor: {order_ids}")
 
         # First, check if any orders are already completed before starting websocket monitoring
         completed: Dict[str, str] = {}
@@ -825,7 +831,8 @@ class AlpacaClient:
                     
                 final_states = {"filled", "canceled", "rejected", "expired"}
                 if actual_status in final_states:
-                    console.print(f"[green]✅ Order {order_id} already completed with status: {actual_status}[/green]")
+                    if logging.getLogger().level <= logging.DEBUG:
+                        console.print(f"[green]✅ Order {order_id} already completed with status: {actual_status}[/green]")
                     logging.info(f"✅ Order {order_id} already completed with status: {actual_status}")
                     completed[order_id] = actual_status
                     remaining.remove(order_id)
@@ -834,7 +841,7 @@ class AlpacaClient:
         
         # If all orders are already completed, return immediately
         if not remaining:
-            console.print(f"[green]🎯 All {len(order_ids)} orders already completed, no websocket monitoring needed[/green]")
+            console.print(f"[green]✅ All {len(order_ids)} orders completed[/green]")
             logging.info(f"🎯 All {len(order_ids)} orders already completed, no websocket monitoring needed")
             return completed
 
@@ -859,8 +866,10 @@ class AlpacaClient:
             status = str(getattr(order, "status", ""))
             
             if oid in remaining:
-                console.print(f"[green]📋 WebSocket order update: ID={oid}, status={status}[/green]")
-                logging.info(f"📋 WebSocket order update: ID={oid}, status={status}")
+                # Only show detailed updates at DEBUG level, simple status for INFO
+                if logging.getLogger().level <= logging.DEBUG:
+                    console.print(f"[green]📋 WebSocket order update: ID={oid}, status={status}[/green]")
+                    logging.debug(f"📋 WebSocket order update: ID={oid}, status={status}")
                 
                 # Handle both string status and enum status
                 status_str = str(status).lower()
@@ -871,43 +880,53 @@ class AlpacaClient:
                     actual_status = status_str
                 
                 if actual_status in final_states:
-                    console.print(f"[green]✅ Order {oid} reached final state: {status} -> {actual_status}[/green]")
+                    console.print(f"[green]✅ Order filled[/green]")
                     logging.info(f"✅ Order {oid} reached final state: {status} -> {actual_status}")
                     completed[oid] = actual_status
                     remaining.remove(oid)
-                    console.print(f"[green]📊 Completed orders: {completed}, remaining: {remaining}[/green]")
-                    logging.info(f"📊 Completed orders: {completed}, remaining: {remaining}")
+                    if logging.getLogger().level <= logging.DEBUG:
+                        console.print(f"[green]📊 Completed orders: {completed}, remaining: {remaining}[/green]")
+                        logging.debug(f"📊 Completed orders: {completed}, remaining: {remaining}")
                     if not remaining:
-                        console.print("[green]🏁 All orders completed, stopping stream[/green]")
+                        if logging.getLogger().level <= logging.DEBUG:
+                            console.print("[green]🏁 All orders completed, stopping stream[/green]")
                         logging.info("🏁 All orders completed, stopping stream")
                         stream_stopped = True
                 else:
-                    console.print(f"[yellow]⏳ Order {oid} status '{actual_status}' not final, continuing to monitor[/yellow]")
-                    logging.info(f"⏳ Order {oid} status '{status}' -> '{actual_status}' not in final states {final_states}")
+                    if logging.getLogger().level <= logging.DEBUG:
+                        console.print(f"[yellow]⏳ Order {oid} status '{actual_status}' not final, continuing to monitor[/yellow]")
+                    logging.debug(f"⏳ Order {oid} status '{status}' -> '{actual_status}' not in final states {final_states}")
 
         # Check if we have a pre-connected WebSocket stream
         if hasattr(self, '_websocket_stream') and hasattr(self, '_websocket_thread'):
-            console.print("[green]🎯 Using pre-connected WebSocket stream[/green]")
+            if logging.getLogger().level <= logging.DEBUG:
+                if logging.getLogger().level <= logging.DEBUG:
+                    console.print("[green]🎯 Using pre-connected WebSocket stream[/green]")
+                logging.info("Using existing WebSocket connection")
             logging.info("🎯 Using pre-connected WebSocket stream")
             
             try:
                 # Re-subscribe with our actual order monitoring handler
                 self._websocket_stream.subscribe_trade_updates(on_update)
-                console.print("[green]✅ Subscribed to trade updates on pre-connected stream[/green]")
+                if logging.getLogger().level <= logging.DEBUG:
+                    console.print("[green]✅ Subscribed to trade updates on pre-connected stream[/green]")
                 logging.info("✅ Subscribed to trade updates on pre-connected stream")
                 
                 # Wait for orders to complete
-                console.print("[blue]⏱️ Starting timeout monitoring with pre-connected stream...[/blue]")
+                if logging.getLogger().level <= logging.DEBUG:
+                    if logging.getLogger().level <= logging.DEBUG:
+                        console.print("[blue]⏱️ Starting timeout monitoring with pre-connected stream...[/blue]")
+                    logging.info("Starting order monitoring")
                 logging.info("⏱️ Starting timeout monitoring with pre-connected stream...")
                 start_time = time.time()
                 last_log_time = 0
                 
                 while remaining and time.time() - start_time < max_wait_seconds and not stream_stopped:
                     elapsed = time.time() - start_time
-                    # Only log every 2 seconds to reduce noise
-                    if elapsed - last_log_time >= 2.0:
+                    # Only log every 2 seconds at DEBUG level to reduce noise
+                    if elapsed - last_log_time >= 2.0 and logging.getLogger().level <= logging.DEBUG:
                         console.print(f"[blue]⌛ Waiting... elapsed={elapsed:.1f}s, remaining orders: {remaining}[/blue]")
-                        logging.info(f"⌛ Waiting... elapsed={elapsed:.1f}s, remaining orders: {remaining}")
+                        logging.debug(f"⌛ Waiting... elapsed={elapsed:.1f}s, remaining orders: {remaining}")
                         last_log_time = elapsed
                     time.sleep(0.1)  # Smaller sleep for faster response
 
@@ -916,16 +935,19 @@ class AlpacaClient:
                     logging.warning(f"⏰ Timeout reached! Remaining orders: {remaining}")
                     for oid in remaining:
                         completed[oid] = "timeout"
-                        console.print(f"[red]⏰ Order {oid}: timeout[/red]")
+                        if logging.getLogger().level <= logging.DEBUG:
+                            console.print(f"[red]⏰ Order {oid}: timeout[/red]")
                         logging.warning(f"⏰ Order {oid}: timeout")
                 else:
-                    console.print("[green]✅ All orders completed before timeout[/green]")
+                    if logging.getLogger().level <= logging.DEBUG:
+                        console.print("[green]✅ All orders completed before timeout[/green]")
                     logging.info("✅ All orders completed before timeout")
 
-                console.print(f"[blue]🏁 Order settlement complete: {len(completed)} orders processed[/blue]")
-                console.print(f"[blue]📋 Final completion status: {completed}[/blue]")
+                if logging.getLogger().level <= logging.DEBUG:
+                    console.print(f"[blue]🏁 Order settlement complete: {len(completed)} orders processed[/blue]")
+                    console.print(f"[blue]📋 Final completion status: {completed}[/blue]")
                 logging.info(f"🏁 Order settlement complete: {len(completed)} orders processed")
-                logging.info(f"📋 Final completion status: {completed}")
+                logging.debug(f"📋 Final completion status: {completed}")
                 return completed
                 
             except Exception as e:
@@ -938,7 +960,9 @@ class AlpacaClient:
         secret_key = getattr(self.trading_client, "_secret_key")
         paper = getattr(self.trading_client, "_sandbox", True)
         
-        console.print(f"[blue]🔧 Creating new WebSocket connection: paper={paper}, api_key={api_key[:8]}...[/blue]")
+        if logging.getLogger().level <= logging.DEBUG:
+            console.print(f"[blue]🔧 Creating new WebSocket connection: paper={paper}, api_key={api_key[:8]}...[/blue]")
+        logging.info("Creating new WebSocket connection")
         logging.info(f"🔧 Creating new WebSocket connection: paper={paper}, api_key={api_key[:8]}...")
 
         # Import here to avoid circular imports
@@ -946,19 +970,23 @@ class AlpacaClient:
         import threading
         
         try:
-            console.print("[blue]🔌 Initializing new WebSocket stream...[/blue]")
+            if logging.getLogger().level <= logging.DEBUG:
+                console.print("[blue]🔌 Initializing new WebSocket stream...[/blue]")
             stream = TradingStream(api_key, secret_key, paper=paper)
             
             stream.subscribe_trade_updates(on_update)
             
-            console.print("[blue]🚀 Starting new WebSocket stream...[/blue]")
+            if logging.getLogger().level <= logging.DEBUG:
+                console.print("[blue]🚀 Starting new WebSocket stream...[/blue]")
             logging.info("🚀 Starting new WebSocket stream...")
             thread = threading.Thread(target=stream.run, daemon=True)
             thread.start()
-            console.print(f"[blue]🧵 WebSocket thread started: {thread.name} (daemon={thread.daemon})[/blue]")
+            if logging.getLogger().level <= logging.DEBUG:
+                console.print(f"[blue]🧵 WebSocket thread started: {thread.name} (daemon={thread.daemon})[/blue]")
             
             # Give WebSocket time to connect (up to 3 seconds)
-            console.print("[blue]⏳ Waiting for new WebSocket connection (up to 3 seconds)...[/blue]")
+            if logging.getLogger().level <= logging.DEBUG:
+                console.print("[blue]⏳ Waiting for new WebSocket connection (up to 3 seconds)...[/blue]")
             time.sleep(3)
                 
         except Exception as e:
@@ -967,7 +995,9 @@ class AlpacaClient:
             # Fall back to polling
             return self._wait_for_order_completion_polling(order_ids, max_wait_seconds)
         
-        console.print("[blue]⏱️ Starting timeout monitoring with new stream...[/blue]")
+        if logging.getLogger().level <= logging.DEBUG:
+            console.print("[blue]⏱️ Starting timeout monitoring with new stream...[/blue]")
+        logging.info("Starting order monitoring")
         logging.info("⏱️ Starting timeout monitoring with new stream...")
         start_time = time.time()
         while remaining and time.time() - start_time < max_wait_seconds:
@@ -991,11 +1021,15 @@ class AlpacaClient:
             logging.info("✅ All orders completed before timeout")
             
             # Skip cleanup entirely - just let the daemon thread die naturally
-            console.print("[blue]⚡ Skipping WebSocket cleanup (daemon thread will terminate automatically)[/blue]")
-            console.print("[green]🚀 WebSocket monitoring complete, proceeding...[/green]")
+            if logging.getLogger().level <= logging.DEBUG:
+                console.print("[blue]⚡ Skipping WebSocket cleanup (daemon thread will terminate automatically)[/blue]")
+                console.print("[green]🚀 WebSocket monitoring complete, proceeding...[/green]")
+            logging.info("WebSocket monitoring complete")
 
-        console.print(f"[blue]🏁 Order settlement complete: {len(completed)} orders processed[/blue]")
-        console.print(f"[blue]📋 Final completion status: {completed}[/blue]")
+        if logging.getLogger().level <= logging.DEBUG:
+            console.print(f"[blue]🏁 Order settlement complete: {len(completed)} orders processed[/blue]")
+            console.print(f"[blue]📋 Final completion status: {completed}[/blue]")
+        logging.info(f"Order settlement complete: {len(completed)} orders processed")
         logging.info(f"🏁 Order settlement complete: {len(completed)} orders processed")
         logging.info(f"📋 Final completion status: {completed}")
         return completed
@@ -1028,7 +1062,7 @@ class AlpacaClient:
             # Clean up any existing connection first
             self._cleanup_websocket_connection()
             
-            console.print("[blue]🔌 Initializing WebSocket stream for pre-connection...[/blue]")
+            console.print("[blue]🔌 Initializing WebSocket for trade monitoring...[/blue]")
             
             # Create the stream - we know api_key and secret_key are strings at this point
             stream = TradingStream(str(api_key), str(secret_key), paper=paper)
@@ -1045,24 +1079,19 @@ class AlpacaClient:
             # Subscribe to trade updates
             stream.subscribe_trade_updates(dummy_handler)
             
-            # Send the explicit subscription message as per Alpaca documentation
-            console.print("[blue]📡 Sending explicit trade_updates subscription...[/blue]")
-            
             # Start the stream
-            console.print("[blue]🚀 Starting WebSocket pre-connection...[/blue]")
             thread = threading.Thread(target=stream.run, daemon=True)
             thread.start()
             connection_started.set()  # Assume connection will work if thread starts
             
             # Give it a short time to connect
-            console.print("[blue]⏳ Waiting for WebSocket initialization (2 seconds)...[/blue]")
             time.sleep(2.0)
             
             # Store the stream for later use optimistically
             self._websocket_stream = stream
             self._websocket_thread = thread
             
-            console.print("[green]🎯 WebSocket pre-connection established![/green]")
+            console.print("[green]🎯 WebSocket connection established![/green]")
             logging.info("🎯 WebSocket pre-connection established!")
             return True
                 

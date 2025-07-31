@@ -233,12 +233,11 @@ class SmartExecution:
             console.print(f"[blue]Strategy: {exec_params}[/blue]")
             
             # Pre-initialize WebSocket connection for faster order monitoring
-            console.print(f"[blue]🔌 Pre-initializing WebSocket for order monitoring...[/blue]")
             websocket_ready = self.alpaca_client._prepare_websocket_connection()
             if websocket_ready:
-                console.print(f"[green]✅ WebSocket ready for order monitoring[/green]")
+                console.print(f"[green]🔌 WebSocket ready for order monitoring[/green]")
             else:
-                console.print(f"[yellow]⚠️ WebSocket not ready, will use polling fallback[/yellow]")
+                console.print(f"[yellow]⚠️ WebSocket not ready, using polling fallback[/yellow]")
             
             # Use intelligent step percentages instead of hardcoded steps
             for step_idx, step_pct in enumerate(exec_params.step_percentages):
