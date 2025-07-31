@@ -31,7 +31,6 @@ import os
 import logging
 from logging.handlers import RotatingFileHandler
 from the_alchemiser.core.config import get_config
-from the_alchemiser.core.ui.cli_formatter import render_technical_indicators
 from the_alchemiser.core.trading.strategy_manager import StrategyType
 
 # Load config once at module level
@@ -126,7 +125,7 @@ def run_all_signals_display():
         - Strategy execution summary
     """
     from the_alchemiser.core.ui.cli_formatter import (
-        render_header, render_footer, render_technical_indicators, 
+        render_header, render_footer, 
         render_strategy_signals, render_portfolio_allocation
     )
     
@@ -140,10 +139,7 @@ def run_all_signals_display():
             Console().print("[bold red]Failed to generate multi-strategy signals[/bold red]")
             return False
             
-        # Display technical indicators
-        render_technical_indicators(strategy_signals)
-        
-        # Display strategy signals IMMEDIATELY after indicators
+        # Display strategy signals
         render_strategy_signals(strategy_signals)
         
         # Display consolidated portfolio
@@ -238,7 +234,7 @@ def run_multi_strategy_trading(live_trading: bool = False, ignore_market_hours: 
         - Technical indicators and strategy signals are displayed before execution
         - Error notifications are sent via email if configured
     """
-    from the_alchemiser.core.ui.cli_formatter import render_header, render_technical_indicators
+    from the_alchemiser.core.ui.cli_formatter import render_header
     
     mode_str = "LIVE" if live_trading else "PAPER"
     
@@ -269,14 +265,11 @@ def run_multi_strategy_trading(live_trading: bool = False, ignore_market_hours: 
             )
             return "market_closed"
         
-        # Generate strategy signals to get technical indicators for display
+        # Generate strategy signals for display
         render_header("Analyzing market conditions...", "Multi-Strategy Trading")
         strategy_signals = trader.strategy_manager.run_all_strategies()[0]
         
-        # Display technical indicators
-        render_technical_indicators(strategy_signals)
-        
-        # Display strategy signals right after indicators
+        # Display strategy signals
         from the_alchemiser.core.ui.cli_formatter import render_strategy_signals
         render_strategy_signals(strategy_signals)
         

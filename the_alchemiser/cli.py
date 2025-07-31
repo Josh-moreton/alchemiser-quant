@@ -23,7 +23,7 @@ from the_alchemiser.core.ui.cli_formatter import render_header, render_footer
 # Initialize Typer app and Rich console
 app = typer.Typer(
     name="alchemiser",
-    help="🧪 The Alchemiser - Advanced Multi-Strategy Trading Bot",
+    help="The Alchemiser - Advanced Multi-Strategy Trading Bot",
     add_completion=False,
     rich_markup_mode="rich"
 )
@@ -32,13 +32,13 @@ console = Console()
 def show_welcome():
     """Display a beautiful welcome message"""
     welcome_text = Text()
-    welcome_text.append("🧪 The Alchemiser Trading Bot\n", style="bold cyan")
+    welcome_text.append(" The Alchemiser Trading Bot\n", style="bold cyan")
     welcome_text.append("Advanced Multi-Strategy Nuclear Trading System", style="italic")
     
     panel = Panel(
         welcome_text,
         title="[bold blue]Welcome[/bold blue]",
-        subtitle="[italic]Nuclear • TECL • Multi-Strategy[/italic]",
+        subtitle="[italic]Nuclear • TECL • KLM • Multi-Strategy[/italic]",
         border_style="blue",
         padding=(1, 2)
     )
@@ -56,6 +56,7 @@ def signal(
     Analyzes market conditions and generates trading signals from multiple strategies:
     • Nuclear strategy (nuclear sector + market conditions)
     • TECL strategy (tech leverage + volatility hedging)
+    • KLM strategy (ensemble machine learning)
     • Market regime analysis (bull/bear/overbought conditions)
     
     Perfect for:
@@ -99,7 +100,7 @@ def trade(
     """
     💰 [bold green]Execute multi-strategy trading[/bold green]
     
-    Runs both Nuclear and TECL strategies with automatic portfolio allocation.
+    Runs Nuclear, TECL, and KLM strategies with automatic portfolio allocation.
     Default mode is paper trading for safety.
     
     [bold red]⚠️  Use --live flag for real money trading![/bold red]
@@ -198,152 +199,6 @@ def status(
         
         if account_info:
             render_account_info(account_info)
-            
-            # Get portfolio history for P&L trends
-            console.print("\n[bold yellow]Fetching portfolio history...[/bold yellow]")
-            portfolio_history = data_provider.get_portfolio_history()
-            
-            if portfolio_history and 'equity' in portfolio_history:
-                equity_data = portfolio_history['equity']
-                profit_loss = portfolio_history.get('profit_loss', [])
-                profit_loss_pct = portfolio_history.get('profit_loss_pct', [])
-                
-                if len(equity_data) >= 2:
-                    current_equity = equity_data[-1]
-                    prev_equity = equity_data[-2] if len(equity_data) > 1 else equity_data[0]
-                    daily_change = current_equity - prev_equity
-                    daily_change_pct = (daily_change / prev_equity * 100) if prev_equity > 0 else 0
-                    
-                    # Recent P&L summary
-                    recent_pl = profit_loss[-1] if profit_loss else 0
-                    recent_pl_pct = profit_loss_pct[-1] if profit_loss_pct else 0
-                    
-                    pl_content = f"""[bold green]Current Equity:[/bold green] ${current_equity:,.2f}
-[bold blue]Daily Change:[/bold blue] ${daily_change:+,.2f} ({daily_change_pct:+.2f}%)
-[bold yellow]Recent P&L:[/bold yellow] ${recent_pl:+,.2f} ({recent_pl_pct:+.2f}%)
-[bold cyan]Base Value:[/bold cyan] ${portfolio_history.get('base_value', 0):,.2f}"""
-                    
-                    console.print(Panel(pl_content, title="PORTFOLIO PERFORMANCE", style="bold white"))
-            
-            # Get open positions for detailed P&L
-            console.print("\n[bold yellow]Fetching current positions...[/bold yellow]")
-            open_positions = data_provider.get_open_positions()
-            
-            if open_positions:
-                table = Table(title="📈 CURRENT POSITIONS", show_lines=True, expand=True)
-                table.add_column("Symbol", style="bold cyan", justify="center")
-                table.add_column("Quantity", style="white", justify="right")
-                table.add_column("Avg Price", style="white", justify="right")
-                table.add_column("Current Price", style="white", justify="right")
-                table.add_column("Market Value", style="green", justify="right")
-                table.add_column("Unrealized P&L", style="bold", justify="right")
-                table.add_column("P&L %", style="bold", justify="right")
-                
-                total_market_value = 0
-                total_unrealized_pl = 0
-                
-                for position in open_positions:
-                    symbol = position.get('symbol', 'N/A')
-                    qty = float(position.get('qty', 0))
-                    avg_price = float(position.get('avg_entry_price', 0))
-                    current_price = float(position.get('current_price', 0))
-                    market_value = float(position.get('market_value', 0))
-                    unrealized_pl = float(position.get('unrealized_pl', 0))
-                    unrealized_plpc = float(position.get('unrealized_plpc', 0)) * 100
-                    
-                    total_market_value += market_value
-                    total_unrealized_pl += unrealized_pl
-                    
-                    # Color coding for P&L
-                    pl_color = "green" if unrealized_pl >= 0 else "red"
-                    pl_sign = "+" if unrealized_pl >= 0 else ""
-                    
-                    table.add_row(
-                        symbol,
-                        f"{qty:.6f}",
-                        f"${avg_price:.2f}",
-                        f"${current_price:.2f}",
-                        f"${market_value:,.2f}",
-                        f"[{pl_color}]{pl_sign}${unrealized_pl:,.2f}[/{pl_color}]",
-                        f"[{pl_color}]{pl_sign}{unrealized_plpc:.2f}%[/{pl_color}]"
-                    )
-                
-                # Add totals row
-                total_pl_color = "green" if total_unrealized_pl >= 0 else "red"
-                total_pl_sign = "+" if total_unrealized_pl >= 0 else ""
-                table.add_row(
-                    "[bold]TOTAL[/bold]",
-                    "-",
-                    "-",
-                    "-",
-                    f"[bold]${total_market_value:,.2f}[/bold]",
-                    f"[bold {total_pl_color}]{total_pl_sign}${total_unrealized_pl:,.2f}[/bold {total_pl_color}]",
-                    f"[bold {total_pl_color}]{total_pl_sign}{(total_unrealized_pl/total_market_value*100) if total_market_value > 0 else 0:.2f}%[/bold {total_pl_color}]"
-                )
-                
-                console.print(table)
-            else:
-                console.print(Panel("No open positions", title="CURRENT POSITIONS", style="yellow"))
-            
-            # Display recent closed position P&L
-            if account_info.get('recent_closed_pnl'):
-                console.print("\n[bold yellow]Analyzing recent closed positions P&L...[/bold yellow]")
-                closed_pnl = account_info['recent_closed_pnl']
-                
-                if closed_pnl:
-                    closed_table = Table(title="📊 RECENT CLOSED POSITIONS P&L (Last 7 Days)", show_lines=True, expand=True)
-                    closed_table.add_column("Symbol", style="bold cyan", justify="center")
-                    closed_table.add_column("Realized P&L", style="bold", justify="right")
-                    closed_table.add_column("P&L %", style="bold", justify="right")
-                    closed_table.add_column("Trade Count", style="white", justify="center")
-                    closed_table.add_column("Last Trade", style="white", justify="center")
-                    
-                    total_realized_pnl = 0
-                    
-                    for position in closed_pnl[:10]:  # Show top 10 closed positions
-                        symbol = position.get('symbol', 'N/A')
-                        realized_pnl = position.get('realized_pnl', 0)
-                        realized_pnl_pct = position.get('realized_pnl_pct', 0)
-                        trade_count = position.get('trade_count', 0)
-                        last_trade = position.get('last_trade_date', '')
-                        
-                        total_realized_pnl += realized_pnl
-                        
-                        # Color coding for P&L
-                        pnl_color = "green" if realized_pnl >= 0 else "red"
-                        pnl_sign = "+" if realized_pnl >= 0 else ""
-                        
-                        # Format last trade date
-                        try:
-                            from datetime import datetime
-                            trade_date = datetime.fromisoformat(last_trade.replace('Z', '+00:00'))
-                            formatted_date = trade_date.strftime('%m/%d %H:%M')
-                        except:
-                            formatted_date = last_trade[:10] if last_trade else 'N/A'
-                        
-                        closed_table.add_row(
-                            symbol,
-                            f"[{pnl_color}]{pnl_sign}${realized_pnl:,.2f}[/{pnl_color}]",
-                            f"[{pnl_color}]{pnl_sign}{realized_pnl_pct:.2f}%[/{pnl_color}]",
-                            str(trade_count),
-                            formatted_date
-                        )
-                    
-                    # Add total row
-                    total_pnl_color = "green" if total_realized_pnl >= 0 else "red"
-                    total_pnl_sign = "+" if total_realized_pnl >= 0 else ""
-                    closed_table.add_row(
-                        "[bold]TOTAL REALIZED[/bold]",
-                        f"[bold {total_pnl_color}]{total_pnl_sign}${total_realized_pnl:,.2f}[/bold {total_pnl_color}]",
-                        "-",
-                        "-",
-                        "-"
-                    )
-                    
-                    console.print(closed_table)
-                else:
-                    console.print(Panel("No closed positions in last 7 days", title="RECENT CLOSED POSITIONS", style="yellow"))
-            
             console.print("[bold green]Account status retrieved successfully![/bold green]")
         else:
             console.print("[bold red]Could not retrieve account status![/bold red]")
@@ -400,10 +255,10 @@ def version():
     ℹ️  [bold]Show version information[/bold]
     """
     version_info = Text()
-    version_info.append("🧪 The Alchemiser Trading Bot\n", style="bold cyan")
+    version_info.append(" The Alchemiser Trading Bot\n", style="bold cyan")
     version_info.append(f"Version: 2.0.0\n", style="bold")
     version_info.append(f"Built: {datetime.now().strftime('%Y-%m-%d')}\n", style="dim")
-    version_info.append("Strategies: Nuclear, TECL, Multi-Strategy\n", style="green")
+    version_info.append("Strategies: Nuclear, TECL, KLM, Multi-Strategy\n", style="green")
     version_info.append("Platform: Alpaca Markets", style="blue")
     
     console.print(Panel(
@@ -413,211 +268,145 @@ def version():
     ))
 
 
-# Clean imports now that backtest functions are in the main package
-from the_alchemiser.backtest.test_backtest import run_backtest, run_backtest_comparison, run_backtest_dual_rebalance, run_backtest_all_splits
+# Import new clean backtest engine
+from the_alchemiser.backtest.backtest_engine import (
+    run_individual_strategy_backtest, 
+    run_live_backtest, 
+    run_all_combinations_backtest,
+    BacktestResult
+)
 
-# --- New CLI command for all-splits backtest ---
-@app.command()
-def backtest_all_splits(
-    start: str = typer.Option("2022-04-25", help="Start date (YYYY-MM-DD)"),
-    end: str = typer.Option(
-        None,
-        help="End date (YYYY-MM-DD, default: yesterday)",
-        callback=lambda v: v or (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
-    ),
-    initial_equity: float = typer.Option(1000, help="Initial equity for backtest"),
-    slippage_bps: int = typer.Option(None, help="Slippage in basis points (default: from config.yaml)"),
-    noise_factor: float = typer.Option(0.001, help="Market noise factor (default: 0.1%)"),
-    deposit_amount: float = typer.Option(0.0, help="Deposit amount (e.g. 100 for £100, default: 0)"),
-    deposit_frequency: Optional[str] = typer.Option(None, help="Deposit frequency: 'monthly' or 'weekly' (default: None)"),
-    deposit_day: int = typer.Option(1, help="Deposit day: for monthly, day of month (1-28); for weekly, weekday (0=Mon, 6=Sun)")
-):
-    """
-    🧪 [bold cyan]Backtest all possible splits between Nuclear and TECL strategies in 10% increments[/bold cyan]
-    """
-    import datetime as dt
-    try:
-        start_dt = dt.datetime.strptime(start, "%Y-%m-%d")
-        end_dt = dt.datetime.strptime(end, "%Y-%m-%d")
-    except Exception as e:
-        console.print(f"[red]Invalid date format: {e}[/red]")
-        raise typer.Exit(1)
-    from the_alchemiser.core.config import get_config
-    config = get_config()
-    if slippage_bps is None:
-        slippage_bps = config['alpaca'].get('slippage_bps', 5)
-    console.print(f"[bold green]Running all-splits backtest from {start} to {end} with {slippage_bps} bps slippage and {noise_factor*100:.3f}% noise...")
-    run_backtest_all_splits(
-        start_dt,
-        end_dt,
-        initial_equity=initial_equity,
-        slippage_bps=slippage_bps,
-        noise_factor=noise_factor,
-        deposit_amount=deposit_amount,
-        deposit_frequency=deposit_frequency,
-        deposit_day=deposit_day
-    )
-
-@app.command()
-def backtest_nuclear_compare(
-    start: str = typer.Option("2023-08-01", help="Start date (YYYY-MM-DD)"),
-    end: str = typer.Option("2025-07-15", help="End date (YYYY-MM-DD)"),
-    initial_equity: float = typer.Option(3000, help="Initial equity for backtest"),
-    slippage_bps: int = typer.Option(None, help="Slippage in basis points (default: from config.yaml)"),
-    noise_factor: float = typer.Option(0.001, help="Market noise factor (default: 0.1%)"),
-    minute_candles: bool = typer.Option(False, "--minute-candles", help="Use minute candles for backtesting (limits historical range)")
-):
-    """
-    ⚖️ [bold cyan]Compare nuclear portfolio strategies[/bold cyan]
-    
-    Runs a comprehensive backtest comparison with realistic execution pricing.
-    """
-    import datetime as dt
-    try:
-        start_dt = dt.datetime.strptime(start, "%Y-%m-%d")
-        end_dt = dt.datetime.strptime(end, "%Y-%m-%d")
-    except Exception as e:
-        console.print(f"[red]Invalid date format: {e}[/red]")
-        raise typer.Exit(1)
-    from the_alchemiser.core.config import get_config
-    config = get_config()
-    if slippage_bps is None:
-        slippage_bps = config['alpaca'].get('slippage_bps', 5)
-    console.print(f"[bold green]Running comprehensive backtest comparison from {start} to {end} with {slippage_bps} bps slippage and {noise_factor*100:.3f}% noise...")
-    run_backtest_comparison(start_dt, end_dt, initial_equity=initial_equity, slippage_bps=slippage_bps, noise_factor=noise_factor, use_minute_candles=minute_candles)
-
+# --- Main Backtest Command (Clean Interface) ---
 @app.command()
 def backtest(
-    start: str = typer.Option("2022-04-25", help="Start date (YYYY-MM-DD)"),
-    end: str = typer.Option("2025-07-25", help="End date (YYYY-MM-DD)"),
-    initial_equity: float = typer.Option(1000, help="Initial equity for backtest"),
-    price_type: str = typer.Option("open", help="Price type: close, open, mid, or vwap"),
-    slippage_bps: int = typer.Option(10, help="Slippage in basis points (default: from config.yaml)"),
-    noise_factor: float = typer.Option(0.002, help="Market noise factor (default: 0.1%)"),
-    deposit_amount: float = typer.Option(0.0, help="Deposit amount (e.g. 100 for £100, default: 0)"),
-    deposit_frequency: Optional[str] = typer.Option(None, help="Deposit frequency: 'monthly' or 'weekly' (default: None)"),
-    deposit_day: int = typer.Option(1, help="Deposit day: for monthly, day of month (1-28); for weekly, weekday (0=Mon, 6=Sun)"),
-    minute_candles: bool = typer.Option(False, "--minute-candles", help="Use 1-minute candles for precision (limited to ~90 days)")
+    mode: str = typer.Option("live", help="Backtest mode: individual, live, or all"),
+    strategy: Optional[str] = typer.Option(None, help="Strategy for individual mode: nuclear, tecl, or klm"),
+    start: str = typer.Option("2025-01-01", help="Start date (YYYY-MM-DD, default: 2025-01-01)"),
+    end: str = typer.Option(
+        None,
+        help="End date (YYYY-MM-DD, default: 3 days ago)",
+        callback=lambda v: v or (datetime.now() - timedelta(days=3)).strftime("%Y-%m-%d")
+    ),
+    initial_equity: float = typer.Option(1000.0, help="Initial equity"),
+    slippage_bps: int = typer.Option(8, help="Slippage in basis points"),
+    noise_factor: float = typer.Option(0.0015, help="Market noise factor"),
+    step_size: int = typer.Option(10, help="Weight increment for all mode (10 = 10% steps)"),
+    max_workers: int = typer.Option(4, help="Number of parallel threads for all mode"),
+    deposit_amount: float = typer.Option(0.0, help="Regular deposit amount"),
+    deposit_frequency: Optional[str] = typer.Option(None, help="Deposit frequency: monthly or weekly"),
+    deposit_day: int = typer.Option(1, help="Deposit day"),
+    minute_candles: bool = typer.Option(False, "--minute-candles", help="Use minute candles for execution")
 ):
     """
-    🧪 [bold cyan]Run a realistic backtest[/bold cyan] for a given date range and price type.
+    Clean backtest interface - individual, live, or all weight combinations
     
-    Uses daily candles for extended historical backtests. For higher precision execution,
-    add the --minute-candles flag (limited to ~90 days of minute data).
+    Examples:
+      alchemiser backtest --mode individual --strategy nuclear
+      alchemiser backtest --mode live  
+      alchemiser backtest --mode all --step-size 20 --max-workers 6
+    
+    This backtest engine uses REAL strategy engines (Nuclear, TECL, KLM) to provide 
+    faithful representation of live trading performance.
     """
-    import datetime as dt
     
-    try:
-        start_dt = dt.datetime.strptime(start, "%Y-%m-%d")
-        end_dt = dt.datetime.strptime(end, "%Y-%m-%d")
-    except Exception as e:
-        console.print(f"[red]Invalid date format: {e}[/red]")
+    # Validate mode and strategy combination
+    if mode not in ["individual", "live", "all"]:
+        console.print(f"[red]Error: Invalid mode '{mode}'. Must be: individual, live, or all")
         raise typer.Exit(1)
     
-    from the_alchemiser.core.config import get_config
-    config = get_config()
-    if slippage_bps is None:
-        slippage_bps = config['alpaca'].get('slippage_bps', 5)
+    if mode == 'individual':
+        if not strategy:
+            console.print("[red]Error: --strategy required for individual mode[/red]")
+            raise typer.Exit(1)
+        if strategy.lower() not in ['nuclear', 'tecl', 'klm']:
+            console.print("[red]Error: Strategy must be one of: nuclear, tecl, klm[/red]")
+            raise typer.Exit(1)
     
-    mode_str = "1-minute candles" if minute_candles else "daily candles"
-    console.print(f"[bold green]Running realistic backtest from {start} to {end} using {price_type} prices with {slippage_bps} bps slippage and {noise_factor*100:.3f}% noise ({mode_str})...")
+    try:
+        start_dt = datetime.strptime(start, "%Y-%m-%d")
+        end_dt = datetime.strptime(end, "%Y-%m-%d")
+    except Exception as e:
+        console.print(f"[red]Error parsing dates: {e}[/red]")
+        raise typer.Exit(1)
     
-    run_backtest(
-        start_dt, end_dt,
-        initial_equity=initial_equity,
-        price_type=price_type,
-        slippage_bps=slippage_bps,
-        noise_factor=noise_factor,
-        deposit_amount=deposit_amount,
-        deposit_frequency=deposit_frequency,
-        deposit_day=deposit_day,
-        use_minute_candles=minute_candles
-    )
+    # Run appropriate backtest
+    if mode == 'individual':
+        result = run_individual_strategy_backtest(
+            strategy.lower(), start_dt, end_dt,
+            initial_equity=initial_equity,
+            slippage_bps=slippage_bps,
+            noise_factor=noise_factor,
+            deposit_amount=deposit_amount,
+            deposit_frequency=deposit_frequency,
+            deposit_day=deposit_day,
+            use_minute_candles=minute_candles
+        )
+        
+        # Display results
+        from rich.table import Table
+        table = Table(title="📈 Individual Strategy Backtest Results")
+        table.add_column("Metric", style="cyan")
+        table.add_column("Value", style="green")
+        
+        table.add_row("Strategy", result.strategy_name)
+        table.add_row("Final Equity", f"£{result.final_equity:,.2f}")
+        table.add_row("Total Return", f"{result.total_return:+.2f}%")
+        table.add_row("CAGR", f"{result.cagr:.2f}%")
+        table.add_row("Volatility", f"{result.volatility:.2f}%")
+        table.add_row("Sharpe Ratio", f"{result.sharpe_ratio:.2f}")
+        table.add_row("Max Drawdown", f"{result.max_drawdown:.2f}%")
+        table.add_row("Calmar Ratio", f"{result.calmar_ratio:.2f}" if result.calmar_ratio != float('inf') else "∞")
+        table.add_row("Trading Days", str(result.trading_days))
+        
+        console.print(table)
+        
+    elif mode == 'live':
+        result = run_live_backtest(
+            start_dt, end_dt,
+            initial_equity=initial_equity,
+            slippage_bps=slippage_bps,
+            noise_factor=noise_factor,
+            deposit_amount=deposit_amount,
+            deposit_frequency=deposit_frequency,
+            deposit_day=deposit_day,
+            use_minute_candles=minute_candles
+        )
+        
+        # Display results
+        from rich.table import Table
+        table = Table(title="📈 Live Trading Configuration Results")
+        table.add_column("Metric", style="cyan")
+        table.add_column("Value", style="green")
+        
+        table.add_row("Strategy", result.strategy_name)
+        table.add_row("Final Equity", f"£{result.final_equity:,.2f}")
+        table.add_row("Total Return", f"{result.total_return:+.2f}%")
+        table.add_row("CAGR", f"{result.cagr:.2f}%")
+        table.add_row("Volatility", f"{result.volatility:.2f}%")
+        table.add_row("Sharpe Ratio", f"{result.sharpe_ratio:.2f}")
+        table.add_row("Max Drawdown", f"{result.max_drawdown:.2f}%")
+        table.add_row("Calmar Ratio", f"{result.calmar_ratio:.2f}" if result.calmar_ratio != float('inf') else "∞")
+        table.add_row("Trading Days", str(result.trading_days))
+        
+        console.print(table)
+        
+    elif mode == 'all':
+        results = run_all_combinations_backtest(
+            start_dt, end_dt,
+            initial_equity=initial_equity,
+            slippage_bps=slippage_bps,
+            noise_factor=noise_factor,
+            step_size=step_size,
+            max_workers=max_workers,
+            deposit_amount=deposit_amount,
+            deposit_frequency=deposit_frequency,
+            deposit_day=deposit_day,
+            use_minute_candles=minute_candles
+        )
+        # Results are already displayed in the function
+    
+    console.print("\n[bold green]✅ Backtest complete![/bold green]")
 
-@app.command()
-def backtest_compare(
-    start: str = typer.Option("2022-04-25", help="Start date (YYYY-MM-DD)"),
-    end: str = typer.Option("2025-07-15", help="End date (YYYY-MM-DD)"),
-    initial_equity: float = typer.Option(3000, help="Initial equity for backtest"),
-    slippage_bps: int = typer.Option(None, help="Slippage in basis points (default: from config.yaml)"),
-    noise_factor: float = typer.Option(0.001, help="Market noise factor (default: 0.1%)"),
-    deposit_amount: float = typer.Option(0.0, help="Deposit amount (e.g. 100 for £100, default: 0)"),
-    deposit_frequency: Optional[str] = typer.Option(None, help="Deposit frequency: 'monthly' or 'weekly' (default: None)"),
-    deposit_day: int = typer.Option(1, help="Deposit day: for monthly, day of month (1-28); for weekly, weekday (0=Mon, 6=Sun)"),
-    minute_candles: bool = typer.Option(False, "--minute-candles", help="Use minute candles for backtesting (limits historical range)")
-):
-    """
-    📊 [bold cyan]Compare realistic backtest results[/bold cyan] across all price types and dual-rebalance.
-    
-    Tests close, open, mid, VWAP execution with 1-minute realistic pricing and market noise.
-    """
-    import datetime as dt
-    
-    try:
-        start_dt = dt.datetime.strptime(start, "%Y-%m-%d")
-        end_dt = dt.datetime.strptime(end, "%Y-%m-%d")
-    except Exception as e:
-        console.print(f"[red]Invalid date format: {e}[/red]")
-        raise typer.Exit(1)
-    
-    from the_alchemiser.core.config import get_config
-    config = get_config()
-    if slippage_bps is None:
-        slippage_bps = config['alpaca'].get('slippage_bps', 5)
-    console.print(f"[bold green]Running realistic backtest comparison from {start} to {end} for all modes with {slippage_bps} bps slippage and {noise_factor*100:.3f}% noise...")
-    run_backtest_comparison(
-        start_dt, end_dt,
-        initial_equity=initial_equity,
-        slippage_bps=slippage_bps,
-        noise_factor=noise_factor,
-        deposit_amount=deposit_amount,
-        deposit_frequency=deposit_frequency,
-        deposit_day=deposit_day,
-        use_minute_candles=minute_candles
-    )
-
-@app.command()
-def backtest_dual(
-    start: str = typer.Option("2022-04-25", help="Start date (YYYY-MM-DD)"),
-    end: str = typer.Option("2025-07-15", help="End date (YYYY-MM-DD)"),
-    initial_equity: float = typer.Option(3000, help="Initial equity for backtest"),
-    slippage_bps: int = typer.Option(None, help="Slippage in basis points (default: from config.yaml)"),
-    noise_factor: float = typer.Option(0.001, help="Market noise factor (default: 0.1%)"),
-    deposit_amount: float = typer.Option(0.0, help="Deposit amount (e.g. 100 for £100, default: 0)"),
-    deposit_frequency: Optional[str] = typer.Option(None, help="Deposit frequency: 'monthly' or 'weekly' (default: None)"),
-    deposit_day: int = typer.Option(1, help="Deposit day: for monthly, day of month (1-28); for weekly, weekday (0=Mon, 6=Sun)"),
-    minute_candles: bool = typer.Option(False, "--minute-candles", help="Use minute candles for backtesting (limits historical range)")
-):
-    """
-    🔄 [bold cyan]Run a dual-rebalance realistic backtest[/bold cyan] with 2 rebalances per day.
-    
-    Performs portfolio rebalancing at both market open and close using 1-minute candles
-    for realistic execution pricing with market noise simulation.
-    """
-    import datetime as dt
-    
-    try:
-        start_dt = dt.datetime.strptime(start, "%Y-%m-%d")
-        end_dt = dt.datetime.strptime(end, "%Y-%m-%d")
-    except Exception as e:
-        console.print(f"[red]Invalid date format: {e}[/red]")
-        raise typer.Exit(1)
-    
-    from the_alchemiser.core.config import get_config
-    config = get_config()
-    if slippage_bps is None:
-        slippage_bps = config['alpaca'].get('slippage_bps', 5)
-    console.print(f"[bold green]Running dual-rebalance realistic backtest from {start} to {end} with {slippage_bps} bps slippage and {noise_factor*100:.3f}% noise...")
-    run_backtest_dual_rebalance(
-        start_dt, end_dt,
-        initial_equity=initial_equity,
-        slippage_bps=slippage_bps,
-        noise_factor=noise_factor,
-        deposit_amount=deposit_amount,
-        deposit_frequency=deposit_frequency,
-        deposit_day=deposit_day,
-        use_minute_candles=minute_candles
-    )
 
 @app.callback()
 def main(
@@ -626,22 +415,17 @@ def main(
     quiet: bool = typer.Option(False, "--quiet", "-q", help="Suppress non-essential output")
 ):
     """
-    🧪 [bold cyan]The Alchemiser[/bold cyan] - Advanced Multi-Strategy Trading Bot
+    [bold]The Alchemiser - Advanced Multi-Strategy Trading Bot[/bold]
     
-    A sophisticated trading system combining Nuclear and TECL strategies
-    with beautiful CLI interface and comprehensive market analysis.
+    Nuclear • TECL • KLM • Multi-Strategy Trading System
     
-    [bold]Quick Start:[/bold]
-    • [cyan]alchemiser bot[/cyan]               - Show strategy signals
-    • [cyan]alchemiser trade[/cyan]             - Paper trading
-    • [cyan]alchemiser trade --live[/cyan]      - Live trading (⚠️ real money)
-    • [cyan]alchemiser status[/cyan]            - Account information
-    
-    [bold]Backtesting (Realistic with 1-min data):[/bold]
-    • [cyan]alchemiser backtest[/cyan]          - Single rebalance backtest
-    • [cyan]alchemiser backtest-dual[/cyan]     - Dual rebalance (2x daily)
-    • [cyan]alchemiser backtest-compare[/cyan]  - Compare all execution modes
-    • [cyan]alchemiser backtest-nuclear-compare[/cyan] - Nuclear strategy comparison
+    Available commands:
+    • [cyan]alchemiser signal[/cyan]          - Generate strategy signals (analysis only)  
+    • [cyan]alchemiser trade[/cyan]           - Execute multi-strategy trading
+    • [cyan]alchemiser backtest[/cyan]        - Run comprehensive backtests  
+    • [cyan]alchemiser status[/cyan]          - Show account status and positions
+    • [cyan]alchemiser deploy[/cyan]          - Deploy to AWS Lambda
+    • [cyan]alchemiser version[/cyan]         - Show version information
     
     [dim]Use --help with any command for detailed information.[/dim]
     """

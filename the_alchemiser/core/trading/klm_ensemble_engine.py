@@ -19,6 +19,12 @@ from the_alchemiser.core.data.data_provider import UnifiedDataProvider
 from the_alchemiser.core.config import Config
 from the_alchemiser.core.logging.logging_utils import setup_logging
 from the_alchemiser.core.utils.common import ActionType
+from the_alchemiser.utils.indicator_utils import safe_get_indicator
+from the_alchemiser.utils.math_utils import (
+    calculate_stdev_returns, 
+    calculate_moving_average, 
+    calculate_moving_average_return
+)
 
 # Import all KLM strategy variants
 from .klm_workers import (
@@ -103,78 +109,52 @@ class KLMStrategyEnsemble:
         self.logger.info(f"Fetched market data for {len(market_data)} symbols")
         return market_data
     
-    def safe_get_indicator(self, data: pd.Series, indicator_func, *args, **kwargs) -> float:
-        """Safely calculate indicator value with error handling"""
-        try:
-            result = indicator_func(data, *args, **kwargs)
-            if hasattr(result, 'iloc') and len(result) > 0:
-                value = result.iloc[-1]
-                if pd.isna(value):
-                    valid_values = result.dropna()
-                    if len(valid_values) > 0:
-                        value = valid_values.iloc[-1]
-                    else:
-                        return 50.0  # Fallback
-                return float(value)
-            return 50.0
-        except Exception as e:
-            self.logger.error(f"Exception calculating indicator: {e}")
-            return 50.0
-    
-    def _calculate_stdev_return(self, close_prices: pd.Series, window: int) -> float:
-        """Calculate standard deviation of returns (Clojure stdev-return)"""
-        if len(close_prices) < window + 1:
-            return 0.1
-        
-        returns = close_prices.pct_change().dropna()
-        if len(returns) < window:
-            return 0.1
-        
-        stdev_returns = returns.rolling(window=window).std()
-        return float(stdev_returns.iloc[-1]) if not pd.isna(stdev_returns.iloc[-1]) else 0.1
-    
-    def _calculate_moving_average(self, close_prices: pd.Series, window: int) -> float:
-        """Calculate simple moving average"""
-        if len(close_prices) < window:
-            return float(close_prices.iloc[-1])
-        
-        ma = close_prices.rolling(window=window).mean()
-        return float(ma.iloc[-1]) if not pd.isna(ma.iloc[-1]) else float(close_prices.iloc[-1])
-    
-    def _calculate_moving_average_return(self, close_prices: pd.Series, window: int = 20) -> float:
-        """Calculate moving average return as used in Clojure"""
-        if len(close_prices) < window + 1:
-            return 0.0
-        
-        ma = close_prices.rolling(window=window).mean()
-        if len(ma) >= 2:
-            current_ma = ma.iloc[-1]
-            prev_ma = ma.iloc[-2]
-            if prev_ma != 0:
-                return ((current_ma - prev_ma) / prev_ma) * 100
-        return 0.0
-    
     def calculate_indicators(self, market_data: Dict[str, pd.DataFrame]) -> Dict[str, Dict[str, float]]:
         """Calculate all technical indicators needed by the variants"""
         indicators = {}
         
         for symbol, df in market_data.items():
             if df.empty:
+                self.logger.debug(f"Empty dataframe for {symbol}, skipping indicators")
+                continue
+            
+            # Check if we have sufficient data for meaningful calculations
+            if len(df) < 2:
+                self.logger.debug(f"Insufficient data for {symbol} ({len(df)} rows), using current price only")
+                # For symbols with very limited data, just provide current price and safe defaults
+                close = df['Close']
+                indicators[symbol] = {
+                    'rsi_10': 50.0,  # Neutral RSI
+                    'rsi_20': 50.0,
+                    'rsi_21': 50.0,
+                    'rsi_70': 50.0,
+                    'current_price': float(close.iloc[-1]),
+                    'ma_return_20': 0.0,
+                    'ma_3': float(close.iloc[-1]),  # Use current price as MA
+                    'ma_200': float(close.iloc[-1]),  # Use current price as MA
+                    'stdev_return_6': 0.01,  # Low volatility default
+                    'stdev_return_5': 0.01,
+                }
                 continue
                 
             close = df['Close']
-            indicators[symbol] = {
-                'rsi_10': self.safe_get_indicator(close, self.indicators.rsi, 10),
-                'rsi_20': self.safe_get_indicator(close, self.indicators.rsi, 20),
-                'rsi_21': self.safe_get_indicator(close, self.indicators.rsi, 21),
-                'rsi_70': self.safe_get_indicator(close, self.indicators.rsi, 70),
-                'current_price': float(close.iloc[-1]),
-                'ma_return_20': self._calculate_moving_average_return(close, 20),
-                'ma_3': self._calculate_moving_average(close, 3),
-                'ma_200': self._calculate_moving_average(close, 200),
-                'stdev_return_6': self._calculate_stdev_return(close, 6),
-                'stdev_return_5': self._calculate_stdev_return(close, 5),
-            }
+            try:
+                indicators[symbol] = {
+                    'rsi_10': safe_get_indicator(close, self.indicators.rsi, 10),
+                    'rsi_20': safe_get_indicator(close, self.indicators.rsi, 20),
+                    'rsi_21': safe_get_indicator(close, self.indicators.rsi, 21),
+                    'rsi_70': safe_get_indicator(close, self.indicators.rsi, 70),
+                    'current_price': float(close.iloc[-1]),
+                    'ma_return_20': calculate_moving_average_return(close, 20),
+                    'ma_3': calculate_moving_average(close, 3),
+                    'ma_200': calculate_moving_average(close, 200),
+                    'stdev_return_6': calculate_stdev_returns(close, 6),
+                    'stdev_return_5': calculate_stdev_returns(close, 5),
+                }
+            except Exception as e:
+                self.logger.warning(f"Error calculating indicators for {symbol}: {e}")
+                # Skip this symbol rather than using fallbacks
+                continue
         
         self.logger.info(f"Calculated indicators for {len(indicators)} symbols")
         return indicators
@@ -261,10 +241,116 @@ class KLMStrategyEnsemble:
         # Extract result components
         symbol_or_allocation, action, reason = best_result
         
-        # Enhanced reason with variant information
-        enhanced_reason = f"[{best_variant.name}] {reason}"
+        # Build detailed market analysis similar to Nuclear and TECL strategies
+        detailed_reason = self._build_detailed_klm_analysis(
+            indicators, market_data, best_variant, symbol_or_allocation, action, reason, variant_results
+        )
         
-        return symbol_or_allocation, action, enhanced_reason, best_variant.name
+        return symbol_or_allocation, action, detailed_reason, best_variant.name
+    
+    def _build_detailed_klm_analysis(self, indicators: Dict[str, Dict[str, float]], 
+                                   market_data: Dict[str, pd.DataFrame],
+                                   selected_variant: BaseKLMVariant,
+                                   symbol_or_allocation: Union[str, Dict[str, float]],
+                                   action: str,
+                                   basic_reason: str,
+                                   all_variant_results: List[Tuple]) -> str:
+        """Build detailed KLM analysis similar to Nuclear and TECL strategy explanations"""
+        
+        # Get key market indicators
+        spy_indicators = indicators.get('SPY', {})
+        xlk_indicators = indicators.get('XLK', {})
+        kmlm_indicators = indicators.get('KMLM', {})
+        
+        spy_price = spy_indicators.get('current_price', 0)
+        spy_ma_200 = spy_indicators.get('ma_200', 0)
+        spy_rsi_10 = spy_indicators.get('rsi_10', 50)
+        
+        xlk_rsi_10 = xlk_indicators.get('rsi_10', 50)
+        kmlm_rsi_10 = kmlm_indicators.get('rsi_10', 50)
+        
+        # Determine market regime
+        if spy_price > spy_ma_200:
+            regime = "BULL MARKET (SPY above 200MA)"
+        else:
+            regime = "BEAR MARKET (SPY below 200MA)"
+        
+        # Build comprehensive analysis
+        analysis_lines = []
+        
+        # Market Analysis Section
+        analysis_lines.append("KLM Ensemble Multi-Strategy Analysis:")
+        analysis_lines.append("")
+        analysis_lines.append(f"• Market Regime: {regime}")
+        analysis_lines.append(f"• SPY Price: ${spy_price:.2f} vs 200MA: ${spy_ma_200:.2f}")
+        analysis_lines.append(f"• SPY RSI(10): {spy_rsi_10:.1f}")
+        analysis_lines.append("")
+        
+        # Ensemble Selection Process
+        analysis_lines.append("Ensemble Selection Process:")
+        analysis_lines.append("")
+        analysis_lines.append(f"• Evaluated {len(all_variant_results)} strategy variants")
+        analysis_lines.append(f"• Selected Variant: {selected_variant.name}")
+        analysis_lines.append(f"• Selection Method: Volatility-adjusted performance (stdev-return filter)")
+        analysis_lines.append("")
+        
+        # KMLM Switcher Analysis (if applicable)
+        if 'KMLM Switcher' in basic_reason:
+            analysis_lines.append("KMLM Sector Analysis:")
+            analysis_lines.append("")
+            analysis_lines.append(f"• XLK (Technology) RSI(10): {xlk_rsi_10:.1f}")
+            analysis_lines.append(f"• KMLM (Materials) RSI(10): {kmlm_rsi_10:.1f}")
+            
+            if xlk_rsi_10 > kmlm_rsi_10:
+                analysis_lines.append("• Sector Comparison: Technology STRONGER than Materials")
+                analysis_lines.append("• Strategy: Technology momentum play")
+            else:
+                analysis_lines.append("• Sector Comparison: Materials STRONGER than Technology")
+                analysis_lines.append("• Strategy: Materials/defensive rotation")
+            analysis_lines.append("")
+        
+        # Target Selection and Rationale
+        analysis_lines.append("Target Selection & Rationale:")
+        analysis_lines.append("")
+        
+        if isinstance(symbol_or_allocation, dict):
+            # Multi-asset allocation
+            analysis_lines.append("• Portfolio Approach: Multi-asset allocation")
+            for symbol, weight in symbol_or_allocation.items():
+                analysis_lines.append(f"  - {symbol}: {weight:.1%}")
+        else:
+            # Single symbol
+            symbol_name = symbol_or_allocation
+            if symbol_name in ['FNGU', 'SOXL', 'TECL']:
+                analysis_lines.append(f"• Target: {symbol_name} (3x leveraged technology)")
+                analysis_lines.append("• Rationale: High-conviction tech momentum play")
+            elif symbol_name in ['SVIX', 'UVXY']:
+                analysis_lines.append(f"• Target: {symbol_name} (volatility/defensive)")
+                analysis_lines.append("• Rationale: Risk management or volatility play")
+            elif symbol_name in ['BIL', 'AGG']:
+                analysis_lines.append(f"• Target: {symbol_name} (defensive/cash)")
+                analysis_lines.append("• Rationale: Capital preservation mode")
+            else:
+                analysis_lines.append(f"• Target: {symbol_name}")
+                analysis_lines.append("• Rationale: Variant-specific selection criteria")
+        
+        analysis_lines.append("")
+        
+        # Variant Details
+        analysis_lines.append(f"Selected Variant Details:")
+        analysis_lines.append("")
+        analysis_lines.append(f"• Variant: {selected_variant.name}")
+        analysis_lines.append(f"• Signal: {basic_reason}")
+        analysis_lines.append("")
+        
+        # Risk Management Note
+        analysis_lines.append("Risk Management:")
+        analysis_lines.append("")
+        analysis_lines.append("• Dynamic variant selection based on recent performance")
+        analysis_lines.append("• Ensemble approach reduces single-strategy risk")
+        analysis_lines.append("• Real-time adaptation to market conditions")
+        
+        return "\n".join(analysis_lines)
     
     def get_ensemble_summary(self) -> str:
         """Get summary of the ensemble architecture"""
