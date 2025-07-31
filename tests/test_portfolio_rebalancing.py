@@ -149,8 +149,8 @@ class TestPartialRebalance:
         mock_trading_client.get_all_positions.return_value = mock_positions
         
         # Mock the trading client used by the AlpacaClient inside SmartExecution
-        multi_strategy_trader.order_manager.simple_order_manager.trading_client.get_all_positions.return_value = mock_positions
-        multi_strategy_trader.order_manager.simple_order_manager.trading_client.submit_order.return_value = MagicMock(id='test_order_123')
+        multi_strategy_trader.order_manager.alpaca_client.trading_client.get_all_positions.return_value = mock_positions
+        multi_strategy_trader.order_manager.alpaca_client.trading_client.submit_order.return_value = MagicMock(id='test_order_123')
         
         # Mock data provider positions (this is what TradingEngine.get_positions() calls)
         multi_strategy_trader.data_provider.get_positions.return_value = [
@@ -179,7 +179,7 @@ class TestPartialRebalance:
             result = multi_strategy_trader.execute_rebalancing(target_allocations, mode='market')
         
         # Should not place any orders (below rebalance threshold)
-        assert multi_strategy_trader.order_manager.simple_order_manager.trading_client.submit_order.call_count == 0
+        assert multi_strategy_trader.order_manager.alpaca_client.trading_client.submit_order.call_count == 0
         assert result is not None
         assert result['trading_summary']['total_orders'] == 0
     
@@ -194,8 +194,8 @@ class TestPartialRebalance:
         mock_trading_client.get_all_positions.return_value = mock_positions
         
         # Mock the trading client used by the AlpacaClient inside SmartExecution
-        multi_strategy_trader.order_manager.simple_order_manager.trading_client.get_all_positions.return_value = mock_positions
-        multi_strategy_trader.order_manager.simple_order_manager.trading_client.submit_order.return_value = MagicMock(id='test_order_123')
+        multi_strategy_trader.order_manager.alpaca_client.trading_client.get_all_positions.return_value = mock_positions
+        multi_strategy_trader.order_manager.alpaca_client.trading_client.submit_order.return_value = MagicMock(id='test_order_123')
         
         # Mock data provider positions (this is what TradingEngine.get_positions() calls)
         multi_strategy_trader.data_provider.get_positions.return_value = [
@@ -224,7 +224,7 @@ class TestPartialRebalance:
             result = multi_strategy_trader.execute_rebalancing(target_allocations, mode='market')
         
         # Should place orders to adjust allocations
-        assert multi_strategy_trader.order_manager.simple_order_manager.trading_client.submit_order.call_count >= 1
+        assert multi_strategy_trader.order_manager.alpaca_client.trading_client.submit_order.call_count >= 1
         assert result is not None
 
 
@@ -241,8 +241,8 @@ class TestNoTradesNeeded:
         mock_trading_client.get_all_positions.return_value = mock_positions
         
         # Mock the trading client used by the AlpacaClient inside SmartExecution
-        multi_strategy_trader.order_manager.simple_order_manager.trading_client.get_all_positions.return_value = mock_positions
-        multi_strategy_trader.order_manager.simple_order_manager.trading_client.submit_order.return_value = MagicMock(id='test_order_123')
+        multi_strategy_trader.order_manager.alpaca_client.trading_client.get_all_positions.return_value = mock_positions
+        multi_strategy_trader.order_manager.alpaca_client.trading_client.submit_order.return_value = MagicMock(id='test_order_123')
         
         # Mock data provider positions (this is what TradingEngine.get_positions() calls)
         multi_strategy_trader.data_provider.get_positions.return_value = [
@@ -271,7 +271,7 @@ class TestNoTradesNeeded:
             result = multi_strategy_trader.execute_rebalancing(target_allocations, mode='market')
         
         # Should not place any orders
-        assert multi_strategy_trader.order_manager.simple_order_manager.trading_client.submit_order.call_count == 0
+        assert multi_strategy_trader.order_manager.alpaca_client.trading_client.submit_order.call_count == 0
         assert result['trading_summary']['total_orders'] == 0
     
     def test_within_tolerance_threshold(self, multi_strategy_trader, mock_trading_client):
@@ -301,7 +301,7 @@ class TestNoTradesNeeded:
         multi_strategy_trader.data_provider.get_account_info.return_value = mock_account
         
         # Mock order manager trading client
-        multi_strategy_trader.order_manager.simple_order_manager.trading_client = mock_trading_client
+        multi_strategy_trader.order_manager.alpaca_client.trading_client = mock_trading_client
         
         target_allocations = {
             'AAPL': 0.5,
@@ -446,7 +446,7 @@ class TestRebalanceWithDifferentModes:
         )
         
         # Mock order manager trading client
-        multi_strategy_trader.order_manager.simple_order_manager.trading_client = mock_trading_client
+        multi_strategy_trader.order_manager.alpaca_client.trading_client = mock_trading_client
         
         target_allocations = {'AAPL': 1.0}
         
@@ -479,7 +479,7 @@ class TestRebalanceWithDifferentModes:
         )
         
         # Mock order manager trading client
-        multi_strategy_trader.order_manager.simple_order_manager.trading_client = mock_trading_client
+        multi_strategy_trader.order_manager.alpaca_client.trading_client = mock_trading_client
         
         target_allocations = {'AAPL': 1.0}
         
@@ -511,7 +511,7 @@ class TestRebalanceWithDifferentModes:
         )
         
         # Mock order manager trading client
-        multi_strategy_trader.order_manager.simple_order_manager.trading_client = mock_trading_client
+        multi_strategy_trader.order_manager.alpaca_client.trading_client = mock_trading_client
         
         target_allocations = {'AAPL': 1.0}
         
