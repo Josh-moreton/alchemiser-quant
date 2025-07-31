@@ -967,20 +967,27 @@ def run_all_combinations_backtest(start, end,
                     results.append(result)
                 progress.advance(task)
     
-    # Sort by Sharpe ratio
-    results.sort(key=lambda x: x.sharpe_ratio, reverse=True)
+    # Sort by Calmar ratio (handle infinity values properly)
+    def calmar_sort_key(result):
+        if result.calmar_ratio == float('inf'):
+            return 1000000  # Very high value but not infinity for sorting
+        return result.calmar_ratio
     
-    # Display top 10 results
-    table = Table(title="🏆 Top 10 Weight Combinations (by Sharpe Ratio)")
+    results.sort(key=calmar_sort_key, reverse=True)
+    
+    # Display all results
+    table = Table(title=f"🏆 All Weight Combinations (by Calmar Ratio) - {len(results)} Results")
     table.add_column("Rank", style="cyan", width=4)
     table.add_column("Strategy", style="yellow", width=30)  # Increased width for readable strategy names
     table.add_column("Total Return", style="green", width=12)
     table.add_column("CAGR", style="blue", width=10)
     table.add_column("Volatility", style="magenta", width=10)
     table.add_column("Sharpe Ratio", style="red", width=11)
+    table.add_column("Calmar Ratio", style="gold3", width=11)
     table.add_column("Max DD", style="red", width=8)
     
-    for i, result in enumerate(results[:10], 1):
+    for i, result in enumerate(results, 1):
+        calmar_display = "∞" if result.calmar_ratio == float('inf') else f"{result.calmar_ratio:.2f}"
         table.add_row(
             str(i),
             result.strategy_name,
@@ -988,6 +995,7 @@ def run_all_combinations_backtest(start, end,
             f"{result.cagr:.2f}%",
             f"{result.volatility:.2f}%",
             f"{result.sharpe_ratio:.2f}",
+            calmar_display,
             f"{result.max_drawdown:.2f}%"
         )
     
