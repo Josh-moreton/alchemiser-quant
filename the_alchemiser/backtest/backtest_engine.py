@@ -931,7 +931,7 @@ def run_all_combinations_backtest(start, end,
                     'tecl': tecl / 100.0,
                     'klm': klm / 100.0
                 }
-                strategy_name = f"{nuclear}%N/{tecl}%T/{klm}%K"
+                strategy_name = f"Nuclear {nuclear}% | TECL {tecl}% | KLM {klm}%"
                 # Pack all arguments for the worker
                 worker_args = (weights, strategy_name, shared_data, trading_dates, 
                              initial_equity, slippage_bps, noise_factor, 
@@ -972,13 +972,13 @@ def run_all_combinations_backtest(start, end,
     
     # Display top 10 results
     table = Table(title="🏆 Top 10 Weight Combinations (by Sharpe Ratio)")
-    table.add_column("Rank", style="cyan")
-    table.add_column("Strategy", style="yellow")
-    table.add_column("Total Return", style="green")
-    table.add_column("CAGR", style="blue")
-    table.add_column("Volatility", style="magenta")
-    table.add_column("Sharpe Ratio", style="red")
-    table.add_column("Max DD", style="red")
+    table.add_column("Rank", style="cyan", width=4)
+    table.add_column("Strategy", style="yellow", width=30)  # Increased width for readable strategy names
+    table.add_column("Total Return", style="green", width=12)
+    table.add_column("CAGR", style="blue", width=10)
+    table.add_column("Volatility", style="magenta", width=10)
+    table.add_column("Sharpe Ratio", style="red", width=11)
+    table.add_column("Max DD", style="red", width=8)
     
     for i, result in enumerate(results[:10], 1):
         table.add_row(
