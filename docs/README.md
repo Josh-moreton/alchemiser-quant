@@ -43,6 +43,7 @@ Welcome to The Alchemiser - a sophisticated multi-strategy trading engine design
 
 - [Contributing](./development/contributing.md) - How to contribute to the project
 - [Testing](./development/testing.md) - Test suite and coverage
+- [Coverage & Static Analysis](./development/coverage-vulture.md) - Using Coverage.py and Vulture
 - [Code Style](./development/code-style.md) - Style guide and best practices
 - [Debugging](./development/debugging.md) - Common issues and solutions
 

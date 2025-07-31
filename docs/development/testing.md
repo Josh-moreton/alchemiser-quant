@@ -551,3 +551,4 @@ def test_memory_usage():
 - [Contributing Guide](./contributing.md)
 - [Code Style Guide](./code-style.md)
 - [Debugging Guide](./debugging.md)
+- [Coverage & Static Analysis](./coverage-vulture.md)
