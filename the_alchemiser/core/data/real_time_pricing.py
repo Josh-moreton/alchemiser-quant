@@ -125,10 +125,13 @@ class RealTimePricingService:
                 return True
                 
             # Initialize the data stream
+            # NOTE: Using IEX feed for both paper and live trading until SIP subscription is available
+            # SIP feed requires a paid subscription, IEX is free but has some limitations
             self._stream = StockDataStream(
                 api_key=self.api_key,
                 secret_key=self.secret_key,
-                feed=DataFeed.SIP if not self.paper_trading else DataFeed.IEX  # SIP for live, IEX for paper
+                feed=DataFeed.IEX  # Use IEX feed for both paper and live (free tier)
+                # feed=DataFeed.SIP if not self.paper_trading else DataFeed.IEX  # Uncomment when SIP subscription is active
             )
             
             # NOTE: Do NOT subscribe to wildcard "*" - it hits subscription limits immediately

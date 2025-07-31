@@ -14,21 +14,21 @@ Based on Alpaca's official documentation and our implementation testing:
 self._stream = StockDataStream(
     api_key=self.api_key,
     secret_key=self.secret_key,
-    feed=DataFeed.SIP if not self.paper_trading else DataFeed.IEX
+    feed=DataFeed.IEX  # Use IEX feed for both paper and live (free tier)
+    # feed=DataFeed.SIP if not self.paper_trading else DataFeed.IEX  # Uncomment when SIP subscription is active
 )
 ```
 
 ### **Resulting URLs:**
 
 - **Paper Trading**: `wss://stream.data.alpaca.markets/v2/iex` ✅
-- **Live Trading**: `wss://stream.data.alpaca.markets/v2/sip` ✅
+- **Live Trading**: `wss://stream.data.alpaca.markets/v2/iex` ✅ (Using IEX until SIP subscription)
 
-### **Status**: ✅ **CORRECTLY CONFIGURED**
+### **Status**: ✅ **CORRECTLY CONFIGURED FOR FREE TIER**
 
 - Uses Alpaca's `StockDataStream` class
-- Automatically selects correct URL based on `DataFeed` enum
-- IEX feed for paper trading (free tier)
-- SIP feed for live trading (premium data)
+- Currently uses IEX feed for both paper and live trading (free tier)
+- IEX feed for both paper and live trading (free tier, no SIP subscription required)
 
 ---
 
