@@ -7,18 +7,22 @@ Features:
 - Multi-strategy backtests using config weights
 - All possible 3-strategy weight combinations
 - Multithreading for faster execution
+- Enhanced data caching to prevent API rate limits
 - Sensible defaults for slippage and market noise
 - Deposit functionality support
 - Clean, focused API
 
 Usage:
+    # Pre-load data once (IMPORTANT - call this first!)
+    preload_backtest_data(start_date, end_date, include_minute_data=False)
+    
     # Individual strategy
     results = run_individual_strategy_backtest('nuclear', start, end)
     
     # Config-based multi-strategy
     results = run_config_backtest(start, end)
     
-    # All weight combinations
+    # All weight combinations (now uses cached data!)
     results = run_all_combinations_backtest(start, end)
 """
 import os
@@ -43,6 +47,11 @@ os.environ['ALPACA_PAPER_SECRET'] = 'Ibcd2Zy98HL3wabRMQW6R0T1SnSZ2vN1uoLWhIOQ'
 from the_alchemiser.core.trading.strategy_manager import MultiStrategyManager, StrategyType
 from the_alchemiser.core.data.data_provider import UnifiedDataProvider
 from the_alchemiser.core import config as alchemiser_config
+
+# Import the new caching system
+from the_alchemiser.backtest.data_cache import (
+    get_global_cache, preload_backtest_data, get_cached_symbol_data, clear_global_cache
+)
 
 import os
 import datetime as dt
@@ -73,59 +82,87 @@ DEFAULT_SLIPPAGE_BPS = 8  # 8 basis points (0.08%) - realistic for retail tradin
 DEFAULT_NOISE_FACTOR = 0.0015  # 0.15% market noise
 
 
-def _preload_symbol_data(data_provider, symbols, start, end, fetch_minute_data=False):
-    """Fetch all required historical data - reusing proven working code from test_backtest.py"""
-    console.print(f"[yellow]Loading historical data for {len(symbols)} symbols...")
+def _get_cached_symbol_data(symbols, start, end, fetch_minute_data=False):
+    """
+    Get symbol data from cache instead of hitting API repeatedly.
+    
+    This function replaces the old _preload_symbol_data and uses the global cache
+    to avoid repeated API calls across multiple backtest workers.
+    """
+    cache = get_global_cache()
+    
     symbol_data = {}
     symbol_minute_data = {}
     
-    for sym in track(symbols, description="Fetching data"):
-        try:
-            # Fetch daily data for indicators using working Alpaca API approach
-            daily_bars = data_provider.get_historical_data(sym, start=start, end=end, timeframe="1Day")
-            daily_rows = []
-            daily_dates = []
-            for bar in daily_bars:
-                daily_rows.append({
-                    'Open': float(bar.open),
-                    'High': float(bar.high),
-                    'Low': float(bar.low),
-                    'Close': float(bar.close),
-                    'Volume': getattr(bar, 'volume', 0)
-                })
-                daily_dates.append(bar.timestamp)
-            symbol_data[sym] = pd.DataFrame(daily_rows, index=pd.to_datetime(daily_dates))
-            
-            if fetch_minute_data:
-                # Fetch minute data if requested (limited to recent periods)
-                minute_start = max(start, end - dt.timedelta(days=90))  # Limit minute data
-                try:
-                    minute_bars = data_provider.get_historical_data(sym, start=minute_start, end=end, timeframe="1Min")
-                    minute_rows = []
-                    minute_dates = []
-                    for bar in minute_bars:
-                        minute_rows.append({
-                            'Open': float(bar.open),
-                            'High': float(bar.high),
-                            'Low': float(bar.low),
-                            'Close': float(bar.close),
-                            'Volume': getattr(bar, 'volume', 0)
-                        })
-                        minute_dates.append(bar.timestamp)
-                    symbol_minute_data[sym] = pd.DataFrame(minute_rows, index=pd.to_datetime(minute_dates))
-                except Exception as e:
-                    console.print(f"[yellow]Warning: No minute data for {sym}: {e}")
-                    symbol_minute_data[sym] = pd.DataFrame()
-            else:
-                symbol_minute_data[sym] = pd.DataFrame()
-                
-        except Exception as e:
-            console.print(f"[yellow]Warning: Failed to fetch {sym}: {e}")
-            continue
+    console.print(f"[green]📂 Loading {len(symbols)} symbols from cache...[/green]")
     
-    data_type = "daily + 1min" if fetch_minute_data else "daily only"
-    console.print(f"[green]✓ Data loaded for {len(symbol_data)} symbols ({data_type})")
+    missing_symbols = []
+    
+    for sym in symbols:
+        # Get daily data from cache
+        daily_df = cache.get_symbol_data(sym, 'daily')
+        if daily_df is not None and not daily_df.empty:
+            # Filter to requested date range
+            start_filter = start
+            end_filter = end
+            
+            # Handle timezone awareness safely
+            try:
+                # Check if index has timezone info
+                index_tz = getattr(daily_df.index, 'tz', None)
+                if index_tz is not None:
+                    if start.tzinfo is None:
+                        import pytz
+                        start_filter = pytz.timezone('US/Eastern').localize(start)
+                    if end.tzinfo is None:
+                        end_filter = pytz.timezone('US/Eastern').localize(end)
+                else:
+                    if start.tzinfo is not None:
+                        start_filter = start.replace(tzinfo=None)
+                    if end.tzinfo is not None:
+                        end_filter = end.replace(tzinfo=None)
+            except Exception:
+                # Fallback if timezone detection fails
+                start_filter = start
+                end_filter = end
+            
+            # Filter to date range
+            mask = (daily_df.index >= start_filter) & (daily_df.index <= end_filter)
+            filtered_df = daily_df[mask]
+            
+            if not filtered_df.empty:
+                symbol_data[sym] = filtered_df
+            else:
+                missing_symbols.append(f"{sym} (no data in range)")
+        else:
+            missing_symbols.append(f"{sym} (not cached)")
+        
+        # Get minute data from cache if requested
+        if fetch_minute_data:
+            minute_df = cache.get_symbol_data(sym, 'minute')
+            if minute_df is not None and not minute_df.empty:
+                # Apply same date filtering
+                mask = (minute_df.index >= start_filter) & (minute_df.index <= end_filter)
+                filtered_minute_df = minute_df[mask]
+                if not filtered_minute_df.empty:
+                    symbol_minute_data[sym] = filtered_minute_df
+    
+    console.print(f"[green]✅ Loaded {len(symbol_data)} symbols from cache[/green]")
+    if missing_symbols:
+        console.print(f"[yellow]⚠️ Missing {len(missing_symbols)} symbols: {missing_symbols[:5]}{'...' if len(missing_symbols) > 5 else ''}[/yellow]")
+    
     return symbol_data, symbol_minute_data
+
+
+def _preload_symbol_data(data_provider, symbols, start, end, fetch_minute_data=False):
+    """
+    DEPRECATED: Use cached data instead.
+    
+    This function is kept for backward compatibility but now redirects to
+    the cached version to prevent API rate limits.
+    """
+    console.print(f"[yellow]⚠️ Using legacy _preload_symbol_data - consider using cached data instead[/yellow]")
+    return _get_cached_symbol_data(symbols, start, end, fetch_minute_data)
 
 
 def _calculate_slippage_cost(weight_change, price, slippage_bps=None):
@@ -207,8 +244,8 @@ def run_core_backtest(start, end, strategy_weights=None, initial_equity=1000.0,
         # Preload data using working approach
         lookback_days = 400 if use_minute_candles else 1200
         data_start = start - dt.timedelta(days=lookback_days)
-        symbol_data, symbol_minute_data = _preload_symbol_data(
-            dp, all_syms, data_start, end, fetch_minute_data=use_minute_candles
+        symbol_data, symbol_minute_data = _get_cached_symbol_data(
+            all_syms, data_start, end, fetch_minute_data=use_minute_candles
         )
         
         if not symbol_data:
@@ -537,6 +574,7 @@ def run_live_backtest(start, end,
 def run_optimized_backtest_worker(args):
     """
     Worker function that runs real strategy engines for accurate backtesting
+    BUT USES CACHED DATA ONLY - NO API CALLS
     """
     weights, strategy_name, shared_data, trading_dates, initial_equity, slippage_bps, noise_factor, deposit_amount, deposit_frequency, deposit_day = args
     
@@ -554,8 +592,63 @@ def run_optimized_backtest_worker(args):
         alchemiser_config._global_config = mock_config
         config_modified = True
         
-        # Initialize components with real strategy engines
-        dp = UnifiedDataProvider(paper_trading=True, cache_duration=0)
+        # Create a FULLY MOCKED data provider that uses only cached data
+        # This prevents ANY API calls during strategy initialization
+        dp = UnifiedDataProvider(paper_trading=True, cache_duration=0, enable_real_time=False)
+        
+        # Pre-populate the cache with our shared data to prevent API calls
+        for symbol, df in shared_data.items():
+            # Add to cache with different time periods
+            for period in ["1y", "6mo", "3mo", "1mo", "200d"]:
+                cache_key = (symbol, period, "1d")
+                dp.cache[cache_key] = (0, df)  # Cache with timestamp 0 (never expires during backtest)
+        
+        # Mock ALL data provider methods to use cached data only
+        original_methods = {}
+        
+        def create_mock_get_data(symbol_data_dict):
+            def mock_get_data(symbol, period="1y", interval="1d"):
+                if symbol in symbol_data_dict:
+                    return symbol_data_dict[symbol].copy()
+                return pd.DataFrame()
+            return mock_get_data
+        
+        def create_mock_fetch_data(symbol_data_dict):
+            def mock_fetch_historical_data(symbol, period="1y", interval="1d"):
+                if symbol in symbol_data_dict:
+                    return symbol_data_dict[symbol].copy()
+                return pd.DataFrame()
+            return mock_fetch_historical_data
+        
+        def create_mock_current_price(symbol_data_dict, current_date):
+            def mock_get_current_price(symbol):
+                if symbol in symbol_data_dict and current_date in symbol_data_dict[symbol].index:
+                    return float(symbol_data_dict[symbol].loc[current_date, 'Close'])
+                return None
+            return mock_get_current_price
+        
+        def create_mock_latest_quote(symbol_data_dict, current_date):
+            def mock_get_latest_quote(symbol):
+                if symbol in symbol_data_dict and current_date in symbol_data_dict[symbol].index:
+                    price = float(symbol_data_dict[symbol].loc[current_date, 'Close'])
+                    return price, price  # Return same price for bid and ask
+                return 0.0, 0.0
+            return mock_get_latest_quote
+        
+        # Apply initial mocks for the full historical data
+        original_methods['get_data'] = dp.get_data
+        original_methods['_fetch_historical_data'] = dp._fetch_historical_data
+        original_methods['get_current_price'] = dp.get_current_price
+        original_methods['get_latest_quote'] = dp.get_latest_quote
+        original_methods['get_historical_data'] = dp.get_historical_data
+        
+        dp.get_data = create_mock_get_data(shared_data)
+        dp._fetch_historical_data = create_mock_fetch_data(shared_data)
+        dp.get_current_price = create_mock_current_price(shared_data, trading_dates[0] if trading_dates else pd.Timestamp.now())
+        dp.get_latest_quote = create_mock_latest_quote(shared_data, trading_dates[0] if trading_dates else pd.Timestamp.now())
+        dp.get_historical_data = lambda symbol, start, end, timeframe=None: []
+        
+        # NOW create the strategy manager - it will use our mocked data provider
         manager = MultiStrategyManager(shared_data_provider=dp)
         
         # Initialize backtest variables
@@ -572,8 +665,66 @@ def run_optimized_backtest_worker(args):
                 elif deposit_frequency == 'weekly' and current_day.weekday() == deposit_day:
                     equity += deposit_amount
             
-            # Mock data provider to use historical data up to current day
+            # Mock data provider to use cached data instead of API calls
             dp.cache.clear()
+            original_fetch_method = dp._fetch_historical_data
+            original_get_data_method = dp.get_data
+            original_get_current_price = dp.get_current_price
+            original_get_current_price_for_order = dp.get_current_price_for_order
+            original_get_latest_quote = dp.get_latest_quote
+            original_get_historical_data = dp.get_historical_data
+            
+            def mock_fetch_historical_data(symbol, period="1y", interval="1d"):
+                """Mock method that uses preloaded shared_data instead of API calls"""
+                if symbol in shared_data:
+                    df = shared_data[symbol]
+                    # For backtesting, provide all available historical data up to current_day
+                    # This ensures indicators like 200-day MA have enough data to work with
+                    slice_df = df[df.index < current_day]
+                    return slice_df
+                else:
+                    return pd.DataFrame()
+            
+            def mock_get_data(symbol, period="1y", interval="1d"):
+                """Mock get_data to use cached data instead of API calls"""
+                if symbol in shared_data:
+                    df = shared_data[symbol]
+                    # For backtesting, provide all available historical data up to current_day
+                    slice_df = df[df.index < current_day]
+                    return slice_df
+                else:
+                    return pd.DataFrame()
+            
+            def mock_get_current_price(symbol):
+                """Mock current price using last available close price"""
+                if symbol in shared_data and current_day in shared_data[symbol].index:
+                    return float(shared_data[symbol].loc[current_day, 'Close'])
+                return None
+            
+            def mock_get_current_price_for_order(symbol):
+                """Mock current price for orders using last available close price"""
+                price = mock_get_current_price(symbol)
+                cleanup_fn = lambda: None  # No-op cleanup function
+                return price, cleanup_fn
+            
+            def mock_get_latest_quote(symbol):
+                """Mock latest quote using close price as bid/ask"""
+                price = mock_get_current_price(symbol)
+                if price:
+                    return price, price  # Return same price for bid and ask
+                return 0.0, 0.0
+            
+            def mock_get_historical_data(symbol, start, end, timeframe=None):
+                """Mock historical data method"""
+                return []  # Return empty list since we're using cached data
+            
+            # Apply all mocks
+            dp._fetch_historical_data = mock_fetch_historical_data
+            dp.get_data = mock_get_data
+            dp.get_current_price = mock_get_current_price
+            dp.get_current_price_for_order = mock_get_current_price_for_order
+            dp.get_latest_quote = mock_get_latest_quote
+            dp.get_historical_data = mock_get_historical_data
             
             # Get real strategy signals for current day
             try:
@@ -582,6 +733,14 @@ def run_optimized_backtest_worker(args):
             except Exception as e:
                 # Use previous weights if strategy fails
                 current_weights = prev_weights.copy()
+            finally:
+                # Always restore original methods
+                dp._fetch_historical_data = original_fetch_method
+                dp.get_data = original_get_data_method
+                dp.get_current_price = original_get_current_price
+                dp.get_current_price_for_order = original_get_current_price_for_order
+                dp.get_latest_quote = original_get_latest_quote
+                dp.get_historical_data = original_get_historical_data
             
             # Calculate and apply slippage costs
             total_slippage = 0.0
@@ -704,7 +863,6 @@ def run_all_combinations_backtest(start, end,
     ))
     
     # Step 1: Fetch data ONCE and share across all threads
-    console.print("[yellow]Fetching shared market data...")
     dp = UnifiedDataProvider(paper_trading=True, cache_duration=0)
     manager = MultiStrategyManager(shared_data_provider=dp)
     
@@ -715,12 +873,19 @@ def run_all_combinations_backtest(start, end,
         (manager.klm_ensemble.all_symbols if hasattr(manager, 'klm_ensemble') and manager.klm_ensemble else [])
     ))
     
-    # Preload shared data
+    # Preload data into cache first
     lookback_days = 400 if use_minute_candles else 1200
     data_start = start - dt.timedelta(days=lookback_days)
-    shared_data, _ = _preload_symbol_data(
-        dp, all_syms, data_start, end, fetch_minute_data=use_minute_candles
+    
+    shared_data, minute_data = preload_backtest_data(
+        data_start, end, 
+        symbols=all_syms,
+        include_minute_data=use_minute_candles,
+        force_refresh=False
     )
+    
+    # Use the preloaded data directly instead of calling _get_cached_symbol_data again
+    # shared_data is already the dictionary we need
     
     if not shared_data:
         raise ValueError("No symbol data loaded - check data provider and symbols")
@@ -778,9 +943,15 @@ def run_all_combinations_backtest(start, end,
     # Step 3: Run with optimized multithreading
     results = []
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        from rich.progress import BarColumn, TimeRemainingColumn, MofNCompleteColumn
+        
         with Progress(
             SpinnerColumn(),
             TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            MofNCompleteColumn(),
+            TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+            TimeRemainingColumn(),
             console=console
         ) as progress:
             task = progress.add_task("Running combinations...", total=len(combinations))
