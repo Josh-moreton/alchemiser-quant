@@ -408,6 +408,96 @@ def backtest(
     console.print("\n[bold green]✅ Backtest complete![/bold green]")
 
 
+@app.command()
+def validate_indicators(
+    mode: str = typer.Option("core", help="Validation mode: quick, core, or full"),
+    symbols: Optional[str] = typer.Option(None, "--symbols", help="Comma-separated symbols to test"),
+    save_file: Optional[str] = typer.Option(None, "--save", help="Save results to JSON file"),
+    verbose_validation: bool = typer.Option(False, "--verbose-validation", help="Enable verbose validation logging")
+):
+    """
+    🔬 [bold blue]Validate technical indicators against TwelveData API[/bold blue]
+    
+    This command runs a comprehensive validation suite that tests all technical
+    indicators used by our trading strategies against TwelveData API values.
+    
+    Examples:
+      alchemiser validate-indicators --mode quick
+      alchemiser validate-indicators --symbols SPY,TQQQ --save results.json
+      alchemiser validate-indicators --mode full
+    
+    Modes:
+    • quick: Test core symbols (SPY, QQQ) with main indicators
+    • core: Test all strategy symbols with key indicators  
+    • full: Comprehensive test of all symbols and indicators
+    
+    TwelveData API key is automatically retrieved from AWS Secrets Manager.
+    """
+    show_welcome()
+    
+    try:
+        # Get API key from secrets manager
+        from the_alchemiser.core.secrets.secrets_manager import secrets_manager
+        api_key = secrets_manager.get_twelvedata_api_key()
+        
+        if not api_key:
+            console.print("[red]Error: TwelveData API key not found in AWS Secrets Manager.[/red]")
+            console.print("Please add TWELVEDATA_KEY to the 'nuclear-secrets' secret.")
+            console.print("Get a free API key at: https://twelvedata.com")
+            raise typer.Exit(1)
+        
+        # Import the validation suite
+        from the_alchemiser.core.validation.indicator_validator import IndicatorValidationSuite
+        
+        # Validate mode
+        if mode not in ["quick", "core", "full"]:
+            console.print(f"[red]Error: Invalid mode '{mode}'. Must be: quick, core, or full[/red]")
+            raise typer.Exit(1)
+        
+        # Initialize validation suite
+        validator = IndicatorValidationSuite(api_key, console)
+        
+        # Determine symbols to test
+        if symbols:
+            symbols_list = [s.strip().upper() for s in symbols.split(',')]
+        else:
+            if mode == 'quick':
+                symbols_list = ['SPY', 'QQQ']
+            elif mode == 'core':
+                symbols_list = validator.strategy_symbols['core']
+            else:  # full
+                symbols_list = []
+                for category in validator.strategy_symbols.values():
+                    symbols_list.extend(category)
+                symbols_list = list(set(symbols_list))  # Remove duplicates
+        
+        console.print(f"[bold blue]🔬 Running indicator validation in {mode.upper()} mode...[/bold blue]")
+        console.print(f"Testing {len(symbols_list)} symbols: {', '.join(symbols_list[:5])}{' ...' if len(symbols_list) > 5 else ''}")
+        
+        # Run validation
+        summary = validator.run_validation_suite(symbols_list, mode)
+        validator.generate_report(summary)
+        
+        if save_file:
+            validator.save_results(save_file)
+        
+        if summary['failed_tests'] == 0:
+            console.print("\n[bold green]✅ All indicators validated successfully![/bold green]")
+        else:
+            console.print(f"\n[bold yellow]⚠️  Validation completed with {summary['failed_tests']} failures[/bold yellow]")
+            console.print("Check the detailed report above for specific issues.")
+            
+    except ImportError as e:
+        console.print("[red]Error: Could not import validation suite.[/red]")
+        console.print(f"Details: {e}")
+        raise typer.Exit(1)
+    except Exception as e:
+        console.print(f"[red]Error running validation: {e}[/red]")
+        if verbose_validation:
+            console.print_exception()
+        raise typer.Exit(1)
+
+
 @app.callback()
 def main(
     ctx: typer.Context,
@@ -420,12 +510,13 @@ def main(
     Nuclear • TECL • KLM • Multi-Strategy Trading System
     
     Available commands:
-    • [cyan]alchemiser signal[/cyan]          - Generate strategy signals (analysis only)  
-    • [cyan]alchemiser trade[/cyan]           - Execute multi-strategy trading
-    • [cyan]alchemiser backtest[/cyan]        - Run comprehensive backtests  
-    • [cyan]alchemiser status[/cyan]          - Show account status and positions
-    • [cyan]alchemiser deploy[/cyan]          - Deploy to AWS Lambda
-    • [cyan]alchemiser version[/cyan]         - Show version information
+    • [cyan]alchemiser signal[/cyan]                - Generate strategy signals (analysis only)  
+    • [cyan]alchemiser trade[/cyan]                 - Execute multi-strategy trading
+    • [cyan]alchemiser backtest[/cyan]              - Run comprehensive backtests  
+    • [cyan]alchemiser status[/cyan]                - Show account status and positions
+    • [cyan]alchemiser validate-indicators[/cyan]   - Validate indicators against TwelveData API
+    • [cyan]alchemiser deploy[/cyan]                - Deploy to AWS Lambda
+    • [cyan]alchemiser version[/cyan]               - Show version information
     
     [dim]Use --help with any command for detailed information.[/dim]
     """
