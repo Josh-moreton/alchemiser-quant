@@ -20,6 +20,9 @@ from typing import Dict, List, Optional, Tuple, Any
 from datetime import datetime, timedelta
 from enum import Enum
 
+from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
+from rich.console import Console
+
 from the_alchemiser.core.config import Config
 from the_alchemiser.core.trading.nuclear_signals import NuclearStrategyEngine, ActionType
 from the_alchemiser.core.trading.tecl_signals import TECLStrategyEngine
@@ -132,98 +135,138 @@ class MultiStrategyManager:
         """
         logging.debug("Running all strategies...")
         
+        console = Console()
         strategy_signals = {}
         consolidated_portfolio = {}
         
-        # Get market data (combined from all strategies using shared data provider)
-        all_symbols = set(self.nuclear_engine.all_symbols + self.tecl_engine.all_symbols)
-        
-        # Add KLM symbols if KLM ensemble is enabled
-        if self.klm_ensemble is not None:
-            all_symbols.update(self.klm_ensemble.all_symbols)
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TaskProgressColumn(),
+            console=console,
+            transient=True
+        ) as progress:
             
-        market_data = {}
-        
-        # Fetch data for all required symbols using the shared data provider
-        shared_data_provider = self.nuclear_engine.data_provider  # Both engines share the same instance
-        for symbol in all_symbols:
-            data = shared_data_provider.get_data(symbol)
-            if not data.empty:
-                market_data[symbol] = data
-            else:
-                logging.warning(f"Could not fetch data for {symbol}")
-        
-        # Market data fetched successfully
-        logging.debug(f"Fetched market data for {len(market_data)} symbols using shared data provider")
-        
-        # Run Nuclear Strategy
-        try:
-            nuclear_indicators = self.nuclear_engine.calculate_indicators(market_data)
-            nuclear_result = self.nuclear_engine.evaluate_nuclear_strategy(nuclear_indicators, market_data)
-            strategy_signals[StrategyType.NUCLEAR] = {
-                'symbol': nuclear_result[0],
-                'action': nuclear_result[1],
-                'reason': nuclear_result[2],
-                'indicators': nuclear_indicators,
-                'market_data': market_data
-            }
-            logging.debug(f"Nuclear strategy: {nuclear_result[1]} {nuclear_result[0]} - {nuclear_result[2]}")
-        except Exception as e:
-            logging.error(f"Error running Nuclear strategy: {e}")
-            strategy_signals[StrategyType.NUCLEAR] = {
-                'symbol': 'SPY',
-                'action': ActionType.HOLD.value,
-                'reason': f"Nuclear strategy error: {e}",
-                'indicators': {},
-                'market_data': {}
-            }
-        
-        # Run TECL Strategy
-        try:
-            tecl_indicators = self.tecl_engine.calculate_indicators(market_data)
-            tecl_result = self.tecl_engine.evaluate_tecl_strategy(tecl_indicators, market_data)
-            strategy_signals[StrategyType.TECL] = {
-                'symbol': tecl_result[0],
-                'action': tecl_result[1],
-                'reason': tecl_result[2],
-                'indicators': tecl_indicators,
-                'market_data': market_data
-            }
-            logging.debug(f"TECL strategy: {tecl_result[1]} {tecl_result[0]} - {tecl_result[2]}")
-        except Exception as e:
-            logging.error(f"Error running TECL strategy: {e}")
-            strategy_signals[StrategyType.TECL] = {
-                'symbol': 'BIL',
-                'action': ActionType.HOLD.value,
-                'reason': f"TECL strategy error: {e}",
-                'indicators': {},
-                'market_data': {}
-            }
-        
-        # Run KLM Strategy Ensemble (if enabled)
-        if self.klm_ensemble is not None:
+            # Calculate total steps for progress tracking
+            total_steps = 1  # Market data fetching
+            active_strategies = 1  # Nuclear (always active)
+            
+            if self.tecl_engine:
+                active_strategies += 1
+            if self.klm_ensemble:
+                active_strategies += 1
+                
+            total_steps += active_strategies  # One step per strategy
+            
+            # Create progress task
+            task = progress.add_task("Generating strategy signals...", total=total_steps)
+            
+            # Step 1: Fetch market data for all symbols
+            progress.update(task, description="📊 Fetching market data for all symbols...")
+            
+            # Get market data (combined from all strategies using shared data provider)
+            all_symbols = set(self.nuclear_engine.all_symbols + self.tecl_engine.all_symbols)
+            
+            # Add KLM symbols if KLM ensemble is enabled
+            if self.klm_ensemble is not None:
+                all_symbols.update(self.klm_ensemble.all_symbols)
+                
+            market_data = {}
+            
+            # Fetch data for all required symbols using the shared data provider
+            shared_data_provider = self.nuclear_engine.data_provider  # Both engines share the same instance
+            for symbol in all_symbols:
+                data = shared_data_provider.get_data(symbol)
+                if not data.empty:
+                    market_data[symbol] = data
+                else:
+                    logging.warning(f"Could not fetch data for {symbol}")
+            
+            # Market data fetched successfully
+            logging.debug(f"Fetched market data for {len(market_data)} symbols using shared data provider")
+            progress.advance(task)
+            
+            # Step 2: Run Nuclear Strategy
+            progress.update(task, description="⚛️ Running Nuclear strategy...")
             try:
-                klm_indicators = self.klm_ensemble.calculate_indicators(market_data)
-                klm_result = self.klm_ensemble.evaluate_ensemble(klm_indicators, market_data)
-                strategy_signals[StrategyType.KLM] = {
-                    'symbol': klm_result[0],  # symbol_or_allocation
-                    'action': klm_result[1],  # action
-                    'reason': klm_result[2],  # enhanced_reason
-                    'variant_name': klm_result[3],  # selected_variant_name
-                    'indicators': klm_indicators,
+                nuclear_indicators = self.nuclear_engine.calculate_indicators(market_data)
+                nuclear_result = self.nuclear_engine.evaluate_nuclear_strategy(nuclear_indicators, market_data)
+                strategy_signals[StrategyType.NUCLEAR] = {
+                    'symbol': nuclear_result[0],
+                    'action': nuclear_result[1],
+                    'reason': nuclear_result[2],
+                    'indicators': nuclear_indicators,
                     'market_data': market_data
                 }
-                logging.debug(f"KLM ensemble: {klm_result[1]} {klm_result[0]} - {klm_result[2]} [{klm_result[3]}]")
+                logging.debug(f"Nuclear strategy: {nuclear_result[1]} {nuclear_result[0]} - {nuclear_result[2]}")
             except Exception as e:
-                logging.error(f"Error running KLM ensemble: {e}")
-                strategy_signals[StrategyType.KLM] = {
-                    'symbol': 'BIL',
+                logging.error(f"Error running Nuclear strategy: {e}")
+                strategy_signals[StrategyType.NUCLEAR] = {
+                    'symbol': 'SPY',
                     'action': ActionType.HOLD.value,
-                    'reason': f"KLM ensemble error: {e}",
-                    'variant_name': 'ERROR',
+                    'reason': f"Nuclear strategy error: {e}",
                     'indicators': {},
                     'market_data': {}
                 }
+            
+            progress.advance(task)
+            
+            # Step 3: Run TECL Strategy
+            progress.update(task, description="🚀 Running TECL strategy...")
+            try:
+                tecl_indicators = self.tecl_engine.calculate_indicators(market_data)
+                tecl_result = self.tecl_engine.evaluate_tecl_strategy(tecl_indicators, market_data)
+                strategy_signals[StrategyType.TECL] = {
+                    'symbol': tecl_result[0],
+                    'action': tecl_result[1],
+                    'reason': tecl_result[2],
+                    'indicators': tecl_indicators,
+                    'market_data': market_data
+                }
+                logging.debug(f"TECL strategy: {tecl_result[1]} {tecl_result[0]} - {tecl_result[2]}")
+            except Exception as e:
+                logging.error(f"Error running TECL strategy: {e}")
+                strategy_signals[StrategyType.TECL] = {
+                    'symbol': 'BIL',
+                    'action': ActionType.HOLD.value,
+                    'reason': f"TECL strategy error: {e}",
+                    'indicators': {},
+                    'market_data': {}
+                }
+            
+            progress.advance(task)
+            
+            # Step 4: Run KLM Strategy Ensemble (if enabled)
+            if self.klm_ensemble is not None:
+                progress.update(task, description="🧠 Running KLM strategy ensemble...")
+                try:
+                    klm_indicators = self.klm_ensemble.calculate_indicators(market_data)
+                    klm_result = self.klm_ensemble.evaluate_ensemble(klm_indicators, market_data)
+                    strategy_signals[StrategyType.KLM] = {
+                        'symbol': klm_result[0],  # symbol_or_allocation
+                        'action': klm_result[1],  # action
+                        'reason': klm_result[2],  # enhanced_reason
+                        'variant_name': klm_result[3],  # selected_variant_name
+                        'indicators': klm_indicators,
+                        'market_data': market_data
+                    }
+                    logging.debug(f"KLM ensemble: {klm_result[1]} {klm_result[0]} - {klm_result[2]} [{klm_result[3]}]")
+                except Exception as e:
+                    logging.error(f"Error running KLM ensemble: {e}")
+                    strategy_signals[StrategyType.KLM] = {
+                        'symbol': 'BIL',
+                        'action': ActionType.HOLD.value,
+                        'reason': f"KLM ensemble error: {e}",
+                        'variant_name': 'ERROR',
+                        'indicators': {},
+                        'market_data': {}
+                    }
+                
+                progress.advance(task)
+            
+            # Finalize progress
+            progress.update(task, description="✅ Signal generation complete!")
         
         # Create consolidated portfolio allocation
         for strategy_type, signal_data in strategy_signals.items():
