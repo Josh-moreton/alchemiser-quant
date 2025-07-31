@@ -23,11 +23,13 @@ from enum import Enum
 from the_alchemiser.core.config import Config
 from the_alchemiser.core.trading.nuclear_signals import NuclearStrategyEngine, ActionType
 from the_alchemiser.core.trading.tecl_signals import TECLStrategyEngine
+from the_alchemiser.core.trading.klm_ensemble_engine import KLMStrategyEnsemble
 
 
 class StrategyType(Enum):
     NUCLEAR = "NUCLEAR"
     TECL = "TECL"
+    KLM = "KLM"
 
 
 class StrategyPosition:
@@ -83,12 +85,18 @@ class MultiStrategyManager:
         if strategy_allocations is None:
             default_allocations = self.config['strategy'].get('default_strategy_allocations', {
                 'nuclear': 0.4,
-                'tecl': 0.6
+                'tecl': 0.6,
+                'klm': 0.0
             })
             self.strategy_allocations = {
                 StrategyType.NUCLEAR: default_allocations.get('nuclear', 0.4),
                 StrategyType.TECL: default_allocations.get('tecl', 0.6)
             }
+            
+            # Add KLM allocation if specified in config
+            klm_allocation = default_allocations.get('klm', 0.0)
+            if klm_allocation > 0:
+                self.strategy_allocations[StrategyType.KLM] = klm_allocation
         else:
             self.strategy_allocations = strategy_allocations
         
@@ -101,9 +109,15 @@ class MultiStrategyManager:
         if shared_data_provider is None:
             from the_alchemiser.core.data.data_provider import UnifiedDataProvider
             shared_data_provider = UnifiedDataProvider(paper_trading=True)
+        
         # Initialize strategy orchestration engines with shared data provider
         self.nuclear_engine = NuclearStrategyEngine(data_provider=shared_data_provider)
         self.tecl_engine = TECLStrategyEngine(data_provider=shared_data_provider)
+        
+        # Initialize KLM ensemble if allocated
+        self.klm_ensemble = None
+        if StrategyType.KLM in self.strategy_allocations:
+            self.klm_ensemble = KLMStrategyEnsemble(data_provider=shared_data_provider)
         
         logging.debug(f"MultiStrategyManager initialized with allocations: {self.strategy_allocations}")
     
@@ -123,6 +137,11 @@ class MultiStrategyManager:
         
         # Get market data (combined from all strategies using shared data provider)
         all_symbols = set(self.nuclear_engine.all_symbols + self.tecl_engine.all_symbols)
+        
+        # Add KLM symbols if KLM ensemble is enabled
+        if self.klm_ensemble is not None:
+            all_symbols.update(self.klm_ensemble.all_symbols)
+            
         market_data = {}
         
         # Fetch data for all required symbols using the shared data provider
@@ -181,9 +200,37 @@ class MultiStrategyManager:
                 'market_data': {}
             }
         
+        # Run KLM Strategy Ensemble (if enabled)
+        if self.klm_ensemble is not None:
+            try:
+                klm_indicators = self.klm_ensemble.calculate_indicators(market_data)
+                klm_result = self.klm_ensemble.evaluate_ensemble(klm_indicators, market_data)
+                strategy_signals[StrategyType.KLM] = {
+                    'symbol': klm_result[0],  # symbol_or_allocation
+                    'action': klm_result[1],  # action
+                    'reason': klm_result[2],  # enhanced_reason
+                    'variant_name': klm_result[3],  # selected_variant_name
+                    'indicators': klm_indicators,
+                    'market_data': market_data
+                }
+                logging.debug(f"KLM ensemble: {klm_result[1]} {klm_result[0]} - {klm_result[2]} [{klm_result[3]}]")
+            except Exception as e:
+                logging.error(f"Error running KLM ensemble: {e}")
+                strategy_signals[StrategyType.KLM] = {
+                    'symbol': 'BIL',
+                    'action': ActionType.HOLD.value,
+                    'reason': f"KLM ensemble error: {e}",
+                    'variant_name': 'ERROR',
+                    'indicators': {},
+                    'market_data': {}
+                }
+        
         # Create consolidated portfolio allocation
         for strategy_type, signal_data in strategy_signals.items():
             if signal_data['action'] == ActionType.BUY.value:
+                # Skip strategies not in our allocation (e.g., KLM-only portfolio)
+                if strategy_type not in self.strategy_allocations:
+                    continue
                 strategy_allocation = self.strategy_allocations[strategy_type]
                 
                 # Handle portfolio vs single symbol signals
