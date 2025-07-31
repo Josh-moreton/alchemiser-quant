@@ -16,7 +16,7 @@ from alpaca.trading.enums import OrderSide
 from alpaca.trading.client import TradingClient
 
 from the_alchemiser.execution.alpaca_client import AlpacaClient
-from the_alchemiser.execution.progressive_order_utils import ProgressiveOrderCalculator, get_market_urgency_level
+from the_alchemiser.utils.progressive_order_utils import ProgressiveOrderCalculator, get_market_urgency_level
 
 
 def is_market_open(trading_client: TradingClient) -> bool:
