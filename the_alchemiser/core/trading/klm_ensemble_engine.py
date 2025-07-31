@@ -26,7 +26,7 @@ from the_alchemiser.utils.math_utils import (
     calculate_moving_average_return
 )
 
-# Import all KLM strategy variants
+# Import all KLM strategy variants from modular workers package
 from .klm_workers import (
     BaseKLMVariant,
     KLMVariant506_38,

@@ -230,22 +230,35 @@ def run_core_backtest(start, end, strategy_weights=None, initial_equity=1000.0,
         config_modified = True
     
     try:
-        # Initialize components
+        # Initialize components with the configured strategy weights
         dp = UnifiedDataProvider(paper_trading=True, cache_duration=0)
-        manager = MultiStrategyManager(shared_data_provider=dp)
+        manager = MultiStrategyManager(shared_data_provider=dp, config=mock_config)
         
-        # Get all required symbols
-        all_syms = list(set(
-            manager.nuclear_engine.all_symbols + 
-            manager.tecl_engine.all_symbols +
-            (manager.klm_ensemble.all_symbols if hasattr(manager, 'klm_ensemble') and manager.klm_ensemble else [])
-        ))
+        # CRITICAL FIX: Always collect ALL symbols since strategy manager runs all strategies
+        # even when some have 0 allocation, they still try to access their symbols for calculation
+        all_syms = []
+        
+        # Always include nuclear symbols since nuclear strategy always runs
+        all_syms.extend(manager.nuclear_engine.all_symbols)
+        
+        # Always include TECL symbols since TECL strategy always runs  
+        all_syms.extend(manager.tecl_engine.all_symbols)
+        
+        # Always include KLM symbols if KLM ensemble exists
+        if hasattr(manager, 'klm_ensemble') and manager.klm_ensemble:
+            all_syms.extend(manager.klm_ensemble.all_symbols)
+        
+        # Remove duplicates
+        all_syms = list(set(all_syms))
         
         # Preload data using working approach
         lookback_days = 400 if use_minute_candles else 1200
         data_start = start - dt.timedelta(days=lookback_days)
-        symbol_data, symbol_minute_data = _get_cached_symbol_data(
-            all_syms, data_start, end, fetch_minute_data=use_minute_candles
+        
+        # First preload data into cache, then get it
+        console.print(f"[yellow]📊 Pre-loading {len(all_syms)} symbols into cache...[/yellow]")
+        symbol_data, symbol_minute_data = preload_backtest_data(
+            data_start, end, symbols=all_syms, include_minute_data=use_minute_candles, force_refresh=False
         )
         
         if not symbol_data:

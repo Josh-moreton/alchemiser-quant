@@ -47,7 +47,7 @@ def multi_strategy_trader(mock_trading_client, mock_data_provider):
     mock_config = {
         'data': {'cache_duration': 300},
         'alpaca': {'cash_reserve_pct': 0.05, 'slippage_bps': 5},
-        'strategy': {'poll_timeout': 30, 'poll_interval': 2.0}
+        'strategy': {'poll_timeout': 1, 'poll_interval': 0.1}  # Reduce timeouts for tests
     }
     
     with patch('the_alchemiser.core.data.data_provider.UnifiedDataProvider') as mock_provider_class:
@@ -166,6 +166,10 @@ class TestPartialRebalance:
         )
         mock_trading_client.get_account.return_value = mock_account
         multi_strategy_trader.data_provider.get_account_info.return_value = mock_account
+        
+        # Mock settlement waiting to prevent hanging
+        multi_strategy_trader.order_manager.wait_for_settlement = MagicMock(return_value=True)
+        multi_strategy_trader.wait_for_settlement = MagicMock(return_value=True)
         
         # Target: 50% each (very small change)
         target_allocations = {
