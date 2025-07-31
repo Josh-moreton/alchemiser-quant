@@ -56,6 +56,7 @@ from alpaca.trading.stream import TradingStream
 import threading
 
 from the_alchemiser.core.data.data_provider import UnifiedDataProvider
+from the_alchemiser.utils.asset_info import fractionability_detector
 
 
 class AlpacaClient:
@@ -309,23 +310,50 @@ class AlpacaClient:
                     logging.warning(f"No position to sell for {symbol}")
                     return None
 
-            # Prepare order parameters
+            # Prepare order parameters with smart non-fractionable asset handling
             if qty is not None:
-                # Round quantity to avoid fractional share issues
-                qty = float(Decimal(str(qty)).quantize(Decimal('0.000001'), rounding=ROUND_DOWN))
+                # Smart handling for non-fractionable assets
+                current_price = None
+                try:
+                    current_price = self.data_provider.get_current_price(symbol)
+                except Exception as e:
+                    logging.warning(f"Could not get current price for {symbol}: {e}")
                 
-                if qty <= 0:
-                    logging.warning(f"Quantity rounded to zero for {symbol}")
-                    return None
+                # Check if we should use notional orders for non-fractionable assets
+                if (current_price and current_price > 0 and 
+                    side == OrderSide.BUY and
+                    fractionability_detector.should_use_notional_order(symbol, qty)):
+                    
+                    # Convert to notional order for better handling of non-fractionable assets
+                    original_notional = qty * current_price
+                    logging.info(f"🔄 Converting {symbol} from qty={qty} to notional=${original_notional:.2f} "
+                               f"(likely non-fractionable asset)")
+                    
+                    market_order_data = MarketOrderRequest(
+                        symbol=symbol,
+                        notional=round(original_notional, 2),
+                        side=side,
+                        time_in_force=TimeInForce.DAY
+                    )
+                    
+                    logging.info(f"Placing MARKET {side.value} order for {symbol}: notional=${original_notional:.2f} "
+                               f"(converted from qty={qty})")
+                else:
+                    # Regular quantity order with fractional rounding
+                    qty = float(Decimal(str(qty)).quantize(Decimal('0.000001'), rounding=ROUND_DOWN))
+                    
+                    if qty <= 0:
+                        logging.warning(f"Quantity rounded to zero for {symbol}")
+                        return None
 
-                logging.info(f"Placing MARKET {side.value} order for {symbol}: qty={qty}")
-                
-                market_order_data = MarketOrderRequest(
-                    symbol=symbol,
-                    qty=qty,
-                    side=side,
-                    time_in_force=TimeInForce.DAY
-                )
+                    logging.info(f"Placing MARKET {side.value} order for {symbol}: qty={qty}")
+                    
+                    market_order_data = MarketOrderRequest(
+                        symbol=symbol,
+                        qty=qty,
+                        side=side,
+                        time_in_force=TimeInForce.DAY
+                    )
             else:
                 # Notional order
                 assert notional is not None  # Type hint for mypy
@@ -340,11 +368,59 @@ class AlpacaClient:
                     time_in_force=TimeInForce.DAY
                 )
             
-            order = self.trading_client.submit_order(market_order_data)
-            order_id = str(getattr(order, 'id', 'unknown'))
-            
-            logging.info(f"Market order placed for {symbol}: {order_id}")
-            return order_id
+            # Submit the order with error handling for non-fractionable assets
+            try:
+                order = self.trading_client.submit_order(market_order_data)
+                order_id = str(getattr(order, 'id', 'unknown'))
+                
+                logging.info(f"Market order placed for {symbol}: {order_id}")
+                return order_id
+                
+            except Exception as order_error:
+                error_msg = str(order_error)
+                
+                # Handle the specific "not fractionable" error
+                if ("not fractionable" in error_msg.lower() and 
+                    qty is not None and 
+                    hasattr(market_order_data, 'qty')):
+                    
+                    logging.warning(f"🔄 {symbol} is not fractionable, retrying with whole shares...")
+                    
+                    # Get current price for conversion
+                    if current_price is None:
+                        try:
+                            current_price = self.data_provider.get_current_price(symbol)
+                        except Exception:
+                            current_price = None
+                    
+                    if current_price and current_price > 0:
+                        # Convert to notional order as fallback
+                        fallback_notional = qty * current_price
+                        logging.info(f"💰 Converting to notional order: ${fallback_notional:.2f}")
+                        
+                        fallback_order_data = MarketOrderRequest(
+                            symbol=symbol,
+                            notional=round(fallback_notional, 2),
+                            side=side,
+                            time_in_force=TimeInForce.DAY
+                        )
+                        
+                        try:
+                            order = self.trading_client.submit_order(fallback_order_data)
+                            order_id = str(getattr(order, 'id', 'unknown'))
+                            
+                            logging.info(f"✅ Fallback notional order placed for {symbol}: {order_id}")
+                            return order_id
+                            
+                        except Exception as fallback_error:
+                            logging.error(f"❌ Fallback notional order also failed for {symbol}: {fallback_error}")
+                            return None
+                    else:
+                        logging.error(f"❌ Cannot convert to notional order - no current price for {symbol}")
+                        return None
+                else:
+                    # Re-raise the original error if it's not a fractionability issue
+                    raise order_error
             
         except Exception as e:
             logging.error(f"Market order failed for {symbol}: {e}")
@@ -398,8 +474,26 @@ class AlpacaClient:
                     logging.warning(f"Reducing sell quantity for {symbol}: {qty} -> {available}")
                     qty = available
 
-            # Round quantity and price
-            qty = float(Decimal(str(qty)).quantize(Decimal('0.000001'), rounding=ROUND_DOWN))
+            # Smart handling for non-fractionable assets
+            original_qty = qty
+            
+            # For non-fractionable assets, convert to whole shares
+            if not fractionability_detector.is_fractionable(symbol):
+                adjusted_qty, was_rounded = fractionability_detector.convert_to_whole_shares(
+                    symbol, qty, limit_price
+                )
+                
+                if was_rounded:
+                    qty = adjusted_qty
+                    if qty <= 0:
+                        logging.warning(f"❌ {symbol} quantity rounded to zero whole shares (original: {original_qty})")
+                        return None
+                    
+                    logging.info(f"🔄 Rounded {symbol} to {qty} whole shares for non-fractionable asset")
+            else:
+                # Round quantity for regular assets
+                qty = float(Decimal(str(qty)).quantize(Decimal('0.000001'), rounding=ROUND_DOWN))
+            
             limit_price = round(limit_price, 2)
             
             if qty <= 0:
@@ -416,11 +510,56 @@ class AlpacaClient:
                 limit_price=limit_price
             )
             
-            order = self.trading_client.submit_order(limit_order_data)
-            order_id = str(getattr(order, 'id', 'unknown'))
-            
-            logging.info(f"Limit order placed for {symbol}: {order_id}")
-            return order_id
+            # Submit order with error handling for non-fractionable assets
+            try:
+                order = self.trading_client.submit_order(limit_order_data)
+                order_id = str(getattr(order, 'id', 'unknown'))
+                
+                logging.info(f"Limit order placed for {symbol}: {order_id}")
+                return order_id
+                
+            except Exception as order_error:
+                error_msg = str(order_error)
+                
+                # Handle the specific "not fractionable" error for limit orders
+                if "not fractionable" in error_msg.lower():
+                    logging.warning(f"🔄 {symbol} limit order failed (not fractionable), trying whole shares...")
+                    
+                    # Convert to whole shares if we haven't already
+                    if fractionability_detector.is_fractionable(symbol):
+                        whole_qty = int(original_qty)
+                        
+                        if whole_qty <= 0:
+                            logging.error(f"❌ Cannot place {symbol} order - rounds to zero whole shares")
+                            return None
+                        
+                        logging.info(f"💰 Retrying with {whole_qty} whole shares instead of {original_qty}")
+                        
+                        fallback_order_data = LimitOrderRequest(
+                            symbol=symbol,
+                            qty=whole_qty,
+                            side=side,
+                            time_in_force=TimeInForce.DAY,
+                            limit_price=limit_price
+                        )
+                        
+                        try:
+                            order = self.trading_client.submit_order(fallback_order_data)
+                            order_id = str(getattr(order, 'id', 'unknown'))
+                            
+                            logging.info(f"✅ Fallback whole-share limit order placed for {symbol}: {order_id}")
+                            return order_id
+                            
+                        except Exception as fallback_error:
+                            logging.error(f"❌ Fallback whole-share limit order also failed for {symbol}: {fallback_error}")
+                            return None
+                    else:
+                        # We already tried whole shares, this is a different issue
+                        logging.error(f"❌ {symbol} limit order failed even with whole shares: {error_msg}")
+                        return None
+                else:
+                    # Re-raise the original error if it's not a fractionability issue
+                    raise order_error
             
         except Exception as e:
             logging.error(f"Limit order failed for {symbol}: {e}")
