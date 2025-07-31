@@ -6,6 +6,8 @@ __pycache__/
 venv/
 env/
 ENV/
+*.pkl
+backtest_cache/
 
 # macOS system files
 .DS_Store

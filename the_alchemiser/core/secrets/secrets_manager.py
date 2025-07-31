@@ -108,7 +108,8 @@ class SecretsManager:
             'ALPACA_PAPER_KEY': 'ALPACA_PAPER_KEY',
             'ALPACA_PAPER_SECRET': 'ALPACA_PAPER_SECRET',
             'TELEGRAM_TOKEN': 'TELEGRAM_TOKEN',
-            'TELEGRAM_CHAT_ID': 'TELEGRAM_CHAT_ID'
+            'TELEGRAM_CHAT_ID': 'TELEGRAM_CHAT_ID',
+            'TWELVEDATA_KEY': 'TWELVEDATA_KEY'
         }
         
         for key, env_var in env_mappings.items():
@@ -187,3 +188,36 @@ class SecretsManager:
         except Exception as e:
             logging.error(f"Error getting Telegram config: {e}")
             return None, None
+
+    def get_twelvedata_api_key(self) -> Optional[str]:
+        """
+        Get TwelveData API key from secrets
+        
+        Returns:
+            API key string or None if not found
+        """
+        try:
+            from the_alchemiser.core.config import get_config
+            config = get_config()
+            secret_name = config['secrets_manager'].get('secret_name', 'nuclear-secrets')
+            secrets = self.get_secret(secret_name)
+            if not secrets:
+                logging.error("No secrets found")
+                return None
+            
+            api_key = secrets.get('TWELVEDATA_KEY')
+            
+            if not api_key:
+                logging.error("Missing TwelveData API key (TWELVEDATA_KEY) in secrets")
+                return None
+            
+            logging.info("Successfully retrieved TwelveData API key")
+            return api_key
+            
+        except Exception as e:
+            logging.error(f"Error getting TwelveData API key: {e}")
+            return None
+
+
+# Global instance for easy access
+secrets_manager = SecretsManager()

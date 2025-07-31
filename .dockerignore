@@ -2,6 +2,7 @@
 # Exclude local dev, build, cache, and sensitive files from Lambda Docker image
 .venv/
 __pycache__/
+backtest_cache/
 *.pyc
 *.pyo
 *.pyd

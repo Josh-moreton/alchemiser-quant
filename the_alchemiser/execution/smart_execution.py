@@ -233,12 +233,11 @@ class SmartExecution:
             console.print(f"[blue]Strategy: {exec_params}[/blue]")
             
             # Pre-initialize WebSocket connection for faster order monitoring
-            console.print(f"[blue]🔌 Pre-initializing WebSocket for order monitoring...[/blue]")
             websocket_ready = self.alpaca_client._prepare_websocket_connection()
             if websocket_ready:
-                console.print(f"[green]✅ WebSocket ready for order monitoring[/green]")
+                console.print(f"[green]🔌 WebSocket ready for order monitoring[/green]")
             else:
-                console.print(f"[yellow]⚠️ WebSocket not ready, will use polling fallback[/yellow]")
+                console.print(f"[yellow]⚠️ WebSocket not ready, using polling fallback[/yellow]")
             
             # Use intelligent step percentages instead of hardcoded steps
             for step_idx, step_pct in enumerate(exec_params.step_percentages):
@@ -255,8 +254,8 @@ class SmartExecution:
                 else:
                     step_name = f"Step {step_idx + 1} ({step_pct*100:.0f}% through spread)"
                 
-                # Display step information
-                color = "cyan" if side == OrderSide.BUY else "red"
+                # Display step information with appropriate colors
+                color = "cyan" if side == OrderSide.BUY else "magenta"  # Use magenta for sells instead of red
                 console.print(f"[{color}]{step_name}: {side.value} {symbol} @ ${limit_price:.2f}[/{color}]")
                 
                 # Place limit order
@@ -279,7 +278,9 @@ class SmartExecution:
                     [limit_order_id], max_wait_seconds=exec_params.max_wait_seconds
                 )
                 
-                console.print(f"[dim]📋 Order completion result: {order_results}[/dim]")
+                # Only show detailed order results at DEBUG level to reduce noise
+                if logging.getLogger().level <= logging.DEBUG:
+                    console.print(f"[dim]📋 Order completion result: {order_results}[/dim]")
                 logging.info(f"📋 Order completion result for {limit_order_id}: {order_results}")
                 final_status = order_results.get(limit_order_id, '').lower()
                 

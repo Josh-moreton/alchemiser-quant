@@ -31,7 +31,6 @@ import os
 import logging
 from logging.handlers import RotatingFileHandler
 from the_alchemiser.core.config import get_config
-from the_alchemiser.core.ui.cli_formatter import render_technical_indicators
 from the_alchemiser.core.trading.strategy_manager import StrategyType
 
 # Load config once at module level
@@ -100,12 +99,8 @@ def generate_multi_strategy_signals():
     try:
         # Create shared UnifiedDataProvider once
         shared_data_provider = UnifiedDataProvider(paper_trading=True)
-        # Pass shared data provider to MultiStrategyManager with config allocations
-        allocations = config['strategy']['default_strategy_allocations']
-        manager = MultiStrategyManager({
-            StrategyType.NUCLEAR: allocations['nuclear'],
-            StrategyType.TECL: allocations['tecl']
-        }, shared_data_provider=shared_data_provider)
+        # Pass shared data provider to MultiStrategyManager - it will read config allocations automatically
+        manager = MultiStrategyManager(shared_data_provider=shared_data_provider, config=config)
         strategy_signals, consolidated_portfolio = manager.run_all_strategies()
         return manager, strategy_signals, consolidated_portfolio
     except Exception as e:
@@ -130,7 +125,7 @@ def run_all_signals_display():
         - Strategy execution summary
     """
     from the_alchemiser.core.ui.cli_formatter import (
-        render_header, render_footer, render_technical_indicators, 
+        render_header, render_footer, 
         render_strategy_signals, render_portfolio_allocation
     )
     
@@ -144,10 +139,7 @@ def run_all_signals_display():
             Console().print("[bold red]Failed to generate multi-strategy signals[/bold red]")
             return False
             
-        # Display technical indicators
-        render_technical_indicators(strategy_signals)
-        
-        # Display strategy signals IMMEDIATELY after indicators
+        # Display strategy signals
         render_strategy_signals(strategy_signals)
         
         # Display consolidated portfolio
@@ -178,11 +170,35 @@ def run_all_signals_display():
         from the_alchemiser.core.config import Config
         config = Config()
         allocations = config['strategy']['default_strategy_allocations']
-        nuclear_pct = int(allocations['nuclear'] * 100)
-        tecl_pct = int(allocations['tecl'] * 100)
         
-        strategy_summary = f"""[bold cyan]NUCLEAR:[/bold cyan] {nuclear_positions} positions, {nuclear_pct}% allocation
-[bold cyan]TECL:[/bold cyan] {tecl_positions} positions, {tecl_pct}% allocation"""
+        # Build strategy summary dynamically for all active strategies
+        strategy_lines = []
+        
+        # Count positions for each strategy type
+        nuclear_pct = int(allocations.get('nuclear', 0) * 100)
+        tecl_pct = int(allocations.get('tecl', 0) * 100)
+        klm_pct = int(allocations.get('klm', 0) * 100)
+        
+        if nuclear_pct > 0:
+            strategy_lines.append(f"[bold cyan]NUCLEAR:[/bold cyan] {nuclear_positions} positions, {nuclear_pct}% allocation")
+        if tecl_pct > 0:
+            strategy_lines.append(f"[bold cyan]TECL:[/bold cyan] {tecl_positions} positions, {tecl_pct}% allocation")
+        if klm_pct > 0:
+            # Count KLM positions from consolidated portfolio
+            klm_positions = 1  # Default to 1 position for KLM
+            if consolidated_portfolio:
+                # Count symbols that might be from KLM (if we can determine)
+                klm_symbols = set()
+                if StrategyType.KLM in strategy_signals:
+                    klm_signal = strategy_signals[StrategyType.KLM]
+                    if isinstance(klm_signal.get('symbol'), str):
+                        klm_symbols.add(klm_signal['symbol'])
+                    elif isinstance(klm_signal.get('symbol'), dict):
+                        klm_symbols.update(klm_signal['symbol'].keys())
+                klm_positions = len([s for s in klm_symbols if s in consolidated_portfolio]) or 1
+            strategy_lines.append(f"[bold cyan]KLM:[/bold cyan] {klm_positions} positions, {klm_pct}% allocation")
+        
+        strategy_summary = "\n".join(strategy_lines)
         
         console.print(Panel(strategy_summary, title="Strategy Summary", border_style="blue"))
         
@@ -218,7 +234,7 @@ def run_multi_strategy_trading(live_trading: bool = False, ignore_market_hours: 
         - Technical indicators and strategy signals are displayed before execution
         - Error notifications are sent via email if configured
     """
-    from the_alchemiser.core.ui.cli_formatter import render_header, render_technical_indicators
+    from the_alchemiser.core.ui.cli_formatter import render_header
     
     mode_str = "LIVE" if live_trading else "PAPER"
     
@@ -226,14 +242,9 @@ def run_multi_strategy_trading(live_trading: bool = False, ignore_market_hours: 
         from the_alchemiser.execution.trading_engine import TradingEngine, StrategyType
         from the_alchemiser.execution.smart_execution import is_market_open
         
-        # Initialize multi-strategy trader with config allocations
-        allocations = config['strategy']['default_strategy_allocations']
+        # Initialize multi-strategy trader - TradingEngine will read config allocations automatically
         trader = TradingEngine(
             paper_trading=not live_trading,
-            strategy_allocations={
-                StrategyType.NUCLEAR: allocations['nuclear'],
-                StrategyType.TECL: allocations['tecl']
-            },
             ignore_market_hours=ignore_market_hours,
             config=config
         )
@@ -254,14 +265,11 @@ def run_multi_strategy_trading(live_trading: bool = False, ignore_market_hours: 
             )
             return "market_closed"
         
-        # Generate strategy signals to get technical indicators for display
+        # Generate strategy signals for display
         render_header("Analyzing market conditions...", "Multi-Strategy Trading")
         strategy_signals = trader.strategy_manager.run_all_strategies()[0]
         
-        # Display technical indicators
-        render_technical_indicators(strategy_signals)
-        
-        # Display strategy signals right after indicators
+        # Display strategy signals
         from the_alchemiser.core.ui.cli_formatter import render_strategy_signals
         render_strategy_signals(strategy_signals)
         
