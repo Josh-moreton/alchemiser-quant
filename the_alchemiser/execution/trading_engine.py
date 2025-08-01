@@ -192,6 +192,25 @@ class TradingEngine:
             Current price as float, or 0.0 if price unavailable.
         """
         return self.data_provider.get_current_price(symbol)
+    
+    def get_current_prices(self, symbols: List[str]) -> Dict[str, float]:
+        """Get current prices for multiple symbols.
+        
+        Args:
+            symbols: List of stock symbols to get prices for.
+            
+        Returns:
+            Dictionary mapping symbols to current prices.
+        """
+        prices = {}
+        for symbol in symbols:
+            try:
+                price = self.get_current_price(symbol)
+                if price and price > 0:
+                    prices[symbol] = float(price)
+            except Exception as e:
+                logging.warning(f"Failed to get current price for {symbol}: {e}")
+        return prices
 
     # --- Order and Rebalancing Methods ---
     def wait_for_settlement(self, sell_orders: List[Dict], max_wait_time: int = 60, poll_interval: float = 2.0) -> bool:
@@ -343,13 +362,50 @@ class TradingEngine:
                     sell_orders.append(order)
         total_buy_value = sum(o.get('estimated_value', 0) for o in buy_orders)
         total_sell_value = sum(o.get('estimated_value', 0) for o in sell_orders)
+        
+        # Get current prices for P&L calculations
+        symbols_in_portfolio = set(consolidated_portfolio.keys())
+        
+        # Add symbols from existing positions
+        try:
+            current_positions = self.get_positions()
+            for symbol in current_positions.keys():
+                symbols_in_portfolio.add(symbol)
+        except Exception as e:
+            logging.warning(f"Failed to get current positions for P&L: {e}")
+        
+        # Fetch current prices for all relevant symbols
+        current_prices = self.get_current_prices(list(symbols_in_portfolio))
+        
+        # Get strategy P&L data
         strategy_summary = {}
+        try:
+            tracker = get_strategy_tracker()
+            all_strategy_pnl = tracker.get_all_strategy_pnl(current_prices)
+        except Exception as e:
+            logging.warning(f"Failed to get strategy P&L data: {e}")
+            all_strategy_pnl = {}
+        
         for strategy_type, signal_data in strategy_signals.items():
             strategy_name = strategy_type.value if hasattr(strategy_type, 'value') else str(strategy_type)
+            
+            # Get P&L data for this strategy
+            strategy_pnl = all_strategy_pnl.get(strategy_type)
+            pnl_data = {}
+            if strategy_pnl:
+                pnl_data = {
+                    'realized_pnl': round(strategy_pnl.realized_pnl, 2),
+                    'unrealized_pnl': round(strategy_pnl.unrealized_pnl, 2), 
+                    'total_pnl': round(strategy_pnl.total_pnl, 2),
+                    'allocation_value': round(strategy_pnl.allocation_value, 2),
+                    'positions': strategy_pnl.positions
+                }
+            
             strategy_summary[strategy_name] = {
                 'signal': signal_data.get('action', 'HOLD'),
                 'symbol': signal_data.get('symbol', 'N/A'),
-                'allocation': self.strategy_manager.strategy_allocations.get(strategy_type, 0.0)
+                'allocation': self.strategy_manager.strategy_allocations.get(strategy_type, 0.0),
+                **pnl_data  # Include P&L data in strategy summary
             }
         trading_summary = {
             'total_trades': total_trades,
@@ -362,10 +418,25 @@ class TradingEngine:
             symbol: {'target_percent': weight * 100} 
             for symbol, weight in consolidated_portfolio.items()
         }
+        
+        # Calculate overall P&L summary
+        total_realized_pnl = sum(pnl.realized_pnl for pnl in all_strategy_pnl.values())
+        total_unrealized_pnl = sum(pnl.unrealized_pnl for pnl in all_strategy_pnl.values())
+        total_pnl = total_realized_pnl + total_unrealized_pnl
+        total_allocation_value = sum(pnl.allocation_value for pnl in all_strategy_pnl.values())
+        
+        pnl_summary = {
+            'total_realized_pnl': round(total_realized_pnl, 2),
+            'total_unrealized_pnl': round(total_unrealized_pnl, 2),
+            'total_pnl': round(total_pnl, 2),
+            'total_allocation_value': round(total_allocation_value, 2)
+        }
+        
         return {
             'allocations': allocations,
             'strategy_summary': strategy_summary,
             'trading_summary': trading_summary,
+            'pnl_summary': pnl_summary,  # Add P&L summary
             'account_info_before': account_before,
             'account_info_after': account_after
         }

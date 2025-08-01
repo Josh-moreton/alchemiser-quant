@@ -35,15 +35,25 @@ This plan outlines how to track profits and losses (P&L) for each trading strate
 - `portfolio_rebalancer.py`: Track strategy for each order
 - Integration with `StrategyOrderTracker.record_order()`
 
-## 3. Calculate P&L per Strategy
+## 3. ✅ Calculate P&L per Strategy - COMPLETED
 
-- Use the stored order history to maintain positions and average cost on a per-strategy basis.
-- Compute realized P&L when a position is reduced or closed and unrealized P&L from current market prices.
+- ✅ Use the stored order history to maintain positions and average cost on a per-strategy basis.
+- ✅ Compute realized P&L when a position is reduced or closed and unrealized P&L from current market prices.
+- ✅ The `StrategyOrderTracker` already implements comprehensive P&L calculations via `get_strategy_pnl()` and `get_all_strategy_pnl()` methods
 
-## 4. Update the Execution Summary
+## 4. ✅ Update the Execution Summary - COMPLETED
 
-- Extend `_create_execution_summary` to include P&L metrics from the tracker.
-- For every strategy, report `realized_pnl`, `unrealized_pnl`, and `total_pnl` alongside the current allocation and trading signal.
+- ✅ Extended `_create_execution_summary` to include P&L metrics from the tracker.
+- ✅ For every strategy, now reports `realized_pnl`, `unrealized_pnl`, `total_pnl`, `allocation_value`, and `positions` alongside the current allocation and trading signal.
+- ✅ Added overall P&L summary with totals across all strategies
+- ✅ Enhanced TradingEngine with current price fetching utilities for real-time P&L calculations
+
+### Implementation Details
+
+- ✅ **Enhanced Execution Summary**: Modified `TradingEngine._create_execution_summary()` to include comprehensive P&L data
+- ✅ **Real-time P&L**: Added current price fetching for accurate unrealized P&L calculations
+- ✅ **Strategy Attribution**: Each strategy now reports detailed P&L alongside signals and allocations
+- ✅ **Error Handling**: Robust error handling ensures P&L failures don't break execution summary generation
 
 ## 5. Persist Historical Strategy P&L
 
