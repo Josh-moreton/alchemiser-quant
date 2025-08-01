@@ -42,8 +42,8 @@ class OrderCompletionMonitor:
 
         # Check if WebSocket is enabled in config
         try:
-            from the_alchemiser.core.config import get_config
-            config = get_config()
+            from the_alchemiser.core.config import load_settings
+            config = load_settings()
             alpaca_config = config.get('alpaca', {}) if config else {}
             websocket_enabled = alpaca_config.get('enable_websocket_orders', True) if alpaca_config else True
         except:

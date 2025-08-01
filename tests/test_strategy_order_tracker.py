@@ -42,10 +42,10 @@ class TestStrategyOrderTracker(unittest.TestCase):
         }
     
     @patch('the_alchemiser.tracking.strategy_order_tracker.get_s3_handler')
-    @patch('the_alchemiser.tracking.strategy_order_tracker.get_config')
-    def test_tracker_initialization(self, mock_get_config, mock_get_s3_handler):
+    @patch('the_alchemiser.tracking.strategy_order_tracker.load_settings')
+    def test_tracker_initialization(self, mock_load_settings, mock_get_s3_handler):
         """Test tracker initializes correctly."""
-        mock_get_config.return_value = self.mock_config
+        mock_load_settings.return_value = self.mock_config
         mock_get_s3_handler.return_value = self.mock_s3_handler
         
         tracker = StrategyOrderTracker()
@@ -55,10 +55,10 @@ class TestStrategyOrderTracker(unittest.TestCase):
         self.assertIn('test_orders/', tracker.orders_s3_path)
     
     @patch('the_alchemiser.tracking.strategy_order_tracker.get_s3_handler')
-    @patch('the_alchemiser.tracking.strategy_order_tracker.get_config')
-    def test_record_order(self, mock_get_config, mock_get_s3_handler):
+    @patch('the_alchemiser.tracking.strategy_order_tracker.load_settings')
+    def test_record_order(self, mock_load_settings, mock_get_s3_handler):
         """Test recording an order."""
-        mock_get_config.return_value = self.mock_config
+        mock_load_settings.return_value = self.mock_config
         mock_get_s3_handler.return_value = self.mock_s3_handler
         
         tracker = StrategyOrderTracker()
@@ -91,10 +91,10 @@ class TestStrategyOrderTracker(unittest.TestCase):
         self.assertEqual(position.average_cost, 50.0)
     
     @patch('the_alchemiser.tracking.strategy_order_tracker.get_s3_handler')
-    @patch('the_alchemiser.tracking.strategy_order_tracker.get_config')
-    def test_position_updates(self, mock_get_config, mock_get_s3_handler):
+    @patch('the_alchemiser.tracking.strategy_order_tracker.load_settings')
+    def test_position_updates(self, mock_load_settings, mock_get_s3_handler):
         """Test position updates with multiple orders."""
-        mock_get_config.return_value = self.mock_config
+        mock_load_settings.return_value = self.mock_config
         mock_get_s3_handler.return_value = self.mock_s3_handler
         
         tracker = StrategyOrderTracker()
@@ -126,10 +126,10 @@ class TestStrategyOrderTracker(unittest.TestCase):
         self.assertAlmostEqual(realized_pnl, expected_pnl, places=2)
     
     @patch('the_alchemiser.tracking.strategy_order_tracker.get_s3_handler')
-    @patch('the_alchemiser.tracking.strategy_order_tracker.get_config')
-    def test_strategy_pnl_calculation(self, mock_get_config, mock_get_s3_handler):
+    @patch('the_alchemiser.tracking.strategy_order_tracker.load_settings')
+    def test_strategy_pnl_calculation(self, mock_load_settings, mock_get_s3_handler):
         """Test P&L calculation for a strategy."""
-        mock_get_config.return_value = self.mock_config
+        mock_load_settings.return_value = self.mock_config
         mock_get_s3_handler.return_value = self.mock_s3_handler
         
         tracker = StrategyOrderTracker()
@@ -166,10 +166,10 @@ class TestStrategyOrderTracker(unittest.TestCase):
         self.assertAlmostEqual(pnl.total_pnl, expected_realized + expected_unrealized, places=2)
     
     @patch('the_alchemiser.tracking.strategy_order_tracker.get_s3_handler')
-    @patch('the_alchemiser.tracking.strategy_order_tracker.get_config')
-    def test_email_summary(self, mock_get_config, mock_get_s3_handler):
+    @patch('the_alchemiser.tracking.strategy_order_tracker.load_settings')
+    def test_email_summary(self, mock_load_settings, mock_get_s3_handler):
         """Test email summary generation."""
-        mock_get_config.return_value = self.mock_config
+        mock_load_settings.return_value = self.mock_config
         mock_get_s3_handler.return_value = self.mock_s3_handler
         
         tracker = StrategyOrderTracker()

@@ -26,8 +26,8 @@ def load_alert_config():
         s3_handler = get_s3_handler()
         
         # Check if file exists in S3 bucket
-        from the_alchemiser.core.config import get_config
-        global_config = get_config()
+        from the_alchemiser.core.config import load_settings
+        global_config = load_settings()
         s3_uri = global_config['alerts'].get('alert_config_s3', 's3://the-alchemiser-s3/alert_config.json')
         if s3_handler.file_exists(s3_uri):
             content = s3_handler.read_text(s3_uri)
@@ -43,8 +43,8 @@ def load_alert_config():
         logging.warning(f"Could not load alert config: {e}")
         
     # Default config if nothing found - use global config values
-    from the_alchemiser.core.config import get_config
-    global_config = get_config()
+    from the_alchemiser.core.config import load_settings
+    global_config = load_settings()
     return {
         "alerts": {
             "cooldown_minutes": global_config['alerts'].get('cooldown_minutes', 30)

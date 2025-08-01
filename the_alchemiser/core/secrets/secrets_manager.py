@@ -28,8 +28,8 @@ class SecretsManager:
             region_name: AWS region where secrets are stored (if None, loads from config)
         """
         if region_name is None:
-            from the_alchemiser.core.config import get_config
-            config = get_config()
+            from the_alchemiser.core.config import load_settings
+            config = load_settings()
             region_name = config['secrets_manager'].get('region_name', 'eu-west-2')
         self.region_name = region_name
         self.client = None
@@ -131,8 +131,8 @@ class SecretsManager:
             Tuple of (api_key, secret_key) or (None, None) if not found
         """
         try:
-            from the_alchemiser.core.config import get_config
-            config = get_config()
+            from the_alchemiser.core.config import load_settings
+            config = load_settings()
             secret_name = config['secrets_manager'].get('secret_name', 'nuclear-secrets')
             secrets = self.get_secret(secret_name)
             if not secrets:
@@ -167,8 +167,8 @@ class SecretsManager:
             Tuple of (token, chat_id) or (None, None) if not found
         """
         try:
-            from the_alchemiser.core.config import get_config
-            config = get_config()
+            from the_alchemiser.core.config import load_settings
+            config = load_settings()
             secret_name = config['secrets_manager'].get('secret_name', 'nuclear-secrets')
             secrets = self.get_secret(secret_name)
             if not secrets:
@@ -197,8 +197,8 @@ class SecretsManager:
             API key string or None if not found
         """
         try:
-            from the_alchemiser.core.config import get_config
-            config = get_config()
+            from the_alchemiser.core.config import load_settings
+            config = load_settings()
             secret_name = config['secrets_manager'].get('secret_name', 'nuclear-secrets')
             secrets = self.get_secret(secret_name)
             if not secrets:

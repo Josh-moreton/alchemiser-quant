@@ -28,7 +28,7 @@ from enum import Enum
 
 from the_alchemiser.core.trading.strategy_manager import StrategyType
 from the_alchemiser.core.utils.s3_utils import get_s3_handler
-from the_alchemiser.core.config import get_config
+from the_alchemiser.core.config import load_settings
 
 
 @dataclass
@@ -125,7 +125,7 @@ class StrategyOrderTracker:
             config: Configuration object
             paper_trading: Whether this is for paper trading (separates data storage)
         """
-        self.config = config or get_config()
+        self.config = config or load_settings()
         self.s3_handler = get_s3_handler()
         self.paper_trading = paper_trading
         
