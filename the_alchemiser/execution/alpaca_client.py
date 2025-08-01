@@ -89,7 +89,11 @@ class AlpacaClient:
         self.validate_buying_power = validate_buying_power
         
         # Initialize helper modules
-        self.order_monitor = OrderCompletionMonitor(trading_client)
+        self.order_monitor = OrderCompletionMonitor(
+            trading_client, 
+            api_key=data_provider.api_key, 
+            secret_key=data_provider.secret_key
+        )
         self.asset_handler = AssetOrderHandler(data_provider)
         self.position_manager = PositionManager(trading_client, data_provider)
         self.limit_order_handler = LimitOrderHandler(trading_client, self.position_manager, self.asset_handler)

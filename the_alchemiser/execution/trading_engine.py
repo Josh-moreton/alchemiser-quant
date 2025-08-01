@@ -407,7 +407,11 @@ class TradingEngine:
             )
             
             # Set signals data (copy of strategies for backward compatibility)
-            dashboard_data["signals"] = dict(execution_result.strategy_signals)
+            # Convert StrategyType keys to strings for JSON serialization
+            dashboard_data["signals"] = {
+                strategy_type.value if hasattr(strategy_type, 'value') else str(strategy_type): signal_data
+                for strategy_type, signal_data in execution_result.strategy_signals.items()
+            }
             
             # Extract recent trades data
             if execution_result.orders_executed:

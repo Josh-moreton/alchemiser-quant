@@ -9,6 +9,8 @@ alpaca:
   paper_endpoint: "https://paper-api.alpaca.markets/v2"
   cash_reserve_pct: 0.05
   slippage_bps: 5
+  # WebSocket configuration
+  enable_websocket_orders: true # Enable WebSocket for order monitoring - config issues resolved
 
 # AWS/Lambda deployment
 aws:

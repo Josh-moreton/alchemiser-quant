@@ -59,7 +59,7 @@ class LimitOrderHandler:
         try:
             # Cancel existing orders if requested
             if cancel_existing:
-                self.position_manager.cancel_all_orders(symbol)
+                self.position_manager.cancel_symbol_orders(symbol)
                 import time
                 time.sleep(0.5)  # Brief pause for cancellations to process
 

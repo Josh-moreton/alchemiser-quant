@@ -20,9 +20,11 @@ class OrderCompletionMonitor:
     Provides both streaming and polling methods with automatic fallback.
     """
     
-    def __init__(self, trading_client):
-        """Initialize with trading client."""
+    def __init__(self, trading_client, api_key=None, secret_key=None):
+        """Initialize with trading client and optional API credentials."""
         self.trading_client = trading_client
+        self.api_key = api_key
+        self.secret_key = secret_key
         self.console = Console()
         
         # WebSocket connection state
@@ -38,20 +40,36 @@ class OrderCompletionMonitor:
         if not order_ids:
             return {}
 
-        api_key = getattr(self.trading_client, "_api_key", None)
-        secret_key = getattr(self.trading_client, "_secret_key", None)
+        # Check if WebSocket is enabled in config
+        try:
+            from the_alchemiser.core.config import get_config
+            config = get_config()
+            alpaca_config = config.get('alpaca', {}) if config else {}
+            websocket_enabled = alpaca_config.get('enable_websocket_orders', True) if alpaca_config else True
+        except:
+            websocket_enabled = True  # Default to enabled if config unavailable
+
+        api_key = self.api_key or getattr(self.trading_client, "_api_key", None)
+        secret_key = self.secret_key or getattr(self.trading_client, "_secret_key", None)
         has_keys = isinstance(api_key, str) and isinstance(secret_key, str)
 
         self.console.print(f"[blue]🔑 API keys available: {has_keys}[/blue]")
         
-        if has_keys:
+        if has_keys and websocket_enabled:
             try:
                 if logging.getLogger().level <= logging.DEBUG:
                     self.console.print("[blue]🚀 Attempting WebSocket streaming method for order completion[/blue]")
                 return self._wait_for_order_completion_stream(order_ids, max_wait_seconds)
             except Exception as e:  # pragma: no cover - streaming errors fallback
-                self.console.print(f"[red]❌ Falling back to polling due to streaming error: {e}[/red]")
-                logging.warning(f"❌ Falling back to polling due to streaming error: {e}")
+                error_msg = str(e).lower()
+                if "insufficient subscription" in error_msg:
+                    self.console.print(f"[yellow]⚠️ WebSocket subscription insufficient, using polling instead[/yellow]")
+                    logging.warning(f"⚠️ WebSocket subscription insufficient for TradingStream, falling back to polling")
+                else:
+                    self.console.print(f"[red]❌ Falling back to polling due to streaming error: {e}[/red]")
+                    logging.warning(f"❌ Falling back to polling due to streaming error: {e}")
+        elif not websocket_enabled:
+            self.console.print("[yellow]📡 WebSocket order monitoring disabled in config[/yellow]")
 
         if logging.getLogger().level <= logging.DEBUG:
             self.console.print("[blue]🔄 Using polling method for order completion[/blue]")
@@ -224,9 +242,14 @@ class OrderCompletionMonitor:
 
     def _create_new_websocket(self, on_update, remaining, completed, max_wait_seconds, order_ids):
         """Create new WebSocket connection."""
-        api_key = getattr(self.trading_client, "_api_key")
-        secret_key = getattr(self.trading_client, "_secret_key")
+        api_key = self.api_key or getattr(self.trading_client, "_api_key", None)
+        secret_key = self.secret_key or getattr(self.trading_client, "_secret_key", None)
         paper = getattr(self.trading_client, "_sandbox", True)
+        
+        # Validate API keys
+        if not api_key or not secret_key:
+            logging.error("❌ Missing API keys for WebSocket connection")
+            return self._wait_for_order_completion_polling(order_ids, max_wait_seconds)
         
         logging.info("Creating new WebSocket connection")
 
@@ -234,7 +257,7 @@ class OrderCompletionMonitor:
             from alpaca.trading.stream import TradingStream
             
             logging.info("🚀 Starting new WebSocket stream...")
-            stream = TradingStream(api_key, secret_key, paper=paper)
+            stream = TradingStream(str(api_key), str(secret_key), paper=paper)
             stream.subscribe_trade_updates(on_update)
             
             thread = threading.Thread(target=stream.run, daemon=True)
@@ -267,8 +290,8 @@ class OrderCompletionMonitor:
 
     def prepare_websocket_connection(self) -> bool:
         """Pre-initialize WebSocket connection for faster order monitoring."""
-        api_key = getattr(self.trading_client, "_api_key", None)
-        secret_key = getattr(self.trading_client, "_secret_key", None)
+        api_key = self.api_key or getattr(self.trading_client, "_api_key", None)
+        secret_key = self.secret_key or getattr(self.trading_client, "_secret_key", None)
         has_keys = isinstance(api_key, str) and isinstance(secret_key, str)
         
         if not has_keys:

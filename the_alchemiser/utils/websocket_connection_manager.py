@@ -21,9 +21,11 @@ class WebSocketConnectionManager:
     trading streams and data streams.
     """
     
-    def __init__(self, trading_client):
-        """Initialize with trading client."""
+    def __init__(self, trading_client, api_key=None, secret_key=None):
+        """Initialize with trading client and optional API credentials."""
         self.trading_client = trading_client
+        self.api_key = api_key
+        self.secret_key = secret_key
         self.console = Console()
         
         # WebSocket connection state
@@ -37,8 +39,8 @@ class WebSocketConnectionManager:
         Returns:
             True if WebSocket is ready, False if it failed to connect
         """
-        api_key = getattr(self.trading_client, "_api_key", None)
-        secret_key = getattr(self.trading_client, "_secret_key", None)
+        api_key = self.api_key or getattr(self.trading_client, "_api_key", None)
+        secret_key = self.secret_key or getattr(self.trading_client, "_secret_key", None)
         has_keys = isinstance(api_key, str) and isinstance(secret_key, str)
         
         if not has_keys:
@@ -82,8 +84,13 @@ class WebSocketConnectionManager:
             return True
                 
         except Exception as e:
-            self.console.print(f"[red]❌ Failed to pre-initialize WebSocket: {e}[/red]")
-            logging.error(f"❌ Failed to pre-initialize WebSocket: {e}")
+            error_msg = str(e).lower()
+            if "insufficient subscription" in error_msg:
+                self.console.print("[yellow]⚠️ WebSocket subscription insufficient for TradingStream[/yellow]")
+                logging.warning("⚠️ TradingStream WebSocket subscription insufficient - this is normal for some Alpaca account types")
+            else:
+                self.console.print(f"[red]❌ Failed to pre-initialize WebSocket: {e}[/red]")
+                logging.error(f"❌ Failed to pre-initialize WebSocket: {e}")
             return False
 
     def cleanup_websocket_connection(self) -> None:
