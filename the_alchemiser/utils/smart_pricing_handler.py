@@ -116,3 +116,46 @@ class SmartPricingHandler:
             Calculated conservative buy price, or None if data unavailable
         """
         return self.get_smart_limit_price(symbol, OrderSide.BUY, aggressiveness)
+
+    def get_aggressive_marketable_limit(self, symbol: str, side: OrderSide, bid: float, ask: float) -> float:
+        """
+        Calculate aggressive marketable limit prices per better orders spec.
+        
+        This is the "pro equivalent of hitting the market but with a seatbelt":
+        - BUY: ask + 1 tick (ask + 0.01)
+        - SELL: bid - 1 tick (bid - 0.01)
+        
+        Args:
+            symbol: Stock symbol
+            side: BUY or SELL
+            bid: Current bid price
+            ask: Current ask price
+            
+        Returns:
+            Aggressive limit price that should execute quickly
+        """
+        if side == OrderSide.BUY:
+            # Buy at ask + 1 cent (aggressive but protected)
+            return round(ask + 0.01, 2)
+        else:
+            # Sell at bid - 1 cent (aggressive but protected)
+            return round(max(bid - 0.01, 0.01), 2)  # Ensure positive price
+
+    def validate_aggressive_limit(self, limit_price: float, market_price: float, 
+                                side: OrderSide, max_slippage_bps: float = 20) -> bool:
+        """
+        Validate that aggressive limit price is within acceptable slippage bounds.
+        
+        For leveraged ETFs, opportunity cost often outweighs small slippage costs.
+        Default 20 bps tolerance is reasonable for 3x ETFs.
+        """
+        if market_price <= 0:
+            return True  # Can't validate without market price
+            
+        slippage = abs(limit_price - market_price) / market_price * 10000  # bps
+        
+        if slippage > max_slippage_bps:
+            logging.warning(f"Aggressive limit slippage {slippage:.1f}bps exceeds {max_slippage_bps}bps limit")
+            return False
+            
+        return True

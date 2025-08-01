@@ -8,6 +8,7 @@ from alpaca.trading.enums import OrderSide
 from ..utils.trading_math import calculate_rebalance_amounts
 from ..core.trading.strategy_manager import StrategyType
 from ..tracking.strategy_order_tracker import get_strategy_tracker
+from ..config.better_orders_config import get_better_orders_config
 
 
 class PortfolioRebalancer:
@@ -158,9 +159,25 @@ class PortfolioRebalancer:
                     if qty > 0:
                         sell_plans.append({"symbol": symbol, "qty": qty, "est": qty * price})
 
-        # Execute sell orders
+        # Execute sell orders using better orders execution
         for plan in sell_plans:
-            order_id = self.bot.place_order(plan["symbol"], plan["qty"], OrderSide.SELL)
+            symbol = plan["symbol"]
+            qty = plan["qty"]
+            config = get_better_orders_config()
+            
+            # Use better orders for sell execution if available and appropriate
+            if (hasattr(self.order_manager, 'place_better_order') and 
+                config.should_use_better_orders(symbol)):
+                max_slippage = config.get_slippage_tolerance(symbol)
+                order_id = self.order_manager.place_better_order(
+                    symbol, 
+                    qty, 
+                    OrderSide.SELL,
+                    max_slippage_bps=max_slippage
+                )
+            else:
+                # Fallback to existing method
+                order_id = self.bot.place_order(symbol, qty, OrderSide.SELL)
             if order_id:
                 # Track order with strategy
                 try:
@@ -253,13 +270,26 @@ class PortfolioRebalancer:
             else:
                 Console().print(f"[green]Buying {symbol}: ${target_dollar_amount:.2f}[/green]")
             
-            # Use notional order directly via the order manager adapter
-            order_id = self.order_manager.place_limit_or_market(
-                symbol, 
-                qty=0,  # Ignored when notional is used
-                side=OrderSide.BUY, 
-                notional=target_dollar_amount
-            )
+            # Use better orders execution if available for share-based orders, else notional fallback
+            config = get_better_orders_config()
+            if (hasattr(self.order_manager, 'place_better_order') and 
+                target_qty > 0 and config.should_use_better_orders(symbol)):
+                # Use better orders for share-based execution
+                max_slippage = config.get_slippage_tolerance(symbol)
+                order_id = self.order_manager.place_better_order(
+                    symbol, 
+                    target_qty, 
+                    OrderSide.BUY,
+                    max_slippage_bps=max_slippage
+                )
+            else:
+                # Fallback to notional order for edge cases or when better orders unavailable
+                order_id = self.order_manager.place_limit_or_market(
+                    symbol, 
+                    qty=0,  # Ignored when notional is used
+                    side=OrderSide.BUY, 
+                    notional=target_dollar_amount
+                )
                 
             if order_id:
                 # Track order with strategy

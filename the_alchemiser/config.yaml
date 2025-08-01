@@ -49,6 +49,62 @@ data:
   cache_duration: 300
   default_symbol: "AAPL"
 
+# Better Orders execution configuration
+better_orders:
+  enabled: true
+  execution_mode: "auto" # Options: "better_orders", "standard", "auto"
+
+  # Risk management settings
+  max_slippage_bps: 20.0
+  aggressive_timeout_seconds: 2.5
+  max_repegs: 2
+
+  # Market timing settings
+  enable_premarket_assessment: true
+  market_open_fast_execution: true
+
+  # Spread thresholds (in cents)
+  tight_spread_threshold: 3.0
+  wide_spread_threshold: 5.0
+
+  # Symbol classification for better orders execution
+  leveraged_etf_symbols:
+    - "TQQQ"
+    - "SQQQ"
+    - "TECL"
+    - "SPXL"
+    - "UPRO"
+    - "UVXY"
+    - "LABU"
+    - "LABD"
+    - "SOXL"
+    - "FNGU"
+    - "FTLS"
+    - "FAS"
+    - "TNA"
+    - "TZA"
+    - "CURE"
+    - "DIRV"
+
+  high_volume_etfs:
+    - "SPY"
+    - "QQQ"
+    - "TLT"
+    - "XLF"
+    - "XLK"
+    - "XLP"
+    - "XLY"
+    - "VOX"
+    - "VTV"
+    - "VOOG"
+    - "VOOV"
+    - "AGG"
+    - "BIL"
+    - "BSV"
+    - "IWM"
+    - "EFA"
+    - "VWO"
+
 # Strategy tracking configuration
 tracking:
   s3_bucket: "the-alchemiser-s3"
