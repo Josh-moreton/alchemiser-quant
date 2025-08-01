@@ -144,27 +144,8 @@ class TradingEngine:
         Note:
             Returns empty dict if account information cannot be retrieved.
         """
-        account = self.data_provider.get_account_info()
-        if not account:
-            return {}
-        portfolio_history = self.data_provider.get_portfolio_history()
-        open_positions = self.data_provider.get_open_positions()
-        
-        # Get recent closed position P&L
-        recent_closed_pnl = self.data_provider.get_recent_closed_positions_pnl(days_back=7)
-        
-        return {
-            'account_number': getattr(account, 'account_number', 'N/A'),
-            'portfolio_value': float(getattr(account, 'portfolio_value', 0) or 0),
-            'equity': float(getattr(account, 'equity', 0) or 0),
-            'buying_power': float(getattr(account, 'buying_power', 0) or 0),
-            'cash': float(getattr(account, 'cash', 0) or 0),
-            'day_trade_count': getattr(account, 'day_trade_count', 0),
-            'status': getattr(account, 'status', 'unknown'),
-            'portfolio_history': portfolio_history,
-            'open_positions': open_positions,
-            'recent_closed_pnl': recent_closed_pnl
-        }
+        from the_alchemiser.utils.account_utils import extract_comprehensive_account_data
+        return extract_comprehensive_account_data(self.data_provider)
 
     def get_positions(self) -> Dict:
         """Get current positions via UnifiedDataProvider.
@@ -191,7 +172,8 @@ class TradingEngine:
         Returns:
             Current price as float, or 0.0 if price unavailable.
         """
-        return self.data_provider.get_current_price(symbol)
+        price = self.data_provider.get_current_price(symbol)
+        return float(price) if price is not None else 0.0
     
     def get_current_prices(self, symbols: List[str]) -> Dict[str, float]:
         """Get current prices for multiple symbols.
@@ -349,23 +331,11 @@ class TradingEngine:
                                  consolidated_portfolio: Dict[str, float],
                                  orders_executed: List[Dict],
                                  account_before: Dict, account_after: Dict) -> Dict:
-        """Create comprehensive execution summary"""
-        total_trades = len(orders_executed)
-        buy_orders = []
-        sell_orders = []
-        for order in orders_executed:
-            side = order.get('side')
-            if side:
-                if hasattr(side, 'value'):
-                    side_value = side.value.upper()
-                else:
-                    side_value = str(side).upper()
-                if side_value == 'BUY':
-                    buy_orders.append(order)
-                elif side_value == 'SELL':
-                    sell_orders.append(order)
-        total_buy_value = sum(o.get('estimated_value', 0) for o in buy_orders)
-        total_sell_value = sum(o.get('estimated_value', 0) for o in sell_orders)
+        """Create comprehensive execution summary using helper utilities."""
+        from the_alchemiser.utils.portfolio_pnl_utils import (
+            calculate_strategy_pnl_summary, extract_trading_summary, 
+            build_strategy_summary, build_allocation_summary
+        )
         
         # Get current prices for P&L calculations
         symbols_in_portfolio = set(consolidated_portfolio.keys())
@@ -373,185 +343,101 @@ class TradingEngine:
         # Add symbols from existing positions
         try:
             current_positions = self.get_positions()
-            for symbol in current_positions.keys():
-                symbols_in_portfolio.add(symbol)
+            symbols_in_portfolio.update(current_positions.keys())
         except Exception as e:
             logging.warning(f"Failed to get current positions for P&L: {e}")
         
         # Fetch current prices for all relevant symbols
         current_prices = self.get_current_prices(list(symbols_in_portfolio))
         
-        # Get strategy P&L data
-        strategy_summary = {}
-        try:
-            tracker = get_strategy_tracker(paper_trading=self.paper_trading)
-            all_strategy_pnl = tracker.get_all_strategy_pnl(current_prices)
-        except Exception as e:
-            logging.warning(f"Failed to get strategy P&L data: {e}")
-            all_strategy_pnl = {}
+        # Calculate P&L summary using helper
+        pnl_data = calculate_strategy_pnl_summary(self.paper_trading, current_prices)
         
-        for strategy_type, signal_data in strategy_signals.items():
-            strategy_name = strategy_type.value if hasattr(strategy_type, 'value') else str(strategy_type)
-            
-            # Get P&L data for this strategy
-            strategy_pnl = all_strategy_pnl.get(strategy_type)
-            pnl_data = {}
-            if strategy_pnl:
-                pnl_data = {
-                    'realized_pnl': round(strategy_pnl.realized_pnl, 2),
-                    'unrealized_pnl': round(strategy_pnl.unrealized_pnl, 2), 
-                    'total_pnl': round(strategy_pnl.total_pnl, 2),
-                    'allocation_value': round(strategy_pnl.allocation_value, 2),
-                    'positions': strategy_pnl.positions
-                }
-            
-            strategy_summary[strategy_name] = {
-                'signal': signal_data.get('action', 'HOLD'),
-                'symbol': signal_data.get('symbol', 'N/A'),
-                'allocation': self.strategy_manager.strategy_allocations.get(strategy_type, 0.0),
-                **pnl_data  # Include P&L data in strategy summary
-            }
-        trading_summary = {
-            'total_trades': total_trades,
-            'buy_orders': len(buy_orders),
-            'sell_orders': len(sell_orders),
-            'total_buy_value': total_buy_value,
-            'total_sell_value': total_sell_value
-        }
-        allocations = {
-            symbol: {'target_percent': weight * 100} 
-            for symbol, weight in consolidated_portfolio.items()
-        }
+        # Extract trading summary using helper
+        trading_summary = extract_trading_summary(orders_executed)
         
-        # Calculate overall P&L summary
-        total_realized_pnl = sum(pnl.realized_pnl for pnl in all_strategy_pnl.values())
-        total_unrealized_pnl = sum(pnl.unrealized_pnl for pnl in all_strategy_pnl.values())
-        total_pnl = total_realized_pnl + total_unrealized_pnl
-        total_allocation_value = sum(pnl.allocation_value for pnl in all_strategy_pnl.values())
+        # Build strategy summary using helper
+        strategy_summary = build_strategy_summary(
+            strategy_signals, 
+            self.strategy_manager.strategy_allocations, 
+            pnl_data['all_strategy_pnl']
+        )
         
-        pnl_summary = {
-            'total_realized_pnl': round(total_realized_pnl, 2),
-            'total_unrealized_pnl': round(total_unrealized_pnl, 2),
-            'total_pnl': round(total_pnl, 2),
-            'total_allocation_value': round(total_allocation_value, 2)
-        }
+        # Build allocations summary using helper
+        allocations = build_allocation_summary(consolidated_portfolio)
         
         return {
             'allocations': allocations,
             'strategy_summary': strategy_summary,
             'trading_summary': trading_summary,
-            'pnl_summary': pnl_summary,  # Add P&L summary
+            'pnl_summary': pnl_data['summary'],
             'account_info_before': account_before,
             'account_info_after': account_after
         }
 
     def _save_dashboard_data(self, execution_result: MultiStrategyExecutionResult):
-        """Save structured data for dashboard consumption to S3"""
+        """Save structured data for dashboard consumption to S3 using helper utilities."""
         try:
             from the_alchemiser.core.utils.s3_utils import get_s3_handler
+            from the_alchemiser.utils.dashboard_utils import (
+                build_basic_dashboard_structure, extract_portfolio_metrics,
+                extract_positions_data, extract_strategies_data, 
+                extract_recent_trades_data, build_s3_paths
+            )
+            
             s3_handler = get_s3_handler()
-            dashboard_data = {
-                "timestamp": datetime.now().isoformat(),
-                "execution_mode": "PAPER" if self.paper_trading else "LIVE",
-                "success": execution_result.success,
-                "strategies": {},
-                "portfolio": {
-                    "total_value": 0,
-                    "total_pl": 0,
-                    "total_pl_percent": 0,
-                    "daily_pl": 0,
-                    "daily_pl_percent": 0,
-                    "cash": 0,
-                    "equity": 0
-                },
-                "positions": [],
-                "recent_trades": [],
-                "signals": {},
-                "performance": {
-                    "last_30_days": {},
-                    "last_7_days": {},
-                    "today": {}
-                }
-            }
+            
+            # Build basic structure
+            dashboard_data = build_basic_dashboard_structure(self.paper_trading)
+            dashboard_data["success"] = execution_result.success
+            
+            # Extract portfolio metrics
             if execution_result.account_info_after:
-                account = execution_result.account_info_after
-                dashboard_data["portfolio"]["total_value"] = float(account.get('equity', 0))
-                dashboard_data["portfolio"]["cash"] = float(account.get('cash', 0))
-                dashboard_data["portfolio"]["equity"] = float(account.get('equity', 0))
-                portfolio_history = account.get('portfolio_history', {})
-                if portfolio_history:
-                    profit_loss = portfolio_history.get('profit_loss', [])
-                    profit_loss_pct = portfolio_history.get('profit_loss_pct', [])
-                    if profit_loss:
-                        latest_pl = profit_loss[-1] if profit_loss else 0
-                        latest_pl_pct = profit_loss_pct[-1] if profit_loss_pct else 0
-                        dashboard_data["portfolio"]["daily_pl"] = float(latest_pl)
-                        dashboard_data["portfolio"]["daily_pl_percent"] = float(latest_pl_pct) * 100
-                open_positions = account.get('open_positions', [])
-                for position in open_positions:
-                    dashboard_data["positions"].append({
-                        "symbol": getattr(position, 'symbol', ''),
-                        "quantity": float(getattr(position, 'qty', 0)),
-                        "market_value": float(getattr(position, 'market_value', 0)),
-                        "unrealized_pl": float(getattr(position, 'unrealized_pl', 0)),
-                        "unrealized_pl_percent": float(getattr(position, 'unrealized_plpc', 0)) * 100,
-                        "current_price": float(getattr(position, 'current_price', 0)),
-                        "avg_entry_price": float(getattr(position, 'avg_entry_price', 0)),
-                        "side": getattr(position, 'side', 'long'),
-                        "change_today": float(getattr(position, 'change_today', 0))
-                    })
-            for strategy_type, signal_data in execution_result.strategy_signals.items():
-                strategy_name = strategy_type.value if hasattr(strategy_type, 'value') else str(strategy_type)
-                dashboard_data["strategies"][strategy_name] = {
-                    "signal": signal_data.get('action', 'HOLD'),
-                    "symbol": signal_data.get('symbol', ''),
-                    "reason": signal_data.get('reason', ''),
-                    "timestamp": signal_data.get('timestamp', datetime.now().isoformat()),
-                    "allocation": self.strategy_manager.strategy_allocations.get(strategy_type, 0)
-                }
-                dashboard_data["signals"][strategy_name] = signal_data
+                portfolio_metrics = extract_portfolio_metrics(execution_result.account_info_after)
+                dashboard_data["portfolio"].update(portfolio_metrics)
+                
+                # Extract positions data
+                open_positions = execution_result.account_info_after.get('open_positions', [])
+                dashboard_data["positions"] = extract_positions_data(open_positions)
+            
+            # Extract strategies data
+            dashboard_data["strategies"] = extract_strategies_data(
+                execution_result.strategy_signals, 
+                self.strategy_manager.strategy_allocations
+            )
+            
+            # Set signals data (copy of strategies for backward compatibility)
+            dashboard_data["signals"] = dict(execution_result.strategy_signals)
+            
+            # Extract recent trades data
             if execution_result.orders_executed:
-                for order in execution_result.orders_executed[-10:]:
-                    dashboard_data["recent_trades"].append({
-                        "symbol": order.get('symbol', ''),
-                        "side": order.get('side', ''),
-                        "quantity": float(order.get('qty', 0)),
-                        "price": float(order.get('price', 0)),
-                        "value": float(order.get('estimated_value', 0)),
-                        "timestamp": order.get('timestamp', datetime.now().isoformat()),
-                        "status": order.get('status', 'executed')
-                    })
-            if self.paper_trading:
-                dashboard_s3_path = "s3://the-alchemiser-s3/dashboard/latest_paper_execution.json"
-            else:
-                dashboard_s3_path = "s3://the-alchemiser-s3/dashboard/latest_execution.json"
-            success = s3_handler.write_json(dashboard_s3_path, dashboard_data)
+                dashboard_data["recent_trades"] = extract_recent_trades_data(
+                    execution_result.orders_executed
+                )
+            
+            # Build S3 paths and save
+            latest_path, historical_path = build_s3_paths(self.paper_trading)
+            
+            success = s3_handler.write_json(latest_path, dashboard_data)
             if success:
-                logging.info(f"Dashboard data saved to {dashboard_s3_path}")
-                mode_str = "paper" if self.paper_trading else "live"
-                historical_s3_path = f"s3://the-alchemiser-s3/dashboard/executions/{mode_str}/{datetime.now().strftime('%Y/%m/%d')}/execution_{datetime.now().strftime('%H%M%S')}.json"
-                s3_handler.write_json(historical_s3_path, dashboard_data)
-                logging.info(f"Historical dashboard data saved to {historical_s3_path}")
+                logging.info(f"Dashboard data saved to {latest_path}")
+                s3_handler.write_json(historical_path, dashboard_data)
+                logging.info(f"Historical dashboard data saved to {historical_path}")
             else:
                 logging.error("Failed to save dashboard data to S3")
+                
         except Exception as e:
             logging.error(f"Error saving dashboard data: {e}")
 
     def _archive_daily_strategy_pnl(self, pnl_summary: Dict) -> None:
-        """Archive daily strategy P&L for historical tracking (Step 5)."""
+        """Archive daily strategy P&L for historical tracking."""
         try:
-            # Get current prices for accurate P&L calculation
-            symbols_in_portfolio = set()
+            from the_alchemiser.utils.account_utils import extract_current_position_values
+            from the_alchemiser.tracking.strategy_order_tracker import get_strategy_tracker
             
-            # Add symbols from current positions
-            try:
-                current_positions = self.get_positions()
-                for symbol in current_positions.keys():
-                    symbols_in_portfolio.add(symbol)
-            except Exception as e:
-                logging.warning(f"Failed to get current positions for P&L archiving: {e}")
-            
-            # Get current prices
+            # Get current positions and prices
+            current_positions = self.get_positions()
+            symbols_in_portfolio = set(current_positions.keys())
             current_prices = self.get_current_prices(list(symbols_in_portfolio))
             
             # Archive the daily P&L snapshot
@@ -582,30 +468,35 @@ class TradingEngine:
 
     def _build_portfolio_state_data(self, target_portfolio: Dict[str, float], account_info: Dict, current_positions: Dict) -> Dict:
         """
-        Build portfolio state data for reporting purposes
-        Handles both dict and float for current_positions values.
+        Build portfolio state data for reporting purposes.
+        Uses existing utility functions for calculations.
         """
+        from the_alchemiser.utils.account_utils import calculate_portfolio_values, extract_current_position_values
+        from the_alchemiser.utils.trading_math import calculate_allocation_discrepancy
+        
         portfolio_value = account_info.get('portfolio_value', 0.0)
+        target_values = calculate_portfolio_values(target_portfolio, account_info)
+        current_values = extract_current_position_values(current_positions)
+        
         allocations = {}
         all_symbols = set(target_portfolio.keys()) | set(current_positions.keys())
+        
         for symbol in all_symbols:
             target_weight = target_portfolio.get(symbol, 0.0)
-            target_value = portfolio_value * target_weight
-            pos = current_positions.get(symbol, {})
-            if isinstance(pos, dict):
-                current_value = pos.get('market_value', 0.0)
-            else:
-                try:
-                    current_value = float(getattr(pos, 'market_value', 0.0)) if pos else 0.0
-                except Exception:
-                    current_value = 0.0
-            current_weight = current_value / portfolio_value if portfolio_value > 0 else 0.0
+            target_value = target_values.get(symbol, 0.0)
+            current_value = current_values.get(symbol, 0.0)
+            
+            current_weight, _ = calculate_allocation_discrepancy(
+                target_weight, current_value, portfolio_value
+            )
+            
             allocations[symbol] = {
                 'target_percent': target_weight * 100,
                 'current_percent': current_weight * 100,
                 'target_value': target_value,
                 'current_value': current_value
             }
+        
         return {'allocations': allocations}
 
     def _trigger_post_trade_validation(self, strategy_signals: Dict[StrategyType, Any], 
@@ -664,19 +555,14 @@ class TradingEngine:
         Note:
             Uses Rich table formatting via cli_formatter for beautiful display.
         """
-        portfolio_value = account_info.get('portfolio_value', 0.0)
-        # Calculate target and current allocations based on portfolio value
-        target_values = {
-            symbol: portfolio_value * weight 
-            for symbol, weight in target_portfolio.items()
-        }
-        current_values = {
-            symbol: float(getattr(pos, 'market_value', 0.0)) 
-            for symbol, pos in current_positions.items()
-        }
-        
-        # Use Rich table for beautiful display
+        from the_alchemiser.utils.account_utils import calculate_portfolio_values, extract_current_position_values
         from the_alchemiser.core.ui.cli_formatter import render_target_vs_current_allocations
+        
+        # Use helper functions to calculate values
+        target_values = calculate_portfolio_values(target_portfolio, account_info)
+        current_values = extract_current_position_values(current_positions)
+        
+        # Use existing formatter for display
         render_target_vs_current_allocations(target_portfolio, account_info, current_positions)
         
         return target_values, current_values
@@ -690,7 +576,6 @@ class TradingEngine:
         from rich.console import Console
         from rich.panel import Panel
         from rich.table import Table
-        from rich.columns import Columns
         from rich.text import Text
         
         console = Console()

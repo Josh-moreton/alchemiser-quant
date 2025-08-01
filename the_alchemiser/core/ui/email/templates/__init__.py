@@ -25,7 +25,6 @@ class EmailTemplates:
         positions: dict,
         orders: Optional[List[Dict]] = None,
         signal=None,
-        portfolio_state: Optional[Dict] = None,
         portfolio_history: Optional[Dict] = None,
         open_positions: Optional[List[Dict]] = None,
     ) -> str:
