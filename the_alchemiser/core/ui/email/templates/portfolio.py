@@ -241,3 +241,95 @@ class PortfolioBuilder:
             </table>
         </div>
         """
+
+    # ====== NEUTRAL MODE FUNCTIONS (NO DOLLAR VALUES/PERCENTAGES) ======
+    
+    @staticmethod
+    def build_positions_table_neutral(open_positions: List[Dict]) -> str:
+        """Build HTML table for open positions without dollar values or percentages."""
+        if not open_positions:
+            return BaseEmailTemplate.create_alert_box(
+                "No open positions", 
+                "info"
+            )
+        
+        positions_rows = ""
+        
+        for position in open_positions[:10]:  # Show top 10 positions
+            symbol = position.get('symbol', 'N/A')
+            qty = float(position.get('qty', 0))
+            
+            positions_rows += f"""
+            <tr>
+                <td style="padding: 8px 12px; border-bottom: 1px solid #E5E7EB; font-weight: 600;">
+                    {symbol}
+                </td>
+                <td style="padding: 8px 12px; border-bottom: 1px solid #E5E7EB; text-align: right;">
+                    {qty:.4f} shares
+                </td>
+                <td style="padding: 8px 12px; border-bottom: 1px solid #E5E7EB; text-align: center; color: #10B981;">
+                    ✅ Open
+                </td>
+            </tr>
+            """
+        
+        return f"""
+        <table style="width: 100%; border-collapse: collapse; background-color: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+            <thead>
+                <tr style="background-color: #F9FAFB;">
+                    <th style="padding: 12px; text-align: left; font-weight: 600; color: #374151; border-bottom: 1px solid #E5E7EB;">Symbol</th>
+                    <th style="padding: 12px; text-align: right; font-weight: 600; color: #374151; border-bottom: 1px solid #E5E7EB;">Quantity</th>
+                    <th style="padding: 12px; text-align: center; font-weight: 600; color: #374151; border-bottom: 1px solid #E5E7EB;">Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {positions_rows}
+            </tbody>
+        </table>
+        """
+    
+    @staticmethod
+    def build_account_summary_neutral(account_info: Dict) -> str:
+        """Build HTML for account summary without dollar values."""
+        if not account_info:
+            return BaseEmailTemplate.create_alert_box(
+                "Account information unavailable", 
+                "warning"
+            )
+        
+        # Get basic account status information
+        account_status = account_info.get('status', 'UNKNOWN')
+        daytrade_count = account_info.get('daytrade_count', 0)
+        
+        status_color = "#10B981" if account_status == "ACTIVE" else "#EF4444"
+        
+        return f"""
+        <table style="width: 100%; border-collapse: collapse; background-color: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+            <tbody>
+                <tr>
+                    <td style="padding: 8px 12px; border-bottom: 1px solid #E5E7EB;">
+                        <span style="font-weight: 600;">Account Status:</span>
+                    </td>
+                    <td style="padding: 8px 12px; border-bottom: 1px solid #E5E7EB; text-align: right; color: {status_color}; font-weight: 600;">
+                        {account_status}
+                    </td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px 12px; border-bottom: 1px solid #E5E7EB;">
+                        <span style="font-weight: 600;">Day Trades Used:</span>
+                    </td>
+                    <td style="padding: 8px 12px; border-bottom: 1px solid #E5E7EB; text-align: right;">
+                        {daytrade_count}/3
+                    </td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px 12px;">
+                        <span style="font-weight: 600;">Portfolio Status:</span>
+                    </td>
+                    <td style="padding: 8px 12px; text-align: right; color: #10B981; font-weight: 600;">
+                        ✅ Active
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+        """

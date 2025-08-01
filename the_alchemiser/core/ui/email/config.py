@@ -86,6 +86,16 @@ class EmailConfig:
     def clear_cache(self):
         """Clear the configuration cache."""
         self._config_cache = None
+    
+    def is_neutral_mode_enabled(self) -> bool:
+        """Check if neutral mode is enabled for emails."""
+        try:
+            config = get_config()
+            email_config = config.get('email', {}) if config else {}
+            return email_config.get('neutral_mode', False)
+        except Exception as e:
+            logging.warning(f"Error checking neutral mode config: {e}")
+            return False
 
 
 # Global instance for backward compatibility
@@ -94,3 +104,7 @@ _email_config = EmailConfig()
 def get_email_config() -> Optional[Tuple[str, int, str, str, str]]:
     """Get email configuration (backward compatibility function)."""
     return _email_config.get_config()
+
+def is_neutral_mode_enabled() -> bool:
+    """Check if neutral mode is enabled for emails (standalone function)."""
+    return _email_config.is_neutral_mode_enabled()

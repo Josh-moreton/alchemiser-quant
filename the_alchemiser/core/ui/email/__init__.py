@@ -30,7 +30,7 @@ Usage:
 """
 
 # Import main functions for backward compatibility
-from .config import get_email_config
+from .config import get_email_config, is_neutral_mode_enabled
 from .client import send_email_notification, EmailClient
 from .templates import (
     build_trading_report_html,
@@ -41,6 +41,7 @@ from .templates import (
 
 __all__ = [
     'get_email_config',
+    'is_neutral_mode_enabled',
     'send_email_notification',
     'EmailClient',
     'build_trading_report_html',

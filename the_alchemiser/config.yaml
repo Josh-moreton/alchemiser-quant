@@ -45,6 +45,7 @@ email:
   smtp_port: 587
   from_email: "josh@rwxt.org"
   to_email: "josh@rwxt.org" # Optional, defaults to from_email
+  neutral_mode: true # When true, removes dollar values, percentages, and P&L from emails
 
 # Data configuration (preserved from previous config)
 data:
