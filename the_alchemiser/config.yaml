@@ -56,3 +56,4 @@ tracking:
   strategy_positions_path: "strategy_positions/"
   strategy_pnl_history_path: "strategy_pnl_history/"
   order_history_limit: 1000 # Maximum orders to keep in recent_orders.json
+  # Note: Paper and live trading data are automatically separated with "paper/" and "live/" prefixes

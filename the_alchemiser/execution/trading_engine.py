@@ -384,7 +384,7 @@ class TradingEngine:
         # Get strategy P&L data
         strategy_summary = {}
         try:
-            tracker = get_strategy_tracker()
+            tracker = get_strategy_tracker(paper_trading=self.paper_trading)
             all_strategy_pnl = tracker.get_all_strategy_pnl(current_prices)
         except Exception as e:
             logging.warning(f"Failed to get strategy P&L data: {e}")
@@ -555,7 +555,7 @@ class TradingEngine:
             current_prices = self.get_current_prices(list(symbols_in_portfolio))
             
             # Archive the daily P&L snapshot
-            tracker = get_strategy_tracker()
+            tracker = get_strategy_tracker(paper_trading=self.paper_trading)
             tracker.archive_daily_pnl(current_prices)
             
             logging.info("Successfully archived daily strategy P&L snapshot")

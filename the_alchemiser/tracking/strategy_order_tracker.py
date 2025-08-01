@@ -118,21 +118,28 @@ class StrategyPnL:
 class StrategyOrderTracker:
     """Dedicated component for tracking orders and P&L by strategy."""
     
-    def __init__(self, config=None):
-        """Initialize tracker with S3 configuration."""
+    def __init__(self, config=None, paper_trading=True):
+        """Initialize tracker with S3 configuration.
+        
+        Args:
+            config: Configuration object
+            paper_trading: Whether this is for paper trading (separates data storage)
+        """
         self.config = config or get_config()
         self.s3_handler = get_s3_handler()
+        self.paper_trading = paper_trading
         
-        # S3 paths for data persistence
+        # S3 paths for data persistence - separate by trading mode
         tracking_config = self.config.get('tracking') if self.config else {}
         if not tracking_config:
             tracking_config = {}
         
         bucket = tracking_config.get('s3_bucket', 'the-alchemiser-s3')
+        mode_prefix = "paper/" if paper_trading else "live/"
         
-        self.orders_s3_path = f"s3://{bucket}/{tracking_config.get('strategy_orders_path', 'strategy_orders/')}"
-        self.positions_s3_path = f"s3://{bucket}/{tracking_config.get('strategy_positions_path', 'strategy_positions/')}"
-        self.pnl_history_s3_path = f"s3://{bucket}/{tracking_config.get('strategy_pnl_history_path', 'strategy_pnl_history/')}"
+        self.orders_s3_path = f"s3://{bucket}/{mode_prefix}{tracking_config.get('strategy_orders_path', 'strategy_orders/')}"
+        self.positions_s3_path = f"s3://{bucket}/{mode_prefix}{tracking_config.get('strategy_positions_path', 'strategy_positions/')}"
+        self.pnl_history_s3_path = f"s3://{bucket}/{mode_prefix}{tracking_config.get('strategy_pnl_history_path', 'strategy_pnl_history/')}"
         self.order_history_limit = int(tracking_config.get('order_history_limit', 1000))
         
         # In-memory caches
@@ -143,7 +150,8 @@ class StrategyOrderTracker:
         # Load existing data
         self._load_data()
         
-        logging.info("StrategyOrderTracker initialized with S3 persistence")
+        mode_str = "paper" if paper_trading else "live"
+        logging.info(f"StrategyOrderTracker initialized with S3 persistence ({mode_str} trading mode)")
     
     def record_order(self, order_id: str, strategy: StrategyType, symbol: str,
                     side: str, quantity: float, price: float) -> None:
@@ -453,12 +461,26 @@ class StrategyOrderTracker:
             return {}
 
 
-# Global instance for easy access
-_strategy_tracker = None
+# Global instances for easy access - separate by trading mode
+_strategy_tracker_paper = None
+_strategy_tracker_live = None
 
-def get_strategy_tracker() -> StrategyOrderTracker:
-    """Get or create global strategy order tracker instance."""
-    global _strategy_tracker
-    if _strategy_tracker is None:
-        _strategy_tracker = StrategyOrderTracker()
-    return _strategy_tracker
+def get_strategy_tracker(paper_trading=True) -> StrategyOrderTracker:
+    """Get or create strategy order tracker instance for specified trading mode.
+    
+    Args:
+        paper_trading: Whether to get the paper trading tracker (default: True)
+        
+    Returns:
+        StrategyOrderTracker: The appropriate tracker instance
+    """
+    global _strategy_tracker_paper, _strategy_tracker_live
+    
+    if paper_trading:
+        if _strategy_tracker_paper is None:
+            _strategy_tracker_paper = StrategyOrderTracker(paper_trading=True)
+        return _strategy_tracker_paper
+    else:
+        if _strategy_tracker_live is None:
+            _strategy_tracker_live = StrategyOrderTracker(paper_trading=False)
+        return _strategy_tracker_live

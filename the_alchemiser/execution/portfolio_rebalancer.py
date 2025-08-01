@@ -106,7 +106,7 @@ class PortfolioRebalancer:
                         # Track order with strategy
                         try:
                             strategy = self._get_primary_strategy_for_symbol(symbol, strategy_attribution)
-                            tracker = get_strategy_tracker()
+                            tracker = get_strategy_tracker(paper_trading=self.bot.paper_trading)
                             tracker.record_order(order_id, strategy, symbol, 'SELL', abs(qty), price)
                         except Exception as e:
                             logging.warning(f"Failed to track liquidation order {order_id}: {e}")
@@ -138,7 +138,7 @@ class PortfolioRebalancer:
                     # Track order with strategy
                     try:
                         strategy = self._get_primary_strategy_for_symbol(symbol, strategy_attribution)
-                        tracker = get_strategy_tracker()
+                        tracker = get_strategy_tracker(paper_trading=self.bot.paper_trading)
                         tracker.record_order(order_id, strategy, symbol, 'SELL', abs(qty), price)
                     except Exception as e:
                         logging.warning(f"Failed to track liquidation order {order_id}: {e}")
@@ -168,7 +168,7 @@ class PortfolioRebalancer:
                     qty = plan["qty"]
                     price = plan.get("price", self.bot.get_current_price(symbol))
                     strategy = self._get_primary_strategy_for_symbol(symbol, strategy_attribution)
-                    tracker = get_strategy_tracker()
+                    tracker = get_strategy_tracker(paper_trading=self.bot.paper_trading)
                     tracker.record_order(order_id, strategy, symbol, 'SELL', qty, price)
                 except Exception as e:
                     logging.warning(f"Failed to track sell order {order_id}: {e}")
@@ -265,7 +265,7 @@ class PortfolioRebalancer:
                 # Track order with strategy
                 try:
                     strategy = self._get_primary_strategy_for_symbol(symbol, strategy_attribution)
-                    tracker = get_strategy_tracker()
+                    tracker = get_strategy_tracker(paper_trading=self.bot.paper_trading)
                     # For notional orders, we estimate the quantity and use current price
                     tracker.record_order(order_id, strategy, symbol, 'BUY', target_qty, price)
                 except Exception as e:
