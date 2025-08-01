@@ -21,7 +21,7 @@ Design:
 
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Dict, List, Optional, Tuple, Any
 from dataclasses import dataclass, asdict
 from enum import Enum
@@ -235,7 +235,7 @@ class StrategyOrderTracker:
         # Filter by date (last N days)
         if days > 0:
             cutoff_date = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
-            cutoff_date = cutoff_date.replace(day=cutoff_date.day - days)
+            cutoff_date = cutoff_date - timedelta(days=days)
             cutoff_str = cutoff_date.isoformat()
             orders = [o for o in orders if o.timestamp >= cutoff_str]
         
@@ -345,8 +345,8 @@ class StrategyOrderTracker:
                         order = StrategyOrder(**order_data)
                         self._orders_cache.append(order)
                     
-                    # Filter to last N days
-                    cutoff_date = datetime.now(timezone.utc).replace(day=datetime.now().day - days)
+                    # Filter to last N days using proper date arithmetic
+                    cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
                     cutoff_str = cutoff_date.isoformat()
                     self._orders_cache = [o for o in self._orders_cache if o.timestamp >= cutoff_str]
                     

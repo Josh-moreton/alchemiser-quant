@@ -324,6 +324,10 @@ class TradingEngine:
                 final_portfolio_state=final_portfolio_state
             )
             self._save_dashboard_data(result)
+            
+            # Archive daily P&L for historical tracking (Step 5)
+            self._archive_daily_strategy_pnl(execution_summary.get('pnl_summary', {}))
+            
             return result
         except Exception as e:
             logging.error(f"❌ Multi-strategy execution failed: {e}")
@@ -532,6 +536,32 @@ class TradingEngine:
                 logging.error("Failed to save dashboard data to S3")
         except Exception as e:
             logging.error(f"Error saving dashboard data: {e}")
+
+    def _archive_daily_strategy_pnl(self, pnl_summary: Dict) -> None:
+        """Archive daily strategy P&L for historical tracking (Step 5)."""
+        try:
+            # Get current prices for accurate P&L calculation
+            symbols_in_portfolio = set()
+            
+            # Add symbols from current positions
+            try:
+                current_positions = self.get_positions()
+                for symbol in current_positions.keys():
+                    symbols_in_portfolio.add(symbol)
+            except Exception as e:
+                logging.warning(f"Failed to get current positions for P&L archiving: {e}")
+            
+            # Get current prices
+            current_prices = self.get_current_prices(list(symbols_in_portfolio))
+            
+            # Archive the daily P&L snapshot
+            tracker = get_strategy_tracker()
+            tracker.archive_daily_pnl(current_prices)
+            
+            logging.info("Successfully archived daily strategy P&L snapshot")
+            
+        except Exception as e:
+            logging.error(f"Failed to archive daily strategy P&L: {e}")
 
     def get_multi_strategy_performance_report(self) -> Dict:
         """Generate comprehensive performance report for all strategies"""
