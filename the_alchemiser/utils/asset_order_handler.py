@@ -1,0 +1,246 @@
+#!/usr/bin/env python3
+"""
+Asset-Specific Order Logic
+
+This module handles asset-specific order placement logic, including
+fractionable vs non-fractionable asset handling, order type conversion,
+and fallback strategies.
+"""
+
+import logging
+from typing import Optional, Tuple
+from decimal import Decimal, ROUND_DOWN
+
+from alpaca.trading.requests import MarketOrderRequest
+from alpaca.trading.enums import OrderSide, TimeInForce
+from the_alchemiser.utils.asset_info import fractionability_detector
+
+
+class AssetOrderHandler:
+    """
+    Handles asset-specific order logic including fractionability and conversions.
+    """
+    
+    def __init__(self, data_provider):
+        """Initialize with data provider for price fetching."""
+        self.data_provider = data_provider
+    
+    def prepare_market_order(
+        self, 
+        symbol: str, 
+        side: OrderSide, 
+        qty: Optional[float] = None, 
+        notional: Optional[float] = None
+    ) -> Tuple[Optional[MarketOrderRequest], Optional[str]]:
+        """
+        Prepare a market order request with smart asset handling.
+        
+        Args:
+            symbol: Stock symbol
+            side: OrderSide.BUY or OrderSide.SELL
+            qty: Quantity (if using quantity-based order)
+            notional: Dollar amount (if using notional order)
+            
+        Returns:
+            Tuple of (MarketOrderRequest, conversion_info) or (None, error_message)
+        """
+        if qty is not None:
+            return self._prepare_quantity_order(symbol, side, qty)
+        elif notional is not None:
+            return self._prepare_notional_order(symbol, side, notional)
+        else:
+            return None, "Must provide either qty or notional"
+    
+    def _prepare_quantity_order(
+        self, 
+        symbol: str, 
+        side: OrderSide, 
+        qty: float
+    ) -> Tuple[Optional[MarketOrderRequest], Optional[str]]:
+        """Prepare quantity-based market order with smart conversion logic."""
+        
+        # Get current price for potential conversion
+        current_price = None
+        try:
+            current_price = self.data_provider.get_current_price(symbol)
+        except Exception as e:
+            logging.warning(f"Could not get current price for {symbol}: {e}")
+        
+        # Check if we should use notional orders for non-fractionable assets
+        if (current_price and current_price > 0 and 
+            side == OrderSide.BUY and
+            fractionability_detector.should_use_notional_order(symbol, qty)):
+            
+            # Convert to notional order for better handling of non-fractionable assets
+            original_notional = qty * current_price
+            logging.info(f"🔄 Converting {symbol} from qty={qty} to notional=${original_notional:.2f} "
+                       f"(likely non-fractionable asset)")
+            
+            market_order_data = MarketOrderRequest(
+                symbol=symbol,
+                notional=round(original_notional, 2),
+                side=side,
+                time_in_force=TimeInForce.DAY
+            )
+            
+            conversion_info = f"Converted from qty={qty} to notional=${original_notional:.2f}"
+            return market_order_data, conversion_info
+        else:
+            # Regular quantity order with fractional rounding
+            qty = float(Decimal(str(qty)).quantize(Decimal('0.000001'), rounding=ROUND_DOWN))
+            
+            if qty <= 0:
+                return None, f"Quantity rounded to zero for {symbol}"
+
+            market_order_data = MarketOrderRequest(
+                symbol=symbol,
+                qty=qty,
+                side=side,
+                time_in_force=TimeInForce.DAY
+            )
+            
+            return market_order_data, None
+    
+    def _prepare_notional_order(
+        self, 
+        symbol: str, 
+        side: OrderSide, 
+        notional: float
+    ) -> Tuple[Optional[MarketOrderRequest], Optional[str]]:
+        """Prepare notional-based market order."""
+        notional = round(notional, 2)  # Round to cents
+        
+        market_order_data = MarketOrderRequest(
+            symbol=symbol,
+            notional=notional,
+            side=side,
+            time_in_force=TimeInForce.DAY
+        )
+        
+        return market_order_data, None
+    
+    def handle_fractionability_error(
+        self, 
+        symbol: str, 
+        side: OrderSide, 
+        original_qty: float, 
+        error_msg: str
+    ) -> Tuple[Optional[MarketOrderRequest], Optional[str]]:
+        """
+        Handle fractionability errors by converting to appropriate order type.
+        
+        Args:
+            symbol: Stock symbol
+            side: Order side
+            original_qty: Original quantity that failed
+            error_msg: Original error message
+            
+        Returns:
+            Tuple of (fallback_order, conversion_info) or (None, error_message)
+        """
+        if "not fractionable" not in error_msg.lower():
+            return None, f"Non-fractionability error: {error_msg}"
+        
+        logging.warning(f"🔄 {symbol} is not fractionable, trying fallback...")
+        
+        # Get current price for conversion
+        current_price = None
+        try:
+            current_price = self.data_provider.get_current_price(symbol)
+        except Exception:
+            current_price = None
+        
+        if current_price and current_price > 0:
+            # Convert to notional order as fallback
+            fallback_notional = original_qty * current_price
+            logging.info(f"💰 Converting to notional order: ${fallback_notional:.2f}")
+            
+            fallback_order_data = MarketOrderRequest(
+                symbol=symbol,
+                notional=round(fallback_notional, 2),
+                side=side,
+                time_in_force=TimeInForce.DAY
+            )
+            
+            conversion_info = f"Converted to notional ${fallback_notional:.2f} due to fractionability"
+            return fallback_order_data, conversion_info
+        else:
+            return None, f"Cannot convert to notional order - no current price for {symbol}"
+    
+    def prepare_limit_order_quantity(
+        self, 
+        symbol: str, 
+        qty: float, 
+        limit_price: float
+    ) -> Tuple[float, bool]:
+        """
+        Prepare quantity for limit order with asset-specific handling.
+        
+        Args:
+            symbol: Stock symbol
+            qty: Original quantity
+            limit_price: Limit price
+            
+        Returns:
+            Tuple of (adjusted_qty, was_converted)
+        """
+        original_qty = qty
+        was_converted = False
+        
+        # For non-fractionable assets, convert to whole shares
+        if not fractionability_detector.is_fractionable(symbol):
+            adjusted_qty, was_rounded = fractionability_detector.convert_to_whole_shares(
+                symbol, qty, limit_price
+            )
+            
+            if was_rounded:
+                qty = adjusted_qty
+                was_converted = True
+                
+                if qty <= 0:
+                    logging.warning(f"❌ {symbol} quantity rounded to zero whole shares (original: {original_qty})")
+                    return 0.0, True
+                
+                logging.info(f"🔄 Rounded {symbol} to {qty} whole shares for non-fractionable asset")
+        else:
+            # Round quantity for regular assets
+            qty = float(Decimal(str(qty)).quantize(Decimal('0.000001'), rounding=ROUND_DOWN))
+        
+        return qty, was_converted
+    
+    def handle_limit_order_fractionability_error(
+        self, 
+        symbol: str, 
+        original_qty: float, 
+        limit_price: float,
+        error_msg: str
+    ) -> Tuple[Optional[float], Optional[str]]:
+        """
+        Handle fractionability errors for limit orders.
+        
+        Args:
+            symbol: Stock symbol
+            original_qty: Original quantity
+            limit_price: Limit price
+            error_msg: Error message
+            
+        Returns:
+            Tuple of (whole_qty, conversion_info) or (None, error_message)
+        """
+        if "not fractionable" not in error_msg.lower():
+            return None, f"Non-fractionability error: {error_msg}"
+        
+        logging.warning(f"🔄 {symbol} limit order failed (not fractionable), trying whole shares...")
+        
+        # Convert to whole shares if we haven't already
+        if fractionability_detector.is_fractionable(symbol):
+            whole_qty = int(original_qty)
+            
+            if whole_qty <= 0:
+                return None, f"Cannot place {symbol} order - rounds to zero whole shares"
+            
+            conversion_info = f"Retrying with {whole_qty} whole shares instead of {original_qty}"
+            return float(whole_qty), conversion_info
+        else:
+            # We already tried whole shares, this is a different issue
+            return None, f"{symbol} limit order failed even with whole shares: {error_msg}"
