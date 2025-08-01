@@ -8,6 +8,9 @@ env/
 ENV/
 *.pkl
 backtest_cache/
+.pytest_cache/
+.lsp/
+.clj-kondo/
 
 # macOS system files
 .DS_Store
