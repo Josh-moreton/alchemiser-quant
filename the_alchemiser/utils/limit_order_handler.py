@@ -1,0 +1,187 @@
+#!/usr/bin/env python3
+"""
+Limit Order Handling Utilities
+
+This module handles limit order placement with smart fractionability logic,
+validation, and error handling with fallback strategies.
+"""
+
+import logging
+from typing import Optional
+from decimal import Decimal, ROUND_DOWN
+
+from alpaca.trading.requests import LimitOrderRequest
+from alpaca.trading.enums import OrderSide, TimeInForce
+from the_alchemiser.utils.asset_info import fractionability_detector
+
+
+class LimitOrderHandler:
+    """
+    Handles limit order placement with smart asset-specific logic.
+    """
+    
+    def __init__(self, trading_client, position_manager, asset_handler):
+        """Initialize with required dependencies."""
+        self.trading_client = trading_client
+        self.position_manager = position_manager
+        self.asset_handler = asset_handler
+    
+    def place_limit_order(
+        self, 
+        symbol: str, 
+        qty: float, 
+        side: OrderSide, 
+        limit_price: float,
+        cancel_existing: bool = True
+    ) -> Optional[str]:
+        """
+        Place a limit order with smart fractionability handling.
+        
+        Args:
+            symbol: Stock symbol
+            qty: Quantity to trade
+            side: OrderSide.BUY or OrderSide.SELL
+            limit_price: Limit price for the order
+            cancel_existing: Whether to cancel existing orders for this symbol first
+            
+        Returns:
+            Order ID if successful, None if failed
+        """
+        # Basic validation
+        if qty <= 0:
+            logging.warning(f"Invalid quantity for {symbol}: {qty}")
+            return None
+            
+        if limit_price <= 0:
+            logging.warning(f"Invalid limit price for {symbol}: {limit_price}")
+            return None
+
+        try:
+            # Cancel existing orders if requested
+            if cancel_existing:
+                self.position_manager.cancel_all_orders(symbol)
+                import time
+                time.sleep(0.5)  # Brief pause for cancellations to process
+
+            # For sell orders, validate we have enough to sell
+            if side == OrderSide.SELL:
+                is_valid, adjusted_qty, warning_msg = self.position_manager.validate_sell_position(symbol, qty)
+                if not is_valid:
+                    logging.warning(warning_msg)
+                    return None
+                if warning_msg:
+                    logging.warning(warning_msg)
+                qty = adjusted_qty
+
+            # Prepare order with asset-specific handling
+            limit_order_data, conversion_info = self._prepare_limit_order(symbol, qty, side, limit_price)
+            
+            if limit_order_data is None:
+                logging.warning(f"Failed to prepare limit order for {symbol}")
+                return None
+            
+            if conversion_info:
+                logging.info(f"Order conversion: {conversion_info}")
+
+            # Submit order with fractionability error handling
+            return self._submit_with_fallback(symbol, limit_order_data, qty, side, limit_price)
+            
+        except Exception as e:
+            logging.error(f"Limit order failed for {symbol}: {e}")
+            return None
+
+    def _prepare_limit_order(self, symbol: str, qty: float, side: OrderSide, limit_price: float) -> tuple:
+        """Prepare limit order with smart asset handling."""
+        original_qty = qty
+        conversion_info = None
+        
+        # Smart handling for non-fractionable assets
+        if not fractionability_detector.is_fractionable(symbol):
+            adjusted_qty, was_rounded = fractionability_detector.convert_to_whole_shares(
+                symbol, qty, limit_price
+            )
+            
+            if was_rounded:
+                qty = adjusted_qty
+                if qty <= 0:
+                    logging.warning(f"❌ {symbol} quantity rounded to zero whole shares (original: {original_qty})")
+                    return None, None
+                
+                conversion_info = f"🔄 Rounded {symbol} to {qty} whole shares for non-fractionable asset"
+        else:
+            # Round quantity for regular assets
+            qty = float(Decimal(str(qty)).quantize(Decimal('0.000001'), rounding=ROUND_DOWN))
+        
+        limit_price = round(limit_price, 2)
+        
+        if qty <= 0:
+            logging.warning(f"Quantity rounded to zero for {symbol}")
+            return None, None
+
+        logging.info(f"Placing LIMIT {side.value} order for {symbol}: qty={qty}, price=${limit_price}")
+
+        limit_order_data = LimitOrderRequest(
+            symbol=symbol,
+            qty=qty,
+            side=side,
+            time_in_force=TimeInForce.DAY,
+            limit_price=limit_price
+        )
+        
+        return limit_order_data, conversion_info
+
+    def _submit_with_fallback(self, symbol: str, order_data: LimitOrderRequest, original_qty: float, side: OrderSide, limit_price: float) -> Optional[str]:
+        """Submit order with fractionability fallback logic."""
+        try:
+            order = self.trading_client.submit_order(order_data)
+            order_id = str(getattr(order, 'id', 'unknown'))
+            
+            logging.info(f"Limit order placed for {symbol}: {order_id}")
+            return order_id
+            
+        except Exception as order_error:
+            error_msg = str(order_error)
+            
+            # Handle the specific "not fractionable" error for limit orders
+            if "not fractionable" in error_msg.lower():
+                return self._handle_fractionable_fallback(symbol, original_qty, side, limit_price, error_msg)
+            else:
+                # Re-raise the original error if it's not a fractionability issue
+                raise order_error
+
+    def _handle_fractionable_fallback(self, symbol: str, original_qty: float, side: OrderSide, limit_price: float, error_msg: str) -> Optional[str]:
+        """Handle fractionability errors with whole share fallback."""
+        logging.warning(f"🔄 {symbol} limit order failed (not fractionable), trying whole shares...")
+        
+        # Convert to whole shares if we haven't already
+        if fractionability_detector.is_fractionable(symbol):
+            whole_qty = int(original_qty)
+            
+            if whole_qty <= 0:
+                logging.error(f"❌ Cannot place {symbol} order - rounds to zero whole shares")
+                return None
+            
+            logging.info(f"💰 Retrying with {whole_qty} whole shares instead of {original_qty}")
+            
+            fallback_order_data = LimitOrderRequest(
+                symbol=symbol,
+                qty=whole_qty,
+                side=side,
+                time_in_force=TimeInForce.DAY,
+                limit_price=limit_price
+            )
+            
+            try:
+                order = self.trading_client.submit_order(fallback_order_data)
+                order_id = str(getattr(order, 'id', 'unknown'))
+                
+                logging.info(f"✅ Fallback whole-share limit order placed for {symbol}: {order_id}")
+                return order_id
+                
+            except Exception as fallback_error:
+                logging.error(f"❌ Fallback whole-share limit order also failed for {symbol}: {fallback_error}")
+                return None
+        else:
+            # We already tried whole shares, this is a different issue
+            logging.error(f"❌ {symbol} limit order failed even with whole shares: {error_msg}")
+            return None

@@ -93,13 +93,12 @@ class MultiStrategyManager:
             })
             self.strategy_allocations = {
                 StrategyType.NUCLEAR: default_allocations.get('nuclear', 0.4),
-                StrategyType.TECL: default_allocations.get('tecl', 0.6)
+                StrategyType.TECL: default_allocations.get('tecl', 0.6),
+                StrategyType.KLM: default_allocations.get('klm', 0.0)
             }
             
-            # Add KLM allocation if specified in config
-            klm_allocation = default_allocations.get('klm', 0.0)
-            if klm_allocation > 0:
-                self.strategy_allocations[StrategyType.KLM] = klm_allocation
+            # Remove strategies with zero allocation to keep clean allocations dict
+            self.strategy_allocations = {k: v for k, v in self.strategy_allocations.items() if v > 0}
         else:
             self.strategy_allocations = strategy_allocations
         

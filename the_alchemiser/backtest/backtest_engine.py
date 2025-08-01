@@ -47,6 +47,7 @@ os.environ['ALPACA_PAPER_SECRET'] = 'Ibcd2Zy98HL3wabRMQW6R0T1SnSZ2vN1uoLWhIOQ'
 from the_alchemiser.core.trading.strategy_manager import MultiStrategyManager, StrategyType
 from the_alchemiser.core.data.data_provider import UnifiedDataProvider
 from the_alchemiser.core import config as alchemiser_config
+from the_alchemiser.utils.symbol_lookback_calculator import SymbolLookbackCalculator, get_symbol_lookback_days
 
 # Import the new caching system
 from the_alchemiser.backtest.data_cache import (
@@ -80,6 +81,48 @@ console = Console()
 DEFAULT_INITIAL_EQUITY = 1000.0
 DEFAULT_SLIPPAGE_BPS = 8  # 8 basis points (0.08%) - realistic for retail trading
 DEFAULT_NOISE_FACTOR = 0.0015  # 0.15% market noise
+
+
+def _calculate_optimized_lookback(symbols: List[str], use_minute_candles: bool = False, strategies: Optional[List[str]] = None) -> int:
+    """
+    Calculate optimized lookback period based on symbol-specific indicator requirements.
+    
+    Args:
+        symbols: List of symbols to analyze
+        use_minute_candles: Whether minute data is being used
+        strategies: List of strategies to consider ('nuclear', 'tecl', 'klm'). If None, uses all.
+        
+    Returns:
+        Maximum lookback days required for all symbols
+    """
+    if use_minute_candles:
+        # For minute data, use conservative approach
+        return 400
+    
+    # Use the new symbol lookback calculator for strategy-aware optimization
+    calculator = SymbolLookbackCalculator()
+    
+    # Calculate symbol-specific lookbacks with strategy awareness
+    max_lookback = 0
+    for symbol in symbols:
+        symbol_lookback = calculator.get_symbol_lookback_days(symbol, strategies)
+        max_lookback = max(max_lookback, symbol_lookback)
+    
+    # Add extra buffer for backtest reliability
+    safety_buffer = max(30, int(max_lookback * 0.2))  # 20% buffer, min 30 days
+    total_lookback = max_lookback + safety_buffer
+    
+    console.print(f"[green]📊 Enhanced lookback: {total_lookback} days (vs 1200 day default)[/green]")
+    console.print(f"[dim]   Max symbol requirement: {max_lookback} days + {safety_buffer} day buffer[/dim]")
+    
+    # Show optimization details
+    optimization = calculator.optimize_data_fetching(symbols, strategies)
+    old_approach_days = len(symbols) * 1200
+    new_approach_days = optimization['efficiency_metrics']['optimized_total_days']
+    savings_pct = ((old_approach_days - new_approach_days) / old_approach_days * 100)
+    console.print(f"[dim]   Data reduction: {savings_pct:.1f}% ({old_approach_days:,} → {new_approach_days:,} symbol-days)[/dim]")
+    
+    return total_lookback
 
 
 def _get_cached_symbol_data(symbols, start, end, fetch_minute_data=False):
@@ -230,22 +273,35 @@ def run_core_backtest(start, end, strategy_weights=None, initial_equity=1000.0,
         config_modified = True
     
     try:
-        # Initialize components
+        # Initialize components with the configured strategy weights
         dp = UnifiedDataProvider(paper_trading=True, cache_duration=0)
-        manager = MultiStrategyManager(shared_data_provider=dp)
+        manager = MultiStrategyManager(shared_data_provider=dp, config=mock_config)
         
-        # Get all required symbols
-        all_syms = list(set(
-            manager.nuclear_engine.all_symbols + 
-            manager.tecl_engine.all_symbols +
-            (manager.klm_ensemble.all_symbols if hasattr(manager, 'klm_ensemble') and manager.klm_ensemble else [])
-        ))
+        # CRITICAL FIX: Always collect ALL symbols since strategy manager runs all strategies
+        # even when some have 0 allocation, they still try to access their symbols for calculation
+        all_syms = []
         
-        # Preload data using working approach
-        lookback_days = 400 if use_minute_candles else 1200
+        # Always include nuclear symbols since nuclear strategy always runs
+        all_syms.extend(manager.nuclear_engine.all_symbols)
+        
+        # Always include TECL symbols since TECL strategy always runs  
+        all_syms.extend(manager.tecl_engine.all_symbols)
+        
+        # Always include KLM symbols if KLM ensemble exists
+        if hasattr(manager, 'klm_ensemble') and manager.klm_ensemble:
+            all_syms.extend(manager.klm_ensemble.all_symbols)
+        
+        # Remove duplicates
+        all_syms = list(set(all_syms))
+        
+        # Preload data using optimized lookback calculation
+        lookback_days = _calculate_optimized_lookback(all_syms, use_minute_candles)
         data_start = start - dt.timedelta(days=lookback_days)
-        symbol_data, symbol_minute_data = _get_cached_symbol_data(
-            all_syms, data_start, end, fetch_minute_data=use_minute_candles
+        
+        # First preload data into cache, then get it
+        console.print(f"[yellow]📊 Pre-loading {len(all_syms)} symbols into cache...[/yellow]")
+        symbol_data, symbol_minute_data = preload_backtest_data(
+            data_start, end, symbols=all_syms, include_minute_data=use_minute_candles, force_refresh=False
         )
         
         if not symbol_data:
@@ -874,7 +930,7 @@ def run_all_combinations_backtest(start, end,
     ))
     
     # Preload data into cache first
-    lookback_days = 400 if use_minute_candles else 1200
+    lookback_days = _calculate_optimized_lookback(all_syms, use_minute_candles)
     data_start = start - dt.timedelta(days=lookback_days)
     
     shared_data, minute_data = preload_backtest_data(
