@@ -25,6 +25,7 @@ from dataclasses import dataclass
 # Core strategy and portfolio management
 from the_alchemiser.core.trading.strategy_manager import MultiStrategyManager, StrategyType
 from the_alchemiser.execution.portfolio_rebalancer import PortfolioRebalancer
+from the_alchemiser.tracking.strategy_order_tracker import get_strategy_tracker
 
 
 @dataclass
@@ -229,16 +230,18 @@ class TradingEngine:
             symbol, qty, side, max_retries, poll_timeout, poll_interval, slippage_bps
         )
 
-    def rebalance_portfolio(self, target_portfolio: Dict[str, float]) -> List[Dict]:
+    def rebalance_portfolio(self, target_portfolio: Dict[str, float], 
+                          strategy_attribution: Optional[Dict[str, List[StrategyType]]] = None) -> List[Dict]:
         """Rebalance portfolio to target allocation.
         
         Args:
             target_portfolio: Dictionary mapping symbols to target weight percentages.
+            strategy_attribution: Dictionary mapping symbols to contributing strategies.
             
         Returns:
             List of executed orders during rebalancing.
         """
-        return self.portfolio_rebalancer.rebalance_portfolio(target_portfolio)
+        return self.portfolio_rebalancer.rebalance_portfolio(target_portfolio, strategy_attribution)
 
     def execute_rebalancing(self, target_allocations: Dict[str, float], mode: str = 'market') -> Dict:
         """
@@ -273,13 +276,13 @@ class TradingEngine:
             account_info_before = self.get_account_info()
             if not account_info_before:
                 raise Exception("Unable to get account information")
-            strategy_signals, consolidated_portfolio = self.strategy_manager.run_all_strategies()
+            strategy_signals, consolidated_portfolio, strategy_attribution = self.strategy_manager.run_all_strategies()
             if not consolidated_portfolio:
                 consolidated_portfolio = {'BIL': 1.0}  # Default to cash equivalent
             total_allocation = sum(consolidated_portfolio.values())
             if abs(total_allocation - 1.0) > 0.05:
                 logging.warning(f"Portfolio allocation sums to {total_allocation:.1%}, expected ~100%")
-            orders_executed = self.rebalance_portfolio(consolidated_portfolio)
+            orders_executed = self.rebalance_portfolio(consolidated_portfolio, strategy_attribution)
             account_info_after = self.get_account_info()
             execution_summary = self._create_execution_summary(
                 strategy_signals, consolidated_portfolio, orders_executed,

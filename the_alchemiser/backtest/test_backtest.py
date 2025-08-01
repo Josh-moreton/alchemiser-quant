@@ -342,7 +342,7 @@ def run_backtest(start, end, initial_equity=1000.0, price_type="close", slippage
                     return pd.DataFrame()
             dp._fetch_historical_data = mock_fetch_historical_data
             try:
-                signals, portfolio = manager.run_all_strategies()
+                signals, portfolio, _ = manager.run_all_strategies()
             finally:
                 dp._fetch_historical_data = original_fetch_method
             current_weights = {sym: portfolio.get(sym, 0) for sym in all_syms}
@@ -574,7 +574,7 @@ def run_backtest_dual_rebalance(start, end, initial_equity=1000.0, slippage_bps=
                     return pd.DataFrame()
             dp._fetch_historical_data = mock_fetch_historical_data
             try:
-                signals, portfolio = manager.run_all_strategies()
+                signals, portfolio, _ = manager.run_all_strategies()
             finally:
                 dp._fetch_historical_data = original_fetch_method
             morning_weights = {sym: portfolio.get(sym, 0) for sym in all_syms}
@@ -632,7 +632,7 @@ def run_backtest_dual_rebalance(start, end, initial_equity=1000.0, slippage_bps=
                     return pd.DataFrame()
             dp._fetch_historical_data = mock_fetch_historical_data_close
             try:
-                signals, portfolio = manager.run_all_strategies()
+                signals, portfolio, _ = manager.run_all_strategies()
             finally:
                 dp._fetch_historical_data = original_fetch_method
             evening_weights = {sym: portfolio.get(sym, 0) for sym in all_syms}

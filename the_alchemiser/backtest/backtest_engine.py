@@ -370,7 +370,7 @@ def run_core_backtest(start, end, strategy_weights=None, initial_equity=1000.0,
             
             # Get strategy signals for current day
             try:
-                signals, portfolio = manager.run_all_strategies()
+                signals, portfolio, _ = manager.run_all_strategies()
                 current_weights = {sym: portfolio.get(sym, 0.0) for sym in all_syms}
             except Exception as e:
                 console.print(f"[yellow]Warning: Strategy error on {current_day.date()}: {e}")
@@ -784,7 +784,7 @@ def run_optimized_backtest_worker(args):
             
             # Get real strategy signals for current day
             try:
-                signals, portfolio = manager.run_all_strategies()
+                signals, portfolio, _ = manager.run_all_strategies()
                 current_weights = {sym: portfolio.get(sym, 0.0) for sym in shared_data.keys()}
             except Exception as e:
                 # Use previous weights if strategy fails
