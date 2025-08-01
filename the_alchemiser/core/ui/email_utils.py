@@ -595,6 +595,7 @@ def build_multi_strategy_email_html(result: Any, mode: str) -> str:
             <div style="padding: 32px 24px;">
                 {_build_technical_indicators_email_html(strategy_signals)}
                 {_build_detailed_strategy_signals_email_html(strategy_signals, strategy_summary)}
+                {_build_strategy_pnl_summary_email_html(execution_summary.get('pnl_summary', {}))}
                 {_build_enhanced_trading_summary_email_html(trading_summary)}
                 {_build_enhanced_portfolio_email_html(result)}
                 {_build_closed_positions_pnl_email_html(account_info)}
@@ -747,6 +748,114 @@ def _build_technical_indicators_email_html(strategy_signals: Dict[Any, Any]) -> 
     """
 
 
+def _build_strategy_pnl_summary_email_html(pnl_summary: Dict) -> str:
+    """Build comprehensive P&L summary section for email."""
+    if not pnl_summary:
+        return ""
+    
+    total_pnl = pnl_summary.get('total_pnl', 0)
+    total_realized_pnl = pnl_summary.get('total_realized_pnl', 0)
+    total_unrealized_pnl = pnl_summary.get('total_unrealized_pnl', 0)
+    total_allocation_value = pnl_summary.get('total_allocation_value', 0)
+    
+    # Skip if no meaningful P&L data
+    if total_pnl == 0 and total_allocation_value == 0:
+        return ""
+    
+    # Color code based on total P&L
+    if total_pnl > 0:
+        pnl_color = "#10B981"
+        pnl_bg = "#D1FAE5"
+        pnl_border = "#10B981"
+        pnl_icon = "📈"
+        pnl_status = "PROFIT"
+    elif total_pnl < 0:
+        pnl_color = "#EF4444"
+        pnl_bg = "#FEE2E2"
+        pnl_border = "#EF4444"
+        pnl_icon = "📉"
+        pnl_status = "LOSS"
+    else:
+        pnl_color = "#6B7280"
+        pnl_bg = "#F3F4F6"
+        pnl_border = "#6B7280"
+        pnl_icon = "➖"
+        pnl_status = "NEUTRAL"
+    
+    return f"""
+    <div style="margin: 32px 0;">
+        <h3 style="margin: 0 0 20px 0; color: #1F2937; font-size: 20px; font-weight: 700;">💰 Strategy P&L Summary</h3>
+        
+        <div style="background-color: {pnl_bg}; border: 2px solid {pnl_border}; border-radius: 12px; padding: 24px; margin: 16px 0;">
+            <!-- Overall P&L Status -->
+            <div style="text-align: center; margin-bottom: 20px;">
+                <div style="font-size: 24px; margin-bottom: 8px;">{pnl_icon}</div>
+                <div style="font-size: 28px; font-weight: 700; color: {pnl_color}; margin-bottom: 4px;">
+                    ${total_pnl:,.2f}
+                </div>
+                <div style="font-size: 14px; color: {pnl_color}; font-weight: 600;">
+                    {pnl_status}
+                </div>
+            </div>
+            
+            <!-- P&L Breakdown -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+                <div style="text-align: center; padding: 12px; background-color: rgba(255,255,255,0.7); border-radius: 8px;">
+                    <div style="font-size: 14px; color: #6B7280; margin-bottom: 4px;">Realized P&L</div>
+                    <div style="font-size: 18px; font-weight: 600; color: {pnl_color};">
+                        ${total_realized_pnl:,.2f}
+                    </div>
+                </div>
+                <div style="text-align: center; padding: 12px; background-color: rgba(255,255,255,0.7); border-radius: 8px;">
+                    <div style="font-size: 14px; color: #6B7280; margin-bottom: 4px;">Unrealized P&L</div>
+                    <div style="font-size: 18px; font-weight: 600; color: {pnl_color};">
+                        ${total_unrealized_pnl:,.2f}
+                    </div>
+                </div>
+            </div>
+            
+            {f'<div style="text-align: center; padding: 12px; background-color: rgba(255,255,255,0.5); border-radius: 8px;"><div style="font-size: 14px; color: #6B7280; margin-bottom: 4px;">Total Position Value</div><div style="font-size: 16px; font-weight: 600; color: #1F2937;">${total_allocation_value:,.2f}</div></div>' if total_allocation_value > 0 else ''}
+        </div>
+    </div>
+    """
+
+
+def _build_strategy_pnl_section(pnl_data: Dict) -> str:
+    """Build P&L section for individual strategy display."""
+    if not pnl_data or pnl_data.get('total_pnl', 0) == 0 and pnl_data.get('allocation_value', 0) == 0:
+        return ""
+    
+    total_pnl = pnl_data.get('total_pnl', 0)
+    realized_pnl = pnl_data.get('realized_pnl', 0)
+    unrealized_pnl = pnl_data.get('unrealized_pnl', 0)
+    allocation_value = pnl_data.get('allocation_value', 0)
+    
+    # Color code P&L
+    if total_pnl > 0:
+        pnl_color = "#10B981"  # Green for profit
+        pnl_icon = "📈"
+    elif total_pnl < 0:
+        pnl_color = "#EF4444"  # Red for loss
+        pnl_icon = "📉"
+    else:
+        pnl_color = "#6B7280"  # Gray for neutral
+        pnl_icon = "➖"
+    
+    return f"""
+    <div style="margin-top: 12px; padding: 12px; background-color: rgba(255,255,255,0.15); border-radius: 8px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <span style="font-weight: 600; font-size: 14px;">{pnl_icon} Total P&L</span>
+            <span style="font-weight: 700; font-size: 16px; color: {pnl_color};">${total_pnl:,.2f}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; font-size: 13px; opacity: 0.9;">
+            <span>Realized: ${realized_pnl:,.2f}</span>
+            <span>Unrealized: ${unrealized_pnl:,.2f}</span>
+        </div>
+        {f'<div style="text-align: center; margin-top: 6px; font-size: 13px; opacity: 0.8;">Position Value: ${allocation_value:,.2f}</div>' if allocation_value > 0 else ''}
+    </div>
+    """
+
+
 def _build_detailed_strategy_signals_email_html(strategy_signals: Dict[Any, Any], strategy_summary: Dict) -> str:
     """Build detailed strategy signals with explanations for email"""
     if not strategy_signals:
@@ -760,11 +869,20 @@ def _build_detailed_strategy_signals_email_html(strategy_signals: Dict[Any, Any]
         symbol = signal_data.get('symbol', 'N/A')
         reason = signal_data.get('reason', 'No explanation available')
         
-        # Get allocation from strategy summary
+        # Get allocation and P&L from strategy summary
         allocation = 0
+        pnl_data = {}
         strategy_name = str(strategy_type).replace('StrategyType.', '').upper()
         if strategy_summary and strategy_name in strategy_summary:
-            allocation = strategy_summary[strategy_name].get('allocation', 0)
+            summary_data = strategy_summary[strategy_name]
+            allocation = summary_data.get('allocation', 0)
+            # Extract P&L data if available
+            pnl_data = {
+                'realized_pnl': summary_data.get('realized_pnl', 0),
+                'unrealized_pnl': summary_data.get('unrealized_pnl', 0),
+                'total_pnl': summary_data.get('total_pnl', 0),
+                'allocation_value': summary_data.get('allocation_value', 0)
+            }
         
         # Color code by action
         if action == 'BUY':
@@ -788,6 +906,9 @@ def _build_detailed_strategy_signals_email_html(strategy_signals: Dict[Any, Any]
                     <span style="font-weight: 600; font-size: 16px;">{action} {symbol}</span>
                     <span style="opacity: 0.9;">{allocation:.0%} Allocation</span>
                 </div>
+                
+                <!-- P&L Information -->
+                {_build_strategy_pnl_section(pnl_data)}
             </div>
             
             <!-- Signal Explanation -->

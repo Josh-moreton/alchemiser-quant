@@ -479,3 +479,147 @@ class SmartExecution:
         
         # Round to nearest tick
         return round(price / tick_size) * tick_size
+
+    def place_better_order(
+        self, 
+        symbol: str, 
+        qty: float, 
+        side: OrderSide,
+        max_slippage_bps: Optional[float] = None
+    ) -> Optional[str]:
+        """
+        Implement the 5-step better orders execution ladder.
+        
+        This is the new primary order placement method that implements
+        the professional swing trading execution strategy.
+        """
+        from the_alchemiser.utils.market_timing_utils import MarketOpenTimingEngine
+        from the_alchemiser.utils.spread_assessment import SpreadAssessment
+        from rich.console import Console
+        
+        console = Console()
+        timing_engine = MarketOpenTimingEngine()
+        spread_assessor = SpreadAssessment(self.alpaca_client.data_provider)
+        
+        # Step 0: Pre-Check (if before market open)
+        if not is_market_open(self.alpaca_client.trading_client):
+            console.print(f"[yellow]Market closed - assessing pre-market conditions for {symbol}[/yellow]")
+            
+            premarket = spread_assessor.assess_premarket_conditions(symbol)
+            if premarket:
+                console.print(f"[dim]Pre-market spread: {premarket.spread_cents:.1f}¢ ({premarket.spread_quality.value})[/dim]")
+                console.print(f"[dim]Recommended wait: {premarket.recommended_wait_minutes} min after open[/dim]")
+                
+                # Use premarket slippage tolerance if not specified
+                if max_slippage_bps is None:
+                    max_slippage_bps = premarket.max_slippage_bps
+        
+        # Step 1: Open Assessment 
+        strategy = timing_engine.get_execution_strategy()
+        console.print(f"[cyan]Execution strategy: {strategy.value}[/cyan]")
+        
+        # Get current bid/ask
+        try:
+            quote = self.alpaca_client.data_provider.get_latest_quote(symbol)
+            if not quote or len(quote) < 2:
+                console.print(f"[yellow]No quote available, using market order[/yellow]")
+                return self.alpaca_client.place_market_order(symbol, side, qty=qty)
+                
+            bid, ask = float(quote[0]), float(quote[1])
+            spread_analysis = spread_assessor.analyze_current_spread(symbol, bid, ask)
+            
+            console.print(f"[dim]Current spread: {spread_analysis.spread_cents:.1f}¢ ({spread_analysis.spread_quality.value})[/dim]")
+            
+            # Check if we should wait for spreads to normalize
+            if not timing_engine.should_execute_immediately(spread_analysis.spread_cents, strategy):
+                wait_time = timing_engine.get_wait_time_seconds(strategy, spread_analysis.spread_cents)
+                console.print(f"[yellow]Wide spread detected, waiting {wait_time}s for normalization[/yellow]")
+                import time
+                time.sleep(wait_time)
+                
+                # Re-get quote after waiting
+                quote = self.alpaca_client.data_provider.get_latest_quote(symbol)
+                if quote and len(quote) >= 2:
+                    bid, ask = float(quote[0]), float(quote[1])
+                    spread_analysis = spread_assessor.analyze_current_spread(symbol, bid, ask)
+                    console.print(f"[dim]Updated spread: {spread_analysis.spread_cents:.1f}¢[/dim]")
+            
+            # Step 2 & 3: Aggressive Marketable Limit with Re-pegging
+            return self._execute_aggressive_limit_sequence(
+                symbol, qty, side, bid, ask, strategy, console
+            )
+            
+        except Exception as e:
+            logging.error(f"Error in better order execution for {symbol}: {e}")
+            # Step 4: Market order fallback
+            console.print(f"[yellow]Falling back to market order[/yellow]")
+            return self.alpaca_client.place_market_order(symbol, side, qty=qty)
+
+    def _execute_aggressive_limit_sequence(
+        self, symbol: str, qty: float, side: OrderSide, 
+        bid: float, ask: float, strategy, console
+    ) -> Optional[str]:
+        """
+        Execute the aggressive marketable limit sequence with re-pegging.
+        
+        Step 2: Aggressive marketable limit (ask+1 tick / bid-1 tick)
+        Step 3: Re-peg 1-2 times (2-3 second timeouts)  
+        Step 4: Market order fallback
+        """
+        from the_alchemiser.utils.market_timing_utils import ExecutionStrategy
+        
+        # Determine timeout based on strategy and ETF speed
+        if strategy == ExecutionStrategy.WAIT_FOR_SPREADS:
+            timeout_seconds = 2.0  # Fast execution at market open
+        else:
+            timeout_seconds = 3.0  # Slightly longer for normal times
+            
+        max_repegs = 2  # Maximum 2 re-peg attempts
+        
+        for attempt in range(max_repegs + 1):
+            # Calculate aggressive marketable limit price
+            if side == OrderSide.BUY:
+                # Buy: ask + 1 tick (ask + 1¢)
+                limit_price = ask + 0.01
+                direction = "above ask"
+            else:
+                # Sell: bid - 1 tick (bid - 1¢)  
+                limit_price = bid - 0.01
+                direction = "below bid"
+            
+            attempt_label = f"Initial order" if attempt == 0 else f"Re-peg #{attempt}"
+            console.print(f"[cyan]{attempt_label}: {side.value} {symbol} @ ${limit_price:.2f} ({direction})[/cyan]")
+            
+            # Place aggressive marketable limit
+            order_id = self.alpaca_client.place_limit_order(symbol, qty, side, limit_price)
+            if not order_id:
+                console.print(f"[red]Failed to place limit order[/red]")
+                continue
+                
+            # Wait for fill with fast timeout (2-3 seconds max)
+            order_results = self.alpaca_client.wait_for_order_completion(
+                [order_id], max_wait_seconds=int(timeout_seconds)
+            )
+            
+            final_status = order_results.get(order_id, '').lower()
+            if 'filled' in final_status:
+                console.print(f"[green]✅ {side.value} {symbol} filled @ ${limit_price:.2f} ({attempt_label})[/green]")
+                return order_id
+            
+            # Order not filled - prepare for re-peg if attempts remain
+            if attempt < max_repegs:
+                console.print(f"[yellow]{attempt_label} not filled, re-pegging...[/yellow]")
+                
+                # Get fresh quote for re-peg pricing
+                fresh_quote = self.alpaca_client.data_provider.get_latest_quote(symbol)
+                if fresh_quote and len(fresh_quote) >= 2:
+                    bid, ask = float(fresh_quote[0]), float(fresh_quote[1])
+                else:
+                    console.print(f"[yellow]No fresh quote, using market order[/yellow]")
+                    break
+            else:
+                console.print(f"[yellow]Maximum re-pegs ({max_repegs}) reached[/yellow]")
+        
+        # Step 4: Market order fallback
+        console.print(f"[yellow]All limit attempts failed, using market order[/yellow]")
+        return self.alpaca_client.place_market_order(symbol, side, qty=qty)

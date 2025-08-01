@@ -25,6 +25,7 @@ from dataclasses import dataclass
 # Core strategy and portfolio management
 from the_alchemiser.core.trading.strategy_manager import MultiStrategyManager, StrategyType
 from the_alchemiser.execution.portfolio_rebalancer import PortfolioRebalancer
+from the_alchemiser.tracking.strategy_order_tracker import get_strategy_tracker
 
 
 @dataclass
@@ -191,6 +192,25 @@ class TradingEngine:
             Current price as float, or 0.0 if price unavailable.
         """
         return self.data_provider.get_current_price(symbol)
+    
+    def get_current_prices(self, symbols: List[str]) -> Dict[str, float]:
+        """Get current prices for multiple symbols.
+        
+        Args:
+            symbols: List of stock symbols to get prices for.
+            
+        Returns:
+            Dictionary mapping symbols to current prices.
+        """
+        prices = {}
+        for symbol in symbols:
+            try:
+                price = self.get_current_price(symbol)
+                if price and price > 0:
+                    prices[symbol] = float(price)
+            except Exception as e:
+                logging.warning(f"Failed to get current price for {symbol}: {e}")
+        return prices
 
     # --- Order and Rebalancing Methods ---
     def wait_for_settlement(self, sell_orders: List[Dict], max_wait_time: int = 60, poll_interval: float = 2.0) -> bool:
@@ -229,16 +249,18 @@ class TradingEngine:
             symbol, qty, side, max_retries, poll_timeout, poll_interval, slippage_bps
         )
 
-    def rebalance_portfolio(self, target_portfolio: Dict[str, float]) -> List[Dict]:
+    def rebalance_portfolio(self, target_portfolio: Dict[str, float], 
+                          strategy_attribution: Optional[Dict[str, List[StrategyType]]] = None) -> List[Dict]:
         """Rebalance portfolio to target allocation.
         
         Args:
             target_portfolio: Dictionary mapping symbols to target weight percentages.
+            strategy_attribution: Dictionary mapping symbols to contributing strategies.
             
         Returns:
             List of executed orders during rebalancing.
         """
-        return self.portfolio_rebalancer.rebalance_portfolio(target_portfolio)
+        return self.portfolio_rebalancer.rebalance_portfolio(target_portfolio, strategy_attribution)
 
     def execute_rebalancing(self, target_allocations: Dict[str, float], mode: str = 'market') -> Dict:
         """
@@ -273,13 +295,13 @@ class TradingEngine:
             account_info_before = self.get_account_info()
             if not account_info_before:
                 raise Exception("Unable to get account information")
-            strategy_signals, consolidated_portfolio = self.strategy_manager.run_all_strategies()
+            strategy_signals, consolidated_portfolio, strategy_attribution = self.strategy_manager.run_all_strategies()
             if not consolidated_portfolio:
                 consolidated_portfolio = {'BIL': 1.0}  # Default to cash equivalent
             total_allocation = sum(consolidated_portfolio.values())
             if abs(total_allocation - 1.0) > 0.05:
                 logging.warning(f"Portfolio allocation sums to {total_allocation:.1%}, expected ~100%")
-            orders_executed = self.rebalance_portfolio(consolidated_portfolio)
+            orders_executed = self.rebalance_portfolio(consolidated_portfolio, strategy_attribution)
             account_info_after = self.get_account_info()
             execution_summary = self._create_execution_summary(
                 strategy_signals, consolidated_portfolio, orders_executed,
@@ -302,6 +324,10 @@ class TradingEngine:
                 final_portfolio_state=final_portfolio_state
             )
             self._save_dashboard_data(result)
+            
+            # Archive daily P&L for historical tracking (Step 5)
+            self._archive_daily_strategy_pnl(execution_summary.get('pnl_summary', {}))
+            
             return result
         except Exception as e:
             logging.error(f"❌ Multi-strategy execution failed: {e}")
@@ -340,13 +366,50 @@ class TradingEngine:
                     sell_orders.append(order)
         total_buy_value = sum(o.get('estimated_value', 0) for o in buy_orders)
         total_sell_value = sum(o.get('estimated_value', 0) for o in sell_orders)
+        
+        # Get current prices for P&L calculations
+        symbols_in_portfolio = set(consolidated_portfolio.keys())
+        
+        # Add symbols from existing positions
+        try:
+            current_positions = self.get_positions()
+            for symbol in current_positions.keys():
+                symbols_in_portfolio.add(symbol)
+        except Exception as e:
+            logging.warning(f"Failed to get current positions for P&L: {e}")
+        
+        # Fetch current prices for all relevant symbols
+        current_prices = self.get_current_prices(list(symbols_in_portfolio))
+        
+        # Get strategy P&L data
         strategy_summary = {}
+        try:
+            tracker = get_strategy_tracker(paper_trading=self.paper_trading)
+            all_strategy_pnl = tracker.get_all_strategy_pnl(current_prices)
+        except Exception as e:
+            logging.warning(f"Failed to get strategy P&L data: {e}")
+            all_strategy_pnl = {}
+        
         for strategy_type, signal_data in strategy_signals.items():
             strategy_name = strategy_type.value if hasattr(strategy_type, 'value') else str(strategy_type)
+            
+            # Get P&L data for this strategy
+            strategy_pnl = all_strategy_pnl.get(strategy_type)
+            pnl_data = {}
+            if strategy_pnl:
+                pnl_data = {
+                    'realized_pnl': round(strategy_pnl.realized_pnl, 2),
+                    'unrealized_pnl': round(strategy_pnl.unrealized_pnl, 2), 
+                    'total_pnl': round(strategy_pnl.total_pnl, 2),
+                    'allocation_value': round(strategy_pnl.allocation_value, 2),
+                    'positions': strategy_pnl.positions
+                }
+            
             strategy_summary[strategy_name] = {
                 'signal': signal_data.get('action', 'HOLD'),
                 'symbol': signal_data.get('symbol', 'N/A'),
-                'allocation': self.strategy_manager.strategy_allocations.get(strategy_type, 0.0)
+                'allocation': self.strategy_manager.strategy_allocations.get(strategy_type, 0.0),
+                **pnl_data  # Include P&L data in strategy summary
             }
         trading_summary = {
             'total_trades': total_trades,
@@ -359,10 +422,25 @@ class TradingEngine:
             symbol: {'target_percent': weight * 100} 
             for symbol, weight in consolidated_portfolio.items()
         }
+        
+        # Calculate overall P&L summary
+        total_realized_pnl = sum(pnl.realized_pnl for pnl in all_strategy_pnl.values())
+        total_unrealized_pnl = sum(pnl.unrealized_pnl for pnl in all_strategy_pnl.values())
+        total_pnl = total_realized_pnl + total_unrealized_pnl
+        total_allocation_value = sum(pnl.allocation_value for pnl in all_strategy_pnl.values())
+        
+        pnl_summary = {
+            'total_realized_pnl': round(total_realized_pnl, 2),
+            'total_unrealized_pnl': round(total_unrealized_pnl, 2),
+            'total_pnl': round(total_pnl, 2),
+            'total_allocation_value': round(total_allocation_value, 2)
+        }
+        
         return {
             'allocations': allocations,
             'strategy_summary': strategy_summary,
             'trading_summary': trading_summary,
+            'pnl_summary': pnl_summary,  # Add P&L summary
             'account_info_before': account_before,
             'account_info_after': account_after
         }
@@ -458,6 +536,32 @@ class TradingEngine:
                 logging.error("Failed to save dashboard data to S3")
         except Exception as e:
             logging.error(f"Error saving dashboard data: {e}")
+
+    def _archive_daily_strategy_pnl(self, pnl_summary: Dict) -> None:
+        """Archive daily strategy P&L for historical tracking (Step 5)."""
+        try:
+            # Get current prices for accurate P&L calculation
+            symbols_in_portfolio = set()
+            
+            # Add symbols from current positions
+            try:
+                current_positions = self.get_positions()
+                for symbol in current_positions.keys():
+                    symbols_in_portfolio.add(symbol)
+            except Exception as e:
+                logging.warning(f"Failed to get current positions for P&L archiving: {e}")
+            
+            # Get current prices
+            current_prices = self.get_current_prices(list(symbols_in_portfolio))
+            
+            # Archive the daily P&L snapshot
+            tracker = get_strategy_tracker(paper_trading=self.paper_trading)
+            tracker.archive_daily_pnl(current_prices)
+            
+            logging.info("Successfully archived daily strategy P&L snapshot")
+            
+        except Exception as e:
+            logging.error(f"Failed to archive daily strategy P&L: {e}")
 
     def get_multi_strategy_performance_report(self) -> Dict:
         """Generate comprehensive performance report for all strategies"""

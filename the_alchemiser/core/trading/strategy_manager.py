@@ -123,14 +123,15 @@ class MultiStrategyManager:
         
         logging.debug(f"MultiStrategyManager initialized with allocations: {self.strategy_allocations}")
     
-    def run_all_strategies(self) -> Tuple[Dict[StrategyType, Any], Dict[str, float]]:
+    def run_all_strategies(self) -> Tuple[Dict[StrategyType, Any], Dict[str, float], Dict[str, List[StrategyType]]]:
         """
-        Run all strategies and return their signals plus consolidated portfolio allocation
+        Run all strategies and return their signals plus consolidated portfolio allocation with strategy attribution
         
         Returns:
-            Tuple of (strategy_signals, consolidated_portfolio)
+            Tuple of (strategy_signals, consolidated_portfolio, strategy_attribution)
             - strategy_signals: Dict mapping strategy types to their signals/results
             - consolidated_portfolio: Dict of symbol -> total_portfolio_weight
+            - strategy_attribution: Dict of symbol -> list of contributing strategies
         """
         logging.debug("Running all strategies...")
         
@@ -138,6 +139,7 @@ class MultiStrategyManager:
         # Strategy execution results
         strategy_signals = {}
         consolidated_portfolio = {}
+        strategy_attribution = {}  # Track which strategies contribute to each symbol
         
         # Get market data (combined from all strategies using shared data provider)
         all_symbols = set(self.nuclear_engine.all_symbols + self.tecl_engine.all_symbols)
@@ -229,7 +231,7 @@ class MultiStrategyManager:
                     'market_data': {}
                 }
         
-        # Create consolidated portfolio allocation
+        # Create consolidated portfolio allocation with strategy attribution
         for strategy_type, signal_data in strategy_signals.items():
             if signal_data['action'] == ActionType.BUY.value:
                 # Skip strategies not in our allocation (e.g., KLM-only portfolio)
@@ -248,6 +250,13 @@ class MultiStrategyManager:
                             consolidated_portfolio[symbol] += total_weight
                         else:
                             consolidated_portfolio[symbol] = total_weight
+                        
+                        # Track strategy attribution
+                        if symbol not in strategy_attribution:
+                            strategy_attribution[symbol] = []
+                        if strategy_type not in strategy_attribution[symbol]:
+                            strategy_attribution[symbol].append(strategy_type)
+                            
                 elif symbol_or_allocation in ['NUCLEAR_PORTFOLIO', 'BEAR_PORTFOLIO', 'UVXY_BTAL_PORTFOLIO']:
                     # Named multi-asset portfolio signal - get actual allocations
                     if strategy_type == StrategyType.NUCLEAR:
@@ -261,6 +270,13 @@ class MultiStrategyManager:
                             consolidated_portfolio[symbol] += total_weight
                         else:
                             consolidated_portfolio[symbol] = total_weight
+                        
+                        # Track strategy attribution
+                        if symbol not in strategy_attribution:
+                            strategy_attribution[symbol] = []
+                        if strategy_type not in strategy_attribution[symbol]:
+                            strategy_attribution[symbol].append(strategy_type)
+                            
                 else:
                     # Single symbol signal
                     symbol = symbol_or_allocation
@@ -268,12 +284,19 @@ class MultiStrategyManager:
                         consolidated_portfolio[symbol] += strategy_allocation
                     else:
                         consolidated_portfolio[symbol] = strategy_allocation
+                    
+                    # Track strategy attribution
+                    if symbol not in strategy_attribution:
+                        strategy_attribution[symbol] = []
+                    if strategy_type not in strategy_attribution[symbol]:
+                        strategy_attribution[symbol].append(strategy_type)
         
         # Note: Position tracking should only happen when trades are actually executed
         # Signal generation should not create position records
         
         logging.debug(f"Consolidated portfolio: {consolidated_portfolio}")
-        return strategy_signals, consolidated_portfolio
+        logging.debug(f"Strategy attribution: {strategy_attribution}")
+        return strategy_signals, consolidated_portfolio, strategy_attribution
     
     def _get_nuclear_portfolio_allocation(self, signal_data: Dict) -> Dict[str, float]:
         """Extract portfolio allocation from Nuclear strategy signal"""
@@ -421,7 +444,7 @@ def main():
     print("=" * 50)
     
     # Run all strategies
-    strategy_signals, consolidated_portfolio = manager.run_all_strategies()
+    strategy_signals, consolidated_portfolio, _ = manager.run_all_strategies()
     
     print("\n📊 Strategy Signals:")
     for strategy, signal in strategy_signals.items():

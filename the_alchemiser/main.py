@@ -101,7 +101,7 @@ def generate_multi_strategy_signals():
         shared_data_provider = UnifiedDataProvider(paper_trading=True)
         # Pass shared data provider to MultiStrategyManager - it will read config allocations automatically
         manager = MultiStrategyManager(shared_data_provider=shared_data_provider, config=config)
-        strategy_signals, consolidated_portfolio = manager.run_all_strategies()
+        strategy_signals, consolidated_portfolio, _ = manager.run_all_strategies()
         return manager, strategy_signals, consolidated_portfolio
     except Exception as e:
         return None, None, None

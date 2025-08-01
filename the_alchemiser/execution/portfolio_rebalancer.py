@@ -2,10 +2,13 @@
 """Portfolio rebalancing helper."""
 
 import logging
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from alpaca.trading.enums import OrderSide
 from ..utils.trading_math import calculate_rebalance_amounts
+from ..core.trading.strategy_manager import StrategyType
+from ..tracking.strategy_order_tracker import get_strategy_tracker
+from ..config.better_orders_config import get_better_orders_config
 
 
 class PortfolioRebalancer:
@@ -15,10 +18,34 @@ class PortfolioRebalancer:
         """Initialize with parent trading bot."""
         self.bot = bot
         self.order_manager = bot.order_manager
-        self.trading_client = bot.trading_client
-        self.ignore_market_hours = getattr(bot, "ignore_market_hours", False)
+    
+    def _get_primary_strategy_for_symbol(self, symbol: str, strategy_attribution: Optional[Dict[str, List[StrategyType]]]) -> StrategyType:
+        """
+        Determine the primary strategy responsible for a symbol.
+        
+        Args:
+            symbol: The symbol to lookup
+            strategy_attribution: Mapping of symbols to contributing strategies
+            
+        Returns:
+            StrategyType: The primary strategy (first if multiple, or default if unknown)
+        """
+        if strategy_attribution and symbol in strategy_attribution:
+            strategies = strategy_attribution[symbol]
+            if strategies:
+                return strategies[0]  # Use first strategy as primary
+        
+        # Default fallback - try to infer from symbol
+        if symbol in ['SMR', 'LEU', 'OKLO', 'NLR', 'BWXT', 'PSQ', 'SQQQ', 'UUP', 'UVXY', 'BTAL']:
+            return StrategyType.NUCLEAR
+        elif symbol in ['TECL', 'TQQQ', 'UPRO', 'BIL', 'QQQ']:
+            return StrategyType.TECL
+        else:
+            # Default to first available strategy
+            return StrategyType.NUCLEAR
 
-    def rebalance_portfolio(self, target_portfolio: Dict[str, float]) -> List[Dict]:
+    def rebalance_portfolio(self, target_portfolio: Dict[str, float], 
+                          strategy_attribution: Optional[Dict[str, List[StrategyType]]] = None) -> List[Dict]:
         """Rebalance portfolio following a sell-then-buy process.
 
         Steps:
@@ -76,6 +103,15 @@ class PortfolioRebalancer:
                         # Estimate value for tracking purposes
                         price = self.bot.get_current_price(symbol)
                         estimated_value = abs(qty) * price if price > 0 else 0
+                        
+                        # Track order with strategy
+                        try:
+                            strategy = self._get_primary_strategy_for_symbol(symbol, strategy_attribution)
+                            tracker = get_strategy_tracker(paper_trading=self.bot.paper_trading)
+                            tracker.record_order(order_id, strategy, symbol, 'SELL', abs(qty), price)
+                        except Exception as e:
+                            logging.warning(f"Failed to track liquidation order {order_id}: {e}")
+                        
                         orders_executed.append({
                             "symbol": symbol,
                             "qty": abs(qty),
@@ -99,6 +135,15 @@ class PortfolioRebalancer:
                     qty = float(getattr(pos, 'qty', 0))
                     price = self.bot.get_current_price(symbol)
                     estimated_value = abs(qty) * price if price > 0 else 0
+                    
+                    # Track order with strategy
+                    try:
+                        strategy = self._get_primary_strategy_for_symbol(symbol, strategy_attribution)
+                        tracker = get_strategy_tracker(paper_trading=self.bot.paper_trading)
+                        tracker.record_order(order_id, strategy, symbol, 'SELL', abs(qty), price)
+                    except Exception as e:
+                        logging.warning(f"Failed to track liquidation order {order_id}: {e}")
+                    
                     orders_executed.append({
                         "symbol": symbol,
                         "qty": abs(qty),
@@ -114,10 +159,37 @@ class PortfolioRebalancer:
                     if qty > 0:
                         sell_plans.append({"symbol": symbol, "qty": qty, "est": qty * price})
 
-        # Execute sell orders
+        # Execute sell orders using better orders execution
         for plan in sell_plans:
-            order_id = self.bot.place_order(plan["symbol"], plan["qty"], OrderSide.SELL)
+            symbol = plan["symbol"]
+            qty = plan["qty"]
+            config = get_better_orders_config()
+            
+            # Use better orders for sell execution if available and appropriate
+            if (hasattr(self.order_manager, 'place_better_order') and 
+                config.should_use_better_orders(symbol)):
+                max_slippage = config.get_slippage_tolerance(symbol)
+                order_id = self.order_manager.place_better_order(
+                    symbol, 
+                    qty, 
+                    OrderSide.SELL,
+                    max_slippage_bps=max_slippage
+                )
+            else:
+                # Fallback to existing method
+                order_id = self.bot.place_order(symbol, qty, OrderSide.SELL)
             if order_id:
+                # Track order with strategy
+                try:
+                    symbol = plan["symbol"]
+                    qty = plan["qty"]
+                    price = plan.get("price", self.bot.get_current_price(symbol))
+                    strategy = self._get_primary_strategy_for_symbol(symbol, strategy_attribution)
+                    tracker = get_strategy_tracker(paper_trading=self.bot.paper_trading)
+                    tracker.record_order(order_id, strategy, symbol, 'SELL', qty, price)
+                except Exception as e:
+                    logging.warning(f"Failed to track sell order {order_id}: {e}")
+                
                 orders_executed.append({
                     "symbol": plan["symbol"],
                     "qty": plan["qty"],
@@ -198,15 +270,37 @@ class PortfolioRebalancer:
             else:
                 Console().print(f"[green]Buying {symbol}: ${target_dollar_amount:.2f}[/green]")
             
-            # Use notional order directly via the order manager adapter
-            order_id = self.order_manager.place_limit_or_market(
-                symbol, 
-                qty=0,  # Ignored when notional is used
-                side=OrderSide.BUY, 
-                notional=target_dollar_amount
-            )
+            # Use better orders execution if available for share-based orders, else notional fallback
+            config = get_better_orders_config()
+            if (hasattr(self.order_manager, 'place_better_order') and 
+                target_qty > 0 and config.should_use_better_orders(symbol)):
+                # Use better orders for share-based execution
+                max_slippage = config.get_slippage_tolerance(symbol)
+                order_id = self.order_manager.place_better_order(
+                    symbol, 
+                    target_qty, 
+                    OrderSide.BUY,
+                    max_slippage_bps=max_slippage
+                )
+            else:
+                # Fallback to notional order for edge cases or when better orders unavailable
+                order_id = self.order_manager.place_limit_or_market(
+                    symbol, 
+                    qty=0,  # Ignored when notional is used
+                    side=OrderSide.BUY, 
+                    notional=target_dollar_amount
+                )
                 
             if order_id:
+                # Track order with strategy
+                try:
+                    strategy = self._get_primary_strategy_for_symbol(symbol, strategy_attribution)
+                    tracker = get_strategy_tracker(paper_trading=self.bot.paper_trading)
+                    # For notional orders, we estimate the quantity and use current price
+                    tracker.record_order(order_id, strategy, symbol, 'BUY', target_qty, price)
+                except Exception as e:
+                    logging.warning(f"Failed to track buy order {order_id}: {e}")
+                
                 orders_executed.append({
                     "symbol": symbol,
                     "qty": target_qty,  # Estimated quantity for display
