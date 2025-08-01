@@ -2,14 +2,30 @@
 
 This plan outlines how to track profits and losses (P&L) for each trading strategy individually so that the metrics can be included in summary emails and performance reports.
 
-## 1. Introduce a `StrategyOrderTracker`
-- Create a dedicated component responsible for recording every executed order along with the originating strategy.
-- For each order, store the strategy identifier, order ID, symbol, side, quantity, price, and timestamp.
-- Persist these records in a durable store (e.g., SQLite or JSON) so that order history survives restarts.
+## 1. ✅ Introduce a `StrategyOrderTracker` - COMPLETED
+- ✅ Create a dedicated component responsible for recording every executed order along with the originating strategy.
+- ✅ For each order, store the strategy identifier, order ID, symbol, side, quantity, price, and timestamp.
+- ✅ Persist these records in a durable store (S3) so that order history survives restarts.
+- ✅ Implemented comprehensive P&L calculations (realized, unrealized, total)
+- ✅ Added S3 persistence with configurable paths
+- ✅ Created email summary integration methods
+- ✅ Full test coverage with 7 passing tests
 
 ## 2. Tag Orders With Strategy Information
 - When the `TradingEngine` executes a rebalance, pass the `StrategyType` to the execution layer.
 - Immediately after each order fills, log it in the `StrategyOrderTracker` with its strategy tag.
+
+### Implementation Approach:
+1. **Enhanced Portfolio Data Structure**: Modify `MultiStrategyManager.run_all_strategies()` to return portfolio allocation with strategy attribution
+2. **Strategy-Symbol Mapping**: Create a mapping showing which strategy contributes to each symbol
+3. **Order Tracking Integration**: Pass strategy information through the execution chain to `StrategyOrderTracker.record_order()`
+4. **Execution Layer Updates**: Modify `PortfolioRebalancer` and `SmartExecution` to accept and forward strategy context
+
+### Files to Modify:
+- `strategy_manager.py`: Return strategy attribution data
+- `trading_engine.py`: Pass strategy info to rebalancer
+- `portfolio_rebalancer.py`: Track strategy for each order
+- Integration with `StrategyOrderTracker.record_order()`
 
 ## 3. Calculate P&L per Strategy
 - Use the stored order history to maintain positions and average cost on a per-strategy basis.

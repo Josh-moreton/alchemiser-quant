@@ -48,3 +48,11 @@ email:
 data:
   cache_duration: 300
   default_symbol: "AAPL"
+
+# Strategy tracking configuration
+tracking:
+  s3_bucket: "the-alchemiser-s3"
+  strategy_orders_path: "strategy_orders/"
+  strategy_positions_path: "strategy_positions/"
+  strategy_pnl_history_path: "strategy_pnl_history/"
+  order_history_limit: 1000 # Maximum orders to keep in recent_orders.json
