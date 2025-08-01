@@ -562,16 +562,24 @@ class BacktestEngine:
             # Initialize strategy manager with shared data
             manager = self.get_strategy_manager()
             
-            # Get cached data
+            # Get all required symbols from strategy engines
             all_symbols = list(set(
                 manager.nuclear_engine.all_symbols +
                 manager.tecl_engine.all_symbols +
                 (manager.klm_ensemble.all_symbols if hasattr(manager, 'klm_ensemble') and manager.klm_ensemble else [])
             ))
             
+            # Pre-populate cache if no data is available
             symbol_data, minute_data = self.data_loader.get_cached_symbol_data(
                 all_symbols, start, end, use_minute_candles
             )
+            
+            if not symbol_data:
+                console.print("[yellow]📥 No cached data found, loading fresh data...[/yellow]")
+                # Preload data to populate cache
+                symbol_data, minute_data = self.preload_data(
+                    start, end, all_symbols, use_minute_candles, force_refresh=False
+                )
             
             if not symbol_data:
                 console.print("[red]❌ No symbol data available[/red]")
