@@ -269,10 +269,8 @@ def version():
 
 
 # Import new clean backtest engine
-from the_alchemiser.backtest.backtest_engine import (
-    run_individual_strategy_backtest, 
-    run_live_backtest, 
-    run_all_combinations_backtest,
+from the_alchemiser.backtest.engine import (
+    BacktestEngine,
     BacktestResult
 )
 
@@ -330,8 +328,14 @@ def backtest(
         raise typer.Exit(1)
     
     # Run appropriate backtest
+    engine = BacktestEngine(use_cache=True)
+    
     if mode == 'individual':
-        result = run_individual_strategy_backtest(
+        if not strategy:
+            console.print("[red]Strategy is required for individual mode[/red]")
+            raise typer.Exit(1)
+            
+        result = engine.run_individual_strategy(
             strategy.lower(), start_dt, end_dt,
             initial_equity=initial_equity,
             slippage_bps=slippage_bps,
@@ -361,7 +365,7 @@ def backtest(
         console.print(table)
         
     elif mode == 'live':
-        result = run_live_backtest(
+        result = engine.run_live_configuration(
             start_dt, end_dt,
             initial_equity=initial_equity,
             slippage_bps=slippage_bps,
@@ -391,7 +395,7 @@ def backtest(
         console.print(table)
         
     elif mode == 'all':
-        results = run_all_combinations_backtest(
+        results = engine.run_all_combinations(
             start_dt, end_dt,
             initial_equity=initial_equity,
             slippage_bps=slippage_bps,
