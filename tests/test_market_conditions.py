@@ -54,7 +54,7 @@ class TestMarketOpen:
         """Test that orders are placed when market is open."""
         mock_trading_client.get_clock.return_value = MagicMock(is_open=True)
         
-        order_id = order_manager.place_limit_or_market('AAPL', 1.0, OrderSide.BUY)
+        order_id = order_manager.place_order('AAPL', 1.0, OrderSide.BUY)
         
         assert order_id is not None
         mock_trading_client.submit_order.assert_called_once()
@@ -76,7 +76,7 @@ class TestMarketClosed:
             mock_trading_client, mock_data_provider, ignore_market_hours=True
         )
         
-        order_id = order_manager.place_limit_or_market('AAPL', 1.0, OrderSide.BUY)
+        order_id = order_manager.place_order('AAPL', 1.0, OrderSide.BUY)
         
         assert order_id is not None
         mock_trading_client.submit_order.assert_called_once()
@@ -91,7 +91,7 @@ class TestHighVolatility:
         mock_data_provider.get_latest_quote.return_value = (95.0, 105.0)
         mock_data_provider.get_current_price.return_value = 100.0
         
-        order_id = order_manager.place_limit_or_market('VOLATILE_STOCK', 1.0, OrderSide.BUY)
+        order_id = order_manager.place_order('VOLATILE_STOCK', 1.0, OrderSide.BUY)
         
         assert order_id is not None
     
@@ -102,7 +102,7 @@ class TestHighVolatility:
         mock_data_provider.get_current_price.side_effect = prices
         
         for i in range(len(prices)):
-            order_id = order_manager.place_limit_or_market('VOLATILE_STOCK', 1.0, OrderSide.BUY)
+            order_id = order_manager.place_order('VOLATILE_STOCK', 1.0, OrderSide.BUY)
             assert order_id is not None
 
 
@@ -115,7 +115,7 @@ class TestLowLiquidity:
         mock_data_provider.get_latest_quote.return_value = (90.0, 110.0)
         mock_data_provider.get_current_price.return_value = 100.0
         
-        order_id = order_manager.place_limit_or_market('ILLIQUID_STOCK', 0.1, OrderSide.BUY)
+        order_id = order_manager.place_order('ILLIQUID_STOCK', 0.1, OrderSide.BUY)
         
         assert order_id is not None
     
@@ -130,7 +130,7 @@ class TestLowLiquidity:
         mock_data_provider.get_latest_quote.return_value = (80.0, 120.0)
         mock_data_provider.get_current_price.return_value = 100.0
         
-        order_id = order_manager.place_limit_or_market('WIDE_SPREAD_STOCK', 1.0, OrderSide.SELL)
+        order_id = order_manager.place_order('WIDE_SPREAD_STOCK', 1.0, OrderSide.SELL)
         
         assert order_id is not None
 
@@ -150,7 +150,7 @@ class TestAPIErrors:
         """Test handling of order submission failures."""
         mock_trading_client.submit_order.side_effect = Exception("Order submission failed")
         
-        order_id = order_manager.place_limit_or_market('AAPL', 1.0, OrderSide.BUY)
+        order_id = order_manager.place_order('AAPL', 1.0, OrderSide.BUY)
         
         # Should return None when order fails
         assert order_id is None

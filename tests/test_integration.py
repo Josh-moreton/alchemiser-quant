@@ -124,7 +124,7 @@ class TestPaperTradingIntegration:
         orders_placed = []
         for symbol, allocation in target_allocations.items():
             shares = (10000.0 * allocation) / price_data[symbol]
-            order_id = order_manager.place_limit_or_market(symbol, shares, OrderSide.BUY)
+            order_id = order_manager.place_order(symbol, shares, OrderSide.BUY)
             orders_placed.append(order_id)
         
         # Verify all orders were placed
@@ -148,7 +148,7 @@ class TestPaperTradingIntegration:
         results = []
         
         for symbol in symbols:
-            order_id = order_manager.place_limit_or_market(symbol, 10.0, OrderSide.BUY)
+            order_id = order_manager.place_order(symbol, 10.0, OrderSide.BUY)
             results.append(order_id)
         
         # Should have 2 successful orders and 2 failures
@@ -175,7 +175,7 @@ class TestLiveTradingSimulation:
         )
         
         # Test position size limits
-        large_order_id = order_manager.place_limit_or_market('AAPL', 100.0, OrderSide.BUY)  # $15k order
+        large_order_id = order_manager.place_order('AAPL', 100.0, OrderSide.BUY)  # $15k order
         
         # Should be rejected due to insufficient funds
         if large_order_id is None:
@@ -212,7 +212,7 @@ class TestLiveTradingSimulation:
         
         # Test during market hours
         mock_trading_client.get_clock.return_value = MagicMock(is_open=True)
-        order_id = order_manager.place_limit_or_market('AAPL', 1.0, OrderSide.BUY)
+        order_id = order_manager.place_order('AAPL', 1.0, OrderSide.BUY)
         assert order_id is not None
         
         # Test after market hours
@@ -254,7 +254,7 @@ class TestBacktestMode:
             mock_data_provider.get_current_price.return_value = current_price
             
             # Execute strategy for this day
-            order_id = order_manager.place_limit_or_market('AAPL', 1.0, OrderSide.BUY)
+            order_id = order_manager.place_order('AAPL', 1.0, OrderSide.BUY)
             backtest_results.append({
                 'day': day,
                 'price': current_price,
@@ -291,7 +291,7 @@ class TestBacktestMode:
             portfolio_evolution.append(total_value)
             
             # Place order for next day
-            order_manager.place_limit_or_market('AAPL', 10.0, OrderSide.BUY)
+            order_manager.place_order('AAPL', 10.0, OrderSide.BUY)
         
         # Verify portfolio grew over time
         assert portfolio_evolution[0] == 0.0  # Started empty
@@ -368,7 +368,7 @@ class TestEndToEndWorkflows:
             current_price = mock_data_provider.get_current_price(symbol)
             target_shares = target_value / current_price
             
-            order_id = order_manager.place_limit_or_market(symbol, target_shares, OrderSide.BUY)
+            order_id = order_manager.place_order(symbol, target_shares, OrderSide.BUY)
             rebalance_orders.append(order_id)
         
         # Verify rebalancing executed
@@ -401,7 +401,7 @@ class TestEndToEndWorkflows:
             # Execute strategy
             signal = mock_strategies[0].get_signal()
             if signal['action'] == 'buy':
-                order_id = order_manager.place_limit_or_market('AAPL', 10.0, OrderSide.BUY)
+                order_id = order_manager.place_order('AAPL', 10.0, OrderSide.BUY)
             else:
                 order_id = order_manager.place_safe_sell_order('AAPL', 5.0)
             

@@ -47,7 +47,7 @@ class TestAPIErrors:
         error_response = {"code": 40310000, "message": "insufficient buying power"}
         mock_trading_client.submit_order.side_effect = APIError(error_response)
         
-        order_id = order_manager.place_limit_or_market('AAPL', 1000.0, OrderSide.BUY)
+        order_id = order_manager.place_order('AAPL', 1000.0, OrderSide.BUY)
         
         assert order_id is None
     
@@ -56,7 +56,7 @@ class TestAPIErrors:
         error_response = {"code": 40410000, "message": "symbol not found"}
         mock_trading_client.submit_order.side_effect = APIError(error_response)
         
-        order_id = order_manager.place_limit_or_market('INVALID', 1.0, OrderSide.BUY)
+        order_id = order_manager.place_order('INVALID', 1.0, OrderSide.BUY)
         
         assert order_id is None
     
@@ -65,7 +65,7 @@ class TestAPIErrors:
         error_response = {"code": 40010001, "message": "market is closed"}
         mock_trading_client.submit_order.side_effect = APIError(error_response)
         
-        order_id = order_manager.place_limit_or_market('AAPL', 1.0, OrderSide.BUY)
+        order_id = order_manager.place_order('AAPL', 1.0, OrderSide.BUY)
         
         assert order_id is None
     
@@ -74,7 +74,7 @@ class TestAPIErrors:
         error_response = {"code": 40310001, "message": "account is suspended"}
         mock_trading_client.submit_order.side_effect = APIError(error_response)
         
-        order_id = order_manager.place_limit_or_market('AAPL', 1.0, OrderSide.BUY)
+        order_id = order_manager.place_order('AAPL', 1.0, OrderSide.BUY)
         
         assert order_id is None
     
@@ -83,7 +83,7 @@ class TestAPIErrors:
         error_response = {"code": 42910000, "message": "rate limit exceeded"}
         mock_trading_client.submit_order.side_effect = APIError(error_response)
         
-        order_id = order_manager.place_limit_or_market('AAPL', 1.0, OrderSide.BUY)
+        order_id = order_manager.place_order('AAPL', 1.0, OrderSide.BUY)
         
         assert order_id is None
     
@@ -92,7 +92,7 @@ class TestAPIErrors:
         error_response = {"code": 50000000, "message": "internal server error"}
         mock_trading_client.submit_order.side_effect = APIError(error_response)
         
-        order_id = order_manager.place_limit_or_market('AAPL', 1.0, OrderSide.BUY)
+        order_id = order_manager.place_order('AAPL', 1.0, OrderSide.BUY)
         
         assert order_id is None
     
@@ -101,7 +101,7 @@ class TestAPIErrors:
         # Mock malformed response that doesn't match expected structure
         mock_trading_client.submit_order.side_effect = ValueError("Malformed response")
         
-        order_id = order_manager.place_limit_or_market('AAPL', 1.0, OrderSide.BUY)
+        order_id = order_manager.place_order('AAPL', 1.0, OrderSide.BUY)
         
         assert order_id is None
 
@@ -113,7 +113,7 @@ class TestNetworkFailures:
         """Test handling of connection timeouts."""
         mock_trading_client.submit_order.side_effect = requests.exceptions.Timeout("Connection timeout")
         
-        order_id = order_manager.place_limit_or_market('AAPL', 1.0, OrderSide.BUY)
+        order_id = order_manager.place_order('AAPL', 1.0, OrderSide.BUY)
         
         assert order_id is None
     
@@ -121,7 +121,7 @@ class TestNetworkFailures:
         """Test handling of connection errors."""
         mock_trading_client.submit_order.side_effect = requests.exceptions.ConnectionError("Connection failed")
         
-        order_id = order_manager.place_limit_or_market('AAPL', 1.0, OrderSide.BUY)
+        order_id = order_manager.place_order('AAPL', 1.0, OrderSide.BUY)
         
         assert order_id is None
     
@@ -129,7 +129,7 @@ class TestNetworkFailures:
         """Test handling of DNS resolution failures."""
         mock_trading_client.submit_order.side_effect = requests.exceptions.ConnectionError("DNS resolution failed")
         
-        order_id = order_manager.place_limit_or_market('AAPL', 1.0, OrderSide.BUY)
+        order_id = order_manager.place_order('AAPL', 1.0, OrderSide.BUY)
         
         assert order_id is None
     
@@ -137,7 +137,7 @@ class TestNetworkFailures:
         """Test handling of SSL certificate errors."""
         mock_trading_client.submit_order.side_effect = requests.exceptions.SSLError("SSL certificate verification failed")
         
-        order_id = order_manager.place_limit_or_market('AAPL', 1.0, OrderSide.BUY)
+        order_id = order_manager.place_order('AAPL', 1.0, OrderSide.BUY)
         
         assert order_id is None
     
@@ -150,11 +150,11 @@ class TestNetworkFailures:
         ]
         
         # First attempt should fail
-        order_id1 = order_manager.place_limit_or_market('AAPL', 1.0, OrderSide.BUY)
+        order_id1 = order_manager.place_order('AAPL', 1.0, OrderSide.BUY)
         assert order_id1 is None
         
         # Second attempt should succeed
-        order_id2 = order_manager.place_limit_or_market('AAPL', 1.0, OrderSide.BUY)
+        order_id2 = order_manager.place_order('AAPL', 1.0, OrderSide.BUY)
         assert order_id2 is not None
 
 
@@ -279,7 +279,7 @@ class TestDataProviderErrors:
         mock_data_provider.get_current_price.side_effect = Exception("Price data unavailable")
         
         # Should still place order (using order manager's fallback behavior)
-        order_id = order_manager.place_limit_or_market('AAPL', 1.0, OrderSide.BUY)
+        order_id = order_manager.place_order('AAPL', 1.0, OrderSide.BUY)
         
         # Behavior depends on implementation - either succeeds with default or fails
         # This tests that it handles the error gracefully
@@ -289,7 +289,7 @@ class TestDataProviderErrors:
         """Test error when fetching bid/ask quotes."""
         mock_data_provider.get_latest_quote.side_effect = Exception("Quote data unavailable")
         
-        order_id = order_manager.place_limit_or_market('AAPL', 1.0, OrderSide.BUY)
+        order_id = order_manager.place_order('AAPL', 1.0, OrderSide.BUY)
         
         # Should handle gracefully
         assert order_id is not None or order_id is None
@@ -308,14 +308,14 @@ class TestConcurrentErrorScenarios:
         ]
         
         # First two attempts should fail
-        order_id1 = order_manager.place_limit_or_market('AAPL', 1.0, OrderSide.BUY)
+        order_id1 = order_manager.place_order('AAPL', 1.0, OrderSide.BUY)
         assert order_id1 is None
         
-        order_id2 = order_manager.place_limit_or_market('AAPL', 1.0, OrderSide.BUY)
+        order_id2 = order_manager.place_order('AAPL', 1.0, OrderSide.BUY)
         assert order_id2 is None
         
         # Third attempt should succeed
-        order_id3 = order_manager.place_limit_or_market('AAPL', 1.0, OrderSide.BUY)
+        order_id3 = order_manager.place_order('AAPL', 1.0, OrderSide.BUY)
         assert order_id3 is not None
     
     def test_position_fetch_and_order_errors(self, order_manager, mock_trading_client):
@@ -344,11 +344,11 @@ class TestErrorRecovery:
         ]
         
         # First attempt fails
-        order_id1 = order_manager.place_limit_or_market('AAPL', 1.0, OrderSide.BUY)
+        order_id1 = order_manager.place_order('AAPL', 1.0, OrderSide.BUY)
         assert order_id1 is None
         
         # Retry succeeds
-        order_id2 = order_manager.place_limit_or_market('AAPL', 1.0, OrderSide.BUY)
+        order_id2 = order_manager.place_order('AAPL', 1.0, OrderSide.BUY)
         assert order_id2 is not None
     
     def test_no_retry_after_permanent_error(self, order_manager, mock_trading_client):
@@ -356,7 +356,7 @@ class TestErrorRecovery:
         # Permanent error that shouldn't be retried
         mock_trading_client.submit_order.side_effect = APIError({"code": 40310000, "message": "insufficient buying power"})
         
-        order_id = order_manager.place_limit_or_market('AAPL', 1000.0, OrderSide.BUY)
+        order_id = order_manager.place_order('AAPL', 1000.0, OrderSide.BUY)
         
         assert order_id is None
         

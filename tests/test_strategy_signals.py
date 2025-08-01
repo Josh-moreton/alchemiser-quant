@@ -97,7 +97,7 @@ class TestSignalExecution:
     def test_buy_signal_execution(self, order_manager):
         """Test execution of buy signals."""
         # Simulate buy signal
-        order_id = order_manager.place_limit_or_market('AAPL', 10.0, OrderSide.BUY)
+        order_id = order_manager.place_order('AAPL', 10.0, OrderSide.BUY)
         assert order_id is not None
     
     def test_sell_signal_execution(self, order_manager, mock_trading_client):
@@ -138,7 +138,7 @@ class TestMultiAssetSignals:
         orders = []
         
         for asset in assets:
-            order_id = order_manager.place_limit_or_market(asset, 5.0, OrderSide.BUY)
+            order_id = order_manager.place_order(asset, 5.0, OrderSide.BUY)
             orders.append(order_id)
         
         # All orders should be successful
@@ -167,8 +167,8 @@ class TestMultiAssetSignals:
         tech_sells.append(order_manager.place_safe_sell_order('GOOGL', 1.0))
         
         # Buy healthcare positions
-        healthcare_buys.append(order_manager.place_limit_or_market('JNJ', 3.0, OrderSide.BUY))
-        healthcare_buys.append(order_manager.place_limit_or_market('PFE', 10.0, OrderSide.BUY))
+        healthcare_buys.append(order_manager.place_order('JNJ', 3.0, OrderSide.BUY))
+        healthcare_buys.append(order_manager.place_order('PFE', 10.0, OrderSide.BUY))
         
         # All orders should execute
         assert all(order_id is not None for order_id in tech_sells)
@@ -181,7 +181,7 @@ class TestSignalValidation:
     def test_valid_signal_parameters(self, order_manager, mock_trading_client):
         """Test that valid signal parameters are accepted."""
         # Valid buy signal
-        order_id = order_manager.place_limit_or_market('AAPL', 1.0, OrderSide.BUY)
+        order_id = order_manager.place_order('AAPL', 1.0, OrderSide.BUY)
         assert order_id is not None
         
         # Mock position for sell signal
@@ -190,28 +190,28 @@ class TestSignalValidation:
         ]
         
         # Valid sell signal  
-        order_id = order_manager.place_limit_or_market('AAPL', 1.0, OrderSide.SELL)
+        order_id = order_manager.place_order('AAPL', 1.0, OrderSide.SELL)
         assert order_id is not None
     
     def test_invalid_signal_parameters(self, order_manager):
         """Test handling of invalid signal parameters."""
         # Invalid quantity (zero)
-        order_id = order_manager.place_limit_or_market('AAPL', 0.0, OrderSide.BUY)
+        order_id = order_manager.place_order('AAPL', 0.0, OrderSide.BUY)
         assert order_id is None
         
         # Invalid quantity (negative)
-        order_id = order_manager.place_limit_or_market('AAPL', -1.0, OrderSide.BUY)
+        order_id = order_manager.place_order('AAPL', -1.0, OrderSide.BUY)
         assert order_id is None
     
     def test_signal_timing_validation(self, order_manager, mock_trading_client):
         """Test validation of signal timing."""
         # Test during market hours
         mock_trading_client.get_clock.return_value = MagicMock(is_open=True)
-        order_id = order_manager.place_limit_or_market('AAPL', 1.0, OrderSide.BUY)
+        order_id = order_manager.place_order('AAPL', 1.0, OrderSide.BUY)
         assert order_id is not None
         
         # Test during market closed (with ignore_market_hours=False by default)
         mock_trading_client.get_clock.return_value = MagicMock(is_open=False)
         # Order might still be placed (depends on implementation)
-        order_id = order_manager.place_limit_or_market('AAPL', 1.0, OrderSide.BUY)
+        order_id = order_manager.place_order('AAPL', 1.0, OrderSide.BUY)
         # Result depends on order manager's market hours handling

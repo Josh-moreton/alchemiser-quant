@@ -1,0 +1,96 @@
+"""Email configuration management module.
+
+This module handles loading email settings from config.yaml and AWS Secrets Manager.
+Replaces the `get_email_config` function from the original email_utils.py.
+"""
+
+import logging
+from typing import Optional, Tuple
+
+from the_alchemiser.core.secrets.secrets_manager import SecretsManager
+from the_alchemiser.core.config import get_config
+
+
+class EmailConfig:
+    """Manages email configuration settings."""
+    
+    def __init__(self):
+        self.secrets_manager = SecretsManager()
+        self._config_cache = None
+    
+    def get_config(self) -> Optional[Tuple[str, int, str, str, str]]:
+        """Get email configuration from config.yaml and secrets manager.
+        
+        Returns:
+            Tuple containing (smtp_server, smtp_port, from_email, email_password, to_email)
+            or None if configuration is invalid.
+        """
+        if self._config_cache:
+            return self._config_cache
+            
+        try:
+            # Get configuration instance
+            config = get_config()
+            
+            # Get email config section from config.yaml
+            email_config = config.get('email', {}) if config else {}
+            
+            # Extract values from config.yaml
+            smtp_server = email_config.get('smtp_server', 'smtp.mail.me.com')
+            smtp_port = int(email_config.get('smtp_port', 587))
+            from_email = email_config.get('from_email')
+            to_email = email_config.get('to_email')
+            
+            # Get secrets manager config
+            secrets_config = config.get('secrets_manager', {}) if config else {}
+            secret_name = secrets_config.get('secret_name', 'nuclear-secrets')
+            
+            # Get sensitive password from AWS Secrets Manager
+            email_password = self._get_email_password(secret_name)
+            
+            # Validate required fields
+            if not from_email:
+                logging.error("from_email not configured in config.yaml email section")
+                return None
+                
+            if not email_password:
+                logging.error("email_password not found in AWS Secrets Manager")
+                return None
+                
+            # Use from_email as to_email if to_email is not specified
+            if not to_email:
+                to_email = from_email
+                
+            logging.info(f"Email config loaded: SMTP={smtp_server}:{smtp_port}, from={from_email}, to={to_email}")
+            
+            self._config_cache = (smtp_server, smtp_port, from_email, email_password, to_email)
+            return self._config_cache
+            
+        except Exception as e:
+            logging.error(f"Error loading email configuration: {e}")
+            return None
+    
+    def _get_email_password(self, secret_name: str) -> Optional[str]:
+        """Get email password from AWS Secrets Manager."""
+        try:
+            secrets = self.secrets_manager.get_secret(secret_name)
+            if secrets:
+                # Look for email password in secrets (prioritize SMTP_PASSWORD)
+                return (secrets.get('SMTP_PASSWORD') or 
+                       secrets.get('email_password') or 
+                       secrets.get('EMAIL_PASSWORD'))
+        except Exception as e:
+            logging.warning(f"Could not get email password from secrets manager: {e}")
+        return None
+    
+    def clear_cache(self):
+        """Clear the configuration cache."""
+        self._config_cache = None
+
+
+# Global instance for backward compatibility
+_email_config = EmailConfig()
+
+def get_email_config() -> Optional[Tuple[str, int, str, str, str]]:
+    """Get email configuration (backward compatibility function)."""
+    return _email_config.get_config()

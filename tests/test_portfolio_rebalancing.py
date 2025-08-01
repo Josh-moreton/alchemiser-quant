@@ -81,7 +81,7 @@ class TestFullRebalance:
         
         orders_placed = []
         for symbol in target_allocations:
-            order_id = order_manager.place_limit_or_market(symbol, 10.0, OrderSide.BUY)
+            order_id = order_manager.place_order(symbol, 10.0, OrderSide.BUY)
             orders_placed.append(order_id)
         
         # Should place 3 buy orders
@@ -108,7 +108,7 @@ class TestFullRebalance:
         # Sell some AAPL
         sell_order = order_manager.place_safe_sell_order('AAPL', 20.0)
         # Buy GOOGL
-        buy_order = order_manager.place_limit_or_market('GOOGL', 2.0, OrderSide.BUY)
+        buy_order = order_manager.place_order('GOOGL', 2.0, OrderSide.BUY)
         
         assert sell_order is not None
         assert buy_order is not None

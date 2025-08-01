@@ -53,7 +53,7 @@ class TestOrderExecutionLogging:
         """Test logging of successful order execution."""
         with patch('logging.info') as mock_info:
             # Place order
-            order_id = order_manager.place_limit_or_market('AAPL', 10.0, OrderSide.BUY)
+            order_id = order_manager.place_order('AAPL', 10.0, OrderSide.BUY)
             
             assert order_id is not None
             
@@ -67,7 +67,7 @@ class TestOrderExecutionLogging:
         
         with patch('logging.error') as mock_error:
             # Attempt order
-            order_id = order_manager.place_limit_or_market('AAPL', 10.0, OrderSide.BUY)
+            order_id = order_manager.place_order('AAPL', 10.0, OrderSide.BUY)
             
             assert order_id is None
             
@@ -85,7 +85,7 @@ class TestOrderExecutionLogging:
             quantity = 5.5
             side = OrderSide.SELL
             
-            order_id = order_manager.place_limit_or_market(symbol, quantity, side)
+            order_id = order_manager.place_order(symbol, quantity, side)
             
             # Verify order details appear in logs
             # Check that logging calls contain relevant information
@@ -125,7 +125,7 @@ class TestErrorLogging:
         mock_trading_client.submit_order.side_effect = APIError(error_response)
         
         with patch('logging.error') as mock_error:
-            order_id = order_manager.place_limit_or_market('AAPL', 1000.0, OrderSide.BUY)
+            order_id = order_manager.place_order('AAPL', 1000.0, OrderSide.BUY)
             
             assert order_id is None
             
@@ -140,7 +140,7 @@ class TestErrorLogging:
         mock_trading_client.submit_order.side_effect = requests.exceptions.ConnectionError("Network timeout")
         
         with patch('logging.error') as mock_error:
-            order_id = order_manager.place_limit_or_market('AAPL', 1.0, OrderSide.BUY)
+            order_id = order_manager.place_order('AAPL', 1.0, OrderSide.BUY)
             
             assert order_id is None
             
@@ -153,7 +153,7 @@ class TestErrorLogging:
         mock_trading_client.submit_order.side_effect = ValueError("Unexpected error")
         
         with patch('logging.error') as mock_error:
-            order_id = order_manager.place_limit_or_market('AAPL', 1.0, OrderSide.BUY)
+            order_id = order_manager.place_order('AAPL', 1.0, OrderSide.BUY)
             
             assert order_id is None
             
@@ -175,7 +175,7 @@ class TestErrorLogging:
             quantity = 25.0
             side = OrderSide.BUY
             
-            order_id = order_manager.place_limit_or_market(symbol, quantity, side)
+            order_id = order_manager.place_order(symbol, quantity, side)
             
             assert order_id is None
             
@@ -257,7 +257,7 @@ class TestPortfolioStateReporting:
         initial_symbols = {pos.symbol for pos in initial_state}
         
         # Simulate trading activity
-        order_id = order_manager.place_limit_or_market('GOOGL', 1.0, OrderSide.BUY)
+        order_id = order_manager.place_order('GOOGL', 1.0, OrderSide.BUY)
         assert order_id is not None
         
         # Get updated state
@@ -352,7 +352,7 @@ class TestLogFileManagement:
         """Test that log files are created properly."""
         with patch('logging.info') as mock_info:
             # Place order to trigger logging
-            order_manager.place_limit_or_market('AAPL', 1.0, OrderSide.BUY)
+            order_manager.place_order('AAPL', 1.0, OrderSide.BUY)
             
             # Verify logger was used
             mock_info.assert_called()
@@ -436,7 +436,7 @@ class TestAuditTrail:
         
         with patch('logging.info', side_effect=capture_log):
             # Execute complete order lifecycle
-            order_id = order_manager.place_limit_or_market('AAPL', 10.0, OrderSide.BUY)
+            order_id = order_manager.place_order('AAPL', 10.0, OrderSide.BUY)
             
             # Mock order status checks
             mock_trading_client.get_order_by_id.return_value = MagicMock(
@@ -495,7 +495,7 @@ class TestAuditTrail:
         
         with patch('logging.error') as mock_error:
             # Attempt order
-            order_id = order_manager.place_limit_or_market('AAPL', 10.0, OrderSide.BUY)
+            order_id = order_manager.place_order('AAPL', 10.0, OrderSide.BUY)
             
             assert order_id is None
             
