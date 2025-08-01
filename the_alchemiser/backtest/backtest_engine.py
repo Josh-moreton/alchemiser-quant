@@ -47,6 +47,7 @@ os.environ['ALPACA_PAPER_SECRET'] = 'Ibcd2Zy98HL3wabRMQW6R0T1SnSZ2vN1uoLWhIOQ'
 from the_alchemiser.core.trading.strategy_manager import MultiStrategyManager, StrategyType
 from the_alchemiser.core.data.data_provider import UnifiedDataProvider
 from the_alchemiser.core import config as alchemiser_config
+from the_alchemiser.utils.symbol_lookback_calculator import SymbolLookbackCalculator, get_symbol_lookback_days
 
 # Import the new caching system
 from the_alchemiser.backtest.data_cache import (
@@ -80,6 +81,48 @@ console = Console()
 DEFAULT_INITIAL_EQUITY = 1000.0
 DEFAULT_SLIPPAGE_BPS = 8  # 8 basis points (0.08%) - realistic for retail trading
 DEFAULT_NOISE_FACTOR = 0.0015  # 0.15% market noise
+
+
+def _calculate_optimized_lookback(symbols: List[str], use_minute_candles: bool = False, strategies: Optional[List[str]] = None) -> int:
+    """
+    Calculate optimized lookback period based on symbol-specific indicator requirements.
+    
+    Args:
+        symbols: List of symbols to analyze
+        use_minute_candles: Whether minute data is being used
+        strategies: List of strategies to consider ('nuclear', 'tecl', 'klm'). If None, uses all.
+        
+    Returns:
+        Maximum lookback days required for all symbols
+    """
+    if use_minute_candles:
+        # For minute data, use conservative approach
+        return 400
+    
+    # Use the new symbol lookback calculator for strategy-aware optimization
+    calculator = SymbolLookbackCalculator()
+    
+    # Calculate symbol-specific lookbacks with strategy awareness
+    max_lookback = 0
+    for symbol in symbols:
+        symbol_lookback = calculator.get_symbol_lookback_days(symbol, strategies)
+        max_lookback = max(max_lookback, symbol_lookback)
+    
+    # Add extra buffer for backtest reliability
+    safety_buffer = max(30, int(max_lookback * 0.2))  # 20% buffer, min 30 days
+    total_lookback = max_lookback + safety_buffer
+    
+    console.print(f"[green]📊 Enhanced lookback: {total_lookback} days (vs 1200 day default)[/green]")
+    console.print(f"[dim]   Max symbol requirement: {max_lookback} days + {safety_buffer} day buffer[/dim]")
+    
+    # Show optimization details
+    optimization = calculator.optimize_data_fetching(symbols, strategies)
+    old_approach_days = len(symbols) * 1200
+    new_approach_days = optimization['efficiency_metrics']['optimized_total_days']
+    savings_pct = ((old_approach_days - new_approach_days) / old_approach_days * 100)
+    console.print(f"[dim]   Data reduction: {savings_pct:.1f}% ({old_approach_days:,} → {new_approach_days:,} symbol-days)[/dim]")
+    
+    return total_lookback
 
 
 def _get_cached_symbol_data(symbols, start, end, fetch_minute_data=False):
@@ -251,8 +294,8 @@ def run_core_backtest(start, end, strategy_weights=None, initial_equity=1000.0,
         # Remove duplicates
         all_syms = list(set(all_syms))
         
-        # Preload data using working approach
-        lookback_days = 400 if use_minute_candles else 1200
+        # Preload data using optimized lookback calculation
+        lookback_days = _calculate_optimized_lookback(all_syms, use_minute_candles)
         data_start = start - dt.timedelta(days=lookback_days)
         
         # First preload data into cache, then get it
@@ -887,7 +930,7 @@ def run_all_combinations_backtest(start, end,
     ))
     
     # Preload data into cache first
-    lookback_days = 400 if use_minute_candles else 1200
+    lookback_days = _calculate_optimized_lookback(all_syms, use_minute_candles)
     data_start = start - dt.timedelta(days=lookback_days)
     
     shared_data, minute_data = preload_backtest_data(
