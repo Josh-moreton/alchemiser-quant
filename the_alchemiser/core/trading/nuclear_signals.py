@@ -57,7 +57,7 @@ from the_alchemiser.core.alerts.alert_service import Alert
 # Import UnifiedDataProvider from the new module
 from the_alchemiser.core.data.data_provider import UnifiedDataProvider
 
-from enum import Enum, auto
+from enum import Enum
 
 # ActionType enum for clarity and safety
 class ActionType(Enum):
@@ -202,9 +202,6 @@ class NuclearStrategyEngine:
         # Fallback - no clear signal
         explanation = f"{base_explanation}\n\nNo Clear Signal: Market conditions neutral\nRSI not overbought/oversold, no strong trend signals\nAction: Hold current positions, wait for clearer market direction"
         return 'SPY', ActionType.HOLD.value, explanation
-        
-        # Fallback if no strategy returns a result
-        return 'SPY', ActionType.HOLD.value, "No clear signal, holding cash equivalent"
 
 
 class NuclearSignalGenerator:

@@ -20,7 +20,7 @@ from typing import Dict, List, Optional, Tuple, Any
 from datetime import datetime, timedelta
 from enum import Enum
 
-from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
+from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn
 from rich.console import Console
 
 from the_alchemiser.core.config import Config

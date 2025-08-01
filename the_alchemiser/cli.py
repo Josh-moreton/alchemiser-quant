@@ -13,7 +13,6 @@ from rich.panel import Panel
 from rich.text import Text
 from rich.prompt import Confirm
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TimeElapsedColumn
-from rich.live import Live
 
 import time
 from datetime import datetime, timedelta

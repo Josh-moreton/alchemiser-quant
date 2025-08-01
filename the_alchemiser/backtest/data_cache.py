@@ -26,7 +26,7 @@ from pathlib import Path
 import pandas as pd
 import numpy as np
 from rich.console import Console
-from rich.progress import Progress, TaskID
+from rich.progress import Progress
 from rich.panel import Panel
 
 # Add project root to path

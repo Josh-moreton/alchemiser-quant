@@ -29,7 +29,6 @@ import traceback
 import sys
 import os
 import logging
-from logging.handlers import RotatingFileHandler
 from the_alchemiser.core.config import get_config
 from the_alchemiser.core.trading.strategy_manager import StrategyType
 

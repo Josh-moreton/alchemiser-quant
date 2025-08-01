@@ -11,7 +11,7 @@ response formatting for AWS Lambda integration.
 from the_alchemiser.main import main
 
 
-def lambda_handler(event=None, context=None):
+def lambda_handler(_event=None, _context=None):
     """AWS Lambda function handler for The Alchemiser trading bot.
     
     This function serves as the entry point when the trading bot is deployed
