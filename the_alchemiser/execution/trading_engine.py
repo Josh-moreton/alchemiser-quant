@@ -245,7 +245,7 @@ class TradingEngine:
         Returns:
             Order ID if successful, None if failed.
         """
-        return self.order_manager.place_limit_or_market(
+        return self.order_manager.place_order(
             symbol, qty, side, max_retries, poll_timeout, poll_interval, slippage_bps
         )
 

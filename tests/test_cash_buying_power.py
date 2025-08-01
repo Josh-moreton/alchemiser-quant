@@ -51,7 +51,7 @@ class TestSufficientCash:
         )
         
         # Place moderate order
-        order_id = order_manager.place_limit_or_market('AAPL', 100.0, OrderSide.BUY)
+        order_id = order_manager.place_order('AAPL', 100.0, OrderSide.BUY)
         
         assert order_id is not None
         mock_trading_client.submit_order.assert_called_once()
@@ -67,7 +67,7 @@ class TestSufficientCash:
         mock_data_provider.get_current_price.return_value = 100.0
         
         # Try to buy exactly $10,000 worth (100 shares at $100)
-        order_id = order_manager.place_limit_or_market('AAPL', 100.0, OrderSide.BUY)
+        order_id = order_manager.place_order('AAPL', 100.0, OrderSide.BUY)
         
         assert order_id is not None
     
@@ -80,7 +80,7 @@ class TestSufficientCash:
         )
         
         # Small order relative to account size
-        order_id = order_manager.place_limit_or_market('AAPL', 1.0, OrderSide.BUY)
+        order_id = order_manager.place_order('AAPL', 1.0, OrderSide.BUY)
         
         assert order_id is not None
         mock_trading_client.submit_order.assert_called_once()
@@ -103,7 +103,7 @@ class TestInsufficientCash:
         mock_trading_client.submit_order.side_effect = APIError(error_response)
         
         # Try to place large order
-        order_id = order_manager.place_limit_or_market('AAPL', 1000.0, OrderSide.BUY)
+        order_id = order_manager.place_order('AAPL', 1000.0, OrderSide.BUY)
         
         assert order_id is None
     
@@ -120,7 +120,7 @@ class TestInsufficientCash:
         error_response = {"code": 40310000, "message": "insufficient buying power"}
         mock_trading_client.submit_order.side_effect = APIError(error_response)
         
-        order_id = order_manager.place_limit_or_market('AAPL', 10.0, OrderSide.BUY)
+        order_id = order_manager.place_order('AAPL', 10.0, OrderSide.BUY)
         
         assert order_id is None
     
@@ -135,7 +135,7 @@ class TestInsufficientCash:
         error_response = {"code": 40310000, "message": "insufficient buying power"}
         mock_trading_client.submit_order.side_effect = APIError(error_response)
         
-        order_id = order_manager.place_limit_or_market('AAPL', 10.0, OrderSide.BUY)
+        order_id = order_manager.place_order('AAPL', 10.0, OrderSide.BUY)
         
         assert order_id is None
     
@@ -150,7 +150,7 @@ class TestInsufficientCash:
         error_response = {"code": 40310000, "message": "insufficient buying power"}
         mock_trading_client.submit_order.side_effect = APIError(error_response)
         
-        order_id = order_manager.place_limit_or_market('AAPL', 1.0, OrderSide.BUY)
+        order_id = order_manager.place_order('AAPL', 1.0, OrderSide.BUY)
         
         assert order_id is None
 
@@ -173,7 +173,7 @@ class TestZeroCash:
         mock_trading_client.submit_order.side_effect = APIError(error_response)
         
         # Try to buy more (should fail)
-        order_id = order_manager.place_limit_or_market('GOOGL', 1.0, OrderSide.BUY)
+        order_id = order_manager.place_order('GOOGL', 1.0, OrderSide.BUY)
         
         assert order_id is None
     
@@ -204,7 +204,7 @@ class TestZeroCash:
         mock_data_provider.get_current_price.return_value = 5.0  # Cheap stock
         
         # Buy small amount that fits in buying power
-        order_id = order_manager.place_limit_or_market('CHEAP', 1.0, OrderSide.BUY)
+        order_id = order_manager.place_order('CHEAP', 1.0, OrderSide.BUY)
         
         assert order_id is not None
     
@@ -239,7 +239,7 @@ class TestBuyingPowerCalculations:
         )
         
         # Should be able to use full buying power
-        order_id = order_manager.place_limit_or_market('AAPL', 150.0, OrderSide.BUY)  # $15k order
+        order_id = order_manager.place_order('AAPL', 150.0, OrderSide.BUY)  # $15k order
         
         assert order_id is not None
     
@@ -254,7 +254,7 @@ class TestBuyingPowerCalculations:
         )
         
         # Large intraday order
-        order_id = order_manager.place_limit_or_market('AAPL', 300.0, OrderSide.BUY)  # $30k order
+        order_id = order_manager.place_order('AAPL', 300.0, OrderSide.BUY)  # $30k order
         
         assert order_id is not None
     
@@ -267,7 +267,7 @@ class TestBuyingPowerCalculations:
             portfolio_value=10000.0
         )
         
-        order_id = order_manager.place_limit_or_market('AAPL', 150.0, OrderSide.BUY)
+        order_id = order_manager.place_order('AAPL', 150.0, OrderSide.BUY)
         
         assert order_id is not None
 
@@ -285,7 +285,7 @@ class TestCashManagementEdgeCases:
         )
         
         # Should still be able to trade with positive buying power
-        order_id = order_manager.place_limit_or_market('AAPL', 30.0, OrderSide.BUY)
+        order_id = order_manager.place_order('AAPL', 30.0, OrderSide.BUY)
         
         assert order_id is not None
     
@@ -298,7 +298,7 @@ class TestCashManagementEdgeCases:
         )
         
         # Order within settled cash limits should work
-        order_id = order_manager.place_limit_or_market('AAPL', 8.0, OrderSide.BUY)  # $800 order
+        order_id = order_manager.place_order('AAPL', 8.0, OrderSide.BUY)  # $800 order
         
         assert order_id is not None
         
@@ -306,7 +306,7 @@ class TestCashManagementEdgeCases:
         error_response = {"code": 40310000, "message": "insufficient buying power"}
         mock_trading_client.submit_order.side_effect = APIError(error_response)
         
-        order_id_large = order_manager.place_limit_or_market('AAPL', 50.0, OrderSide.BUY)  # $5000 order
+        order_id_large = order_manager.place_order('AAPL', 50.0, OrderSide.BUY)  # $5000 order
         
         assert order_id_large is None
     
@@ -319,6 +319,6 @@ class TestCashManagementEdgeCases:
             portfolio_value=20000.0
         )
         
-        order_id = order_manager.place_limit_or_market('AAPL', 60.0, OrderSide.BUY)
+        order_id = order_manager.place_order('AAPL', 60.0, OrderSide.BUY)
         
         assert order_id is not None

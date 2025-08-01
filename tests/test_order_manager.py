@@ -24,12 +24,12 @@ def order_manager():
     config = {'alpaca': {'slippage_bps': 10}}
     return SmartExecution(trading_client, data_provider, ignore_market_hours=False, config=config)
 
-def test_place_limit_or_market_buy(order_manager):
-    order_id = order_manager.place_limit_or_market('AAPL', 1.0, OrderSide.BUY)
+def test_place_order_buy(order_manager):
+    order_id = order_manager.place_order('AAPL', 1.0, OrderSide.BUY)
     assert order_id is not None
 
-def test_place_limit_or_market_sell(order_manager):
-    order_id = order_manager.place_limit_or_market('AAPL', 1.0, OrderSide.SELL)
+def test_place_order_sell(order_manager):
+    order_id = order_manager.place_order('AAPL', 1.0, OrderSide.SELL)
     assert order_id is not None
 
 def test_wait_for_settlement(order_manager):

@@ -75,7 +75,7 @@ class TestFractionalShares:
     
     def test_fractional_buy_order(self, order_manager, mock_trading_client):
         """Test buying fractional shares."""
-        order_id = order_manager.place_limit_or_market('AAPL', 1.75, OrderSide.BUY)
+        order_id = order_manager.place_order('AAPL', 1.75, OrderSide.BUY)
         
         assert order_id is not None
         mock_trading_client.submit_order.assert_called_once()
@@ -87,7 +87,7 @@ class TestFractionalShares:
     def test_very_small_fractional_shares(self, order_manager, mock_trading_client):
         """Test handling very small fractional amounts."""
         # Test tiny fractional amounts (0.001 shares)
-        order_id = order_manager.place_limit_or_market('AAPL', 0.001, OrderSide.BUY)
+        order_id = order_manager.place_order('AAPL', 0.001, OrderSide.BUY)
         
         assert order_id is not None
         mock_trading_client.submit_order.assert_called_once()
@@ -110,7 +110,7 @@ class TestFractionalShares:
         test_quantities = [0.999999, 1.000001, 33.333333, 66.666667]
         
         for qty in test_quantities:
-            order_id = order_manager.place_limit_or_market('AAPL', qty, OrderSide.BUY)
+            order_id = order_manager.place_order('AAPL', qty, OrderSide.BUY)
             assert order_id is not None
 
 
@@ -122,7 +122,7 @@ class TestDelistedSymbols:
         error_response = {"code": 40410000, "message": "symbol not found"}
         mock_trading_client.submit_order.side_effect = APIError(error_response)
         
-        order_id = order_manager.place_limit_or_market('DELISTED', 1.0, OrderSide.BUY)
+        order_id = order_manager.place_order('DELISTED', 1.0, OrderSide.BUY)
         
         assert order_id is None
     
@@ -131,7 +131,7 @@ class TestDelistedSymbols:
         error_response = {"code": 40410001, "message": "symbol suspended"}
         mock_trading_client.submit_order.side_effect = APIError(error_response)
         
-        order_id = order_manager.place_limit_or_market('SUSPENDED', 1.0, OrderSide.BUY)
+        order_id = order_manager.place_order('SUSPENDED', 1.0, OrderSide.BUY)
         
         assert order_id is None
     
@@ -157,7 +157,7 @@ class TestDelistedSymbols:
             error_response = {"code": 40410000, "message": "invalid symbol format"}
             mock_trading_client.submit_order.side_effect = APIError(error_response)
             
-            order_id = order_manager.place_limit_or_market(symbol, 1.0, OrderSide.BUY)
+            order_id = order_manager.place_order(symbol, 1.0, OrderSide.BUY)
             assert order_id is None
 
 
@@ -170,7 +170,7 @@ class TestDuplicateOrders:
         orders = []
         for i in range(3):
             mock_trading_client.submit_order.return_value = MagicMock(id=f'order_{i}')
-            order_id = order_manager.place_limit_or_market('AAPL', 10.0, OrderSide.BUY)
+            order_id = order_manager.place_order('AAPL', 10.0, OrderSide.BUY)
             orders.append(order_id)
         
         # All orders should be placed (no duplicate detection at order manager level)
@@ -199,11 +199,11 @@ class TestDuplicateOrders:
         
         # Mock first order succeeds
         mock_trading_client.submit_order.return_value = MagicMock(id='order_123')
-        order1 = order_manager.place_limit_or_market('AAPL', 10.0, OrderSide.BUY)
+        order1 = order_manager.place_order('AAPL', 10.0, OrderSide.BUY)
         
         # Mock second identical order (might be rejected by broker)
         mock_trading_client.submit_order.side_effect = APIError({"code": 42210000, "message": "duplicate client order id"})
-        order2 = order_manager.place_limit_or_market('AAPL', 10.0, OrderSide.BUY)
+        order2 = order_manager.place_order('AAPL', 10.0, OrderSide.BUY)
         
         assert order1 is not None
         assert order2 is None  # Duplicate rejected
@@ -214,14 +214,14 @@ class TestBoundaryConditions:
     
     def test_zero_quantity_order(self, order_manager, mock_trading_client):
         """Test order with zero quantity."""
-        order_id = order_manager.place_limit_or_market('AAPL', 0.0, OrderSide.BUY)
+        order_id = order_manager.place_order('AAPL', 0.0, OrderSide.BUY)
         
         # Should not place order with zero quantity
         assert order_id is None or mock_trading_client.submit_order.call_count == 0
     
     def test_negative_quantity_order(self, order_manager, mock_trading_client):
         """Test order with negative quantity."""
-        order_id = order_manager.place_limit_or_market('AAPL', -5.0, OrderSide.BUY)
+        order_id = order_manager.place_order('AAPL', -5.0, OrderSide.BUY)
         
         # Should not place order with negative quantity
         assert order_id is None
@@ -234,7 +234,7 @@ class TestBoundaryConditions:
         error_response = {"code": 40310000, "message": "insufficient buying power"}
         mock_trading_client.submit_order.side_effect = APIError(error_response)
         
-        order_id = order_manager.place_limit_or_market('AAPL', huge_quantity, OrderSide.BUY)
+        order_id = order_manager.place_order('AAPL', huge_quantity, OrderSide.BUY)
         
         assert order_id is None
     
@@ -243,7 +243,7 @@ class TestBoundaryConditions:
         # Test with maximum supported decimal places
         precise_quantity = Decimal('1.123456789')
         
-        order_id = order_manager.place_limit_or_market('AAPL', float(precise_quantity), OrderSide.BUY)
+        order_id = order_manager.place_order('AAPL', float(precise_quantity), OrderSide.BUY)
         
         # Should handle high precision gracefully
         assert order_id is not None
@@ -254,7 +254,7 @@ class TestBoundaryConditions:
         problematic_quantities = [0.1 + 0.2, 1.0/3.0, 2.0/3.0, 0.999999999]
         
         for qty in problematic_quantities:
-            order_id = order_manager.place_limit_or_market('AAPL', qty, OrderSide.BUY)
+            order_id = order_manager.place_order('AAPL', qty, OrderSide.BUY)
             assert order_id is not None
 
 
@@ -289,7 +289,7 @@ class TestConcurrencyEdgeCases:
         error_response = {"code": 40010001, "message": "market is closed"}
         mock_trading_client.submit_order.side_effect = APIError(error_response)
         
-        order_id = order_manager.place_limit_or_market('AAPL', 1.0, OrderSide.BUY)
+        order_id = order_manager.place_order('AAPL', 1.0, OrderSide.BUY)
         
         assert order_id is None
 
@@ -300,7 +300,7 @@ class TestDataTypeEdgeCases:
     def test_string_quantities(self, order_manager, mock_trading_client):
         """Test handling of string quantities."""
         # Test with string that should convert to number
-        order_id = order_manager.place_limit_or_market('AAPL', '10.5', OrderSide.BUY)
+        order_id = order_manager.place_order('AAPL', '10.5', OrderSide.BUY)
         
         # Should convert string to float
         assert order_id is not None
@@ -314,7 +314,7 @@ class TestDataTypeEdgeCases:
         
         for qty in invalid_quantities:
             try:
-                order_id = order_manager.place_limit_or_market('AAPL', qty, OrderSide.BUY)
+                order_id = order_manager.place_order('AAPL', qty, OrderSide.BUY)
                 # Should either handle gracefully or raise appropriate error
                 assert order_id is None
             except (TypeError, ValueError):
@@ -328,7 +328,7 @@ class TestDataTypeEdgeCases:
         special_values = [float('inf'), float('-inf'), float('nan')]
         
         for qty in special_values:
-            order_id = order_manager.place_limit_or_market('AAPL', qty, OrderSide.BUY)
+            order_id = order_manager.place_order('AAPL', qty, OrderSide.BUY)
             # Should reject invalid numerical values
             assert order_id is None
 
@@ -354,7 +354,7 @@ class TestSystemLimits:
         # Place orders until rate limited
         results = []
         for i in range(10):
-            order_id = order_manager.place_limit_or_market('AAPL', 1.0, OrderSide.BUY)
+            order_id = order_manager.place_order('AAPL', 1.0, OrderSide.BUY)
             results.append(order_id)
         
         # First 5 should succeed, rest should fail
@@ -367,7 +367,7 @@ class TestSystemLimits:
         error_response = {"code": 42210001, "message": "daily order limit exceeded"}
         mock_trading_client.submit_order.side_effect = APIError(error_response)
         
-        order_id = order_manager.place_limit_or_market('AAPL', 1.0, OrderSide.BUY)
+        order_id = order_manager.place_order('AAPL', 1.0, OrderSide.BUY)
         
         assert order_id is None
     
@@ -377,6 +377,6 @@ class TestSystemLimits:
         error_response = {"code": 40310002, "message": "position size limit exceeded"}
         mock_trading_client.submit_order.side_effect = APIError(error_response)
         
-        order_id = order_manager.place_limit_or_market('AAPL', 10000.0, OrderSide.BUY)
+        order_id = order_manager.place_order('AAPL', 10000.0, OrderSide.BUY)
         
         assert order_id is None

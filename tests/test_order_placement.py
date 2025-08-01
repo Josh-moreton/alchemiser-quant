@@ -44,7 +44,7 @@ class TestMarketOrders:
     
     def test_market_buy_order(self, order_manager, mock_trading_client):
         """Test successful market buy order."""
-        order_id = order_manager.place_limit_or_market('AAPL', 10.0, OrderSide.BUY)
+        order_id = order_manager.place_order('AAPL', 10.0, OrderSide.BUY)
         
         assert order_id is not None
         mock_trading_client.submit_order.assert_called_once()
@@ -73,7 +73,7 @@ class TestMarketOrders:
         error_response = {"code": 40310000, "message": "insufficient buying power"}
         mock_trading_client.submit_order.side_effect = APIError(error_response)
         
-        order_id = order_manager.place_limit_or_market('AAPL', 1000.0, OrderSide.BUY)
+        order_id = order_manager.place_order('AAPL', 1000.0, OrderSide.BUY)
         
         # Should return None when order fails
         assert order_id is None
@@ -120,7 +120,7 @@ class TestFailedOrders:
         error_response = {"code": 40310000, "message": "insufficient buying power"}
         mock_trading_client.submit_order.side_effect = APIError(error_response)
         
-        order_id = order_manager.place_limit_or_market('AAPL', 1000.0, OrderSide.BUY)
+        order_id = order_manager.place_order('AAPL', 1000.0, OrderSide.BUY)
         
         assert order_id is None
     
@@ -146,7 +146,7 @@ class TestFailedOrders:
         """Test API/network errors."""
         mock_trading_client.submit_order.side_effect = Exception("Network error")
         
-        order_id = order_manager.place_limit_or_market('AAPL', 1.0, OrderSide.BUY)
+        order_id = order_manager.place_order('AAPL', 1.0, OrderSide.BUY)
         
         assert order_id is None
     
@@ -155,7 +155,7 @@ class TestFailedOrders:
         error_response = {"code": 40410000, "message": "symbol not found"}
         mock_trading_client.submit_order.side_effect = APIError(error_response)
         
-        order_id = order_manager.place_limit_or_market('INVALID', 1.0, OrderSide.BUY)
+        order_id = order_manager.place_order('INVALID', 1.0, OrderSide.BUY)
         
         assert order_id is None
 

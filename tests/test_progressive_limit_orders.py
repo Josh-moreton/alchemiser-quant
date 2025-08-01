@@ -93,7 +93,7 @@ def test_progressive_limit_orders():
         # Place the progressive limit order
         console.print(f"\n[cyan]Executing progressive BUY limit order for {test_qty} shares of {test_symbol}...[/cyan]")
         
-        order_id = order_manager.place_limit_or_market(
+        order_id = order_manager.place_order(
             symbol=test_symbol,
             qty=test_qty,
             side=OrderSide.BUY

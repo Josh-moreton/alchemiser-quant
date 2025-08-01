@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """
-Smart Execution Engine with Progressive Limit Order Strategy.
+Smart Execution Engine with Professional Order Strategy.
 
-This module provides sophisticated order execution with progressive limit pricing that:
-- Starts at midpoint of bid/ask spread for optimal price improvement
-- Steps progressively toward less favorable prices (10% increments)
-- Uses WebSocket notifications for instant fill detection
-- Falls back to market orders if all limit attempts fail
+This module provides sophisticated order execution using the Better Orders strategy:
+- Aggressive marketable limits (ask+1¢ for buys, bid-1¢ for sells)
+- Market timing logic for 9:30-9:35 ET execution
+- Fast 2-3 second timeouts with re-pegging
+- Designed for leveraged ETFs and high-volume trading
+- Market order fallback for execution certainty
 """
 
 import logging
@@ -16,7 +17,6 @@ from alpaca.trading.enums import OrderSide
 from alpaca.trading.client import TradingClient
 
 from the_alchemiser.execution.alpaca_client import AlpacaClient
-from the_alchemiser.utils.progressive_order_utils import ProgressiveOrderCalculator, get_market_urgency_level
 
 
 def is_market_open(trading_client: TradingClient) -> bool:
@@ -30,10 +30,12 @@ def is_market_open(trading_client: TradingClient) -> bool:
 
 class SmartExecution:
     """
-    Advanced execution engine with progressive limit order strategy.
+    Professional execution engine using Better Orders strategy.
     
-    This provides sophisticated order execution using the AlpacaClient internally
-    for reliable order placement with intelligent limit pricing.
+    Primary method: place_order() - Implements professional 5-step execution ladder
+    with aggressive marketable limits (ask+1¢/bid-1¢) designed for leveraged ETFs.
+    
+    Uses the AlpacaClient internally for reliable order placement.
     """
     
     def __init__(self, trading_client, data_provider, ignore_market_hours=False, config=None):
@@ -44,11 +46,6 @@ class SmartExecution:
         
         self.alpaca_client = AlpacaClient(trading_client, data_provider, validate_buying_power)
         self.ignore_market_hours = ignore_market_hours
-        
-        # Initialize progressive order calculator
-        self.order_calculator = ProgressiveOrderCalculator(config)
-        
-        # OrderManagerAdapter initialized silently
     
     def place_safe_sell_order(
         self,
@@ -65,12 +62,9 @@ class SmartExecution:
         This method provides the same interface as the old OrderManager but uses
         the much more reliable AlpacaClient internally.
         """
-        # Safe sell order execution
-        
-        # The AlpacaClient handles all the safety checks internally
         return self.alpaca_client.place_smart_sell_order(symbol, target_qty)
     
-    def place_limit_or_market(
+    def place_order(
         self, 
         symbol: str, 
         qty: float, 
@@ -79,281 +73,117 @@ class SmartExecution:
         poll_timeout: int = 30, 
         poll_interval: float = 2.0, 
         slippage_bps: Optional[float] = None,
-        notional: Optional[float] = None
+        notional: Optional[float] = None,
+        max_slippage_bps: Optional[float] = None
     ) -> Optional[str]:
         """
-        Place progressive limit order starting at midpoint, stepping toward less favorable price.
+        Place order using professional Better Orders execution strategy.
         
-        Simplified Strategy (3 steps + market order fallback):
-        1. Start at midpoint of bid/ask (most favorable)
-        2. Step to 50% toward unfavorable price  
-        3. Step to bid/ask price (100% unfavorable)
-        4. Finally place market order if all limit attempts fail
+        Implements the 5-step execution ladder:
+        1. Market timing assessment (9:30-9:35 ET logic)
+        2. Aggressive marketable limit (ask+1¢ for buys, bid-1¢ for sells)
+        3. Re-peg sequence (max 2 attempts, 2-3s timeouts)
+        4. Market order fallback for execution certainty
         
-        Each step waits 2 seconds for WebSocket fill notification before proceeding.
-        For BUY orders: midpoint → ask direction
-        For SELL orders: midpoint → bid direction
+        Args:
+            symbol: Stock symbol
+            qty: Quantity to trade (shares)
+            side: OrderSide.BUY or OrderSide.SELL
+            notional: For BUY orders, dollar amount instead of shares
+            max_slippage_bps: Maximum slippage tolerance in basis points
+            
+        Returns:
+            Order ID if successful, None otherwise
         """
-        import time
-        
-        # Initialize console at the very beginning for consistent access
+        from the_alchemiser.utils.market_timing_utils import MarketOpenTimingEngine
+        from the_alchemiser.utils.spread_assessment import SpreadAssessment
         from rich.console import Console
+        
         console = Console()
-        
-        # Handle both string and OrderSide enum inputs
-        side_str = side.value if hasattr(side, 'value') else str(side)
-        
-        # Convert string inputs to OrderSide enum if needed
-        if isinstance(side, str):
-            side = OrderSide.BUY if side.lower() == 'buy' else OrderSide.SELL
+        timing_engine = MarketOpenTimingEngine()
+        spread_assessor = SpreadAssessment(self.alpaca_client.data_provider)
         
         # Handle notional orders for BUY by converting to quantity
         if side == OrderSide.BUY and notional is not None:
             try:
                 current_price = self.alpaca_client.data_provider.get_current_price(symbol)
-                if current_price <= 0:
-                    logging.warning(f"Invalid price for {symbol}, falling back to market order")
+                if current_price and current_price > 0:
+                    # Calculate max quantity we can afford, round down, scale to 99%
+                    raw_qty = notional / current_price
+                    rounded_qty = int(raw_qty * 1e6) / 1e6  # Round down to 6 decimals
+                    qty = rounded_qty * 0.99  # Scale to 99% to avoid buying power issues
+                else:
+                    console.print(f"[yellow]Invalid price for {symbol}, using market order[/yellow]")
                     return self.alpaca_client.place_market_order(symbol, side, notional=notional)
-                
-                # Calculate max quantity we can afford, round down to 6 decimals, then scale to 99%
-                raw_qty = notional / current_price
-                rounded_qty = int(raw_qty * 1e6) / 1e6  # Round down to 6 decimals
-                scaled_qty = rounded_qty * 0.99  # Scale to 99% to avoid buying power issues
-                
-                if scaled_qty <= 0:
-                    logging.warning(f"Calculated quantity too small for {symbol}, falling back to market order")
+                    
+                if qty <= 0:
+                    console.print(f"[yellow]Calculated quantity too small for {symbol}, using market order[/yellow]")
                     return self.alpaca_client.place_market_order(symbol, side, notional=notional)
-                
-                qty = scaled_qty
-                
+                    
             except Exception as e:
-                logging.warning(f"Error calculating quantity for {symbol}: {e}, falling back to market order")
+                logging.warning(f"Error calculating quantity for {symbol}: {e}, using market order")
                 return self.alpaca_client.place_market_order(symbol, side, notional=notional)
+        
+        # For SELL notional orders, use market order directly
+        elif side == OrderSide.SELL and notional is not None:
+            return self.alpaca_client.place_market_order(symbol, side, notional=notional)
+        
+        # For BUY quantity orders, round down and scale to 99%
         elif side == OrderSide.BUY:
-            # For quantity orders, round down to 6 decimals and scale to 99%
             rounded_qty = int(qty * 1e6) / 1e6
             qty = rounded_qty * 0.99
         
-        # For SELL notional orders, use market order (can't easily implement progressive limits)
-        if side == OrderSide.SELL and notional is not None:
-            return self.alpaca_client.place_market_order(symbol, side, notional=notional)
+        # Step 0: Pre-Check (if before market open)
+        if not is_market_open(self.alpaca_client.trading_client):
+            console.print(f"[yellow]Market closed - assessing pre-market conditions for {symbol}[/yellow]")
+            
+            premarket = spread_assessor.assess_premarket_conditions(symbol)
+            if premarket:
+                console.print(f"[dim]Pre-market spread: {premarket.spread_cents:.1f}¢ ({premarket.spread_quality.value})[/dim]")
+                console.print(f"[dim]Recommended wait: {premarket.recommended_wait_minutes} min after open[/dim]")
+                
+                # Use premarket slippage tolerance if not specified
+                if max_slippage_bps is None:
+                    max_slippage_bps = premarket.max_slippage_bps
         
-        # Get bid/ask for progressive limit order strategy
+        # Step 1: Market timing and spread assessment
+        strategy = timing_engine.get_execution_strategy()
+        console.print(f"[cyan]Execution strategy: {strategy.value}[/cyan]")
+        
+        # Get current bid/ask
         try:
             quote = self.alpaca_client.data_provider.get_latest_quote(symbol)
             if not quote or len(quote) < 2:
-                # No quote available, use market order
-                console.print(f"[yellow]No bid/ask quote available for {symbol}, using market order[/yellow]")
-                if notional is not None:
-                    return self.alpaca_client.place_market_order(symbol, side, notional=notional)
-                else:
-                    return self.alpaca_client.place_market_order(symbol, side, qty=qty)
-            
-            bid = float(quote[0])
-            ask = float(quote[1])
-            
-            # Enhanced validation with better logging
-            if not (bid > 0 and ask > 0 and ask > bid):
-                # Try fallback to data client for quotes
-                logging.warning(f"Real-time quote invalid for {symbol}: bid={bid}, ask={ask}, trying data client fallback")
-                fallback_quote = None
-                try:
-                    # Use the data client directly (bypassing real-time cache)
-                    from alpaca.data.requests import StockLatestQuoteRequest
-                    if hasattr(self.alpaca_client.data_provider, 'data_client'):
-                        request = StockLatestQuoteRequest(symbol_or_symbols=symbol)
-                        latest_quote = self.alpaca_client.data_provider.data_client.get_stock_latest_quote(request)
-                        if latest_quote and symbol in latest_quote:
-                            quote_obj = latest_quote[symbol]
-                            fallback_bid = float(getattr(quote_obj, 'bid_price', 0) or 0)
-                            fallback_ask = float(getattr(quote_obj, 'ask_price', 0) or 0)
-                            if fallback_bid > 0 and fallback_ask > 0 and fallback_ask > fallback_bid:
-                                logging.info(f"Using data client fallback quote for {symbol}: bid=${fallback_bid:.2f}, ask=${fallback_ask:.2f}")
-                                bid, ask = fallback_bid, fallback_ask
-                            else:
-                                # Try using current price with estimated spread
-                                current_price = self.alpaca_client.data_provider.get_current_price(symbol)
-                                if current_price > 0:
-                                    # Estimate 0.5% spread around current price
-                                    estimated_spread = current_price * 0.005
-                                    bid = current_price - estimated_spread
-                                    ask = current_price + estimated_spread
-                                    logging.info(f"Using estimated spread for {symbol}: price=${current_price:.2f}, bid=${bid:.2f}, ask=${ask:.2f}")
-                except Exception as e:
-                    logging.warning(f"Data client fallback failed for {symbol}: {e}")
-                    # Try using current price with estimated spread as final fallback
-                    try:
-                        current_price = self.alpaca_client.data_provider.get_current_price(symbol)
-                        if current_price > 0:
-                            # Estimate 0.5% spread around current price
-                            estimated_spread = current_price * 0.005
-                            bid = current_price - estimated_spread
-                            ask = current_price + estimated_spread
-                            logging.info(f"Using price-based spread estimate for {symbol}: price=${current_price:.2f}, bid=${bid:.2f}, ask=${ask:.2f}")
-                    except Exception as price_error:
-                        logging.warning(f"Price fallback also failed for {symbol}: {price_error}")
+                console.print(f"[yellow]No quote available, using market order[/yellow]")
+                return self.alpaca_client.place_market_order(symbol, side, qty=qty)
                 
-                # If still invalid after all fallbacks, use market order
-                if not (bid > 0 and ask > 0 and ask > bid):
-                    console.print(f"[yellow]Invalid bid/ask quote for {symbol} (bid=${bid:.2f}, ask=${ask:.2f}), using market order[/yellow]")
-                    logging.warning(f"All quote sources failed for {symbol}: bid={bid}, ask={ask}, fallback to market order")
-                    if notional is not None:
-                        return self.alpaca_client.place_market_order(symbol, side, notional=notional)
-                    else:
-                        return self.alpaca_client.place_market_order(symbol, side, qty=qty)
+            bid, ask = float(quote[0]), float(quote[1])
+            spread_analysis = spread_assessor.analyze_current_spread(symbol, bid, ask)
             
-            # Calculate midpoint and spread
-            midpoint = (bid + ask) / 2.0
-            spread = ask - bid
+            console.print(f"[dim]Current spread: {spread_analysis.spread_cents:.1f}¢ ({spread_analysis.spread_quality.value})[/dim]")
             
-            # Get intelligent execution parameters based on market conditions
-            urgency_level = get_market_urgency_level()
+            # Check if we should wait for spreads to normalize
+            if not timing_engine.should_execute_immediately(spread_analysis.spread_cents, strategy):
+                wait_time = timing_engine.get_wait_time_seconds(strategy, spread_analysis.spread_cents)
+                console.print(f"[yellow]Wide spread detected, waiting {wait_time}s for normalization[/yellow]")
+                time.sleep(wait_time)
+                
+                # Re-get quote after waiting
+                quote = self.alpaca_client.data_provider.get_latest_quote(symbol)
+                if quote and len(quote) >= 2:
+                    bid, ask = float(quote[0]), float(quote[1])
+                    spread_analysis = spread_assessor.analyze_current_spread(symbol, bid, ask)
+                    console.print(f"[dim]Updated spread: {spread_analysis.spread_cents:.1f}¢[/dim]")
             
-            # Try to get recent price data for volatility calculation
-            recent_high = None
-            recent_low = None
-            try:
-                # Get recent price range (you might want to implement this in data_provider)
-                current_price = self.alpaca_client.data_provider.get_current_price(symbol)
-                # For now, use a simple estimate based on spread
-                estimated_range = spread * 10  # Rough estimate
-                recent_high = current_price + estimated_range / 2
-                recent_low = current_price - estimated_range / 2
-            except Exception as e:
-                logging.warning(f"Could not get price range for {symbol}: {e}")
-            
-            # Calculate intelligent execution parameters
-            exec_params = self.order_calculator.calculate_execution_params(
-                symbol, bid, ask, side, urgency_level, recent_high, recent_low
+            # Step 2 & 3: Aggressive Marketable Limit with Re-pegging
+            return self._execute_aggressive_limit_sequence(
+                symbol, qty, side, bid, ask, strategy, console
             )
             
-            # Progressive limit order strategy
-            console.print(f"[cyan]Starting intelligent progressive limit order for {side.value} {symbol}[/cyan]")
-            console.print(f"[dim]Bid: ${bid:.2f}, Ask: ${ask:.2f}, Midpoint: ${midpoint:.2f}, Spread: ${spread:.2f}[/dim]")
-            console.print(f"[blue]Strategy: {exec_params}[/blue]")
-            
-            # Pre-initialize WebSocket connection for faster order monitoring
-            websocket_ready = self.alpaca_client._prepare_websocket_connection()
-            if websocket_ready:
-                console.print(f"[green]🔌 WebSocket ready for order monitoring[/green]")
-            else:
-                console.print(f"[yellow]⚠️ WebSocket not ready, using polling fallback[/yellow]")
-            
-            # Use intelligent step percentages instead of hardcoded steps
-            for step_idx, step_pct in enumerate(exec_params.step_percentages):
-                # Calculate limit price for this step using the new calculator
-                limit_price = self.order_calculator.calculate_step_price(
-                    bid, ask, side, step_pct, exec_params.tick_aggressiveness
-                )
-                
-                # Generate step description
-                if step_pct == 0.0:
-                    step_name = "Midpoint (most favorable)"
-                elif step_pct == 1.0:
-                    step_name = "Bid/Ask price (least favorable)"
-                else:
-                    step_name = f"Step {step_idx + 1} ({step_pct*100:.0f}% through spread)"
-                
-                # Display step information with appropriate colors
-                color = "cyan" if side == OrderSide.BUY else "magenta"  # Use magenta for sells instead of red
-                console.print(f"[{color}]{step_name}: {side.value} {symbol} @ ${limit_price:.2f}[/{color}]")
-                
-                # Place limit order
-                limit_order_id = self.alpaca_client.place_limit_order(
-                    symbol, qty, side, limit_price
-                )
-                
-                if not limit_order_id:
-                    console.print(f"[yellow]Failed to place limit order at ${limit_price:.2f}[/yellow]")
-                    continue
-                
-                # Wait using intelligent timeout (varies by market conditions)
-                console.print(f"[dim]Waiting {exec_params.max_wait_seconds} seconds for fill via WebSocket...[/dim]")
-                logging.info(f"🔍 Monitoring order {limit_order_id} for {symbol} @ ${limit_price:.2f}")
-                
-                # Give WebSocket a moment to catch up before monitoring
-                time.sleep(0.2)
-                
-                order_results = self.alpaca_client.wait_for_order_completion(
-                    [limit_order_id], max_wait_seconds=exec_params.max_wait_seconds
-                )
-                
-                # Only show detailed order results at DEBUG level to reduce noise
-                if logging.getLogger().level <= logging.DEBUG:
-                    console.print(f"[dim]📋 Order completion result: {order_results}[/dim]")
-                logging.info(f"📋 Order completion result for {limit_order_id}: {order_results}")
-                final_status = order_results.get(limit_order_id, '').lower()
-                
-                # If order is filled, return immediately without double-checking
-                if 'filled' in final_status:
-                    console.print(f"[green]✓ {side.value} {symbol} filled @ ${limit_price:.2f} ({step_name})[/green]")
-                    return limit_order_id
-                
-                # Double-check order status only if timeout was reported
-                if final_status == 'timeout' or not final_status:
-                    try:
-                        # Get fresh order status from API
-                        console.print(f"[dim]🔍 Double-checking order status via API...[/dim]")
-                        logging.info(f"🔍 Double-checking order status for {limit_order_id} due to timeout/empty status")
-                        order = self.alpaca_client.trading_client.get_order_by_id(limit_order_id)
-                        fresh_status = str(getattr(order, 'status', 'unknown')).lower()
-                        console.print(f"[dim]✨ Fresh API status: {fresh_status}[/dim]")
-                        logging.info(f"✨ Fresh order status for {limit_order_id}: {fresh_status}")
-                        
-                        # Check if order is filled or partially filled (don't cancel partial fills)
-                        if 'filled' in fresh_status:
-                            final_status = fresh_status
-                            console.print(f"[green]🎯 Order was actually filled! WebSocket missed it.[/green]")
-                            logging.info(f"🎯 Order {limit_order_id} was actually filled! WebSocket missed it.")
-                            return limit_order_id
-                        elif 'partially_filled' in fresh_status:
-                            # Let partially filled orders continue for next 2 seconds
-                            console.print(f"[yellow]⏳ Order partially filled, giving it 2 more seconds...[/yellow]")
-                            time.sleep(2)
-                            # Check again
-                            order = self.alpaca_client.trading_client.get_order_by_id(limit_order_id)
-                            final_check_status = str(getattr(order, 'status', 'unknown')).lower()
-                            if 'filled' in final_check_status:
-                                console.print(f"[green]✓ Order completed after partial fill wait[/green]")
-                                return limit_order_id
-                            else:
-                                console.print(f"[yellow]Order still partially filled, moving to next step[/yellow]")
-                    except Exception as e:
-                        console.print(f"[red]❌ Failed to get fresh order status: {e}[/red]")
-                        logging.warning(f"❌ Failed to get fresh order status: {e}")
-                
-                # Order was not filled
-                console.print(f"[yellow]{step_name} not filled ({final_status}), trying next step...[/yellow]")
-                # Order was automatically cancelled by wait_for_order_completion timeout
-            
-            # All progressive limit order steps failed, use market order as final fallback
-            console.print(f"[yellow]All {len(exec_params.step_percentages)} progressive limit orders failed for {symbol}, checking final status before market order...[/yellow]")
-            
-            # Final safety check: verify no orders actually filled before placing market order
-            try:
-                positions_before = self.alpaca_client.get_current_positions()
-                current_qty = positions_before.get(symbol, 0.0)
-                logging.info(f"Current {symbol} position before market order: {current_qty}")
-            except Exception as e:
-                logging.warning(f"Failed to check position before market order: {e}")
-            
-            console.print(f"[yellow]Final fallback: Placing market order for {symbol}[/yellow]")
-            
         except Exception as e:
-            logging.warning(f"Error in progressive limit order strategy for {symbol}: {e}, using market order")
-        
-        # Always clean up WebSocket connection after progressive order completion
-        try:
-            if hasattr(self.alpaca_client, '_cleanup_websocket_connection'):
-                self.alpaca_client._cleanup_websocket_connection()
-                console.print(f"[dim]🔌 WebSocket connection cleaned up after {symbol} order[/dim]")
-        except Exception as e:
-            logging.warning(f"Error cleaning up WebSocket connection: {e}")
-        
-        # Final fallback to market order
-        if notional is not None:
-            return self.alpaca_client.place_market_order(symbol, side, notional=notional)
-        else:
+            logging.error(f"Error in Better Orders execution for {symbol}: {e}")
+            # Step 4: Market order fallback
+            console.print(f"[yellow]Falling back to market order[/yellow]")
             return self.alpaca_client.place_market_order(symbol, side, qty=qty)
     
     def wait_for_settlement(
@@ -479,81 +309,6 @@ class SmartExecution:
         
         # Round to nearest tick
         return round(price / tick_size) * tick_size
-
-    def place_better_order(
-        self, 
-        symbol: str, 
-        qty: float, 
-        side: OrderSide,
-        max_slippage_bps: Optional[float] = None
-    ) -> Optional[str]:
-        """
-        Implement the 5-step better orders execution ladder.
-        
-        This is the new primary order placement method that implements
-        the professional swing trading execution strategy.
-        """
-        from the_alchemiser.utils.market_timing_utils import MarketOpenTimingEngine
-        from the_alchemiser.utils.spread_assessment import SpreadAssessment
-        from rich.console import Console
-        
-        console = Console()
-        timing_engine = MarketOpenTimingEngine()
-        spread_assessor = SpreadAssessment(self.alpaca_client.data_provider)
-        
-        # Step 0: Pre-Check (if before market open)
-        if not is_market_open(self.alpaca_client.trading_client):
-            console.print(f"[yellow]Market closed - assessing pre-market conditions for {symbol}[/yellow]")
-            
-            premarket = spread_assessor.assess_premarket_conditions(symbol)
-            if premarket:
-                console.print(f"[dim]Pre-market spread: {premarket.spread_cents:.1f}¢ ({premarket.spread_quality.value})[/dim]")
-                console.print(f"[dim]Recommended wait: {premarket.recommended_wait_minutes} min after open[/dim]")
-                
-                # Use premarket slippage tolerance if not specified
-                if max_slippage_bps is None:
-                    max_slippage_bps = premarket.max_slippage_bps
-        
-        # Step 1: Open Assessment 
-        strategy = timing_engine.get_execution_strategy()
-        console.print(f"[cyan]Execution strategy: {strategy.value}[/cyan]")
-        
-        # Get current bid/ask
-        try:
-            quote = self.alpaca_client.data_provider.get_latest_quote(symbol)
-            if not quote or len(quote) < 2:
-                console.print(f"[yellow]No quote available, using market order[/yellow]")
-                return self.alpaca_client.place_market_order(symbol, side, qty=qty)
-                
-            bid, ask = float(quote[0]), float(quote[1])
-            spread_analysis = spread_assessor.analyze_current_spread(symbol, bid, ask)
-            
-            console.print(f"[dim]Current spread: {spread_analysis.spread_cents:.1f}¢ ({spread_analysis.spread_quality.value})[/dim]")
-            
-            # Check if we should wait for spreads to normalize
-            if not timing_engine.should_execute_immediately(spread_analysis.spread_cents, strategy):
-                wait_time = timing_engine.get_wait_time_seconds(strategy, spread_analysis.spread_cents)
-                console.print(f"[yellow]Wide spread detected, waiting {wait_time}s for normalization[/yellow]")
-                import time
-                time.sleep(wait_time)
-                
-                # Re-get quote after waiting
-                quote = self.alpaca_client.data_provider.get_latest_quote(symbol)
-                if quote and len(quote) >= 2:
-                    bid, ask = float(quote[0]), float(quote[1])
-                    spread_analysis = spread_assessor.analyze_current_spread(symbol, bid, ask)
-                    console.print(f"[dim]Updated spread: {spread_analysis.spread_cents:.1f}¢[/dim]")
-            
-            # Step 2 & 3: Aggressive Marketable Limit with Re-pegging
-            return self._execute_aggressive_limit_sequence(
-                symbol, qty, side, bid, ask, strategy, console
-            )
-            
-        except Exception as e:
-            logging.error(f"Error in better order execution for {symbol}: {e}")
-            # Step 4: Market order fallback
-            console.print(f"[yellow]Falling back to market order[/yellow]")
-            return self.alpaca_client.place_market_order(symbol, side, qty=qty)
 
     def _execute_aggressive_limit_sequence(
         self, symbol: str, qty: float, side: OrderSide, 

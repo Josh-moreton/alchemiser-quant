@@ -72,8 +72,8 @@ def test_better_orders_portfolio_integration():
     # Test 1: TQQQ should use better orders (leveraged ETF)
     target_portfolio = {"TQQQ": 1.0}  # 100% TQQQ allocation
     
-    with patch.object(order_manager, 'place_better_order') as mock_better_order, \
-         patch.object(order_manager, 'place_limit_or_market') as mock_standard_order:
+    with patch.object(order_manager, 'place_order') as mock_better_order, \
+         patch.object(order_manager, 'place_order') as mock_standard_order:
         
         mock_better_order.return_value = 'better_order_456'
         mock_standard_order.return_value = 'standard_order_789'
@@ -99,7 +99,7 @@ def test_better_orders_portfolio_integration():
     
     target_portfolio = {"SPY": 1.0}  # 100% SPY allocation
     
-    with patch.object(order_manager, 'place_better_order') as mock_better_order:
+    with patch.object(order_manager, 'place_order') as mock_better_order:
         mock_better_order.return_value = 'better_order_spy'
         
         orders = rebalancer.rebalance_portfolio(target_portfolio)
@@ -116,8 +116,8 @@ def test_better_orders_portfolio_integration():
     # Test 3: AAPL should use standard execution (not in ETF lists)
     target_portfolio = {"AAPL": 1.0}  # 100% AAPL allocation
     
-    with patch.object(order_manager, 'place_better_order') as mock_better_order, \
-         patch.object(order_manager, 'place_limit_or_market') as mock_standard_order:
+    with patch.object(order_manager, 'place_order') as mock_better_order, \
+         patch.object(order_manager, 'place_order') as mock_standard_order:
         
         mock_better_order.return_value = 'better_order_aapl'
         mock_standard_order.return_value = 'standard_order_aapl'
@@ -137,8 +137,8 @@ def test_better_orders_portfolio_integration():
     
     target_portfolio = {"TQQQ": 1.0}  # 100% TQQQ allocation
     
-    with patch.object(order_manager, 'place_better_order') as mock_better_order, \
-         patch.object(order_manager, 'place_limit_or_market') as mock_standard_order:
+    with patch.object(order_manager, 'place_order') as mock_better_order, \
+         patch.object(order_manager, 'place_order') as mock_standard_order:
         
         mock_better_order.return_value = 'better_order_disabled'
         mock_standard_order.return_value = 'standard_order_disabled'
@@ -163,8 +163,8 @@ def test_better_orders_portfolio_integration():
         "AAPL": 0.3   # Standard stock → standard execution
     }
     
-    with patch.object(order_manager, 'place_better_order') as mock_better_order, \
-         patch.object(order_manager, 'place_limit_or_market') as mock_standard_order:
+    with patch.object(order_manager, 'place_order') as mock_better_order, \
+         patch.object(order_manager, 'place_order') as mock_standard_order:
         
         mock_better_order.return_value = 'better_order_mixed'
         mock_standard_order.return_value = 'standard_order_mixed'

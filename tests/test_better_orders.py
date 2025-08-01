@@ -56,7 +56,7 @@ def test_better_orders_integration():
         
         # Test BUY order
         print("\n💰 Testing BUY order with better execution...")
-        order_id = smart_execution.place_better_order(test_symbol, 100.0, OrderSide.BUY)
+        order_id = smart_execution.place_order(test_symbol, 100.0, OrderSide.BUY)
         
         if order_id:
             print(f"✅ BUY order placed successfully: {order_id}")
@@ -79,7 +79,7 @@ def test_better_orders_integration():
         print("\n💰 Testing SELL order with better execution...")
         smart_execution.alpaca_client.place_limit_order.reset_mock()
         
-        order_id = smart_execution.place_better_order(test_symbol, 50.0, OrderSide.SELL)
+        order_id = smart_execution.place_order(test_symbol, 50.0, OrderSide.SELL)
         
         if order_id:
             print(f"✅ SELL order placed successfully: {order_id}")
@@ -111,7 +111,7 @@ def test_better_orders_integration():
         )
         smart_execution.alpaca_client.place_limit_order = MagicMock(return_value="test_order_456")
         
-        order_id = smart_execution.place_better_order(test_symbol, 25.0, OrderSide.BUY)
+        order_id = smart_execution.place_order(test_symbol, 25.0, OrderSide.BUY)
         
         if order_id:
             print(f"✅ Wide spread order placed: {order_id}")
