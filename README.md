@@ -364,13 +364,14 @@ export TELEGRAM_CHAT_ID="your-chat-id"
 
 ## 🤖 Automated Execution
 
-The bot can run automatically via **GitHub Actions** or AWS Lambda:
+The bot can run automatically via **GitHub Actions** or **AWS Lambda**:
 
-- **GitHub Actions:**
-  - **Command:** `alchemiser trade --live`
-  - **Functions:** Multi-strategy signal generation, trade execution, Telegram update
-  - **Manual Trigger:** Available via GitHub Actions UI
-  - **Environment:** `ALPACA_KEY`, `ALPACA_SECRET`, `TELEGRAM_TOKEN`, `TELEGRAM_CHAT_ID`
+### GitHub Actions
+
+- **Command:** `alchemiser trade --live`
+- **Functions:** Multi-strategy signal generation, trade execution, Telegram update
+- **Manual Trigger:** Available via GitHub Actions UI
+- **Environment:** `ALPACA_KEY`, `ALPACA_SECRET`, `TELEGRAM_TOKEN`, `TELEGRAM_CHAT_ID`
 
 **GitHub Actions Workflow:**
 
@@ -384,9 +385,66 @@ The bot can run automatically via **GitHub Actions** or AWS Lambda:
   run: alchemiser trade --live
 ```
 
-- **AWS Lambda:**
-  - Use the CLI command `alchemiser deploy` (or `make deploy`) to build and push the Docker image and update the Lambda function.
-  - Lambda will run the container as configured (see `scripts/build_and_push_lambda.sh`).
+### AWS Lambda (Enhanced Event-Driven)
+
+The Lambda handler now supports **multiple trading modes** triggered by different event configurations:
+
+#### 🎯 Supported Modes
+
+- **Paper Trading**: Safe testing with simulated trades
+- **Live Trading**: Real money trading with actual positions  
+- **Signal Analysis**: Display signals without executing trades
+
+#### 📋 Event Configuration
+
+```json
+{
+    "mode": "trade" | "bot",           // Required: Operation mode
+    "trading_mode": "paper" | "live",  // Optional: Trading mode (default: live)
+    "ignore_market_hours": boolean     // Optional: Override market hours (default: false)
+}
+```
+
+#### 📚 Event Examples
+
+```json
+// Paper Trading
+{"mode": "trade", "trading_mode": "paper"}
+
+// Live Trading  
+{"mode": "trade", "trading_mode": "live"}
+
+// Signal Analysis
+{"mode": "bot"}
+
+// Testing Mode (ignore market hours)
+{"mode": "trade", "trading_mode": "paper", "ignore_market_hours": true}
+
+// Empty Event (Backward Compatibility - defaults to live trading)
+{}
+```
+
+#### 🕐 CloudWatch Schedules
+
+```bash
+# Paper Trading (Daily at 9:45 AM EST)
+aws events put-rule --name "AlchemiserPaper" \
+  --schedule-expression "cron(45 14 ? * MON-FRI *)"
+aws events put-targets --rule "AlchemiserPaper" \
+  --targets Id=1,Arn=arn:aws:lambda:REGION:ACCOUNT:function:the-alchemiser,Input='{"mode":"trade","trading_mode":"paper"}'
+
+# Live Trading (Daily at 9:45 AM EST)  
+aws events put-rule --name "AlchemiserLive" \
+  --schedule-expression "cron(45 14 ? * MON-FRI *)"
+aws events put-targets --rule "AlchemiserLive" \
+  --targets Id=1,Arn=arn:aws:lambda:REGION:ACCOUNT:function:the-alchemiser,Input='{"mode":"trade","trading_mode":"live"}'
+```
+
+#### 🚀 Deployment
+
+- Use the CLI command `alchemiser deploy` (or `make deploy`) to build and push the Docker image and update the Lambda function.
+- Lambda will run the container as configured (see `scripts/build_and_push_lambda.sh`).
+- **📖 Detailed Documentation**: See [`docs/lambda_event_configuration.md`](docs/lambda_event_configuration.md) for comprehensive setup guide.
 
 ## 📁 Project Structure
 

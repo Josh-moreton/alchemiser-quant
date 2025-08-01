@@ -115,8 +115,12 @@ class TradingEngine:
         # Portfolio rebalancer
         self.portfolio_rebalancer = PortfolioRebalancer(self)
 
-        # Strategy manager
-        self.strategy_manager = MultiStrategyManager(strategy_allocations, config=config)
+        # Strategy manager - pass our data provider to ensure same trading mode
+        self.strategy_manager = MultiStrategyManager(
+            strategy_allocations, 
+            shared_data_provider=self.data_provider,  # Pass our data provider
+            config=config
+        )
 
         # Logging setup
         logging.info(f"TradingEngine initialized - Paper Trading: {self.paper_trading}")

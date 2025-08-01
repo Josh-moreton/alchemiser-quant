@@ -119,9 +119,16 @@ class MultiStrategyManager:
         # Initialize KLM ensemble if allocated
         self.klm_ensemble = None
         if StrategyType.KLM in self.strategy_allocations:
-            self.klm_ensemble = KLMStrategyEnsemble(data_provider=shared_data_provider)
+            try:
+                self.klm_ensemble = KLMStrategyEnsemble(data_provider=shared_data_provider)
+                logging.info(f"KLM Strategy initialized with {self.strategy_allocations[StrategyType.KLM]:.1%} allocation")
+            except Exception as e:
+                logging.error(f"Failed to initialize KLM Strategy: {e}")
+                self.klm_ensemble = None
+        else:
+            logging.info("KLM Strategy not allocated in config")
         
-        logging.debug(f"MultiStrategyManager initialized with allocations: {self.strategy_allocations}")
+        logging.info(f"MultiStrategyManager initialized with allocations: {self.strategy_allocations}")
     
     def run_all_strategies(self) -> Tuple[Dict[StrategyType, Any], Dict[str, float], Dict[str, List[StrategyType]]]:
         """
@@ -209,6 +216,7 @@ class MultiStrategyManager:
         # Step 4: Run KLM Strategy Ensemble (if enabled)
         if self.klm_ensemble is not None:
             try:
+                logging.info("Executing KLM Strategy Ensemble...")
                 klm_indicators = self.klm_ensemble.calculate_indicators(market_data)
                 klm_result = self.klm_ensemble.evaluate_ensemble(klm_indicators, market_data)
                 strategy_signals[StrategyType.KLM] = {
@@ -219,9 +227,10 @@ class MultiStrategyManager:
                     'indicators': klm_indicators,
                     'market_data': market_data
                 }
+                logging.info(f"KLM ensemble result: {klm_result[1]} {klm_result[0]} - {klm_result[3]}")
                 logging.debug(f"KLM ensemble: {klm_result[1]} {klm_result[0]} - {klm_result[2]} [{klm_result[3]}]")
             except Exception as e:
-                logging.error(f"Error running KLM ensemble: {e}")
+                logging.error(f"Error running KLM ensemble: {e}", exc_info=True)
                 strategy_signals[StrategyType.KLM] = {
                     'symbol': 'BIL',
                     'action': ActionType.HOLD.value,
@@ -230,14 +239,22 @@ class MultiStrategyManager:
                     'indicators': {},
                     'market_data': {}
                 }
+        else:
+            logging.info("KLM ensemble not initialized - skipping KLM strategy execution")
         
         # Create consolidated portfolio allocation with strategy attribution
+        logging.info(f"Creating consolidated portfolio from {len(strategy_signals)} strategy signals")
         for strategy_type, signal_data in strategy_signals.items():
+            logging.info(f"Processing {strategy_type.value} strategy: {signal_data['action']} {signal_data['symbol']}")
+            
             if signal_data['action'] == ActionType.BUY.value:
                 # Skip strategies not in our allocation (e.g., KLM-only portfolio)
                 if strategy_type not in self.strategy_allocations:
+                    logging.warning(f"Strategy {strategy_type.value} not in allocations - skipping")
                     continue
+                    
                 strategy_allocation = self.strategy_allocations[strategy_type]
+                logging.info(f"{strategy_type.value} has {strategy_allocation:.1%} allocation")
                 
                 # Handle portfolio vs single symbol signals
                 symbol_or_allocation = signal_data['symbol']

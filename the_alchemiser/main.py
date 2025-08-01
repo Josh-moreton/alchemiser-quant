@@ -9,7 +9,7 @@ The main functions support:
     - Signal analysis mode: Display strategy signals without executing trades
     - Trading mode: Execute multi-strategy trading with Nuclear and TECL strategies
     - Paper and live trading modes with market hours validation
-    - Rich console output with email notifications for live trading
+    - Rich console output with email notifications for both paper and live trading
 
 Example:
     Run signal analysis only:
@@ -229,7 +229,7 @@ def run_multi_strategy_trading(live_trading: bool = False, ignore_market_hours: 
                          
     Note:
         - Market hours are checked unless ignore_market_hours is True
-        - Email notifications are only sent in live trading mode
+        - Email notifications are sent for both paper and live trading modes
         - Technical indicators and strategy signals are displayed before execution
         - Error notifications are sent via email if configured
     """
@@ -290,49 +290,48 @@ def run_multi_strategy_trading(live_trading: bool = False, ignore_market_hours: 
         # Display results
         trader.display_multi_strategy_summary(result)
         
-        # Only send email notification in live trading mode
-        if live_trading:
-            try:
-                from the_alchemiser.core.ui.email_utils import send_email_notification, build_multi_strategy_email_html
-                from the_alchemiser.core.ui.email.config import is_neutral_mode_enabled
-                from the_alchemiser.core.ui.email.templates import EmailTemplates
+        # Send email notification for both paper and live trading
+        try:
+            from the_alchemiser.core.ui.email_utils import send_email_notification, build_multi_strategy_email_html
+            from the_alchemiser.core.ui.email.config import is_neutral_mode_enabled
+            from the_alchemiser.core.ui.email.templates import EmailTemplates
+            
+            # Check if neutral mode is enabled
+            neutral_mode = is_neutral_mode_enabled()
+            
+            if neutral_mode:
+                # Use neutral template - build the data in the same format
+                account_before = getattr(result, 'account_info_before', {})
+                account_after = getattr(result, 'account_info_after', {})
+                orders_executed = getattr(result, 'orders_executed', [])
+                final_portfolio_state = getattr(result, 'final_portfolio_state', {})
+                open_positions = account_after.get('open_positions', [])
                 
-                # Check if neutral mode is enabled
-                neutral_mode = is_neutral_mode_enabled()
-                
-                if neutral_mode:
-                    # Use neutral template - build the data in the same format
-                    account_before = getattr(result, 'account_info_before', {})
-                    account_after = getattr(result, 'account_info_after', {})
-                    orders_executed = getattr(result, 'orders_executed', [])
-                    final_portfolio_state = getattr(result, 'final_portfolio_state', {})
-                    open_positions = account_after.get('open_positions', [])
-                    
-                    html_content = EmailTemplates.build_trading_report_neutral(
-                        mode=mode_str,
-                        success=result.success,
-                        account_before=account_before,
-                        account_after=account_after,
-                        positions=final_portfolio_state,
-                        orders=orders_executed,
-                        signal=None,  # We can add strategy signals later if needed
-                        portfolio_history=None,
-                        open_positions=open_positions
-                    )
-                    subject_suffix = " (Neutral Mode)"
-                else:
-                    # Use regular template with dollar values
-                    html_content = build_multi_strategy_email_html(result, mode_str)
-                    subject_suffix = ""
-                
-                send_email_notification(
-                    subject=f"📈 The Alchemiser - {mode_str.upper()} Multi-Strategy Report{subject_suffix}",
-                    html_content=html_content,
-                    text_content=f"Multi-strategy execution completed. Success: {result.success}"
+                html_content = EmailTemplates.build_trading_report_neutral(
+                    mode=mode_str,
+                    success=result.success,
+                    account_before=account_before,
+                    account_after=account_after,
+                    positions=final_portfolio_state,
+                    orders=orders_executed,
+                    signal=None,  # We can add strategy signals later if needed
+                    portfolio_history=None,
+                    open_positions=open_positions
                 )
-            except Exception as e:
-                from rich.console import Console
-                Console().print(f"[bold yellow]Email notification failed: {e}[/bold yellow]")
+                subject_suffix = " (Neutral Mode)"
+            else:
+                # Use regular template with dollar values
+                html_content = build_multi_strategy_email_html(result, mode_str)
+                subject_suffix = ""
+            
+            send_email_notification(
+                subject=f"📈 The Alchemiser - {mode_str.upper()} Multi-Strategy Report{subject_suffix}",
+                html_content=html_content,
+                text_content=f"Multi-strategy execution completed. Success: {result.success}"
+            )
+        except Exception as e:
+            from rich.console import Console
+            Console().print(f"[bold yellow]Email notification failed: {e}[/bold yellow]")
         
         return result.success
         
