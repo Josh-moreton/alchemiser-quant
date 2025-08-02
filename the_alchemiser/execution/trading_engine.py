@@ -23,9 +23,19 @@ from dataclasses import dataclass
 
 
 # Core strategy and portfolio management
-from the_alchemiser.core.trading.strategy_manager import MultiStrategyManager, StrategyType
+from the_alchemiser.core.trading.strategy_manager import (
+    MultiStrategyManager,
+    StrategyType,
+)
 from the_alchemiser.execution.portfolio_rebalancer import PortfolioRebalancer
 from the_alchemiser.tracking.strategy_order_tracker import get_strategy_tracker
+from .account_service import AccountService
+from .execution_manager import ExecutionManager
+from .reporting import (
+    create_execution_summary,
+    save_dashboard_data,
+    build_portfolio_state_data,
+)
 
 
 @dataclass
@@ -117,13 +127,19 @@ class TradingEngine:
 
         # Strategy manager - pass our data provider to ensure same trading mode
         self.strategy_manager = MultiStrategyManager(
-            strategy_allocations, 
+            strategy_allocations,
             shared_data_provider=self.data_provider,  # Pass our data provider
-            config=config
+            config=config,
         )
 
+        # Supporting services
+        self.account_service = AccountService(self.data_provider)
+        self.execution_manager = ExecutionManager(self)
+
         # Logging setup
-        logging.info(f"TradingEngine initialized - Paper Trading: {self.paper_trading}")
+        logging.info(
+            f"TradingEngine initialized - Paper Trading: {self.paper_trading}"
+        )
 
     # --- Account and Position Methods ---
     def get_account_info(self) -> Dict:
@@ -148,8 +164,7 @@ class TradingEngine:
         Note:
             Returns empty dict if account information cannot be retrieved.
         """
-        from the_alchemiser.utils.account_utils import extract_comprehensive_account_data
-        return extract_comprehensive_account_data(self.data_provider)
+        return self.account_service.get_account_info()
 
     def get_positions(self) -> Dict:
         """Get current positions via UnifiedDataProvider.
@@ -157,15 +172,7 @@ class TradingEngine:
         Returns:
             Dict of current positions keyed by symbol for compatibility with legacy code.
         """
-        positions = self.data_provider.get_positions()
-        position_dict = {}
-        if not positions:
-            return position_dict
-        for position in positions:
-            symbol = position.get('symbol') if isinstance(position, dict) else getattr(position, 'symbol', None)
-            if symbol:
-                position_dict[symbol] = position
-        return position_dict
+        return self.account_service.get_positions()
 
     def get_current_price(self, symbol: str) -> float:
         """Get current price for a symbol via UnifiedDataProvider.
@@ -176,8 +183,7 @@ class TradingEngine:
         Returns:
             Current price as float, or 0.0 if price unavailable.
         """
-        price = self.data_provider.get_current_price(symbol)
-        return float(price) if price is not None else 0.0
+        return self.account_service.get_current_price(symbol)
     
     def get_current_prices(self, symbols: List[str]) -> Dict[str, float]:
         """Get current prices for multiple symbols.
@@ -188,15 +194,7 @@ class TradingEngine:
         Returns:
             Dictionary mapping symbols to current prices.
         """
-        prices = {}
-        for symbol in symbols:
-            try:
-                price = self.get_current_price(symbol)
-                if price and price > 0:
-                    prices[symbol] = float(price)
-            except Exception as e:
-                logging.warning(f"Failed to get current price for {symbol}: {e}")
-        return prices
+        return self.account_service.get_current_prices(symbols)
 
     # --- Order and Rebalancing Methods ---
     def wait_for_settlement(self, sell_orders: List[Dict], max_wait_time: int = 60, poll_interval: float = 2.0) -> bool:
@@ -272,170 +270,31 @@ class TradingEngine:
 
     # --- Multi-Strategy Execution ---
     def execute_multi_strategy(self) -> MultiStrategyExecutionResult:
-        """
-        Execute all strategies and rebalance portfolio accordingly
-        Returns:
-            MultiStrategyExecutionResult with complete execution details
-        """
-        try:
-            account_info_before = self.get_account_info()
-            if not account_info_before:
-                raise Exception("Unable to get account information")
-            strategy_signals, consolidated_portfolio, strategy_attribution = self.strategy_manager.run_all_strategies()
-            if not consolidated_portfolio:
-                consolidated_portfolio = {'BIL': 1.0}  # Default to cash equivalent
-            total_allocation = sum(consolidated_portfolio.values())
-            if abs(total_allocation - 1.0) > 0.05:
-                logging.warning(f"Portfolio allocation sums to {total_allocation:.1%}, expected ~100%")
-            orders_executed = self.rebalance_portfolio(consolidated_portfolio, strategy_attribution)
-            account_info_after = self.get_account_info()
-            execution_summary = self._create_execution_summary(
-                strategy_signals, consolidated_portfolio, orders_executed,
-                account_info_before, account_info_after
-            )
-            if not self.paper_trading and orders_executed:
-                self._trigger_post_trade_validation(strategy_signals, orders_executed)
-            final_positions = self.get_positions()
-            final_portfolio_state = self._build_portfolio_state_data(
-                consolidated_portfolio, account_info_after, final_positions
-            )
-            result = MultiStrategyExecutionResult(
-                success=True,
-                strategy_signals=strategy_signals,
-                consolidated_portfolio=consolidated_portfolio,
-                orders_executed=orders_executed,
-                account_info_before=account_info_before,
-                account_info_after=account_info_after,
-                execution_summary=execution_summary,
-                final_portfolio_state=final_portfolio_state
-            )
-            self._save_dashboard_data(result)
-            
-            # Archive daily P&L for historical tracking (Step 5)
-            self._archive_daily_strategy_pnl(execution_summary.get('pnl_summary', {}))
-            
-            return result
-        except Exception as e:
-            logging.error(f"❌ Multi-strategy execution failed: {e}")
-            import traceback
-            logging.error(f"Stack trace: {traceback.format_exc()}")
-            return MultiStrategyExecutionResult(
-                success=False,
-                strategy_signals={},
-                consolidated_portfolio={},
-                orders_executed=[],
-                account_info_before=account_info_before if 'account_info_before' in locals() else {},
-                account_info_after={},
-                execution_summary={'error': str(e)},
-                final_portfolio_state=None
-            )
+        """Execute all strategies and rebalance portfolio."""
+        return self.execution_manager.execute_multi_strategy()
 
     # --- Reporting and Dashboard Methods ---
-    def _create_execution_summary(self, strategy_signals: Dict[StrategyType, Any], 
-                                 consolidated_portfolio: Dict[str, float],
-                                 orders_executed: List[Dict],
-                                 account_before: Dict, account_after: Dict) -> Dict:
-        """Create comprehensive execution summary using helper utilities."""
-        from the_alchemiser.utils.portfolio_pnl_utils import (
-            calculate_strategy_pnl_summary, extract_trading_summary, 
-            build_strategy_summary, build_allocation_summary
+    def _create_execution_summary(
+        self,
+        strategy_signals: Dict[StrategyType, Any],
+        consolidated_portfolio: Dict[str, float],
+        orders_executed: List[Dict],
+        account_before: Dict,
+        account_after: Dict,
+    ) -> Dict:
+        """Create comprehensive execution summary."""
+        return create_execution_summary(
+            self,
+            strategy_signals,
+            consolidated_portfolio,
+            orders_executed,
+            account_before,
+            account_after,
         )
-        
-        # Get current prices for P&L calculations
-        symbols_in_portfolio = set(consolidated_portfolio.keys())
-        
-        # Add symbols from existing positions
-        try:
-            current_positions = self.get_positions()
-            symbols_in_portfolio.update(current_positions.keys())
-        except Exception as e:
-            logging.warning(f"Failed to get current positions for P&L: {e}")
-        
-        # Fetch current prices for all relevant symbols
-        current_prices = self.get_current_prices(list(symbols_in_portfolio))
-        
-        # Calculate P&L summary using helper
-        pnl_data = calculate_strategy_pnl_summary(self.paper_trading, current_prices)
-        
-        # Extract trading summary using helper
-        trading_summary = extract_trading_summary(orders_executed)
-        
-        # Build strategy summary using helper
-        strategy_summary = build_strategy_summary(
-            strategy_signals, 
-            self.strategy_manager.strategy_allocations, 
-            pnl_data['all_strategy_pnl']
-        )
-        
-        # Build allocations summary using helper
-        allocations = build_allocation_summary(consolidated_portfolio)
-        
-        return {
-            'allocations': allocations,
-            'strategy_summary': strategy_summary,
-            'trading_summary': trading_summary,
-            'pnl_summary': pnl_data['summary'],
-            'account_info_before': account_before,
-            'account_info_after': account_after
-        }
 
     def _save_dashboard_data(self, execution_result: MultiStrategyExecutionResult):
-        """Save structured data for dashboard consumption to S3 using helper utilities."""
-        try:
-            from the_alchemiser.core.utils.s3_utils import get_s3_handler
-            from the_alchemiser.utils.dashboard_utils import (
-                build_basic_dashboard_structure, extract_portfolio_metrics,
-                extract_positions_data, extract_strategies_data, 
-                extract_recent_trades_data, build_s3_paths
-            )
-            
-            s3_handler = get_s3_handler()
-            
-            # Build basic structure
-            dashboard_data = build_basic_dashboard_structure(self.paper_trading)
-            dashboard_data["success"] = execution_result.success
-            
-            # Extract portfolio metrics
-            if execution_result.account_info_after:
-                portfolio_metrics = extract_portfolio_metrics(execution_result.account_info_after)
-                dashboard_data["portfolio"].update(portfolio_metrics)
-                
-                # Extract positions data
-                open_positions = execution_result.account_info_after.get('open_positions', [])
-                dashboard_data["positions"] = extract_positions_data(open_positions)
-            
-            # Extract strategies data
-            dashboard_data["strategies"] = extract_strategies_data(
-                execution_result.strategy_signals, 
-                self.strategy_manager.strategy_allocations
-            )
-            
-            # Set signals data (copy of strategies for backward compatibility)
-            # Convert StrategyType keys to strings for JSON serialization
-            dashboard_data["signals"] = {
-                strategy_type.value if hasattr(strategy_type, 'value') else str(strategy_type): signal_data
-                for strategy_type, signal_data in execution_result.strategy_signals.items()
-            }
-            
-            # Extract recent trades data
-            if execution_result.orders_executed:
-                dashboard_data["recent_trades"] = extract_recent_trades_data(
-                    execution_result.orders_executed
-                )
-            
-            # Build S3 paths and save
-            latest_path, historical_path = build_s3_paths(self.paper_trading)
-            
-            success = s3_handler.write_json(latest_path, dashboard_data)
-            if success:
-                logging.info(f"Dashboard data saved to {latest_path}")
-                s3_handler.write_json(historical_path, dashboard_data)
-                logging.info(f"Historical dashboard data saved to {historical_path}")
-            else:
-                logging.error("Failed to save dashboard data to S3")
-                
-        except Exception as e:
-            logging.error(f"Error saving dashboard data: {e}")
+        """Save structured data for dashboard consumption to S3."""
+        save_dashboard_data(self, execution_result)
 
     def _archive_daily_strategy_pnl(self, pnl_summary: Dict) -> None:
         """Archive daily strategy P&L for historical tracking."""
@@ -475,37 +334,8 @@ class TradingEngine:
             return {'error': str(e)}
 
     def _build_portfolio_state_data(self, target_portfolio: Dict[str, float], account_info: Dict, current_positions: Dict) -> Dict:
-        """
-        Build portfolio state data for reporting purposes.
-        Uses existing utility functions for calculations.
-        """
-        from the_alchemiser.utils.account_utils import calculate_portfolio_values, extract_current_position_values
-        from the_alchemiser.utils.trading_math import calculate_allocation_discrepancy
-        
-        portfolio_value = account_info.get('portfolio_value', 0.0)
-        target_values = calculate_portfolio_values(target_portfolio, account_info)
-        current_values = extract_current_position_values(current_positions)
-        
-        allocations = {}
-        all_symbols = set(target_portfolio.keys()) | set(current_positions.keys())
-        
-        for symbol in all_symbols:
-            target_weight = target_portfolio.get(symbol, 0.0)
-            target_value = target_values.get(symbol, 0.0)
-            current_value = current_values.get(symbol, 0.0)
-            
-            current_weight, _ = calculate_allocation_discrepancy(
-                target_weight, current_value, portfolio_value
-            )
-            
-            allocations[symbol] = {
-                'target_percent': target_weight * 100,
-                'current_percent': current_weight * 100,
-                'target_value': target_value,
-                'current_value': current_value
-            }
-        
-        return {'allocations': allocations}
+        """Build portfolio state data for reporting purposes."""
+        return build_portfolio_state_data(target_portfolio, account_info, current_positions)
 
     def _trigger_post_trade_validation(self, strategy_signals: Dict[StrategyType, Any], 
                                      orders_executed: List[Dict]):

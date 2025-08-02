@@ -32,9 +32,12 @@ import logging
 from the_alchemiser.core.config import get_config
 from the_alchemiser.core.trading.strategy_manager import StrategyType
 
-# Load config once at module level
-config = get_config()
-logging_config = config['logging']
+
+def load_config():
+    """Load configuration and configure logging."""
+    config = get_config()
+    setup_file_logging()
+    return config
 
 def setup_file_logging():
     """Configure logging for both local and cloud environments.
@@ -63,8 +66,7 @@ def setup_file_logging():
     logging.getLogger('boto3').setLevel(logging.WARNING)
     logging.getLogger('s3transfer').setLevel(logging.WARNING)
 
-# Initialize file-based logging
-setup_file_logging()
+
 
 
 
@@ -96,6 +98,7 @@ def generate_multi_strategy_signals():
     from the_alchemiser.core.data.data_provider import UnifiedDataProvider
     
     try:
+        config = load_config()
         # Create shared UnifiedDataProvider once
         shared_data_provider = UnifiedDataProvider(paper_trading=True)
         # Pass shared data provider to MultiStrategyManager - it will read config allocations automatically
@@ -240,7 +243,8 @@ def run_multi_strategy_trading(live_trading: bool = False, ignore_market_hours: 
     try:
         from the_alchemiser.execution.trading_engine import TradingEngine, StrategyType
         from the_alchemiser.execution.smart_execution import is_market_open
-        
+
+        config = load_config()
         # Initialize multi-strategy trader - TradingEngine will read config allocations automatically
         trader = TradingEngine(
             paper_trading=not live_trading,

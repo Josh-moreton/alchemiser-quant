@@ -1,6 +1,17 @@
-# Alpaca Trading Integration
+# Execution Package
 
-This module integrates the Nuclear Trading Strategy with Alpaca Markets for automated trade execution using paper trading.
+This package handles strategy execution and account interactions. The architecture has been modularised to reduce coupling.
+
+```
+TradingEngine -> ExecutionManager -> AccountService / SmartExecution
+               -> Reporting
+```
+
+## Key Modules
+
+- `account_service.py` – account and position utilities
+- `execution_manager.py` – orchestrates multi-strategy execution
+- `reporting.py` – builds summaries and dashboard data
 
 ## Features
 
