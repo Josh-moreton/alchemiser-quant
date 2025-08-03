@@ -7,6 +7,7 @@ that are common across different strategy signal generators.
 """
 
 import logging
+from the_alchemiser.core.logging.logging_utils import get_logger, log_trade_event
 
 
 def display_signal_results(alerts, strategy_name="Strategy", key_symbols=None):
@@ -21,33 +22,43 @@ def display_signal_results(alerts, strategy_name="Strategy", key_symbols=None):
     Returns:
         First alert for compatibility, or None if no alerts
     """
+    logger = get_logger(__name__)
+    
     if not alerts or len(alerts) == 0:
-        print(f"❌ Unable to generate {strategy_name} strategy signal")
+        logger.warning("Unable to generate %s strategy signal", strategy_name)
         return None
     
     # Log all alerts
     from the_alchemiser.core.alerts.alert_service import log_alert_to_file
     for alert in alerts:
         log_alert_to_file(alert)
+        # Log trade event for structured logging
+        log_trade_event(
+            logger,
+            'signal_generated',
+            alert.symbol,
+            strategy=strategy_name,
+            action=alert.action,
+            price=alert.price,
+            reason=alert.reason
+        )
     
-    # Display results based on number of alerts
+    # Log results based on number of alerts
     if len(alerts) > 1:
         # Multi-asset portfolio signal
-        print(f"🚨 {strategy_name.upper()} PORTFOLIO SIGNAL: {len(alerts)} assets allocated")
-        print(f"\n🔵 {strategy_name.upper()} PORTFOLIO ALLOCATION:")
+        logger.info("%s portfolio signal generated with %d assets allocated", 
+                   strategy_name.upper(), len(alerts))
         for alert in alerts:
             if alert.action != 'HOLD':
-                print(f"   🟢 {alert.action} {alert.symbol} at ${alert.price:.2f}")
-                print(f"      Reason: {alert.reason}")
-            else:
-                print(f"   ⚪ {alert.action} {alert.symbol} at ${alert.price:.2f}")
-                print(f"      Reason: {alert.reason}")
+                logger.info("%s %s at $%.2f - %s", 
+                           alert.action, alert.symbol, alert.price, alert.reason)
     else:
         # Single signal
         alert = alerts[0]
         if alert.action != 'HOLD':
-            print(f"🚨 {strategy_name.upper()} TRADING SIGNAL: {alert.action} {alert.symbol} at ${alert.price:.2f}")
-            print(f"   Reason: {alert.reason}")
+            logger.info("%s trading signal: %s %s at $%.2f - %s", 
+                       strategy_name.upper(), alert.action, alert.symbol, 
+                       alert.price, alert.reason)
         else:
             print(f"📊 {strategy_name} Analysis: {alert.action} {alert.symbol} at ${alert.price:.2f}")
             print(f"   Reason: {alert.reason}")
@@ -63,6 +74,8 @@ def display_technical_indicators(strategy_instance, key_symbols=None):
         strategy_instance: Strategy instance with get_market_data and calculate_indicators methods
         key_symbols: List of symbols to display indicators for
     """
+    logger = get_logger(__name__)
+    
     if not key_symbols:
         return
         
@@ -70,17 +83,17 @@ def display_technical_indicators(strategy_instance, key_symbols=None):
         if hasattr(strategy_instance, 'calculate_indicators'):
             market_data = strategy_instance.get_market_data()
             indicators = strategy_instance.calculate_indicators(market_data)
-            logging.info("\n🔬 Technical Indicators Used for Signal Generation:")
+            logger.info("Technical indicators for signal generation:")
             for symbol in key_symbols:
                 if symbol in indicators:
                     rsi_10 = indicators[symbol].get('rsi_10')
                     rsi_20 = indicators[symbol].get('rsi_20')
                     if rsi_10 is not None and rsi_20 is not None:
-                        logging.info(f"  {symbol}: RSI(10)={rsi_10:.1f}, RSI(20)={rsi_20:.1f}")
+                        logger.info("%s: RSI(10)=%.1f, RSI(20)=%.1f", symbol, rsi_10, rsi_20)
                     else:
-                        logging.info(f"  {symbol}: RSI indicators not available")
+                        logger.debug("%s: RSI indicators not available", symbol)
     except Exception as e:
-        logging.warning(f"Could not display technical indicators: {e}")
+        logger.warning("Could not display technical indicators: %s", e)
 
 
 def display_portfolio_details(strategy_instance, strategy_name="Strategy"):
@@ -91,16 +104,18 @@ def display_portfolio_details(strategy_instance, strategy_name="Strategy"):
         strategy_instance: Strategy instance with get_current_portfolio_allocation method
         strategy_name: Name of the strategy
     """
+    logger = get_logger(__name__)
+    
     try:
         if hasattr(strategy_instance, 'get_current_portfolio_allocation'):
             portfolio = strategy_instance.get_current_portfolio_allocation()
             if portfolio:
-                logging.info(f"{strategy_name.upper()} PORTFOLIO DETAILS:")
+                logger.info("%s portfolio details:", strategy_name.upper())
                 for symbol, data in portfolio.items():
                     weight = data.get('weight', 0)
                     if isinstance(weight, (int, float)):
-                        logging.info(f"   {symbol}: {weight:.1%}")
+                        logger.info("   %s: %.1%", symbol, weight)
                     else:
-                        logging.info(f"   {symbol}: {weight}")
+                        logger.info("   %s: %s", symbol, weight)
     except Exception as e:
-        logging.warning(f"Could not display portfolio details: {e}")
+        logger.warning("Could not display portfolio details: %s", e)

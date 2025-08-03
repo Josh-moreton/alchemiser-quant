@@ -60,9 +60,13 @@ class ExecutionManager:
             self.engine._archive_daily_strategy_pnl(execution_summary.get("pnl_summary", {}))
             return result
         except Exception as e:
-            logging.error(f"❌ Multi-strategy execution failed: {e}")
-            import traceback
-            logging.error(f"Stack trace: {traceback.format_exc()}")
+            from the_alchemiser.core.logging.logging_utils import log_error_with_context, get_logger
+            logger = get_logger(__name__)
+            log_error_with_context(
+                logger, 
+                e, 
+                "multi-strategy execution"
+            )
             return MultiStrategyExecutionResult(
                 success=False,
                 strategy_signals={},

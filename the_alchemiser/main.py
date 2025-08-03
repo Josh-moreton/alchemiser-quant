@@ -29,40 +29,34 @@ import traceback
 import sys
 import os
 import logging
+from rich.console import Console
+
 from the_alchemiser.core.config import load_settings, Settings
 from the_alchemiser.core.trading.strategy_manager import StrategyType
+from the_alchemiser.core.logging.logging_utils import setup_logging, get_logger
 
-# Logging configuration will be populated in main()
-logging_config = {
-    "level": "INFO",
-}
 
-def setup_file_logging():
-    """Configure logging for both local and cloud environments.
-    
-    Sets up logging to send all logs to S3 in Lambda environments and files locally.
-    Configures appropriate log levels for third-party libraries to reduce noise.
-    
-    Note:
-        In production, logging is handled by CloudWatch and S3 for trades/signals JSON.
-        File logging setup is removed in favor of cloud-based logging.
-    """
+def configure_application_logging():
+    """Configure centralized logging for the application."""
     import os
-    from the_alchemiser.core.utils.s3_utils import S3FileHandler
-    root_logger = logging.getLogger()
     
-    # Set to WARNING level for cleaner CLI output - important info shown via Rich
-    root_logger.setLevel(logging.WARNING)
-    root_logger.handlers.clear()  # Remove any existing handlers
-
-    # Logging now handled by Cloudwatch and S3 trades/signals JSON. File logging setup removed.
-
-    # Set appropriate levels for third-party loggers
-    logging.getLogger('botocore').setLevel(logging.WARNING)
-    logging.getLogger('urllib3').setLevel(logging.WARNING)
-    logging.getLogger('alpaca').setLevel(logging.WARNING)
-    logging.getLogger('boto3').setLevel(logging.WARNING)
-    logging.getLogger('s3transfer').setLevel(logging.WARNING)
+    # Check if we're in production (AWS Lambda or similar)
+    is_production = os.getenv('AWS_LAMBDA_FUNCTION_NAME') is not None
+    
+    if is_production:
+        from the_alchemiser.core.logging.logging_utils import configure_production_logging
+        configure_production_logging(
+            log_level=logging.INFO,
+            log_file=None  # Use CloudWatch in Lambda
+        )
+    else:
+        # Development/CLI environment
+        setup_logging(
+            log_level=logging.WARNING,  # Cleaner CLI output
+            console_level=logging.WARNING,
+            suppress_third_party=True,
+            structured_format=False  # Human-readable for CLI
+        )
 
 
 
@@ -96,7 +90,6 @@ def generate_multi_strategy_signals(settings: Settings) -> tuple:
     from the_alchemiser.core.data.data_provider import UnifiedDataProvider
     
     try:
-        config = load_config()
         # Create shared UnifiedDataProvider once
         shared_data_provider = UnifiedDataProvider(paper_trading=True)
         manager = MultiStrategyManager(shared_data_provider=shared_data_provider, config=settings)
@@ -135,8 +128,8 @@ def run_all_signals_display(settings: Settings | None = None):
         # Generate multi-strategy signals (this includes both Nuclear and TECL)
         manager, strategy_signals, consolidated_portfolio = generate_multi_strategy_signals(settings)
         if not strategy_signals:
-            from rich.console import Console
-            Console().print("[bold red]Failed to generate multi-strategy signals[/bold red]")
+            logger = get_logger(__name__)
+            logger.error("Failed to generate multi-strategy signals")
             return False
             
         # Display strategy signals
@@ -203,10 +196,8 @@ def run_all_signals_display(settings: Settings | None = None):
         render_footer("Signal analysis completed successfully!")
         return True
     except Exception as e:
-        from rich.console import Console
-        Console().print(f"[bold red]Error analyzing strategies: {e}[/bold red]")
-        import traceback
-        traceback.print_exc()
+        logger = get_logger(__name__)
+        logger.exception("Error analyzing strategies: %s", e)
         return False
 
 
@@ -251,11 +242,11 @@ def run_multi_strategy_trading(
         
         # Check market hours unless ignore_market_hours is set
         if not ignore_market_hours and not is_market_open(trader.trading_client):
-            from rich.console import Console
+            logger = get_logger(__name__)
+            logger.warning("Market is closed. No trades will be placed.")
+            
             from the_alchemiser.core.ui.email_utils import send_email_notification, build_error_email_html
             from the_alchemiser.core.ui.email.config import is_neutral_mode_enabled
-            
-            Console().print("[bold red]Market is CLOSED. No trades will be placed.[/bold red]")
             
             # Check if neutral mode is enabled
             neutral_mode = is_neutral_mode_enabled()
@@ -331,14 +322,14 @@ def run_multi_strategy_trading(
                 text_content=f"Multi-strategy execution completed. Success: {result.success}"
             )
         except Exception as e:
-            from rich.console import Console
-            Console().print(f"[bold yellow]Email notification failed: {e}[/bold yellow]")
+            logger = get_logger(__name__)
+            logger.warning("Email notification failed: %s", e)
         
         return result.success
         
     except Exception as e:
-        from rich.console import Console
-        Console().print(f"[bold red]Error: {e}[/bold red]")
+        logger = get_logger(__name__)
+        logger.exception("Error in multi-strategy trading: %s", e)
         return False
 
 
@@ -373,6 +364,9 @@ def main(argv=None, settings: Settings | None = None):
         $ python main.py trade --ignore-market-hours  # Test during market close
     """
     from the_alchemiser.core.ui.cli_formatter import render_header, render_footer
+    
+    # Setup logging early to suppress chattiness
+    configure_application_logging()
     
     settings = settings or load_settings()
     parser = argparse.ArgumentParser(description="Multi-Strategy Nuclear Trading Bot")
@@ -410,8 +404,8 @@ def main(argv=None, settings: Settings | None = None):
             else:
                 success = result
     except Exception as e:
-        from rich.console import Console
-        Console().print(f"[bold red]Error: {e}[/bold red]")
+        logger = get_logger(__name__)
+        logger.exception("Error in main application: %s", e)
         success = False
     
     if success:
