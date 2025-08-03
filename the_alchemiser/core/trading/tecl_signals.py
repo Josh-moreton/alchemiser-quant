@@ -31,6 +31,9 @@ from the_alchemiser.utils.indicator_utils import safe_get_indicator
 from the_alchemiser.utils.price_utils import ensure_scalar_price
 from the_alchemiser.utils.config_utils import load_alert_config
 
+# Static strategy import instead of dynamic import
+from the_alchemiser.core.trading.tecl_strategy_engine import TECLStrategyEngine as PureStrategyEngine
+
 warnings.filterwarnings('ignore')
 
 
@@ -55,8 +58,7 @@ class TECLStrategyEngine:
         self.data_provider = data_provider
         self.indicators = TechnicalIndicators()
         
-        # Import the pure strategy engine
-        from the_alchemiser.core.trading.tecl_strategy_engine import TECLStrategyEngine as PureStrategyEngine
+        # Use static import - strategy class imported at module level
         self.strategy = PureStrategyEngine(data_provider=self.data_provider)
 
         # TECL strategy symbols

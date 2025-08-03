@@ -18,7 +18,7 @@ Example:
 import json
 import logging
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Dict, List, Optional, Tuple, Any, Protocol
 from dataclasses import dataclass
 
 
@@ -35,6 +35,47 @@ from .reporting import (
     build_portfolio_state_data,
 )
 from .types import MultiStrategyExecutionResult
+
+
+# Protocol definitions for dependency injection
+class AccountInfoProvider(Protocol):
+    """Protocol for account information retrieval."""
+    def get_account_info(self) -> Dict:
+        """Get comprehensive account information."""
+        ...
+
+
+class PositionProvider(Protocol):
+    """Protocol for position data retrieval."""
+    def get_positions_dict(self) -> Dict[str, Dict]:
+        """Get current positions keyed by symbol."""
+        ...
+
+
+class PriceProvider(Protocol):
+    """Protocol for current price data retrieval."""
+    def get_current_price(self, symbol: str) -> float:
+        """Get current price for a single symbol."""
+        ...
+    
+    def get_current_prices(self, symbols: List[str]) -> Dict[str, float]:
+        """Get current prices for multiple symbols."""
+        ...
+
+
+class RebalancingService(Protocol):
+    """Protocol for portfolio rebalancing operations."""
+    def rebalance_portfolio(self, target_portfolio: Dict[str, float], 
+                          strategy_attribution: Optional[Dict[str, List[StrategyType]]] = None) -> List[Dict]:
+        """Rebalance portfolio to target allocation."""
+        ...
+
+
+class MultiStrategyExecutor(Protocol):
+    """Protocol for multi-strategy execution."""
+    def execute_multi_strategy(self) -> MultiStrategyExecutionResult:
+        """Execute all strategies and rebalance portfolio."""
+        ...
 
 
 class TradingEngine:
@@ -107,9 +148,16 @@ class TradingEngine:
             config=config,
         )
 
-        # Supporting services
+        # Supporting services for composition-based access
         self.account_service = AccountService(self.data_provider)
         self.execution_manager = ExecutionManager(self)
+        
+        # Compose dependencies for type-safe delegation
+        self._account_info_provider: AccountInfoProvider = self.account_service
+        self._position_provider: PositionProvider = self.account_service  
+        self._price_provider: PriceProvider = self.account_service
+        self._rebalancing_service: RebalancingService = self.portfolio_rebalancer
+        self._multi_strategy_executor: MultiStrategyExecutor = self.execution_manager
 
         # Logging setup
         logging.info(
@@ -139,18 +187,42 @@ class TradingEngine:
         Note:
             Returns empty dict if account information cannot be retrieved.
         """
-        return self.account_service.get_account_info()
+        try:
+            account_info = self._account_info_provider.get_account_info()
+            
+            # Add trading engine context
+            if account_info:
+                account_info['trading_mode'] = 'paper' if self.paper_trading else 'live'
+                account_info['market_hours_ignored'] = self.ignore_market_hours
+                
+            return account_info
+        except Exception as e:
+            logging.error(f"Failed to retrieve account information: {e}")
+            return {}
 
     def get_positions(self) -> Dict:
-        """Get current positions via UnifiedDataProvider.
+        """Get current positions via account service with engine context.
         
         Returns:
-            Dict of current positions keyed by symbol for compatibility with legacy code.
+            Dict of current positions keyed by symbol, enhanced with trading context.
         """
-        return self.account_service.get_positions()
+        try:
+            positions = self._position_provider.get_positions_dict()
+            
+            # Add engine context to positions data
+            if positions:
+                for symbol, position_data in positions.items():
+                    if isinstance(position_data, dict):
+                        position_data['retrieved_via'] = 'trading_engine'
+                        position_data['trading_mode'] = 'paper' if self.paper_trading else 'live'
+                        
+            return positions
+        except Exception as e:
+            logging.error(f"Failed to retrieve positions: {e}")
+            return {}
 
     def get_current_price(self, symbol: str) -> float:
-        """Get current price for a symbol via UnifiedDataProvider.
+        """Get current price for a symbol with engine-level validation.
         
         Args:
             symbol: Stock symbol to get price for.
@@ -158,18 +230,62 @@ class TradingEngine:
         Returns:
             Current price as float, or 0.0 if price unavailable.
         """
-        return self.account_service.get_current_price(symbol)
+        if not symbol or not isinstance(symbol, str):
+            logging.warning(f"Invalid symbol provided to get_current_price: {symbol}")
+            return 0.0
+            
+        try:
+            price = self._price_provider.get_current_price(symbol.upper())
+            
+            # Engine-level validation
+            if price and price > 0:
+                logging.debug(f"Retrieved price for {symbol}: ${price:.2f}")
+                return price
+            else:
+                logging.warning(f"Invalid price received for {symbol}: {price}")
+                return 0.0
+                
+        except Exception as e:
+            logging.error(f"Failed to get current price for {symbol}: {e}")
+            return 0.0
     
     def get_current_prices(self, symbols: List[str]) -> Dict[str, float]:
-        """Get current prices for multiple symbols.
+        """Get current prices for multiple symbols with engine-level validation.
         
         Args:
             symbols: List of stock symbols to get prices for.
             
         Returns:
-            Dictionary mapping symbols to current prices.
+            Dict mapping symbols to current prices, excluding symbols with invalid prices.
         """
-        return self.account_service.get_current_prices(symbols)
+        if not symbols or not isinstance(symbols, list):
+            logging.warning(f"Invalid symbols list provided: {symbols}")
+            return {}
+            
+        # Clean and validate symbols
+        valid_symbols = [s.upper() for s in symbols if isinstance(s, str) and s.strip()]
+        
+        if not valid_symbols:
+            logging.warning("No valid symbols provided to get_current_prices")
+            return {}
+            
+        try:
+            prices = self._price_provider.get_current_prices(valid_symbols)
+            
+            # Engine-level validation and logging
+            valid_prices = {}
+            for symbol, price in prices.items():
+                if price and price > 0:
+                    valid_prices[symbol] = price
+                else:
+                    logging.warning(f"Invalid price for {symbol}: {price}")
+                    
+            logging.debug(f"Retrieved {len(valid_prices)} valid prices out of {len(valid_symbols)} requested")
+            return valid_prices
+            
+        except Exception as e:
+            logging.error(f"Failed to get current prices: {e}")
+            return {}
 
     # --- Order and Rebalancing Methods ---
     def wait_for_settlement(self, sell_orders: List[Dict], max_wait_time: int = 60, poll_interval: float = 2.0) -> bool:
@@ -210,7 +326,7 @@ class TradingEngine:
 
     def rebalance_portfolio(self, target_portfolio: Dict[str, float], 
                           strategy_attribution: Optional[Dict[str, List[StrategyType]]] = None) -> List[Dict]:
-        """Rebalance portfolio to target allocation.
+        """Rebalance portfolio to target allocation with engine-level orchestration.
         
         Args:
             target_portfolio: Dictionary mapping symbols to target weight percentages.
@@ -219,7 +335,40 @@ class TradingEngine:
         Returns:
             List of executed orders during rebalancing.
         """
-        return self.portfolio_rebalancer.rebalance_portfolio(target_portfolio, strategy_attribution)
+        if not target_portfolio:
+            logging.warning("Empty target portfolio provided to rebalance_portfolio")
+            return []
+            
+        # Validate portfolio allocations
+        total_allocation = sum(target_portfolio.values())
+        if abs(total_allocation - 1.0) > 0.05:
+            logging.warning(f"Portfolio allocation sums to {total_allocation:.1%}, expected ~100%")
+            
+        # Log rebalancing initiation
+        logging.info(f"Initiating portfolio rebalancing with {len(target_portfolio)} symbols")
+        logging.debug(f"Target allocations: {target_portfolio}")
+        
+        try:
+            # Use composed rebalancing service
+            orders = self._rebalancing_service.rebalance_portfolio(target_portfolio, strategy_attribution)
+            
+            # Engine-level post-processing
+            if orders:
+                logging.info(f"Portfolio rebalancing completed with {len(orders)} orders")
+                
+                # Add engine context to orders
+                for order in orders:
+                    if isinstance(order, dict):
+                        order['executed_via'] = 'trading_engine'
+                        order['trading_mode'] = 'paper' if self.paper_trading else 'live'
+            else:
+                logging.info("Portfolio rebalancing completed with no orders needed")
+                
+            return orders
+            
+        except Exception as e:
+            logging.error(f"Portfolio rebalancing failed: {e}")
+            return []
 
     def execute_rebalancing(self, target_allocations: Dict[str, float], mode: str = 'market') -> Dict:
         """
@@ -245,8 +394,71 @@ class TradingEngine:
 
     # --- Multi-Strategy Execution ---
     def execute_multi_strategy(self) -> MultiStrategyExecutionResult:
-        """Execute all strategies and rebalance portfolio."""
-        return self.execution_manager.execute_multi_strategy()
+        """Execute all strategies and rebalance portfolio with engine orchestration.
+        
+        Returns:
+            MultiStrategyExecutionResult with comprehensive execution details.
+        """
+        logging.info("Initiating multi-strategy execution")
+        
+        # Pre-execution validation
+        try:
+            account_info = self.get_account_info()
+            if not account_info:
+                logging.error("Cannot proceed with multi-strategy execution: account info unavailable")
+                return MultiStrategyExecutionResult(
+                    success=False,
+                    strategy_signals={},
+                    consolidated_portfolio={},
+                    orders_executed=[],
+                    account_info_before={},
+                    account_info_after={},
+                    execution_summary={"error": "Failed to retrieve account information"},
+                    final_portfolio_state={}
+                )
+        except Exception as e:
+            logging.error(f"Pre-execution validation failed: {e}")
+            return MultiStrategyExecutionResult(
+                success=False,
+                strategy_signals={},
+                consolidated_portfolio={},
+                orders_executed=[],
+                account_info_before={},
+                account_info_after={},
+                execution_summary={"error": f"Pre-execution validation failed: {e}"},
+                final_portfolio_state={}
+            )
+        
+        try:
+            # Use composed multi-strategy executor
+            result = self._multi_strategy_executor.execute_multi_strategy()
+            
+            # Engine-level post-processing
+            if result.success:
+                logging.info("Multi-strategy execution completed successfully")
+                
+                # Add engine context to result
+                if result.execution_summary:
+                    result.execution_summary['engine_mode'] = 'paper' if self.paper_trading else 'live'
+                    result.execution_summary['market_hours_ignored'] = self.ignore_market_hours
+                    
+            else:
+                logging.warning("Multi-strategy execution completed with issues")
+                
+            return result
+            
+        except Exception as e:
+            logging.error(f"Multi-strategy execution failed: {e}")
+            return MultiStrategyExecutionResult(
+                success=False,
+                strategy_signals={},
+                consolidated_portfolio={},
+                orders_executed=[],
+                account_info_before={},
+                account_info_after={},
+                execution_summary={"error": f"Execution failed: {e}"},
+                final_portfolio_state={}
+            )
 
     # --- Reporting and Dashboard Methods ---
     def _archive_daily_strategy_pnl(self, pnl_summary: Dict) -> None:

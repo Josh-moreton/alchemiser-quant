@@ -31,6 +31,9 @@ from the_alchemiser.utils.indicator_utils import safe_get_indicator
 from the_alchemiser.utils.price_utils import ensure_scalar_price
 from the_alchemiser.utils.config_utils import load_alert_config
 
+# Static strategy import instead of dynamic import
+from the_alchemiser.core.trading.strategy_engine import NuclearStrategyEngine as PureStrategyEngine
+
 # Setup
 warnings.filterwarnings('ignore')
 config = load_settings()
@@ -71,8 +74,7 @@ class NuclearStrategyEngine:
         self.data_provider = data_provider
         self.indicators = TechnicalIndicators()
         
-        # Import the pure strategy engine
-        from the_alchemiser.core.trading.strategy_engine import NuclearStrategyEngine as PureStrategyEngine
+        # Use static import - strategy class imported at module level
         self.strategy = PureStrategyEngine()
 
         # Core symbols from the Nuclear strategy

@@ -10,7 +10,7 @@ This module implements the orchestration and execution layer for the KLM strateg
 - Both continuous and one-shot execution modes
 
 This file handles data fetching, orchestration, and execution for the KLM strategy,
-while pure strategy logic resides in klm_strategy_engine.py.
+using the KLM ensemble approach for multi-variant strategy selection.
 """
 
 # Standard library imports
@@ -26,6 +26,9 @@ import numpy as np
 # Local imports
 from the_alchemiser.core.indicators.indicators import TechnicalIndicators
 from the_alchemiser.core.config import load_settings
+
+# Static strategy import instead of dynamic import - KLM uses ensemble approach
+from the_alchemiser.core.trading.klm_ensemble_engine import KLMStrategyEnsemble
 
 warnings.filterwarnings('ignore')
 
@@ -50,9 +53,8 @@ class KLMStrategyEngine:
         self.data_provider = data_provider
         self.indicators = TechnicalIndicators()
         
-        # Import the pure strategy engine
-        from the_alchemiser.core.trading.klm_strategy_engine import KLMStrategyEngine as PureStrategyEngine
-        self.strategy = PureStrategyEngine(data_provider=self.data_provider)
+        # Use static import - strategy class imported at module level
+        self.strategy = KLMStrategyEnsemble(data_provider=self.data_provider)
 
         # KLM strategy symbols (comprehensive list from strategy logic)
         self.market_symbols = ['SPY', 'QQQE', 'VTV', 'VOX', 'TECL', 'VOOG', 'VOOV']
@@ -111,10 +113,13 @@ class KLMStrategyEngine:
 
     def evaluate_klm_strategy(self, indicators, market_data=None):
         """
-        Evaluate the KLM strategy using the pure strategy logic.
+        Evaluate the KLM strategy using the ensemble approach.
         Returns: (recommended_symbol, action, reason)
         """
-        return self.strategy.evaluate_klm_strategy(indicators, market_data)
+        # The ensemble returns (symbol_or_allocation, action, detailed_reason, variant_name)
+        # We need to unwrap this for compatibility
+        result = self.strategy.evaluate_ensemble(indicators, market_data)
+        return result[0], result[1], result[2]  # Return (symbol, action, reason)
 
 
 class KLMTradingBot:

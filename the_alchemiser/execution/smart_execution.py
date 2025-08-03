@@ -8,15 +8,74 @@ This module provides sophisticated order execution using the Better Orders strat
 - Fast 2-3 second timeouts with re-pegging
 - Designed for leveraged ETFs and high-volume trading
 - Market order fallback for execution certainty
+
+Refactored to use composition instead of thin proxy methods.
+Focuses on execution strategy logic while delegating order placement to specialized components.
 """
 
 import logging
 import time
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Protocol
 from alpaca.trading.enums import OrderSide
 from alpaca.trading.client import TradingClient
 
 from the_alchemiser.execution.alpaca_client import AlpacaClient
+from the_alchemiser.core.data.data_provider import UnifiedDataProvider
+
+
+class OrderExecutor(Protocol):
+    """Protocol for order execution components."""
+    def place_market_order(self, symbol: str, side: OrderSide, qty: Optional[float] = None, notional: Optional[float] = None) -> Optional[str]:
+        """Place a market order."""
+        ...
+    
+    def place_smart_sell_order(self, symbol: str, qty: float) -> Optional[str]:
+        """Place a smart sell order."""
+        ...
+    
+    def liquidate_position(self, symbol: str) -> Optional[str]:
+        """Liquidate a position."""
+        ...
+        
+    def get_current_positions(self) -> Dict[str, float]:
+        """Get current positions."""
+        ...
+        
+    def place_limit_order(self, symbol: str, qty: float, side: OrderSide, limit_price: float) -> Optional[str]:
+        """Place a limit order."""
+        ...
+        
+    def wait_for_order_completion(self, order_ids: List[str], max_wait_seconds: int = 30) -> Dict[str, str]:
+        """Wait for order completion."""
+        ...
+        
+    @property
+    def trading_client(self) -> TradingClient:
+        """Access to trading client for market hours and order queries."""
+        ...
+        
+    @property  
+    def data_provider(self) -> UnifiedDataProvider:
+        """Access to data provider for quotes and prices."""
+        ...
+
+
+class DataProvider(Protocol):
+    """Protocol for data provider components."""
+    def get_current_price(self, symbol: str) -> Optional[float]:
+        """Get current price for a symbol."""
+        ...
+        
+    def get_latest_quote(self, symbol: str) -> tuple:
+        """Get latest quote for a symbol."""
+        ...
+
+
+class TradingClient(Protocol):
+    """Protocol for trading client components."""
+    def get_order_by_id(self, order_id: str):
+        """Get order by ID."""
+        ...
 
 
 def is_market_open(trading_client: TradingClient) -> bool:
@@ -32,21 +91,43 @@ class SmartExecution:
     """
     Professional execution engine using Better Orders strategy.
     
-    Primary method: place_order() - Implements professional 5-step execution ladder
-    with aggressive marketable limits (ask+1¢/bid-1¢) designed for leveraged ETFs.
-    
-    Uses the AlpacaClient internally for reliable order placement.
+    Focuses on sophisticated execution logic while delegating actual order placement
+    to injected order executor. Uses composition over inheritance for better testability
+    and separation of concerns.
     """
     
     def __init__(self, trading_client, data_provider, ignore_market_hours=False, config=None):
-        """Initialize with same signature as old OrderManager for compatibility."""
+        """Initialize with order executor dependency injection."""
         
         self.config = config or {}
         validate_buying_power = self.config.get('validate_buying_power', False)
         
-        self.alpaca_client = AlpacaClient(trading_client, data_provider, validate_buying_power)
+        # Store dependencies for composition
+        self._trading_client = trading_client
+        self._data_provider = data_provider
+        
+        # Use composition - injected order executor handles the actual order placement
+        self._order_executor = AlpacaClient(trading_client, data_provider, validate_buying_power)
         self.ignore_market_hours = ignore_market_hours
     
+    def execute_safe_sell(self, symbol: str, target_qty: float) -> Optional[str]:
+        """
+        Execute a safe sell using the configured order executor.
+        
+        Focuses on safe selling logic while delegating actual order placement.
+        """
+        return self._order_executor.place_smart_sell_order(symbol, target_qty)
+    
+    def execute_liquidation(self, symbol: str) -> Optional[str]:
+        """Execute full position liquidation using the configured order executor."""
+        return self._order_executor.liquidate_position(symbol)
+    
+    def get_position_quantity(self, symbol: str) -> float:
+        """Get current position quantity using the configured order executor."""
+        positions = self._order_executor.get_current_positions()
+        return positions.get(symbol, 0.0)
+    
+    # Legacy compatibility methods - delegate to new composition-based methods
     def place_safe_sell_order(
         self,
         symbol: str,
@@ -56,13 +137,16 @@ class SmartExecution:
         poll_interval: float = 2.0,
         slippage_bps: Optional[float] = None
     ) -> Optional[str]:
-        """
-        Place a safe sell order - delegates to AlpacaClient.place_smart_sell_order.
-        
-        This method provides the same interface as the old OrderManager but uses
-        the much more reliable AlpacaClient internally.
-        """
-        return self.alpaca_client.place_smart_sell_order(symbol, target_qty)
+        """Legacy compatibility wrapper for safe sell execution."""
+        return self.execute_safe_sell(symbol, target_qty)
+    
+    def liquidate_position(self, symbol: str) -> Optional[str]:
+        """Legacy compatibility wrapper for liquidation."""
+        return self.execute_liquidation(symbol)
+    
+    def get_position_qty(self, symbol: str) -> float:
+        """Legacy compatibility wrapper for position quantity."""
+        return self.get_position_quantity(symbol)
     
     def place_order(
         self, 
@@ -101,12 +185,12 @@ class SmartExecution:
         
         console = Console()
         timing_engine = MarketOpenTimingEngine()
-        spread_assessor = SpreadAssessment(self.alpaca_client.data_provider)
+        spread_assessor = SpreadAssessment(self._data_provider)
         
         # Handle notional orders for BUY by converting to quantity
         if side == OrderSide.BUY and notional is not None:
             try:
-                current_price = self.alpaca_client.data_provider.get_current_price(symbol)
+                current_price = self._data_provider.get_current_price(symbol)
                 if current_price and current_price > 0:
                     # Calculate max quantity we can afford, round down, scale to 99%
                     raw_qty = notional / current_price
@@ -114,19 +198,19 @@ class SmartExecution:
                     qty = rounded_qty * 0.99  # Scale to 99% to avoid buying power issues
                 else:
                     console.print(f"[yellow]Invalid price for {symbol}, using market order[/yellow]")
-                    return self.alpaca_client.place_market_order(symbol, side, notional=notional)
+                    return self._order_executor.place_market_order(symbol, side, notional=notional)
                     
                 if qty <= 0:
                     console.print(f"[yellow]Calculated quantity too small for {symbol}, using market order[/yellow]")
-                    return self.alpaca_client.place_market_order(symbol, side, notional=notional)
+                    return self._order_executor.place_market_order(symbol, side, notional=notional)
                     
             except Exception as e:
                 logging.warning(f"Error calculating quantity for {symbol}: {e}, using market order")
-                return self.alpaca_client.place_market_order(symbol, side, notional=notional)
+                return self._order_executor.place_market_order(symbol, side, notional=notional)
         
         # For SELL notional orders, use market order directly
         elif side == OrderSide.SELL and notional is not None:
-            return self.alpaca_client.place_market_order(symbol, side, notional=notional)
+            return self._order_executor.place_market_order(symbol, side, notional=notional)
         
         # For BUY quantity orders, round down and scale to 99%
         elif side == OrderSide.BUY:
@@ -134,7 +218,7 @@ class SmartExecution:
             qty = rounded_qty * 0.99
         
         # Step 0: Pre-Check (if before market open)
-        if not is_market_open(self.alpaca_client.trading_client):
+        if not is_market_open(self._order_executor.trading_client):
             console.print(f"[yellow]Market closed - assessing pre-market conditions for {symbol}[/yellow]")
             
             premarket = spread_assessor.assess_premarket_conditions(symbol)
@@ -152,10 +236,10 @@ class SmartExecution:
         
         # Get current bid/ask
         try:
-            quote = self.alpaca_client.data_provider.get_latest_quote(symbol)
+            quote = self._order_executor.data_provider.get_latest_quote(symbol)
             if not quote or len(quote) < 2:
                 console.print(f"[yellow]No quote available, using market order[/yellow]")
-                return self.alpaca_client.place_market_order(symbol, side, qty=qty)
+                return self._order_executor.place_market_order(symbol, side, qty=qty)
                 
             bid, ask = float(quote[0]), float(quote[1])
             spread_analysis = spread_assessor.analyze_current_spread(symbol, bid, ask)
@@ -169,7 +253,7 @@ class SmartExecution:
                 time.sleep(wait_time)
                 
                 # Re-get quote after waiting
-                quote = self.alpaca_client.data_provider.get_latest_quote(symbol)
+                quote = self._order_executor.data_provider.get_latest_quote(symbol)
                 if quote and len(quote) >= 2:
                     bid, ask = float(quote[0]), float(quote[1])
                     spread_analysis = spread_assessor.analyze_current_spread(symbol, bid, ask)
@@ -184,7 +268,7 @@ class SmartExecution:
             logging.error(f"Error in Better Orders execution for {symbol}: {e}")
             # Step 4: Market order fallback
             console.print(f"[yellow]Falling back to market order[/yellow]")
-            return self.alpaca_client.place_market_order(symbol, side, qty=qty)
+            return self._order_executor.place_market_order(symbol, side, qty=qty)
     
     def wait_for_settlement(
         self, 
@@ -216,7 +300,7 @@ class SmartExecution:
         
         for order_id in order_ids:
             try:
-                order = self.alpaca_client.trading_client.get_order_by_id(order_id)
+                order = self._order_executor.trading_client.get_order_by_id(order_id)
                 status = str(getattr(order, 'status', 'unknown')).lower()
                 if 'orderstatus.' in status:
                     actual_status = status.split('.')[-1]
@@ -241,7 +325,7 @@ class SmartExecution:
         logging.info(f"📊 Settlement check: {len(already_completed)} already completed, {len(remaining_order_ids)} need monitoring")
         
         # Wait for order settlement
-        completion_statuses = self.alpaca_client.wait_for_order_completion(
+        completion_statuses = self._order_executor.wait_for_order_completion(
             remaining_order_ids, max_wait_time
         )
         
@@ -267,15 +351,6 @@ class SmartExecution:
             logging.warning(f"Only {settled_count}/{len(order_ids)} orders settled")
             
         return success
-    
-    def liquidate_position(self, symbol: str) -> Optional[str]:
-        """Liquidate position - delegates to SimpleOrderManager."""
-        return self.alpaca_client.liquidate_position(symbol)
-    
-    def get_position_qty(self, symbol: str) -> float:
-        """Get position quantity - delegates to SimpleOrderManager."""
-        positions = self.alpaca_client.get_current_positions()
-        return positions.get(symbol, 0.0)
     
     def calculate_dynamic_limit_price(self, side: OrderSide, bid: float, ask: float, 
                                      step: int = 1, tick_size: float = 0.01, 
@@ -346,13 +421,13 @@ class SmartExecution:
             console.print(f"[cyan]{attempt_label}: {side.value} {symbol} @ ${limit_price:.2f} ({direction})[/cyan]")
             
             # Place aggressive marketable limit
-            order_id = self.alpaca_client.place_limit_order(symbol, qty, side, limit_price)
+            order_id = self._order_executor.place_limit_order(symbol, qty, side, limit_price)
             if not order_id:
                 console.print(f"[red]Failed to place limit order[/red]")
                 continue
                 
             # Wait for fill with fast timeout (2-3 seconds max)
-            order_results = self.alpaca_client.wait_for_order_completion(
+            order_results = self._order_executor.wait_for_order_completion(
                 [order_id], max_wait_seconds=int(timeout_seconds)
             )
             
@@ -366,7 +441,7 @@ class SmartExecution:
                 console.print(f"[yellow]{attempt_label} not filled, re-pegging...[/yellow]")
                 
                 # Get fresh quote for re-peg pricing
-                fresh_quote = self.alpaca_client.data_provider.get_latest_quote(symbol)
+                fresh_quote = self._order_executor.data_provider.get_latest_quote(symbol)
                 if fresh_quote and len(fresh_quote) >= 2:
                     bid, ask = float(fresh_quote[0]), float(fresh_quote[1])
                 else:
@@ -377,4 +452,4 @@ class SmartExecution:
         
         # Step 4: Market order fallback
         console.print(f"[yellow]All limit attempts failed, using market order[/yellow]")
-        return self.alpaca_client.place_market_order(symbol, side, qty=qty)
+        return self._order_executor.place_market_order(symbol, side, qty=qty)
