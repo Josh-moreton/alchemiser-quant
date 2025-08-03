@@ -11,6 +11,7 @@ Key Features:
 - Position tracking per strategy
 - Strategy execution coordination
 - Consolidated reporting
+- Registry-based strategy management for static analysis
 """
 
 import json
@@ -18,21 +19,13 @@ import logging
 import os
 from typing import Dict, List, Optional, Tuple, Any
 from datetime import datetime, timedelta
-from enum import Enum
 
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn
 from rich.console import Console
 
 from the_alchemiser.core.config import Settings
-from the_alchemiser.core.trading.nuclear_signals import NuclearStrategyEngine, ActionType
-from the_alchemiser.core.trading.tecl_signals import TECLStrategyEngine
-from the_alchemiser.core.trading.klm_ensemble_engine import KLMStrategyEnsemble
-
-
-class StrategyType(Enum):
-    NUCLEAR = "NUCLEAR"
-    TECL = "TECL"
-    KLM = "KLM"
+from the_alchemiser.core.registry import StrategyRegistry, StrategyType
+from the_alchemiser.core.trading.nuclear_signals import ActionType
 
 
 class StrategyPosition:
@@ -84,19 +77,19 @@ class MultiStrategyManager:
             config = load_settings()
         self.config = config
         
-        # Default allocation from config if not specified
+        # Default allocation from registry if not specified
         if strategy_allocations is None:
-            default_allocations = self.config.strategy.default_strategy_allocations
+            self.strategy_allocations = StrategyRegistry.get_default_allocations()
+        else:
+            # Filter to only include enabled strategies
             self.strategy_allocations = {
-                StrategyType.NUCLEAR: default_allocations.get('nuclear', 0.4),
-                StrategyType.TECL: default_allocations.get('tecl', 0.6),
-                StrategyType.KLM: default_allocations.get('klm', 0.0)
+                strategy_type: allocation
+                for strategy_type, allocation in strategy_allocations.items()
+                if StrategyRegistry.is_strategy_enabled(strategy_type)
             }
             
             # Remove strategies with zero allocation to keep clean allocations dict
             self.strategy_allocations = {k: v for k, v in self.strategy_allocations.items() if v > 0}
-        else:
-            self.strategy_allocations = strategy_allocations
         
         # Validate allocations sum to 1.0
         total_allocation = sum(self.strategy_allocations.values())
@@ -108,53 +101,56 @@ class MultiStrategyManager:
             from the_alchemiser.core.data.data_provider import UnifiedDataProvider
             shared_data_provider = UnifiedDataProvider(paper_trading=True)
         
-        # Initialize strategy orchestration engines with shared data provider
-        self.nuclear_engine = NuclearStrategyEngine(data_provider=shared_data_provider)
-        self.tecl_engine = TECLStrategyEngine(data_provider=shared_data_provider)
-        
-        # Initialize KLM ensemble if allocated
-        self.klm_ensemble = None
-        if StrategyType.KLM in self.strategy_allocations:
+        # Create strategy engines using the registry
+        self.strategy_engines = {}
+        for strategy_type in self.strategy_allocations.keys():
             try:
-                self.klm_ensemble = KLMStrategyEnsemble(data_provider=shared_data_provider)
-                logging.info(f"KLM Strategy initialized with {self.strategy_allocations[StrategyType.KLM]:.1%} allocation")
+                engine = StrategyRegistry.create_strategy_engine(
+                    strategy_type, 
+                    data_provider=shared_data_provider
+                )
+                self.strategy_engines[strategy_type] = engine
+                logging.info(f"{strategy_type.value} strategy initialized with {self.strategy_allocations[strategy_type]:.1%} allocation")
             except Exception as e:
-                logging.error(f"Failed to initialize KLM Strategy: {e}")
-                self.klm_ensemble = None
-        else:
-            logging.info("KLM Strategy not allocated in config")
+                logging.error(f"Failed to initialize {strategy_type.value} strategy: {e}")
+                # Remove from allocations if initialization failed
+                del self.strategy_allocations[strategy_type]
         
         logging.info(f"MultiStrategyManager initialized with allocations: {self.strategy_allocations}")
     
     def run_all_strategies(self) -> Tuple[Dict[StrategyType, Any], Dict[str, float], Dict[str, List[StrategyType]]]:
         """
-        Run all strategies and return their signals plus consolidated portfolio allocation with strategy attribution
+        Run all enabled strategies and generate consolidated portfolio allocation
         
         Returns:
             Tuple of (strategy_signals, consolidated_portfolio, strategy_attribution)
-            - strategy_signals: Dict mapping strategy types to their signals/results
-            - consolidated_portfolio: Dict of symbol -> total_portfolio_weight
-            - strategy_attribution: Dict of symbol -> list of contributing strategies
         """
-        logging.debug("Running all strategies...")
         
-        console = Console()
-        # Strategy execution results
         strategy_signals = {}
         consolidated_portfolio = {}
-        strategy_attribution = {}  # Track which strategies contribute to each symbol
+        strategy_attribution = {}
         
-        # Get market data (combined from all strategies using shared data provider)
-        all_symbols = set(self.nuclear_engine.all_symbols + self.tecl_engine.all_symbols)
+        console = Console()
         
-        # Add KLM symbols if KLM ensemble is enabled
-        if self.klm_ensemble is not None:
-            all_symbols.update(self.klm_ensemble.all_symbols)
+        # Step 1: Collect all required symbols from enabled strategies
+        all_symbols = set()
+        for strategy_type, engine in self.strategy_engines.items():
+            if hasattr(engine, 'all_symbols'):
+                all_symbols.update(engine.all_symbols)
             
         market_data = {}
         
-        # Fetch data for all required symbols using the shared data provider
-        shared_data_provider = self.nuclear_engine.data_provider  # Both engines share the same instance
+        # Fetch data for all required symbols using shared data provider
+        # Get data provider from first available engine
+        shared_data_provider = None
+        for engine in self.strategy_engines.values():
+            if hasattr(engine, 'data_provider'):
+                shared_data_provider = engine.data_provider
+                break
+        
+        if not shared_data_provider:
+            raise RuntimeError("No data provider available from strategy engines")
+        
         for symbol in all_symbols:
             data = shared_data_provider.get_data(symbol)
             if not data.empty:
@@ -165,78 +161,58 @@ class MultiStrategyManager:
         # Market data fetched successfully
         logging.debug(f"Fetched market data for {len(market_data)} symbols using shared data provider")
         
-        # Step 2: Run Nuclear Strategy
-        try:
-            nuclear_indicators = self.nuclear_engine.calculate_indicators(market_data)
-            nuclear_result = self.nuclear_engine.evaluate_nuclear_strategy(nuclear_indicators, market_data)
-            strategy_signals[StrategyType.NUCLEAR] = {
-                'symbol': nuclear_result[0],
-                'action': nuclear_result[1],
-                'reason': nuclear_result[2],
-                'indicators': nuclear_indicators,
-                'market_data': market_data
-            }
-            logging.debug(f"Nuclear strategy: {nuclear_result[1]} {nuclear_result[0]} - {nuclear_result[2]}")
-        except Exception as e:
-                logging.error(f"Error running Nuclear strategy: {e}")
-                strategy_signals[StrategyType.NUCLEAR] = {
-                    'symbol': 'SPY',
-                    'action': ActionType.HOLD.value,
-                    'reason': f"Nuclear strategy error: {e}",
-                    'indicators': {},
-                    'market_data': {}
-                }
-        
-        # Step 3: Run TECL Strategy
-        try:
-            tecl_indicators = self.tecl_engine.calculate_indicators(market_data)
-            tecl_result = self.tecl_engine.evaluate_tecl_strategy(tecl_indicators, market_data)
-            strategy_signals[StrategyType.TECL] = {
-                'symbol': tecl_result[0],
-                'action': tecl_result[1],
-                'reason': tecl_result[2],
-                'indicators': tecl_indicators,
-                'market_data': market_data
-            }
-            logging.debug(f"TECL strategy: {tecl_result[1]} {tecl_result[0]} - {tecl_result[2]}")
-        except Exception as e:
-            logging.error(f"Error running TECL strategy: {e}")
-            strategy_signals[StrategyType.TECL] = {
-                'symbol': 'BIL',
-                'action': ActionType.HOLD.value,
-                'reason': f"TECL strategy error: {e}",
-                'indicators': {},
-                'market_data': {}
-            }
-        
-        # Step 4: Run KLM Strategy Ensemble (if enabled)
-        if self.klm_ensemble is not None:
+        # Step 2: Run each enabled strategy
+        for strategy_type, engine in self.strategy_engines.items():
             try:
-                logging.info("Executing KLM Strategy Ensemble...")
-                klm_indicators = self.klm_ensemble.calculate_indicators(market_data)
-                klm_result = self.klm_ensemble.evaluate_ensemble(klm_indicators, market_data)
-                strategy_signals[StrategyType.KLM] = {
-                    'symbol': klm_result[0],  # symbol_or_allocation
-                    'action': klm_result[1],  # action
-                    'reason': klm_result[2],  # enhanced_reason
-                    'variant_name': klm_result[3],  # selected_variant_name
-                    'indicators': klm_indicators,
-                    'market_data': market_data
-                }
-                logging.info(f"KLM ensemble result: {klm_result[1]} {klm_result[0]} - {klm_result[3]}")
-                logging.debug(f"KLM ensemble: {klm_result[1]} {klm_result[0]} - {klm_result[2]} [{klm_result[3]}]")
+                logging.info(f"Executing {strategy_type.value} strategy...")
+                
+                if strategy_type == StrategyType.NUCLEAR:
+                    indicators = engine.calculate_indicators(market_data)
+                    result = engine.evaluate_nuclear_strategy(indicators, market_data)
+                    strategy_signals[strategy_type] = {
+                        'symbol': result[0],
+                        'action': result[1],
+                        'reason': result[2],
+                        'indicators': indicators,
+                        'market_data': market_data
+                    }
+                    logging.debug(f"Nuclear strategy: {result[1]} {result[0]} - {result[2]}")
+                    
+                elif strategy_type == StrategyType.TECL:
+                    indicators = engine.calculate_indicators(market_data)
+                    result = engine.evaluate_tecl_strategy(indicators, market_data)
+                    strategy_signals[strategy_type] = {
+                        'symbol': result[0],
+                        'action': result[1],
+                        'reason': result[2],
+                        'indicators': indicators,
+                        'market_data': market_data
+                    }
+                    logging.debug(f"TECL strategy: {result[1]} {result[0]} - {result[2]}")
+                    
+                elif strategy_type == StrategyType.KLM:
+                    indicators = engine.calculate_indicators(market_data)
+                    result = engine.evaluate_ensemble(indicators, market_data)
+                    strategy_signals[strategy_type] = {
+                        'symbol': result[0],  # symbol_or_allocation
+                        'action': result[1],  # action
+                        'reason': result[2],  # enhanced_reason
+                        'variant_name': result[3],  # selected_variant_name
+                        'indicators': indicators,
+                        'market_data': market_data
+                    }
+                    logging.info(f"KLM ensemble result: {result[1]} {result[0]} - {result[3]}")
+                    logging.debug(f"KLM ensemble: {result[1]} {result[0]} - {result[2]} [{result[3]}]")
+                    
             except Exception as e:
-                logging.error(f"Error running KLM ensemble: {e}", exc_info=True)
-                strategy_signals[StrategyType.KLM] = {
-                    'symbol': 'BIL',
+                logging.error(f"Error running {strategy_type.value} strategy: {e}")
+                strategy_signals[strategy_type] = {
+                    'symbol': 'BIL',  # Safe default
                     'action': ActionType.HOLD.value,
-                    'reason': f"KLM ensemble error: {e}",
-                    'variant_name': 'ERROR',
+                    'reason': f"{strategy_type.value} strategy error: {e}",
                     'indicators': {},
                     'market_data': {}
                 }
-        else:
-            logging.info("KLM ensemble not initialized - skipping KLM strategy execution")
         
         # Create consolidated portfolio allocation with strategy attribution
         logging.info(f"Creating consolidated portfolio from {len(strategy_signals)} strategy signals")
@@ -316,17 +292,23 @@ class MultiStrategyManager:
         indicators = signal_data.get('indicators', {})
         market_data = signal_data.get('market_data', {})
         
+        # Get the nuclear engine from our strategy engines
+        nuclear_engine = self.strategy_engines.get(StrategyType.NUCLEAR)
+        if not nuclear_engine:
+            logging.error("Nuclear engine not available for portfolio allocation")
+            return {'SPY': 1.0}  # Safe fallback
+        
         if signal_data['symbol'] == 'NUCLEAR_PORTFOLIO':
             # Bull market nuclear portfolio - extract actual weights from strategy engine
-            portfolio = self.nuclear_engine.strategy.get_nuclear_portfolio(indicators, market_data)
+            portfolio = nuclear_engine.strategy.get_nuclear_portfolio(indicators, market_data)
             return {symbol: data['weight'] for symbol, data in portfolio.items()}
         
         elif signal_data['symbol'] == 'BEAR_PORTFOLIO':
             # Bear market portfolio - extract from the combination logic using inverse volatility
             try:
                 # Get the two bear subgroup signals
-                bear1_signal = self.nuclear_engine.strategy.bear_subgroup_1(indicators)
-                bear2_signal = self.nuclear_engine.strategy.bear_subgroup_2(indicators)
+                bear1_signal = nuclear_engine.strategy.bear_subgroup_1(indicators)
+                bear2_signal = nuclear_engine.strategy.bear_subgroup_2(indicators)
                 bear1_symbol = bear1_signal[0]
                 bear2_symbol = bear2_signal[0]
                 
@@ -335,7 +317,7 @@ class MultiStrategyManager:
                     return {bear1_symbol: 1.0}
                 
                 # Otherwise, use inverse volatility weighting to combine them  
-                bear_portfolio = self.nuclear_engine.strategy.combine_bear_strategies_with_inverse_volatility(
+                bear_portfolio = nuclear_engine.strategy.combine_bear_strategies_with_inverse_volatility(
                     bear1_symbol, bear2_symbol, indicators
                 )
                 
