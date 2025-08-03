@@ -64,8 +64,7 @@ def setup_file_logging():
     logging.getLogger('boto3').setLevel(logging.WARNING)
     logging.getLogger('s3transfer').setLevel(logging.WARNING)
 
-# Initialize file-based logging
-setup_file_logging()
+
 
 
 
@@ -97,6 +96,7 @@ def generate_multi_strategy_signals(settings: Settings) -> tuple:
     from the_alchemiser.core.data.data_provider import UnifiedDataProvider
     
     try:
+        config = load_config()
         # Create shared UnifiedDataProvider once
         shared_data_provider = UnifiedDataProvider(paper_trading=True)
         manager = MultiStrategyManager(shared_data_provider=shared_data_provider, config=settings)
