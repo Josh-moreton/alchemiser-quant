@@ -157,8 +157,9 @@ def lambda_handler(event=None, context=None):
         
         logger.info(f"Executing command: {' '.join(command_args)}")
         
-        # Execute the trading bot
-        result = main(command_args)
+        from the_alchemiser.core.config import load_settings
+        settings = load_settings()
+        result = main(command_args, settings=settings)
         
         # Build response message
         if mode == "bot":

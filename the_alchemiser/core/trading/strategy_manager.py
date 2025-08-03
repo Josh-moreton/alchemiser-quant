@@ -23,7 +23,7 @@ from enum import Enum
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn
 from rich.console import Console
 
-from the_alchemiser.core.config import Config
+from the_alchemiser.core.config import Settings
 from the_alchemiser.core.trading.nuclear_signals import NuclearStrategyEngine, ActionType
 from the_alchemiser.core.trading.tecl_signals import TECLStrategyEngine
 from the_alchemiser.core.trading.klm_ensemble_engine import KLMStrategyEnsemble
@@ -80,17 +80,13 @@ class MultiStrategyManager:
         """
         # Use provided config or load global config
         if config is None:
-            from the_alchemiser.core.config import get_config
-            config = get_config()
+            from the_alchemiser.core.config import load_settings
+            config = load_settings()
         self.config = config
         
         # Default allocation from config if not specified
         if strategy_allocations is None:
-            default_allocations = self.config['strategy'].get('default_strategy_allocations', {
-                'nuclear': 0.4,
-                'tecl': 0.6,
-                'klm': 0.0
-            })
+            default_allocations = self.config.strategy.default_strategy_allocations
             self.strategy_allocations = {
                 StrategyType.NUCLEAR: default_allocations.get('nuclear', 0.4),
                 StrategyType.TECL: default_allocations.get('tecl', 0.6),

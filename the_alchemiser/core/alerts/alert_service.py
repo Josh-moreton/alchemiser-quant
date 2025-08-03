@@ -2,7 +2,7 @@ import datetime as dt
 import re
 import json
 import logging
-from the_alchemiser.core.config import get_config
+from the_alchemiser.core.config import load_settings
 
 class Alert:
     """Simple alert class for trading signals."""
@@ -117,7 +117,7 @@ def create_alerts_from_signal(symbol, action, reason, indicators, market_data, d
 def log_alert_to_file(alert, log_file_path=None, paper_trading=None):
     """Log alert to file - centralized logging logic"""
     if log_file_path is None:
-        config = get_config()
+        config = load_settings()
         # Determine trading mode for appropriate JSON file
         if paper_trading is None:
             # Try to detect paper trading from environment or default to paper
@@ -155,7 +155,7 @@ def log_alert_to_file(alert, log_file_path=None, paper_trading=None):
 def log_alerts_to_file(alerts, log_file_path=None, paper_trading=None):
     """Log multiple alerts to file"""
     if log_file_path is None:
-        config = get_config()
+        config = load_settings()
         # Determine trading mode for appropriate JSON file
         if paper_trading is None:
             # Try to detect paper trading from environment or default to paper

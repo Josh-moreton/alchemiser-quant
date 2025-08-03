@@ -73,8 +73,8 @@ class TradingEngine:
         """
         # Use provided config or load global config
         if config is None:
-            from the_alchemiser.core.config import get_config
-            config = get_config()
+            from the_alchemiser.core.config import load_settings
+            config = load_settings()
 
         self.config = config
         self.paper_trading = paper_trading

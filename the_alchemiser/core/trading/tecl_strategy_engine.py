@@ -31,7 +31,7 @@ from enum import Enum
 
 from the_alchemiser.core.indicators.indicators import TechnicalIndicators
 from the_alchemiser.core.data.data_provider import UnifiedDataProvider
-from the_alchemiser.core.config import Config
+from the_alchemiser.core.config import load_settings
 from the_alchemiser.core.logging.logging_utils import setup_logging  # Centralized logging setup
 from the_alchemiser.utils.indicator_utils import safe_get_indicator
 

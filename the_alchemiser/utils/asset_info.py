@@ -13,7 +13,7 @@ import os
 
 try:
     from alpaca.trading.client import TradingClient
-    from the_alchemiser.core.config import Config
+    from the_alchemiser.core.config import load_settings
     ALPACA_AVAILABLE = True
 except ImportError:
     ALPACA_AVAILABLE = False

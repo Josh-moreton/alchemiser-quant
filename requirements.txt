@@ -12,3 +12,5 @@ pytest
 boto3==1.34.131
 rich
 twelvedata
+pydantic
+pydantic-settings
