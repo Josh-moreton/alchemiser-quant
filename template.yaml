@@ -1,0 +1,132 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  The Alchemiser Trading Bot
+
+  Multi-strategy trading bot deployed as AWS Lambda container image
+
+# Global configuration
+Globals:
+  Function:
+    Timeout: 900 # 15 minutes - max for Lambda
+    MemorySize: 512
+    Environment:
+      Variables:
+        # Logging
+        LOGGING__LEVEL: INFO
+
+        # Alpaca Configuration
+        ALPACA__ENDPOINT: https://api.alpaca.markets/v2
+        ALPACA__PAPER_ENDPOINT: https://paper-api.alpaca.markets/v2
+        ALPACA__CASH_RESERVE_PCT: 0.05
+        ALPACA__SLIPPAGE_BPS: 5
+        ALPACA__ENABLE_WEBSOCKET_ORDERS: true
+
+        # AWS Configuration
+        AWS__ACCOUNT_ID: 211125653762
+        AWS__REGION: eu-west-2
+        AWS__REPO_NAME: the-alchemiser
+        AWS__LAMBDA_ARN: arn:aws:lambda:eu-west-2:211125653762:function:the-alchemiser-v2-lambda
+        AWS__IMAGE_TAG: latest
+
+        # Alerts
+        ALERTS__ALERT_CONFIG_S3: s3://the-alchemiser-s3/alert_config.json
+        ALERTS__COOLDOWN_MINUTES: 30
+
+Resources:
+  TradingBotFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: the-alchemiser-v2-lambda
+      PackageType: Zip
+      Runtime: python3.12
+      CodeUri: .
+      Handler: the_alchemiser.lambda_handler.lambda_handler
+      Role: !GetAtt TradingBotExecutionRole.Arn
+      Events:
+        # Scheduled execution - run every weekday at 2:30 PM London time (after US market open)
+        DailyTradingSchedule:
+          Type: Schedule
+          Properties:
+            Schedule: cron(30 14 ? * MON-FRI *)
+            Description: "Execute trading bot daily during market hours"
+            Input: |
+              {
+                "mode": "trade",
+                "trading_mode": "live"
+              }
+
+        # Manual execution via API Gateway (for testing/manual runs)
+        ApiGateway:
+          Type: Api
+          Properties:
+            Path: /trade
+            Method: post
+
+  # IAM Role for Lambda execution
+  TradingBotExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: the-alchemiser-lambda-execution-role
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: TradingBotPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              # Secrets Manager access for API keys
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                  - secretsmanager:DescribeSecret
+                Resource:
+                  - arn:aws:secretsmanager:eu-west-2:211125653762:secret:alpaca-api-keys-*
+                  - arn:aws:secretsmanager:eu-west-2:211125653762:secret:alpaca-paper-api-keys-*
+
+              # S3 access for alerts and data storage
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:ListBucket
+                Resource:
+                  - arn:aws:s3:::the-alchemiser-s3
+                  - arn:aws:s3:::the-alchemiser-s3/*
+
+              # CloudWatch Logs (enhanced logging)
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                  - logs:DescribeLogStreams
+                  - logs:DescribeLogGroups
+                Resource: "*"
+
+  # CloudWatch Log Group with retention
+  TradingBotLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${TradingBotFunction}"
+      RetentionInDays: 30
+
+Outputs:
+  TradingBotFunction:
+    Description: "Trading Bot Lambda Function ARN"
+    Value: !GetAtt TradingBotFunction.Arn
+
+  TradingBotApi:
+    Description: "API Gateway endpoint URL for manual trading execution"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/trade"
+
+  TradingBotLogGroup:
+    Description: "CloudWatch Log Group for monitoring"
+    Value: !Ref TradingBotLogGroup

@@ -146,7 +146,51 @@ Orders Placed: 3 | Filled: 3 | Failed: 0
 
 **🎯 [Strategy Deep Dive →](./docs/strategies/)**
 
-## 🚀 Deployment Options
+## 🚀 Deployment to AWS Lambda
+
+### Prerequisites
+
+1. Install Node.js 18+ and AWS CLI
+2. Configure AWS credentials: `aws configure`
+3. Ensure your `.env` file has required variables:
+   - `AWS__ACCOUNT_ID`
+   - `SECRETS_MANAGER__SECRET_NAME`
+   - `TRACKING__S3_BUCKET`
+
+### Simple Deployment
+
+```bash
+# One-time setup
+npm install
+
+# Deploy to AWS Lambda
+./deploy.sh
+
+# Or use npm scripts
+npm run deploy
+```
+
+### Useful Commands
+
+```bash
+# View live logs
+npm run logs
+
+# Invoke function manually
+npm run invoke
+
+# Get deployment info
+npm run info
+
+# Remove everything
+npm run remove
+```
+
+### Scheduling
+
+- The Lambda function has a schedule trigger (disabled by default)
+- Enable it in the AWS Console when ready for automatic trading
+- Default schedule: every 15 minutes during market hours
 
 ### Local Development
 
@@ -156,23 +200,6 @@ make run-bot        # Signals only
 make run-trade      # Paper trading  
 make run-trade-live # Live trading ⚠️
 ```
-
-### AWS Lambda (Serverless)
-
-```bash
-# Deploy to AWS Lambda for scheduled execution
-alchemiser deploy --environment production --schedule "35 9 * * MON-FRI"
-```
-
-### Docker Container
-
-```bash
-# Run in containerized environment
-docker build -t alchemiser .
-docker run --env-file .env alchemiser trade
-```
-
-**☁️ [Deployment Guide →](./docs/deployment/)**
 
 ## 📊 Monitoring & Alerts
 
