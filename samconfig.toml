@@ -6,11 +6,12 @@ beta_features = true
 use_container = false
 
 [default.deploy.parameters]
-stack_name = "the-alchemiser-trading-bot"
-s3_bucket = "the-alchemiser-sam-deployments"
+stack_name = "the-alchemiser"
 s3_prefix = "the-alchemiser"
 region = "eu-west-2"
 capabilities = "CAPABILITY_IAM CAPABILITY_NAMED_IAM"
 disable_rollback = false
-confirm_changeset = false
+confirm_changeset = true
 fail_on_empty_changeset = false
+resolve_s3 = true
+image_repositories = []

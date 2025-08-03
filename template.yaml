@@ -34,6 +34,19 @@ Globals:
         ALERTS__COOLDOWN_MINUTES: 30
 
 Resources:
+  # Lambda Layer for dependencies
+  DependenciesLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: the-alchemiser-dependencies
+      Description: Dependencies for The Alchemiser Trading Bot
+      ContentUri: dependencies/
+      CompatibleRuntimes:
+        - python3.12
+      RetentionPolicy: Retain
+    Metadata:
+      BuildMethod: python3.12
+
   TradingBotFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -43,25 +56,50 @@ Resources:
       CodeUri: .
       Handler: the_alchemiser.lambda_handler.lambda_handler
       Role: !GetAtt TradingBotExecutionRole.Arn
-      Events:
-        # Scheduled execution - run every weekday at 2:30 PM London time (after US market open)
-        DailyTradingSchedule:
-          Type: Schedule
-          Properties:
-            Schedule: cron(30 14 ? * MON-FRI *)
-            Description: "Execute trading bot daily during market hours"
-            Input: |
-              {
-                "mode": "trade",
-                "trading_mode": "live"
-              }
+      Layers:
+        - !Ref DependenciesLayer
+      # No Events here - using separate EventBridge Scheduler below
 
-        # Manual execution via API Gateway (for testing/manual runs)
-        ApiGateway:
-          Type: Api
-          Properties:
-            Path: /trade
-            Method: post
+  # EventBridge Scheduler with proper timezone support
+  TradingBotSchedule:
+    Type: AWS::Scheduler::Schedule
+    Properties:
+      Name: the-alchemiser-daily-trading
+      Description: "Execute trading bot daily at 9:30 AM New York time (with DST support)"
+      ScheduleExpression: "cron(30 9 ? * MON-FRI *)"
+      ScheduleExpressionTimezone: "America/New_York"
+      FlexibleTimeWindow:
+        Mode: "OFF"
+      Target:
+        Arn: !GetAtt TradingBotFunction.Arn
+        RoleArn: !GetAtt SchedulerExecutionRole.Arn
+        Input: |
+          {
+            "mode": "trade",
+            "trading_mode": "live"
+          }
+      State: "ENABLED"
+
+  # IAM Role for EventBridge Scheduler to invoke Lambda
+  SchedulerExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: scheduler.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: SchedulerLambdaInvokePolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - lambda:InvokeFunction
+                Resource: !GetAtt TradingBotFunction.Arn
 
   # IAM Role for Lambda execution
   TradingBotExecutionRole:
@@ -122,10 +160,6 @@ Outputs:
   TradingBotFunction:
     Description: "Trading Bot Lambda Function ARN"
     Value: !GetAtt TradingBotFunction.Arn
-
-  TradingBotApi:
-    Description: "API Gateway endpoint URL for manual trading execution"
-    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/trade"
 
   TradingBotLogGroup:
     Description: "CloudWatch Log Group for monitoring"

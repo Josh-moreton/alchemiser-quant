@@ -29,7 +29,13 @@ import traceback
 import sys
 import os
 import logging
-from rich.console import Console
+
+# Optional rich import - only for CLI usage
+try:
+    from rich.console import Console
+    HAS_RICH = True
+except ImportError:
+    HAS_RICH = False
 
 from the_alchemiser.core.config import load_settings, Settings
 from the_alchemiser.core.trading.strategy_manager import StrategyType
@@ -155,9 +161,11 @@ def run_all_signals_display(settings: Settings | None = None):
             nuclear_positions = 0
         tecl_positions = 1 if tecl_signal.get('action') == 'BUY' else 0
         
-        from rich.console import Console
-        from rich.panel import Panel
-        console = Console()
+        # Rich console for CLI output (optional)
+        if HAS_RICH:
+            from rich.console import Console
+            from rich.panel import Panel
+            console = Console()
         
         # Get actual allocation percentages from config
         allocations = settings.strategy.default_strategy_allocations
