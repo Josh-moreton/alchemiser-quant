@@ -2,7 +2,17 @@
 """
 Strategy Order Tracker for Per-Strategy P&L Management
 
-This module provides dedicated tracking of orders by strategy for accurate P&L calculations.
+This module provides dedicated tracking of o        self.config = config or load_settings()
+        self.s3_handler = get_s3_handler()
+        self.paper_trading = paper_trading
+        
+        # S3 path configuration
+        tracking_config = self.config.tracking
+        self.s3_bucket = tracking_config.s3_bucket
+        self.orders_path = tracking_config.strategy_orders_path
+        self.positions_path = tracking_config.strategy_positions_path
+        self.pnl_history_path = tracking_config.strategy_pnl_history_path
+        self.order_history_limit = tracking_config.order_history_limitgy for accurate P&L calculations.
 It persists order data to S3 for durability and calculates realized/unrealized P&L per strategy.
 
 Key Features:
@@ -130,17 +140,27 @@ class StrategyOrderTracker:
         self.paper_trading = paper_trading
         
         # S3 paths for data persistence - separate by trading mode
-        tracking_config = self.config.get('tracking') if self.config else {}
+        tracking_config = self.config.tracking if self.config else None
         if not tracking_config:
-            tracking_config = {}
+            # Fallback defaults
+            bucket = 'the-alchemiser-s3'
+            orders_path = 'strategy_orders/'
+            positions_path = 'strategy_positions/'
+            pnl_history_path = 'strategy_pnl_history/'
+            order_history_limit = 1000
+        else:
+            bucket = tracking_config.s3_bucket
+            orders_path = tracking_config.strategy_orders_path
+            positions_path = tracking_config.strategy_positions_path
+            pnl_history_path = tracking_config.strategy_pnl_history_path
+            order_history_limit = tracking_config.order_history_limit
         
-        bucket = tracking_config.get('s3_bucket', 'the-alchemiser-s3')
         mode_prefix = "paper/" if paper_trading else "live/"
         
-        self.orders_s3_path = f"s3://{bucket}/{mode_prefix}{tracking_config.get('strategy_orders_path', 'strategy_orders/')}"
-        self.positions_s3_path = f"s3://{bucket}/{mode_prefix}{tracking_config.get('strategy_positions_path', 'strategy_positions/')}"
-        self.pnl_history_s3_path = f"s3://{bucket}/{mode_prefix}{tracking_config.get('strategy_pnl_history_path', 'strategy_pnl_history/')}"
-        self.order_history_limit = int(tracking_config.get('order_history_limit', 1000))
+        self.orders_s3_path = f"s3://{bucket}/{mode_prefix}{orders_path}"
+        self.positions_s3_path = f"s3://{bucket}/{mode_prefix}{positions_path}"
+        self.pnl_history_s3_path = f"s3://{bucket}/{mode_prefix}{pnl_history_path}"
+        self.order_history_limit = order_history_limit
         
         # In-memory caches
         self._orders_cache: List[StrategyOrder] = []

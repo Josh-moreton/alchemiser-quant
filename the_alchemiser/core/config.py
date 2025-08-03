@@ -2,9 +2,6 @@ from __future__ import annotations
 
 """Typed configuration loader for The Alchemiser."""
 
-from pathlib import Path
-import os
-import yaml
 from pydantic import BaseModel, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -41,7 +38,7 @@ class SecretsManagerSettings(BaseModel):
 
 class StrategySettings(BaseModel):
     default_strategy_allocations: dict[str, float] = Field(
-        default_factory=lambda: {"nuclear": 0.4, "tecl": 0.6}
+        default_factory=lambda: {"nuclear": 0.3, "tecl": 0.5, "klm": 0.2}
     )
     poll_timeout: int = 30
     poll_interval: float = 2.0
@@ -68,8 +65,24 @@ class TrackingSettings(BaseModel):
     order_history_limit: int = 1000
 
 
+class ExecutionSettings(BaseModel):
+    max_slippage_bps: float = 20.0
+    aggressive_timeout_seconds: float = 2.5
+    max_repegs: int = 2
+    enable_premarket_assessment: bool = True
+    market_open_fast_execution: bool = True
+    tight_spread_threshold: float = 3.0
+    wide_spread_threshold: float = 5.0
+    leveraged_etf_symbols: list[str] = Field(
+        default_factory=lambda: ["TQQQ", "SPXL", "TECL", "UVXY", "LABU", "LABD", "SOXL"]
+    )
+    high_volume_etfs: list[str] = Field(
+        default_factory=lambda: ["SPY", "QQQ", "TLT", "XLF", "XLK", "XLP", "XLY", "VOX"]
+    )
+
+
 class Settings(BaseSettings):
-    """Application settings loaded from YAML and environment."""
+    """Application settings loaded from environment variables and .env file."""
 
     logging: LoggingSettings = LoggingSettings()
     alpaca: AlpacaSettings = AlpacaSettings()
@@ -80,47 +93,21 @@ class Settings(BaseSettings):
     email: EmailSettings = EmailSettings()
     data: DataSettings = DataSettings()
     tracking: TrackingSettings = TrackingSettings()
+    execution: ExecutionSettings = ExecutionSettings()
 
-    model_config = SettingsConfigDict(env_nested_delimiter="__", env_prefix="")
-
-    def __getitem__(self, key: str):
-        value = getattr(self, key)
-        if isinstance(value, BaseModel):
-            return value.model_dump()
-        return value
-
-    def get(self, key: str, default=None):
-        return self[key] if hasattr(self, key) else default
-
-    def __contains__(self, key: str) -> bool:
-        return hasattr(self, key)
+    model_config = SettingsConfigDict(
+        env_nested_delimiter="__",
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",
+    )
 
 
-class Config(Settings):
-    """Backward compatible alias for Settings."""
-    pass
-
-
-DEFAULT_CONFIG_PATH = Path(__file__).resolve().parents[1] / "config.yaml"
-
-
-def load_settings(config_path: str | os.PathLike | None = None) -> Settings:
-    """Load settings from YAML and environment variables."""
-    path = Path(config_path) if config_path else DEFAULT_CONFIG_PATH
-    yaml_data = {}
-    if path.exists():
-        with path.open("r") as f:
-            parsed = yaml.safe_load(f) or {}
-            if isinstance(parsed, dict):
-                yaml_data = parsed
-
-    # Environment variables have precedence
-    yaml_settings = Settings.model_validate(yaml_data)
-    env_settings = Settings()
-    merged = yaml_settings.model_dump()
-    merged.update(env_settings.model_dump(exclude_unset=True))
-    return Settings.model_validate(merged)
-
-
-# Backwards compatible helper
-get_config = load_settings
+def load_settings() -> Settings:
+    """Load settings from environment variables and .env file.
+    
+    Pydantic BaseSettings automatically handles environment variables with precedence.
+    .env values serve as defaults, environment variables override them.
+    """
+    return Settings()

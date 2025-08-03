@@ -30,7 +30,7 @@ class SecretsManager:
         if region_name is None:
             from the_alchemiser.core.config import load_settings
             config = load_settings()
-            region_name = config['secrets_manager'].get('region_name', 'eu-west-2')
+            region_name = config.secrets_manager.region_name
         self.region_name = region_name
         self.client = None
         self._secrets_cache = None  # Cache for secrets
@@ -133,7 +133,7 @@ class SecretsManager:
         try:
             from the_alchemiser.core.config import load_settings
             config = load_settings()
-            secret_name = config['secrets_manager'].get('secret_name', 'nuclear-secrets')
+            secret_name = config.secrets_manager.secret_name
             secrets = self.get_secret(secret_name)
             if not secrets:
                 logging.error("No secrets found")
@@ -169,7 +169,7 @@ class SecretsManager:
         try:
             from the_alchemiser.core.config import load_settings
             config = load_settings()
-            secret_name = config['secrets_manager'].get('secret_name', 'nuclear-secrets')
+            secret_name = config.secrets_manager.secret_name
             secrets = self.get_secret(secret_name)
             if not secrets:
                 logging.error("No secrets found")
@@ -199,7 +199,7 @@ class SecretsManager:
         try:
             from the_alchemiser.core.config import load_settings
             config = load_settings()
-            secret_name = config['secrets_manager'].get('secret_name', 'nuclear-secrets')
+            secret_name = config.secrets_manager.secret_name
             secrets = self.get_secret(secret_name)
             if not secrets:
                 logging.error("No secrets found")

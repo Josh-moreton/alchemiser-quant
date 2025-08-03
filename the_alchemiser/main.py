@@ -167,7 +167,7 @@ def run_all_signals_display(settings: Settings | None = None):
         console = Console()
         
         # Get actual allocation percentages from config
-        allocations = settings['strategy']['default_strategy_allocations']
+        allocations = settings.strategy.default_strategy_allocations
         
         # Build strategy summary dynamically for all active strategies
         strategy_lines = []

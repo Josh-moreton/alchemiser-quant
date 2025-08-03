@@ -59,9 +59,6 @@ Issues = "https://github.com/Josh-moreton/The-Alchemiser/issues"
 [tool.setuptools]
 packages = ["the_alchemiser"]
 
-[tool.setuptools.package-data]
-the_alchemiser = ["config.yaml"]
-
 [tool.black]
 line-length = 100
 target-version = ['py38']
