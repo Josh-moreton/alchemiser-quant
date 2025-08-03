@@ -523,9 +523,28 @@ def main(
     
     [dim]Use --help with any command for detailed information.[/dim]
     """
-    # Set global verbosity
+    # Configure logging based on CLI options
+    from the_alchemiser.core.logging.logging_utils import setup_logging
+    import logging
+    
     if verbose:
+        log_level = logging.DEBUG
+        console_level = logging.INFO
         console.print("[dim]Verbose mode enabled[/dim]")
+    elif quiet:
+        log_level = logging.WARNING
+        console_level = logging.ERROR
+    else:
+        log_level = logging.WARNING
+        console_level = logging.WARNING
+    
+    # Setup CLI-friendly logging
+    setup_logging(
+        log_level=log_level,
+        console_level=console_level,
+        suppress_third_party=True,
+        structured_format=False  # Human-readable for CLI
+    )
     
     # Store context for subcommands
     ctx.ensure_object(dict)
