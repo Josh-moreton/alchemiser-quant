@@ -3,6 +3,7 @@ from typing import Dict, List, Any
 
 from the_alchemiser.core.trading.strategy_manager import StrategyType
 from .reporting import create_execution_summary, save_dashboard_data, build_portfolio_state_data
+from .types import MultiStrategyExecutionResult
 
 
 class ExecutionManager:
@@ -45,7 +46,7 @@ class ExecutionManager:
             final_portfolio_state = build_portfolio_state_data(
                 consolidated_portfolio, account_info_after, final_positions
             )
-            result = self.engine.MultiStrategyExecutionResult(
+            result = MultiStrategyExecutionResult(
                 success=True,
                 strategy_signals=strategy_signals,
                 consolidated_portfolio=consolidated_portfolio,
@@ -62,7 +63,7 @@ class ExecutionManager:
             logging.error(f"❌ Multi-strategy execution failed: {e}")
             import traceback
             logging.error(f"Stack trace: {traceback.format_exc()}")
-            return self.engine.MultiStrategyExecutionResult(
+            return MultiStrategyExecutionResult(
                 success=False,
                 strategy_signals={},
                 consolidated_portfolio={},

@@ -20,7 +20,8 @@ from typing import Dict, List
 from dataclasses import dataclass
 
 # Import the classes we're testing
-from the_alchemiser.execution.trading_engine import TradingEngine, MultiStrategyExecutionResult
+from the_alchemiser.execution.trading_engine import TradingEngine
+from the_alchemiser.execution.types import MultiStrategyExecutionResult
 # NOTE: Old classes have been consolidated into TradingEngine
 # from the_alchemiser.execution.alpaca_trader import AlpacaTradingBot  # Now .old file
 # from the_alchemiser.execution.multi_strategy_trader import MultiStrategyAlpacaTrader  # Now .old file

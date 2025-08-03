@@ -12,7 +12,8 @@ from unittest.mock import Mock, MagicMock, patch
 from datetime import datetime
 from typing import Dict, List
 
-from the_alchemiser.execution.trading_engine import TradingEngine, MultiStrategyExecutionResult
+from the_alchemiser.execution.trading_engine import TradingEngine
+from the_alchemiser.execution.types import MultiStrategyExecutionResult
 from the_alchemiser.core.trading.strategy_manager import StrategyType
 from alpaca.trading.enums import OrderSide
 
