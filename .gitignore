@@ -39,7 +39,7 @@ data/*.json
 data/*.csv
 
 # Environment variables
-.env
+.env*
 .env.old
 
 
