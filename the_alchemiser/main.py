@@ -29,12 +29,13 @@ import traceback
 import sys
 import os
 import logging
-from the_alchemiser.core.config import get_config
+from the_alchemiser.core.config import load_settings, Settings
 from the_alchemiser.core.trading.strategy_manager import StrategyType
 
-# Load config once at module level
-config = get_config()
-logging_config = config['logging']
+# Logging configuration will be populated in main()
+logging_config = {
+    "level": "INFO",
+}
 
 def setup_file_logging():
     """Configure logging for both local and cloud environments.
@@ -69,7 +70,7 @@ setup_file_logging()
 
 
 
-def generate_multi_strategy_signals():
+def generate_multi_strategy_signals(settings: Settings) -> tuple:
     """Generate signals for all strategies and return consolidated results.
     
     Creates a shared data provider and multi-strategy manager to generate signals
@@ -98,14 +99,13 @@ def generate_multi_strategy_signals():
     try:
         # Create shared UnifiedDataProvider once
         shared_data_provider = UnifiedDataProvider(paper_trading=True)
-        # Pass shared data provider to MultiStrategyManager - it will read config allocations automatically
-        manager = MultiStrategyManager(shared_data_provider=shared_data_provider, config=config)
+        manager = MultiStrategyManager(shared_data_provider=shared_data_provider, config=settings)
         strategy_signals, consolidated_portfolio, _ = manager.run_all_strategies()
         return manager, strategy_signals, consolidated_portfolio
     except Exception as e:
         return None, None, None
 
-def run_all_signals_display():
+def run_all_signals_display(settings: Settings | None = None):
     """Generate and display multi-strategy signals without executing trades.
     
     Shows comprehensive analysis including Nuclear and TECL strategy signals,
@@ -130,9 +130,10 @@ def run_all_signals_display():
     
     render_header("MULTI-STRATEGY SIGNAL ANALYSIS", f"Analysis at {datetime.now()}")
     
+    settings = settings or load_settings()
     try:
         # Generate multi-strategy signals (this includes both Nuclear and TECL)
-        manager, strategy_signals, consolidated_portfolio = generate_multi_strategy_signals()
+        manager, strategy_signals, consolidated_portfolio = generate_multi_strategy_signals(settings)
         if not strategy_signals:
             from rich.console import Console
             Console().print("[bold red]Failed to generate multi-strategy signals[/bold red]")
@@ -166,9 +167,7 @@ def run_all_signals_display():
         console = Console()
         
         # Get actual allocation percentages from config
-        from the_alchemiser.core.config import Config
-        config = Config()
-        allocations = config['strategy']['default_strategy_allocations']
+        allocations = settings.strategy.default_strategy_allocations
         
         # Build strategy summary dynamically for all active strategies
         strategy_lines = []
@@ -211,7 +210,9 @@ def run_all_signals_display():
         return False
 
 
-def run_multi_strategy_trading(live_trading: bool = False, ignore_market_hours: bool = False):
+def run_multi_strategy_trading(
+    live_trading: bool = False, ignore_market_hours: bool = False, settings: Settings | None = None
+) -> bool | str:
     """Execute multi-strategy trading with both Nuclear and TECL strategies.
     
     Initializes the trading engine with equal allocation between Nuclear and TECL
@@ -237,15 +238,15 @@ def run_multi_strategy_trading(live_trading: bool = False, ignore_market_hours: 
     
     mode_str = "LIVE" if live_trading else "PAPER"
     
+    settings = settings or load_settings()
     try:
         from the_alchemiser.execution.trading_engine import TradingEngine, StrategyType
         from the_alchemiser.execution.smart_execution import is_market_open
-        
-        # Initialize multi-strategy trader - TradingEngine will read config allocations automatically
+
         trader = TradingEngine(
             paper_trading=not live_trading,
             ignore_market_hours=ignore_market_hours,
-            config=config
+            config=settings
         )
         
         # Check market hours unless ignore_market_hours is set
@@ -342,7 +343,7 @@ def run_multi_strategy_trading(live_trading: bool = False, ignore_market_hours: 
 
 
 
-def main(argv=None):
+def main(argv=None, settings: Settings | None = None):
     """Main entry point for the Multi-Strategy Nuclear Trading Bot.
     
     Provides command-line interface for running the trading bot in different modes.
@@ -373,6 +374,7 @@ def main(argv=None):
     """
     from the_alchemiser.core.ui.cli_formatter import render_header, render_footer
     
+    settings = settings or load_settings()
     parser = argparse.ArgumentParser(description="Multi-Strategy Nuclear Trading Bot")
     parser.add_argument('mode', choices=['bot', 'trade'],
                        help='Operation mode: bot (show signals), trade (execute trading)')
@@ -394,10 +396,14 @@ def main(argv=None):
     try:
         if args.mode == 'bot':
             # Display multi-strategy signals (no trading)
-            success = run_all_signals_display()
+            success = run_all_signals_display(settings)
         elif args.mode == 'trade':
             # Multi-strategy trading
-            result = run_multi_strategy_trading(live_trading=args.live, ignore_market_hours=args.ignore_market_hours)
+            result = run_multi_strategy_trading(
+                live_trading=args.live,
+                ignore_market_hours=args.ignore_market_hours,
+                settings=settings,
+            )
             if result == "market_closed":
                 render_footer("Market closed - no action taken")
                 return True
@@ -416,4 +422,4 @@ def main(argv=None):
         return False
 
 if __name__ == "__main__":
-    sys.exit(0 if main() else 1)
+    sys.exit(0 if main(settings=load_settings()) else 1)

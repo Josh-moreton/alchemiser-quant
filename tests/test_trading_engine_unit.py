@@ -48,7 +48,7 @@ class TestTradingEngineUnit:
     def trading_engine(self, mock_strategy_manager, mock_rebalancer, 
                       mock_smart_execution, mock_data_provider, mock_config):
         """Create a TradingEngine instance with mocked dependencies"""
-        with patch('the_alchemiser.core.config.get_config', return_value=mock_config):
+        with patch('the_alchemiser.core.config.load_settings', return_value=mock_config):
             engine = TradingEngine(paper_trading=True)
             
             # Set up mock returns
@@ -61,7 +61,7 @@ class TestTradingEngineUnit:
 
     def test_init_paper_trading(self, mock_config):
         """Test TradingEngine initialization in paper trading mode"""
-        with patch('the_alchemiser.core.config.get_config', return_value=mock_config), \
+        with patch('the_alchemiser.core.config.load_settings', return_value=mock_config), \
              patch('the_alchemiser.execution.trading_engine.UnifiedDataProvider') as mock_dp, \
              patch('the_alchemiser.execution.trading_engine.SmartExecution') as mock_se, \
              patch('the_alchemiser.execution.trading_engine.PortfolioRebalancer') as mock_pr, \
@@ -81,7 +81,7 @@ class TestTradingEngineUnit:
 
     def test_init_live_trading(self, mock_config):
         """Test TradingEngine initialization in live trading mode"""
-        with patch('the_alchemiser.core.config.get_config', return_value=mock_config), \
+        with patch('the_alchemiser.core.config.load_settings', return_value=mock_config), \
              patch('the_alchemiser.execution.trading_engine.UnifiedDataProvider') as mock_dp, \
              patch('the_alchemiser.execution.trading_engine.SmartExecution') as mock_se, \
              patch('the_alchemiser.execution.trading_engine.PortfolioRebalancer') as mock_pr, \

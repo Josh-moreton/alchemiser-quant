@@ -1,6 +1,6 @@
 """Email configuration management module.
 
-This module handles loading email settings from config.yaml and AWS Secrets Manager.
+This module handles loading email settings from environment variables and AWS Secrets Manager.
 Replaces the `get_email_config` function from the original email_utils.py.
 """
 
@@ -8,7 +8,7 @@ import logging
 from typing import Optional, Tuple
 
 from the_alchemiser.core.secrets.secrets_manager import SecretsManager
-from the_alchemiser.core.config import get_config
+from the_alchemiser.core.config import load_settings
 
 
 class EmailConfig:
@@ -19,7 +19,7 @@ class EmailConfig:
         self._config_cache = None
     
     def get_config(self) -> Optional[Tuple[str, int, str, str, str]]:
-        """Get email configuration from config.yaml and secrets manager.
+        """Get email configuration from environment variables and secrets manager.
         
         Returns:
             Tuple containing (smtp_server, smtp_port, from_email, email_password, to_email)
@@ -30,27 +30,23 @@ class EmailConfig:
             
         try:
             # Get configuration instance
-            config = get_config()
+            config = load_settings()
             
-            # Get email config section from config.yaml
-            email_config = config.get('email', {}) if config else {}
-            
-            # Extract values from config.yaml
-            smtp_server = email_config.get('smtp_server', 'smtp.mail.me.com')
-            smtp_port = int(email_config.get('smtp_port', 587))
-            from_email = email_config.get('from_email')
-            to_email = email_config.get('to_email')
+            # Extract values directly from Pydantic models
+            smtp_server = config.email.smtp_server
+            smtp_port = config.email.smtp_port
+            from_email = config.email.from_email
+            to_email = config.email.to_email
             
             # Get secrets manager config
-            secrets_config = config.get('secrets_manager', {}) if config else {}
-            secret_name = secrets_config.get('secret_name', 'nuclear-secrets')
+            secret_name = config.secrets_manager.secret_name
             
             # Get sensitive password from AWS Secrets Manager
             email_password = self._get_email_password(secret_name)
             
             # Validate required fields
             if not from_email:
-                logging.error("from_email not configured in config.yaml email section")
+                logging.error("from_email not configured in environment variables")
                 return None
                 
             if not email_password:
@@ -90,9 +86,8 @@ class EmailConfig:
     def is_neutral_mode_enabled(self) -> bool:
         """Check if neutral mode is enabled for emails."""
         try:
-            config = get_config()
-            email_config = config.get('email', {}) if config else {}
-            return email_config.get('neutral_mode', False)
+            config = load_settings()
+            return config.email.neutral_mode
         except Exception as e:
             logging.warning(f"Error checking neutral mode config: {e}")
             return False

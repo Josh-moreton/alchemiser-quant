@@ -16,7 +16,7 @@ from typing import Dict, List, Tuple, Union, Optional, Any
 
 from the_alchemiser.core.indicators.indicators import TechnicalIndicators
 from the_alchemiser.core.data.data_provider import UnifiedDataProvider
-from the_alchemiser.core.config import Config
+from the_alchemiser.core.config import load_settings
 from the_alchemiser.core.logging.logging_utils import setup_logging
 from the_alchemiser.core.utils.common import ActionType
 from the_alchemiser.utils.indicator_utils import safe_get_indicator

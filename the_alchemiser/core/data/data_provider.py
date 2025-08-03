@@ -9,7 +9,7 @@ from alpaca.trading.client import TradingClient
 from alpaca.data.historical import StockHistoricalDataClient
 from alpaca.data.requests import StockBarsRequest, StockLatestQuoteRequest
 from alpaca.data.timeframe import TimeFrame
-from the_alchemiser.core.config import Config
+from the_alchemiser.core.config import Settings
 from the_alchemiser.core.secrets.secrets_manager import SecretsManager
 import requests
 
@@ -40,13 +40,13 @@ class UnifiedDataProvider:
         
         # Use provided config or load global config
         if config is None:
-            from the_alchemiser.core.config import get_config
-            config = get_config()
+            from the_alchemiser.core.config import load_settings
+            config = load_settings()
         self.config = config
         
         # Set cache duration
         if cache_duration is None:
-            cache_duration = self.config['data']['cache_duration']
+            cache_duration = self.config.data.cache_duration
         self.cache_duration = cache_duration
         self.cache = {}
         
@@ -65,9 +65,9 @@ class UnifiedDataProvider:
         
         # Set endpoints (for reference)
         if paper_trading:
-            self.api_endpoint = self.config['alpaca'].get('paper_endpoint', 'https://paper-api.alpaca.markets/v2')
+            self.api_endpoint = self.config.alpaca.paper_endpoint
         else:
-            self.api_endpoint = self.config['alpaca'].get('endpoint', 'https://api.alpaca.markets')
+            self.api_endpoint = self.config.alpaca.endpoint
         
         # Initialize real-time pricing service
         self.real_time_pricing: Optional['RealTimePricingManager'] = None

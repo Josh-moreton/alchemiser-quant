@@ -35,7 +35,7 @@ os.environ['ALPACA_PAPER_SECRET'] = 'Ibcd2Zy98HL3wabRMQW6R0T1SnSZ2vN1uoLWhIOQ'
 
 from the_alchemiser.core.trading.strategy_manager import MultiStrategyManager, StrategyType
 from the_alchemiser.core.data.data_provider import UnifiedDataProvider
-from the_alchemiser.core import config as alchemiser_config
+from the_alchemiser.core.config import load_settings
 from the_alchemiser.backtest.data_loader import DataLoader
 from the_alchemiser.backtest.metrics import MetricsCalculator, PerformanceMetrics
 
@@ -97,56 +97,19 @@ class BacktestEngine:
                 # Simple approach: just create UnifiedDataProvider with minimal params
                 # This should work if the environment variables are set (which they are)
                 
-                # Ensure we have a minimal config for UnifiedDataProvider
-                # This prevents KeyError: 'secrets_manager' during initialization
+                # Use the new configuration system
                 try:
-                    config = alchemiser_config.get_config()
-                    # Check if config has the required section
-                    if not hasattr(config, '_config') or 'secrets_manager' not in config._config:
-                        console.print("[dim]Setting up minimal config for backtest...[/dim]")
-                        # Ensure _config exists and add required sections
-                        if not hasattr(config, '_config'):
-                            config._config = {}
-                        config._config.setdefault('secrets_manager', {
-                            'region_name': 'eu-west-2',
-                            'secret_name': 'nuclear-secrets'
-                        })
-                        config._config.setdefault('data', {
-                            'cache_duration': 300,
-                            'default_symbol': 'SPY'
-                        })
-                        config._config.setdefault('alpaca', {
-                            'paper_endpoint': 'https://paper-api.alpaca.markets/v2',
-                            'live_endpoint': 'https://api.alpaca.markets/v2'
-                        })
-                except Exception:
-                    # If get_config fails, create a fresh config
-                    console.print("[dim]Creating fresh config for backtest...[/dim]")
-                    mock_config = alchemiser_config.Config()
-                    mock_config._config = {
-                        'secrets_manager': {
-                            'region_name': 'eu-west-2',
-                            'secret_name': 'nuclear-secrets'
-                        },
-                        'data': {
-                            'cache_duration': 300,
-                            'default_symbol': 'SPY'
-                        },
-                        'alpaca': {
-                            'paper_endpoint': 'https://paper-api.alpaca.markets/v2',
-                            'live_endpoint': 'https://api.alpaca.markets/v2'
-                        },
-                        'strategy': {
-                            'default_strategy_allocations': {
-                                'nuclear': 0.33,
-                                'tecl': 0.33,
-                                'klm': 0.34
-                            }
-                        }
-                    }
-                    alchemiser_config._global_config = mock_config
+                    config = load_settings()
+                    console.print("[dim]Using configuration from load_settings()[/dim]")
+                except Exception as e:
+                    console.print(f"[yellow]Warning: Could not load settings ({e}), using defaults[/yellow]")
+                    config = None
                 
-                data_provider = UnifiedDataProvider(paper_trading=True, cache_duration=0)
+                data_provider = UnifiedDataProvider(
+                    paper_trading=True, 
+                    cache_duration=0,
+                    config=config
+                )
                 self._strategy_manager = MultiStrategyManager(shared_data_provider=data_provider)
                 console.print("[green]✅ Strategy manager created successfully[/green]")
                 
@@ -285,20 +248,12 @@ class BacktestEngine:
         weights = {'nuclear': 0.33, 'tecl': 0.33, 'klm': 0.34}  # Default weights
         
         try:
-            config = alchemiser_config.get_config()
-            if hasattr(config, 'get') or isinstance(config, dict):
-                # Try to get weights, fallback to defaults if any issues
-                nuclear_weight = getattr(config, 'nuclear_weight', None) or config.get('nuclear_weight', 0.33)
-                tecl_weight = getattr(config, 'tecl_weight', None) or config.get('tecl_weight', 0.33) 
-                klm_weight = getattr(config, 'klm_weight', None) or config.get('klm_weight', 0.34)
-                
-                # Ensure we have valid numeric values
-                if isinstance(nuclear_weight, (int, float)):
-                    weights['nuclear'] = float(nuclear_weight)
-                if isinstance(tecl_weight, (int, float)):
-                    weights['tecl'] = float(tecl_weight)
-                if isinstance(klm_weight, (int, float)):
-                    weights['klm'] = float(klm_weight)
+            config = load_settings()
+            if hasattr(config, 'strategy') and hasattr(config.strategy, 'default_strategy_allocations'):
+                # Use the strategy allocations from the new config
+                strategy_allocations = config.strategy.default_strategy_allocations
+                if isinstance(strategy_allocations, dict):
+                    weights.update(strategy_allocations)
         except Exception as e:
             console.print(f"[yellow]⚠️ Could not load config weights, using defaults: {e}[/yellow]")
         
@@ -536,27 +491,8 @@ class BacktestEngine:
         if slippage_bps is None:
             slippage_bps = DEFAULT_SLIPPAGE_BPS
         
-        # Temporarily modify config if strategy weights provided
-        orig_global_config = alchemiser_config._global_config
-        config_modified = False
-        
-        if strategy_weights:
-            # Create a temporary config dict for strategy weights
-            temp_config = {}
-            if orig_global_config:
-                # Copy existing config if it's a dict-like object
-                if hasattr(orig_global_config, '__dict__'):
-                    temp_config = copy.deepcopy(orig_global_config.__dict__)
-                elif isinstance(orig_global_config, dict):
-                    temp_config = copy.deepcopy(orig_global_config)
-            
-            # Set strategy weights
-            temp_config['nuclear_weight'] = strategy_weights.get('nuclear', 0.0)
-            temp_config['tecl_weight'] = strategy_weights.get('tecl', 0.0)
-            temp_config['klm_weight'] = strategy_weights.get('klm', 0.0)
-            
-            alchemiser_config._global_config = temp_config
-            config_modified = True
+        # Note: No longer using global config modification approach
+        # Strategy weights are now handled within individual strategy runs
         
         try:
             # Initialize strategy manager with shared data
@@ -678,9 +614,8 @@ class BacktestEngine:
             return equity_curve
             
         finally:
-            # Restore original config
-            if config_modified:
-                alchemiser_config._global_config = orig_global_config
+            # No longer need to restore global config
+            pass
     
     def _should_make_deposit(self, date, frequency: str, deposit_day: int) -> bool:
         """Check if a deposit should be made on this date"""

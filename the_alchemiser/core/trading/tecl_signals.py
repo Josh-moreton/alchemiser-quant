@@ -26,7 +26,7 @@ import numpy as np
 
 # Local imports
 from the_alchemiser.core.indicators.indicators import TechnicalIndicators
-from the_alchemiser.core.config import get_config
+from the_alchemiser.core.config import load_settings
 from the_alchemiser.core.logging.logging_utils import setup_logging
 from the_alchemiser.utils.indicator_utils import safe_get_indicator
 from the_alchemiser.utils.price_utils import ensure_scalar_price
