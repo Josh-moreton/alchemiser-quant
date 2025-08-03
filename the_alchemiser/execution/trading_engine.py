@@ -147,7 +147,7 @@ class TradingEngine:
         Returns:
             Dict of current positions keyed by symbol for compatibility with legacy code.
         """
-        return self.account_service.get_positions()
+        return self.account_service.get_positions_dict()
 
     def get_current_price(self, symbol: str) -> float:
         """Get current price for a symbol via UnifiedDataProvider.
@@ -161,13 +161,13 @@ class TradingEngine:
         return self.account_service.get_current_price(symbol)
     
     def get_current_prices(self, symbols: List[str]) -> Dict[str, float]:
-        """Get current prices for multiple symbols.
+        """Get current prices for multiple symbols via UnifiedDataProvider.
         
         Args:
             symbols: List of stock symbols to get prices for.
             
         Returns:
-            Dictionary mapping symbols to current prices.
+            Dict mapping symbols to current prices, excluding symbols with invalid prices.
         """
         return self.account_service.get_current_prices(symbols)
 
