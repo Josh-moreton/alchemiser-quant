@@ -149,15 +149,39 @@ This document summarizes the comprehensive refactoring of The Alchemiser trading
 - ~~Update remaining methods to use composition pattern~~ ✅
 - ~~Add comprehensive type hints~~ ✅
 
-### 2. Identify Additional Thin Proxy Methods
+### 2. Identify Additional Thin Proxy Methods ✅
 
-- Review TradingEngine for proxy methods
-- Examine utility classes for delegation patterns
-- Update any remaining dynamic imports
+**Completed**: TradingEngine refactoring has been completed with protocol-based composition.
 
-### 3. Update Method Callers
+**File**: `the_alchemiser/execution/trading_engine.py`
 
-- Update code that calls old method names to use new composition-based methods
+- **Issue**: 6 thin proxy methods that just delegated to other services
+- **Solution**: Replaced with composition pattern using dependency injection protocols
+- **Changes Completed**:
+  - Added protocols: `AccountInfoProvider`, `PositionProvider`, `PriceProvider`, `RebalancingService`, `MultiStrategyExecutor`
+  - Added composed dependencies with type safety: `_account_info_provider`, `_position_provider`, `_price_provider`, `_rebalancing_service`, `_multi_strategy_executor`
+  - Enhanced all 6 methods with engine-level business logic:
+    - `get_account_info()`: Added trading mode context and error handling
+    - `get_positions()`: Added engine context to position data
+    - `get_current_price()`: Added symbol validation and logging
+    - `get_current_prices()`: Added batch validation and filtering
+    - `rebalance_portfolio()`: Added allocation validation and order tracking
+    - `execute_multi_strategy()`: Added pre-execution validation and result enhancement
+
+**Benefits**:
+- **No more thin proxy methods** - All methods now add meaningful business logic
+- **Protocol-based type safety** - Clear interfaces for dependency injection
+- **Enhanced error handling** - Engine-level validation and logging
+- **Better context awareness** - Trading mode and configuration context added to results
+
+### 3. Update Method Callers ✅
+
+**Status**: No action needed - all method callers are already using correct patterns.
+
+**Analysis**:
+- **Dynamic imports**: ✅ Completely eliminated from codebase
+- **Legacy method compatibility**: ✅ Maintained in SmartExecution for backward compatibility  
+- **Method callers**: ✅ All using proper composition-based patterns
 - Gradually phase out legacy compatibility methods
 
 ## Benefits Achieved
@@ -202,8 +226,8 @@ All strategy imports are now visible to:
 ### Execution Services
 
 - `the_alchemiser/execution/account_service.py` ✅
-- `the_alchemiser/execution/smart_execution.py` 🔄 (In Progress)
-- `the_alchemiser/execution/trading_engine.py` ✅ (Updated for AccountService)
+- `the_alchemiser/execution/smart_execution.py` ✅
+- `the_alchemiser/execution/trading_engine.py` ✅
 
 ### Documentation
 
@@ -221,7 +245,7 @@ All strategy imports are now visible to:
 ### After Refactoring
 
 - Dynamic imports: ✅ 0 remaining (all converted to static imports)
-- Thin proxy methods: ✅ 80% converted to composition (SmartExecution and AccountService completed)
+- Thin proxy methods: ✅ 100% converted to composition (AccountService, SmartExecution, and TradingEngine completed)
 - Static analysis: ✅ Full visibility of strategy dependencies
 - Type safety: ✅ Protocol-based interfaces added
 
