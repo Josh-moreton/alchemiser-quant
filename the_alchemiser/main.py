@@ -163,6 +163,8 @@ def run_all_signals_display(settings: Settings | None = None):
         
         # Rich console for CLI output (optional)
         if HAS_RICH:
+        # Rich console for CLI output (optional)
+        if HAS_RICH:
             from rich.console import Console
             from rich.panel import Panel
             console = Console()
@@ -199,7 +201,14 @@ def run_all_signals_display(settings: Settings | None = None):
         
         strategy_summary = "\n".join(strategy_lines)
         
-        console.print(Panel(strategy_summary, title="Strategy Summary", border_style="blue"))
+        # Display strategy summary (if rich is available)
+        if HAS_RICH and 'console' in locals():
+            console.print(Panel(strategy_summary, title="Strategy Summary", border_style="blue"))
+        else:
+            # Use logger from function scope
+            from the_alchemiser.core.logging.logging_utils import get_logger
+            local_logger = get_logger(__name__)
+            local_logger.info(f"Strategy Summary:\n{strategy_summary}")
         
         render_footer("Signal analysis completed successfully!")
         return True
@@ -280,10 +289,14 @@ def run_multi_strategy_trading(
         render_strategy_signals(strategy_signals)
         
         # Execute multi-strategy with clean progress indication
-        from rich.console import Console
-        
-        console = Console()
-        console.print("[dim]🔄 Executing trading strategy...[/dim]")
+        if HAS_RICH:
+            from rich.console import Console
+            console = Console()
+            console.print("[dim]🔄 Executing trading strategy...[/dim]")
+        else:
+            from the_alchemiser.core.logging.logging_utils import get_logger
+            local_logger = get_logger(__name__)
+            local_logger.info("🔄 Executing trading strategy...")
         
         result = trader.execute_multi_strategy()
         

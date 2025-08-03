@@ -9,4 +9,11 @@ manifest_hash = ""
 packagetype = "Zip"
 functions = ["TradingBotFunction"]
 
-[layer_build_definitions]
+[layer_build_definitions.be48e4c5-55c0-40f9-b950-789e0307693c]
+layer_name = "DependenciesLayer"
+codeuri = "/Users/joshua.moreton/Documents/GitHub/the-alchemiser/dependencies"
+build_method = "python3.12"
+compatible_runtimes = ["python3.12"]
+architecture = "x86_64"
+manifest_hash = ""
+layer = "DependenciesLayer"
