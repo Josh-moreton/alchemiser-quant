@@ -81,8 +81,11 @@ class ExecutionSettings(BaseModel):
     )
 
 
+
+
+
 class Settings(BaseSettings):
-    """Application settings loaded from environment variables and .env file."""
+    """Application settings loaded from environment variables, .env file, and AWS Secrets Manager."""
 
     logging: LoggingSettings = LoggingSettings()
     alpaca: AlpacaSettings = AlpacaSettings()
@@ -102,6 +105,22 @@ class Settings(BaseSettings):
         case_sensitive=False,
         extra="ignore",
     )
+    
+    @classmethod
+    def settings_customise_sources(
+        cls,
+        settings_cls,
+        init_settings,
+        env_settings,
+        dotenv_settings,
+        file_secret_settings,
+    ):
+        return (
+            init_settings,
+            env_settings,
+            dotenv_settings,
+            file_secret_settings,
+        )
 
 
 def load_settings() -> Settings:
