@@ -27,13 +27,11 @@ import numpy as np
 # Local imports
 from the_alchemiser.core.indicators.indicators import TechnicalIndicators
 from the_alchemiser.core.config import load_settings
-from the_alchemiser.core.logging.logging_utils import setup_logging
 from the_alchemiser.utils.indicator_utils import safe_get_indicator
 from the_alchemiser.utils.price_utils import ensure_scalar_price
 from the_alchemiser.utils.config_utils import load_alert_config
 
 warnings.filterwarnings('ignore')
-setup_logging()  # Centralized logging setup
 
 
 # Import Alert from alert_service

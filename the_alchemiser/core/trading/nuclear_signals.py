@@ -25,7 +25,6 @@ import pandas as pd
 import numpy as np
 
 # Local imports
-from the_alchemiser.core.logging.logging_utils import setup_logging
 from the_alchemiser.core.config import load_settings
 from the_alchemiser.core.indicators.indicators import TechnicalIndicators
 from the_alchemiser.utils.indicator_utils import safe_get_indicator
@@ -37,13 +36,7 @@ warnings.filterwarnings('ignore')
 config = load_settings()
 logging_config = config.logging.model_dump()
 
-# Initialize logging once
-level_str = logging_config.get('level', 'INFO').upper()
-level_map = {
-    'CRITICAL': logging.CRITICAL, 'ERROR': logging.ERROR, 'WARNING': logging.WARNING,
-    'INFO': logging.INFO, 'DEBUG': logging.DEBUG, 'NOTSET': logging.NOTSET
-}
-setup_logging(log_level=level_map.get(level_str, logging.INFO))
+# Logging is configured at application entry point
 
 
 

@@ -26,10 +26,8 @@ import numpy as np
 # Local imports
 from the_alchemiser.core.indicators.indicators import TechnicalIndicators
 from the_alchemiser.core.config import load_settings
-from the_alchemiser.core.logging.logging_utils import setup_logging
 
 warnings.filterwarnings('ignore')
-setup_logging()
 
 # Import Alert from alert_service
 from the_alchemiser.core.alerts.alert_service import Alert
