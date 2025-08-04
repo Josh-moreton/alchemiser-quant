@@ -429,7 +429,7 @@ def main(argv=None, settings: Settings | None = None):
         "Multi-Strategy Quantitative Trading System", f"{args.mode.upper()} | {mode_label}"
     )
 
-    success = False
+    success: bool | str = False
     try:
         if args.mode == "bot":
             # Display multi-strategy signals (no trading)

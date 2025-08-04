@@ -563,17 +563,21 @@ class BacktestEngine:
             manager = self.get_strategy_manager()
 
             # Get all required symbols from strategy engines
-            all_symbols = list(
-                set(
-                    manager.nuclear_engine.all_symbols
-                    + manager.tecl_engine.all_symbols
-                    + (
-                        manager.klm_ensemble.all_symbols
-                        if hasattr(manager, "klm_ensemble") and manager.klm_ensemble
-                        else []
-                    )
-                )
-            )
+            all_symbols = []
+            if hasattr(manager, "nuclear_engine"):
+                nuclear_engine = getattr(manager, "nuclear_engine", None)
+                if nuclear_engine and hasattr(nuclear_engine, "all_symbols"):
+                    all_symbols.extend(nuclear_engine.all_symbols)
+            if hasattr(manager, "tecl_engine"):
+                tecl_engine = getattr(manager, "tecl_engine", None)
+                if tecl_engine and hasattr(tecl_engine, "all_symbols"):
+                    all_symbols.extend(tecl_engine.all_symbols)
+            if hasattr(manager, "klm_ensemble"):
+                klm_ensemble = getattr(manager, "klm_ensemble", None)
+                if klm_ensemble and hasattr(klm_ensemble, "all_symbols"):
+                    all_symbols.extend(klm_ensemble.all_symbols)
+
+            all_symbols = list(set(all_symbols))
 
             # Pre-populate cache if no data is available
             symbol_data, minute_data = self.data_loader.get_cached_symbol_data(
@@ -699,9 +703,9 @@ class BacktestEngine:
                 date = date.date()
 
             if frequency == "monthly":
-                return date.day == deposit_day
+                return bool(date.day == deposit_day)
             elif frequency == "weekly":
-                return date.weekday() == (deposit_day - 1) % 7  # Convert to 0-based weekday
+                return bool(date.weekday() == (deposit_day - 1) % 7)  # Convert to 0-based weekday
             return False
         except Exception:
             return False

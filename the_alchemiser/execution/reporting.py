@@ -31,8 +31,11 @@ def create_execution_summary(
 
     pnl_data = calculate_strategy_pnl_summary(engine.paper_trading, current_prices)
     trading_summary = extract_trading_summary(orders_executed)
+
+    # Convert StrategyType keys to strings for build_strategy_summary
+    strategy_signals_str = {k.value: v for k, v in strategy_signals.items()}
     strategy_summary = build_strategy_summary(
-        strategy_signals,
+        strategy_signals_str,
         engine.strategy_manager.strategy_allocations,
         pnl_data["all_strategy_pnl"],
     )

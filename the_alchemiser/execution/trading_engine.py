@@ -640,6 +640,9 @@ class TradingEngine:
         from rich.table import Table
         from rich.text import Text
 
+        # Type annotation for orders_table that can be either Table or Panel
+        orders_table: Table | Panel
+
         console = Console()
 
         if not execution_result.success:

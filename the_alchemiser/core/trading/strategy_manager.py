@@ -143,9 +143,9 @@ class MultiStrategyManager:
             Tuple of (strategy_signals, consolidated_portfolio, strategy_attribution)
         """
 
-        strategy_signals = {}
-        consolidated_portfolio = {}
-        strategy_attribution = {}
+        strategy_signals: dict[StrategyType, dict[str, Any]] = {}
+        consolidated_portfolio: dict[str, float] = {}
+        strategy_attribution: dict[str, list[StrategyType]] = {}
 
         # Step 1: Collect all required symbols from enabled strategies
         all_symbols = set()
@@ -402,7 +402,9 @@ class MultiStrategyManager:
             "_update_position_tracking called - this should only happen during trade execution"
         )
         try:
-            new_positions = {strategy: [] for strategy in StrategyType}
+            new_positions: dict[StrategyType, list[Any]] = {
+                strategy: [] for strategy in StrategyType
+            }
 
             for strategy_type, signal_data in strategy_signals.items():
                 if signal_data["action"] == ActionType.BUY.value:
@@ -435,9 +437,9 @@ class MultiStrategyManager:
     def get_strategy_performance_summary(self) -> dict[str, Any]:
         """Get a summary of each strategy's recent performance and current positions"""
         # Position tracking between runs is disabled
-        positions = {strategy: [] for strategy in StrategyType}
+        positions: dict[StrategyType, list[Any]] = {strategy: [] for strategy in StrategyType}
 
-        summary = {
+        summary: dict[str, Any] = {
             "timestamp": datetime.now().isoformat(),
             "strategy_allocations": {k.value: v for k, v in self.strategy_allocations.items()},
             "strategies": {},

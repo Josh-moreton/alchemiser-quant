@@ -309,7 +309,7 @@ class SymbolLookbackCalculator:
 
         # With optimized lookback
         total_days_optimized = sum(
-            days * len(symbols_list) for days, symbols_list in lookback_groups.items()
+            int(days) * len(symbols_list) for days, symbols_list in lookback_groups.items()
         )
 
         efficiency_gain = (

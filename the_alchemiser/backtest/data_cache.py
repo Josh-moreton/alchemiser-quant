@@ -70,7 +70,7 @@ class BacktestDataCache:
 
         # Create hash for very long symbol lists
         if len(symbols_str) > 200:
-            symbols_hash = hashlib.md5(symbols_str.encode()).hexdigest()[:12]
+            symbols_hash = hashlib.md5(symbols_str.encode(), usedforsecurity=False).hexdigest()[:12]
             symbols_str = f"hash_{symbols_hash}"
 
         return f"backtest_{date_str}_{symbols_str}{minute_str}"

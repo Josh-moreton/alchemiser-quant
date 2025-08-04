@@ -527,7 +527,7 @@ class StrategyOrderTracker:
         try:
             all_pnl = self.get_all_strategy_pnl(current_prices)
 
-            summary = {
+            summary: dict[str, Any] = {
                 "total_portfolio_pnl": sum(pnl.total_pnl for pnl in all_pnl.values()),
                 "total_realized_pnl": sum(pnl.realized_pnl for pnl in all_pnl.values()),
                 "total_unrealized_pnl": sum(pnl.unrealized_pnl for pnl in all_pnl.values()),
