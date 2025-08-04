@@ -46,15 +46,15 @@ ALPACA_SECRET=your_live_secret_here
 
 ## Usage
 
-### Manual Trading Bot
+### Manual Quantitative Trading System
 
-Run the nuclear bot with Alpaca execution:
+Run the nuclear quantitative trading system with Alpaca execution:
 
 ```bash
 python main.py alpaca
 ```
 
-### Standalone Alpaca Bot
+### Standalone Alpaca Trading System
 
 Run just the Alpaca trading component:
 
@@ -65,9 +65,9 @@ python alpaca_trader.py
 
 ## How It Works
 
-1. **Signal Generation**: The nuclear trading bot generates signals and saves them to `/tmp/nuclear_alerts.json`
+1. **Signal Generation**: The nuclear quantitative trading system generates signals and saves them to `/tmp/nuclear_alerts.json`
 
-2. **Signal Reading**: The Alpaca bot reads the latest signals (within last 5 minutes) to group portfolio signals
+2. **Signal Reading**: The Alpaca trading system reads the latest signals (within last 5 minutes) to group portfolio signals
 
 3. **Portfolio Parsing**: Extracts allocation percentages from signal reasons (e.g., "31.2%" becomes 0.312 weight)
 
@@ -89,7 +89,7 @@ The bot handles these nuclear strategy signals:
 ## Example Output
 
 ```text
-🚀 NUCLEAR TRADING BOT WITH ALPACA EXECUTION
+🚀 QUANTITATIVE TRADING SYSTEM WITH ALPACA EXECUTION
 ======================================================================
 📊 STEP 1: Generating Nuclear Trading Signals...
 ✅ Nuclear trading signals generated successfully!
@@ -119,7 +119,7 @@ Target Portfolio: {'SMR': 0.312, 'LEU': 0.395, 'OKLO': 0.293}
 
 ## Files
 
-- `alpaca_trader.py`: Main trading bot class
+- `alpaca_trader.py`: Main quantitative trading system class
 - `/tmp/alpaca_trades.json`: Trade execution log
 - `/tmp/alpaca_trader.log`: Error and info logs
 
@@ -139,6 +139,6 @@ Target Portfolio: {'SMR': 0.312, 'LEU': 0.395, 'OKLO': 0.293}
 
 ### Signal Issues
 
-1. Ensure nuclear bot generated recent signals
+1. Ensure nuclear system generated recent signals
 2. Check `/tmp/nuclear_alerts.json` file exists
 3. Verify signal format and timestamps

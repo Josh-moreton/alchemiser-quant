@@ -13,7 +13,7 @@ echo "Using AWS configuration: Account=${ACCOUNT_ID}, Region=${REGION}, Repo=${R
 
 # Build the Docker image
 echo "Building Docker image..."
-DOCKER_BUILDKIT=0 docker build -t ${REPO_NAME} . 
+DOCKER_BUILDKIT=0 docker build -t ${REPO_NAME} .
 
 # Tag the image for ECR
 echo "Tagging Docker image..."

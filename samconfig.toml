@@ -1,0 +1,18 @@
+# SAM configuration for The Alchemiser Quantitative Trading System
+version = 0.1
+
+[default.build.parameters]
+beta_features = true
+use_container = false
+
+[default.deploy.parameters]
+stack_name = "the-alchemiser"
+s3_bucket = "the-alchemiser-s3"
+s3_prefix = "the-alchemiser"
+region = "eu-west-2"
+capabilities = "CAPABILITY_IAM CAPABILITY_NAMED_IAM"
+disable_rollback = false
+confirm_changeset = false
+fail_on_empty_changeset = false
+resolve_s3 = false
+image_repositories = []

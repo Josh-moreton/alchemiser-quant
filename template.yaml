@@ -1,0 +1,197 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  The Alchemiser Quantitative Trading System
+
+  Multi-strategy algorithmic trading engine deployed as an AWS Lambda Function
+
+# Global configuration
+Globals:
+  Function:
+    Timeout: 900 # 15 minutes - max for Lambda
+    MemorySize: 512
+    Environment:
+      Variables:
+        # Logging
+        LOGGING__LEVEL: INFO
+
+        # Alpaca Configuration
+        ALPACA__ENDPOINT: https://api.alpaca.markets/v2
+        ALPACA__PAPER_ENDPOINT: https://paper-api.alpaca.markets/v2
+        ALPACA__CASH_RESERVE_PCT: 0.05
+        ALPACA__SLIPPAGE_BPS: 5
+        ALPACA__ENABLE_WEBSOCKET_ORDERS: true
+
+        # AWS Configuration
+        AWS__ACCOUNT_ID: 211125653762
+        AWS__REGION: eu-west-2
+        AWS__REPO_NAME: the-alchemiser
+        AWS__LAMBDA_ARN: arn:aws:lambda:eu-west-2:211125653762:function:the-alchemiser-v2-lambda
+        AWS__IMAGE_TAG: latest
+
+        # Alerts
+        ALERTS__ALERT_CONFIG_S3: s3://the-alchemiser-s3/alert_config.json
+        ALERTS__COOLDOWN_MINUTES: 30
+
+        # Secrets Manager
+        SECRETS_MANAGER__REGION_NAME: eu-west-2
+        SECRETS_MANAGER__SECRET_NAME: nuclear-secrets
+
+        # Strategy Configuration
+        STRATEGY__DEFAULT_STRATEGY_ALLOCATIONS: '{"nuclear": 0.3, "tecl": 0.5, "klm": 0.2}'
+        STRATEGY__POLL_TIMEOUT: 30
+        STRATEGY__POLL_INTERVAL: 2.0
+
+        # Email Configuration
+        EMAIL__SMTP_SERVER: smtp.mail.me.com
+        EMAIL__SMTP_PORT: 587
+        EMAIL__FROM_EMAIL: josh@rwxt.org
+        EMAIL__TO_EMAIL: josh@rwxt.org
+        EMAIL__NEUTRAL_MODE: true
+
+        # Data Configuration
+        DATA__CACHE_DURATION: 300
+        DATA__DEFAULT_SYMBOL: AAPL
+
+        # Tracking Configuration
+        TRACKING__S3_BUCKET: the-alchemiser-s3
+        TRACKING__STRATEGY_ORDERS_PATH: strategy_orders/
+        TRACKING__STRATEGY_POSITIONS_PATH: strategy_positions/
+        TRACKING__STRATEGY_PNL_HISTORY_PATH: strategy_pnl_history/
+        TRACKING__ORDER_HISTORY_LIMIT: 1000
+
+        # Execution Configuration
+        EXECUTION__MAX_SLIPPAGE_BPS: 20.0
+
+Resources:
+  # Lambda Layer for dependencies
+  DependenciesLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: the-alchemiser-dependencies
+      Description: Dependencies for The Alchemiser Quantitative Trading System
+      ContentUri: dependencies/
+      CompatibleRuntimes:
+        - python3.12
+      RetentionPolicy: Retain
+    Metadata:
+      BuildMethod: python3.12
+
+  TradingSystemFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: the-alchemiser-v2-lambda
+      PackageType: Zip
+      Runtime: python3.12
+      CodeUri: .
+      Handler: the_alchemiser.lambda_handler.lambda_handler
+      Role: !GetAtt TradingSystemExecutionRole.Arn
+      Layers:
+        - !Ref DependenciesLayer
+      # No Events here - using separate EventBridge Scheduler below
+
+  # EventBridge Scheduler with proper timezone support
+  TradingSystemSchedule:
+    Type: AWS::Scheduler::Schedule
+    Properties:
+      Name: the-alchemiser-daily-trading
+      Description: "Execute quantitative trading system daily at 9:30 AM New York time (with DST support)"
+      ScheduleExpression: "cron(30 9 ? * MON-FRI *)"
+      ScheduleExpressionTimezone: "America/New_York"
+      FlexibleTimeWindow:
+        Mode: "OFF"
+      Target:
+        Arn: !GetAtt TradingSystemFunction.Arn
+        RoleArn: !GetAtt SchedulerExecutionRole.Arn
+        Input: |
+          {
+            "mode": "trade",
+            "trading_mode": "live"
+          }
+      State: "ENABLED"
+
+  # IAM Role for EventBridge Scheduler to invoke Lambda
+  SchedulerExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: scheduler.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: SchedulerLambdaInvokePolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - lambda:InvokeFunction
+                Resource: !GetAtt TradingSystemFunction.Arn
+
+  # IAM Role for Lambda execution
+  TradingSystemExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: the-alchemiser-lambda-execution-role
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: TradingSystemPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              # Secrets Manager access for API keys
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                  - secretsmanager:DescribeSecret
+                Resource:
+                  - arn:aws:secretsmanager:eu-west-2:211125653762:secret:nuclear-secrets-*
+                  - arn:aws:secretsmanager:eu-west-2:211125653762:secret:alpaca-api-keys-*
+                  - arn:aws:secretsmanager:eu-west-2:211125653762:secret:alpaca-paper-api-keys-*
+
+              # S3 access for alerts and data storage
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:ListBucket
+                Resource:
+                  - arn:aws:s3:::the-alchemiser-s3
+                  - arn:aws:s3:::the-alchemiser-s3/*
+
+              # CloudWatch Logs (enhanced logging)
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                  - logs:DescribeLogStreams
+                  - logs:DescribeLogGroups
+                Resource: "*"
+
+  # CloudWatch Log Group with retention
+  TradingSystemLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${TradingSystemFunction}"
+      RetentionInDays: 30
+
+Outputs:
+  TradingSystemFunction:
+    Description: "Quantitative Trading System Lambda Function ARN"
+    Value: !GetAtt TradingSystemFunction.Arn
+
+  TradingSystemLogGroup:
+    Description: "CloudWatch Log Group for monitoring"
+    Value: !Ref TradingSystemLogGroup

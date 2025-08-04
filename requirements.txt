@@ -1,0 +1,2 @@
+# Dependencies are handled by the DependenciesLayer
+# This file exists to suppress SAM build warnings

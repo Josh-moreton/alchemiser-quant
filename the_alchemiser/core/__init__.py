@@ -1,4 +1,4 @@
-"""Core trading components for The Alchemiser Trading Bot.
+"""Core trading components for The Alchemiser Quantitative Trading System.
 
 This package contains the fundamental building blocks for the trading system,
 including data providers, trading strategies, configuration management,
@@ -21,4 +21,4 @@ Exported Components:
 
 from the_alchemiser.core.utils.common import ActionType
 
-__all__ = ['ActionType']
+__all__ = ["ActionType"]

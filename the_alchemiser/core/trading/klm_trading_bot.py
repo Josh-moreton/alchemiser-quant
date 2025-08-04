@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-KLM Trading Bot Engine
+KLM Quantitative Trading Engine
 
 This module implements the orchestration and execution layer for the KLM strategy, including:
 - Multi-layer RSI overbought detection for volatility protection
@@ -14,34 +14,29 @@ using the KLM ensemble approach for multi-variant strategy selection.
 """
 
 # Standard library imports
-import json
+import datetime as dt
 import logging
 import warnings
-import datetime as dt
 
 # Third-party imports
 import pandas as pd
-import numpy as np
 
 # Local imports
 from the_alchemiser.core.indicators.indicators import TechnicalIndicators
-from the_alchemiser.core.config import load_settings
 
 # Static strategy import instead of dynamic import - KLM uses ensemble approach
 from the_alchemiser.core.trading.klm_ensemble_engine import KLMStrategyEnsemble
 
-warnings.filterwarnings('ignore')
+warnings.filterwarnings("ignore")
 
 # Import Alert from alert_service
+
 from the_alchemiser.core.alerts.alert_service import Alert
 
 # Import UnifiedDataProvider from the new module
 from the_alchemiser.core.data.data_provider import UnifiedDataProvider
 
-from enum import Enum
-
 # Import ActionType from common module
-from the_alchemiser.core.utils.common import ActionType
 
 
 class KLMStrategyEngine:
@@ -52,22 +47,26 @@ class KLMStrategyEngine:
             raise ValueError("data_provider is required for KLMStrategyEngine")
         self.data_provider = data_provider
         self.indicators = TechnicalIndicators()
-        
+
         # Use static import - strategy class imported at module level
         self.strategy = KLMStrategyEnsemble(data_provider=self.data_provider)
 
         # KLM strategy symbols (comprehensive list from strategy logic)
-        self.market_symbols = ['SPY', 'QQQE', 'VTV', 'VOX', 'TECL', 'VOOG', 'VOOV']
-        self.sector_symbols = ['XLP', 'TQQQ', 'XLY', 'FAS', 'XLF', 'RETL', 'XLK']
-        self.tech_symbols = ['SOXL', 'SPXL', 'SPLV']
-        self.volatility_symbols = ['UVXY', 'VIXY', 'VXX', 'VIXM']
-        self.bond_symbols = ['TLT', 'BIL', 'BTAL', 'BND', 'KMLM']
-        self.bear_symbols = ['LABD', 'TZA']
+        self.market_symbols = ["SPY", "QQQE", "VTV", "VOX", "TECL", "VOOG", "VOOV"]
+        self.sector_symbols = ["XLP", "TQQQ", "XLY", "FAS", "XLF", "RETL", "XLK"]
+        self.tech_symbols = ["SOXL", "SPXL", "SPLV"]
+        self.volatility_symbols = ["UVXY", "VIXY", "VXX", "VIXM"]
+        self.bond_symbols = ["TLT", "BIL", "BTAL", "BND", "KMLM"]
+        self.bear_symbols = ["LABD", "TZA"]
 
         # All symbols needed for KLM strategy
         self.all_symbols = (
-            self.market_symbols + self.sector_symbols + self.tech_symbols +
-            self.volatility_symbols + self.bond_symbols + self.bear_symbols
+            self.market_symbols
+            + self.sector_symbols
+            + self.tech_symbols
+            + self.volatility_symbols
+            + self.bond_symbols
+            + self.bear_symbols
         )
 
     def get_market_data(self):
@@ -102,12 +101,12 @@ class KLMStrategyEngine:
         for symbol, df in market_data.items():
             if df.empty:
                 continue
-            close = df['Close']
+            close = df["Close"]
             indicators[symbol] = {
-                'rsi_10': self.safe_get_indicator(close, self.indicators.rsi, 10),
-                'rsi_20': self.safe_get_indicator(close, self.indicators.rsi, 20),
-                'rsi_21': self.safe_get_indicator(close, self.indicators.rsi, 21),
-                'current_price': float(close.iloc[-1]),
+                "rsi_10": self.safe_get_indicator(close, self.indicators.rsi, 10),
+                "rsi_20": self.safe_get_indicator(close, self.indicators.rsi, 20),
+                "rsi_21": self.safe_get_indicator(close, self.indicators.rsi, 21),
+                "current_price": float(close.iloc[-1]),
             }
         return indicators
 
@@ -123,76 +122,76 @@ class KLMStrategyEngine:
 
 
 class KLMTradingBot:
-    """KLM Trading Bot"""
+    """KLM Quantitative Trading Engine"""
 
     def __init__(self, data_provider=None):
         if data_provider is None:
             data_provider = UnifiedDataProvider(paper_trading=True)
-        
+
         self.strategy = KLMStrategyEngine(data_provider=data_provider)
 
     def handle_klm_signal(self, symbol, action, reason, indicators, market_data):
         """Handle KLM strategy signal and convert to Alert objects"""
         alerts = []
         current_time = dt.datetime.now()
-        
+
         # Handle single symbol signals
         if isinstance(symbol, str):
             if symbol in indicators:
-                current_price = indicators[symbol]['current_price']
+                current_price = indicators[symbol]["current_price"]
             else:
                 current_price = 0.0
-            
+
             alert = Alert(
                 symbol=symbol,
                 action=action,
                 price=current_price,
                 timestamp=current_time,
-                reason=reason
+                reason=reason,
             )
             alerts.append(alert)
-        
+
         # Handle portfolio allocations (dict)
         elif isinstance(symbol, dict):
             for sym, weight in symbol.items():
                 if sym in indicators:
-                    current_price = indicators[sym]['current_price']
+                    current_price = indicators[sym]["current_price"]
                 else:
                     current_price = 0.0
-                
+
                 alert = Alert(
                     symbol=sym,
                     action=action,
                     price=current_price,
                     timestamp=current_time,
-                    reason=f"{reason} (Weight: {weight:.1%})"
+                    reason=f"{reason} (Weight: {weight:.1%})",
                 )
                 alerts.append(alert)
-        
+
         return alerts
 
     def run_analysis(self):
         """Run complete KLM strategy analysis"""
         logging.info("Starting KLM strategy analysis...")
-        
+
         # Get market data
         market_data = self.strategy.get_market_data()
         if not market_data:
             logging.error("No market data available")
             return None
-        
+
         # Calculate indicators
         indicators = self.strategy.calculate_indicators(market_data)
         if not indicators:
             logging.error("No indicators calculated")
             return None
-        
+
         # Evaluate strategy
         symbol, action, reason = self.strategy.evaluate_klm_strategy(indicators, market_data)
-        
+
         # Handle KLM signal properly
         alerts = self.handle_klm_signal(symbol, action, reason, indicators, market_data)
-        
+
         logging.info(f"Analysis complete: {action} {symbol} - {reason}")
         return alerts
 
@@ -201,53 +200,57 @@ class KLMTradingBot:
         try:
             logging.info("🧪 Starting KLM Energy Strategy Analysis")
             alerts = self.run_analysis()
-            
+
             if not alerts:
                 logging.error("No alerts generated")
                 return
-            
+
             # Display results
             if len(alerts) > 1:
                 # Portfolio signal
                 logging.info(f"KLM PORTFOLIO SIGNAL: {alerts[0].action}")
                 logging.info(f"   Reason: {alerts[0].reason}")
-                
+
                 portfolio = {}
                 for alert in alerts:
                     portfolio[alert.symbol] = {
-                        'weight': getattr(alert, 'allocation', 1.0),
-                        'price': alert.price
+                        "weight": getattr(alert, "allocation", 1.0),
+                        "price": alert.price,
                     }
-                
+
                 if portfolio:
-                    logging.info(f"PORTFOLIO DETAILS:")
+                    logging.info("PORTFOLIO DETAILS:")
                     for symbol, data in portfolio.items():
                         logging.info(f"   {symbol}: {data['weight']:.1%}")
             else:
                 # Single signal
                 alert = alerts[0]
-                if alert.action != 'HOLD':
-                    logging.info(f"KLM TRADING SIGNAL: {alert.action} {alert.symbol} at ${alert.price:.2f}")
+                if alert.action != "HOLD":
+                    logging.info(
+                        f"KLM TRADING SIGNAL: {alert.action} {alert.symbol} at ${alert.price:.2f}"
+                    )
                     logging.info(f"   Reason: {alert.reason}")
                 else:
-                    logging.info(f"KLM Analysis: {alert.action} {alert.symbol} at ${alert.price:.2f}")
+                    logging.info(
+                        f"KLM Analysis: {alert.action} {alert.symbol} at ${alert.price:.2f}"
+                    )
                     logging.info(f"   Reason: {alert.reason}")
-            
+
             # Print technical indicator values for key symbols
-            if alerts and hasattr(self.strategy, 'calculate_indicators'):
+            if alerts and hasattr(self.strategy, "calculate_indicators"):
                 market_data = self.strategy.get_market_data()
                 indicators = self.strategy.calculate_indicators(market_data)
-                
-                key_symbols = ['SPY', 'XLK', 'KMLM', 'UVXY', 'QQQE', 'TECL']
+
+                key_symbols = ["SPY", "XLK", "KMLM", "UVXY", "QQQE", "TECL"]
                 logging.info("📊 Key Technical Indicators:")
                 for symbol in key_symbols:
                     if symbol in indicators:
-                        rsi_10 = indicators[symbol]['rsi_10']
-                        price = indicators[symbol]['current_price']
+                        rsi_10 = indicators[symbol]["rsi_10"]
+                        price = indicators[symbol]["current_price"]
                         logging.info(f"   {symbol}: RSI(10)={rsi_10:.1f}, Price=${price:.2f}")
-            
+
             return alerts
-            
+
         except Exception as e:
             logging.error(f"Error in KLM analysis: {e}")
             logging.exception("Detailed error:")
@@ -255,18 +258,18 @@ class KLMTradingBot:
 
 
 def main():
-    """Test the KLM trading bot"""
-    
-    print("🧪 KLM Trading Bot Test")
+    """Test the KLM trading system"""
+
+    print("🧪 KLM Quantitative Trading Engine Test")
     print("=" * 50)
-    
+
     # Initialize bot
     bot = KLMTradingBot()
-    
+
     # Run analysis
     print("⚡ Running KLM analysis...")
     alerts = bot.run_once()
-    
+
     if alerts:
         print(f"\n✅ Analysis complete - {len(alerts)} alert(s) generated")
     else:

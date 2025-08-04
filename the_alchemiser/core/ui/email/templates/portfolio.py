@@ -4,36 +4,34 @@ This module handles building HTML content for portfolio tables,
 position summaries, and portfolio allocations.
 """
 
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, List
+
 from .base import BaseEmailTemplate
 
 
 class PortfolioBuilder:
     """Builds portfolio-related HTML content for emails."""
-    
+
     @staticmethod
     def build_positions_table(open_positions: List[Dict]) -> str:
         """Build HTML table for open positions."""
         if not open_positions:
-            return BaseEmailTemplate.create_alert_box(
-                "No open positions", 
-                "info"
-            )
-        
+            return BaseEmailTemplate.create_alert_box("No open positions", "info")
+
         total_unrealized_pl = 0
         positions_rows = ""
-        
+
         for position in open_positions[:10]:  # Show top 10 positions
-            symbol = position.get('symbol', 'N/A')
-            market_value = float(position.get('market_value', 0))
-            unrealized_pl = float(position.get('unrealized_pl', 0))
-            unrealized_plpc = float(position.get('unrealized_plpc', 0))
-            
+            symbol = position.get("symbol", "N/A")
+            market_value = float(position.get("market_value", 0))
+            unrealized_pl = float(position.get("unrealized_pl", 0))
+            unrealized_plpc = float(position.get("unrealized_plpc", 0))
+
             total_unrealized_pl += unrealized_pl
-            
+
             pl_color = "#10B981" if unrealized_pl >= 0 else "#EF4444"
             pl_sign = "+" if unrealized_pl >= 0 else ""
-            
+
             positions_rows += f"""
             <tr>
                 <td style="padding: 8px 12px; border-bottom: 1px solid #E5E7EB; font-weight: 600;">
@@ -50,10 +48,10 @@ class PortfolioBuilder:
                 </td>
             </tr>
             """
-        
+
         total_pl_color = "#10B981" if total_unrealized_pl >= 0 else "#EF4444"
         total_pl_sign = "+" if total_unrealized_pl >= 0 else ""
-        
+
         return f"""
         <table style="width: 100%; border-collapse: collapse; background-color: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
             <thead>
@@ -77,19 +75,16 @@ class PortfolioBuilder:
             </tbody>
         </table>
         """
-    
+
     @staticmethod
     def build_account_summary(account_info: Dict) -> str:
         """Build HTML for account summary table."""
         if not account_info:
-            return BaseEmailTemplate.create_alert_box(
-                "Account information unavailable", 
-                "warning"
-            )
-        
-        equity = float(account_info.get('equity', 0))
-        cash = float(account_info.get('cash', 0))
-        
+            return BaseEmailTemplate.create_alert_box("Account information unavailable", "warning")
+
+        equity = float(account_info.get("equity", 0))
+        cash = float(account_info.get("cash", 0))
+
         # Calculate additional metrics if available
         rows = f"""
         <tr>
@@ -109,14 +104,14 @@ class PortfolioBuilder:
             </td>
         </tr>
         """
-        
+
         # Add daily P&L if available
-        if 'daily_pl' in account_info:
-            daily_pl = float(account_info['daily_pl'])
-            daily_pl_pct = float(account_info.get('daily_pl_percent', 0))
+        if "daily_pl" in account_info:
+            daily_pl = float(account_info["daily_pl"])
+            daily_pl_pct = float(account_info.get("daily_pl_percent", 0))
             pl_color = "#10B981" if daily_pl >= 0 else "#EF4444"
             pl_sign = "+" if daily_pl >= 0 else ""
-            
+
             rows += f"""
             <tr>
                 <td style="padding: 8px 12px; border-bottom: 1px solid #E5E7EB;">
@@ -127,67 +122,71 @@ class PortfolioBuilder:
                 </td>
             </tr>
             """
-        
+
         return f"""
         <table style="width: 100%; border-collapse: collapse; background-color: #F9FAFB; border-radius: 8px; overflow: hidden;">
             {rows}
         </table>
         """
-    
+
     @staticmethod
     def build_portfolio_allocation(result: Any) -> str:
         """Build portfolio allocation display showing final actual positions."""
         try:
             # Try to get actual final portfolio state first
-            if hasattr(result, 'final_portfolio_state') and result.final_portfolio_state:
-                allocations = result.final_portfolio_state.get('allocations', {})
+            if hasattr(result, "final_portfolio_state") and result.final_portfolio_state:
+                allocations = result.final_portfolio_state.get("allocations", {})
                 if allocations:
                     # Show actual current positions
                     portfolio_lines = []
                     for symbol, data in allocations.items():
-                        current_percent = data.get('current_percent', 0)
+                        current_percent = data.get("current_percent", 0)
                         if current_percent > 0.1:  # Only show positions > 0.1%
-                            portfolio_lines.append(f"<span style='font-weight: 600;'>{symbol}:</span> {current_percent:.1f}%")
-                    
+                            portfolio_lines.append(
+                                f"<span style='font-weight: 600;'>{symbol}:</span> {current_percent:.1f}%"
+                            )
+
                     if portfolio_lines:
                         return "<br>".join(portfolio_lines)
-            
+
             # Fallback to target allocations from consolidated portfolio
-            if hasattr(result, 'consolidated_portfolio') and result.consolidated_portfolio:
-                return "<br>".join([
-                    f"<span style='font-weight: 600;'>{symbol}:</span> {weight:.1%}" 
-                    for symbol, weight in list(result.consolidated_portfolio.items())[:5]
-                ])
-            
+            if hasattr(result, "consolidated_portfolio") and result.consolidated_portfolio:
+                return "<br>".join(
+                    [
+                        f"<span style='font-weight: 600;'>{symbol}:</span> {weight:.1%}"
+                        for symbol, weight in list(result.consolidated_portfolio.items())[:5]
+                    ]
+                )
+
             return "<span style='color: #6B7280; font-style: italic;'>Portfolio data unavailable</span>"
         except Exception as e:
             return f"<span style='color: #EF4444;'>Error loading portfolio: {str(e)}</span>"
-    
+
     @staticmethod
     def build_closed_positions_pnl(account_info: Dict) -> str:
         """Build HTML for recent closed positions P&L section."""
-        if not account_info or not account_info.get('recent_closed_pnl'):
+        if not account_info or not account_info.get("recent_closed_pnl"):
             return ""
-        
-        closed_positions = account_info['recent_closed_pnl']
+
+        closed_positions = account_info["recent_closed_pnl"]
         if not closed_positions:
             return ""
-        
+
         # Calculate totals
-        total_realized_pnl = sum(pos.get('realized_pnl', 0) for pos in closed_positions)
-        total_trades = sum(pos.get('trade_count', 0) for pos in closed_positions)
-        
+        total_realized_pnl = sum(pos.get("realized_pnl", 0) for pos in closed_positions)
+        total_trades = sum(pos.get("trade_count", 0) for pos in closed_positions)
+
         # Build rows for each position
         rows = ""
         for position in closed_positions[:10]:  # Show top 10
-            symbol = position.get('symbol', 'N/A')
-            realized_pnl = float(position.get('realized_pnl', 0))
-            realized_pnl_pct = float(position.get('realized_pnl_pct', 0))
-            trade_count = position.get('trade_count', 0)
-            
+            symbol = position.get("symbol", "N/A")
+            realized_pnl = float(position.get("realized_pnl", 0))
+            realized_pnl_pct = float(position.get("realized_pnl_pct", 0))
+            trade_count = position.get("trade_count", 0)
+
             pnl_color = "#10B981" if realized_pnl >= 0 else "#EF4444"
             pnl_sign = "+" if realized_pnl >= 0 else ""
-            
+
             rows += f"""
             <tr>
                 <td style="padding: 8px 12px; border-bottom: 1px solid #E5E7EB; font-weight: 600;">
@@ -204,11 +203,11 @@ class PortfolioBuilder:
                 </td>
             </tr>
             """
-        
+
         # Summary row
         total_color = "#10B981" if total_realized_pnl >= 0 else "#EF4444"
         total_sign = "+" if total_realized_pnl >= 0 else ""
-        
+
         summary_row = f"""
         <tr style="background-color: #F9FAFB; font-weight: 600;">
             <td style="padding: 12px; border-top: 2px solid #E5E7EB;">Total Realized</td>
@@ -221,7 +220,7 @@ class PortfolioBuilder:
             </td>
         </tr>
         """
-        
+
         return f"""
         <div style="margin: 24px 0;">
             <h3 style="margin: 0 0 16px 0; color: #1F2937; font-size: 18px; font-weight: 600;">💰 Recent Closed Positions P&L (7 days)</h3>
@@ -243,22 +242,19 @@ class PortfolioBuilder:
         """
 
     # ====== NEUTRAL MODE FUNCTIONS (NO DOLLAR VALUES/PERCENTAGES) ======
-    
+
     @staticmethod
     def build_positions_table_neutral(open_positions: List[Dict]) -> str:
         """Build HTML table for open positions without dollar values or percentages."""
         if not open_positions:
-            return BaseEmailTemplate.create_alert_box(
-                "No open positions", 
-                "info"
-            )
-        
+            return BaseEmailTemplate.create_alert_box("No open positions", "info")
+
         positions_rows = ""
-        
+
         for position in open_positions[:10]:  # Show top 10 positions
-            symbol = position.get('symbol', 'N/A')
-            qty = float(position.get('qty', 0))
-            
+            symbol = position.get("symbol", "N/A")
+            qty = float(position.get("qty", 0))
+
             positions_rows += f"""
             <tr>
                 <td style="padding: 8px 12px; border-bottom: 1px solid #E5E7EB; font-weight: 600;">
@@ -272,7 +268,7 @@ class PortfolioBuilder:
                 </td>
             </tr>
             """
-        
+
         return f"""
         <table style="width: 100%; border-collapse: collapse; background-color: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
             <thead>
@@ -287,22 +283,19 @@ class PortfolioBuilder:
             </tbody>
         </table>
         """
-    
+
     @staticmethod
     def build_account_summary_neutral(account_info: Dict) -> str:
         """Build HTML for account summary without dollar values."""
         if not account_info:
-            return BaseEmailTemplate.create_alert_box(
-                "Account information unavailable", 
-                "warning"
-            )
-        
+            return BaseEmailTemplate.create_alert_box("Account information unavailable", "warning")
+
         # Get basic account status information
-        account_status = account_info.get('status', 'UNKNOWN')
-        daytrade_count = account_info.get('daytrade_count', 0)
-        
+        account_status = account_info.get("status", "UNKNOWN")
+        daytrade_count = account_info.get("daytrade_count", 0)
+
         status_color = "#10B981" if account_status == "ACTIVE" else "#EF4444"
-        
+
         return f"""
         <table style="width: 100%; border-collapse: collapse; background-color: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
             <tbody>

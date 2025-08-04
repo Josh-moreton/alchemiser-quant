@@ -1,7 +1,7 @@
 # The Alchemiser Makefile
 # Quick commands for development and deployment
 
-.PHONY: help install dev test clean run-bot run-trade run-trade-live status deploy format lint
+.PHONY: help install dev test clean run-signals run-trade run-trade-live status deploy format lint
 
 # Default target
 help:
@@ -12,7 +12,7 @@ help:
 	@echo "  dev             Install with development dependencies"
 	@echo ""
 	@echo "Trading Commands:"
-	@echo "  run-bot         Show strategy signals (no trading)"
+	@echo "  run-signals     Show strategy signals (no trading)"
 	@echo "  run-trade       Execute paper trading"
 	@echo "  run-trade-live  Execute LIVE trading (⚠️ real money)"
 	@echo "  status          Show account status"
@@ -36,8 +36,8 @@ dev:
 	pip install -e ".[dev]"
 
 # Trading Commands (using the CLI)
-run-bot:
-	@echo "🎯 Running bot mode (signals only)..."
+run-signals:
+	@echo "🎯 Running signal analysis mode (no trading)..."
 	alchemiser bot
 
 run-trade:

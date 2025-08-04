@@ -5,23 +5,29 @@ Internal notes on how the trading bot is put together and how the pieces interac
 ## System Architecture
 
 ### Configuration and Settings
+
 - `the_alchemiser.core.config` uses Pydantic settings models to load configuration from environment variables and `.env` files.
 
 ### Data Layer
+
 - `the_alchemiser.core.data.UnifiedDataProvider` unifies Alpaca REST and WebSocket access to provide account details, quotes and historical data.
 
 ### Strategy Layer
+
 - Strategy engines live in `the_alchemiser.core.trading`.
 - `MultiStrategyManager` instantiates enabled strategies and keeps per‑strategy position tracking and allocation.
 
 ### Execution Layer
+
 - `TradingEngine` orchestrates the full trading cycle: it gathers strategy signals, invokes `PortfolioRebalancer` to compute target allocations and delegates order placement to `SmartExecution`.
 - `ExecutionManager` drives multi‑strategy execution; `AccountService` exposes account and position data.
 
 ### Tracking and Reporting
+
 - `the_alchemiser.tracking` stores fills, positions and P&L history, while reporting helpers summarise runs for the CLI and email output.
 
 ### Command Line Interface
+
 - `the_alchemiser.cli` is built with Typer and provides the `alchemiser` command (`bot`, `trade`, `status`, `deploy`, etc.).
 
 ## Execution Flow

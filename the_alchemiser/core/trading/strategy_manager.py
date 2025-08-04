@@ -14,57 +14,65 @@ Key Features:
 - Registry-based strategy management for static analysis
 """
 
-import json
 import logging
-import os
-from typing import Dict, List, Optional, Tuple, Any
-from datetime import datetime, timedelta
+from datetime import datetime
+from typing import Any, Dict, List, Optional, Tuple
 
-from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn
 from rich.console import Console
 
-from the_alchemiser.core.config import Settings
 from the_alchemiser.core.registry import StrategyRegistry, StrategyType
 from the_alchemiser.core.trading.nuclear_signals import ActionType
 
 
 class StrategyPosition:
     """Represents a position held by a specific strategy"""
-    def __init__(self, strategy_type: StrategyType, symbol: str, allocation: float, 
-                 reason: str, timestamp: datetime):
+
+    def __init__(
+        self,
+        strategy_type: StrategyType,
+        symbol: str,
+        allocation: float,
+        reason: str,
+        timestamp: datetime,
+    ):
         self.strategy_type = strategy_type
         self.symbol = symbol
         self.allocation = allocation  # Percentage of strategy's allocation
         self.reason = reason
         self.timestamp = timestamp
-    
+
     def to_dict(self) -> Dict:
         return {
-            'strategy_type': self.strategy_type.value,
-            'symbol': self.symbol,
-            'allocation': self.allocation,
-            'reason': self.reason,
-            'timestamp': self.timestamp.isoformat()
+            "strategy_type": self.strategy_type.value,
+            "symbol": self.symbol,
+            "allocation": self.allocation,
+            "reason": self.reason,
+            "timestamp": self.timestamp.isoformat(),
         }
-    
+
     @classmethod
-    def from_dict(cls, data: Dict) -> 'StrategyPosition':
+    def from_dict(cls, data: Dict) -> "StrategyPosition":
         return cls(
-            strategy_type=StrategyType(data['strategy_type']),
-            symbol=data['symbol'],
-            allocation=data['allocation'],
-            reason=data['reason'],
-            timestamp=datetime.fromisoformat(data['timestamp'])
+            strategy_type=StrategyType(data["strategy_type"]),
+            symbol=data["symbol"],
+            allocation=data["allocation"],
+            reason=data["reason"],
+            timestamp=datetime.fromisoformat(data["timestamp"]),
         )
 
 
 class MultiStrategyManager:
     """Manages multiple trading strategies with portfolio allocation"""
-    
-    def __init__(self, strategy_allocations: Optional[Dict[StrategyType, float]] = None, shared_data_provider=None, config=None):
+
+    def __init__(
+        self,
+        strategy_allocations: Optional[Dict[StrategyType, float]] = None,
+        shared_data_provider=None,
+        config=None,
+    ):
         """
         Initialize multi-strategy manager
-        
+
         Args:
             strategy_allocations: Dict mapping strategy types to portfolio percentages
                                 Example: {StrategyType.NUCLEAR: 0.5, StrategyType.TECL: 0.5}
@@ -74,9 +82,10 @@ class MultiStrategyManager:
         # Use provided config or load global config
         if config is None:
             from the_alchemiser.core.config import load_settings
+
             config = load_settings()
         self.config = config
-        
+
         # Default allocation from registry if not specified
         if strategy_allocations is None:
             self.strategy_allocations = StrategyRegistry.get_default_allocations()
@@ -87,150 +96,166 @@ class MultiStrategyManager:
                 for strategy_type, allocation in strategy_allocations.items()
                 if StrategyRegistry.is_strategy_enabled(strategy_type)
             }
-            
+
             # Remove strategies with zero allocation to keep clean allocations dict
-            self.strategy_allocations = {k: v for k, v in self.strategy_allocations.items() if v > 0}
-        
+            self.strategy_allocations = {
+                k: v for k, v in self.strategy_allocations.items() if v > 0
+            }
+
         # Validate allocations sum to 1.0
         total_allocation = sum(self.strategy_allocations.values())
         if abs(total_allocation - 1.0) > 0.01:
             raise ValueError(f"Strategy allocations must sum to 1.0, got {total_allocation}")
-        
+
         # Use provided shared_data_provider, or create one if not given
         if shared_data_provider is None:
             from the_alchemiser.core.data.data_provider import UnifiedDataProvider
+
             shared_data_provider = UnifiedDataProvider(paper_trading=True)
-        
+
         # Create strategy engines using the registry
         self.strategy_engines = {}
         for strategy_type in self.strategy_allocations.keys():
             try:
                 engine = StrategyRegistry.create_strategy_engine(
-                    strategy_type, 
-                    data_provider=shared_data_provider
+                    strategy_type, data_provider=shared_data_provider
                 )
                 self.strategy_engines[strategy_type] = engine
-                logging.info(f"{strategy_type.value} strategy initialized with {self.strategy_allocations[strategy_type]:.1%} allocation")
+                logging.info(
+                    f"{strategy_type.value} strategy initialized with {self.strategy_allocations[strategy_type]:.1%} allocation"
+                )
             except Exception as e:
                 logging.error(f"Failed to initialize {strategy_type.value} strategy: {e}")
                 # Remove from allocations if initialization failed
                 del self.strategy_allocations[strategy_type]
-        
-        logging.info(f"MultiStrategyManager initialized with allocations: {self.strategy_allocations}")
-    
-    def run_all_strategies(self) -> Tuple[Dict[StrategyType, Any], Dict[str, float], Dict[str, List[StrategyType]]]:
+
+        logging.info(
+            f"MultiStrategyManager initialized with allocations: {self.strategy_allocations}"
+        )
+
+    def run_all_strategies(
+        self,
+    ) -> Tuple[Dict[StrategyType, Any], Dict[str, float], Dict[str, List[StrategyType]]]:
         """
         Run all enabled strategies and generate consolidated portfolio allocation
-        
+
         Returns:
             Tuple of (strategy_signals, consolidated_portfolio, strategy_attribution)
         """
-        
+
         strategy_signals = {}
         consolidated_portfolio = {}
         strategy_attribution = {}
-        
+
         console = Console()
-        
+
         # Step 1: Collect all required symbols from enabled strategies
         all_symbols = set()
         for strategy_type, engine in self.strategy_engines.items():
-            if hasattr(engine, 'all_symbols'):
+            if hasattr(engine, "all_symbols"):
                 all_symbols.update(engine.all_symbols)
-            
+
         market_data = {}
-        
+
         # Fetch data for all required symbols using shared data provider
         # Get data provider from first available engine
         shared_data_provider = None
         for engine in self.strategy_engines.values():
-            if hasattr(engine, 'data_provider'):
+            if hasattr(engine, "data_provider"):
                 shared_data_provider = engine.data_provider
                 break
-        
+
         if not shared_data_provider:
             raise RuntimeError("No data provider available from strategy engines")
-        
+
         for symbol in all_symbols:
             data = shared_data_provider.get_data(symbol)
             if not data.empty:
                 market_data[symbol] = data
             else:
                 logging.warning(f"Could not fetch data for {symbol}")
-        
+
         # Market data fetched successfully
-        logging.debug(f"Fetched market data for {len(market_data)} symbols using shared data provider")
-        
+        logging.debug(
+            f"Fetched market data for {len(market_data)} symbols using shared data provider"
+        )
+
         # Step 2: Run each enabled strategy
         for strategy_type, engine in self.strategy_engines.items():
             try:
                 logging.info(f"Executing {strategy_type.value} strategy...")
-                
+
                 if strategy_type == StrategyType.NUCLEAR:
                     indicators = engine.calculate_indicators(market_data)
                     result = engine.evaluate_nuclear_strategy(indicators, market_data)
                     strategy_signals[strategy_type] = {
-                        'symbol': result[0],
-                        'action': result[1],
-                        'reason': result[2],
-                        'indicators': indicators,
-                        'market_data': market_data
+                        "symbol": result[0],
+                        "action": result[1],
+                        "reason": result[2],
+                        "indicators": indicators,
+                        "market_data": market_data,
                     }
                     logging.debug(f"Nuclear strategy: {result[1]} {result[0]} - {result[2]}")
-                    
+
                 elif strategy_type == StrategyType.TECL:
                     indicators = engine.calculate_indicators(market_data)
                     result = engine.evaluate_tecl_strategy(indicators, market_data)
                     strategy_signals[strategy_type] = {
-                        'symbol': result[0],
-                        'action': result[1],
-                        'reason': result[2],
-                        'indicators': indicators,
-                        'market_data': market_data
+                        "symbol": result[0],
+                        "action": result[1],
+                        "reason": result[2],
+                        "indicators": indicators,
+                        "market_data": market_data,
                     }
                     logging.debug(f"TECL strategy: {result[1]} {result[0]} - {result[2]}")
-                    
+
                 elif strategy_type == StrategyType.KLM:
                     indicators = engine.calculate_indicators(market_data)
                     result = engine.evaluate_ensemble(indicators, market_data)
                     strategy_signals[strategy_type] = {
-                        'symbol': result[0],  # symbol_or_allocation
-                        'action': result[1],  # action
-                        'reason': result[2],  # enhanced_reason
-                        'variant_name': result[3],  # selected_variant_name
-                        'indicators': indicators,
-                        'market_data': market_data
+                        "symbol": result[0],  # symbol_or_allocation
+                        "action": result[1],  # action
+                        "reason": result[2],  # enhanced_reason
+                        "variant_name": result[3],  # selected_variant_name
+                        "indicators": indicators,
+                        "market_data": market_data,
                     }
                     logging.info(f"KLM ensemble result: {result[1]} {result[0]} - {result[3]}")
-                    logging.debug(f"KLM ensemble: {result[1]} {result[0]} - {result[2]} [{result[3]}]")
-                    
+                    logging.debug(
+                        f"KLM ensemble: {result[1]} {result[0]} - {result[2]} [{result[3]}]"
+                    )
+
             except Exception as e:
                 logging.error(f"Error running {strategy_type.value} strategy: {e}")
                 strategy_signals[strategy_type] = {
-                    'symbol': 'BIL',  # Safe default
-                    'action': ActionType.HOLD.value,
-                    'reason': f"{strategy_type.value} strategy error: {e}",
-                    'indicators': {},
-                    'market_data': {}
+                    "symbol": "BIL",  # Safe default
+                    "action": ActionType.HOLD.value,
+                    "reason": f"{strategy_type.value} strategy error: {e}",
+                    "indicators": {},
+                    "market_data": {},
                 }
-        
+
         # Create consolidated portfolio allocation with strategy attribution
-        logging.info(f"Creating consolidated portfolio from {len(strategy_signals)} strategy signals")
+        logging.info(
+            f"Creating consolidated portfolio from {len(strategy_signals)} strategy signals"
+        )
         for strategy_type, signal_data in strategy_signals.items():
-            logging.info(f"Processing {strategy_type.value} strategy: {signal_data['action']} {signal_data['symbol']}")
-            
-            if signal_data['action'] == ActionType.BUY.value:
+            logging.info(
+                f"Processing {strategy_type.value} strategy: {signal_data['action']} {signal_data['symbol']}"
+            )
+
+            if signal_data["action"] == ActionType.BUY.value:
                 # Skip strategies not in our allocation (e.g., KLM-only portfolio)
                 if strategy_type not in self.strategy_allocations:
                     logging.warning(f"Strategy {strategy_type.value} not in allocations - skipping")
                     continue
-                    
+
                 strategy_allocation = self.strategy_allocations[strategy_type]
                 logging.info(f"{strategy_type.value} has {strategy_allocation:.1%} allocation")
-                
+
                 # Handle portfolio vs single symbol signals
-                symbol_or_allocation = signal_data['symbol']
-                
+                symbol_or_allocation = signal_data["symbol"]
+
                 if isinstance(symbol_or_allocation, dict):
                     # Multi-asset allocation (e.g., from TECL strategy {'UVXY': 0.25, 'BIL': 0.75})
                     for symbol, weight in symbol_or_allocation.items():
@@ -239,33 +264,39 @@ class MultiStrategyManager:
                             consolidated_portfolio[symbol] += total_weight
                         else:
                             consolidated_portfolio[symbol] = total_weight
-                        
+
                         # Track strategy attribution
                         if symbol not in strategy_attribution:
                             strategy_attribution[symbol] = []
                         if strategy_type not in strategy_attribution[symbol]:
                             strategy_attribution[symbol].append(strategy_type)
-                            
-                elif symbol_or_allocation in ['NUCLEAR_PORTFOLIO', 'BEAR_PORTFOLIO', 'UVXY_BTAL_PORTFOLIO']:
+
+                elif symbol_or_allocation in [
+                    "NUCLEAR_PORTFOLIO",
+                    "BEAR_PORTFOLIO",
+                    "UVXY_BTAL_PORTFOLIO",
+                ]:
                     # Named multi-asset portfolio signal - get actual allocations
                     if strategy_type == StrategyType.NUCLEAR:
                         portfolio = self._get_nuclear_portfolio_allocation(signal_data)
                     else:
-                        portfolio = self._get_strategy_portfolio_allocation(signal_data, strategy_type)
-                    
+                        portfolio = self._get_strategy_portfolio_allocation(
+                            signal_data, strategy_type
+                        )
+
                     for symbol, weight in portfolio.items():
                         total_weight = strategy_allocation * weight
                         if symbol in consolidated_portfolio:
                             consolidated_portfolio[symbol] += total_weight
                         else:
                             consolidated_portfolio[symbol] = total_weight
-                        
+
                         # Track strategy attribution
                         if symbol not in strategy_attribution:
                             strategy_attribution[symbol] = []
                         if strategy_type not in strategy_attribution[symbol]:
                             strategy_attribution[symbol].append(strategy_type)
-                            
+
                 else:
                     # Single symbol signal
                     symbol = symbol_or_allocation
@@ -273,37 +304,37 @@ class MultiStrategyManager:
                         consolidated_portfolio[symbol] += strategy_allocation
                     else:
                         consolidated_portfolio[symbol] = strategy_allocation
-                    
+
                     # Track strategy attribution
                     if symbol not in strategy_attribution:
                         strategy_attribution[symbol] = []
                     if strategy_type not in strategy_attribution[symbol]:
                         strategy_attribution[symbol].append(strategy_type)
-        
+
         # Note: Position tracking should only happen when trades are actually executed
         # Signal generation should not create position records
-        
+
         logging.debug(f"Consolidated portfolio: {consolidated_portfolio}")
         logging.debug(f"Strategy attribution: {strategy_attribution}")
         return strategy_signals, consolidated_portfolio, strategy_attribution
-    
+
     def _get_nuclear_portfolio_allocation(self, signal_data: Dict) -> Dict[str, float]:
         """Extract portfolio allocation from Nuclear strategy signal"""
-        indicators = signal_data.get('indicators', {})
-        market_data = signal_data.get('market_data', {})
-        
+        indicators = signal_data.get("indicators", {})
+        market_data = signal_data.get("market_data", {})
+
         # Get the nuclear engine from our strategy engines
         nuclear_engine = self.strategy_engines.get(StrategyType.NUCLEAR)
         if not nuclear_engine:
             logging.error("Nuclear engine not available for portfolio allocation")
-            return {'SPY': 1.0}  # Safe fallback
-        
-        if signal_data['symbol'] == 'NUCLEAR_PORTFOLIO':
+            return {"SPY": 1.0}  # Safe fallback
+
+        if signal_data["symbol"] == "NUCLEAR_PORTFOLIO":
             # Bull market nuclear portfolio - extract actual weights from strategy engine
             portfolio = nuclear_engine.strategy.get_nuclear_portfolio(indicators, market_data)
-            return {symbol: data['weight'] for symbol, data in portfolio.items()}
-        
-        elif signal_data['symbol'] == 'BEAR_PORTFOLIO':
+            return {symbol: data["weight"] for symbol, data in portfolio.items()}
+
+        elif signal_data["symbol"] == "BEAR_PORTFOLIO":
             # Bear market portfolio - extract from the combination logic using inverse volatility
             try:
                 # Get the two bear subgroup signals
@@ -311,144 +342,149 @@ class MultiStrategyManager:
                 bear2_signal = nuclear_engine.strategy.bear_subgroup_2(indicators)
                 bear1_symbol = bear1_signal[0]
                 bear2_symbol = bear2_signal[0]
-                
+
                 # If both strategies recommend the same symbol, use 100% allocation
                 if bear1_symbol == bear2_symbol:
                     return {bear1_symbol: 1.0}
-                
-                # Otherwise, use inverse volatility weighting to combine them  
-                bear_portfolio = nuclear_engine.strategy.combine_bear_strategies_with_inverse_volatility(
-                    bear1_symbol, bear2_symbol, indicators
+
+                # Otherwise, use inverse volatility weighting to combine them
+                bear_portfolio = (
+                    nuclear_engine.strategy.combine_bear_strategies_with_inverse_volatility(
+                        bear1_symbol, bear2_symbol, indicators
+                    )
                 )
-                
+
                 if bear_portfolio:
-                    return {symbol: data['weight'] for symbol, data in bear_portfolio.items()}
-                
+                    return {symbol: data["weight"] for symbol, data in bear_portfolio.items()}
+
                 # Fallback to equal weights if calculation fails
                 logging.warning("Bear portfolio calculation failed, using fallback allocation")
                 return {bear1_symbol: 0.6, bear2_symbol: 0.4}
-                
+
             except Exception as e:
                 logging.error(f"Error calculating bear portfolio allocation: {e}")
                 # Safe fallback - single defensive position
-                return {'SQQQ': 1.0}
-        
-        elif signal_data['symbol'] == 'UVXY_BTAL_PORTFOLIO':
+                return {"SQQQ": 1.0}
+
+        elif signal_data["symbol"] == "UVXY_BTAL_PORTFOLIO":
             # Volatility hedge portfolio - these are the standard weights used by the strategy
             # This could be enhanced to be dynamic based on market conditions if needed
-            return {'UVXY': 0.75, 'BTAL': 0.25}
-        
+            return {"UVXY": 0.75, "BTAL": 0.25}
+
         return {}
-    
-    def _get_strategy_portfolio_allocation(self, signal_data: Dict, strategy_type: StrategyType) -> Dict[str, float]:
+
+    def _get_strategy_portfolio_allocation(
+        self, signal_data: Dict, strategy_type: StrategyType
+    ) -> Dict[str, float]:
         """Extract portfolio allocation from any strategy signal"""
         if strategy_type == StrategyType.TECL:
             # Handle both single symbol and multi-asset allocations from TECL strategy
-            symbol_or_allocation = signal_data['symbol']
-            
+            symbol_or_allocation = signal_data["symbol"]
+
             if isinstance(symbol_or_allocation, dict):
                 # Multi-asset allocation (e.g., {'UVXY': 0.25, 'BIL': 0.75})
                 return symbol_or_allocation
             else:
                 # Single symbol allocation
                 return {symbol_or_allocation: 1.0}
-        
+
         return {}
-    
-    def _update_position_tracking(self, strategy_signals: Dict[StrategyType, Any], 
-                                consolidated_portfolio: Dict[str, float]):
+
+    def _update_position_tracking(
+        self, strategy_signals: Dict[StrategyType, Any], consolidated_portfolio: Dict[str, float]
+    ):
         """
         Update position tracking with current strategy positions
-        
+
         WARNING: This method should ONLY be called when trades are actually executed,
         not during signal generation. Signal generation should not create position records.
         Position tracking should be handled by the StrategyOrderTracker in the execution layer.
         """
-        logging.warning("_update_position_tracking called - this should only happen during trade execution")
+        logging.warning(
+            "_update_position_tracking called - this should only happen during trade execution"
+        )
         try:
             new_positions = {strategy: [] for strategy in StrategyType}
-            
+
             for strategy_type, signal_data in strategy_signals.items():
-                if signal_data['action'] == ActionType.BUY.value:
+                if signal_data["action"] == ActionType.BUY.value:
                     strategy_allocation = self.strategy_allocations[strategy_type]
-                    
+
                     # Create position record for each symbol this strategy wants to hold
                     for symbol, total_weight in consolidated_portfolio.items():
                         # Calculate this strategy's contribution to this position
-                        strategy_weight = total_weight / strategy_allocation if strategy_allocation > 0 else 0
-                        
+                        strategy_weight = (
+                            total_weight / strategy_allocation if strategy_allocation > 0 else 0
+                        )
+
                         # Only record if this strategy actually contributed to this position
                         if strategy_weight > 0.001:  # Minimum threshold
                             position = StrategyPosition(
                                 strategy_type=strategy_type,
                                 symbol=symbol,
                                 allocation=strategy_weight,
-                                reason=signal_data['reason'],
-                                timestamp=datetime.now()
+                                reason=signal_data["reason"],
+                                timestamp=datetime.now(),
                             )
                             new_positions[strategy_type].append(position)
-            
+
             # Position tracking between runs is disabled
             logging.debug("Position tracking disabled - not saving positions")
-            
+
         except Exception as e:
             logging.error(f"Error updating position tracking: {e}")
-    
+
     def get_strategy_performance_summary(self) -> Dict[str, Any]:
         """Get a summary of each strategy's recent performance and current positions"""
         # Position tracking between runs is disabled
         positions = {strategy: [] for strategy in StrategyType}
-        
+
         summary = {
-            'timestamp': datetime.now().isoformat(),
-            'strategy_allocations': {k.value: v for k, v in self.strategy_allocations.items()},
-            'strategies': {}
+            "timestamp": datetime.now().isoformat(),
+            "strategy_allocations": {k.value: v for k, v in self.strategy_allocations.items()},
+            "strategies": {},
         }
-        
+
         for strategy_type, position_list in positions.items():
             strategy_summary = {
-                'allocation': self.strategy_allocations[strategy_type],
-                'current_positions': len(position_list),
-                'positions': [
+                "allocation": self.strategy_allocations[strategy_type],
+                "current_positions": len(position_list),
+                "positions": [
                     {
-                        'symbol': pos.symbol,
-                        'allocation': pos.allocation,
-                        'reason': pos.reason,
-                        'age_hours': (datetime.now() - pos.timestamp).total_seconds() / 3600
+                        "symbol": pos.symbol,
+                        "allocation": pos.allocation,
+                        "reason": pos.reason,
+                        "age_hours": (datetime.now() - pos.timestamp).total_seconds() / 3600,
                     }
                     for pos in position_list
-                ]
+                ],
             }
-            summary['strategies'][strategy_type.value] = strategy_summary
-        
+            summary["strategies"][strategy_type.value] = strategy_summary
+
         return summary
 
 
 def main():
     """Test the multi-strategy manager"""
     import pprint
-    
-    
+
     # Create manager with 50/50 allocation
-    manager = MultiStrategyManager({
-        StrategyType.NUCLEAR: 0.5,
-        StrategyType.TECL: 0.5
-    })
-    
+    manager = MultiStrategyManager({StrategyType.NUCLEAR: 0.5, StrategyType.TECL: 0.5})
+
     print("🚀 Running Multi-Strategy Analysis")
     print("=" * 50)
-    
+
     # Run all strategies
     strategy_signals, consolidated_portfolio, _ = manager.run_all_strategies()
-    
+
     print("\n📊 Strategy Signals:")
     for strategy, signal in strategy_signals.items():
         print(f"  {strategy.value}: {signal['action']} {signal['symbol']} - {signal['reason']}")
-    
+
     print("\n🎯 Consolidated Portfolio:")
     for symbol, weight in consolidated_portfolio.items():
         print(f"  {symbol}: {weight:.1%}")
-    
+
     print("\n📈 Strategy Performance Summary:")
     summary = manager.get_strategy_performance_summary()
     pprint.pprint(summary)
