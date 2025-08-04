@@ -5,7 +5,7 @@ This variant is DIFFERENT from others in several key ways:
 1. Uses UVIX instead of UVXY in Single Popped KMLM check
 2. KMLM Switcher uses RSI(11) and select-top 1 from individual stocks
 3. Individual stock selection: FNGO, TSLA, MSFT, AAPL, NVDA, GOOGL, AMZN
-4. Optimized for short backtests ("remove for longer backtest")
+4. Optimized for short-term trading analysis
 
 This is the "Nova" experimental variant with individual stock selection.
 """

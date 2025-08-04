@@ -90,12 +90,6 @@ class MarketDataError(DataProviderError):
         self.data_type = data_type
 
 
-class BacktestError(AlchemiserError):
-    """Raised when backtesting operations fail."""
-
-    pass
-
-
 class ValidationError(AlchemiserError):
     """Raised when data validation fails."""
 

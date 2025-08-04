@@ -7,7 +7,7 @@ data fetching by only requesting the necessary amount of historical data for eac
 
 Key Benefits:
 - Reduces API calls and data transfer
-- Faster backtesting with symbol-specific data requirements
+- Faster data processing with symbol-specific data requirements
 - More efficient memory usage
 - Prevents over-fetching data for symbols that only need basic indicators
 
