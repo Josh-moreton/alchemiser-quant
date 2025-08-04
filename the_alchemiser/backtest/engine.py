@@ -27,13 +27,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
-# Add project root to path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-# Hardcoded Alpaca credentials for local testing
-os.environ["ALPACA_PAPER_KEY"] = "PKS7WB1KB6VVG72FF8VZ"
-os.environ["ALPACA_PAPER_SECRET"] = "Ibcd2Zy98HL3wabRMQW6R0T1SnSZ2vN1uoLWhIOQ"
-
+# Import local modules
 from the_alchemiser.backtest.data_loader import DataLoader
 from the_alchemiser.backtest.metrics import MetricsCalculator
 from the_alchemiser.core.config import load_settings

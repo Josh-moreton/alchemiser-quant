@@ -2,22 +2,34 @@
 """
 Strategy Order Tracker for Per-Strategy P&L Management
 
-This module provides dedicated tracking of o        self.config = config or load_settings()
-        self.s3_handler = get_s3_handler()
-        self.paper_trading = paper_trading
-
-        # S3 path configuration
-        tracking_config = self.config.tracking
-        self.s3_bucket = tracking_config.s3_bucket
-        self.orders_path = tracking_config.strategy_orders_path
-        self.positions_path = tracking_config.strategy_positions_path
-        self.pnl_history_path = tracking_config.strategy_pnl_history_path
-        self.order_history_limit = tracking_config.order_history_limitgy for accurate P&L calculations.
+This module provides dedicated tracking of orders and positions per strategy for accurate P&L calculations.
 It persists order data to S3 for durability and calculates realized/unrealized P&L per strategy.
 
 Key Features:
 - Tag orders with strategy information during execution
 - Maintain positions and average cost on a per-strategy basis
+- Calculate realized P&L when positions are reduced/closed
+- Calculate unrealized P&L from current market prices
+- Persist order history to S3 for long-term tracking
+- Support for both individual strategy and portfolio-wide P&L
+
+Design:
+- Uses existing S3 utilities for persistent storage
+- Integrates with trading engine to capture order fills
+- Provides P&L metrics for email reporting and dashboards
+"""
+
+import logging
+from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta, timezone
+from typing import Any, Dict, List, Optional, Tuple
+
+from the_alchemiser.core.config import Settings, load_settings
+from the_alchemiser.core.trading.strategy_manager import StrategyType
+from the_alchemiser.utils.s3 import get_s3_handler
+
+
+@dataclass
 - Calculate realized P&L when positions are reduced/closed
 - Calculate unrealized P&L from current market prices
 - Persist order history to S3 for long-term tracking

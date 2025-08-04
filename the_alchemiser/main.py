@@ -97,8 +97,10 @@ def generate_multi_strategy_signals(settings: Settings) -> tuple:
         manager = MultiStrategyManager(shared_data_provider=shared_data_provider, config=settings)
         strategy_signals, consolidated_portfolio, _ = manager.run_all_strategies()
         return manager, strategy_signals, consolidated_portfolio
-    except Exception:
-        return None, None, None
+    except Exception as e:
+        print(f"ERROR: Strategy signal generation failed: {str(e)}")
+        # Re-raise the exception instead of silently returning None
+        raise
 
 
 def run_all_signals_display(settings: Settings | None = None):
