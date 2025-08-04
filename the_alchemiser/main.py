@@ -203,8 +203,7 @@ def run_all_signals_display(settings: Settings | None = None):
         if HAS_RICH and 'console' in locals():
             console.print(Panel(strategy_summary, title="Strategy Summary", border_style="blue"))
         else:
-            # Use logger from function scope
-            from the_alchemiser.core.logging.logging_utils import get_logger
+            # Use logger from module-level import
             local_logger = get_logger(__name__)
             local_logger.info(f"Strategy Summary:\n{strategy_summary}")
         
@@ -292,7 +291,7 @@ def run_multi_strategy_trading(
             console = Console()
             console.print("[dim]🔄 Executing trading strategy...[/dim]")
         else:
-            from the_alchemiser.core.logging.logging_utils import get_logger
+            # Use logger from module-level import
             local_logger = get_logger(__name__)
             local_logger.info("🔄 Executing trading strategy...")
         
