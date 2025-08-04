@@ -7,7 +7,6 @@ venv/
 env/
 ENV/
 *.pkl
-backtest_cache/
 .pytest_cache/
 .lsp/
 .clj-kondo/
@@ -29,14 +28,6 @@ Icon?
 # Data outputs and logs
 *.log
 *.csv
-
-# Ignore backtest results and logs
-/data/backtest_results/
-data/backtest_results/
-data/logs/
-data/*.log
-data/*.json
-data/*.csv
 
 # Environment variables
 .env*
@@ -63,7 +54,6 @@ dist/
 
 data/logs/nuclear_alerts.json
 data/logs/nuclear_alerts.log
-tests/test_backtest.py
 the_alchemiser_lambda.zip
 .coverage.AMAL73MXMT9QM.43536.XQIQyyjx.wgw0
 .coverage.AMAL73MXMT9QM.43537.XlXgqnTx.wgw1
