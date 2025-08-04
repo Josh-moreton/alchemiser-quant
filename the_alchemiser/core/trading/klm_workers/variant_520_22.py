@@ -16,7 +16,7 @@ from the_alchemiser.core.utils.common import ActionType
 from .base_klm_variant import BaseKLMVariant
 
 
-class KLMVariant520_22(BaseKLMVariant):
+class KlmVariant52022(BaseKLMVariant):
     """
     Variant 520/22 - "Original" with TECL/SVIX switcher and FTLS/KMLM/SSO/UUP rotator
 

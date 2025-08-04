@@ -27,13 +27,10 @@ import logging
 import warnings
 
 from the_alchemiser.core.indicators.indicators import TechnicalIndicators
+from the_alchemiser.core.utils.common import ActionType
 from the_alchemiser.utils.indicator_utils import safe_get_indicator
 
 warnings.filterwarnings("ignore")
-
-
-# Import ActionType from common module
-from the_alchemiser.core.utils.common import ActionType
 
 
 class TECLStrategyEngine:

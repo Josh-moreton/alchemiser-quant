@@ -84,22 +84,22 @@ class BaseKLMVariant(ABC):
 
     # Common allocation patterns from Clojure
     @property
-    def VIX_BLEND_PLUS_PLUS(self) -> dict[str, float]:
+    def vix_blend_plus_plus(self) -> dict[str, float]:
         """VIX Blend++ allocation: Double weight UVXY"""
         return {"UVXY": 0.667, "VIXM": 0.333}  # 2 out of 3 assets
 
     @property
-    def VIX_BLEND_PLUS(self) -> dict[str, float]:
+    def vix_blend_plus(self) -> dict[str, float]:
         """VIX Blend+ allocation: Equal weight VIX assets"""
         return {"UVXY": 0.333, "VXX": 0.333, "VIXM": 0.333}
 
     @property
-    def VIX_BLEND(self) -> dict[str, float]:
+    def vix_blend(self) -> dict[str, float]:
         """VIX Blend allocation: Uses VIXY instead of UVXY"""
         return {"VIXY": 0.333, "VXX": 0.333, "VIXM": 0.333}
 
     @property
-    def BTAL_BIL(self) -> dict[str, float]:
+    def btal_bil(self) -> dict[str, float]:
         """BTAL/BIL allocation for defensive positioning"""
         return {"BTAL": 0.5, "BIL": 0.5}
 

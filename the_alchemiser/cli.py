@@ -16,6 +16,9 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.prompt import Confirm
 from rich.text import Text
 
+# Import new clean backtest engine
+from the_alchemiser.backtest.engine import BacktestEngine
+
 # Initialize Typer app and Rich console
 app = typer.Typer(
     name="alchemiser",
@@ -265,10 +268,6 @@ def version():
     version_info.append("Platform: Alpaca Markets", style="blue")
 
     console.print(Panel(version_info, title="[bold]Version Info[/bold]", border_style="cyan"))
-
-
-# Import new clean backtest engine
-from the_alchemiser.backtest.engine import BacktestEngine
 
 
 # --- Main Backtest Command (Clean Interface) ---

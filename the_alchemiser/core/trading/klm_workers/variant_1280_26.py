@@ -18,7 +18,7 @@ from the_alchemiser.core.utils.common import ActionType
 from .base_klm_variant import BaseKLMVariant
 
 
-class KLMVariant1280_26(BaseKLMVariant):
+class KlmVariant128026(BaseKLMVariant):
     """
     Variant 1280/26 - COMPLETELY different from 506/38
 

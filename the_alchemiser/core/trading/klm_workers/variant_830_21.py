@@ -16,7 +16,7 @@ from the_alchemiser.core.utils.common import ActionType
 from .base_klm_variant import BaseKLMVariant
 
 
-class KLMVariant830_21(BaseKLMVariant):
+class KlmVariant83021(BaseKLMVariant):
     """
     Variant 830/21 - MonkeyBusiness Simons variant V2
 

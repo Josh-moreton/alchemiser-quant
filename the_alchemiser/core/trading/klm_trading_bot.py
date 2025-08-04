@@ -22,21 +22,14 @@ import warnings
 import pandas as pd
 
 # Local imports
+from the_alchemiser.core.alerts.alert_service import Alert
+from the_alchemiser.core.data.data_provider import UnifiedDataProvider
 from the_alchemiser.core.indicators.indicators import TechnicalIndicators
 
 # Static strategy import instead of dynamic import - KLM uses ensemble approach
 from the_alchemiser.core.trading.klm_ensemble_engine import KLMStrategyEnsemble
 
 warnings.filterwarnings("ignore")
-
-# Import Alert from alert_service
-
-from the_alchemiser.core.alerts.alert_service import Alert
-
-# Import UnifiedDataProvider from the new module
-from the_alchemiser.core.data.data_provider import UnifiedDataProvider
-
-# Import ActionType from common module
 
 
 class KLMStrategyEngine:

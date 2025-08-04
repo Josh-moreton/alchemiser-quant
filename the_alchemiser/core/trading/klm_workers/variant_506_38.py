@@ -20,7 +20,7 @@ from the_alchemiser.core.utils.common import ActionType
 from .base_klm_variant import BaseKLMVariant
 
 
-class KLMVariant506_38(BaseKLMVariant):
+class KlmVariant50638(BaseKLMVariant):
     """
     Variant 506/38 - Standard overbought detection with Single Popped KMLM fallback
 

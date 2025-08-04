@@ -26,13 +26,13 @@ from the_alchemiser.utils.math_utils import (
 # Import all KLM strategy variants from modular workers package
 from .klm_workers import (
     BaseKLMVariant,
-    KLMVariant410_38,
-    KLMVariant506_38,
-    KLMVariant520_22,
-    KLMVariant530_18,
-    KLMVariant830_21,
-    KLMVariant1200_28,
-    KLMVariant1280_26,
+    KlmVariant41038,
+    KlmVariant50638,
+    KlmVariant52022,
+    KlmVariant53018,
+    KlmVariant83021,
+    KlmVariant120028,
+    KlmVariant128026,
     KLMVariantNova,
 )
 
@@ -59,14 +59,14 @@ class KLMStrategyEnsemble:
 
         # Initialize all strategy variants
         self.strategy_variants: list[BaseKLMVariant] = [
-            KLMVariant506_38(),  # Standard overbought detection
-            KLMVariant1280_26(),  # Variant with parameter differences
-            KLMVariant1200_28(),  # Another parameter variant
-            KLMVariant520_22(),  # "Original" baseline
-            KLMVariant530_18(),  # Scale-In strategy (most complex)
-            KLMVariant410_38(),  # MonkeyBusiness Simons
+            KlmVariant50638(),  # Standard overbought detection
+            KlmVariant128026(),  # Variant with parameter differences
+            KlmVariant120028(),  # Another parameter variant
+            KlmVariant52022(),  # "Original" baseline
+            KlmVariant53018(),  # Scale-In strategy (most complex)
+            KlmVariant41038(),  # MonkeyBusiness Simons
             KLMVariantNova(),  # Short backtest optimization
-            KLMVariant830_21(),  # MonkeyBusiness Simons V2
+            KlmVariant83021(),  # MonkeyBusiness Simons V2
         ]
 
         # Symbol universe for the ensemble - EXACT as per original KLM strategy

@@ -10,10 +10,10 @@ Since 506/38 was just corrected to use FNGU, 410/38 only differs in the SSO addi
 
 from the_alchemiser.core.utils.common import ActionType
 
-from .variant_506_38 import KLMVariant506_38
+from .variant_506_38 import KlmVariant50638
 
 
-class KLMVariant410_38(KLMVariant506_38):
+class KlmVariant41038(KlmVariant50638):
     """
     Variant 410/38 - MonkeyBusiness Simons variant
 
@@ -22,6 +22,7 @@ class KLMVariant410_38(KLMVariant506_38):
 
     def __init__(self):
         super().__init__()
+        # Override the name and description for this variant
         self.name = "410/38"
         self.description = "MonkeyBusiness Simons variant - Same as 506/38 + SSO in rotator"
 
@@ -62,12 +63,11 @@ class KLMVariant410_38(KLMVariant506_38):
         self.log_decision(result[0], result[1], result[2])
         return result
 
-    def get_required_symbols(self) -> list:
+    def get_required_symbols(self) -> list[str]:
         """
         410/38 Required symbols - same as 506/38 plus SSO
         """
-
-        # Get base symbols from 506/38
+        # Get base symbols from parent 506/38
         base_symbols = super().get_required_symbols()
 
         # Add SSO for the enhanced L/S Rotator

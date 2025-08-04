@@ -23,7 +23,7 @@ from the_alchemiser.core.utils.common import ActionType
 from .base_klm_variant import BaseKLMVariant
 
 
-class KLMVariant530_18(BaseKLMVariant):
+class KlmVariant53018(BaseKLMVariant):
     """
     Variant 530/18 - Complete Scale-In Strategy "KMLM Switcher | Anansi Mods"
 
@@ -107,7 +107,7 @@ class KLMVariant530_18(BaseKLMVariant):
         if spy_rsi > 80:
             if spy_rsi > 82.5:
                 # VIX Blend++ - Double UVXY weight
-                allocation = self.VIX_BLEND_PLUS_PLUS  # {UVXY: 0.667, VIXM: 0.333}
+                allocation = self.vix_blend_plus_plus  # {UVXY: 0.667, VIXM: 0.333}
                 result = (
                     allocation,
                     ActionType.BUY.value,
@@ -115,7 +115,7 @@ class KLMVariant530_18(BaseKLMVariant):
                 )
             else:
                 # VIX Blend+ - Equal VIX allocation
-                allocation = self.VIX_BLEND_PLUS  # {UVXY: 0.333, VXX: 0.333, VIXM: 0.333}
+                allocation = self.vix_blend_plus  # {UVXY: 0.333, VXX: 0.333, VIXM: 0.333}
                 result = (
                     allocation,
                     ActionType.BUY.value,
@@ -136,14 +136,14 @@ class KLMVariant530_18(BaseKLMVariant):
 
         if ioo_rsi > 80:
             if ioo_rsi > 82.5:
-                allocation = self.VIX_BLEND_PLUS_PLUS
+                allocation = self.vix_blend_plus_plus
                 result = (
                     allocation,
                     ActionType.BUY.value,
                     f"IOO Scale-In: RSI {ioo_rsi:.1f} > 82.5 → VIX Blend++",
                 )
             else:
-                allocation = self.VIX_BLEND_PLUS
+                allocation = self.vix_blend_plus
                 result = (
                     allocation,
                     ActionType.BUY.value,
@@ -164,14 +164,14 @@ class KLMVariant530_18(BaseKLMVariant):
 
         if qqq_rsi > 79:  # Different threshold!
             if qqq_rsi > 82.5:
-                allocation = self.VIX_BLEND_PLUS_PLUS
+                allocation = self.vix_blend_plus_plus
                 result = (
                     allocation,
                     ActionType.BUY.value,
                     f"QQQ Scale-In: RSI {qqq_rsi:.1f} > 82.5 → VIX Blend++",
                 )
             else:
-                allocation = self.VIX_BLEND_PLUS
+                allocation = self.vix_blend_plus
                 result = (
                     allocation,
                     ActionType.BUY.value,
@@ -192,14 +192,14 @@ class KLMVariant530_18(BaseKLMVariant):
 
         if vtv_rsi > 79:
             if vtv_rsi > 85:  # Higher threshold for VIX+
-                allocation = self.VIX_BLEND_PLUS
+                allocation = self.vix_blend_plus
                 result = (
                     allocation,
                     ActionType.BUY.value,
                     f"VTV Scale-In: RSI {vtv_rsi:.1f} > 85 → VIX Blend+",
                 )
             else:
-                allocation = self.VIX_BLEND  # Uses VIXY instead of UVXY
+                allocation = self.vix_blend  # Uses VIXY instead of UVXY
                 result = (
                     allocation,
                     ActionType.BUY.value,
@@ -220,14 +220,14 @@ class KLMVariant530_18(BaseKLMVariant):
 
         if xlp_rsi > 77:  # Different threshold
             if xlp_rsi > 85:
-                allocation = self.VIX_BLEND_PLUS
+                allocation = self.vix_blend_plus
                 result = (
                     allocation,
                     ActionType.BUY.value,
                     f"XLP Scale-In: RSI {xlp_rsi:.1f} > 85 → VIX Blend+",
                 )
             else:
-                allocation = self.VIX_BLEND
+                allocation = self.vix_blend
                 result = (
                     allocation,
                     ActionType.BUY.value,
@@ -248,14 +248,14 @@ class KLMVariant530_18(BaseKLMVariant):
 
         if xlf_rsi > 81:
             if xlf_rsi > 85:
-                allocation = self.VIX_BLEND_PLUS
+                allocation = self.vix_blend_plus
                 result = (
                     allocation,
                     ActionType.BUY.value,
                     f"XLF Scale-In: RSI {xlf_rsi:.1f} > 85 → VIX Blend+",
                 )
             else:
-                allocation = self.VIX_BLEND
+                allocation = self.vix_blend
                 result = (
                     allocation,
                     ActionType.BUY.value,
@@ -276,14 +276,14 @@ class KLMVariant530_18(BaseKLMVariant):
 
         if retl_rsi > 82:
             if retl_rsi > 85:
-                allocation = self.VIX_BLEND
+                allocation = self.vix_blend
                 result = (
                     allocation,
                     ActionType.BUY.value,
                     f"RETL Scale-In: RSI {retl_rsi:.1f} > 85 → VIX Blend",
                 )
             else:
-                allocation = self.BTAL_BIL  # {BTAL: 0.5, BIL: 0.5}
+                allocation = self.btal_bil  # {BTAL: 0.5, BIL: 0.5}
                 result = (
                     allocation,
                     ActionType.BUY.value,
@@ -351,14 +351,14 @@ class KLMVariant530_18(BaseKLMVariant):
 
         # Check VOX overbought
         if "VOX" in indicators and indicators["VOX"].get("rsi_10", 0) > 79:
-            allocation = self.VIX_BLEND
+            allocation = self.vix_blend
             result = (allocation, ActionType.BUY.value, "Holy Grail: VOX RSI(10) > 79 → VIX Blend")
             self.log_decision(result[0], result[1], result[2])
             return result
 
         # Check XLP overbought
         if "XLP" in indicators and indicators["XLP"].get("rsi_10", 0) > 75:
-            allocation = self.VIX_BLEND
+            allocation = self.vix_blend
             result = (allocation, ActionType.BUY.value, "Holy Grail: XLP RSI(10) > 75 → VIX Blend")
             self.log_decision(result[0], result[1], result[2])
             return result
@@ -369,7 +369,7 @@ class KLMVariant530_18(BaseKLMVariant):
             # Additional TQQQ daily return check (> 5.5% in 1 day)
             tqqq_daily_return = indicators.get("TQQQ", {}).get("cumulative_return_1", 0)
             if tqqq_daily_return > 5.5:
-                allocation = self.VIX_BLEND_PLUS
+                allocation = self.vix_blend_plus
                 result = (
                     allocation,
                     ActionType.BUY.value,

@@ -16,6 +16,7 @@ This file handles the real-world orchestration, data management, and signal gene
 # Standard library imports
 import logging
 import warnings
+from enum import Enum
 
 # Third-party imports
 # Local imports
@@ -34,14 +35,6 @@ config = load_settings()
 logging_config = config.logging.model_dump()
 
 # Logging is configured at application entry point
-
-
-# Import Alert from alert_service
-
-
-# Import UnifiedDataProvider from the new module
-
-from enum import Enum
 
 
 # ActionType enum for clarity and safety
