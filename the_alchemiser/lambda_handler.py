@@ -11,7 +11,7 @@ modes based on the event payload.
 
 import json
 import logging
-from typing import Any, Dict, List
+from typing import Any
 
 from the_alchemiser.main import main
 
@@ -19,7 +19,7 @@ from the_alchemiser.main import main
 logger = logging.getLogger(__name__)
 
 
-def parse_event_mode(event: Dict[str, Any]) -> List[str]:
+def parse_event_mode(event: dict[str, Any]) -> list[str]:
     """Parse the Lambda event to determine which trading mode to execute.
 
     Args:
@@ -156,7 +156,14 @@ def lambda_handler(event=None, context=None):
 
         # Extract mode information for response
         mode = command_args[0] if command_args else "unknown"
-        trading_mode = "live" if "--live" in command_args else "paper" if mode == "trade" else "n/a"
+
+        # Determine trading mode based on command arguments
+        if "--live" in command_args:
+            trading_mode = "live"
+        elif mode == "trade":
+            trading_mode = "paper"
+        else:
+            trading_mode = "n/a"
 
         logger.info(f"Executing command: {' '.join(command_args)}")
 
