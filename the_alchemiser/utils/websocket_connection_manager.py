@@ -11,6 +11,7 @@ import threading
 import time
 
 from rich.console import Console
+from the_alchemiser.core.error_handler import handle_trading_error
 
 
 class WebSocketConnectionManager:
@@ -102,17 +103,29 @@ class WebSocketConnectionManager:
         if hasattr(self, "_websocket_stream") and self._websocket_stream:
             try:
                 self._websocket_stream.stop()
-            except Exception:
-                pass
-            self._websocket_stream = None
+            except Exception as e:
+                logging.exception("Error stopping WebSocket stream")
+                handle_trading_error(
+                    error=e,
+                    context="stopping WebSocket stream",
+                    component="WebSocketConnectionManager.cleanup_websocket_connection",
+                )
+            finally:
+                self._websocket_stream = None
 
         if hasattr(self, "_websocket_thread") and self._websocket_thread:
             try:
                 if self._websocket_thread.is_alive():
                     self._websocket_thread.join(timeout=1.0)
-            except Exception:
-                pass
-            self._websocket_thread = None
+            except Exception as e:
+                logging.exception("Error joining WebSocket thread")
+                handle_trading_error(
+                    error=e,
+                    context="joining WebSocket thread",
+                    component="WebSocketConnectionManager.cleanup_websocket_connection",
+                )
+            finally:
+                self._websocket_thread = None
 
     def get_websocket_stream(self):
         """Get current WebSocket stream if available."""

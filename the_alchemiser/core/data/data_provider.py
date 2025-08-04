@@ -10,6 +10,11 @@ from alpaca.data.timeframe import TimeFrame
 from alpaca.trading.client import TradingClient
 
 from the_alchemiser.core.secrets.secrets_manager import SecretsManager
+from the_alchemiser.core.error_handler import handle_trading_error
+from the_alchemiser.core.exceptions import (
+    MarketDataError,
+    TradingClientError,
+)
 
 
 class UnifiedDataProvider:
@@ -125,12 +130,18 @@ class UnifiedDataProvider:
                 logging.debug(f"Fetched and cached {len(df)} bars for {symbol}")
                 return df
             else:
-                logging.warning(f"No data returned for {symbol}")
-                return pd.DataFrame()
+                raise MarketDataError(
+                    f"No data returned for {symbol}", symbol=symbol, data_type="historical"
+                )
 
         except Exception as e:
-            logging.error(f"Error fetching data for {symbol}: {e}")
-            return pd.DataFrame()
+            handle_trading_error(
+                error=e,
+                context=f"fetching data for {symbol}",
+                component="UnifiedDataProvider.get_data",
+                additional_data={"symbol": symbol, "period": period, "interval": interval},
+            )
+            raise
 
     def _fetch_historical_data(self, symbol, period="1y", interval="1d"):
         """Fetch historical data from Alpaca API."""
@@ -158,7 +169,9 @@ class UnifiedDataProvider:
             bars = self.data_client.get_stock_bars(request)
 
             if not bars:
-                return pd.DataFrame()
+                raise MarketDataError(
+                    f"No bars returned for {symbol}", symbol=symbol, data_type="historical"
+                )
 
             # Extract bar data - handle different response formats safely
             bar_data = None
@@ -177,7 +190,9 @@ class UnifiedDataProvider:
                 pass
 
             if not bar_data:
-                return pd.DataFrame()
+                raise MarketDataError(
+                    f"No bar data for {symbol}", symbol=symbol, data_type="historical"
+                )
 
             # Convert to DataFrame
             data_rows = []
@@ -197,7 +212,9 @@ class UnifiedDataProvider:
                     timestamps.append(bar.timestamp)
 
             if not data_rows:
-                return pd.DataFrame()
+                raise MarketDataError(
+                    f"No bar data for {symbol}", symbol=symbol, data_type="historical"
+                )
 
             # Create DataFrame with datetime index
             df = pd.DataFrame(data_rows)
@@ -207,8 +224,13 @@ class UnifiedDataProvider:
             return df
 
         except Exception as e:
-            logging.error(f"Error fetching historical data for {symbol}: {e}")
-            return pd.DataFrame()
+            handle_trading_error(
+                error=e,
+                context=f"fetching historical data for {symbol}",
+                component="UnifiedDataProvider._fetch_historical_data",
+                additional_data={"symbol": symbol, "period": period, "interval": interval},
+            )
+            raise
 
     def get_current_price(self, symbol):
         """
@@ -301,8 +323,17 @@ class UnifiedDataProvider:
             return get_price_from_historical_fallback(self, symbol)
 
         except Exception as e:
-            logging.error(f"Error getting current price for {symbol}: {e}")
-            return None
+            handle_trading_error(
+                error=e,
+                context=f"getting current price for {symbol}",
+                component="UnifiedDataProvider.get_current_price_rest",
+                additional_data={"symbol": symbol},
+            )
+            raise MarketDataError(
+                f"Failed to get current price for {symbol}",
+                symbol=symbol,
+                data_type="quote",
+            ) from e
 
     def get_latest_quote(self, symbol):
         """Get the latest bid and ask quote for a symbol."""
@@ -315,8 +346,17 @@ class UnifiedDataProvider:
                 ask = float(getattr(quote, "ask_price", 0) or 0)
                 return bid, ask
         except Exception as e:
-            logging.error(f"Error fetching latest quote for {symbol}: {e}")
-        return 0.0, 0.0
+            handle_trading_error(
+                error=e,
+                context=f"fetching latest quote for {symbol}",
+                component="UnifiedDataProvider.get_latest_quote",
+                additional_data={"symbol": symbol},
+            )
+            raise MarketDataError(
+                f"Failed to fetch latest quote for {symbol}",
+                symbol=symbol,
+                data_type="quote",
+            ) from e
 
     def get_historical_data(self, symbol, start, end, timeframe=None):
         """
@@ -370,27 +410,49 @@ class UnifiedDataProvider:
             except (AttributeError, KeyError, TypeError):
                 pass
 
-            return []
+            raise MarketDataError(
+                f"No historical data for {symbol} from {start} to {end}",
+                symbol=symbol,
+                data_type="historical",
+            )
 
         except Exception as e:
-            logging.error(f"Error fetching historical data for {symbol} from {start} to {end}: {e}")
-            return []
+            handle_trading_error(
+                error=e,
+                context=f"fetching historical data for {symbol} from {start} to {end}",
+                component="UnifiedDataProvider.get_historical_data",
+                additional_data={
+                    "symbol": symbol,
+                    "start": start,
+                    "end": end,
+                    "timeframe": timeframe,
+                },
+            )
+            raise
 
     def get_account_info(self):
         """Get account information."""
         try:
             return self.trading_client.get_account()
         except Exception as e:
-            logging.error(f"Error fetching account info: {e}")
-            return None
+            handle_trading_error(
+                error=e,
+                context="fetching account info",
+                component="UnifiedDataProvider.get_account_info",
+            )
+            raise TradingClientError("Failed to fetch account info") from e
 
     def get_positions(self):
         """Get all positions."""
         try:
             return self.trading_client.get_all_positions()
         except Exception as e:
-            logging.error(f"Error fetching positions: {e}")
-            return []
+            handle_trading_error(
+                error=e,
+                context="fetching positions",
+                component="UnifiedDataProvider.get_positions",
+            )
+            raise TradingClientError("Failed to fetch positions") from e
 
     def clear_cache(self):
         """Clear the data cache."""

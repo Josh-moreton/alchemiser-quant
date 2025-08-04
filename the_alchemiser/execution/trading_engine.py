@@ -19,6 +19,9 @@ import logging
 from datetime import datetime
 from typing import Any, Protocol
 
+from the_alchemiser.core.error_handler import handle_trading_error
+from the_alchemiser.core.exceptions import TradingClientError, MarketDataError
+
 # Core strategy and portfolio management
 from the_alchemiser.core.trading.strategy_manager import (
     MultiStrategyManager,
@@ -205,22 +208,14 @@ class TradingEngine:
 
             return account_info
         except Exception as e:
-            logging.error(f"Failed to retrieve account information: {e}")
-
-            # Enhanced error handling
-            try:
-                from the_alchemiser.core.error_handler import handle_trading_error
-
-                handle_trading_error(
-                    error=e,
-                    context="account information retrieval",
-                    component="TradingEngine.get_account_info",
-                    additional_data={"paper_trading": self.paper_trading},
-                )
-            except ImportError:
-                pass  # Fallback for backward compatibility
-
-            return {}
+            logging.error("Failed to retrieve account information", exc_info=True)
+            handle_trading_error(
+                error=e,
+                context="account information retrieval",
+                component="TradingEngine.get_account_info",
+                additional_data={"paper_trading": self.paper_trading},
+            )
+            raise TradingClientError("Account information retrieval failed") from e
 
     def get_positions(self) -> dict[str, Any]:
         """Get current positions via account service with engine context.
@@ -240,8 +235,14 @@ class TradingEngine:
 
             return positions
         except Exception as e:
-            logging.error(f"Failed to retrieve positions: {e}")
-            return {}
+            logging.error("Failed to retrieve positions", exc_info=True)
+            handle_trading_error(
+                error=e,
+                context="position retrieval",
+                component="TradingEngine.get_positions",
+                additional_data={"paper_trading": self.paper_trading},
+            )
+            raise TradingClientError("Position retrieval failed") from e
 
     def get_current_price(self, symbol: str) -> float:
         """Get current price for a symbol with engine-level validation.
@@ -250,11 +251,16 @@ class TradingEngine:
             symbol: Stock symbol to get price for.
 
         Returns:
-            Current price as float, or 0.0 if price unavailable.
+            Current price as float.
+
+        Raises:
+            MarketDataError: If price cannot be retrieved or is invalid.
         """
         if not symbol or not isinstance(symbol, str):
             logging.warning(f"Invalid symbol provided to get_current_price: {symbol}")
-            return 0.0
+            raise MarketDataError(
+                f"Invalid symbol provided: {symbol}", symbol=str(symbol), data_type="quote"
+            )
 
         try:
             price = self._price_provider.get_current_price(symbol.upper())
@@ -263,13 +269,23 @@ class TradingEngine:
             if price and price > 0:
                 logging.debug(f"Retrieved price for {symbol}: ${price:.2f}")
                 return price
-            else:
-                logging.warning(f"Invalid price received for {symbol}: {price}")
-                return 0.0
+            raise MarketDataError(
+                f"Invalid price received for {symbol}: {price}",
+                symbol=symbol,
+                data_type="quote",
+            )
 
         except Exception as e:
-            logging.error(f"Failed to get current price for {symbol}: {e}")
-            return 0.0
+            logging.error(f"Failed to get current price for {symbol}", exc_info=True)
+            handle_trading_error(
+                error=e,
+                context=f"getting current price for {symbol}",
+                component="TradingEngine.get_current_price",
+                additional_data={"symbol": symbol},
+            )
+            raise MarketDataError(
+                f"Failed to get current price for {symbol}", symbol=symbol, data_type="quote"
+            ) from e
 
     def get_current_prices(self, symbols: list[str]) -> dict[str, float]:
         """Get current prices for multiple symbols with engine-level validation.
@@ -278,18 +294,21 @@ class TradingEngine:
             symbols: List of stock symbols to get prices for.
 
         Returns:
-            Dict mapping symbols to current prices, excluding symbols with invalid prices.
+            Dict mapping symbols to current prices.
+
+        Raises:
+            MarketDataError: If prices cannot be retrieved or validated.
         """
         if not symbols or not isinstance(symbols, list):
             logging.warning(f"Invalid symbols list provided: {symbols}")
-            return {}
+            raise MarketDataError("No symbols provided", data_type="quote")
 
         # Clean and validate symbols
         valid_symbols = [s.upper() for s in symbols if isinstance(s, str) and s.strip()]
 
         if not valid_symbols:
             logging.warning("No valid symbols provided to get_current_prices")
-            return {}
+            raise MarketDataError("No valid symbols provided", data_type="quote")
 
         try:
             prices = self._price_provider.get_current_prices(valid_symbols)
@@ -300,7 +319,11 @@ class TradingEngine:
                 if price and price > 0:
                     valid_prices[symbol] = price
                 else:
-                    logging.warning(f"Invalid price for {symbol}: {price}")
+                    raise MarketDataError(
+                        f"Invalid price for {symbol}: {price}",
+                        symbol=symbol,
+                        data_type="quote",
+                    )
 
             logging.debug(
                 f"Retrieved {len(valid_prices)} valid prices out of {len(valid_symbols)} requested"
@@ -308,8 +331,14 @@ class TradingEngine:
             return valid_prices
 
         except Exception as e:
-            logging.error(f"Failed to get current prices: {e}")
-            return {}
+            logging.error("Failed to get current prices", exc_info=True)
+            handle_trading_error(
+                error=e,
+                context="getting current prices",
+                component="TradingEngine.get_current_prices",
+                additional_data={"symbols": symbols},
+            )
+            raise MarketDataError("Failed to get current prices", data_type="quote") from e
 
     # --- Order and Rebalancing Methods ---
     def wait_for_settlement(
