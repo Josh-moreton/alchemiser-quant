@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Command-Line Interface for The Alchemiser Trading Bot.
+Command-Line Interface for The Alchemiser Quantitative Trading System.
 
 Provides a modern CLI built with Typer and Rich for user interaction, strategy selection,
 backtesting, and reporting. Handles user commands and displays formatted output.
@@ -22,7 +22,7 @@ from the_alchemiser.core.ui.cli_formatter import render_header, render_footer
 # Initialize Typer app and Rich console
 app = typer.Typer(
     name="alchemiser",
-    help="The Alchemiser - Advanced Multi-Strategy Trading Bot",
+    help="The Alchemiser - Advanced Multi-Strategy Quantitative Trading System",
     add_completion=False,
     rich_markup_mode="rich"
 )
@@ -31,8 +31,8 @@ console = Console()
 def show_welcome():
     """Display a beautiful welcome message"""
     welcome_text = Text()
-    welcome_text.append(" The Alchemiser Trading Bot\n", style="bold cyan")
-    welcome_text.append("Advanced Multi-Strategy Nuclear Trading System", style="italic")
+    welcome_text.append(" The Alchemiser Quantitative Trading System\n", style="bold cyan")
+    welcome_text.append("Advanced Multi-Strategy Trading System", style="italic")
     
     panel = Panel(
         welcome_text,
@@ -254,7 +254,7 @@ def version():
     ℹ️  [bold]Show version information[/bold]
     """
     version_info = Text()
-    version_info.append(" The Alchemiser Trading Bot\n", style="bold cyan")
+    version_info.append(" The Alchemiser Quantitative Trading System\n", style="bold cyan")
     version_info.append(f"Version: 2.0.0\n", style="bold")
     version_info.append(f"Built: {datetime.now().strftime('%Y-%m-%d')}\n", style="dim")
     version_info.append("Strategies: Nuclear, TECL, KLM, Multi-Strategy\n", style="green")
@@ -508,7 +508,7 @@ def main(
     quiet: bool = typer.Option(False, "--quiet", "-q", help="Suppress non-essential output")
 ):
     """
-    [bold]The Alchemiser - Advanced Multi-Strategy Trading Bot[/bold]
+    [bold]The Alchemiser - Advanced Multi-Strategy Quantitative Trading System[/bold]
     
     Nuclear • TECL • KLM • Multi-Strategy Trading System
     

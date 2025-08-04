@@ -1,6 +1,6 @@
-"""AWS Lambda Handler for The Alchemiser Trading Bot.
+"""AWS Lambda Handler for The Alchemiser Quantitative Trading System.
 
-This module provides the entry point for running The Alchemiser trading bot
+This module provides the entry point for running The Alchemiser trading system
 as an AWS Lambda function, enabling serverless execution and automated trading
 in the cloud environment.
 
@@ -78,9 +78,9 @@ def parse_event_mode(event: Dict[str, Any]) -> List[str]:
 
 
 def lambda_handler(event=None, context=None):
-    """AWS Lambda function handler for The Alchemiser trading bot.
+    """AWS Lambda function handler for The Alchemiser trading system.
     
-    This function serves as the entry point when the trading bot is deployed
+    This function serves as the entry point when the trading system is deployed
     as an AWS Lambda function. It supports multiple trading modes based on the
     event configuration and returns detailed status information.
     

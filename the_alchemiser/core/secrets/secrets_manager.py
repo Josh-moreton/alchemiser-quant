@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 AWS Secrets Manager Integration
-Handles retrieving secrets from AWS Secrets Manager for the Nuclear Trading Bot
+Handles retrieving secrets from AWS Secrets Manager for the Quantitative Trading System
 """
 
 import json

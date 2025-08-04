@@ -50,7 +50,7 @@ def test_better_orders_portfolio_integration():
     # Create order manager with better orders capability
     order_manager = SmartExecution(mock_alpaca_client, mock_data_provider)
     
-    # Set up trading bot mock
+    # Set up trading system mock
     mock_trading_bot.order_manager = order_manager
     mock_trading_bot.get_account_info.return_value = {
         'cash': 10000.0,

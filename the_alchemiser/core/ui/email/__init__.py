@@ -1,4 +1,4 @@
-"""Email module for The Alchemiser trading bot.
+"""Email module for The Alchemiser quantitative trading system.
 
 This module provides email notification functionality with clean separation
 of concerns across configuration, client operations, and template generation.

@@ -1,4 +1,4 @@
-# SAM configuration for The Alchemiser Trading Bot
+# SAM configuration for The Alchemiser Quantitative Trading System
 version = 0.1
 
 [default.build.parameters]

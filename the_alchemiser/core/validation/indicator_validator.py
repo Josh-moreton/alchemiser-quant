@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Comprehensive Indicator Validation for The Alchemiser Trading Bot.
+Comprehensive Indicator Validation for The Alchemiser Quantitative Trading System.
 
 This module provides a comprehensive testing suite that validates ALL technical
 indicators used by our trading strategies against TwelveData API values.

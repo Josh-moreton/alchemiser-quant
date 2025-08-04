@@ -59,12 +59,12 @@ def test_data_provider_methods():
         traceback.print_exc()
         return False
 
-def test_trading_bot_integration():
-    """Test the trading bot integration with new P&L data"""
+def test_trading_system_integration():
+    """Test the trading system integration with new P&L data"""
     print("\n🤖 Testing TradingEngine integration...")
     
     try:
-        # Create trading bot (paper trading)
+        # Create trading system (paper trading)
         trader = TradingEngine(paper_trading=True)
         
         print("✅ TradingEngine initialized successfully")
@@ -91,11 +91,11 @@ def test_trading_bot_integration():
         else:
             print("   ❌ recent_closed_pnl not found in account_info")
         
-        print("✅ Trading bot integration tested successfully")
+        print("✅ Trading system integration tested successfully")
         return True
         
     except Exception as e:
-        print(f"❌ Error testing trading bot: {e}")
+        print(f"❌ Error testing trading system: {e}")
         import traceback
         traceback.print_exc()
         return False
@@ -157,7 +157,7 @@ def main():
     # Run tests
     tests = [
         test_data_provider_methods,
-        test_trading_bot_integration,
+        test_trading_system_integration,
         test_email_functionality
     ]
     

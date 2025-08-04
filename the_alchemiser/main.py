@@ -163,8 +163,6 @@ def run_all_signals_display(settings: Settings | None = None):
         
         # Rich console for CLI output (optional)
         if HAS_RICH:
-        # Rich console for CLI output (optional)
-        if HAS_RICH:
             from rich.console import Console
             from rich.panel import Panel
             console = Console()
@@ -356,9 +354,9 @@ def run_multi_strategy_trading(
 
 
 def main(argv=None, settings: Settings | None = None):
-    """Main entry point for the Multi-Strategy Nuclear Trading Bot.
+    """Main entry point for the Multi-Strategy Quantitative Trading System.
     
-    Provides command-line interface for running the trading bot in different modes.
+    Provides command-line interface for running the trading system in different modes.
     Supports both signal analysis and actual trading execution.
     
     Args:
@@ -390,7 +388,7 @@ def main(argv=None, settings: Settings | None = None):
     configure_application_logging()
     
     settings = settings or load_settings()
-    parser = argparse.ArgumentParser(description="Multi-Strategy Nuclear Trading Bot")
+    parser = argparse.ArgumentParser(description="Multi-Strategy Quantitative Trading System")
     parser.add_argument('mode', choices=['bot', 'trade'],
                        help='Operation mode: bot (show signals), trade (execute trading)')
     
@@ -405,7 +403,7 @@ def main(argv=None, settings: Settings | None = None):
     args = parser.parse_args(argv)
     
     mode_label = "LIVE TRADING ⚠️" if args.mode == 'trade' and args.live else "Paper Trading"
-    render_header("Multi-Strategy Nuclear Bot", f"{args.mode.upper()} | {mode_label}")
+    render_header("Multi-Strategy Quantitative Trading System", f"{args.mode.upper()} | {mode_label}")
     
     success = False
     try:

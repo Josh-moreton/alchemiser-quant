@@ -1,9 +1,9 @@
 #!/bin/bash
-# Simple SAM deployment script for The Alchemiser Trading Bot
+# Simple SAM deployment script for The Alchemiser Quantitative Trading System
 
 set -e
 
-echo "🚀 Deploying The Alchemiser Trading Bot with SAM"
+echo "🚀 Deploying The Alchemiser Quantitative Trading System with SAM"
 echo "================================================"
 
 # Export Poetry dependencies to requirements.txt
@@ -21,7 +21,7 @@ sam deploy --guided
 echo "✅ Deployment complete!"
 echo ""
 echo "To test your deployment:"
-echo "  sam local invoke TradingBotFunction"
+echo "  sam local invoke TradingSystemFunction"
 echo ""
 echo "To view logs:"
-echo "  sam logs -n TradingBotFunction --tail"
+echo "  sam logs -n TradingSystemFunction --tail"

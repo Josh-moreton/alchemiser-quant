@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-KLM Trading Bot Engine
+KLM Quantitative Trading Engine
 
 This module implements the orchestration and execution layer for the KLM strategy, including:
 - Multi-layer RSI overbought detection for volatility protection
@@ -123,7 +123,7 @@ class KLMStrategyEngine:
 
 
 class KLMTradingBot:
-    """KLM Trading Bot"""
+    """KLM Quantitative Trading Engine"""
 
     def __init__(self, data_provider=None):
         if data_provider is None:
@@ -255,9 +255,9 @@ class KLMTradingBot:
 
 
 def main():
-    """Test the KLM trading bot"""
+    """Test the KLM trading system"""
     
-    print("🧪 KLM Trading Bot Test")
+    print("🧪 KLM Quantitative Trading Engine Test")
     print("=" * 50)
     
     # Initialize bot

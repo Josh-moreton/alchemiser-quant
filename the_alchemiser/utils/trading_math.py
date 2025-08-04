@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Trading Math Utilities for The Alchemiser Trading Bot.
+"""Trading Math Utilities for The Alchemiser Quantitative Trading System.
 
 This module contains pure mathematical functions for trading calculations,
 including position sizing, dynamic limit price calculation, slippage calculations,

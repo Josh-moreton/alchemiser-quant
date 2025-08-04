@@ -7,7 +7,7 @@ architecture = "x86_64"
 handler = "the_alchemiser.lambda_handler.lambda_handler"
 manifest_hash = ""
 packagetype = "Zip"
-functions = ["TradingBotFunction"]
+functions = ["TradingSystemFunction"]
 
 [layer_build_definitions.be48e4c5-55c0-40f9-b950-789e0307693c]
 layer_name = "DependenciesLayer"

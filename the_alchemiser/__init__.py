@@ -1,6 +1,6 @@
-"""The Alchemiser Trading Bot Package.
+"""The Alchemiser Quantitative Trading System Package.
 
-A sophisticated multi-strategy trading bot for automated portfolio management using
+A sophisticated multi-strategy quantitative trading system for automated portfolio management using
 algorithmic trading strategies. The package supports multiple trading strategies,
 real-time market data processing, backtesting capabilities, and integration with
 Alpaca trading platform.

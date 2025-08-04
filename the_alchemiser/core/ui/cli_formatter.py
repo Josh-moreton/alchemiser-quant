@@ -9,7 +9,7 @@ from rich.rule import Rule
 from rich.align import Align
 from datetime import datetime
 
-"""Console formatting utilities for trading bot output using rich."""
+"""Console formatting utilities for quantitative trading system output using rich."""
 
 def render_technical_indicators(strategy_signals: Dict[Any, Any], console: Console | None = None) -> None:
     """

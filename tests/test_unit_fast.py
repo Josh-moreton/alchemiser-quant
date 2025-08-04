@@ -181,7 +181,7 @@ class TestPortfolioRebalancerUnit:
         """Test rebalancing order calculation."""
         from the_alchemiser.execution.portfolio_rebalancer import PortfolioRebalancer
         
-        # Mock the trading bot
+        # Mock the trading system
         mock_trading_bot = Mock()
         mock_trading_bot.get_account_info.return_value = {
             'portfolio_value': 10000.0,

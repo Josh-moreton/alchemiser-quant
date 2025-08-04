@@ -1,7 +1,7 @@
 """Technical indicators for trading strategies.
 
 This module provides technical analysis indicators used by trading strategies
-in The Alchemiser trading bot. All indicators are implemented using pandas
+in The Alchemiser quantitative trading system. All indicators are implemented using pandas
 for efficient computation and follow industry-standard calculation methods
 to ensure compatibility with external trading platforms.
 

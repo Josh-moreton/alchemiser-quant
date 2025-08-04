@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Custom exception classes for The Alchemiser Trading Bot.
+Custom exception classes for The Alchemiser Quantitative Trading System.
 
 This module defines specific exception types for different failure scenarios
 to enable better error handling and debugging throughout the application.

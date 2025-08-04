@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Test market conditions scenarios for the trading bot.
+Test market conditions scenarios for the quantitative trading system.
 """
 
 import pytest

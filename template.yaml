@@ -1,9 +1,9 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
 Description: >
-  The Alchemiser Trading Bot
+  The Alchemiser Quantitative Trading System
 
-  Multi-strategy trading bot deployed as AWS Lambda container image
+  Multi-strategy algorithmic trading engine deployed as an AWS Lambda Function
 
 # Global configuration
 Globals:
@@ -39,7 +39,7 @@ Resources:
     Type: AWS::Serverless::LayerVersion
     Properties:
       LayerName: the-alchemiser-dependencies
-      Description: Dependencies for The Alchemiser Trading Bot
+      Description: Dependencies for The Alchemiser Quantitative Trading System
       ContentUri: dependencies/
       CompatibleRuntimes:
         - python3.12
@@ -47,7 +47,7 @@ Resources:
     Metadata:
       BuildMethod: python3.12
 
-  TradingBotFunction:
+  TradingSystemFunction:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: the-alchemiser-v2-lambda
@@ -55,23 +55,23 @@ Resources:
       Runtime: python3.12
       CodeUri: .
       Handler: the_alchemiser.lambda_handler.lambda_handler
-      Role: !GetAtt TradingBotExecutionRole.Arn
+      Role: !GetAtt TradingSystemExecutionRole.Arn
       Layers:
         - !Ref DependenciesLayer
       # No Events here - using separate EventBridge Scheduler below
 
   # EventBridge Scheduler with proper timezone support
-  TradingBotSchedule:
+  TradingSystemSchedule:
     Type: AWS::Scheduler::Schedule
     Properties:
       Name: the-alchemiser-daily-trading
-      Description: "Execute trading bot daily at 9:30 AM New York time (with DST support)"
+      Description: "Execute quantitative trading system daily at 9:30 AM New York time (with DST support)"
       ScheduleExpression: "cron(30 9 ? * MON-FRI *)"
       ScheduleExpressionTimezone: "America/New_York"
       FlexibleTimeWindow:
         Mode: "OFF"
       Target:
-        Arn: !GetAtt TradingBotFunction.Arn
+        Arn: !GetAtt TradingSystemFunction.Arn
         RoleArn: !GetAtt SchedulerExecutionRole.Arn
         Input: |
           {
@@ -99,10 +99,10 @@ Resources:
               - Effect: Allow
                 Action:
                   - lambda:InvokeFunction
-                Resource: !GetAtt TradingBotFunction.Arn
+                Resource: !GetAtt TradingSystemFunction.Arn
 
   # IAM Role for Lambda execution
-  TradingBotExecutionRole:
+  TradingSystemExecutionRole:
     Type: AWS::IAM::Role
     Properties:
       RoleName: the-alchemiser-lambda-execution-role
@@ -116,7 +116,7 @@ Resources:
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
       Policies:
-        - PolicyName: TradingBotPolicy
+        - PolicyName: TradingSystemPolicy
           PolicyDocument:
             Version: "2012-10-17"
             Statement:
@@ -150,17 +150,17 @@ Resources:
                 Resource: "*"
 
   # CloudWatch Log Group with retention
-  TradingBotLogGroup:
+  TradingSystemLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub "/aws/lambda/${TradingBotFunction}"
+      LogGroupName: !Sub "/aws/lambda/${TradingSystemFunction}"
       RetentionInDays: 30
 
 Outputs:
-  TradingBotFunction:
-    Description: "Trading Bot Lambda Function ARN"
-    Value: !GetAtt TradingBotFunction.Arn
+  TradingSystemFunction:
+    Description: "Quantitative Trading System Lambda Function ARN"
+    Value: !GetAtt TradingSystemFunction.Arn
 
-  TradingBotLogGroup:
+  TradingSystemLogGroup:
     Description: "CloudWatch Log Group for monitoring"
-    Value: !Ref TradingBotLogGroup
+    Value: !Ref TradingSystemLogGroup

@@ -14,7 +14,7 @@ class PortfolioRebalancer:
     """Encapsulate portfolio rebalancing workflow."""
 
     def __init__(self, bot):
-        """Initialize with parent trading bot."""
+        """Initialize with parent trading system."""
         self.bot = bot
         self.order_manager = bot.order_manager
     

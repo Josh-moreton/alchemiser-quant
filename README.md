@@ -196,7 +196,7 @@ npm run remove
 
 ```bash
 # Development mode with auto-reload
-make run-bot        # Signals only
+make run-signals    # Signals only
 make run-trade      # Paper trading  
 make run-trade-live # Live trading ⚠️
 ```
@@ -403,7 +403,7 @@ The bot can run automatically via **GitHub Actions** or **AWS Lambda**:
 **GitHub Actions Workflow:**
 
 ```yaml
-- name: Run Alchemiser Bot
+- name: Run Alchemiser System
   env:
     ALPACA_KEY: ${{ secrets.ALPACA_KEY }}
     ALPACA_SECRET: ${{ secrets.ALPACA_SECRET }}
@@ -488,7 +488,7 @@ The-Alchemiser/
 │   ├── utils/                  # Common utilities (S3, helpers)
 │   └── alerts/                 # Alerting services
 ├── execution/                  # Trading integration
-│   ├── alpaca_trader.py        # Alpaca trading bot
+│   ├── alpaca_trader.py        # Alpaca trading system
 │   └── multi_strategy_trader.py# Multi-strategy trading
 ├── tests/                      # Test suite
 ├── data/                       # Data storage & logs
@@ -624,7 +624,7 @@ pytest tests/ -v
 - Run from project root directory
 - Ensure all dependencies installed: `pip install -e .` (for CLI) or `pip install -r requirements.txt`
 - Activate your venv: `source .venv/bin/activate` (macOS recommended)
-- Use Makefile targets for common tasks: `make run-bot`, `make deploy`, etc.
+- Use Makefile targets for common tasks: `make run-signals`, `make deploy`, etc.
 - Check API credentials and network connectivity
 - For multi-strategy: check logs for details
 

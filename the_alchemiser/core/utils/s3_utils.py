@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-S3 Utilities for LQQ3 Trading Bot
+S3 Utilities for Quantitative Trading System
 Handles reading and writing files to S3 storage
 """
 
@@ -13,7 +13,7 @@ import os
 from botocore.exceptions import ClientError, NoCredentialsError
 
 class S3Handler:
-    """Handles S3 operations for the trading bot"""
+    """Handles S3 operations for the quantitative trading system"""
     
     def __init__(self):
         """Initialize S3 client"""

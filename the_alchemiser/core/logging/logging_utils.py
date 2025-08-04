@@ -8,7 +8,7 @@ from the_alchemiser.core.utils.s3_utils import S3FileHandler
 
 
 class AlchemiserLoggerAdapter(logging.LoggerAdapter):
-    """Custom logger adapter for the Alchemiser trading bot."""
+    """Custom logger adapter for the Alchemiser quantitative trading system."""
     
     def process(self, msg, kwargs):
         return f"[ALCHEMISER] {msg}", kwargs

@@ -1,4 +1,4 @@
-"""Registry package for The Alchemiser Trading Bot.
+"""Registry package for The Alchemiser Quantitative Trading System.
 
 This package provides registry-based factories and patterns to replace
 dynamic imports and improve static analysis capabilities.
