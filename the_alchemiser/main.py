@@ -31,9 +31,10 @@ from datetime import datetime
 
 # Optional rich import - only for CLI usage
 try:
-    from rich.console import Console
+    # Check if rich is available
+    import importlib.util
 
-    HAS_RICH = True
+    HAS_RICH = importlib.util.find_spec("rich") is not None
 except ImportError:
     HAS_RICH = False
 

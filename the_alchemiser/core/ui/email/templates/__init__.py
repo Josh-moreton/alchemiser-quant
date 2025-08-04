@@ -23,6 +23,16 @@ from .portfolio import PortfolioBuilder
 from .signals import SignalsBuilder
 from .trading_report import TradingReportBuilder
 
+__all__ = [
+    "BaseEmailTemplate",
+    "ErrorReportBuilder",
+    "MultiStrategyReportBuilder",
+    "PerformanceBuilder",
+    "PortfolioBuilder",
+    "SignalsBuilder",
+    "TradingReportBuilder",
+]
+
 
 class EmailTemplates:
     """Main email template facade that delegates to specialized builders."""

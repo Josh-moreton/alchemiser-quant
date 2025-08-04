@@ -70,8 +70,8 @@ class UnifiedDataProvider:
         else:
             self.api_endpoint = self.config.alpaca.endpoint
 
-        # Initialize real-time pricing service
-        self.real_time_pricing: RealTimePricingManager | None = None
+        # Initialize real-time pricing service (type will be set dynamically)
+        self.real_time_pricing = None
         if enable_real_time:
             try:
                 from the_alchemiser.core.data.real_time_pricing import RealTimePricingManager

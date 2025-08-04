@@ -248,35 +248,6 @@ class SymbolLookbackCalculator:
             if name in self._indicator_requirements
         }
 
-    def get_all_symbols_lookback_map(self, strategies: list[str] | None = None) -> dict[str, int]:
-        """
-        Get a complete mapping of all symbols to their required lookback days.
-
-        Args:
-            strategies: List of strategies to consider. If None, considers all.
-
-        Returns:
-            Dict mapping symbol -> lookback_days
-        """
-        if strategies is None:
-            strategies = ["nuclear", "tecl", "klm"]
-
-        # Get all unique symbols across strategies
-        all_symbols = set()
-        for strategy in strategies:
-            all_symbols.update(self._get_strategy_symbols(strategy))
-
-        lookback_map = {}
-        for symbol in sorted(all_symbols):
-            lookback_map[symbol] = self.get_symbol_lookback_days(symbol, strategies)
-
-        self.logger.info(
-            f"Generated lookback map for {len(lookback_map)} symbols "
-            f"across strategies: {', '.join(strategies)}"
-        )
-
-        return lookback_map
-
     def get_lookback_summary(self, strategies: list[str] | None = None) -> dict[str, Any]:
         """
         Get a summary of lookback requirements across all symbols.
@@ -301,9 +272,7 @@ class SymbolLookbackCalculator:
                 "medium_term": len([v for v in lookback_values if 50 < v <= 150]),
                 "long_term": len([v for v in lookback_values if v > 150]),
             },
-            "symbols_by_lookback": {
-                symbol: days for symbol, days in sorted(lookback_map.items(), key=lambda x: x[1])
-            },
+            "symbols_by_lookback": dict(sorted(lookback_map.items(), key=lambda x: x[1])),
         }
 
     def optimize_data_fetching(
