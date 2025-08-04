@@ -10,7 +10,7 @@ import json
 import logging
 import time
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -59,7 +59,7 @@ class IndicatorValidationSuite:
             "stdev_return": [5, 6],  # Custom indicators
         }
 
-    def fetch_market_data(self, symbol: str, days: int = 250) -> Optional[pd.Series]:
+    def fetch_market_data(self, symbol: str, days: int = 250) -> pd.Series | None:
         """Fetch historical price data for a symbol."""
         try:
             url = f"{self.api_base_url}/time_series"
@@ -96,7 +96,7 @@ class IndicatorValidationSuite:
 
     def fetch_twelvedata_indicator(
         self, symbol: str, indicator: str, period: int
-    ) -> Optional[float]:
+    ) -> float | None:
         """Fetch indicator value from TwelveData API."""
         try:
             indicator_map = {"rsi": "rsi", "sma": "sma"}
@@ -128,7 +128,7 @@ class IndicatorValidationSuite:
             self.logger.error(f"Failed to fetch {indicator} for {symbol}: {e}")
             return None
 
-    def validate_rsi(self, symbol: str, price_data: pd.Series, period: int) -> Dict[str, Any]:
+    def validate_rsi(self, symbol: str, price_data: pd.Series, period: int) -> dict[str, Any]:
         """Validate RSI calculation against TwelveData."""
         start_time = time.time()
 
@@ -178,7 +178,7 @@ class IndicatorValidationSuite:
             "calculation_time": calculation_time,
         }
 
-    def validate_sma(self, symbol: str, price_data: pd.Series, period: int) -> Dict[str, Any]:
+    def validate_sma(self, symbol: str, price_data: pd.Series, period: int) -> dict[str, Any]:
         """Validate Simple Moving Average calculation against TwelveData."""
         start_time = time.time()
 
@@ -223,7 +223,7 @@ class IndicatorValidationSuite:
 
     def validate_custom_indicators(
         self, symbol: str, price_data: pd.Series
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Validate custom indicators that don't have TwelveData equivalents."""
         results = []
 
@@ -287,7 +287,7 @@ class IndicatorValidationSuite:
 
         return results
 
-    def validate_symbol(self, symbol: str) -> List[Dict[str, Any]]:
+    def validate_symbol(self, symbol: str) -> list[dict[str, Any]]:
         """Validate all indicators for a single symbol."""
         self.console.print(f"\n[bold blue]Validating indicators for {symbol}[/bold blue]")
 
@@ -331,7 +331,7 @@ class IndicatorValidationSuite:
 
         return results
 
-    def run_validation_suite(self, symbols: List[str], mode: str = "full") -> Dict[str, Any]:
+    def run_validation_suite(self, symbols: list[str], mode: str = "full") -> dict[str, Any]:
         """Run the complete validation suite."""
         self.console.print("[bold green]🔬 Starting Indicator Validation Suite[/bold green]")
         self.console.print(f"Mode: {mode.upper()}")
@@ -387,7 +387,7 @@ class IndicatorValidationSuite:
 
         return summary
 
-    def generate_report(self, summary: Dict[str, Any]) -> None:
+    def generate_report(self, summary: dict[str, Any]) -> None:
         """Generate a comprehensive validation report."""
 
         # Summary Panel
@@ -439,7 +439,7 @@ class IndicatorValidationSuite:
                     f"  ❌ {result['symbol']} {result['indicator']}: {result['error']}"
                 )
 
-    def save_results(self, filename: Optional[str] = None) -> str:
+    def save_results(self, filename: str | None = None) -> str:
         """Save validation results to JSON file."""
         if filename is None:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")

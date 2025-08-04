@@ -9,7 +9,6 @@ order timing and pricing decisions.
 import logging
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional
 
 
 class SpreadQuality(Enum):
@@ -40,7 +39,7 @@ class SpreadAssessment:
     def __init__(self, data_provider):
         self.data_provider = data_provider
 
-    def assess_premarket_conditions(self, symbol: str) -> Optional[PreMarketConditions]:
+    def assess_premarket_conditions(self, symbol: str) -> PreMarketConditions | None:
         """
         Step 0: Pre-market spread assessment
 

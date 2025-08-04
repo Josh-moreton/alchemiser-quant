@@ -7,7 +7,6 @@ and enforces a consistent interface across all variants.
 
 import logging
 from abc import ABC, abstractmethod
-from typing import Dict, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -32,9 +31,9 @@ class BaseKLMVariant(ABC):
     @abstractmethod
     def evaluate(
         self,
-        indicators: Dict[str, Dict[str, float]],
-        market_data: Optional[Dict[str, pd.DataFrame]] = None,
-    ) -> Tuple[Union[str, Dict[str, float]], str, str]:
+        indicators: dict[str, dict[str, float]],
+        market_data: dict[str, pd.DataFrame] | None = None,
+    ) -> tuple[str | dict[str, float], str, str]:
         """
         Evaluate the strategy variant and return trading decision.
 
@@ -52,7 +51,7 @@ class BaseKLMVariant(ABC):
 
     # Common filter operations used across variants
     def apply_stdev_return_filter(
-        self, candidates: list, indicators: Dict, window: int = 6
+        self, candidates: list, indicators: dict, window: int = 6
     ) -> list:
         """Apply (stdev-return {:window N}) filter as in Clojure"""
         filtered_candidates = []
@@ -74,7 +73,7 @@ class BaseKLMVariant(ABC):
         sorted_candidates = sorted(candidates, key=lambda x: x[1], reverse=True)
         return sorted_candidates[:count]
 
-    def apply_rsi_filter(self, candidates: list, indicators: Dict, window: int = 10) -> list:
+    def apply_rsi_filter(self, candidates: list, indicators: dict, window: int = 10) -> list:
         """Filter candidates by RSI values"""
         filtered = []
         for symbol in candidates:
@@ -85,27 +84,27 @@ class BaseKLMVariant(ABC):
 
     # Common allocation patterns from Clojure
     @property
-    def VIX_BLEND_PLUS_PLUS(self) -> Dict[str, float]:
+    def VIX_BLEND_PLUS_PLUS(self) -> dict[str, float]:
         """VIX Blend++ allocation: Double weight UVXY"""
         return {"UVXY": 0.667, "VIXM": 0.333}  # 2 out of 3 assets
 
     @property
-    def VIX_BLEND_PLUS(self) -> Dict[str, float]:
+    def VIX_BLEND_PLUS(self) -> dict[str, float]:
         """VIX Blend+ allocation: Equal weight VIX assets"""
         return {"UVXY": 0.333, "VXX": 0.333, "VIXM": 0.333}
 
     @property
-    def VIX_BLEND(self) -> Dict[str, float]:
+    def VIX_BLEND(self) -> dict[str, float]:
         """VIX Blend allocation: Uses VIXY instead of UVXY"""
         return {"VIXY": 0.333, "VXX": 0.333, "VIXM": 0.333}
 
     @property
-    def BTAL_BIL(self) -> Dict[str, float]:
+    def BTAL_BIL(self) -> dict[str, float]:
         """BTAL/BIL allocation for defensive positioning"""
         return {"BTAL": 0.5, "BIL": 0.5}
 
     # Common RSI overbought checks
-    def check_primary_overbought_conditions(self, indicators: Dict) -> Tuple[Union[str, None], str]:
+    def check_primary_overbought_conditions(self, indicators: dict) -> tuple[str | None, str]:
         """
         Complete 11-step overbought detection chain from CLJ.
         ALL standard variants follow this exact sequence before "Single Popped KMLM".
@@ -163,8 +162,8 @@ class BaseKLMVariant(ABC):
         return (None, "")
 
     def evaluate_single_popped_kmlm(
-        self, indicators: Dict
-    ) -> Tuple[Union[str, Dict[str, float]], str, str]:
+        self, indicators: dict
+    ) -> tuple[str | dict[str, float], str, str]:
         """
         Single Popped KMLM logic - common across most standard variants.
 
@@ -187,7 +186,7 @@ class BaseKLMVariant(ABC):
         # Fallback if UVXY data unavailable
         return self.evaluate_combined_pop_bot(indicators)
 
-    def evaluate_bsc_strategy(self, indicators: Dict) -> Tuple[str, str, str]:
+    def evaluate_bsc_strategy(self, indicators: dict) -> tuple[str, str, str]:
         """
         BSC (Bond/Stock/Commodity) strategy when UVXY RSI(21) > 65
 
@@ -218,8 +217,8 @@ class BaseKLMVariant(ABC):
         return result
 
     def evaluate_combined_pop_bot(
-        self, indicators: Dict
-    ) -> Tuple[Union[str, Dict[str, float]], str, str]:
+        self, indicators: dict
+    ) -> tuple[str | dict[str, float], str, str]:
         """
         Combined Pop Bot strategy - standard across most variants.
 
@@ -271,15 +270,15 @@ class BaseKLMVariant(ABC):
 
     @abstractmethod
     def evaluate_core_kmlm_switcher(
-        self, indicators: Dict
-    ) -> Tuple[Union[str, Dict[str, float]], str, str]:
+        self, indicators: dict
+    ) -> tuple[str | dict[str, float], str, str]:
         """
         Core KMLM switcher - each variant implements its own logic.
         This is where variants differ after the common overbought/pop bot logic.
         """
         pass
 
-    def log_decision(self, symbol_or_allocation: Union[str, Dict], action: str, reason: str):
+    def log_decision(self, symbol_or_allocation: str | dict, action: str, reason: str):
         """Log trading decision with context"""
         if isinstance(symbol_or_allocation, dict):
             symbols = list(symbol_or_allocation.keys())
@@ -317,7 +316,7 @@ class BaseKLMVariant(ABC):
             "KMLM",
         ]
 
-    def create_equal_weight_allocation(self, symbols: list, indicators: Dict) -> Dict[str, float]:
+    def create_equal_weight_allocation(self, symbols: list, indicators: dict) -> dict[str, float]:
         """Create equal weight allocation among available symbols"""
         available_symbols = [s for s in symbols if s in indicators]
         if not available_symbols:

@@ -8,7 +8,6 @@ validation, and error handling with fallback strategies.
 
 import logging
 from decimal import ROUND_DOWN, Decimal
-from typing import Optional
 
 from alpaca.trading.enums import OrderSide, TimeInForce
 from alpaca.trading.requests import LimitOrderRequest
@@ -34,7 +33,7 @@ class LimitOrderHandler:
         side: OrderSide,
         limit_price: float,
         cancel_existing: bool = True,
-    ) -> Optional[str]:
+    ) -> str | None:
         """
         Place a limit order with smart fractionability handling.
 
@@ -151,7 +150,7 @@ class LimitOrderHandler:
         original_qty: float,
         side: OrderSide,
         limit_price: float,
-    ) -> Optional[str]:
+    ) -> str | None:
         """Submit order with fractionability fallback logic."""
         try:
             order = self.trading_client.submit_order(order_data)
@@ -174,7 +173,7 @@ class LimitOrderHandler:
 
     def _handle_fractionable_fallback(
         self, symbol: str, original_qty: float, side: OrderSide, limit_price: float, error_msg: str
-    ) -> Optional[str]:
+    ) -> str | None:
         """Handle fractionability errors with whole share fallback."""
         logging.warning(
             f"🔄 {symbol} limit order failed (not fractionable), trying whole shares..."

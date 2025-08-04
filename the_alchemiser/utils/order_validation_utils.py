@@ -9,10 +9,9 @@ including quantity validation, price validation, and parameter normalization.
 import logging
 import math
 from decimal import ROUND_DOWN, Decimal
-from typing import Optional, Tuple, Union
 
 
-def validate_quantity(qty: Union[float, str, None], symbol: str) -> Optional[float]:
+def validate_quantity(qty: float | str | None, symbol: str) -> float | None:
     """
     Validate and normalize quantity parameter.
 
@@ -46,7 +45,7 @@ def validate_quantity(qty: Union[float, str, None], symbol: str) -> Optional[flo
     return qty_float
 
 
-def validate_notional(notional: Union[float, str, None], symbol: str) -> Optional[float]:
+def validate_notional(notional: float | str | None, symbol: str) -> float | None:
     """
     Validate and normalize notional parameter.
 
@@ -82,10 +81,10 @@ def validate_notional(notional: Union[float, str, None], symbol: str) -> Optiona
 
 def validate_order_parameters(
     symbol: str,
-    qty: Optional[float] = None,
-    notional: Optional[float] = None,
-    limit_price: Optional[float] = None,
-) -> Tuple[bool, Optional[str]]:
+    qty: float | None = None,
+    notional: float | None = None,
+    limit_price: float | None = None,
+) -> tuple[bool, str | None]:
     """
     Validate order parameters for common issues.
 

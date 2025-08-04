@@ -7,7 +7,6 @@ including position validation, liquidation logic, and buying power checks.
 """
 
 import logging
-from typing import Dict, Optional, Tuple
 
 
 class PositionManager:
@@ -20,7 +19,7 @@ class PositionManager:
         self.trading_client = trading_client
         self.data_provider = data_provider
 
-    def get_current_positions(self) -> Dict[str, float]:
+    def get_current_positions(self) -> dict[str, float]:
         """
         Get all current positions from Alpaca.
 
@@ -40,7 +39,7 @@ class PositionManager:
 
     def validate_sell_position(
         self, symbol: str, requested_qty: float
-    ) -> Tuple[bool, float, Optional[str]]:
+    ) -> tuple[bool, float, str | None]:
         """
         Validate and adjust sell quantity based on available position.
 
@@ -83,7 +82,7 @@ class PositionManager:
         # Use liquidation API for selling 99%+ of position
         return requested_qty >= available * 0.99
 
-    def validate_buying_power(self, symbol: str, qty: float) -> Tuple[bool, Optional[str]]:
+    def validate_buying_power(self, symbol: str, qty: float) -> tuple[bool, str | None]:
         """
         Validate buying power for a purchase.
 
@@ -117,7 +116,7 @@ class PositionManager:
             warning_msg = f"Unable to validate buying power for {symbol}: {e}"
             return True, warning_msg  # Continue with order despite validation error
 
-    def execute_liquidation(self, symbol: str) -> Optional[str]:
+    def execute_liquidation(self, symbol: str) -> str | None:
         """
         Execute position liquidation using Alpaca's close_position API.
 

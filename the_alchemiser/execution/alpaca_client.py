@@ -44,7 +44,6 @@ Example:
 
 import logging
 import time
-from typing import Dict, List, Optional
 
 from alpaca.trading.client import TradingClient
 from alpaca.trading.enums import OrderSide
@@ -107,7 +106,7 @@ class AlpacaClient:
         self.pricing_handler = SmartPricingHandler(data_provider)
         self.websocket_manager = WebSocketConnectionManager(trading_client)
 
-    def get_current_positions(self) -> Dict[str, float]:
+    def get_current_positions(self) -> dict[str, float]:
         """Get all current positions from Alpaca.
 
         Returns:
@@ -115,7 +114,7 @@ class AlpacaClient:
         """
         return self.position_manager.get_current_positions()
 
-    def get_pending_orders(self) -> List[Dict]:
+    def get_pending_orders(self) -> list[dict]:
         """Get all pending orders from Alpaca.
 
         Returns:
@@ -123,7 +122,7 @@ class AlpacaClient:
         """
         return self.position_manager.get_pending_orders()
 
-    def cancel_all_orders(self, symbol: Optional[str] = None) -> bool:
+    def cancel_all_orders(self, symbol: str | None = None) -> bool:
         """
         Cancel all pending orders, optionally filtered by symbol.
 
@@ -138,7 +137,7 @@ class AlpacaClient:
         else:
             return self.position_manager.cancel_all_orders()
 
-    def liquidate_position(self, symbol: str) -> Optional[str]:
+    def liquidate_position(self, symbol: str) -> str | None:
         """
         Liquidate entire position using Alpaca's close_position API.
 
@@ -158,10 +157,10 @@ class AlpacaClient:
         self,
         symbol: str,
         side: OrderSide,
-        qty: Optional[float] = None,
-        notional: Optional[float] = None,
+        qty: float | None = None,
+        notional: float | None = None,
         cancel_existing: bool = True,
-    ) -> Optional[str]:
+    ) -> str | None:
         """
         Place a simple market order using helper modules for validation and asset handling.
 
@@ -292,7 +291,7 @@ class AlpacaClient:
         side: OrderSide,
         limit_price: float,
         cancel_existing: bool = True,
-    ) -> Optional[str]:
+    ) -> str | None:
         """
         Place a limit order using the specialized limit order handler.
 
@@ -310,7 +309,7 @@ class AlpacaClient:
             symbol, qty, side, limit_price, cancel_existing
         )
 
-    def place_smart_sell_order(self, symbol: str, qty: float) -> Optional[str]:
+    def place_smart_sell_order(self, symbol: str, qty: float) -> str | None:
         """
         Smart sell order that uses liquidation API for full position sells.
 
@@ -342,7 +341,7 @@ class AlpacaClient:
 
     def get_smart_limit_price(
         self, symbol: str, side: OrderSide, aggressiveness: float = 0.5
-    ) -> Optional[float]:
+    ) -> float | None:
         """
         Get a smart limit price based on current bid/ask.
 
@@ -356,19 +355,19 @@ class AlpacaClient:
         """
         return self.pricing_handler.get_smart_limit_price(symbol, side, aggressiveness)
 
-    def get_aggressive_sell_price(self, symbol: str) -> Optional[float]:
+    def get_aggressive_sell_price(self, symbol: str) -> float | None:
         """Get aggressive sell pricing for quick liquidation."""
         return self.pricing_handler.get_aggressive_sell_price(symbol)
 
-    def get_conservative_buy_price(self, symbol: str) -> Optional[float]:
+    def get_conservative_buy_price(self, symbol: str) -> float | None:
         """Get conservative buy pricing for better fills."""
         return self.pricing_handler.get_conservative_buy_price(symbol)
 
     def wait_for_order_completion(
         self,
-        order_ids: List[str],
+        order_ids: list[str],
         max_wait_seconds: int = 60,
-    ) -> Dict[str, str]:
+    ) -> dict[str, str]:
         """Wait for orders to reach a final state."""
         return self.order_monitor.wait_for_order_completion(order_ids, max_wait_seconds)
 

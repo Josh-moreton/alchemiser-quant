@@ -1,3 +1,5 @@
+__all__ = ["StrategyType"]
+
 #!/usr/bin/env python3
 """
 Multi-Strategy Portfolio Manager
@@ -16,7 +18,7 @@ Key Features:
 
 import logging
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from rich.console import Console
 
@@ -41,7 +43,7 @@ class StrategyPosition:
         self.reason = reason
         self.timestamp = timestamp
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "strategy_type": self.strategy_type.value,
             "symbol": self.symbol,
@@ -51,7 +53,7 @@ class StrategyPosition:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict) -> "StrategyPosition":
+    def from_dict(cls, data: dict) -> "StrategyPosition":
         return cls(
             strategy_type=StrategyType(data["strategy_type"]),
             symbol=data["symbol"],
@@ -66,7 +68,7 @@ class MultiStrategyManager:
 
     def __init__(
         self,
-        strategy_allocations: Optional[Dict[StrategyType, float]] = None,
+        strategy_allocations: dict[StrategyType, float] | None = None,
         shared_data_provider=None,
         config=None,
     ):
@@ -135,7 +137,7 @@ class MultiStrategyManager:
 
     def run_all_strategies(
         self,
-    ) -> Tuple[Dict[StrategyType, Any], Dict[str, float], Dict[str, List[StrategyType]]]:
+    ) -> tuple[dict[StrategyType, Any], dict[str, float], dict[str, list[StrategyType]]]:
         """
         Run all enabled strategies and generate consolidated portfolio allocation
 
@@ -318,7 +320,7 @@ class MultiStrategyManager:
         logging.debug(f"Strategy attribution: {strategy_attribution}")
         return strategy_signals, consolidated_portfolio, strategy_attribution
 
-    def _get_nuclear_portfolio_allocation(self, signal_data: Dict) -> Dict[str, float]:
+    def _get_nuclear_portfolio_allocation(self, signal_data: dict) -> dict[str, float]:
         """Extract portfolio allocation from Nuclear strategy signal"""
         indicators = signal_data.get("indicators", {})
         market_data = signal_data.get("market_data", {})
@@ -374,8 +376,8 @@ class MultiStrategyManager:
         return {}
 
     def _get_strategy_portfolio_allocation(
-        self, signal_data: Dict, strategy_type: StrategyType
-    ) -> Dict[str, float]:
+        self, signal_data: dict, strategy_type: StrategyType
+    ) -> dict[str, float]:
         """Extract portfolio allocation from any strategy signal"""
         if strategy_type == StrategyType.TECL:
             # Handle both single symbol and multi-asset allocations from TECL strategy
@@ -391,7 +393,7 @@ class MultiStrategyManager:
         return {}
 
     def _update_position_tracking(
-        self, strategy_signals: Dict[StrategyType, Any], consolidated_portfolio: Dict[str, float]
+        self, strategy_signals: dict[StrategyType, Any], consolidated_portfolio: dict[str, float]
     ):
         """
         Update position tracking with current strategy positions
@@ -434,7 +436,7 @@ class MultiStrategyManager:
         except Exception as e:
             logging.error(f"Error updating position tracking: {e}")
 
-    def get_strategy_performance_summary(self) -> Dict[str, Any]:
+    def get_strategy_performance_summary(self) -> dict[str, Any]:
         """Get a summary of each strategy's recent performance and current positions"""
         # Position tracking between runs is disabled
         positions = {strategy: [] for strategy in StrategyType}

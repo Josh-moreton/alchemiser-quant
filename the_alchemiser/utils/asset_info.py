@@ -8,7 +8,6 @@ This helps optimize order placement strategies for different asset types.
 
 import logging
 from enum import Enum
-from typing import Dict, Optional
 
 try:
     from alpaca.trading.client import TradingClient
@@ -40,7 +39,7 @@ class FractionabilityDetector:
     fractionability information with intelligent caching and fallbacks.
     """
 
-    def __init__(self, trading_client: Optional[TradingClient] = None):
+    def __init__(self, trading_client: TradingClient | None = None):
         """
         Initialize with optional trading client for API access.
 
@@ -48,7 +47,7 @@ class FractionabilityDetector:
             trading_client: Alpaca trading client (will create one if None)
         """
         self.trading_client = trading_client
-        self._fractionability_cache: Dict[str, bool] = {}
+        self._fractionability_cache: dict[str, bool] = {}
 
         # Backup prediction patterns (used only when API is unavailable)
         # NOTE: These were mostly wrong based on API testing, so we only use them as fallback
@@ -79,7 +78,7 @@ class FractionabilityDetector:
                     f"⚠️ Could not initialize Alpaca client: {e}, using fallback prediction"
                 )
 
-    def _query_alpaca_fractionability(self, symbol: str) -> Optional[bool]:
+    def _query_alpaca_fractionability(self, symbol: str) -> bool | None:
         """
         Query Alpaca API for definitive fractionability information.
 
@@ -274,7 +273,7 @@ class FractionabilityDetector:
 
         return float(whole_shares), used_rounding
 
-    def get_cache_stats(self) -> Dict[str, int]:
+    def get_cache_stats(self) -> dict[str, int]:
         """Get statistics about the fractionability cache."""
         return {
             "cached_symbols": len(self._fractionability_cache),

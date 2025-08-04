@@ -9,7 +9,6 @@ and fallback strategies.
 
 import logging
 from decimal import ROUND_DOWN, Decimal
-from typing import Optional, Tuple
 
 from alpaca.trading.enums import OrderSide, TimeInForce
 from alpaca.trading.requests import MarketOrderRequest
@@ -30,9 +29,9 @@ class AssetOrderHandler:
         self,
         symbol: str,
         side: OrderSide,
-        qty: Optional[float] = None,
-        notional: Optional[float] = None,
-    ) -> Tuple[Optional[MarketOrderRequest], Optional[str]]:
+        qty: float | None = None,
+        notional: float | None = None,
+    ) -> tuple[MarketOrderRequest | None, str | None]:
         """
         Prepare a market order request with smart asset handling.
 
@@ -54,7 +53,7 @@ class AssetOrderHandler:
 
     def _prepare_quantity_order(
         self, symbol: str, side: OrderSide, qty: float
-    ) -> Tuple[Optional[MarketOrderRequest], Optional[str]]:
+    ) -> tuple[MarketOrderRequest | None, str | None]:
         """Prepare quantity-based market order with smart conversion logic."""
 
         # Get current price for potential conversion
@@ -102,7 +101,7 @@ class AssetOrderHandler:
 
     def _prepare_notional_order(
         self, symbol: str, side: OrderSide, notional: float
-    ) -> Tuple[Optional[MarketOrderRequest], Optional[str]]:
+    ) -> tuple[MarketOrderRequest | None, str | None]:
         """Prepare notional-based market order."""
         notional = round(notional, 2)  # Round to cents
 
@@ -114,7 +113,7 @@ class AssetOrderHandler:
 
     def handle_fractionability_error(
         self, symbol: str, side: OrderSide, original_qty: float, error_msg: str
-    ) -> Tuple[Optional[MarketOrderRequest], Optional[str]]:
+    ) -> tuple[MarketOrderRequest | None, str | None]:
         """
         Handle fractionability errors by converting to appropriate order type.
 
@@ -160,7 +159,7 @@ class AssetOrderHandler:
 
     def prepare_limit_order_quantity(
         self, symbol: str, qty: float, limit_price: float
-    ) -> Tuple[float, bool]:
+    ) -> tuple[float, bool]:
         """
         Prepare quantity for limit order with asset-specific handling.
 
@@ -202,7 +201,7 @@ class AssetOrderHandler:
 
     def handle_limit_order_fractionability_error(
         self, symbol: str, original_qty: float, limit_price: float, error_msg: str
-    ) -> Tuple[Optional[float], Optional[str]]:
+    ) -> tuple[float | None, str | None]:
         """
         Handle fractionability errors for limit orders.
 

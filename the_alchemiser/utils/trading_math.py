@@ -209,7 +209,7 @@ def calculate_rebalance_amounts(
     current_values: dict[str, float],
     total_portfolio_value: float,
     min_trade_threshold: float = 0.01,  # 1% minimum threshold for trades
-) -> dict[str, dict]:
+) -> dict[str, dict[str, float]]:
     """Calculate comprehensive rebalancing plan for all portfolio positions.
 
     This function analyzes the entire portfolio and calculates the specific

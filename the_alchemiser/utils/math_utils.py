@@ -13,7 +13,6 @@ Functions include:
 """
 
 import logging
-from typing import Optional
 
 import pandas as pd
 
@@ -212,7 +211,7 @@ def normalize_to_range(
     return target_min + normalized * (target_max - target_min)
 
 
-def calculate_ensemble_score(performance_metrics: list, weights: Optional[list] = None) -> float:
+def calculate_ensemble_score(performance_metrics: list, weights: list | None = None) -> float:
     """
     Calculate a weighted ensemble score from multiple performance metrics.
 
@@ -238,7 +237,7 @@ def calculate_ensemble_score(performance_metrics: list, weights: Optional[list] 
             weights.extend([1.0] * (len(metrics) - len(weights)))  # Pad if too short
 
     try:
-        weighted_sum = sum(m * w for m, w in zip(metrics, weights))
+        weighted_sum = sum(m * w for m, w in zip(metrics, weights, strict=False))
         total_weight = sum(weights)
         return weighted_sum / total_weight if total_weight > 0 else 0.0
     except Exception:

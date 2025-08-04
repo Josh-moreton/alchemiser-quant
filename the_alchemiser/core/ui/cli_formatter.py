@@ -1,4 +1,4 @@
-from typing import Any, Dict, List
+from typing import Any
 
 from rich.align import Align
 from rich.console import Console
@@ -10,13 +10,13 @@ from rich.table import Table
 
 
 def render_technical_indicators(
-    strategy_signals: Dict[Any, Any], console: Console | None = None
+    strategy_signals: dict[Any, Any], console: Console | None = None
 ) -> None:
     """
     Pretty-print technical indicators using rich Table.
     If console is None, creates a new Console and prints directly.
     """
-    all_indicators: Dict[str, Dict[str, Any]] = {}
+    all_indicators: dict[str, dict[str, Any]] = {}
     for _, data in strategy_signals.items():
         if "indicators" in data and data["indicators"]:
             all_indicators.update(data["indicators"])
@@ -113,7 +113,7 @@ def render_technical_indicators(
 
 
 def render_strategy_signals(
-    strategy_signals: Dict[Any, Any], console: Console | None = None
+    strategy_signals: dict[Any, Any], console: Console | None = None
 ) -> None:
     """Pretty-print strategy signals using rich panels with detailed explanations."""
     c = console or Console()
@@ -162,7 +162,7 @@ def render_strategy_signals(
 
 
 def render_portfolio_allocation(
-    portfolio: Dict[str, float], title: str = "PORTFOLIO ALLOCATION", console: Console | None = None
+    portfolio: dict[str, float], title: str = "PORTFOLIO ALLOCATION", console: Console | None = None
 ) -> None:
     """Pretty-print portfolio allocation using rich table."""
     c = console or Console()
@@ -186,7 +186,7 @@ def render_portfolio_allocation(
     c.print(table)
 
 
-def render_trading_summary(orders_executed: List[Dict], console: Console | None = None) -> None:
+def render_trading_summary(orders_executed: list[dict], console: Console | None = None) -> None:
     """Pretty-print trading execution summary."""
     c = console or Console()
 
@@ -250,7 +250,7 @@ def render_trading_summary(orders_executed: List[Dict], console: Console | None 
         c.print(detail_table)
 
 
-def render_account_info(account_info: Dict, console: Console | None = None) -> None:
+def render_account_info(account_info: dict, console: Console | None = None) -> None:
     """Render account information including P&L data"""
     c = console or Console()
 
@@ -377,9 +377,9 @@ def render_footer(message: str, success: bool = True, console: Console | None = 
 
 
 def render_target_vs_current_allocations(
-    target_portfolio: Dict[str, float],
-    account_info: Dict,
-    current_positions: Dict,
+    target_portfolio: dict[str, float],
+    account_info: dict,
+    current_positions: dict,
     console: Console | None = None,
 ) -> None:
     """Pretty-print target vs current allocations comparison with enhanced Rich table."""
@@ -449,7 +449,7 @@ def render_target_vs_current_allocations(
 
 
 def render_execution_plan(
-    sell_orders: List[Dict], buy_orders: List[Dict], console: Console | None = None
+    sell_orders: list[dict], buy_orders: list[dict], console: Console | None = None
 ) -> None:
     """Pretty-print the execution plan before trading."""
     c = console or Console()

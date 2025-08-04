@@ -47,7 +47,9 @@ def parse_event_mode(event: dict[str, Any]) -> list[str]:
 
     # Handle empty, None, or events without mode specified
     if not event or not event.get("mode"):
-        logger.info("No event or mode provided, using default paper trading mode with market hours ignored")
+        logger.info(
+            "No event or mode provided, using default paper trading mode with market hours ignored"
+        )
         return default_args
 
     # Extract mode (bot or trade)

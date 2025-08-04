@@ -27,9 +27,10 @@ KEY FEATURES:
 import logging
 import threading
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Any, Callable, Dict, Optional, Set, Tuple, Union
+from typing import Any
 
 from alpaca.data.enums import DataFeed
 from alpaca.data.live import StockDataStream
@@ -80,23 +81,23 @@ class RealTimePricingService:
         self.paper_trading = paper_trading
 
         # Real-time quote storage (thread-safe)
-        self._quotes: Dict[str, RealTimeQuote] = {}
+        self._quotes: dict[str, RealTimeQuote] = {}
         self._quotes_lock = threading.RLock()
 
         # Subscription management
-        self._subscribed_symbols: Set[str] = set()
+        self._subscribed_symbols: set[str] = set()
         self._subscription_lock = threading.RLock()
-        self._subscription_priority: Dict[str, float] = {}  # symbol -> priority score
+        self._subscription_priority: dict[str, float] = {}  # symbol -> priority score
         self._max_symbols = 5  # Stay under Alpaca's subscription limits
 
         # Connection management
-        self._stream: Optional[StockDataStream] = None
-        self._stream_thread: Optional[threading.Thread] = None
+        self._stream: StockDataStream | None = None
+        self._stream_thread: threading.Thread | None = None
         self._connected = False
         self._should_reconnect = True
 
         # Quote age tracking for cleanup
-        self._last_update: Dict[str, datetime] = {}
+        self._last_update: dict[str, datetime] = {}
         self._cleanup_interval = 300  # 5 minutes
         self._max_quote_age = 600  # 10 minutes
 
@@ -207,7 +208,7 @@ class RealTimePricingService:
                 else:
                     break
 
-    async def _on_quote(self, quote: Union[Quote, Dict[str, Any]]) -> None:
+    async def _on_quote(self, quote: Quote | dict[str, Any]) -> None:
         """Handle incoming quote updates."""
         try:
             # Handle both Quote objects and dictionary format
@@ -255,7 +256,7 @@ class RealTimePricingService:
             )
             logging.error(f"Error processing quote for {symbol_str}: {e}")
 
-    async def _on_trade(self, trade: Union[Trade, Dict[str, Any]]) -> None:
+    async def _on_trade(self, trade: Trade | dict[str, Any]) -> None:
         """Handle incoming trade updates."""
         try:
             # Handle both Trade objects and dictionary format
@@ -337,7 +338,7 @@ class RealTimePricingService:
             except Exception as e:
                 logging.error(f"Error during quote cleanup: {e}")
 
-    def get_real_time_quote(self, symbol: str) -> Optional[RealTimeQuote]:
+    def get_real_time_quote(self, symbol: str) -> RealTimeQuote | None:
         """
         Get real-time quote for a symbol.
 
@@ -350,7 +351,7 @@ class RealTimePricingService:
         with self._quotes_lock:
             return self._quotes.get(symbol)
 
-    def get_real_time_price(self, symbol: str) -> Optional[float]:
+    def get_real_time_price(self, symbol: str) -> float | None:
         """
         Get the best available real-time price for a symbol.
 
@@ -380,7 +381,7 @@ class RealTimePricingService:
 
         return None
 
-    def get_bid_ask_spread(self, symbol: str) -> Optional[Tuple[float, float]]:
+    def get_bid_ask_spread(self, symbol: str) -> tuple[float, float] | None:
         """
         Get current bid/ask spread for a symbol.
 
@@ -407,7 +408,7 @@ class RealTimePricingService:
         """Check if the real-time service is connected."""
         return self._connected
 
-    def get_stats(self) -> Dict:
+    def get_stats(self) -> dict:
         """Get service statistics."""
         return {
             **self._stats,
@@ -420,7 +421,7 @@ class RealTimePricingService:
             ),
         }
 
-    def subscribe_symbol(self, symbol: str, priority: Optional[float] = None) -> None:
+    def subscribe_symbol(self, symbol: str, priority: float | None = None) -> None:
         """
         Subscribe to real-time updates for a specific symbol with smart limit management.
 
@@ -548,7 +549,7 @@ class RealTimePricingService:
                         f"Keeping subscription for {symbol} (normal priority: {current_priority:.1f})"
                     )
 
-    def get_optimized_price_for_order(self, symbol: str) -> Optional[float]:
+    def get_optimized_price_for_order(self, symbol: str) -> float | None:
         """
         Get the most accurate price for order placement with temporary subscription.
 
@@ -570,7 +571,7 @@ class RealTimePricingService:
         price = self.get_real_time_price(symbol)
         return price
 
-    def get_subscribed_symbols(self) -> Set[str]:
+    def get_subscribed_symbols(self) -> set[str]:
         """Get set of currently subscribed symbols."""
         with self._subscription_lock:
             return self._subscribed_symbols.copy()
@@ -594,9 +595,9 @@ class RealTimePricingManager:
             paper_trading: Whether to use paper trading environment
         """
         self.pricing_service = RealTimePricingService(api_key, secret_key, paper_trading)
-        self._fallback_provider: Optional[Callable] = None
+        self._fallback_provider: Callable | None = None
 
-    def set_fallback_provider(self, provider: Callable[[str], Optional[float]]) -> None:
+    def set_fallback_provider(self, provider: Callable[[str], float | None]) -> None:
         """
         Set fallback price provider for when real-time data is not available.
 
@@ -613,7 +614,7 @@ class RealTimePricingManager:
         """Stop the real-time pricing service."""
         self.pricing_service.stop()
 
-    def get_current_price(self, symbol: str) -> Optional[float]:
+    def get_current_price(self, symbol: str) -> float | None:
         """
         Get current price with real-time data priority.
 
@@ -634,7 +635,7 @@ class RealTimePricingManager:
 
         return None
 
-    def get_latest_quote(self, symbol: str) -> Optional[Tuple[float, float]]:
+    def get_latest_quote(self, symbol: str) -> tuple[float, float] | None:
         """
         Get latest bid/ask quote with real-time data priority.
 
@@ -664,7 +665,7 @@ class RealTimePricingManager:
         """
         self.pricing_service.unsubscribe_after_order(symbol)
 
-    def get_price_for_order_placement(self, symbol: str) -> Optional[float]:
+    def get_price_for_order_placement(self, symbol: str) -> float | None:
         """
         Get optimized price for order placement with just-in-time subscription.
 
@@ -689,10 +690,10 @@ class RealTimePricingManager:
         """Check if real-time pricing is available."""
         return self.pricing_service.is_connected()
 
-    def get_stats(self) -> Dict:
+    def get_stats(self) -> dict:
         """Get real-time pricing statistics."""
         return self.pricing_service.get_stats()
 
-    def get_subscribed_symbols(self) -> Set[str]:
+    def get_subscribed_symbols(self) -> set[str]:
         """Get currently subscribed symbols."""
         return self.pricing_service.get_subscribed_symbols()

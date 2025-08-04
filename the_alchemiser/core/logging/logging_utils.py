@@ -3,7 +3,6 @@ import logging
 import os
 import sys
 from datetime import datetime
-from typing import List, Optional, Union
 
 from the_alchemiser.core.utils.s3_utils import S3FileHandler
 
@@ -74,8 +73,8 @@ def log_with_context(logger: logging.Logger, level: int, message: str, **context
 
 def setup_logging(
     log_level: int = logging.INFO,
-    log_file: Optional[str] = None,
-    console_level: Optional[int] = None,
+    log_file: str | None = None,
+    console_level: int | None = None,
     suppress_third_party: bool = True,
     structured_format: bool = False,
     enable_file_rotation: bool = False,
@@ -111,7 +110,7 @@ def setup_logging(
     console_handler.setFormatter(formatter)
     console_handler.setLevel(console_level if console_level is not None else log_level)
 
-    handlers: List[logging.Handler] = [console_handler]
+    handlers: list[logging.Handler] = [console_handler]
 
     # File handler if specified
     if log_file:
@@ -183,7 +182,7 @@ def configure_test_logging(log_level: int = logging.WARNING) -> None:
 
 
 def configure_production_logging(
-    log_level: int = logging.INFO, log_file: Optional[str] = None
+    log_level: int = logging.INFO, log_file: str | None = None
 ) -> None:
     """Configure logging for production environment with structured format."""
     setup_logging(
@@ -198,7 +197,7 @@ def configure_production_logging(
 
 def get_trading_logger(
     module_name: str, **context
-) -> Union[logging.Logger, AlchemiserLoggerAdapter]:
+) -> logging.Logger | AlchemiserLoggerAdapter:
     """
     Get a logger specifically configured for trading operations.
 

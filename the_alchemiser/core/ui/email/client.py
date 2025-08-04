@@ -10,7 +10,6 @@ from email import encoders
 from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from typing import List, Optional
 
 from .config import get_email_config
 
@@ -31,9 +30,9 @@ class EmailClient:
         self,
         subject: str,
         html_content: str,
-        text_content: Optional[str] = None,
-        recipient_email: Optional[str] = None,
-        attachments: Optional[List[tuple]] = None,
+        text_content: str | None = None,
+        recipient_email: str | None = None,
+        attachments: list[tuple] | None = None,
     ) -> bool:
         """Send an email notification with HTML content.
 
@@ -98,7 +97,7 @@ class EmailClient:
             return False
 
     def send_plain_text(
-        self, subject: str, text_content: str, recipient_email: Optional[str] = None
+        self, subject: str, text_content: str, recipient_email: str | None = None
     ) -> bool:
         """Send a plain text email notification.
 
@@ -125,8 +124,8 @@ _email_client = EmailClient()
 def send_email_notification(
     subject: str,
     html_content: str,
-    text_content: Optional[str] = None,
-    recipient_email: Optional[str] = None,
+    text_content: str | None = None,
+    recipient_email: str | None = None,
 ) -> bool:
     """Send an email notification (backward compatibility function)."""
     return _email_client.send_notification(

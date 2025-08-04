@@ -10,7 +10,6 @@ This module handles all performance metric calculations including:
 """
 
 from dataclasses import dataclass
-from typing import List, Tuple
 
 import numpy as np
 import pandas as pd
@@ -42,7 +41,7 @@ class MetricsCalculator:
 
     @staticmethod
     def calculate_performance_metrics(
-        equity_curve: List[float],
+        equity_curve: list[float],
         initial_equity: float,
         trading_days: int,
         risk_free_rate: float = 0.02,
@@ -116,7 +115,7 @@ class MetricsCalculator:
         )
 
     @staticmethod
-    def calculate_max_drawdown(equity_curve: List[float]) -> float:
+    def calculate_max_drawdown(equity_curve: list[float]) -> float:
         """
         Calculate maximum drawdown from equity curve
 
@@ -144,8 +143,8 @@ class MetricsCalculator:
 
     @staticmethod
     def calculate_rolling_sharpe(
-        equity_curve: List[float], window: int = 252, risk_free_rate: float = 0.02
-    ) -> List[float]:
+        equity_curve: list[float], window: int = 252, risk_free_rate: float = 0.02
+    ) -> list[float]:
         """
         Calculate rolling Sharpe ratio
 
@@ -188,7 +187,7 @@ class MetricsCalculator:
 
     @staticmethod
     def calculate_monthly_returns(
-        equity_curve: List[float], dates: List[pd.Timestamp]
+        equity_curve: list[float], dates: list[pd.Timestamp]
     ) -> pd.DataFrame:
         """
         Calculate monthly return breakdown
@@ -218,7 +217,7 @@ class MetricsCalculator:
         )
 
     @staticmethod
-    def compare_strategies(results: List[Tuple[str, PerformanceMetrics]]) -> pd.DataFrame:
+    def compare_strategies(results: list[tuple[str, PerformanceMetrics]]) -> pd.DataFrame:
         """
         Create comparison table of multiple strategies
 

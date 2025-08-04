@@ -21,7 +21,6 @@ import os
 import pickle
 import sys
 from pathlib import Path
-from typing import Dict, List, Optional, Set, Tuple
 
 import pandas as pd
 from rich.console import Console
@@ -49,18 +48,18 @@ class BacktestDataCache:
         self.cache_dir.mkdir(exist_ok=True)
 
         # In-memory cache
-        self._daily_data_cache: Dict[str, pd.DataFrame] = {}
-        self._minute_data_cache: Dict[str, pd.DataFrame] = {}
-        self._cache_metadata: Dict[str, dict] = {}
+        self._daily_data_cache: dict[str, pd.DataFrame] = {}
+        self._minute_data_cache: dict[str, pd.DataFrame] = {}
+        self._cache_metadata: dict[str, dict] = {}
 
         # Data provider for fetching
-        self._data_provider: Optional[UnifiedDataProvider] = None
+        self._data_provider: UnifiedDataProvider | None = None
 
     def get_cache_key(
         self,
         start_date: dt.datetime,
         end_date: dt.datetime,
-        symbols: List[str],
+        symbols: list[str],
         include_minute_data: bool = False,
     ) -> str:
         """Generate a unique cache key for the given parameters."""
@@ -87,8 +86,8 @@ class BacktestDataCache:
     def save_cache_to_disk(
         self,
         cache_key: str,
-        daily_data: Dict[str, pd.DataFrame],
-        minute_data: Optional[Dict[str, pd.DataFrame]] = None,
+        daily_data: dict[str, pd.DataFrame],
+        minute_data: dict[str, pd.DataFrame] | None = None,
     ) -> bool:
         """Save cached data to disk for reuse."""
         try:
@@ -113,7 +112,7 @@ class BacktestDataCache:
 
     def load_cache_from_disk(
         self, cache_key: str
-    ) -> Tuple[Dict[str, pd.DataFrame], Dict[str, pd.DataFrame]]:
+    ) -> tuple[dict[str, pd.DataFrame], dict[str, pd.DataFrame]]:
         """Load cached data from disk."""
         try:
             cache_file = self.get_cache_file_path(cache_key)
@@ -137,7 +136,7 @@ class BacktestDataCache:
             console.print(f"[red]❌ Failed to load cache: {e}[/red]")
             return {}, {}
 
-    def get_all_required_symbols(self, include_benchmarks: bool = True) -> Set[str]:
+    def get_all_required_symbols(self, include_benchmarks: bool = True) -> set[str]:
         """
         Discover all symbols that might be needed for backtesting.
 
@@ -225,10 +224,10 @@ class BacktestDataCache:
         self,
         start_date: dt.datetime,
         end_date: dt.datetime,
-        symbols: Optional[List[str]] = None,
+        symbols: list[str] | None = None,
         include_minute_data: bool = False,
         force_refresh: bool = False,
-    ) -> Tuple[Dict[str, pd.DataFrame], Dict[str, pd.DataFrame]]:
+    ) -> tuple[dict[str, pd.DataFrame], dict[str, pd.DataFrame]]:
         """
         Pre-load all required historical data for backtesting.
 
@@ -449,7 +448,7 @@ class BacktestDataCache:
 
         return daily_data, minute_data
 
-    def get_symbol_data(self, symbol: str, data_type: str = "daily") -> Optional[pd.DataFrame]:
+    def get_symbol_data(self, symbol: str, data_type: str = "daily") -> pd.DataFrame | None:
         """
         Get cached data for a specific symbol.
 
@@ -467,7 +466,7 @@ class BacktestDataCache:
         else:
             raise ValueError(f"Invalid data_type: {data_type}")
 
-    def get_cache_stats(self) -> Dict[str, float]:
+    def get_cache_stats(self) -> dict[str, float]:
         """Get statistics about the current cache."""
         total_daily_rows = sum(len(df) for df in self._daily_data_cache.values())
         total_minute_rows = sum(len(df) for df in self._minute_data_cache.values())
@@ -506,7 +505,7 @@ class BacktestDataCache:
 
 
 # Global cache instance for sharing across modules
-_global_cache: Optional[BacktestDataCache] = None
+_global_cache: BacktestDataCache | None = None
 
 
 def get_global_cache() -> BacktestDataCache:
@@ -520,10 +519,10 @@ def get_global_cache() -> BacktestDataCache:
 def preload_backtest_data(
     start_date: dt.datetime,
     end_date: dt.datetime,
-    symbols: Optional[List[str]] = None,
+    symbols: list[str] | None = None,
     include_minute_data: bool = False,
     force_refresh: bool = False,
-) -> Tuple[Dict[str, pd.DataFrame], Dict[str, pd.DataFrame]]:
+) -> tuple[dict[str, pd.DataFrame], dict[str, pd.DataFrame]]:
     """
     Convenience function to pre-load data using the global cache.
 
@@ -534,7 +533,7 @@ def preload_backtest_data(
     return cache.preload_all_data(start_date, end_date, symbols, include_minute_data, force_refresh)
 
 
-def get_cached_symbol_data(symbol: str, data_type: str = "daily") -> Optional[pd.DataFrame]:
+def get_cached_symbol_data(symbol: str, data_type: str = "daily") -> pd.DataFrame | None:
     """Get cached data for a symbol from the global cache."""
     cache = get_global_cache()
     return cache.get_symbol_data(symbol, data_type)

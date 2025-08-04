@@ -4,7 +4,7 @@ This module handles building HTML content for portfolio tables,
 position summaries, and portfolio allocations.
 """
 
-from typing import Any, Dict, List
+from typing import Any
 
 from .base import BaseEmailTemplate
 
@@ -13,7 +13,7 @@ class PortfolioBuilder:
     """Builds portfolio-related HTML content for emails."""
 
     @staticmethod
-    def build_positions_table(open_positions: List[Dict]) -> str:
+    def build_positions_table(open_positions: list[dict]) -> str:
         """Build HTML table for open positions."""
         if not open_positions:
             return BaseEmailTemplate.create_alert_box("No open positions", "info")
@@ -77,7 +77,7 @@ class PortfolioBuilder:
         """
 
     @staticmethod
-    def build_account_summary(account_info: Dict) -> str:
+    def build_account_summary(account_info: dict) -> str:
         """Build HTML for account summary table."""
         if not account_info:
             return BaseEmailTemplate.create_alert_box("Account information unavailable", "warning")
@@ -163,7 +163,7 @@ class PortfolioBuilder:
             return f"<span style='color: #EF4444;'>Error loading portfolio: {str(e)}</span>"
 
     @staticmethod
-    def build_closed_positions_pnl(account_info: Dict) -> str:
+    def build_closed_positions_pnl(account_info: dict) -> str:
         """Build HTML for recent closed positions P&L section."""
         if not account_info or not account_info.get("recent_closed_pnl"):
             return ""
@@ -244,7 +244,7 @@ class PortfolioBuilder:
     # ====== NEUTRAL MODE FUNCTIONS (NO DOLLAR VALUES/PERCENTAGES) ======
 
     @staticmethod
-    def build_positions_table_neutral(open_positions: List[Dict]) -> str:
+    def build_positions_table_neutral(open_positions: list[dict]) -> str:
         """Build HTML table for open positions without dollar values or percentages."""
         if not open_positions:
             return BaseEmailTemplate.create_alert_box("No open positions", "info")
@@ -285,7 +285,7 @@ class PortfolioBuilder:
         """
 
     @staticmethod
-    def build_account_summary_neutral(account_info: Dict) -> str:
+    def build_account_summary_neutral(account_info: dict) -> str:
         """Build HTML for account summary without dollar values."""
         if not account_info:
             return BaseEmailTemplate.create_alert_box("Account information unavailable", "warning")

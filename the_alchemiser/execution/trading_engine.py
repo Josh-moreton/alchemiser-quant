@@ -17,7 +17,7 @@ Example:
 
 import logging
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Protocol, Tuple
+from typing import Any, Protocol
 
 # Core strategy and portfolio management
 from the_alchemiser.core.trading.strategy_manager import (
@@ -38,7 +38,7 @@ from .types import MultiStrategyExecutionResult
 class AccountInfoProvider(Protocol):
     """Protocol for account information retrieval."""
 
-    def get_account_info(self) -> Dict:
+    def get_account_info(self) -> dict:
         """Get comprehensive account information."""
         ...
 
@@ -46,7 +46,7 @@ class AccountInfoProvider(Protocol):
 class PositionProvider(Protocol):
     """Protocol for position data retrieval."""
 
-    def get_positions_dict(self) -> Dict[str, Dict]:
+    def get_positions_dict(self) -> dict[str, dict]:
         """Get current positions keyed by symbol."""
         ...
 
@@ -58,7 +58,7 @@ class PriceProvider(Protocol):
         """Get current price for a single symbol."""
         ...
 
-    def get_current_prices(self, symbols: List[str]) -> Dict[str, float]:
+    def get_current_prices(self, symbols: list[str]) -> dict[str, float]:
         """Get current prices for multiple symbols."""
         ...
 
@@ -68,9 +68,9 @@ class RebalancingService(Protocol):
 
     def rebalance_portfolio(
         self,
-        target_portfolio: Dict[str, float],
-        strategy_attribution: Optional[Dict[str, List[StrategyType]]] = None,
-    ) -> List[Dict]:
+        target_portfolio: dict[str, float],
+        strategy_attribution: dict[str, list[StrategyType]] | None = None,
+    ) -> list[dict]:
         """Rebalance portfolio to target allocation."""
         ...
 
@@ -104,7 +104,7 @@ class TradingEngine:
     def __init__(
         self,
         paper_trading: bool = True,
-        strategy_allocations: Optional[Dict[StrategyType, float]] = None,
+        strategy_allocations: dict[StrategyType, float] | None = None,
         ignore_market_hours: bool = False,
         config=None,
     ):
@@ -173,7 +173,7 @@ class TradingEngine:
         logging.info(f"TradingEngine initialized - Paper Trading: {self.paper_trading}")
 
     # --- Account and Position Methods ---
-    def get_account_info(self) -> Dict:
+    def get_account_info(self) -> dict:
         """Get comprehensive account information including P&L data.
 
         Retrieves detailed account information including portfolio value, equity,
@@ -208,7 +208,7 @@ class TradingEngine:
             logging.error(f"Failed to retrieve account information: {e}")
             return {}
 
-    def get_positions(self) -> Dict:
+    def get_positions(self) -> dict:
         """Get current positions via account service with engine context.
 
         Returns:
@@ -257,7 +257,7 @@ class TradingEngine:
             logging.error(f"Failed to get current price for {symbol}: {e}")
             return 0.0
 
-    def get_current_prices(self, symbols: List[str]) -> Dict[str, float]:
+    def get_current_prices(self, symbols: list[str]) -> dict[str, float]:
         """Get current prices for multiple symbols with engine-level validation.
 
         Args:
@@ -299,7 +299,7 @@ class TradingEngine:
 
     # --- Order and Rebalancing Methods ---
     def wait_for_settlement(
-        self, sell_orders: List[Dict], max_wait_time: int = 60, poll_interval: float = 2.0
+        self, sell_orders: list[dict], max_wait_time: int = 60, poll_interval: float = 2.0
     ) -> bool:
         """Wait for sell orders to settle by polling their status.
 
@@ -321,8 +321,8 @@ class TradingEngine:
         max_retries: int = 3,
         poll_timeout: int = 30,
         poll_interval: float = 2.0,
-        slippage_bps: Optional[float] = None,
-    ) -> Optional[str]:
+        slippage_bps: float | None = None,
+    ) -> str | None:
         """Place a limit or market order using the smart execution engine.
 
         Args:
@@ -343,9 +343,9 @@ class TradingEngine:
 
     def rebalance_portfolio(
         self,
-        target_portfolio: Dict[str, float],
-        strategy_attribution: Optional[Dict[str, List[StrategyType]]] = None,
-    ) -> List[Dict]:
+        target_portfolio: dict[str, float],
+        strategy_attribution: dict[str, list[StrategyType]] | None = None,
+    ) -> list[dict]:
         """Rebalance portfolio to target allocation with engine-level orchestration.
 
         Args:
@@ -393,8 +393,8 @@ class TradingEngine:
             return []
 
     def execute_rebalancing(
-        self, target_allocations: Dict[str, float], mode: str = "market"
-    ) -> Dict:
+        self, target_allocations: dict[str, float], mode: str = "market"
+    ) -> dict:
         """
         Execute portfolio rebalancing with the specified mode.
 
@@ -486,7 +486,7 @@ class TradingEngine:
             )
 
     # --- Reporting and Dashboard Methods ---
-    def _archive_daily_strategy_pnl(self, pnl_summary: Dict) -> None:
+    def _archive_daily_strategy_pnl(self, pnl_summary: dict) -> None:
         """Archive daily strategy P&L for historical tracking."""
         try:
             from the_alchemiser.tracking.strategy_order_tracker import get_strategy_tracker
@@ -505,7 +505,7 @@ class TradingEngine:
         except Exception as e:
             logging.error(f"Failed to archive daily strategy P&L: {e}")
 
-    def get_multi_strategy_performance_report(self) -> Dict:
+    def get_multi_strategy_performance_report(self) -> dict:
         """Generate comprehensive performance report for all strategies"""
         try:
             current_positions = self.get_positions()
@@ -523,13 +523,13 @@ class TradingEngine:
             return {"error": str(e)}
 
     def _build_portfolio_state_data(
-        self, target_portfolio: Dict[str, float], account_info: Dict, current_positions: Dict
-    ) -> Dict:
+        self, target_portfolio: dict[str, float], account_info: dict, current_positions: dict
+    ) -> dict:
         """Build portfolio state data for reporting purposes."""
         return build_portfolio_state_data(target_portfolio, account_info, current_positions)
 
     def _trigger_post_trade_validation(
-        self, strategy_signals: Dict[StrategyType, Any], orders_executed: List[Dict]
+        self, strategy_signals: dict[StrategyType, Any], orders_executed: list[dict]
     ):
         """
         Trigger post-trade technical indicator validation for live trading
@@ -588,8 +588,8 @@ class TradingEngine:
             logging.error(f"❌ Post-trade validation failed: {e}")
 
     def display_target_vs_current_allocations(
-        self, target_portfolio: Dict[str, float], account_info: Dict, current_positions: Dict
-    ) -> Tuple[Dict[str, float], Dict[str, float]]:
+        self, target_portfolio: dict[str, float], account_info: dict, current_positions: dict
+    ) -> tuple[dict[str, float], dict[str, float]]:
         """Display target vs current allocations and return calculated values.
 
         Shows a comparison between target portfolio weights and current position values,

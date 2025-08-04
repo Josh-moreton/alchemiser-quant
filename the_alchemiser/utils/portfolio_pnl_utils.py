@@ -7,14 +7,14 @@ profit and loss data from strategy tracking and portfolio positions.
 """
 
 import logging
-from typing import Any, Dict, List
+from typing import Any
 
 from the_alchemiser.tracking.strategy_order_tracker import get_strategy_tracker
 
 
 def calculate_strategy_pnl_summary(
-    paper_trading: bool, current_prices: Dict[str, float]
-) -> Dict[str, Any]:
+    paper_trading: bool, current_prices: dict[str, float]
+) -> dict[str, Any]:
     """
     Calculate P&L summary for all strategies.
 
@@ -57,7 +57,7 @@ def calculate_strategy_pnl_summary(
         }
 
 
-def extract_trading_summary(orders_executed: List[Dict]) -> Dict[str, Any]:
+def extract_trading_summary(orders_executed: list[dict]) -> dict[str, Any]:
     """
     Extract trading summary from executed orders.
 
@@ -96,8 +96,8 @@ def extract_trading_summary(orders_executed: List[Dict]) -> Dict[str, Any]:
 
 
 def build_strategy_summary(
-    strategy_signals: Dict, strategy_allocations: Dict, all_strategy_pnl: Dict
-) -> Dict[str, Any]:
+    strategy_signals: dict, strategy_allocations: dict, all_strategy_pnl: dict
+) -> dict[str, Any]:
     """
     Build strategy summary with P&L data.
 
@@ -139,8 +139,8 @@ def build_strategy_summary(
 
 
 def build_allocation_summary(
-    consolidated_portfolio: Dict[str, float],
-) -> Dict[str, Dict[str, float]]:
+    consolidated_portfolio: dict[str, float],
+) -> dict[str, dict[str, float]]:
     """
     Build allocation summary from consolidated portfolio.
 

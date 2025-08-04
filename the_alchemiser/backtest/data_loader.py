@@ -12,7 +12,6 @@ This module handles:
 import datetime as dt
 import os
 import sys
-from typing import Dict, List, Optional, Set, Tuple
 
 import pandas as pd
 from rich.console import Console
@@ -42,8 +41,8 @@ class DataLoader:
             use_cache: Whether to use the global data cache
         """
         self.use_cache = use_cache
-        self.data_provider: Optional[UnifiedDataProvider] = None
-        self.cache: Optional[BacktestDataCache] = None
+        self.data_provider: UnifiedDataProvider | None = None
+        self.cache: BacktestDataCache | None = None
 
         if self.use_cache:
             self.cache = get_global_cache()
@@ -56,9 +55,9 @@ class DataLoader:
 
     def calculate_optimized_lookback(
         self,
-        symbols: List[str],
+        symbols: list[str],
         use_minute_candles: bool = False,
-        strategies: Optional[List[str]] = None,
+        strategies: list[str] | None = None,
     ) -> int:
         """
         Calculate optimized lookback period based on symbol-specific requirements
@@ -115,7 +114,7 @@ class DataLoader:
 
         return total_lookback
 
-    def get_all_strategy_symbols(self) -> Set[str]:
+    def get_all_strategy_symbols(self) -> set[str]:
         """
         Get comprehensive list of all symbols used across strategies
 
@@ -194,10 +193,10 @@ class DataLoader:
         self,
         start_date: dt.datetime,
         end_date: dt.datetime,
-        symbols: Optional[List[str]] = None,
+        symbols: list[str] | None = None,
         include_minute_data: bool = False,
         force_refresh: bool = False,
-    ) -> Tuple[Dict[str, pd.DataFrame], Dict[str, pd.DataFrame]]:
+    ) -> tuple[dict[str, pd.DataFrame], dict[str, pd.DataFrame]]:
         """
         Pre-load historical data for backtesting
 
@@ -230,9 +229,9 @@ class DataLoader:
         self,
         start_date: dt.datetime,
         end_date: dt.datetime,
-        symbols: List[str],
+        symbols: list[str],
         include_minute_data: bool,
-    ) -> Tuple[Dict[str, pd.DataFrame], Dict[str, pd.DataFrame]]:
+    ) -> tuple[dict[str, pd.DataFrame], dict[str, pd.DataFrame]]:
         """
         Load data directly without caching (fallback method)
 
@@ -349,11 +348,11 @@ class DataLoader:
 
     def get_cached_symbol_data(
         self,
-        symbols: List[str],
+        symbols: list[str],
         start: dt.datetime,
         end: dt.datetime,
         fetch_minute_data: bool = False,
-    ) -> Tuple[Dict[str, pd.DataFrame], Dict[str, pd.DataFrame]]:
+    ) -> tuple[dict[str, pd.DataFrame], dict[str, pd.DataFrame]]:
         """
         Get symbol data from cache (compatibility method)
 
@@ -404,7 +403,7 @@ class DataLoader:
         if self.cache:
             self.cache.clear_cache()
 
-    def get_cache_stats(self) -> Dict:
+    def get_cache_stats(self) -> dict:
         """Get cache statistics"""
         if self.cache:
             return self.cache.get_cache_stats()

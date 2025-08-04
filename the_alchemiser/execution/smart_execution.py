@@ -15,7 +15,7 @@ Focuses on execution strategy logic while delegating order placement to speciali
 
 import logging
 import time
-from typing import Dict, List, Optional, Protocol
+from typing import Protocol
 
 from alpaca.trading.client import TradingClient
 from alpaca.trading.enums import OrderSide
@@ -31,33 +31,33 @@ class OrderExecutor(Protocol):
         self,
         symbol: str,
         side: OrderSide,
-        qty: Optional[float] = None,
-        notional: Optional[float] = None,
-    ) -> Optional[str]:
+        qty: float | None = None,
+        notional: float | None = None,
+    ) -> str | None:
         """Place a market order."""
         ...
 
-    def place_smart_sell_order(self, symbol: str, qty: float) -> Optional[str]:
+    def place_smart_sell_order(self, symbol: str, qty: float) -> str | None:
         """Place a smart sell order."""
         ...
 
-    def liquidate_position(self, symbol: str) -> Optional[str]:
+    def liquidate_position(self, symbol: str) -> str | None:
         """Liquidate a position."""
         ...
 
-    def get_current_positions(self) -> Dict[str, float]:
+    def get_current_positions(self) -> dict[str, float]:
         """Get current positions."""
         ...
 
     def place_limit_order(
         self, symbol: str, qty: float, side: OrderSide, limit_price: float
-    ) -> Optional[str]:
+    ) -> str | None:
         """Place a limit order."""
         ...
 
     def wait_for_order_completion(
-        self, order_ids: List[str], max_wait_seconds: int = 30
-    ) -> Dict[str, str]:
+        self, order_ids: list[str], max_wait_seconds: int = 30
+    ) -> dict[str, str]:
         """Wait for order completion."""
         ...
 
@@ -75,7 +75,7 @@ class OrderExecutor(Protocol):
 class DataProvider(Protocol):
     """Protocol for data provider components."""
 
-    def get_current_price(self, symbol: str) -> Optional[float]:
+    def get_current_price(self, symbol: str) -> float | None:
         """Get current price for a symbol."""
         ...
 
@@ -124,7 +124,7 @@ class SmartExecution:
         self._order_executor = AlpacaClient(trading_client, data_provider, validate_buying_power)
         self.ignore_market_hours = ignore_market_hours
 
-    def execute_safe_sell(self, symbol: str, target_qty: float) -> Optional[str]:
+    def execute_safe_sell(self, symbol: str, target_qty: float) -> str | None:
         """
         Execute a safe sell using the configured order executor.
 
@@ -132,7 +132,7 @@ class SmartExecution:
         """
         return self._order_executor.place_smart_sell_order(symbol, target_qty)
 
-    def execute_liquidation(self, symbol: str) -> Optional[str]:
+    def execute_liquidation(self, symbol: str) -> str | None:
         """Execute full position liquidation using the configured order executor."""
         return self._order_executor.liquidate_position(symbol)
 
@@ -149,12 +149,12 @@ class SmartExecution:
         max_retries: int = 3,
         poll_timeout: int = 30,
         poll_interval: float = 2.0,
-        slippage_bps: Optional[float] = None,
-    ) -> Optional[str]:
+        slippage_bps: float | None = None,
+    ) -> str | None:
         """Legacy compatibility wrapper for safe sell execution."""
         return self.execute_safe_sell(symbol, target_qty)
 
-    def liquidate_position(self, symbol: str) -> Optional[str]:
+    def liquidate_position(self, symbol: str) -> str | None:
         """Legacy compatibility wrapper for liquidation."""
         return self.execute_liquidation(symbol)
 
@@ -170,10 +170,10 @@ class SmartExecution:
         max_retries: int = 3,
         poll_timeout: int = 30,
         poll_interval: float = 2.0,
-        slippage_bps: Optional[float] = None,
-        notional: Optional[float] = None,
-        max_slippage_bps: Optional[float] = None,
-    ) -> Optional[str]:
+        slippage_bps: float | None = None,
+        notional: float | None = None,
+        max_slippage_bps: float | None = None,
+    ) -> str | None:
         """
         Place order using professional Better Orders execution strategy.
 
@@ -302,7 +302,7 @@ class SmartExecution:
             return self._order_executor.place_market_order(symbol, side, qty=qty)
 
     def wait_for_settlement(
-        self, sell_orders: List[Dict], max_wait_time: int = 60, poll_interval: float = 2.0
+        self, sell_orders: list[dict], max_wait_time: int = 60, poll_interval: float = 2.0
     ) -> bool:
         """
         Wait for order settlement - delegates to SimpleOrderManager.wait_for_order_completion.
@@ -311,7 +311,7 @@ class SmartExecution:
             return True
 
         # Extract only valid string order IDs
-        order_ids: List[str] = []
+        order_ids: list[str] = []
         for order in sell_orders:
             order_id = order.get("order_id")
             if order_id is not None and isinstance(order_id, str):
@@ -434,7 +434,7 @@ class SmartExecution:
 
     def _execute_aggressive_limit_sequence(
         self, symbol: str, qty: float, side: OrderSide, bid: float, ask: float, strategy, console
-    ) -> Optional[str]:
+    ) -> str | None:
         """
         Execute the aggressive marketable limit sequence with re-pegging.
 

@@ -10,7 +10,6 @@ This variant is DIFFERENT from others in several key ways:
 This is the "Nova" experimental variant with individual stock selection.
 """
 
-from typing import Dict, Optional, Tuple, Union
 
 import pandas as pd
 
@@ -36,9 +35,9 @@ class KLMVariantNova(BaseKLMVariant):
 
     def evaluate(
         self,
-        indicators: Dict[str, Dict[str, float]],
-        market_data: Optional[Dict[str, pd.DataFrame]] = None,
-    ) -> Tuple[Union[str, Dict[str, float]], str, str]:
+        indicators: dict[str, dict[str, float]],
+        market_data: dict[str, pd.DataFrame] | None = None,
+    ) -> tuple[str | dict[str, float], str, str]:
         """
         Evaluate Nova - same as others except UVIX check and individual stock selection
         """
@@ -53,8 +52,8 @@ class KLMVariantNova(BaseKLMVariant):
         return self._evaluate_single_popped_kmlm_nova(indicators)
 
     def _evaluate_single_popped_kmlm_nova(
-        self, indicators: Dict
-    ) -> Tuple[Union[str, Dict[str, float]], str, str]:
+        self, indicators: dict
+    ) -> tuple[str | dict[str, float], str, str]:
         """
         Nova Single Popped KMLM - DIFFERENT: uses UVIX instead of UVXY
         """
@@ -73,7 +72,7 @@ class KLMVariantNova(BaseKLMVariant):
         # Fallback if UVIX data unavailable
         return self._evaluate_combined_pop_bot(indicators)
 
-    def _evaluate_bsc_strategy(self, indicators: Dict) -> Tuple[str, str, str]:
+    def _evaluate_bsc_strategy(self, indicators: dict) -> tuple[str, str, str]:
         """
         BSC strategy - identical to other variants
         """
@@ -95,8 +94,8 @@ class KLMVariantNova(BaseKLMVariant):
         return result
 
     def _evaluate_combined_pop_bot(
-        self, indicators: Dict
-    ) -> Tuple[Union[str, Dict[str, float]], str, str]:
+        self, indicators: dict
+    ) -> tuple[str | dict[str, float], str, str]:
         """
         Combined Pop Bot - identical to others (NO LABU)
         """
@@ -123,16 +122,16 @@ class KLMVariantNova(BaseKLMVariant):
         return self.evaluate_core_kmlm_switcher(indicators)
 
     def evaluate_core_kmlm_switcher(
-        self, indicators: Dict
-    ) -> Tuple[Union[str, Dict[str, float]], str, str]:
+        self, indicators: dict
+    ) -> tuple[str | dict[str, float], str, str]:
         """
         Core KMLM switcher for variant Nova
         """
         return self._evaluate_kmlm_switcher_nova(indicators)
 
     def _evaluate_kmlm_switcher_nova(
-        self, indicators: Dict
-    ) -> Tuple[Union[str, Dict[str, float]], str, str]:
+        self, indicators: dict
+    ) -> tuple[str | dict[str, float], str, str]:
         """
         Nova KMLM Switcher - COMPLETELY DIFFERENT: Individual stocks with RSI(11)
 
@@ -172,7 +171,7 @@ class KLMVariantNova(BaseKLMVariant):
         # XLK <= KMLM → L/S Rotator (same as 520/22)
         return self._evaluate_ls_rotator_nova(indicators)
 
-    def _evaluate_ls_rotator_nova(self, indicators: Dict) -> Tuple[str, str, str]:
+    def _evaluate_ls_rotator_nova(self, indicators: dict) -> tuple[str, str, str]:
         """
         Nova L/S Rotator - same as 520/22 (FTLS/KMLM/SSO/UUP)
         """

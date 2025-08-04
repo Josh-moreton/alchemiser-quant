@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Dict, List, Optional, Protocol, Union
+from typing import Any, Protocol
 
 from the_alchemiser.utils.account_utils import extract_comprehensive_account_data
 
@@ -7,11 +7,11 @@ from the_alchemiser.utils.account_utils import extract_comprehensive_account_dat
 class DataProvider(Protocol):
     """Protocol defining the data provider interface needed by AccountService."""
 
-    def get_positions(self) -> Union[List, Any]:
+    def get_positions(self) -> list | Any:
         """Get all positions."""
         ...
 
-    def get_current_price(self, symbol: str) -> Optional[Union[float, int]]:
+    def get_current_price(self, symbol: str) -> float | int | None:
         """Get current price for a symbol."""
         ...
 
@@ -30,7 +30,7 @@ class AccountService:
         # Pre-import the utility function to avoid runtime imports
         self._extract_account_data = extract_comprehensive_account_data
 
-    def get_account_info(self) -> Dict:
+    def get_account_info(self) -> dict:
         """
         Return comprehensive account info.
 
@@ -38,7 +38,7 @@ class AccountService:
         """
         return self._extract_account_data(self._data_provider)
 
-    def get_positions_dict(self) -> Dict[str, Dict]:
+    def get_positions_dict(self) -> dict[str, dict]:
         """
         Return current positions keyed by symbol.
 
@@ -67,7 +67,7 @@ class AccountService:
         price = self._data_provider.get_current_price(symbol)
         return float(price) if price is not None else 0.0
 
-    def get_current_prices(self, symbols: List[str]) -> Dict[str, float]:
+    def get_current_prices(self, symbols: list[str]) -> dict[str, float]:
         """
         Return current market values for multiple symbols.
 

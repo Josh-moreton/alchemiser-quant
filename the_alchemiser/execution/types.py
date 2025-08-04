@@ -1,7 +1,7 @@
 """Type definitions for the execution package."""
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from the_alchemiser.core.trading.strategy_manager import StrategyType
 
@@ -22,10 +22,10 @@ class MultiStrategyExecutionResult:
     """
 
     success: bool
-    strategy_signals: Dict[StrategyType, Any]
-    consolidated_portfolio: Dict[str, float]
-    orders_executed: List[Dict]
-    account_info_before: Dict
-    account_info_after: Dict
-    execution_summary: Dict
-    final_portfolio_state: Optional[Dict] = None
+    strategy_signals: dict[StrategyType, Any]
+    consolidated_portfolio: dict[str, float]
+    orders_executed: list[dict]
+    account_info_before: dict
+    account_info_after: dict
+    execution_summary: dict
+    final_portfolio_state: dict | None = None

@@ -30,9 +30,9 @@ class StrategyAdapter:
 
     def __init__(self, name: str):
         self.name = name
-        self.current_positions: Dict[str, StrategyPosition] = {}
+        self.current_positions: dict[str, StrategyPosition] = {}
 
-    def get_signals(self, date: dt.datetime, data: Dict[str, pd.DataFrame]) -> Dict[str, float]:
+    def get_signals(self, date: dt.datetime, data: dict[str, pd.DataFrame]) -> dict[str, float]:
         """
         Get strategy signals for a given date
 
@@ -46,7 +46,7 @@ class StrategyAdapter:
         raise NotImplementedError("Subclasses must implement get_signals")
 
     def update_positions(
-        self, signals: Dict[str, float], date: dt.datetime, data: Dict[str, pd.DataFrame]
+        self, signals: dict[str, float], date: dt.datetime, data: dict[str, pd.DataFrame]
     ):
         """Update current positions based on signals"""
         for symbol, weight in signals.items():
@@ -56,7 +56,7 @@ class StrategyAdapter:
                     symbol=symbol, weight=weight, price=price, timestamp=date
                 )
 
-    def get_portfolio_value(self, date: dt.datetime, data: Dict[str, pd.DataFrame]) -> float:
+    def get_portfolio_value(self, date: dt.datetime, data: dict[str, pd.DataFrame]) -> float:
         """Calculate current portfolio value"""
         total_value = 0.0
         for position in self.current_positions.values():
@@ -74,7 +74,7 @@ class NuclearStrategyAdapter(StrategyAdapter):
         super().__init__("Nuclear")
         self.nuclear_symbols = ["OKLO", "SMR", "LEU", "URA", "URNM", "DNN", "CCJ", "NXE"]
 
-    def get_signals(self, date: dt.datetime, data: Dict[str, pd.DataFrame]) -> Dict[str, float]:
+    def get_signals(self, date: dt.datetime, data: dict[str, pd.DataFrame]) -> dict[str, float]:
         """Get Nuclear strategy signals"""
         # Simplified nuclear strategy logic
         signals = {}
@@ -99,7 +99,7 @@ class TECLStrategyAdapter(StrategyAdapter):
         super().__init__("TECL")
         self.tecl_symbols = ["TECL", "TECS", "XLK", "QQQ", "TQQQ", "SQQQ"]
 
-    def get_signals(self, date: dt.datetime, data: Dict[str, pd.DataFrame]) -> Dict[str, float]:
+    def get_signals(self, date: dt.datetime, data: dict[str, pd.DataFrame]) -> dict[str, float]:
         """Get TECL strategy signals"""
         # Simplified TECL strategy logic
         signals = {}
@@ -149,7 +149,7 @@ class KLMStrategyAdapter(StrategyAdapter):
         ]
         self.sector_etfs = ["XLK", "KMLM", "XLE", "XLF", "XLV", "XLI", "XLP", "XLY", "XLU", "XLRE"]
 
-    def get_signals(self, date: dt.datetime, data: Dict[str, pd.DataFrame]) -> Dict[str, float]:
+    def get_signals(self, date: dt.datetime, data: dict[str, pd.DataFrame]) -> dict[str, float]:
         """Get KLM strategy signals"""
         # Simplified KLM strategy logic
         signals = {}
@@ -170,7 +170,7 @@ class KLMStrategyAdapter(StrategyAdapter):
 class MultiStrategyAdapter:
     """Adapter that combines multiple strategies"""
 
-    def __init__(self, strategy_weights: Dict[str, float]):
+    def __init__(self, strategy_weights: dict[str, float]):
         """
         Initialize multi-strategy adapter
 
@@ -185,8 +185,8 @@ class MultiStrategyAdapter:
         }
 
     def get_combined_signals(
-        self, date: dt.datetime, data: Dict[str, pd.DataFrame]
-    ) -> Dict[str, float]:
+        self, date: dt.datetime, data: dict[str, pd.DataFrame]
+    ) -> dict[str, float]:
         """Get combined signals from all strategies"""
         combined_signals = {}
 
@@ -204,13 +204,13 @@ class MultiStrategyAdapter:
 
         return combined_signals
 
-    def update_all_positions(self, date: dt.datetime, data: Dict[str, pd.DataFrame]):
+    def update_all_positions(self, date: dt.datetime, data: dict[str, pd.DataFrame]):
         """Update positions for all strategies"""
         for strategy in self.strategies.values():
             signals = strategy.get_signals(date, data)
             strategy.update_positions(signals, date, data)
 
-    def get_total_portfolio_value(self, date: dt.datetime, data: Dict[str, pd.DataFrame]) -> float:
+    def get_total_portfolio_value(self, date: dt.datetime, data: dict[str, pd.DataFrame]) -> float:
         """Get total portfolio value across all strategies"""
         total_value = 0.0
 

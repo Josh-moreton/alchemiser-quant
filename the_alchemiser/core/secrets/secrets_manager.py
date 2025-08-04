@@ -7,7 +7,6 @@ Handles retrieving secrets from AWS Secrets Manager for the Quantitative Trading
 import json
 import logging
 import os
-from typing import Dict, Optional
 
 try:
     import boto3
@@ -22,7 +21,7 @@ except ImportError:
 class SecretsManager:
     """Handles retrieving secrets from AWS Secrets Manager"""
 
-    def __init__(self, region_name: Optional[str] = None):
+    def __init__(self, region_name: str | None = None):
         """
         Initialize the Secrets Manager client
 
@@ -48,7 +47,7 @@ class SecretsManager:
         else:
             logging.info("boto3 not available - will use environment variables")
 
-    def get_secret(self, secret_name: str) -> Optional[Dict]:
+    def get_secret(self, secret_name: str) -> dict | None:
         """
         Retrieve a secret from AWS Secrets Manager
 
@@ -97,7 +96,7 @@ class SecretsManager:
             self._secrets_cache = self._get_secret_from_env()
             return self._secrets_cache
 
-    def _get_secret_from_env(self) -> Optional[Dict]:
+    def _get_secret_from_env(self) -> dict | None:
         """
         Fallback method to get secrets from environment variables
 
@@ -196,7 +195,7 @@ class SecretsManager:
             logging.error(f"Error getting Telegram config: {e}")
             return None, None
 
-    def get_twelvedata_api_key(self) -> Optional[str]:
+    def get_twelvedata_api_key(self) -> str | None:
         """
         Get TwelveData API key from secrets
 

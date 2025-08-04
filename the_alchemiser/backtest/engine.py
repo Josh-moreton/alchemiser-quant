@@ -15,11 +15,8 @@ Features:
 """
 
 import datetime as dt
-import os
-import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -47,7 +44,7 @@ class BacktestResult:
     """Container for backtest results with all relevant metrics"""
 
     strategy_name: str
-    weights: Dict[str, float]
+    weights: dict[str, float]
     initial_equity: float
     final_equity: float
     total_return: float
@@ -57,7 +54,7 @@ class BacktestResult:
     max_drawdown: float
     calmar_ratio: float
     trading_days: int
-    equity_curve: List[float]
+    equity_curve: list[float]
 
     def __str__(self) -> str:
         return (
@@ -82,8 +79,8 @@ class BacktestEngine:
         self.metrics_calculator = MetricsCalculator()
 
         # Strategy manager (initialized lazily)
-        self._strategy_manager: Optional[MultiStrategyManager] = None
-        self._data_provider: Optional[UnifiedDataProvider] = None
+        self._strategy_manager: MultiStrategyManager | None = None
+        self._data_provider: UnifiedDataProvider | None = None
 
     def get_strategy_manager(self) -> MultiStrategyManager:
         """Get or create strategy manager instance"""
@@ -125,10 +122,10 @@ class BacktestEngine:
         self,
         start: dt.datetime,
         end: dt.datetime,
-        symbols: Optional[List[str]] = None,
+        symbols: list[str] | None = None,
         include_minute_data: bool = False,
         force_refresh: bool = False,
-    ) -> Tuple[Dict[str, pd.DataFrame], Dict[str, pd.DataFrame]]:
+    ) -> tuple[dict[str, pd.DataFrame], dict[str, pd.DataFrame]]:
         """
         Pre-load data for efficient backtesting
 
@@ -162,7 +159,7 @@ class BacktestEngine:
         slippage_bps: int = DEFAULT_SLIPPAGE_BPS,
         noise_factor: float = DEFAULT_NOISE_FACTOR,
         deposit_amount: float = 0.0,
-        deposit_frequency: Optional[str] = None,
+        deposit_frequency: str | None = None,
         deposit_day: int = 1,
         use_minute_candles: bool = False,
     ) -> BacktestResult:
@@ -243,7 +240,7 @@ class BacktestEngine:
         slippage_bps: int = DEFAULT_SLIPPAGE_BPS,
         noise_factor: float = DEFAULT_NOISE_FACTOR,
         deposit_amount: float = 0.0,
-        deposit_frequency: Optional[str] = None,
+        deposit_frequency: str | None = None,
         deposit_day: int = 1,
         use_minute_candles: bool = False,
     ) -> BacktestResult:
@@ -340,12 +337,12 @@ class BacktestEngine:
         slippage_bps: int = DEFAULT_SLIPPAGE_BPS,
         noise_factor: float = DEFAULT_NOISE_FACTOR,
         deposit_amount: float = 0.0,
-        deposit_frequency: Optional[str] = None,
+        deposit_frequency: str | None = None,
         deposit_day: int = 1,
         use_minute_candles: bool = False,
         step_size: int = 10,
         max_workers: int = 4,
-    ) -> List[BacktestResult]:
+    ) -> list[BacktestResult]:
         """
         Run backtest for all weight combinations
 
@@ -452,7 +449,7 @@ class BacktestEngine:
 
     def _run_combination_worker(
         self,
-        weights: Dict[str, float],
+        weights: dict[str, float],
         strategy_name: str,
         start: dt.datetime,
         end: dt.datetime,
@@ -460,10 +457,10 @@ class BacktestEngine:
         slippage_bps: int,
         noise_factor: float,
         deposit_amount: float,
-        deposit_frequency: Optional[str],
+        deposit_frequency: str | None,
         deposit_day: int,
         use_minute_candles: bool,
-    ) -> Optional[BacktestResult]:
+    ) -> BacktestResult | None:
         """
         Worker function for parallel combination execution
 
@@ -524,15 +521,15 @@ class BacktestEngine:
         self,
         start: dt.datetime,
         end: dt.datetime,
-        strategy_weights: Optional[Dict[str, float]] = None,
+        strategy_weights: dict[str, float] | None = None,
         initial_equity: float = 1000.0,
-        slippage_bps: Optional[int] = None,
+        slippage_bps: int | None = None,
         noise_factor: float = 0.001,
         deposit_amount: float = 0.0,
-        deposit_frequency: Optional[str] = None,
+        deposit_frequency: str | None = None,
         deposit_day: int = 1,
         use_minute_candles: bool = False,
-    ) -> List[float]:
+    ) -> list[float]:
         """
         Core backtest implementation - reuses proven logic
 

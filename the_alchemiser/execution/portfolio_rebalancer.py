@@ -2,7 +2,6 @@
 """Portfolio rebalancing helper."""
 
 import logging
-from typing import Dict, List, Optional
 
 from alpaca.trading.enums import OrderSide
 
@@ -20,7 +19,7 @@ class PortfolioRebalancer:
         self.order_manager = bot.order_manager
 
     def _get_primary_strategy_for_symbol(
-        self, symbol: str, strategy_attribution: Optional[Dict[str, List[StrategyType]]]
+        self, symbol: str, strategy_attribution: dict[str, list[StrategyType]] | None
     ) -> StrategyType:
         """
         Determine the primary strategy responsible for a symbol.
@@ -48,9 +47,9 @@ class PortfolioRebalancer:
 
     def rebalance_portfolio(
         self,
-        target_portfolio: Dict[str, float],
-        strategy_attribution: Optional[Dict[str, List[StrategyType]]] = None,
-    ) -> List[Dict]:
+        target_portfolio: dict[str, float],
+        strategy_attribution: dict[str, list[StrategyType]] | None = None,
+    ) -> list[dict]:
         """Rebalance portfolio following a sell-then-buy process.
 
         Steps:
@@ -62,7 +61,7 @@ class PortfolioRebalancer:
         6. Calculate buy orders and batch send
         7. Wait for settlement again and refresh final account info
         """
-        orders_executed: List[Dict] = []
+        orders_executed: list[dict] = []
 
         # Get current account info and positions
         account_info = self.bot.get_account_info()
@@ -88,7 +87,7 @@ class PortfolioRebalancer:
         )
 
         # --- Step 4: Build list of sells ---
-        sell_plans: List[Dict] = []
+        sell_plans: list[dict] = []
 
         # Check ALL current positions for liquidation needs
         for symbol, pos in current_positions.items():
@@ -230,7 +229,7 @@ class PortfolioRebalancer:
             target_portfolio, current_values, portfolio_value
         )
 
-        buy_plans: List[Dict] = []
+        buy_plans: list[dict] = []
         for symbol, plan_data in rebalance_plan.items():
             if not plan_data.get("needs_rebalance", False):
                 continue

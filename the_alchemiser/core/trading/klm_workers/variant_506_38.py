@@ -13,7 +13,6 @@ CORRECTED LOGIC:
 - This matches CLJ lines 170-195 exactly
 """
 
-from typing import Dict, Optional, Tuple, Union
 
 import pandas as pd
 
@@ -39,9 +38,9 @@ class KLMVariant506_38(BaseKLMVariant):
 
     def evaluate(
         self,
-        indicators: Dict[str, Dict[str, float]],
-        market_data: Optional[Dict[str, pd.DataFrame]] = None,
-    ) -> Tuple[Union[str, Dict[str, float]], str, str]:
+        indicators: dict[str, dict[str, float]],
+        market_data: dict[str, pd.DataFrame] | None = None,
+    ) -> tuple[str | dict[str, float], str, str]:
         """
         Evaluate the 506/38 variant strategy.
 
@@ -59,8 +58,8 @@ class KLMVariant506_38(BaseKLMVariant):
         return self._evaluate_single_popped_kmlm(indicators)
 
     def _evaluate_single_popped_kmlm(
-        self, indicators: Dict
-    ) -> Tuple[Union[str, Dict[str, float]], str, str]:
+        self, indicators: dict
+    ) -> tuple[str | dict[str, float], str, str]:
         """
         Single Popped KMLM logic from Clojure:
         Checks UVXY RSI to decide between BSC strategy or Combined Pop Bot
@@ -80,7 +79,7 @@ class KLMVariant506_38(BaseKLMVariant):
         # Fallback if UVXY data unavailable
         return self._evaluate_combined_pop_bot(indicators)
 
-    def _evaluate_bsc_strategy(self, indicators: Dict) -> Tuple[str, str, str]:
+    def _evaluate_bsc_strategy(self, indicators: dict) -> tuple[str, str, str]:
         """
         BSC (Bond/Stock/Commodity) strategy when UVXY RSI > 65
 
@@ -111,8 +110,8 @@ class KLMVariant506_38(BaseKLMVariant):
         return result
 
     def _evaluate_combined_pop_bot(
-        self, indicators: Dict
-    ) -> Tuple[Union[str, Dict[str, float]], str, str]:
+        self, indicators: dict
+    ) -> tuple[str | dict[str, float], str, str]:
         """
         Combined Pop Bot strategy for oversold conditions and sector rotation
 
@@ -165,8 +164,8 @@ class KLMVariant506_38(BaseKLMVariant):
         return self.evaluate_core_kmlm_switcher(indicators)
 
     def evaluate_core_kmlm_switcher(
-        self, indicators: Dict
-    ) -> Tuple[Union[str, Dict[str, float]], str, str]:
+        self, indicators: dict
+    ) -> tuple[str | dict[str, float], str, str]:
         """
         Core KMLM switcher logic - CORRECTED to match CLJ exactly:
 
@@ -194,8 +193,8 @@ class KLMVariant506_38(BaseKLMVariant):
         return self._evaluate_long_short_rotator(indicators)
 
     def _evaluate_long_short_rotator(
-        self, indicators: Dict
-    ) -> Tuple[Union[str, Dict[str, float]], str, str]:
+        self, indicators: dict
+    ) -> tuple[str | dict[str, float], str, str]:
         """
         Long/Short Rotator - CORRECTED to match CLJ exactly
 

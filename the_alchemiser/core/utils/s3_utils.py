@@ -6,7 +6,7 @@ Handles reading and writing files to S3 storage
 
 import json
 import logging
-from typing import Any, Dict, Optional
+from typing import Any
 from urllib.parse import urlparse
 
 import boto3
@@ -55,7 +55,7 @@ class S3Handler:
             logging.error(f"Error writing to {s3_uri}: {e}")
             return False
 
-    def read_text(self, s3_uri: str) -> Optional[str]:
+    def read_text(self, s3_uri: str) -> str | None:
         """Read text content from S3"""
         try:
             bucket, key = self.parse_s3_uri(s3_uri)
@@ -77,7 +77,7 @@ class S3Handler:
             logging.error(f"Error reading from {s3_uri}: {e}")
             return None
 
-    def write_json(self, s3_uri: str, data: Dict[str, Any]) -> bool:
+    def write_json(self, s3_uri: str, data: dict[str, Any]) -> bool:
         """Write JSON data to S3"""
         try:
             json_content = json.dumps(data, indent=2, default=str)
@@ -86,7 +86,7 @@ class S3Handler:
             logging.error(f"Error serializing JSON for {s3_uri}: {e}")
             return False
 
-    def read_json(self, s3_uri: str) -> Optional[Dict[str, Any]]:
+    def read_json(self, s3_uri: str) -> dict[str, Any] | None:
         """Read JSON data from S3"""
         try:
             content = self.read_text(s3_uri)
@@ -201,7 +201,7 @@ class S3FileHandler(logging.Handler):
             print(f"Error writing log to S3: {e}")
 
 
-def replace_file_handlers_with_s3(logger: logging.Logger, s3_uri_map: Dict[str, str]):
+def replace_file_handlers_with_s3(logger: logging.Logger, s3_uri_map: dict[str, str]):
     """Replace file handlers in a logger with S3 handlers"""
     # Remove existing file handlers
     handlers_to_remove = []

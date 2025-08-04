@@ -3,7 +3,6 @@
 This module handles the primary trading report email template generation.
 """
 
-from typing import Dict, List, Optional
 
 from .base import BaseEmailTemplate
 from .performance import PerformanceBuilder
@@ -21,10 +20,10 @@ class TradingReportBuilder:
         account_before: dict,
         account_after: dict,
         positions: dict,
-        orders: Optional[List[Dict]] = None,
+        orders: list[dict] | None = None,
         signal=None,
-        portfolio_history: Optional[Dict] = None,
-        open_positions: Optional[List[Dict]] = None,
+        portfolio_history: dict | None = None,
+        open_positions: list[dict] | None = None,
     ) -> str:
         """Build a comprehensive HTML trading report email."""
 
@@ -97,10 +96,10 @@ class TradingReportBuilder:
         account_before: dict,
         account_after: dict,
         positions: dict,
-        orders: Optional[List[Dict]] = None,
+        orders: list[dict] | None = None,
         signal=None,
-        portfolio_history: Optional[Dict] = None,
-        open_positions: Optional[List[Dict]] = None,
+        portfolio_history: dict | None = None,
+        open_positions: list[dict] | None = None,
     ) -> str:
         """Build a neutral HTML trading report email without dollar values or percentages."""
 

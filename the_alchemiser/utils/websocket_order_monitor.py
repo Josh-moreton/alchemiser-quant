@@ -9,7 +9,6 @@ order settlement detection compared to polling-based approaches.
 import logging
 import threading
 import time
-from typing import Dict, List
 
 from rich.console import Console
 
@@ -34,9 +33,9 @@ class OrderCompletionMonitor:
 
     def wait_for_order_completion(
         self,
-        order_ids: List[str],
+        order_ids: list[str],
         max_wait_seconds: int = 60,
-    ) -> Dict[str, str]:
+    ) -> dict[str, str]:
         """Wait for orders to reach a final state."""
         if not order_ids:
             return {}
@@ -85,13 +84,13 @@ class OrderCompletionMonitor:
         return self._wait_for_order_completion_polling(order_ids, max_wait_seconds)
 
     def _wait_for_order_completion_polling(
-        self, order_ids: List[str], max_wait_seconds: int
-    ) -> Dict[str, str]:
+        self, order_ids: list[str], max_wait_seconds: int
+    ) -> dict[str, str]:
         """Original polling-based settlement check."""
         logging.info(f"⏳ Waiting for {len(order_ids)} orders to complete via polling...")
 
         start_time = time.time()
-        completed: Dict[str, str] = {}
+        completed: dict[str, str] = {}
 
         while time.time() - start_time < max_wait_seconds and len(completed) < len(order_ids):
             logging.info(
@@ -156,14 +155,14 @@ class OrderCompletionMonitor:
         return completed
 
     def _wait_for_order_completion_stream(
-        self, order_ids: List[str], max_wait_seconds: int
-    ) -> Dict[str, str]:
+        self, order_ids: list[str], max_wait_seconds: int
+    ) -> dict[str, str]:
         """Use Alpaca's TradingStream to monitor order status."""
         logging.info(f"⏳ Waiting for {len(order_ids)} orders to complete via websocket...")
         logging.debug(f"🔍 Order IDs to monitor: {order_ids}")
 
         # First, check if any orders are already completed
-        completed: Dict[str, str] = {}
+        completed: dict[str, str] = {}
         remaining = set(order_ids)
 
         # Quick API check for already completed orders

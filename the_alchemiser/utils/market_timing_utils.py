@@ -8,7 +8,6 @@ during market open hours (9:30-9:35 ET).
 
 from datetime import datetime, time
 from enum import Enum
-from typing import Optional
 
 import pytz
 
@@ -25,7 +24,7 @@ class MarketOpenTimingEngine:
     def __init__(self):
         self.et_tz = pytz.timezone("US/Eastern")
 
-    def get_execution_strategy(self, current_time: Optional[datetime] = None) -> ExecutionStrategy:
+    def get_execution_strategy(self, current_time: datetime | None = None) -> ExecutionStrategy:
         """Determine execution strategy based on market timing."""
         if current_time is None:
             current_time = datetime.now(self.et_tz)

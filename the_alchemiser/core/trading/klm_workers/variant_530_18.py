@@ -16,7 +16,6 @@ COMPLETE LOGIC FLOW FROM CLJ:
 This captures the COMPLETE CLJ implementation - the most sophisticated variant.
 """
 
-from typing import Dict, Optional, Tuple, Union
 
 import pandas as pd
 
@@ -47,9 +46,9 @@ class KLMVariant530_18(BaseKLMVariant):
 
     def evaluate(
         self,
-        indicators: Dict[str, Dict[str, float]],
-        market_data: Optional[Dict[str, pd.DataFrame]] = None,
-    ) -> Tuple[Union[str, Dict[str, float]], str, str]:
+        indicators: dict[str, dict[str, float]],
+        market_data: dict[str, pd.DataFrame] | None = None,
+    ) -> tuple[str | dict[str, float], str, str]:
         """
         Evaluate the complete 530/18 Scale-In variant exactly as in CLJ.
 
@@ -100,8 +99,8 @@ class KLMVariant530_18(BaseKLMVariant):
         return self._evaluate_holy_grail_kmlm_switcher(indicators)
 
     def _evaluate_spy_scale_in(
-        self, indicators: Dict
-    ) -> Optional[Tuple[Dict[str, float], str, str]]:
+        self, indicators: dict
+    ) -> tuple[dict[str, float], str, str] | None:
         """SPY Scale-In | VIX+ -> VIX++ (CLJ lines 782-796)"""
         if "SPY" not in indicators:
             return None
@@ -132,8 +131,8 @@ class KLMVariant530_18(BaseKLMVariant):
         return None
 
     def _evaluate_ioo_scale_in(
-        self, indicators: Dict
-    ) -> Optional[Tuple[Dict[str, float], str, str]]:
+        self, indicators: dict
+    ) -> tuple[dict[str, float], str, str] | None:
         """IOO Scale-In | VIX+ -> VIX++ (identical pattern to SPY)"""
         if "IOO" not in indicators:
             return None
@@ -162,8 +161,8 @@ class KLMVariant530_18(BaseKLMVariant):
         return None
 
     def _evaluate_qqq_scale_in(
-        self, indicators: Dict
-    ) -> Optional[Tuple[Dict[str, float], str, str]]:
+        self, indicators: dict
+    ) -> tuple[dict[str, float], str, str] | None:
         """QQQ Scale-In | VIX+ -> VIX++ (threshold 79 vs 80)"""
         if "QQQ" not in indicators:
             return None
@@ -192,8 +191,8 @@ class KLMVariant530_18(BaseKLMVariant):
         return None
 
     def _evaluate_vtv_scale_in(
-        self, indicators: Dict
-    ) -> Optional[Tuple[Dict[str, float], str, str]]:
+        self, indicators: dict
+    ) -> tuple[dict[str, float], str, str] | None:
         """VTV Scale-In | VIX -> VIX+ (different pattern - uses VIXY)"""
         if "VTV" not in indicators:
             return None
@@ -222,8 +221,8 @@ class KLMVariant530_18(BaseKLMVariant):
         return None
 
     def _evaluate_xlp_scale_in(
-        self, indicators: Dict
-    ) -> Optional[Tuple[Dict[str, float], str, str]]:
+        self, indicators: dict
+    ) -> tuple[dict[str, float], str, str] | None:
         """XLP Scale-In | VIX -> VIX+ (threshold 77, same pattern as VTV)"""
         if "XLP" not in indicators:
             return None
@@ -252,8 +251,8 @@ class KLMVariant530_18(BaseKLMVariant):
         return None
 
     def _evaluate_xlf_scale_in(
-        self, indicators: Dict
-    ) -> Optional[Tuple[Dict[str, float], str, str]]:
+        self, indicators: dict
+    ) -> tuple[dict[str, float], str, str] | None:
         """XLF Scale-In | VIX -> VIX+ (threshold 81, same pattern)"""
         if "XLF" not in indicators:
             return None
@@ -282,8 +281,8 @@ class KLMVariant530_18(BaseKLMVariant):
         return None
 
     def _evaluate_retl_scale_in(
-        self, indicators: Dict
-    ) -> Optional[Tuple[Dict[str, float], str, str]]:
+        self, indicators: dict
+    ) -> tuple[dict[str, float], str, str] | None:
         """RETL Scale-In | BTAL -> VIX (introduces BTAL/BIL path)"""
         if "RETL" not in indicators:
             return None
@@ -312,8 +311,8 @@ class KLMVariant530_18(BaseKLMVariant):
         return None
 
     def _evaluate_spy_rsi_70_overbought_logic(
-        self, indicators: Dict
-    ) -> Optional[Tuple[Union[str, Dict[str, float]], str, str]]:
+        self, indicators: dict
+    ) -> tuple[str | dict[str, float], str, str] | None:
         """
         SPY RSI(70) > 63 "Overbought" branch with AGG vs QQQ comparison.
         This is where 530/18 gets extremely complex with commodity allocations.
@@ -351,8 +350,8 @@ class KLMVariant530_18(BaseKLMVariant):
         return None
 
     def _evaluate_holy_grail_kmlm_switcher(
-        self, indicators: Dict
-    ) -> Tuple[Union[str, Dict[str, float]], str, str]:
+        self, indicators: dict
+    ) -> tuple[str | dict[str, float], str, str]:
         """
         "10. KMLM Switcher | Holy Grail" - The final complex branch.
 
@@ -402,8 +401,8 @@ class KLMVariant530_18(BaseKLMVariant):
         return self._evaluate_kmlm_switcher_plus_fngu(indicators)
 
     def _evaluate_holy_grail_pop_bot(
-        self, indicators: Dict
-    ) -> Tuple[Union[str, Dict[str, float]], str, str]:
+        self, indicators: dict
+    ) -> tuple[str | dict[str, float], str, str]:
         """Pop bot logic within Holy Grail branch"""
 
         # TQQQ oversold (< 31, different from standard < 30)
@@ -422,8 +421,8 @@ class KLMVariant530_18(BaseKLMVariant):
         return self._evaluate_kmlm_switcher_plus_fngu(indicators)
 
     def _evaluate_kmlm_switcher_plus_fngu(
-        self, indicators: Dict
-    ) -> Tuple[Union[str, Dict[str, float]], str, str]:
+        self, indicators: dict
+    ) -> tuple[str | dict[str, float], str, str]:
         """
         "KMLM Switcher + FNGU" with complex 50/50 FNGU logic.
 
@@ -561,8 +560,8 @@ class KLMVariant530_18(BaseKLMVariant):
 
     # Override the base class method since 530/18 doesn't use standard pattern
     def evaluate_core_kmlm_switcher(
-        self, indicators: Dict
-    ) -> Tuple[Union[str, Dict[str, float]], str, str]:
+        self, indicators: dict
+    ) -> tuple[str | dict[str, float], str, str]:
         """
         530/18 doesn't use the standard core KMLM switcher pattern.
         It has its own complex Holy Grail logic.

@@ -8,7 +8,6 @@ backtesting, and reporting. Handles user commands and displays formatted output.
 
 import time
 from datetime import datetime, timedelta
-from typing import Optional
 
 import typer
 from rich.console import Console
@@ -278,7 +277,7 @@ from the_alchemiser.backtest.engine import BacktestEngine
 @app.command()
 def backtest(
     mode: str = typer.Option("live", help="Backtest mode: individual, live, or all"),
-    strategy: Optional[str] = typer.Option(
+    strategy: str | None = typer.Option(
         None, help="Strategy for individual mode: nuclear, tecl, or klm"
     ),
     start: str = typer.Option("2025-01-01", help="Start date (YYYY-MM-DD, default: 2025-01-01)"),
@@ -293,7 +292,7 @@ def backtest(
     step_size: int = typer.Option(10, help="Weight increment for all mode (10 = 10% steps)"),
     max_workers: int = typer.Option(4, help="Number of parallel threads for all mode"),
     deposit_amount: float = typer.Option(0.0, help="Regular deposit amount"),
-    deposit_frequency: Optional[str] = typer.Option(
+    deposit_frequency: str | None = typer.Option(
         None, help="Deposit frequency: monthly or weekly"
     ),
     deposit_day: int = typer.Option(1, help="Deposit day"),
@@ -433,10 +432,10 @@ def backtest(
 @app.command()
 def validate_indicators(
     mode: str = typer.Option("core", help="Validation mode: quick, core, or full"),
-    symbols: Optional[str] = typer.Option(
+    symbols: str | None = typer.Option(
         None, "--symbols", help="Comma-separated symbols to test"
     ),
-    save_file: Optional[str] = typer.Option(None, "--save", help="Save results to JSON file"),
+    save_file: str | None = typer.Option(None, "--save", help="Save results to JSON file"),
     verbose_validation: bool = typer.Option(
         False, "--verbose-validation", help="Enable verbose validation logging"
     ),

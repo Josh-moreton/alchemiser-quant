@@ -8,7 +8,6 @@ This variant is IDENTICAL to 506/38 except:
 Since 506/38 was just corrected to use FNGU, 410/38 only differs in the SSO addition.
 """
 
-from typing import Dict, Tuple
 
 from the_alchemiser.core.utils.common import ActionType
 
@@ -27,7 +26,7 @@ class KLMVariant410_38(KLMVariant506_38):
         self.name = "410/38"
         self.description = "MonkeyBusiness Simons variant - Same as 506/38 + SSO in rotator"
 
-    def _evaluate_long_short_rotator(self, indicators: Dict) -> Tuple[str, str, str]:
+    def _evaluate_long_short_rotator(self, indicators: dict) -> tuple[str, str, str]:
         """
         410/38 L/S Rotator - SAME as 506/38 but includes SSO
 

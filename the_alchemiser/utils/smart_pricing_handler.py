@@ -7,7 +7,6 @@ bid/ask spreads, and order aggressiveness settings.
 """
 
 import logging
-from typing import Optional
 
 from alpaca.trading.enums import OrderSide
 
@@ -23,7 +22,7 @@ class SmartPricingHandler:
 
     def get_smart_limit_price(
         self, symbol: str, side: OrderSide, aggressiveness: float = 0.5
-    ) -> Optional[float]:
+    ) -> float | None:
         """
         Get a smart limit price based on current bid/ask.
 
@@ -57,7 +56,7 @@ class SmartPricingHandler:
 
     def get_progressive_pricing(
         self, symbol: str, side: OrderSide, step: int = 1, total_steps: int = 4
-    ) -> Optional[float]:
+    ) -> float | None:
         """
         Get progressive pricing for multi-step limit order strategies.
 
@@ -98,7 +97,7 @@ class SmartPricingHandler:
 
     def get_aggressive_sell_price(
         self, symbol: str, aggressiveness: float = 0.85
-    ) -> Optional[float]:
+    ) -> float | None:
         """
         Get aggressive sell pricing for quick liquidation (favors speed over price).
 
@@ -113,7 +112,7 @@ class SmartPricingHandler:
 
     def get_conservative_buy_price(
         self, symbol: str, aggressiveness: float = 0.75
-    ) -> Optional[float]:
+    ) -> float | None:
         """
         Get conservative buy pricing for better fill prices (favors price over speed).
 

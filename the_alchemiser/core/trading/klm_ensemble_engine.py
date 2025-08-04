@@ -10,7 +10,7 @@ that faithfully replicates the Clojure (select-top 1) logic.
 
 import logging
 import warnings
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any
 
 import pandas as pd
 
@@ -58,7 +58,7 @@ class KLMStrategyEnsemble:
         self.indicators = TechnicalIndicators()
 
         # Initialize all strategy variants
-        self.strategy_variants: List[BaseKLMVariant] = [
+        self.strategy_variants: list[BaseKLMVariant] = [
             KLMVariant506_38(),  # Standard overbought detection
             KLMVariant1280_26(),  # Variant with parameter differences
             KLMVariant1200_28(),  # Another parameter variant
@@ -95,7 +95,7 @@ class KLMStrategyEnsemble:
         self.logger = logging.getLogger("KLM.Ensemble")
         self.logger.info(f"KLM Ensemble initialized with {len(self.strategy_variants)} variants")
 
-    def get_market_data(self) -> Dict[str, pd.DataFrame]:
+    def get_market_data(self) -> dict[str, pd.DataFrame]:
         """Fetch data for all symbols needed by the ensemble"""
         market_data = {}
         for symbol in self.all_symbols:
@@ -112,8 +112,8 @@ class KLMStrategyEnsemble:
         return market_data
 
     def calculate_indicators(
-        self, market_data: Dict[str, pd.DataFrame]
-    ) -> Dict[str, Dict[str, float]]:
+        self, market_data: dict[str, pd.DataFrame]
+    ) -> dict[str, dict[str, float]]:
         """Calculate all technical indicators needed by the variants"""
         indicators = {}
 
@@ -176,8 +176,8 @@ class KLMStrategyEnsemble:
         return variant.calculate_performance_metric(window=5)
 
     def evaluate_all_variants(
-        self, indicators: Dict[str, Dict[str, float]], market_data: Dict[str, pd.DataFrame]
-    ) -> List[Tuple[BaseKLMVariant, Any, float]]:
+        self, indicators: dict[str, dict[str, float]], market_data: dict[str, pd.DataFrame]
+    ) -> list[tuple[BaseKLMVariant, Any, float]]:
         """
         Evaluate all strategy variants and return results with performance metrics.
 
@@ -210,8 +210,8 @@ class KLMStrategyEnsemble:
         return results
 
     def select_best_variant(
-        self, variant_results: List[Tuple[BaseKLMVariant, Any, float]]
-    ) -> Tuple[Any, BaseKLMVariant]:
+        self, variant_results: list[tuple[BaseKLMVariant, Any, float]]
+    ) -> tuple[Any, BaseKLMVariant]:
         """
         Select the top-performing variant based on performance metric.
 
@@ -235,9 +235,9 @@ class KLMStrategyEnsemble:
 
     def evaluate_ensemble(
         self,
-        indicators: Optional[Dict[str, Dict[str, float]]] = None,
-        market_data: Optional[Dict[str, pd.DataFrame]] = None,
-    ) -> Tuple[Union[str, Dict[str, float]], str, str, str]:
+        indicators: dict[str, dict[str, float]] | None = None,
+        market_data: dict[str, pd.DataFrame] | None = None,
+    ) -> tuple[str | dict[str, float], str, str, str]:
         """
         Evaluate the complete KLM ensemble and return the best strategy's recommendation.
 
@@ -276,13 +276,13 @@ class KLMStrategyEnsemble:
 
     def _build_detailed_klm_analysis(
         self,
-        indicators: Dict[str, Dict[str, float]],
-        market_data: Dict[str, pd.DataFrame],
+        indicators: dict[str, dict[str, float]],
+        market_data: dict[str, pd.DataFrame],
         selected_variant: BaseKLMVariant,
-        symbol_or_allocation: Union[str, Dict[str, float]],
+        symbol_or_allocation: str | dict[str, float],
         action: str,
         basic_reason: str,
-        all_variant_results: List[Tuple],
+        all_variant_results: list[tuple],
     ) -> str:
         """Build detailed KLM analysis similar to Nuclear and TECL strategy explanations"""
 

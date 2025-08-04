@@ -9,7 +9,6 @@ This variant is similar to 506/38 and 1200/28 except:
 This is the "Original" baseline implementation.
 """
 
-from typing import Dict, Optional, Tuple, Union
 
 import pandas as pd
 
@@ -34,9 +33,9 @@ class KLMVariant520_22(BaseKLMVariant):
 
     def evaluate(
         self,
-        indicators: Dict[str, Dict[str, float]],
-        market_data: Optional[Dict[str, pd.DataFrame]] = None,
-    ) -> Tuple[Union[str, Dict[str, float]], str, str]:
+        indicators: dict[str, dict[str, float]],
+        market_data: dict[str, pd.DataFrame] | None = None,
+    ) -> tuple[str | dict[str, float], str, str]:
         """
         Evaluate 520/22 - same as 506/38 except KMLM Switcher and L/S Rotator
         """
@@ -51,8 +50,8 @@ class KLMVariant520_22(BaseKLMVariant):
         return self._evaluate_single_popped_kmlm(indicators)
 
     def _evaluate_single_popped_kmlm(
-        self, indicators: Dict
-    ) -> Tuple[Union[str, Dict[str, float]], str, str]:
+        self, indicators: dict
+    ) -> tuple[str | dict[str, float], str, str]:
         """
         Single Popped KMLM logic - identical to 506/38
         """
@@ -71,7 +70,7 @@ class KLMVariant520_22(BaseKLMVariant):
         # Fallback if UVXY data unavailable
         return self._evaluate_combined_pop_bot(indicators)
 
-    def _evaluate_bsc_strategy(self, indicators: Dict) -> Tuple[str, str, str]:
+    def _evaluate_bsc_strategy(self, indicators: dict) -> tuple[str, str, str]:
         """
         BSC strategy - identical to other variants
         """
@@ -93,8 +92,8 @@ class KLMVariant520_22(BaseKLMVariant):
         return result
 
     def _evaluate_combined_pop_bot(
-        self, indicators: Dict
-    ) -> Tuple[Union[str, Dict[str, float]], str, str]:
+        self, indicators: dict
+    ) -> tuple[str | dict[str, float], str, str]:
         """
         Combined Pop Bot - identical to 506/38 and 1200/28 (NO LABU)
         """
@@ -121,16 +120,16 @@ class KLMVariant520_22(BaseKLMVariant):
         return self.evaluate_core_kmlm_switcher(indicators)
 
     def evaluate_core_kmlm_switcher(
-        self, indicators: Dict
-    ) -> Tuple[Union[str, Dict[str, float]], str, str]:
+        self, indicators: dict
+    ) -> tuple[str | dict[str, float], str, str]:
         """
         Core KMLM switcher for variant 520/22
         """
         return self._evaluate_kmlm_switcher_520(indicators)
 
     def _evaluate_kmlm_switcher_520(
-        self, indicators: Dict
-    ) -> Tuple[Union[str, Dict[str, float]], str, str]:
+        self, indicators: dict
+    ) -> tuple[str | dict[str, float], str, str]:
         """
         520/22 KMLM Switcher - KEY DIFFERENCE: TECL/SVIX only (no SOXL)
 
@@ -167,7 +166,7 @@ class KLMVariant520_22(BaseKLMVariant):
         # XLK <= KMLM → L/S Rotator
         return self._evaluate_ls_rotator_520(indicators)
 
-    def _evaluate_ls_rotator_520(self, indicators: Dict) -> Tuple[str, str, str]:
+    def _evaluate_ls_rotator_520(self, indicators: dict) -> tuple[str, str, str]:
         """
         520/22 L/S Rotator - DIFFERENT: uses FTLS/KMLM/SSO/UUP (not SQQQ/TLT)
 

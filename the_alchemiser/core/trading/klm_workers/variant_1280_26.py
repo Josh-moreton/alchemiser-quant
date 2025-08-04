@@ -11,7 +11,6 @@ COMPLETELY DIFFERENT from 506/38! This variant:
 This is a fundamentally different architecture from other variants.
 """
 
-from typing import Dict, Optional, Tuple, Union
 
 import pandas as pd
 
@@ -38,9 +37,9 @@ class KLMVariant1280_26(BaseKLMVariant):
 
     def evaluate(
         self,
-        indicators: Dict[str, Dict[str, float]],
-        market_data: Optional[Dict[str, pd.DataFrame]] = None,
-    ) -> Tuple[Union[str, Dict[str, float]], str, str]:
+        indicators: dict[str, dict[str, float]],
+        market_data: dict[str, pd.DataFrame] | None = None,
+    ) -> tuple[str | dict[str, float], str, str]:
         """
         Evaluate 1280/26 - completely different flow from 506/38
 
@@ -58,8 +57,8 @@ class KLMVariant1280_26(BaseKLMVariant):
         return self._evaluate_combined_pop_bot_with_labu(indicators)
 
     def _evaluate_combined_pop_bot_with_labu(
-        self, indicators: Dict
-    ) -> Tuple[Union[str, Dict[str, float]], str, str]:
+        self, indicators: dict
+    ) -> tuple[str | dict[str, float], str, str]:
         """
         Combined Pop Bot for 1280/26 - includes LABU with RSI < 25
 
@@ -94,16 +93,16 @@ class KLMVariant1280_26(BaseKLMVariant):
         return self.evaluate_core_kmlm_switcher(indicators)
 
     def evaluate_core_kmlm_switcher(
-        self, indicators: Dict
-    ) -> Tuple[Union[str, Dict[str, float]], str, str]:
+        self, indicators: dict
+    ) -> tuple[str | dict[str, float], str, str]:
         """
         Core KMLM switcher for variant 1280/26
         """
         return self._evaluate_kmlm_switcher_1280(indicators)
 
     def _evaluate_kmlm_switcher_1280(
-        self, indicators: Dict
-    ) -> Tuple[Union[str, Dict[str, float]], str, str]:
+        self, indicators: dict
+    ) -> tuple[str | dict[str, float], str, str]:
         """
         1280/26 KMLM Switcher - select-bottom 2 from TECL/SOXL/SVIX (NOT FNGU)
 
@@ -154,7 +153,7 @@ class KLMVariant1280_26(BaseKLMVariant):
         # XLK <= KMLM or missing data → L/S Rotator
         return self._evaluate_ls_rotator_1280(indicators)
 
-    def _evaluate_ls_rotator_1280(self, indicators: Dict) -> Tuple[str, str, str]:
+    def _evaluate_ls_rotator_1280(self, indicators: dict) -> tuple[str, str, str]:
         """
         1280/26 L/S Rotator - COMPLETELY different from other variants
 

@@ -10,7 +10,6 @@ This module provides intelligent order execution parameters based on market cond
 
 import logging
 from dataclasses import dataclass
-from typing import List, Optional, Tuple
 
 from alpaca.trading.enums import OrderSide
 
@@ -21,7 +20,7 @@ class OrderExecutionParams:
 
     max_wait_seconds: int
     step_count: int
-    step_percentages: List[float]  # Percentage of spread to step through
+    step_percentages: list[float]  # Percentage of spread to step through
     tick_aggressiveness: float  # How aggressively to step (multiplier)
 
     def __str__(self):
@@ -63,8 +62,8 @@ class ProgressiveOrderCalculator:
         self,
         symbol: str,
         current_price: float,
-        recent_high: Optional[float] = None,
-        recent_low: Optional[float] = None,
+        recent_high: float | None = None,
+        recent_low: float | None = None,
     ) -> float:
         """
         Calculate a simple volatility metric.
@@ -91,7 +90,7 @@ class ProgressiveOrderCalculator:
 
         return max(0.001, volatility)  # Minimum 0.1% volatility
 
-    def calculate_spread_metric(self, bid: float, ask: float) -> Tuple[float, float]:
+    def calculate_spread_metric(self, bid: float, ask: float) -> tuple[float, float]:
         """
         Calculate spread metrics.
 
@@ -121,8 +120,8 @@ class ProgressiveOrderCalculator:
         ask: float,
         side: OrderSide,
         urgency_level: str = "normal",
-        recent_high: Optional[float] = None,
-        recent_low: Optional[float] = None,
+        recent_high: float | None = None,
+        recent_low: float | None = None,
     ) -> OrderExecutionParams:
         """
         Calculate optimal execution parameters based on market conditions.
@@ -298,7 +297,7 @@ class ProgressiveOrderCalculator:
         return strategy_desc
 
 
-def get_market_urgency_level(hour: Optional[int] = None) -> str:
+def get_market_urgency_level(hour: int | None = None) -> str:
     """
     Determine market urgency based on time of day.
 

@@ -14,7 +14,7 @@ Key Features:
 
 import logging
 from contextlib import contextmanager
-from typing import Any, Dict, Optional
+from typing import Any
 
 from the_alchemiser.core.trading.strategy_manager import StrategyType
 from the_alchemiser.tracking.strategy_order_tracker import get_strategy_tracker
@@ -23,7 +23,7 @@ from the_alchemiser.tracking.strategy_order_tracker import get_strategy_tracker
 class StrategyExecutionContext:
     """Context manager to track which strategy is currently executing orders."""
 
-    _current_strategy: Optional[StrategyType] = None
+    _current_strategy: StrategyType | None = None
     _order_tracker = None
 
     @classmethod
@@ -34,7 +34,7 @@ class StrategyExecutionContext:
             cls._order_tracker = get_strategy_tracker()
 
     @classmethod
-    def get_current_strategy(cls) -> Optional[StrategyType]:
+    def get_current_strategy(cls) -> StrategyType | None:
         """Get the currently executing strategy."""
         return cls._current_strategy
 
@@ -82,7 +82,7 @@ def track_order_execution(
     StrategyExecutionContext.record_order_if_active(order_id, symbol, side, quantity, price)
 
 
-def get_current_strategy_context() -> Optional[StrategyType]:
+def get_current_strategy_context() -> StrategyType | None:
     """Get the current strategy context for debugging/logging."""
     return StrategyExecutionContext.get_current_strategy()
 
@@ -134,14 +134,14 @@ class StrategyTrackingMixin:
             )
 
     def get_strategy_pnl_summary(
-        self, current_prices: Optional[Dict[str, float]] = None
-    ) -> Dict[str, Any]:
+        self, current_prices: dict[str, float] | None = None
+    ) -> dict[str, Any]:
         """Get P&L summary for all strategies."""
         return self._strategy_tracker.get_summary_for_email(current_prices)
 
 
 # Helper function to extract order details from Alpaca order objects
-def extract_order_details_from_alpaca_order(order) -> Dict[str, Any]:
+def extract_order_details_from_alpaca_order(order) -> dict[str, Any]:
     """Extract order details from Alpaca order object for tracking."""
     try:
         # Handle both order response objects and order status objects

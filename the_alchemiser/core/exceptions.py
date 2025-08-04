@@ -6,7 +6,7 @@ This module defines specific exception types for different failure scenarios
 to enable better error handling and debugging throughout the application.
 """
 
-from typing import Any, Optional
+from typing import Any
 
 
 class AlchemiserError(Exception):
@@ -37,7 +37,7 @@ class OrderExecutionError(TradingClientError):
     """Raised when order placement or execution fails."""
 
     def __init__(
-        self, message: str, symbol: Optional[str] = None, order_type: Optional[str] = None
+        self, message: str, symbol: str | None = None, order_type: str | None = None
     ):
         super().__init__(message)
         self.symbol = symbol
@@ -56,9 +56,9 @@ class PositionValidationError(TradingClientError):
     def __init__(
         self,
         message: str,
-        symbol: Optional[str] = None,
-        requested_qty: Optional[float] = None,
-        available_qty: Optional[float] = None,
+        symbol: str | None = None,
+        requested_qty: float | None = None,
+        available_qty: float | None = None,
     ):
         super().__init__(message)
         self.symbol = symbol
@@ -69,7 +69,7 @@ class PositionValidationError(TradingClientError):
 class StrategyExecutionError(AlchemiserError):
     """Raised when strategy execution fails."""
 
-    def __init__(self, message: str, strategy_name: Optional[str] = None):
+    def __init__(self, message: str, strategy_name: str | None = None):
         super().__init__(message)
         self.strategy_name = strategy_name
 
@@ -78,7 +78,7 @@ class IndicatorCalculationError(AlchemiserError):
     """Raised when technical indicator calculations fail."""
 
     def __init__(
-        self, message: str, indicator_name: Optional[str] = None, symbol: Optional[str] = None
+        self, message: str, indicator_name: str | None = None, symbol: str | None = None
     ):
         super().__init__(message)
         self.indicator_name = indicator_name
@@ -88,7 +88,7 @@ class IndicatorCalculationError(AlchemiserError):
 class MarketDataError(DataProviderError):
     """Raised when market data retrieval fails."""
 
-    def __init__(self, message: str, symbol: Optional[str] = None, data_type: Optional[str] = None):
+    def __init__(self, message: str, symbol: str | None = None, data_type: str | None = None):
         super().__init__(message)
         self.symbol = symbol
         self.data_type = data_type
@@ -103,7 +103,7 @@ class BacktestError(AlchemiserError):
 class ValidationError(AlchemiserError):
     """Raised when data validation fails."""
 
-    def __init__(self, message: str, field_name: Optional[str] = None, value: Optional[Any] = None):
+    def __init__(self, message: str, field_name: str | None = None, value: Any | None = None):
         super().__init__(message)
         self.field_name = field_name
         self.value = value
@@ -118,7 +118,7 @@ class NotificationError(AlchemiserError):
 class S3OperationError(AlchemiserError):
     """Raised when S3 operations fail."""
 
-    def __init__(self, message: str, bucket: Optional[str] = None, key: Optional[str] = None):
+    def __init__(self, message: str, bucket: str | None = None, key: str | None = None):
         super().__init__(message)
         self.bucket = bucket
         self.key = key
@@ -127,7 +127,7 @@ class S3OperationError(AlchemiserError):
 class RateLimitError(AlchemiserError):
     """Raised when API rate limits are exceeded."""
 
-    def __init__(self, message: str, retry_after: Optional[int] = None):
+    def __init__(self, message: str, retry_after: int | None = None):
         super().__init__(message)
         self.retry_after = retry_after
 
@@ -147,7 +147,7 @@ class WebSocketError(DataProviderError):
 class LoggingError(AlchemiserError):
     """Raised when logging operations fail."""
 
-    def __init__(self, message: str, logger_name: Optional[str] = None):
+    def __init__(self, message: str, logger_name: str | None = None):
         super().__init__(message)
         self.logger_name = logger_name
 
@@ -156,7 +156,7 @@ class FileOperationError(AlchemiserError):
     """Raised when file operations fail."""
 
     def __init__(
-        self, message: str, file_path: Optional[str] = None, operation: Optional[str] = None
+        self, message: str, file_path: str | None = None, operation: str | None = None
     ):
         super().__init__(message)
         self.file_path = file_path
@@ -167,7 +167,7 @@ class DatabaseError(AlchemiserError):
     """Raised when database operations fail."""
 
     def __init__(
-        self, message: str, table_name: Optional[str] = None, operation: Optional[str] = None
+        self, message: str, table_name: str | None = None, operation: str | None = None
     ):
         super().__init__(message)
         self.table_name = table_name
@@ -183,6 +183,6 @@ class SecurityError(AlchemiserError):
 class EnvironmentError(ConfigurationError):
     """Raised when environment setup issues occur."""
 
-    def __init__(self, message: str, env_var: Optional[str] = None):
+    def __init__(self, message: str, env_var: str | None = None):
         super().__init__(message)
         self.env_var = env_var

@@ -5,7 +5,6 @@ Replaces the `get_email_config` function from the original email_utils.py.
 """
 
 import logging
-from typing import Optional, Tuple
 
 from the_alchemiser.core.config import load_settings
 from the_alchemiser.core.secrets.secrets_manager import SecretsManager
@@ -18,7 +17,7 @@ class EmailConfig:
         self.secrets_manager = SecretsManager()
         self._config_cache = None
 
-    def get_config(self) -> Optional[Tuple[str, int, str, str, str]]:
+    def get_config(self) -> tuple[str, int, str, str, str] | None:
         """Get email configuration from environment variables and secrets manager.
 
         Returns:
@@ -68,7 +67,7 @@ class EmailConfig:
             logging.error(f"Error loading email configuration: {e}")
             return None
 
-    def _get_email_password(self, secret_name: str) -> Optional[str]:
+    def _get_email_password(self, secret_name: str) -> str | None:
         """Get email password from AWS Secrets Manager."""
         try:
             secrets = self.secrets_manager.get_secret(secret_name)
@@ -101,7 +100,7 @@ class EmailConfig:
 _email_config = EmailConfig()
 
 
-def get_email_config() -> Optional[Tuple[str, int, str, str, str]]:
+def get_email_config() -> tuple[str, int, str, str, str] | None:
     """Get email configuration (backward compatibility function)."""
     return _email_config.get_config()
 

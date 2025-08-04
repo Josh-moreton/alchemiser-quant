@@ -5,7 +5,6 @@ used across all email types.
 """
 
 from datetime import datetime
-from typing import Optional
 
 
 class BaseEmailTemplate:
@@ -45,7 +44,7 @@ class BaseEmailTemplate:
         status: str,
         status_color: str,
         status_emoji: str,
-        timestamp: Optional[datetime] = None,
+        timestamp: datetime | None = None,
     ) -> str:
         """Get HTML status banner section."""
         if timestamp is None:

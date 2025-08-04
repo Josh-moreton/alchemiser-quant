@@ -8,9 +8,9 @@ Loads settings from the global application configuration.
 
 import logging
 from dataclasses import dataclass
-from typing import Optional
 
 from the_alchemiser.core.config import load_settings
+
 
 @dataclass
 class ExecutionConfig:
@@ -30,8 +30,8 @@ class ExecutionConfig:
     wide_spread_threshold: float = 5.0
 
     # Symbol classification
-    leveraged_etf_symbols: Optional[list[str]] = None
-    high_volume_etfs: Optional[list[str]] = None
+    leveraged_etf_symbols: list[str] | None = None
+    high_volume_etfs: list[str] | None = None
 
     @classmethod
     def from_settings(cls):
@@ -76,7 +76,7 @@ class ExecutionConfig:
 
 
 # Global config instance
-_config_instance: Optional[ExecutionConfig] = None
+_config_instance: ExecutionConfig | None = None
 
 
 def get_execution_config() -> ExecutionConfig:

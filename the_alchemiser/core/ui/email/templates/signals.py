@@ -4,7 +4,7 @@ This module handles building HTML content for technical indicators,
 strategy signals, and trading signal analysis.
 """
 
-from typing import Any, Dict
+from typing import Any
 
 from .base import BaseEmailTemplate
 
@@ -36,7 +36,7 @@ class SignalsBuilder:
             """
 
     @staticmethod
-    def build_technical_indicators(strategy_signals: Dict[Any, Any]) -> str:
+    def build_technical_indicators(strategy_signals: dict[Any, Any]) -> str:
         """Build technical indicators HTML section."""
         if not strategy_signals:
             return BaseEmailTemplate.create_alert_box("No technical indicators available", "info")
@@ -119,7 +119,7 @@ class SignalsBuilder:
 
     @staticmethod
     def build_detailed_strategy_signals(
-        strategy_signals: Dict[Any, Any], strategy_summary: Dict
+        strategy_signals: dict[Any, Any], strategy_summary: dict
     ) -> str:
         """Build detailed strategy signals HTML section."""
         if not strategy_signals:
@@ -192,7 +192,7 @@ class SignalsBuilder:
         """
 
     @staticmethod
-    def build_market_regime_analysis(strategy_signals: Dict[Any, Any]) -> str:
+    def build_market_regime_analysis(strategy_signals: dict[Any, Any]) -> str:
         """Build market regime analysis section."""
         if not strategy_signals:
             return ""

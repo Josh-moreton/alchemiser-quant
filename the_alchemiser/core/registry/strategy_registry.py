@@ -10,7 +10,7 @@ static analysis while maintaining flexibility in strategy selection.
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Dict, List, Optional, Type
+from typing import Any
 
 from the_alchemiser.core.trading.klm_ensemble_engine import KLMStrategyEnsemble
 from the_alchemiser.core.trading.nuclear_signals import NuclearStrategyEngine
@@ -30,7 +30,7 @@ class StrategyConfig:
     """Configuration for strategy initialization."""
 
     strategy_type: StrategyType
-    engine_class: Type
+    engine_class: type
     default_allocation: float
     description: str
     enabled: bool = True
@@ -44,7 +44,7 @@ class StrategyRegistry:
     """
 
     # Static mapping of strategy types to their configurations
-    _strategies: Dict[StrategyType, StrategyConfig] = {
+    _strategies: dict[StrategyType, StrategyConfig] = {
         StrategyType.NUCLEAR: StrategyConfig(
             strategy_type=StrategyType.NUCLEAR,
             engine_class=NuclearStrategyEngine,
@@ -69,7 +69,7 @@ class StrategyRegistry:
     }
 
     @classmethod
-    def get_strategy_config(cls, strategy_type: StrategyType) -> Optional[StrategyConfig]:
+    def get_strategy_config(cls, strategy_type: StrategyType) -> StrategyConfig | None:
         """Get configuration for a specific strategy type.
 
         Args:
@@ -81,7 +81,7 @@ class StrategyRegistry:
         return cls._strategies.get(strategy_type)
 
     @classmethod
-    def get_enabled_strategies(cls) -> Dict[StrategyType, StrategyConfig]:
+    def get_enabled_strategies(cls) -> dict[StrategyType, StrategyConfig]:
         """Get all enabled strategy configurations.
 
         Returns:
@@ -117,7 +117,7 @@ class StrategyRegistry:
         return config.engine_class(**kwargs)
 
     @classmethod
-    def get_default_allocations(cls) -> Dict[StrategyType, float]:
+    def get_default_allocations(cls) -> dict[StrategyType, float]:
         """Get default allocation weights for all enabled strategies.
 
         Returns:
@@ -151,7 +151,7 @@ class StrategyRegistry:
         return config.enabled if config else False
 
     @classmethod
-    def get_all_strategy_types(cls) -> List[StrategyType]:
+    def get_all_strategy_types(cls) -> list[StrategyType]:
         """Get all registered strategy types.
 
         Returns:

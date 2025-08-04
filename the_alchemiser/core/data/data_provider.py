@@ -1,7 +1,7 @@
 import logging
 import time
-from datetime import datetime, timedelta
-from typing import Optional, cast
+from datetime import UTC, datetime, timedelta
+from typing import cast
 
 import pandas as pd
 from alpaca.data.historical import StockHistoricalDataClient
@@ -71,7 +71,7 @@ class UnifiedDataProvider:
             self.api_endpoint = self.config.alpaca.endpoint
 
         # Initialize real-time pricing service
-        self.real_time_pricing: Optional[RealTimePricingManager] = None
+        self.real_time_pricing: RealTimePricingManager | None = None
         if enable_real_time:
             try:
                 from the_alchemiser.core.data.real_time_pricing import RealTimePricingManager
@@ -515,9 +515,8 @@ class UnifiedDataProvider:
 
                     # Make cutoff_date timezone-aware if activity_date is timezone-aware
                     if activity_date.tzinfo is not None and cutoff_date.tzinfo is None:
-                        from datetime import timezone
 
-                        cutoff_date = cutoff_date.replace(tzinfo=timezone.utc)
+                        cutoff_date = cutoff_date.replace(tzinfo=UTC)
                     elif activity_date.tzinfo is None and cutoff_date.tzinfo is not None:
                         cutoff_date = cutoff_date.replace(tzinfo=None)
 

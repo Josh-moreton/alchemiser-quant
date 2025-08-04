@@ -19,7 +19,7 @@ Strategy Analysis:
 
 import logging
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Set
+from typing import Any
 
 
 @dataclass
@@ -141,7 +141,7 @@ class SymbolLookbackCalculator:
             "BND": {"rsi_10"},
         }
 
-    def get_symbol_lookback_days(self, symbol: str, strategies: Optional[List[str]] = None) -> int:
+    def get_symbol_lookback_days(self, symbol: str, strategies: list[str] | None = None) -> int:
         """
         Calculate the minimum lookback days required for a specific symbol.
 
@@ -182,8 +182,8 @@ class SymbolLookbackCalculator:
         return max_lookback
 
     def get_all_symbols_lookback_map(
-        self, strategies: Optional[List[str]] = None
-    ) -> Dict[str, int]:
+        self, strategies: list[str] | None = None
+    ) -> dict[str, int]:
         """
         Get a complete mapping of all symbols to their required lookback days.
 
@@ -212,7 +212,7 @@ class SymbolLookbackCalculator:
 
         return lookback_map
 
-    def _get_symbol_indicators_for_strategy(self, symbol: str, strategy: str) -> Set[str]:
+    def _get_symbol_indicators_for_strategy(self, symbol: str, strategy: str) -> set[str]:
         """Get the specific indicators used for a symbol in a strategy"""
         if strategy == "nuclear":
             return self._nuclear_symbol_indicators.get(symbol, set())
@@ -223,7 +223,7 @@ class SymbolLookbackCalculator:
         else:
             return set()
 
-    def _get_strategy_symbols(self, strategy: str) -> Set[str]:
+    def _get_strategy_symbols(self, strategy: str) -> set[str]:
         """Get all symbols used by a strategy"""
         if strategy == "nuclear":
             return set(self._nuclear_symbol_indicators.keys())
@@ -234,7 +234,7 @@ class SymbolLookbackCalculator:
         else:
             return set()
 
-    def _get_strategy_indicators(self, strategy: str) -> Dict[str, IndicatorRequirement]:
+    def _get_strategy_indicators(self, strategy: str) -> dict[str, IndicatorRequirement]:
         """Get all indicators used by a strategy (deprecated - use symbol-specific version)"""
         # This method is deprecated but kept for compatibility
         all_indicators = set()
@@ -251,8 +251,8 @@ class SymbolLookbackCalculator:
         }
 
     def get_all_symbols_lookback_map(
-        self, strategies: Optional[List[str]] = None
-    ) -> Dict[str, int]:
+        self, strategies: list[str] | None = None
+    ) -> dict[str, int]:
         """
         Get a complete mapping of all symbols to their required lookback days.
 
@@ -281,7 +281,7 @@ class SymbolLookbackCalculator:
 
         return lookback_map
 
-    def get_lookback_summary(self, strategies: Optional[List[str]] = None) -> Dict[str, Any]:
+    def get_lookback_summary(self, strategies: list[str] | None = None) -> dict[str, Any]:
         """
         Get a summary of lookback requirements across all symbols.
 
@@ -311,8 +311,8 @@ class SymbolLookbackCalculator:
         }
 
     def optimize_data_fetching(
-        self, symbols: List[str], strategies: Optional[List[str]] = None
-    ) -> Dict[str, Dict[str, Any]]:
+        self, symbols: list[str], strategies: list[str] | None = None
+    ) -> dict[str, dict[str, Any]]:
         """
         Optimize data fetching by grouping symbols with similar lookback requirements.
 
@@ -366,7 +366,7 @@ class SymbolLookbackCalculator:
         }
 
 
-def get_symbol_lookback_days(symbol: str, strategies: Optional[List[str]] = None) -> int:
+def get_symbol_lookback_days(symbol: str, strategies: list[str] | None = None) -> int:
     """
     Convenience function to get lookback days for a single symbol.
 
@@ -382,8 +382,8 @@ def get_symbol_lookback_days(symbol: str, strategies: Optional[List[str]] = None
 
 
 def get_optimized_lookback_map(
-    symbols: List[str], strategies: Optional[List[str]] = None
-) -> Dict[str, int]:
+    symbols: list[str], strategies: list[str] | None = None
+) -> dict[str, int]:
     """
     Convenience function to get optimized lookback map for a list of symbols.
 

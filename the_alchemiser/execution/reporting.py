@@ -1,17 +1,17 @@
 import logging
-from typing import Any, Dict, List
+from typing import Any
 
 from the_alchemiser.core.trading.strategy_manager import StrategyType
 
 
 def create_execution_summary(
     engine,
-    strategy_signals: Dict[StrategyType, Any],
-    consolidated_portfolio: Dict[str, float],
-    orders_executed: List[Dict],
-    account_before: Dict,
-    account_after: Dict,
-) -> Dict:
+    strategy_signals: dict[StrategyType, Any],
+    consolidated_portfolio: dict[str, float],
+    orders_executed: list[dict],
+    account_before: dict,
+    account_after: dict,
+) -> dict:
     """Create execution summary using helper utilities."""
     from the_alchemiser.utils.portfolio_pnl_utils import (
         build_allocation_summary,
@@ -98,10 +98,10 @@ def save_dashboard_data(engine, execution_result):
 
 
 def build_portfolio_state_data(
-    target_portfolio: Dict[str, float],
-    account_info: Dict,
-    current_positions: Dict,
-) -> Dict:
+    target_portfolio: dict[str, float],
+    account_info: dict,
+    current_positions: dict,
+) -> dict:
     """Build portfolio state data for reporting purposes."""
     from the_alchemiser.utils.account_utils import (
         calculate_portfolio_values,

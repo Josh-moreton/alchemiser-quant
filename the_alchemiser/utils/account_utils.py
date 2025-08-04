@@ -7,10 +7,10 @@ from data providers, including portfolio values, P&L calculations, and position 
 """
 
 import logging
-from typing import Any, Dict
+from typing import Any
 
 
-def extract_comprehensive_account_data(data_provider) -> Dict[str, Any]:
+def extract_comprehensive_account_data(data_provider) -> dict[str, Any]:
     """
     Extract comprehensive account information from a data provider.
 
@@ -52,7 +52,7 @@ def extract_comprehensive_account_data(data_provider) -> Dict[str, Any]:
         return {}
 
 
-def extract_basic_account_metrics(account_info: Dict) -> Dict[str, float]:
+def extract_basic_account_metrics(account_info: dict) -> dict[str, float]:
     """
     Extract basic portfolio metrics from account info.
 
@@ -71,8 +71,8 @@ def extract_basic_account_metrics(account_info: Dict) -> Dict[str, float]:
 
 
 def calculate_portfolio_values(
-    target_portfolio: Dict[str, float], account_info: Dict
-) -> Dict[str, float]:
+    target_portfolio: dict[str, float], account_info: dict
+) -> dict[str, float]:
     """
     Calculate target dollar values from portfolio weights.
 
@@ -87,7 +87,7 @@ def calculate_portfolio_values(
     return {symbol: portfolio_value * weight for symbol, weight in target_portfolio.items()}
 
 
-def extract_current_position_values(current_positions: Dict) -> Dict[str, float]:
+def extract_current_position_values(current_positions: dict) -> dict[str, float]:
     """
     Extract current market values from position objects.
 
