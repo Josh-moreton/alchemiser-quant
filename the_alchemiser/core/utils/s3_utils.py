@@ -213,7 +213,7 @@ def replace_file_handlers_with_s3(logger: logging.Logger, s3_uri_map: dict[str, 
         logger.removeHandler(handler)
 
     # Add S3 handlers
-    for log_type, s3_uri in s3_uri_map.items():
+    for _log_type, s3_uri in s3_uri_map.items():
         s3_handler = S3FileHandler(s3_uri)
         s3_handler.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - %(message)s"))
         logger.addHandler(s3_handler)

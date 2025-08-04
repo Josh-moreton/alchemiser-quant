@@ -46,7 +46,7 @@ class OrderCompletionMonitor:
 
             config = load_settings()
             websocket_enabled = config.alpaca.enable_websocket_orders
-        except:
+        except Exception:
             websocket_enabled = True  # Default to enabled if config unavailable
 
         api_key = self.api_key or getattr(self.trading_client, "_api_key", None)
@@ -379,7 +379,7 @@ class OrderCompletionMonitor:
         if hasattr(self, "_websocket_stream") and self._websocket_stream is not None:
             try:
                 self._websocket_stream.stop()
-            except:
+            except Exception:
                 pass
             delattr(self, "_websocket_stream")
 
@@ -387,6 +387,6 @@ class OrderCompletionMonitor:
             try:
                 if self._websocket_thread.is_alive():
                     self._websocket_thread.join(timeout=1.0)
-            except:
+            except Exception:
                 pass
             delattr(self, "_websocket_thread")

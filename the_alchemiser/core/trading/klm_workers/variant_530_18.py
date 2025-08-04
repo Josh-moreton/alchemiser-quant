@@ -431,7 +431,9 @@ class KLMVariant530_18(BaseKLMVariant):
             if candidates[0][0] == "FNGU_COMPLEX":
                 # Implement "50% FNGU / 50% FNGU or Not" logic
                 # This involves moving-average-return filtering of FNGU/SPXL/XLE/XLK/AGG
-                fngu_ma_return = indicators.get("FNGU", {}).get("moving_average_return_20", 0)
+                _fngu_ma_return = indicators.get("FNGU", {}).get(
+                    "moving_average_return_20", 0
+                )  # Reserved for future use
                 comparison_candidates = []
                 for symbol in ["FNGU", "SPXL", "XLE", "XLK", "AGG"]:
                     if symbol in indicators:

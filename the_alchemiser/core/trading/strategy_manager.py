@@ -1,5 +1,3 @@
-__all__ = ["StrategyType"]
-
 #!/usr/bin/env python3
 """
 Multi-Strategy Portfolio Manager
@@ -20,10 +18,10 @@ import logging
 from datetime import datetime
 from typing import Any
 
-from rich.console import Console
-
 from the_alchemiser.core.registry import StrategyRegistry, StrategyType
 from the_alchemiser.core.trading.nuclear_signals import ActionType
+
+__all__ = ["StrategyType"]
 
 
 class StrategyPosition:
@@ -149,11 +147,9 @@ class MultiStrategyManager:
         consolidated_portfolio = {}
         strategy_attribution = {}
 
-        console = Console()
-
         # Step 1: Collect all required symbols from enabled strategies
         all_symbols = set()
-        for strategy_type, engine in self.strategy_engines.items():
+        for _strategy_type, engine in self.strategy_engines.items():
             if hasattr(engine, "all_symbols"):
                 all_symbols.update(engine.all_symbols)
 

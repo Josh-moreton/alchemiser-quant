@@ -102,7 +102,7 @@ class WebSocketConnectionManager:
         if hasattr(self, "_websocket_stream") and self._websocket_stream:
             try:
                 self._websocket_stream.stop()
-            except:
+            except Exception:
                 pass
             self._websocket_stream = None
 
@@ -110,7 +110,7 @@ class WebSocketConnectionManager:
             try:
                 if self._websocket_thread.is_alive():
                     self._websocket_thread.join(timeout=1.0)
-            except:
+            except Exception:
                 pass
             self._websocket_thread = None
 

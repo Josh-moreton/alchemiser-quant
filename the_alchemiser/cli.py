@@ -194,13 +194,11 @@ def status(
     try:
         from rich.panel import Panel
 
-        from the_alchemiser.core.data.data_provider import UnifiedDataProvider
         from the_alchemiser.core.ui.cli_formatter import render_account_info
         from the_alchemiser.execution.trading_engine import TradingEngine
 
         # Create trader and data provider for the specified mode
         trader = TradingEngine(paper_trading=paper_trading)
-        data_provider = UnifiedDataProvider(paper_trading=paper_trading)
 
         account_info = trader.get_account_info()
 
@@ -232,7 +230,7 @@ def deploy():
     with Progress(
         SpinnerColumn(), TextColumn("[progress.description]{task.description}"), console=console
     ) as progress:
-        task = progress.add_task("Running deployment script...", total=None)
+        _task = progress.add_task("Running deployment script...", total=None)
 
         try:
             import subprocess
@@ -409,7 +407,7 @@ def backtest(
         console.print(table)
 
     elif mode == "all":
-        results = engine.run_all_combinations(
+        _results = engine.run_all_combinations(
             start_dt,
             end_dt,
             initial_equity=initial_equity,

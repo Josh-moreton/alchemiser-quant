@@ -219,7 +219,7 @@ class TradingEngine:
 
             # Add engine context to positions data
             if positions:
-                for symbol, position_data in positions.items():
+                for _symbol, position_data in positions.items():
                     if isinstance(position_data, dict):
                         position_data["retrieved_via"] = "trading_engine"
                         position_data["trading_mode"] = "paper" if self.paper_trading else "live"

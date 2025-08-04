@@ -26,7 +26,7 @@ def validate_quantity(qty: float | str | None, symbol: str) -> float | None:
         return None
 
     # Check for invalid types first (before float conversion)
-    if isinstance(qty, bool) or isinstance(qty, (list, dict)):
+    if isinstance(qty, bool) or isinstance(qty, list | dict):
         logging.warning(f"Invalid quantity type for {symbol}: {qty}")
         return None
 
@@ -60,7 +60,7 @@ def validate_notional(notional: float | str | None, symbol: str) -> float | None
         return None
 
     # Check for invalid types first (before float conversion)
-    if isinstance(notional, bool) or isinstance(notional, (list, dict)):
+    if isinstance(notional, bool) or isinstance(notional, list | dict):
         logging.warning(f"Invalid notional type for {symbol}: {notional}")
         return None
 

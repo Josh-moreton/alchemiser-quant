@@ -152,7 +152,7 @@ def create_alerts_from_signal(
 def log_alert_to_file(alert, log_file_path=None, paper_trading=None):
     """Log alert to file - centralized logging logic"""
     if log_file_path is None:
-        config = load_settings()
+        _config = load_settings()  # Configuration loaded but not used directly
         # Determine trading mode for appropriate JSON file
         if paper_trading is None:
             # Try to detect paper trading from environment or default to paper
@@ -193,7 +193,7 @@ def log_alert_to_file(alert, log_file_path=None, paper_trading=None):
 def log_alerts_to_file(alerts, log_file_path=None, paper_trading=None):
     """Log multiple alerts to file"""
     if log_file_path is None:
-        config = load_settings()
+        _config = load_settings()  # Configuration loaded but not used directly
         # Determine trading mode for appropriate JSON file
         if paper_trading is None:
             # Try to detect paper trading from environment or default to paper

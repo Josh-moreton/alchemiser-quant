@@ -213,7 +213,7 @@ class DataLoader:
         # Auto-detect symbols if not provided
         if symbols is None:
             console.print("[yellow]🔍 Auto-detecting symbols for all strategies...[/yellow]")
-            symbols = sorted(list(self.get_all_strategy_symbols()))
+            symbols = sorted(self.get_all_strategy_symbols())
             console.print(f"[green]📊 Detected {len(symbols)} symbols to load[/green]")
 
         # Use cache if available

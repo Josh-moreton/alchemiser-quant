@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-"""Typed configuration loader for The Alchemiser."""
-
 from pydantic import BaseModel, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+"""Typed configuration loader for The Alchemiser."""
 
 
 class LoggingSettings(BaseModel):

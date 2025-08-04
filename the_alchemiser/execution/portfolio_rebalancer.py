@@ -73,7 +73,7 @@ class PortfolioRebalancer:
         cash = account_info.get("cash", 0.0)
         current_positions = self.bot.get_positions()
 
-        target_values = {
+        _target_values = {  # Reserved for future use in value-based rebalancing
             symbol: portfolio_value * weight for symbol, weight in target_portfolio.items()
         }
         current_values = {

@@ -8,11 +8,8 @@ to provide a consistent interface for backtesting.
 
 import datetime as dt
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Union
 
 import pandas as pd
-
-from the_alchemiser.core.trading.strategy_manager import MultiStrategyManager
 
 
 @dataclass

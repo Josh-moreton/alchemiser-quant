@@ -141,7 +141,7 @@ class BacktestEngine:
         """
         # Calculate optimized lookback
         if symbols is None:
-            symbols = sorted(list(self.data_loader.get_all_strategy_symbols()))
+            symbols = sorted(self.data_loader.get_all_strategy_symbols())
 
         lookback_days = self.data_loader.calculate_optimized_lookback(symbols, include_minute_data)
         data_start = start - dt.timedelta(days=lookback_days)
@@ -639,7 +639,7 @@ class BacktestEngine:
 
                 spy_returns = spy_data[close_column].pct_change().fillna(0)
 
-                for i, date in enumerate(trading_dates[1:], 1):
+                for _i, date in enumerate(trading_dates[1:], 1):
                     if date in spy_returns.index:
                         # Simple market return simulation
                         daily_return = spy_returns[date] * 0.5  # Reduced volatility

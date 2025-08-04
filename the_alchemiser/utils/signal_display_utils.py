@@ -124,7 +124,7 @@ def display_portfolio_details(strategy_instance, strategy_name="Strategy"):
                 logger.info("%s portfolio details:", strategy_name.upper())
                 for symbol, data in portfolio.items():
                     weight = data.get("weight", 0)
-                    if isinstance(weight, (int, float)):
+                    if isinstance(weight, int | float):
                         logger.info("   %s: %.1%", symbol, weight)
                     else:
                         logger.info("   %s: %s", symbol, weight)

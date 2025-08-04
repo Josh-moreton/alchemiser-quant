@@ -246,7 +246,7 @@ class BacktestDataCache:
             console.print(
                 "[yellow]🔍 Auto-detecting required symbols for all strategies...[/yellow]"
             )
-            symbols = sorted(list(self.get_all_required_symbols()))
+            symbols = sorted(self.get_all_required_symbols())
             console.print(f"[green]📊 Detected {len(symbols)} symbols to cache[/green]")
 
         # Check cache first
