@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, List, Any
+from typing import Any, Dict, List
 
 from the_alchemiser.core.trading.strategy_manager import StrategyType
 
@@ -14,10 +14,10 @@ def create_execution_summary(
 ) -> Dict:
     """Create execution summary using helper utilities."""
     from the_alchemiser.utils.portfolio_pnl_utils import (
+        build_allocation_summary,
+        build_strategy_summary,
         calculate_strategy_pnl_summary,
         extract_trading_summary,
-        build_strategy_summary,
-        build_allocation_summary,
     )
 
     symbols_in_portfolio = set(consolidated_portfolio.keys())
@@ -54,11 +54,11 @@ def save_dashboard_data(engine, execution_result):
         from the_alchemiser.core.utils.s3_utils import get_s3_handler
         from the_alchemiser.utils.dashboard_utils import (
             build_basic_dashboard_structure,
+            build_s3_paths,
             extract_portfolio_metrics,
             extract_positions_data,
-            extract_strategies_data,
             extract_recent_trades_data,
-            build_s3_paths,
+            extract_strategies_data,
         )
 
         s3_handler = get_s3_handler()
@@ -76,7 +76,9 @@ def save_dashboard_data(engine, execution_result):
             engine.strategy_manager.strategy_allocations,
         )
         dashboard_data["signals"] = {
-            strategy_type.value if hasattr(strategy_type, "value") else str(strategy_type): signal_data
+            (
+                strategy_type.value if hasattr(strategy_type, "value") else str(strategy_type)
+            ): signal_data
             for strategy_type, signal_data in execution_result.strategy_signals.items()
         }
 

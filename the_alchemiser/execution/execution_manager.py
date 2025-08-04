@@ -1,8 +1,6 @@
 import logging
-from typing import Dict, List, Any
 
-from the_alchemiser.core.trading.strategy_manager import StrategyType
-from .reporting import create_execution_summary, save_dashboard_data, build_portfolio_state_data
+from .reporting import build_portfolio_state_data, create_execution_summary, save_dashboard_data
 from .types import MultiStrategyExecutionResult
 
 
@@ -60,19 +58,18 @@ class ExecutionManager:
             self.engine._archive_daily_strategy_pnl(execution_summary.get("pnl_summary", {}))
             return result
         except Exception as e:
-            from the_alchemiser.core.logging.logging_utils import log_error_with_context, get_logger
+            from the_alchemiser.core.logging.logging_utils import get_logger, log_error_with_context
+
             logger = get_logger(__name__)
-            log_error_with_context(
-                logger, 
-                e, 
-                "multi-strategy execution"
-            )
+            log_error_with_context(logger, e, "multi-strategy execution")
             return MultiStrategyExecutionResult(
                 success=False,
                 strategy_signals={},
                 consolidated_portfolio={},
                 orders_executed=[],
-                account_info_before=account_info_before if "account_info_before" in locals() else {},
+                account_info_before=(
+                    account_info_before if "account_info_before" in locals() else {}
+                ),
                 account_info_after={},
                 execution_summary={"error": str(e)},
                 final_portfolio_state=None,

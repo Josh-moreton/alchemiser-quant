@@ -8,22 +8,17 @@ from .base import BaseEmailTemplate
 
 class ErrorReportBuilder:
     """Builds error notification email templates."""
-    
+
     @staticmethod
     def build_error_report(title: str, error_message: str) -> str:
         """Build an error alert email."""
-        
+
         header = BaseEmailTemplate.get_header("The Alchemiser")
-        status_banner = BaseEmailTemplate.get_status_banner(
-            title,
-            "Error",
-            "#EF4444",
-            "❌"
-        )
-        
+        status_banner = BaseEmailTemplate.get_status_banner(title, "Error", "#EF4444", "❌")
+
         # Format error message
-        formatted_error = error_message.replace('\n', '<br>')
-        
+        formatted_error = error_message.replace("\n", "<br>")
+
         error_content = f"""
         <div style="margin: 24px 0;">
             <h3 style="margin: 0 0 16px 0; color: #1F2937; font-size: 18px; font-weight: 600;">🚨 Error Details</h3>
@@ -34,9 +29,9 @@ class ErrorReportBuilder:
             </div>
         </div>
         """
-        
+
         # Add troubleshooting tips
-        tips_content = f"""
+        tips_content = """
         <div style="margin: 24px 0;">
             <h3 style="margin: 0 0 16px 0; color: #1F2937; font-size: 18px; font-weight: 600;">💡 Troubleshooting Tips</h3>
             <div style="background-color: #FEF3C7; border-radius: 8px; padding: 16px; border-left: 4px solid #F59E0B;">
@@ -50,9 +45,9 @@ class ErrorReportBuilder:
             </div>
         </div>
         """
-        
+
         footer = BaseEmailTemplate.get_footer()
-        
+
         # Combine all content
         content = f"""
         {header}
@@ -65,5 +60,5 @@ class ErrorReportBuilder:
         </tr>
         {footer}
         """
-        
+
         return BaseEmailTemplate.wrap_content(content, f"The Alchemiser - {title}")

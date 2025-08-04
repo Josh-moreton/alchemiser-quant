@@ -19,7 +19,7 @@ Order Placement Logic:
         - Full sales (≥ 99%): Use Alpaca's close_position() API
         - Always validate position exists before selling
         - Automatically cap sell quantity to available shares
-    
+
     Buying Positions:
         - Use market orders for immediate execution
         - Cancel existing orders first to avoid conflicts
@@ -36,7 +36,7 @@ Safety Features:
 
 Example:
     Basic usage for order placement:
-    
+
     >>> client = AlpacaClient(trading_client, data_provider)
     >>> positions = client.get_current_positions()
     >>> order_id = client.place_market_order('AAPL', OrderSide.BUY, qty=10)
@@ -50,35 +50,42 @@ from alpaca.trading.client import TradingClient
 from alpaca.trading.enums import OrderSide
 
 from the_alchemiser.core.data.data_provider import UnifiedDataProvider
-from the_alchemiser.utils.order_validation_utils import (
-    validate_quantity, validate_notional, validate_order_parameters
-)
-from the_alchemiser.utils.websocket_order_monitor import OrderCompletionMonitor
 from the_alchemiser.utils.asset_order_handler import AssetOrderHandler
-from the_alchemiser.utils.position_manager import PositionManager
 from the_alchemiser.utils.limit_order_handler import LimitOrderHandler
+from the_alchemiser.utils.order_validation_utils import (
+    validate_notional,
+    validate_order_parameters,
+    validate_quantity,
+)
+from the_alchemiser.utils.position_manager import PositionManager
 from the_alchemiser.utils.smart_pricing_handler import SmartPricingHandler
 from the_alchemiser.utils.websocket_connection_manager import WebSocketConnectionManager
+from the_alchemiser.utils.websocket_order_monitor import OrderCompletionMonitor
 
 
 class AlpacaClient:
     """Streamlined Alpaca API client for reliable order execution.
-    
+
     This client has been refactored to use specialized helper modules for:
     - Order validation and parameter handling
     - WebSocket-based order monitoring
     - Asset-specific order logic
     - Position management operations
-    
+
     Attributes:
         trading_client: Alpaca trading client for API calls.
         data_provider: Data provider for market quotes and prices.
         validate_buying_power: Whether to validate buying power for buy orders.
     """
 
-    def __init__(self, trading_client: TradingClient, data_provider: UnifiedDataProvider, validate_buying_power: bool = False):
+    def __init__(
+        self,
+        trading_client: TradingClient,
+        data_provider: UnifiedDataProvider,
+        validate_buying_power: bool = False,
+    ):
         """Initialize AlpacaClient with helper modules.
-        
+
         Args:
             trading_client: Alpaca trading client instance.
             data_provider: Data provider for quotes and prices.
@@ -87,22 +94,22 @@ class AlpacaClient:
         self.trading_client = trading_client
         self.data_provider = data_provider
         self.validate_buying_power = validate_buying_power
-        
+
         # Initialize helper modules
         self.order_monitor = OrderCompletionMonitor(
-            trading_client, 
-            api_key=data_provider.api_key, 
-            secret_key=data_provider.secret_key
+            trading_client, api_key=data_provider.api_key, secret_key=data_provider.secret_key
         )
         self.asset_handler = AssetOrderHandler(data_provider)
         self.position_manager = PositionManager(trading_client, data_provider)
-        self.limit_order_handler = LimitOrderHandler(trading_client, self.position_manager, self.asset_handler)
+        self.limit_order_handler = LimitOrderHandler(
+            trading_client, self.position_manager, self.asset_handler
+        )
         self.pricing_handler = SmartPricingHandler(data_provider)
         self.websocket_manager = WebSocketConnectionManager(trading_client)
 
     def get_current_positions(self) -> Dict[str, float]:
         """Get all current positions from Alpaca.
-        
+
         Returns:
             Dictionary mapping symbol to quantity owned. Only includes non-zero positions.
         """
@@ -110,7 +117,7 @@ class AlpacaClient:
 
     def get_pending_orders(self) -> List[Dict]:
         """Get all pending orders from Alpaca.
-        
+
         Returns:
             List of pending order information dictionaries.
         """
@@ -119,10 +126,10 @@ class AlpacaClient:
     def cancel_all_orders(self, symbol: Optional[str] = None) -> bool:
         """
         Cancel all pending orders, optionally filtered by symbol.
-        
+
         Args:
             symbol: If provided, only cancel orders for this symbol
-            
+
         Returns:
             True if successful, False otherwise
         """
@@ -134,37 +141,37 @@ class AlpacaClient:
     def liquidate_position(self, symbol: str) -> Optional[str]:
         """
         Liquidate entire position using Alpaca's close_position API.
-        
+
         Args:
             symbol: Symbol to liquidate
-            
+
         Returns:
             Order ID if successful, None if failed
         """
         # Cancel any pending orders for this symbol first
         self.cancel_all_orders(symbol)
         time.sleep(0.5)  # Brief pause for cancellations to process
-        
+
         return self.position_manager.execute_liquidation(symbol)
 
     def place_market_order(
-        self, 
-        symbol: str, 
+        self,
+        symbol: str,
         side: OrderSide,
         qty: Optional[float] = None,
         notional: Optional[float] = None,
-        cancel_existing: bool = True
+        cancel_existing: bool = True,
     ) -> Optional[str]:
         """
         Place a simple market order using helper modules for validation and asset handling.
-        
+
         Args:
             symbol: Stock symbol
             side: OrderSide.BUY or OrderSide.SELL
             qty: Quantity to trade (use either qty OR notional, not both)
             notional: Dollar amount to trade (use either qty OR notional, not both)
             cancel_existing: Whether to cancel existing orders for this symbol first
-            
+
         Returns:
             Order ID if successful, None if failed
         """
@@ -173,13 +180,13 @@ class AlpacaClient:
         if not is_valid:
             logging.warning(error_msg)
             return None
-        
+
         # Validate and normalize qty/notional
         if qty is not None:
             qty = validate_quantity(qty, symbol)
             if qty is None:
                 return None
-        
+
         if notional is not None:
             notional = validate_notional(notional, symbol)
             if notional is None:
@@ -193,7 +200,9 @@ class AlpacaClient:
 
             # For buy orders, validate buying power (if enabled)
             if side == OrderSide.BUY and self.validate_buying_power and qty is not None:
-                is_sufficient, warning_msg = self.position_manager.validate_buying_power(symbol, qty)
+                is_sufficient, warning_msg = self.position_manager.validate_buying_power(
+                    symbol, qty
+                )
                 if not is_sufficient:
                     logging.warning(warning_msg)
                     return None
@@ -202,7 +211,9 @@ class AlpacaClient:
 
             # For sell orders, validate and adjust quantity
             if side == OrderSide.SELL and qty is not None:
-                is_valid, adjusted_qty, warning_msg = self.position_manager.validate_sell_position(symbol, qty)
+                is_valid, adjusted_qty, warning_msg = self.position_manager.validate_sell_position(
+                    symbol, qty
+                )
                 if not is_valid:
                     logging.warning(warning_msg)
                     return None
@@ -221,73 +232,77 @@ class AlpacaClient:
             market_order_data, conversion_info = self.asset_handler.prepare_market_order(
                 symbol, side, qty, notional
             )
-            
+
             if market_order_data is None:
                 logging.warning(f"Failed to prepare market order for {symbol}")
                 return None
-            
+
             if conversion_info:
                 logging.info(f"Order conversion: {conversion_info}")
 
             # Submit the order with error handling for non-fractionable assets
             try:
                 order = self.trading_client.submit_order(market_order_data)
-                order_id = str(getattr(order, 'id', 'unknown'))
-                
+                order_id = str(getattr(order, "id", "unknown"))
+
                 logging.info(f"Market order placed for {symbol}: {order_id}")
                 return order_id
-                
+
             except Exception as order_error:
                 error_msg = str(order_error)
-                
+
                 # Handle fractionability errors using asset handler
                 if "not fractionable" in error_msg.lower() and qty is not None:
-                    fallback_order, conversion_info = self.asset_handler.handle_fractionability_error(
-                        symbol, side, qty, error_msg
+                    fallback_order, conversion_info = (
+                        self.asset_handler.handle_fractionability_error(
+                            symbol, side, qty, error_msg
+                        )
                     )
-                    
+
                     if fallback_order is None:
                         logging.error(f"❌ Fallback failed: {conversion_info}")
                         return None
-                    
+
                     logging.info(f"🔄 {conversion_info}")
-                    
+
                     try:
                         order = self.trading_client.submit_order(fallback_order)
-                        order_id = str(getattr(order, 'id', 'unknown'))
-                        
+                        order_id = str(getattr(order, "id", "unknown"))
+
                         logging.info(f"✅ Fallback order placed for {symbol}: {order_id}")
                         return order_id
-                        
+
                     except Exception as fallback_error:
-                        logging.error(f"❌ Fallback order also failed for {symbol}: {fallback_error}")
+                        logging.error(
+                            f"❌ Fallback order also failed for {symbol}: {fallback_error}"
+                        )
                         return None
                 else:
                     # Re-raise the original error if it's not a fractionability issue
                     raise order_error
-            
+
         except Exception as e:
             logging.error(f"Market order failed for {symbol}: {e}")
             return None
 
     def place_limit_order(
-        self, 
-        symbol: str, 
-        qty: float, 
-        side: OrderSide, 
+        self,
+        symbol: str,
+        qty: float,
+        side: OrderSide,
         limit_price: float,
-        cancel_existing: bool = True
+        cancel_existing: bool = True,
     ) -> Optional[str]:
         """
         Place a limit order using the specialized limit order handler.
-        
+
         Args:
             symbol: Stock symbol
             qty: Quantity to trade
             side: OrderSide.BUY or OrderSide.SELL
             limit_price: Limit price for the order
             cancel_existing: Whether to cancel existing orders for this symbol first
-            
+
         Returns:
             Order ID if successful, None if failed
         """
@@ -298,38 +313,44 @@ class AlpacaClient:
     def place_smart_sell_order(self, symbol: str, qty: float) -> Optional[str]:
         """
         Smart sell order that uses liquidation API for full position sells.
-        
+
         Args:
             symbol: Symbol to sell
             qty: Quantity to sell
-            
+
         Returns:
             Order ID if successful, None if failed
         """
         positions = self.get_current_positions()
         available = positions.get(symbol, 0)
-        
+
         if available <= 0:
             logging.warning(f"No position to sell for {symbol}")
             return None
-            
+
         # If selling 99%+ of position, use liquidation API
         if qty >= available * 0.99:
-            logging.info(f"Selling {qty}/{available} shares ({qty/available:.1%}) - using liquidation API")
+            logging.info(
+                f"Selling {qty}/{available} shares ({qty/available:.1%}) - using liquidation API"
+            )
             return self.liquidate_position(symbol)
         else:
-            logging.info(f"Selling {qty}/{available} shares ({qty/available:.1%}) - using market order")
+            logging.info(
+                f"Selling {qty}/{available} shares ({qty/available:.1%}) - using market order"
+            )
             return self.place_market_order(symbol, OrderSide.SELL, qty=qty)
 
-    def get_smart_limit_price(self, symbol: str, side: OrderSide, aggressiveness: float = 0.5) -> Optional[float]:
+    def get_smart_limit_price(
+        self, symbol: str, side: OrderSide, aggressiveness: float = 0.5
+    ) -> Optional[float]:
         """
         Get a smart limit price based on current bid/ask.
-        
+
         Args:
             symbol: Stock symbol
             side: OrderSide.BUY or OrderSide.SELL
             aggressiveness: 0.0 = most conservative, 1.0 = most aggressive (market price)
-            
+
         Returns:
             Calculated limit price, or None if data unavailable
         """
@@ -343,7 +364,6 @@ class AlpacaClient:
         """Get conservative buy pricing for better fills."""
         return self.pricing_handler.get_conservative_buy_price(symbol)
 
-
     def wait_for_order_completion(
         self,
         order_ids: List[str],
@@ -355,7 +375,7 @@ class AlpacaClient:
     def _prepare_websocket_connection(self) -> bool:
         """
         Pre-initialize WebSocket connection and wait for it to be ready.
-        
+
         Returns:
             True if WebSocket is ready, False if it failed to connect
         """

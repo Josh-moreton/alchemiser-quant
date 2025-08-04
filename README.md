@@ -118,7 +118,7 @@ Current Signal: BEAR_MARKET_DEFENSIVE
 Market Regime: High Volatility (VIX: 28.4)
 
 Recommended Portfolio:
-├── BIL (Treasury Bills): 60.0% 
+├── BIL (Treasury Bills): 60.0%
 ├── UVXY (Volatility): 25.0%
 └── PSQ (Tech Short): 15.0%
 
@@ -135,7 +135,7 @@ Recommended Portfolio:
 Orders Placed: 3 | Filled: 3 | Failed: 0
 
 ├── ✅ SELL SPY: 150 shares → $67,425.00 (Limit: $449.50)
-├── ✅ BUY BIL: 825 shares → $40,000.00 (Limit: $48.49)  
+├── ✅ BUY BIL: 825 shares → $40,000.00 (Limit: $48.49)
 └── ✅ BUY UVXY: 1,250 shares → $25,000.00 (Limit: $20.01)
 
 💰 Portfolio Summary:
@@ -197,7 +197,7 @@ npm run remove
 ```bash
 # Development mode with auto-reload
 make run-signals    # Signals only
-make run-trade      # Paper trading  
+make run-trade      # Paper trading
 make run-trade-live # Live trading ⚠️
 ```
 
@@ -208,7 +208,7 @@ make run-trade-live # Live trading ⚠️
 Professional HTML email reports with:
 
 - 📈 Portfolio performance and P&L tracking
-- 🎯 Strategy allocation breakdowns  
+- 🎯 Strategy allocation breakdowns
 - 📋 Detailed trade execution summaries
 - ⚠️ Error alerts and system notifications
 
@@ -237,7 +237,7 @@ ALPACA_KEY=your_paper_api_key
 ALPACA_SECRET=your_paper_secret
 
 # Live Trading (Real Money) ⚠️
-ALPACA_LIVE_KEY=your_live_api_key  
+ALPACA_LIVE_KEY=your_live_api_key
 ALPACA_LIVE_SECRET=your_live_secret
 
 # Email Notifications
@@ -256,7 +256,7 @@ strategies:
     weight: 0.6
     rsi_overbought: 70
     rsi_oversold: 30
-    
+
   tecl:
     enabled: true
     weight: 0.4
@@ -275,7 +275,7 @@ execution:
 ### Comprehensive Test Suite
 
 - **232+ Tests** across 12 test files
-- **93% Code Coverage** with unit and integration tests  
+- **93% Code Coverage** with unit and integration tests
 - **Market Scenario Testing** for various conditions
 - **Error Handling Validation** for robust operation
 
@@ -283,7 +283,7 @@ execution:
 # Run test suite
 make test
 
-# Generate coverage report  
+# Generate coverage report
 make test-coverage
 
 # Run specific test category
@@ -297,7 +297,7 @@ pytest tests/test_strategy_engines.py -v
 ### Complete Documentation Framework
 
 - **📖 [User Guide](./docs/user-guide/)** - CLI commands, trading modes, monitoring
-- **🏗️ [Architecture](./docs/architecture/)** - System design and data flow  
+- **🏗️ [Architecture](./docs/architecture/)** - System design and data flow
 - **📈 [Strategies](./docs/strategies/)** - Nuclear, TECL, and custom strategies
 - **💹 [Trading Features](./docs/trading/)** - Smart orders, risk management
 - **🛠️ [Development](./docs/development/)** - Contributing, testing, debugging
@@ -330,12 +330,38 @@ git commit -m "Add your feature"
 git push origin feature/your-feature
 ```
 
+### Code Quality
+
+The Alchemiser enforces high code quality standards through automated tooling:
+
+- **🎨 Black**: Consistent code formatting
+- **🔍 Ruff**: Fast linting and import sorting (replaces Flake8 + isort)
+- **🔒 MyPy**: Static type checking
+- **🎣 Pre-commit hooks**: Automatic code quality checks
+
+```bash
+# Install pre-commit hooks (one-time setup)
+poetry run pre-commit install
+
+# Run quality checks manually
+poetry run black .                    # Format code
+poetry run ruff check . --fix         # Fix linting issues
+poetry run mypy the_alchemiser/       # Type checking
+poetry run pre-commit run --all-files # Run all hooks
+
+# Quality checks run automatically on:
+# ✅ Every commit (pre-commit hooks)
+# ✅ Every pull request (GitHub Actions)
+```
+
+**📝 [Contributing Guide →](./CONTRIBUTING.md)**
+
 ## ⚠️ Risk Disclosure
 
 **Important**: This software is for educational and research purposes. Trading involves substantial risk of loss. Past performance does not guarantee future results.
 
 - ✅ Always start with **paper trading**
-- ✅ Never risk more than you can afford to lose  
+- ✅ Never risk more than you can afford to lose
 - ✅ Understand the strategies before using live funds
 - ✅ Monitor your positions and set appropriate limits
 
@@ -419,7 +445,7 @@ The Lambda handler now supports **multiple trading modes** triggered by differen
 #### 🎯 Supported Modes
 
 - **Paper Trading**: Safe testing with simulated trades
-- **Live Trading**: Real money trading with actual positions  
+- **Live Trading**: Real money trading with actual positions
 - **Signal Analysis**: Display signals without executing trades
 
 #### 📋 Event Configuration
@@ -438,7 +464,7 @@ The Lambda handler now supports **multiple trading modes** triggered by differen
 // Paper Trading
 {"mode": "trade", "trading_mode": "paper"}
 
-// Live Trading  
+// Live Trading
 {"mode": "trade", "trading_mode": "live"}
 
 // Signal Analysis
@@ -460,7 +486,7 @@ aws events put-rule --name "AlchemiserPaper" \
 aws events put-targets --rule "AlchemiserPaper" \
   --targets Id=1,Arn=arn:aws:lambda:REGION:ACCOUNT:function:the-alchemiser,Input='{"mode":"trade","trading_mode":"paper"}'
 
-# Live Trading (Daily at 9:45 AM EST)  
+# Live Trading (Daily at 9:45 AM EST)
 aws events put-rule --name "AlchemiserLive" \
   --schedule-expression "cron(45 14 ? * MON-FRI *)"
 aws events put-targets --rule "AlchemiserLive" \
