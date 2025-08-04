@@ -222,13 +222,13 @@ def deploy():
     """
     🚀 [bold cyan]Deploy to AWS Lambda[/bold cyan]
 
-    Builds Docker image and deploys to AWS Lambda using ECR.
+    Builds and deploys to AWS Lambda using SAM (Serverless Application Model).
     """
     show_welcome()
 
-    console.print("[bold yellow]🔨 Building and deploying to AWS Lambda...[/bold yellow]")
+    console.print("[bold yellow]🔨 Building and deploying to AWS Lambda with SAM...[/bold yellow]")
 
-    deploy_script = "scripts/build_and_push_lambda.sh"
+    deploy_script = "scripts/deploy.sh"
 
     with Progress(
         SpinnerColumn(), TextColumn("[progress.description]{task.description}"), console=console
@@ -540,7 +540,7 @@ def main(
     • [cyan]alchemiser backtest[/cyan]              - Run comprehensive backtests
     • [cyan]alchemiser status[/cyan]                - Show account status and positions
     • [cyan]alchemiser validate-indicators[/cyan]   - Validate indicators against TwelveData API
-    • [cyan]alchemiser deploy[/cyan]                - Deploy to AWS Lambda
+    • [cyan]alchemiser deploy[/cyan]                - Deploy to AWS Lambda with SAM
     • [cyan]alchemiser version[/cyan]               - Show version information
 
     [dim]Use --help with any command for detailed information.[/dim]
