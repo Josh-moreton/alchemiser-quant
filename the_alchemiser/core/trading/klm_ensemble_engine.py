@@ -65,7 +65,7 @@ class KLMStrategyEnsemble:
             KlmVariant52022(),  # "Original" baseline
             KlmVariant53018(),  # Scale-In strategy (most complex)
             KlmVariant41038(),  # MonkeyBusiness Simons
-            KLMVariantNova(),  # Short backtest optimization
+            KLMVariantNova(),  # Short-term optimization
             KlmVariant83021(),  # MonkeyBusiness Simons V2
         ]
 

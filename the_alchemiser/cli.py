@@ -3,11 +3,11 @@
 Command-Line Interface for The Alchemiser Quantitative Trading System.
 
 Provides a modern CLI built with Typer and Rich for user interaction, strategy selection,
-backtesting, and reporting. Handles user commands and displays formatted output.
+and reporting. Handles user commands and displays formatted output.
 """
 
 import time
-from datetime import datetime, timedelta
+from datetime import datetime
 
 import typer
 from rich.console import Console
@@ -15,9 +15,6 @@ from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.prompt import Confirm
 from rich.text import Text
-
-# Import new clean backtest engine
-from the_alchemiser.backtest.engine import BacktestEngine
 
 # Initialize Typer app and Rich console
 app = typer.Typer(
@@ -62,7 +59,7 @@ def signal(
 
     Perfect for:
     • Market analysis without trading
-    • Strategy validation and backtesting
+    • Strategy validation
     • Understanding current market signals
     """
     if not no_header:
@@ -270,160 +267,6 @@ def version():
     console.print(Panel(version_info, title="[bold]Version Info[/bold]", border_style="cyan"))
 
 
-# --- Main Backtest Command (Clean Interface) ---
-@app.command()
-def backtest(
-    mode: str = typer.Option("live", help="Backtest mode: individual, live, or all"),
-    strategy: str | None = typer.Option(
-        None, help="Strategy for individual mode: nuclear, tecl, or klm"
-    ),
-    start: str = typer.Option("2025-01-01", help="Start date (YYYY-MM-DD, default: 2025-01-01)"),
-    end: str = typer.Option(
-        None,
-        help="End date (YYYY-MM-DD, default: 3 days ago)",
-        callback=lambda v: v or (datetime.now() - timedelta(days=3)).strftime("%Y-%m-%d"),
-    ),
-    initial_equity: float = typer.Option(1000.0, help="Initial equity"),
-    slippage_bps: int = typer.Option(8, help="Slippage in basis points"),
-    noise_factor: float = typer.Option(0.0015, help="Market noise factor"),
-    step_size: int = typer.Option(10, help="Weight increment for all mode (10 = 10% steps)"),
-    max_workers: int = typer.Option(4, help="Number of parallel threads for all mode"),
-    deposit_amount: float = typer.Option(0.0, help="Regular deposit amount"),
-    deposit_frequency: str | None = typer.Option(None, help="Deposit frequency: monthly or weekly"),
-    deposit_day: int = typer.Option(1, help="Deposit day"),
-    minute_candles: bool = typer.Option(
-        False, "--minute-candles", help="Use minute candles for execution"
-    ),
-):
-    """
-    Clean backtest interface - individual, live, or all weight combinations
-
-    Examples:
-      alchemiser backtest --mode individual --strategy nuclear
-      alchemiser backtest --mode live
-      alchemiser backtest --mode all --step-size 20 --max-workers 6
-
-    This backtest engine uses REAL strategy engines (Nuclear, TECL, KLM) to provide
-    faithful representation of live trading performance.
-    """
-
-    # Validate mode and strategy combination
-    if mode not in ["individual", "live", "all"]:
-        console.print(f"[red]Error: Invalid mode '{mode}'. Must be: individual, live, or all")
-        raise typer.Exit(1)
-
-    if mode == "individual":
-        if not strategy:
-            console.print("[red]Error: --strategy required for individual mode[/red]")
-            raise typer.Exit(1)
-        if strategy.lower() not in ["nuclear", "tecl", "klm"]:
-            console.print("[red]Error: Strategy must be one of: nuclear, tecl, klm[/red]")
-            raise typer.Exit(1)
-
-    try:
-        start_dt = datetime.strptime(start, "%Y-%m-%d")
-        end_dt = datetime.strptime(end, "%Y-%m-%d")
-    except Exception as e:
-        console.print(f"[red]Error parsing dates: {e}[/red]")
-        raise typer.Exit(1)
-
-    # Run appropriate backtest
-    engine = BacktestEngine(use_cache=True)
-
-    if mode == "individual":
-        if not strategy:
-            console.print("[red]Strategy is required for individual mode[/red]")
-            raise typer.Exit(1)
-
-        result = engine.run_individual_strategy(
-            strategy.lower(),
-            start_dt,
-            end_dt,
-            initial_equity=initial_equity,
-            slippage_bps=slippage_bps,
-            noise_factor=noise_factor,
-            deposit_amount=deposit_amount,
-            deposit_frequency=deposit_frequency,
-            deposit_day=deposit_day,
-            use_minute_candles=minute_candles,
-        )
-
-        # Display results
-        from rich.table import Table
-
-        table = Table(title="📈 Individual Strategy Backtest Results")
-        table.add_column("Metric", style="cyan")
-        table.add_column("Value", style="green")
-
-        table.add_row("Strategy", result.strategy_name)
-        table.add_row("Final Equity", f"£{result.final_equity:,.2f}")
-        table.add_row("Total Return", f"{result.total_return:+.2f}%")
-        table.add_row("CAGR", f"{result.cagr:.2f}%")
-        table.add_row("Volatility", f"{result.volatility:.2f}%")
-        table.add_row("Sharpe Ratio", f"{result.sharpe_ratio:.2f}")
-        table.add_row("Max Drawdown", f"{result.max_drawdown:.2f}%")
-        table.add_row(
-            "Calmar Ratio",
-            f"{result.calmar_ratio:.2f}" if result.calmar_ratio != float("inf") else "∞",
-        )
-        table.add_row("Trading Days", str(result.trading_days))
-
-        console.print(table)
-
-    elif mode == "live":
-        result = engine.run_live_configuration(
-            start_dt,
-            end_dt,
-            initial_equity=initial_equity,
-            slippage_bps=slippage_bps,
-            noise_factor=noise_factor,
-            deposit_amount=deposit_amount,
-            deposit_frequency=deposit_frequency,
-            deposit_day=deposit_day,
-            use_minute_candles=minute_candles,
-        )
-
-        # Display results
-        from rich.table import Table
-
-        table = Table(title="📈 Live Trading Configuration Results")
-        table.add_column("Metric", style="cyan")
-        table.add_column("Value", style="green")
-
-        table.add_row("Strategy", result.strategy_name)
-        table.add_row("Final Equity", f"£{result.final_equity:,.2f}")
-        table.add_row("Total Return", f"{result.total_return:+.2f}%")
-        table.add_row("CAGR", f"{result.cagr:.2f}%")
-        table.add_row("Volatility", f"{result.volatility:.2f}%")
-        table.add_row("Sharpe Ratio", f"{result.sharpe_ratio:.2f}")
-        table.add_row("Max Drawdown", f"{result.max_drawdown:.2f}%")
-        table.add_row(
-            "Calmar Ratio",
-            f"{result.calmar_ratio:.2f}" if result.calmar_ratio != float("inf") else "∞",
-        )
-        table.add_row("Trading Days", str(result.trading_days))
-
-        console.print(table)
-
-    elif mode == "all":
-        _results = engine.run_all_combinations(
-            start_dt,
-            end_dt,
-            initial_equity=initial_equity,
-            slippage_bps=slippage_bps,
-            noise_factor=noise_factor,
-            step_size=step_size,
-            max_workers=max_workers,
-            deposit_amount=deposit_amount,
-            deposit_frequency=deposit_frequency,
-            deposit_day=deposit_day,
-            use_minute_candles=minute_candles,
-        )
-        # Results are already displayed in the function
-
-    console.print("\n[bold green]✅ Backtest complete![/bold green]")
-
-
 @app.command()
 def validate_indicators(
     mode: str = typer.Option("core", help="Validation mode: quick, core, or full"),
@@ -537,7 +380,6 @@ def main(
     Available commands:
     • [cyan]alchemiser signal[/cyan]                - Generate strategy signals (analysis only)
     • [cyan]alchemiser trade[/cyan]                 - Execute multi-strategy trading
-    • [cyan]alchemiser backtest[/cyan]              - Run comprehensive backtests
     • [cyan]alchemiser status[/cyan]                - Show account status and positions
     • [cyan]alchemiser validate-indicators[/cyan]   - Validate indicators against TwelveData API
     • [cyan]alchemiser deploy[/cyan]                - Deploy to AWS Lambda with SAM
