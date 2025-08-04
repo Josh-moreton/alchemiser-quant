@@ -64,7 +64,7 @@ class S3Handler:
             content = response["Body"].read().decode("utf-8")
 
             logging.debug(f"Successfully read from {s3_uri}")
-            return content
+            return str(content)
 
         except ClientError as e:
             if e.response["Error"]["Code"] == "NoSuchKey":
@@ -93,7 +93,7 @@ class S3Handler:
             if content is None:
                 return None
 
-            return json.loads(content)
+            return dict(json.loads(content))
 
         except json.JSONDecodeError as e:
             logging.error(f"Error parsing JSON from {s3_uri}: {e}")

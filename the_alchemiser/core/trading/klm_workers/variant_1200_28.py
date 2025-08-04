@@ -67,7 +67,9 @@ class KlmVariant120028(BaseKLMVariant):
         # Fallback if UVXY data unavailable
         return self._evaluate_combined_pop_bot(indicators)
 
-    def _evaluate_bsc_strategy(self, indicators: dict[str, dict[str, float]]) -> tuple[str, str, str]:
+    def _evaluate_bsc_strategy(
+        self, indicators: dict[str, dict[str, float]]
+    ) -> tuple[str, str, str]:
         """
         BSC strategy - identical to 506/38
         """
@@ -163,7 +165,9 @@ class KlmVariant120028(BaseKLMVariant):
         # XLK <= KMLM → L/S Rotator (need to check CLJ for exact logic)
         return self._evaluate_ls_rotator_1200(indicators)
 
-    def _evaluate_ls_rotator_1200(self, indicators: dict[str, dict[str, float]]) -> tuple[str, str, str]:
+    def _evaluate_ls_rotator_1200(
+        self, indicators: dict[str, dict[str, float]]
+    ) -> tuple[str, str, str]:
         """
         1200/28 L/S Rotator - need to check if same as others or different
         For now, assume similar to 1280/26 (SQQQ/TLT select-top 1)

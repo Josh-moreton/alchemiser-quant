@@ -391,7 +391,7 @@ class KlmVariant53018(BaseKLMVariant):
                 )
             else:
                 # Pop bot logic
-                result = self._evaluate_holy_grail_pop_bot(indicators)
+                result = self._evaluate_holy_grail_pop_bot(indicators)  # type: ignore[assignment]
 
             self.log_decision(result[0], result[1], result[2])
             return result
@@ -466,16 +466,16 @@ class KlmVariant53018(BaseKLMVariant):
                             f"KMLM Switcher: 50% FNGU / 50% {best_candidate[0]} (best MA return)",
                         )
                     else:
-                        result = (
+                        result = (  # type: ignore[assignment]
                             "FNGU",
                             ActionType.BUY.value,
                             "KMLM Switcher: 100% FNGU (best MA return)",
                         )
                 else:
-                    result = ("FNGU", ActionType.BUY.value, "KMLM Switcher: FNGU fallback")
+                    result = ("FNGU", ActionType.BUY.value, "KMLM Switcher: FNGU fallback")  # type: ignore[assignment]
             else:
                 # Simple tech selection
-                result = (
+                result = (  # type: ignore[assignment]
                     candidates[0][0],
                     ActionType.BUY.value,
                     f"KMLM Switcher: {candidates[0][0]} (lowest RSI: {candidates[0][1]:.1f})",
@@ -502,14 +502,14 @@ class KlmVariant53018(BaseKLMVariant):
             elif rotator_candidates:
                 # Less than 3 available
                 best = min(rotator_candidates, key=lambda x: x[1])
-                result = (
+                result = (  # type: ignore[assignment]
                     best[0],
                     ActionType.BUY.value,
                     f"L/S Rotator: {best[0]} (lowest volatility)",
                 )
             else:
                 # Ultimate fallback
-                result = ("KMLM", ActionType.BUY.value, "L/S Rotator: KMLM fallback")
+                result = ("KMLM", ActionType.BUY.value, "L/S Rotator: KMLM fallback")  # type: ignore[assignment]
 
         self.log_decision(result[0], result[1], result[2])
         return result

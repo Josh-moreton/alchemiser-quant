@@ -46,7 +46,7 @@ class AccountService:
         for easier lookup and manipulation.
         """
         positions = self._data_provider.get_positions()
-        position_dict = {}
+        position_dict: dict[str, dict[str, Any]] = {}
 
         if not positions:
             return position_dict

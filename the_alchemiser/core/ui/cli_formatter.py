@@ -305,8 +305,8 @@ def render_account_info(account_info: dict[str, Any], console: Console | None = 
         positions_table.add_column("Market Value", style="white", justify="right")
         positions_table.add_column("Unrealized P&L", style="white", justify="right")
 
-        total_market_value = 0
-        total_unrealized_pl = 0
+        total_market_value: float = 0.0
+        total_unrealized_pl: float = 0.0
 
         for position in open_positions:
             symbol = position.get("symbol", "N/A")

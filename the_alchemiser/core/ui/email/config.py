@@ -25,7 +25,7 @@ class EmailConfig:
             or None if configuration is invalid.
         """
         if self._config_cache:
-            return self._config_cache
+            return self._config_cache  # type: ignore[no-any-return]
 
         try:
             # Get configuration instance

@@ -34,8 +34,8 @@ class IndicatorValidationSuite:
         self.console = console
         self.api_base_url = "https://api.twelvedata.com"
         self.rate_limit_delay = 8.0  # 8 seconds between calls for 7.5 calls/minute
-        self.results = []
-        self.performance_stats = {}
+        self.results: list[dict[str, Any]] = []
+        self.performance_stats: dict[str, Any] = {}
 
         # Configure logging
         logging.basicConfig(level=logging.WARNING)

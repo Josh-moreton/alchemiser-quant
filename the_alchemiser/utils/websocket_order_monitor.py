@@ -237,10 +237,10 @@ class OrderCompletionMonitor:
             and self._websocket_stream is not None
             and self._websocket_thread is not None
         ):
-            return self._use_existing_websocket(on_update, remaining, completed, max_wait_seconds)
+            return self._use_existing_websocket(on_update, remaining, completed, max_wait_seconds)  # type: ignore[no-any-return]
 
         # Create new WebSocket connection
-        return self._create_new_websocket(
+        return self._create_new_websocket(  # type: ignore[no-any-return]
             on_update, remaining, completed, max_wait_seconds, order_ids
         )
 

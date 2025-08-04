@@ -98,6 +98,7 @@ def setup_logging(
         root_logger.handlers.clear()
 
     # Choose formatter based on structured_format setting
+    formatter: logging.Formatter
     if structured_format:
         formatter = StructuredFormatter()
     else:
@@ -125,6 +126,7 @@ def setup_logging(
             if os.path.dirname(log_file):
                 os.makedirs(os.path.dirname(log_file), exist_ok=True)
 
+            file_handler: logging.Handler
             if enable_file_rotation:
                 from logging.handlers import RotatingFileHandler
 

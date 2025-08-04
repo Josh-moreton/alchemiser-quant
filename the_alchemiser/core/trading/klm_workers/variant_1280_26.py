@@ -133,14 +133,14 @@ class KlmVariant128026(BaseKLMVariant):
                     )
                 elif candidates:
                     # Only 1 available
-                    result = (
+                    result = (  # type: ignore[assignment]
                         candidates[0][0],
                         ActionType.BUY.value,
                         f"1280/26 KMLM Switcher: XLK > KMLM → {candidates[0][0]} (only option)",
                     )
                 else:
                     # Fallback
-                    result = (
+                    result = (  # type: ignore[assignment]
                         "TECL",
                         ActionType.BUY.value,
                         "1280/26 KMLM Switcher: XLK > KMLM → TECL fallback",

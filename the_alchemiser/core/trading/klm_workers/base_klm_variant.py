@@ -26,7 +26,7 @@ class BaseKLMVariant(ABC):
     def __init__(self, name: str, description: str):
         self.name = name
         self.description = description
-        self.performance_history = []
+        self.performance_history: list[float] = []
         self.logger = logging.getLogger(f"KLM.{name}")
 
     @abstractmethod
@@ -85,8 +85,8 @@ class BaseKLMVariant(ABC):
         filtered = []
         for symbol in candidates:
             if symbol in indicators:
-                rsi = indicators[symbol].get(f"rsi_{window}", 50)
-                filtered.append((symbol, rsi))
+                # TODO: Implement actual RSI filtering logic
+                filtered.append(symbol)
         return filtered
 
     # Common allocation patterns from Clojure
@@ -111,7 +111,9 @@ class BaseKLMVariant(ABC):
         return {"BTAL": 0.5, "BIL": 0.5}
 
     # Common RSI overbought checks
-    def check_primary_overbought_conditions(self, indicators: dict[str, dict[str, float]]) -> tuple[str | None, str]:
+    def check_primary_overbought_conditions(
+        self, indicators: dict[str, dict[str, float]]
+    ) -> tuple[str | None, str]:
         """
         Complete 11-step overbought detection chain from CLJ.
         ALL standard variants follow this exact sequence before "Single Popped KMLM".
@@ -193,7 +195,9 @@ class BaseKLMVariant(ABC):
         # Fallback if UVXY data unavailable
         return self.evaluate_combined_pop_bot(indicators)
 
-    def evaluate_bsc_strategy(self, indicators: dict[str, dict[str, float]]) -> tuple[str, str, str]:
+    def evaluate_bsc_strategy(
+        self, indicators: dict[str, dict[str, float]]
+    ) -> tuple[str, str, str]:
         """
         BSC (Bond/Stock/Commodity) strategy when UVXY RSI(21) > 65
 

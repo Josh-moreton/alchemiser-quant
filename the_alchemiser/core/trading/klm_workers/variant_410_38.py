@@ -26,7 +26,9 @@ class KlmVariant41038(KlmVariant50638):
         self.name = "410/38"
         self.description = "MonkeyBusiness Simons variant - Same as 506/38 + SSO in rotator"
 
-    def _evaluate_long_short_rotator(self, indicators: dict[str, dict[str, float]]) -> tuple[str, str, str]:
+    def _evaluate_long_short_rotator(
+        self, indicators: dict[str, dict[str, float]]
+    ) -> tuple[str, str, str]:
         """
         410/38 L/S Rotator - SAME as 506/38 but includes SSO
 

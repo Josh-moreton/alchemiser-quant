@@ -112,7 +112,7 @@ def calculate_moving_average_return(close_prices: pd.Series, window: int = 20) -
             current_ma = ma.iloc[-1]
             prev_ma = ma.iloc[-2]
             if prev_ma != 0:
-                return ((current_ma - prev_ma) / prev_ma) * 100
+                return float(((current_ma - prev_ma) / prev_ma) * 100)
         return 0.0
     except Exception as e:
         logging.warning(f"Error calculating MA return({window}): {e}")

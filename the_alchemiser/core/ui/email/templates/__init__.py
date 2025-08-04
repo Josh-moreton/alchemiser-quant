@@ -64,14 +64,14 @@ class EmailTemplates:
 # Backward compatibility functions
 def build_trading_report_html(*args, **kwargs) -> str:
     """Backward compatibility function for build_trading_report_html."""
-    return EmailTemplates.build_trading_report(*args, **kwargs)
+    return str(EmailTemplates.build_trading_report(*args, **kwargs))
 
 
 def build_multi_strategy_email_html(*args, **kwargs) -> str:
     """Backward compatibility function for build_multi_strategy_email_html."""
-    return EmailTemplates.build_multi_strategy_report(*args, **kwargs)
+    return str(EmailTemplates.build_multi_strategy_report(*args, **kwargs))
 
 
 def build_error_email_html(*args, **kwargs) -> str:
     """Backward compatibility function for build_error_email_html."""
-    return EmailTemplates.build_error_report(*args, **kwargs)
+    return str(EmailTemplates.build_error_report(*args, **kwargs))
