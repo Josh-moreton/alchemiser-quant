@@ -467,7 +467,7 @@ The Lambda handler now supports **multiple trading modes** triggered by differen
 // Testing Mode (ignore market hours)
 {"mode": "trade", "trading_mode": "paper", "ignore_market_hours": true}
 
-// Empty Event (Backward Compatibility - defaults to live trading)
+// Empty Event (Backward Compatibility - defaults to safe paper trading with market hours ignored)
 {}
 ```
 

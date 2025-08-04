@@ -31,7 +31,7 @@ def parse_event_mode(event: Dict[str, Any]) -> List[str]:
     Event Structure:
         {
             "mode": "trade" | "bot",           # Required: Operation mode
-            "trading_mode": "paper" | "live",  # Optional: Trading mode (default: paper)
+            "trading_mode": "paper" | "live",  # Optional: Trading mode (default: paper for empty events, live for events with mode)
             "ignore_market_hours": bool        # Optional: Override market hours (default: false)
         }
 
@@ -40,13 +40,14 @@ def parse_event_mode(event: Dict[str, Any]) -> List[str]:
         Live trading: {"mode": "trade", "trading_mode": "live"}
         Signals only: {"mode": "bot"}
         Testing: {"mode": "trade", "ignore_market_hours": true}
+        Empty event (safe default): {} or None → paper trading with market hours ignored
     """
-    # Default to live trading for backward compatibility
-    default_args = ["trade", "--live"]
+    # Default to paper trading with market hours ignored for safety
+    default_args = ["trade", "--ignore-market-hours"]
 
-    # Handle empty or None event
-    if not event:
-        logger.info("No event provided, using default live trading mode")
+    # Handle empty, None, or events without mode specified
+    if not event or not event.get("mode"):
+        logger.info("No event or mode provided, using default paper trading mode with market hours ignored")
         return default_args
 
     # Extract mode (bot or trade)
@@ -61,7 +62,7 @@ def parse_event_mode(event: Dict[str, Any]) -> List[str]:
     # Only add trading-specific flags for trade mode
     if mode == "trade":
         # Extract trading mode (paper or live)
-        trading_mode = event.get("trading_mode", "live")  # Default to live for existing deployments
+        trading_mode = event.get("trading_mode", "live")  # Default to live when event is provided
         if trading_mode not in ["paper", "live"]:
             logger.warning(f"Invalid trading_mode '{trading_mode}', defaulting to 'live'")
             trading_mode = "live"
@@ -139,8 +140,9 @@ def lambda_handler(event=None, context=None):
         }
 
     Backward Compatibility:
-        - Empty event defaults to live trading for existing CloudWatch triggers
-        - Maintains existing behavior while supporting new event-driven modes
+        - Empty event defaults to paper trading with market hours ignored for safety
+        - This allows testing outside market hours without risking live trades
+        - Maintains safe behavior while supporting new event-driven modes
     """
     # Extract request ID for tracking
     request_id = getattr(context, "aws_request_id", "unknown") if context else "local"
