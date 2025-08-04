@@ -6,9 +6,14 @@ set -e
 echo "🚀 Deploying The Alchemiser Quantitative Trading System with SAM"
 echo "================================================"
 
-# Export Poetry dependencies to requirements.txt
-echo "📦 Exporting Poetry dependencies..."
-poetry export -f requirements.txt --without-hashes -o requirements.txt
+# Remove any existing requirements.txt from root to avoid duplication
+# (dependencies come from the layer in dependencies/requirements.txt)
+echo "🧹 Removing root requirements.txt to avoid duplication with layer..."
+rm -f requirements.txt
+
+# Ensure dependencies layer has up-to-date requirements
+echo "📦 Updating dependencies layer requirements (production only)..."
+poetry export --only=main -f requirements.txt --without-hashes -o dependencies/requirements.txt
 
 # Build the SAM application
 echo "🔨 Building SAM application..."
