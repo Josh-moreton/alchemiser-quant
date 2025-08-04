@@ -332,26 +332,22 @@ git push origin feature/your-feature
 
 ### Code Quality
 
-The Alchemiser enforces high code quality standards through automated tooling:
+The Alchemiser includes modern code quality tools to help improve code when you want to use them:
 
 - **🎨 Black**: Consistent code formatting
 - **🔍 Ruff**: Fast linting and import sorting (replaces Flake8 + isort)
 - **🔒 MyPy**: Static type checking
-- **🎣 Pre-commit hooks**: Automatic code quality checks
 
 ```bash
-# Install pre-commit hooks (one-time setup)
-poetry run pre-commit install
-
-# Run quality checks manually
+# Run quality checks manually when desired
 poetry run black .                    # Format code
 poetry run ruff check . --fix         # Fix linting issues
 poetry run mypy the_alchemiser/       # Type checking
-poetry run pre-commit run --all-files # Run all hooks
 
-# Quality checks run automatically on:
-# ✅ Every commit (pre-commit hooks)
-# ✅ Every pull request (GitHub Actions)
+# Or run the validation script
+python scripts/validate_code_quality.py
+
+# These tools help improve code quality but don't block commits
 ```
 
 **📝 [Contributing Guide →](./CONTRIBUTING.md)**
