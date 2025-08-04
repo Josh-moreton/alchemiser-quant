@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Quick script to fix common type parameter issues."""
 
-import os
 import re
 import subprocess
 
@@ -9,7 +8,7 @@ import subprocess
 def fix_file_type_params(filepath):
     """Fix common type parameter patterns in a file."""
     try:
-        with open(filepath, "r") as f:
+        with open(filepath) as f:
             content = f.read()
 
         original_content = content

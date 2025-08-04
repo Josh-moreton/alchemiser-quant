@@ -3,7 +3,6 @@ import logging
 import os
 import sys
 from datetime import datetime
-from typing import Any
 
 from the_alchemiser.core.utils.s3_utils import S3FileHandler
 
