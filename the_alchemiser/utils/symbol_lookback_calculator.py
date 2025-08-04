@@ -293,11 +293,12 @@ class SymbolLookbackCalculator:
             lookback_map[symbol] = self.get_symbol_lookback_days(symbol, strategies)
 
         # Group symbols by lookback requirements
-        lookback_groups = {}
+        lookback_groups: dict[str, Any] = {}
         for symbol, days in lookback_map.items():
-            if days not in lookback_groups:
-                lookback_groups[days] = []
-            lookback_groups[days].append(symbol)
+            days_key = str(days)
+            if days_key not in lookback_groups:
+                lookback_groups[days_key] = []
+            lookback_groups[days_key].append(symbol)
 
         # Calculate efficiency gains
         total_symbols = len(symbols)

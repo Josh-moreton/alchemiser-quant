@@ -185,7 +185,7 @@ class MultiStrategyAdapter:
         self, date: dt.datetime, data: dict[str, pd.DataFrame]
     ) -> dict[str, float]:
         """Get combined signals from all strategies"""
-        combined_signals = {}
+        combined_signals = dict[str, float]()
 
         for strategy_name, strategy_weight in self.strategy_weights.items():
             if strategy_weight > 0 and strategy_name in self.strategies:

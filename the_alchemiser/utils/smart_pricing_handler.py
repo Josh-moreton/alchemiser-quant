@@ -48,7 +48,7 @@ class SmartPricingHandler:
                 # For selling: ask = conservative, bid = aggressive
                 price = ask - (ask - bid) * aggressiveness
 
-            return round(price, 2)
+            return round(float(price), 2)
 
         except Exception as e:
             logging.error(f"Error getting smart limit price for {symbol}: {e}")
@@ -89,7 +89,7 @@ class SmartPricingHandler:
                 # Step from midpoint toward bid
                 price = midpoint - (spread / 2 * step_percentage)
 
-            return round(price, 2)
+            return round(float(price), 2)
 
         except Exception as e:
             logging.error(f"Error getting progressive price for {symbol}: {e}")
