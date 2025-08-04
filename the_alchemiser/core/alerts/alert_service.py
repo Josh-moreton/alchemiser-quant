@@ -103,7 +103,7 @@ def create_alerts_from_signal(
         )
         return alerts
     elif symbol == "BEAR_PORTFOLIO" and action == "BUY":
-        portfolio_match = re.findall(r"(\w+) \((\d+\.?\d*)%\)", reason)
+        portfolio_match = re.findall(r"(\w+) \((\d+(?:\.\d+)?)%\)", reason)
         if portfolio_match:
             for stock_symbol, allocation_str in portfolio_match:
                 current_price = data_provider.get_current_price(stock_symbol)
