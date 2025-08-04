@@ -81,9 +81,6 @@ class ExecutionSettings(BaseModel):
     )
 
 
-
-
-
 class Settings(BaseSettings):
     """Application settings loaded from environment variables, .env file, and AWS Secrets Manager."""
 
@@ -105,7 +102,7 @@ class Settings(BaseSettings):
         case_sensitive=False,
         extra="ignore",
     )
-    
+
     @classmethod
     def settings_customise_sources(
         cls,
@@ -125,7 +122,7 @@ class Settings(BaseSettings):
 
 def load_settings() -> Settings:
     """Load settings from environment variables and .env file.
-    
+
     Pydantic BaseSettings automatically handles environment variables with precedence.
     .env values serve as defaults, environment variables override them.
     """

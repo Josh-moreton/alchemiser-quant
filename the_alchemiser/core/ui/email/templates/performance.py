@@ -4,40 +4,41 @@ This module handles building HTML content for trading summaries,
 order execution reports, and performance metrics.
 """
 
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional
+
 from .base import BaseEmailTemplate
 
 
 class PerformanceBuilder:
     """Builds performance-related HTML content for emails."""
-    
+
     @staticmethod
     def build_trading_activity(orders: Optional[List[Dict]] = None) -> str:
         """Build HTML for trading activity section."""
         if not orders or len(orders) == 0:
-            return f"""
+            return """
             <div style="margin: 24px 0; padding: 16px; background-color: #F3F4F6; border-radius: 8px; text-align: center;">
                 <h3 style="margin: 0 0 8px 0; color: #6B7280; font-size: 18px;">📋 Orders Executed (0)</h3>
                 <span style="color: #6B7280; font-style: italic;">No trades executed this session</span>
             </div>
             """
-        
+
         orders_rows = ""
         for order in orders[:10]:  # Show up to 10 orders
-            side = order.get('side', 'N/A')
-            symbol = order.get('symbol', 'N/A')
-            qty = order.get('qty', 0)
-            estimated_value = order.get('estimated_value', 0)
-            
+            side = order.get("side", "N/A")
+            symbol = order.get("symbol", "N/A")
+            qty = order.get("qty", 0)
+            estimated_value = order.get("estimated_value", 0)
+
             # Handle both string and enum values for side
-            if hasattr(side, 'value'):
+            if hasattr(side, "value"):
                 side_str = side.value.upper()
             else:
                 side_str = str(side).upper()
-            
-            side_color = "#10B981" if side_str == 'BUY' else "#EF4444"
-            side_emoji = "🟢" if side_str == 'BUY' else "🔴"
-            
+
+            side_color = "#10B981" if side_str == "BUY" else "#EF4444"
+            side_emoji = "🟢" if side_str == "BUY" else "🔴"
+
             orders_rows += f"""
             <tr>
                 <td style="padding: 8px 12px; border-bottom: 1px solid #E5E7EB;">
@@ -54,26 +55,26 @@ class PerformanceBuilder:
                 </td>
             </tr>
             """
-        
+
         # Calculate totals for summary
         buy_orders = []
         sell_orders = []
-        
+
         for o in orders:
-            side = o.get('side')
+            side = o.get("side")
             if side:
-                if hasattr(side, 'value') and side.value and side.value.upper() == 'BUY':
+                if hasattr(side, "value") and side.value and side.value.upper() == "BUY":
                     buy_orders.append(o)
-                elif hasattr(side, 'value') and side.value and side.value.upper() == 'SELL':
+                elif hasattr(side, "value") and side.value and side.value.upper() == "SELL":
                     sell_orders.append(o)
-                elif str(side).upper() in ['BUY', 'OrderSide.BUY']:
+                elif str(side).upper() in ["BUY", "OrderSide.BUY"]:
                     buy_orders.append(o)
-                elif str(side).upper() in ['SELL', 'OrderSide.SELL']:
+                elif str(side).upper() in ["SELL", "OrderSide.SELL"]:
                     sell_orders.append(o)
-        
-        total_buy_value = sum(o.get('estimated_value', 0) for o in buy_orders)
-        total_sell_value = sum(o.get('estimated_value', 0) for o in sell_orders)
-        
+
+        total_buy_value = sum(o.get("estimated_value", 0) for o in buy_orders)
+        total_sell_value = sum(o.get("estimated_value", 0) for o in sell_orders)
+
         return f"""
         <div style="margin: 24px 0;">
             <h3 style="margin: 0 0 16px 0; color: #1F2937; font-size: 18px; font-weight: 600;">📋 Orders Executed ({len(orders)})</h3>
@@ -106,27 +107,24 @@ class PerformanceBuilder:
             </div>
         </div>
         """
-    
+
     @staticmethod
     def build_trading_summary(trading_summary: Dict) -> str:
         """Build enhanced trading summary HTML section."""
         if not trading_summary:
-            return BaseEmailTemplate.create_alert_box(
-                "Trading summary not available", 
-                "warning"
-            )
-        
-        total_trades = trading_summary.get('total_trades', 0)
-        total_buy_value = trading_summary.get('total_buy_value', 0)
-        total_sell_value = trading_summary.get('total_sell_value', 0)
-        net_value = trading_summary.get('net_value', total_buy_value - total_sell_value)
-        buy_orders = trading_summary.get('buy_orders', 0)
-        sell_orders = trading_summary.get('sell_orders', 0)
-        
+            return BaseEmailTemplate.create_alert_box("Trading summary not available", "warning")
+
+        total_trades = trading_summary.get("total_trades", 0)
+        total_buy_value = trading_summary.get("total_buy_value", 0)
+        total_sell_value = trading_summary.get("total_sell_value", 0)
+        net_value = trading_summary.get("net_value", total_buy_value - total_sell_value)
+        buy_orders = trading_summary.get("buy_orders", 0)
+        sell_orders = trading_summary.get("sell_orders", 0)
+
         # Calculate additional metrics
         net_color = "#10B981" if net_value >= 0 else "#EF4444"
         net_sign = "+" if net_value >= 0 else ""
-        
+
         return f"""
         <div style="margin: 24px 0;">
             <h3 style="margin: 0 0 16px 0; color: #1F2937; font-size: 18px; font-weight: 600;">📊 Trading Summary</h3>
@@ -160,29 +158,28 @@ class PerformanceBuilder:
             </div>
         </div>
         """
-    
+
     @staticmethod
     def build_strategy_performance(strategy_summary: Dict) -> str:
         """Build strategy performance summary."""
         if not strategy_summary:
             return BaseEmailTemplate.create_alert_box(
-                "Strategy performance data not available", 
-                "warning"
+                "Strategy performance data not available", "warning"
             )
-        
+
         strategy_cards = ""
         for strategy_name, strategy_data in strategy_summary.items():
-            allocation = strategy_data.get('allocation', 0)
-            signal = strategy_data.get('signal', 'UNKNOWN')
-            symbol = strategy_data.get('symbol', 'N/A')
-            reason = strategy_data.get('reason', '')
-            
+            allocation = strategy_data.get("allocation", 0)
+            signal = strategy_data.get("signal", "UNKNOWN")
+            symbol = strategy_data.get("symbol", "N/A")
+            reason = strategy_data.get("reason", "")
+
             # Determine color scheme based on signal
-            if signal == 'BUY':
+            if signal == "BUY":
                 signal_color = "#10B981"
                 signal_bg = "#D1FAE5"
                 signal_emoji = "📈"
-            elif signal == 'SELL':
+            elif signal == "SELL":
                 signal_color = "#EF4444"
                 signal_bg = "#FEE2E2"
                 signal_emoji = "📉"
@@ -190,7 +187,7 @@ class PerformanceBuilder:
                 signal_color = "#6B7280"
                 signal_bg = "#F3F4F6"
                 signal_emoji = "⏸️"
-            
+
             strategy_cards += f"""
             <div style="margin-bottom: 16px; padding: 16px; background-color: white; border-radius: 8px; border-left: 4px solid {signal_color}; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
@@ -210,7 +207,7 @@ class PerformanceBuilder:
                 {f'<div style="color: #6B7280; font-size: 14px; font-style: italic;">{reason[:100]}...</div>' if reason else ''}
             </div>
             """
-        
+
         return f"""
         <div style="margin: 24px 0;">
             <h3 style="margin: 0 0 16px 0; color: #1F2937; font-size: 18px; font-weight: 600;">🎯 Strategy Performance</h3>
@@ -219,33 +216,33 @@ class PerformanceBuilder:
         """
 
     # ====== NEUTRAL MODE FUNCTIONS (NO DOLLAR VALUES/PERCENTAGES) ======
-    
+
     @staticmethod
     def build_trading_activity_neutral(orders: Optional[List[Dict]] = None) -> str:
         """Build HTML for trading activity section without dollar values."""
         if not orders or len(orders) == 0:
-            return f"""
+            return """
             <div style="margin: 24px 0; padding: 16px; background-color: #F3F4F6; border-radius: 8px; text-align: center;">
                 <h3 style="margin: 0 0 8px 0; color: #6B7280; font-size: 18px;">📋 Orders Executed (0)</h3>
                 <span style="color: #6B7280; font-style: italic;">No trades executed this session</span>
             </div>
             """
-        
+
         orders_rows = ""
         for order in orders[:10]:  # Show up to 10 orders
-            side = order.get('side', 'N/A')
-            symbol = order.get('symbol', 'N/A')
-            qty = order.get('qty', 0)
-            
+            side = order.get("side", "N/A")
+            symbol = order.get("symbol", "N/A")
+            qty = order.get("qty", 0)
+
             # Handle both string and enum values for side
-            if hasattr(side, 'value'):
+            if hasattr(side, "value"):
                 side_str = side.value.upper()
             else:
                 side_str = str(side).upper()
-            
-            side_color = "#10B981" if side_str == 'BUY' else "#EF4444"
-            side_emoji = "🟢" if side_str == 'BUY' else "🔴"
-            
+
+            side_color = "#10B981" if side_str == "BUY" else "#EF4444"
+            side_emoji = "🟢" if side_str == "BUY" else "🔴"
+
             orders_rows += f"""
             <tr>
                 <td style="padding: 8px 12px; border-bottom: 1px solid #E5E7EB;">
@@ -262,23 +259,23 @@ class PerformanceBuilder:
                 </td>
             </tr>
             """
-        
+
         # Calculate totals for summary (count only, no dollar amounts)
         buy_orders = []
         sell_orders = []
-        
+
         for o in orders:
-            side = o.get('side')
+            side = o.get("side")
             if side:
-                if hasattr(side, 'value') and side.value and side.value.upper() == 'BUY':
+                if hasattr(side, "value") and side.value and side.value.upper() == "BUY":
                     buy_orders.append(o)
-                elif hasattr(side, 'value') and side.value and side.value.upper() == 'SELL':
+                elif hasattr(side, "value") and side.value and side.value.upper() == "SELL":
                     sell_orders.append(o)
-                elif str(side).upper() in ['BUY', 'OrderSide.BUY']:
+                elif str(side).upper() in ["BUY", "OrderSide.BUY"]:
                     buy_orders.append(o)
-                elif str(side).upper() in ['SELL', 'OrderSide.SELL']:
+                elif str(side).upper() in ["SELL", "OrderSide.SELL"]:
                     sell_orders.append(o)
-        
+
         return f"""
         <div style="margin: 24px 0;">
             <h3 style="margin: 0 0 16px 0; color: #1F2937; font-size: 18px; font-weight: 600;">📋 Orders Executed ({len(orders)})</h3>

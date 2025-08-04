@@ -8,17 +8,18 @@ The registry maps strategy names to their corresponding classes, enabling
 static analysis while maintaining flexibility in strategy selection.
 """
 
-from typing import Dict, Type, Optional, Any, List
 from dataclasses import dataclass
 from enum import Enum
+from typing import Any, Dict, List, Optional, Type
 
+from the_alchemiser.core.trading.klm_ensemble_engine import KLMStrategyEnsemble
 from the_alchemiser.core.trading.nuclear_signals import NuclearStrategyEngine
 from the_alchemiser.core.trading.tecl_signals import TECLStrategyEngine
-from the_alchemiser.core.trading.klm_ensemble_engine import KLMStrategyEnsemble
 
 
 class StrategyType(Enum):
     """Enumeration of available trading strategies."""
+
     NUCLEAR = "NUCLEAR"
     TECL = "TECL"
     KLM = "KLM"
@@ -27,6 +28,7 @@ class StrategyType(Enum):
 @dataclass
 class StrategyConfig:
     """Configuration for strategy initialization."""
+
     strategy_type: StrategyType
     engine_class: Type
     default_allocation: float
@@ -36,7 +38,7 @@ class StrategyConfig:
 
 class StrategyRegistry:
     """Registry for managing trading strategy engines.
-    
+
     This class maintains a mapping of strategy types to their implementations,
     enabling static analysis while providing flexibility in strategy management.
     """
@@ -48,31 +50,31 @@ class StrategyRegistry:
             engine_class=NuclearStrategyEngine,
             default_allocation=0.4,
             description="Nuclear energy and volatility hedge strategy",
-            enabled=True
+            enabled=True,
         ),
         StrategyType.TECL: StrategyConfig(
             strategy_type=StrategyType.TECL,
             engine_class=TECLStrategyEngine,
             default_allocation=0.6,
             description="Technology leverage and momentum strategy",
-            enabled=True
+            enabled=True,
         ),
         StrategyType.KLM: StrategyConfig(
             strategy_type=StrategyType.KLM,
             engine_class=KLMStrategyEnsemble,
             default_allocation=0.0,
             description="Ensemble strategy with multiple variants",
-            enabled=False  # Disabled by default due to complexity
+            enabled=False,  # Disabled by default due to complexity
         ),
     }
 
     @classmethod
     def get_strategy_config(cls, strategy_type: StrategyType) -> Optional[StrategyConfig]:
         """Get configuration for a specific strategy type.
-        
+
         Args:
             strategy_type: The strategy type to get config for.
-            
+
         Returns:
             StrategyConfig if found, None otherwise.
         """
@@ -81,67 +83,67 @@ class StrategyRegistry:
     @classmethod
     def get_enabled_strategies(cls) -> Dict[StrategyType, StrategyConfig]:
         """Get all enabled strategy configurations.
-        
+
         Returns:
             Dictionary mapping strategy types to their configurations.
         """
         return {
-            strategy_type: config 
-            for strategy_type, config in cls._strategies.items() 
+            strategy_type: config
+            for strategy_type, config in cls._strategies.items()
             if config.enabled
         }
 
     @classmethod
     def create_strategy_engine(cls, strategy_type: StrategyType, **kwargs) -> Any:
         """Create a strategy engine instance.
-        
+
         Args:
             strategy_type: The type of strategy to create.
             **kwargs: Additional arguments to pass to the strategy constructor.
-            
+
         Returns:
             Strategy engine instance.
-            
+
         Raises:
             ValueError: If strategy type is not registered or disabled.
         """
         config = cls.get_strategy_config(strategy_type)
         if not config:
             raise ValueError(f"Unknown strategy type: {strategy_type}")
-        
+
         if not config.enabled:
             raise ValueError(f"Strategy {strategy_type} is disabled")
-        
+
         return config.engine_class(**kwargs)
 
     @classmethod
     def get_default_allocations(cls) -> Dict[StrategyType, float]:
         """Get default allocation weights for all enabled strategies.
-        
+
         Returns:
             Dictionary mapping strategy types to default allocation weights.
         """
         enabled_configs = cls.get_enabled_strategies()
-        
+
         # Calculate total default allocation
         total_allocation = sum(config.default_allocation for config in enabled_configs.values())
-        
+
         # Normalize to sum to 1.0
         if total_allocation > 0:
             return {
                 strategy_type: config.default_allocation / total_allocation
                 for strategy_type, config in enabled_configs.items()
             }
-        
+
         return {}
 
     @classmethod
     def is_strategy_enabled(cls, strategy_type: StrategyType) -> bool:
         """Check if a strategy is enabled.
-        
+
         Args:
             strategy_type: The strategy type to check.
-            
+
         Returns:
             True if strategy is enabled, False otherwise.
         """
@@ -151,7 +153,7 @@ class StrategyRegistry:
     @classmethod
     def get_all_strategy_types(cls) -> List[StrategyType]:
         """Get all registered strategy types.
-        
+
         Returns:
             List of all strategy types.
         """
@@ -160,39 +162,35 @@ class StrategyRegistry:
     @classmethod
     def enable_strategy(cls, strategy_type: StrategyType) -> None:
         """Enable a strategy.
-        
+
         Args:
             strategy_type: The strategy type to enable.
-            
+
         Raises:
             ValueError: If strategy type is not registered.
         """
         config = cls.get_strategy_config(strategy_type)
         if not config:
             raise ValueError(f"Unknown strategy type: {strategy_type}")
-        
+
         config.enabled = True
 
     @classmethod
     def disable_strategy(cls, strategy_type: StrategyType) -> None:
         """Disable a strategy.
-        
+
         Args:
             strategy_type: The strategy type to disable.
-            
+
         Raises:
             ValueError: If strategy type is not registered.
         """
         config = cls.get_strategy_config(strategy_type)
         if not config:
             raise ValueError(f"Unknown strategy type: {strategy_type}")
-        
+
         config.enabled = False
 
 
 # Export the registry and types for easy access
-__all__ = [
-    'StrategyRegistry',
-    'StrategyType', 
-    'StrategyConfig'
-]
+__all__ = ["StrategyRegistry", "StrategyType", "StrategyConfig"]

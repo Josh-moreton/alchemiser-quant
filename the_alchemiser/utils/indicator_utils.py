@@ -3,8 +3,11 @@ Indicator Utilities
 
 This module provides helper functions for safely calculating and retrieving technical indicator values.
 """
+
 import logging
+
 import pandas as pd
+
 
 def safe_get_indicator(data, indicator_func, *args, **kwargs):
     """
@@ -26,7 +29,7 @@ def safe_get_indicator(data, indicator_func, *args, **kwargs):
     """
     try:
         result = indicator_func(data, *args, **kwargs)
-        if hasattr(result, 'iloc') and len(result) > 0:
+        if hasattr(result, "iloc") and len(result) > 0:
             value = result.iloc[-1]
             # Check if value is NaN - if so, try to find the last valid value
             if pd.isna(value):
@@ -36,15 +39,23 @@ def safe_get_indicator(data, indicator_func, *args, **kwargs):
                     value = valid_values.iloc[-1]
                 else:
                     # Debug level for insufficient data - this is expected with limited historical data
-                    logging.debug(f"No valid values for indicator {indicator_func.__name__} on data: {data.tail(1)}")
+                    logging.debug(
+                        f"No valid values for indicator {indicator_func.__name__} on data: {data.tail(1)}"
+                    )
                     return 50.0  # Fallback only if no valid values
             return float(value)
         # Check if it's due to insufficient data (common with recent dates)
         if len(data) < 2:
-            logging.debug(f"Insufficient data for indicator {indicator_func.__name__} (only {len(data)} points)")
+            logging.debug(
+                f"Insufficient data for indicator {indicator_func.__name__} (only {len(data)} points)"
+            )
         else:
-            logging.warning(f"Indicator {indicator_func.__name__} returned no results for data: {data.tail(1)}")
+            logging.warning(
+                f"Indicator {indicator_func.__name__} returned no results for data: {data.tail(1)}"
+            )
         return 50.0
     except Exception as e:
-        logging.error(f"Exception in safe_get_indicator for {indicator_func.__name__}: {e}\nData: {data.tail(1)}")
+        logging.error(
+            f"Exception in safe_get_indicator for {indicator_func.__name__}: {e}\nData: {data.tail(1)}"
+        )
         return 50.0

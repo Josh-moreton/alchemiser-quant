@@ -4,19 +4,20 @@ This module handles building HTML content for technical indicators,
 strategy signals, and trading signal analysis.
 """
 
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict
+
 from .base import BaseEmailTemplate
 
 
 class SignalsBuilder:
     """Builds signals-related HTML content for emails."""
-    
+
     @staticmethod
     def build_signal_information(signal) -> str:
         """Build HTML for signal information section."""
         if not signal:
             return ""
-        
+
         try:
             return f"""
             <div style="margin: 24px 0; padding: 16px; background-color: #FEF3C7; border-left: 4px solid #F59E0B; border-radius: 8px;">
@@ -28,44 +29,41 @@ class SignalsBuilder:
             </div>
             """
         except Exception:
-            return f"""
+            return """
             <div style="margin: 24px 0; padding: 16px; background-color: #FEE2E2; border-left: 4px solid #EF4444; border-radius: 8px;">
                 <p style="margin: 0; color: #DC2626; font-style: italic;">Error reading signal data</p>
             </div>
             """
-    
+
     @staticmethod
     def build_technical_indicators(strategy_signals: Dict[Any, Any]) -> str:
         """Build technical indicators HTML section."""
         if not strategy_signals:
-            return BaseEmailTemplate.create_alert_box(
-                "No technical indicators available", 
-                "info"
-            )
-        
+            return BaseEmailTemplate.create_alert_box("No technical indicators available", "info")
+
         indicators_html = ""
-        
+
         for strategy_type, signal_data in strategy_signals.items():
-            technical_indicators = signal_data.get('technical_indicators', {})
+            technical_indicators = signal_data.get("technical_indicators", {})
             if not technical_indicators:
                 continue
-            
-            strategy_name = str(strategy_type).replace('StrategyType.', '')
-            
+
+            strategy_name = str(strategy_type).replace("StrategyType.", "")
+
             indicators_rows = ""
             for symbol, indicators in technical_indicators.items():
-                rsi_10 = indicators.get('rsi_10', 0)
-                rsi_20 = indicators.get('rsi_20', 0)
-                current_price = indicators.get('current_price', 0)
-                ma_200 = indicators.get('ma_200', 0)
-                
+                rsi_10 = indicators.get("rsi_10", 0)
+                rsi_20 = indicators.get("rsi_20", 0)
+                current_price = indicators.get("current_price", 0)
+                ma_200 = indicators.get("ma_200", 0)
+
                 # Color coding for RSI
                 rsi_color = "#EF4444" if rsi_10 > 80 else "#F59E0B" if rsi_10 > 70 else "#10B981"
-                
+
                 # Price vs MA comparison
                 price_vs_ma = "Above" if current_price > ma_200 else "Below"
                 price_color = "#10B981" if current_price > ma_200 else "#EF4444"
-                
+
                 indicators_rows += f"""
                 <tr>
                     <td style="padding: 8px 12px; border-bottom: 1px solid #E5E7EB; font-weight: 600;">
@@ -85,7 +83,7 @@ class SignalsBuilder:
                     </td>
                 </tr>
                 """
-            
+
             if indicators_rows:
                 indicators_html += f"""
                 <div style="margin-bottom: 20px;">
@@ -108,49 +106,45 @@ class SignalsBuilder:
                     </table>
                 </div>
                 """
-        
+
         if not indicators_html:
-            return BaseEmailTemplate.create_alert_box(
-                "No technical indicators data found", 
-                "info"
-            )
-        
+            return BaseEmailTemplate.create_alert_box("No technical indicators data found", "info")
+
         return f"""
         <div style="margin: 24px 0;">
             <h3 style="margin: 0 0 16px 0; color: #1F2937; font-size: 18px; font-weight: 600;">📊 Technical Indicators</h3>
             {indicators_html}
         </div>
         """
-    
+
     @staticmethod
-    def build_detailed_strategy_signals(strategy_signals: Dict[Any, Any], strategy_summary: Dict) -> str:
+    def build_detailed_strategy_signals(
+        strategy_signals: Dict[Any, Any], strategy_summary: Dict
+    ) -> str:
         """Build detailed strategy signals HTML section."""
         if not strategy_signals:
-            return BaseEmailTemplate.create_alert_box(
-                "No strategy signals available", 
-                "info"
-            )
-        
+            return BaseEmailTemplate.create_alert_box("No strategy signals available", "info")
+
         signals_html = ""
-        
+
         for strategy_type, signal_data in strategy_signals.items():
-            strategy_name = str(strategy_type).replace('StrategyType.', '')
-            
+            strategy_name = str(strategy_type).replace("StrategyType.", "")
+
             # Get strategy summary data if available
             summary_data = strategy_summary.get(strategy_name, {})
-            allocation = summary_data.get('allocation', 0)
-            
-            symbol = signal_data.get('symbol', 'N/A')
-            action = signal_data.get('action', 'UNKNOWN')
-            reason = signal_data.get('reason', 'No reason provided')
-            timestamp = signal_data.get('timestamp', '')
-            
+            allocation = summary_data.get("allocation", 0)
+
+            symbol = signal_data.get("symbol", "N/A")
+            action = signal_data.get("action", "UNKNOWN")
+            reason = signal_data.get("reason", "No reason provided")
+            timestamp = signal_data.get("timestamp", "")
+
             # Determine signal styling
-            if action == 'BUY':
+            if action == "BUY":
                 action_color = "#10B981"
                 action_bg = "#D1FAE5"
                 action_emoji = "📈"
-            elif action == 'SELL':
+            elif action == "SELL":
                 action_color = "#EF4444"
                 action_bg = "#FEE2E2"
                 action_emoji = "📉"
@@ -158,11 +152,11 @@ class SignalsBuilder:
                 action_color = "#6B7280"
                 action_bg = "#F3F4F6"
                 action_emoji = "⏸️"
-            
+
             # Format reason text (truncate if too long)
             formatted_reason = reason[:300] + "..." if len(reason) > 300 else reason
-            formatted_reason = formatted_reason.replace('\n', '<br>')
-            
+            formatted_reason = formatted_reason.replace("\n", "<br>")
+
             signals_html += f"""
             <div style="margin-bottom: 20px; padding: 20px; background-color: white; border-radius: 12px; border-left: 4px solid {action_color}; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
@@ -189,36 +183,36 @@ class SignalsBuilder:
                 {f'<div style="color: #9CA3AF; font-size: 12px; text-align: right;">Generated: {timestamp}</div>' if timestamp else ''}
             </div>
             """
-        
+
         return f"""
         <div style="margin: 24px 0;">
             <h3 style="margin: 0 0 16px 0; color: #1F2937; font-size: 18px; font-weight: 600;">🎯 Strategy Signals</h3>
             {signals_html}
         </div>
         """
-    
+
     @staticmethod
     def build_market_regime_analysis(strategy_signals: Dict[Any, Any]) -> str:
         """Build market regime analysis section."""
         if not strategy_signals:
             return ""
-        
+
         # Extract SPY data if available
         spy_data = None
         for signal_data in strategy_signals.values():
-            technical_indicators = signal_data.get('technical_indicators', {})
-            if 'SPY' in technical_indicators:
-                spy_data = technical_indicators['SPY']
+            technical_indicators = signal_data.get("technical_indicators", {})
+            if "SPY" in technical_indicators:
+                spy_data = technical_indicators["SPY"]
                 break
-        
+
         if not spy_data:
             return ""
-        
-        current_price = spy_data.get('current_price', 0)
-        ma_200 = spy_data.get('ma_200', 0)
-        rsi_10 = spy_data.get('rsi_10', 0)
-        rsi_20 = spy_data.get('rsi_20', 0)
-        
+
+        current_price = spy_data.get("current_price", 0)
+        ma_200 = spy_data.get("ma_200", 0)
+        rsi_10 = spy_data.get("rsi_10", 0)
+        rsi_20 = spy_data.get("rsi_20", 0)
+
         # Determine market regime
         if current_price > ma_200:
             regime = "BULL MARKET"
@@ -230,7 +224,7 @@ class SignalsBuilder:
             regime_color = "#EF4444"
             regime_bg = "#FEE2E2"
             regime_emoji = "🐻"
-        
+
         # RSI analysis
         rsi_status = ""
         if rsi_10 > 80:
@@ -242,7 +236,7 @@ class SignalsBuilder:
         else:
             rsi_status = "Neutral"
             rsi_color = "#6B7280"
-        
+
         return f"""
         <div style="margin: 24px 0;">
             <h3 style="margin: 0 0 16px 0; color: #1F2937; font-size: 18px; font-weight: 600;">🌊 Market Regime Analysis</h3>

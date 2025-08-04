@@ -11,13 +11,13 @@ Main components:
 Usage:
     from the_alchemiser.core.ui.email import send_email_notification
     from the_alchemiser.core.ui.email.templates import EmailTemplates
-    
+
     # Send a simple notification
     send_email_notification(
         subject="Test Email",
         html_content="<h1>Hello World</h1>"
     )
-    
+
     # Build a trading report
     html_content = EmailTemplates.build_trading_report(
         mode="LIVE",
@@ -30,22 +30,22 @@ Usage:
 """
 
 # Import main functions for backward compatibility
+from .client import EmailClient, send_email_notification
 from .config import get_email_config, is_neutral_mode_enabled
-from .client import send_email_notification, EmailClient
 from .templates import (
-    build_trading_report_html,
-    build_multi_strategy_email_html, 
+    EmailTemplates,
     build_error_email_html,
-    EmailTemplates
+    build_multi_strategy_email_html,
+    build_trading_report_html,
 )
 
 __all__ = [
-    'get_email_config',
-    'is_neutral_mode_enabled',
-    'send_email_notification',
-    'EmailClient',
-    'build_trading_report_html',
-    'build_multi_strategy_email_html',
-    'build_error_email_html',
-    'EmailTemplates'
+    "get_email_config",
+    "is_neutral_mode_enabled",
+    "send_email_notification",
+    "EmailClient",
+    "build_trading_report_html",
+    "build_multi_strategy_email_html",
+    "build_error_email_html",
+    "EmailTemplates",
 ]
