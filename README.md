@@ -333,6 +333,100 @@ class TradingEngine:
         return self._account_provider.get_account_info()
 ```
 
+## Business Logic and Data Flow
+
+### Strategy Execution Pipeline
+
+**Multi-Strategy Coordination** (`core/trading/strategy_manager.py`):
+1. **Signal Generation**: Each strategy (Nuclear, TECL) generates independent signals
+2. **Portfolio Allocation**: Strategies are allocated based on configured weights
+3. **Signal Consolidation**: Multiple strategy signals merged into target portfolio
+4. **Attribution Tracking**: Each position tracked back to originating strategy
+
+**Key Strategy Patterns**:
+- **Nuclear Strategy**: Bear/bull market detection with uranium mining focus
+- **TECL Strategy**: Technology leverage with volatility protection
+- **Market Regime Detection**: SPY 200-day MA analysis for bull/bear classification
+- **Volatility-Based Allocation**: Inverse volatility weighting for risk management
+
+### Order Execution Flow
+
+**Smart Execution Pipeline** (`execution/smart_execution.py`):
+1. **Market Timing Assessment**: 9:30-9:35 ET special handling
+2. **Aggressive Marketable Limits**: Ask+1¢ for buys, bid-1¢ for sells
+3. **Re-pegging Sequence**: 2-3 second timeouts with price updates
+4. **Market Order Fallback**: Execution certainty for critical fills
+
+**Professional Order Strategy**:
+- Better Orders execution methodology
+- Spread analysis and timing optimization
+- Pre-market condition assessment
+- Fractionable asset handling with fallbacks
+
+### Data Provider Architecture
+
+**Unified Data Access** (`core/data/data_provider.py`):
+- **Real-time Priority**: WebSocket data preferred over REST
+- **Automatic Fallbacks**: REST API backup for real-time failures
+- **Historical Fallbacks**: Recent price history when quotes unavailable
+- **Caching Layer**: Intelligent caching with TTL for performance
+
+**Data Sources**:
+- Alpaca REST API (primary)
+- Alpaca WebSocket (real-time)
+- Historical price fallback
+- Technical indicator calculations
+
+### Risk Management System
+
+**Position Validation** (`execution/alpaca_client.py`):
+- **Buying Power Checks**: Prevent overleverage on buy orders
+- **Position Validation**: Ensure sufficient holdings for sell orders
+- **Fractionability Handling**: Automatic conversion for non-fractional assets
+- **Asset Type Detection**: ETF vs stock handling differences
+
+**Portfolio Constraints**:
+- Maximum position sizes per strategy
+- Cash allocation minimums (5% minimum cash)
+- Volatility-based position sizing
+- Conservative fallbacks during calculation errors
+
+### Performance Tracking and Attribution
+
+**Strategy Attribution** (`tracking/strategy_order_tracker.py`):
+- Per-strategy order tracking
+- Position attribution to originating signals
+- P&L calculation by strategy
+- Historical performance analysis
+
+**Reporting Pipeline**:
+- Real-time execution summaries
+- Daily P&L archiving
+- Email reporting with rich formatting
+- Dashboard data generation for web interface
+
+### Configuration and Environment Management
+
+**Environment-Specific Settings**:
+```python
+# Paper trading vs live trading
+PAPER_TRADING=true  # Safe default
+ALPACA_API_KEY=your_paper_key
+ALPACA_SECRET_KEY=your_paper_secret
+
+# Live trading (production)
+PAPER_TRADING=false
+ALPACA_API_KEY=your_live_key
+ALPACA_SECRET_KEY=your_live_secret
+```
+
+**Key Configuration Points**:
+- Trading mode (paper/live) isolation
+- Strategy allocation weights
+- Email notification settings
+- Risk management parameters
+- Market hours enforcement
+
 ## AWS Infrastructure and Deployment
 
 ### EventBridge Scheduler Configuration
@@ -376,6 +470,122 @@ make test       # run pytest
 alchemiser bot  # show current strategy signals
 alchemiser trade --live  # live trading
 ```
+
+## Development Workflow for AI Agents
+
+### Local Development Setup
+
+```bash
+# 1. Install dependencies
+poetry install
+
+# 2. Set up environment
+cp .env.example .env
+# Edit .env with your Alpaca paper trading credentials
+
+# 3. Run type checking
+poetry run mypy the_alchemiser/
+
+# 4. Format code
+poetry run black the_alchemiser/
+poetry run ruff the_alchemiser/
+
+# 5. Run tests
+poetry run pytest
+
+# 6. Test strategies locally
+poetry run alchemiser bot --paper
+```
+
+### Common Development Tasks
+
+**Adding New Strategies**:
+1. Create strategy engine in `core/trading/`
+2. Implement required methods: `get_signal()`, `get_reasoning()`
+3. Add to `StrategyType` enum
+4. Register in `MultiStrategyManager`
+5. Add tests and type hints
+
+**Debugging Order Execution**:
+```python
+# Enable detailed logging
+import logging
+logging.basicConfig(level=logging.DEBUG)
+
+# Test individual order placement
+from the_alchemiser.execution.smart_execution import SmartExecution
+executor = SmartExecution(trading_client, data_provider)
+order_id = executor.place_order("AAPL", 10, OrderSide.BUY)
+```
+
+**Testing Error Handling**:
+```python
+# Test specific error scenarios
+from the_alchemiser.core.error_handler import TradingSystemErrorHandler
+from the_alchemiser.core.exceptions import StrategyExecutionError
+
+try:
+    # Simulate error condition
+    raise StrategyExecutionError("Test error", strategy_name="test")
+except Exception as e:
+    handler = TradingSystemErrorHandler()
+    handler.handle_error(e, "test_component", "test_context")
+```
+
+### Code Review Checklist for AI Agents
+
+**Type Safety**:
+- ✅ All function parameters have type hints
+- ✅ Return types specified for all functions
+- ✅ No `Any` types unless absolutely necessary
+- ✅ Protocols used for dependency injection
+
+**Error Handling**:
+- ✅ Custom exceptions raised instead of returning `None`
+- ✅ Error context provided in exception messages
+- ✅ Conservative fallbacks implemented where appropriate
+- ✅ Error handler integration for critical operations
+
+**Code Quality**:
+- ✅ Functions are single-purpose and well-named
+- ✅ No magic numbers (use constants or configuration)
+- ✅ Comprehensive docstrings for public methods
+- ✅ Logging at appropriate levels (DEBUG, INFO, WARNING, ERROR)
+
+**Testing Requirements**:
+- ✅ Unit tests for business logic
+- ✅ Error condition testing
+- ✅ Mock external dependencies (Alpaca API)
+- ✅ Integration tests for critical paths
+
+### Operational Knowledge
+
+**Paper Trading vs Live Trading**:
+- Paper trading uses separate Alpaca account and API keys
+- All order execution is simulated but follows real market data
+- Switch via `PAPER_TRADING` environment variable
+- Live trading requires careful validation and testing
+
+**Market Hours and Timing**:
+- Regular hours: 9:30 AM - 4:00 PM ET
+- Pre-market: 4:00 AM - 9:30 AM ET
+- After-hours: 4:00 PM - 8:00 PM ET
+- System can trade outside regular hours if configured
+
+**Strategy Allocation Management**:
+```python
+# Configure strategy weights
+strategy_allocations = {
+    StrategyType.NUCLEAR: 0.6,  # 60% nuclear strategy
+    StrategyType.TECL: 0.4      # 40% TECL strategy
+}
+```
+
+**Performance Monitoring**:
+- Daily P&L archived in S3
+- Strategy attribution tracked per order
+- Email reports sent after each execution
+- Dashboard data updated in real-time
 
 ## Troubleshooting Guide for AI Agents
 
@@ -434,6 +644,73 @@ try:
 except IndicatorCalculationError as e:
     print(f"SUCCESS: Proper exception: {e}")
 ```
+
+## Key Files Reference for AI Agents
+
+### Core Trading Logic
+- **`main.py`**: Entry point for strategy execution with comprehensive error handling
+- **`lambda_handler.py`**: AWS Lambda wrapper with enhanced error reporting
+- **`cli.py`**: Command-line interface for local testing and debugging
+
+### Configuration and Settings
+- **`core/config.py`**: Pydantic-based settings with environment variable support
+- **`core/exceptions.py`**: Custom exception hierarchy for proper error categorization
+- **`core/error_handler.py`**: Centralized error handling and email notification system
+
+### Strategy Implementation
+- **`core/trading/strategy_manager.py`**: Multi-strategy coordination and allocation
+- **`core/trading/strategy_engine.py`**: Nuclear strategy with bear/bull market detection
+- **`core/trading/tecl_strategy_engine.py`**: TECL technology strategy with volatility protection
+
+### Order Execution
+- **`execution/trading_engine.py`**: Main trading orchestration and portfolio management
+- **`execution/smart_execution.py`**: Professional order execution with Better Orders methodology
+- **`execution/alpaca_client.py`**: Direct Alpaca API client with validation and fallbacks
+- **`execution/portfolio_rebalancer.py`**: Sell-then-buy rebalancing with attribution tracking
+
+### Data and Market Access
+- **`core/data/data_provider.py`**: Unified Alpaca REST/WebSocket data access with caching
+- **`utils/price_fetching_utils.py`**: Price retrieval with multiple fallback strategies
+- **`utils/market_timing_utils.py`**: Market hours detection and execution timing
+
+### Monitoring and Tracking
+- **`tracking/strategy_order_tracker.py`**: Per-strategy order and P&L attribution
+- **`utils/portfolio_pnl_utils.py`**: Portfolio performance calculation utilities
+- **`core/ui/email/`**: Email templates and notification system
+
+### Development and Documentation
+- **`pyproject.toml`**: Poetry dependencies, mypy, black, and ruff configuration
+- **`template.yaml`**: AWS CloudFormation infrastructure with retry policies
+- **`Makefile`**: Development workflow automation (format, lint, test)
+
+### Important Constants and Enums
+- **`StrategyType`**: Enum for strategy identification (NUCLEAR, TECL)
+- **`OrderSide`**: Buy/sell order direction
+- **`ErrorCategory`**: Error classification for proper handling
+
+### Environment Variables Required
+```bash
+# Alpaca API (separate keys for paper/live)
+ALPACA_API_KEY=your_api_key
+ALPACA_SECRET_KEY=your_secret_key
+PAPER_TRADING=true  # false for live trading
+
+# Email notifications
+EMAIL_RECIPIENT=your_email@domain.com
+AWS_ACCESS_KEY_ID=your_aws_key
+AWS_SECRET_ACCESS_KEY=your_aws_secret
+
+# Optional configurations
+IGNORE_MARKET_HOURS=false
+VALIDATE_BUYING_POWER=true
+```
+
+### Critical Dependencies to Monitor
+- **`alpaca-py`**: Primary trading API client
+- **`pydantic`**: Configuration and data validation
+- **`rich`**: Terminal formatting and progress display
+- **`boto3`**: AWS services (S3, SQS, SES)
+- **`pandas`**: Data analysis and technical indicators
 
 ---
 
