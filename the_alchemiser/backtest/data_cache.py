@@ -21,6 +21,7 @@ import os
 import pickle
 import sys
 from pathlib import Path
+from typing import Any
 
 import pandas as pd
 from rich.console import Console
@@ -50,7 +51,7 @@ class BacktestDataCache:
         # In-memory cache
         self._daily_data_cache: dict[str, pd.DataFrame] = {}
         self._minute_data_cache: dict[str, pd.DataFrame] = {}
-        self._cache_metadata: dict[str, dict] = {}
+        self._cache_metadata: dict[str, dict[str, Any]] = {}
 
         # Data provider for fetching
         self._data_provider: UnifiedDataProvider | None = None
@@ -220,6 +221,194 @@ class BacktestDataCache:
 
         return symbols
 
+    def _process_timestamp(self, timestamp: Any, symbol: str, bar_index: int) -> dt.datetime | None:
+        """Process and normalize timestamp from bar data."""
+        if timestamp is None:
+            console.print(f"[red]⚠️ No timestamp found for {symbol} bar {bar_index}[/red]")
+            return None
+
+        try:
+            processed_timestamp: dt.datetime
+            if hasattr(timestamp, "to_pydatetime"):
+                processed_timestamp = timestamp.to_pydatetime()
+            elif isinstance(timestamp, str):
+                processed_timestamp = pd.to_datetime(timestamp).to_pydatetime()
+            else:
+                processed_timestamp = pd.to_datetime(timestamp).to_pydatetime()
+
+            # Remove timezone info for consistency
+            if hasattr(processed_timestamp, "replace") and processed_timestamp.tzinfo is not None:
+                processed_timestamp = processed_timestamp.replace(tzinfo=None)
+
+            return processed_timestamp
+        except Exception as ts_error:
+            console.print(f"[red]⚠️ Error processing timestamp for {symbol} bar {bar_index}: {ts_error}[/red]")
+            return None
+
+    def _extract_timestamp_from_bar(self, bar: Any) -> Any:
+        """Extract timestamp from bar using various attribute names."""
+        for ts_attr in ["timestamp", "time", "date", "t"]:
+            if hasattr(bar, ts_attr):
+                return getattr(bar, ts_attr)
+        return None
+
+    def _create_bar_row(self, bar: Any) -> dict[str, float] | None:
+        """Create a data row from a bar object."""
+        if not (hasattr(bar, "open") and hasattr(bar, "high")):
+            return None
+
+        return {
+            "Open": float(bar.open),
+            "High": float(bar.high),
+            "Low": float(bar.low),
+            "Close": float(bar.close),
+            "Volume": int(bar.volume) if hasattr(bar, "volume") else 0,
+        }
+
+    def _convert_bars_to_dataframe(self, bars: list[Any], symbol: str) -> pd.DataFrame | None:
+        """Convert bar data to pandas DataFrame."""
+        data_rows: list[dict[str, float]] = []
+        timestamps: list[dt.datetime] = []
+
+        for i, bar in enumerate(bars):
+            try:
+                row = self._create_bar_row(bar)
+                if row is None:
+                    console.print(f"[red]⚠️ Invalid bar structure for {symbol} bar {i}: missing open/high[/red]")
+                    if hasattr(bar, "__dict__"):
+                        console.print(f"[dim]Bar attributes: {list(bar.__dict__.keys())}[/dim]")
+                    continue
+
+                timestamp = self._extract_timestamp_from_bar(bar)
+                processed_timestamp = self._process_timestamp(timestamp, symbol, i)
+
+                if processed_timestamp is not None:
+                    data_rows.append(row)
+                    timestamps.append(processed_timestamp)
+
+            except Exception as bar_error:
+                console.print(f"[red]❌ Error processing bar {i} for {symbol}: {bar_error}[/red]")
+                continue
+
+        if data_rows and timestamps:
+            df = pd.DataFrame(data_rows)
+            df.index = pd.to_datetime(timestamps)
+            df.index.name = "Date"
+            return df
+
+        return None
+
+    def _load_daily_data_for_symbol(self, symbol: str, start_date: dt.datetime, end_date: dt.datetime) -> pd.DataFrame | None:
+        """Load daily data for a single symbol."""
+        if self._data_provider is None:
+            console.print(f"[red]❌ Data provider not initialized for {symbol}[/red]")
+            return None
+
+        try:
+            bars = self._data_provider.get_historical_data(symbol, start_date, end_date, timeframe="1d")
+
+            if not bars:
+                console.print(f"[red]⚠️ No daily data for {symbol} (empty response)[/red]")
+                return None
+
+            df = self._convert_bars_to_dataframe(bars, symbol)
+            if df is not None:
+                console.print(f"[green]✅ Cached {len(df)} rows for {symbol}[/green]")
+                return df
+            else:
+                console.print(f"[red]⚠️ No valid bars for {symbol}[/red]")
+                return None
+
+        except Exception as e:
+            console.print(f"[red]❌ Failed to fetch daily data for {symbol}: {e}[/red]")
+            import traceback
+            console.print(f"[dim]Traceback: {traceback.format_exc()}[/dim]")
+            return None
+
+    def _load_minute_data_for_symbol(self, symbol: str, start_date: dt.datetime, end_date: dt.datetime) -> pd.DataFrame | None:
+        """Load minute data for a single symbol."""
+        if self._data_provider is None:
+            console.print(f"[red]❌ Data provider not initialized for {symbol}[/red]")
+            return None
+
+        try:
+            bars = self._data_provider.get_historical_data(symbol, start_date, end_date, timeframe="1m")
+
+            if not bars:
+                console.print(f"[yellow]⚠️ No minute data for {symbol}[/yellow]")
+                return None
+
+            data_rows = []
+            timestamps = []
+
+            for bar in bars:
+                if hasattr(bar, "open") and hasattr(bar, "high"):
+                    data_rows.append({
+                        "Open": float(bar.open),
+                        "High": float(bar.high),
+                        "Low": float(bar.low),
+                        "Close": float(bar.close),
+                        "Volume": int(bar.volume) if hasattr(bar, "volume") else 0,
+                    })
+                    timestamps.append(bar.timestamp)
+
+            if data_rows:
+                df = pd.DataFrame(data_rows)
+                df.index = pd.to_datetime(timestamps)
+                df.index.name = "Date"
+                return df
+            else:
+                console.print(f"[yellow]⚠️ No valid minute bars for {symbol}[/yellow]")
+                return None
+
+        except Exception as e:
+            console.print(f"[red]❌ Failed to fetch minute data for {symbol}: {e}[/red]")
+            return None
+
+    def _load_all_daily_data(self, symbols: list[str], start_date: dt.datetime, end_date: dt.datetime) -> tuple[dict[str, pd.DataFrame], list[str]]:
+        """Load daily data for all symbols."""
+        daily_data: dict[str, pd.DataFrame] = {}
+        failed_symbols: list[str] = []
+
+        for symbol in symbols:
+            df = self._load_daily_data_for_symbol(symbol, start_date, end_date)
+            if df is not None:
+                daily_data[symbol] = df
+            else:
+                failed_symbols.append(symbol)
+
+        return daily_data, failed_symbols
+
+    def _load_all_minute_data(self, symbols: list[str], start_date: dt.datetime, end_date: dt.datetime, failed_symbols: list[str]) -> dict[str, pd.DataFrame]:
+        """Load minute data for all valid symbols."""
+        minute_data: dict[str, pd.DataFrame] = {}
+        console.print(f"[yellow]⏱️ Loading minute data for {len(symbols)} symbols...[/yellow]")
+
+        valid_symbols = [s for s in symbols if s not in failed_symbols]
+        for i, symbol in enumerate(valid_symbols):
+            # Show progress every 10 symbols
+            if len(valid_symbols) > 10 and i % 10 == 0:
+                console.print(f"[dim]Processing minute data {i+1}/{len(valid_symbols)} symbols...[/dim]")
+
+            df = self._load_minute_data_for_symbol(symbol, start_date, end_date)
+            if df is not None:
+                minute_data[symbol] = df
+
+        return minute_data
+
+    def _print_loading_summary(self, daily_data: dict[str, pd.DataFrame], minute_data: dict[str, pd.DataFrame], failed_symbols: list[str], include_minute_data: bool) -> None:
+        """Print summary of loading results."""
+        console.print(f"[green]✅ Successfully cached {len(daily_data)} symbols with daily data[/green]")
+
+        if include_minute_data:
+            console.print(f"[green]✅ Successfully cached {len(minute_data)} symbols with minute data[/green]")
+
+        if failed_symbols:
+            console.print(f"[yellow]⚠️ Failed to cache {len(failed_symbols)} symbols: {failed_symbols[:10]}{'...' if len(failed_symbols) > 10 else ''}[/yellow]")
+
+        # Ensure output is flushed and progress bars are cleared
+        console.print("")  # Clear line
+
     def preload_all_data(
         self,
         start_date: dt.datetime,
@@ -243,9 +432,7 @@ class BacktestDataCache:
         """
         # Auto-detect symbols if not provided
         if symbols is None:
-            console.print(
-                "[yellow]🔍 Auto-detecting required symbols for all strategies...[/yellow]"
-            )
+            console.print("[yellow]🔍 Auto-detecting required symbols for all strategies...[/yellow]")
             symbols = sorted(self.get_all_required_symbols())
             console.print(f"[green]📊 Detected {len(symbols)} symbols to cache[/green]")
 
@@ -272,155 +459,13 @@ class BacktestDataCache:
             )
         )
 
-        daily_data = {}
-        minute_data = {}
-
-        # Load daily data quietly
-        daily_data = {}
-        failed_symbols = []
-
-        for i, symbol in enumerate(symbols):
-            try:
-                # Use the correct method with proper parameters
-                bars = self._data_provider.get_historical_data(
-                    symbol, start_date, end_date, timeframe="1d"
-                )
-
-                # Convert bars to DataFrame if we got results
-                if bars:
-                    data_rows = []
-                    timestamps = []
-
-                    for i, bar in enumerate(bars):
-                        try:
-                            if hasattr(bar, "open") and hasattr(
-                                bar, "high"
-                            ):  # Validate bar structure
-                                data_rows.append(
-                                    {
-                                        "Open": float(bar.open),
-                                        "High": float(bar.high),
-                                        "Low": float(bar.low),
-                                        "Close": float(bar.close),
-                                        "Volume": int(bar.volume) if hasattr(bar, "volume") else 0,
-                                    }
-                                )
-                                # Handle timestamp attribute variations
-                                timestamp = None
-                                for ts_attr in ["timestamp", "time", "date", "t"]:
-                                    if hasattr(bar, ts_attr):
-                                        timestamp = getattr(bar, ts_attr)
-                                        break
-
-                                if timestamp is None:
-                                    console.print(
-                                        f"[red]⚠️ No timestamp found for {symbol} bar {i}[/red]"
-                                    )
-                                    continue
-
-                                # Ensure timestamp is a pandas-compatible datetime
-                                try:
-                                    if hasattr(timestamp, "to_pydatetime"):
-                                        timestamp = timestamp.to_pydatetime()
-                                    elif isinstance(timestamp, str):
-                                        timestamp = pd.to_datetime(timestamp)
-                                    # Remove timezone info for consistency
-                                    if (
-                                        hasattr(timestamp, "replace")
-                                        and timestamp.tzinfo is not None
-                                    ):
-                                        timestamp = timestamp.replace(tzinfo=None)
-                                except Exception as ts_error:
-                                    console.print(
-                                        f"[red]⚠️ Error processing timestamp for {symbol} bar {i}: {ts_error}[/red]"
-                                    )
-                                    continue
-
-                                timestamps.append(timestamp)
-                            else:
-                                console.print(
-                                    f"[red]⚠️ Invalid bar structure for {symbol} bar {i}: missing open/high[/red]"
-                                )
-                                if hasattr(bar, "__dict__"):
-                                    console.print(
-                                        f"[dim]Bar attributes: {list(bar.__dict__.keys())}[/dim]"
-                                    )
-                        except Exception as bar_error:
-                            console.print(
-                                f"[red]❌ Error processing bar {i} for {symbol}: {bar_error}[/red]"
-                            )
-                            continue
-
-                    if data_rows and timestamps:
-                        df = pd.DataFrame(data_rows)
-                        df.index = pd.to_datetime(timestamps)
-                        df.index.name = "Date"
-                        daily_data[symbol] = df
-                        console.print(f"[green]✅ Cached {len(df)} rows for {symbol}[/green]")
-                    else:
-                        failed_symbols.append(symbol)
-                        console.print(
-                            f"[red]⚠️ No valid bars for {symbol} (got {len(data_rows)} rows, {len(timestamps)} timestamps)[/red]"
-                        )
-                else:
-                    failed_symbols.append(symbol)
-                    console.print(f"[red]⚠️ No daily data for {symbol} (empty response)[/red]")
-            except Exception as e:
-                failed_symbols.append(symbol)
-                console.print(f"[red]❌ Failed to fetch daily data for {symbol}: {e}[/red]")
-                import traceback
-
-                console.print(f"[dim]Traceback: {traceback.format_exc()}[/dim]")
+        # Load daily data using helper method
+        daily_data, failed_symbols = self._load_all_daily_data(symbols, start_date, end_date)
 
         # Load minute data if requested
+        minute_data: dict[str, pd.DataFrame] = {}
         if include_minute_data:
-            console.print(f"[yellow]⏱️ Loading minute data for {len(symbols)} symbols...[/yellow]")
-
-            valid_symbols = [s for s in symbols if s not in failed_symbols]
-            for i, symbol in enumerate(valid_symbols):
-                # Show progress every 10 symbols
-                if len(valid_symbols) > 10 and i % 10 == 0:
-                    console.print(
-                        f"[dim]Processing minute data {i+1}/{len(valid_symbols)} symbols...[/dim]"
-                    )
-
-                try:
-                    # Use the same method but with minute timeframe
-                    bars = self._data_provider.get_historical_data(
-                        symbol, start_date, end_date, timeframe="1m"
-                    )
-
-                    # Convert bars to DataFrame if we got results
-                    if bars:
-                        data_rows = []
-                        timestamps = []
-
-                        for bar in bars:
-                            if hasattr(bar, "open") and hasattr(
-                                bar, "high"
-                            ):  # Validate bar structure
-                                data_rows.append(
-                                    {
-                                        "Open": float(bar.open),
-                                        "High": float(bar.high),
-                                        "Low": float(bar.low),
-                                        "Close": float(bar.close),
-                                        "Volume": int(bar.volume) if hasattr(bar, "volume") else 0,
-                                    }
-                                )
-                                timestamps.append(bar.timestamp)
-
-                        if data_rows:
-                            df = pd.DataFrame(data_rows)
-                            df.index = pd.to_datetime(timestamps)
-                            df.index.name = "Date"
-                            minute_data[symbol] = df
-                        else:
-                            console.print(f"[yellow]⚠️ No valid minute bars for {symbol}[/yellow]")
-                    else:
-                        console.print(f"[yellow]⚠️ No minute data for {symbol}[/yellow]")
-                except Exception as e:
-                    console.print(f"[red]❌ Failed to fetch minute data for {symbol}: {e}[/red]")
+            minute_data = self._load_all_minute_data(symbols, start_date, end_date, failed_symbols)
 
         # Save to cache
         self.save_cache_to_disk(cache_key, daily_data, minute_data)
@@ -430,21 +475,8 @@ class BacktestDataCache:
         if minute_data:
             self._minute_data_cache.update(minute_data)
 
-        console.print(
-            f"[green]✅ Successfully cached {len(daily_data)} symbols with daily data[/green]"
-        )
-        if include_minute_data:
-            console.print(
-                f"[green]✅ Successfully cached {len(minute_data)} symbols with minute data[/green]"
-            )
-
-        if failed_symbols:
-            console.print(
-                f"[yellow]⚠️ Failed to cache {len(failed_symbols)} symbols: {failed_symbols[:10]}{'...' if len(failed_symbols) > 10 else ''}[/yellow]"
-            )
-
-        # Ensure output is flushed and progress bars are cleared
-        console.print("")  # Clear line
+        # Print summary
+        self._print_loading_summary(daily_data, minute_data, failed_symbols, include_minute_data)
 
         return daily_data, minute_data
 
