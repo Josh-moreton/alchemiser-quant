@@ -7,7 +7,7 @@ from the_alchemiser.utils.account_utils import extract_comprehensive_account_dat
 class DataProvider(Protocol):
     """Protocol defining the data provider interface needed by AccountService."""
 
-    def get_positions(self) -> list | Any:
+    def get_positions(self) -> list[Any]:
         """Get all positions."""
         ...
 
@@ -30,7 +30,7 @@ class AccountService:
         # Pre-import the utility function to avoid runtime imports
         self._extract_account_data = extract_comprehensive_account_data
 
-    def get_account_info(self) -> dict:
+    def get_account_info(self) -> dict[str, Any]:
         """
         Return comprehensive account info.
 
@@ -38,7 +38,7 @@ class AccountService:
         """
         return self._extract_account_data(self._data_provider)
 
-    def get_positions_dict(self) -> dict[str, dict]:
+    def get_positions_dict(self) -> dict[str, dict[str, Any]]:
         """
         Return current positions keyed by symbol.
 

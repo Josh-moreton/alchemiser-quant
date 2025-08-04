@@ -152,7 +152,7 @@ class BaseEmailTemplate:
         """
 
     @staticmethod
-    def create_table(headers: list, rows: list, table_id: str = "") -> str:
+    def create_table(headers: list[str], rows: list[list[str]], table_id: str = "") -> str:
         """Create a responsive table."""
         header_html = "".join(
             [

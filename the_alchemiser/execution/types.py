@@ -24,8 +24,8 @@ class MultiStrategyExecutionResult:
     success: bool
     strategy_signals: dict[StrategyType, Any]
     consolidated_portfolio: dict[str, float]
-    orders_executed: list[dict]
-    account_info_before: dict
-    account_info_after: dict
-    execution_summary: dict
-    final_portfolio_state: dict | None = None
+    orders_executed: list[dict[str, Any]]
+    account_info_before: dict[str, Any]
+    account_info_after: dict[str, Any]
+    execution_summary: dict[str, Any]
+    final_portfolio_state: dict[str, Any] | None = None

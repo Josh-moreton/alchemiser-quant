@@ -28,7 +28,7 @@ class S3Handler:
             logging.error(f"Error initializing S3 client: {e}")
             raise
 
-    def parse_s3_uri(self, s3_uri: str) -> tuple:
+    def parse_s3_uri(self, s3_uri: str) -> tuple[str, str]:
         """Parse S3 URI to extract bucket and key"""
         parsed = urlparse(s3_uri)
         if parsed.scheme != "s3":

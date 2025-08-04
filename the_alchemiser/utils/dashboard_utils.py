@@ -43,7 +43,7 @@ def build_basic_dashboard_structure(paper_trading: bool) -> dict[str, Any]:
     }
 
 
-def extract_portfolio_metrics(account_info: dict) -> dict[str, float]:
+def extract_portfolio_metrics(account_info: dict[str, Any]) -> dict[str, float]:
     """
     Extract portfolio metrics from account information.
 
@@ -77,7 +77,7 @@ def extract_portfolio_metrics(account_info: dict) -> dict[str, float]:
     return portfolio_metrics
 
 
-def extract_positions_data(open_positions: list) -> list[dict[str, Any]]:
+def extract_positions_data(open_positions: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """
     Extract positions data for dashboard.
 
@@ -111,7 +111,7 @@ def extract_positions_data(open_positions: list) -> list[dict[str, Any]]:
 
 
 def extract_strategies_data(
-    strategy_signals: dict, strategy_allocations: dict
+    strategy_signals: dict[str, Any], strategy_allocations: dict[str, Any]
 ) -> dict[str, dict[str, Any]]:
     """
     Extract strategies data for dashboard.
@@ -140,7 +140,7 @@ def extract_strategies_data(
 
 
 def extract_recent_trades_data(
-    orders_executed: list[dict], limit: int = 10
+    orders_executed: list[dict[str, Any]], limit: int = 10
 ) -> list[dict[str, Any]]:
     """
     Extract recent trades data for dashboard.

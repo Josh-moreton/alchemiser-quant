@@ -52,7 +52,7 @@ def extract_comprehensive_account_data(data_provider) -> dict[str, Any]:
         return {}
 
 
-def extract_basic_account_metrics(account_info: dict) -> dict[str, float]:
+def extract_basic_account_metrics(account_info: dict[str, Any]) -> dict[str, float]:
     """
     Extract basic portfolio metrics from account info.
 
@@ -71,7 +71,7 @@ def extract_basic_account_metrics(account_info: dict) -> dict[str, float]:
 
 
 def calculate_portfolio_values(
-    target_portfolio: dict[str, float], account_info: dict
+    target_portfolio: dict[str, float], account_info: dict[str, Any]
 ) -> dict[str, float]:
     """
     Calculate target dollar values from portfolio weights.
@@ -87,7 +87,7 @@ def calculate_portfolio_values(
     return {symbol: portfolio_value * weight for symbol, weight in target_portfolio.items()}
 
 
-def extract_current_position_values(current_positions: dict) -> dict[str, float]:
+def extract_current_position_values(current_positions: dict[str, Any]) -> dict[str, float]:
     """
     Extract current market values from position objects.
 

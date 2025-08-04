@@ -7,6 +7,7 @@ including position validation, liquidation logic, and buying power checks.
 """
 
 import logging
+from typing import Any
 
 
 class PositionManager:
@@ -150,7 +151,7 @@ class PositionManager:
             logging.error(f"Exception liquidating position for {symbol}: {e}")
             return None
 
-    def get_pending_orders(self) -> list:
+    def get_pending_orders(self) -> list[dict[str, Any]]:
         """
         Get all pending orders from Alpaca.
 

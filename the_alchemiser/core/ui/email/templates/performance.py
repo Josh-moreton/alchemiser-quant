@@ -4,6 +4,8 @@ This module handles building HTML content for trading summaries,
 order execution reports, and performance metrics.
 """
 
+from typing import Any
+
 from .base import BaseEmailTemplate
 
 
@@ -11,7 +13,7 @@ class PerformanceBuilder:
     """Builds performance-related HTML content for emails."""
 
     @staticmethod
-    def build_trading_activity(orders: list[dict] | None = None) -> str:
+    def build_trading_activity(orders: list[dict[str, Any]] | None = None) -> str:
         """Build HTML for trading activity section."""
         if not orders or len(orders) == 0:
             return """
@@ -107,7 +109,7 @@ class PerformanceBuilder:
         """
 
     @staticmethod
-    def build_trading_summary(trading_summary: dict) -> str:
+    def build_trading_summary(trading_summary: dict[str, Any]) -> str:
         """Build enhanced trading summary HTML section."""
         if not trading_summary:
             return BaseEmailTemplate.create_alert_box("Trading summary not available", "warning")
@@ -158,7 +160,7 @@ class PerformanceBuilder:
         """
 
     @staticmethod
-    def build_strategy_performance(strategy_summary: dict) -> str:
+    def build_strategy_performance(strategy_summary: dict[str, Any]) -> str:
         """Build strategy performance summary."""
         if not strategy_summary:
             return BaseEmailTemplate.create_alert_box(
@@ -216,7 +218,7 @@ class PerformanceBuilder:
     # ====== NEUTRAL MODE FUNCTIONS (NO DOLLAR VALUES/PERCENTAGES) ======
 
     @staticmethod
-    def build_trading_activity_neutral(orders: list[dict] | None = None) -> str:
+    def build_trading_activity_neutral(orders: list[dict[str, Any]] | None = None) -> str:
         """Build HTML for trading activity section without dollar values."""
         if not orders or len(orders) == 0:
             return """

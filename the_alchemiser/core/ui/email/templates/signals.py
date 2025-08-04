@@ -119,7 +119,7 @@ class SignalsBuilder:
 
     @staticmethod
     def build_detailed_strategy_signals(
-        strategy_signals: dict[Any, Any], strategy_summary: dict
+        strategy_signals: dict[Any, Any], strategy_summary: dict[str, Any]
     ) -> str:
         """Build detailed strategy signals HTML section."""
         if not strategy_signals:

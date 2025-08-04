@@ -242,7 +242,9 @@ class BacktestDataCache:
 
             return processed_timestamp
         except Exception as ts_error:
-            console.print(f"[red]⚠️ Error processing timestamp for {symbol} bar {bar_index}: {ts_error}[/red]")
+            console.print(
+                f"[red]⚠️ Error processing timestamp for {symbol} bar {bar_index}: {ts_error}[/red]"
+            )
             return None
 
     def _extract_timestamp_from_bar(self, bar: Any) -> Any:
@@ -274,7 +276,9 @@ class BacktestDataCache:
             try:
                 row = self._create_bar_row(bar)
                 if row is None:
-                    console.print(f"[red]⚠️ Invalid bar structure for {symbol} bar {i}: missing open/high[/red]")
+                    console.print(
+                        f"[red]⚠️ Invalid bar structure for {symbol} bar {i}: missing open/high[/red]"
+                    )
                     if hasattr(bar, "__dict__"):
                         console.print(f"[dim]Bar attributes: {list(bar.__dict__.keys())}[/dim]")
                     continue
@@ -298,14 +302,18 @@ class BacktestDataCache:
 
         return None
 
-    def _load_daily_data_for_symbol(self, symbol: str, start_date: dt.datetime, end_date: dt.datetime) -> pd.DataFrame | None:
+    def _load_daily_data_for_symbol(
+        self, symbol: str, start_date: dt.datetime, end_date: dt.datetime
+    ) -> pd.DataFrame | None:
         """Load daily data for a single symbol."""
         if self._data_provider is None:
             console.print(f"[red]❌ Data provider not initialized for {symbol}[/red]")
             return None
 
         try:
-            bars = self._data_provider.get_historical_data(symbol, start_date, end_date, timeframe="1d")
+            bars = self._data_provider.get_historical_data(
+                symbol, start_date, end_date, timeframe="1d"
+            )
 
             if not bars:
                 console.print(f"[red]⚠️ No daily data for {symbol} (empty response)[/red]")
@@ -322,17 +330,22 @@ class BacktestDataCache:
         except Exception as e:
             console.print(f"[red]❌ Failed to fetch daily data for {symbol}: {e}[/red]")
             import traceback
+
             console.print(f"[dim]Traceback: {traceback.format_exc()}[/dim]")
             return None
 
-    def _load_minute_data_for_symbol(self, symbol: str, start_date: dt.datetime, end_date: dt.datetime) -> pd.DataFrame | None:
+    def _load_minute_data_for_symbol(
+        self, symbol: str, start_date: dt.datetime, end_date: dt.datetime
+    ) -> pd.DataFrame | None:
         """Load minute data for a single symbol."""
         if self._data_provider is None:
             console.print(f"[red]❌ Data provider not initialized for {symbol}[/red]")
             return None
 
         try:
-            bars = self._data_provider.get_historical_data(symbol, start_date, end_date, timeframe="1m")
+            bars = self._data_provider.get_historical_data(
+                symbol, start_date, end_date, timeframe="1m"
+            )
 
             if not bars:
                 console.print(f"[yellow]⚠️ No minute data for {symbol}[/yellow]")
@@ -343,13 +356,15 @@ class BacktestDataCache:
 
             for bar in bars:
                 if hasattr(bar, "open") and hasattr(bar, "high"):
-                    data_rows.append({
-                        "Open": float(bar.open),
-                        "High": float(bar.high),
-                        "Low": float(bar.low),
-                        "Close": float(bar.close),
-                        "Volume": int(bar.volume) if hasattr(bar, "volume") else 0,
-                    })
+                    data_rows.append(
+                        {
+                            "Open": float(bar.open),
+                            "High": float(bar.high),
+                            "Low": float(bar.low),
+                            "Close": float(bar.close),
+                            "Volume": int(bar.volume) if hasattr(bar, "volume") else 0,
+                        }
+                    )
                     timestamps.append(bar.timestamp)
 
             if data_rows:
@@ -365,7 +380,9 @@ class BacktestDataCache:
             console.print(f"[red]❌ Failed to fetch minute data for {symbol}: {e}[/red]")
             return None
 
-    def _load_all_daily_data(self, symbols: list[str], start_date: dt.datetime, end_date: dt.datetime) -> tuple[dict[str, pd.DataFrame], list[str]]:
+    def _load_all_daily_data(
+        self, symbols: list[str], start_date: dt.datetime, end_date: dt.datetime
+    ) -> tuple[dict[str, pd.DataFrame], list[str]]:
         """Load daily data for all symbols."""
         daily_data: dict[str, pd.DataFrame] = {}
         failed_symbols: list[str] = []
@@ -379,7 +396,13 @@ class BacktestDataCache:
 
         return daily_data, failed_symbols
 
-    def _load_all_minute_data(self, symbols: list[str], start_date: dt.datetime, end_date: dt.datetime, failed_symbols: list[str]) -> dict[str, pd.DataFrame]:
+    def _load_all_minute_data(
+        self,
+        symbols: list[str],
+        start_date: dt.datetime,
+        end_date: dt.datetime,
+        failed_symbols: list[str],
+    ) -> dict[str, pd.DataFrame]:
         """Load minute data for all valid symbols."""
         minute_data: dict[str, pd.DataFrame] = {}
         console.print(f"[yellow]⏱️ Loading minute data for {len(symbols)} symbols...[/yellow]")
@@ -388,7 +411,9 @@ class BacktestDataCache:
         for i, symbol in enumerate(valid_symbols):
             # Show progress every 10 symbols
             if len(valid_symbols) > 10 and i % 10 == 0:
-                console.print(f"[dim]Processing minute data {i+1}/{len(valid_symbols)} symbols...[/dim]")
+                console.print(
+                    f"[dim]Processing minute data {i+1}/{len(valid_symbols)} symbols...[/dim]"
+                )
 
             df = self._load_minute_data_for_symbol(symbol, start_date, end_date)
             if df is not None:
@@ -396,15 +421,27 @@ class BacktestDataCache:
 
         return minute_data
 
-    def _print_loading_summary(self, daily_data: dict[str, pd.DataFrame], minute_data: dict[str, pd.DataFrame], failed_symbols: list[str], include_minute_data: bool) -> None:
+    def _print_loading_summary(
+        self,
+        daily_data: dict[str, pd.DataFrame],
+        minute_data: dict[str, pd.DataFrame],
+        failed_symbols: list[str],
+        include_minute_data: bool,
+    ) -> None:
         """Print summary of loading results."""
-        console.print(f"[green]✅ Successfully cached {len(daily_data)} symbols with daily data[/green]")
+        console.print(
+            f"[green]✅ Successfully cached {len(daily_data)} symbols with daily data[/green]"
+        )
 
         if include_minute_data:
-            console.print(f"[green]✅ Successfully cached {len(minute_data)} symbols with minute data[/green]")
+            console.print(
+                f"[green]✅ Successfully cached {len(minute_data)} symbols with minute data[/green]"
+            )
 
         if failed_symbols:
-            console.print(f"[yellow]⚠️ Failed to cache {len(failed_symbols)} symbols: {failed_symbols[:10]}{'...' if len(failed_symbols) > 10 else ''}[/yellow]")
+            console.print(
+                f"[yellow]⚠️ Failed to cache {len(failed_symbols)} symbols: {failed_symbols[:10]}{'...' if len(failed_symbols) > 10 else ''}[/yellow]"
+            )
 
         # Ensure output is flushed and progress bars are cleared
         console.print("")  # Clear line
@@ -432,7 +469,9 @@ class BacktestDataCache:
         """
         # Auto-detect symbols if not provided
         if symbols is None:
-            console.print("[yellow]🔍 Auto-detecting required symbols for all strategies...[/yellow]")
+            console.print(
+                "[yellow]🔍 Auto-detecting required symbols for all strategies...[/yellow]"
+            )
             symbols = sorted(self.get_all_required_symbols())
             console.print(f"[green]📊 Detected {len(symbols)} symbols to cache[/green]")
 

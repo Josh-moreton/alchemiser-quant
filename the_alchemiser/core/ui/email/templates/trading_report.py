@@ -3,6 +3,8 @@
 This module handles the primary trading report email template generation.
 """
 
+from typing import Any
+
 from .base import BaseEmailTemplate
 from .performance import PerformanceBuilder
 from .portfolio import PortfolioBuilder
@@ -16,13 +18,13 @@ class TradingReportBuilder:
     def build_regular_report(
         mode: str,
         success: bool,
-        account_before: dict,
-        account_after: dict,
-        positions: dict,
-        orders: list[dict] | None = None,
+        account_before: dict[str, Any],
+        account_after: dict[str, Any],
+        positions: dict[str, Any],
+        orders: list[dict[str, Any]] | None = None,
         signal=None,
-        portfolio_history: dict | None = None,
-        open_positions: list[dict] | None = None,
+        portfolio_history: dict[str, Any] | None = None,
+        open_positions: list[dict[str, Any]] | None = None,
     ) -> str:
         """Build a comprehensive HTML trading report email."""
 
@@ -92,13 +94,13 @@ class TradingReportBuilder:
     def build_neutral_report(
         mode: str,
         success: bool,
-        account_before: dict,
-        account_after: dict,
-        positions: dict,
-        orders: list[dict] | None = None,
+        account_before: dict[str, Any],
+        account_after: dict[str, Any],
+        positions: dict[str, Any],
+        orders: list[dict[str, Any]] | None = None,
         signal=None,
-        portfolio_history: dict | None = None,
-        open_positions: list[dict] | None = None,
+        portfolio_history: dict[str, Any] | None = None,
+        open_positions: list[dict[str, Any]] | None = None,
     ) -> str:
         """Build a neutral HTML trading report email without dollar values or percentages."""
 

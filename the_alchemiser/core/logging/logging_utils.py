@@ -3,11 +3,12 @@ import logging
 import os
 import sys
 from datetime import datetime
+from typing import Any
 
 from the_alchemiser.core.utils.s3_utils import S3FileHandler
 
 
-class AlchemiserLoggerAdapter(logging.LoggerAdapter):
+class AlchemiserLoggerAdapter(logging.LoggerAdapter[logging.Logger]):
     """Custom logger adapter for the Alchemiser quantitative trading system."""
 
     def process(self, msg, kwargs):
