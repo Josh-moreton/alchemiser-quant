@@ -111,7 +111,7 @@ class BaseKLMVariant(ABC):
         return {"BTAL": 0.5, "BIL": 0.5}
 
     # Common RSI overbought checks
-    def check_primary_overbought_conditions(self, indicators: dict) -> tuple[str | None, str]:
+    def check_primary_overbought_conditions(self, indicators: dict[str, dict[str, float]]) -> tuple[str | None, str]:
         """
         Complete 11-step overbought detection chain from CLJ.
         ALL standard variants follow this exact sequence before "Single Popped KMLM".
@@ -169,7 +169,7 @@ class BaseKLMVariant(ABC):
         return (None, "")
 
     def evaluate_single_popped_kmlm(
-        self, indicators: dict
+        self, indicators: dict[str, dict[str, float]]
     ) -> tuple[str | dict[str, float], str, str]:
         """
         Single Popped KMLM logic - common across most standard variants.
@@ -193,7 +193,7 @@ class BaseKLMVariant(ABC):
         # Fallback if UVXY data unavailable
         return self.evaluate_combined_pop_bot(indicators)
 
-    def evaluate_bsc_strategy(self, indicators: dict) -> tuple[str, str, str]:
+    def evaluate_bsc_strategy(self, indicators: dict[str, dict[str, float]]) -> tuple[str, str, str]:
         """
         BSC (Bond/Stock/Commodity) strategy when UVXY RSI(21) > 65
 
@@ -224,7 +224,7 @@ class BaseKLMVariant(ABC):
         return result
 
     def evaluate_combined_pop_bot(
-        self, indicators: dict
+        self, indicators: dict[str, dict[str, float]]
     ) -> tuple[str | dict[str, float], str, str]:
         """
         Combined Pop Bot strategy - standard across most variants.
@@ -277,7 +277,7 @@ class BaseKLMVariant(ABC):
 
     @abstractmethod
     def evaluate_core_kmlm_switcher(
-        self, indicators: dict
+        self, indicators: dict[str, dict[str, float]]
     ) -> tuple[str | dict[str, float], str, str]:
         """
         Core KMLM switcher - each variant implements its own logic.
@@ -285,7 +285,7 @@ class BaseKLMVariant(ABC):
         """
         pass
 
-    def log_decision(self, symbol_or_allocation: str | dict, action: str, reason: str):
+    def log_decision(self, symbol_or_allocation: str | dict[str, float], action: str, reason: str):
         """Log trading decision with context"""
         if isinstance(symbol_or_allocation, dict):
             symbols = list(symbol_or_allocation.keys())
@@ -293,7 +293,7 @@ class BaseKLMVariant(ABC):
         else:
             self.logger.info(f"{self.name}: {action} {symbol_or_allocation} - {reason}")
 
-    def get_base_required_symbols(self) -> list:
+    def get_base_required_symbols(self) -> list[str]:
         """
         Base symbols required by the standard 11-step overbought chain and pop bot logic.
         Variants should extend this list with their specific requirements.

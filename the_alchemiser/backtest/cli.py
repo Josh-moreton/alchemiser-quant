@@ -12,6 +12,7 @@ This module provides a clean CLI for running various types of backtests:
 import argparse
 import datetime as dt
 import sys
+from typing import Any
 
 from rich.console import Console
 from rich.panel import Panel
@@ -207,7 +208,7 @@ Examples:
             )
         )
 
-    def display_results_table(self, results: list, title: str = "Backtest Results"):
+    def display_results_table(self, results: list[Any], title: str = "Backtest Results"):
         """Display results in a formatted table"""
         if not results:
             console.print("[yellow]No results to display[/yellow]")

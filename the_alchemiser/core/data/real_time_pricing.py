@@ -408,7 +408,7 @@ class RealTimePricingService:
         """Check if the real-time service is connected."""
         return self._connected
 
-    def get_stats(self) -> dict:
+    def get_stats(self) -> dict[str, Any]:
         """Get service statistics."""
         return {
             **self._stats,
@@ -595,7 +595,7 @@ class RealTimePricingManager:
             paper_trading: Whether to use paper trading environment
         """
         self.pricing_service = RealTimePricingService(api_key, secret_key, paper_trading)
-        self._fallback_provider: Callable | None = None
+        self._fallback_provider: Callable[[str], float | None] | None = None
 
     def set_fallback_provider(self, provider: Callable[[str], float | None]) -> None:
         """
@@ -690,7 +690,7 @@ class RealTimePricingManager:
         """Check if real-time pricing is available."""
         return self.pricing_service.is_connected()
 
-    def get_stats(self) -> dict:
+    def get_stats(self) -> dict[str, Any]:
         """Get real-time pricing statistics."""
         return self.pricing_service.get_stats()
 

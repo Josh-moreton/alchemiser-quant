@@ -35,7 +35,7 @@ class SecretsManager:
             region_name = config.secrets_manager.region_name
         self.region_name = region_name
         self.client = None
-        self._secrets_cache = None  # Cache for secrets
+        self._secrets_cache: dict[str, str] | None = None  # Cache for secrets
 
         if BOTO3_AVAILABLE:
             try:
@@ -47,7 +47,7 @@ class SecretsManager:
         else:
             logging.info("boto3 not available - will use environment variables")
 
-    def get_secret(self, secret_name: str) -> dict | None:
+    def get_secret(self, secret_name: str) -> dict[str, str] | None:
         """
         Retrieve a secret from AWS Secrets Manager
 
@@ -96,7 +96,7 @@ class SecretsManager:
             self._secrets_cache = self._get_secret_from_env()
             return self._secrets_cache
 
-    def _get_secret_from_env(self) -> dict | None:
+    def _get_secret_from_env(self) -> dict[str, str] | None:
         """
         Fallback method to get secrets from environment variables
 
@@ -124,7 +124,7 @@ class SecretsManager:
 
         return secrets if secrets else None
 
-    def get_alpaca_keys(self, paper_trading: bool = True) -> tuple:
+    def get_alpaca_keys(self, paper_trading: bool = True) -> tuple[str, str] | tuple[None, None]:
         """
         Get Alpaca API keys for trading
 
@@ -164,7 +164,7 @@ class SecretsManager:
             logging.error(f"Error getting Alpaca keys: {e}")
             return None, None
 
-    def get_telegram_config(self) -> tuple:
+    def get_telegram_config(self) -> tuple[str, str] | tuple[None, None]:
         """
         Get Telegram bot configuration
 

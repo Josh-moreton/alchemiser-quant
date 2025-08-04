@@ -282,7 +282,7 @@ class KLMStrategyEnsemble:
         symbol_or_allocation: str | dict[str, float],
         action: str,
         basic_reason: str,
-        all_variant_results: list[tuple],
+        all_variant_results: list[tuple[BaseKLMVariant, Any, float]],
     ) -> str:
         """Build detailed KLM analysis similar to Nuclear and TECL strategy explanations"""
 

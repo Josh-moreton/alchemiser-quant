@@ -12,6 +12,7 @@ This module handles:
 import datetime as dt
 import os
 import sys
+from typing import Any
 
 import pandas as pd
 from rich.console import Console
@@ -403,7 +404,7 @@ class DataLoader:
         if self.cache:
             self.cache.clear_cache()
 
-    def get_cache_stats(self) -> dict:
+    def get_cache_stats(self) -> dict[str, Any]:
         """Get cache statistics"""
         if self.cache:
             return self.cache.get_cache_stats()
