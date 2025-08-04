@@ -102,7 +102,7 @@ class RealTimePricingService:
         self._max_quote_age = 600  # 10 minutes
 
         # Statistics
-        self._stats = {
+        self._stats: dict[str, Any] = {
             "quotes_received": 0,
             "trades_received": 0,
             "connection_errors": 0,

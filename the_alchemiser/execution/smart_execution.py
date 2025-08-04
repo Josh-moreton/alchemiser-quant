@@ -84,14 +84,6 @@ class DataProvider(Protocol):
         ...
 
 
-class TradingClient(Protocol):
-    """Protocol for trading client components."""
-
-    def get_order_by_id(self, order_id: str):
-        """Get order by ID."""
-        ...
-
-
 def is_market_open(trading_client: TradingClient) -> bool:
     """Check if the market is currently open."""
     try:
@@ -328,8 +320,8 @@ class SmartExecution:
 
         for order_id in order_ids:
             try:
-                order = self._order_executor.trading_client.get_order_by_id(order_id)
-                status = str(getattr(order, "status", "unknown")).lower()
+                order_obj: Any = self._order_executor.trading_client.get_order_by_id(order_id)
+                status = str(getattr(order_obj, "status", "unknown")).lower()
                 if "orderstatus." in status:
                     actual_status = status.split(".")[-1]
                 else:

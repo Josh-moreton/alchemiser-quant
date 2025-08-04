@@ -53,7 +53,10 @@ class UnifiedDataProvider:
         secrets_manager = SecretsManager()
 
         # Get API keys from AWS Secrets Manager
-        self.api_key, self.secret_key = secrets_manager.get_alpaca_keys(paper_trading=paper_trading)
+        api_key_result = secrets_manager.get_alpaca_keys(paper_trading=paper_trading)
+        self.api_key: str | None
+        self.secret_key: str | None
+        self.api_key, self.secret_key = api_key_result
 
         if not self.api_key or not self.secret_key:
             raise ValueError(
@@ -539,10 +542,12 @@ class UnifiedDataProvider:
                 # Sort trades by date
                 trades.sort(key=lambda x: x.get("transaction_time", ""))
 
-                position_qty = 0
-                total_cost = 0
-                realized_pnl = 0
-                total_sold_cost_basis = 0  # Track cost basis of sold shares for % calculation
+                position_qty: float = 0.0
+                total_cost: float = 0.0
+                realized_pnl: float = 0.0
+                total_sold_cost_basis: float = (
+                    0.0  # Track cost basis of sold shares for % calculation
+                )
 
                 for trade in trades:
                     side = trade.get("side", "").upper()
