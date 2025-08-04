@@ -33,6 +33,36 @@ Globals:
         ALERTS__ALERT_CONFIG_S3: s3://the-alchemiser-s3/alert_config.json
         ALERTS__COOLDOWN_MINUTES: 30
 
+        # Secrets Manager
+        SECRETS_MANAGER__REGION_NAME: eu-west-2
+        SECRETS_MANAGER__SECRET_NAME: nuclear-secrets
+
+        # Strategy Configuration
+        STRATEGY__DEFAULT_STRATEGY_ALLOCATIONS: '{"nuclear": 0.3, "tecl": 0.5, "klm": 0.2}'
+        STRATEGY__POLL_TIMEOUT: 30
+        STRATEGY__POLL_INTERVAL: 2.0
+
+        # Email Configuration
+        EMAIL__SMTP_SERVER: smtp.mail.me.com
+        EMAIL__SMTP_PORT: 587
+        EMAIL__FROM_EMAIL: josh@rwxt.org
+        EMAIL__TO_EMAIL: josh@rwxt.org
+        EMAIL__NEUTRAL_MODE: true
+
+        # Data Configuration
+        DATA__CACHE_DURATION: 300
+        DATA__DEFAULT_SYMBOL: AAPL
+
+        # Tracking Configuration
+        TRACKING__S3_BUCKET: the-alchemiser-s3
+        TRACKING__STRATEGY_ORDERS_PATH: strategy_orders/
+        TRACKING__STRATEGY_POSITIONS_PATH: strategy_positions/
+        TRACKING__STRATEGY_PNL_HISTORY_PATH: strategy_pnl_history/
+        TRACKING__ORDER_HISTORY_LIMIT: 1000
+
+        # Execution Configuration
+        EXECUTION__MAX_SLIPPAGE_BPS: 20.0
+
 Resources:
   # Lambda Layer for dependencies
   DependenciesLayer:
@@ -126,6 +156,7 @@ Resources:
                   - secretsmanager:GetSecretValue
                   - secretsmanager:DescribeSecret
                 Resource:
+                  - arn:aws:secretsmanager:eu-west-2:211125653762:secret:nuclear-secrets-*
                   - arn:aws:secretsmanager:eu-west-2:211125653762:secret:alpaca-api-keys-*
                   - arn:aws:secretsmanager:eu-west-2:211125653762:secret:alpaca-paper-api-keys-*
 
