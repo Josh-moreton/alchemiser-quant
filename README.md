@@ -332,22 +332,20 @@ git push origin feature/your-feature
 
 ### Code Quality
 
-The Alchemiser includes modern code quality tools to help improve code when you want to use them:
+The Alchemiser includes modern code quality tools to help improve your code:
 
 - **🎨 Black**: Consistent code formatting
 - **🔍 Ruff**: Fast linting and import sorting (replaces Flake8 + isort)
 - **🔒 MyPy**: Static type checking
 
 ```bash
-# Run quality checks manually when desired
+# Run quality tools manually when you want to improve code
 poetry run black .                    # Format code
 poetry run ruff check . --fix         # Fix linting issues
 poetry run mypy the_alchemiser/       # Type checking
 
-# Or run the validation script
-python scripts/validate_code_quality.py
-
-# These tools help improve code quality but don't block commits
+# All tools configured in pyproject.toml
+# No enforcement - use when you want to clean up code
 ```
 
 **📝 [Contributing Guide →](./CONTRIBUTING.md)**
