@@ -202,6 +202,30 @@ def lambda_handler(event=None, context=None):
         error_message = f"Lambda execution error: {str(e)}"
         logger.error(error_message, exc_info=True)
 
+        # Enhanced error handling with detailed reporting
+        try:
+            from the_alchemiser.core.error_handler import (
+                handle_trading_error,
+                send_error_notification_if_needed,
+            )
+
+            handle_trading_error(
+                error=e,
+                context="lambda function execution",
+                component="lambda_handler.lambda_handler",
+                additional_data={
+                    "event": event,
+                    "request_id": request_id,
+                    "parsed_command": locals().get("command_args", None),
+                },
+            )
+
+            # Send detailed error notification if needed
+            send_error_notification_if_needed()
+
+        except Exception as notification_error:
+            logger.warning("Failed to send error notification: %s", notification_error)
+
         return {
             "status": "failed",
             "mode": "unknown",

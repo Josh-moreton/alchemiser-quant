@@ -16,19 +16,42 @@ class ErrorReportBuilder:
         header = BaseEmailTemplate.get_header("The Alchemiser")
         status_banner = BaseEmailTemplate.get_status_banner(title, "Error", "#EF4444", "❌")
 
-        # Format error message
-        formatted_error = error_message.replace("\n", "<br>")
+        # Check if error_message is structured (contains markdown headers)
+        if error_message.startswith("# Trading System Error Report"):
+            # Structured error report - convert markdown to HTML
+            formatted_error = error_message.replace("\n", "<br>")
+            formatted_error = formatted_error.replace(
+                "# ", "<h2 style='color: #1F2937; margin: 24px 0 16px 0;'>"
+            )
+            formatted_error = formatted_error.replace(
+                "## ", "<h3 style='color: #374151; margin: 20px 0 12px 0;'>"
+            )
+            formatted_error = formatted_error.replace("**", "<strong>")
+            formatted_error = formatted_error.replace("</strong>", "</strong>")
 
-        error_content = f"""
-        <div style="margin: 24px 0;">
-            <h3 style="margin: 0 0 16px 0; color: #1F2937; font-size: 18px; font-weight: 600;">🚨 Error Details</h3>
-            <div style="background-color: white; border-radius: 8px; padding: 20px; border-left: 4px solid #EF4444; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                <div style="color: #DC2626; font-family: 'Courier New', monospace; font-size: 14px; line-height: 1.5; white-space: pre-wrap;">
-                    {formatted_error}
+            error_content = f"""
+            <div style="margin: 24px 0;">
+                <div style="background-color: white; border-radius: 8px; padding: 20px; border-left: 4px solid #EF4444; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                    <div style="color: #374151; font-size: 14px; line-height: 1.6;">
+                        {formatted_error}
+                    </div>
                 </div>
             </div>
-        </div>
-        """
+            """
+        else:
+            # Simple error message
+            formatted_error = error_message.replace("\n", "<br>")
+
+            error_content = f"""
+            <div style="margin: 24px 0;">
+                <h3 style="margin: 0 0 16px 0; color: #1F2937; font-size: 18px; font-weight: 600;">🚨 Error Details</h3>
+                <div style="background-color: white; border-radius: 8px; padding: 20px; border-left: 4px solid #EF4444; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                    <div style="color: #DC2626; font-family: 'Courier New', monospace; font-size: 14px; line-height: 1.5; white-space: pre-wrap;">
+                        {formatted_error}
+                    </div>
+                </div>
+            </div>
+            """
 
         # Add troubleshooting tips
         tips_content = """

@@ -206,6 +206,20 @@ class TradingEngine:
             return account_info
         except Exception as e:
             logging.error(f"Failed to retrieve account information: {e}")
+
+            # Enhanced error handling
+            try:
+                from the_alchemiser.core.error_handler import handle_trading_error
+
+                handle_trading_error(
+                    error=e,
+                    context="account information retrieval",
+                    component="TradingEngine.get_account_info",
+                    additional_data={"paper_trading": self.paper_trading},
+                )
+            except ImportError:
+                pass  # Fallback for backward compatibility
+
             return {}
 
     def get_positions(self) -> dict[str, Any]:
@@ -474,6 +488,23 @@ class TradingEngine:
 
         except Exception as e:
             logging.error(f"Multi-strategy execution failed: {e}")
+
+            # Enhanced error handling
+            try:
+                from the_alchemiser.core.error_handler import handle_trading_error
+
+                handle_trading_error(
+                    error=e,
+                    context="multi-strategy execution",
+                    component="TradingEngine.execute_multi_strategy",
+                    additional_data={
+                        "paper_trading": self.paper_trading,
+                        "ignore_market_hours": self.ignore_market_hours,
+                    },
+                )
+            except ImportError:
+                pass  # Fallback for backward compatibility
+
             return MultiStrategyExecutionResult(
                 success=False,
                 strategy_signals={},

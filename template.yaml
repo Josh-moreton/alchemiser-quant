@@ -90,7 +90,15 @@ Resources:
         - !Ref DependenciesLayer
       # No Events here - using separate EventBridge Scheduler below
 
-  # EventBridge Scheduler with proper timezone support
+  # Dead Letter Queue for failed trading executions
+  TradingSystemDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: the-alchemiser-dlq
+      MessageRetentionPeriod: 1209600 # 14 days
+      VisibilityTimeout: 60
+
+  # EventBridge Scheduler with proper timezone support and reduced retry policy
   TradingSystemSchedule:
     Type: AWS::Scheduler::Schedule
     Properties:
@@ -108,6 +116,10 @@ Resources:
             "mode": "trade",
             "trading_mode": "live"
           }
+        RetryPolicy:
+          MaximumRetryAttempts: 1 # Reduced from default (185) to prevent excessive retries
+        DeadLetterConfig:
+          Arn: !GetAtt TradingSystemDLQ.Arn
       State: "ENABLED"
 
   # IAM Role for EventBridge Scheduler to invoke Lambda
@@ -130,6 +142,10 @@ Resources:
                 Action:
                   - lambda:InvokeFunction
                 Resource: !GetAtt TradingSystemFunction.Arn
+              - Effect: Allow
+                Action:
+                  - sqs:SendMessage
+                Resource: !GetAtt TradingSystemDLQ.Arn
 
   # IAM Role for Lambda execution
   TradingSystemExecutionRole:

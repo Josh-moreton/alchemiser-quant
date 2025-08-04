@@ -365,6 +365,31 @@ def run_multi_strategy_trading(
     except Exception as e:
         logger = get_logger(__name__)
         logger.exception("Error in multi-strategy trading: %s", e)
+
+        # Enhanced error handling with detailed reporting
+        try:
+            from the_alchemiser.core.error_handler import (
+                handle_trading_error,
+                send_error_notification_if_needed,
+            )
+
+            handle_trading_error(
+                error=e,
+                context="multi-strategy trading execution",
+                component="main.run_multi_strategy_trading",
+                additional_data={
+                    "mode": mode_str,
+                    "live_trading": live_trading,
+                    "ignore_market_hours": ignore_market_hours,
+                },
+            )
+
+            # Send detailed error notification if needed
+            send_error_notification_if_needed()
+
+        except Exception as notification_error:
+            logger.warning("Failed to send error notification: %s", notification_error)
+
         return False
 
 
