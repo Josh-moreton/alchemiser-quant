@@ -33,7 +33,7 @@ class StructuredFormatter(logging.Formatter):
             log_entry["exception"] = {
                 "type": record.exc_info[0].__name__ if record.exc_info[0] else None,
                 "message": str(record.exc_info[1]) if record.exc_info[1] else None,
-                "traceback": self.formatException(record.exc_info) if record.exc_info else None,
+                "traceback": self.formatException(record.exc_info),
             }
 
         # Add extra fields if present
