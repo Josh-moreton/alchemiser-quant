@@ -346,18 +346,36 @@ class MultiStrategyManager:
                     return {bear1_symbol: 1.0}
 
                 # Otherwise, use inverse volatility weighting to combine them
-                bear_portfolio = (
-                    nuclear_engine.strategy.combine_bear_strategies_with_inverse_volatility(
-                        bear1_symbol, bear2_symbol, indicators
+                try:
+                    bear_portfolio = (
+                        nuclear_engine.strategy.combine_bear_strategies_with_inverse_volatility(
+                            bear1_symbol, bear2_symbol, indicators
+                        )
                     )
-                )
-
-                if bear_portfolio:
                     return {symbol: data["weight"] for symbol, data in bear_portfolio.items()}
 
-                # Fallback to equal weights if calculation fails
-                logging.warning("Bear portfolio calculation failed, using fallback allocation")
-                return {bear1_symbol: 0.6, bear2_symbol: 0.4}
+                except Exception as e:
+                    from the_alchemiser.core.error_handler import TradingSystemErrorHandler
+
+                    error_handler = TradingSystemErrorHandler()
+
+                    # Log the error with proper categorization
+                    error_handler.handle_error(
+                        error=e,
+                        component="nuclear_strategy",
+                        context="bear_portfolio_allocation",
+                        additional_data={
+                            "bear1_symbol": bear1_symbol,
+                            "bear2_symbol": bear2_symbol,
+                            "fallback_action": "equal_weight_allocation",
+                        },
+                    )
+
+                    # Use conservative fallback allocation
+                    logging.warning(
+                        f"Bear portfolio volatility calculation failed: {e}, using conservative fallback"
+                    )
+                    return {bear1_symbol: 0.6, bear2_symbol: 0.4}
 
             except Exception as e:
                 logging.error(f"Error calculating bear portfolio allocation: {e}")

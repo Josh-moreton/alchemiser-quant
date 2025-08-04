@@ -178,7 +178,7 @@ class NuclearStrategyEngine:
     ):
         """
         Combine two bear strategy symbols using inverse volatility weighting (14-day window)
-        Returns portfolio allocation dictionary or None if calculation fails
+        Returns portfolio allocation dictionary or raises exception if calculation fails
         """
         try:
             # Get 14-day volatility for both symbols
@@ -186,7 +186,13 @@ class NuclearStrategyEngine:
             vol2 = self._get_14_day_volatility(bear2_symbol, indicators)
 
             if vol1 is None or vol2 is None or vol1 <= 0 or vol2 <= 0:
-                return None
+                from the_alchemiser.core.exceptions import StrategyExecutionError
+
+                raise StrategyExecutionError(
+                    f"Cannot calculate volatility for bear strategy allocation. "
+                    f"{bear1_symbol} vol: {vol1}, {bear2_symbol} vol: {vol2}",
+                    strategy_name="BearMarketStrategy",
+                )
 
             # Calculate inverse volatility weights
             inv_vol1 = 1.0 / vol1
@@ -204,16 +210,31 @@ class NuclearStrategyEngine:
             if weight2 > 0.01:  # Only include if weight > 1%
                 portfolio[bear2_symbol] = {"weight": weight2, "performance": 0.0}
 
-            return portfolio if portfolio else None
+            if not portfolio:
+                from the_alchemiser.core.exceptions import StrategyExecutionError
 
-        except Exception:
-            # If anything goes wrong, fall back to None
-            return None
+                raise StrategyExecutionError(
+                    f"Bear strategy allocation resulted in empty portfolio. Weights: {bear1_symbol}={weight1:.3f}, {bear2_symbol}={weight2:.3f}",
+                    strategy_name="BearMarketStrategy",
+                )
+
+            return portfolio
+
+        except Exception as e:
+            from the_alchemiser.core.exceptions import StrategyExecutionError
+
+            if isinstance(e, StrategyExecutionError):
+                raise  # Re-raise our custom exceptions
+            else:
+                raise StrategyExecutionError(
+                    f"Bear strategy volatility calculation failed: {str(e)}",
+                    strategy_name="BearMarketStrategy",
+                ) from e
 
     def _get_14_day_volatility(self, symbol, indicators):
         """
         Calculate 14-day volatility for a symbol
-        Returns volatility or None if not available
+        Returns volatility or raises exception if not available
         """
         try:
             if symbol in indicators:
@@ -225,7 +246,8 @@ class NuclearStrategyEngine:
                     prices = indicators[symbol]["price_history"][-14:]  # Last 14 days
                     returns = pd.Series(prices).pct_change().dropna()
                     vol = returns.std() * np.sqrt(252)  # Annualized volatility
-                    return float(vol) if pd.notna(vol) else None
+                    if pd.notna(vol) and vol > 0:
+                        return float(vol)
 
                 # Fallback: use RSI-based volatility estimate if price history not available
                 if "rsi_10" in indicators[symbol]:
@@ -246,10 +268,26 @@ class NuclearStrategyEngine:
                 }
                 return volatility_estimates.get(symbol, 0.3)  # Default 30% volatility
 
-            return None
+            # If no data available at all, raise exception
+            from the_alchemiser.core.exceptions import IndicatorCalculationError
 
-        except Exception:
-            return None
+            raise IndicatorCalculationError(
+                f"No volatility data available for {symbol}. No price history, RSI, or symbol lookup found.",
+                indicator_name="14_day_volatility",
+                symbol=symbol,
+            )
+
+        except Exception as e:
+            from the_alchemiser.core.exceptions import IndicatorCalculationError
+
+            if isinstance(e, IndicatorCalculationError):
+                raise  # Re-raise our custom exceptions
+            else:
+                raise IndicatorCalculationError(
+                    f"Volatility calculation failed for {symbol}: {str(e)}",
+                    indicator_name="14_day_volatility",
+                    symbol=symbol,
+                ) from e
 
 
 class BullMarketStrategy:
@@ -305,12 +343,12 @@ class BearMarketStrategy:
             enhanced_reason += "• Bear market requires defensive nuclear positioning"
             return symbol, action, enhanced_reason
 
-        bear_portfolio = (
-            self.nuclear_strategy_engine.combine_bear_strategies_with_inverse_volatility(
-                bear1_symbol, bear2_symbol, indicators
+        try:
+            bear_portfolio = (
+                self.nuclear_strategy_engine.combine_bear_strategies_with_inverse_volatility(
+                    bear1_symbol, bear2_symbol, indicators
+                )
             )
-        )
-        if bear_portfolio:
             portfolio_desc = ", ".join(
                 [f"{s} ({bear_portfolio[s]['weight']:.1%})" for s in bear_portfolio.keys()]
             )
@@ -325,6 +363,30 @@ class BearMarketStrategy:
             reasoning += "• Lower volatility assets get higher allocation weights"
 
             return "BEAR_PORTFOLIO", "BUY", reasoning
+
+        except Exception as e:
+            from the_alchemiser.core.error_handler import TradingSystemErrorHandler
+
+            error_handler = TradingSystemErrorHandler()
+            error_handler.handle_error(
+                error=e,
+                component="nuclear_strategy",
+                context="bear_market_portfolio_creation",
+                additional_data={
+                    "bear1_symbol": bear1_symbol,
+                    "bear2_symbol": bear2_symbol,
+                    "fallback_symbol": bear1_symbol,
+                },
+            )
+
+            # Fallback to first bear strategy recommendation
+            symbol, action, basic_reason = bear1_signal
+            reasoning = "Bear Market Emergency Fallback:\n"
+            reasoning += f"• Portfolio calculation failed, using primary bear signal: {symbol}\n"
+            reasoning += f"• {basic_reason}\n"
+            reasoning += "• Conservative approach during calculation error"
+
+            return symbol, action, reasoning
 
         # Fallback to first bear signal with enhanced reasoning
         symbol, action, basic_reason = bear1_signal
