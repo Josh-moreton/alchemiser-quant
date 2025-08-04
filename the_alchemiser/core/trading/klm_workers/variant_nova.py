@@ -10,7 +10,6 @@ This variant is DIFFERENT from others in several key ways:
 This is the "Nova" experimental variant with individual stock selection.
 """
 
-
 import pandas as pd
 
 from the_alchemiser.core.utils.common import ActionType

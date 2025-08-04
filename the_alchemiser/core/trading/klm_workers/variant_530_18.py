@@ -16,7 +16,6 @@ COMPLETE LOGIC FLOW FROM CLJ:
 This captures the COMPLETE CLJ implementation - the most sophisticated variant.
 """
 
-
 import pandas as pd
 
 from the_alchemiser.core.utils.common import ActionType
@@ -98,9 +97,7 @@ class KLMVariant530_18(BaseKLMVariant):
         # Step 9: "10. KMLM Switcher | Holy Grail" - the final complex branch
         return self._evaluate_holy_grail_kmlm_switcher(indicators)
 
-    def _evaluate_spy_scale_in(
-        self, indicators: dict
-    ) -> tuple[dict[str, float], str, str] | None:
+    def _evaluate_spy_scale_in(self, indicators: dict) -> tuple[dict[str, float], str, str] | None:
         """SPY Scale-In | VIX+ -> VIX++ (CLJ lines 782-796)"""
         if "SPY" not in indicators:
             return None
@@ -130,9 +127,7 @@ class KLMVariant530_18(BaseKLMVariant):
 
         return None
 
-    def _evaluate_ioo_scale_in(
-        self, indicators: dict
-    ) -> tuple[dict[str, float], str, str] | None:
+    def _evaluate_ioo_scale_in(self, indicators: dict) -> tuple[dict[str, float], str, str] | None:
         """IOO Scale-In | VIX+ -> VIX++ (identical pattern to SPY)"""
         if "IOO" not in indicators:
             return None
@@ -160,9 +155,7 @@ class KLMVariant530_18(BaseKLMVariant):
 
         return None
 
-    def _evaluate_qqq_scale_in(
-        self, indicators: dict
-    ) -> tuple[dict[str, float], str, str] | None:
+    def _evaluate_qqq_scale_in(self, indicators: dict) -> tuple[dict[str, float], str, str] | None:
         """QQQ Scale-In | VIX+ -> VIX++ (threshold 79 vs 80)"""
         if "QQQ" not in indicators:
             return None
@@ -190,9 +183,7 @@ class KLMVariant530_18(BaseKLMVariant):
 
         return None
 
-    def _evaluate_vtv_scale_in(
-        self, indicators: dict
-    ) -> tuple[dict[str, float], str, str] | None:
+    def _evaluate_vtv_scale_in(self, indicators: dict) -> tuple[dict[str, float], str, str] | None:
         """VTV Scale-In | VIX -> VIX+ (different pattern - uses VIXY)"""
         if "VTV" not in indicators:
             return None
@@ -220,9 +211,7 @@ class KLMVariant530_18(BaseKLMVariant):
 
         return None
 
-    def _evaluate_xlp_scale_in(
-        self, indicators: dict
-    ) -> tuple[dict[str, float], str, str] | None:
+    def _evaluate_xlp_scale_in(self, indicators: dict) -> tuple[dict[str, float], str, str] | None:
         """XLP Scale-In | VIX -> VIX+ (threshold 77, same pattern as VTV)"""
         if "XLP" not in indicators:
             return None
@@ -250,9 +239,7 @@ class KLMVariant530_18(BaseKLMVariant):
 
         return None
 
-    def _evaluate_xlf_scale_in(
-        self, indicators: dict
-    ) -> tuple[dict[str, float], str, str] | None:
+    def _evaluate_xlf_scale_in(self, indicators: dict) -> tuple[dict[str, float], str, str] | None:
         """XLF Scale-In | VIX -> VIX+ (threshold 81, same pattern)"""
         if "XLF" not in indicators:
             return None
@@ -280,9 +267,7 @@ class KLMVariant530_18(BaseKLMVariant):
 
         return None
 
-    def _evaluate_retl_scale_in(
-        self, indicators: dict
-    ) -> tuple[dict[str, float], str, str] | None:
+    def _evaluate_retl_scale_in(self, indicators: dict) -> tuple[dict[str, float], str, str] | None:
         """RETL Scale-In | BTAL -> VIX (introduces BTAL/BIL path)"""
         if "RETL" not in indicators:
             return None

@@ -11,7 +11,6 @@ COMPLETELY DIFFERENT from 506/38! This variant:
 This is a fundamentally different architecture from other variants.
 """
 
-
 import pandas as pd
 
 from the_alchemiser.core.utils.common import ActionType

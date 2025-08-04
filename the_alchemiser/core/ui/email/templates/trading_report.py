@@ -3,7 +3,6 @@
 This module handles the primary trading report email template generation.
 """
 
-
 from .base import BaseEmailTemplate
 from .performance import PerformanceBuilder
 from .portfolio import PortfolioBuilder

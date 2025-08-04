@@ -36,9 +36,7 @@ class TradingClientError(AlchemiserError):
 class OrderExecutionError(TradingClientError):
     """Raised when order placement or execution fails."""
 
-    def __init__(
-        self, message: str, symbol: str | None = None, order_type: str | None = None
-    ):
+    def __init__(self, message: str, symbol: str | None = None, order_type: str | None = None):
         super().__init__(message)
         self.symbol = symbol
         self.order_type = order_type
@@ -77,9 +75,7 @@ class StrategyExecutionError(AlchemiserError):
 class IndicatorCalculationError(AlchemiserError):
     """Raised when technical indicator calculations fail."""
 
-    def __init__(
-        self, message: str, indicator_name: str | None = None, symbol: str | None = None
-    ):
+    def __init__(self, message: str, indicator_name: str | None = None, symbol: str | None = None):
         super().__init__(message)
         self.indicator_name = indicator_name
         self.symbol = symbol
@@ -155,9 +151,7 @@ class LoggingError(AlchemiserError):
 class FileOperationError(AlchemiserError):
     """Raised when file operations fail."""
 
-    def __init__(
-        self, message: str, file_path: str | None = None, operation: str | None = None
-    ):
+    def __init__(self, message: str, file_path: str | None = None, operation: str | None = None):
         super().__init__(message)
         self.file_path = file_path
         self.operation = operation
@@ -166,9 +160,7 @@ class FileOperationError(AlchemiserError):
 class DatabaseError(AlchemiserError):
     """Raised when database operations fail."""
 
-    def __init__(
-        self, message: str, table_name: str | None = None, operation: str | None = None
-    ):
+    def __init__(self, message: str, table_name: str | None = None, operation: str | None = None):
         super().__init__(message)
         self.table_name = table_name
         self.operation = operation

@@ -4,7 +4,6 @@ This module handles building HTML content for trading summaries,
 order execution reports, and performance metrics.
 """
 
-
 from .base import BaseEmailTemplate
 
 

@@ -9,7 +9,6 @@ Pattern: QQQE → VTV → VOX → TECL → VOOG → VOOV → XLP → TQQQ → XL
          Single Popped KMLM (UVXY RSI check → BSC or Pop Bot → KMLM Switcher)
 """
 
-
 import pandas as pd
 
 from the_alchemiser.core.utils.common import ActionType

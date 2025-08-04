@@ -181,9 +181,7 @@ class SymbolLookbackCalculator:
 
         return max_lookback
 
-    def get_all_symbols_lookback_map(
-        self, strategies: list[str] | None = None
-    ) -> dict[str, int]:
+    def get_all_symbols_lookback_map(self, strategies: list[str] | None = None) -> dict[str, int]:
         """
         Get a complete mapping of all symbols to their required lookback days.
 
@@ -250,9 +248,7 @@ class SymbolLookbackCalculator:
             if name in self._indicator_requirements
         }
 
-    def get_all_symbols_lookback_map(
-        self, strategies: list[str] | None = None
-    ) -> dict[str, int]:
+    def get_all_symbols_lookback_map(self, strategies: list[str] | None = None) -> dict[str, int]:
         """
         Get a complete mapping of all symbols to their required lookback days.
 

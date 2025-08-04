@@ -9,7 +9,6 @@ This variant is similar to 506/38 and 1200/28 except:
 This is the "Original" baseline implementation.
 """
 
-
 import pandas as pd
 
 from the_alchemiser.core.utils.common import ActionType

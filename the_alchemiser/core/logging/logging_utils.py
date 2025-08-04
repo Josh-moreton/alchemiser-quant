@@ -195,9 +195,7 @@ def configure_production_logging(
     )
 
 
-def get_trading_logger(
-    module_name: str, **context
-) -> logging.Logger | AlchemiserLoggerAdapter:
+def get_trading_logger(module_name: str, **context) -> logging.Logger | AlchemiserLoggerAdapter:
     """
     Get a logger specifically configured for trading operations.
 

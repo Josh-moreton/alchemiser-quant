@@ -288,9 +288,7 @@ class StrategyOrderTracker:
 
         # Filter by date (last N days)
         if days > 0:
-            cutoff_date = datetime.now(UTC).replace(
-                hour=0, minute=0, second=0, microsecond=0
-            )
+            cutoff_date = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
             cutoff_date = cutoff_date - timedelta(days=days)
             cutoff_str = cutoff_date.isoformat()
             orders = [o for o in orders if o.timestamp >= cutoff_str]

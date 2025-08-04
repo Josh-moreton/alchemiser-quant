@@ -292,9 +292,7 @@ def backtest(
     step_size: int = typer.Option(10, help="Weight increment for all mode (10 = 10% steps)"),
     max_workers: int = typer.Option(4, help="Number of parallel threads for all mode"),
     deposit_amount: float = typer.Option(0.0, help="Regular deposit amount"),
-    deposit_frequency: str | None = typer.Option(
-        None, help="Deposit frequency: monthly or weekly"
-    ),
+    deposit_frequency: str | None = typer.Option(None, help="Deposit frequency: monthly or weekly"),
     deposit_day: int = typer.Option(1, help="Deposit day"),
     minute_candles: bool = typer.Option(
         False, "--minute-candles", help="Use minute candles for execution"
@@ -432,9 +430,7 @@ def backtest(
 @app.command()
 def validate_indicators(
     mode: str = typer.Option("core", help="Validation mode: quick, core, or full"),
-    symbols: str | None = typer.Option(
-        None, "--symbols", help="Comma-separated symbols to test"
-    ),
+    symbols: str | None = typer.Option(None, "--symbols", help="Comma-separated symbols to test"),
     save_file: str | None = typer.Option(None, "--save", help="Save results to JSON file"),
     verbose_validation: bool = typer.Option(
         False, "--verbose-validation", help="Enable verbose validation logging"

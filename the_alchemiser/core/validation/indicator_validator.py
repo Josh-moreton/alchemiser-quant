@@ -94,9 +94,7 @@ class IndicatorValidationSuite:
             self.logger.error(f"Failed to fetch data for {symbol}: {e}")
             return None
 
-    def fetch_twelvedata_indicator(
-        self, symbol: str, indicator: str, period: int
-    ) -> float | None:
+    def fetch_twelvedata_indicator(self, symbol: str, indicator: str, period: int) -> float | None:
         """Fetch indicator value from TwelveData API."""
         try:
             indicator_map = {"rsi": "rsi", "sma": "sma"}

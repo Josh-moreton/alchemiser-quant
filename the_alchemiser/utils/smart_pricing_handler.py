@@ -95,9 +95,7 @@ class SmartPricingHandler:
             logging.error(f"Error getting progressive price for {symbol}: {e}")
             return None
 
-    def get_aggressive_sell_price(
-        self, symbol: str, aggressiveness: float = 0.85
-    ) -> float | None:
+    def get_aggressive_sell_price(self, symbol: str, aggressiveness: float = 0.85) -> float | None:
         """
         Get aggressive sell pricing for quick liquidation (favors speed over price).
 
@@ -110,9 +108,7 @@ class SmartPricingHandler:
         """
         return self.get_smart_limit_price(symbol, OrderSide.SELL, aggressiveness)
 
-    def get_conservative_buy_price(
-        self, symbol: str, aggressiveness: float = 0.75
-    ) -> float | None:
+    def get_conservative_buy_price(self, symbol: str, aggressiveness: float = 0.75) -> float | None:
         """
         Get conservative buy pricing for better fill prices (favors price over speed).
 
