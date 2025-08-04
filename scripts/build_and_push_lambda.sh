@@ -1,13 +1,13 @@
 #!/bin/bash
 # filepath: scripts/build_and_push_lambda.sh
 
-# Read AWS parameters from config.yaml using Python
-echo "Reading AWS configuration from config.yaml..."
-ACCOUNT_ID="211125653762"
-REGION="eu-west-2"
-REPO_NAME="the-alchemiser-repository"
-IMAGE_TAG=$(python -c "import yaml; print(yaml.safe_load(open('the_alchemiser/config.yaml'))['aws']['image_tag'])")
-LAMBDA_ARN="arn:aws:lambda:eu-west-2:211125653762:function:the-alchemiser-lambda"
+# Read AWS parameters from application settings
+echo "Reading AWS configuration from settings..."
+ACCOUNT_ID=$(python -c "from the_alchemiser.core.config import load_settings; print(load_settings().aws.account_id)")
+REGION=$(python -c "from the_alchemiser.core.config import load_settings; print(load_settings().aws.region)")
+REPO_NAME=$(python -c "from the_alchemiser.core.config import load_settings; print(load_settings().aws.repo_name)")
+IMAGE_TAG=$(python -c "from the_alchemiser.core.config import load_settings; print(load_settings().aws.image_tag)")
+LAMBDA_ARN=$(python -c "from the_alchemiser.core.config import load_settings; print(load_settings().aws.lambda_arn)")
 
 echo "Using AWS configuration: Account=${ACCOUNT_ID}, Region=${REGION}, Repo=${REPO_NAME}, Tag=${IMAGE_TAG}"
 
