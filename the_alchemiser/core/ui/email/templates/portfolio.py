@@ -294,32 +294,58 @@ class PortfolioBuilder:
         account_status = account_info.get("status", "UNKNOWN")
         daytrade_count = account_info.get("daytrade_count", 0)
 
+        # Calculate portfolio deployment percentage
+        cash = float(account_info.get("cash", 0))
+        equity = float(account_info.get("equity", 0))
+        portfolio_deployed_pct = 0.0
+        if equity > 0:
+            portfolio_deployed_pct = ((equity - cash) / equity) * 100
+
         status_color = "#10B981" if account_status == "ACTIVE" else "#EF4444"
 
+        # Color coding for deployment percentage
+        if portfolio_deployed_pct >= 95:
+            deployment_color = "#10B981"  # Green for high deployment
+            deployment_emoji = "🟢"
+        elif portfolio_deployed_pct >= 80:
+            deployment_color = "#F59E0B"  # Yellow for moderate deployment
+            deployment_emoji = "🟡"
+        else:
+            deployment_color = "#EF4444"  # Red for low deployment
+            deployment_emoji = "🔴"
+
         return f"""
-        <table style="width: 100%; border-collapse: collapse; background-color: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+        <table style="width: 100%; border-collapse: collapse; background-color: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin: 16px 0;">
             <tbody>
                 <tr>
-                    <td style="padding: 8px 12px; border-bottom: 1px solid #E5E7EB;">
-                        <span style="font-weight: 600;">Account Status:</span>
+                    <td style="padding: 16px 20px; border-bottom: 1px solid #E5E7EB;">
+                        <span style="font-weight: 600; font-size: 14px;">Account Status:</span>
                     </td>
-                    <td style="padding: 8px 12px; border-bottom: 1px solid #E5E7EB; text-align: right; color: {status_color}; font-weight: 600;">
+                    <td style="padding: 16px 20px; border-bottom: 1px solid #E5E7EB; text-align: right; color: {status_color}; font-weight: 600; font-size: 14px;">
                         {account_status}
                     </td>
                 </tr>
                 <tr>
-                    <td style="padding: 8px 12px; border-bottom: 1px solid #E5E7EB;">
-                        <span style="font-weight: 600;">Day Trades Used:</span>
+                    <td style="padding: 16px 20px; border-bottom: 1px solid #E5E7EB;">
+                        <span style="font-weight: 600; font-size: 14px;">Day Trades Used:</span>
                     </td>
-                    <td style="padding: 8px 12px; border-bottom: 1px solid #E5E7EB; text-align: right;">
+                    <td style="padding: 16px 20px; border-bottom: 1px solid #E5E7EB; text-align: right; font-size: 14px;">
                         {daytrade_count}/3
                     </td>
                 </tr>
                 <tr>
-                    <td style="padding: 8px 12px;">
-                        <span style="font-weight: 600;">Portfolio Status:</span>
+                    <td style="padding: 16px 20px; border-bottom: 1px solid #E5E7EB;">
+                        <span style="font-weight: 600; font-size: 14px;">Portfolio Deployed:</span>
                     </td>
-                    <td style="padding: 8px 12px; text-align: right; color: #10B981; font-weight: 600;">
+                    <td style="padding: 16px 20px; border-bottom: 1px solid #E5E7EB; text-align: right; color: {deployment_color}; font-weight: 600; font-size: 14px;">
+                        {deployment_emoji} {portfolio_deployed_pct:.1f}%
+                    </td>
+                </tr>
+                <tr>
+                    <td style="padding: 16px 20px;">
+                        <span style="font-weight: 600; font-size: 14px;">Portfolio Status:</span>
+                    </td>
+                    <td style="padding: 16px 20px; text-align: right; color: #10B981; font-weight: 600; font-size: 14px;">
                         ✅ Active
                     </td>
                 </tr>
