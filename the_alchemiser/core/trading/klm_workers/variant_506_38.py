@@ -78,7 +78,9 @@ class KlmVariant50638(BaseKLMVariant):
         # Fallback if UVXY data unavailable
         return self._evaluate_combined_pop_bot(indicators)
 
-    def _evaluate_bsc_strategy(self, indicators: dict[str, dict[str, float]]) -> tuple[str, str, str]:
+    def _evaluate_bsc_strategy(
+        self, indicators: dict[str, dict[str, float]]
+    ) -> tuple[str, str, str]:
         """
         BSC (Bond/Stock/Commodity) strategy when UVXY RSI > 65
 

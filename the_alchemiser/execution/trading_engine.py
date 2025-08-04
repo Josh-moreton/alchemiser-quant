@@ -523,7 +523,10 @@ class TradingEngine:
             return {"error": str(e)}
 
     def _build_portfolio_state_data(
-        self, target_portfolio: dict[str, float], account_info: dict[str, Any], current_positions: dict[str, Any]
+        self,
+        target_portfolio: dict[str, float],
+        account_info: dict[str, Any],
+        current_positions: dict[str, Any],
     ) -> dict[str, Any]:
         """Build portfolio state data for reporting purposes."""
         return build_portfolio_state_data(target_portfolio, account_info, current_positions)
@@ -588,7 +591,10 @@ class TradingEngine:
             logging.error(f"❌ Post-trade validation failed: {e}")
 
     def display_target_vs_current_allocations(
-        self, target_portfolio: dict[str, float], account_info: dict[str, Any], current_positions: dict[str, Any]
+        self,
+        target_portfolio: dict[str, float],
+        account_info: dict[str, Any],
+        current_positions: dict[str, Any],
     ) -> tuple[dict[str, float], dict[str, float]]:
         """Display target vs current allocations and return calculated values.
 

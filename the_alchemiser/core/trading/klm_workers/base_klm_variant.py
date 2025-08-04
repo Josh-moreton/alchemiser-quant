@@ -64,17 +64,23 @@ class BaseKLMVariant(ABC):
         # Sort by standard deviation (ascending for select-bottom)
         return sorted(filtered_candidates, key=lambda x: x[1])
 
-    def apply_select_bottom_filter(self, candidates: list[tuple[str, float]], count: int = 1) -> list[tuple[str, float]]:
+    def apply_select_bottom_filter(
+        self, candidates: list[tuple[str, float]], count: int = 1
+    ) -> list[tuple[str, float]]:
         """Apply (select-bottom N) logic - select lowest value candidates"""
         sorted_candidates = sorted(candidates, key=lambda x: x[1])
         return sorted_candidates[:count]
 
-    def apply_select_top_filter(self, candidates: list[tuple[str, float]], count: int = 1) -> list[tuple[str, float]]:
+    def apply_select_top_filter(
+        self, candidates: list[tuple[str, float]], count: int = 1
+    ) -> list[tuple[str, float]]:
         """Apply (select-top N) logic - select highest value candidates"""
         sorted_candidates = sorted(candidates, key=lambda x: x[1], reverse=True)
         return sorted_candidates[:count]
 
-    def apply_rsi_filter(self, candidates: list[str], indicators: dict[str, Any], window: int = 10) -> list[str]:
+    def apply_rsi_filter(
+        self, candidates: list[str], indicators: dict[str, Any], window: int = 10
+    ) -> list[str]:
         """Filter candidates by RSI values"""
         filtered = []
         for symbol in candidates:
@@ -317,7 +323,9 @@ class BaseKLMVariant(ABC):
             "KMLM",
         ]
 
-    def create_equal_weight_allocation(self, symbols: list[str], indicators: dict[str, Any]) -> dict[str, float]:
+    def create_equal_weight_allocation(
+        self, symbols: list[str], indicators: dict[str, Any]
+    ) -> dict[str, float]:
         """Create equal weight allocation among available symbols"""
         available_symbols = [s for s in symbols if s in indicators]
         if not available_symbols:

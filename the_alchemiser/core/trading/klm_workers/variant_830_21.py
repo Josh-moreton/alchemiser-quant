@@ -69,7 +69,9 @@ class KlmVariant83021(BaseKLMVariant):
         # Fallback if UVXY data unavailable
         return self._evaluate_combined_pop_bot(indicators)
 
-    def _evaluate_bsc_strategy(self, indicators: dict[str, dict[str, float]]) -> tuple[str, str, str]:
+    def _evaluate_bsc_strategy(
+        self, indicators: dict[str, dict[str, float]]
+    ) -> tuple[str, str, str]:
         """
         BSC strategy - identical to other variants
         """

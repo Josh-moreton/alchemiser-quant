@@ -186,7 +186,9 @@ def render_portfolio_allocation(
     c.print(table)
 
 
-def render_trading_summary(orders_executed: list[dict[str, Any]], console: Console | None = None) -> None:
+def render_trading_summary(
+    orders_executed: list[dict[str, Any]], console: Console | None = None
+) -> None:
     """Pretty-print trading execution summary."""
     c = console or Console()
 
@@ -449,7 +451,9 @@ def render_target_vs_current_allocations(
 
 
 def render_execution_plan(
-    sell_orders: list[dict[str, Any]], buy_orders: list[dict[str, Any]], console: Console | None = None
+    sell_orders: list[dict[str, Any]],
+    buy_orders: list[dict[str, Any]],
+    console: Console | None = None,
 ) -> None:
     """Pretty-print the execution plan before trading."""
     c = console or Console()

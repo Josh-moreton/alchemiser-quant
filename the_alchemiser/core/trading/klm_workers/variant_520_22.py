@@ -69,7 +69,9 @@ class KlmVariant52022(BaseKLMVariant):
         # Fallback if UVXY data unavailable
         return self._evaluate_combined_pop_bot(indicators)
 
-    def _evaluate_bsc_strategy(self, indicators: dict[str, dict[str, float]]) -> tuple[str, str, str]:
+    def _evaluate_bsc_strategy(
+        self, indicators: dict[str, dict[str, float]]
+    ) -> tuple[str, str, str]:
         """
         BSC strategy - identical to other variants
         """
@@ -165,7 +167,9 @@ class KlmVariant52022(BaseKLMVariant):
         # XLK <= KMLM → L/S Rotator
         return self._evaluate_ls_rotator_520(indicators)
 
-    def _evaluate_ls_rotator_520(self, indicators: dict[str, dict[str, float]]) -> tuple[str, str, str]:
+    def _evaluate_ls_rotator_520(
+        self, indicators: dict[str, dict[str, float]]
+    ) -> tuple[str, str, str]:
         """
         520/22 L/S Rotator - DIFFERENT: uses FTLS/KMLM/SSO/UUP (not SQQQ/TLT)
 

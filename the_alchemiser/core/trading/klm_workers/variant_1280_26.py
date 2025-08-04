@@ -152,7 +152,9 @@ class KlmVariant128026(BaseKLMVariant):
         # XLK <= KMLM or missing data → L/S Rotator
         return self._evaluate_ls_rotator_1280(indicators)
 
-    def _evaluate_ls_rotator_1280(self, indicators: dict[str, dict[str, float]]) -> tuple[str, str, str]:
+    def _evaluate_ls_rotator_1280(
+        self, indicators: dict[str, dict[str, float]]
+    ) -> tuple[str, str, str]:
         """
         1280/26 L/S Rotator - COMPLETELY different from other variants
 
