@@ -49,7 +49,7 @@ class KlmVariant83021(BaseKLMVariant):
         return self._evaluate_single_popped_kmlm(indicators)
 
     def _evaluate_single_popped_kmlm(
-        self, indicators: dict
+        self, indicators: dict[str, dict[str, float]]
     ) -> tuple[str | dict[str, float], str, str]:
         """
         Single Popped KMLM logic - identical to other variants
@@ -69,7 +69,7 @@ class KlmVariant83021(BaseKLMVariant):
         # Fallback if UVXY data unavailable
         return self._evaluate_combined_pop_bot(indicators)
 
-    def _evaluate_bsc_strategy(self, indicators: dict) -> tuple[str, str, str]:
+    def _evaluate_bsc_strategy(self, indicators: dict[str, dict[str, float]]) -> tuple[str, str, str]:
         """
         BSC strategy - identical to other variants
         """
@@ -91,7 +91,7 @@ class KlmVariant83021(BaseKLMVariant):
         return result
 
     def _evaluate_combined_pop_bot(
-        self, indicators: dict
+        self, indicators: dict[str, dict[str, float]]
     ) -> tuple[str | dict[str, float], str, str]:
         """
         Combined Pop Bot - identical to others (NO LABU)
@@ -119,7 +119,7 @@ class KlmVariant83021(BaseKLMVariant):
         return self.evaluate_core_kmlm_switcher(indicators)
 
     def evaluate_core_kmlm_switcher(
-        self, indicators: dict
+        self, indicators: dict[str, dict[str, float]]
     ) -> tuple[str | dict[str, float], str, str]:
         """
         Core KMLM switcher for variant 830/21
@@ -127,7 +127,7 @@ class KlmVariant83021(BaseKLMVariant):
         return self._evaluate_kmlm_switcher_830(indicators)
 
     def _evaluate_kmlm_switcher_830(
-        self, indicators: dict
+        self, indicators: dict[str, dict[str, float]]
     ) -> tuple[str | dict[str, float], str, str]:
         """
         830/21 KMLM Switcher - KEY DIFFERENCE: select-TOP 1 (highest RSI)
@@ -165,7 +165,7 @@ class KlmVariant83021(BaseKLMVariant):
         # XLK <= KMLM → Bond Check
         return self._evaluate_bond_check(indicators)
 
-    def _evaluate_bond_check(self, indicators: dict) -> tuple[str, str, str]:
+    def _evaluate_bond_check(self, indicators: dict[str, dict[str, float]]) -> tuple[str, str, str]:
         """
         830/21 Bond Check - UNIQUE: BND moving-average-return determines path
 
@@ -227,7 +227,7 @@ class KlmVariant83021(BaseKLMVariant):
         self.log_decision(result[0], result[1], result[2])
         return result
 
-    def get_required_symbols(self) -> list:
+    def get_required_symbols(self) -> list[str]:
         """
         830/21 Required symbols - unique Bond Check symbols
         """

@@ -41,7 +41,7 @@ class StrategyPosition:
         self.reason = reason
         self.timestamp = timestamp
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "strategy_type": self.strategy_type.value,
             "symbol": self.symbol,
@@ -51,7 +51,7 @@ class StrategyPosition:
         }
 
     @classmethod
-    def from_dict(cls, data: dict) -> "StrategyPosition":
+    def from_dict(cls, data: dict[str, Any]) -> "StrategyPosition":
         return cls(
             strategy_type=StrategyType(data["strategy_type"]),
             symbol=data["symbol"],
@@ -316,7 +316,7 @@ class MultiStrategyManager:
         logging.debug(f"Strategy attribution: {strategy_attribution}")
         return strategy_signals, consolidated_portfolio, strategy_attribution
 
-    def _get_nuclear_portfolio_allocation(self, signal_data: dict) -> dict[str, float]:
+    def _get_nuclear_portfolio_allocation(self, signal_data: dict[str, Any]) -> dict[str, float]:
         """Extract portfolio allocation from Nuclear strategy signal"""
         indicators = signal_data.get("indicators", {})
         market_data = signal_data.get("market_data", {})
@@ -372,7 +372,7 @@ class MultiStrategyManager:
         return {}
 
     def _get_strategy_portfolio_allocation(
-        self, signal_data: dict, strategy_type: StrategyType
+        self, signal_data: dict[str, Any], strategy_type: StrategyType
     ) -> dict[str, float]:
         """Extract portfolio allocation from any strategy signal"""
         if strategy_type == StrategyType.TECL:

@@ -57,7 +57,7 @@ def calculate_strategy_pnl_summary(
         }
 
 
-def extract_trading_summary(orders_executed: list[dict]) -> dict[str, Any]:
+def extract_trading_summary(orders_executed: list[dict[str, Any]]) -> dict[str, Any]:
     """
     Extract trading summary from executed orders.
 
@@ -96,7 +96,7 @@ def extract_trading_summary(orders_executed: list[dict]) -> dict[str, Any]:
 
 
 def build_strategy_summary(
-    strategy_signals: dict, strategy_allocations: dict, all_strategy_pnl: dict
+    strategy_signals: dict[str, Any], strategy_allocations: dict[str, Any], all_strategy_pnl: dict[str, Any]
 ) -> dict[str, Any]:
     """
     Build strategy summary with P&L data.

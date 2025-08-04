@@ -484,7 +484,7 @@ class StrategyOrderTracker:
         except Exception as e:
             logging.error(f"Error persisting order: {e}")
 
-    def _apply_order_history_limit(self, data: dict) -> None:
+    def _apply_order_history_limit(self, data: dict[str, Any]) -> None:
         """Limit the number of orders kept in history."""
         if len(data["orders"]) > self.order_history_limit:
             data["orders"] = data["orders"][-self.order_history_limit :]

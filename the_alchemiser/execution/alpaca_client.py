@@ -44,6 +44,7 @@ Example:
 
 import logging
 import time
+from typing import Any
 
 from alpaca.trading.client import TradingClient
 from alpaca.trading.enums import OrderSide
@@ -114,7 +115,7 @@ class AlpacaClient:
         """
         return self.position_manager.get_current_positions()
 
-    def get_pending_orders(self) -> list[dict]:
+    def get_pending_orders(self) -> list[dict[str, Any]]:
         """Get all pending orders from Alpaca.
 
         Returns:

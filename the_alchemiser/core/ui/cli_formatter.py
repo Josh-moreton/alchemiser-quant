@@ -186,7 +186,7 @@ def render_portfolio_allocation(
     c.print(table)
 
 
-def render_trading_summary(orders_executed: list[dict], console: Console | None = None) -> None:
+def render_trading_summary(orders_executed: list[dict[str, Any]], console: Console | None = None) -> None:
     """Pretty-print trading execution summary."""
     c = console or Console()
 
@@ -250,7 +250,7 @@ def render_trading_summary(orders_executed: list[dict], console: Console | None 
         c.print(detail_table)
 
 
-def render_account_info(account_info: dict, console: Console | None = None) -> None:
+def render_account_info(account_info: dict[str, Any], console: Console | None = None) -> None:
     """Render account information including P&L data"""
     c = console or Console()
 
@@ -378,8 +378,8 @@ def render_footer(message: str, success: bool = True, console: Console | None = 
 
 def render_target_vs_current_allocations(
     target_portfolio: dict[str, float],
-    account_info: dict,
-    current_positions: dict,
+    account_info: dict[str, Any],
+    current_positions: dict[str, Any],
     console: Console | None = None,
 ) -> None:
     """Pretty-print target vs current allocations comparison with enhanced Rich table."""
@@ -449,7 +449,7 @@ def render_target_vs_current_allocations(
 
 
 def render_execution_plan(
-    sell_orders: list[dict], buy_orders: list[dict], console: Console | None = None
+    sell_orders: list[dict[str, Any]], buy_orders: list[dict[str, Any]], console: Console | None = None
 ) -> None:
     """Pretty-print the execution plan before trading."""
     c = console or Console()

@@ -28,6 +28,7 @@ import logging
 import os
 import sys
 from datetime import datetime
+from typing import Any
 
 # Optional rich import - only for CLI usage
 try:
@@ -66,7 +67,7 @@ def configure_application_logging():
         )
 
 
-def generate_multi_strategy_signals(settings: Settings) -> tuple:
+def generate_multi_strategy_signals(settings: Settings) -> tuple[Any, ...]:
     """Generate signals for all strategies and return consolidated results.
 
     Creates a shared data provider and multi-strategy manager to generate signals

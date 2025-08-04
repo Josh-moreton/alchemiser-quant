@@ -57,7 +57,7 @@ class KlmVariant50638(BaseKLMVariant):
         return self._evaluate_single_popped_kmlm(indicators)
 
     def _evaluate_single_popped_kmlm(
-        self, indicators: dict
+        self, indicators: dict[str, dict[str, float]]
     ) -> tuple[str | dict[str, float], str, str]:
         """
         Single Popped KMLM logic from Clojure:
@@ -78,7 +78,7 @@ class KlmVariant50638(BaseKLMVariant):
         # Fallback if UVXY data unavailable
         return self._evaluate_combined_pop_bot(indicators)
 
-    def _evaluate_bsc_strategy(self, indicators: dict) -> tuple[str, str, str]:
+    def _evaluate_bsc_strategy(self, indicators: dict[str, dict[str, float]]) -> tuple[str, str, str]:
         """
         BSC (Bond/Stock/Commodity) strategy when UVXY RSI > 65
 
@@ -109,7 +109,7 @@ class KlmVariant50638(BaseKLMVariant):
         return result
 
     def _evaluate_combined_pop_bot(
-        self, indicators: dict
+        self, indicators: dict[str, dict[str, float]]
     ) -> tuple[str | dict[str, float], str, str]:
         """
         Combined Pop Bot strategy for oversold conditions and sector rotation
@@ -163,7 +163,7 @@ class KlmVariant50638(BaseKLMVariant):
         return self.evaluate_core_kmlm_switcher(indicators)
 
     def evaluate_core_kmlm_switcher(
-        self, indicators: dict
+        self, indicators: dict[str, dict[str, float]]
     ) -> tuple[str | dict[str, float], str, str]:
         """
         Core KMLM switcher logic - CORRECTED to match CLJ exactly:
@@ -192,7 +192,7 @@ class KlmVariant50638(BaseKLMVariant):
         return self._evaluate_long_short_rotator(indicators)
 
     def _evaluate_long_short_rotator(
-        self, indicators: dict
+        self, indicators: dict[str, dict[str, float]]
     ) -> tuple[str | dict[str, float], str, str]:
         """
         Long/Short Rotator - CORRECTED to match CLJ exactly
@@ -237,7 +237,7 @@ class KlmVariant50638(BaseKLMVariant):
         self.log_decision(result[0], result[1], result[2])
         return result
 
-    def get_required_symbols(self) -> list:
+    def get_required_symbols(self) -> list[str]:
         """
         506/38 Required symbols - CORRECTED to match CLJ exactly
 

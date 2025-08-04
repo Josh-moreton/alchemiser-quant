@@ -38,7 +38,7 @@ from .types import MultiStrategyExecutionResult
 class AccountInfoProvider(Protocol):
     """Protocol for account information retrieval."""
 
-    def get_account_info(self) -> dict:
+    def get_account_info(self) -> dict[str, Any]:
         """Get comprehensive account information."""
         ...
 
@@ -46,7 +46,7 @@ class AccountInfoProvider(Protocol):
 class PositionProvider(Protocol):
     """Protocol for position data retrieval."""
 
-    def get_positions_dict(self) -> dict[str, dict]:
+    def get_positions_dict(self) -> dict[str, dict[str, Any]]:
         """Get current positions keyed by symbol."""
         ...
 
@@ -70,7 +70,7 @@ class RebalancingService(Protocol):
         self,
         target_portfolio: dict[str, float],
         strategy_attribution: dict[str, list[StrategyType]] | None = None,
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         """Rebalance portfolio to target allocation."""
         ...
 
@@ -173,7 +173,7 @@ class TradingEngine:
         logging.info(f"TradingEngine initialized - Paper Trading: {self.paper_trading}")
 
     # --- Account and Position Methods ---
-    def get_account_info(self) -> dict:
+    def get_account_info(self) -> dict[str, Any]:
         """Get comprehensive account information including P&L data.
 
         Retrieves detailed account information including portfolio value, equity,
@@ -208,7 +208,7 @@ class TradingEngine:
             logging.error(f"Failed to retrieve account information: {e}")
             return {}
 
-    def get_positions(self) -> dict:
+    def get_positions(self) -> dict[str, Any]:
         """Get current positions via account service with engine context.
 
         Returns:
@@ -299,7 +299,7 @@ class TradingEngine:
 
     # --- Order and Rebalancing Methods ---
     def wait_for_settlement(
-        self, sell_orders: list[dict], max_wait_time: int = 60, poll_interval: float = 2.0
+        self, sell_orders: list[dict[str, Any]], max_wait_time: int = 60, poll_interval: float = 2.0
     ) -> bool:
         """Wait for sell orders to settle by polling their status.
 
@@ -345,7 +345,7 @@ class TradingEngine:
         self,
         target_portfolio: dict[str, float],
         strategy_attribution: dict[str, list[StrategyType]] | None = None,
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         """Rebalance portfolio to target allocation with engine-level orchestration.
 
         Args:
@@ -394,7 +394,7 @@ class TradingEngine:
 
     def execute_rebalancing(
         self, target_allocations: dict[str, float], mode: str = "market"
-    ) -> dict:
+    ) -> dict[str, Any]:
         """
         Execute portfolio rebalancing with the specified mode.
 
@@ -486,7 +486,7 @@ class TradingEngine:
             )
 
     # --- Reporting and Dashboard Methods ---
-    def _archive_daily_strategy_pnl(self, pnl_summary: dict) -> None:
+    def _archive_daily_strategy_pnl(self, pnl_summary: dict[str, Any]) -> None:
         """Archive daily strategy P&L for historical tracking."""
         try:
             from the_alchemiser.tracking.strategy_order_tracker import get_strategy_tracker
@@ -505,7 +505,7 @@ class TradingEngine:
         except Exception as e:
             logging.error(f"Failed to archive daily strategy P&L: {e}")
 
-    def get_multi_strategy_performance_report(self) -> dict:
+    def get_multi_strategy_performance_report(self) -> dict[str, Any]:
         """Generate comprehensive performance report for all strategies"""
         try:
             current_positions = self.get_positions()
@@ -523,13 +523,13 @@ class TradingEngine:
             return {"error": str(e)}
 
     def _build_portfolio_state_data(
-        self, target_portfolio: dict[str, float], account_info: dict, current_positions: dict
-    ) -> dict:
+        self, target_portfolio: dict[str, float], account_info: dict[str, Any], current_positions: dict[str, Any]
+    ) -> dict[str, Any]:
         """Build portfolio state data for reporting purposes."""
         return build_portfolio_state_data(target_portfolio, account_info, current_positions)
 
     def _trigger_post_trade_validation(
-        self, strategy_signals: dict[StrategyType, Any], orders_executed: list[dict]
+        self, strategy_signals: dict[StrategyType, Any], orders_executed: list[dict[str, Any]]
     ):
         """
         Trigger post-trade technical indicator validation for live trading
@@ -588,7 +588,7 @@ class TradingEngine:
             logging.error(f"❌ Post-trade validation failed: {e}")
 
     def display_target_vs_current_allocations(
-        self, target_portfolio: dict[str, float], account_info: dict, current_positions: dict
+        self, target_portfolio: dict[str, float], account_info: dict[str, Any], current_positions: dict[str, Any]
     ) -> tuple[dict[str, float], dict[str, float]]:
         """Display target vs current allocations and return calculated values.
 

@@ -56,7 +56,7 @@ class KlmVariant128026(BaseKLMVariant):
         return self._evaluate_combined_pop_bot_with_labu(indicators)
 
     def _evaluate_combined_pop_bot_with_labu(
-        self, indicators: dict
+        self, indicators: dict[str, dict[str, float]]
     ) -> tuple[str | dict[str, float], str, str]:
         """
         Combined Pop Bot for 1280/26 - includes LABU with RSI < 25
@@ -92,7 +92,7 @@ class KlmVariant128026(BaseKLMVariant):
         return self.evaluate_core_kmlm_switcher(indicators)
 
     def evaluate_core_kmlm_switcher(
-        self, indicators: dict
+        self, indicators: dict[str, dict[str, float]]
     ) -> tuple[str | dict[str, float], str, str]:
         """
         Core KMLM switcher for variant 1280/26
@@ -100,7 +100,7 @@ class KlmVariant128026(BaseKLMVariant):
         return self._evaluate_kmlm_switcher_1280(indicators)
 
     def _evaluate_kmlm_switcher_1280(
-        self, indicators: dict
+        self, indicators: dict[str, dict[str, float]]
     ) -> tuple[str | dict[str, float], str, str]:
         """
         1280/26 KMLM Switcher - select-bottom 2 from TECL/SOXL/SVIX (NOT FNGU)
@@ -152,7 +152,7 @@ class KlmVariant128026(BaseKLMVariant):
         # XLK <= KMLM or missing data → L/S Rotator
         return self._evaluate_ls_rotator_1280(indicators)
 
-    def _evaluate_ls_rotator_1280(self, indicators: dict) -> tuple[str, str, str]:
+    def _evaluate_ls_rotator_1280(self, indicators: dict[str, dict[str, float]]) -> tuple[str, str, str]:
         """
         1280/26 L/S Rotator - COMPLETELY different from other variants
 
@@ -182,7 +182,7 @@ class KlmVariant128026(BaseKLMVariant):
         self.log_decision(result[0], result[1], result[2])
         return result
 
-    def get_required_symbols(self) -> list:
+    def get_required_symbols(self) -> list[str]:
         """
         1280/26 Required symbols - completely different from 506/38
         """

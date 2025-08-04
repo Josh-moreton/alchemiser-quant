@@ -8,10 +8,10 @@ def create_execution_summary(
     engine,
     strategy_signals: dict[StrategyType, Any],
     consolidated_portfolio: dict[str, float],
-    orders_executed: list[dict],
-    account_before: dict,
-    account_after: dict,
-) -> dict:
+    orders_executed: list[dict[str, Any]],
+    account_before: dict[str, Any],
+    account_after: dict[str, Any],
+) -> dict[str, Any]:
     """Create execution summary using helper utilities."""
     from the_alchemiser.utils.portfolio_pnl_utils import (
         build_allocation_summary,
@@ -99,9 +99,9 @@ def save_dashboard_data(engine, execution_result):
 
 def build_portfolio_state_data(
     target_portfolio: dict[str, float],
-    account_info: dict,
-    current_positions: dict,
-) -> dict:
+    account_info: dict[str, Any],
+    current_positions: dict[str, Any],
+) -> dict[str, Any]:
     """Build portfolio state data for reporting purposes."""
     from the_alchemiser.utils.account_utils import (
         calculate_portfolio_values,

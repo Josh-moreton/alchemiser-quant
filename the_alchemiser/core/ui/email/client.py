@@ -32,7 +32,7 @@ class EmailClient:
         html_content: str,
         text_content: str | None = None,
         recipient_email: str | None = None,
-        attachments: list[tuple] | None = None,
+        attachments: list[tuple[str, str, str]] | None = None,
     ) -> bool:
         """Send an email notification with HTML content.
 

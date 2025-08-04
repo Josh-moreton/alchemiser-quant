@@ -2,6 +2,7 @@
 """Portfolio rebalancing helper."""
 
 import logging
+from typing import Any
 
 from alpaca.trading.enums import OrderSide
 
@@ -49,7 +50,7 @@ class PortfolioRebalancer:
         self,
         target_portfolio: dict[str, float],
         strategy_attribution: dict[str, list[StrategyType]] | None = None,
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         """Rebalance portfolio following a sell-then-buy process.
 
         Steps:
@@ -61,7 +62,7 @@ class PortfolioRebalancer:
         6. Calculate buy orders and batch send
         7. Wait for settlement again and refresh final account info
         """
-        orders_executed: list[dict] = []
+        orders_executed: list[dict[str, Any]] = []
 
         # Get current account info and positions
         account_info = self.bot.get_account_info()
@@ -87,7 +88,7 @@ class PortfolioRebalancer:
         )
 
         # --- Step 4: Build list of sells ---
-        sell_plans: list[dict] = []
+        sell_plans: list[dict[str, Any]] = []
 
         # Check ALL current positions for liquidation needs
         for symbol, pos in current_positions.items():
@@ -229,7 +230,7 @@ class PortfolioRebalancer:
             target_portfolio, current_values, portfolio_value
         )
 
-        buy_plans: list[dict] = []
+        buy_plans: list[dict[str, Any]] = []
         for symbol, plan_data in rebalance_plan.items():
             if not plan_data.get("needs_rebalance", False):
                 continue

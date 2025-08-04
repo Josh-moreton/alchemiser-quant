@@ -8,6 +8,7 @@ validation, and error handling with fallback strategies.
 
 import logging
 from decimal import ROUND_DOWN, Decimal
+from typing import Any
 
 from alpaca.trading.enums import OrderSide, TimeInForce
 from alpaca.trading.requests import LimitOrderRequest
@@ -97,7 +98,7 @@ class LimitOrderHandler:
 
     def _prepare_limit_order(
         self, symbol: str, qty: float, side: OrderSide, limit_price: float
-    ) -> tuple:
+    ) -> tuple[Any, ...]:
         """Prepare limit order with smart asset handling."""
         original_qty = qty
         conversion_info = None

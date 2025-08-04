@@ -15,7 +15,7 @@ Focuses on execution strategy logic while delegating order placement to speciali
 
 import logging
 import time
-from typing import Protocol
+from typing import Any, Protocol
 
 from alpaca.trading.client import TradingClient
 from alpaca.trading.enums import OrderSide
@@ -79,7 +79,7 @@ class DataProvider(Protocol):
         """Get current price for a symbol."""
         ...
 
-    def get_latest_quote(self, symbol: str) -> tuple:
+    def get_latest_quote(self, symbol: str) -> tuple[Any, ...]:
         """Get latest quote for a symbol."""
         ...
 
@@ -302,7 +302,7 @@ class SmartExecution:
             return self._order_executor.place_market_order(symbol, side, qty=qty)
 
     def wait_for_settlement(
-        self, sell_orders: list[dict], max_wait_time: int = 60, poll_interval: float = 2.0
+        self, sell_orders: list[dict[str, Any]], max_wait_time: int = 60, poll_interval: float = 2.0
     ) -> bool:
         """
         Wait for order settlement - delegates to SimpleOrderManager.wait_for_order_completion.

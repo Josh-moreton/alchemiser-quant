@@ -51,7 +51,7 @@ class KLMVariantNova(BaseKLMVariant):
         return self._evaluate_single_popped_kmlm_nova(indicators)
 
     def _evaluate_single_popped_kmlm_nova(
-        self, indicators: dict
+        self, indicators: dict[str, dict[str, float]]
     ) -> tuple[str | dict[str, float], str, str]:
         """
         Nova Single Popped KMLM - DIFFERENT: uses UVIX instead of UVXY
@@ -71,7 +71,7 @@ class KLMVariantNova(BaseKLMVariant):
         # Fallback if UVIX data unavailable
         return self._evaluate_combined_pop_bot(indicators)
 
-    def _evaluate_bsc_strategy(self, indicators: dict) -> tuple[str, str, str]:
+    def _evaluate_bsc_strategy(self, indicators: dict[str, dict[str, float]]) -> tuple[str, str, str]:
         """
         BSC strategy - identical to other variants
         """
@@ -93,7 +93,7 @@ class KLMVariantNova(BaseKLMVariant):
         return result
 
     def _evaluate_combined_pop_bot(
-        self, indicators: dict
+        self, indicators: dict[str, dict[str, float]]
     ) -> tuple[str | dict[str, float], str, str]:
         """
         Combined Pop Bot - identical to others (NO LABU)
@@ -121,7 +121,7 @@ class KLMVariantNova(BaseKLMVariant):
         return self.evaluate_core_kmlm_switcher(indicators)
 
     def evaluate_core_kmlm_switcher(
-        self, indicators: dict
+        self, indicators: dict[str, dict[str, float]]
     ) -> tuple[str | dict[str, float], str, str]:
         """
         Core KMLM switcher for variant Nova
@@ -129,7 +129,7 @@ class KLMVariantNova(BaseKLMVariant):
         return self._evaluate_kmlm_switcher_nova(indicators)
 
     def _evaluate_kmlm_switcher_nova(
-        self, indicators: dict
+        self, indicators: dict[str, dict[str, float]]
     ) -> tuple[str | dict[str, float], str, str]:
         """
         Nova KMLM Switcher - COMPLETELY DIFFERENT: Individual stocks with RSI(11)
@@ -170,7 +170,7 @@ class KLMVariantNova(BaseKLMVariant):
         # XLK <= KMLM → L/S Rotator (same as 520/22)
         return self._evaluate_ls_rotator_nova(indicators)
 
-    def _evaluate_ls_rotator_nova(self, indicators: dict) -> tuple[str, str, str]:
+    def _evaluate_ls_rotator_nova(self, indicators: dict[str, dict[str, float]]) -> tuple[str, str, str]:
         """
         Nova L/S Rotator - same as 520/22 (FTLS/KMLM/SSO/UUP)
         """
@@ -200,7 +200,7 @@ class KLMVariantNova(BaseKLMVariant):
         self.log_decision(result[0], result[1], result[2])
         return result
 
-    def get_required_symbols(self) -> list:
+    def get_required_symbols(self) -> list[str]:
         """
         Nova Required symbols - includes individual stocks and UVIX
         """
