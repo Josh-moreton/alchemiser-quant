@@ -16,7 +16,7 @@ sam build
 
 # Deploy the application
 echo "🚀 Deploying to AWS..."
-sam deploy --guided
+sam deploy
 
 echo "✅ Deployment complete!"
 echo ""

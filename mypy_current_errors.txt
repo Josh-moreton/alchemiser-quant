@@ -1,0 +1,90 @@
+the_alchemiser/utils/symbol_lookback_calculator.py:312: error: Generator has
+incompatible item type "str"; expected "bool"  [misc]
+                days * len(symbols_list) for days, symbols_list in lookbac...
+                ^~~~~~~~~~~~~~~~~~~~~~~~
+the_alchemiser/core/trading/strategy_manager.py:147: error: Need type
+annotation for "consolidated_portfolio" (hint:
+"consolidated_portfolio: dict[<type>, <type>] = ...")  [var-annotated]
+            consolidated_portfolio = {}
+            ^~~~~~~~~~~~~~~~~~~~~~
+the_alchemiser/core/trading/strategy_manager.py:148: error: Need type
+annotation for "strategy_attribution" (hint:
+"strategy_attribution: dict[<type>, <type>] = ...")  [var-annotated]
+            strategy_attribution = {}
+            ^~~~~~~~~~~~~~~~~~~~
+the_alchemiser/core/trading/strategy_manager.py:201: error: Invalid index type
+"Literal[StrategyType.TECL]" for
+"dict[Literal[StrategyType.NUCLEAR], dict[str, Any]]"; expected type
+"Literal[StrategyType.NUCLEAR]"  [index]
+                        strategy_signals[strategy_type] = {
+                                         ^~~~~~~~~~~~~
+the_alchemiser/core/trading/strategy_manager.py:213: error: Invalid index type
+"Literal[StrategyType.KLM]" for
+"dict[Literal[StrategyType.NUCLEAR], dict[str, Any]]"; expected type
+"Literal[StrategyType.NUCLEAR]"  [index]
+                        strategy_signals[strategy_type] = {
+                                         ^~~~~~~~~~~~~
+the_alchemiser/core/trading/strategy_manager.py:228: error: Invalid index type
+"StrategyType" for "dict[Literal[StrategyType.NUCLEAR], dict[str, Any]]";
+expected type "Literal[StrategyType.NUCLEAR]"  [index]
+                    strategy_signals[strategy_type] = {
+                                     ^~~~~~~~~~~~~
+the_alchemiser/core/trading/strategy_manager.py:317: error: Incompatible return
+value type (got
+"tuple[dict[Literal[StrategyType.NUCLEAR], dict[str, Any]], dict[Any, Any], dict[Any, Any]]",
+expected
+"tuple[dict[StrategyType, Any], dict[str, float], dict[str, list[StrategyType]]]")
+ [return-value]
+            return strategy_signals, consolidated_portfolio, strategy_attr...
+                   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~...
+the_alchemiser/core/trading/strategy_manager.py:405: error: Need type
+annotation for "new_positions"  [var-annotated]
+                new_positions = {strategy: [] for strategy in StrategyType...
+                                ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+the_alchemiser/core/trading/strategy_manager.py:438: error: Need type
+annotation for "positions"  [var-annotated]
+            positions = {strategy: [] for strategy in StrategyType}
+                        ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+the_alchemiser/core/trading/strategy_manager.py:460: error: Unsupported target
+for indexed assignment ("Collection[str]")  [index]
+                summary["strategies"][strategy_type.value] = strategy_summ...
+                ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+the_alchemiser/tracking/strategy_order_tracker.py:530: error: Need type
+annotation for "summary"  [var-annotated]
+                summary = {
+                          ^
+the_alchemiser/tracking/strategy_order_tracker.py:538: error: Unsupported
+target for indexed assignment ("dict[Any, Any] | float | Literal[0]")  [index]
+                    summary["strategies"][strategy.value] = {
+                    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+the_alchemiser/backtest/engine.py:568: error: "MultiStrategyManager" has no
+attribute "nuclear_engine"  [attr-defined]
+                        manager.nuclear_engine.all_symbols
+                        ^~~~~~~~~~~~~~~~~~~~~~
+the_alchemiser/backtest/engine.py:569: error: "MultiStrategyManager" has no
+attribute "tecl_engine"  [attr-defined]
+                        + manager.tecl_engine.all_symbols
+                          ^~~~~~~~~~~~~~~~~~~
+the_alchemiser/backtest/engine.py:702: error: Returning Any from function
+declared to return "bool"  [no-any-return]
+                    return date.day == deposit_day
+                    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+the_alchemiser/backtest/engine.py:704: error: Returning Any from function
+declared to return "bool"  [no-any-return]
+                    return date.weekday() == (deposit_day - 1) % 7  # Conv...
+                    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+the_alchemiser/execution/reporting.py:35: error: Argument 1 to
+"build_strategy_summary" has incompatible type "dict[StrategyType, Any]";
+expected "dict[str, Any]"  [arg-type]
+            strategy_signals,
+            ^~~~~~~~~~~~~~~~
+the_alchemiser/execution/trading_engine.py:698: error: Incompatible types in
+assignment (expression has type "Panel", variable has type "Table") 
+[assignment]
+                orders_table = Panel(
+                               ^
+the_alchemiser/main.py:448: error: Incompatible types in assignment (expression
+has type "bool | str", variable has type "bool")  [assignment]
+                    success = result
+                              ^~~~~~
+Found 19 errors in 7 files (checked 98 source files)
