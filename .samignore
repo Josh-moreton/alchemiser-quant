@@ -47,7 +47,6 @@ requirements.txt
 # Build artifacts
 
 .aws-sam/
-template.yaml
 requirements.txt
 lambda-requirements.txt
 
