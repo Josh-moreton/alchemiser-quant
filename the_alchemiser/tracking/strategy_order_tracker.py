@@ -22,29 +22,7 @@ Design:
 import logging
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional, Tuple
-
-from the_alchemiser.core.config import Settings, load_settings
-from the_alchemiser.core.trading.strategy_manager import StrategyType
-from the_alchemiser.utils.s3 import get_s3_handler
-
-
-@dataclass
-- Calculate realized P&L when positions are reduced/closed
-- Calculate unrealized P&L from current market prices
-- Persist order history to S3 for long-term tracking
-- Support for both individual strategy and portfolio-wide P&L
-
-Design:
-- Uses existing S3 utilities for persistent storage
-- Integrates with trading engine to capture order fills
-- Provides P&L metrics for email reporting and dashboards
-"""
-
-import logging
-from dataclasses import asdict, dataclass
-from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 from the_alchemiser.core.config import load_settings
 from the_alchemiser.core.trading.strategy_manager import StrategyType
@@ -136,7 +114,7 @@ class StrategyPnL:
     realized_pnl: float
     unrealized_pnl: float
     total_pnl: float
-    positions: Dict[str, float]  # symbol -> quantity
+    positions: dict[str, float]  # symbol -> quantity
     allocation_value: float
 
     @property
@@ -160,44 +138,49 @@ class StrategyOrderTracker:
         self.config = config or load_settings()
         self.s3_handler = get_s3_handler()
         self.paper_trading = paper_trading
+        
+        # Initialize S3 paths for data persistence
+        self._setup_s3_paths()
 
-        # S3 paths for data persistence - separate by trading mode
-        tracking_config = self.config.tracking if self.config else None
-        if not tracking_config:
-            # Fallback defaults
-            bucket = "the-alchemiser-s3"
-            orders_path = "strategy_orders/"
-            positions_path = "strategy_positions/"
-            pnl_history_path = "strategy_pnl_history/"
-            order_history_limit = 1000
-        else:
-            bucket = tracking_config.s3_bucket
-            orders_path = tracking_config.strategy_orders_path
-            positions_path = tracking_config.strategy_positions_path
-            pnl_history_path = tracking_config.strategy_pnl_history_path
-            order_history_limit = tracking_config.order_history_limit
-
-        mode_prefix = "paper/" if paper_trading else "live/"
-
-        self.orders_s3_path = f"s3://{bucket}/{mode_prefix}{orders_path}"
-        self.positions_s3_path = f"s3://{bucket}/{mode_prefix}{positions_path}"
-        self.pnl_history_s3_path = f"s3://{bucket}/{mode_prefix}{pnl_history_path}"
-        self.order_history_limit = order_history_limit
-
-        # In-memory caches
-        self._orders_cache: List[StrategyOrder] = []
-        self._positions_cache: Dict[
-            Tuple[str, str], StrategyPosition
+        # Initialize in-memory caches
+        self._orders_cache: list[StrategyOrder] = []
+        self._positions_cache: dict[
+            tuple[str, str], StrategyPosition
         ] = {}  # (strategy, symbol) -> position
-        self._realized_pnl_cache: Dict[str, float] = {}  # strategy -> realized P&L
+        self._realized_pnl_cache: dict[str, float] = {}  # strategy -> realized P&L
 
-        # Load existing data
+        # Load existing data from S3
         self._load_data()
 
         mode_str = "paper" if paper_trading else "live"
         logging.info(
             f"StrategyOrderTracker initialized with S3 persistence ({mode_str} trading mode)"
         )
+        
+    def _setup_s3_paths(self):
+        """Set up S3 paths for data persistence."""
+        tracking_config = self.config.tracking if self.config else None
+        
+        if not tracking_config:
+            # Fallback defaults
+            bucket = "the-alchemiser-s3"
+            orders_path = "strategy_orders/"
+            positions_path = "strategy_positions/"
+            pnl_history_path = "strategy_pnl_history/"
+            self.order_history_limit = 1000
+        else:
+            bucket = tracking_config.s3_bucket
+            orders_path = tracking_config.strategy_orders_path
+            positions_path = tracking_config.strategy_positions_path
+            pnl_history_path = tracking_config.strategy_pnl_history_path
+            self.order_history_limit = tracking_config.order_history_limit
+
+        # Separate by trading mode (paper/live)
+        mode_prefix = "paper/" if self.paper_trading else "live/"
+
+        self.orders_s3_path = f"s3://{bucket}/{mode_prefix}{orders_path}"
+        self.positions_s3_path = f"s3://{bucket}/{mode_prefix}{positions_path}"
+        self.pnl_history_s3_path = f"s3://{bucket}/{mode_prefix}{pnl_history_path}"
 
     def record_order(
         self,
@@ -212,30 +195,35 @@ class StrategyOrderTracker:
         try:
             # Create order record
             order = StrategyOrder.from_order_data(order_id, strategy, symbol, side, quantity, price)
-
-            # Add to cache
-            self._orders_cache.append(order)
-
-            # Update position
-            self._update_position(order)
-
-            # Calculate realized P&L if this is a sell
-            if side.upper() == "SELL":
-                self._calculate_realized_pnl(order)
-
-            # Persist to S3
-            self._persist_order(order)
-            self._persist_positions()
-
+            
+            # Process the order
+            self._process_order(order)
+            
             logging.info(
                 f"Recorded {strategy.value} order: {side} {quantity} {symbol} @ ${price:.2f}"
             )
 
         except Exception as e:
             logging.error(f"Failed to record order {order_id}: {e}")
+            
+    def _process_order(self, order: StrategyOrder) -> None:
+        """Process a new order - update caches and persist to S3."""
+        # Add to cache
+        self._orders_cache.append(order)
+
+        # Update position
+        self._update_position(order)
+
+        # Calculate realized P&L if this is a sell
+        if order.side.upper() == "SELL":
+            self._calculate_realized_pnl(order)
+
+        # Persist to S3
+        self._persist_order(order)
+        self._persist_positions()
 
     def get_strategy_pnl(
-        self, strategy: StrategyType, current_prices: Optional[Dict[str, float]] = None
+        self, strategy: StrategyType, current_prices: Optional[dict[str, float]] = None
     ) -> StrategyPnL:
         """Calculate comprehensive P&L for a strategy."""
         strategy_str = strategy.value
@@ -277,8 +265,8 @@ class StrategyOrderTracker:
         )
 
     def get_all_strategy_pnl(
-        self, current_prices: Optional[Dict[str, float]] = None
-    ) -> Dict[StrategyType, StrategyPnL]:
+        self, current_prices: Optional[dict[str, float]] = None
+    ) -> dict[StrategyType, StrategyPnL]:
         """Get P&L for all strategies."""
         result = {}
         for strategy in StrategyType:
@@ -287,7 +275,7 @@ class StrategyOrderTracker:
 
     def get_order_history(
         self, strategy: Optional[StrategyType] = None, symbol: Optional[str] = None, days: int = 30
-    ) -> List[StrategyOrder]:
+    ) -> list[StrategyOrder]:
         """Get filtered order history."""
         # Filter by strategy
         orders = self._orders_cache
@@ -311,7 +299,7 @@ class StrategyOrderTracker:
         orders.sort(key=lambda x: x.timestamp, reverse=True)
         return orders
 
-    def archive_daily_pnl(self, current_prices: Optional[Dict[str, float]] = None) -> None:
+    def archive_daily_pnl(self, current_prices: Optional[dict[str, float]] = None) -> None:
         """Archive daily P&L snapshot for historical tracking."""
         try:
             today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
@@ -389,15 +377,10 @@ class StrategyOrderTracker:
     def _load_data(self) -> None:
         """Load existing data from S3."""
         try:
-            # Load orders (last 90 days to limit memory usage)
+            # Load data in this order to ensure dependencies are satisfied
             self._load_recent_orders(days=90)
-
-            # Load positions
             self._load_positions()
-
-            # Load realized P&L
             self._load_realized_pnl()
-
         except Exception as e:
             logging.error(f"Error loading tracker data: {e}")
 
@@ -408,38 +391,57 @@ class StrategyOrderTracker:
             # In production, you might want to partition by date
             orders_path = f"{self.orders_s3_path}recent_orders.json"
 
-            if self.s3_handler.file_exists(orders_path):
-                data = self.s3_handler.read_json(orders_path)
-                if data and "orders" in data:
-                    for order_data in data["orders"]:
-                        order = StrategyOrder(**order_data)
-                        self._orders_cache.append(order)
+            if not self.s3_handler.file_exists(orders_path):
+                logging.info("No recent orders file found")
+                return
+                
+            data = self.s3_handler.read_json(orders_path)
+            if not data or "orders" not in data:
+                logging.info("No orders data found in file")
+                return
+                
+            # Process orders
+            for order_data in data["orders"]:
+                order = StrategyOrder(**order_data)
+                self._orders_cache.append(order)
 
-                    # Filter to last N days using proper date arithmetic
-                    cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
-                    cutoff_str = cutoff_date.isoformat()
-                    self._orders_cache = [
-                        o for o in self._orders_cache if o.timestamp >= cutoff_str
-                    ]
-
-                    logging.info(f"Loaded {len(self._orders_cache)} recent orders")
+            # Filter to last N days
+            self._filter_orders_by_date(days)
+                
+            logging.info(f"Loaded {len(self._orders_cache)} recent orders")
         except Exception as e:
             logging.error(f"Error loading orders: {e}")
+            
+    def _filter_orders_by_date(self, days: int) -> None:
+        """Filter orders cache to only include orders from the last N days."""
+        if days <= 0 or not self._orders_cache:
+            return
+            
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
+        cutoff_str = cutoff_date.isoformat()
+        self._orders_cache = [o for o in self._orders_cache if o.timestamp >= cutoff_str]
 
     def _load_positions(self) -> None:
         """Load current positions from S3."""
         try:
             positions_path = f"{self.positions_s3_path}current_positions.json"
 
-            if self.s3_handler.file_exists(positions_path):
-                data = self.s3_handler.read_json(positions_path)
-                if data and "positions" in data:
-                    for pos_data in data["positions"]:
-                        pos = StrategyPosition(**pos_data)
-                        key = (pos.strategy, pos.symbol)
-                        self._positions_cache[key] = pos
+            if not self.s3_handler.file_exists(positions_path):
+                logging.info("No positions file found")
+                return
+                
+            data = self.s3_handler.read_json(positions_path)
+            if not data or "positions" not in data:
+                logging.info("No positions data found in file")
+                return
+                
+            # Process positions
+            for pos_data in data["positions"]:
+                pos = StrategyPosition(**pos_data)
+                key = (pos.strategy, pos.symbol)
+                self._positions_cache[key] = pos
 
-                    logging.info(f"Loaded {len(self._positions_cache)} positions")
+            logging.info(f"Loaded {len(self._positions_cache)} positions")
         except Exception as e:
             logging.error(f"Error loading positions: {e}")
 
@@ -448,57 +450,81 @@ class StrategyOrderTracker:
         try:
             pnl_path = f"{self.positions_s3_path}realized_pnl.json"
 
-            if self.s3_handler.file_exists(pnl_path):
-                data = self.s3_handler.read_json(pnl_path)
-                if data:
-                    self._realized_pnl_cache = data
-                    logging.info(f"Loaded realized P&L for {len(data)} strategies")
+            if not self.s3_handler.file_exists(pnl_path):
+                logging.info("No realized P&L file found")
+                return
+                
+            data = self.s3_handler.read_json(pnl_path)
+            if not data:
+                logging.info("No realized P&L data found in file")
+                return
+                
+            self._realized_pnl_cache = data
+            logging.info(f"Loaded realized P&L for {len(data)} strategies")
         except Exception as e:
             logging.error(f"Error loading realized P&L: {e}")
 
     def _persist_order(self, order: StrategyOrder) -> None:
         """Persist single order to S3."""
         try:
-            # Add to recent orders file
             orders_path = f"{self.orders_s3_path}recent_orders.json"
 
-            # Load existing data
+            # Load existing data or create new data structure
             existing_data = self.s3_handler.read_json(orders_path) or {"orders": []}
-
+            
             # Add new order
             existing_data["orders"].append(asdict(order))
+            
+            # Apply history limit to prevent file size growth
+            self._apply_order_history_limit(existing_data)
 
-            # Keep only last N orders to limit file size
-            if len(existing_data["orders"]) > self.order_history_limit:
-                existing_data["orders"] = existing_data["orders"][-self.order_history_limit :]
-
-            # Save back
-            self.s3_handler.write_json(orders_path, existing_data)
+            # Save back to S3
+            success = self.s3_handler.write_json(orders_path, existing_data)
+            if not success:
+                logging.warning(f"Failed to save order {order.order_id} to S3")
 
         except Exception as e:
             logging.error(f"Error persisting order: {e}")
+            
+    def _apply_order_history_limit(self, data: dict) -> None:
+        """Limit the number of orders kept in history."""
+        if len(data["orders"]) > self.order_history_limit:
+            data["orders"] = data["orders"][-self.order_history_limit:]
 
     def _persist_positions(self) -> None:
-        """Persist all positions to S3."""
+        """Persist all positions and realized P&L to S3."""
         try:
-            positions_data = {
-                "positions": [asdict(pos) for pos in self._positions_cache.values()],
-                "last_updated": datetime.now(timezone.utc).isoformat(),
-            }
-
-            positions_path = f"{self.positions_s3_path}current_positions.json"
-            self.s3_handler.write_json(positions_path, positions_data)
-
-            # Also save realized P&L
-            pnl_path = f"{self.positions_s3_path}realized_pnl.json"
-            self.s3_handler.write_json(pnl_path, self._realized_pnl_cache)
+            # Save positions
+            self._persist_positions_data()
+            
+            # Save realized P&L
+            self._persist_realized_pnl()
 
         except Exception as e:
             logging.error(f"Error persisting positions: {e}")
+            
+    def _persist_positions_data(self) -> None:
+        """Save positions data to S3."""
+        positions_data = {
+            "positions": [asdict(pos) for pos in self._positions_cache.values()],
+            "last_updated": datetime.now(timezone.utc).isoformat(),
+        }
+
+        positions_path = f"{self.positions_s3_path}current_positions.json"
+        success = self.s3_handler.write_json(positions_path, positions_data)
+        if not success:
+            logging.warning("Failed to save positions data to S3")
+            
+    def _persist_realized_pnl(self) -> None:
+        """Save realized P&L data to S3."""
+        pnl_path = f"{self.positions_s3_path}realized_pnl.json"
+        success = self.s3_handler.write_json(pnl_path, self._realized_pnl_cache)
+        if not success:
+            logging.warning("Failed to save realized P&L data to S3")
 
     def get_summary_for_email(
-        self, current_prices: Optional[Dict[str, float]] = None
-    ) -> Dict[str, Any]:
+        self, current_prices: Optional[dict[str, float]] = None
+    ) -> dict[str, Any]:
         """Get summary data suitable for email reporting."""
         try:
             all_pnl = self.get_all_strategy_pnl(current_prices)
