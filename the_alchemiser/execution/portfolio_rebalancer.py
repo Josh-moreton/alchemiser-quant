@@ -76,20 +76,18 @@ class PortfolioRebalancer:
 
         # Get positions as a dictionary keyed by symbol using the new method
         current_positions = self.bot.get_positions_dict()
-        logging.warning(f"DEBUG: Position keys: {list(current_positions.keys())}")
+        logging.debug(f"Position keys: {list(current_positions.keys())}")
 
-        # Debug each position's market value
+        # Log each position's market value at debug level
         for symbol, pos in current_positions.items():
             if hasattr(pos, "market_value"):
                 market_value = float(pos.market_value)
-                logging.warning(f"DEBUG: Position {symbol} market_value: ${market_value:.2f}")
+                logging.debug(f"Position {symbol} market_value: ${market_value:.2f}")
             elif isinstance(pos, dict) and "market_value" in pos:
                 market_value = float(pos["market_value"])
-                logging.warning(
-                    f"DEBUG: Position {symbol} market_value from dict: ${market_value:.2f}"
-                )
+                logging.debug(f"Position {symbol} market_value from dict: ${market_value:.2f}")
             else:
-                logging.warning(f"DEBUG: Position {symbol} has no market_value attribute")
+                logging.debug(f"Position {symbol} has no market_value attribute")
 
         _target_values = {  # Reserved for future use in value-based rebalancing
             symbol: portfolio_value * weight for symbol, weight in target_portfolio.items()
@@ -111,7 +109,7 @@ class PortfolioRebalancer:
                     market_value = 0.0
 
             current_values[symbol] = market_value
-            logging.warning(f"DEBUG: Added to current_values: {symbol} = ${market_value:.2f}")
+            logging.debug(f"Added to current_values: {symbol} = ${market_value:.2f}")
 
         # Use threshold-aware rebalancing logic
         rebalance_plan = calculate_rebalance_amounts(
@@ -286,13 +284,13 @@ class PortfolioRebalancer:
         # --- Step 6: Build list of buys using refreshed info ---
         # Get positions as a dictionary keyed by symbol
         current_positions = self.bot.get_positions_dict()
-        logging.warning(f"DEBUG: After sells - got current_positions as dict: {current_positions}")
+        logging.debug(f"After sells - got current_positions as dict: {current_positions}")
 
         portfolio_value = account_info.get("portfolio_value", portfolio_value)
 
         # Recalculate current values after sells
         current_values = {}
-        logging.warning(f"DEBUG: Re-processing current positions after sells: {current_positions}")
+        logging.debug(f"Re-processing current positions after sells: {current_positions}")
 
         # Handle positions properly whether they're objects or dictionaries
         for symbol, pos in current_positions.items():
@@ -308,11 +306,9 @@ class PortfolioRebalancer:
                     market_value = 0.0
 
             current_values[symbol] = market_value
-            logging.warning(
-                f"DEBUG: Adding current value after sells: {symbol} = ${market_value:.2f}"
-            )
+            logging.debug(f"Adding current value after sells: {symbol} = ${market_value:.2f}")
 
-        logging.warning(f"DEBUG: Final current_values before rebalancing: {current_values}")
+        logging.debug(f"Final current_values before rebalancing: {current_values}")
 
         # Recalculate rebalance plan with updated portfolio state
         rebalance_plan = calculate_rebalance_amounts(
@@ -320,9 +316,9 @@ class PortfolioRebalancer:
         )
 
         # Debug logging for the rebalance plan
-        logging.warning(f"DEBUG: portfolio_value: ${portfolio_value:.2f}")
-        logging.warning(f"DEBUG: available_cash: ${available_cash:.2f}")
-        logging.warning(f"DEBUG: Full rebalance plan: {rebalance_plan}")
+        logging.debug(f"portfolio_value: ${portfolio_value:.2f}")
+        logging.debug(f"available_cash: ${available_cash:.2f}")
+        logging.debug(f"Full rebalance plan: {rebalance_plan}")
 
         buy_plans: list[dict[str, Any]] = []  # TODO: Phase 5 - Migrate to list[TradingPlan]
         for symbol, plan_data in rebalance_plan.items():
@@ -384,11 +380,11 @@ class PortfolioRebalancer:
             trade_amount = plan_data.get("trade_amount", 0.0)
 
             # Use debug logging to see all values
-            logging.warning(f"DEBUG: {symbol} rebalance plan: {plan_data}")
-            logging.warning(f"DEBUG: {symbol} target_value from plan: ${original_target_value:.2f}")
-            logging.warning(f"DEBUG: {symbol} trade_amount from plan: ${trade_amount:.2f}")
-            logging.warning(f"DEBUG: {symbol} target_value from buy plan: ${target_value:.2f}")
-            logging.warning(f"DEBUG: {symbol} available_cash: ${available_cash:.2f}")
+            logging.debug(f"{symbol} rebalance plan: {plan_data}")
+            logging.debug(f"{symbol} target_value from plan: ${original_target_value:.2f}")
+            logging.debug(f"{symbol} trade_amount from plan: ${trade_amount:.2f}")
+            logging.debug(f"{symbol} target_value from buy plan: ${target_value:.2f}")
+            logging.debug(f"{symbol} available_cash: ${available_cash:.2f}")
 
             # Use the target value from the rebalance plan, but limit to available cash
             target_dollar_amount = min(
