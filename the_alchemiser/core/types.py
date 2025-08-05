@@ -17,6 +17,34 @@ class AccountInfo(TypedDict):
     status: Literal["ACTIVE", "INACTIVE"]
 
 
+# Enriched Account Types for Display/Reporting
+class PortfolioHistoryData(TypedDict, total=False):
+    """Portfolio history data for P&L tracking."""
+
+    profit_loss: list[float]
+    profit_loss_pct: list[float]
+    equity: list[float]
+    timestamp: list[str]
+
+
+class ClosedPositionData(TypedDict, total=False):
+    """Closed position P&L data."""
+
+    symbol: str
+    realized_pnl: float
+    realized_pnl_pct: float
+    trade_count: int
+
+
+class EnrichedAccountInfo(AccountInfo, total=False):
+    """Extended account info with portfolio history and performance data."""
+
+    portfolio_history: PortfolioHistoryData
+    recent_closed_pnl: list[ClosedPositionData]
+    trading_mode: str
+    market_hours_ignored: bool
+
+
 # Position Types
 class PositionInfo(TypedDict):
     symbol: str
@@ -29,8 +57,8 @@ class PositionInfo(TypedDict):
     current_price: str | float
 
 
-class PositionsDict(TypedDict):
-    positions: dict[str, PositionInfo]
+# Position Collections
+PositionsDict = dict[str, PositionInfo]  # Symbol -> Position mapping
 
 
 # Order Types

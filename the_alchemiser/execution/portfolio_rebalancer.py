@@ -7,6 +7,7 @@ from typing import Any
 from alpaca.trading.enums import OrderSide
 
 from ..core.trading.strategy_manager import StrategyType
+from ..core.types import OrderDetails
 from ..tracking.strategy_order_tracker import get_strategy_tracker
 from ..utils.trading_math import calculate_rebalance_amounts
 
@@ -50,9 +51,7 @@ class PortfolioRebalancer:
         self,
         target_portfolio: dict[str, float],
         strategy_attribution: dict[str, list[StrategyType]] | None = None,
-    ) -> list[
-        dict[str, Any]
-    ]:  # TODO: Phase 5 - Migrate to list[OrderDetails] once internal implementation updated
+    ) -> list[OrderDetails]:  # Phase 18: Migrated from list[dict[str, Any]] to list[OrderDetails]
         """Rebalance portfolio following a sell-then-buy process.
 
         Steps:
@@ -64,7 +63,7 @@ class PortfolioRebalancer:
         6. Calculate buy orders and batch send
         7. Wait for settlement again and refresh final account info
         """
-        orders_executed: list[dict[str, Any]] = []  # TODO: Phase 5 - Migrate to list[OrderDetails]
+        orders_executed: list[OrderDetails] = []  # Phase 18: Migrated to list[OrderDetails]
 
         # Get current account info and positions
         account_info = self.bot.get_account_info()
@@ -74,15 +73,45 @@ class PortfolioRebalancer:
 
         portfolio_value = account_info.get("portfolio_value", 0.0)
         cash = account_info.get("cash", 0.0)
-        current_positions = self.bot.get_positions()
+
+        # Get positions as a dictionary keyed by symbol using the new method
+        current_positions = self.bot.get_positions_dict()
+        logging.warning(f"DEBUG: Position keys: {list(current_positions.keys())}")
+
+        # Debug each position's market value
+        for symbol, pos in current_positions.items():
+            if hasattr(pos, "market_value"):
+                market_value = float(pos.market_value)
+                logging.warning(f"DEBUG: Position {symbol} market_value: ${market_value:.2f}")
+            elif isinstance(pos, dict) and "market_value" in pos:
+                market_value = float(pos["market_value"])
+                logging.warning(
+                    f"DEBUG: Position {symbol} market_value from dict: ${market_value:.2f}"
+                )
+            else:
+                logging.warning(f"DEBUG: Position {symbol} has no market_value attribute")
 
         _target_values = {  # Reserved for future use in value-based rebalancing
             symbol: portfolio_value * weight for symbol, weight in target_portfolio.items()
         }
-        current_values = {
-            symbol: float(getattr(pos, "market_value", 0.0))
-            for symbol, pos in current_positions.items()
-        }
+        # Now build current_values dictionary properly from the positions
+        current_values = {}
+
+        # Handle positions properly whether they're objects or dictionaries
+        for symbol, pos in current_positions.items():
+            # Extract market value depending on position structure
+            if hasattr(pos, "market_value"):
+                market_value = float(pos.market_value)
+            elif isinstance(pos, dict) and "market_value" in pos:
+                market_value = float(pos["market_value"])
+            else:
+                try:
+                    market_value = float(getattr(pos, "market_value", 0.0))
+                except (AttributeError, TypeError, ValueError):
+                    market_value = 0.0
+
+            current_values[symbol] = market_value
+            logging.warning(f"DEBUG: Added to current_values: {symbol} = ${market_value:.2f}")
 
         # Use threshold-aware rebalancing logic
         rebalance_plan = calculate_rebalance_amounts(
@@ -127,15 +156,20 @@ class PortfolioRebalancer:
                         except Exception as e:
                             logging.warning(f"Failed to track liquidation order {order_id}: {e}")
 
-                        orders_executed.append(
-                            {
-                                "symbol": symbol,
-                                "qty": abs(qty),
-                                "side": OrderSide.SELL,
-                                "order_id": order_id,
-                                "estimated_value": estimated_value,
-                            }
-                        )
+                        order_details: OrderDetails = {
+                            "id": order_id,
+                            "symbol": symbol,
+                            "qty": abs(qty),
+                            "side": "sell",
+                            "order_type": "market",
+                            "time_in_force": "day",
+                            "status": "new",
+                            "filled_qty": 0.0,
+                            "filled_avg_price": None,
+                            "created_at": "",
+                            "updated_at": "",
+                        }
+                        orders_executed.append(order_details)
                     continue
 
             # Continue with normal rebalance plan logic
@@ -164,15 +198,20 @@ class PortfolioRebalancer:
                     except Exception as e:
                         logging.warning(f"Failed to track liquidation order {order_id}: {e}")
 
-                    orders_executed.append(
-                        {
-                            "symbol": symbol,
-                            "qty": abs(qty),
-                            "side": OrderSide.SELL,
-                            "order_id": order_id,
-                            "estimated_value": estimated_value,
-                        }
-                    )
+                    order_details: OrderDetails = {
+                        "id": order_id,
+                        "symbol": symbol,
+                        "qty": abs(qty),
+                        "side": "sell",
+                        "order_type": "market",
+                        "time_in_force": "day",
+                        "status": "new",
+                        "filled_qty": 0.0,
+                        "filled_avg_price": None,
+                        "created_at": "",
+                        "updated_at": "",
+                    }
+                    orders_executed.append(order_details)
             elif current_value > target_value:
                 price = self.bot.get_current_price(symbol)
                 diff_value = current_value - target_value
@@ -200,37 +239,68 @@ class PortfolioRebalancer:
                 except Exception as e:
                     logging.warning(f"Failed to track sell order {order_id}: {e}")
 
-                orders_executed.append(
-                    {
-                        "symbol": plan["symbol"],
-                        "qty": plan["qty"],
-                        "side": OrderSide.SELL,
-                        "order_id": order_id,
-                        "estimated_value": plan["est"],
-                    }
-                )
+                order_details: OrderDetails = {
+                    "id": order_id,
+                    "symbol": plan["symbol"],
+                    "qty": plan["qty"],
+                    "side": "sell",
+                    "order_type": "market",
+                    "time_in_force": "day",
+                    "status": "new",
+                    "filled_qty": 0.0,
+                    "filled_avg_price": None,
+                    "created_at": "",
+                    "updated_at": "",
+                }
+                orders_executed.append(order_details)
 
         # Wait for all sell orders (liquidations + partial sells) to settle
-        sell_orders = [o for o in orders_executed if o["side"] == OrderSide.SELL]
+        sell_orders = [o for o in orders_executed if o["side"] == "sell"]
         if sell_orders:
             self.bot.wait_for_settlement(sell_orders)
             account_info = self.bot.get_account_info()
         available_cash = account_info.get("buying_power", cash)
 
         # --- Step 6: Build list of buys using refreshed info ---
-        current_positions = self.bot.get_positions()
+        # Get positions as a dictionary keyed by symbol
+        current_positions = self.bot.get_positions_dict()
+        logging.warning(f"DEBUG: After sells - got current_positions as dict: {current_positions}")
+
         portfolio_value = account_info.get("portfolio_value", portfolio_value)
 
         # Recalculate current values after sells
-        current_values = {
-            symbol: float(getattr(pos, "market_value", 0.0))
-            for symbol, pos in current_positions.items()
-        }
+        current_values = {}
+        logging.warning(f"DEBUG: Re-processing current positions after sells: {current_positions}")
+
+        # Handle positions properly whether they're objects or dictionaries
+        for symbol, pos in current_positions.items():
+            # Extract market value depending on position structure
+            if hasattr(pos, "market_value"):
+                market_value = float(pos.market_value)
+            elif isinstance(pos, dict) and "market_value" in pos:
+                market_value = float(pos["market_value"])
+            else:
+                try:
+                    market_value = float(getattr(pos, "market_value", 0.0))
+                except (AttributeError, TypeError, ValueError):
+                    market_value = 0.0
+
+            current_values[symbol] = market_value
+            logging.warning(
+                f"DEBUG: Adding current value after sells: {symbol} = ${market_value:.2f}"
+            )
+
+        logging.warning(f"DEBUG: Final current_values before rebalancing: {current_values}")
 
         # Recalculate rebalance plan with updated portfolio state
         rebalance_plan = calculate_rebalance_amounts(
             target_portfolio, current_values, portfolio_value
         )
+
+        # Debug logging for the rebalance plan
+        logging.warning(f"DEBUG: portfolio_value: ${portfolio_value:.2f}")
+        logging.warning(f"DEBUG: available_cash: ${available_cash:.2f}")
+        logging.warning(f"DEBUG: Full rebalance plan: {rebalance_plan}")
 
         buy_plans: list[dict[str, Any]] = []  # TODO: Phase 5 - Migrate to list[TradingPlan]
         for symbol, plan_data in rebalance_plan.items():
@@ -246,7 +316,17 @@ class PortfolioRebalancer:
                 if price > 0:
                     qty = int(diff_value / price * 1e6) / 1e6
                     if qty > 0:
-                        buy_plans.append({"symbol": symbol, "qty": qty, "est": qty * price})
+                        buy_plans.append(
+                            {
+                                "symbol": symbol,
+                                "qty": qty,
+                                "est": qty * price,
+                                "target_value": target_value,
+                            }
+                        )
+                        logging.warning(
+                            f"DEBUG: Adding to buy_plans - symbol: {symbol}, qty: {qty}, est: ${qty * price:.2f}, target_value: ${target_value:.2f}"
+                        )
 
         # Execute buy orders SEQUENTIALLY with fresh buying power checks
         for plan in buy_plans:
@@ -267,6 +347,7 @@ class PortfolioRebalancer:
 
             symbol = plan["symbol"]
             target_qty = plan["qty"]
+            target_value = plan.get("target_value", 0.0)  # Get the target value from the plan
             price = self.bot.get_current_price(symbol)
             estimated_cost = target_qty * price
 
@@ -275,12 +356,25 @@ class PortfolioRebalancer:
             logging.info(
                 f"Order calculation for {symbol}: estimated_cost=${estimated_cost:.2f}, available_cash=${available_cash:.2f}"
             )
-            target_dollar_amount = min(
-                estimated_cost, available_cash * 0.99
-            )  # 99% to leave small buffer
-            logging.info(f"Final target_dollar_amount for {symbol}: ${target_dollar_amount:.2f}")
+            # Get the original target value from the rebalance plan
+            plan_data = rebalance_plan.get(symbol, {})
+            original_target_value = plan_data.get("target_value", 0.0)
+            trade_amount = plan_data.get("trade_amount", 0.0)
 
-            # Get bid/ask for display
+            # Use debug logging to see all values
+            logging.warning(f"DEBUG: {symbol} rebalance plan: {plan_data}")
+            logging.warning(f"DEBUG: {symbol} target_value from plan: ${original_target_value:.2f}")
+            logging.warning(f"DEBUG: {symbol} trade_amount from plan: ${trade_amount:.2f}")
+            logging.warning(f"DEBUG: {symbol} target_value from buy plan: ${target_value:.2f}")
+            logging.warning(f"DEBUG: {symbol} available_cash: ${available_cash:.2f}")
+
+            # Use the target value from the rebalance plan, but limit to available cash
+            target_dollar_amount = min(
+                target_value, available_cash * 0.99
+            )  # 99% to leave small buffer
+            logging.warning(
+                f"DEBUG: Final target_dollar_amount for {symbol}: ${target_dollar_amount:.2f}"
+            )  # Get bid/ask for display
             quote = self.bot.data_provider.get_latest_quote(symbol)
             bid = quote.bid_price if quote and hasattr(quote, "bid_price") else 0
             ask = quote.ask_price if quote and hasattr(quote, "ask_price") else 0
@@ -294,14 +388,17 @@ class PortfolioRebalancer:
             else:
                 Console().print(f"[green]Buying {symbol}: ${target_dollar_amount:.2f}[/green]")
 
-            # Use professional Better Orders execution with notional amount
+            # Debug what we're actually sending to place_order
+            logging.warning(
+                f"DEBUG: Calling place_order with symbol={symbol}, qty=1.0, side=BUY, notional=${target_dollar_amount}"
+            )
+
+            # ALWAYS use notional amount for buy orders to ensure correct amounts
             order_id = self.order_manager.place_order(
                 symbol,
-                qty=target_qty if target_qty > 0 else 1.0,  # Use calculated qty or fallback
+                qty=1.0,  # Use placeholder quantity; notional amount will override this
                 side=OrderSide.BUY,
-                notional=(
-                    target_dollar_amount if target_qty <= 0 else None
-                ),  # Use notional if no qty
+                notional=target_dollar_amount,  # Always use notional for buy orders
             )
 
             if order_id:
@@ -314,44 +411,49 @@ class PortfolioRebalancer:
                 except Exception as e:
                     logging.warning(f"Failed to track buy order {order_id}: {e}")
 
-                orders_executed.append(
-                    {
-                        "symbol": symbol,
-                        "qty": target_qty,  # Estimated quantity for display
-                        "side": OrderSide.BUY,
-                        "order_id": order_id,
-                        "estimated_value": target_dollar_amount,
-                    }
-                )
+                order_details: OrderDetails = {
+                    "id": order_id,
+                    "symbol": symbol,
+                    "qty": target_qty,  # Estimated quantity for display
+                    "side": "buy",
+                    "order_type": "market",
+                    "time_in_force": "day",
+                    "status": "new",
+                    "filled_qty": 0.0,
+                    "filled_avg_price": None,
+                    "created_at": "",
+                    "updated_at": "",
+                }
+                orders_executed.append(order_details)
 
                 # Wait for this individual order to settle before moving to the next
-                self.bot.wait_for_settlement(
-                    [
-                        {
-                            "symbol": symbol,
-                            "order_id": order_id,
-                            "qty": target_qty,
-                            "side": OrderSide.BUY,
-                        }
-                    ]
-                )
+                self.bot.wait_for_settlement([order_details])
 
                 # Refresh positions and account info to detect any fills
                 try:
                     account_info = self.bot.get_account_info()
-                    current_positions = self.bot.get_positions()
+
+                    # Get positions in the proper format (dictionary)
+                    current_positions = self.bot.get_positions_dict()
+
                     logging.info(
                         f"Post-order account refresh: cash=${account_info.get('cash', 0):.2f}, buying_power=${account_info.get('buying_power', 0):.2f}"
                     )
 
                     # Check if we now have the position we wanted
-                    current_value = float(
-                        getattr(current_positions.get(symbol), "market_value", 0.0)
-                    )
-                    if current_value > 0:
-                        logging.info(
-                            f"Detected {symbol} position after order: ${current_value:.2f}"
-                        )
+                    if symbol in current_positions:
+                        pos = current_positions[symbol]
+                        if hasattr(pos, "market_value"):
+                            current_value = float(pos.market_value)
+                        elif isinstance(pos, dict) and "market_value" in pos:
+                            current_value = float(pos["market_value"])
+                        else:
+                            current_value = float(getattr(pos, "market_value", 0.0))
+
+                        if current_value > 0:
+                            logging.info(
+                                f"Detected {symbol} position after order: ${current_value:.2f}"
+                            )
                 except Exception as e:
                     logging.warning(f"Failed to refresh account info after order: {e}")
 

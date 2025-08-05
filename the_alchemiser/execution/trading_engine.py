@@ -26,8 +26,13 @@ from the_alchemiser.core.trading.strategy_manager import (
     StrategyType,
 )
 
-# TODO: Add imports for types once they are used:
-# from ..core.types import AccountInfo, PositionsDict, OrderDetails, ExecutionResult, StrategyPnLSummary
+# Phase 17: Import proper types for function migration
+from the_alchemiser.core.types import (
+    AccountInfo,
+    EnrichedAccountInfo,
+    OrderDetails,
+    PositionsDict,
+)
 from the_alchemiser.execution.portfolio_rebalancer import PortfolioRebalancer
 
 from .account_service import AccountService
@@ -44,9 +49,25 @@ class AccountInfoProvider(Protocol):
 
     def get_account_info(
         self,
-    ) -> dict[str, Any]:  # TODO: Change to AccountInfo once data structure matches
+    ) -> AccountInfo:  # Phase 17: Migrated from dict[str, Any] to AccountInfo
         """Get comprehensive account information."""
         ...
+
+
+def _create_default_account_info(account_id: str = "unknown") -> AccountInfo:
+    """Create a default AccountInfo structure for error cases."""
+    return {
+        "account_id": account_id,
+        "equity": 0.0,
+        "cash": 0.0,
+        "buying_power": 0.0,
+        "day_trades_remaining": 0,
+        "portfolio_value": 0.0,
+        "last_equity": 0.0,
+        "daytrading_buying_power": 0.0,
+        "regt_buying_power": 0.0,
+        "status": "INACTIVE",
+    }
 
 
 class PositionProvider(Protocol):
@@ -54,7 +75,7 @@ class PositionProvider(Protocol):
 
     def get_positions_dict(
         self,
-    ) -> dict[str, dict[str, Any]]:  # TODO: Change to PositionsDict once data structure matches
+    ) -> PositionsDict:  # Phase 18: Migrated from dict[str, dict[str, Any]] to PositionsDict
         """Get current positions keyed by symbol."""
         ...
 
@@ -78,7 +99,7 @@ class RebalancingService(Protocol):
         self,
         target_portfolio: dict[str, float],
         strategy_attribution: dict[str, list[StrategyType]] | None = None,
-    ) -> list[dict[str, Any]]:  # TODO: Change to list[OrderDetails] once implementation updated
+    ) -> list[OrderDetails]:  # Phase 18: Migrated from list[dict[str, Any]] to list[OrderDetails]
         """Rebalance portfolio to target allocation."""
         ...
 
@@ -208,12 +229,20 @@ class TradingEngine:
         try:
             account_info = self._account_info_provider.get_account_info()
 
-            # Add trading engine context
-            if account_info:
-                account_info["trading_mode"] = "paper" if self.paper_trading else "live"
-                account_info["market_hours_ignored"] = self.ignore_market_hours
+            # Convert AccountInfo to enriched dict with additional trading context
+            enriched_info: dict[str, Any] = {
+                "account_number": account_info["account_id"],
+                "portfolio_value": account_info["portfolio_value"],
+                "equity": account_info["equity"],
+                "buying_power": account_info["buying_power"],
+                "cash": account_info["cash"],
+                "day_trade_count": account_info["day_trades_remaining"],
+                "status": account_info["status"],
+                "trading_mode": "paper" if self.paper_trading else "live",
+                "market_hours_ignored": self.ignore_market_hours,
+            }
 
-            return account_info
+            return enriched_info
         except Exception as e:
             logging.error(f"Failed to retrieve account information: {e}")
 
@@ -232,26 +261,86 @@ class TradingEngine:
 
             return {}
 
-    def get_positions(self) -> dict[str, Any]:
-        """Get current positions via account service with engine context.
+    def get_enriched_account_info(self) -> EnrichedAccountInfo:
+        """Get enriched account information including portfolio history and P&L data.
+
+        This extends the basic AccountInfo with portfolio performance data suitable for
+        display and reporting purposes.
 
         Returns:
-            Dict of current positions keyed by symbol, enhanced with trading context.
+            EnrichedAccountInfo with portfolio history and closed P&L data.
+        """
+        try:
+            # Get base account info
+            base_account = self._account_info_provider.get_account_info()
+
+            # Create enriched account info starting with base data
+            enriched: EnrichedAccountInfo = {
+                **base_account,
+                "trading_mode": "paper" if self.paper_trading else "live",
+                "market_hours_ignored": self.ignore_market_hours,
+            }
+
+            # Add portfolio history if available
+            try:
+                portfolio_history = self.data_provider.get_portfolio_history()
+                if portfolio_history:
+                    enriched["portfolio_history"] = {
+                        "profit_loss": portfolio_history.get("profit_loss", []),
+                        "profit_loss_pct": portfolio_history.get("profit_loss_pct", []),
+                        "equity": portfolio_history.get("equity", []),
+                        "timestamp": portfolio_history.get("timestamp", []),
+                    }
+            except Exception as e:
+                logging.debug(f"Could not retrieve portfolio history: {e}")
+
+            # Add recent closed P&L if available
+            try:
+                # Note: This would need to be implemented in data_provider
+                # closed_pnl = self.data_provider.get_recent_closed_positions()
+                # if closed_pnl:
+                #     enriched["recent_closed_pnl"] = closed_pnl
+                pass
+            except Exception as e:
+                logging.debug(f"Could not retrieve recent closed P&L: {e}")
+
+            return enriched
+
+        except Exception as e:
+            logging.error(f"Failed to retrieve enriched account information: {e}")
+            # Return minimal enriched account info
+            return {
+                **_create_default_account_info("error"),
+                "trading_mode": "paper" if self.paper_trading else "live",
+                "market_hours_ignored": self.ignore_market_hours,
+            }
+
+    def get_positions(
+        self,
+    ) -> PositionsDict:  # Phase 18: Migrated from dict[str, Any] to PositionsDict
+        """Get current positions via account service.
+
+        Returns:
+            Dict of current positions keyed by symbol with validated PositionInfo structure.
         """
         try:
             positions = self._position_provider.get_positions_dict()
-
-            # Add engine context to positions data
-            if positions:
-                for _symbol, position_data in positions.items():
-                    if isinstance(position_data, dict):
-                        position_data["retrieved_via"] = "trading_engine"
-                        position_data["trading_mode"] = "paper" if self.paper_trading else "live"
-
             return positions
         except Exception as e:
             logging.error(f"Failed to retrieve positions: {e}")
             return {}
+
+    def get_positions_dict(
+        self,
+    ) -> PositionsDict:  # Phase 18: Migrated from dict[str, dict[str, Any]] to PositionsDict
+        """Get current positions as dictionary keyed by symbol.
+
+        This is an alias for get_positions() to maintain backward compatibility.
+
+        Returns:
+            Dict of current positions keyed by symbol with validated PositionInfo structure.
+        """
+        return self.get_positions()
 
     def get_current_price(self, symbol: str) -> float:
         """Get current price for a symbol with engine-level validation.
@@ -323,7 +412,7 @@ class TradingEngine:
 
     # --- Order and Rebalancing Methods ---
     def wait_for_settlement(
-        self, sell_orders: list[dict[str, Any]], max_wait_time: int = 60, poll_interval: float = 2.0
+        self, sell_orders: list[OrderDetails], max_wait_time: int = 60, poll_interval: float = 2.0
     ) -> bool:
         """Wait for sell orders to settle by polling their status.
 
@@ -335,7 +424,9 @@ class TradingEngine:
         Returns:
             True if all orders settled successfully, False otherwise.
         """
-        return self.order_manager.wait_for_settlement(sell_orders, max_wait_time, poll_interval)
+        # Temporary conversion for legacy order_manager compatibility
+        legacy_orders = [dict(order) for order in sell_orders]
+        return self.order_manager.wait_for_settlement(legacy_orders, max_wait_time, poll_interval)
 
     def place_order(
         self,
@@ -369,7 +460,7 @@ class TradingEngine:
         self,
         target_portfolio: dict[str, float],
         strategy_attribution: dict[str, list[StrategyType]] | None = None,
-    ) -> list[dict[str, Any]]:  # TODO: Change to list[OrderDetails] once implementation updated
+    ) -> list[OrderDetails]:  # Phase 18: Migrated from list[dict[str, Any]] to list[OrderDetails]
         """Rebalance portfolio to target allocation with engine-level orchestration.
 
         Args:
@@ -377,7 +468,7 @@ class TradingEngine:
             strategy_attribution: Dictionary mapping symbols to contributing strategies.
 
         Returns:
-            List of executed orders during rebalancing.
+            List of executed orders during rebalancing as OrderDetails.
         """
         if not target_portfolio:
             logging.warning("Empty target portfolio provided to rebalance_portfolio")
@@ -393,20 +484,32 @@ class TradingEngine:
         logging.debug(f"Target allocations: {target_portfolio}")
 
         try:
-            # Use composed rebalancing service
-            orders = self._rebalancing_service.rebalance_portfolio(
+            # Use composed rebalancing service (returns legacy dict format)
+            raw_orders = self._rebalancing_service.rebalance_portfolio(
                 target_portfolio, strategy_attribution
             )
+
+            # Convert raw orders to OrderDetails
+            orders: list[OrderDetails] = []
+            for raw_order in raw_orders:
+                order_details: OrderDetails = {
+                    "id": raw_order.get("id", "unknown"),
+                    "symbol": raw_order.get("symbol", ""),
+                    "qty": raw_order.get("qty", 0.0),
+                    "side": raw_order.get("side", "buy"),
+                    "order_type": raw_order.get("order_type", "market"),
+                    "time_in_force": raw_order.get("time_in_force", "day"),
+                    "status": raw_order.get("status", "new"),
+                    "filled_qty": raw_order.get("filled_qty", 0.0),
+                    "filled_avg_price": raw_order.get("filled_avg_price", 0.0),
+                    "created_at": raw_order.get("created_at", ""),
+                    "updated_at": raw_order.get("updated_at", ""),
+                }
+                orders.append(order_details)
 
             # Engine-level post-processing
             if orders:
                 logging.info(f"Portfolio rebalancing completed with {len(orders)} orders")
-
-                # Add engine context to orders
-                for order in orders:
-                    if isinstance(order, dict):
-                        order["executed_via"] = "trading_engine"
-                        order["trading_mode"] = "paper" if self.paper_trading else "live"
             else:
                 logging.info("Portfolio rebalancing completed with no orders needed")
 
@@ -458,8 +561,8 @@ class TradingEngine:
                     strategy_signals={},
                     consolidated_portfolio={},
                     orders_executed=[],
-                    account_info_before={},
-                    account_info_after={},
+                    account_info_before=_create_default_account_info("error"),
+                    account_info_after=_create_default_account_info("error"),
                     execution_summary={"error": "Failed to retrieve account information"},
                     final_portfolio_state={},
                 )
@@ -470,8 +573,8 @@ class TradingEngine:
                 strategy_signals={},
                 consolidated_portfolio={},
                 orders_executed=[],
-                account_info_before={},
-                account_info_after={},
+                account_info_before=_create_default_account_info("pre_validation_error"),
+                account_info_after=_create_default_account_info("pre_validation_error"),
                 execution_summary={"error": f"Pre-execution validation failed: {e}"},
                 final_portfolio_state={},
             )
@@ -520,8 +623,8 @@ class TradingEngine:
                 strategy_signals={},
                 consolidated_portfolio={},
                 orders_executed=[],
-                account_info_before={},
-                account_info_after={},
+                account_info_before=_create_default_account_info("execution_error"),
+                account_info_after=_create_default_account_info("execution_error"),
                 execution_summary={"error": f"Execution failed: {e}"},
                 final_portfolio_state={},
             )
@@ -659,12 +762,25 @@ class TradingEngine:
         """
         from the_alchemiser.core.ui.cli_formatter import render_target_vs_current_allocations
         from the_alchemiser.utils.account_utils import (
-            calculate_portfolio_values,
+            calculate_position_target_deltas,
             extract_current_position_values,
         )
 
         # Use helper functions to calculate values
-        target_values = calculate_portfolio_values(target_portfolio, account_info)
+        # Convert legacy dict to AccountInfo for the utility function
+        account_info_typed: AccountInfo = {
+            "account_id": account_info.get("account_number", "unknown"),
+            "equity": account_info.get("equity", 0.0),
+            "cash": account_info.get("cash", 0.0),
+            "buying_power": account_info.get("buying_power", 0.0),
+            "day_trades_remaining": account_info.get("day_trade_count", 0),
+            "portfolio_value": account_info.get("portfolio_value", 0.0),
+            "last_equity": account_info.get("equity", 0.0),
+            "daytrading_buying_power": account_info.get("daytrading_buying_power", 0.0),
+            "regt_buying_power": account_info.get("buying_power", 0.0),
+            "status": "ACTIVE" if account_info.get("status") == "ACTIVE" else "INACTIVE",
+        }
+        target_values = calculate_position_target_deltas(target_portfolio, account_info_typed)
         current_values = extract_current_position_values(current_positions)
 
         # Use existing formatter for display
@@ -729,10 +845,7 @@ class TradingEngine:
 
             for order in execution_result.orders_executed:
                 side = order.get("side", "")
-                if hasattr(side, "value"):
-                    side_value = side.value
-                else:
-                    side_value = str(side)
+                side_value = str(side).upper()  # Convert to uppercase for display
 
                 side_color = "green" if side_value == "BUY" else "red"
 
@@ -751,7 +864,13 @@ class TradingEngine:
 
         # Account summary
         if execution_result.account_info_after:
-            account = execution_result.account_info_after
+            # Try to get enriched account info for better display
+            try:
+                enriched_account = self.get_enriched_account_info()
+                account = enriched_account
+            except Exception:
+                account = execution_result.account_info_after
+
             account_content = Text()
             account_content.append(
                 f"Portfolio Value: ${float(account.get('portfolio_value', 0)):,.2f}\n",
@@ -772,7 +891,7 @@ class TradingEngine:
                     pl_color = "green" if recent_pl >= 0 else "red"
                     pl_sign = "+" if recent_pl >= 0 else ""
                     account_content.append(
-                        f"Recent P&L: {pl_sign}${recent_pl:,.2f} ({pl_sign}{recent_pl_pct*100:.2f}%)",
+                        f"Recent P&L: {pl_sign}${recent_pl:,.2f} ({pl_sign}{recent_pl_pct*100:.2f}%)\n",
                         style=f"bold {pl_color}",
                     )
 
@@ -784,10 +903,14 @@ class TradingEngine:
 
         # Recent closed positions P&L table
         closed_pnl_table = None
-        if execution_result.account_info_after and execution_result.account_info_after.get(
-            "recent_closed_pnl"
-        ):
-            closed_pnl = execution_result.account_info_after["recent_closed_pnl"]
+        if execution_result.account_info_after:
+            # Try to get enriched account info for recent closed P&L
+            try:
+                enriched_account = self.get_enriched_account_info()
+                closed_pnl = enriched_account.get("recent_closed_pnl", [])
+            except Exception:
+                closed_pnl = execution_result.account_info_after.get("recent_closed_pnl", [])
+
             if closed_pnl:
                 closed_pnl_table = Table(
                     title="Recent Closed Positions P&L (Last 7 Days)", show_lines=False
