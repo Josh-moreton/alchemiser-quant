@@ -56,6 +56,7 @@ types-pytz = ">=2023.3.0"
 bandit = ">=1.7.0"
 vulture = "^2.14"
 moto = ">=4.2.0"
+psutil = "^7.0.0"
 
 [tool.poetry.scripts]
 alchemiser = "the_alchemiser.cli:app"
