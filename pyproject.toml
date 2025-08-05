@@ -48,6 +48,7 @@ types-PyYAML = ">=6.0.0"
 types-requests = ">=2.31.0"
 types-pytz = ">=2023.3.0"
 bandit = ">=1.7.0"
+vulture = "^2.14"
 
 [tool.poetry.scripts]
 alchemiser = "the_alchemiser.cli:app"

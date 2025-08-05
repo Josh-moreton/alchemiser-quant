@@ -144,7 +144,7 @@ class TradingSystemErrorHandler:
         context: str,
         component: str,
         additional_data: dict[str, Any] | None = None,
-        should_continue: bool = True,
+        should_continue: bool = True,  # noqa: ARG002
     ) -> ErrorDetails:
         """Handle an error with detailed logging and categorization."""
         category = self.categorize_error(error, context)

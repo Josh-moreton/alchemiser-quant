@@ -517,7 +517,7 @@ class TradingEngine:
             )
 
     # --- Reporting and Dashboard Methods ---
-    def _archive_daily_strategy_pnl(self, pnl_summary: dict[str, Any]) -> None:
+    def _archive_daily_strategy_pnl(self, pnl_summary: dict[str, Any]) -> None:  # noqa: ARG002
         """Archive daily strategy P&L for historical tracking."""
         try:
             from the_alchemiser.tracking.strategy_order_tracker import get_strategy_tracker

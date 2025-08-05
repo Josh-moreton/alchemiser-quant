@@ -388,15 +388,6 @@ class BearMarketStrategy:
 
             return symbol, action, reasoning
 
-        # Fallback to first bear signal with enhanced reasoning
-        symbol, action, basic_reason = bear1_signal
-        enhanced_reason = "Bear Market Fallback Strategy:\n"
-        enhanced_reason += f"• Primary Signal: {basic_reason}\n"
-        enhanced_reason += "• Portfolio construction failed, using primary bear signal\n"
-        enhanced_reason += "• Defensive positioning in uncertain market conditions"
-
-        return symbol, action, enhanced_reason
-
 
 class OverboughtStrategy:
     def recommend(self, indicators):
