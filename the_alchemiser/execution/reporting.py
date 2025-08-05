@@ -2,19 +2,19 @@ import logging
 from typing import Any
 
 from the_alchemiser.core.trading.strategy_manager import StrategyType
-
-# TODO: Phase 10 - Types available for future migration to structured types
-# from the_alchemiser.core.types import AccountInfo, DashboardMetrics, ExecutionResult, OrderDetails, ReportingData
+from the_alchemiser.core.types import AccountInfo
 
 
 def create_execution_summary(
     engine: Any,  # TODO: Phase 10 - Add proper TradingEngine type when available
     strategy_signals: dict[StrategyType, Any],
     consolidated_portfolio: dict[str, float],
-    orders_executed: list[dict[str, Any]],  # TODO: Phase 10 - Migrate to list[OrderDetails]
-    account_before: dict[str, Any],  # TODO: Phase 10 - Migrate to AccountInfo
-    account_after: dict[str, Any],  # TODO: Phase 10 - Migrate to AccountInfo
-) -> dict[str, Any]:  # TODO: Phase 10 - Migrate to ReportingData
+    orders_executed: list[
+        dict[str, Any]
+    ],  # TODO: Phase 10 - OrderDetails has different structure than expected
+    account_before: AccountInfo,
+    account_after: AccountInfo,
+) -> dict[str, Any]:  # TODO: Phase 10 - ReportingData structure needs alignment
     """Create execution summary using helper utilities."""
     from the_alchemiser.utils.portfolio_pnl_utils import (
         build_allocation_summary,

@@ -679,7 +679,7 @@ class TradingEngine:
 
     def _trigger_post_trade_validation(
         self, strategy_signals: dict[StrategyType, Any], orders_executed: list[dict[str, Any]]
-    ) -> None:  # TODO: Phase 15 - Added return type annotation
+    ) -> None:
         """
         Trigger post-trade technical indicator validation for live trading
         Args:
@@ -790,7 +790,7 @@ class TradingEngine:
 
     def display_multi_strategy_summary(
         self, execution_result: MultiStrategyExecutionResult
-    ) -> None:  # TODO: Phase 15 - Added return type
+    ) -> None:
         """
         Display a summary of multi-strategy execution results using Rich
         Args:
