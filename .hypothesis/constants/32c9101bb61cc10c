@@ -1,0 +1,4 @@
+# file: /Users/joshua.moreton/Documents/GitHub/the-alchemiser/the_alchemiser/core/utils/common.py
+# hypothesis_version: 6.137.1
+
+['BUY', 'HOLD', 'SELL']

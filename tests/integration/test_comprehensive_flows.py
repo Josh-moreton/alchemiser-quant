@@ -37,14 +37,9 @@ class TestDataToSignalFlow:
                 return [sum(prices) / len(prices)] * len(prices)
             return [sum(prices[-period:]) / period] * len(prices)
 
-        # Mock external indicator calculation modules
-        mocker.patch(
-            "the_alchemiser.core.indicators.calculate_rsi", side_effect=mock_rsi_calculation
-        )
-        mocker.patch(
-            "the_alchemiser.core.indicators.calculate_sma", side_effect=mock_sma_calculation
-        )
-
+        # Instead of mocking non-existent modules, test the calculation logic directly
+        # This represents the actual pipeline without external dependencies
+        
         # Process data through pipeline
         symbols = ["AAPL", "TSLA"]
         pipeline_results = {}
@@ -73,8 +68,8 @@ class TestDataToSignalFlow:
             assert "RSI" in pipeline_results[symbol]
             assert "SMA_20" in pipeline_results[symbol]
             assert "price" in pipeline_results[symbol]
-            assert isinstance(pipeline_results[symbol]["RSI"], (int, float))
-            assert isinstance(pipeline_results[symbol]["SMA_20"], (int, float))
+            assert isinstance(pipeline_results[symbol]["RSI"], int | float)
+            assert isinstance(pipeline_results[symbol]["SMA_20"], int | float)
 
     def test_signal_generation_from_indicators(self, mocker):
         """Test signal generation from technical indicator data."""
