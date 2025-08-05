@@ -21,7 +21,7 @@ class LimitOrderHandler:
     Handles limit order placement with smart asset-specific logic.
     """
 
-    def __init__(self, trading_client, position_manager, asset_handler):
+    def __init__(self, trading_client, position_manager, asset_handler) -> None:
         """Initialize with required dependencies."""
         self.trading_client = trading_client
         self.position_manager = position_manager
@@ -98,7 +98,7 @@ class LimitOrderHandler:
 
     def _prepare_limit_order(
         self, symbol: str, qty: float, side: OrderSide, limit_price: float
-    ) -> tuple[Any, ...]:
+    ) -> tuple[Any, ...]:  # TODO: Phase 7 - Migrate to LimitOrderResult
         """Prepare limit order with smart asset handling."""
         original_qty = qty
         conversion_info = None

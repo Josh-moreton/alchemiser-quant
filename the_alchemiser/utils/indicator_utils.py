@@ -1,15 +1,18 @@
-"""
-Indicator Utilities
+"""Indicator utility functions for safe calculation and error handling.
 
 This module provides helper functions for safely calculating and retrieving technical indicator values.
 """
 
 import logging
+from collections.abc import Callable
+from typing import Any
 
 import pandas as pd
 
 
-def safe_get_indicator(data, indicator_func, *args, **kwargs):
+def safe_get_indicator(
+    data: pd.Series, indicator_func: Callable[..., pd.Series], *args: Any, **kwargs: Any
+) -> float:
     """
     Safely get an indicator value, logging exceptions and handling NaN values.
 

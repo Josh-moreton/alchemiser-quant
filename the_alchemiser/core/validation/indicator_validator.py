@@ -29,7 +29,7 @@ class IndicatorValidationSuite:
     Comprehensive validation suite for technical indicators against TwelveData API.
     """
 
-    def __init__(self, api_key: str, console: Console):
+    def __init__(self, api_key: str, console: Console) -> None:
         self.api_key = api_key
         self.console = console
         self.api_base_url = "https://api.twelvedata.com"

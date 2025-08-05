@@ -18,6 +18,7 @@ This captures the COMPLETE CLJ implementation - the most sophisticated variant.
 
 import pandas as pd
 
+from the_alchemiser.core.types import KLMDecision  # TODO: Phase 9 - Added for gradual migration
 from the_alchemiser.core.utils.common import ActionType
 
 from .base_klm_variant import BaseKLMVariant
@@ -38,7 +39,7 @@ class KlmVariant53018(BaseKLMVariant):
     This is NOT a simple variant - it's a completely different strategy architecture.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(
             name="530/18", description="KMLM Switcher | Anansi Mods - Complete Scale-In Strategy"
         )
@@ -47,7 +48,9 @@ class KlmVariant53018(BaseKLMVariant):
         self,
         indicators: dict[str, dict[str, float]],
         market_data: dict[str, pd.DataFrame] | None = None,
-    ) -> tuple[str | dict[str, float], str, str]:
+    ) -> (
+        tuple[str | dict[str, float], str, str] | KLMDecision
+    ):  # TODO: Phase 9 - Gradual migration to KLMDecision
         """
         Evaluate the complete 530/18 Scale-In variant exactly as in CLJ.
 
@@ -391,7 +394,9 @@ class KlmVariant53018(BaseKLMVariant):
                 )
             else:
                 # Pop bot logic
-                result = self._evaluate_holy_grail_pop_bot(indicators)  # type: ignore[assignment]
+                result = self._evaluate_holy_grail_pop_bot(
+                    indicators
+                )  # TODO: Phase 9 - Remove type ignore after converting to KLMDecision
 
             self.log_decision(result[0], result[1], result[2])
             return result
@@ -466,16 +471,20 @@ class KlmVariant53018(BaseKLMVariant):
                             f"KMLM Switcher: 50% FNGU / 50% {best_candidate[0]} (best MA return)",
                         )
                     else:
-                        result = (  # type: ignore[assignment]
+                        result = (  # TODO: Phase 9 - Remove type ignore after converting to KLMDecision
                             "FNGU",
                             ActionType.BUY.value,
                             "KMLM Switcher: 100% FNGU (best MA return)",
                         )
                 else:
-                    result = ("FNGU", ActionType.BUY.value, "KMLM Switcher: FNGU fallback")  # type: ignore[assignment]
+                    result = (
+                        "FNGU",
+                        ActionType.BUY.value,
+                        "KMLM Switcher: FNGU fallback",
+                    )  # TODO: Phase 9 - Remove type ignore after converting to KLMDecision
             else:
                 # Simple tech selection
-                result = (  # type: ignore[assignment]
+                result = (  # TODO: Phase 9 - Remove type ignore after converting to KLMDecision
                     candidates[0][0],
                     ActionType.BUY.value,
                     f"KMLM Switcher: {candidates[0][0]} (lowest RSI: {candidates[0][1]:.1f})",
@@ -502,14 +511,18 @@ class KlmVariant53018(BaseKLMVariant):
             elif rotator_candidates:
                 # Less than 3 available
                 best = min(rotator_candidates, key=lambda x: x[1])
-                result = (  # type: ignore[assignment]
+                result = (  # TODO: Phase 9 - Remove type ignore after converting to KLMDecision
                     best[0],
                     ActionType.BUY.value,
                     f"L/S Rotator: {best[0]} (lowest volatility)",
                 )
             else:
                 # Ultimate fallback
-                result = ("KMLM", ActionType.BUY.value, "L/S Rotator: KMLM fallback")  # type: ignore[assignment]
+                result = (
+                    "KMLM",
+                    ActionType.BUY.value,
+                    "L/S Rotator: KMLM fallback",
+                )  # TODO: Phase 9 - Remove type ignore after converting to KLMDecision
 
         self.log_decision(result[0], result[1], result[2])
         return result

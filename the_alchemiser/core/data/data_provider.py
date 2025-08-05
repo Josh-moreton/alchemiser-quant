@@ -1,7 +1,7 @@
 import logging
 import time
 from datetime import UTC, datetime, timedelta
-from typing import cast
+from typing import Any, cast
 
 import pandas as pd
 from alpaca.data.historical import StockHistoricalDataClient
@@ -10,6 +10,9 @@ from alpaca.data.timeframe import TimeFrame
 from alpaca.trading.client import TradingClient
 
 from the_alchemiser.core.secrets.secrets_manager import SecretsManager
+
+# TODO: Phase 11 - Types available for future migration to structured data types
+# from the_alchemiser.core.types import DataProviderResult, MarketDataPoint, PriceData
 
 
 class UnifiedDataProvider:
@@ -24,7 +27,13 @@ class UnifiedDataProvider:
     - Proper type safety
     """
 
-    def __init__(self, paper_trading=True, cache_duration=None, config=None, enable_real_time=True):
+    def __init__(
+        self,
+        paper_trading: bool = True,
+        cache_duration: int | None = None,
+        config: Any | None = None,  # TODO: Phase 11 - Add proper Settings type when available
+        enable_real_time: bool = True,
+    ) -> None:
         """
         Initialize UnifiedDataProvider for Alpaca market data and trading.
 
@@ -45,9 +54,15 @@ class UnifiedDataProvider:
 
         # Set cache duration
         if cache_duration is None:
-            cache_duration = self.config.data.cache_duration
-        self.cache_duration = cache_duration
-        self.cache = {}
+            cache_duration = (
+                self.config.data.cache_duration or 3600
+            )  # Default 1 hour if config is None
+        self.cache_duration: int = (
+            cache_duration  # TODO: Phase 11 - Ensure cache duration is always an int
+        )
+        self.cache: dict[tuple[str, str, str], tuple[float, pd.DataFrame]] = (
+            {}
+        )  # TODO: Phase 11 - Typed cache structure
 
         # Initialize secrets manager - region will be loaded from config
         secrets_manager = SecretsManager()
@@ -93,7 +108,9 @@ class UnifiedDataProvider:
             f"Initialized UnifiedDataProvider with {'paper' if paper_trading else 'live'} trading keys"
         )
 
-    def get_data(self, symbol, period="1y", interval="1d"):
+    def get_data(
+        self, symbol: str, period: str = "1y", interval: str = "1d"
+    ) -> pd.DataFrame | None:  # TODO: Phase 11 - Consider migrating to MarketDataPoint structure
         """
         Get historical market data with caching.
 
@@ -376,7 +393,7 @@ class UnifiedDataProvider:
             logging.error(f"Error fetching historical data for {symbol} from {start} to {end}: {e}")
             return []
 
-    def get_account_info(self):
+    def get_account_info(self) -> dict[str, Any]:
         """Get account information."""
         try:
             return self.trading_client.get_account()
@@ -384,7 +401,7 @@ class UnifiedDataProvider:
             logging.error(f"Error fetching account info: {e}")
             return None
 
-    def get_positions(self):
+    def get_positions(self) -> list[dict[str, Any]]:
         """Get all positions."""
         try:
             return self.trading_client.get_all_positions()
@@ -392,12 +409,12 @@ class UnifiedDataProvider:
             logging.error(f"Error fetching positions: {e}")
             return []
 
-    def clear_cache(self):
+    def clear_cache(self) -> None:
         """Clear the data cache."""
         self.cache.clear()
         logging.debug("Data cache cleared")
 
-    def get_cache_stats(self):
+    def get_cache_stats(self) -> dict[str, Any]:
         """Get cache statistics."""
         return {
             "cache_size": len(self.cache),
@@ -433,7 +450,7 @@ class UnifiedDataProvider:
             logging.error(f"Error fetching portfolio history: {e}")
             return {}
 
-    def get_open_positions(self):
+    def get_open_positions(self) -> list[dict[str, Any]]:
         """
         Get all open positions (for open P&L, market value, etc).
         Returns: list of position dicts.

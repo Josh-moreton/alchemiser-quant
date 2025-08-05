@@ -13,11 +13,15 @@ from the_alchemiser.core.secrets.secrets_manager import SecretsManager
 class EmailConfig:
     """Manages email configuration settings."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.secrets_manager = SecretsManager()
-        self._config_cache = None
+        self._config_cache: tuple[str, int, str, str, str] | None = (
+            None  # TODO: Phase 8 - Migrate to EmailCredentials | None
+        )
 
-    def get_config(self) -> tuple[str, int, str, str, str] | None:
+    def get_config(
+        self,
+    ) -> tuple[str, int, str, str, str] | None:  # TODO: Phase 8 - Migrate to EmailCredentials
         """Get email configuration from environment variables and secrets manager.
 
         Returns:
@@ -25,7 +29,7 @@ class EmailConfig:
             or None if configuration is invalid.
         """
         if self._config_cache:
-            return self._config_cache  # type: ignore[no-any-return]
+            return self._config_cache  # TODO: Phase 8 - Remove when migrated to EmailCredentials
 
         try:
             # Get configuration instance
@@ -82,7 +86,7 @@ class EmailConfig:
             logging.warning(f"Could not get email password from secrets manager: {e}")
         return None
 
-    def clear_cache(self):
+    def clear_cache(self) -> None:
         """Clear the configuration cache."""
         self._config_cache = None
 

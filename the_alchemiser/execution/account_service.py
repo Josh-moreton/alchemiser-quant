@@ -1,13 +1,14 @@
 import logging
 from typing import Any, Protocol
 
+from the_alchemiser.core.types import AccountInfo, PositionInfo, PositionsDict
 from the_alchemiser.utils.account_utils import extract_comprehensive_account_data
 
 
 class DataProvider(Protocol):
     """Protocol defining the data provider interface needed by AccountService."""
 
-    def get_positions(self) -> list[Any]:
+    def get_positions(self) -> Any:  # TODO: Use proper typing once Alpaca types are available
         """Get all positions."""
         ...
 
@@ -25,20 +26,24 @@ class AccountService:
     capabilities with business logic.
     """
 
-    def __init__(self, data_provider: DataProvider):
+    def __init__(self, data_provider: DataProvider) -> None:
         self._data_provider = data_provider
         # Pre-import the utility function to avoid runtime imports
         self._extract_account_data = extract_comprehensive_account_data
 
-    def get_account_info(self) -> dict[str, Any]:
+    def get_account_info(
+        self,
+    ) -> AccountInfo:  # Phase 17: Migrated from dict[str, Any] to AccountInfo
         """
         Return comprehensive account info.
 
         Combines raw data provider information with processed account metrics.
         """
-        return self._extract_account_data(self._data_provider)
+        return extract_comprehensive_account_data(self._data_provider)
 
-    def get_positions_dict(self) -> dict[str, dict[str, Any]]:
+    def get_positions_dict(
+        self,
+    ) -> PositionsDict:  # Phase 18: Migrated from dict[str, dict[str, Any]] to PositionsDict
         """
         Return current positions keyed by symbol.
 
@@ -46,7 +51,7 @@ class AccountService:
         for easier lookup and manipulation.
         """
         positions = self._data_provider.get_positions()
-        position_dict: dict[str, dict[str, Any]] = {}
+        position_dict: PositionsDict = {}  # Phase 18: Migrated to PositionsDict
 
         if not positions:
             return position_dict
@@ -54,7 +59,18 @@ class AccountService:
         for position in positions:
             symbol = self._extract_symbol(position)
             if symbol:
-                position_dict[symbol] = position
+                # Convert raw position to PositionInfo
+                position_info: PositionInfo = {
+                    "symbol": symbol,
+                    "qty": getattr(position, "qty", 0.0),
+                    "side": "long" if float(getattr(position, "qty", 0)) >= 0 else "short",
+                    "market_value": getattr(position, "market_value", 0.0),
+                    "cost_basis": getattr(position, "cost_basis", 0.0),
+                    "unrealized_pl": getattr(position, "unrealized_pl", 0.0),
+                    "unrealized_plpc": getattr(position, "unrealized_plpc", 0.0),
+                    "current_price": getattr(position, "current_price", 0.0),
+                }
+                position_dict[symbol] = position_info
 
         return position_dict
 

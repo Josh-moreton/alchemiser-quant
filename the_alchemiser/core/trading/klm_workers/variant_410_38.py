@@ -20,7 +20,7 @@ class KlmVariant41038(KlmVariant50638):
     Identical to 506/38 except L/S Rotator includes SSO in the candidate list.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         # Override the name and description for this variant
         self.name = "410/38"

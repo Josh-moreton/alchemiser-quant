@@ -16,6 +16,9 @@ All functions follow functional programming principles with no side effects,
 ensuring predictable behavior and easy testing.
 """
 
+# TODO: Phase 12 - Types available for future migration to structured trading calculations
+# from the_alchemiser.core.types import BacktestResult, PerformanceMetrics, TradeAnalysis
+
 
 def calculate_position_size(
     current_price: float, portfolio_weight: float, account_value: float

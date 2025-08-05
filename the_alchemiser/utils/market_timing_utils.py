@@ -6,6 +6,7 @@ Implements the timing logic from better orders spec for optimal execution
 during market open hours (9:30-9:35 ET).
 """
 
+
 from datetime import datetime, time
 from enum import Enum
 
@@ -21,7 +22,7 @@ class ExecutionStrategy(Enum):
 class MarketOpenTimingEngine:
     """Market open timing decisions per better orders specification."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.et_tz = pytz.timezone("US/Eastern")
 
     def get_execution_strategy(self, current_time: datetime | None = None) -> ExecutionStrategy:

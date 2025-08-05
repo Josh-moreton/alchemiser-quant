@@ -30,6 +30,10 @@ import sys
 from datetime import datetime
 from typing import Any
 
+# TODO: Add these imports once types are fully implemented:
+# from .core.types import StrategySignal
+# from .core.trading.strategy_manager import MultiStrategyManager, StrategyType
+
 # Optional rich import - only for CLI usage
 try:
     # Check if rich is available
@@ -44,7 +48,7 @@ from the_alchemiser.core.logging.logging_utils import get_logger, setup_logging
 from the_alchemiser.core.trading.strategy_manager import StrategyType
 
 
-def configure_application_logging():
+def configure_application_logging() -> None:
     """Configure centralized logging for the application."""
 
     # Check if we're in production (AWS Lambda or similar)
@@ -67,7 +71,11 @@ def configure_application_logging():
         )
 
 
-def generate_multi_strategy_signals(settings: Settings) -> tuple[Any, ...]:
+def generate_multi_strategy_signals(
+    settings: Settings,
+) -> tuple[
+    Any, dict[Any, Any], dict[str, float]
+]:  # TODO: Change to tuple[MultiStrategyManager, dict[StrategyType, StrategySignal], dict[str, float]] once imports added
     """Generate signals for all strategies and return consolidated results.
 
     Creates a shared data provider and multi-strategy manager to generate signals
@@ -105,7 +113,9 @@ def generate_multi_strategy_signals(settings: Settings) -> tuple[Any, ...]:
         raise
 
 
-def run_all_signals_display(settings: Settings | None = None):
+def run_all_signals_display(
+    settings: Settings | None = None,
+) -> bool:
     """Generate and display multi-strategy signals without executing trades.
 
     Shows comprehensive analysis including Nuclear and TECL strategy signals,
@@ -393,7 +403,7 @@ def run_multi_strategy_trading(
         return False
 
 
-def main(argv=None, settings: Settings | None = None):
+def main(argv: list[str] | None = None, settings: Settings | None = None) -> bool:
     """Main entry point for the Multi-Strategy Quantitative Trading System.
 
     Provides command-line interface for running the trading system in different modes.

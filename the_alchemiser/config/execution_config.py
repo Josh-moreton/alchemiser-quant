@@ -6,6 +6,7 @@ Configuration settings for the professional execution system.
 Loads settings from the global application configuration.
 """
 
+
 import logging
 from dataclasses import dataclass
 
@@ -34,7 +35,7 @@ class ExecutionConfig:
     high_volume_etfs: list[str] | None = None
 
     @classmethod
-    def from_settings(cls):
+    def from_settings(cls) -> "ExecutionConfig":
         """Load configuration from application settings."""
         try:
             execution = load_settings().execution
@@ -87,7 +88,7 @@ def get_execution_config() -> ExecutionConfig:
     return _config_instance
 
 
-def reload_execution_config():
+def reload_execution_config() -> None:
     """Reload the execution configuration from settings."""
     global _config_instance
     _config_instance = ExecutionConfig.from_settings()

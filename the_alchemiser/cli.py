@@ -6,6 +6,8 @@ Provides a modern CLI built with Typer and Rich for user interaction, strategy s
 and reporting. Handles user commands and displays formatted output.
 """
 
+
+import subprocess
 import time
 from datetime import datetime
 
@@ -26,7 +28,7 @@ app = typer.Typer(
 console = Console()
 
 
-def show_welcome():
+def show_welcome() -> None:
     """Display a beautiful welcome message"""
     welcome_text = Text()
     welcome_text.append(" The Alchemiser Quantitative Trading System\n", style="bold cyan")
@@ -47,7 +49,7 @@ def show_welcome():
 def signal(
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable verbose output"),
     no_header: bool = typer.Option(False, "--no-header", help="Skip welcome header"),
-):
+) -> None:
     """
     🎯 [bold cyan]Generate and display strategy signals[/bold cyan] (analysis only, no trading)
 
@@ -98,7 +100,7 @@ def trade(
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable verbose output"),
     no_header: bool = typer.Option(False, "--no-header", help="Skip welcome header"),
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompts"),
-):
+) -> None:
     """
     💰 [bold green]Execute multi-strategy trading[/bold green]
 
@@ -163,7 +165,7 @@ def trade(
 @app.command()
 def status(
     live: bool = typer.Option(False, "--live", help="🚨 Show LIVE account status (real account)"),
-):
+) -> None:
     """
     📈 [bold blue]Show account status and positions[/bold blue]
 
@@ -215,7 +217,7 @@ def status(
 
 
 @app.command()
-def deploy():
+def deploy() -> None:
     """
     🚀 [bold cyan]Deploy to AWS Lambda[/bold cyan]
 
@@ -233,8 +235,6 @@ def deploy():
         _task = progress.add_task("Running deployment script...", total=None)
 
         try:
-            import subprocess
-
             result = subprocess.run(
                 ["bash", deploy_script], capture_output=True, text=True, check=True
             )
@@ -253,7 +253,7 @@ def deploy():
 
 
 @app.command()
-def version():
+def version() -> None:
     """
     ℹ️  [bold]Show version information[/bold]
     """
@@ -275,7 +275,7 @@ def validate_indicators(
     verbose_validation: bool = typer.Option(
         False, "--verbose-validation", help="Enable verbose validation logging"
     ),
-):
+) -> None:
     """
     🔬 [bold blue]Validate technical indicators against TwelveData API[/bold blue]
 
@@ -320,6 +320,7 @@ def validate_indicators(
         validator = IndicatorValidationSuite(api_key, console)
 
         # Determine symbols to test
+        symbols_list: list[str]
         if symbols:
             symbols_list = [s.strip().upper() for s in symbols.split(",")]
         else:
@@ -371,7 +372,7 @@ def main(
     ctx: typer.Context,
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable verbose output"),
     quiet: bool = typer.Option(False, "--quiet", "-q", help="Suppress non-essential output"),
-):
+) -> None:
     """
     [bold]The Alchemiser - Advanced Multi-Strategy Quantitative Trading System[/bold]
 

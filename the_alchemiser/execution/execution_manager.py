@@ -7,7 +7,7 @@ from .types import MultiStrategyExecutionResult
 class ExecutionManager:
     """Orchestrates multi-strategy execution for the TradingEngine."""
 
-    def __init__(self, engine):
+    def __init__(self, engine) -> None:
         self.engine = engine
 
     def execute_multi_strategy(self):

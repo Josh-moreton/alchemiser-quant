@@ -30,7 +30,7 @@ class KlmVariant50638(BaseKLMVariant):
     3. BSC strategy or Pop Bot + Core KMLM Switcher
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(
             name="506/38", description="KMLM (13) - Longer BT - Standard overbought detection"
         )

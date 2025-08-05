@@ -16,7 +16,7 @@ from botocore.exceptions import ClientError, NoCredentialsError
 class S3Handler:
     """Handles S3 operations for the quantitative trading system"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize S3 client"""
         try:
             self.s3_client = boto3.client("s3")
@@ -182,7 +182,7 @@ def get_s3_handler() -> S3Handler:
 class S3FileHandler(logging.Handler):
     """Custom logging handler that writes to S3"""
 
-    def __init__(self, s3_uri: str):
+    def __init__(self, s3_uri: str) -> None:
         super().__init__()
         self.s3_uri = s3_uri
         self.s3_handler = get_s3_handler()

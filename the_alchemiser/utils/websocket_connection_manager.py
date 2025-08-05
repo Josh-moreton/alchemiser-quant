@@ -9,6 +9,7 @@ providing connection lifecycle management and cleanup utilities.
 import logging
 import threading
 import time
+from typing import Any
 
 from rich.console import Console
 
@@ -21,7 +22,7 @@ class WebSocketConnectionManager:
     trading streams and data streams.
     """
 
-    def __init__(self, trading_client, api_key=None, secret_key=None):
+    def __init__(self, trading_client, api_key=None, secret_key=None) -> None:
         """Initialize with trading client and optional API credentials."""
         self.trading_client = trading_client
         self.api_key = api_key
@@ -114,11 +115,11 @@ class WebSocketConnectionManager:
                 pass
             self._websocket_thread = None
 
-    def get_websocket_stream(self):
+    def get_websocket_stream(self) -> Any:
         """Get current WebSocket stream if available."""
         return getattr(self, "_websocket_stream", None)
 
-    def get_websocket_thread(self):
+    def get_websocket_thread(self) -> Any:
         """Get current WebSocket thread if available."""
         return getattr(self, "_websocket_thread", None)
 

@@ -10,17 +10,21 @@ from email import encoders
 from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from typing import Any
 
 from .config import get_email_config
+
+# TODO: Phase 10 - Type available for future migration to structured config
+# from the_alchemiser.core.types import EmailCredentials
 
 
 class EmailClient:
     """SMTP email client for sending notifications."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._config = None
 
-    def _get_config(self):
+    def _get_config(self) -> Any:
         """Get email configuration lazily."""
         if not self._config:
             self._config = get_email_config()

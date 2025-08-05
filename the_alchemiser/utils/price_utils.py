@@ -4,10 +4,12 @@ Price Utilities
 This module provides helper functions for price handling and conversion operations.
 """
 
+from typing import Any
+
 import pandas as pd
 
 
-def ensure_scalar_price(price):
+def ensure_scalar_price(price: Any) -> float | None:
     """
     Ensure price is a scalar value for JSON serialization and string formatting.
 

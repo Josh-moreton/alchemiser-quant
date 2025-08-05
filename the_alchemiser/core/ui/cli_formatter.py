@@ -6,11 +6,17 @@ from rich.panel import Panel
 from rich.rule import Rule
 from rich.table import Table
 
+# TODO: Phase 13 - Replace dict[Any, Any] with proper CLISignalData
+# TODO: Phase 13 - Replace dict[str, Any] with AccountInfo from core.types
+# TODO: Phase 13 - Replace dict[str, float] with CLIPortfolioData
+# TODO: Phase 13 - Replace list[dict[str, Any]] with list[CLIOrderDisplay]
+
 """Console formatting utilities for quantitative trading system output using rich."""
 
 
 def render_technical_indicators(
-    strategy_signals: dict[Any, Any], console: Console | None = None
+    strategy_signals: dict[Any, Any],
+    console: Console | None = None,  # TODO: Phase 13 - CLISignalData
 ) -> None:
     """
     Pretty-print technical indicators using rich Table.
@@ -113,7 +119,8 @@ def render_technical_indicators(
 
 
 def render_strategy_signals(
-    strategy_signals: dict[Any, Any], console: Console | None = None
+    strategy_signals: dict[Any, Any],
+    console: Console | None = None,  # TODO: Phase 13 - CLISignalData
 ) -> None:
     """Pretty-print strategy signals using rich panels with detailed explanations."""
     c = console or Console()
@@ -122,7 +129,7 @@ def render_strategy_signals(
         c.print(Panel("No strategy signals available", title="STRATEGY SIGNALS", style="yellow"))
         return
 
-    panels = []
+    panels: list[Panel] = []  # TODO: Phase 13 - Use structured type
     for strategy_type, signal in strategy_signals.items():
         action = signal.get("action", "HOLD")
         symbol = signal.get("symbol", "N/A")
@@ -162,7 +169,9 @@ def render_strategy_signals(
 
 
 def render_portfolio_allocation(
-    portfolio: dict[str, float], title: str = "PORTFOLIO ALLOCATION", console: Console | None = None
+    portfolio: dict[str, float],
+    title: str = "PORTFOLIO ALLOCATION",
+    console: Console | None = None,  # TODO: Phase 13 - Use CLIPortfolioData list
 ) -> None:
     """Pretty-print portfolio allocation using rich table."""
     c = console or Console()
@@ -186,8 +195,9 @@ def render_portfolio_allocation(
     c.print(table)
 
 
-def render_trading_summary(
-    orders_executed: list[dict[str, Any]], console: Console | None = None
+def render_orders_executed(
+    orders_executed: list[dict[str, Any]],
+    console: Console | None = None,  # TODO: Phase 13 - list[CLIOrderDisplay]
 ) -> None:
     """Pretty-print trading execution summary."""
     c = console or Console()
@@ -197,8 +207,9 @@ def render_trading_summary(
         return
 
     # Analyze orders
-    buy_orders = []
-    sell_orders = []
+    # TODO: Phase 13 - Use proper typing for buy/sell orders
+    buy_orders: list[dict[str, Any]] = []  # TODO: Phase 13 - list[CLIOrderDisplay]
+    sell_orders: list[dict[str, Any]] = []  # TODO: Phase 13 - list[CLIOrderDisplay]
 
     for order in orders_executed:
         side = order.get("side")
@@ -252,7 +263,9 @@ def render_trading_summary(
         c.print(detail_table)
 
 
-def render_account_info(account_info: dict[str, Any], console: Console | None = None) -> None:
+def render_account_info(
+    account_info: dict[str, Any], console: Console | None = None
+) -> None:  # TODO: Phase 13 - Use AccountInfo type
     """Render account information including P&L data"""
     c = console or Console()
 
@@ -379,9 +392,9 @@ def render_footer(message: str, success: bool = True, console: Console | None = 
 
 
 def render_target_vs_current_allocations(
-    target_portfolio: dict[str, float],
-    account_info: dict[str, Any],
-    current_positions: dict[str, Any],
+    target_portfolio: dict[str, float],  # TODO: Phase 13 - Use CLIPortfolioData list
+    account_info: dict[str, Any],  # TODO: Phase 13 - Use AccountInfo
+    current_positions: dict[str, Any],  # TODO: Phase 13 - Use dict[str, PositionInfo]
     console: Console | None = None,
 ) -> None:
     """Pretty-print target vs current allocations comparison with enhanced Rich table."""
@@ -394,10 +407,14 @@ def render_target_vs_current_allocations(
         symbol: portfolio_value * weight for symbol, weight in target_portfolio.items()
     }
 
-    current_values = {
-        symbol: float(getattr(pos, "market_value", 0.0))
-        for symbol, pos in current_positions.items()
-    }
+    current_values = {}
+    for symbol, pos in current_positions.items():
+        # Handle both dict and object position formats
+        if isinstance(pos, dict):
+            market_value = float(pos.get("market_value", 0.0))
+        else:
+            market_value = float(getattr(pos, "market_value", 0.0))
+        current_values[symbol] = market_value
 
     # Create enhanced comparison table
     table = Table(title="Portfolio Rebalancing Summary", show_lines=True, expand=True, box=None)
@@ -451,8 +468,8 @@ def render_target_vs_current_allocations(
 
 
 def render_execution_plan(
-    sell_orders: list[dict[str, Any]],
-    buy_orders: list[dict[str, Any]],
+    sell_orders: list[dict[str, Any]],  # TODO: Phase 13 - list[CLIOrderDisplay]
+    buy_orders: list[dict[str, Any]],  # TODO: Phase 13 - list[CLIOrderDisplay]
     console: Console | None = None,
 ) -> None:
     """Pretty-print the execution plan before trading."""
@@ -486,7 +503,7 @@ __all__ = [
     "render_technical_indicators",
     "render_strategy_signals",
     "render_portfolio_allocation",
-    "render_trading_summary",
+    "render_orders_executed",  # TODO: Phase 13 - Updated function name
     "render_account_info",
     "render_header",
     "render_footer",

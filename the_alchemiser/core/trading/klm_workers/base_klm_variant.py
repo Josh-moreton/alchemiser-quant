@@ -12,6 +12,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from the_alchemiser.core.types import KLMDecision  # TODO: Phase 9 - Added for gradual migration
 from the_alchemiser.core.utils.common import ActionType
 
 
@@ -23,7 +24,7 @@ class BaseKLMVariant(ABC):
     Common functionality like filter operations and allocation logic is shared.
     """
 
-    def __init__(self, name: str, description: str):
+    def __init__(self, name: str, description: str) -> None:
         self.name = name
         self.description = description
         self.performance_history: list[float] = []
@@ -34,7 +35,9 @@ class BaseKLMVariant(ABC):
         self,
         indicators: dict[str, dict[str, float]],
         market_data: dict[str, pd.DataFrame] | None = None,
-    ) -> tuple[str | dict[str, float], str, str]:
+    ) -> (
+        tuple[str | dict[str, float], str, str] | KLMDecision
+    ):  # TODO: Phase 9 - Gradual migration to KLMDecision
         """
         Evaluate the strategy variant and return trading decision.
 
@@ -43,7 +46,7 @@ class BaseKLMVariant(ABC):
             market_data: Raw market data (optional)
 
         Returns:
-            Tuple of (symbol_or_allocation, action, reason)
+            Tuple of (symbol_or_allocation, action, reason) OR structured KLMDecision
             - symbol_or_allocation: Single symbol string OR dict of {symbol: weight}
             - action: Action type (BUY, SELL, HOLD)
             - reason: Human-readable explanation
@@ -349,7 +352,7 @@ class BaseKLMVariant(ABC):
         recent_performance = self.performance_history[-window:]
         return float(np.std(recent_performance)) if recent_performance else 0.0
 
-    def update_performance(self, return_value: float):
+    def update_performance(self, return_value: float) -> None:
         """Update performance history for ensemble selection"""
         self.performance_history.append(return_value)
         # Keep only last 100 values to prevent memory bloat

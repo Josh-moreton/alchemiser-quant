@@ -10,6 +10,7 @@ This module provides intelligent order execution parameters based on market cond
 
 import logging
 from dataclasses import dataclass
+from typing import Any
 
 from alpaca.trading.enums import OrderSide
 
@@ -23,7 +24,7 @@ class OrderExecutionParams:
     step_percentages: list[float]  # Percentage of spread to step through
     tick_aggressiveness: float  # How aggressively to step (multiplier)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return (
             f"OrderExecutionParams(wait={self.max_wait_seconds}s, "
             f"steps={self.step_count}, aggressiveness={self.tick_aggressiveness:.2f})"
@@ -40,7 +41,7 @@ class ProgressiveOrderCalculator:
     - How aggressively to price orders
     """
 
-    def __init__(self, config=None):
+    def __init__(self, config: dict[str, Any] | None = None) -> None:
         """Initialize with configuration."""
         self.config = config or {}
 

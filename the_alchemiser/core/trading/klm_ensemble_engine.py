@@ -50,7 +50,7 @@ class KLMStrategyEnsemble:
     4. Returns the best strategy's recommendation
     """
 
-    def __init__(self, data_provider=None):
+    def __init__(self, data_provider=None) -> None:
         if data_provider is None:
             raise ValueError("data_provider is required for KLMStrategyEnsemble")
 
@@ -177,7 +177,9 @@ class KLMStrategyEnsemble:
 
     def evaluate_all_variants(
         self, indicators: dict[str, dict[str, float]], market_data: dict[str, pd.DataFrame]
-    ) -> list[tuple[BaseKLMVariant, Any, float]]:
+    ) -> list[
+        tuple[BaseKLMVariant, Any, float]
+    ]:  # TODO: Phase 6 - Migrate to list[KLMVariantResult]
         """
         Evaluate all strategy variants and return results with performance metrics.
 
@@ -210,8 +212,13 @@ class KLMStrategyEnsemble:
         return results
 
     def select_best_variant(
-        self, variant_results: list[tuple[BaseKLMVariant, Any, float]]
-    ) -> tuple[Any, BaseKLMVariant]:
+        self,
+        variant_results: list[
+            tuple[BaseKLMVariant, Any, float]
+        ],  # TODO: Phase 6 - Migrate to list[KLMVariantResult]
+    ) -> tuple[
+        Any, BaseKLMVariant
+    ]:  # TODO: Phase 6 - Migrate to tuple[StrategySignal, BaseKLMVariant]
         """
         Select the top-performing variant based on performance metric.
 
@@ -282,7 +289,9 @@ class KLMStrategyEnsemble:
         symbol_or_allocation: str | dict[str, float],
         action: str,
         basic_reason: str,
-        all_variant_results: list[tuple[BaseKLMVariant, Any, float]],
+        all_variant_results: list[
+            tuple[BaseKLMVariant, Any, float]
+        ],  # TODO: Phase 6 - Migrate to list[KLMVariantResult]
     ) -> str:
         """Build detailed KLM analysis similar to Nuclear and TECL strategy explanations"""
 
@@ -404,7 +413,7 @@ class KLMStrategyEnsemble:
         """
 
 
-def main():
+def main() -> None:
     """Test the KLM ensemble"""
     print("🧪 KLM Strategy Ensemble Test")
     print("=" * 50)

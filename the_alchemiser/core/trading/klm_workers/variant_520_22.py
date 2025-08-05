@@ -25,7 +25,7 @@ class KlmVariant52022(BaseKLMVariant):
     - L/S Rotator: FTLS/KMLM/SSO/UUP (not SQQQ/TLT)
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(
             name="520/22", description="KMLM (23) - Original baseline with TECL/SVIX switcher"
         )

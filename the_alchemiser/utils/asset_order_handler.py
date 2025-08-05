@@ -7,6 +7,7 @@ fractionable vs non-fractionable asset handling, order type conversion,
 and fallback strategies.
 """
 
+
 import logging
 from decimal import ROUND_DOWN, Decimal
 
@@ -21,7 +22,7 @@ class AssetOrderHandler:
     Handles asset-specific order logic including fractionability and conversions.
     """
 
-    def __init__(self, data_provider):
+    def __init__(self, data_provider) -> None:
         """Initialize with data provider for price fetching."""
         self.data_provider = data_provider
 

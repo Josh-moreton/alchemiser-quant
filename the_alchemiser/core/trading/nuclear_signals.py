@@ -17,6 +17,7 @@ This file handles the real-world orchestration, data management, and signal gene
 import logging
 import warnings
 from enum import Enum
+from typing import Any
 
 # Third-party imports
 # Local imports
@@ -52,7 +53,7 @@ class NuclearStrategyEngine:
 
     """Nuclear Strategy Engine - Orchestrates data, indicators, and strategy logic"""
 
-    def __init__(self, data_provider=None):
+    def __init__(self, data_provider=None) -> None:
         if data_provider is None:
             raise ValueError("data_provider is required for NuclearStrategyEngine")
         self.data_provider = data_provider
@@ -79,7 +80,7 @@ class NuclearStrategyEngine:
             + self.nuclear_symbols
         )
 
-    def get_market_data(self):
+    def get_market_data(self) -> dict[str, Any]:
         """Fetch data for all symbols"""
         market_data = {}
         for symbol in self.all_symbols:
@@ -198,11 +199,11 @@ class NuclearStrategyEngine:
 class NuclearSignalGenerator:
     """Nuclear Energy Signal Generator"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.strategy = NuclearStrategyEngine()
         self.load_config()
 
-    def load_config(self):
+    def load_config(self) -> None:
         """Load configuration"""
         self.config = load_alert_config()
 
@@ -254,7 +255,7 @@ class NuclearSignalGenerator:
 
         log_alert_to_file(alert)
 
-    def run_once(self):
+    def run_once(self) -> None:
         """Run analysis once"""
         alerts = self.run_analysis()
 
@@ -307,7 +308,7 @@ class NuclearSignalGenerator:
                 logging.info(f"Backing off for {backoff_time} seconds...")
                 time.sleep(backoff_time)
 
-    def get_current_portfolio_allocation(self):
+    def get_current_portfolio_allocation(self) -> dict[str, float]:
         """Get current portfolio allocation for display purposes"""
         # Get market data and indicators
         market_data = self.strategy.get_market_data()

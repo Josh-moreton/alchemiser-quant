@@ -11,6 +11,9 @@ from typing import Any
 
 from the_alchemiser.tracking.strategy_order_tracker import get_strategy_tracker
 
+# TODO: Phase 12 - Types available for future migration to structured performance data
+# from the_alchemiser.core.types import PerformanceMetrics, PortfolioSnapshot, StrategyPnLSummary, TradeAnalysis
+
 
 def calculate_strategy_pnl_summary(
     paper_trading: bool, current_prices: dict[str, float]
@@ -68,8 +71,12 @@ def extract_trading_summary(orders_executed: list[dict[str, Any]]) -> dict[str, 
         Dict containing trading summary statistics
     """
     total_trades = len(orders_executed)
-    buy_orders = []
-    sell_orders = []
+    buy_orders: list[dict[str, Any]] = (
+        []
+    )  # TODO: Phase 12 - Consider migrating to OrderDetails type
+    sell_orders: list[dict[str, Any]] = (
+        []
+    )  # TODO: Phase 12 - Consider migrating to OrderDetails type
 
     for order in orders_executed:
         side = order.get("side")

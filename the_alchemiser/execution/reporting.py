@@ -2,16 +2,19 @@ import logging
 from typing import Any
 
 from the_alchemiser.core.trading.strategy_manager import StrategyType
+from the_alchemiser.core.types import AccountInfo
 
 
 def create_execution_summary(
-    engine,
+    engine: Any,  # TODO: Phase 10 - Add proper TradingEngine type when available
     strategy_signals: dict[StrategyType, Any],
     consolidated_portfolio: dict[str, float],
-    orders_executed: list[dict[str, Any]],
-    account_before: dict[str, Any],
-    account_after: dict[str, Any],
-) -> dict[str, Any]:
+    orders_executed: list[
+        dict[str, Any]
+    ],  # TODO: Phase 10 - OrderDetails has different structure than expected
+    account_before: AccountInfo,
+    account_after: AccountInfo,
+) -> dict[str, Any]:  # TODO: Phase 10 - ReportingData structure needs alignment
     """Create execution summary using helper utilities."""
     from the_alchemiser.utils.portfolio_pnl_utils import (
         build_allocation_summary,
@@ -51,7 +54,9 @@ def create_execution_summary(
     }
 
 
-def save_dashboard_data(engine, execution_result):
+def save_dashboard_data(
+    engine: Any, execution_result: Any  # TODO: Phase 10 - Add proper types when available
+) -> None:
     """Save structured data for dashboard consumption to S3."""
     try:
         from the_alchemiser.core.utils.s3_utils import get_s3_handler
@@ -107,13 +112,16 @@ def build_portfolio_state_data(
 ) -> dict[str, Any]:
     """Build portfolio state data for reporting purposes."""
     from the_alchemiser.utils.account_utils import (
-        calculate_portfolio_values,
         extract_current_position_values,
     )
     from the_alchemiser.utils.trading_math import calculate_allocation_discrepancy
 
     portfolio_value = account_info.get("portfolio_value", 0.0)
-    target_values = calculate_portfolio_values(target_portfolio, account_info)
+
+    # Calculate target values (simple implementation)
+    target_values = {
+        symbol: weight * portfolio_value for symbol, weight in target_portfolio.items()
+    }
     current_values = extract_current_position_values(current_positions)
 
     allocations = {}

@@ -15,7 +15,7 @@ class PositionManager:
     Handles position management operations including validation and liquidation.
     """
 
-    def __init__(self, trading_client, data_provider):
+    def __init__(self, trading_client: Any, data_provider: Any) -> None:
         """Initialize with trading client and data provider."""
         self.trading_client = trading_client
         self.data_provider = data_provider

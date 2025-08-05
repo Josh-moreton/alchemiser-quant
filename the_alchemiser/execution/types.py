@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from the_alchemiser.core.trading.strategy_manager import StrategyType
+from the_alchemiser.core.types import AccountInfo, OrderDetails, StrategySignal
 
 
 @dataclass
@@ -22,10 +23,10 @@ class MultiStrategyExecutionResult:
     """
 
     success: bool
-    strategy_signals: dict[StrategyType, Any]
+    strategy_signals: dict[StrategyType, StrategySignal]
     consolidated_portfolio: dict[str, float]
-    orders_executed: list[dict[str, Any]]
-    account_info_before: dict[str, Any]
-    account_info_after: dict[str, Any]
-    execution_summary: dict[str, Any]
+    orders_executed: list[OrderDetails]
+    account_info_before: AccountInfo
+    account_info_after: AccountInfo
+    execution_summary: dict[str, Any]  # Keep as Any for now, will define specific type later
     final_portfolio_state: dict[str, Any] | None = None

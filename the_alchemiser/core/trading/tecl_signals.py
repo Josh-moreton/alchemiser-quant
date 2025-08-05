@@ -17,6 +17,7 @@ while pure strategy logic resides in tecl_strategy_engine.py.
 # Standard library imports
 import logging
 import warnings
+from typing import Any
 
 # Third-party imports
 # Local imports
@@ -44,7 +45,7 @@ warnings.filterwarnings("ignore")
 class TECLStrategyEngine:
     """TECL Strategy Engine - Orchestrates data, indicators, and strategy logic"""
 
-    def __init__(self, data_provider=None):
+    def __init__(self, data_provider=None) -> None:
         if data_provider is None:
             raise ValueError("data_provider is required for TECLStrategyEngine")
         self.data_provider = data_provider
@@ -61,7 +62,7 @@ class TECLStrategyEngine:
         # All symbols needed for TECL strategy
         self.all_symbols = self.market_symbols + self.tecl_symbols + self.tech_symbols
 
-    def get_market_data(self):
+    def get_market_data(self) -> dict[str, Any]:
         """Fetch data for all symbols"""
         market_data = {}
         for symbol in self.all_symbols:
@@ -100,11 +101,11 @@ class TECLStrategyEngine:
 class TECLSignalGenerator:
     """TECL Signal Generator"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.strategy = TECLStrategyEngine()
         self.load_config()
 
-    def load_config(self):
+    def load_config(self) -> None:
         """Load configuration"""
         self.config = load_alert_config()
 
@@ -154,7 +155,7 @@ class TECLSignalGenerator:
 
         log_alert_to_file(alert)
 
-    def run_once(self):
+    def run_once(self) -> None:
         """Run analysis once"""
         alerts = self.run_analysis()
 
@@ -202,7 +203,7 @@ class TECLSignalGenerator:
                 logging.info(f"Backing off for {backoff_time} seconds...")
                 time.sleep(backoff_time)
 
-    def get_current_portfolio_allocation(self):
+    def get_current_portfolio_allocation(self) -> dict[str, float]:
         """Get current TECL portfolio allocation for display purposes"""
         # Get market data and indicators
         market_data = self.strategy.get_market_data()

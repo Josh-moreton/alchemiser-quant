@@ -13,13 +13,14 @@ import json
 import logging
 from typing import Any
 
+from the_alchemiser.core.types import LambdaEvent
 from the_alchemiser.main import main
 
 # Set up logging
 logger = logging.getLogger(__name__)
 
 
-def parse_event_mode(event: dict[str, Any]) -> list[str]:
+def parse_event_mode(event: LambdaEvent) -> list[str]:
     """Parse the Lambda event to determine which trading mode to execute.
 
     Args:
@@ -81,7 +82,7 @@ def parse_event_mode(event: dict[str, Any]) -> list[str]:
     return args
 
 
-def lambda_handler(event=None, context=None):
+def lambda_handler(event: LambdaEvent | None = None, context: Any = None) -> dict[str, Any]:
     """AWS Lambda function handler for The Alchemiser trading system.
 
     This function serves as the entry point when the trading system is deployed
@@ -89,9 +90,9 @@ def lambda_handler(event=None, context=None):
     event configuration and returns detailed status information.
 
     Args:
-        event (dict, optional): AWS Lambda event data containing mode configuration.
+        event: AWS Lambda event data containing mode configuration.
             See parse_event_mode() for expected structure.
-        context (LambdaContext, optional): AWS Lambda runtime context object
+        context: AWS Lambda runtime context object
             containing information about the Lambda function execution environment.
 
     Returns:
