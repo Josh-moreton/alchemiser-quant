@@ -28,6 +28,9 @@ from the_alchemiser.core.config import load_settings
 from the_alchemiser.core.trading.strategy_manager import StrategyType
 from the_alchemiser.core.utils.s3_utils import get_s3_handler
 
+# TODO: Add these imports once data structures match:
+# from ..core.types import OrderHistoryData, EmailSummary
+
 
 @dataclass
 class StrategyOrder:
@@ -484,7 +487,9 @@ class StrategyOrderTracker:
         except Exception as e:
             logging.error(f"Error persisting order: {e}")
 
-    def _apply_order_history_limit(self, data: dict[str, Any]) -> None:
+    def _apply_order_history_limit(
+        self, data: dict[str, Any]
+    ) -> None:  # TODO: Change to OrderHistoryData once data structure matches
         """Limit the number of orders kept in history."""
         if len(data["orders"]) > self.order_history_limit:
             data["orders"] = data["orders"][-self.order_history_limit :]
@@ -522,12 +527,12 @@ class StrategyOrderTracker:
 
     def get_summary_for_email(
         self, current_prices: dict[str, float] | None = None
-    ) -> dict[str, Any]:
+    ) -> dict[str, Any]:  # TODO: Change to EmailSummary once data structure matches
         """Get summary data suitable for email reporting."""
         try:
             all_pnl = self.get_all_strategy_pnl(current_prices)
 
-            summary: dict[str, Any] = {
+            summary: dict[str, Any] = {  # TODO: Change to EmailSummary once data structure matches
                 "total_portfolio_pnl": sum(pnl.total_pnl for pnl in all_pnl.values()),
                 "total_realized_pnl": sum(pnl.realized_pnl for pnl in all_pnl.values()),
                 "total_unrealized_pnl": sum(pnl.unrealized_pnl for pnl in all_pnl.values()),

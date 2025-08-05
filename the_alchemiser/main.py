@@ -30,6 +30,10 @@ import sys
 from datetime import datetime
 from typing import Any
 
+# TODO: Add these imports once types are fully implemented:
+# from .core.types import StrategySignal
+# from .core.trading.strategy_manager import MultiStrategyManager, StrategyType
+
 # Optional rich import - only for CLI usage
 try:
     # Check if rich is available
@@ -67,7 +71,11 @@ def configure_application_logging():
         )
 
 
-def generate_multi_strategy_signals(settings: Settings) -> tuple[Any, ...]:
+def generate_multi_strategy_signals(
+    settings: Settings,
+) -> tuple[
+    Any, dict[Any, Any], dict[str, float]
+]:  # TODO: Change to tuple[MultiStrategyManager, dict[StrategyType, StrategySignal], dict[str, float]] once imports added
     """Generate signals for all strategies and return consolidated results.
 
     Creates a shared data provider and multi-strategy manager to generate signals

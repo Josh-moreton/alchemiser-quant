@@ -19,6 +19,9 @@ from typing import Any
 from the_alchemiser.core.trading.strategy_manager import StrategyType
 from the_alchemiser.tracking.strategy_order_tracker import get_strategy_tracker
 
+# TODO: Add these imports once data structures match:
+# from ..core.types import StrategyPnLSummary, OrderDetails, AlpacaOrderProtocol
+
 
 class StrategyExecutionContext:
     """Context manager to track which strategy is currently executing orders."""
@@ -135,13 +138,17 @@ class StrategyTrackingMixin:
 
     def get_strategy_pnl_summary(
         self, current_prices: dict[str, float] | None = None
-    ) -> dict[str, Any]:
+    ) -> dict[str, Any]:  # TODO: Change to StrategyPnLSummary once data structure matches
         """Get P&L summary for all strategies."""
         return self._strategy_tracker.get_summary_for_email(current_prices)
 
 
 # Helper function to extract order details from Alpaca order objects
-def extract_order_details_from_alpaca_order(order) -> dict[str, Any]:
+def extract_order_details_from_alpaca_order(
+    order,
+) -> dict[
+    str, Any
+]:  # TODO: Change to AlpacaOrderProtocol -> OrderDetails once data structure matches
     """Extract order details from Alpaca order object for tracking."""
     try:
         # Handle both order response objects and order status objects

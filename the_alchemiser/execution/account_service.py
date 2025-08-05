@@ -3,11 +3,14 @@ from typing import Any, Protocol
 
 from the_alchemiser.utils.account_utils import extract_comprehensive_account_data
 
+# TODO: Add imports for types once they are used:
+# from ..core.types import AccountInfo, PositionsDict, PositionInfo
+
 
 class DataProvider(Protocol):
     """Protocol defining the data provider interface needed by AccountService."""
 
-    def get_positions(self) -> list[Any]:
+    def get_positions(self) -> Any:  # TODO: Use proper typing once Alpaca types are available
         """Get all positions."""
         ...
 
@@ -30,7 +33,9 @@ class AccountService:
         # Pre-import the utility function to avoid runtime imports
         self._extract_account_data = extract_comprehensive_account_data
 
-    def get_account_info(self) -> dict[str, Any]:
+    def get_account_info(
+        self,
+    ) -> dict[str, Any]:  # TODO: Change to AccountInfo once data structure matches
         """
         Return comprehensive account info.
 
@@ -38,7 +43,9 @@ class AccountService:
         """
         return self._extract_account_data(self._data_provider)
 
-    def get_positions_dict(self) -> dict[str, dict[str, Any]]:
+    def get_positions_dict(
+        self,
+    ) -> dict[str, dict[str, Any]]:  # TODO: Change to PositionsDict once data structure matches
         """
         Return current positions keyed by symbol.
 
@@ -46,7 +53,9 @@ class AccountService:
         for easier lookup and manipulation.
         """
         positions = self._data_provider.get_positions()
-        position_dict: dict[str, dict[str, Any]] = {}
+        position_dict: dict[str, dict[str, Any]] = (
+            {}
+        )  # TODO: Change to dict[str, PositionInfo] once data structure matches
 
         if not positions:
             return position_dict

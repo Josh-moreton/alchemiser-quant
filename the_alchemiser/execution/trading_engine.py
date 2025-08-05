@@ -19,11 +19,13 @@ import logging
 from datetime import datetime
 from typing import Any, Protocol
 
-# Core strategy and portfolio management
 from the_alchemiser.core.trading.strategy_manager import (
     MultiStrategyManager,
     StrategyType,
 )
+
+# TODO: Add imports for types once they are used:
+# from ..core.types import AccountInfo, PositionsDict, OrderDetails, ExecutionResult, StrategyPnLSummary
 from the_alchemiser.execution.portfolio_rebalancer import PortfolioRebalancer
 
 from .account_service import AccountService
@@ -38,7 +40,9 @@ from .types import MultiStrategyExecutionResult
 class AccountInfoProvider(Protocol):
     """Protocol for account information retrieval."""
 
-    def get_account_info(self) -> dict[str, Any]:
+    def get_account_info(
+        self,
+    ) -> dict[str, Any]:  # TODO: Change to AccountInfo once data structure matches
         """Get comprehensive account information."""
         ...
 
@@ -46,7 +50,9 @@ class AccountInfoProvider(Protocol):
 class PositionProvider(Protocol):
     """Protocol for position data retrieval."""
 
-    def get_positions_dict(self) -> dict[str, dict[str, Any]]:
+    def get_positions_dict(
+        self,
+    ) -> dict[str, dict[str, Any]]:  # TODO: Change to PositionsDict once data structure matches
         """Get current positions keyed by symbol."""
         ...
 
@@ -70,7 +76,7 @@ class RebalancingService(Protocol):
         self,
         target_portfolio: dict[str, float],
         strategy_attribution: dict[str, list[StrategyType]] | None = None,
-    ) -> list[dict[str, Any]]:
+    ) -> list[dict[str, Any]]:  # TODO: Change to list[OrderDetails] once implementation updated
         """Rebalance portfolio to target allocation."""
         ...
 
@@ -173,7 +179,9 @@ class TradingEngine:
         logging.info(f"TradingEngine initialized - Paper Trading: {self.paper_trading}")
 
     # --- Account and Position Methods ---
-    def get_account_info(self) -> dict[str, Any]:
+    def get_account_info(
+        self,
+    ) -> dict[str, Any]:  # TODO: Change to AccountInfo once data structure matches
         """Get comprehensive account information including P&L data.
 
         Retrieves detailed account information including portfolio value, equity,
@@ -359,7 +367,7 @@ class TradingEngine:
         self,
         target_portfolio: dict[str, float],
         strategy_attribution: dict[str, list[StrategyType]] | None = None,
-    ) -> list[dict[str, Any]]:
+    ) -> list[dict[str, Any]]:  # TODO: Change to list[OrderDetails] once implementation updated
         """Rebalance portfolio to target allocation with engine-level orchestration.
 
         Args:
@@ -536,7 +544,9 @@ class TradingEngine:
         except Exception as e:
             logging.error(f"Failed to archive daily strategy P&L: {e}")
 
-    def get_multi_strategy_performance_report(self) -> dict[str, Any]:
+    def get_multi_strategy_performance_report(
+        self,
+    ) -> dict[str, Any]:  # TODO: Change to StrategyPnLSummary once implementation updated
         """Generate comprehensive performance report for all strategies"""
         try:
             current_positions = self.get_positions()
@@ -556,9 +566,9 @@ class TradingEngine:
     def _build_portfolio_state_data(
         self,
         target_portfolio: dict[str, float],
-        account_info: dict[str, Any],
-        current_positions: dict[str, Any],
-    ) -> dict[str, Any]:
+        account_info: dict[str, Any],  # TODO: Change to AccountInfo once structure matches
+        current_positions: dict[str, Any],  # TODO: Change to PositionsDict once structure matches
+    ) -> dict[str, Any]:  # TODO: Change to ExecutionResult once structure matches
         """Build portfolio state data for reporting purposes."""
         return build_portfolio_state_data(target_portfolio, account_info, current_positions)
 
