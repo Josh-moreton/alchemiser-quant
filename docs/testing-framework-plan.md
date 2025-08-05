@@ -1,7 +1,9 @@
 # Comprehensive Testing Framework Plan
 
 ## Overview
+
 Based on the P0 failure mode analysis, we need a multi-layered testing strategy that covers:
+
 - **Unit Tests**: Core logic, calculations, edge cases
 - **Integration Tests**: API interactions, data flows, state management
 - **Contract Tests**: Broker API compatibility, schema validation
@@ -14,6 +16,7 @@ Based on the P0 failure mode analysis, we need a multi-layered testing strategy 
 ## 1. Core Testing Infrastructure
 
 ### Test Structure
+
 ```
 tests/
 ├── unit/                     # Fast, isolated tests
@@ -21,7 +24,8 @@ tests/
 │   ├── test_trading_math.py  # Price calculations, rounding
 │   ├── test_portfolio.py     # Portfolio rebalancing logic
 │   ├── test_strategies/      # Strategy logic isolation
-│   └── test_types.py         # Type validation
+│   ├── test_types.py         # Type validation
+│   └── test_pytest_mock_integration.py # pytest-mock functionality tests
 ├── integration/              # Component interaction tests
 │   ├── test_data_pipeline.py # Data provider → indicators → signals
 │   ├── test_execution.py     # Order placement → tracking → reconciliation
@@ -39,24 +43,44 @@ tests/
 │   ├── test_market_scenarios.py # Historical replay testing
 │   ├── test_failure_modes.py    # Specific failure scenarios
 │   └── fixtures/             # Market data fixtures
-└── infrastructure/           # AWS/deployment tests
-    ├── test_lambda_deployment.py
-    ├── test_permissions.py
-    └── test_networking.py
+├── infrastructure/           # AWS/deployment tests
+│   ├── test_lambda_deployment.py
+│   ├── test_permissions.py
+│   └── test_networking.py
+├── utils/                    # Testing utilities
+│   └── mocks.py             # Comprehensive mock framework
+├── fixtures/                 # Test data fixtures
+│   └── market_data.py       # Market data generation
+└── conftest.py              # Global pytest configuration and fixtures
 ```
+
+### Testing Dependencies
+
+**Core Testing Stack:**
+
+- **pytest**: Primary testing framework
+- **pytest-mock**: Enhanced mocking capabilities (replaces unittest.mock)
+- **pytest-cov**: Test coverage reporting
+- **pytest-xdist**: Parallel test execution
+- **pytest-timeout**: Test timeout management
+- **hypothesis**: Property-based testing for edge cases
+- **numpy/pandas**: Test data generation and analysis
 
 ---
 
 ## 2. Failure Mode Mapping to Test Categories
 
 ### 2.1 Trading Logic Failures → Unit + Property Tests
+
 **Target Failures:**
+
 - Indicator miscalculation from missing data
 - Floating-point precision in crossovers
 - Tick-size and rounding errors
 - Hard-coded assumptions about instruments
 
 **Test Approach:**
+
 ```python
 # Unit Tests
 def test_rsi_calculation_with_missing_bars():
@@ -81,13 +105,16 @@ def test_price_rounding_invariants(prices, tick_size):
 ```
 
 ### 2.2 API/Broker Issues → Contract + Integration Tests
+
 **Target Failures:**
+
 - API rate limits, network timeouts
 - Authentication/session expiration
 - Order acknowledgments lost
 - Broker API schema changes
 
 **Test Approach:**
+
 ```python
 # Contract Tests
 def test_alpaca_order_response_schema():
@@ -97,10 +124,11 @@ def test_alpaca_order_response_schema():
     assert validated.id is not None
     assert validated.status in VALID_ORDER_STATUSES
 
-# Integration Tests with Mocking
-@mock.patch('alpaca_api.submit_order')
-def test_order_submission_with_rate_limit(mock_submit):
+```python
+# Integration Tests with Mocking using pytest-mock
+def test_order_submission_with_rate_limit(mocker):
     """Test exponential backoff on 429 errors"""
+    mock_submit = mocker.patch('alpaca_api.submit_order')
     mock_submit.side_effect = [RateLimitError(), success_response()]
     
     with measure_execution_time() as timer:
@@ -110,13 +138,15 @@ def test_order_submission_with_rate_limit(mock_submit):
     assert timer.elapsed > MIN_BACKOFF_TIME
     assert mock_submit.call_count == 2
 
-@mock.patch('requests.post')
-def test_network_timeout_recovery(mock_post):
-    """Test network timeout handling"""
+def test_network_timeout_recovery(mocker):
+    """Test network timeout handling with pytest-mock"""
+    mock_post = mocker.patch('requests.post')
     mock_post.side_effect = [Timeout(), success_response()]
     
     result = data_provider.get_price("AAPL")
     assert result is not None  # Should recover from timeout
+```
+
 ```
 
 ### 2.3 Data Integrity → Property + Simulation Tests
@@ -156,13 +186,16 @@ def test_s3_eventual_consistency_scenario():
 ```
 
 ### 2.4 AWS Infrastructure → Infrastructure + Contract Tests
+
 **Target Failures:**
+
 - Lambda cold starts, timeouts
 - IAM permission errors
 - EventBridge misconfiguration
 - Secrets Manager throttling
 
 **Test Approach:**
+
 ```python
 # Infrastructure Tests
 def test_lambda_cold_start_performance():
@@ -204,6 +237,7 @@ def test_eventbridge_trigger_timing():
 ## 3. Advanced Testing Strategies
 
 ### 3.1 Market Scenario Simulation
+
 ```python
 class MarketScenarioRunner:
     """Run strategies against historical market conditions"""
@@ -232,6 +266,7 @@ class MarketScenarioRunner:
 ```
 
 ### 3.2 Precision and Edge Case Testing
+
 ```python
 from hypothesis import given, strategies as st
 from decimal import Decimal
@@ -256,6 +291,7 @@ def test_portfolio_allocation_precision(portfolio_value, allocation_pcts):
 ```
 
 ### 3.3 Chaos Engineering for Resilience
+
 ```python
 class ChaosTestSuite:
     """Inject controlled failures to test resilience"""
@@ -288,6 +324,7 @@ class ChaosTestSuite:
 ## 4. Test Data Management
 
 ### 4.1 Fixture Strategy
+
 ```python
 # tests/fixtures/market_data.py
 @pytest.fixture
@@ -314,54 +351,60 @@ def missing_data_scenario():
 ```
 
 ### 4.2 Mock Strategy
+
 ```python
-# Comprehensive mocking for external dependencies
+# Comprehensive mocking using pytest-mock for external dependencies
 class TestingMockSuite:
     
-    @contextmanager
-    def mock_broker_api(self, responses=None):
-        """Mock all broker interactions"""
-        with mock.patch('alpaca.trading.TradingClient') as mock_client:
-            mock_client.return_value.submit_order.side_effect = responses or [success_order()]
-            mock_client.return_value.get_account.return_value = test_account()
-            yield mock_client
+    def mock_broker_api(self, mocker, responses=None):
+        """Mock all broker interactions using pytest-mock"""
+        mock_client = mocker.patch('alpaca.trading.TradingClient')
+        mock_client.return_value.submit_order.side_effect = responses or [success_order()]
+        mock_client.return_value.get_account.return_value = test_account()
+        return mock_client
     
-    @contextmanager  
-    def mock_aws_services(self):
-        """Mock S3, Secrets Manager, CloudWatch"""
-        with mock.patch('boto3.client') as mock_boto:
-            mock_s3 = create_mock_s3()
-            mock_secrets = create_mock_secrets()
-            mock_boto.side_effect = lambda service: {
-                's3': mock_s3,
-                'secretsmanager': mock_secrets
-            }[service]
-            yield mock_boto
+    def mock_aws_services(self, mocker):
+        """Mock S3, Secrets Manager, CloudWatch using pytest-mock"""
+        mock_s3 = mocker.Mock()
+        mock_secrets = mocker.Mock()
+        
+        def mock_boto_client(service):
+            return {'s3': mock_s3, 'secretsmanager': mock_secrets}[service]
+            
+        mocker.patch('boto3.client', side_effect=mock_boto_client)
+        return {'s3': mock_s3, 'secretsmanager': mock_secrets}
 ```
 
 ---
 
 ## 5. Implementation Priority
 
-### Phase 1: Foundation (Week 1)
-1. **Setup pytest infrastructure** with fixtures and mocks
-2. **Unit tests for core calculations** (indicators, portfolio math)
-3. **Basic integration tests** for happy path scenarios
-4. **CI/CD integration** with GitHub Actions
+### Phase 1: Foundation (Week 1) ✅ **COMPLETED**
+
+1. **Setup pytest infrastructure** with fixtures and mocks ✅
+2. **Unit tests for core calculations** (indicators, portfolio math) ✅
+3. **pytest-mock integration** for enhanced mocking capabilities ✅
+4. **Basic integration tests** for happy path scenarios
+5. **CI/CD integration** with GitHub Actions
+
+**Status**: Infrastructure setup complete with pytest, pytest-mock, comprehensive fixtures, and 36 passing unit tests.
 
 ### Phase 2: Coverage Expansion (Week 2)  
+
 1. **Property-based testing** for edge cases
 2. **Contract tests** for Alpaca API
 3. **Error handling tests** for all failure modes
 4. **Performance benchmarks**
 
 ### Phase 3: Advanced Testing (Week 3)
+
 1. **Market scenario simulation** framework
 2. **Chaos engineering** suite
 3. **Infrastructure testing** with LocalStack
 4. **Security testing** for secrets/permissions
 
 ### Phase 4: Continuous Validation (Week 4)
+
 1. **Regression test suite** for production issues
 2. **Monitoring/alerting** integration tests
 3. **Documentation** and test maintenance processes

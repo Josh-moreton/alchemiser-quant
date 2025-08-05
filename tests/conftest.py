@@ -2,7 +2,7 @@
 Global test configuration and fixtures for The Alchemiser testing framework.
 
 This module provides shared pytest fixtures, configuration, and utilities
-used across all test categories.
+used across all test categories. Uses pytest-mock for enhanced mocking capabilities.
 """
 
 import os
@@ -12,11 +12,13 @@ from contextlib import contextmanager
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
-from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pandas as pd
 import pytest
+
+# pytest-mock is available as a fixture automatically when installed
+# No need to import MockerFixture explicitly
 
 # Add project root to path for imports
 project_root = Path(__file__).parent.parent
@@ -36,9 +38,45 @@ def test_data_dir(project_root_path: Path) -> Path:
 
 
 @pytest.fixture
-def sample_portfolio_value() -> Decimal:
-    """Standard portfolio value for testing."""
-    return Decimal("100000.00")
+def sample_portfolio_value():
+    """Provides sample portfolio value for testing."""
+    return Decimal("1000.00")
+
+
+@pytest.fixture
+def normal_market_conditions():
+    """Mock market data for normal trading conditions."""
+    return {
+        "AAPL": {
+            "price": Decimal("150.00"),
+            "volume": 1000000,
+            "timestamp": "2024-01-01T10:00:00Z",
+            "bid": Decimal("149.95"),
+            "ask": Decimal("150.05"),
+        },
+        "TSLA": {
+            "price": Decimal("200.00"),
+            "volume": 800000,
+            "timestamp": "2024-01-01T10:00:00Z",
+            "bid": Decimal("199.90"),
+            "ask": Decimal("200.10"),
+        },
+    }
+
+
+@pytest.fixture
+def missing_data_scenario():
+    """Mock scenario with missing market data."""
+    return {
+        "AAPL": {
+            "price": None,
+            "volume": 0,
+            "timestamp": "2024-01-01T10:00:00Z",
+            "bid": None,
+            "ask": None,
+            "error": "Data not available",
+        }
+    }
 
 
 @pytest.fixture
@@ -74,49 +112,115 @@ def setup_test_environment(mock_env_vars: dict[str, str]) -> Generator[None, Non
         os.environ.update(original_env)
 
 
-@contextmanager
-def mock_broker_api(responses: list | None = None):
-    """Mock all broker API interactions."""
-    from unittest.mock import Mock
+@pytest.fixture
+def mock_alpaca_client(mocker):
+    """Pytest fixture for mocking Alpaca trading client."""
+    mock_client = mocker.Mock()
+    mock_client.submit_order.return_value = mocker.Mock(id="test_order_123", status="ACCEPTED")
+    mock_client.get_account.return_value = mocker.Mock(
+        buying_power=Decimal("50000.00"), portfolio_value=Decimal("100000.00")
+    )
+    mock_client.get_positions.return_value = []
+    mock_client.get_bars.return_value = []
+    mock_client.get_latest_quote.return_value = mocker.Mock(bid=150.0, ask=150.01)
 
-    mock_client = Mock()
-    mock_client.submit_order.return_value = Mock(id="test_order_123", status="ACCEPTED")
-    mock_client.get_account.return_value = Mock(
+    mocker.patch("alpaca.trading.TradingClient", return_value=mock_client)
+    return mock_client
+
+
+@pytest.fixture
+def mock_aws_clients(mocker):
+    """Pytest fixture for mocking AWS service clients."""
+    # S3 Mock
+    mock_s3 = mocker.Mock()
+    mock_s3.put_object.return_value = {"ETag": "test_etag"}
+    mock_s3.get_object.return_value = {"Body": mocker.Mock(), "ContentLength": 1024}
+    mock_s3.head_object.return_value = {"ContentLength": 1024}
+
+    # Secrets Manager Mock
+    mock_secrets = mocker.Mock()
+    mock_secrets.get_secret_value.return_value = {
+        "SecretString": '{"api_key": "test_key", "secret_key": "test_secret"}'
+    }
+
+    # CloudWatch Mock
+    mock_cloudwatch = mocker.Mock()
+    mock_cloudwatch.put_metric_data.return_value = {}
+
+    service_mocks = {
+        "s3": mock_s3,
+        "secretsmanager": mock_secrets,
+        "cloudwatch": mock_cloudwatch,
+    }
+
+    def get_service(service_name: str, **kwargs) -> Any:
+        return service_mocks.get(service_name)
+
+    mocker.patch("boto3.client", side_effect=get_service)
+    return service_mocks
+
+
+@pytest.fixture
+def mock_environment_variables(mocker):
+    """Pytest fixture for mocking environment variables."""
+    env_vars = {
+        "AWS_REGION": "us-east-1",
+        "ALPACA_API_KEY": "test_key",
+        "ALPACA_SECRET_KEY": "test_secret",
+        "S3_BUCKET": "test-alchemiser-bucket",
+        "TELEGRAM_BOT_TOKEN": "test_token",
+    }
+
+    for key, value in env_vars.items():
+        mocker.patch.dict("os.environ", {key: value})
+
+    return env_vars
+
+
+# Legacy context managers for backward compatibility
+@contextmanager
+def mock_broker_api(mocker, responses: list[Any] | None = None):
+    """Mock all broker API interactions using pytest-mock."""
+    mock_client = mocker.Mock()
+    mock_client.submit_order.return_value = mocker.Mock(id="test_order_123", status="ACCEPTED")
+    mock_client.get_account.return_value = mocker.Mock(
         buying_power=Decimal("50000.00"), portfolio_value=Decimal("100000.00")
     )
     mock_client.get_positions.return_value = []
 
-    with patch("alpaca.trading.TradingClient", return_value=mock_client):
-        yield mock_client
+    mocker.patch("alpaca.trading.TradingClient", return_value=mock_client)
+    yield mock_client
 
 
 @contextmanager
-def mock_aws_services():
-    """Mock all AWS service interactions."""
-    with patch("boto3.client") as mock_boto:
-        # S3 Mock
-        mock_s3 = MagicMock()
-        mock_s3.put_object.return_value = {"ETag": "test_etag"}
-        mock_s3.get_object.return_value = {"Body": MagicMock(), "ContentLength": 1024}
+def mock_aws_services(mocker):
+    """Mock all AWS service interactions using pytest-mock."""
+    # S3 Mock
+    mock_s3 = mocker.Mock()
+    mock_s3.put_object.return_value = {"ETag": "test_etag"}
+    mock_s3.get_object.return_value = {"Body": mocker.Mock(), "ContentLength": 1024}
 
-        # Secrets Manager Mock
-        mock_secrets = MagicMock()
-        mock_secrets.get_secret_value.return_value = {
-            "SecretString": '{"api_key": "test_key", "secret_key": "test_secret"}'
-        }
+    # Secrets Manager Mock
+    mock_secrets = mocker.Mock()
+    mock_secrets.get_secret_value.return_value = {
+        "SecretString": '{"api_key": "test_key", "secret_key": "test_secret"}'
+    }
 
-        # CloudWatch Mock
-        mock_cloudwatch = MagicMock()
-        mock_cloudwatch.put_metric_data.return_value = {}
+    # CloudWatch Mock
+    mock_cloudwatch = mocker.Mock()
+    mock_cloudwatch.put_metric_data.return_value = {}
 
-        service_mocks = {
-            "s3": mock_s3,
-            "secretsmanager": mock_secrets,
-            "cloudwatch": mock_cloudwatch,
-        }
+    service_mocks = {
+        "s3": mock_s3,
+        "secretsmanager": mock_secrets,
+        "cloudwatch": mock_cloudwatch,
+    }
 
-        mock_boto.side_effect = lambda service_name, **kwargs: service_mocks.get(service_name)
-        yield service_mocks
+    def get_service(service_name: str) -> Any:
+        return service_mocks.get(service_name)
+
+    mocker.patch("boto3.client", side_effect=get_service)
+    yield service_mocks
 
 
 def create_sample_price_data(
@@ -128,7 +232,7 @@ def create_sample_price_data(
     """Create sample price data for testing."""
     date_range = pd.date_range(start=start_date, end=end_date, freq=frequency)
 
-    data = []
+    data: list[dict[str, Any]] = []
     for symbol in symbols:
         # Generate realistic price movements
         base_price = 100.0  # Starting price
