@@ -76,6 +76,23 @@ class ExecutionResult(TypedDict):
     final_portfolio_state: dict[str, Any] | None
 
 
+# Phase 5: Execution Layer Types
+class TradingPlan(TypedDict):
+    symbol: str
+    action: Literal["BUY", "SELL"]
+    quantity: float
+    estimated_price: float
+    reasoning: str
+
+
+class QuoteData(TypedDict):
+    bid_price: float
+    ask_price: float
+    bid_size: float
+    ask_size: float
+    timestamp: str
+
+
 # Error Reporting Types
 class ErrorContext(TypedDict):
     timestamp: str
@@ -116,6 +133,14 @@ class AlpacaOrderProtocol(Protocol):
     filled_avg_price: str | None
     created_at: str
     updated_at: str
+
+
+class AlpacaOrderObject(Protocol):
+    """Protocol for Alpaca order objects used in monitoring."""
+
+    id: str
+    status: str
+    filled_qty: str
 
 
 # Tracking and Monitoring Types

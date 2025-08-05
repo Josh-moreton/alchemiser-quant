@@ -21,6 +21,8 @@ from alpaca.trading.client import TradingClient
 from alpaca.trading.enums import OrderSide
 
 from the_alchemiser.core.data.data_provider import UnifiedDataProvider
+
+# TODO: Phase 5 - Added for gradual migration
 from the_alchemiser.execution.alpaca_client import AlpacaClient
 
 
@@ -79,7 +81,9 @@ class DataProvider(Protocol):
         """Get current price for a symbol."""
         ...
 
-    def get_latest_quote(self, symbol: str) -> tuple[Any, ...]:
+    def get_latest_quote(
+        self, symbol: str
+    ) -> tuple[Any, ...]:  # TODO: Phase 5 - Migrate to QuoteData
         """Get latest quote for a symbol."""
         ...
 
@@ -294,7 +298,10 @@ class SmartExecution:
             return self._order_executor.place_market_order(symbol, side, qty=qty)
 
     def wait_for_settlement(
-        self, sell_orders: list[dict[str, Any]], max_wait_time: int = 60, poll_interval: float = 2.0
+        self,
+        sell_orders: list[dict[str, Any]],
+        max_wait_time: int = 60,
+        poll_interval: float = 2.0,  # TODO: Phase 5 - Migrate to list[OrderDetails]
     ) -> bool:
         """
         Wait for order settlement - delegates to SimpleOrderManager.wait_for_order_completion.
@@ -320,7 +327,9 @@ class SmartExecution:
 
         for order_id in order_ids:
             try:
-                order_obj: Any = self._order_executor.trading_client.get_order_by_id(order_id)
+                order_obj: Any = self._order_executor.trading_client.get_order_by_id(
+                    order_id
+                )  # TODO: Phase 5 - Migrate to AlpacaOrderObject
                 status = str(getattr(order_obj, "status", "unknown")).lower()
                 if "orderstatus." in status:
                     actual_status = status.split(".")[-1]

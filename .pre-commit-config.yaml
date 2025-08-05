@@ -1,0 +1,26 @@
+repos:
+  - repo: local
+    hooks:
+      - id: black
+        name: black
+        entry: bash
+        language: system
+        types: [python]
+        pass_filenames: true
+        args:
+          - -c
+          - |
+            poetry run black "$@"
+            git add "$@"  # auto-stage changes
+
+      - id: ruff
+        name: ruff
+        entry: bash
+        language: system
+        types: [python]
+        pass_filenames: true
+        args:
+          - -c
+          - |
+            poetry run ruff check --fix "$@"
+            git add "$@"  # auto-stage changes

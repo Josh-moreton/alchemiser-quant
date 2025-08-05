@@ -50,7 +50,9 @@ class PortfolioRebalancer:
         self,
         target_portfolio: dict[str, float],
         strategy_attribution: dict[str, list[StrategyType]] | None = None,
-    ) -> list[dict[str, Any]]:
+    ) -> list[
+        dict[str, Any]
+    ]:  # TODO: Phase 5 - Migrate to list[OrderDetails] once internal implementation updated
         """Rebalance portfolio following a sell-then-buy process.
 
         Steps:
@@ -62,7 +64,7 @@ class PortfolioRebalancer:
         6. Calculate buy orders and batch send
         7. Wait for settlement again and refresh final account info
         """
-        orders_executed: list[dict[str, Any]] = []
+        orders_executed: list[dict[str, Any]] = []  # TODO: Phase 5 - Migrate to list[OrderDetails]
 
         # Get current account info and positions
         account_info = self.bot.get_account_info()
@@ -88,7 +90,7 @@ class PortfolioRebalancer:
         )
 
         # --- Step 4: Build list of sells ---
-        sell_plans: list[dict[str, Any]] = []
+        sell_plans: list[dict[str, Any]] = []  # TODO: Phase 5 - Migrate to list[TradingPlan]
 
         # Check ALL current positions for liquidation needs
         for symbol, pos in current_positions.items():
@@ -230,7 +232,7 @@ class PortfolioRebalancer:
             target_portfolio, current_values, portfolio_value
         )
 
-        buy_plans: list[dict[str, Any]] = []
+        buy_plans: list[dict[str, Any]] = []  # TODO: Phase 5 - Migrate to list[TradingPlan]
         for symbol, plan_data in rebalance_plan.items():
             if not plan_data.get("needs_rebalance", False):
                 continue
