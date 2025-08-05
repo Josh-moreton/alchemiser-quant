@@ -41,7 +41,7 @@ class StrategyPosition:
         self.reason = reason
         self.timestamp = timestamp
 
-    def to_dict(self) -> dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:  # TODO: Phase 6 - Migrate to StrategyPositionData
         return {
             "strategy_type": self.strategy_type.value,
             "symbol": self.symbol,
@@ -51,7 +51,9 @@ class StrategyPosition:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "StrategyPosition":
+    def from_dict(
+        cls, data: dict[str, Any]
+    ) -> "StrategyPosition":  # TODO: Phase 6 - Migrate parameter to StrategyPositionData
         return cls(
             strategy_type=StrategyType(data["strategy_type"]),
             symbol=data["symbol"],
@@ -135,7 +137,9 @@ class MultiStrategyManager:
 
     def run_all_strategies(
         self,
-    ) -> tuple[dict[StrategyType, Any], dict[str, float], dict[str, list[StrategyType]]]:
+    ) -> tuple[
+        dict[StrategyType, Any], dict[str, float], dict[str, list[StrategyType]]
+    ]:  # TODO: Phase 6 - Migrate first dict to dict[StrategyType, StrategySignal]
         """
         Run all enabled strategies and generate consolidated portfolio allocation
 
@@ -143,7 +147,9 @@ class MultiStrategyManager:
             Tuple of (strategy_signals, consolidated_portfolio, strategy_attribution)
         """
 
-        strategy_signals: dict[StrategyType, dict[str, Any]] = {}
+        strategy_signals: dict[StrategyType, dict[str, Any]] = (
+            {}
+        )  # TODO: Phase 6 - Migrate to dict[StrategyType, StrategySignal]
         consolidated_portfolio: dict[str, float] = {}
         strategy_attribution: dict[str, list[StrategyType]] = {}
 
@@ -316,7 +322,9 @@ class MultiStrategyManager:
         logging.debug(f"Strategy attribution: {strategy_attribution}")
         return strategy_signals, consolidated_portfolio, strategy_attribution
 
-    def _get_nuclear_portfolio_allocation(self, signal_data: dict[str, Any]) -> dict[str, float]:
+    def _get_nuclear_portfolio_allocation(
+        self, signal_data: dict[str, Any]
+    ) -> dict[str, float]:  # TODO: Phase 6 - Migrate parameter to StrategySignal
         """Extract portfolio allocation from Nuclear strategy signal"""
         indicators = signal_data.get("indicators", {})
         market_data = signal_data.get("market_data", {})
@@ -452,12 +460,16 @@ class MultiStrategyManager:
         except Exception as e:
             logging.error(f"Error updating position tracking: {e}")
 
-    def get_strategy_performance_summary(self) -> dict[str, Any]:
+    def get_strategy_performance_summary(
+        self,
+    ) -> dict[str, Any]:  # TODO: Phase 6 - Migrate to StrategyPnLSummary
         """Get a summary of each strategy's recent performance and current positions"""
         # Position tracking between runs is disabled
-        positions: dict[StrategyType, list[Any]] = {strategy: [] for strategy in StrategyType}
+        positions: dict[StrategyType, list[Any]] = {
+            strategy: [] for strategy in StrategyType
+        }  # TODO: Phase 6 - Migrate to list[StrategyPositionData]
 
-        summary: dict[str, Any] = {
+        summary: dict[str, Any] = {  # TODO: Phase 6 - Migrate to StrategyPnLSummary
             "timestamp": datetime.now().isoformat(),
             "strategy_allocations": {k.value: v for k, v in self.strategy_allocations.items()},
             "strategies": {},

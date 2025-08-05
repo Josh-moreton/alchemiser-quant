@@ -67,6 +67,21 @@ class StrategyPnLSummary(TypedDict):
     positions_count: int
 
 
+# Phase 6: Strategy Layer Types
+class StrategyPositionData(TypedDict):
+    symbol: str
+    quantity: float
+    entry_price: float
+    current_price: float
+    strategy_type: str
+
+
+class KLMVariantResult(TypedDict):
+    variant: Any  # BaseKLMVariant - using Any to avoid circular import
+    signal: StrategySignal
+    confidence: float
+
+
 # Trading Execution Types
 class ExecutionResult(TypedDict):
     orders_executed: list[OrderDetails]

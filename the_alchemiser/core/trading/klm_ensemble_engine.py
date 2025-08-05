@@ -15,6 +15,7 @@ from typing import Any
 import pandas as pd
 
 from the_alchemiser.core.indicators.indicators import TechnicalIndicators
+from the_alchemiser.core.types import StrategySignal, KLMVariantResult  # TODO: Phase 6 - Added for gradual migration
 from the_alchemiser.core.utils.common import ActionType
 from the_alchemiser.utils.indicator_utils import safe_get_indicator
 from the_alchemiser.utils.math_utils import (
@@ -177,7 +178,7 @@ class KLMStrategyEnsemble:
 
     def evaluate_all_variants(
         self, indicators: dict[str, dict[str, float]], market_data: dict[str, pd.DataFrame]
-    ) -> list[tuple[BaseKLMVariant, Any, float]]:
+    ) -> list[tuple[BaseKLMVariant, Any, float]]:  # TODO: Phase 6 - Migrate to list[KLMVariantResult]
         """
         Evaluate all strategy variants and return results with performance metrics.
 
@@ -210,8 +211,8 @@ class KLMStrategyEnsemble:
         return results
 
     def select_best_variant(
-        self, variant_results: list[tuple[BaseKLMVariant, Any, float]]
-    ) -> tuple[Any, BaseKLMVariant]:
+        self, variant_results: list[tuple[BaseKLMVariant, Any, float]]  # TODO: Phase 6 - Migrate to list[KLMVariantResult]
+    ) -> tuple[Any, BaseKLMVariant]:  # TODO: Phase 6 - Migrate to tuple[StrategySignal, BaseKLMVariant]
         """
         Select the top-performing variant based on performance metric.
 
@@ -282,7 +283,7 @@ class KLMStrategyEnsemble:
         symbol_or_allocation: str | dict[str, float],
         action: str,
         basic_reason: str,
-        all_variant_results: list[tuple[BaseKLMVariant, Any, float]],
+        all_variant_results: list[tuple[BaseKLMVariant, Any, float]],  # TODO: Phase 6 - Migrate to list[KLMVariantResult]
     ) -> str:
         """Build detailed KLM analysis similar to Nuclear and TECL strategy explanations"""
 
