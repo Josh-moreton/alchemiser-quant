@@ -407,10 +407,14 @@ def render_target_vs_current_allocations(
         symbol: portfolio_value * weight for symbol, weight in target_portfolio.items()
     }
 
-    current_values = {
-        symbol: float(getattr(pos, "market_value", 0.0))
-        for symbol, pos in current_positions.items()
-    }
+    current_values = {}
+    for symbol, pos in current_positions.items():
+        # Handle both dict and object position formats
+        if isinstance(pos, dict):
+            market_value = float(pos.get("market_value", 0.0))
+        else:
+            market_value = float(getattr(pos, "market_value", 0.0))
+        current_values[symbol] = market_value
 
     # Create enhanced comparison table
     table = Table(title="Portfolio Rebalancing Summary", show_lines=True, expand=True, box=None)

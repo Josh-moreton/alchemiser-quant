@@ -130,7 +130,11 @@ class PortfolioRebalancer:
 
             # Force liquidation if symbol not in target portfolio (regardless of rebalance plan)
             if symbol not in target_portfolio:
-                qty = float(getattr(pos, "qty", 0))
+                # Handle both dict and object position formats for qty
+                if isinstance(pos, dict):
+                    qty = float(pos.get("qty", 0))
+                else:
+                    qty = float(getattr(pos, "qty", 0))
                 if abs(qty) > 0:  # Check for any position (positive or negative)
                     from rich.console import Console
 
@@ -176,7 +180,13 @@ class PortfolioRebalancer:
             if not needs_rebalance:
                 continue
 
-            if target_value <= 0 and float(getattr(pos, "qty", 0)) > 0:
+            # Handle both dict and object position formats for qty check
+            if isinstance(pos, dict):
+                position_qty = float(pos.get("qty", 0))
+            else:
+                position_qty = float(getattr(pos, "qty", 0))
+
+            if target_value <= 0 and position_qty > 0:
                 # Target is 0, liquidate the entire position using Alpaca API
                 from rich.console import Console
 
@@ -184,7 +194,7 @@ class PortfolioRebalancer:
                 order_id = self.order_manager.liquidate_position(symbol)
                 if order_id:
                     # Estimate value for tracking purposes
-                    qty = float(getattr(pos, "qty", 0))
+                    qty = position_qty  # Use the already calculated position_qty
                     price = self.bot.get_current_price(symbol)
                     estimated_value = abs(qty) * price if price > 0 else 0
 
@@ -216,7 +226,13 @@ class PortfolioRebalancer:
                 price = self.bot.get_current_price(symbol)
                 diff_value = current_value - target_value
                 if price > 0:
-                    qty = min(int(diff_value / price * 1e6) / 1e6, float(getattr(pos, "qty", 0)))
+                    # Handle both dict and object position formats for qty
+                    if isinstance(pos, dict):
+                        position_qty = float(pos.get("qty", 0))
+                    else:
+                        position_qty = float(getattr(pos, "qty", 0))
+
+                    qty = min(int(diff_value / price * 1e6) / 1e6, position_qty)
                     if qty > 0:
                         sell_plans.append({"symbol": symbol, "qty": qty, "est": qty * price})
 
