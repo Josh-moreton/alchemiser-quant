@@ -120,7 +120,7 @@ Automatic email alerts include:
 - Project managed with Poetry and a single `pyproject.toml`.
 - Strict typing checked by `mypy` with `disallow_untyped_defs`.
 - Configuration and domain models defined with Pydantic.
-- Code style enforced by `black` (line length 100) and linted by `flake8`.
+- Code style enforced by `black` (line length 100) and linted by `ruff`.
 - Tests run with `pytest`; `make test` executes the suite.
 - Protocols and dataclasses enable clean dependency injection.
 - Rich and Typer keep command‑line interfaces concise and user friendly.
@@ -491,7 +491,7 @@ def lambda_handler(event, context):
 ```bash
 make dev        # install with dev dependencies
 make format     # run black
-make lint       # run flake8
+make lint       # run ruff
 make test       # run pytest
 alchemiser bot  # show current strategy signals
 alchemiser trade --live  # live trading
