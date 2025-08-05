@@ -39,7 +39,7 @@ class TestDataToSignalFlow:
 
         # Instead of mocking non-existent modules, test the calculation logic directly
         # This represents the actual pipeline without external dependencies
-        
+
         # Process data through pipeline
         symbols = ["AAPL", "TSLA"]
         pipeline_results = {}
