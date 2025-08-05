@@ -119,7 +119,7 @@ def create_strategy_aware_order_callback(original_order_function):
 class StrategyTrackingMixin:
     """Mixin class to add strategy tracking to trading components."""
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self._strategy_tracker = get_strategy_tracker()
 

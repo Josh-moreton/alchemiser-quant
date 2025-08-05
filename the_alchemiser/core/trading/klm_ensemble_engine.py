@@ -50,7 +50,7 @@ class KLMStrategyEnsemble:
     4. Returns the best strategy's recommendation
     """
 
-    def __init__(self, data_provider=None):
+    def __init__(self, data_provider=None) -> None:
         if data_provider is None:
             raise ValueError("data_provider is required for KLMStrategyEnsemble")
 
@@ -413,7 +413,7 @@ class KLMStrategyEnsemble:
         """
 
 
-def main():
+def main() -> None:
     """Test the KLM ensemble"""
     print("🧪 KLM Strategy Ensemble Test")
     print("=" * 50)

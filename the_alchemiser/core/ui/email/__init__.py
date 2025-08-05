@@ -30,6 +30,8 @@ Usage:
 """
 
 # Import main functions for backward compatibility
+from typing import Any
+
 from .client import EmailClient, send_email_notification
 from .config import get_email_config, is_neutral_mode_enabled
 from .templates import (

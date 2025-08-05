@@ -6,6 +6,7 @@ This module handles error notification email template generation.
 # TODO: Phase 14 - Import error handler types when ready
 # from the_alchemiser.core.types import ErrorNotificationData
 
+
 from .base import BaseEmailTemplate
 
 

@@ -25,6 +25,7 @@ Key Symbols:
 
 import logging
 import warnings
+from typing import Any
 
 from the_alchemiser.core.indicators.indicators import TechnicalIndicators
 from the_alchemiser.core.utils.common import ActionType
@@ -36,7 +37,7 @@ warnings.filterwarnings("ignore")
 class TECLStrategyEngine:
     """TECL Strategy Engine - Long-term technology leverage with volatility protection"""
 
-    def __init__(self, data_provider=None):
+    def __init__(self, data_provider=None) -> None:
         if data_provider is None:
             raise ValueError("data_provider is required for TECLStrategyEngine")
         self.data_provider = data_provider
@@ -60,7 +61,7 @@ class TECLStrategyEngine:
 
         logging.debug("TECLStrategyEngine initialized")
 
-    def get_market_data(self):
+    def get_market_data(self) -> dict[str, Any]:
         """Fetch data for all symbols"""
         market_data = {}
         for symbol in self.all_symbols:
@@ -348,7 +349,7 @@ class TECLStrategyEngine:
         """
 
 
-def main():
+def main() -> None:
     """Test the TECL strategy engine"""
 
     print("🚀 TECL Strategy Engine Test")

@@ -6,6 +6,7 @@ This module provides intelligent pricing strategies based on market conditions,
 bid/ask spreads, and order aggressiveness settings.
 """
 
+
 import logging
 
 from alpaca.trading.enums import OrderSide
@@ -16,7 +17,7 @@ class SmartPricingHandler:
     Handles intelligent price calculation for limit orders.
     """
 
-    def __init__(self, data_provider):
+    def __init__(self, data_provider) -> None:
         """Initialize with data provider for market data."""
         self.data_provider = data_provider
 

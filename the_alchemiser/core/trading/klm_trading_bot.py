@@ -17,6 +17,7 @@ using the KLM ensemble approach for multi-variant strategy selection.
 import datetime as dt
 import logging
 import warnings
+from typing import Any
 
 # Third-party imports
 import pandas as pd
@@ -35,7 +36,7 @@ warnings.filterwarnings("ignore")
 class KLMStrategyEngine:
     """KLM Strategy Engine - Orchestrates data, indicators, and strategy logic"""
 
-    def __init__(self, data_provider=None):
+    def __init__(self, data_provider=None) -> None:
         if data_provider is None:
             raise ValueError("data_provider is required for KLMStrategyEngine")
         self.data_provider = data_provider
@@ -62,7 +63,7 @@ class KLMStrategyEngine:
             + self.bear_symbols
         )
 
-    def get_market_data(self):
+    def get_market_data(self) -> dict[str, Any]:
         """Fetch data for all symbols"""
         market_data = {}
         for symbol in self.all_symbols:
@@ -117,7 +118,7 @@ class KLMStrategyEngine:
 class KLMTradingBot:
     """KLM Quantitative Trading Engine"""
 
-    def __init__(self, data_provider=None):
+    def __init__(self, data_provider=None) -> None:
         if data_provider is None:
             data_provider = UnifiedDataProvider(paper_trading=True)
 
@@ -188,7 +189,7 @@ class KLMTradingBot:
         logging.info(f"Analysis complete: {action} {symbol} - {reason}")
         return alerts
 
-    def run_once(self):
+    def run_once(self) -> None:
         """Run analysis once"""
         try:
             logging.info("🧪 Starting KLM Energy Strategy Analysis")
@@ -250,7 +251,7 @@ class KLMTradingBot:
             return None
 
 
-def main():
+def main() -> None:
     """Test the KLM trading system"""
 
     print("🧪 KLM Quantitative Trading Engine Test")

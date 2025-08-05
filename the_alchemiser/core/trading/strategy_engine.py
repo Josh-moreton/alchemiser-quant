@@ -24,7 +24,7 @@ from the_alchemiser.core.utils.common import ActionType
 class NuclearStrategyEngine:
     """Pure Nuclear Strategy Logic - No data fetching or execution"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         # Nuclear energy stocks (the core of this strategy)
         self.nuclear_symbols = ["SMR", "BWXT", "LEU", "EXC", "NLR", "OKLO"]
         self.weighting_mode = "equal"  # Default to equal weighting (matches Composer logic)
@@ -291,7 +291,7 @@ class NuclearStrategyEngine:
 
 
 class BullMarketStrategy:
-    def __init__(self, nuclear_strategy_engine):
+    def __init__(self, nuclear_strategy_engine) -> None:
         self.nuclear_strategy_engine = nuclear_strategy_engine
 
     def recommend(self, indicators, market_data=None):
@@ -324,7 +324,7 @@ class BullMarketStrategy:
 
 
 class BearMarketStrategy:
-    def __init__(self, nuclear_strategy_engine):
+    def __init__(self, nuclear_strategy_engine) -> None:
         self.nuclear_strategy_engine = nuclear_strategy_engine
 
     def recommend(self, indicators):

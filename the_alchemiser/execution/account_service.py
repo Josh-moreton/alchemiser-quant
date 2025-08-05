@@ -28,7 +28,7 @@ class AccountService:
     capabilities with business logic.
     """
 
-    def __init__(self, data_provider: DataProvider):
+    def __init__(self, data_provider: DataProvider) -> None:
         self._data_provider = data_provider
         # Pre-import the utility function to avoid runtime imports
         self._extract_account_data = extract_comprehensive_account_data

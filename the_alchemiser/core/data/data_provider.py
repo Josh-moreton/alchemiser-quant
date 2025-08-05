@@ -393,7 +393,7 @@ class UnifiedDataProvider:
             logging.error(f"Error fetching historical data for {symbol} from {start} to {end}: {e}")
             return []
 
-    def get_account_info(self):
+    def get_account_info(self) -> dict[str, Any]:
         """Get account information."""
         try:
             return self.trading_client.get_account()
@@ -401,7 +401,7 @@ class UnifiedDataProvider:
             logging.error(f"Error fetching account info: {e}")
             return None
 
-    def get_positions(self):
+    def get_positions(self) -> list[dict[str, Any]]:
         """Get all positions."""
         try:
             return self.trading_client.get_all_positions()
@@ -409,12 +409,12 @@ class UnifiedDataProvider:
             logging.error(f"Error fetching positions: {e}")
             return []
 
-    def clear_cache(self):
+    def clear_cache(self) -> None:
         """Clear the data cache."""
         self.cache.clear()
         logging.debug("Data cache cleared")
 
-    def get_cache_stats(self):
+    def get_cache_stats(self) -> dict[str, Any]:
         """Get cache statistics."""
         return {
             "cache_size": len(self.cache),
@@ -450,7 +450,7 @@ class UnifiedDataProvider:
             logging.error(f"Error fetching portfolio history: {e}")
             return {}
 
-    def get_open_positions(self):
+    def get_open_positions(self) -> list[dict[str, Any]]:
         """
         Get all open positions (for open P&L, market value, etc).
         Returns: list of position dicts.

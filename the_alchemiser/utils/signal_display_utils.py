@@ -6,6 +6,8 @@ This module provides helper functions for displaying and logging signal results
 that are common across different strategy signal generators.
 """
 
+from typing import Any
+
 from the_alchemiser.core.logging.logging_utils import get_logger, log_trade_event
 
 

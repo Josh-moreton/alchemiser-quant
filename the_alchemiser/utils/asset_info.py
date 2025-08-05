@@ -6,6 +6,7 @@ Handles asset-specific information like fractionability, ETF types, and trading 
 This helps optimize order placement strategies for different asset types.
 """
 
+
 import logging
 from enum import Enum
 
@@ -37,7 +38,7 @@ class FractionabilityDetector:
     fractionability information with intelligent caching and fallbacks.
     """
 
-    def __init__(self, trading_client: TradingClient | None = None):
+    def __init__(self, trading_client: TradingClient | None = None) -> None:
         """
         Initialize with optional trading client for API access.
 

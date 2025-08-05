@@ -10,6 +10,7 @@ This variant is DIFFERENT from others in several key ways:
 This is the "Nova" experimental variant with individual stock selection.
 """
 
+
 import pandas as pd
 
 from the_alchemiser.core.utils.common import ActionType
@@ -27,7 +28,7 @@ class KLMVariantNova(BaseKLMVariant):
     - Stock selection: FNGO, TSLA, MSFT, AAPL, NVDA, GOOGL, AMZN
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(
             name="Nova", description="Nerfed 2900/8 (373) - Nova - Short BT with individual stocks"
         )

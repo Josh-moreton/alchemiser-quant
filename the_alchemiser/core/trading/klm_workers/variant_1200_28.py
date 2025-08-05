@@ -23,7 +23,7 @@ class KlmVariant120028(BaseKLMVariant):
     Key difference: KMLM Switcher uses select-bottom 1 from TECL/SOXL/SVIX (not FNGU)
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(
             name="1200/28", description="KMLM (43) - Standard pattern with TECL/SOXL/SVIX switcher"
         )

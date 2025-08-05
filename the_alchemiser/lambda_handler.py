@@ -11,6 +11,7 @@ modes based on the event payload.
 
 import json
 import logging
+from typing import Any
 
 from the_alchemiser.core.types import LambdaEvent
 from the_alchemiser.main import main
@@ -81,7 +82,7 @@ def parse_event_mode(event: LambdaEvent) -> list[str]:
     return args
 
 
-def lambda_handler(event: LambdaEvent | None = None, context=None):
+def lambda_handler(event: LambdaEvent | None = None, context: Any = None) -> dict[str, Any]:
     """AWS Lambda function handler for The Alchemiser trading system.
 
     This function serves as the entry point when the trading system is deployed

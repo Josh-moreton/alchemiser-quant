@@ -86,7 +86,7 @@ class TechnicalIndicators:
         return rsi
 
     @staticmethod
-    def moving_average(data, window):
+    def moving_average(data: pd.Series, window: int) -> pd.Series:
         """Calculate simple moving average.
 
         Computes the Simple Moving Average (SMA) over a specified window.
@@ -116,7 +116,7 @@ class TechnicalIndicators:
         return data.rolling(window=window, min_periods=window).mean()
 
     @staticmethod
-    def moving_average_return(data, window):
+    def moving_average_return(data: pd.Series, window: int) -> pd.Series:
         """Calculate rolling average of percentage returns.
 
         Computes the moving average of percentage returns over a specified
@@ -150,7 +150,7 @@ class TechnicalIndicators:
             return pd.Series([0] * len(data), index=data.index)
 
     @staticmethod
-    def cumulative_return(data, window):
+    def cumulative_return(data: pd.Series, window: int) -> pd.Series:
         """Calculate cumulative return over a specified period.
 
         Computes the total return from 'window' periods ago to the current

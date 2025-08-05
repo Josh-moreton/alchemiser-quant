@@ -494,7 +494,7 @@ class MultiStrategyManager:
         return summary
 
 
-def main():
+def main() -> None:
     """Test the multi-strategy manager"""
     import pprint
 

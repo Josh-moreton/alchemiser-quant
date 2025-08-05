@@ -30,7 +30,7 @@ class KlmVariant128026(BaseKLMVariant):
     - L/S Rotator uses SQQQ/TLT with select-top 1
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(
             name="1280/26", description="KMLM (50) - Direct to Combined Pop Bot variant"
         )

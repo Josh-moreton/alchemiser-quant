@@ -106,7 +106,9 @@ class SmartExecution:
     and separation of concerns.
     """
 
-    def __init__(self, trading_client, data_provider, ignore_market_hours=False, config=None):
+    def __init__(
+        self, trading_client, data_provider, ignore_market_hours=False, config=None
+    ) -> None:
         """Initialize with order executor dependency injection."""
 
         self.config = config or {}

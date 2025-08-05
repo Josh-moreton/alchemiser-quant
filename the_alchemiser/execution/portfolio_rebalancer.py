@@ -14,7 +14,7 @@ from ..utils.trading_math import calculate_rebalance_amounts
 class PortfolioRebalancer:
     """Encapsulate portfolio rebalancing workflow."""
 
-    def __init__(self, bot):
+    def __init__(self, bot) -> None:
         """Initialize with parent trading system."""
         self.bot = bot
         self.order_manager = bot.order_manager

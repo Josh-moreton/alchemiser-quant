@@ -48,7 +48,7 @@ from the_alchemiser.core.logging.logging_utils import get_logger, setup_logging
 from the_alchemiser.core.trading.strategy_manager import StrategyType
 
 
-def configure_application_logging():
+def configure_application_logging() -> None:
     """Configure centralized logging for the application."""
 
     # Check if we're in production (AWS Lambda or similar)

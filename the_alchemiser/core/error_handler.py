@@ -78,7 +78,7 @@ class ErrorDetails:
 class TradingSystemErrorHandler:
     """Enhanced error handler for autonomous trading operations."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.errors: list[ErrorDetails] = []
         self.logger = logging.getLogger(__name__)
 

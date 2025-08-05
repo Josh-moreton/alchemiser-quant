@@ -2,6 +2,7 @@ import datetime as dt
 import json
 import logging
 import re
+from typing import Any
 
 from the_alchemiser.core.config import load_settings
 
@@ -9,14 +10,14 @@ from the_alchemiser.core.config import load_settings
 class Alert:
     """Simple alert class for trading signals."""
 
-    def __init__(self, symbol, action, reason, timestamp, price):
+    def __init__(self, symbol, action, reason, timestamp, price) -> None:
         self.symbol = symbol
         self.action = action
         self.reason = reason
         self.timestamp = timestamp
         self.price = price
 
-    def to_dict(self):
+    def to_dict(self) -> dict[str, Any]:
         return {
             "symbol": self.symbol,
             "action": self.action,

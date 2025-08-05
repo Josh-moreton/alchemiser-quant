@@ -25,7 +25,7 @@ class KlmVariant83021(BaseKLMVariant):
     - Bond Check: BND MA(20) determines KMLM/SPLV vs TLT/LABD/TZA selection
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(
             name="830/21", description="MonkeyBusiness Simons variant V2 - Enhanced with Bond Check"
         )

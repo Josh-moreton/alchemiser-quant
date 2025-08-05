@@ -6,6 +6,7 @@ This module provides WebSocket-based order completion monitoring for faster
 order settlement detection compared to polling-based approaches.
 """
 
+
 import logging
 import threading
 import time
@@ -20,7 +21,7 @@ class OrderCompletionMonitor:
     Provides both streaming and polling methods with automatic fallback.
     """
 
-    def __init__(self, trading_client, api_key=None, secret_key=None):
+    def __init__(self, trading_client, api_key=None, secret_key=None) -> None:
         """Initialize with trading client and optional API credentials."""
         self.trading_client = trading_client
         self.api_key = api_key

@@ -127,19 +127,19 @@ warn_unreachable = true
 strict_equality = true
 extra_checks = true  # Updated from strict_concatenate
 
-# Type checking strictness - gradually enable these
+# Type checking strictness - Phase 16c: Progressive enablement
 disallow_any_generics = true
 disallow_subclassing_any = true
-disallow_untyped_calls = false  # TODO: Phase 15 - Enable after fixing all calls
-disallow_untyped_defs = false   # TODO: Phase 15 - Enable after adding all type annotations  
+disallow_untyped_calls = true   # Phase 16c Step 2 - ENABLED: Calls to untyped functions
+disallow_untyped_defs = true    # Phase 16c Step 1 - ENABLED: Function definitions must have types
 disallow_incomplete_defs = true
 check_untyped_defs = true
-disallow_untyped_decorators = false  # TODO: Phase 15 - Enable after decorator typing
+disallow_untyped_decorators = true   # Phase 16c Step 4 - ENABLED: Decorators must have types
 no_implicit_optional = true
 no_implicit_reexport = true
 
-# Import handling - gradually reduce ignored imports
-ignore_missing_imports = true  # TODO: Phase 15 - Remove after adding type stubs
+# Import handling - Phase 16c Step 4: Gradually reduce ignored imports  
+ignore_missing_imports = true  # Phase 16c Step 4 - Keep enabled until type stubs available
 
 # Error output
 show_error_codes = true

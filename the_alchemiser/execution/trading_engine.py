@@ -857,7 +857,7 @@ class TradingEngine:
         )
 
 
-def main():
+def main() -> None:
     """Test TradingEngine multi-strategy execution"""
     from rich.console import Console
 

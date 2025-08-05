@@ -39,7 +39,7 @@ class KlmVariant53018(BaseKLMVariant):
     This is NOT a simple variant - it's a completely different strategy architecture.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(
             name="530/18", description="KMLM Switcher | Anansi Mods - Complete Scale-In Strategy"
         )

@@ -21,7 +21,7 @@ class LimitOrderHandler:
     Handles limit order placement with smart asset-specific logic.
     """
 
-    def __init__(self, trading_client, position_manager, asset_handler):
+    def __init__(self, trading_client, position_manager, asset_handler) -> None:
         """Initialize with required dependencies."""
         self.trading_client = trading_client
         self.position_manager = position_manager

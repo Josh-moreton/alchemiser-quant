@@ -4,6 +4,7 @@ AWS Secrets Manager Integration
 Handles retrieving secrets from AWS Secrets Manager for the Quantitative Trading System
 """
 
+
 import json
 import logging
 import os
@@ -21,7 +22,7 @@ except ImportError:
 class SecretsManager:
     """Handles retrieving secrets from AWS Secrets Manager"""
 
-    def __init__(self, region_name: str | None = None):
+    def __init__(self, region_name: str | None = None) -> None:
         """
         Initialize the Secrets Manager client
 

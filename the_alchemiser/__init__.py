@@ -1,3 +1,5 @@
+from typing import Any
+
 """The Alchemiser Quantitative Trading System Package.
 
 A sophisticated multi-strategy quantitative trading system for automated portfolio management using

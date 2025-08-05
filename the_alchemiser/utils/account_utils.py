@@ -10,7 +10,7 @@ import logging
 from typing import Any
 
 
-def extract_comprehensive_account_data(data_provider) -> dict[str, Any]:
+def extract_comprehensive_account_data(data_provider: Any) -> dict[str, Any]:
     """
     Extract comprehensive account information from a data provider.
 

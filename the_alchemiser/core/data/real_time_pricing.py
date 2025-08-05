@@ -70,7 +70,7 @@ class RealTimePricingService:
     active trading symbols.
     """
 
-    def __init__(self, api_key: str, secret_key: str, paper_trading: bool = True):
+    def __init__(self, api_key: str, secret_key: str, paper_trading: bool = True) -> None:
         """
         Initialize real-time pricing service.
 
@@ -588,7 +588,7 @@ class RealTimePricingManager:
     existing trading systems while maintaining backward compatibility.
     """
 
-    def __init__(self, api_key: str, secret_key: str, paper_trading: bool = True):
+    def __init__(self, api_key: str, secret_key: str, paper_trading: bool = True) -> None:
         """
         Initialize real-time pricing manager.
 

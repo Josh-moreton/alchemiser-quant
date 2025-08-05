@@ -24,7 +24,7 @@ class BaseKLMVariant(ABC):
     Common functionality like filter operations and allocation logic is shared.
     """
 
-    def __init__(self, name: str, description: str):
+    def __init__(self, name: str, description: str) -> None:
         self.name = name
         self.description = description
         self.performance_history: list[float] = []
@@ -352,7 +352,7 @@ class BaseKLMVariant(ABC):
         recent_performance = self.performance_history[-window:]
         return float(np.std(recent_performance)) if recent_performance else 0.0
 
-    def update_performance(self, return_value: float):
+    def update_performance(self, return_value: float) -> None:
         """Update performance history for ensemble selection"""
         self.performance_history.append(return_value)
         # Keep only last 100 values to prevent memory bloat

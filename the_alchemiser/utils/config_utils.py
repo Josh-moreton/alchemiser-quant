@@ -7,9 +7,10 @@ This module provides helper functions for configuration loading operations.
 import json
 import logging
 import os
+from typing import Any
 
 
-def load_alert_config():
+def load_alert_config() -> dict[str, Any]:
     """
     Load alert configuration from S3 or local file with fallback to default values.
 

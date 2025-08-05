@@ -15,6 +15,8 @@ Usage:
 
 # Import the specialized builders
 # Import content builders for advanced usage
+from typing import Any
+
 from .base import BaseEmailTemplate
 from .error_report import ErrorReportBuilder
 from .multi_strategy import MultiStrategyReportBuilder
