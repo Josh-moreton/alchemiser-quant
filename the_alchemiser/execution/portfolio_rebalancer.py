@@ -173,6 +173,8 @@ class PortfolioRebalancer:
                             "created_at": "",
                             "updated_at": "",
                         }
+                        # Add estimated_value dynamically for display purposes
+                        order_details["estimated_value"] = estimated_value  # type: ignore
                         orders_executed.append(order_details)
                     continue
 
@@ -221,6 +223,8 @@ class PortfolioRebalancer:
                         "created_at": "",
                         "updated_at": "",
                     }
+                    # Add estimated_value dynamically for display purposes
+                    order_details["estimated_value"] = estimated_value  # type: ignore
                     orders_executed.append(order_details)
             elif current_value > target_value:
                 price = self.bot.get_current_price(symbol)
@@ -268,6 +272,8 @@ class PortfolioRebalancer:
                     "created_at": "",
                     "updated_at": "",
                 }
+                # Add estimated_value dynamically for display purposes
+                order_details["estimated_value"] = plan.get("est", 0.0)  # type: ignore
                 orders_executed.append(order_details)
 
         # Wait for all sell orders (liquidations + partial sells) to settle
@@ -440,6 +446,8 @@ class PortfolioRebalancer:
                     "created_at": "",
                     "updated_at": "",
                 }
+                # Add estimated_value dynamically for display purposes
+                order_details["estimated_value"] = target_dollar_amount  # type: ignore
                 orders_executed.append(order_details)
 
                 # Wait for this individual order to settle before moving to the next
