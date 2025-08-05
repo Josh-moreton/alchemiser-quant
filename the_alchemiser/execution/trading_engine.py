@@ -19,6 +19,8 @@ import logging
 from datetime import datetime
 from typing import Any, Protocol
 
+from alpaca.trading.enums import OrderSide  # TODO: Phase 15 - Added for type safety
+
 from the_alchemiser.core.trading.strategy_manager import (
     MultiStrategyManager,
     StrategyType,
@@ -112,8 +114,8 @@ class TradingEngine:
         paper_trading: bool = True,
         strategy_allocations: dict[StrategyType, float] | None = None,
         ignore_market_hours: bool = False,
-        config=None,
-    ):
+        config: Any = None,  # TODO: Phase 15 - Add proper config type
+    ) -> None:
         """Initialize the TradingEngine.
 
         Args:
@@ -339,7 +341,7 @@ class TradingEngine:
         self,
         symbol: str,
         qty: float,
-        side,
+        side: OrderSide,  # TODO: Phase 15 - Now using proper Alpaca enum
         max_retries: int = 3,
         poll_timeout: int = 30,
         poll_interval: float = 2.0,
@@ -574,7 +576,7 @@ class TradingEngine:
 
     def _trigger_post_trade_validation(
         self, strategy_signals: dict[StrategyType, Any], orders_executed: list[dict[str, Any]]
-    ):
+    ) -> None:  # TODO: Phase 15 - Added return type annotation
         """
         Trigger post-trade technical indicator validation for live trading
         Args:
@@ -670,7 +672,9 @@ class TradingEngine:
 
         return target_values, current_values
 
-    def display_multi_strategy_summary(self, execution_result: MultiStrategyExecutionResult):
+    def display_multi_strategy_summary(
+        self, execution_result: MultiStrategyExecutionResult
+    ) -> None:  # TODO: Phase 15 - Added return type
         """
         Display a summary of multi-strategy execution results using Rich
         Args:

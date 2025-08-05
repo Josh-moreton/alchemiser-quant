@@ -237,14 +237,18 @@ class OrderCompletionMonitor:
             and self._websocket_stream is not None
             and self._websocket_thread is not None
         ):
-            return self._use_existing_websocket(on_update, remaining, completed, max_wait_seconds)  # type: ignore[no-any-return]
+            return self._use_existing_websocket(
+                on_update, remaining, completed, max_wait_seconds
+            )  # TODO: Phase 7 - Return type updated to WebSocketResult
 
         # Create new WebSocket connection
-        return self._create_new_websocket(  # type: ignore[no-any-return]
+        return self._create_new_websocket(  # TODO: Phase 7 - Return type updated to WebSocketResult
             on_update, remaining, completed, max_wait_seconds, order_ids
         )
 
-    def _use_existing_websocket(self, on_update, remaining, completed, max_wait_seconds):
+    def _use_existing_websocket(
+        self, on_update, remaining, completed, max_wait_seconds
+    ):  # TODO: Phase 7 - Migrate to return WebSocketResult
         """Use pre-connected WebSocket stream."""
         logging.info("🎯 Using pre-connected WebSocket stream")
 
@@ -278,7 +282,9 @@ class OrderCompletionMonitor:
                 list(remaining) + list(completed.keys()), max_wait_seconds
             )
 
-    def _create_new_websocket(self, on_update, remaining, completed, max_wait_seconds, order_ids):
+    def _create_new_websocket(
+        self, on_update, remaining, completed, max_wait_seconds, order_ids
+    ):  # TODO: Phase 7 - Migrate to return WebSocketResult
         """Create new WebSocket connection."""
         api_key = self.api_key or getattr(self.trading_client, "_api_key", None)
         secret_key = self.secret_key or getattr(self.trading_client, "_secret_key", None)

@@ -16,6 +16,9 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.prompt import Confirm
 from rich.text import Text
 
+# TODO: Phase 13 - Import CLI types when ready
+# from the_alchemiser.core.types import CLIOptions, CLICommandResult, CLISignalData
+
 # Initialize Typer app and Rich console
 app = typer.Typer(
     name="alchemiser",
@@ -26,7 +29,7 @@ app = typer.Typer(
 console = Console()
 
 
-def show_welcome():
+def show_welcome() -> None:  # TODO: Phase 13 - Add proper return type annotation
     """Display a beautiful welcome message"""
     welcome_text = Text()
     welcome_text.append(" The Alchemiser Quantitative Trading System\n", style="bold cyan")
@@ -47,7 +50,7 @@ def show_welcome():
 def signal(
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable verbose output"),
     no_header: bool = typer.Option(False, "--no-header", help="Skip welcome header"),
-):
+) -> None:  # TODO: Phase 13 - Return CLICommandResult
     """
     🎯 [bold cyan]Generate and display strategy signals[/bold cyan] (analysis only, no trading)
 
@@ -98,7 +101,7 @@ def trade(
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable verbose output"),
     no_header: bool = typer.Option(False, "--no-header", help="Skip welcome header"),
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompts"),
-):
+) -> None:  # TODO: Phase 13 - Return CLICommandResult
     """
     💰 [bold green]Execute multi-strategy trading[/bold green]
 
@@ -163,7 +166,7 @@ def trade(
 @app.command()
 def status(
     live: bool = typer.Option(False, "--live", help="🚨 Show LIVE account status (real account)"),
-):
+) -> None:  # TODO: Phase 13 - Return CLIAccountDisplay
     """
     📈 [bold blue]Show account status and positions[/bold blue]
 
@@ -215,7 +218,7 @@ def status(
 
 
 @app.command()
-def deploy():
+def deploy() -> None:  # TODO: Phase 13 - Return CLICommandResult
     """
     🚀 [bold cyan]Deploy to AWS Lambda[/bold cyan]
 
@@ -253,7 +256,7 @@ def deploy():
 
 
 @app.command()
-def version():
+def version() -> None:  # TODO: Phase 13 - Add proper typing
     """
     ℹ️  [bold]Show version information[/bold]
     """
@@ -275,7 +278,7 @@ def validate_indicators(
     verbose_validation: bool = typer.Option(
         False, "--verbose-validation", help="Enable verbose validation logging"
     ),
-):
+) -> None:  # TODO: Phase 13 - Return CLICommandResult
     """
     🔬 [bold blue]Validate technical indicators against TwelveData API[/bold blue]
 
@@ -320,6 +323,7 @@ def validate_indicators(
         validator = IndicatorValidationSuite(api_key, console)
 
         # Determine symbols to test
+        symbols_list: list[str]  # TODO: Phase 13 - Proper typing for symbol list
         if symbols:
             symbols_list = [s.strip().upper() for s in symbols.split(",")]
         else:
@@ -371,7 +375,7 @@ def main(
     ctx: typer.Context,
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable verbose output"),
     quiet: bool = typer.Option(False, "--quiet", "-q", help="Suppress non-essential output"),
-):
+) -> None:  # TODO: Phase 13 - Accept CLIOptions parameter
     """
     [bold]The Alchemiser - Advanced Multi-Strategy Quantitative Trading System[/bold]
 

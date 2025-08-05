@@ -36,6 +36,9 @@ from alpaca.data.enums import DataFeed
 from alpaca.data.live import StockDataStream
 from alpaca.data.models import Quote, Trade
 
+# TODO: Phase 11 - Types available for future migration to structured pricing data
+# from the_alchemiser.core.types import PriceData, QuoteData
+
 
 @dataclass
 class RealTimeQuote:

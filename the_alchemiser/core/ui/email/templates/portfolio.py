@@ -8,12 +8,17 @@ from typing import Any
 
 from .base import BaseEmailTemplate
 
+# TODO: Phase 10 - Types available for future migration to structured types
+# from the_alchemiser.core.types import AccountInfo, ExecutionResult, PositionInfo
+
 
 class PortfolioBuilder:
     """Builds portfolio-related HTML content for emails."""
 
     @staticmethod
-    def build_positions_table(open_positions: list[dict[str, Any]]) -> str:
+    def build_positions_table(
+        open_positions: list[dict[str, Any]],
+    ) -> str:  # TODO: Phase 8 - Migrate to list[PositionInfo]
         """Build HTML table for open positions."""
         if not open_positions:
             return BaseEmailTemplate.create_alert_box("No open positions", "info")
@@ -77,8 +82,10 @@ class PortfolioBuilder:
         """
 
     @staticmethod
-    def build_account_summary(account_info: dict[str, Any]) -> str:
-        """Build HTML for account summary table."""
+    def build_account_summary(
+        account_info: dict[str, Any],
+    ) -> str:  # TODO: Phase 8 - Migrate to AccountInfo
+        """Build HTML summary of account information."""
         if not account_info:
             return BaseEmailTemplate.create_alert_box("Account information unavailable", "warning")
 
@@ -130,15 +137,19 @@ class PortfolioBuilder:
         """
 
     @staticmethod
-    def build_portfolio_allocation(result: Any) -> str:
-        """Build portfolio allocation display showing final actual positions."""
+    def build_portfolio_allocation(
+        result: Any,
+    ) -> str:  # TODO: Phase 8 - Migrate to ExecutionResult
+        """Build HTML display of portfolio allocation from execution result."""
         try:
             # Try to get actual final portfolio state first
             if hasattr(result, "final_portfolio_state") and result.final_portfolio_state:
                 allocations = result.final_portfolio_state.get("allocations", {})
                 if allocations:
                     # Show actual current positions
-                    portfolio_lines = []
+                    portfolio_lines: list[str] = (
+                        []
+                    )  # TODO: Phase 10 - Added type annotation for clarity
                     for symbol, data in allocations.items():
                         current_percent = data.get("current_percent", 0)
                         if current_percent > 0.1:  # Only show positions > 0.1%
@@ -163,8 +174,10 @@ class PortfolioBuilder:
             return f"<span style='color: #EF4444;'>Error loading portfolio: {str(e)}</span>"
 
     @staticmethod
-    def build_closed_positions_pnl(account_info: dict[str, Any]) -> str:
-        """Build HTML for recent closed positions P&L section."""
+    def build_closed_positions_pnl(
+        account_info: dict[str, Any],
+    ) -> str:  # TODO: Phase 8 - Migrate to AccountInfo
+        """Build HTML display of closed positions P&L information."""
         if not account_info or not account_info.get("recent_closed_pnl"):
             return ""
 
@@ -244,8 +257,10 @@ class PortfolioBuilder:
     # ====== NEUTRAL MODE FUNCTIONS (NO DOLLAR VALUES/PERCENTAGES) ======
 
     @staticmethod
-    def build_positions_table_neutral(open_positions: list[dict[str, Any]]) -> str:
-        """Build HTML table for open positions without dollar values or percentages."""
+    def build_positions_table_neutral(
+        open_positions: list[dict[str, Any]],
+    ) -> str:  # TODO: Phase 8 - Migrate to list[PositionInfo]
+        """Build neutral-styled HTML table for open positions."""
         if not open_positions:
             return BaseEmailTemplate.create_alert_box("No open positions", "info")
 
@@ -285,8 +300,10 @@ class PortfolioBuilder:
         """
 
     @staticmethod
-    def build_account_summary_neutral(account_info: dict[str, Any]) -> str:
-        """Build HTML for account summary without dollar values."""
+    def build_account_summary_neutral(
+        account_info: dict[str, Any],
+    ) -> str:  # TODO: Phase 8 - Migrate to AccountInfo
+        """Build neutral HTML summary of account information (no dollar amounts)."""
         if not account_info:
             return BaseEmailTemplate.create_alert_box("Account information unavailable", "warning")
 

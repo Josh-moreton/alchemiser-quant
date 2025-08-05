@@ -8,6 +8,9 @@ from typing import Any
 
 from .base import BaseEmailTemplate
 
+# TODO: Phase 12 - Types available for future migration to structured performance reports
+# from the_alchemiser.core.types import BacktestResult, PerformanceMetrics, TradeAnalysis
+
 
 class PerformanceBuilder:
     """Builds performance-related HTML content for emails."""

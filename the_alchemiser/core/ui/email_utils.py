@@ -21,6 +21,10 @@ For new code, import directly from the email module:
 This file maintains backward compatibility for existing imports.
 """
 
+from typing import Any
+
+# TODO: Phase 10 - Types available for future migration to structured types
+# from the_alchemiser.core.types import EmailReportData, AccountInfo
 # Import all functions from the new modular structure
 from .email import (
     EmailClient,
@@ -41,27 +45,37 @@ from .email.templates.signals import SignalsBuilder
 
 
 # Backward compatibility aliases for internal functions that might still be referenced
-def _build_portfolio_display(result):
+def _build_portfolio_display(
+    result: Any,
+) -> str:  # TODO: Phase 10 - Migrate to ExecutionResult type
     """Backward compatibility function."""
     return PortfolioBuilder.build_portfolio_allocation(result)
 
 
-def _build_closed_positions_pnl_email_html(account_info):
+def _build_closed_positions_pnl_email_html(
+    account_info: Any,
+) -> str:  # TODO: Phase 10 - Migrate to AccountInfo type
     """Backward compatibility function."""
     return PortfolioBuilder.build_closed_positions_pnl(account_info)
 
 
-def _build_technical_indicators_email_html(strategy_signals):
+def _build_technical_indicators_email_html(
+    strategy_signals: Any,
+) -> str:  # TODO: Phase 10 - Add proper signal types
     """Backward compatibility function."""
     return SignalsBuilder.build_technical_indicators(strategy_signals)
 
 
-def _build_detailed_strategy_signals_email_html(strategy_signals, strategy_summary):
+def _build_detailed_strategy_signals_email_html(
+    strategy_signals: Any, strategy_summary: Any
+) -> str:  # TODO: Phase 10 - Add proper types
     """Backward compatibility function."""
     return SignalsBuilder.build_detailed_strategy_signals(strategy_signals, strategy_summary)
 
 
-def _build_enhanced_trading_summary_email_html(trading_summary):
+def _build_enhanced_trading_summary_email_html(
+    trading_summary: Any,
+) -> str:  # TODO: Phase 10 - Add proper trading summary type
     """Backward compatibility function."""
     return PerformanceBuilder.build_trading_summary(trading_summary)
 

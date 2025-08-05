@@ -98,7 +98,7 @@ class LimitOrderHandler:
 
     def _prepare_limit_order(
         self, symbol: str, qty: float, side: OrderSide, limit_price: float
-    ) -> tuple[Any, ...]:
+    ) -> tuple[Any, ...]:  # TODO: Phase 7 - Migrate to LimitOrderResult
         """Prepare limit order with smart asset handling."""
         original_qty = qty
         conversion_info = None

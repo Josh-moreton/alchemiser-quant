@@ -69,7 +69,9 @@ class StrategyExecutionContext:
 
 
 @contextmanager
-def strategy_execution_context(strategy: StrategyType):
+def strategy_execution_context(
+    strategy: StrategyType,
+) -> Any:  # TODO: Phase 15 - Added return type for context manager
     """Context manager for strategy execution tracking."""
     StrategyExecutionContext.set_current_strategy(strategy)
     try:
@@ -145,10 +147,8 @@ class StrategyTrackingMixin:
 
 # Helper function to extract order details from Alpaca order objects
 def extract_order_details_from_alpaca_order(
-    order,
-) -> dict[
-    str, Any
-]:  # TODO: Change to AlpacaOrderProtocol -> OrderDetails once data structure matches
+    order: Any,  # TODO: Phase 15 - Use AlpacaOrderProtocol when ready
+) -> dict[str, Any]:  # TODO: Phase 15 - Return OrderDetails when structure matches
     """Extract order details from Alpaca order object for tracking."""
     try:
         # Handle both order response objects and order status objects
@@ -179,7 +179,9 @@ def extract_order_details_from_alpaca_order(
         return {}
 
 
-def track_alpaca_order_if_filled(order) -> None:
+def track_alpaca_order_if_filled(
+    order: Any,
+) -> None:  # TODO: Phase 15 - Use AlpacaOrderProtocol when ready
     """Track an Alpaca order if it's filled and we have strategy context."""
     try:
         # Check if order is filled
@@ -206,7 +208,9 @@ def track_alpaca_order_if_filled(order) -> None:
 
 
 # Configuration helper
-def configure_strategy_tracking_integration(trading_engine) -> None:
+def configure_strategy_tracking_integration(
+    trading_engine: Any,
+) -> None:  # TODO: Phase 15 - Use TradingEngine type when ready
     """Configure strategy tracking integration with existing trading engine."""
     try:
         # Add tracking mixin to trading engine if it doesn't already have it

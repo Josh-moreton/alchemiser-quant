@@ -13,6 +13,9 @@ from email.mime.text import MIMEText
 
 from .config import get_email_config
 
+# TODO: Phase 10 - Type available for future migration to structured config
+# from the_alchemiser.core.types import EmailCredentials
+
 
 class EmailClient:
     """SMTP email client for sending notifications."""

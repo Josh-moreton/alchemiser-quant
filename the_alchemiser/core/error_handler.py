@@ -11,6 +11,8 @@ import traceback
 from datetime import datetime
 from typing import Any
 
+# TODO: Phase 14 - Import error handler types when ready
+# from .types import ErrorDetailInfo, ErrorSummaryData, ErrorReportSummary, ErrorNotificationData
 from .exceptions import (
     AlchemiserError,
     ConfigurationError,
@@ -46,7 +48,7 @@ class ErrorDetails:
         category: str,
         context: str,
         component: str,
-        additional_data: dict[str, Any] | None = None,
+        additional_data: dict[str, Any] | None = None,  # TODO: Phase 14 - Use structured data type
         suggested_action: str | None = None,
     ):
         self.error = error
@@ -58,7 +60,7 @@ class ErrorDetails:
         self.timestamp = datetime.now()
         self.traceback = traceback.format_exc()
 
-    def to_dict(self) -> dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:  # TODO: Phase 14 - Return ErrorDetailInfo
         """Convert error details to dictionary for serialization."""
         return {
             "error_type": type(self.error).__name__,
@@ -143,7 +145,7 @@ class TradingSystemErrorHandler:
         error: Exception,
         context: str,
         component: str,
-        additional_data: dict[str, Any] | None = None,
+        additional_data: dict[str, Any] | None = None,  # TODO: Phase 14 - Use structured data type
         should_continue: bool = True,  # noqa: ARG002
     ) -> ErrorDetails:
         """Handle an error with detailed logging and categorization."""
@@ -181,7 +183,7 @@ class TradingSystemErrorHandler:
         """Check if any trading-related errors occurred."""
         return any(error.category == ErrorCategory.TRADING for error in self.errors)
 
-    def get_error_summary(self) -> dict[str, Any]:
+    def get_error_summary(self) -> dict[str, Any]:  # TODO: Phase 14 - Return ErrorReportSummary
         """Get a summary of all errors by category."""
         summary = {}
         for category in [
@@ -267,7 +269,7 @@ class TradingSystemErrorHandler:
 
         return report
 
-    def clear_errors(self):
+    def clear_errors(self) -> None:  # TODO: Phase 14 - Add proper typing
         """Clear all recorded errors."""
         self.errors.clear()
 
@@ -282,13 +284,18 @@ def get_error_handler() -> TradingSystemErrorHandler:
 
 
 def handle_trading_error(
-    error: Exception, context: str, component: str, additional_data: dict[str, Any] | None = None
+    error: Exception,
+    context: str,
+    component: str,
+    additional_data: dict[str, Any] | None = None,  # TODO: Phase 14 - Use structured data type
 ) -> ErrorDetails:
     """Convenience function to handle errors in trading operations."""
     return _error_handler.handle_error(error, context, component, additional_data)
 
 
-def send_error_notification_if_needed():
+def send_error_notification_if_needed() -> (
+    None
+):  # TODO: Phase 14 - Return ErrorNotificationData | None
     """Send error notification email if there are errors that warrant it."""
     if not _error_handler.should_send_error_email():
         return

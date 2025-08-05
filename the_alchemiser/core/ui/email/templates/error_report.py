@@ -3,6 +3,9 @@
 This module handles error notification email template generation.
 """
 
+# TODO: Phase 14 - Import error handler types when ready
+# from the_alchemiser.core.types import ErrorNotificationData
+
 from .base import BaseEmailTemplate
 
 
@@ -10,7 +13,9 @@ class ErrorReportBuilder:
     """Builds error notification email templates."""
 
     @staticmethod
-    def build_error_report(title: str, error_message: str) -> str:
+    def build_error_report(
+        title: str, error_message: str
+    ) -> str:  # TODO: Phase 14 - Accept ErrorNotificationData
         """Build an error alert email."""
 
         header = BaseEmailTemplate.get_header("The Alchemiser")

@@ -116,18 +116,74 @@ unfixable = []
 known-first-party = ["the_alchemiser"]
 
 [tool.mypy]
-python_version = "3.11"
+# Phase 15: Enhanced mypy configuration for strict typing
+python_version = "3.12"
 warn_return_any = true
 warn_unused_configs = true
 warn_redundant_casts = true
 warn_unused_ignores = true
-disallow_any_generics = true
-check_untyped_defs = true
-no_implicit_reexport = true
-disallow_untyped_defs = false  # Start gradual, will enable later
-ignore_missing_imports = true  # Start with this, gradually remove
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true
+extra_checks = true  # Updated from strict_concatenate
 
-# Per-module options
+# Type checking strictness - gradually enable these
+disallow_any_generics = true
+disallow_subclassing_any = true
+disallow_untyped_calls = false  # TODO: Phase 15 - Enable after fixing all calls
+disallow_untyped_defs = false   # TODO: Phase 15 - Enable after adding all type annotations  
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = false  # TODO: Phase 15 - Enable after decorator typing
+no_implicit_optional = true
+no_implicit_reexport = true
+
+# Import handling - gradually reduce ignored imports
+ignore_missing_imports = true  # TODO: Phase 15 - Remove after adding type stubs
+
+# Error output
+show_error_codes = true
+show_column_numbers = true
+pretty = true
+color_output = true
+
+# Performance
+incremental = true
+cache_dir = ".mypy_cache"
+
+# Per-module options for gradual migration
+[[tool.mypy.overrides]]
+module = "the_alchemiser.core.types"
+disallow_untyped_defs = true
+disallow_any_generics = true
+warn_return_any = true
+
+[[tool.mypy.overrides]]
+module = "the_alchemiser.execution.trading_engine"  
+disallow_incomplete_defs = true
+check_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = "the_alchemiser.main"
+disallow_incomplete_defs = true
+check_untyped_defs = true
+
+# Third-party library ignores - TODO: Phase 15 - Add proper type stubs
+[[tool.mypy.overrides]]
+module = [
+    "alpaca.*",
+    "boto3.*", 
+    "botocore.*",
+    "pandas.*",
+    "numpy.*",
+    "tqdm.*",
+    "telegram.*",
+    "yaml.*"
+]
+ignore_missing_imports = true
+
+# Test files - more lenient
 [[tool.mypy.overrides]]
 module = "tests.*"
 ignore_errors = true
+disallow_untyped_defs = false

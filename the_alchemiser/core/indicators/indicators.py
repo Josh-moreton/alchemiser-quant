@@ -16,6 +16,9 @@ with the trading system's data processing pipeline.
 
 import pandas as pd
 
+# TODO: Phase 11 - Type available for future structured indicator results
+# from the_alchemiser.core.types import IndicatorData
+
 
 class TechnicalIndicators:
     """Technical analysis indicators for trading strategies.
@@ -35,7 +38,9 @@ class TechnicalIndicators:
     """
 
     @staticmethod
-    def rsi(data, window=14):
+    def rsi(
+        data: pd.Series, window: int = 14
+    ) -> pd.Series:  # TODO: Phase 11 - Consider IndicatorData for structured output
         """Calculate RSI using Wilder's smoothing method.
 
         Computes the Relative Strength Index (RSI) using Wilder's smoothing

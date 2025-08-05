@@ -561,7 +561,9 @@ _strategy_tracker_paper = None
 _strategy_tracker_live = None
 
 
-def get_strategy_tracker(paper_trading=True) -> StrategyOrderTracker:
+def get_strategy_tracker(
+    paper_trading: bool = True,
+) -> StrategyOrderTracker:  # TODO: Phase 15 - Added type annotation
     """Get or create strategy order tracker instance for specified trading mode.
 
     Args:

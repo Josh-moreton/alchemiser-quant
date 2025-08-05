@@ -108,12 +108,210 @@ class QuoteData(TypedDict):
     timestamp: str
 
 
+# Phase 7: Utility Functions Types
+class LimitOrderResult(TypedDict):
+    order_request: Any | None  # LimitOrderRequest - using Any to avoid import
+    error_message: str | None
+
+
+class WebSocketResult(TypedDict):
+    status: Literal["completed", "timeout", "error"]
+    message: str
+    orders_completed: list[str]
+
+
+# Phase 9: KLM Variants Types
+class KLMDecision(TypedDict):
+    symbol: str
+    action: Literal["BUY", "SELL", "HOLD"]
+    reasoning: str
+
+
+# Phase 10: Reporting/Dashboard Types
+class ReportingData(TypedDict):
+    timestamp: str
+    portfolio_summary: dict[str, Any]
+    performance_metrics: dict[str, float]
+    recent_trades: list[OrderDetails]
+
+
+class DashboardMetrics(TypedDict):
+    total_portfolio_value: float
+    daily_pnl: float
+    daily_pnl_percentage: float
+    active_positions: int
+    cash_balance: float
+
+
+class EmailReportData(TypedDict):
+    subject: str
+    html_content: str
+    recipient: str
+    metadata: dict[str, Any]
+
+
+# Phase 11: Data Layer Types
+class MarketDataPoint(TypedDict):
+    timestamp: str
+    open: float
+    high: float
+    low: float
+    close: float
+    volume: int
+    symbol: str
+
+
+class IndicatorData(TypedDict):
+    symbol: str
+    indicator_name: str
+    value: float
+    timestamp: str
+    parameters: dict[str, Any]
+
+
+class PriceData(TypedDict):
+    symbol: str
+    price: float
+    timestamp: str
+    bid: float | None
+    ask: float | None
+    volume: int | None
+
+
+class DataProviderResult(TypedDict):
+    success: bool
+    data: dict[str, Any] | None
+    error_message: str | None
+    timestamp: str
+
+
+# Phase 12: Backtest/Performance Types
+class BacktestResult(TypedDict):
+    strategy_name: str
+    start_date: str
+    end_date: str
+    total_return: float
+    sharpe_ratio: float
+    max_drawdown: float
+    total_trades: int
+    win_rate: float
+    metadata: dict[str, Any]
+
+
+class PerformanceMetrics(TypedDict):
+    returns: list[float]
+    cumulative_return: float
+    volatility: float
+    sharpe_ratio: float
+    max_drawdown: float
+    calmar_ratio: float
+    sortino_ratio: float
+
+
+class TradeAnalysis(TypedDict):
+    symbol: str
+    entry_date: str
+    exit_date: str
+    entry_price: float
+    exit_price: float
+    quantity: float
+    pnl: float
+    return_pct: float
+    strategy: str
+
+
+class PortfolioSnapshot(TypedDict):
+    timestamp: str
+    total_value: float
+    positions: dict[str, PositionInfo]
+    cash_balance: float
+    unrealized_pnl: float
+    realized_pnl: float
+
+
 # Error Reporting Types
 class ErrorContext(TypedDict):
     timestamp: str
     component: str
     operation: str
     additional_data: dict[str, Any]
+
+
+# Phase 13: CLI Types
+class CLIOptions(TypedDict):
+    verbose: bool
+    quiet: bool
+    live: bool
+    ignore_market_hours: bool
+    force: bool
+    no_header: bool
+
+
+class CLICommandResult(TypedDict):
+    success: bool
+    message: str
+    exit_code: int
+
+
+class CLISignalData(TypedDict):
+    strategy_type: str
+    signals: dict[str, StrategySignal]
+    indicators: dict[str, dict[str, float]]
+
+
+class CLIAccountDisplay(TypedDict):
+    account_info: AccountInfo
+    positions: dict[str, PositionInfo]
+    mode: Literal["live", "paper"]
+
+
+class CLIPortfolioData(TypedDict):
+    symbol: str
+    allocation_percentage: float
+    current_value: float
+    target_value: float
+
+
+class CLIOrderDisplay(TypedDict):
+    order_details: OrderDetails
+    display_style: str
+    formatted_amount: str
+
+
+# Phase 14: Error Handler Types
+class ErrorDetailInfo(TypedDict):
+    error_type: str
+    error_message: str
+    category: str
+    context: str
+    component: str
+    timestamp: str
+    traceback: str
+    additional_data: dict[str, Any]
+    suggested_action: str | None
+
+
+class ErrorSummaryData(TypedDict):
+    count: int
+    errors: list[ErrorDetailInfo]
+
+
+class ErrorReportSummary(TypedDict):
+    critical: ErrorSummaryData | None
+    trading: ErrorSummaryData | None
+    data: ErrorSummaryData | None
+    strategy: ErrorSummaryData | None
+    configuration: ErrorSummaryData | None
+    notification: ErrorSummaryData | None
+    warning: ErrorSummaryData | None
+
+
+class ErrorNotificationData(TypedDict):
+    severity: str
+    priority: str
+    title: str
+    error_report: str
+    html_content: str
 
 
 # Email Configuration Types

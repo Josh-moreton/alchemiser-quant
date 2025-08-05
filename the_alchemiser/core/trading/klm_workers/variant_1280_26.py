@@ -13,6 +13,7 @@ This is a fundamentally different architecture from other variants.
 
 import pandas as pd
 
+from the_alchemiser.core.types import KLMDecision  # TODO: Phase 9 - Added for gradual migration
 from the_alchemiser.core.utils.common import ActionType
 
 from .base_klm_variant import BaseKLMVariant
@@ -38,7 +39,9 @@ class KlmVariant128026(BaseKLMVariant):
         self,
         indicators: dict[str, dict[str, float]],
         market_data: dict[str, pd.DataFrame] | None = None,
-    ) -> tuple[str | dict[str, float], str, str]:
+    ) -> (
+        tuple[str | dict[str, float], str, str] | KLMDecision
+    ):  # TODO: Phase 9 - Gradual migration to KLMDecision
         """
         Evaluate 1280/26 - completely different flow from 506/38
 
@@ -133,14 +136,14 @@ class KlmVariant128026(BaseKLMVariant):
                     )
                 elif candidates:
                     # Only 1 available
-                    result = (  # type: ignore[assignment]
+                    result = (  # TODO: Phase 9 - Remove type ignore after converting to KLMDecision
                         candidates[0][0],
                         ActionType.BUY.value,
                         f"1280/26 KMLM Switcher: XLK > KMLM → {candidates[0][0]} (only option)",
                     )
                 else:
                     # Fallback
-                    result = (  # type: ignore[assignment]
+                    result = (  # TODO: Phase 9 - Remove type ignore after converting to KLMDecision
                         "TECL",
                         ActionType.BUY.value,
                         "1280/26 KMLM Switcher: XLK > KMLM → TECL fallback",

@@ -113,7 +113,9 @@ def generate_multi_strategy_signals(
         raise
 
 
-def run_all_signals_display(settings: Settings | None = None):
+def run_all_signals_display(
+    settings: Settings | None = None,
+) -> bool:  # TODO: Phase 15 - Added return type annotation
     """Generate and display multi-strategy signals without executing trades.
 
     Shows comprehensive analysis including Nuclear and TECL strategy signals,
@@ -401,7 +403,9 @@ def run_multi_strategy_trading(
         return False
 
 
-def main(argv=None, settings: Settings | None = None):
+def main(
+    argv: list[str] | None = None, settings: Settings | None = None
+) -> bool:  # TODO: Phase 15 - Returns bool for success/failure
     """Main entry point for the Multi-Strategy Quantitative Trading System.
 
     Provides command-line interface for running the trading system in different modes.
