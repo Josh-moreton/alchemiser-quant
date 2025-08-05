@@ -19,7 +19,7 @@ import logging
 from datetime import datetime
 from typing import Any, Protocol
 
-from alpaca.trading.enums import OrderSide  # TODO: Phase 15 - Added for type safety
+from alpaca.trading.enums import OrderSide
 
 from the_alchemiser.core.trading.strategy_manager import (
     MultiStrategyManager,
@@ -341,7 +341,7 @@ class TradingEngine:
         self,
         symbol: str,
         qty: float,
-        side: OrderSide,  # TODO: Phase 15 - Now using proper Alpaca enum
+        side: OrderSide,
         max_retries: int = 3,
         poll_timeout: int = 30,
         poll_interval: float = 2.0,

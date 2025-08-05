@@ -71,7 +71,7 @@ class StrategyExecutionContext:
 @contextmanager
 def strategy_execution_context(
     strategy: StrategyType,
-) -> Any:  # TODO: Phase 15 - Added return type for context manager
+) -> Any:
     """Context manager for strategy execution tracking."""
     StrategyExecutionContext.set_current_strategy(strategy)
     try:
