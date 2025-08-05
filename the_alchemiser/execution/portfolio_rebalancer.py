@@ -7,7 +7,7 @@ from typing import Any
 from alpaca.trading.enums import OrderSide
 
 from ..core.trading.strategy_manager import StrategyType
-from ..core.types import OrderDetails, TradingPlan
+from ..core.types import OrderDetails
 from ..tracking.strategy_order_tracker import get_strategy_tracker
 from ..utils.trading_math import calculate_rebalance_amounts
 
@@ -117,7 +117,9 @@ class PortfolioRebalancer:
         )
 
         # --- Step 4: Build list of sells ---
-        sell_plans: list[dict[str, Any]] = []  # TODO: Phase 5 - Will refactor to TradingPlan structure later
+        sell_plans: list[dict[str, Any]] = (
+            []
+        )  # TODO: Phase 5 - Will refactor to TradingPlan structure later
 
         # Check ALL current positions for liquidation needs
         for symbol, pos in current_positions.items():
