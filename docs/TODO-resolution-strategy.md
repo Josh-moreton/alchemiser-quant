@@ -52,8 +52,8 @@ These are mypy configuration settings to enable progressively:
 ### Phase 16a: Immediate Resolution (Now)
 
 1. ✅ Core module type annotations (main.py, trading_engine.py, tracking modules)
-2. 🔄 CLI interface type annotations
-3. 🔄 Remove completed TODO comments
+2. ✅ CLI interface type annotations - completed TODO cleanup
+3. ✅ Remove completed TODO comments - 12+ cleaned up successfully
 
 ### Phase 16b: Data Structure Validation (Next)
 
@@ -72,7 +72,8 @@ These are mypy configuration settings to enable progressively:
 - ✅ Core modules (main.py, trading_engine.py, tracking) pass mypy validation
 - ✅ 45+ TypedDict definitions available
 - ✅ Comprehensive mypy configuration in place
-- 🔄 ~30 TODO comments remaining for gradual migration
+- ✅ Phase 16a completed: CLI cleanup and TODO removal (12+ TODOs cleaned)
+- 🔄 ~126 TODO comments remaining for gradual migration (down from ~138)
 
 ## Next Steps
 
