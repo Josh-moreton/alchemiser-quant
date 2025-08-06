@@ -6,11 +6,15 @@ This module provides helper functions for displaying and logging signal results
 that are common across different strategy signal generators.
 """
 
+from typing import Any
 
+from the_alchemiser.core.alerts.alert_service import Alert
 from the_alchemiser.core.logging.logging_utils import get_logger, log_trade_event
 
 
-def display_signal_results(alerts, strategy_name="Strategy", key_symbols=None):
+def display_signal_results(
+    alerts: list[Alert], strategy_name: str = "Strategy", key_symbols: list[str] | None = None
+) -> Alert | None:
     """
     Display signal results in a consistent format across different strategies.
 
@@ -78,7 +82,9 @@ def display_signal_results(alerts, strategy_name="Strategy", key_symbols=None):
     return alerts[0]  # Return first alert for compatibility
 
 
-def display_technical_indicators(strategy_instance, key_symbols=None):
+def display_technical_indicators(
+    strategy_instance: Any, key_symbols: list[str] | None = None
+) -> None:
     """
     Display technical indicators used for signal generation.
 
@@ -108,7 +114,7 @@ def display_technical_indicators(strategy_instance, key_symbols=None):
         logger.warning("Could not display technical indicators: %s", e)
 
 
-def display_portfolio_details(strategy_instance, strategy_name="Strategy"):
+def display_portfolio_details(strategy_instance: Any, strategy_name: str = "Strategy") -> None:
     """
     Display portfolio allocation details if available.
 

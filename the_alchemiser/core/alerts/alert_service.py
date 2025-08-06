@@ -17,7 +17,9 @@ from the_alchemiser.core.config import load_settings
 class Alert:
     """Container for a single strategy alert."""
 
-    def __init__(self, symbol, action, reason, timestamp, price) -> None:
+    def __init__(
+        self, symbol: str, action: str, reason: str, timestamp: dt.datetime, price: float
+    ) -> None:
         """Initialize an alert.
 
         Args:
@@ -51,7 +53,9 @@ class Alert:
 
 
 # Factory function for alert creation (can be extended for more logic)
-def create_alert(symbol, action, reason, price, timestamp=None):
+def create_alert(
+    symbol: str, action: str, reason: str, price: float, timestamp: dt.datetime | None = None
+) -> Alert:
     """Create a new :class:`Alert` instance.
 
     Args:
@@ -72,15 +76,15 @@ def create_alert(symbol, action, reason, price, timestamp=None):
 
 
 def create_alerts_from_signal(
-    symbol,
-    action,
-    reason,
-    indicators,
-    market_data,
-    data_provider,
-    ensure_scalar_price,
-    strategy_engine=None,
-):
+    symbol: str,
+    action: str,
+    reason: str,
+    indicators: dict[str, Any],
+    market_data: dict[str, Any],
+    data_provider: Any,
+    ensure_scalar_price: Any,
+    strategy_engine: Any = None,
+) -> list[Alert]:
     """
     Create Alert objects based on the signal type and portfolio logic.
     data_provider: must have get_current_price(symbol)
@@ -183,7 +187,9 @@ def create_alerts_from_signal(
         return alerts
 
 
-def log_alert_to_file(alert, log_file_path=None, paper_trading=None):
+def log_alert_to_file(
+    alert: Alert, log_file_path: str | None = None, paper_trading: bool | None = None
+) -> None:
     """Log alert to file - centralized logging logic"""
     if log_file_path is None:
         _config = load_settings()  # Configuration loaded but not used directly
@@ -224,7 +230,9 @@ def log_alert_to_file(alert, log_file_path=None, paper_trading=None):
         logging.error(f"Failed to log alert: {e}")
 
 
-def log_alerts_to_file(alerts, log_file_path=None, paper_trading=None):
+def log_alerts_to_file(
+    alerts: list[Alert], log_file_path: str | None = None, paper_trading: bool | None = None
+) -> None:
     """Log multiple alerts to file"""
     if log_file_path is None:
         _config = load_settings()  # Configuration loaded but not used directly

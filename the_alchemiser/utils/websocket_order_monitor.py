@@ -21,7 +21,9 @@ class OrderCompletionMonitor:
     Provides both streaming and polling methods with automatic fallback.
     """
 
-    def __init__(self, trading_client, api_key=None, secret_key=None) -> None:
+    def __init__(
+        self, trading_client: Any, api_key: str | None = None, secret_key: str | None = None
+    ) -> None:
         """Initialize with trading client and optional API credentials."""
         self.trading_client = trading_client
         self.api_key = api_key

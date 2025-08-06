@@ -10,26 +10,24 @@ from email import encoders
 from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from typing import Any
 
-from .config import get_email_config
+from the_alchemiser.core.types import EmailCredentials
 
-# TODO: Phase 10 - Type available for future migration to structured config
-# from the_alchemiser.core.types import EmailCredentials
+from .config import EmailConfig
 
 
 class EmailClient:
     """SMTP email client for sending notifications."""
 
     def __init__(self) -> None:
-        """Initialize the email client without loading configuration."""
+        """Initialize email client."""
+        self._config: EmailCredentials | None = None
+        self._email_config = EmailConfig()
 
-        self._config = None
-
-    def _get_config(self) -> Any:
+    def _get_config(self) -> EmailCredentials | None:
         """Get email configuration lazily."""
         if not self._config:
-            self._config = get_email_config()
+            self._config = self._email_config.get_config()
         return self._config
 
     def send_notification(
@@ -57,7 +55,11 @@ class EmailClient:
             logging.error("Email configuration not available")
             return False
 
-        smtp_server, smtp_port, from_email, email_password, default_recipient = email_config
+        smtp_server = email_config["smtp_server"]
+        smtp_port = email_config["smtp_port"]
+        from_email = email_config["email_address"]
+        email_password = email_config["email_password"]
+        default_recipient = email_config["recipient_email"]
 
         recipient = recipient_email or default_recipient
         if not recipient:

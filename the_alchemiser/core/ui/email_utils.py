@@ -80,7 +80,7 @@ def _build_enhanced_trading_summary_email_html(
     return PerformanceBuilder.build_trading_summary(trading_summary)
 
 
-def _build_enhanced_portfolio_email_html(result):
+def _build_enhanced_portfolio_email_html(result: Any) -> str:
     """Backward compatibility function."""
     return PortfolioBuilder.build_portfolio_allocation(result)
 

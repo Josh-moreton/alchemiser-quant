@@ -45,7 +45,7 @@ warnings.filterwarnings("ignore")
 class TECLStrategyEngine:
     """TECL Strategy Engine - Orchestrates data, indicators, and strategy logic"""
 
-    def __init__(self, data_provider=None) -> None:
+    def __init__(self, data_provider: Any = None) -> None:
         if data_provider is None:
             raise ValueError("data_provider is required for TECLStrategyEngine")
         self.data_provider = data_provider
@@ -73,7 +73,7 @@ class TECLStrategyEngine:
                 logging.warning(f"Could not fetch data for {symbol}")
         return market_data
 
-    def calculate_indicators(self, market_data):
+    def calculate_indicators(self, market_data: dict[str, Any]) -> dict[str, Any]:
         """Calculate all technical indicators needed for TECL strategy"""
         indicators = {}
         for symbol, df in market_data.items():
@@ -90,7 +90,9 @@ class TECLStrategyEngine:
             }
         return indicators
 
-    def evaluate_tecl_strategy(self, indicators, market_data=None):
+    def evaluate_tecl_strategy(
+        self, indicators: dict[str, Any], market_data: Any | None = None
+    ) -> tuple[str | dict[str, float], str, str]:
         """
         Evaluate the TECL strategy using the pure strategy logic.
         Returns: (recommended_symbol, action, reason)
@@ -109,22 +111,32 @@ class TECLSignalGenerator:
         """Load configuration"""
         self.config = load_alert_config()
 
-    def handle_tecl_portfolio_signal(self, symbol, action, reason, indicators, market_data=None):
+    def handle_tecl_portfolio_signal(
+        self,
+        symbol: str | dict[str, float],
+        action: str,
+        reason: str,
+        indicators: dict[str, Any],
+        market_data: dict[str, Any] | None = None,
+    ) -> list[Any]:
         """Delegate alert creation to alert_service.create_alerts_from_signal"""
         from the_alchemiser.core.alerts.alert_service import create_alerts_from_signal
 
+        # Convert dict symbol to string representation for alert service
+        symbol_str = str(symbol) if isinstance(symbol, dict) else symbol
+
         return create_alerts_from_signal(
-            symbol,
+            symbol_str,
             action,
             reason,
             indicators,
-            market_data,
+            market_data or {},
             self.strategy.data_provider,
             ensure_scalar_price,
             self.strategy,
         )
 
-    def run_analysis(self):
+    def run_analysis(self) -> list[Any] | None:
         """Run complete TECL strategy analysis"""
         logging.info("Starting TECL strategy analysis...")
 
@@ -149,13 +161,13 @@ class TECLSignalGenerator:
         logging.info(f"Analysis complete: {action} {symbol} - {reason}")
         return alerts
 
-    def log_alert(self, alert):
+    def log_alert(self, alert: Any) -> None:
         """Log alert to file - delegates to alert service"""
         from the_alchemiser.core.alerts.alert_service import log_alert_to_file
 
         log_alert_to_file(alert)
 
-    def run_once(self) -> None:
+    def run_once(self) -> Any:
         """Run analysis once"""
         alerts = self.run_analysis()
 
@@ -165,7 +177,7 @@ class TECLSignalGenerator:
             display_technical_indicators,
         )
 
-        result = display_signal_results(alerts, "TECL", ["SPY", "XLK", "KMLM", "TECL"])
+        result = display_signal_results(alerts or [], "TECL", ["SPY", "XLK", "KMLM", "TECL"])
 
         # Display technical indicators for key symbols
         if alerts:
@@ -173,7 +185,7 @@ class TECLSignalGenerator:
 
         return result
 
-    def run_continuous(self, interval_minutes=15, max_errors=10):
+    def run_continuous(self, interval_minutes: int = 15, max_errors: int = 10) -> None:
         """Run analysis continuously with error limits"""
         import time
 
@@ -203,7 +215,7 @@ class TECLSignalGenerator:
                 logging.info(f"Backing off for {backoff_time} seconds...")
                 time.sleep(backoff_time)
 
-    def get_current_portfolio_allocation(self) -> dict[str, float]:
+    def get_current_portfolio_allocation(self) -> dict[str, Any] | None:
         """Get current TECL portfolio allocation for display purposes"""
         # Get market data and indicators
         market_data = self.strategy.get_market_data()

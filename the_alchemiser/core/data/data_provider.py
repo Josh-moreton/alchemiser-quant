@@ -458,10 +458,10 @@ class UnifiedDataProvider:
         )
 
         # Create cleanup function (type: Callable[[], None])
-        cleanup: Callable[[], None] = create_cleanup_function(self.real_time_pricing, symbol)  # type: ignore[no-untyped-call]
+        cleanup: Callable[[], None] = create_cleanup_function(self.real_time_pricing, symbol)
 
         # Try real-time pricing with just-in-time subscription
-        if subscribe_for_real_time(self.real_time_pricing, symbol):  # type: ignore[no-untyped-call]
+        if subscribe_for_real_time(self.real_time_pricing, symbol):
             # Try to get real-time price
             if self.real_time_pricing:
                 price = self.real_time_pricing.get_current_price(symbol)
@@ -492,12 +492,12 @@ class UnifiedDataProvider:
 
         try:
             # Try to get price from quote API
-            price: float | None = get_price_from_quote_api(self.data_client, symbol)  # type: ignore[no-untyped-call]
+            price: float | None = get_price_from_quote_api(self.data_client, symbol)
             if price is not None:
                 return price
 
             # Fallback to recent historical data
-            fallback_price: float | None = get_price_from_historical_fallback(self, symbol)  # type: ignore[no-untyped-call]
+            fallback_price: float | None = get_price_from_historical_fallback(self, symbol)
             return fallback_price
 
         except MarketDataError as e:
@@ -699,12 +699,12 @@ class UnifiedDataProvider:
             account = self.trading_client.get_account()
             # Convert account object to dict for consistency
             if hasattr(account, "model_dump"):
-                return account.model_dump()  # type: ignore[return-value,attr-defined]
+                return account.model_dump()
             elif hasattr(account, "__dict__"):
-                return account.__dict__  # type: ignore[return-value]
+                return account.__dict__
             else:
                 # Fallback: return as Any and cast
-                return dict(account) if account else None  # type: ignore[call-arg]
+                return dict(account) if account else None
         except TradingClientError as e:
             from ..logging.logging_utils import get_logger, log_error_with_context
 
@@ -741,11 +741,11 @@ class UnifiedDataProvider:
                 result: list[dict[str, Any]] = []
                 for pos in positions:
                     if hasattr(pos, "model_dump"):
-                        result.append(pos.model_dump())  # type: ignore[arg-type]
+                        result.append(pos.model_dump())
                     elif hasattr(pos, "__dict__"):
-                        result.append(pos.__dict__)  # type: ignore[arg-type]
+                        result.append(pos.__dict__)
                     else:
-                        result.append(dict(pos))  # type: ignore[arg-type,call-arg]
+                        result.append(dict(pos))
                 return result
             else:
                 # Handle RawData case - return empty list if not a list

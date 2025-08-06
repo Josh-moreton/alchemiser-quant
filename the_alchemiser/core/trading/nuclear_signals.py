@@ -48,14 +48,14 @@ class ActionType(Enum):
 
 
 class NuclearStrategyEngine:
-    def get_best_nuclear_stocks(self, indicators, top_n=3):
+    def get_best_nuclear_stocks(self, indicators: dict[str, Any], top_n: int = 3) -> list[str]:
         """Get top performing nuclear stocks based on 90-day moving average return."""
         portfolio = self.strategy.get_nuclear_portfolio(indicators, top_n=top_n)
         return list(portfolio.keys())[:top_n]
 
     """Nuclear Strategy Engine - Orchestrates data, indicators, and strategy logic"""
 
-    def __init__(self, data_provider=None) -> None:
+    def __init__(self, data_provider: Any = None) -> None:
         if data_provider is None:
             raise ValueError("data_provider is required for NuclearStrategyEngine")
         self.data_provider = data_provider
@@ -93,7 +93,7 @@ class NuclearStrategyEngine:
                 logging.warning(f"Could not fetch data for {symbol}")
         return market_data
 
-    def calculate_indicators(self, market_data):
+    def calculate_indicators(self, market_data: dict[str, Any]) -> dict[str, Any]:
         """Calculate all technical indicators"""
         indicators = {}
         for symbol, df in market_data.items():
@@ -113,7 +113,9 @@ class NuclearStrategyEngine:
             }
         return indicators
 
-    def evaluate_nuclear_strategy(self, indicators, market_data=None):
+    def evaluate_nuclear_strategy(
+        self, indicators: dict[str, Any], market_data: dict[str, Any] | None = None
+    ) -> tuple[str, str, str]:
         """
         Evaluate the Nuclear Energy strategy using the canonical hierarchical logic from Clojure implementation.
         Returns: (recommended_symbol, action, detailed_reason)
@@ -209,7 +211,14 @@ class NuclearSignalGenerator:
         """Load configuration"""
         self.config = load_alert_config()
 
-    def handle_nuclear_portfolio_signal(self, symbol, action, reason, indicators, market_data=None):
+    def handle_nuclear_portfolio_signal(
+        self,
+        symbol: str,
+        action: str,
+        reason: str,
+        indicators: dict[str, Any],
+        market_data: dict[str, Any] | None = None,
+    ) -> list[Any]:
         """Delegate alert creation to alert_service.create_alerts_from_signal"""
         from the_alchemiser.core.alerts.alert_service import create_alerts_from_signal
 
@@ -218,13 +227,13 @@ class NuclearSignalGenerator:
             action,
             reason,
             indicators,
-            market_data,
+            market_data or {},
             self.strategy.data_provider,
             ensure_scalar_price,
             self.strategy,
         )
 
-    def run_analysis(self):
+    def run_analysis(self) -> list[Any] | None:
         """Run complete strategy analysis"""
         logging.debug("Starting Nuclear Energy strategy analysis...")
 
@@ -251,13 +260,13 @@ class NuclearSignalGenerator:
         logging.info(f"Analysis complete: {action} {symbol} - {reason}")
         return alerts
 
-    def log_alert(self, alert):
+    def log_alert(self, alert: Any) -> None:
         """Log alert to file - delegates to alert service"""
         from the_alchemiser.core.alerts.alert_service import log_alert_to_file
 
         log_alert_to_file(alert)
 
-    def run_once(self) -> None:
+    def run_once(self) -> Any:
         """Run analysis once"""
         alerts = self.run_analysis()
 
@@ -268,7 +277,9 @@ class NuclearSignalGenerator:
             display_technical_indicators,
         )
 
-        result = display_signal_results(alerts, "NUCLEAR", ["IOO", "SPY", "TQQQ", "VTV", "XLF"])
+        result = display_signal_results(
+            alerts or [], "NUCLEAR", ["IOO", "SPY", "TQQQ", "VTV", "XLF"]
+        )
 
         # Display technical indicators for key symbols
         if alerts:
@@ -280,7 +291,7 @@ class NuclearSignalGenerator:
 
         return result
 
-    def run_continuous(self, interval_minutes=15, max_errors=10):
+    def run_continuous(self, interval_minutes: int = 15, max_errors: int = 10) -> None:
         """Run analysis continuously with error limits"""
         import time
 
@@ -348,7 +359,7 @@ class NuclearSignalGenerator:
                 logging.info(f"Backing off for {backoff_time} seconds...")
                 time.sleep(backoff_time)
 
-    def get_current_portfolio_allocation(self) -> dict[str, float]:
+    def get_current_portfolio_allocation(self) -> dict[str, Any] | None:
         """Get current portfolio allocation for display purposes"""
         # Get market data and indicators
         market_data = self.strategy.get_market_data()
