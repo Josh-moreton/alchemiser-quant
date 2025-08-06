@@ -2,6 +2,25 @@
 
 Internal notes on how the trading bot is put together and how the pieces interact.
 
+## Quick Start
+
+### Environment Setup with direnv (Recommended)
+
+1. **Install direnv**: `brew install direnv` (macOS) or see [direnv.net](https://direnv.net/)
+2. **Configure your shell**: Add `eval "$(direnv hook zsh)"` to `~/.zshrc` (or bash equivalent)
+3. **Set up the project**: `cp .envrc.template .envrc && direnv allow`
+4. **Test**: `cd .. && cd the-alchemiser` - you should see "🔧 Environment activated"
+
+Now your Python virtual environment and all project settings are automatically activated when you enter the directory!
+
+### Manual Setup (Alternative)
+
+If you prefer manual environment management:
+```bash
+source .venv/bin/activate
+export PYTHONPATH="${PWD}:${PWD}/the_alchemiser:${PYTHONPATH}"
+```
+
 ## System Architecture
 
 ### Configuration and Settings
