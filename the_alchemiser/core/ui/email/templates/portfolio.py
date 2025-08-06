@@ -385,7 +385,7 @@ class PortfolioBuilder:
         portfolio_value = 0.0
         current_positions = {}
 
-        # First try account_info_after from execution_summary
+        # First try execution_summary.account_info_after
         if execution_summary and "account_info_after" in execution_summary:
             account_data = execution_summary["account_info_after"]
             portfolio_value = float(account_data.get("equity", 0)) or float(
@@ -401,6 +401,15 @@ class PortfolioBuilder:
         else:
             open_positions = []
 
+        # Also try result.final_positions if available (this is what CLI uses)
+        final_positions = getattr(result, "final_positions", {})
+        if final_positions and not open_positions:
+            open_positions = (
+                list(final_positions.values())
+                if isinstance(final_positions, dict)
+                else final_positions
+            )
+
         # Process positions to get current allocations
         for pos in open_positions:
             if isinstance(pos, dict):
@@ -408,11 +417,19 @@ class PortfolioBuilder:
                 market_value = float(pos.get("market_value", 0))
                 if symbol and market_value > 0:
                     current_positions[symbol] = market_value
+            else:
+                # Handle position objects
+                symbol = getattr(pos, "symbol", "")
+                market_value = float(getattr(pos, "market_value", 0))
+                if symbol and market_value > 0:
+                    current_positions[symbol] = market_value
+
+        # If we still don't have portfolio_value, calculate it from positions
+        if portfolio_value == 0 and current_positions:
+            portfolio_value = sum(current_positions.values())
 
         if not target_portfolio:
-            return "<p>No rebalancing data available</p>"
-
-        # Build the table
+            return "<p>No rebalancing data available</p>"  # Build the table
         table_rows = []
 
         for symbol in sorted(target_portfolio.keys()):

@@ -345,7 +345,8 @@ class SmartExecution:
         # Extract only valid string order IDs
         order_ids: list[str] = []
         for order in sell_orders:
-            order_id = order.get("order_id")
+            # Try both 'id' and 'order_id' keys for compatibility
+            order_id = order.get("id") or order.get("order_id")
             if order_id is not None and isinstance(order_id, str):
                 order_ids.append(order_id)
 

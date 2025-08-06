@@ -487,7 +487,7 @@ class EnhancedErrorReporter:
     Extends the existing error handler with production-ready features.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize enhanced error reporter."""
         self.error_counts: dict[str, int] = defaultdict(int)
         self.critical_errors: list[dict[str, Any]] = []
@@ -522,16 +522,13 @@ class EnhancedErrorReporter:
 
         # Use existing error handler for notifications
         if is_critical:
-            error_details = ErrorDetails(
+            # Use the global error handler to process the error
+            _error_handler.handle_error(
                 error=error,
-                category=ErrorCategory.CRITICAL if is_critical else ErrorCategory.WARNING,
                 context=operation or "unknown",
                 component="enhanced_reporter",
                 additional_data=context,
             )
-
-            # Use the error handler to process the error
-            self.handle_error(error_details)
 
         # Track for rate monitoring
         error_key = f"{error.__class__.__name__}:{operation or 'unknown'}"

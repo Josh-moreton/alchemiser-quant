@@ -481,7 +481,13 @@ class TradingEngine:
             True if all orders settled successfully, False otherwise.
         """
         # Temporary conversion for legacy order_manager compatibility
-        legacy_orders = [dict(order) for order in sell_orders]
+        legacy_orders = []
+        for order in sell_orders:
+            legacy_order = dict(order)
+            # Ensure compatibility by including both id and order_id keys
+            if "id" in legacy_order and "order_id" not in legacy_order:
+                legacy_order["order_id"] = legacy_order["id"]
+            legacy_orders.append(legacy_order)
         return self.order_manager.wait_for_settlement(legacy_orders, max_wait_time, poll_interval)
 
     def place_order(
@@ -908,7 +914,7 @@ class TradingEngine:
             orders_table.add_column("Type", style="bold", justify="center")
             orders_table.add_column("Symbol", style="cyan", justify="center")
             orders_table.add_column("Quantity", style="white", justify="right")
-            orders_table.add_column("Estimated Value", style="green", justify="right")
+            orders_table.add_column("Actual Value", style="green", justify="right")
 
             for order in execution_result.orders_executed:
                 side = order.get("side", "")
@@ -916,11 +922,20 @@ class TradingEngine:
 
                 side_color = "green" if side_value == "BUY" else "red"
 
+                # Calculate actual filled value
+                filled_qty = float(order.get("filled_qty", 0))
+                filled_avg_price = float(order.get("filled_avg_price", 0) or 0)
+                actual_value = filled_qty * filled_avg_price
+
+                # Fall back to estimated value if no filled data available
+                if actual_value == 0:
+                    actual_value = float(order.get("estimated_value", 0))
+
                 orders_table.add_row(
                     f"[{side_color}]{side_value}[/{side_color}]",
                     order.get("symbol", ""),
                     f"{order.get('qty', 0):.6f}",
-                    f"${order.get('estimated_value', 0):.2f}",
+                    f"${actual_value:.2f}",
                 )
         else:
             orders_table = Panel(

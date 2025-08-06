@@ -352,12 +352,25 @@ def run_multi_strategy_trading(
 
         # Generate strategy signals for display
         render_header("Analyzing market conditions...", "Multi-Strategy Trading")
-        strategy_signals = trader.strategy_manager.run_all_strategies()[0]
+        strategy_signals, consolidated_portfolio, strategy_attribution = (
+            trader.strategy_manager.run_all_strategies()
+        )
 
         # Display strategy signals
         from the_alchemiser.core.ui.cli_formatter import render_strategy_signals
 
         render_strategy_signals(strategy_signals)
+
+        # Display portfolio rebalancing summary before execution
+        try:
+            account_info = trader.get_account_info()
+            current_positions = trader.get_positions_dict()
+            if account_info and consolidated_portfolio:
+                trader.display_target_vs_current_allocations(
+                    consolidated_portfolio, account_info, current_positions
+                )
+        except Exception as e:
+            logging.warning(f"Could not display portfolio rebalancing summary: {e}")
 
         # Execute multi-strategy with clean progress indication
         if HAS_RICH:
