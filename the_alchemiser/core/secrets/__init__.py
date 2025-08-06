@@ -1,1 +1,1 @@
-
+"""Secret management utilities."""

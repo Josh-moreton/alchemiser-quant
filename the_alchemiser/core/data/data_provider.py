@@ -1,5 +1,7 @@
+"""Unified historical and real-time market data access layer."""
 import logging
 import time
+
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from typing import Any, cast

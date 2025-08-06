@@ -14,6 +14,9 @@ from collections import defaultdict
 from collections.abc import Callable
 from datetime import datetime
 from functools import wraps
+
+# Enhanced error reporting and classification utilities.
+
 from typing import Any
 
 # TODO: Phase 14 - Import error handler types when ready
@@ -56,6 +59,8 @@ class ErrorDetails:
         additional_data: dict[str, Any] | None = None,  # TODO: Phase 14 - Use structured data type
         suggested_action: str | None = None,
     ):
+        """Store detailed error information."""
+
         self.error = error
         self.category = category
         self.context = context
@@ -84,6 +89,8 @@ class TradingSystemErrorHandler:
     """Enhanced error handler for autonomous trading operations."""
 
     def __init__(self) -> None:
+        """Create a new error handler with empty history."""
+
         self.errors: list[ErrorDetails] = []
         self.logger = logging.getLogger(__name__)
 

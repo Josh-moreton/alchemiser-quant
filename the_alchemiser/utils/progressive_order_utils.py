@@ -25,6 +25,8 @@ class OrderExecutionParams:
     tick_aggressiveness: float  # How aggressively to step (multiplier)
 
     def __str__(self) -> str:
+        """Human readable representation used in logs."""
+
         return (
             f"OrderExecutionParams(wait={self.max_wait_seconds}s, "
             f"steps={self.step_count}, aggressiveness={self.tick_aggressiveness:.2f})"

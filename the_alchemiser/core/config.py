@@ -9,10 +9,14 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class LoggingSettings(BaseModel):
+    """Logging configuration options."""
+
     level: str = "INFO"
 
 
 class AlpacaSettings(BaseModel):
+    """Connection settings for the Alpaca trading API."""
+
     endpoint: str = "https://api.alpaca.markets/v2"
     paper_endpoint: str = "https://paper-api.alpaca.markets/v2"
     cash_reserve_pct: float = 0.05
@@ -21,6 +25,8 @@ class AlpacaSettings(BaseModel):
 
 
 class AwsSettings(BaseModel):
+    """AWS deployment configuration."""
+
     region: str = "eu-west-2"
     account_id: str = ""
     repo_name: str = ""
@@ -29,16 +35,22 @@ class AwsSettings(BaseModel):
 
 
 class AlertsSettings(BaseModel):
+    """Settings controlling alert generation and delivery."""
+
     alert_config_s3: str = ""
     cooldown_minutes: int = 30
 
 
 class SecretsManagerSettings(BaseModel):
+    """Configuration for AWS Secrets Manager access."""
+
     region_name: str = "eu-west-2"
     secret_name: str = "nuclear-secrets"
 
 
 class StrategySettings(BaseModel):
+    """High level configuration for strategy orchestration."""
+
     default_strategy_allocations: dict[str, float] = Field(
         default_factory=lambda: {"nuclear": 0.3, "tecl": 0.5, "klm": 0.2}
     )
@@ -47,6 +59,8 @@ class StrategySettings(BaseModel):
 
 
 class EmailSettings(BaseModel):
+    """SMTP configuration for notification delivery."""
+
     smtp_server: str = "smtp.mail.me.com"
     smtp_port: int = 587
     from_email: str | None = None
@@ -55,11 +69,15 @@ class EmailSettings(BaseModel):
 
 
 class DataSettings(BaseModel):
+    """Data provider tuning parameters."""
+
     cache_duration: int = 300
     default_symbol: str = "AAPL"
 
 
 class TrackingSettings(BaseModel):
+    """Locations and limits for strategy tracking artefacts."""
+
     s3_bucket: str = "the-alchemiser-s3"
     strategy_orders_path: str = "strategy_orders/"
     strategy_positions_path: str = "strategy_positions/"
@@ -68,6 +86,8 @@ class TrackingSettings(BaseModel):
 
 
 class ExecutionSettings(BaseModel):
+    """Trading execution parameters and safe defaults."""
+
     max_slippage_bps: float = 20.0
     aggressive_timeout_seconds: float = 2.5
     max_repegs: int = 2
@@ -114,6 +134,8 @@ class Settings(BaseSettings):
         dotenv_settings: Any,
         file_secret_settings: Any,
     ) -> tuple[Any, ...]:
+        """Order the precedence of configuration sources."""
+
         return (
             init_settings,
             env_settings,

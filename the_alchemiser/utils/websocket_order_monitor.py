@@ -198,6 +198,8 @@ class OrderCompletionMonitor:
         stream_stopped = False
 
         async def on_update(data) -> None:
+            """Handle incoming trade updates and track completed orders."""
+
             nonlocal stream_stopped
             if stream_stopped:
                 return
@@ -358,6 +360,8 @@ class OrderCompletionMonitor:
 
             # Dummy handler for trade updates
             async def dummy_handler(data):
+                """Log WebSocket messages during initial connection setup."""
+
                 if logging.getLogger().level <= logging.DEBUG:
                     self.console.print(f"[dim]📡 Pre-connection WebSocket message: {data}[/dim]")
 

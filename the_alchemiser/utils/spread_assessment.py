@@ -13,6 +13,8 @@ from typing import Any
 
 
 class SpreadQuality(Enum):
+    """Qualitative classification of bid/ask spreads."""
+
     TIGHT = "tight"  # ≤ 3¢
     NORMAL = "normal"  # 3-5¢
     WIDE = "wide"  # > 5¢
@@ -20,6 +22,8 @@ class SpreadQuality(Enum):
 
 @dataclass
 class PreMarketConditions:
+    """Assessment of pre-market spread information."""
+
     spread_cents: float
     spread_quality: SpreadQuality
     recommended_wait_minutes: int
@@ -28,6 +32,8 @@ class PreMarketConditions:
 
 @dataclass
 class SpreadAnalysis:
+    """Computed spread metrics for a single quote."""
+
     spread_cents: float
     spread_quality: SpreadQuality
     spread_bps: float
@@ -38,6 +44,8 @@ class SpreadAssessment:
     """Pre-market and real-time spread analysis."""
 
     def __init__(self, data_provider: Any) -> None:
+        """Store the data provider used to fetch quotes."""
+
         self.data_provider = data_provider
 
     def assess_premarket_conditions(self, symbol: str) -> PreMarketConditions | None:

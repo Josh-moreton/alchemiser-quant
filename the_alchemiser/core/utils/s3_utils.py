@@ -183,6 +183,8 @@ class S3FileHandler(logging.Handler):
     """Custom logging handler that writes to S3"""
 
     def __init__(self, s3_uri: str) -> None:
+        """Create the handler and ensure the target bucket exists."""
+
         super().__init__()
         self.s3_uri = s3_uri
         self.s3_handler = get_s3_handler()

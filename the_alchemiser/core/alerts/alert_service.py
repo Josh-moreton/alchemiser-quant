@@ -1,3 +1,10 @@
+"""Utility functions and classes for generating trading alerts.
+
+This module centralizes alert creation and logging, providing helpers that
+convert strategy recommendations into structured data that can be persisted or
+displayed to users.
+"""
+
 import datetime as dt
 import json
 import logging
@@ -8,9 +15,19 @@ from the_alchemiser.core.config import load_settings
 
 
 class Alert:
-    """Simple alert class for trading signals."""
+    """Container for a single strategy alert."""
 
     def __init__(self, symbol, action, reason, timestamp, price) -> None:
+        """Initialize an alert.
+
+        Args:
+            symbol: Ticker symbol the alert relates to.
+            action: Recommended action such as ``"BUY"`` or ``"SELL"``.
+            reason: Human readable explanation for the alert.
+            timestamp: Time the alert was generated.
+            price: Price associated with the alert.
+        """
+
         self.symbol = symbol
         self.action = action
         self.reason = reason
@@ -18,6 +35,8 @@ class Alert:
         self.price = price
 
     def to_dict(self) -> dict[str, Any]:
+        """Serialize the alert to a dictionary for storage or logging."""
+
         return {
             "symbol": self.symbol,
             "action": self.action,
@@ -33,6 +52,20 @@ class Alert:
 
 # Factory function for alert creation (can be extended for more logic)
 def create_alert(symbol, action, reason, price, timestamp=None):
+    """Create a new :class:`Alert` instance.
+
+    Args:
+        symbol: Ticker symbol the alert relates to.
+        action: Recommended action such as ``"BUY"`` or ``"SELL"``.
+        reason: Human readable explanation for the alert.
+        price: Price associated with the alert.
+        timestamp: Optional timestamp to associate with the alert. If omitted the
+            current time is used.
+
+    Returns:
+        Alert: Newly constructed alert object.
+    """
+
     if timestamp is None:
         timestamp = dt.datetime.now()
     return Alert(symbol, action, reason, timestamp, price)
