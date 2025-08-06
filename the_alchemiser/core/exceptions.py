@@ -6,19 +6,43 @@ This module defines specific exception types for different failure scenarios
 to enable better error handling and debugging throughout the application.
 """
 
+from datetime import datetime
 from typing import Any
 
 
 class AlchemiserError(Exception):
     """Base exception class for all Alchemiser-specific errors."""
 
-    pass
+    def __init__(self, message: str, context: dict[str, Any] | None = None) -> None:
+        super().__init__(message)
+        self.message = message
+        self.context = context or {}
+        self.timestamp = datetime.now()
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert exception to structured data for logging/reporting."""
+        return {
+            "error_type": self.__class__.__name__,
+            "message": self.message,
+            "context": self.context,
+            "timestamp": self.timestamp.isoformat(),
+        }
 
 
 class ConfigurationError(AlchemiserError):
     """Raised when there are configuration-related issues."""
 
-    pass
+    def __init__(
+        self, message: str, config_key: str | None = None, config_value: Any = None
+    ) -> None:
+        context = {}
+        if config_key:
+            context["config_key"] = config_key
+        if config_value is not None:
+            context["config_value"] = str(config_value)  # Convert to string for safety
+        super().__init__(message, context)
+        self.config_key = config_key
+        self.config_value = config_value
 
 
 class DataProviderError(AlchemiserError):
@@ -37,11 +61,40 @@ class OrderExecutionError(TradingClientError):
     """Raised when order placement or execution fails."""
 
     def __init__(
-        self, message: str, symbol: str | None = None, order_type: str | None = None
+        self,
+        message: str,
+        symbol: str | None = None,
+        order_type: str | None = None,
+        order_id: str | None = None,
+        quantity: float | None = None,
+        price: float | None = None,
+        account_id: str | None = None,
+        retry_count: int = 0,
     ) -> None:
-        super().__init__(message)
+        context: dict[str, Any] = {}
+        if symbol:
+            context["symbol"] = symbol
+        if order_type:
+            context["order_type"] = order_type
+        if order_id:
+            context["order_id"] = order_id
+        if quantity is not None:
+            context["quantity"] = quantity
+        if price is not None:
+            context["price"] = price
+        if account_id:
+            context["account_id"] = account_id
+        if retry_count > 0:
+            context["retry_count"] = retry_count
+
+        super().__init__(message, context)
         self.symbol = symbol
         self.order_type = order_type
+        self.order_id = order_id
+        self.quantity = quantity
+        self.price = price
+        self.account_id = account_id
+        self.retry_count = retry_count
 
 
 class InsufficientFundsError(OrderExecutionError):

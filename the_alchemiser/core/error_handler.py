@@ -7,8 +7,13 @@ error reporting via email notifications for autonomous trading operations.
 """
 
 import logging
+import random
+import time
 import traceback
+from collections import defaultdict
+from collections.abc import Callable
 from datetime import datetime
+from functools import wraps
 from typing import Any
 
 # TODO: Phase 14 - Import error handler types when ready
@@ -337,3 +342,298 @@ def send_error_notification_if_needed() -> (
 
     except Exception as e:
         logging.error(f"Failed to send error notification: {e}")
+
+
+# Enhanced Error Handling Utilities for Production Resilience
+
+
+def retry_with_backoff(
+    exceptions: tuple[type[Exception], ...] = (Exception,),
+    max_retries: int = 3,
+    base_delay: float = 1.0,
+    max_delay: float = 60.0,
+    backoff_factor: float = 2.0,
+    jitter: bool = True
+):
+    """
+    Retry decorator with exponential backoff and jitter.
+    
+    Args:
+        exceptions: Tuple of exception types to catch and retry
+        max_retries: Maximum number of retry attempts
+        base_delay: Base delay in seconds before first retry
+        max_delay: Maximum delay in seconds
+        backoff_factor: Multiplier for exponential backoff
+        jitter: Whether to add random jitter to delays
+    
+    Returns:
+        Decorated function with retry logic
+    """
+    def decorator(func: Callable) -> Callable:
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            last_exception = None
+            
+            for attempt in range(max_retries + 1):
+                try:
+                    return func(*args, **kwargs)
+                except exceptions as e:
+                    last_exception = e
+                    
+                    if attempt == max_retries:
+                        # Add retry context to exception if possible
+                        if hasattr(e, 'retry_count'):
+                            e.retry_count = attempt
+                        logging.error(
+                            f"Function {func.__name__} failed after {max_retries} retries: {e}"
+                        )
+                        raise
+                    
+                    # Calculate delay with exponential backoff
+                    delay = min(base_delay * (backoff_factor ** attempt), max_delay)
+                    if jitter:
+                        delay *= (0.5 + random.random() * 0.5)  # Add 50% jitter
+                    
+                    logging.warning(
+                        f"Attempt {attempt + 1}/{max_retries + 1} failed for {func.__name__}: {e}. "
+                        f"Retrying in {delay:.2f}s..."
+                    )
+                    time.sleep(delay)
+            
+            # This should never be reached, but just in case
+            if last_exception:
+                raise last_exception
+                
+        return wrapper
+    return decorator
+
+
+class CircuitBreakerOpenError(AlchemiserError):
+    """Raised when circuit breaker is open."""
+    pass
+
+
+class CircuitBreaker:
+    """
+    Circuit breaker pattern for external service calls.
+    
+    Prevents cascading failures by temporarily stopping calls to failing services.
+    """
+    
+    def __init__(
+        self,
+        failure_threshold: int = 5,
+        timeout: float = 60.0,
+        expected_exception: type[Exception] = Exception
+    ):
+        """
+        Initialize circuit breaker.
+        
+        Args:
+            failure_threshold: Number of failures before opening circuit
+            timeout: Time in seconds before trying to close circuit
+            expected_exception: Exception type that counts as failure
+        """
+        self.failure_threshold = failure_threshold
+        self.timeout = timeout
+        self.expected_exception = expected_exception
+        self.failure_count = 0
+        self.last_failure_time: float | None = None
+        self.state = "CLOSED"  # CLOSED, OPEN, HALF_OPEN
+    
+    def __call__(self, func: Callable) -> Callable:
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            if self.state == "OPEN":
+                if self.last_failure_time and time.time() - self.last_failure_time < self.timeout:
+                    raise CircuitBreakerOpenError(
+                        f"Circuit breaker is OPEN for {func.__name__}. "
+                        f"Retry after {self.timeout}s timeout."
+                    )
+                else:
+                    self.state = "HALF_OPEN"
+                    logging.info(f"Circuit breaker moving to HALF_OPEN for {func.__name__}")
+            
+            try:
+                result = func(*args, **kwargs)
+                if self.state == "HALF_OPEN":
+                    self.state = "CLOSED"
+                    self.failure_count = 0
+                    logging.info(f"Circuit breaker CLOSED for {func.__name__}")
+                return result
+            except self.expected_exception as e:
+                self.failure_count += 1
+                self.last_failure_time = time.time()
+                
+                if self.failure_count >= self.failure_threshold:
+                    self.state = "OPEN"
+                    logging.warning(
+                        f"Circuit breaker OPENED for {func.__name__} after "
+                        f"{self.failure_count} failures"
+                    )
+                
+                raise
+        return wrapper
+
+
+class EnhancedErrorReporter:
+    """
+    Enhanced error reporting with rate monitoring and aggregation.
+    
+    Extends the existing error handler with production-ready features.
+    """
+    
+    def __init__(self):
+        """Initialize enhanced error reporter."""
+        self.error_counts: dict[str, int] = defaultdict(int)
+        self.critical_errors: list[dict[str, Any]] = []
+        self.error_rate_window = 300  # 5 minutes
+        self.recent_errors: list[dict[str, Any]] = []
+        
+    def report_error_with_context(
+        self, 
+        error: Exception, 
+        context: dict[str, Any] | None = None,
+        is_critical: bool = False,
+        operation: str | None = None
+    ) -> None:
+        """
+        Report an error with enhanced context tracking.
+        
+        Args:
+            error: The exception that occurred
+            context: Additional context about the error
+            is_critical: Whether this is a critical error
+            operation: Name of the operation that failed
+        """
+        
+        error_data = {
+            "timestamp": datetime.now().isoformat(),
+            "error_type": error.__class__.__name__,
+            "message": str(error),
+            "context": context or {},
+            "is_critical": is_critical,
+            "operation": operation
+        }
+        
+        # Use existing error handler for notifications
+        if is_critical:
+            error_details = ErrorDetails(
+                error=error,
+                category=ErrorCategory.CRITICAL if is_critical else ErrorCategory.WARNING,
+                context=operation or "unknown",
+                component="enhanced_reporter",
+                additional_data=context
+            )
+            
+            error_handler = ErrorHandler()
+            error_handler.handle_error(error_details)
+        
+        # Track for rate monitoring
+        error_key = f"{error.__class__.__name__}:{operation or 'unknown'}"
+        self.error_counts[error_key] += 1
+        
+        # Add to recent errors
+        self.recent_errors.append(error_data)
+        self._cleanup_old_errors()
+        
+        # Check error rates
+        self._check_error_rates()
+    
+    def _cleanup_old_errors(self) -> None:
+        """Remove errors older than the monitoring window."""
+        current_time = datetime.now()
+        cutoff_time = current_time.timestamp() - self.error_rate_window
+        
+        self.recent_errors = [
+            error for error in self.recent_errors
+            if datetime.fromisoformat(error["timestamp"]).timestamp() > cutoff_time
+        ]
+    
+    def _check_error_rates(self) -> None:
+        """Check for high error rates and alert."""
+        error_rate = len(self.recent_errors) / (self.error_rate_window / 60)  # errors per minute
+        
+        if error_rate > 10:  # More than 10 errors per minute
+            logging.warning(f"High error rate detected: {error_rate:.1f} errors/minute")
+    
+    def get_error_summary(self) -> dict[str, Any]:
+        """Get summary of recent errors for dashboard."""
+        return {
+            "total_error_types": len(self.error_counts),
+            "error_counts": dict(self.error_counts),
+            "recent_errors_count": len(self.recent_errors),
+            "error_rate_per_minute": len(self.recent_errors) / (self.error_rate_window / 60),
+            "most_common_errors": sorted(
+                self.error_counts.items(), 
+                key=lambda x: x[1], 
+                reverse=True
+            )[:5]
+        }
+
+
+# Global enhanced error reporter instance
+enhanced_error_reporter = EnhancedErrorReporter()
+
+
+def handle_errors_with_retry(
+    operation: str,
+    critical: bool = False,
+    reraise: bool = True,
+    max_retries: int = 0
+):
+    """
+    Decorator combining error handling with optional retry logic.
+    
+    Args:
+        operation: Name of the operation for error context
+        critical: Whether errors in this operation are critical
+        reraise: Whether to reraise the exception after reporting
+        max_retries: Number of retry attempts (0 = no retry)
+    
+    Returns:
+        Decorated function with error handling and retry
+    """
+    def decorator(func: Callable) -> Callable:
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            if max_retries > 0:
+                # Apply retry logic
+                retry_decorator = retry_with_backoff(
+                    exceptions=(AlchemiserError, DataProviderError, TradingClientError),
+                    max_retries=max_retries
+                )
+                func_with_retry = retry_decorator(func)
+            else:
+                func_with_retry = func
+            
+            try:
+                return func_with_retry(*args, **kwargs)
+            except AlchemiserError as e:
+                # Report known application errors
+                enhanced_error_reporter.report_error_with_context(
+                    e, 
+                    context={"function": func.__name__, "args_count": len(args)},
+                    is_critical=critical,
+                    operation=operation
+                )
+                if reraise:
+                    raise
+                return None
+            except Exception as e:
+                # Report unexpected errors as critical
+                enhanced_error_reporter.report_error_with_context(
+                    e,
+                    context={
+                        "function": func.__name__, 
+                        "args_count": len(args),
+                        "unexpected_error": True
+                    },
+                    is_critical=True,
+                    operation=operation
+                )
+                if reraise:
+                    raise
+                return None
+        return wrapper
+    return decorator

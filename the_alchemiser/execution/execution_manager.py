@@ -1,5 +1,9 @@
 import logging
 
+from ..core.error_handler import handle_errors_with_retry
+from ..core.exceptions import (
+    TradingClientError,
+)
 from .reporting import build_portfolio_state_data, create_execution_summary, save_dashboard_data
 from .types import MultiStrategyExecutionResult
 
@@ -10,17 +14,23 @@ class ExecutionManager:
     def __init__(self, engine) -> None:
         self.engine = engine
 
+    @handle_errors_with_retry(operation="multi_strategy_execution", critical=True, max_retries=1)
     def execute_multi_strategy(self):
         """Run all strategies and rebalance portfolio."""
         try:
             account_info_before = self.engine.get_account_info()
             if not account_info_before:
-                raise Exception("Unable to get account information")
+                raise TradingClientError(
+                    "Unable to get account information",
+                    context={"operation": "get_account_info", "engine": type(self.engine).__name__},
+                )
             strategy_signals, consolidated_portfolio, strategy_attribution = (
                 self.engine.strategy_manager.run_all_strategies()
             )
             if not consolidated_portfolio:
                 consolidated_portfolio = {"BIL": 1.0}
+                logging.info("No portfolio signals generated, defaulting to cash (BIL)")
+
             total_allocation = sum(consolidated_portfolio.values())
             if abs(total_allocation - 1.0) > 0.05:
                 logging.warning(
