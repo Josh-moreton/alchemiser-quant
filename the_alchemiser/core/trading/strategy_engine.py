@@ -13,6 +13,7 @@ including portfolio construction, bear market subgroup strategies, and overbough
 """
 
 import logging
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -30,7 +31,9 @@ class NuclearStrategyEngine:
         self.weighting_mode = "equal"  # Default to equal weighting (matches Composer logic)
         logging.debug("NuclearStrategyEngine initialized")
 
-    def get_nuclear_portfolio(self, indicators, market_data=None, top_n=3):
+    def get_nuclear_portfolio(
+        self, indicators: dict[str, Any], market_data: dict[str, Any] | None = None, top_n: int = 3
+    ) -> dict[str, dict[str, float]]:
         """
         Get nuclear energy portfolio with top N stocks and their allocations.
         Weighting mode: 'inverse_vol' (default) or 'equal' (for Composer logic).
@@ -85,7 +88,7 @@ class NuclearStrategyEngine:
             portfolio[symbol] = {"weight": weight, "performance": perf}
         return portfolio
 
-    def bear_subgroup_1(self, indicators):
+    def bear_subgroup_1(self, indicators: dict[str, Any]) -> tuple[str, str, str] | None:
         """Bear market subgroup 1 strategy logic"""
         if "PSQ" in indicators and indicators["PSQ"]["rsi_10"] < 35:
             return "SQQQ", ActionType.BUY.value, "PSQ oversold, aggressive short position (Bear 1)"
@@ -128,7 +131,7 @@ class NuclearStrategyEngine:
                 )
         return "SQQQ", ActionType.BUY.value, "Bear market conditions, short tech (Bear 1)"
 
-    def bear_subgroup_2(self, indicators):
+    def bear_subgroup_2(self, indicators: dict[str, Any]) -> tuple[str, str, str] | None:
         """Bear market subgroup 2 strategy logic"""
         if "PSQ" in indicators and indicators["PSQ"]["rsi_10"] < 35:
             return "SQQQ", ActionType.BUY.value, "PSQ oversold, aggressive short position (Bear 2)"
@@ -157,25 +160,25 @@ class NuclearStrategyEngine:
                 )
         return "SQQQ", ActionType.BUY.value, "Bear market conditions, short tech (Bear 2)"
 
-    def _bonds_stronger_than_psq(self, indicators):
+    def _bonds_stronger_than_psq(self, indicators: dict[str, Any]) -> bool:
         """Check if TLT RSI(20) > PSQ RSI(20)"""
         if "TLT" in indicators and "PSQ" in indicators:
             tlt_rsi_20 = indicators["TLT"]["rsi_20"]
             psq_rsi_20 = indicators["PSQ"]["rsi_20"]
-            return tlt_rsi_20 > psq_rsi_20
+            return bool(tlt_rsi_20 > psq_rsi_20)
         return False
 
-    def _ief_stronger_than_psq(self, indicators):
+    def _ief_stronger_than_psq(self, indicators: dict[str, Any]) -> bool:
         """Check if IEF RSI(10) > PSQ RSI(20)"""
         if "IEF" in indicators and "PSQ" in indicators:
             ief_rsi_10 = indicators["IEF"]["rsi_10"]
             psq_rsi_20 = indicators["PSQ"]["rsi_20"]
-            return ief_rsi_10 > psq_rsi_20
+            return bool(ief_rsi_10 > psq_rsi_20)
         return False
 
     def combine_bear_strategies_with_inverse_volatility(
-        self, bear1_symbol, bear2_symbol, indicators
-    ):
+        self, bear1_symbol: str, bear2_symbol: str, indicators: dict[str, Any]
+    ) -> dict[str, dict[str, Any]]:
         """
         Combine two bear strategy symbols using inverse volatility weighting (14-day window)
         Returns portfolio allocation dictionary or raises exception if calculation fails
@@ -231,7 +234,7 @@ class NuclearStrategyEngine:
                     strategy_name="BearMarketStrategy",
                 ) from e
 
-    def _get_14_day_volatility(self, symbol, indicators):
+    def _get_14_day_volatility(self, symbol: str, indicators: dict[str, Any]) -> float:
         """
         Calculate 14-day volatility for a symbol
         Returns volatility or raises exception if not available
@@ -255,7 +258,7 @@ class NuclearStrategyEngine:
                     # RSI-based volatility estimate (higher RSI variability = higher volatility)
                     rsi_volatility = abs(50 - rsi) / 100.0  # Normalize RSI deviation
                     estimated_vol = 0.2 + (rsi_volatility * 0.3)  # 20-50% range
-                    return estimated_vol
+                    return float(estimated_vol)
 
                 # Last resort: use fixed volatility estimates based on symbol type
                 volatility_estimates = {
@@ -291,10 +294,12 @@ class NuclearStrategyEngine:
 
 
 class BullMarketStrategy:
-    def __init__(self, nuclear_strategy_engine) -> None:
+    def __init__(self, nuclear_strategy_engine: Any) -> None:
         self.nuclear_strategy_engine = nuclear_strategy_engine
 
-    def recommend(self, indicators, market_data=None):
+    def recommend(
+        self, indicators: dict[str, Any], market_data: dict[str, Any] | None = None
+    ) -> tuple[str, str, str] | None:
         nuclear_portfolio = self.nuclear_strategy_engine.get_nuclear_portfolio(
             indicators, market_data
         )
@@ -324,10 +329,10 @@ class BullMarketStrategy:
 
 
 class BearMarketStrategy:
-    def __init__(self, nuclear_strategy_engine) -> None:
+    def __init__(self, nuclear_strategy_engine: Any) -> None:
         self.nuclear_strategy_engine = nuclear_strategy_engine
 
-    def recommend(self, indicators):
+    def recommend(self, indicators: dict[str, Any]) -> tuple[str, str, str] | None:
         bear1_signal = self.nuclear_strategy_engine.bear_subgroup_1(indicators)
         bear2_signal = self.nuclear_strategy_engine.bear_subgroup_2(indicators)
         bear1_symbol = bear1_signal[0]
@@ -390,7 +395,7 @@ class BearMarketStrategy:
 
 
 class OverboughtStrategy:
-    def recommend(self, indicators):
+    def recommend(self, indicators: dict[str, Any]) -> tuple[str, str, str] | None:
         spy_rsi_10 = indicators["SPY"]["rsi_10"]
         logging.debug(f"OverboughtStrategy: SPY RSI(10) = {spy_rsi_10:.2f}")
         if spy_rsi_10 > 81:
@@ -418,7 +423,9 @@ class OverboughtStrategy:
 
 
 class SecondaryOverboughtStrategy:
-    def recommend(self, indicators, overbought_symbol):
+    def recommend(
+        self, indicators: dict[str, Any], overbought_symbol: str
+    ) -> tuple[str, str, str] | None:
         # First check if the overbought symbol is extremely overbought (> 81)
         logging.info(
             f"DEBUG SecondaryOverboughtStrategy: {overbought_symbol} RSI(10) = {indicators[overbought_symbol]['rsi_10']:.2f}"
@@ -447,7 +454,7 @@ class SecondaryOverboughtStrategy:
 
 
 class VoxOverboughtStrategy:
-    def recommend(self, indicators):
+    def recommend(self, indicators: dict[str, Any]) -> tuple[str, str, str] | None:
         vox_rsi = indicators.get("VOX", {}).get("rsi_10", 0) if "VOX" in indicators else 0
         xlf_rsi = indicators.get("XLF", {}).get("rsi_10", 0) if "XLF" in indicators else 0
 

@@ -22,7 +22,9 @@ class WebSocketConnectionManager:
     trading streams and data streams.
     """
 
-    def __init__(self, trading_client: Any, api_key: str | None = None, secret_key: str | None = None) -> None:
+    def __init__(
+        self, trading_client: Any, api_key: str | None = None, secret_key: str | None = None
+    ) -> None:
         """Initialize with trading client and optional API credentials."""
         self.trading_client = trading_client
         self.api_key = api_key
