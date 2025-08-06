@@ -198,7 +198,11 @@ class S3FileHandler(logging.Handler):
             self.s3_handler.append_text(self.s3_uri, log_entry)
         except Exception as e:
             # Don't let logging errors crash the application
-            print(f"Error writing log to S3: {e}")
+            # Use basic logging as fallback - don't use print for infrastructure errors
+            import logging
+
+            fallback_logger = logging.getLogger(__name__)
+            fallback_logger.error(f"S3 logging handler failed: {e}", exc_info=True)
 
 
 def replace_file_handlers_with_s3(logger: logging.Logger, s3_uri_map: dict[str, str]):

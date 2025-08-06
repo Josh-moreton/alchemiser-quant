@@ -13,6 +13,8 @@ from typing import Any
 from alpaca.trading.enums import OrderSide, TimeInForce
 from alpaca.trading.requests import LimitOrderRequest
 
+from the_alchemiser.core.error_handler import get_error_handler
+from the_alchemiser.core.exceptions import DataProviderError, TradingClientError
 from the_alchemiser.utils.asset_info import fractionability_detector
 
 
@@ -26,6 +28,7 @@ class LimitOrderHandler:
         self.trading_client = trading_client
         self.position_manager = position_manager
         self.asset_handler = asset_handler
+        self.error_handler = get_error_handler()
 
     def place_limit_order(
         self,
@@ -92,8 +95,15 @@ class LimitOrderHandler:
             # Submit order with fractionability error handling
             return self._submit_with_fallback(symbol, limit_order_data, qty, side, limit_price)
 
-        except Exception as e:
-            logging.error(f"Limit order failed for {symbol}: {e}")
+        except (TradingClientError, DataProviderError) as e:
+            self.error_handler.log_error_with_context(
+                e,
+                operation="limit_order_create",
+                symbol=symbol,
+                quantity=qty,
+                side=side.value,
+                limit_price=limit_price
+            )
             return None
 
     def _prepare_limit_order(
@@ -160,7 +170,7 @@ class LimitOrderHandler:
             logging.info(f"Limit order placed for {symbol}: {order_id}")
             return order_id
 
-        except Exception as order_error:
+        except TradingClientError as order_error:
             error_msg = str(order_error)
 
             # Handle the specific "not fractionable" error for limit orders
@@ -205,9 +215,14 @@ class LimitOrderHandler:
                 logging.info(f"✅ Fallback whole-share limit order placed for {symbol}: {order_id}")
                 return order_id
 
-            except Exception as fallback_error:
-                logging.error(
-                    f"❌ Fallback whole-share limit order also failed for {symbol}: {fallback_error}"
+            except TradingClientError as fallback_error:
+                self.error_handler.log_error_with_context(
+                    fallback_error,
+                    operation="limit_order_fallback",
+                    symbol=symbol,
+                    quantity=whole_qty,
+                    side=side.value,
+                    limit_price=limit_price
                 )
                 return None
         else:

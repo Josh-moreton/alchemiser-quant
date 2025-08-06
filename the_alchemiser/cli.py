@@ -6,7 +6,7 @@ Provides a modern CLI built with Typer and Rich for user interaction, strategy s
 and reporting. Handles user commands and displays formatted output.
 """
 
-
+import logging
 import subprocess
 import time
 from datetime import datetime
@@ -17,6 +17,9 @@ from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.prompt import Confirm
 from rich.text import Text
+
+from the_alchemiser.core.exceptions import StrategyExecutionError, TradingClientError
+from the_alchemiser.core.logging.logging_utils import get_logger, log_error_with_context
 
 # Initialize Typer app and Rich console
 app = typer.Typer(
@@ -84,8 +87,32 @@ def signal(
             console.print("\n[bold red]Signal analysis failed![/bold red]")
             raise typer.Exit(1)
 
+    except StrategyExecutionError as e:
+        logger = get_logger(__name__)
+        log_error_with_context(
+            logger,
+            e,
+            "cli_signal_analysis",
+            function="signals",
+            command="signals",
+            error_type=type(e).__name__,
+        )
+        console.print(f"\n[bold red]Strategy execution error: {e}[/bold red]")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
     except Exception as e:
-        console.print(f"\n[bold red]Error: {e}[/bold red]")
+        logger = get_logger(__name__)
+        log_error_with_context(
+            logger,
+            e,
+            "cli_signal_analysis",
+            function="signals",
+            command="signals",
+            error_type="unexpected_error",
+            original_error=type(e).__name__,
+        )
+        console.print(f"\n[bold red]Unexpected error: {e}[/bold red]")
         if verbose:
             console.print_exception()
         raise typer.Exit(1)
@@ -155,8 +182,52 @@ def trade(
             console.print(f"\n[bold red]{mode_display} trading failed![/bold red]")
             raise typer.Exit(1)
 
+    except StrategyExecutionError as e:
+        logger = get_logger(__name__)
+        log_error_with_context(
+            logger,
+            e,
+            "cli_trading_execution",
+            function="trade",
+            command="trade",
+            live_trading=live,
+            ignore_market_hours=ignore_market_hours,
+            error_type=type(e).__name__,
+        )
+        console.print(f"\n[bold red]Strategy execution error: {e}[/bold red]")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
+    except TradingClientError as e:
+        logger = get_logger(__name__)
+        log_error_with_context(
+            logger,
+            e,
+            "cli_trading_client_error",
+            function="trade",
+            command="trade",
+            live_trading=live,
+            ignore_market_hours=ignore_market_hours,
+            error_type=type(e).__name__,
+        )
+        console.print(f"\n[bold red]Trading client error: {e}[/bold red]")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
     except Exception as e:
-        console.print(f"\n[bold red]Error: {e}[/bold red]")
+        logger = get_logger(__name__)
+        log_error_with_context(
+            logger,
+            e,
+            "cli_trading_execution",
+            function="trade",
+            command="trade",
+            live_trading=live,
+            ignore_market_hours=ignore_market_hours,
+            error_type="unexpected_error",
+            original_error=type(e).__name__,
+        )
+        console.print(f"\n[bold red]Unexpected error: {e}[/bold red]")
         if verbose:
             console.print_exception()
         raise typer.Exit(1)
@@ -389,8 +460,6 @@ def main(
     [dim]Use --help with any command for detailed information.[/dim]
     """
     # Configure logging based on CLI options
-    import logging
-
     from the_alchemiser.core.logging.logging_utils import setup_logging
 
     if verbose:
