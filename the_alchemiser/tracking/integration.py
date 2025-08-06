@@ -64,8 +64,14 @@ class StrategyExecutionContext:
                 logging.info(
                     f"Tracked {cls._current_strategy.value} order: {side} {quantity} {symbol} @ ${price:.2f}"
                 )
+            except (AttributeError, ValueError) as e:
+                logging.error(f"Failed to track order {order_id} due to invalid data: {e}")
+            except OSError as e:
+                logging.error(f"Failed to track order {order_id} due to I/O error: {e}")
             except Exception as e:
-                logging.error(f"Failed to track order {order_id}: {e}")
+                logging.error(f"Unexpected error tracking order {order_id}: {e}")
+                # Re-raise unexpected errors for proper error handling
+                raise
 
 
 @contextmanager
@@ -174,8 +180,12 @@ def extract_order_details_from_alpaca_order(
             "quantity": quantity,
             "price": price,
         }
+    except (AttributeError, ValueError, TypeError) as e:
+        logging.error(f"Error extracting order details due to invalid data: {e}")
+        return {}
     except Exception as e:
-        logging.error(f"Error extracting order details: {e}")
+        logging.error(f"Unexpected error extracting order details: {e}")
+        # Return empty dict for unexpected errors to maintain function contract
         return {}
 
 
@@ -203,8 +213,13 @@ def track_alpaca_order_if_filled(
             price=details["price"],
         )
 
+    except (AttributeError, KeyError) as e:
+        logging.error(f"Error tracking Alpaca order due to missing data: {e}")
+    except (ValueError, TypeError) as e:
+        logging.error(f"Error tracking Alpaca order due to invalid data: {e}")
     except Exception as e:
-        logging.error(f"Error tracking Alpaca order: {e}")
+        logging.error(f"Unexpected error tracking Alpaca order: {e}")
+        # Don't re-raise here as this is a tracking function that shouldn't break main flow
 
 
 # Configuration helper
@@ -222,8 +237,12 @@ def configure_strategy_tracking_integration(
 
             logging.info("Strategy tracking integration configured for trading engine")
 
+    except AttributeError as e:
+        logging.error(f"Error configuring strategy tracking integration - missing attribute: {e}")
     except Exception as e:
-        logging.error(f"Error configuring strategy tracking integration: {e}")
+        logging.error(f"Unexpected error configuring strategy tracking integration: {e}")
+        # Re-raise configuration errors as they indicate setup issues
+        raise
 
 
 # Export key functions for easy importing

@@ -298,7 +298,9 @@ class PositionManager:
                     logger = get_logger(__name__)
                     log_error_with_context(
                         logger,
-                        TradingClientError(f"Failed to cancel order {order['id']} for {symbol}: {e}"),
+                        TradingClientError(
+                            f"Failed to cancel order {order['id']} for {symbol}: {e}"
+                        ),
                         "order_cancellation",
                         function="cancel_symbol_orders",
                         symbol=symbol,
@@ -310,7 +312,9 @@ class PositionManager:
                     logger = get_logger(__name__)
                     log_error_with_context(
                         logger,
-                        TradingClientError(f"Unexpected error cancelling order {order['id']} for {symbol}: {e}"),
+                        TradingClientError(
+                            f"Unexpected error cancelling order {order['id']} for {symbol}: {e}"
+                        ),
                         "order_cancellation",
                         function="cancel_symbol_orders",
                         symbol=symbol,

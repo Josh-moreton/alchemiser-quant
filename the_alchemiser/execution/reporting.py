@@ -1,6 +1,7 @@
 import logging
 from typing import Any
 
+from the_alchemiser.core.exceptions import DataProviderError, TradingClientError
 from the_alchemiser.core.trading.strategy_manager import StrategyType
 from the_alchemiser.core.types import AccountInfo
 
@@ -27,8 +28,10 @@ def create_execution_summary(
     try:
         current_positions = engine.get_positions()
         symbols_in_portfolio.update(current_positions.keys())
+    except TradingClientError as e:
+        logging.warning(f"Trading client error getting current positions for P&L: {e}")
     except Exception as e:
-        logging.warning(f"Failed to get current positions for P&L: {e}")
+        logging.warning(f"Unexpected error getting current positions for P&L: {e}")
 
     current_prices = engine.get_current_prices(list(symbols_in_portfolio))
 
@@ -101,8 +104,12 @@ def save_dashboard_data(
             s3_handler.write_json(historical_path, dashboard_data)
         else:
             logging.error("Failed to save dashboard data to S3")
+    except OSError as e:
+        logging.error(f"File/network error saving dashboard data: {e}")
+    except DataProviderError as e:
+        logging.error(f"Data provider error saving dashboard data: {e}")
     except Exception as e:
-        logging.error(f"Failed to save dashboard data: {e}")
+        logging.error(f"Unexpected error saving dashboard data: {e}")
 
 
 def build_portfolio_state_data(

@@ -12,7 +12,7 @@ from alpaca.trading.client import TradingClient
 
 from the_alchemiser.core.secrets.secrets_manager import SecretsManager
 
-from ..exceptions import DataProviderError, MarketDataError, TradingClientError
+from ..exceptions import ConfigurationError, DataProviderError, MarketDataError, TradingClientError
 
 # TODO: Phase 11 - Types available for future migration to structured data types
 # from the_alchemiser.core.types import DataProviderResult, MarketDataPoint, PriceData
@@ -75,9 +75,14 @@ class UnifiedDataProvider:
         self.api_key, self.secret_key = api_key_result
 
         if not self.api_key or not self.secret_key:
-            raise ValueError(
-                f"Alpaca API keys not found in AWS Secrets Manager for {'paper' if paper_trading else 'live'} trading"
+            mode = "paper" if paper_trading else "live"
+            error_msg = (
+                f"Alpaca API keys not found for {mode} trading. "
+                f"Please check that you have either:\n"
+                f"1. Valid AWS credentials and the secret exists in AWS Secrets Manager, or\n"
+                f"2. Environment variables set: ALPACA_{'PAPER_' if paper_trading else ''}KEY and ALPACA_{'PAPER_' if paper_trading else ''}SECRET"
             )
+            raise ConfigurationError(error_msg)
 
         # Initialize Alpaca clients
         self.data_client = StockHistoricalDataClient(self.api_key, self.secret_key)
@@ -114,19 +119,44 @@ class UnifiedDataProvider:
                 )
                 logging.warning(f"Data provider error initializing real-time pricing: {e}")
                 self.real_time_pricing = None
-            except Exception as e:
+            except ImportError as e:
                 from ..logging.logging_utils import get_logger, log_error_with_context
 
                 logger = get_logger(__name__)
                 log_error_with_context(
                     logger,
                     e,
-                    "real_time_pricing_initialization",
+                    "real_time_pricing_import_error",
                     function="__init__",
-                    error_type="unexpected_error",
-                    original_error=type(e).__name__,
+                    error_type=type(e).__name__,
                 )
-                logging.warning(f"Unexpected error initializing real-time pricing: {e}")
+                logging.warning(f"Import error initializing real-time pricing: {e}")
+                self.real_time_pricing = None
+            except (ConnectionError, TimeoutError) as e:
+                from ..logging.logging_utils import get_logger, log_error_with_context
+
+                logger = get_logger(__name__)
+                log_error_with_context(
+                    logger,
+                    e,
+                    "real_time_pricing_connection_error",
+                    function="__init__",
+                    error_type=type(e).__name__,
+                )
+                logging.warning(f"Connection error initializing real-time pricing: {e}")
+                self.real_time_pricing = None
+            except (ConfigurationError, ValueError, AttributeError) as e:
+                from ..logging.logging_utils import get_logger, log_error_with_context
+
+                logger = get_logger(__name__)
+                log_error_with_context(
+                    logger,
+                    e,
+                    "real_time_pricing_configuration_error",
+                    function="__init__",
+                    error_type=type(e).__name__,
+                )
+                logging.warning(f"Configuration error initializing real-time pricing: {e}")
                 self.real_time_pricing = None
 
         logging.debug(
@@ -186,22 +216,53 @@ class UnifiedDataProvider:
             )
             logging.error(f"Market data error fetching data for {symbol}: {e}")
             return pd.DataFrame()
-        except Exception as e:
+        except DataProviderError as e:
             from ..logging.logging_utils import get_logger, log_error_with_context
 
             logger = get_logger(__name__)
             log_error_with_context(
                 logger,
                 e,
-                "historical_data_fetch",
+                "historical_data_provider_error",
                 function="get_historical_data",
                 symbol=symbol,
                 period=period,
                 interval=interval,
-                error_type="unexpected_error",
-                original_error=type(e).__name__,
+                error_type=type(e).__name__,
             )
-            logging.error(f"Unexpected error fetching data for {symbol}: {e}")
+            logging.error(f"Data provider error fetching data for {symbol}: {e}")
+            return pd.DataFrame()
+        except (ConnectionError, TimeoutError) as e:
+            from ..logging.logging_utils import get_logger, log_error_with_context
+
+            logger = get_logger(__name__)
+            log_error_with_context(
+                logger,
+                e,
+                "historical_data_connection_error",
+                function="get_historical_data",
+                symbol=symbol,
+                period=period,
+                interval=interval,
+                error_type=type(e).__name__,
+            )
+            logging.error(f"Connection error fetching data for {symbol}: {e}")
+            return pd.DataFrame()
+        except (TradingClientError, ValueError, KeyError, AttributeError) as e:
+            from ..logging.logging_utils import get_logger, log_error_with_context
+
+            logger = get_logger(__name__)
+            log_error_with_context(
+                logger,
+                e,
+                "historical_data_processing_error",
+                function="get_historical_data",
+                symbol=symbol,
+                period=period,
+                interval=interval,
+                error_type=type(e).__name__,
+            )
+            logging.error(f"Data processing error fetching data for {symbol}: {e}")
             return pd.DataFrame()
 
     def _fetch_historical_data(
@@ -296,22 +357,53 @@ class UnifiedDataProvider:
             )
             logging.error(f"Market data error fetching historical data for {symbol}: {e}")
             return pd.DataFrame()
-        except Exception as e:
+        except (ValueError, KeyError) as e:
             from ..logging.logging_utils import get_logger, log_error_with_context
 
             logger = get_logger(__name__)
             log_error_with_context(
                 logger,
                 e,
-                "historical_data_fetch_internal",
+                "historical_data_parsing_error",
                 function="_fetch_historical_data",
                 symbol=symbol,
                 period=period,
                 interval=interval,
-                error_type="unexpected_error",
-                original_error=type(e).__name__,
+                error_type=type(e).__name__,
             )
-            logging.error(f"Unexpected error fetching historical data for {symbol}: {e}")
+            logging.error(f"Data parsing error fetching historical data for {symbol}: {e}")
+            return pd.DataFrame()
+        except (ConnectionError, TimeoutError) as e:
+            from ..logging.logging_utils import get_logger, log_error_with_context
+
+            logger = get_logger(__name__)
+            log_error_with_context(
+                logger,
+                e,
+                "historical_data_connection_error",
+                function="_fetch_historical_data",
+                symbol=symbol,
+                period=period,
+                interval=interval,
+                error_type=type(e).__name__,
+            )
+            logging.error(f"Connection error fetching historical data for {symbol}: {e}")
+            return pd.DataFrame()
+        except (TradingClientError, AttributeError, TypeError) as e:
+            from ..logging.logging_utils import get_logger, log_error_with_context
+
+            logger = get_logger(__name__)
+            log_error_with_context(
+                logger,
+                e,
+                "historical_data_client_error",
+                function="_fetch_historical_data",
+                symbol=symbol,
+                period=period,
+                interval=interval,
+                error_type=type(e).__name__,
+            )
+            logging.error(f"Client error fetching historical data for {symbol}: {e}")
             return pd.DataFrame()
 
     def get_current_price(self, symbol: str) -> float | None:
@@ -419,20 +511,47 @@ class UnifiedDataProvider:
             )
             logging.error(f"Market data error getting current price for {symbol}: {e}")
             return None
-        except Exception as e:
+        except (ConnectionError, TimeoutError) as e:
             from ..logging.logging_utils import get_logger, log_error_with_context
 
             logger = get_logger(__name__)
             log_error_with_context(
                 logger,
                 e,
-                "current_price_rest_fetch",
+                "current_price_connection_error",
                 function="get_current_price_rest",
                 symbol=symbol,
-                error_type="unexpected_error",
-                original_error=type(e).__name__,
+                error_type=type(e).__name__,
             )
-            logging.error(f"Unexpected error getting current price for {symbol}: {e}")
+            logging.error(f"Connection error getting current price for {symbol}: {e}")
+            return None
+        except (ValueError, TypeError) as e:
+            from ..logging.logging_utils import get_logger, log_error_with_context
+
+            logger = get_logger(__name__)
+            log_error_with_context(
+                logger,
+                e,
+                "current_price_data_error",
+                function="get_current_price_rest",
+                symbol=symbol,
+                error_type=type(e).__name__,
+            )
+            logging.error(f"Data parsing error getting current price for {symbol}: {e}")
+            return None
+        except (TradingClientError, AttributeError, KeyError) as e:
+            from ..logging.logging_utils import get_logger, log_error_with_context
+
+            logger = get_logger(__name__)
+            log_error_with_context(
+                logger,
+                e,
+                "current_price_client_error",
+                function="get_current_price_rest",
+                symbol=symbol,
+                error_type=type(e).__name__,
+            )
+            logging.error(f"Client error getting current price for {symbol}: {e}")
             return None
 
     def get_latest_quote(self, symbol: str) -> tuple[float, float]:
@@ -458,20 +577,19 @@ class UnifiedDataProvider:
                 error_type=type(e).__name__,
             )
             logging.error(f"Market data error fetching latest quote for {symbol}: {e}")
-        except Exception as e:
+        except (TradingClientError, ConnectionError, TimeoutError, ValueError, AttributeError) as e:
             from ..logging.logging_utils import get_logger, log_error_with_context
 
             logger = get_logger(__name__)
             log_error_with_context(
                 logger,
                 e,
-                "latest_quote_fetch",
+                "latest_quote_client_error",
                 function="get_latest_quote",
                 symbol=symbol,
-                error_type="unexpected_error",
-                original_error=type(e).__name__,
+                error_type=type(e).__name__,
             )
-            logging.error(f"Unexpected error fetching latest quote for {symbol}: {e}")
+            logging.error(f"Client error fetching latest quote for {symbol}: {e}")
         return 0.0, 0.0
 
     def get_historical_data(
@@ -552,24 +670,23 @@ class UnifiedDataProvider:
                 f"Market data error fetching historical data for {symbol} from {start} to {end}: {e}"
             )
             return []
-        except Exception as e:
+        except (TradingClientError, ConnectionError, TimeoutError, ValueError, TypeError) as e:
             from ..logging.logging_utils import get_logger, log_error_with_context
 
             logger = get_logger(__name__)
             log_error_with_context(
                 logger,
                 e,
-                "historical_data_date_range_fetch",
+                "historical_data_client_error",
                 function="get_historical_data",
                 symbol=symbol,
                 start_date=str(start),
                 end_date=str(end),
                 timeframe=str(timeframe),
-                error_type="unexpected_error",
-                original_error=type(e).__name__,
+                error_type=type(e).__name__,
             )
             logging.error(
-                f"Unexpected error fetching historical data for {symbol} from {start} to {end}: {e}"
+                f"Client error fetching historical data for {symbol} from {start} to {end}: {e}"
             )
             return []
 
@@ -598,19 +715,18 @@ class UnifiedDataProvider:
             )
             logging.error(f"Trading client error fetching account info: {e}")
             return None
-        except Exception as e:
+        except (ConnectionError, TimeoutError, AttributeError, ValueError) as e:
             from ..logging.logging_utils import get_logger, log_error_with_context
 
             logger = get_logger(__name__)
             log_error_with_context(
                 logger,
                 e,
-                "account_info_fetch",
+                "account_info_connection_error",
                 function="get_account_info",
-                error_type="unexpected_error",
-                original_error=type(e).__name__,
+                error_type=type(e).__name__,
             )
-            logging.error(f"Unexpected error fetching account info: {e}")
+            logging.error(f"Connection error fetching account info: {e}")
             return None
 
     def get_positions(self) -> list[dict[str, Any]]:
@@ -644,19 +760,18 @@ class UnifiedDataProvider:
             )
             logging.error(f"Trading client error fetching positions: {e}")
             return []
-        except Exception as e:
+        except (ConnectionError, TimeoutError, AttributeError, TypeError, ValueError) as e:
             from ..logging.logging_utils import get_logger, log_error_with_context
 
             logger = get_logger(__name__)
             log_error_with_context(
                 logger,
                 e,
-                "positions_fetch",
+                "positions_processing_error",
                 function="get_positions",
-                error_type="unexpected_error",
-                original_error=type(e).__name__,
+                error_type=type(e).__name__,
             )
-            logging.error(f"Unexpected error fetching positions: {e}")
+            logging.error(f"Data processing error fetching positions: {e}")
             return []
 
     def clear_cache(self) -> None:
@@ -715,22 +830,27 @@ class UnifiedDataProvider:
             )
             logging.error(f"Market data error fetching portfolio history: {e}")
             return {}
-        except Exception as e:
+        except (
+            requests.RequestException,
+            ConnectionError,
+            TimeoutError,
+            ValueError,
+            KeyError,
+        ) as e:
             from ..logging.logging_utils import get_logger, log_error_with_context
 
             logger = get_logger(__name__)
             log_error_with_context(
                 logger,
                 e,
-                "portfolio_history_fetch",
+                "portfolio_history_request_error",
                 function="get_portfolio_history",
                 intraday_reporting=intraday_reporting,
                 pnl_reset=pnl_reset,
                 timeframe=timeframe,
-                error_type="unexpected_error",
-                original_error=type(e).__name__,
+                error_type=type(e).__name__,
             )
-            logging.error(f"Unexpected error fetching portfolio history: {e}")
+            logging.error(f"Request error fetching portfolio history: {e}")
             return {}
 
     def get_open_positions(self) -> list[dict[str, Any]]:
@@ -763,19 +883,24 @@ class UnifiedDataProvider:
             )
             logging.error(f"Market data error fetching open positions: {e}")
             return []
-        except Exception as e:
+        except (
+            requests.RequestException,
+            ConnectionError,
+            TimeoutError,
+            ValueError,
+            KeyError,
+        ) as e:
             from ..logging.logging_utils import get_logger, log_error_with_context
 
             logger = get_logger(__name__)
             log_error_with_context(
                 logger,
                 e,
-                "open_positions_fetch",
+                "open_positions_request_error",
                 function="get_open_positions",
-                error_type="unexpected_error",
-                original_error=type(e).__name__,
+                error_type=type(e).__name__,
             )
-            logging.error(f"Unexpected error fetching open positions: {e}")
+            logging.error(f"Request error fetching open positions: {e}")
             return []
 
     def get_account_activities(
@@ -821,22 +946,27 @@ class UnifiedDataProvider:
             )
             logging.error(f"Market data error fetching account activities: {e}")
             return []
-        except Exception as e:
+        except (
+            requests.RequestException,
+            ConnectionError,
+            TimeoutError,
+            ValueError,
+            KeyError,
+        ) as e:
             from ..logging.logging_utils import get_logger, log_error_with_context
 
             logger = get_logger(__name__)
             log_error_with_context(
                 logger,
                 e,
-                "account_activities_fetch",
+                "account_activities_request_error",
                 function="get_account_activities",
                 activity_type=activity_type,
                 direction=direction,
                 page_size=page_size,
-                error_type="unexpected_error",
-                original_error=type(e).__name__,
+                error_type=type(e).__name__,
             )
-            logging.error(f"Unexpected error fetching account activities: {e}")
+            logging.error(f"Request error fetching account activities: {e}")
             return []
 
     def get_recent_closed_positions_pnl(self, days_back: int = 7) -> list[dict[str, Any]]:
@@ -971,18 +1101,17 @@ class UnifiedDataProvider:
             )
             logging.error(f"Data provider error calculating closed positions P&L: {e}")
             return []
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, ZeroDivisionError) as e:
             from ..logging.logging_utils import get_logger, log_error_with_context
 
             logger = get_logger(__name__)
             log_error_with_context(
                 logger,
                 e,
-                "closed_positions_pnl_calculation",
+                "closed_positions_calculation_error",
                 function="get_recent_closed_positions_pnl",
                 days_back=days_back,
-                error_type="unexpected_error",
-                original_error=type(e).__name__,
+                error_type=type(e).__name__,
             )
-            logging.error(f"Unexpected error calculating closed positions P&L: {e}")
+            logging.error(f"Calculation error computing closed positions P&L: {e}")
             return []

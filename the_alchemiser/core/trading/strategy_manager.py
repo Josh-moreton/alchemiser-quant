@@ -21,7 +21,12 @@ from typing import Any
 from the_alchemiser.core.registry import StrategyRegistry, StrategyType
 from the_alchemiser.core.trading.nuclear_signals import ActionType
 
-from ..exceptions import StrategyExecutionError
+from ..exceptions import (
+    AlchemiserError,
+    DataProviderError,
+    StrategyExecutionError,
+    TradingClientError,
+)
 
 __all__ = ["StrategyType"]
 
@@ -140,6 +145,22 @@ class MultiStrategyManager:
                     error_type=type(e).__name__,
                 )
                 logging.error(f"Failed to initialize {strategy_type.value} strategy: {e}")
+                # Remove from allocations if initialization failed
+                del self.strategy_allocations[strategy_type]
+            except DataProviderError as e:
+                from ..logging.logging_utils import get_logger, log_error_with_context
+
+                logger = get_logger(__name__)
+                log_error_with_context(
+                    logger,
+                    e,
+                    "strategy_initialization_data_error",
+                    strategy_type=strategy_type.value,
+                    error_type=type(e).__name__,
+                )
+                logging.error(
+                    f"Data provider error initializing {strategy_type.value} strategy: {e}"
+                )
                 # Remove from allocations if initialization failed
                 del self.strategy_allocations[strategy_type]
             except Exception as e:
@@ -274,6 +295,25 @@ class MultiStrategyManager:
                     "reason": f"{strategy_type.value} strategy error: {e}",
                     "indicators": {},
                     "market_data": market_data,
+                }
+            except DataProviderError as e:
+                from ..logging.logging_utils import get_logger, log_error_with_context
+
+                logger = get_logger(__name__)
+                log_error_with_context(
+                    logger,
+                    e,
+                    "strategy_execution_data_error",
+                    strategy_type=strategy_type.value,
+                    error_type=type(e).__name__,
+                )
+                logging.error(f"Data provider error running {strategy_type.value} strategy: {e}")
+                strategy_signals[strategy_type] = {
+                    "symbol": "BIL",  # Safe default
+                    "action": ActionType.HOLD.value,
+                    "reason": f"{strategy_type.value} data error: {e}",
+                    "indicators": {},
+                    "market_data": {},
                 }
             except Exception as e:
                 from ..logging.logging_utils import get_logger, log_error_with_context
@@ -419,6 +459,48 @@ class MultiStrategyManager:
                     )
                     return {symbol: data["weight"] for symbol, data in bear_portfolio.items()}
 
+                except StrategyExecutionError as e:
+                    from the_alchemiser.core.error_handler import TradingSystemErrorHandler
+
+                    error_handler = TradingSystemErrorHandler()
+
+                    # Log the error with proper categorization
+                    error_handler.handle_error(
+                        error=e,
+                        component="nuclear_strategy",
+                        context="bear_portfolio_volatility_calculation",
+                        additional_data={
+                            "bear1_symbol": bear1_symbol,
+                            "bear2_symbol": bear2_symbol,
+                            "fallback_action": "equal_weight_allocation",
+                        },
+                    )
+
+                    # Use conservative fallback allocation
+                    logging.warning(
+                        f"Bear portfolio volatility calculation failed (strategy error): {e}, using conservative fallback"
+                    )
+                    return {bear1_symbol: 0.6, bear2_symbol: 0.4}
+                except DataProviderError as e:
+                    from the_alchemiser.core.error_handler import TradingSystemErrorHandler
+
+                    error_handler = TradingSystemErrorHandler()
+
+                    # Log the error with proper categorization
+                    error_handler.handle_error(
+                        error=e,
+                        component="nuclear_strategy",
+                        context="bear_portfolio_data_error",
+                        additional_data={
+                            "bear1_symbol": bear1_symbol,
+                            "bear2_symbol": bear2_symbol,
+                            "fallback_action": "equal_weight_allocation",
+                        },
+                    )
+
+                    # Use conservative fallback allocation
+                    logging.warning(f"Bear portfolio data error: {e}, using conservative fallback")
+                    return {bear1_symbol: 0.6, bear2_symbol: 0.4}
                 except Exception as e:
                     from the_alchemiser.core.error_handler import TradingSystemErrorHandler
 
@@ -454,6 +536,20 @@ class MultiStrategyManager:
                     error_type=type(e).__name__,
                 )
                 logging.error(f"Strategy execution error in bear portfolio allocation: {e}")
+                # Safe fallback - single defensive position
+                return {"SQQQ": 1.0}
+            except DataProviderError as e:
+                from ..logging.logging_utils import get_logger, log_error_with_context
+
+                logger = get_logger(__name__)
+                log_error_with_context(
+                    logger,
+                    e,
+                    "bear_portfolio_data_error",
+                    function="get_nuclear_portfolio_allocation",
+                    error_type=type(e).__name__,
+                )
+                logging.error(f"Data provider error in bear portfolio allocation: {e}")
                 # Safe fallback - single defensive position
                 return {"SQQQ": 1.0}
             except Exception as e:
@@ -551,6 +647,18 @@ class MultiStrategyManager:
                 error_type=type(e).__name__,
             )
             logging.error(f"Strategy execution error updating position tracking: {e}")
+        except (AttributeError, KeyError) as e:
+            from ..logging.logging_utils import get_logger, log_error_with_context
+
+            logger = get_logger(__name__)
+            log_error_with_context(
+                logger,
+                e,
+                "position_tracking_data_error",
+                function="_update_position_tracking",
+                error_type=type(e).__name__,
+            )
+            logging.error(f"Data structure error updating position tracking: {e}")
         except Exception as e:
             from ..logging.logging_utils import get_logger, log_error_with_context
 

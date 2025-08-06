@@ -50,6 +50,7 @@ from alpaca.trading.client import TradingClient
 from alpaca.trading.enums import OrderSide
 
 from the_alchemiser.core.data.data_provider import UnifiedDataProvider
+from the_alchemiser.core.exceptions import TradingClientError
 from the_alchemiser.utils.asset_order_handler import AssetOrderHandler
 from the_alchemiser.utils.limit_order_handler import LimitOrderHandler
 from the_alchemiser.utils.order_validation_utils import (
@@ -248,7 +249,7 @@ class AlpacaClient:
                 logging.info(f"Market order placed for {symbol}: {order_id}")
                 return order_id
 
-            except Exception as order_error:
+            except (TradingClientError, ValueError, AttributeError) as order_error:
                 error_msg = str(order_error)
 
                 # Handle fractionability errors using asset handler
@@ -272,7 +273,7 @@ class AlpacaClient:
                         logging.info(f"✅ Fallback order placed for {symbol}: {order_id}")
                         return order_id
 
-                    except Exception as fallback_error:
+                    except (TradingClientError, ConnectionError, TimeoutError) as fallback_error:
                         logging.error(
                             f"❌ Fallback order also failed for {symbol}: {fallback_error}"
                         )
@@ -281,8 +282,8 @@ class AlpacaClient:
                     # Re-raise the original error if it's not a fractionability issue
                     raise order_error
 
-        except Exception as e:
-            logging.error(f"Market order failed for {symbol}: {e}")
+        except (ConnectionError, TimeoutError, OSError) as e:
+            logging.error(f"Network error placing market order for {symbol}: {e}")
             return None
 
     def place_limit_order(

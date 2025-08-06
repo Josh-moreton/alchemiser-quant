@@ -127,22 +127,21 @@ def generate_multi_strategy_signals(
         print(f"ERROR: Strategy signal generation failed: {str(e)}")
         # Re-raise the specific exception for proper error handling
         raise
-    except Exception as e:
+    except (TradingClientError, ImportError, AttributeError, ValueError) as e:
         from the_alchemiser.core.logging.logging_utils import log_error_with_context
 
         logger = get_logger(__name__)
         log_error_with_context(
             logger,
             e,
-            "strategy_signal_generation",
+            "strategy_initialization_error",
             function="run_all_signals_simple",
-            error_type="unexpected_error",
-            original_error=type(e).__name__,
+            error_type=type(e).__name__,
         )
-        print(f"ERROR: Unexpected error in strategy signal generation: {str(e)}")
-        # Convert unexpected errors to our exception hierarchy
+        print(f"ERROR: Strategy initialization failed: {str(e)}")
+        # Convert to our exception hierarchy
         raise StrategyExecutionError(
-            f"Unexpected error during strategy signal generation: {str(e)}",
+            f"Strategy initialization failed: {str(e)}",
             strategy_name="multi_strategy",
         ) from e
 

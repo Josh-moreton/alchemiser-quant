@@ -2,7 +2,9 @@ import logging
 
 from ..core.error_handler import handle_errors_with_retry
 from ..core.exceptions import (
+    ConfigurationError,
     DataProviderError,
+    StrategyExecutionError,
     TradingClientError,
 )
 from .reporting import build_portfolio_state_data, create_execution_summary, save_dashboard_data
@@ -102,21 +104,21 @@ class ExecutionManager:
                 execution_summary={"error": str(e)},
                 final_portfolio_state={},
             )
-        except Exception as e:
+        except (ConfigurationError, StrategyExecutionError, ValueError, AttributeError) as e:
             from the_alchemiser.core.logging.logging_utils import get_logger, log_error_with_context
 
             logger = get_logger(__name__)
-            # Unexpected errors are critical
+            # Configuration and strategy errors are critical
             log_error_with_context(
                 logger,
                 e,
                 "multi_strategy_execution",
                 engine_type=type(self.engine).__name__,
-                error_type="unexpected_error",
+                error_type=type(e).__name__,
             )
             # Convert to our exception type for better handling
             raise TradingClientError(
-                f"Unexpected error in multi-strategy execution: {str(e)}",
+                f"Configuration/strategy error in multi-strategy execution: {str(e)}",
                 context={
                     "original_error": type(e).__name__,
                     "operation": "multi_strategy_execution",

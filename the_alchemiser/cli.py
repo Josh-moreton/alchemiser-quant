@@ -18,7 +18,11 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.prompt import Confirm
 from rich.text import Text
 
-from the_alchemiser.core.exceptions import StrategyExecutionError, TradingClientError
+from the_alchemiser.core.exceptions import (
+    AlchemiserError,
+    StrategyExecutionError,
+    TradingClientError,
+)
 from the_alchemiser.core.logging.logging_utils import get_logger, log_error_with_context
 
 # Initialize Typer app and Rich console
@@ -98,6 +102,20 @@ def signal(
             error_type=type(e).__name__,
         )
         console.print(f"\n[bold red]Strategy execution error: {e}[/bold red]")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
+    except AlchemiserError as e:
+        logger = get_logger(__name__)
+        log_error_with_context(
+            logger,
+            e,
+            "cli_signal_analysis",
+            function="signals",
+            command="signals",
+            error_type=type(e).__name__,
+        )
+        console.print(f"\n[bold red]Application error: {e}[/bold red]")
         if verbose:
             console.print_exception()
         raise typer.Exit(1)
@@ -214,6 +232,22 @@ def trade(
         if verbose:
             console.print_exception()
         raise typer.Exit(1)
+    except AlchemiserError as e:
+        logger = get_logger(__name__)
+        log_error_with_context(
+            logger,
+            e,
+            "cli_trading_application_error",
+            function="trade",
+            command="trade",
+            live_trading=live,
+            ignore_market_hours=ignore_market_hours,
+            error_type=type(e).__name__,
+        )
+        console.print(f"\n[bold red]Application error: {e}[/bold red]")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
     except Exception as e:
         logger = get_logger(__name__)
         log_error_with_context(
@@ -282,8 +316,45 @@ def status(
             console.print("[bold red]Could not retrieve account status![/bold red]")
             raise typer.Exit(1)
 
+    except TradingClientError as e:
+        logger = get_logger(__name__)
+        log_error_with_context(
+            logger,
+            e,
+            "cli_status_trading_error",
+            function="status",
+            command="status",
+            live_trading=live,
+            error_type=type(e).__name__,
+        )
+        console.print(f"[bold red]Trading client error: {e}[/bold red]")
+        raise typer.Exit(1)
+    except AlchemiserError as e:
+        logger = get_logger(__name__)
+        log_error_with_context(
+            logger,
+            e,
+            "cli_status_application_error",
+            function="status",
+            command="status",
+            live_trading=live,
+            error_type=type(e).__name__,
+        )
+        console.print(f"[bold red]Application error: {e}[/bold red]")
+        raise typer.Exit(1)
     except Exception as e:
-        console.print(f"[bold red]Error: {e}[/bold red]")
+        logger = get_logger(__name__)
+        log_error_with_context(
+            logger,
+            e,
+            "cli_status_unexpected_error",
+            function="status",
+            command="status",
+            live_trading=live,
+            error_type="unexpected_error",
+            original_error=type(e).__name__,
+        )
+        console.print(f"[bold red]Unexpected error: {e}[/bold red]")
         raise typer.Exit(1)
 
 
@@ -318,8 +389,24 @@ def deploy() -> None:
             console.print("[bold red]❌ Deployment failed![/bold red]")
             console.print(f"[dim]Error output:[/dim]\n{e.stderr}")
             raise typer.Exit(1)
+        except FileNotFoundError as e:
+            console.print(f"[bold red]❌ Deployment script not found: {e}[/bold red]")
+            raise typer.Exit(1)
+        except PermissionError as e:
+            console.print(f"[bold red]❌ Permission denied during deployment: {e}[/bold red]")
+            raise typer.Exit(1)
         except Exception as e:
-            console.print(f"[bold red]❌ Error: {e}[/bold red]")
+            logger = get_logger(__name__)
+            log_error_with_context(
+                logger,
+                e,
+                "cli_deployment_error",
+                function="deploy",
+                command="deploy",
+                error_type="unexpected_error",
+                original_error=type(e).__name__,
+            )
+            console.print(f"[bold red]❌ Unexpected deployment error: {e}[/bold red]")
             raise typer.Exit(1)
 
 
@@ -431,8 +518,32 @@ def validate_indicators(
         console.print("[red]Error: Could not import validation suite.[/red]")
         console.print(f"Details: {e}")
         raise typer.Exit(1)
+    except AlchemiserError as e:
+        logger = get_logger(__name__)
+        log_error_with_context(
+            logger,
+            e,
+            "cli_validation_application_error",
+            function="validate",
+            command="validate",
+            error_type=type(e).__name__,
+        )
+        console.print(f"[red]Application error during validation: {e}[/red]")
+        if verbose_validation:
+            console.print_exception()
+        raise typer.Exit(1)
     except Exception as e:
-        console.print(f"[red]Error running validation: {e}[/red]")
+        logger = get_logger(__name__)
+        log_error_with_context(
+            logger,
+            e,
+            "cli_validation_unexpected_error",
+            function="validate",
+            command="validate",
+            error_type="unexpected_error",
+            original_error=type(e).__name__,
+        )
+        console.print(f"[red]Unexpected error running validation: {e}[/red]")
         if verbose_validation:
             console.print_exception()
         raise typer.Exit(1)
