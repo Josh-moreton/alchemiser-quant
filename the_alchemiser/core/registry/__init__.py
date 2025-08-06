@@ -7,8 +7,6 @@ Modules:
     strategy_registry: Registry for trading strategies
 """
 
-from typing import Any
-
 from .strategy_registry import StrategyConfig, StrategyRegistry, StrategyType
 
 __all__ = ["StrategyRegistry", "StrategyType", "StrategyConfig"]

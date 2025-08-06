@@ -261,7 +261,7 @@ class TestExecutionWorkflow:
         final_status = None
         total_filled = 0
 
-        for i in range(3):  # Poll order status
+        for _i in range(3):  # Poll order status
             current_order = mock_alpaca_client.get_order(order_id)
             final_status = current_order.status
             total_filled = current_order.filled_qty
@@ -280,20 +280,11 @@ class TestExecutionWorkflow:
 
     def test_portfolio_reconciliation(self, mocker, mock_alpaca_client):
         """Test portfolio state reconciliation after order execution."""
-        # Pre-execution portfolio state
-        pre_execution_state = {
-            "cash": Decimal("20000.00"),
-            "positions": {"AAPL": {"quantity": 50, "avg_price": Decimal("150.00")}},
-        }
-
-        # Executed order details
-        executed_order = {
-            "symbol": "AAPL",
-            "side": "buy",
-            "filled_qty": 50,
-            "avg_fill_price": Decimal("155.00"),
-            "total_cost": Decimal("7750.00"),  # 50 * 155
-        }
+        # Pre-execution portfolio state - for documentation purposes
+        # (in a real test we would use this data to verify state changes)
+        
+        # Executed order details - for documentation purposes
+        # (in a real test we would use this to verify order execution)
 
         # Mock broker position data (after execution)
         mock_broker_positions = [
@@ -375,7 +366,7 @@ class TestErrorHandlingAndRecovery:
         retry_count = 0
         result = None
 
-        for attempt in range(max_retries):
+        for _attempt in range(max_retries):
             try:
                 result = mock_alpaca_client.get_latest_quote("AAPL")
                 break
@@ -488,7 +479,7 @@ class TestErrorHandlingAndRecovery:
 
         # Test circuit breaker behavior
         results = []
-        for i in range(5):
+        for _i in range(5):
             try:
                 circuit_breaker_api_call()
                 results.append("SUCCESS")

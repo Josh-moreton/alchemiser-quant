@@ -530,8 +530,8 @@ class EnhancedErrorReporter:
                 additional_data=context,
             )
 
-            error_handler = ErrorHandler()
-            error_handler.handle_error(error_details)
+            # Use the error handler to process the error
+            self.handle_error(error_details)
 
         # Track for rate monitoring
         error_key = f"{error.__class__.__name__}:{operation or 'unknown'}"

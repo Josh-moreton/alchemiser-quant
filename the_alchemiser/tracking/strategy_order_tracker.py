@@ -25,9 +25,10 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from the_alchemiser.core.config import load_settings
-from the_alchemiser.core.exceptions import StrategyExecutionError
 from the_alchemiser.core.trading.strategy_manager import StrategyType
 from the_alchemiser.core.utils.s3_utils import get_s3_handler
+
+from ..core.exceptions import DataProviderError, StrategyExecutionError
 
 # TODO: Add these imports once data structures match:
 # from ..core.types import OrderHistoryData, EmailSummary
@@ -434,8 +435,39 @@ class StrategyOrderTracker:
                 f"Realized P&L for {sell_order.strategy} {sell_order.symbol}: ${realized_pnl:.2f}"
             )
 
+        except StrategyExecutionError as e:
+            from ..core.logging.logging_utils import get_logger, log_error_with_context
+
+            logger = get_logger(__name__)
+            log_error_with_context(
+                logger,
+                e,
+                "realized_pnl_calculation",
+                function="_calculate_realized_pnl",
+                strategy=sell_order.strategy,
+                symbol=sell_order.symbol,
+                quantity=sell_order.quantity,
+                price=sell_order.price,
+                error_type=type(e).__name__,
+            )
+            logging.error(f"Strategy execution error calculating realized P&L: {e}")
         except Exception as e:
-            logging.error(f"Error calculating realized P&L: {e}")
+            from ..core.logging.logging_utils import get_logger, log_error_with_context
+
+            logger = get_logger(__name__)
+            log_error_with_context(
+                logger,
+                e,
+                "realized_pnl_calculation",
+                function="_calculate_realized_pnl",
+                strategy=sell_order.strategy,
+                symbol=sell_order.symbol,
+                quantity=sell_order.quantity,
+                price=sell_order.price,
+                error_type="unexpected_error",
+                original_error=type(e).__name__,
+            )
+            logging.error(f"Unexpected error calculating realized P&L: {e}")
 
     def _load_data(self) -> None:
         """Load existing data from S3."""

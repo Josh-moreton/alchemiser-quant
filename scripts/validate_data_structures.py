@@ -218,7 +218,7 @@ def validate_order_data(alpaca_orders_data: list[dict[str, Any]]) -> bool:
             if isinstance(expected_type, tuple):
                 type_match = any(isinstance(actual_value, t) for t in expected_type)
                 expected_type_str = " | ".join(
-                    t.__name__ if t != type(None) else "None" for t in expected_type
+                    t.__name__ if t is not type(None) else "None" for t in expected_type
                 )
             else:
                 type_match = isinstance(actual_value, expected_type)
