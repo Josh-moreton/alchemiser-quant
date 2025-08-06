@@ -1,8 +1,8 @@
 import logging
 import time
+from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from typing import Any, cast
-from collections.abc import Callable
 
 import pandas as pd
 from alpaca.data.historical import StockHistoricalDataClient
@@ -204,7 +204,9 @@ class UnifiedDataProvider:
             logging.error(f"Unexpected error fetching data for {symbol}: {e}")
             return pd.DataFrame()
 
-    def _fetch_historical_data(self, symbol: str, period: str = "1y", interval: str = "1d") -> pd.DataFrame:
+    def _fetch_historical_data(
+        self, symbol: str, period: str = "1y", interval: str = "1d"
+    ) -> pd.DataFrame:
         """Fetch historical data from Alpaca API."""
         try:
             # Convert period to start/end dates
@@ -472,7 +474,9 @@ class UnifiedDataProvider:
             logging.error(f"Unexpected error fetching latest quote for {symbol}: {e}")
         return 0.0, 0.0
 
-    def get_historical_data(self, symbol: str, start: datetime, end: datetime, timeframe: TimeFrame | str | None = None) -> list[Any]:
+    def get_historical_data(
+        self, symbol: str, start: datetime, end: datetime, timeframe: TimeFrame | str | None = None
+    ) -> list[Any]:
         """
         Get historical data for a specific date range.
 
@@ -574,9 +578,9 @@ class UnifiedDataProvider:
         try:
             account = self.trading_client.get_account()
             # Convert account object to dict for consistency
-            if hasattr(account, 'model_dump'):
+            if hasattr(account, "model_dump"):
                 return account.model_dump()  # type: ignore[return-value,attr-defined]
-            elif hasattr(account, '__dict__'):
+            elif hasattr(account, "__dict__"):
                 return account.__dict__  # type: ignore[return-value]
             else:
                 # Fallback: return as Any and cast
@@ -617,9 +621,9 @@ class UnifiedDataProvider:
             if isinstance(positions, list):
                 result: list[dict[str, Any]] = []
                 for pos in positions:
-                    if hasattr(pos, 'model_dump'):
+                    if hasattr(pos, "model_dump"):
                         result.append(pos.model_dump())  # type: ignore[arg-type]
-                    elif hasattr(pos, '__dict__'):
+                    elif hasattr(pos, "__dict__"):
                         result.append(pos.__dict__)  # type: ignore[arg-type]
                     else:
                         result.append(dict(pos))  # type: ignore[arg-type,call-arg]
@@ -672,7 +676,7 @@ class UnifiedDataProvider:
         self,
         intraday_reporting: str = "market_hours",
         pnl_reset: str = "per_day",
-        timeframe: str = "1D"
+        timeframe: str = "1D",
     ) -> dict[str, Any]:
         """
         Get account portfolio history (closed P&L, equity curve).
@@ -775,10 +779,7 @@ class UnifiedDataProvider:
             return []
 
     def get_account_activities(
-        self,
-        activity_type: str = "FILL",
-        direction: str = "desc",
-        page_size: int = 50
+        self, activity_type: str = "FILL", direction: str = "desc", page_size: int = 50
     ) -> list[dict[str, Any]]:
         """
         Get account activities including filled orders to track closed position P&L.

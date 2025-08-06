@@ -25,9 +25,9 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from the_alchemiser.core.config import load_settings
+from the_alchemiser.core.exceptions import StrategyExecutionError
 from the_alchemiser.core.trading.strategy_manager import StrategyType
 from the_alchemiser.core.utils.s3_utils import get_s3_handler
-from the_alchemiser.core.exceptions import DataProviderError, StrategyExecutionError
 
 # TODO: Add these imports once data structures match:
 # from ..core.types import OrderHistoryData, EmailSummary
@@ -207,8 +207,43 @@ class StrategyOrderTracker:
                 f"Recorded {strategy.value} order: {side} {quantity} {symbol} @ ${price:.2f}"
             )
 
+        except StrategyExecutionError as e:
+            from ..core.logging.logging_utils import get_logger, log_error_with_context
+
+            logger = get_logger(__name__)
+            log_error_with_context(
+                logger,
+                e,
+                "order_recording",
+                function="record_order",
+                order_id=order_id,
+                strategy=strategy.value,
+                symbol=symbol,
+                side=side,
+                quantity=quantity,
+                price=price,
+                error_type=type(e).__name__,
+            )
+            logging.error(f"Strategy execution error recording order {order_id}: {e}")
         except Exception as e:
-            logging.error(f"Failed to record order {order_id}: {e}")
+            from ..core.logging.logging_utils import get_logger, log_error_with_context
+
+            logger = get_logger(__name__)
+            log_error_with_context(
+                logger,
+                e,
+                "order_recording",
+                function="record_order",
+                order_id=order_id,
+                strategy=strategy.value,
+                symbol=symbol,
+                side=side,
+                quantity=quantity,
+                price=price,
+                error_type="unexpected_error",
+                original_error=type(e).__name__,
+            )
+            logging.error(f"Unexpected error recording order {order_id}: {e}")
 
     def _process_order(self, order: StrategyOrder) -> None:
         """Process a new order - update caches and persist to S3."""
@@ -325,8 +360,34 @@ class StrategyOrderTracker:
             else:
                 logging.error(f"Failed to archive daily P&L for {today}")
 
+        except DataProviderError as e:
+            from ..core.logging.logging_utils import get_logger, log_error_with_context
+
+            logger = get_logger(__name__)
+            log_error_with_context(
+                logger,
+                e,
+                "pnl_archive_data_error",
+                function="archive_daily_pnl",
+                date=today,
+                strategies_count=len(all_pnl) if "all_pnl" in locals() else 0,
+                error_type=type(e).__name__,
+            )
+            logging.error(f"Data provider error archiving daily P&L: {e}")
         except Exception as e:
-            logging.error(f"Error archiving daily P&L: {e}")
+            from ..core.logging.logging_utils import get_logger, log_error_with_context
+
+            logger = get_logger(__name__)
+            log_error_with_context(
+                logger,
+                e,
+                "pnl_archive_error",
+                function="archive_daily_pnl",
+                date=today if "today" in locals() else "unknown",
+                error_type="unexpected_error",
+                original_error=type(e).__name__,
+            )
+            logging.error(f"Unexpected error archiving daily P&L: {e}")
 
     def _update_position(self, order: StrategyOrder) -> None:
         """Update position cache with new order."""
