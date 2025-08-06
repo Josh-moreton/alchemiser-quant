@@ -1,7 +1,6 @@
+"""Unified historical and real-time market data access layer."""
 import logging
 import time
-
-"""Unified historical and real-time market data access layer."""
 
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
