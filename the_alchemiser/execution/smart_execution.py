@@ -546,3 +546,11 @@ class SmartExecution:
         # Step 4: Market order fallback
         console.print("[yellow]All limit attempts failed, using market order[/yellow]")
         return self._order_executor.place_market_order(symbol, side, qty=qty)
+
+    def get_order_by_id(self, order_id: str) -> Any:
+        """Get order details by order ID from the trading client."""
+        try:
+            return self._order_executor.trading_client.get_order_by_id(order_id)
+        except Exception as e:
+            logging.warning(f"Could not retrieve order {order_id}: {e}")
+            return None

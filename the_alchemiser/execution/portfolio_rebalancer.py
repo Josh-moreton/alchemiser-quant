@@ -451,6 +451,19 @@ class PortfolioRebalancer:
                 # Wait for this individual order to settle before moving to the next
                 self.bot.wait_for_settlement([order_details])
 
+                # Update order details with actual filled information
+                try:
+                    # Get the actual order from API to get filled data
+                    actual_order = self.bot.get_order_by_id(order_id)
+                    if actual_order:
+                        order_details["filled_qty"] = float(getattr(actual_order, "filled_qty", 0))
+                        filled_price = getattr(actual_order, "filled_avg_price", None)
+                        order_details["filled_avg_price"] = float(filled_price) if filled_price else None
+                        order_details["status"] = str(getattr(actual_order, "status", "unknown"))
+                        logging.info(f"Updated {symbol} order with filled data: qty={order_details['filled_qty']}, price={order_details['filled_avg_price']}")
+                except Exception as e:
+                    logging.warning(f"Could not fetch filled data for order {order_id}: {e}")
+
                 # Refresh positions and account info to detect any fills
                 try:
                     account_info = self.bot.get_account_info()
