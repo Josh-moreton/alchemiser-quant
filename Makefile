@@ -63,7 +63,7 @@ format:
 
 lint:
 	@echo "🔍 Running linting..."
-	flake8 the_alchemiser/ tests/
+	ruff check --fix the_alchemiser/ tests/
 
 clean:
 	@echo "🧹 Cleaning build artifacts..."
