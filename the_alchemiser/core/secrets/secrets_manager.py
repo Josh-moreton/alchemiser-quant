@@ -52,8 +52,12 @@ class SecretsManager:
             except Exception as e:
                 if self.is_production:
                     # In production, AWS Secrets Manager must be available
-                    logging.error(f"CRITICAL: Failed to initialize AWS Secrets Manager client in production: {e}")
-                    raise RuntimeError("AWS Secrets Manager is required in production environment") from e
+                    logging.error(
+                        f"CRITICAL: Failed to initialize AWS Secrets Manager client in production: {e}"
+                    )
+                    raise RuntimeError(
+                        "AWS Secrets Manager is required in production environment"
+                    ) from e
                 else:
                     logging.warning(f"Failed to initialize AWS Secrets Manager client: {e}")
                     self.client = None
@@ -115,7 +119,9 @@ class SecretsManager:
 
             if self.is_production:
                 # In production, AWS Secrets Manager failure is fatal
-                logging.error("CRITICAL: AWS Secrets Manager failed in production - not falling back")
+                logging.error(
+                    "CRITICAL: AWS Secrets Manager failed in production - not falling back"
+                )
                 raise RuntimeError(f"AWS Secrets Manager failed in production: {error_code}") from e
             else:
                 logging.warning("Falling back to environment variables")
@@ -143,9 +149,13 @@ class SecretsManager:
             Dictionary containing the secret values from environment variables
         """
         if self.is_production:
-            logging.warning("Using environment variables in production - ensure Lambda env vars are set correctly")
+            logging.warning(
+                "Using environment variables in production - ensure Lambda env vars are set correctly"
+            )
         else:
-            logging.info("Development mode: Loading secrets from environment variables (may include .env)")
+            logging.info(
+                "Development mode: Loading secrets from environment variables (may include .env)"
+            )
 
         secrets = {}
 
