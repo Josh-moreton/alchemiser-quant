@@ -256,7 +256,7 @@ def lambda_handler(event: LambdaEvent | None = None, context: Any = None) -> dic
             "message": error_message,
             "request_id": request_id,
         }
-    except Exception as e:
+    except (ImportError, AttributeError, ValueError, KeyError, TypeError, OSError) as e:
         from the_alchemiser.core.logging.logging_utils import log_error_with_context
 
         error_message = f"Lambda execution critical error: {str(e)}"
@@ -293,7 +293,14 @@ def lambda_handler(event: LambdaEvent | None = None, context: Any = None) -> dic
             # Send detailed error notification if needed
             send_error_notification_if_needed()
 
-        except Exception as notification_error:
+        except (
+            NotificationError,
+            ImportError,
+            AttributeError,
+            ValueError,
+            KeyError,
+            TypeError,
+        ) as notification_error:
             logger.warning("Failed to send error notification: %s", notification_error)
 
         return {

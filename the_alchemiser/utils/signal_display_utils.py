@@ -104,7 +104,7 @@ def display_technical_indicators(strategy_instance, key_symbols=None):
                         logger.info("%s: RSI(10)=%.1f, RSI(20)=%.1f", symbol, rsi_10, rsi_20)
                     else:
                         logger.debug("%s: RSI indicators not available", symbol)
-    except Exception as e:
+    except (AttributeError, KeyError, ValueError, TypeError, ImportError) as e:
         logger.warning("Could not display technical indicators: %s", e)
 
 
@@ -129,5 +129,5 @@ def display_portfolio_details(strategy_instance, strategy_name="Strategy"):
                         logger.info("   %s: %.1%", symbol, weight)
                     else:
                         logger.info("   %s: %s", symbol, weight)
-    except Exception as e:
+    except (AttributeError, KeyError, ValueError, TypeError, ImportError) as e:
         logger.warning("Could not display portfolio details: %s", e)

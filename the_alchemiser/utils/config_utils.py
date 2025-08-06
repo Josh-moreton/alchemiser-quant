@@ -43,7 +43,7 @@ def load_alert_config() -> dict[str, Any]:
             with open("alert_config.json") as f:
                 return json.load(f)
 
-    except Exception as e:
+    except (ImportError, FileNotFoundError, OSError, ValueError, KeyError, AttributeError) as e:
         logging.warning(f"Could not load alert config: {e}")
 
     # Default config if nothing found - use global config values

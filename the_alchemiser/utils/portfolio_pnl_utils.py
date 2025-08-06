@@ -47,7 +47,7 @@ def calculate_strategy_pnl_summary(
                 "total_allocation_value": round(total_allocation_value, 2),
             },
         }
-    except Exception as e:
+    except (ImportError, AttributeError, ValueError, KeyError, TypeError) as e:
         logging.warning(f"Failed to calculate strategy P&L: {e}")
         return {
             "all_strategy_pnl": {},

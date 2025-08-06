@@ -48,7 +48,7 @@ class PositionManager:
             )
             logging.error(f"Error getting positions: {e}")
             return {}
-        except Exception as e:
+        except (TradingClientError, DataProviderError, ConnectionError, TimeoutError, OSError) as e:
             logger = get_logger(__name__)
             log_error_with_context(
                 logger,
@@ -162,7 +162,7 @@ class PositionManager:
             )
             warning_msg = f"Data provider error validating buying power for {symbol}: {e}"
             return True, warning_msg  # Continue with order despite validation error
-        except Exception as e:
+        except (TradingClientError, ConnectionError, TimeoutError, OSError) as e:
             logger = get_logger(__name__)
             log_error_with_context(
                 logger,
@@ -219,7 +219,7 @@ class PositionManager:
             )
             logging.error(f"Exception liquidating position for {symbol}: {e}")
             return None
-        except Exception as e:
+        except (TradingClientError, DataProviderError, ConnectionError, TimeoutError, OSError) as e:
             logger = get_logger(__name__)
             log_error_with_context(
                 logger,
@@ -263,7 +263,7 @@ class PositionManager:
             )
             logging.error(f"Error getting pending orders: {e}")
             return []
-        except Exception as e:
+        except (TradingClientError, DataProviderError, ConnectionError, TimeoutError, OSError) as e:
             logger = get_logger(__name__)
             log_error_with_context(
                 logger,
@@ -308,7 +308,13 @@ class PositionManager:
                         error_type=type(e).__name__,
                     )
                     logging.warning(f"Could not cancel order {order['id']}: {e}")
-                except Exception as e:
+                except (
+                    TradingClientError,
+                    DataProviderError,
+                    ConnectionError,
+                    TimeoutError,
+                    OSError,
+                ) as e:
                     logger = get_logger(__name__)
                     log_error_with_context(
                         logger,
@@ -325,7 +331,7 @@ class PositionManager:
                     logging.warning(f"Unexpected error cancelling order {order['id']}: {e}")
 
             return True
-        except Exception as e:
+        except (TradingClientError, DataProviderError, ConnectionError, TimeoutError, OSError) as e:
             logger = get_logger(__name__)
             log_error_with_context(
                 logger,
@@ -361,7 +367,7 @@ class PositionManager:
             )
             logging.error(f"Error cancelling all orders: {e}")
             return False
-        except Exception as e:
+        except (TradingClientError, DataProviderError, ConnectionError, TimeoutError, OSError) as e:
             logger = get_logger(__name__)
             log_error_with_context(
                 logger,

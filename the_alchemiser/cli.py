@@ -119,7 +119,7 @@ def signal(
         if verbose:
             console.print_exception()
         raise typer.Exit(1)
-    except Exception as e:
+    except (ImportError, AttributeError, ValueError, KeyError, TypeError, OSError) as e:
         logger = get_logger(__name__)
         log_error_with_context(
             logger,
@@ -248,7 +248,7 @@ def trade(
         if verbose:
             console.print_exception()
         raise typer.Exit(1)
-    except Exception as e:
+    except (ImportError, AttributeError, ValueError, KeyError, TypeError, OSError) as e:
         logger = get_logger(__name__)
         log_error_with_context(
             logger,
@@ -342,7 +342,7 @@ def status(
         )
         console.print(f"[bold red]Application error: {e}[/bold red]")
         raise typer.Exit(1)
-    except Exception as e:
+    except (ImportError, AttributeError, ValueError, KeyError, TypeError, OSError) as e:
         logger = get_logger(__name__)
         log_error_with_context(
             logger,
@@ -395,7 +395,7 @@ def deploy() -> None:
         except PermissionError as e:
             console.print(f"[bold red]❌ Permission denied during deployment: {e}[/bold red]")
             raise typer.Exit(1)
-        except Exception as e:
+        except (OSError, ValueError, AttributeError) as e:
             logger = get_logger(__name__)
             log_error_with_context(
                 logger,
@@ -532,7 +532,7 @@ def validate_indicators(
         if verbose_validation:
             console.print_exception()
         raise typer.Exit(1)
-    except Exception as e:
+    except (AttributeError, ValueError, KeyError, TypeError, OSError) as e:
         logger = get_logger(__name__)
         log_error_with_context(
             logger,
