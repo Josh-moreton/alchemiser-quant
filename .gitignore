@@ -22,7 +22,6 @@ Icon?
 *.swp
 
 # VSCode and JetBrains IDEs
-.vscode/
 .idea/
 
 # Data outputs and logs

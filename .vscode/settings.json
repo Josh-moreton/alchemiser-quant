@@ -1,0 +1,39 @@
+{
+    // Format on save with Black
+    "editor.formatOnSave": true,
+    "python.formatting.provider": "none",
+    // Disable legacy Python linting to avoid duplicate MyPy runs
+    "python.linting.enabled": false,
+    "python.linting.mypyEnabled": false,
+    "[python]": {
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "ms-python.black-formatter",
+        "editor.codeActionsOnSave": {
+            // Let Ruff handle imports instead of VS Code
+            "source.organizeImports": "never"
+        }
+    },
+    // Ruff: lint + auto-fix + import sorting (new settings)
+    "ruff.lint.enable": true,
+    "ruff.organizeImports": true,
+    // MyPy Type Checker extension (new method)
+    "mypy-type-checker.args": [
+        "--config-file=pyproject.toml"
+    ],
+    // Black config
+    "black-formatter.args": [
+        "--config=pyproject.toml"
+    ],
+    // Optional: Reduce duplicate type checking from Pylance
+    // "basic" still gives hover hints and light warnings
+    "python.analysis.typeCheckingMode": "basic",
+    "sonarlint.rules": {
+        "python:S1481": "off"
+    },
+    "python.testing.pytestArgs": [
+        "tests"
+    ],
+    "python.testing.unittestEnabled": false,
+    "python.testing.pytestEnabled": true
+}
+testing
