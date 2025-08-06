@@ -1,8 +1,21 @@
 repos:
   - repo: local
     hooks:
+      - id: ruff
+        name: Ruff Lint & Imports
+        entry: bash
+        language: system
+        types: [python]
+        pass_filenames: true
+        args:
+          - -c
+          - |
+            # First fix imports and lint issues
+            poetry run ruff check --fix "$@"
+            git add "$@"  # auto-stage changes
+
       - id: black
-        name: black
+        name: Black Format
         entry: bash
         language: system
         types: [python]
@@ -11,16 +24,4 @@ repos:
           - -c
           - |
             poetry run black "$@"
-            git add "$@"  # auto-stage changes
-
-      - id: ruff
-        name: ruff
-        entry: bash
-        language: system
-        types: [python]
-        pass_filenames: true
-        args:
-          - -c
-          - |
-            poetry run ruff check --fix "$@"
             git add "$@"  # auto-stage changes

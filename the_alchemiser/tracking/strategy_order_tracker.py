@@ -3,7 +3,51 @@
 Strategy Order Tracker for Per-Strategy P&L Management
 
 This module provides dedicated tracking of orders and positions per strategy for accurate P&L calculations.
-It persists order data to S3 for durability and calculates realized/unrealized P&L per strategy.
+It persists order d        except DataProviderEr        except DataProviderError as e:
+            from ..core.logging.logging_utils import get_logger, log_error_with_context
+
+            logger = get_logger(__name__)
+            log_error_with_context(
+                logger,
+                e,
+                "order_recording",
+                function="record_order",
+                order_id=order_id,
+                strategy=strategy.value,
+                symbol=symbol,
+                side=side,
+                quantity=quantity,
+                price=price,
+                error_type=type(e).__name__,
+            )     from ..core.logging.logging_utils import get_logger, log_error_with_context
+
+            logger = get_logger(__name__)
+            log_error_with_context(
+                logger,
+                     except DataProviderError as e:
+            from ..core.logging.logging_utils import get_logger, log_error_with_context
+
+            logger = get_logger(__name__)
+            log_error_with_context(
+                logger,
+                e,
+                "realized_pnl_calculation",
+                function="_calculate_realized_pnl",
+                strategy=sell_order.strategy,
+                symbol=sell_order.symbol,
+                quantity=sell_order.quantity,
+                price=sell_order.price,
+                error_type=type(e).__name__,
+            )       "order_recording",
+                function="record_order",
+                order_id=order_id,
+                strategy=strategy.value,
+                symbol=symbol,
+                side=side,
+                quantity=quantity,
+                price=price,
+                error_type=type(e).__name__,
+            )ability and calculates realized/unrealized P&L per strategy.
 
 Key Features:
 - Tag orders with strategy information during execution
@@ -27,6 +71,8 @@ from typing import Any
 from the_alchemiser.core.config import load_settings
 from the_alchemiser.core.trading.strategy_manager import StrategyType
 from the_alchemiser.core.utils.s3_utils import get_s3_handler
+
+from ..core.exceptions import DataProviderError, StrategyExecutionError
 
 # TODO: Add these imports once data structures match:
 # from ..core.types import OrderHistoryData, EmailSummary
@@ -206,8 +252,43 @@ class StrategyOrderTracker:
                 f"Recorded {strategy.value} order: {side} {quantity} {symbol} @ ${price:.2f}"
             )
 
-        except Exception as e:
-            logging.error(f"Failed to record order {order_id}: {e}")
+        except StrategyExecutionError as e:
+            from ..core.logging.logging_utils import get_logger, log_error_with_context
+
+            logger = get_logger(__name__)
+            log_error_with_context(
+                logger,
+                e,
+                "order_recording",
+                function="record_order",
+                order_id=order_id,
+                strategy=strategy.value,
+                symbol=symbol,
+                side=side,
+                quantity=quantity,
+                price=price,
+                error_type=type(e).__name__,
+            )
+            logging.error(f"Strategy execution error recording order {order_id}: {e}")
+        except DataProviderError as e:
+            from ..core.logging.logging_utils import get_logger, log_error_with_context
+
+            logger = get_logger(__name__)
+            log_error_with_context(
+                logger,
+                e,
+                "order_recording",
+                function="record_order",
+                order_id=order_id,
+                strategy=strategy.value,
+                symbol=symbol,
+                side=side,
+                quantity=quantity,
+                price=price,
+                error_type="unexpected_error",
+                original_error=type(e).__name__,
+            )
+            logging.error(f"Unexpected error recording order {order_id}: {e}")
 
     def _process_order(self, order: StrategyOrder) -> None:
         """Process a new order - update caches and persist to S3."""
@@ -324,8 +405,34 @@ class StrategyOrderTracker:
             else:
                 logging.error(f"Failed to archive daily P&L for {today}")
 
-        except Exception as e:
-            logging.error(f"Error archiving daily P&L: {e}")
+        except DataProviderError as e:
+            from ..core.logging.logging_utils import get_logger, log_error_with_context
+
+            logger = get_logger(__name__)
+            log_error_with_context(
+                logger,
+                e,
+                "pnl_archive_data_error",
+                function="archive_daily_pnl",
+                date=today,
+                strategies_count=len(all_pnl) if "all_pnl" in locals() else 0,
+                error_type=type(e).__name__,
+            )
+            logging.error(f"Data provider error archiving daily P&L: {e}")
+        except StrategyExecutionError as e:
+            from ..core.logging.logging_utils import get_logger, log_error_with_context
+
+            logger = get_logger(__name__)
+            log_error_with_context(
+                logger,
+                e,
+                "pnl_archive_error",
+                function="archive_daily_pnl",
+                date=today if "today" in locals() else "unknown",
+                error_type="unexpected_error",
+                original_error=type(e).__name__,
+            )
+            logging.error(f"Unexpected error archiving daily P&L: {e}")
 
     def _update_position(self, order: StrategyOrder) -> None:
         """Update position cache with new order."""
@@ -372,8 +479,39 @@ class StrategyOrderTracker:
                 f"Realized P&L for {sell_order.strategy} {sell_order.symbol}: ${realized_pnl:.2f}"
             )
 
-        except Exception as e:
-            logging.error(f"Error calculating realized P&L: {e}")
+        except StrategyExecutionError as e:
+            from ..core.logging.logging_utils import get_logger, log_error_with_context
+
+            logger = get_logger(__name__)
+            log_error_with_context(
+                logger,
+                e,
+                "realized_pnl_calculation",
+                function="_calculate_realized_pnl",
+                strategy=sell_order.strategy,
+                symbol=sell_order.symbol,
+                quantity=sell_order.quantity,
+                price=sell_order.price,
+                error_type=type(e).__name__,
+            )
+            logging.error(f"Strategy execution error calculating realized P&L: {e}")
+        except DataProviderError as e:
+            from ..core.logging.logging_utils import get_logger, log_error_with_context
+
+            logger = get_logger(__name__)
+            log_error_with_context(
+                logger,
+                e,
+                "realized_pnl_calculation",
+                function="_calculate_realized_pnl",
+                strategy=sell_order.strategy,
+                symbol=sell_order.symbol,
+                quantity=sell_order.quantity,
+                price=sell_order.price,
+                error_type="unexpected_error",
+                original_error=type(e).__name__,
+            )
+            logging.error(f"Unexpected error calculating realized P&L: {e}")
 
     def _load_data(self) -> None:
         """Load existing data from S3."""
@@ -382,8 +520,33 @@ class StrategyOrderTracker:
             self._load_recent_orders(days=90)
             self._load_positions()
             self._load_realized_pnl()
-        except Exception as e:
-            logging.error(f"Error loading tracker data: {e}")
+        except DataProviderError as e:
+            from ..core.logging.logging_utils import get_logger, log_error_with_context
+
+            logger = get_logger(__name__)
+            log_error_with_context(
+                logger,
+                e,
+                "tracker_data_loading",
+                function="_load_data",
+                load_operations=["orders", "positions", "realized_pnl"],
+                error_type=type(e).__name__,
+            )
+            logging.error(f"Data provider error loading tracker data: {e}")
+        except StrategyExecutionError as e:
+            from ..core.logging.logging_utils import get_logger, log_error_with_context
+
+            logger = get_logger(__name__)
+            log_error_with_context(
+                logger,
+                e,
+                "tracker_data_loading",
+                function="_load_data",
+                load_operations=["orders", "positions", "realized_pnl"],
+                error_type="unexpected_error",
+                original_error=type(e).__name__,
+            )
+            logging.error(f"Unexpected error loading tracker data: {e}")
 
     def _load_recent_orders(self, days: int = 90) -> None:
         """Load recent orders from S3."""
@@ -410,8 +573,19 @@ class StrategyOrderTracker:
             self._filter_orders_by_date(days)
 
             logging.info(f"Loaded {len(self._orders_cache)} recent orders")
-        except Exception as e:
-            logging.error(f"Error loading orders: {e}")
+        except DataProviderError as e:
+            from ..core.logging.logging_utils import get_logger, log_error_with_context
+
+            logger = get_logger(__name__)
+            log_error_with_context(
+                logger,
+                e,
+                "orders_loading",
+                function="_load_recent_orders",
+                days=days,
+                error_type=type(e).__name__,
+            )
+            logging.error(f"Data provider error loading orders: {e}")
 
     def _filter_orders_by_date(self, days: int) -> None:
         """Filter orders cache to only include orders from the last N days."""
@@ -443,8 +617,18 @@ class StrategyOrderTracker:
                 self._positions_cache[key] = pos
 
             logging.info(f"Loaded {len(self._positions_cache)} positions")
-        except Exception as e:
-            logging.error(f"Error loading positions: {e}")
+        except DataProviderError as e:
+            from ..core.logging.logging_utils import get_logger, log_error_with_context
+
+            logger = get_logger(__name__)
+            log_error_with_context(
+                logger,
+                e,
+                "positions_loading",
+                function="_load_positions",
+                error_type=type(e).__name__,
+            )
+            logging.error(f"Data provider error loading positions: {e}")
 
     def _load_realized_pnl(self) -> None:
         """Load realized P&L from S3."""
@@ -462,8 +646,18 @@ class StrategyOrderTracker:
 
             self._realized_pnl_cache = data
             logging.info(f"Loaded realized P&L for {len(data)} strategies")
-        except Exception as e:
-            logging.error(f"Error loading realized P&L: {e}")
+        except DataProviderError as e:
+            from ..core.logging.logging_utils import get_logger, log_error_with_context
+
+            logger = get_logger(__name__)
+            log_error_with_context(
+                logger,
+                e,
+                "realized_pnl_loading",
+                function="_load_realized_pnl",
+                error_type=type(e).__name__,
+            )
+            logging.error(f"Data provider error loading realized P&L: {e}")
 
     def _persist_order(self, order: StrategyOrder) -> None:
         """Persist single order to S3."""
@@ -484,8 +678,21 @@ class StrategyOrderTracker:
             if not success:
                 logging.warning(f"Failed to save order {order.order_id} to S3")
 
-        except Exception as e:
-            logging.error(f"Error persisting order: {e}")
+        except DataProviderError as e:
+            from ..core.logging.logging_utils import get_logger, log_error_with_context
+
+            logger = get_logger(__name__)
+            log_error_with_context(
+                logger,
+                e,
+                "order_persistence",
+                function="_persist_order",
+                order_id=order.order_id,
+                strategy=order.strategy,
+                symbol=order.symbol,
+                error_type=type(e).__name__,
+            )
+            logging.error(f"Data provider error persisting order: {e}")
 
     def _apply_order_history_limit(
         self, data: dict[str, Any]
@@ -503,8 +710,19 @@ class StrategyOrderTracker:
             # Save realized P&L
             self._persist_realized_pnl()
 
-        except Exception as e:
-            logging.error(f"Error persisting positions: {e}")
+        except DataProviderError as e:
+            from ..core.logging.logging_utils import get_logger, log_error_with_context
+
+            logger = get_logger(__name__)
+            log_error_with_context(
+                logger,
+                e,
+                "positions_persistence",
+                function="_persist_positions",
+                positions_count=len(self._positions_cache),
+                error_type=type(e).__name__,
+            )
+            logging.error(f"Data provider error persisting positions: {e}")
 
     def _persist_positions_data(self) -> None:
         """Save positions data to S3."""
@@ -551,8 +769,18 @@ class StrategyOrderTracker:
 
             return summary
 
-        except Exception as e:
-            logging.error(f"Error generating email summary: {e}")
+        except StrategyExecutionError as e:
+            from ..core.logging.logging_utils import get_logger, log_error_with_context
+
+            logger = get_logger(__name__)
+            log_error_with_context(
+                logger,
+                e,
+                "email_summary_generation",
+                function="get_summary_for_email",
+                error_type=type(e).__name__,
+            )
+            logging.error(f"Strategy execution error generating email summary: {e}")
             return {}
 
 

@@ -292,7 +292,9 @@ class BaseKLMVariant(ABC):
         """
         pass
 
-    def log_decision(self, symbol_or_allocation: str | dict[str, float], action: str, reason: str):
+    def log_decision(
+        self, symbol_or_allocation: str | dict[str, float], action: str, reason: str
+    ) -> None:
         """Log trading decision with context"""
         if isinstance(symbol_or_allocation, dict):
             symbols = list(symbol_or_allocation.keys())

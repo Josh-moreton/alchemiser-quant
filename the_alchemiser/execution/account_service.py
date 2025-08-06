@@ -59,16 +59,26 @@ class AccountService:
         for position in positions:
             symbol = self._extract_symbol(position)
             if symbol:
+                # Handle both dict and object types for position data
+                def safe_get_pos(obj: Any, key: str, default: Any = 0.0) -> Any:
+                    if isinstance(obj, dict):
+                        return obj.get(key, default)
+                    else:
+                        return getattr(obj, key, default)
+
                 # Convert raw position to PositionInfo
+                qty_raw = safe_get_pos(position, "qty", 0.0)
+                qty = float(qty_raw) if qty_raw is not None else 0.0
+
                 position_info: PositionInfo = {
                     "symbol": symbol,
-                    "qty": getattr(position, "qty", 0.0),
-                    "side": "long" if float(getattr(position, "qty", 0)) >= 0 else "short",
-                    "market_value": getattr(position, "market_value", 0.0),
-                    "cost_basis": getattr(position, "cost_basis", 0.0),
-                    "unrealized_pl": getattr(position, "unrealized_pl", 0.0),
-                    "unrealized_plpc": getattr(position, "unrealized_plpc", 0.0),
-                    "current_price": getattr(position, "current_price", 0.0),
+                    "qty": qty,
+                    "side": "long" if qty >= 0 else "short",
+                    "market_value": float(safe_get_pos(position, "market_value", 0.0) or 0.0),
+                    "cost_basis": float(safe_get_pos(position, "cost_basis", 0.0) or 0.0),
+                    "unrealized_pl": float(safe_get_pos(position, "unrealized_pl", 0.0) or 0.0),
+                    "unrealized_plpc": float(safe_get_pos(position, "unrealized_plpc", 0.0) or 0.0),
+                    "current_price": float(safe_get_pos(position, "current_price", 0.0) or 0.0),
                 }
                 position_dict[symbol] = position_info
 
@@ -102,7 +112,7 @@ class AccountService:
 
         return prices
 
-    def _extract_symbol(self, position) -> str:
+    def _extract_symbol(self, position: Any) -> str:
         """Extract symbol from position object, handling different formats."""
         if isinstance(position, dict):
             symbol = position.get("symbol")

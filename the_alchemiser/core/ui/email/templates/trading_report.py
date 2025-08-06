@@ -22,7 +22,7 @@ class TradingReportBuilder:
         account_after: dict[str, Any],
         positions: dict[str, Any],
         orders: list[dict[str, Any]] | None = None,
-        signal=None,
+        signal: Any = None,
         portfolio_history: dict[str, Any] | None = None,
         open_positions: list[dict[str, Any]] | None = None,
     ) -> str:
@@ -98,7 +98,7 @@ class TradingReportBuilder:
         account_after: dict[str, Any],
         positions: dict[str, Any],
         orders: list[dict[str, Any]] | None = None,
-        signal=None,
+        signal: Any = None,
         portfolio_history: dict[str, Any] | None = None,
         open_positions: list[dict[str, Any]] | None = None,
     ) -> str:

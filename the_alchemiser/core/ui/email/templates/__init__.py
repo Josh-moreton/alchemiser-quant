@@ -6,24 +6,22 @@ Each template type has its own dedicated module for better organization.
 Usage:
     from the_alchemiser.core.ui.email.templates import EmailTemplates
 
-    # Build a trading report
-    html = EmailTemplates.build_trading_report(...)
+    # Build a neutral multi-strategy report
+    html = EmailTemplates.build_multi_strategy_report_neutral(...)
 
-    # Build a neutral trading report
-    html = EmailTemplates.build_trading_report_neutral(...)
+    # Build an error report
+    html = EmailTemplates.build_error_report(...)
 """
 
-# Import the specialized builders
-# Import content builders for advanced usage
 from typing import Any
 
+# Import the specialized builders
 from .base import BaseEmailTemplate
 from .error_report import ErrorReportBuilder
 from .multi_strategy import MultiStrategyReportBuilder
 from .performance import PerformanceBuilder
 from .portfolio import PortfolioBuilder
 from .signals import SignalsBuilder
-from .trading_report import TradingReportBuilder
 
 __all__ = [
     "BaseEmailTemplate",
@@ -32,48 +30,42 @@ __all__ = [
     "PerformanceBuilder",
     "PortfolioBuilder",
     "SignalsBuilder",
-    "TradingReportBuilder",
+    "EmailTemplates",
 ]
 
 
 class EmailTemplates:
     """Main email template facade that delegates to specialized builders."""
 
-    # Trading reports
+    # Multi-strategy reports (neutral mode only)
     @staticmethod
-    def build_trading_report(*args, **kwargs):
-        """Build a regular trading report email."""
-        return TradingReportBuilder.build_regular_report(*args, **kwargs)
-
-    @staticmethod
-    def build_trading_report_neutral(*args, **kwargs):
-        """Build a neutral trading report email without financial values."""
-        return TradingReportBuilder.build_neutral_report(*args, **kwargs)
-
-    # Multi-strategy reports
-    @staticmethod
-    def build_multi_strategy_report(*args, **kwargs):
-        """Build a multi-strategy report email."""
-        return MultiStrategyReportBuilder.build_multi_strategy_report(*args, **kwargs)
+    def build_multi_strategy_report_neutral(*args: Any, **kwargs: Any) -> str:
+        """Build a neutral multi-strategy report email without financial values."""
+        return MultiStrategyReportBuilder.build_multi_strategy_report_neutral(*args, **kwargs)
 
     # Error reports
     @staticmethod
-    def build_error_report(*args, **kwargs):
+    def build_error_report(*args: Any, **kwargs: Any) -> str:
         """Build an error notification email."""
         return ErrorReportBuilder.build_error_report(*args, **kwargs)
 
 
 # Backward compatibility functions
-def build_trading_report_html(*args, **kwargs) -> str:
+def build_trading_report_html(*args: Any, **kwargs: Any) -> str:
     """Backward compatibility function for build_trading_report_html."""
-    return str(EmailTemplates.build_trading_report(*args, **kwargs))
+    return str(EmailTemplates.build_multi_strategy_report_neutral(*args, **kwargs))
 
 
-def build_multi_strategy_email_html(*args, **kwargs) -> str:
+def build_multi_strategy_email_html(*args: Any, **kwargs: Any) -> str:
     """Backward compatibility function for build_multi_strategy_email_html."""
-    return str(EmailTemplates.build_multi_strategy_report(*args, **kwargs))
+    return str(EmailTemplates.build_multi_strategy_report_neutral(*args, **kwargs))
 
 
-def build_error_email_html(*args, **kwargs) -> str:
+def build_multi_strategy_email_html_neutral(*args: Any, **kwargs: Any) -> str:
+    """Backward compatibility function for build_multi_strategy_email_html_neutral."""
+    return str(EmailTemplates.build_multi_strategy_report_neutral(*args, **kwargs))
+
+
+def build_error_email_html(*args: Any, **kwargs: Any) -> str:
     """Backward compatibility function for build_error_email_html."""
     return str(EmailTemplates.build_error_report(*args, **kwargs))

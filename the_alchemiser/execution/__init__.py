@@ -1,5 +1,3 @@
-from typing import Any
-
 """Execution package for The Alchemiser Quantitative Trading System.
 
 This package handles the execution layer of the trading system, including

@@ -10,14 +10,16 @@ including quantity validation, price validation, and parameter normalization.
 import logging
 import math
 from decimal import ROUND_DOWN, Decimal
+from typing import Any
 
 
-def validate_quantity(qty: float | str | None, symbol: str) -> float | None:
+def validate_quantity(qty: Any, symbol: str) -> float | None:
     """
     Validate and normalize quantity parameter.
 
     Args:
-        qty: Quantity to validate (can be float, string, or None)
+        qty: Quantity to validate (accepts any type for validation,
+             but expects float, string, or None for valid inputs)
         symbol: Symbol for logging context
 
     Returns:
@@ -27,7 +29,7 @@ def validate_quantity(qty: float | str | None, symbol: str) -> float | None:
         return None
 
     # Check for invalid types first (before float conversion)
-    if isinstance(qty, bool) or isinstance(qty, list | dict):
+    if isinstance(qty, bool) or isinstance(qty, list) or isinstance(qty, dict):
         logging.warning(f"Invalid quantity type for {symbol}: {qty}")
         return None
 
@@ -46,12 +48,13 @@ def validate_quantity(qty: float | str | None, symbol: str) -> float | None:
     return qty_float
 
 
-def validate_notional(notional: float | str | None, symbol: str) -> float | None:
+def validate_notional(notional: Any, symbol: str) -> float | None:
     """
     Validate and normalize notional parameter.
 
     Args:
-        notional: Notional amount to validate (can be float, string, or None)
+        notional: Notional amount to validate (accepts any type for validation,
+                 but expects float, string, or None for valid inputs)
         symbol: Symbol for logging context
 
     Returns:
@@ -61,7 +64,7 @@ def validate_notional(notional: float | str | None, symbol: str) -> float | None
         return None
 
     # Check for invalid types first (before float conversion)
-    if isinstance(notional, bool) or isinstance(notional, list | dict):
+    if isinstance(notional, bool) or isinstance(notional, list) or isinstance(notional, dict):
         logging.warning(f"Invalid notional type for {symbol}: {notional}")
         return None
 

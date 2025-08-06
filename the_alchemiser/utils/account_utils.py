@@ -40,21 +40,32 @@ def extract_comprehensive_account_data(data_provider: Any) -> AccountInfo:
             }
 
         # Construct proper AccountInfo from account data
+        # Handle both dict and object types for maximum compatibility
+        def safe_get(obj: Any, key: str, default: Any = None) -> Any:
+            if isinstance(obj, dict):
+                return obj.get(key, default)
+            else:
+                return getattr(obj, key, default)
+
         return {
-            "account_id": getattr(account, "account_number", "unknown"),
-            "equity": float(getattr(account, "equity", 0) or 0),
-            "cash": float(getattr(account, "cash", 0) or 0),
-            "buying_power": float(getattr(account, "buying_power", 0) or 0),
-            "day_trades_remaining": getattr(account, "day_trade_count", 0),
-            "portfolio_value": float(getattr(account, "portfolio_value", 0) or 0),
+            "account_id": safe_get(account, "account_number", "unknown"),
+            "equity": float(safe_get(account, "equity", 0) or 0),
+            "cash": float(safe_get(account, "cash", 0) or 0),
+            "buying_power": float(safe_get(account, "buying_power", 0) or 0),
+            "day_trades_remaining": safe_get(account, "daytrade_count", 0),  # Fixed key name
+            "portfolio_value": float(safe_get(account, "portfolio_value", 0) or 0),
             "last_equity": float(
-                getattr(account, "equity", 0) or 0
-            ),  # Use current equity as fallback
-            "daytrading_buying_power": float(getattr(account, "daytrading_buying_power", 0) or 0),
+                safe_get(account, "last_equity", safe_get(account, "equity", 0)) or 0
+            ),  # Use last_equity if available, otherwise current equity
+            "daytrading_buying_power": float(safe_get(account, "daytrading_buying_power", 0) or 0),
             "regt_buying_power": float(
-                getattr(account, "buying_power", 0) or 0
-            ),  # Use buying_power as fallback
-            "status": "ACTIVE" if getattr(account, "status", "unknown") == "ACTIVE" else "INACTIVE",
+                safe_get(account, "regt_buying_power", safe_get(account, "buying_power", 0)) or 0
+            ),  # Use regt_buying_power if available, otherwise buying_power
+            "status": (
+                "ACTIVE"
+                if str(safe_get(account, "status", "unknown")).upper() == "ACTIVE"
+                else "INACTIVE"
+            ),
         }
     except Exception as e:
         logging.error(f"Error extracting account data: {e}")

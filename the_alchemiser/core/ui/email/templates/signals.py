@@ -13,8 +13,15 @@ class SignalsBuilder:
     """Builds signals-related HTML content for emails."""
 
     @staticmethod
-    def build_signal_information(signal) -> str:
-        """Build HTML for signal information section."""
+    def build_signal_information(signal: Any) -> str:
+        """Build HTML for signal information section.
+
+        Args:
+            signal: Signal object (Alert or StrategySignal) to display
+
+        Returns:
+            HTML string for signal information
+        """
         if not signal:
             return ""
 
@@ -276,3 +283,89 @@ class SignalsBuilder:
             </div>
         </div>
         """
+
+    @staticmethod
+    def build_strategy_signals_neutral(strategy_signals: dict[Any, Any]) -> str:
+        """Build strategy signals section for neutral mode (no financial data)."""
+
+        if not strategy_signals:
+            return ""
+
+        signal_rows = []
+
+        for strategy_name, signal_data in strategy_signals.items():
+            if not isinstance(signal_data, dict):
+                continue
+
+            action = signal_data.get("action", "UNKNOWN")
+            symbol = signal_data.get("symbol", "UNKNOWN")
+            reason = signal_data.get("reason", "No reason provided")
+
+            # Convert strategy_name to string and format (handle both StrategyType enum and string)
+            if hasattr(strategy_name, "name"):
+                # It's a StrategyType enum
+                strategy_display_name = strategy_name.name.upper()
+            else:
+                # It's already a string
+                strategy_display_name = str(strategy_name).replace("StrategyType.", "").upper()
+
+            # Color coding for actions
+            if action == "BUY":
+                action_color = "#10B981"
+                action_emoji = "📈"
+            elif action == "SELL":
+                action_color = "#EF4444"
+                action_emoji = "📉"
+            else:
+                action_color = "#6B7280"
+                action_emoji = "⏸️"
+
+            # Truncate reason for display
+            display_reason = reason[:100] + "..." if len(reason) > 100 else reason
+
+            signal_rows.append(
+                f"""
+                <tr>
+                    <td style="padding: 16px; border-bottom: 1px solid #E5E7EB; font-weight: 600; color: #1F2937;">
+                        {strategy_display_name}
+                    </td>
+                    <td style="padding: 16px; border-bottom: 1px solid #E5E7EB; text-align: center; font-weight: 600; color: {action_color};">
+                        {action_emoji} {action}
+                    </td>
+                    <td style="padding: 16px; border-bottom: 1px solid #E5E7EB; text-align: center; font-weight: 600; color: #374151;">
+                        {symbol}
+                    </td>
+                    <td style="padding: 16px; border-bottom: 1px solid #E5E7EB; color: #6B7280; font-size: 14px; line-height: 1.4;">
+                        {display_reason}
+                    </td>
+                </tr>
+            """
+            )
+
+        signals_table = "".join(signal_rows)
+
+        content = f"""
+        <table style="width: 100%; border-collapse: collapse; background-color: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin: 16px 0;">
+            <thead>
+                <tr style="background-color: #F9FAFB;">
+                    <th style="padding: 16px; text-align: left; font-weight: 600; color: #374151; border-bottom: 2px solid #E5E7EB;">
+                        Strategy
+                    </th>
+                    <th style="padding: 16px; text-align: center; font-weight: 600; color: #374151; border-bottom: 2px solid #E5E7EB;">
+                        Action
+                    </th>
+                    <th style="padding: 16px; text-align: center; font-weight: 600; color: #374151; border-bottom: 2px solid #E5E7EB;">
+                        Target
+                    </th>
+                    <th style="padding: 16px; text-align: left; font-weight: 600; color: #374151; border-bottom: 2px solid #E5E7EB;">
+                        Analysis
+                    </th>
+                </tr>
+            </thead>
+            <tbody>
+                {signals_table}
+            </tbody>
+        </table>
+        """
+
+        return BaseEmailTemplate.create_section("🎯 Strategy Signals", content)

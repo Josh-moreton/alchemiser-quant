@@ -344,7 +344,7 @@ class PortfolioRebalancer:
                                 "target_value": target_value,
                             }
                         )
-                        logging.warning(
+                        logging.debug(
                             f"DEBUG: Adding to buy_plans - symbol: {symbol}, qty: {qty}, est: ${qty * price:.2f}, target_value: ${target_value:.2f}"
                         )
 
@@ -392,7 +392,7 @@ class PortfolioRebalancer:
             target_dollar_amount = min(
                 target_value, available_cash * 0.99
             )  # 99% to leave small buffer
-            logging.warning(
+            logging.debug(
                 f"DEBUG: Final target_dollar_amount for {symbol}: ${target_dollar_amount:.2f}"
             )  # Get bid/ask for display
             quote = self.bot.data_provider.get_latest_quote(symbol)
@@ -409,7 +409,7 @@ class PortfolioRebalancer:
                 Console().print(f"[green]Buying {symbol}: ${target_dollar_amount:.2f}[/green]")
 
             # Debug what we're actually sending to place_order
-            logging.warning(
+            logging.debug(
                 f"DEBUG: Calling place_order with symbol={symbol}, qty=1.0, side=BUY, notional=${target_dollar_amount}"
             )
 
@@ -450,6 +450,23 @@ class PortfolioRebalancer:
 
                 # Wait for this individual order to settle before moving to the next
                 self.bot.wait_for_settlement([order_details])
+
+                # Update order details with actual filled information
+                try:
+                    # Get the actual order from API to get filled data
+                    actual_order = self.bot.order_manager.get_order_by_id(order_id)
+                    if actual_order:
+                        order_details["filled_qty"] = float(getattr(actual_order, "filled_qty", 0))
+                        filled_price = getattr(actual_order, "filled_avg_price", None)
+                        order_details["filled_avg_price"] = (
+                            float(filled_price) if filled_price else None
+                        )
+                        order_details["status"] = str(getattr(actual_order, "status", "unknown"))
+                        logging.info(
+                            f"Updated {symbol} order with filled data: qty={order_details['filled_qty']}, price={order_details['filled_avg_price']}"
+                        )
+                except Exception as e:
+                    logging.warning(f"Could not fetch filled data for order {order_id}: {e}")
 
                 # Refresh positions and account info to detect any fills
                 try:

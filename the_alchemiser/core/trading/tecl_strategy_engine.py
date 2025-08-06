@@ -37,7 +37,7 @@ warnings.filterwarnings("ignore")
 class TECLStrategyEngine:
     """TECL Strategy Engine - Long-term technology leverage with volatility protection"""
 
-    def __init__(self, data_provider=None) -> None:
+    def __init__(self, data_provider: Any = None) -> None:
         if data_provider is None:
             raise ValueError("data_provider is required for TECLStrategyEngine")
         self.data_provider = data_provider
@@ -72,7 +72,7 @@ class TECLStrategyEngine:
                 logging.warning(f"Could not fetch data for {symbol}")
         return market_data
 
-    def calculate_indicators(self, market_data):
+    def calculate_indicators(self, market_data: dict[str, Any]) -> dict[str, Any]:
         """Calculate all technical indicators needed for TECL strategy"""
         indicators = {}
         for symbol, df in market_data.items():
@@ -87,7 +87,9 @@ class TECLStrategyEngine:
             }
         return indicators
 
-    def evaluate_tecl_strategy(self, indicators, market_data=None):
+    def evaluate_tecl_strategy(
+        self, indicators: dict[str, Any], market_data: dict[str, Any] | None = None
+    ) -> tuple[str | dict[str, float], str, str]:
         """
         Evaluate the TECL (Technology) strategy with detailed reasoning.
 
@@ -120,7 +122,9 @@ class TECLStrategyEngine:
             market_analysis += "• Regime: BEAR MARKET (SPY below 200MA)\n"
             return self._evaluate_bear_market_path(indicators, market_analysis)
 
-    def _evaluate_bull_market_path(self, indicators, market_analysis):
+    def _evaluate_bull_market_path(
+        self, indicators: dict[str, Any], market_analysis: str
+    ) -> tuple[str | dict[str, float], str, str]:
         """Evaluate strategy when SPY is above 200-day MA (bull market)"""
 
         # First check: TQQQ overbought > 79 - Mixed allocation (25% UVXY + 75% BIL)
@@ -148,7 +152,9 @@ class TECLStrategyEngine:
         # Third check: KMLM Switcher logic
         return self._evaluate_kmlm_switcher(indicators, market_analysis, "Bull market")
 
-    def _evaluate_bear_market_path(self, indicators, market_analysis):
+    def _evaluate_bear_market_path(
+        self, indicators: dict[str, Any], market_analysis: str
+    ) -> tuple[str | dict[str, float], str, str]:
         """Evaluate strategy when SPY is below 200-day MA (bear market)"""
 
         # First check: TQQQ oversold < 31 (buy the dip even in bear market)
@@ -199,7 +205,9 @@ class TECLStrategyEngine:
         # Fourth check: KMLM Switcher for bear market
         return self._evaluate_kmlm_switcher(indicators, market_analysis, "Bear market")
 
-    def _evaluate_kmlm_switcher(self, indicators, market_analysis, market_regime):
+    def _evaluate_kmlm_switcher(
+        self, indicators: dict[str, Any], market_analysis: str, market_regime: str
+    ) -> tuple[str | dict[str, float], str, str]:
         """
         KMLM Switcher logic: Compare XLK vs KMLM RSI to determine technology timing
 
@@ -278,7 +286,9 @@ class TECLStrategyEngine:
                         indicators, switcher_analysis, market_regime
                     )
 
-    def _evaluate_bond_vs_short_selection(self, indicators, switcher_analysis, market_regime):
+    def _evaluate_bond_vs_short_selection(
+        self, indicators: dict[str, Any], switcher_analysis: str, market_regime: str
+    ) -> tuple[str | dict[str, float], str, str]:
         """
         Final selection between bonds and short positions using RSI filter mechanism.
         This implements the filter/select-top logic from the Clojure version.

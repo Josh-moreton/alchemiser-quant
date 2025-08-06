@@ -30,6 +30,8 @@ from the_alchemiser.utils.config_utils import load_alert_config
 from the_alchemiser.utils.indicator_utils import safe_get_indicator
 from the_alchemiser.utils.price_utils import ensure_scalar_price
 
+from ..exceptions import StrategyExecutionError
+
 # Setup
 warnings.filterwarnings("ignore")
 config = load_settings()
@@ -295,9 +297,47 @@ class NuclearSignalGenerator:
             except KeyboardInterrupt:
                 logging.info("Stopping Nuclear Energy bot...")
                 break
-            except Exception as e:
+            except StrategyExecutionError as e:
+                from ..logging.logging_utils import get_logger, log_error_with_context
+
                 error_count += 1
-                logging.error(f"Error in continuous run ({error_count}/{max_errors}): {e}")
+                logger = get_logger(__name__)
+                log_error_with_context(
+                    logger,
+                    e,
+                    "nuclear_strategy_continuous_run",
+                    function="run_continuous",
+                    error_count=error_count,
+                    max_errors=max_errors,
+                    error_type=type(e).__name__,
+                )
+                logging.error(
+                    f"Strategy execution error in continuous run ({error_count}/{max_errors}): {e}"
+                )
+
+                if error_count >= max_errors:
+                    logging.error(
+                        f"Too many consecutive strategy errors ({max_errors}), stopping..."
+                    )
+                    break
+            except Exception as e:
+                from ..logging.logging_utils import get_logger, log_error_with_context
+
+                error_count += 1
+                logger = get_logger(__name__)
+                log_error_with_context(
+                    logger,
+                    e,
+                    "nuclear_strategy_continuous_run",
+                    function="run_continuous",
+                    error_count=error_count,
+                    max_errors=max_errors,
+                    error_type="unexpected_error",
+                    original_error=type(e).__name__,
+                )
+                logging.error(
+                    f"Unexpected error in continuous run ({error_count}/{max_errors}): {e}"
+                )
 
                 if error_count >= max_errors:
                     logging.error(f"Too many consecutive errors ({max_errors}), stopping...")

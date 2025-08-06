@@ -7,10 +7,6 @@ to ensure accuracy and handle edge cases.
 
 from decimal import ROUND_HALF_UP, Decimal, getcontext
 
-import numpy as np
-import pandas as pd
-import pytest
-
 # Set high precision for Decimal calculations
 getcontext().prec = 28
 

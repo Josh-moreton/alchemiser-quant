@@ -140,14 +140,14 @@ class KlmVariant128026(BaseKLMVariant):
                         candidates[0][0],
                         ActionType.BUY.value,
                         f"1280/26 KMLM Switcher: XLK > KMLM → {candidates[0][0]} (only option)",
-                    )
+                    )  # type: ignore[assignment]
                 else:
                     # Fallback
                     result = (  # TODO: Phase 9 - Remove type ignore after converting to KLMDecision
                         "TECL",
                         ActionType.BUY.value,
                         "1280/26 KMLM Switcher: XLK > KMLM → TECL fallback",
-                    )
+                    )  # type: ignore[assignment]
 
                 self.log_decision(result[0], result[1], result[2])
                 return result

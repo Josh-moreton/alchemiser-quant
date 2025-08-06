@@ -36,14 +36,16 @@ def load_alert_config() -> dict[str, Any]:
         if s3_handler.file_exists(s3_uri):
             content = s3_handler.read_text(s3_uri)
             if content:
-                return json.loads(content)
+                result = json.loads(content)
+                return result if isinstance(result, dict) else {}
 
         # Fallback to local file
         if os.path.exists("alert_config.json"):
             with open("alert_config.json") as f:
-                return json.load(f)
+                result = json.load(f)
+                return result if isinstance(result, dict) else {}
 
-    except Exception as e:
+    except (ImportError, FileNotFoundError, OSError, ValueError, KeyError, AttributeError) as e:
         logging.warning(f"Could not load alert config: {e}")
 
     # Default config if nothing found - use global config values

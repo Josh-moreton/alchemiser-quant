@@ -366,6 +366,8 @@ class KlmVariant53018(BaseKLMVariant):
         6. Long/short rotator with stdev filtering
         """
 
+        result: tuple[str | dict[str, float], str, str]
+
         # Check VOX overbought
         if "VOX" in indicators and indicators["VOX"].get("rsi_10", 0) > 79:
             allocation = self.vix_blend
@@ -471,20 +473,20 @@ class KlmVariant53018(BaseKLMVariant):
                             f"KMLM Switcher: 50% FNGU / 50% {best_candidate[0]} (best MA return)",
                         )
                     else:
-                        result = (  # TODO: Phase 9 - Remove type ignore after converting to KLMDecision
+                        result = (  # type: ignore[assignment] # TODO: Phase 9 - Remove type ignore after converting to KLMDecision
                             "FNGU",
                             ActionType.BUY.value,
                             "KMLM Switcher: 100% FNGU (best MA return)",
                         )
                 else:
-                    result = (
+                    result = (  # type: ignore[assignment]
                         "FNGU",
                         ActionType.BUY.value,
                         "KMLM Switcher: FNGU fallback",
                     )  # TODO: Phase 9 - Remove type ignore after converting to KLMDecision
             else:
                 # Simple tech selection
-                result = (  # TODO: Phase 9 - Remove type ignore after converting to KLMDecision
+                result = (  # type: ignore[assignment] # TODO: Phase 9 - Remove type ignore after converting to KLMDecision
                     candidates[0][0],
                     ActionType.BUY.value,
                     f"KMLM Switcher: {candidates[0][0]} (lowest RSI: {candidates[0][1]:.1f})",
@@ -511,14 +513,14 @@ class KlmVariant53018(BaseKLMVariant):
             elif rotator_candidates:
                 # Less than 3 available
                 best = min(rotator_candidates, key=lambda x: x[1])
-                result = (  # TODO: Phase 9 - Remove type ignore after converting to KLMDecision
+                result = (  # type: ignore[assignment] # TODO: Phase 9 - Remove type ignore after converting to KLMDecision
                     best[0],
                     ActionType.BUY.value,
                     f"L/S Rotator: {best[0]} (lowest volatility)",
                 )
             else:
                 # Ultimate fallback
-                result = (
+                result = (  # type: ignore[assignment]
                     "KMLM",
                     ActionType.BUY.value,
                     "L/S Rotator: KMLM fallback",

@@ -16,6 +16,9 @@ from alpaca.trading.requests import MarketOrderRequest
 
 from the_alchemiser.utils.asset_info import fractionability_detector
 
+from ..core.exceptions import DataProviderError
+from ..core.logging.logging_utils import get_logger, log_error_with_context
+
 
 class AssetOrderHandler:
     """
@@ -61,8 +64,31 @@ class AssetOrderHandler:
         current_price = None
         try:
             current_price = self.data_provider.get_current_price(symbol)
-        except Exception as e:
+        except (AttributeError, ValueError, TypeError) as e:
+            logger = get_logger(__name__)
+            log_error_with_context(
+                logger,
+                DataProviderError(f"Failed to get current price for {symbol}: {e}"),
+                "price_retrieval_for_order",
+                function="_prepare_quantity_order",
+                symbol=symbol,
+                quantity=qty,
+                error_type=type(e).__name__,
+            )
             logging.warning(f"Could not get current price for {symbol}: {e}")
+        except Exception as e:
+            logger = get_logger(__name__)
+            log_error_with_context(
+                logger,
+                DataProviderError(f"Unexpected error getting current price for {symbol}: {e}"),
+                "price_retrieval_for_order",
+                function="_prepare_quantity_order",
+                symbol=symbol,
+                quantity=qty,
+                error_type="unexpected_error",
+                original_error=type(e).__name__,
+            )
+            logging.warning(f"Unexpected error getting current price for {symbol}: {e}")
 
         # Check if we should use notional orders for non-fractionable assets
         if (
@@ -136,7 +162,32 @@ class AssetOrderHandler:
         current_price = None
         try:
             current_price = self.data_provider.get_current_price(symbol)
-        except Exception:
+        except (AttributeError, ValueError, TypeError) as e:
+            logger = get_logger(__name__)
+            log_error_with_context(
+                logger,
+                DataProviderError(f"Failed to get current price for {symbol} during fallback: {e}"),
+                "price_retrieval_for_fallback",
+                function="handle_fractionability_error",
+                symbol=symbol,
+                original_quantity=original_qty,
+                error_type=type(e).__name__,
+            )
+            current_price = None
+        except Exception as e:
+            logger = get_logger(__name__)
+            log_error_with_context(
+                logger,
+                DataProviderError(
+                    f"Unexpected error getting current price for {symbol} during fallback: {e}"
+                ),
+                "price_retrieval_for_fallback",
+                function="handle_fractionability_error",
+                symbol=symbol,
+                original_quantity=original_qty,
+                error_type="unexpected_error",
+                original_error=type(e).__name__,
+            )
             current_price = None
 
         if current_price and current_price > 0:

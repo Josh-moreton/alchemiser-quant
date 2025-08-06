@@ -44,6 +44,13 @@ except ImportError:
     HAS_RICH = False
 
 from the_alchemiser.core.config import Settings, load_settings
+from the_alchemiser.core.exceptions import (
+    ConfigurationError,
+    DataProviderError,
+    NotificationError,
+    StrategyExecutionError,
+    TradingClientError,
+)
 from the_alchemiser.core.logging.logging_utils import get_logger, setup_logging
 from the_alchemiser.core.trading.strategy_manager import StrategyType
 
@@ -107,10 +114,37 @@ def generate_multi_strategy_signals(
         manager = MultiStrategyManager(shared_data_provider=shared_data_provider, config=settings)
         strategy_signals, consolidated_portfolio, _ = manager.run_all_strategies()
         return manager, strategy_signals, consolidated_portfolio
-    except Exception as e:
+    except (DataProviderError, StrategyExecutionError) as e:
+        from the_alchemiser.core.logging.logging_utils import log_error_with_context
+
+        logger = get_logger(__name__)
+        log_error_with_context(
+            logger,
+            e,
+            "strategy_signal_generation",
+            function="run_all_signals_simple",
+            error_type=type(e).__name__,
+        )
         print(f"ERROR: Strategy signal generation failed: {str(e)}")
-        # Re-raise the exception instead of silently returning None
+        # Re-raise the specific exception for proper error handling
         raise
+    except (TradingClientError, ImportError, AttributeError, ValueError) as e:
+        from the_alchemiser.core.logging.logging_utils import log_error_with_context
+
+        logger = get_logger(__name__)
+        log_error_with_context(
+            logger,
+            e,
+            "strategy_initialization_error",
+            function="run_all_signals_simple",
+            error_type=type(e).__name__,
+        )
+        print(f"ERROR: Strategy initialization failed: {str(e)}")
+        # Convert to our exception hierarchy
+        raise StrategyExecutionError(
+            f"Strategy initialization failed: {str(e)}",
+            strategy_name="multi_strategy",
+        ) from e
 
 
 def run_all_signals_display(
@@ -231,9 +265,31 @@ def run_all_signals_display(
 
         render_footer("Signal analysis completed successfully!")
         return True
-    except Exception as e:
+    except (DataProviderError, StrategyExecutionError) as e:
+        from the_alchemiser.core.logging.logging_utils import log_error_with_context
+
         logger = get_logger(__name__)
+        log_error_with_context(
+            logger,
+            e,
+            "strategy_analysis",
+            function="run_all_signals_display",
+            error_type=type(e).__name__,
+        )
         logger.exception("Error analyzing strategies: %s", e)
+        return False
+    except (ImportError, AttributeError, ValueError, OSError) as e:
+        from the_alchemiser.core.logging.logging_utils import log_error_with_context
+
+        logger = get_logger(__name__)
+        log_error_with_context(
+            logger,
+            e,
+            "strategy_display_error",
+            function="run_all_signals_display",
+            error_type=type(e).__name__,
+        )
+        logger.exception("Display error analyzing strategies: %s", e)
         return False
 
 
@@ -279,21 +335,16 @@ def run_multi_strategy_trading(
             logger = get_logger(__name__)
             logger.warning("Market is closed. No trades will be placed.")
 
-            from the_alchemiser.core.ui.email.config import is_neutral_mode_enabled
             from the_alchemiser.core.ui.email_utils import (
                 build_error_email_html,
                 send_email_notification,
             )
 
-            # Check if neutral mode is enabled
-            neutral_mode = is_neutral_mode_enabled()
-            subject_suffix = " (Neutral Mode)" if neutral_mode else ""
-
             html_content = build_error_email_html(
                 "Market Closed Alert", "Market is currently closed. No trades will be placed."
             )
             send_email_notification(
-                subject=f"📈 The Alchemiser - Market Closed Alert{subject_suffix}",
+                subject="📈 The Alchemiser - Market Closed Alert",
                 html_content=html_content,
                 text_content="Market is CLOSED. No trades will be placed.",
             )
@@ -301,12 +352,25 @@ def run_multi_strategy_trading(
 
         # Generate strategy signals for display
         render_header("Analyzing market conditions...", "Multi-Strategy Trading")
-        strategy_signals = trader.strategy_manager.run_all_strategies()[0]
+        strategy_signals, consolidated_portfolio, strategy_attribution = (
+            trader.strategy_manager.run_all_strategies()
+        )
 
         # Display strategy signals
         from the_alchemiser.core.ui.cli_formatter import render_strategy_signals
 
         render_strategy_signals(strategy_signals)
+
+        # Display portfolio rebalancing summary before execution
+        try:
+            account_info = trader.get_account_info()
+            current_positions = trader.get_positions_dict()
+            if account_info and consolidated_portfolio:
+                trader.display_target_vs_current_allocations(
+                    consolidated_portfolio, account_info, current_positions
+                )
+        except Exception as e:
+            logging.warning(f"Could not display portfolio rebalancing summary: {e}")
 
         # Execute multi-strategy with clean progress indication
         if HAS_RICH:
@@ -326,54 +390,71 @@ def run_multi_strategy_trading(
 
         # Send email notification for both paper and live trading
         try:
-            from the_alchemiser.core.ui.email.config import is_neutral_mode_enabled
             from the_alchemiser.core.ui.email.templates import EmailTemplates
-            from the_alchemiser.core.ui.email_utils import (
-                build_multi_strategy_email_html,
-                send_email_notification,
-            )
+            from the_alchemiser.core.ui.email_utils import send_email_notification
 
-            # Check if neutral mode is enabled
-            neutral_mode = is_neutral_mode_enabled()
+            # Enrich result with fresh position data for email templates
+            try:
+                fresh_positions = trader.get_positions_dict()
+                # Add fresh positions to result object for email template access
+                if (
+                    hasattr(result, "final_portfolio_state")
+                    and result.final_portfolio_state is not None
+                ):
+                    result.final_portfolio_state["current_positions"] = fresh_positions
+                else:
+                    result.final_portfolio_state = {"current_positions": fresh_positions}
+            except Exception as e:
+                logging.warning(f"Could not add fresh position data to result: {e}")
 
-            if neutral_mode:
-                # Use neutral template - build the data in the same format
-                account_before = getattr(result, "account_info_before", {})
-                account_after = getattr(result, "account_info_after", {})
-                orders_executed = getattr(result, "orders_executed", [])
-                final_portfolio_state = getattr(result, "final_portfolio_state", {})
-                open_positions = account_after.get("open_positions", [])
-
-                html_content = EmailTemplates.build_trading_report_neutral(
-                    mode=mode_str,
-                    success=result.success,
-                    account_before=account_before,
-                    account_after=account_after,
-                    positions=final_portfolio_state,
-                    orders=orders_executed,
-                    signal=None,  # We can add strategy signals later if needed
-                    portfolio_history=None,
-                    open_positions=open_positions,
-                )
-                subject_suffix = " (Neutral Mode)"
-            else:
-                # Use regular template with dollar values
-                html_content = build_multi_strategy_email_html(result, mode_str)
-                subject_suffix = ""
+            # Always use neutral multi-strategy template (no financial values)
+            html_content = EmailTemplates.build_multi_strategy_report_neutral(result, mode_str)
 
             send_email_notification(
-                subject=f"📈 The Alchemiser - {mode_str.upper()} Multi-Strategy Report{subject_suffix}",
+                subject=f"📈 The Alchemiser - {mode_str.upper()} Multi-Strategy Report",
                 html_content=html_content,
                 text_content=f"Multi-strategy execution completed. Success: {result.success}",
             )
-        except Exception as e:
+        except NotificationError as e:
+            from the_alchemiser.core.logging.logging_utils import log_error_with_context
+
             logger = get_logger(__name__)
+            log_error_with_context(
+                logger,
+                e,
+                "email_notification",
+                function="run_multi_strategy_trading",
+                notification_type="trading_report",
+            )
             logger.warning("Email notification failed: %s", e)
+        except (ConnectionError, TimeoutError, ValueError, AttributeError) as e:
+            from the_alchemiser.core.logging.logging_utils import log_error_with_context
+
+            logger = get_logger(__name__)
+            log_error_with_context(
+                logger,
+                e,
+                "email_formatting_error",
+                function="run_multi_strategy_trading",
+                error_type=type(e).__name__,
+            )
+            logger.warning("Email formatting/connection error: %s", e)
 
         return result.success
 
-    except Exception as e:
+    except (DataProviderError, StrategyExecutionError, TradingClientError) as e:
+        from the_alchemiser.core.logging.logging_utils import log_error_with_context
+
         logger = get_logger(__name__)
+        log_error_with_context(
+            logger,
+            e,
+            "multi_strategy_trading",
+            function="run_multi_strategy_trading",
+            error_type=type(e).__name__,
+            live_trading=live_trading,
+            ignore_market_hours=ignore_market_hours,
+        )
         logger.exception("Error in multi-strategy trading: %s", e)
 
         # Enhanced error handling with detailed reporting
@@ -397,7 +478,52 @@ def run_multi_strategy_trading(
             # Send detailed error notification if needed
             send_error_notification_if_needed()
 
-        except Exception as notification_error:
+        except NotificationError as notification_error:
+            logger.warning("Failed to send error notification: %s", notification_error)
+
+        return False
+    except (OSError, ImportError, ConfigurationError, ValueError) as e:
+        from the_alchemiser.core.logging.logging_utils import log_error_with_context
+
+        logger = get_logger(__name__)
+        log_error_with_context(
+            logger,
+            e,
+            "system_configuration_error",
+            function="run_multi_strategy_trading",
+            error_type=type(e).__name__,
+            live_trading=live_trading,
+            ignore_market_hours=ignore_market_hours,
+        )
+        logger.exception("System/configuration error in multi-strategy trading: %s", e)
+
+        # For system errors, still try to send notification
+        try:
+            from the_alchemiser.core.error_handler import (
+                handle_trading_error,
+                send_error_notification_if_needed,
+            )
+
+            handle_trading_error(
+                error=e,
+                context="multi-strategy trading execution - unexpected error",
+                component="main.run_multi_strategy_trading",
+                additional_data={
+                    "mode": mode_str,
+                    "live_trading": live_trading,
+                    "ignore_market_hours": ignore_market_hours,
+                    "original_error": type(e).__name__,
+                },
+            )
+
+            send_error_notification_if_needed()
+
+        except (
+            NotificationError,
+            ConnectionError,
+            TimeoutError,
+            AttributeError,
+        ) as notification_error:
             logger.warning("Failed to send error notification: %s", notification_error)
 
         return False
@@ -481,9 +607,35 @@ def main(argv: list[str] | None = None, settings: Settings | None = None) -> boo
                 return True
             else:
                 success = result
-    except Exception as e:
+    except (DataProviderError, StrategyExecutionError, TradingClientError) as e:
+        from the_alchemiser.core.logging.logging_utils import log_error_with_context
+
         logger = get_logger(__name__)
-        logger.exception("Error in main application: %s", e)
+        log_error_with_context(
+            logger,
+            e,
+            "main_application",
+            function="main",
+            error_type=type(e).__name__,
+            mode=args.mode,
+            live_trading=getattr(args, "live", False),
+        )
+        logger.exception("Known error in main application: %s", e)
+        success = False
+    except (ConfigurationError, ValueError, AttributeError, OSError, ImportError) as e:
+        from the_alchemiser.core.logging.logging_utils import log_error_with_context
+
+        logger = get_logger(__name__)
+        log_error_with_context(
+            logger,
+            e,
+            "main_application_system_error",
+            function="main",
+            error_type=type(e).__name__,
+            mode=args.mode,
+            live_trading=getattr(args, "live", False),
+        )
+        logger.exception("System error in main application: %s", e)
         success = False
 
     if success:

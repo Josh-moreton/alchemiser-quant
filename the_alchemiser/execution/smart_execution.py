@@ -21,6 +21,11 @@ from alpaca.trading.client import TradingClient
 from alpaca.trading.enums import OrderSide
 
 from the_alchemiser.core.data.data_provider import UnifiedDataProvider
+from the_alchemiser.core.exceptions import (
+    DataProviderError,
+    OrderExecutionError,
+    TradingClientError,
+)
 
 # TODO: Phase 5 - Added for gradual migration
 from the_alchemiser.execution.alpaca_client import AlpacaClient
@@ -93,7 +98,11 @@ def is_market_open(trading_client: TradingClient) -> bool:
     try:
         clock = trading_client.get_clock()
         return getattr(clock, "is_open", False)
+    except TradingClientError:
+        # If we can't get market status, assume closed for safety
+        return False
     except Exception:
+        # For any unexpected errors, assume market is closed for safety
         return False
 
 
@@ -221,8 +230,20 @@ class SmartExecution:
                     )
                     return self._order_executor.place_market_order(symbol, side, notional=notional)
 
+            except DataProviderError as e:
+                logging.warning(
+                    f"Data provider error calculating quantity for {symbol}: {e}, using market order"
+                )
+                return self._order_executor.place_market_order(symbol, side, notional=notional)
+            except (ValueError, TypeError) as e:
+                logging.warning(
+                    f"Invalid data calculating quantity for {symbol}: {e}, using market order"
+                )
+                return self._order_executor.place_market_order(symbol, side, notional=notional)
             except Exception as e:
-                logging.warning(f"Error calculating quantity for {symbol}: {e}, using market order")
+                logging.warning(
+                    f"Unexpected error calculating quantity for {symbol}: {e}, using market order"
+                )
                 return self._order_executor.place_market_order(symbol, side, notional=notional)
 
         # For SELL notional orders, use market order directly
@@ -293,10 +314,20 @@ class SmartExecution:
                 symbol, qty, side, bid, ask, strategy, console
             )
 
-        except Exception as e:
-            logging.error(f"Error in Better Orders execution for {symbol}: {e}")
+        except OrderExecutionError as e:
+            logging.error(f"Order execution error in Better Orders execution for {symbol}: {e}")
             # Step 4: Market order fallback
-            console.print("[yellow]Falling back to market order[/yellow]")
+            console.print("[yellow]Order execution failed, falling back to market order[/yellow]")
+            return self._order_executor.place_market_order(symbol, side, qty=qty)
+        except DataProviderError as e:
+            logging.error(f"Data provider error in Better Orders execution for {symbol}: {e}")
+            # Step 4: Market order fallback
+            console.print("[yellow]Data provider error, falling back to market order[/yellow]")
+            return self._order_executor.place_market_order(symbol, side, qty=qty)
+        except Exception as e:
+            logging.error(f"Unexpected error in Better Orders execution for {symbol}: {e}")
+            # Step 4: Market order fallback
+            console.print("[yellow]Unexpected error, falling back to market order[/yellow]")
             return self._order_executor.place_market_order(symbol, side, qty=qty)
 
     def wait_for_settlement(
@@ -314,7 +345,8 @@ class SmartExecution:
         # Extract only valid string order IDs
         order_ids: list[str] = []
         for order in sell_orders:
-            order_id = order.get("order_id")
+            # Try both 'id' and 'order_id' keys for compatibility
+            order_id = order.get("id") or order.get("order_id")
             if order_id is not None and isinstance(order_id, str):
                 order_ids.append(order_id)
 
@@ -345,8 +377,16 @@ class SmartExecution:
                     already_completed[order_id] = actual_status
                 else:
                     remaining_order_ids.append(order_id)
+            except (AttributeError, ValueError) as e:
+                logging.warning(f"❌ Error parsing order {order_id} status data: {e}")
+                remaining_order_ids.append(order_id)  # Include it in monitoring if we can't check
+            except TradingClientError as e:
+                logging.warning(f"❌ Trading client error checking order {order_id} status: {e}")
+                remaining_order_ids.append(order_id)  # Include it in monitoring if we can't check
             except Exception as e:
-                logging.warning(f"❌ Error checking order {order_id} pre-settlement status: {e}")
+                logging.warning(
+                    f"❌ Unexpected error checking order {order_id} pre-settlement status: {e}"
+                )
                 remaining_order_ids.append(order_id)  # Include it in monitoring if we can't check
 
         # If all orders are already completed, no need to wait
@@ -506,3 +546,11 @@ class SmartExecution:
         # Step 4: Market order fallback
         console.print("[yellow]All limit attempts failed, using market order[/yellow]")
         return self._order_executor.place_market_order(symbol, side, qty=qty)
+
+    def get_order_by_id(self, order_id: str) -> Any:
+        """Get order details by order ID from the trading client."""
+        try:
+            return self._order_executor.trading_client.get_order_by_id(order_id)
+        except Exception as e:
+            logging.warning(f"Could not retrieve order {order_id}: {e}")
+            return None

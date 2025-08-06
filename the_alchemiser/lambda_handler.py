@@ -13,6 +13,12 @@ import json
 import logging
 from typing import Any
 
+from the_alchemiser.core.exceptions import (
+    DataProviderError,
+    NotificationError,
+    StrategyExecutionError,
+    TradingClientError,
+)
 from the_alchemiser.core.types import LambdaEvent
 from the_alchemiser.main import main
 
@@ -199,8 +205,24 @@ def lambda_handler(event: LambdaEvent | None = None, context: Any = None) -> dic
         logger.info(f"Lambda execution completed: {response}")
         return response
 
-    except Exception as e:
-        error_message = f"Lambda execution error: {str(e)}"
+    except (DataProviderError, StrategyExecutionError, TradingClientError) as e:
+        from the_alchemiser.core.logging.logging_utils import log_error_with_context
+
+        # Safely get variables that might not be defined
+        mode = locals().get("mode", "unknown")
+        trading_mode = locals().get("trading_mode", "unknown")
+
+        error_message = f"Lambda execution error ({type(e).__name__}): {str(e)}"
+        log_error_with_context(
+            logger,
+            e,
+            "lambda_execution",
+            function="lambda_handler",
+            error_type=type(e).__name__,
+            mode=mode,
+            trading_mode=trading_mode,
+            request_id=request_id,
+        )
         logger.error(error_message, exc_info=True)
 
         # Enhanced error handling with detailed reporting
@@ -224,7 +246,61 @@ def lambda_handler(event: LambdaEvent | None = None, context: Any = None) -> dic
             # Send detailed error notification if needed
             send_error_notification_if_needed()
 
-        except Exception as notification_error:
+        except NotificationError as notification_error:
+            logger.warning("Failed to send error notification: %s", notification_error)
+
+        return {
+            "status": "failed",
+            "mode": mode,
+            "trading_mode": trading_mode,
+            "message": error_message,
+            "request_id": request_id,
+        }
+    except (ImportError, AttributeError, ValueError, KeyError, TypeError, OSError) as e:
+        from the_alchemiser.core.logging.logging_utils import log_error_with_context
+
+        error_message = f"Lambda execution critical error: {str(e)}"
+        log_error_with_context(
+            logger,
+            e,
+            "lambda_execution",
+            function="lambda_handler",
+            error_type="unexpected_critical_error",
+            original_error=type(e).__name__,
+            request_id=request_id,
+        )
+        logger.error(error_message, exc_info=True)
+
+        # Enhanced error handling with detailed reporting
+        try:
+            from the_alchemiser.core.error_handler import (
+                handle_trading_error,
+                send_error_notification_if_needed,
+            )
+
+            handle_trading_error(
+                error=e,
+                context="lambda function execution - unexpected error",
+                component="lambda_handler.lambda_handler",
+                additional_data={
+                    "event": event,
+                    "request_id": request_id,
+                    "parsed_command": locals().get("command_args", None),
+                    "original_error": type(e).__name__,
+                },
+            )
+
+            # Send detailed error notification if needed
+            send_error_notification_if_needed()
+
+        except (
+            NotificationError,
+            ImportError,
+            AttributeError,
+            ValueError,
+            KeyError,
+            TypeError,
+        ) as notification_error:
             logger.warning("Failed to send error notification: %s", notification_error)
 
         return {

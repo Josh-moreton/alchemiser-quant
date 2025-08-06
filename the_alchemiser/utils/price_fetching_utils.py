@@ -9,12 +9,17 @@ breaking down verbose price fetching logic into reusable components.
 
 import logging
 import time
+from collections.abc import Callable
+from typing import Any
 
 import pandas as pd
 from alpaca.data.requests import StockLatestQuoteRequest
 
+from ..core.exceptions import DataProviderError
+from ..core.logging.logging_utils import get_logger, log_error_with_context
 
-def subscribe_for_real_time(real_time_pricing, symbol):
+
+def subscribe_for_real_time(real_time_pricing: Any, symbol: str) -> bool:
     """
     Subscribe to real-time data for a symbol with just-in-time subscription.
 
@@ -36,12 +41,34 @@ def subscribe_for_real_time(real_time_pricing, symbol):
         # Give a moment for real-time data to flow
         time.sleep(0.8)  # Slightly longer wait for order placement accuracy
         return True
-    except Exception as e:
+    except (AttributeError, ValueError, ConnectionError) as e:
+        logger = get_logger(__name__)
+        log_error_with_context(
+            logger,
+            DataProviderError(f"Failed to subscribe to real-time data for {symbol}: {e}"),
+            "real_time_subscription",
+            function="subscribe_for_real_time",
+            symbol=symbol,
+            error_type=type(e).__name__,
+        )
         logging.warning(f"Failed to subscribe to real-time data for {symbol}: {e}")
+        return False
+    except Exception as e:
+        logger = get_logger(__name__)
+        log_error_with_context(
+            logger,
+            DataProviderError(f"Unexpected error subscribing to real-time data for {symbol}: {e}"),
+            "real_time_subscription",
+            function="subscribe_for_real_time",
+            symbol=symbol,
+            error_type="unexpected_error",
+            original_error=type(e).__name__,
+        )
+        logging.warning(f"Unexpected error subscribing to real-time data for {symbol}: {e}")
         return False
 
 
-def extract_bid_ask(quote):
+def extract_bid_ask(quote: Any) -> tuple[float | None, float | None]:
     """
     Extract bid and ask prices safely from a quote object.
 
@@ -65,7 +92,7 @@ def extract_bid_ask(quote):
     return bid, ask
 
 
-def calculate_price_from_bid_ask(bid, ask):
+def calculate_price_from_bid_ask(bid: float | None, ask: float | None) -> float | None:
     """
     Calculate the best price from bid and ask values.
 
@@ -76,17 +103,17 @@ def calculate_price_from_bid_ask(bid, ask):
     Returns:
         float: Best available price (midpoint preferred, then bid, then ask)
     """
-    if bid > 0 and ask > 0:
+    if bid is not None and ask is not None and bid > 0 and ask > 0:
         return (bid + ask) / 2  # Return midpoint if both available
-    elif bid > 0:
+    elif bid is not None and bid > 0:
         return bid
-    elif ask > 0:
+    elif ask is not None and ask > 0:
         return ask
     else:
         return None
 
 
-def get_price_from_quote_api(data_client, symbol):
+def get_price_from_quote_api(data_client: Any, symbol: str) -> float | None:
     """
     Get current price from quote API.
 
@@ -106,13 +133,34 @@ def get_price_from_quote_api(data_client, symbol):
             bid, ask = extract_bid_ask(quote)
             return calculate_price_from_bid_ask(bid, ask)
 
-    except Exception as e:
+    except (AttributeError, ValueError, TypeError, KeyError) as e:
+        logger = get_logger(__name__)
+        log_error_with_context(
+            logger,
+            DataProviderError(f"Failed to get quote for {symbol}: {e}"),
+            "quote_api_retrieval",
+            function="get_price_from_quote_api",
+            symbol=symbol,
+            error_type=type(e).__name__,
+        )
         logging.warning(f"Error getting quote for {symbol}: {e}")
+    except Exception as e:
+        logger = get_logger(__name__)
+        log_error_with_context(
+            logger,
+            DataProviderError(f"Unexpected error getting quote for {symbol}: {e}"),
+            "quote_api_retrieval",
+            function="get_price_from_quote_api",
+            symbol=symbol,
+            error_type="unexpected_error",
+            original_error=type(e).__name__,
+        )
+        logging.warning(f"Unexpected error getting quote for {symbol}: {e}")
 
     return None
 
 
-def get_price_from_historical_fallback(data_provider, symbol):
+def get_price_from_historical_fallback(data_provider: Any, symbol: str) -> float | None:
     """
     Fallback to recent historical data for price.
 
@@ -137,13 +185,34 @@ def get_price_from_historical_fallback(data_provider, symbol):
             price = float(price)
             return price if not pd.isna(price) else None
 
-    except Exception as e:
+    except (AttributeError, ValueError, TypeError, KeyError, IndexError) as e:
+        logger = get_logger(__name__)
+        log_error_with_context(
+            logger,
+            DataProviderError(f"Failed to get historical price for {symbol}: {e}"),
+            "historical_fallback_retrieval",
+            function="get_price_from_historical_fallback",
+            symbol=symbol,
+            error_type=type(e).__name__,
+        )
         logging.warning(f"Error getting historical price for {symbol}: {e}")
+    except Exception as e:
+        logger = get_logger(__name__)
+        log_error_with_context(
+            logger,
+            DataProviderError(f"Unexpected error getting historical price for {symbol}: {e}"),
+            "historical_fallback_retrieval",
+            function="get_price_from_historical_fallback",
+            symbol=symbol,
+            error_type="unexpected_error",
+            original_error=type(e).__name__,
+        )
+        logging.warning(f"Unexpected error getting historical price for {symbol}: {e}")
 
     return None
 
 
-def create_cleanup_function(real_time_pricing, symbol):
+def create_cleanup_function(real_time_pricing: Any, symbol: str) -> Callable[[], None]:
     """
     Create a cleanup function to unsubscribe from real-time data.
 
@@ -155,13 +224,34 @@ def create_cleanup_function(real_time_pricing, symbol):
         function: Cleanup function that unsubscribes from the symbol
     """
 
-    def cleanup():
+    def cleanup() -> None:
         """Cleanup function to unsubscribe after order placement."""
         if real_time_pricing:
             try:
                 real_time_pricing.unsubscribe_after_trading(symbol)
                 logging.debug(f"Unsubscribed from real-time data for {symbol}")
-            except Exception as e:
+            except (AttributeError, ValueError, ConnectionError) as e:
+                logger = get_logger(__name__)
+                log_error_with_context(
+                    logger,
+                    DataProviderError(f"Failed to unsubscribe from {symbol}: {e}"),
+                    "real_time_cleanup",
+                    function="cleanup",
+                    symbol=symbol,
+                    error_type=type(e).__name__,
+                )
                 logging.warning(f"Error unsubscribing from {symbol}: {e}")
+            except Exception as e:
+                logger = get_logger(__name__)
+                log_error_with_context(
+                    logger,
+                    DataProviderError(f"Unexpected error unsubscribing from {symbol}: {e}"),
+                    "real_time_cleanup",
+                    function="cleanup",
+                    symbol=symbol,
+                    error_type="unexpected_error",
+                    original_error=type(e).__name__,
+                )
+                logging.warning(f"Unexpected error unsubscribing from {symbol}: {e}")
 
     return cleanup

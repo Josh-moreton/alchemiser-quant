@@ -5,8 +5,6 @@ This package contains all individual strategy variants for the KLM ensemble syst
 Each variant is implemented as a separate module for better maintainability.
 """
 
-from typing import Any
-
 from .base_klm_variant import BaseKLMVariant
 from .variant_410_38 import KlmVariant41038
 from .variant_506_38 import KlmVariant50638
