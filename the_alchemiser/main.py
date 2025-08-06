@@ -393,6 +393,20 @@ def run_multi_strategy_trading(
             from the_alchemiser.core.ui.email.templates import EmailTemplates
             from the_alchemiser.core.ui.email_utils import send_email_notification
 
+            # Enrich result with fresh position data for email templates
+            try:
+                fresh_positions = trader.get_positions_dict()
+                # Add fresh positions to result object for email template access
+                if (
+                    hasattr(result, "final_portfolio_state")
+                    and result.final_portfolio_state is not None
+                ):
+                    result.final_portfolio_state["current_positions"] = fresh_positions
+                else:
+                    result.final_portfolio_state = {"current_positions": fresh_positions}
+            except Exception as e:
+                logging.warning(f"Could not add fresh position data to result: {e}")
+
             # Always use neutral multi-strategy template (no financial values)
             html_content = EmailTemplates.build_multi_strategy_report_neutral(result, mode_str)
 

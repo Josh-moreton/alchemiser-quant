@@ -391,19 +391,36 @@ class PortfolioBuilder:
                 result, "account_info_after", {}
             )
 
-            # Debug: log what we have
-            print(f"DEBUG - target_portfolio: {target_portfolio}")
-            print(f"DEBUG - final_positions: {bool(final_positions)}")
-            print(f"DEBUG - account_after: {bool(account_after)}")
+            # Debug: log what we have - keeping available_attrs for error handling
+            available_attrs = [attr for attr in dir(result) if not attr.startswith("_")]
 
-            # If no final_positions, try to construct from account_after positions
-            if not final_positions and account_after:
+            # Try different methods to get current positions data
+            current_positions: dict[str, Any] = {}
+
+            # Method 1: Check for fresh positions data added in main.py
+            final_portfolio_state = getattr(result, "final_portfolio_state", {})
+            if final_portfolio_state and final_portfolio_state.get("current_positions"):
+                current_positions = final_portfolio_state["current_positions"]
+
+            # Method 2: Check final_positions
+            elif final_positions:
+                current_positions = final_positions
+
+            # Method 3: Check account_after open_positions
+            elif account_after and account_after.get("open_positions"):
                 open_positions = account_after.get("open_positions", [])
-                if open_positions:
-                    final_positions = {}
-                    for pos in open_positions:
-                        if isinstance(pos, dict) and pos.get("symbol"):
-                            final_positions[pos["symbol"]] = pos
+                current_positions = {}
+                for pos in open_positions:
+                    if isinstance(pos, dict) and pos.get("symbol"):
+                        current_positions[pos["symbol"]] = pos
+
+            # Method 4: Check if result has positions attribute
+            elif hasattr(result, "positions") and result.positions:
+                current_positions = result.positions
+
+            # Method 5: Check execution_summary for positions
+            elif execution_summary and "positions" in execution_summary:
+                current_positions = execution_summary["positions"]
 
             portfolio_value = 0.0
             if account_after:
@@ -412,16 +429,22 @@ class PortfolioBuilder:
                 )
 
             # If we have positions, extract current values
-            current_values = {}
-            if final_positions:
-                current_values = extract_current_position_values(final_positions)
+            current_values: dict[str, float] = {}
+            if current_positions:
+                try:
+                    current_values = extract_current_position_values(current_positions)
+                except Exception:
+                    # Try manual extraction if utility function fails
+                    for symbol, pos in current_positions.items():
+                        if isinstance(pos, dict):
+                            try:
+                                current_values[symbol] = float(pos.get("market_value", 0))
+                            except (ValueError, TypeError):
+                                current_values[symbol] = 0.0
 
             # Calculate total portfolio value from positions if not available
             if portfolio_value == 0 and current_values:
                 portfolio_value = sum(current_values.values())
-
-            print(f"DEBUG - portfolio_value: {portfolio_value}")
-            print(f"DEBUG - current_values: {current_values}")
 
             # Build the table
             table_rows = []
@@ -490,7 +513,19 @@ class PortfolioBuilder:
             """
 
         except Exception as e:
-            return f"<p>Error loading portfolio data: {str(e)}</p>"
+            # Enhanced debug information
+            debug_info = f"""
+            <div style="font-size: 12px; color: #666; margin: 10px 0;">
+            <strong>Debug Information:</strong><br/>
+            • Target portfolio: {bool(target_portfolio)}<br/>
+            • final_positions: {bool(getattr(result, 'final_positions', {}))}<br/>
+            • account_after: {bool(getattr(result, 'account_info_after', {}))}<br/>
+            • execution_summary: {bool(getattr(result, 'execution_summary', {}))}<br/>
+            • Available result attributes: {', '.join([attr for attr in dir(result) if not attr.startswith('_')][:10])}...<br/>
+            • Error: {str(e)}
+            </div>
+            """
+            return f"<p>Error loading portfolio data. Check logs for details.</p>{debug_info}"
 
     @staticmethod
     def build_neutral_account_summary(account_info: dict[str, Any]) -> str:
