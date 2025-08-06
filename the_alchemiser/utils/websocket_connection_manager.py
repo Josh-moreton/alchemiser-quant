@@ -22,7 +22,7 @@ class WebSocketConnectionManager:
     trading streams and data streams.
     """
 
-    def __init__(self, trading_client, api_key=None, secret_key=None) -> None:
+    def __init__(self, trading_client: Any, api_key: str | None = None, secret_key: str | None = None) -> None:
         """Initialize with trading client and optional API credentials."""
         self.trading_client = trading_client
         self.api_key = api_key
@@ -62,7 +62,7 @@ class WebSocketConnectionManager:
             stream = TradingStream(str(api_key), str(secret_key), paper=paper)
 
             # Dummy handler for trade updates (we'll replace this later)
-            async def dummy_handler(data):
+            async def dummy_handler(data: Any) -> None:
                 """Log trade update messages during initial connection testing."""
 
                 if logging.getLogger().level <= logging.DEBUG:

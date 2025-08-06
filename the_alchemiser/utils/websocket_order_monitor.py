@@ -10,6 +10,7 @@ order settlement detection compared to polling-based approaches.
 import logging
 import threading
 import time
+from typing import Any
 
 from rich.console import Console
 
@@ -199,7 +200,7 @@ class OrderCompletionMonitor:
         final_states = {"filled", "canceled", "rejected", "expired"}
         stream_stopped = False
 
-        async def on_update(data) -> None:
+        async def on_update(data: Any) -> None:
             """Handle incoming trade updates and track completed orders."""
 
             nonlocal stream_stopped
