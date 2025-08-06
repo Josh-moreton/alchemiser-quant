@@ -572,8 +572,23 @@ class EnhancedErrorReporter:
         }
 
 
-# Global enhanced error reporter instance
-enhanced_error_reporter = EnhancedErrorReporter()
+# Factory function for enhanced error reporter
+def get_enhanced_error_reporter() -> EnhancedErrorReporter:
+    """Factory function to create a new EnhancedErrorReporter instance."""
+    return EnhancedErrorReporter()
+
+
+# Global enhanced error reporter instance (for backward compatibility)
+# Consider using get_enhanced_error_reporter() in new code for better testability
+_global_enhanced_error_reporter: EnhancedErrorReporter | None = None
+
+
+def get_global_error_reporter() -> EnhancedErrorReporter:
+    """Get the global error handler instance, creating it if needed."""
+    global _global_enhanced_error_reporter
+    if _global_enhanced_error_reporter is None:
+        _global_enhanced_error_reporter = EnhancedErrorReporter()
+    return _global_enhanced_error_reporter
 
 
 def handle_errors_with_retry(

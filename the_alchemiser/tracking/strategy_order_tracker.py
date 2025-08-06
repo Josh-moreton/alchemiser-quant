@@ -3,51 +3,7 @@
 Strategy Order Tracker for Per-Strategy P&L Management
 
 This module provides dedicated tracking of orders and positions per strategy for accurate P&L calculations.
-It persists order d        except DataProviderEr        except DataProviderError as e:
-            from ..core.logging.logging_utils import get_logger, log_error_with_context
-
-            logger = get_logger(__name__)
-            log_error_with_context(
-                logger,
-                e,
-                "order_recording",
-                function="record_order",
-                order_id=order_id,
-                strategy=strategy.value,
-                symbol=symbol,
-                side=side,
-                quantity=quantity,
-                price=price,
-                error_type=type(e).__name__,
-            )     from ..core.logging.logging_utils import get_logger, log_error_with_context
-
-            logger = get_logger(__name__)
-            log_error_with_context(
-                logger,
-                     except DataProviderError as e:
-            from ..core.logging.logging_utils import get_logger, log_error_with_context
-
-            logger = get_logger(__name__)
-            log_error_with_context(
-                logger,
-                e,
-                "realized_pnl_calculation",
-                function="_calculate_realized_pnl",
-                strategy=sell_order.strategy,
-                symbol=sell_order.symbol,
-                quantity=sell_order.quantity,
-                price=sell_order.price,
-                error_type=type(e).__name__,
-            )       "order_recording",
-                function="record_order",
-                order_id=order_id,
-                strategy=strategy.value,
-                symbol=symbol,
-                side=side,
-                quantity=quantity,
-                price=price,
-                error_type=type(e).__name__,
-            )ability and calculates realized/unrealized P&L per strategy.
+It persists order data and calculates realized/unrealized P&L per strategy.
 
 Key Features:
 - Tag orders with strategy information during execution

@@ -262,6 +262,14 @@ class MultiStrategyManager:
                 elif strategy_type == StrategyType.KLM:
                     indicators = engine.calculate_indicators(market_data)
                     result = engine.evaluate_ensemble(indicators, market_data)
+
+                    # Verify tuple has expected 4 elements to prevent IndexError
+                    if len(result) < 4:
+                        raise StrategyExecutionError(
+                            f"KLM strategy returned incomplete result tuple: expected 4 elements, got {len(result)}",
+                            strategy_name="KLM",
+                        )
+
                     strategy_signals[strategy_type] = {
                         "symbol": result[0],  # symbol_or_allocation
                         "action": result[1],  # action

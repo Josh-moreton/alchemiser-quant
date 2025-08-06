@@ -366,8 +366,6 @@ class KlmVariant53018(BaseKLMVariant):
         6. Long/short rotator with stdev filtering
         """
 
-        result: tuple[str | dict[str, float], str, str]
-
         # Check VOX overbought
         if "VOX" in indicators and indicators["VOX"].get("rsi_10", 0) > 79:
             allocation = self.vix_blend
