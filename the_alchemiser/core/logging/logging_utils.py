@@ -2,7 +2,9 @@ import json
 import logging
 import os
 import sys
+from collections.abc import MutableMapping
 from datetime import datetime
+from typing import Any
 
 from the_alchemiser.core.utils.s3_utils import S3FileHandler
 
@@ -10,7 +12,9 @@ from the_alchemiser.core.utils.s3_utils import S3FileHandler
 class AlchemiserLoggerAdapter(logging.LoggerAdapter[logging.Logger]):
     """Custom logger adapter for the Alchemiser quantitative trading system."""
 
-    def process(self, msg, kwargs):
+    def process(
+        self, msg: Any, kwargs: MutableMapping[str, Any]
+    ) -> tuple[str, MutableMapping[str, Any]]:
         return f"[ALCHEMISER] {msg}", kwargs
 
 
@@ -57,7 +61,7 @@ def get_logger(name: str) -> logging.Logger:
     return logging.getLogger(name)
 
 
-def log_with_context(logger: logging.Logger, level: int, message: str, **context) -> None:
+def log_with_context(logger: logging.Logger, level: int, message: str, **context: Any) -> None:
     """
     Log a message with additional context fields.
 
@@ -197,7 +201,9 @@ def configure_production_logging(
     )
 
 
-def get_trading_logger(module_name: str, **context) -> logging.Logger | AlchemiserLoggerAdapter:
+def get_trading_logger(
+    module_name: str, **context: Any
+) -> logging.Logger | AlchemiserLoggerAdapter:
     """
     Get a logger specifically configured for trading operations.
 
@@ -215,7 +221,7 @@ def get_trading_logger(module_name: str, **context) -> logging.Logger | Alchemis
     return logger
 
 
-def log_trade_event(logger: logging.Logger, event_type: str, symbol: str, **details) -> None:
+def log_trade_event(logger: logging.Logger, event_type: str, symbol: str, **details: Any) -> None:
     """
     Log a trading event with standardized structure.
 
@@ -235,7 +241,7 @@ def log_trade_event(logger: logging.Logger, event_type: str, symbol: str, **deta
 
 
 def log_error_with_context(
-    logger: logging.Logger, error: Exception, operation: str, **context
+    logger: logging.Logger, error: Exception, operation: str, **context: Any
 ) -> None:
     """
     Log an error with full context and traceback.

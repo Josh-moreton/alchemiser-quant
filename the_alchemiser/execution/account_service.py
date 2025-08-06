@@ -102,7 +102,7 @@ class AccountService:
 
         return prices
 
-    def _extract_symbol(self, position) -> str:
+    def _extract_symbol(self, position: Any) -> str:
         """Extract symbol from position object, handling different formats."""
         if isinstance(position, dict):
             symbol = position.get("symbol")

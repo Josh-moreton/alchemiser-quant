@@ -13,6 +13,8 @@ Usage:
     html = EmailTemplates.build_trading_report_neutral(...)
 """
 
+from typing import Any
+
 # Import the specialized builders
 # Import content builders for advanced usage
 
@@ -40,39 +42,39 @@ class EmailTemplates:
 
     # Trading reports
     @staticmethod
-    def build_trading_report(*args, **kwargs):
+    def build_trading_report(*args: Any, **kwargs: Any) -> str:
         """Build a regular trading report email."""
         return TradingReportBuilder.build_regular_report(*args, **kwargs)
 
     @staticmethod
-    def build_trading_report_neutral(*args, **kwargs):
+    def build_trading_report_neutral(*args: Any, **kwargs: Any) -> str:
         """Build a neutral trading report email without financial values."""
         return TradingReportBuilder.build_neutral_report(*args, **kwargs)
 
     # Multi-strategy reports
     @staticmethod
-    def build_multi_strategy_report(*args, **kwargs):
+    def build_multi_strategy_report(*args: Any, **kwargs: Any) -> str:
         """Build a multi-strategy report email."""
         return MultiStrategyReportBuilder.build_multi_strategy_report(*args, **kwargs)
 
     # Error reports
     @staticmethod
-    def build_error_report(*args, **kwargs):
+    def build_error_report(*args: Any, **kwargs: Any) -> str:
         """Build an error notification email."""
         return ErrorReportBuilder.build_error_report(*args, **kwargs)
 
 
 # Backward compatibility functions
-def build_trading_report_html(*args, **kwargs) -> str:
+def build_trading_report_html(*args: Any, **kwargs: Any) -> str:
     """Backward compatibility function for build_trading_report_html."""
     return str(EmailTemplates.build_trading_report(*args, **kwargs))
 
 
-def build_multi_strategy_email_html(*args, **kwargs) -> str:
+def build_multi_strategy_email_html(*args: Any, **kwargs: Any) -> str:
     """Backward compatibility function for build_multi_strategy_email_html."""
     return str(EmailTemplates.build_multi_strategy_report(*args, **kwargs))
 
 
-def build_error_email_html(*args, **kwargs) -> str:
+def build_error_email_html(*args: Any, **kwargs: Any) -> str:
     """Backward compatibility function for build_error_email_html."""
     return str(EmailTemplates.build_error_report(*args, **kwargs))

@@ -9,6 +9,8 @@ breaking down verbose price fetching logic into reusable components.
 
 import logging
 import time
+from collections.abc import Callable
+from typing import Any
 
 import pandas as pd
 from alpaca.data.requests import StockLatestQuoteRequest
@@ -17,7 +19,7 @@ from ..core.exceptions import DataProviderError
 from ..core.logging.logging_utils import get_logger, log_error_with_context
 
 
-def subscribe_for_real_time(real_time_pricing, symbol):
+def subscribe_for_real_time(real_time_pricing: Any, symbol: str) -> bool:
     """
     Subscribe to real-time data for a symbol with just-in-time subscription.
 
@@ -66,7 +68,7 @@ def subscribe_for_real_time(real_time_pricing, symbol):
         return False
 
 
-def extract_bid_ask(quote):
+def extract_bid_ask(quote: Any) -> tuple[float | None, float | None]:
     """
     Extract bid and ask prices safely from a quote object.
 
@@ -90,7 +92,7 @@ def extract_bid_ask(quote):
     return bid, ask
 
 
-def calculate_price_from_bid_ask(bid, ask):
+def calculate_price_from_bid_ask(bid: float | None, ask: float | None) -> float | None:
     """
     Calculate the best price from bid and ask values.
 
@@ -101,17 +103,17 @@ def calculate_price_from_bid_ask(bid, ask):
     Returns:
         float: Best available price (midpoint preferred, then bid, then ask)
     """
-    if bid > 0 and ask > 0:
+    if bid is not None and ask is not None and bid > 0 and ask > 0:
         return (bid + ask) / 2  # Return midpoint if both available
-    elif bid > 0:
+    elif bid is not None and bid > 0:
         return bid
-    elif ask > 0:
+    elif ask is not None and ask > 0:
         return ask
     else:
         return None
 
 
-def get_price_from_quote_api(data_client, symbol):
+def get_price_from_quote_api(data_client: Any, symbol: str) -> float | None:
     """
     Get current price from quote API.
 
@@ -158,7 +160,7 @@ def get_price_from_quote_api(data_client, symbol):
     return None
 
 
-def get_price_from_historical_fallback(data_provider, symbol):
+def get_price_from_historical_fallback(data_provider: Any, symbol: str) -> float | None:
     """
     Fallback to recent historical data for price.
 
@@ -210,7 +212,7 @@ def get_price_from_historical_fallback(data_provider, symbol):
     return None
 
 
-def create_cleanup_function(real_time_pricing, symbol):
+def create_cleanup_function(real_time_pricing: Any, symbol: str) -> Callable[[], None]:
     """
     Create a cleanup function to unsubscribe from real-time data.
 
@@ -222,7 +224,7 @@ def create_cleanup_function(real_time_pricing, symbol):
         function: Cleanup function that unsubscribes from the symbol
     """
 
-    def cleanup():
+    def cleanup() -> None:
         """Cleanup function to unsubscribe after order placement."""
         if real_time_pricing:
             try:
