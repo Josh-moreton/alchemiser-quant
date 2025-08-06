@@ -10,6 +10,10 @@ from datetime import datetime
 class BaseEmailTemplate:
     """Base class for HTML email templates with responsive design."""
 
+    # Logo configuration - update this URL to your hosted logo
+    LOGO_URL = "https://alchemiser.rwxt.org/android-chrome-512x512.png"
+    LOGO_SIZE = "32px"
+
     @staticmethod
     def get_base_styles() -> str:
         """Get common CSS styles for email templates."""
@@ -27,13 +31,48 @@ class BaseEmailTemplate:
         """Get HTML header section."""
         return f"""
         <tr>
-            <td style="padding: 16px 24px; text-align: center; background: linear-gradient(135deg, #1F2937, #374151); border-radius: 8px 8px 0 0;">
-                <h1 style="margin: 0; color: white; font-size: 20px; font-weight: 600;">
+            <td style="padding: 12px 24px; text-align: center; background: linear-gradient(135deg, #1F2937, #374151); border-radius: 8px 8px 0 0;">
+                <img src="{BaseEmailTemplate.LOGO_URL}" alt="The Alchemiser Logo" style="width: {BaseEmailTemplate.LOGO_SIZE}; height: {BaseEmailTemplate.LOGO_SIZE}; margin-bottom: 8px;" />
+                <h1 style="margin: 0; color: white; font-size: 18px; font-weight: 600;">
                     The Alchemiser
                 </h1>
-                <p style="margin: 4px 0 0 0; color: rgba(255,255,255,0.8); font-size: 13px;">
+                <p style="margin: 2px 0 0 0; color: rgba(255,255,255,0.7); font-size: 12px;">
                     {subtitle}
                 </p>
+            </td>
+        </tr>
+        """
+
+    @staticmethod
+    def get_combined_header_status(
+        title: str,
+        status: str,
+        status_color: str,
+        status_emoji: str,
+        timestamp: datetime | None = None,
+    ) -> str:
+        """Get combined header and status in one section."""
+        if timestamp is None:
+            timestamp = datetime.now()
+
+        return f"""
+        <tr>
+            <td style="padding: 16px 24px; text-align: center; background: linear-gradient(135deg, #1F2937, #374151); border-radius: 8px 8px 0 0;">
+                <img src="{BaseEmailTemplate.LOGO_URL}" alt="The Alchemiser Logo" style="width: {BaseEmailTemplate.LOGO_SIZE}; height: {BaseEmailTemplate.LOGO_SIZE}; margin-bottom: 8px;" />
+                <h1 style="margin: 0; color: white; font-size: 18px; font-weight: 600;">
+                    The Alchemiser
+                </h1>
+                <p style="margin: 2px 0 6px 0; color: rgba(255,255,255,0.7); font-size: 12px;">
+                    Quantitative Trading System
+                </p>
+                <div style="background: {status_color}; padding: 8px 16px; border-radius: 6px; margin-top: 8px;">
+                    <h2 style="margin: 0; color: white; font-size: 16px; font-weight: 600;">
+                        {title}
+                    </h2>
+                    <p style="margin: 2px 0 0 0; color: rgba(255,255,255,0.9); font-size: 12px;">
+                        Status: {status} • {timestamp.strftime('%Y-%m-%d %H:%M:%S')}
+                    </p>
+                </div>
             </td>
         </tr>
         """

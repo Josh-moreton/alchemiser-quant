@@ -130,8 +130,7 @@ class MultiStrategyReportBuilder:
         status_text = "Success" if success else "Failed"
 
         # Build content sections
-        header = BaseEmailTemplate.get_header("The Alchemiser")
-        status_banner = BaseEmailTemplate.get_status_banner(
+        combined_header = BaseEmailTemplate.get_combined_header_status(
             f"{mode.upper()} Multi-Strategy Report", status_text, status_color, status_emoji
         )
 
@@ -177,8 +176,7 @@ class MultiStrategyReportBuilder:
         # Combine all content
         main_content = "".join(content_sections)
         content = f"""
-        {header}
-        {status_banner}
+        {combined_header}
         <tr>
             <td style="padding: 32px 24px; background-color: white;">
                 {main_content}

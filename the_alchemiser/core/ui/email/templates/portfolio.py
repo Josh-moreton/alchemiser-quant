@@ -378,29 +378,50 @@ class PortfolioBuilder:
         target_portfolio = getattr(result, "consolidated_portfolio", {})
 
         if not target_portfolio:
-            return "<p>No rebalancing data available</p>"
+            return "<p>No target portfolio data available</p>"
 
         # Use the same logic as CLI - import the utility functions
         try:
             from the_alchemiser.utils.account_utils import extract_current_position_values
 
-            # Get account info and positions from result
+            # Try multiple sources for positions and account data
+            final_positions = getattr(result, "final_positions", {})
             execution_summary = getattr(result, "execution_summary", {})
             account_after = execution_summary.get("account_info_after", {}) or getattr(
                 result, "account_info_after", {}
             )
-            final_positions = getattr(result, "final_positions", {})
 
-            if not account_after or not final_positions:
-                return "<p>Position data not available for rebalancing table</p>"
+            # Debug: log what we have
+            print(f"DEBUG - target_portfolio: {target_portfolio}")
+            print(f"DEBUG - final_positions: {bool(final_positions)}")
+            print(f"DEBUG - account_after: {bool(account_after)}")
 
-            # Convert account_after to AccountInfo format (same as CLI does)
-            portfolio_value = float(account_after.get("portfolio_value", 0)) or float(
-                account_after.get("equity", 0)
-            )
+            # If no final_positions, try to construct from account_after positions
+            if not final_positions and account_after:
+                open_positions = account_after.get("open_positions", [])
+                if open_positions:
+                    final_positions = {}
+                    for pos in open_positions:
+                        if isinstance(pos, dict) and pos.get("symbol"):
+                            final_positions[pos["symbol"]] = pos
 
-            # Use the same utility function as CLI to extract current position values
-            current_values = extract_current_position_values(final_positions)
+            portfolio_value = 0.0
+            if account_after:
+                portfolio_value = float(account_after.get("portfolio_value", 0)) or float(
+                    account_after.get("equity", 0)
+                )
+
+            # If we have positions, extract current values
+            current_values = {}
+            if final_positions:
+                current_values = extract_current_position_values(final_positions)
+
+            # Calculate total portfolio value from positions if not available
+            if portfolio_value == 0 and current_values:
+                portfolio_value = sum(current_values.values())
+
+            print(f"DEBUG - portfolio_value: {portfolio_value}")
+            print(f"DEBUG - current_values: {current_values}")
 
             # Build the table
             table_rows = []
