@@ -156,11 +156,17 @@ class MultiStrategyReportBuilder:
             neutral_signals_html = SignalsBuilder.build_strategy_signals_neutral(strategy_signals)
             content_sections.append(neutral_signals_html)
 
-        # Orders executed (count only, no values)
+        # Orders executed (detailed table, no values)
         orders = getattr(result, "orders_executed", [])
         if orders:
+            orders_table_html = PortfolioBuilder.build_orders_table_neutral(orders)
             neutral_orders_html = BaseEmailTemplate.create_section(
-                "📋 Trading Activity", f"<p>{len(orders)} orders executed successfully</p>"
+                "📋 Trading Activity", orders_table_html
+            )
+            content_sections.append(neutral_orders_html)
+        else:
+            neutral_orders_html = BaseEmailTemplate.create_section(
+                "📋 Trading Activity", "<p>No orders executed - portfolio already balanced</p>"
             )
             content_sections.append(neutral_orders_html)
 

@@ -590,3 +590,103 @@ class PortfolioBuilder:
             </tbody>
         </table>
         """
+
+    @staticmethod
+    def build_orders_table_neutral(orders: list[Any]) -> str:
+        """Build a neutral orders table without financial values."""
+        if not orders:
+            return """
+            <div style="text-align: center; padding: 20px; color: #6B7280;">
+                <p>No orders executed</p>
+            </div>
+            """
+
+        # Start building the table
+        table_html = """
+        <table style="width: 100%; border-collapse: collapse; background-color: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin: 16px 0;">
+            <thead>
+                <tr style="background-color: #F9FAFB;">
+                    <th style="padding: 12px 16px; text-align: left; font-weight: 600; color: #374151; border-bottom: 2px solid #E5E7EB;">
+                        Action
+                    </th>
+                    <th style="padding: 12px 16px; text-align: left; font-weight: 600; color: #374151; border-bottom: 2px solid #E5E7EB;">
+                        Symbol
+                    </th>
+                    <th style="padding: 12px 16px; text-align: center; font-weight: 600; color: #374151; border-bottom: 2px solid #E5E7EB;">
+                        Quantity
+                    </th>
+                    <th style="padding: 12px 16px; text-align: center; font-weight: 600; color: #374151; border-bottom: 2px solid #E5E7EB;">
+                        Status
+                    </th>
+                </tr>
+            </thead>
+            <tbody>
+        """
+
+        for order in orders:
+            # Extract order details safely
+            side = str(order.get("side", "")).upper()
+            symbol = str(order.get("symbol", ""))
+            qty = order.get("qty", 0)
+            status = str(order.get("status", "unknown")).upper()
+
+            # Determine colors and formatting
+            if side == "BUY":
+                action_color = "#10B981"  # Green
+                action_emoji = "📈"
+            elif side == "SELL":
+                action_color = "#EF4444"  # Red
+                action_emoji = "📉"
+            else:
+                action_color = "#6B7280"  # Gray
+                action_emoji = "📊"
+
+            # Status colors
+            if status in ["FILLED", "COMPLETE"]:
+                status_color = "#10B981"  # Green
+                status_display = f"✅ {status}"
+            elif status in ["PARTIAL", "PARTIALLY_FILLED"]:
+                status_color = "#F59E0B"  # Orange
+                status_display = f"🔄 {status}"
+            elif status in ["PENDING", "NEW", "ACCEPTED"]:
+                status_color = "#3B82F6"  # Blue
+                status_display = f"⏳ {status}"
+            elif status in ["CANCELLED", "CANCELED", "REJECTED"]:
+                status_color = "#EF4444"  # Red
+                status_display = f"❌ {status}"
+            else:
+                status_color = "#6B7280"  # Gray
+                status_display = f"ℹ️ {status}"
+
+            # Format quantity display
+            if isinstance(qty, int | float) and qty != 0:
+                if qty >= 1:
+                    qty_display = f"{qty:.2f}"
+                else:
+                    qty_display = f"{qty:.6f}".rstrip("0").rstrip(".")
+            else:
+                qty_display = "—"
+
+            table_html += f"""
+                <tr>
+                    <td style="padding: 12px 16px; border-bottom: 1px solid #E5E7EB; font-weight: 600; color: {action_color};">
+                        {action_emoji} {side}
+                    </td>
+                    <td style="padding: 12px 16px; border-bottom: 1px solid #E5E7EB; font-weight: 600; color: #1F2937;">
+                        {symbol}
+                    </td>
+                    <td style="padding: 12px 16px; border-bottom: 1px solid #E5E7EB; text-align: center; color: #374151;">
+                        {qty_display}
+                    </td>
+                    <td style="padding: 12px 16px; border-bottom: 1px solid #E5E7EB; text-align: center; color: {status_color}; font-weight: 600;">
+                        {status_display}
+                    </td>
+                </tr>
+            """
+
+        table_html += """
+            </tbody>
+        </table>
+        """
+
+        return table_html
