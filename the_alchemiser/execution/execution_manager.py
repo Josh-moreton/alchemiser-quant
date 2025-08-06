@@ -2,6 +2,7 @@ import logging
 
 from ..core.error_handler import handle_errors_with_retry
 from ..core.exceptions import (
+    DataProviderError,
     TradingClientError,
 )
 from .reporting import build_portfolio_state_data, create_execution_summary, save_dashboard_data
@@ -67,20 +68,63 @@ class ExecutionManager:
             save_dashboard_data(self.engine, result)
             self.engine._archive_daily_strategy_pnl(execution_summary.get("pnl_summary", {}))
             return result
+        except TradingClientError as e:
+            from the_alchemiser.core.logging.logging_utils import get_logger, log_error_with_context
+
+            logger = get_logger(__name__)
+            log_error_with_context(
+                logger,
+                e,
+                context={
+                    "operation": "multi_strategy_execution",
+                    "engine_type": type(self.engine).__name__,
+                    "error_type": "trading_client_error",
+                },
+            )
+            raise  # Re-raise to let upper layers handle
+        except DataProviderError as e:
+            from the_alchemiser.core.logging.logging_utils import get_logger, log_error_with_context
+
+            logger = get_logger(__name__)
+            log_error_with_context(
+                logger,
+                e,
+                context={
+                    "operation": "multi_strategy_execution",
+                    "engine_type": type(self.engine).__name__,
+                    "error_type": "data_provider_error",
+                },
+            )
+            # For data errors, return a safe result rather than crashing
+            return MultiStrategyExecutionResult(
+                success=False,
+                strategy_signals={},
+                consolidated_portfolio={"BIL": 1.0},  # Safe fallback to cash
+                orders_executed=[],
+                account_info_before=None,
+                account_info_after=None,
+                execution_summary={"error": str(e)},
+                final_portfolio_state={},
+            )
         except Exception as e:
             from the_alchemiser.core.logging.logging_utils import get_logger, log_error_with_context
 
             logger = get_logger(__name__)
-            log_error_with_context(logger, e, "multi-strategy execution")
-            return MultiStrategyExecutionResult(
-                success=False,
-                strategy_signals={},
-                consolidated_portfolio={},
-                orders_executed=[],
-                account_info_before=(
-                    account_info_before if "account_info_before" in locals() else {}
-                ),
-                account_info_after={},
-                execution_summary={"error": str(e)},
-                final_portfolio_state=None,
+            # Unexpected errors are critical
+            log_error_with_context(
+                logger,
+                e,
+                context={
+                    "operation": "multi_strategy_execution",
+                    "engine_type": type(self.engine).__name__,
+                    "error_type": "unexpected_error",
+                },
             )
+            # Convert to our exception type for better handling
+            raise TradingClientError(
+                f"Unexpected error in multi-strategy execution: {str(e)}",
+                context={
+                    "original_error": type(e).__name__,
+                    "operation": "multi_strategy_execution",
+                },
+            ) from e

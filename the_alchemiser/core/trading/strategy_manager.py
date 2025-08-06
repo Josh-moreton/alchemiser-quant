@@ -21,6 +21,8 @@ from typing import Any
 from the_alchemiser.core.registry import StrategyRegistry, StrategyType
 from the_alchemiser.core.trading.nuclear_signals import ActionType
 
+from ..exceptions import StrategyExecutionError
+
 __all__ = ["StrategyType"]
 
 
@@ -126,8 +128,33 @@ class MultiStrategyManager:
                 logging.info(
                     f"{strategy_type.value} strategy initialized with {self.strategy_allocations[strategy_type]:.1%} allocation"
                 )
-            except Exception as e:
+            except StrategyExecutionError as e:
+                from ..logging.logging_utils import get_logger, log_error_with_context
+
+                logger = get_logger(__name__)
+                log_error_with_context(
+                    logger,
+                    e,
+                    "strategy_initialization",
+                    strategy_type=strategy_type.value,
+                    error_type=type(e).__name__,
+                )
                 logging.error(f"Failed to initialize {strategy_type.value} strategy: {e}")
+                # Remove from allocations if initialization failed
+                del self.strategy_allocations[strategy_type]
+            except Exception as e:
+                from ..logging.logging_utils import get_logger, log_error_with_context
+
+                logger = get_logger(__name__)
+                log_error_with_context(
+                    logger,
+                    e,
+                    "strategy_initialization",
+                    strategy_type=strategy_type.value,
+                    error_type="unexpected_error",
+                    original_error=type(e).__name__,
+                )
+                logging.error(f"Unexpected error initializing {strategy_type.value} strategy: {e}")
                 # Remove from allocations if initialization failed
                 del self.strategy_allocations[strategy_type]
 

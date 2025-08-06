@@ -44,6 +44,12 @@ except ImportError:
     HAS_RICH = False
 
 from the_alchemiser.core.config import Settings, load_settings
+from the_alchemiser.core.exceptions import (
+    DataProviderError,
+    NotificationError,
+    StrategyExecutionError,
+    TradingClientError,
+)
 from the_alchemiser.core.logging.logging_utils import get_logger, setup_logging
 from the_alchemiser.core.trading.strategy_manager import StrategyType
 
@@ -107,10 +113,38 @@ def generate_multi_strategy_signals(
         manager = MultiStrategyManager(shared_data_provider=shared_data_provider, config=settings)
         strategy_signals, consolidated_portfolio, _ = manager.run_all_strategies()
         return manager, strategy_signals, consolidated_portfolio
-    except Exception as e:
+    except (DataProviderError, StrategyExecutionError) as e:
+        from the_alchemiser.core.logging.logging_utils import log_error_with_context
+
+        logger = get_logger(__name__)
+        log_error_with_context(
+            logger,
+            e,
+            "strategy_signal_generation",
+            function="run_all_signals_simple",
+            error_type=type(e).__name__,
+        )
         print(f"ERROR: Strategy signal generation failed: {str(e)}")
-        # Re-raise the exception instead of silently returning None
+        # Re-raise the specific exception for proper error handling
         raise
+    except Exception as e:
+        from the_alchemiser.core.logging.logging_utils import log_error_with_context
+
+        logger = get_logger(__name__)
+        log_error_with_context(
+            logger,
+            e,
+            "strategy_signal_generation",
+            function="run_all_signals_simple",
+            error_type="unexpected_error",
+            original_error=type(e).__name__,
+        )
+        print(f"ERROR: Unexpected error in strategy signal generation: {str(e)}")
+        # Convert unexpected errors to our exception hierarchy
+        raise StrategyExecutionError(
+            f"Unexpected error during strategy signal generation: {str(e)}",
+            strategy_name="multi_strategy",
+        ) from e
 
 
 def run_all_signals_display(
@@ -231,9 +265,32 @@ def run_all_signals_display(
 
         render_footer("Signal analysis completed successfully!")
         return True
-    except Exception as e:
+    except (DataProviderError, StrategyExecutionError) as e:
+        from the_alchemiser.core.logging.logging_utils import log_error_with_context
+
         logger = get_logger(__name__)
+        log_error_with_context(
+            logger,
+            e,
+            "strategy_analysis",
+            function="run_all_signals_display",
+            error_type=type(e).__name__,
+        )
         logger.exception("Error analyzing strategies: %s", e)
+        return False
+    except Exception as e:
+        from the_alchemiser.core.logging.logging_utils import log_error_with_context
+
+        logger = get_logger(__name__)
+        log_error_with_context(
+            logger,
+            e,
+            "strategy_analysis",
+            function="run_all_signals_display",
+            error_type="unexpected_error",
+            original_error=type(e).__name__,
+        )
+        logger.exception("Unexpected error analyzing strategies: %s", e)
         return False
 
 
@@ -366,14 +423,46 @@ def run_multi_strategy_trading(
                 html_content=html_content,
                 text_content=f"Multi-strategy execution completed. Success: {result.success}",
             )
-        except Exception as e:
+        except NotificationError as e:
+            from the_alchemiser.core.logging.logging_utils import log_error_with_context
+
             logger = get_logger(__name__)
+            log_error_with_context(
+                logger,
+                e,
+                "email_notification",
+                function="run_multi_strategy_trading",
+                notification_type="trading_report",
+            )
             logger.warning("Email notification failed: %s", e)
+        except Exception as e:
+            from the_alchemiser.core.logging.logging_utils import log_error_with_context
+
+            logger = get_logger(__name__)
+            log_error_with_context(
+                logger,
+                e,
+                "email_notification",
+                function="run_multi_strategy_trading",
+                error_type="unexpected_error",
+            )
+            logger.warning("Unexpected error during email notification: %s", e)
 
         return result.success
 
-    except Exception as e:
+    except (DataProviderError, StrategyExecutionError, TradingClientError) as e:
+        from the_alchemiser.core.logging.logging_utils import log_error_with_context
+
         logger = get_logger(__name__)
+        log_error_with_context(
+            logger,
+            e,
+            "multi_strategy_trading",
+            function="run_multi_strategy_trading",
+            error_type=type(e).__name__,
+            live_trading=live_trading,
+            ignore_market_hours=ignore_market_hours,
+        )
         logger.exception("Error in multi-strategy trading: %s", e)
 
         # Enhanced error handling with detailed reporting
@@ -395,6 +484,46 @@ def run_multi_strategy_trading(
             )
 
             # Send detailed error notification if needed
+            send_error_notification_if_needed()
+
+        except NotificationError as notification_error:
+            logger.warning("Failed to send error notification: %s", notification_error)
+
+        return False
+    except Exception as e:
+        from the_alchemiser.core.logging.logging_utils import log_error_with_context
+
+        logger = get_logger(__name__)
+        log_error_with_context(
+            logger,
+            e,
+            "multi_strategy_trading",
+            function="run_multi_strategy_trading",
+            error_type="unexpected_critical_error",
+            live_trading=live_trading,
+            ignore_market_hours=ignore_market_hours,
+        )
+        logger.exception("Unexpected critical error in multi-strategy trading: %s", e)
+
+        # For unexpected errors, still try to send notification
+        try:
+            from the_alchemiser.core.error_handler import (
+                handle_trading_error,
+                send_error_notification_if_needed,
+            )
+
+            handle_trading_error(
+                error=e,
+                context="multi-strategy trading execution - unexpected error",
+                component="main.run_multi_strategy_trading",
+                additional_data={
+                    "mode": mode_str,
+                    "live_trading": live_trading,
+                    "ignore_market_hours": ignore_market_hours,
+                    "original_error": type(e).__name__,
+                },
+            )
+
             send_error_notification_if_needed()
 
         except Exception as notification_error:
@@ -481,9 +610,36 @@ def main(argv: list[str] | None = None, settings: Settings | None = None) -> boo
                 return True
             else:
                 success = result
-    except Exception as e:
+    except (DataProviderError, StrategyExecutionError, TradingClientError) as e:
+        from the_alchemiser.core.logging.logging_utils import log_error_with_context
+
         logger = get_logger(__name__)
-        logger.exception("Error in main application: %s", e)
+        log_error_with_context(
+            logger,
+            e,
+            "main_application",
+            function="main",
+            error_type=type(e).__name__,
+            mode=args.mode,
+            live_trading=getattr(args, "live", False),
+        )
+        logger.exception("Known error in main application: %s", e)
+        success = False
+    except Exception as e:
+        from the_alchemiser.core.logging.logging_utils import log_error_with_context
+
+        logger = get_logger(__name__)
+        log_error_with_context(
+            logger,
+            e,
+            "main_application",
+            function="main",
+            error_type="unexpected_critical_error",
+            mode=args.mode,
+            live_trading=getattr(args, "live", False),
+            original_error=type(e).__name__,
+        )
+        logger.exception("Unexpected critical error in main application: %s", e)
         success = False
 
     if success:
