@@ -256,8 +256,38 @@ class MultiStrategyManager:
                         f"KLM ensemble: {result[1]} {result[0]} - {result[2]} [{result[3]}]"
                     )
 
+            except StrategyExecutionError as e:
+                from ..logging.logging_utils import get_logger, log_error_with_context
+
+                logger = get_logger(__name__)
+                log_error_with_context(
+                    logger,
+                    e,
+                    "strategy_execution",
+                    strategy_type=strategy_type.value,
+                    error_type=type(e).__name__,
+                )
+                logging.error(f"Strategy execution error for {strategy_type.value}: {e}")
+                strategy_signals[strategy_type] = {
+                    "symbol": "BIL",  # Safe default
+                    "action": ActionType.HOLD.value,
+                    "reason": f"{strategy_type.value} strategy error: {e}",
+                    "indicators": {},
+                    "market_data": market_data,
+                }
             except Exception as e:
-                logging.error(f"Error running {strategy_type.value} strategy: {e}")
+                from ..logging.logging_utils import get_logger, log_error_with_context
+
+                logger = get_logger(__name__)
+                log_error_with_context(
+                    logger,
+                    e,
+                    "strategy_execution",
+                    strategy_type=strategy_type.value,
+                    error_type="unexpected_error",
+                    original_error=type(e).__name__,
+                )
+                logging.error(f"Unexpected error running {strategy_type.value} strategy: {e}")
                 strategy_signals[strategy_type] = {
                     "symbol": "BIL",  # Safe default
                     "action": ActionType.HOLD.value,
@@ -412,8 +442,33 @@ class MultiStrategyManager:
                     )
                     return {bear1_symbol: 0.6, bear2_symbol: 0.4}
 
+            except StrategyExecutionError as e:
+                from ..logging.logging_utils import get_logger, log_error_with_context
+
+                logger = get_logger(__name__)
+                log_error_with_context(
+                    logger,
+                    e,
+                    "bear_portfolio_allocation",
+                    function="get_nuclear_portfolio_allocation",
+                    error_type=type(e).__name__,
+                )
+                logging.error(f"Strategy execution error in bear portfolio allocation: {e}")
+                # Safe fallback - single defensive position
+                return {"SQQQ": 1.0}
             except Exception as e:
-                logging.error(f"Error calculating bear portfolio allocation: {e}")
+                from ..logging.logging_utils import get_logger, log_error_with_context
+
+                logger = get_logger(__name__)
+                log_error_with_context(
+                    logger,
+                    e,
+                    "bear_portfolio_allocation",
+                    function="get_nuclear_portfolio_allocation",
+                    error_type="unexpected_error",
+                    original_error=type(e).__name__,
+                )
+                logging.error(f"Unexpected error calculating bear portfolio allocation: {e}")
                 # Safe fallback - single defensive position
                 return {"SQQQ": 1.0}
 
@@ -484,8 +539,31 @@ class MultiStrategyManager:
             # Position tracking between runs is disabled
             logging.debug("Position tracking disabled - not saving positions")
 
+        except StrategyExecutionError as e:
+            from ..logging.logging_utils import get_logger, log_error_with_context
+
+            logger = get_logger(__name__)
+            log_error_with_context(
+                logger,
+                e,
+                "position_tracking_update",
+                function="_update_position_tracking",
+                error_type=type(e).__name__,
+            )
+            logging.error(f"Strategy execution error updating position tracking: {e}")
         except Exception as e:
-            logging.error(f"Error updating position tracking: {e}")
+            from ..logging.logging_utils import get_logger, log_error_with_context
+
+            logger = get_logger(__name__)
+            log_error_with_context(
+                logger,
+                e,
+                "position_tracking_update",
+                function="_update_position_tracking",
+                error_type="unexpected_error",
+                original_error=type(e).__name__,
+            )
+            logging.error(f"Unexpected error updating position tracking: {e}")
 
     def get_strategy_performance_summary(
         self,

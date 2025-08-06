@@ -21,6 +21,9 @@ from typing import Any, Protocol
 
 from alpaca.trading.enums import OrderSide
 
+from the_alchemiser.core.exceptions import (
+    DataProviderError,
+)
 from the_alchemiser.core.trading.strategy_manager import (
     MultiStrategyManager,
     StrategyType,
@@ -243,8 +246,47 @@ class TradingEngine:
             }
 
             return enriched_info
+        except DataProviderError as e:
+            from the_alchemiser.core.logging.logging_utils import get_logger, log_error_with_context
+
+            logger = get_logger(__name__)
+            log_error_with_context(
+                logger,
+                e,
+                "account_info_retrieval",
+                function="get_account_info",
+                trading_mode="paper" if self.paper_trading else "live",
+                error_type=type(e).__name__,
+            )
+            logging.error(f"Data provider error retrieving account information: {e}")
+
+            # Enhanced error handling
+            try:
+                from the_alchemiser.core.error_handler import handle_trading_error
+
+                handle_trading_error(
+                    error=e,
+                    context="account information retrieval",
+                    trading_mode="paper" if self.paper_trading else "live",
+                )
+            except Exception:
+                pass
+
+            return {}
         except Exception as e:
-            logging.error(f"Failed to retrieve account information: {e}")
+            from the_alchemiser.core.logging.logging_utils import get_logger, log_error_with_context
+
+            logger = get_logger(__name__)
+            log_error_with_context(
+                logger,
+                e,
+                "account_info_retrieval",
+                function="get_account_info",
+                trading_mode="paper" if self.paper_trading else "live",
+                error_type="unexpected_error",
+                original_error=type(e).__name__,
+            )
+            logging.error(f"Unexpected error retrieving account information: {e}")
 
             # Enhanced error handling
             try:

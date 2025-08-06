@@ -75,11 +75,9 @@ class ExecutionManager:
             log_error_with_context(
                 logger,
                 e,
-                context={
-                    "operation": "multi_strategy_execution",
-                    "engine_type": type(self.engine).__name__,
-                    "error_type": "trading_client_error",
-                },
+                "multi_strategy_execution",
+                engine_type=type(self.engine).__name__,
+                error_type="trading_client_error",
             )
             raise  # Re-raise to let upper layers handle
         except DataProviderError as e:
@@ -89,11 +87,9 @@ class ExecutionManager:
             log_error_with_context(
                 logger,
                 e,
-                context={
-                    "operation": "multi_strategy_execution",
-                    "engine_type": type(self.engine).__name__,
-                    "error_type": "data_provider_error",
-                },
+                "multi_strategy_execution",
+                engine_type=type(self.engine).__name__,
+                error_type="data_provider_error",
             )
             # For data errors, return a safe result rather than crashing
             return MultiStrategyExecutionResult(
@@ -114,11 +110,9 @@ class ExecutionManager:
             log_error_with_context(
                 logger,
                 e,
-                context={
-                    "operation": "multi_strategy_execution",
-                    "engine_type": type(self.engine).__name__,
-                    "error_type": "unexpected_error",
-                },
+                "multi_strategy_execution",
+                engine_type=type(self.engine).__name__,
+                error_type="unexpected_error",
             )
             # Convert to our exception type for better handling
             raise TradingClientError(
