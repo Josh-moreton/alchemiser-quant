@@ -22,7 +22,10 @@ from typing import Any, Protocol
 from alpaca.trading.enums import OrderSide
 
 from the_alchemiser.core.exceptions import (
+    ConfigurationError,
     DataProviderError,
+    StrategyExecutionError,
+    TradingClientError,
 )
 from the_alchemiser.core.trading.strategy_manager import (
     MultiStrategyManager,
@@ -269,24 +272,23 @@ class TradingEngine:
                     context="account information retrieval",
                     trading_mode="paper" if self.paper_trading else "live",
                 )
-            except Exception:
+            except (ImportError, AttributeError):
                 pass
 
             return {}
-        except Exception as e:
+        except (TradingClientError, ConnectionError, TimeoutError, AttributeError) as e:
             from the_alchemiser.core.logging.logging_utils import get_logger, log_error_with_context
 
             logger = get_logger(__name__)
             log_error_with_context(
                 logger,
                 e,
-                "account_info_retrieval",
+                "account_info_client_error",
                 function="get_account_info",
                 trading_mode="paper" if self.paper_trading else "live",
-                error_type="unexpected_error",
-                original_error=type(e).__name__,
+                error_type=type(e).__name__,
             )
-            logging.error(f"Unexpected error retrieving account information: {e}")
+            logging.error(f"Client error retrieving account information: {e}")
 
             # Enhanced error handling
             try:
@@ -298,7 +300,7 @@ class TradingEngine:
                     component="TradingEngine.get_account_info",
                     additional_data={"paper_trading": self.paper_trading},
                 )
-            except ImportError:
+            except (ImportError, AttributeError):
                 pass  # Fallback for backward compatibility
 
             return {}
@@ -333,7 +335,13 @@ class TradingEngine:
                         "equity": portfolio_history.get("equity", []),
                         "timestamp": portfolio_history.get("timestamp", []),
                     }
-            except Exception as e:
+            except (
+                DataProviderError,
+                ConnectionError,
+                TimeoutError,
+                KeyError,
+                AttributeError,
+            ) as e:
                 logging.debug(f"Could not retrieve portfolio history: {e}")
 
             # Add recent closed P&L if available
@@ -343,12 +351,18 @@ class TradingEngine:
                 # if closed_pnl:
                 #     enriched["recent_closed_pnl"] = closed_pnl
                 pass
-            except Exception as e:
+            except (
+                DataProviderError,
+                ConnectionError,
+                TimeoutError,
+                KeyError,
+                AttributeError,
+            ) as e:
                 logging.debug(f"Could not retrieve recent closed P&L: {e}")
 
             return enriched
 
-        except Exception as e:
+        except (DataProviderError, TradingClientError, ConfigurationError, AttributeError) as e:
             logging.error(f"Failed to retrieve enriched account information: {e}")
             # Return minimal enriched account info
             return {
@@ -368,7 +382,7 @@ class TradingEngine:
         try:
             positions = self._position_provider.get_positions_dict()
             return positions
-        except Exception as e:
+        except (DataProviderError, TradingClientError, ConnectionError, TimeoutError) as e:
             logging.error(f"Failed to retrieve positions: {e}")
             return {}
 
@@ -408,7 +422,7 @@ class TradingEngine:
                 logging.warning(f"Invalid price received for {symbol}: {price}")
                 return 0.0
 
-        except Exception as e:
+        except (DataProviderError, ConnectionError, TimeoutError, ValueError, AttributeError) as e:
             logging.error(f"Failed to get current price for {symbol}: {e}")
             return 0.0
 
@@ -448,7 +462,7 @@ class TradingEngine:
             )
             return valid_prices
 
-        except Exception as e:
+        except (DataProviderError, ConnectionError, TimeoutError, ValueError, AttributeError) as e:
             logging.error(f"Failed to get current prices: {e}")
             return {}
 
@@ -557,7 +571,13 @@ class TradingEngine:
 
             return orders
 
-        except Exception as e:
+        except (
+            TradingClientError,
+            DataProviderError,
+            ConfigurationError,
+            ValueError,
+            AttributeError,
+        ) as e:
             logging.error(f"Portfolio rebalancing failed: {e}")
             return []
 
@@ -608,7 +628,7 @@ class TradingEngine:
                     execution_summary={"error": "Failed to retrieve account information"},
                     final_portfolio_state={},
                 )
-        except Exception as e:
+        except (DataProviderError, TradingClientError, ConfigurationError, ValueError) as e:
             logging.error(f"Pre-execution validation failed: {e}")
             return MultiStrategyExecutionResult(
                 success=False,
@@ -641,7 +661,12 @@ class TradingEngine:
 
             return result
 
-        except Exception as e:
+        except (
+            StrategyExecutionError,
+            TradingClientError,
+            DataProviderError,
+            ConfigurationError,
+        ) as e:
             logging.error(f"Multi-strategy execution failed: {e}")
 
             # Enhanced error handling
@@ -657,7 +682,7 @@ class TradingEngine:
                         "ignore_market_hours": self.ignore_market_hours,
                     },
                 )
-            except ImportError:
+            except (ImportError, AttributeError):
                 pass  # Fallback for backward compatibility
 
             return MultiStrategyExecutionResult(
@@ -688,7 +713,7 @@ class TradingEngine:
 
             logging.info("Successfully archived daily strategy P&L snapshot")
 
-        except Exception as e:
+        except (ImportError, AttributeError, ConnectionError, OSError) as e:
             logging.error(f"Failed to archive daily strategy P&L: {e}")
 
     def get_multi_strategy_performance_report(
@@ -706,7 +731,7 @@ class TradingEngine:
                 "performance_summary": self.strategy_manager.get_strategy_performance_summary(),
             }
             return report
-        except Exception as e:
+        except (StrategyExecutionError, DataProviderError, AttributeError, ValueError) as e:
             logging.error(f"Error generating performance report: {e}")
             return {"error": str(e)}
 
@@ -775,7 +800,7 @@ class TradingEngine:
                 )
             else:
                 logging.info("🔍 No symbols to validate in post-trade validation")
-        except Exception as e:
+        except (ValueError, AttributeError, KeyError, TypeError) as e:
             logging.error(f"❌ Post-trade validation failed: {e}")
 
     def display_target_vs_current_allocations(
@@ -910,7 +935,7 @@ class TradingEngine:
             try:
                 enriched_account = self.get_enriched_account_info()
                 account = enriched_account
-            except Exception:
+            except (DataProviderError, AttributeError, ValueError):
                 account = execution_result.account_info_after
 
             account_content = Text()
@@ -950,7 +975,7 @@ class TradingEngine:
             try:
                 enriched_account = self.get_enriched_account_info()
                 closed_pnl = enriched_account.get("recent_closed_pnl", [])
-            except Exception:
+            except (DataProviderError, AttributeError, ValueError):
                 closed_pnl = execution_result.account_info_after.get("recent_closed_pnl", [])
 
             if closed_pnl:

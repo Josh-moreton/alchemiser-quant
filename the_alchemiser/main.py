@@ -45,6 +45,7 @@ except ImportError:
 
 from the_alchemiser.core.config import Settings, load_settings
 from the_alchemiser.core.exceptions import (
+    ConfigurationError,
     DataProviderError,
     NotificationError,
     StrategyExecutionError,
@@ -277,19 +278,18 @@ def run_all_signals_display(
         )
         logger.exception("Error analyzing strategies: %s", e)
         return False
-    except Exception as e:
+    except (ImportError, AttributeError, ValueError, OSError) as e:
         from the_alchemiser.core.logging.logging_utils import log_error_with_context
 
         logger = get_logger(__name__)
         log_error_with_context(
             logger,
             e,
-            "strategy_analysis",
+            "strategy_display_error",
             function="run_all_signals_display",
-            error_type="unexpected_error",
-            original_error=type(e).__name__,
+            error_type=type(e).__name__,
         )
-        logger.exception("Unexpected error analyzing strategies: %s", e)
+        logger.exception("Display error analyzing strategies: %s", e)
         return False
 
 
@@ -434,18 +434,18 @@ def run_multi_strategy_trading(
                 notification_type="trading_report",
             )
             logger.warning("Email notification failed: %s", e)
-        except Exception as e:
+        except (ConnectionError, TimeoutError, ValueError, AttributeError) as e:
             from the_alchemiser.core.logging.logging_utils import log_error_with_context
 
             logger = get_logger(__name__)
             log_error_with_context(
                 logger,
                 e,
-                "email_notification",
+                "email_formatting_error",
                 function="run_multi_strategy_trading",
-                error_type="unexpected_error",
+                error_type=type(e).__name__,
             )
-            logger.warning("Unexpected error during email notification: %s", e)
+            logger.warning("Email formatting/connection error: %s", e)
 
         return result.success
 
@@ -489,22 +489,22 @@ def run_multi_strategy_trading(
             logger.warning("Failed to send error notification: %s", notification_error)
 
         return False
-    except Exception as e:
+    except (OSError, ImportError, ConfigurationError, ValueError) as e:
         from the_alchemiser.core.logging.logging_utils import log_error_with_context
 
         logger = get_logger(__name__)
         log_error_with_context(
             logger,
             e,
-            "multi_strategy_trading",
+            "system_configuration_error",
             function="run_multi_strategy_trading",
-            error_type="unexpected_critical_error",
+            error_type=type(e).__name__,
             live_trading=live_trading,
             ignore_market_hours=ignore_market_hours,
         )
-        logger.exception("Unexpected critical error in multi-strategy trading: %s", e)
+        logger.exception("System/configuration error in multi-strategy trading: %s", e)
 
-        # For unexpected errors, still try to send notification
+        # For system errors, still try to send notification
         try:
             from the_alchemiser.core.error_handler import (
                 handle_trading_error,
@@ -525,7 +525,12 @@ def run_multi_strategy_trading(
 
             send_error_notification_if_needed()
 
-        except Exception as notification_error:
+        except (
+            NotificationError,
+            ConnectionError,
+            TimeoutError,
+            AttributeError,
+        ) as notification_error:
             logger.warning("Failed to send error notification: %s", notification_error)
 
         return False
@@ -624,21 +629,20 @@ def main(argv: list[str] | None = None, settings: Settings | None = None) -> boo
         )
         logger.exception("Known error in main application: %s", e)
         success = False
-    except Exception as e:
+    except (ConfigurationError, ValueError, AttributeError, OSError, ImportError) as e:
         from the_alchemiser.core.logging.logging_utils import log_error_with_context
 
         logger = get_logger(__name__)
         log_error_with_context(
             logger,
             e,
-            "main_application",
+            "main_application_system_error",
             function="main",
-            error_type="unexpected_critical_error",
+            error_type=type(e).__name__,
             mode=args.mode,
             live_trading=getattr(args, "live", False),
-            original_error=type(e).__name__,
         )
-        logger.exception("Unexpected critical error in main application: %s", e)
+        logger.exception("System error in main application: %s", e)
         success = False
 
     if success:
