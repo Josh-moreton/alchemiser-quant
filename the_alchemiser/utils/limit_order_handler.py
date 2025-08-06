@@ -102,7 +102,7 @@ class LimitOrderHandler:
                 symbol=symbol,
                 quantity=qty,
                 side=side.value,
-                limit_price=limit_price
+                limit_price=limit_price,
             )
             return None
 
@@ -222,7 +222,7 @@ class LimitOrderHandler:
                     symbol=symbol,
                     quantity=whole_qty,
                     side=side.value,
-                    limit_price=limit_price
+                    limit_price=limit_price,
                 )
                 return None
         else:

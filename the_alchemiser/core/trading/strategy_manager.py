@@ -184,8 +184,8 @@ class MultiStrategyManager:
     def run_all_strategies(
         self,
     ) -> tuple[
-        dict[StrategyType, Any], dict[str, float], dict[str, list[StrategyType]]
-    ]:  # TODO: Phase 6 - Migrate first dict to dict[StrategyType, StrategySignal]
+        dict[StrategyType, dict[str, Any]], dict[str, float], dict[str, list[StrategyType]]
+    ]:  # ⚠️ Phase 6 - Will migrate to StrategySignal after strategy engines updated
         """
         Run all enabled strategies and generate consolidated portfolio allocation
 
@@ -195,7 +195,7 @@ class MultiStrategyManager:
 
         strategy_signals: dict[StrategyType, dict[str, Any]] = (
             {}
-        )  # TODO: Phase 6 - Migrate to dict[StrategyType, StrategySignal]
+        )  # ⚠️ Phase 6 - Will migrate to StrategySignal after strategy engines updated
         consolidated_portfolio: dict[str, float] = {}
         strategy_attribution: dict[str, list[StrategyType]] = {}
 

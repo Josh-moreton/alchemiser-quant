@@ -21,6 +21,7 @@ from typing import Any, Protocol
 
 from alpaca.trading.enums import OrderSide
 
+from the_alchemiser.core.config import Settings
 from the_alchemiser.core.exceptions import (
     ConfigurationError,
     DataProviderError,
@@ -141,7 +142,7 @@ class TradingEngine:
         paper_trading: bool = True,
         strategy_allocations: dict[StrategyType, float] | None = None,
         ignore_market_hours: bool = False,
-        config: Any = None,  # TODO: Phase 15 - Add proper config type
+        config: Settings | None = None,
     ) -> None:
         """Initialize the TradingEngine.
 
@@ -180,7 +181,7 @@ class TradingEngine:
             trading_client=self.trading_client,
             data_provider=self.data_provider,
             ignore_market_hours=self.ignore_market_hours,
-            config=config if isinstance(config, dict) else {},
+            config=config.model_dump() if config else {},
         )
 
         # Portfolio rebalancer

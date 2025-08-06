@@ -1,7 +1,7 @@
 """Unified historical and real-time market data access layer."""
+
 import logging
 import time
-
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from typing import Any, cast
@@ -12,6 +12,7 @@ from alpaca.data.requests import StockBarsRequest, StockLatestQuoteRequest
 from alpaca.data.timeframe import TimeFrame
 from alpaca.trading.client import TradingClient
 
+from the_alchemiser.core.config import Settings
 from the_alchemiser.core.secrets.secrets_manager import SecretsManager
 
 from ..exceptions import ConfigurationError, DataProviderError, MarketDataError, TradingClientError
@@ -36,7 +37,7 @@ class UnifiedDataProvider:
         self,
         paper_trading: bool = True,
         cache_duration: int | None = None,
-        config: Any | None = None,  # TODO: Phase 11 - Add proper Settings type when available
+        config: Settings | None = None,
         enable_real_time: bool = True,
     ) -> None:
         """

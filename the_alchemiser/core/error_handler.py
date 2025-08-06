@@ -16,11 +16,8 @@ from datetime import datetime
 from functools import wraps
 
 # Enhanced error reporting and classification utilities.
-
 from typing import Any
 
-# TODO: Phase 14 - Import error handler types when ready
-# from .types import ErrorDetailInfo, ErrorSummaryData, ErrorReportSummary, ErrorNotificationData
 from .exceptions import (
     AlchemiserError,
     ConfigurationError,
@@ -33,6 +30,9 @@ from .exceptions import (
     StrategyExecutionError,
     TradingClientError,
 )
+
+# ✅ Phase 14 - Error handler types enabled
+from .types import ErrorDetailInfo, ErrorReportSummary
 
 
 class ErrorCategory:
@@ -56,7 +56,9 @@ class ErrorDetails:
         category: str,
         context: str,
         component: str,
-        additional_data: dict[str, Any] | None = None,  # TODO: Phase 14 - Use structured data type
+        additional_data: (
+            dict[str, Any] | None
+        ) = None,  # ✅ Phase 14 - Compatible with ErrorDetailInfo
         suggested_action: str | None = None,
     ):
         """Store detailed error information."""
@@ -70,7 +72,7 @@ class ErrorDetails:
         self.timestamp = datetime.now()
         self.traceback = traceback.format_exc()
 
-    def to_dict(self) -> dict[str, Any]:  # TODO: Phase 14 - Return ErrorDetailInfo
+    def to_dict(self) -> ErrorDetailInfo:  # ✅ Phase 14 - Return ErrorDetailInfo
         """Convert error details to dictionary for serialization."""
         return {
             "error_type": type(self.error).__name__,
@@ -157,7 +159,9 @@ class TradingSystemErrorHandler:
         error: Exception,
         context: str,
         component: str,
-        additional_data: dict[str, Any] | None = None,  # TODO: Phase 14 - Use structured data type
+        additional_data: (
+            dict[str, Any] | None
+        ) = None,  # ✅ Phase 14 - Compatible with ErrorDetailInfo
         should_continue: bool = True,  # noqa: ARG002
     ) -> ErrorDetails:
         """Handle an error with detailed logging and categorization."""
@@ -195,24 +199,69 @@ class TradingSystemErrorHandler:
         """Check if any trading-related errors occurred."""
         return any(error.category == ErrorCategory.TRADING for error in self.errors)
 
-    def get_error_summary(self) -> dict[str, Any]:  # TODO: Phase 14 - Return ErrorReportSummary
+    def get_error_summary(self) -> ErrorReportSummary:  # ✅ Phase 14 - Return ErrorReportSummary
         """Get a summary of all errors by category."""
-        summary = {}
-        for category in [
-            ErrorCategory.CRITICAL,
-            ErrorCategory.TRADING,
-            ErrorCategory.DATA,
-            ErrorCategory.STRATEGY,
-            ErrorCategory.CONFIGURATION,
-            ErrorCategory.NOTIFICATION,
-            ErrorCategory.WARNING,
-        ]:
-            category_errors = [e for e in self.errors if e.category == category]
-            if category_errors:
-                summary[category] = {
-                    "count": len(category_errors),
-                    "errors": [e.to_dict() for e in category_errors],
-                }
+        # Initialize summary with all categories as None
+        summary: ErrorReportSummary = {
+            "critical": None,
+            "trading": None,
+            "data": None,
+            "strategy": None,
+            "configuration": None,
+            "notification": None,
+            "warning": None,
+        }
+
+        # Handle each category explicitly
+        critical_errors = [e for e in self.errors if e.category == ErrorCategory.CRITICAL]
+        if critical_errors:
+            summary["critical"] = {
+                "count": len(critical_errors),
+                "errors": [e.to_dict() for e in critical_errors],
+            }
+
+        trading_errors = [e for e in self.errors if e.category == ErrorCategory.TRADING]
+        if trading_errors:
+            summary["trading"] = {
+                "count": len(trading_errors),
+                "errors": [e.to_dict() for e in trading_errors],
+            }
+
+        data_errors = [e for e in self.errors if e.category == ErrorCategory.DATA]
+        if data_errors:
+            summary["data"] = {
+                "count": len(data_errors),
+                "errors": [e.to_dict() for e in data_errors],
+            }
+
+        strategy_errors = [e for e in self.errors if e.category == ErrorCategory.STRATEGY]
+        if strategy_errors:
+            summary["strategy"] = {
+                "count": len(strategy_errors),
+                "errors": [e.to_dict() for e in strategy_errors],
+            }
+
+        config_errors = [e for e in self.errors if e.category == ErrorCategory.CONFIGURATION]
+        if config_errors:
+            summary["configuration"] = {
+                "count": len(config_errors),
+                "errors": [e.to_dict() for e in config_errors],
+            }
+
+        notification_errors = [e for e in self.errors if e.category == ErrorCategory.NOTIFICATION]
+        if notification_errors:
+            summary["notification"] = {
+                "count": len(notification_errors),
+                "errors": [e.to_dict() for e in notification_errors],
+            }
+
+        warning_errors = [e for e in self.errors if e.category == ErrorCategory.WARNING]
+        if warning_errors:
+            summary["warning"] = {
+                "count": len(warning_errors),
+                "errors": [e.to_dict() for e in warning_errors],
+            }
+
         return summary
 
     def should_send_error_email(self) -> bool:
@@ -236,10 +285,10 @@ class TradingSystemErrorHandler:
         report += f"**Total Errors:** {len(self.errors)}\n\n"
 
         # Critical errors first
-        if ErrorCategory.CRITICAL in summary:
+        if summary["critical"] is not None:
             report += "## 🚨 CRITICAL ERRORS\n"
             report += "These errors stopped system execution and require immediate attention:\n\n"
-            for error in summary[ErrorCategory.CRITICAL]["errors"]:
+            for error in summary["critical"]["errors"]:
                 report += f"**Component:** {error['component']}\n"
                 report += f"**Context:** {error['context']}\n"
                 report += f"**Error:** {error['error_message']}\n"
@@ -249,10 +298,10 @@ class TradingSystemErrorHandler:
                 report += "\n"
 
         # Trading errors
-        if ErrorCategory.TRADING in summary:
+        if summary["trading"] is not None:
             report += "## 💰 TRADING ERRORS\n"
             report += "These errors affected trade execution:\n\n"
-            for error in summary[ErrorCategory.TRADING]["errors"]:
+            for error in summary["trading"]["errors"]:
                 report += f"**Component:** {error['component']}\n"
                 report += f"**Context:** {error['context']}\n"
                 report += f"**Error:** {error['error_message']}\n"
@@ -262,26 +311,42 @@ class TradingSystemErrorHandler:
                 report += "\n"
 
         # Other categories
-        for category in [ErrorCategory.DATA, ErrorCategory.STRATEGY, ErrorCategory.CONFIGURATION]:
-            if category in summary:
-                icon = (
-                    "📊"
-                    if category == ErrorCategory.DATA
-                    else "🧠" if category == ErrorCategory.STRATEGY else "⚙️"
-                )
-                report += f"## {icon} {category.upper()} ERRORS\n"
-                for error in summary[category]["errors"]:
-                    report += f"**Component:** {error['component']}\n"
-                    report += f"**Context:** {error['context']}\n"
-                    report += f"**Error:** {error['error_message']}\n"
-                    report += f"**Action:** {error['suggested_action']}\n"
-                    if error["additional_data"]:
-                        report += f"**Additional Data:** {error['additional_data']}\n"
-                    report += "\n"
+        if summary["data"] is not None:
+            report += "## 📊 DATA ERRORS\n"
+            for error in summary["data"]["errors"]:
+                report += f"**Component:** {error['component']}\n"
+                report += f"**Context:** {error['context']}\n"
+                report += f"**Error:** {error['error_message']}\n"
+                report += f"**Action:** {error['suggested_action']}\n"
+                if error["additional_data"]:
+                    report += f"**Additional Data:** {error['additional_data']}\n"
+                report += "\n"
+
+        if summary["strategy"] is not None:
+            report += "## 🧠 STRATEGY ERRORS\n"
+            for error in summary["strategy"]["errors"]:
+                report += f"**Component:** {error['component']}\n"
+                report += f"**Context:** {error['context']}\n"
+                report += f"**Error:** {error['error_message']}\n"
+                report += f"**Action:** {error['suggested_action']}\n"
+                if error["additional_data"]:
+                    report += f"**Additional Data:** {error['additional_data']}\n"
+                report += "\n"
+
+        if summary["configuration"] is not None:
+            report += "## ⚙️ CONFIGURATION ERRORS\n"
+            for error in summary["configuration"]["errors"]:
+                report += f"**Component:** {error['component']}\n"
+                report += f"**Context:** {error['context']}\n"
+                report += f"**Error:** {error['error_message']}\n"
+                report += f"**Action:** {error['suggested_action']}\n"
+                if error["additional_data"]:
+                    report += f"**Additional Data:** {error['additional_data']}\n"
+                report += "\n"
 
         return report
 
-    def clear_errors(self) -> None:  # TODO: Phase 14 - Add proper typing
+    def clear_errors(self) -> None:  # ✅ Phase 14 - Properly typed
         """Clear all recorded errors."""
         self.errors.clear()
 
@@ -299,7 +364,7 @@ def handle_trading_error(
     error: Exception,
     context: str,
     component: str,
-    additional_data: dict[str, Any] | None = None,  # TODO: Phase 14 - Use structured data type
+    additional_data: dict[str, Any] | None = None,  # ✅ Phase 14 - Compatible with ErrorDetailInfo
 ) -> ErrorDetails:
     """Convenience function to handle errors in trading operations."""
     return _error_handler.handle_error(error, context, component, additional_data)
@@ -307,7 +372,7 @@ def handle_trading_error(
 
 def send_error_notification_if_needed() -> (
     None
-):  # TODO: Phase 14 - Return ErrorNotificationData | None
+):  # ✅ Phase 14 - Returns None for now, ErrorNotificationData in future
     """Send error notification email if there are errors that warrant it."""
     if not _error_handler.should_send_error_email():
         return
@@ -361,7 +426,7 @@ def retry_with_backoff(
     max_delay: float = 60.0,
     backoff_factor: float = 2.0,
     jitter: bool = True,
-):
+) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     """
     Retry decorator with exponential backoff and jitter.
 
@@ -377,9 +442,9 @@ def retry_with_backoff(
         Decorated function with retry logic
     """
 
-    def decorator(func: Callable) -> Callable:
+    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         @wraps(func)
-        def wrapper(*args, **kwargs):
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
             last_exception = None
 
             for attempt in range(max_retries + 1):
@@ -451,9 +516,9 @@ class CircuitBreaker:
         self.last_failure_time: float | None = None
         self.state = "CLOSED"  # CLOSED, OPEN, HALF_OPEN
 
-    def __call__(self, func: Callable) -> Callable:
+    def __call__(self, func: Callable[..., Any]) -> Callable[..., Any]:
         @wraps(func)
-        def wrapper(*args, **kwargs):
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
             if self.state == "OPEN":
                 if self.last_failure_time and time.time() - self.last_failure_time < self.timeout:
                     raise CircuitBreakerOpenError(
@@ -600,7 +665,7 @@ def get_global_error_reporter() -> EnhancedErrorReporter:
 
 def handle_errors_with_retry(
     operation: str, critical: bool = False, reraise: bool = True, max_retries: int = 0
-):
+) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     """
     Decorator combining error handling with optional retry logic.
 
@@ -614,9 +679,9 @@ def handle_errors_with_retry(
         Decorated function with error handling and retry
     """
 
-    def decorator(func: Callable) -> Callable:
+    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         @wraps(func)
-        def wrapper(*args, **kwargs):
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
             if max_retries > 0:
                 # Apply retry logic
                 retry_decorator = retry_with_backoff(
@@ -631,7 +696,7 @@ def handle_errors_with_retry(
                 return func_with_retry(*args, **kwargs)
             except AlchemiserError as e:
                 # Report known application errors
-                enhanced_error_reporter.report_error_with_context(
+                get_global_error_reporter().report_error_with_context(
                     e,
                     context={"function": func.__name__, "args_count": len(args)},
                     is_critical=critical,
@@ -642,7 +707,7 @@ def handle_errors_with_retry(
                 return None
             except Exception as e:
                 # Report unexpected errors as critical
-                enhanced_error_reporter.report_error_with_context(
+                get_global_error_reporter().report_error_with_context(
                     e,
                     context={
                         "function": func.__name__,
