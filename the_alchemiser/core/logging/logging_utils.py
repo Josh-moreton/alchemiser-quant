@@ -1,3 +1,5 @@
+"""Logging helpers for consistent structured output."""
+
 import json
 import logging
 import os
@@ -15,6 +17,8 @@ class AlchemiserLoggerAdapter(logging.LoggerAdapter[logging.Logger]):
     def process(
         self, msg: Any, kwargs: MutableMapping[str, Any]
     ) -> tuple[str, MutableMapping[str, Any]]:
+        """Prefix log messages with system identifier."""
+
         return f"[ALCHEMISER] {msg}", kwargs
 
 
@@ -22,6 +26,8 @@ class StructuredFormatter(logging.Formatter):
     """JSON formatter for structured logging."""
 
     def format(self, record: logging.LogRecord) -> str:
+        """Convert a log record into a JSON string."""
+
         log_entry = {
             "timestamp": datetime.utcnow().isoformat() + "Z",
             "level": record.levelname,

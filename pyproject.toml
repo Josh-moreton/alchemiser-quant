@@ -57,6 +57,7 @@ bandit = ">=1.7.0"
 vulture = "^2.14"
 moto = ">=4.2.0"
 psutil = "^7.0.0"
+pydocstyle = ">=6.0.0"
 
 [tool.poetry.scripts]
 alchemiser = "the_alchemiser.cli:app"

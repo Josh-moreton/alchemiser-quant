@@ -14,6 +14,8 @@ class EmailConfig:
     """Manages email configuration settings."""
 
     def __init__(self) -> None:
+        """Prepare helpers for loading configuration from multiple sources."""
+
         self.secrets_manager = SecretsManager()
         self._config_cache: tuple[str, int, str, str, str] | None = (
             None  # TODO: Phase 8 - Migrate to EmailCredentials | None

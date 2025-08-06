@@ -22,6 +22,8 @@ class EmailClient:
     """SMTP email client for sending notifications."""
 
     def __init__(self) -> None:
+        """Initialize the email client without loading configuration."""
+
         self._config = None
 
     def _get_config(self) -> Any:

@@ -30,6 +30,8 @@ class IndicatorValidationSuite:
     """
 
     def __init__(self, api_key: str, console: Console) -> None:
+        """Store API credentials and initialize result containers."""
+
         self.api_key = api_key
         self.console = console
         self.api_base_url = "https://api.twelvedata.com"

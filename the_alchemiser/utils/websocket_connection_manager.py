@@ -63,6 +63,8 @@ class WebSocketConnectionManager:
 
             # Dummy handler for trade updates (we'll replace this later)
             async def dummy_handler(data):
+                """Log trade update messages during initial connection testing."""
+
                 if logging.getLogger().level <= logging.DEBUG:
                     self.console.print(f"[dim]📡 Pre-connection WebSocket message: {data}[/dim]")
 

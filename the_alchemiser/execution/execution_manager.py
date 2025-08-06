@@ -1,3 +1,5 @@
+"""Coordinate execution of multiple trading strategies."""
+
 import logging
 
 from ..core.error_handler import handle_errors_with_retry
@@ -15,6 +17,8 @@ class ExecutionManager:
     """Orchestrates multi-strategy execution for the TradingEngine."""
 
     def __init__(self, engine) -> None:
+        """Store the trading engine used for order execution."""
+
         self.engine = engine
 
     @handle_errors_with_retry(operation="multi_strategy_execution", critical=True, max_retries=1)
