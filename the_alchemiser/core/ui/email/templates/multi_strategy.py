@@ -141,14 +141,6 @@ class MultiStrategyReportBuilder:
         # Build content sections (neutral mode - no financial data)
         content_sections = []
 
-        # Neutral account summary (status only)
-        account_after = getattr(result, "account_info_after", {})
-        if account_after:
-            neutral_account_html = BaseEmailTemplate.create_section(
-                "📊 Account Status", PortfolioBuilder.build_neutral_account_summary(account_after)
-            )
-            content_sections.append(neutral_account_html)
-
         # Portfolio rebalancing table (percentages only)
         rebalancing_html = BaseEmailTemplate.create_section(
             "🔄 Portfolio Rebalancing", PortfolioBuilder.build_portfolio_rebalancing_table(result)

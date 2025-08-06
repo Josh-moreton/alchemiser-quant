@@ -23,15 +23,15 @@ class BaseEmailTemplate:
         """
 
     @staticmethod
-    def get_header(title: str, subtitle: str = "Advanced Trading Dashboard") -> str:
+    def get_header(title: str, subtitle: str = "Quantitative Trading System") -> str:
         """Get HTML header section."""
         return f"""
         <tr>
-            <td style="padding: 32px 24px; text-align: center; background: linear-gradient(135deg, #FF6B35, #F7931E); border-radius: 12px 12px 0 0;">
-                <h1 style="margin: 0; color: white; font-size: 28px; font-weight: 700; text-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                    🧪 The Alchemiser
+            <td style="padding: 16px 24px; text-align: center; background: linear-gradient(135deg, #1F2937, #374151); border-radius: 8px 8px 0 0;">
+                <h1 style="margin: 0; color: white; font-size: 20px; font-weight: 600;">
+                    The Alchemiser
                 </h1>
-                <p style="margin: 8px 0 0 0; color: rgba(255,255,255,0.9); font-size: 16px;">
+                <p style="margin: 4px 0 0 0; color: rgba(255,255,255,0.8); font-size: 13px;">
                     {subtitle}
                 </p>
             </td>

@@ -458,9 +458,13 @@ class PortfolioRebalancer:
                     if actual_order:
                         order_details["filled_qty"] = float(getattr(actual_order, "filled_qty", 0))
                         filled_price = getattr(actual_order, "filled_avg_price", None)
-                        order_details["filled_avg_price"] = float(filled_price) if filled_price else None
+                        order_details["filled_avg_price"] = (
+                            float(filled_price) if filled_price else None
+                        )
                         order_details["status"] = str(getattr(actual_order, "status", "unknown"))
-                        logging.info(f"Updated {symbol} order with filled data: qty={order_details['filled_qty']}, price={order_details['filled_avg_price']}")
+                        logging.info(
+                            f"Updated {symbol} order with filled data: qty={order_details['filled_qty']}, price={order_details['filled_avg_price']}"
+                        )
                 except Exception as e:
                     logging.warning(f"Could not fetch filled data for order {order_id}: {e}")
 
