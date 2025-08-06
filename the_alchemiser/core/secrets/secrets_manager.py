@@ -2,6 +2,10 @@
 """
 AWS Secrets Manager Integration
 Handles retrieving secrets from AWS Secrets Manager for the Quantitative Trading System
+
+Environment-Aware Behavior:
+- Production (AWS Lambda): Only uses AWS Secrets Manager, fails hard if not available
+- Development: Falls back to environment variables (including .env files) if AWS Secrets Manager fails
 """
 
 
@@ -38,15 +42,28 @@ class SecretsManager:
         self.client = None
         self._secrets_cache: dict[str, str] | None = None  # Cache for secrets
 
+        # Check if we're in production (AWS Lambda)
+        self.is_production = os.getenv("AWS_LAMBDA_FUNCTION_NAME") is not None
+
         if BOTO3_AVAILABLE:
             try:
                 self.client = boto3.client("secretsmanager", region_name=region_name)
                 logging.debug(f"Initialized AWS Secrets Manager client for region: {region_name}")
             except Exception as e:
-                logging.warning(f"Failed to initialize AWS Secrets Manager client: {e}")
-                self.client = None
+                if self.is_production:
+                    # In production, AWS Secrets Manager must be available
+                    logging.error(f"CRITICAL: Failed to initialize AWS Secrets Manager client in production: {e}")
+                    raise RuntimeError("AWS Secrets Manager is required in production environment") from e
+                else:
+                    logging.warning(f"Failed to initialize AWS Secrets Manager client: {e}")
+                    self.client = None
         else:
-            logging.info("boto3 not available - will use environment variables")
+            if self.is_production:
+                # In production, boto3 must be available
+                logging.error("CRITICAL: boto3 not available in production environment")
+                raise RuntimeError("boto3 is required in production environment")
+            else:
+                logging.info("boto3 not available - will use environment variables")
 
     def get_secret(self, secret_name: str) -> dict[str, str] | None:
         """
@@ -61,12 +78,19 @@ class SecretsManager:
         # Use cache if available
         if self._secrets_cache is not None:
             return self._secrets_cache
+
         if not self.client:
-            logging.warning(
-                "AWS Secrets Manager client not available - falling back to environment variables"
-            )
-            self._secrets_cache = self._get_secret_from_env()
-            return self._secrets_cache
+            if self.is_production:
+                # In production, we must have AWS Secrets Manager
+                logging.error("CRITICAL: AWS Secrets Manager client not available in production")
+                raise RuntimeError("AWS Secrets Manager is required in production environment")
+            else:
+                logging.warning(
+                    "AWS Secrets Manager client not available - falling back to environment variables"
+                )
+                self._secrets_cache = self._get_secret_from_env()
+                return self._secrets_cache
+
         try:
             logging.debug(f"Retrieving secret: {secret_name}")
             response = self.client.get_secret_value(SecretId=secret_name)
@@ -88,22 +112,41 @@ class SecretsManager:
                 logging.error(f"Cannot decrypt secret '{secret_name}'")
             elif error_code == "InternalServiceErrorException":
                 logging.error(f"Internal service error retrieving secret '{secret_name}'")
-            logging.warning("Falling back to environment variables")
-            self._secrets_cache = self._get_secret_from_env()
-            return self._secrets_cache
+
+            if self.is_production:
+                # In production, AWS Secrets Manager failure is fatal
+                logging.error("CRITICAL: AWS Secrets Manager failed in production - not falling back")
+                raise RuntimeError(f"AWS Secrets Manager failed in production: {error_code}") from e
+            else:
+                logging.warning("Falling back to environment variables")
+                self._secrets_cache = self._get_secret_from_env()
+                return self._secrets_cache
         except Exception as e:
             logging.error(f"Unexpected error retrieving secret '{secret_name}': {e}")
-            logging.warning("Falling back to environment variables")
-            self._secrets_cache = self._get_secret_from_env()
-            return self._secrets_cache
+            if self.is_production:
+                # In production, any failure is fatal
+                logging.error("CRITICAL: Unexpected error in AWS Secrets Manager in production")
+                raise RuntimeError(f"AWS Secrets Manager failed in production: {e}") from e
+            else:
+                logging.warning("Falling back to environment variables")
+                self._secrets_cache = self._get_secret_from_env()
+                return self._secrets_cache
 
     def _get_secret_from_env(self) -> dict[str, str] | None:
         """
-        Fallback method to get secrets from environment variables
+        Fallback method to get secrets from environment variables (development only)
+
+        In production (Lambda), environment variables are set directly on the Lambda function.
+        In development, environment variables can come from .env files loaded by pydantic.
 
         Returns:
             Dictionary containing the secret values from environment variables
         """
+        if self.is_production:
+            logging.warning("Using environment variables in production - ensure Lambda env vars are set correctly")
+        else:
+            logging.info("Development mode: Loading secrets from environment variables (may include .env)")
+
         secrets = {}
 
         # Try to get all the expected secrets from environment variables
@@ -121,7 +164,10 @@ class SecretsManager:
             value = os.getenv(env_var)
             if value:
                 secrets[key] = value
-                logging.info(f"Loaded {key} from environment variable")
+                if self.is_production:
+                    logging.info(f"Loaded {key} from Lambda environment variable")
+                else:
+                    logging.info(f"Loaded {key} from environment variable (dev)")
 
         return secrets if secrets else None
 
