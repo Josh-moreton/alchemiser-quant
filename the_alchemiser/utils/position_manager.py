@@ -9,6 +9,9 @@ including position validation, liquidation logic, and buying power checks.
 import logging
 from typing import Any
 
+from ..core.exceptions import DataProviderError, TradingClientError
+from ..core.logging.logging_utils import get_logger, log_error_with_context
+
 
 class PositionManager:
     """
@@ -34,8 +37,28 @@ class PositionManager:
                 for pos in positions
                 if float(getattr(pos, "qty", 0)) != 0
             }
-        except Exception as e:
+        except (AttributeError, ValueError, TypeError) as e:
+            logger = get_logger(__name__)
+            log_error_with_context(
+                logger,
+                TradingClientError(f"Failed to get current positions: {e}"),
+                "position_retrieval",
+                function="get_current_positions",
+                error_type=type(e).__name__,
+            )
             logging.error(f"Error getting positions: {e}")
+            return {}
+        except Exception as e:
+            logger = get_logger(__name__)
+            log_error_with_context(
+                logger,
+                TradingClientError(f"Unexpected error getting positions: {e}"),
+                "position_retrieval",
+                function="get_current_positions",
+                error_type="unexpected_error",
+                original_error=type(e).__name__,
+            )
+            logging.error(f"Unexpected error getting positions: {e}")
             return {}
 
     def validate_sell_position(
@@ -113,8 +136,45 @@ class PositionManager:
 
             return True, None
 
-        except Exception as e:
+        except (AttributeError, ValueError, TypeError) as e:
+            logger = get_logger(__name__)
+            log_error_with_context(
+                logger,
+                TradingClientError(f"Failed to validate buying power for {symbol}: {e}"),
+                "buying_power_validation",
+                function="validate_buying_power",
+                symbol=symbol,
+                quantity=qty,
+                error_type=type(e).__name__,
+            )
             warning_msg = f"Unable to validate buying power for {symbol}: {e}"
+            return True, warning_msg  # Continue with order despite validation error
+        except DataProviderError as e:
+            logger = get_logger(__name__)
+            log_error_with_context(
+                logger,
+                e,
+                "buying_power_validation",
+                function="validate_buying_power",
+                symbol=symbol,
+                quantity=qty,
+                error_type=type(e).__name__,
+            )
+            warning_msg = f"Data provider error validating buying power for {symbol}: {e}"
+            return True, warning_msg  # Continue with order despite validation error
+        except Exception as e:
+            logger = get_logger(__name__)
+            log_error_with_context(
+                logger,
+                TradingClientError(f"Unexpected error validating buying power for {symbol}: {e}"),
+                "buying_power_validation",
+                function="validate_buying_power",
+                symbol=symbol,
+                quantity=qty,
+                error_type="unexpected_error",
+                original_error=type(e).__name__,
+            )
+            warning_msg = f"Unexpected error validating buying power for {symbol}: {e}"
             return True, warning_msg  # Continue with order despite validation error
 
     def execute_liquidation(self, symbol: str) -> str | None:
@@ -147,8 +207,30 @@ class PositionManager:
                 logging.error(f"Failed to liquidate position for {symbol}: No response")
                 return None
 
-        except Exception as e:
+        except (AttributeError, ValueError, TypeError) as e:
+            logger = get_logger(__name__)
+            log_error_with_context(
+                logger,
+                TradingClientError(f"Failed to liquidate position for {symbol}: {e}"),
+                "position_liquidation",
+                function="execute_liquidation",
+                symbol=symbol,
+                error_type=type(e).__name__,
+            )
             logging.error(f"Exception liquidating position for {symbol}: {e}")
+            return None
+        except Exception as e:
+            logger = get_logger(__name__)
+            log_error_with_context(
+                logger,
+                TradingClientError(f"Unexpected error liquidating position for {symbol}: {e}"),
+                "position_liquidation",
+                function="execute_liquidation",
+                symbol=symbol,
+                error_type="unexpected_error",
+                original_error=type(e).__name__,
+            )
+            logging.error(f"Unexpected exception liquidating position for {symbol}: {e}")
             return None
 
     def get_pending_orders(self) -> list[dict[str, Any]]:
@@ -170,8 +252,28 @@ class PositionManager:
                 }
                 for order in orders
             ]
-        except Exception as e:
+        except (AttributeError, ValueError, TypeError) as e:
+            logger = get_logger(__name__)
+            log_error_with_context(
+                logger,
+                TradingClientError(f"Failed to get pending orders: {e}"),
+                "pending_orders_retrieval",
+                function="get_pending_orders",
+                error_type=type(e).__name__,
+            )
             logging.error(f"Error getting pending orders: {e}")
+            return []
+        except Exception as e:
+            logger = get_logger(__name__)
+            log_error_with_context(
+                logger,
+                TradingClientError(f"Unexpected error getting pending orders: {e}"),
+                "pending_orders_retrieval",
+                function="get_pending_orders",
+                error_type="unexpected_error",
+                original_error=type(e).__name__,
+            )
+            logging.error(f"Unexpected error getting pending orders: {e}")
             return []
 
     def cancel_symbol_orders(self, symbol: str) -> bool:
@@ -192,12 +294,45 @@ class PositionManager:
                 try:
                     self.trading_client.cancel_order_by_id(order["id"])
                     logging.info(f"Cancelled order {order['id']} for {symbol}")
-                except Exception as e:
+                except (AttributeError, ValueError, TypeError) as e:
+                    logger = get_logger(__name__)
+                    log_error_with_context(
+                        logger,
+                        TradingClientError(f"Failed to cancel order {order['id']} for {symbol}: {e}"),
+                        "order_cancellation",
+                        function="cancel_symbol_orders",
+                        symbol=symbol,
+                        order_id=order["id"],
+                        error_type=type(e).__name__,
+                    )
                     logging.warning(f"Could not cancel order {order['id']}: {e}")
+                except Exception as e:
+                    logger = get_logger(__name__)
+                    log_error_with_context(
+                        logger,
+                        TradingClientError(f"Unexpected error cancelling order {order['id']} for {symbol}: {e}"),
+                        "order_cancellation",
+                        function="cancel_symbol_orders",
+                        symbol=symbol,
+                        order_id=order["id"],
+                        error_type="unexpected_error",
+                        original_error=type(e).__name__,
+                    )
+                    logging.warning(f"Unexpected error cancelling order {order['id']}: {e}")
 
             return True
         except Exception as e:
-            logging.error(f"Error cancelling orders for {symbol}: {e}")
+            logger = get_logger(__name__)
+            log_error_with_context(
+                logger,
+                TradingClientError(f"Unexpected error cancelling orders for {symbol}: {e}"),
+                "symbol_orders_cancellation",
+                function="cancel_symbol_orders",
+                symbol=symbol,
+                error_type="unexpected_error",
+                original_error=type(e).__name__,
+            )
+            logging.error(f"Unexpected error cancelling orders for {symbol}: {e}")
             return False
 
     def cancel_all_orders(self) -> bool:
@@ -211,6 +346,26 @@ class PositionManager:
             self.trading_client.cancel_orders()
             logging.info("Cancelled all pending orders")
             return True
-        except Exception as e:
+        except (AttributeError, ValueError, TypeError) as e:
+            logger = get_logger(__name__)
+            log_error_with_context(
+                logger,
+                TradingClientError(f"Failed to cancel all orders: {e}"),
+                "all_orders_cancellation",
+                function="cancel_all_orders",
+                error_type=type(e).__name__,
+            )
             logging.error(f"Error cancelling all orders: {e}")
+            return False
+        except Exception as e:
+            logger = get_logger(__name__)
+            log_error_with_context(
+                logger,
+                TradingClientError(f"Unexpected error cancelling all orders: {e}"),
+                "all_orders_cancellation",
+                function="cancel_all_orders",
+                error_type="unexpected_error",
+                original_error=type(e).__name__,
+            )
+            logging.error(f"Unexpected error cancelling all orders: {e}")
             return False

@@ -11,6 +11,9 @@ import logging
 
 from alpaca.trading.enums import OrderSide
 
+from ..core.exceptions import DataProviderError
+from ..core.logging.logging_utils import get_logger, log_error_with_context
+
 
 class SmartPricingHandler:
     """
@@ -51,8 +54,34 @@ class SmartPricingHandler:
 
             return round(float(price), 2)
 
-        except Exception as e:
+        except (AttributeError, ValueError, TypeError) as e:
+            logger = get_logger(__name__)
+            log_error_with_context(
+                logger,
+                DataProviderError(f"Failed to get smart limit price for {symbol}: {e}"),
+                "smart_pricing",
+                function="get_smart_limit_price",
+                symbol=symbol,
+                side=side.name,
+                aggressiveness=aggressiveness,
+                error_type=type(e).__name__,
+            )
             logging.error(f"Error getting smart limit price for {symbol}: {e}")
+            return None
+        except Exception as e:
+            logger = get_logger(__name__)
+            log_error_with_context(
+                logger,
+                DataProviderError(f"Unexpected error getting smart limit price for {symbol}: {e}"),
+                "smart_pricing",
+                function="get_smart_limit_price",
+                symbol=symbol,
+                side=side.name,
+                aggressiveness=aggressiveness,
+                error_type="unexpected_error",
+                original_error=type(e).__name__,
+            )
+            logging.error(f"Unexpected error getting smart limit price for {symbol}: {e}")
             return None
 
     def get_progressive_pricing(
