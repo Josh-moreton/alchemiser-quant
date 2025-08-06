@@ -39,13 +39,13 @@ This document outlines a comprehensive plan to complete the type safety migratio
   - Multiple type ignore statements to remove
 - **Files**: 2 files, 8 TODO items
 
-#### Phase 10: Email/Reporting Types
+#### Phase 8: Email and UI Types ⚡ IN PROGRESS
 
-- **Location**: `core/ui/email/`, `execution/reporting.py`
+- **Location**: `core/ui/email/`, templates
 - **Issues**:
-  - Missing structured email data types
-  - Generic `dict[str, Any]` usage throughout
-- **Files**: 5 files, 10 TODO items
+  - ~~Missing `EmailCredentials` usage~~ ✅
+  - Missing `AccountInfo`, `PositionInfo` for template data
+- **Files**: 3 files, ~~6~~ 5 TODO items remaining
 
 #### Phase 11: Data Layer Types
 
@@ -85,7 +85,7 @@ This document outlines a comprehensive plan to complete the type safety migratio
 - **Location**: `execution/trading_engine.py`, `tracking/`
 - **Issues**:
   - ~~Missing `TradingEngine` config type definitions~~ ✅
-  - ~~Configuration object types~~ ✅ 
+  - ~~Configuration object types~~ ✅
   - Missing `AlpacaOrderProtocol`, complex OrderDetails mapping
 - **Files**: 3 files, ~~4~~ 2 TODO items remaining
 

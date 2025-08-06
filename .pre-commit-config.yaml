@@ -25,13 +25,3 @@ repos:
           - |
             poetry run black "$@"
             git add "$@"  # auto-stage changes
-      # - id: pydocstyle
-      #   name: pydocstyle
-      #   entry: bash
-      #   language: system
-      #   types: [python]
-      #   pass_filenames: true
-      #   args:
-      #     - -c
-      #     - |
-      #       poetry run pydocstyle "$@"

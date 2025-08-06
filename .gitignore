@@ -44,6 +44,8 @@ htmlcov/
 .nox/
 .cache/
 pytest_cache/
+.pytest_cache/
+.hypothesis/
 test-results/
 
 # Build artifacts

@@ -8,6 +8,7 @@ import logging
 
 from the_alchemiser.core.config import load_settings
 from the_alchemiser.core.secrets.secrets_manager import SecretsManager
+from the_alchemiser.core.types import EmailCredentials
 
 
 class EmailConfig:
@@ -17,21 +18,18 @@ class EmailConfig:
         """Prepare helpers for loading configuration from multiple sources."""
 
         self.secrets_manager = SecretsManager()
-        self._config_cache: tuple[str, int, str, str, str] | None = (
-            None  # TODO: Phase 8 - Migrate to EmailCredentials | None
-        )
+        self._config_cache: EmailCredentials | None = None
 
     def get_config(
         self,
-    ) -> tuple[str, int, str, str, str] | None:  # TODO: Phase 8 - Migrate to EmailCredentials
+    ) -> EmailCredentials | None:
         """Get email configuration from environment variables and secrets manager.
 
         Returns:
-            Tuple containing (smtp_server, smtp_port, from_email, email_password, to_email)
-            or None if configuration is invalid.
+            EmailCredentials containing email configuration or None if configuration is invalid.
         """
         if self._config_cache:
-            return self._config_cache  # TODO: Phase 8 - Remove when migrated to EmailCredentials
+            return self._config_cache
 
         try:
             # Get configuration instance
@@ -66,7 +64,13 @@ class EmailConfig:
                 f"Email config loaded: SMTP={smtp_server}:{smtp_port}, from={from_email}, to={to_email}"
             )
 
-            self._config_cache = (smtp_server, smtp_port, from_email, email_password, to_email)
+            self._config_cache = {
+                "smtp_server": smtp_server,
+                "smtp_port": smtp_port,
+                "email_address": from_email,
+                "email_password": email_password,
+                "recipient_email": to_email,
+            }
             return self._config_cache
 
         except Exception as e:
@@ -108,7 +112,16 @@ _email_config = EmailConfig()
 
 def get_email_config() -> tuple[str, int, str, str, str] | None:
     """Get email configuration (backward compatibility function)."""
-    return _email_config.get_config()
+    config = _email_config.get_config()
+    if config:
+        return (
+            config["smtp_server"],
+            config["smtp_port"],
+            config["email_address"],
+            config["email_password"],
+            config["recipient_email"],
+        )
+    return None
 
 
 def is_neutral_mode_enabled() -> bool:

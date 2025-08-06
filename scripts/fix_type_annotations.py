@@ -113,7 +113,7 @@ def fix_type_annotations_in_file(file_path: Path) -> int:
     return fixes_applied
 
 
-def main():
+def main() -> None:
     """Apply batch type annotation fixes."""
     print("🔧 Phase 16c: Applying Batch Type Annotation Fixes")
     print("=" * 60)
