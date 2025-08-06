@@ -31,8 +31,8 @@ class ErrorReporter:
             notification_manager: Optional notification manager for alerts
         """
         self.notification_manager = notification_manager
-        self.error_counts = defaultdict(int)
-        self.critical_errors = []
+        self.error_counts: dict[str, int] = defaultdict(int)
+        self.critical_errors: list[dict[str, Any]] = []
 
     def report_error(
         self,

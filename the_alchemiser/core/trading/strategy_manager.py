@@ -22,10 +22,8 @@ from the_alchemiser.core.registry import StrategyRegistry, StrategyType
 from the_alchemiser.core.trading.nuclear_signals import ActionType
 
 from ..exceptions import (
-    AlchemiserError,
     DataProviderError,
     StrategyExecutionError,
-    TradingClientError,
 )
 
 __all__ = ["StrategyType"]
