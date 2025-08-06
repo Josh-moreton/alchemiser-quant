@@ -1,4 +1,0 @@
-# file: /Users/joshua.moreton/Documents/GitHub/the-alchemiser/the_alchemiser/core/types.py
-# hypothesis_version: 6.137.1
-
-['ACTIVE', 'BUY', 'HOLD', 'INACTIVE', 'SELL', 'buy', 'canceled', 'completed', 'day', 'error', 'expired', 'filled', 'fok', 'gtc', 'ioc', 'limit', 'live', 'long', 'market', 'new', 'paper', 'partially_filled', 'rejected', 'sell', 'short', 'stop', 'stop_limit', 'timeout']
