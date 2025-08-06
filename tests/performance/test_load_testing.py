@@ -568,9 +568,9 @@ class TestScalabilityLimits:
                 symbol = f"STOCK{symbol_idx:04d}"
                 base_price = np.random.uniform(50, 500)
 
-                for day in range(days):
+                for _day in range(days):
                     # Multiple intraday points
-                    for minute in range(390):  # 6.5 hour trading day
+                    for _minute in range(390):  # 6.5 hour trading day
                         price_change = np.random.normal(0, 0.001)
                         base_price *= 1 + price_change
 

@@ -282,7 +282,7 @@ class TestExecutionWorkflow:
         """Test portfolio state reconciliation after order execution."""
         # Pre-execution portfolio state - for documentation purposes
         # (in a real test we would use this data to verify state changes)
-        
+
         # Executed order details - for documentation purposes
         # (in a real test we would use this to verify order execution)
 

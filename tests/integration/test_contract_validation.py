@@ -288,7 +288,7 @@ class TestErrorHandlingContract:
 
         # Test invalid order quantity
         def validate_order_quantity(qty):
-            if not isinstance(qty, (int, float)) or qty <= 0:
+            if not isinstance(qty, int | float) or qty <= 0:
                 raise ValueError("Order quantity must be a positive number")
             return True
 
