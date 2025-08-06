@@ -15,7 +15,7 @@ from collections.abc import Callable
 from datetime import datetime
 from functools import wraps
 
-"""Enhanced error reporting and classification utilities."""
+# Enhanced error reporting and classification utilities.
 
 from typing import Any
 
