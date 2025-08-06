@@ -6,10 +6,12 @@ position summaries, and portfolio allocations.
 
 from typing import Any
 
+# TODO: Phase 8/10 - Types available for future migration to structured types
+from the_alchemiser.core.types import PositionInfo
+
 from .base import BaseEmailTemplate
 
-# TODO: Phase 10 - Types available for future migration to structured types
-# from the_alchemiser.core.types import AccountInfo, ExecutionResult, PositionInfo
+# from the_alchemiser.core.types import ExecutionResult
 
 
 class PortfolioBuilder:
@@ -17,8 +19,8 @@ class PortfolioBuilder:
 
     @staticmethod
     def build_positions_table(
-        open_positions: list[dict[str, Any]],
-    ) -> str:  # TODO: Phase 8 - Migrate to list[PositionInfo]
+        open_positions: list[PositionInfo],
+    ) -> str:
         """Build HTML table for open positions."""
         if not open_positions:
             return BaseEmailTemplate.create_alert_box("No open positions", "info")
@@ -84,7 +86,7 @@ class PortfolioBuilder:
     @staticmethod
     def build_account_summary(
         account_info: dict[str, Any],
-    ) -> str:  # TODO: Phase 8 - Migrate to AccountInfo
+    ) -> str:  # TODO: Phase 8 - Migrate to AccountInfo (needs extended type for daily_pl)
         """Build HTML summary of account information."""
         if not account_info:
             return BaseEmailTemplate.create_alert_box("Account information unavailable", "warning")
@@ -139,7 +141,7 @@ class PortfolioBuilder:
     @staticmethod
     def build_portfolio_allocation(
         result: Any,
-    ) -> str:  # TODO: Phase 8 - Migrate to ExecutionResult
+    ) -> str:  # TODO: Phase 8 - Migrate to ExecutionResult (needs object access pattern)
         """Build HTML display of portfolio allocation from execution result."""
         try:
             # Try to get actual final portfolio state first
@@ -258,8 +260,8 @@ class PortfolioBuilder:
 
     @staticmethod
     def build_positions_table_neutral(
-        open_positions: list[dict[str, Any]],
-    ) -> str:  # TODO: Phase 8 - Migrate to list[PositionInfo]
+        open_positions: list[PositionInfo],
+    ) -> str:
         """Build neutral-styled HTML table for open positions."""
         if not open_positions:
             return BaseEmailTemplate.create_alert_box("No open positions", "info")

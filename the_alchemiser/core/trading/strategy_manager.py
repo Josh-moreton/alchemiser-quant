@@ -21,6 +21,9 @@ from typing import Any
 from the_alchemiser.core.registry import StrategyRegistry, StrategyType
 from the_alchemiser.core.trading.nuclear_signals import ActionType
 
+# Phase 6 - Strategy Layer Types
+from the_alchemiser.core.types import StrategySignal, StrategyPositionData, StrategyPnLSummary
+
 from ..exceptions import (
     DataProviderError,
     StrategyExecutionError,

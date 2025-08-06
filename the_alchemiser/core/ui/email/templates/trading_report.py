@@ -3,7 +3,9 @@
 This module handles the primary trading report email template generation.
 """
 
-from typing import Any
+from typing import Any, cast
+
+from the_alchemiser.core.types import PositionInfo
 
 from .base import BaseEmailTemplate
 from .performance import PerformanceBuilder
@@ -54,7 +56,8 @@ class TradingReportBuilder:
         positions_html = ""
         if open_positions:
             positions_html = BaseEmailTemplate.create_section(
-                "📊 Open Positions", PortfolioBuilder.build_positions_table(open_positions)
+                "📊 Open Positions",
+                PortfolioBuilder.build_positions_table(cast(list[PositionInfo], open_positions)),
             )
 
         # Closed positions P&L
@@ -131,7 +134,9 @@ class TradingReportBuilder:
         if open_positions:
             positions_html = BaseEmailTemplate.create_section(
                 "📊 Current Holdings",
-                PortfolioBuilder.build_positions_table_neutral(open_positions),
+                PortfolioBuilder.build_positions_table_neutral(
+                    cast(list[PositionInfo], open_positions)
+                ),
             )
 
         # Skip closed positions P&L in neutral mode
