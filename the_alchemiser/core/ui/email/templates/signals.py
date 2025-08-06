@@ -13,8 +13,15 @@ class SignalsBuilder:
     """Builds signals-related HTML content for emails."""
 
     @staticmethod
-    def build_signal_information(signal) -> str:
-        """Build HTML for signal information section."""
+    def build_signal_information(signal: Any) -> str:
+        """Build HTML for signal information section.
+        
+        Args:
+            signal: Signal object (Alert or StrategySignal) to display
+            
+        Returns:
+            HTML string for signal information
+        """
         if not signal:
             return ""
 

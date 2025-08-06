@@ -191,7 +191,7 @@ class S3FileHandler(logging.Handler):
         bucket, _ = self.s3_handler.parse_s3_uri(s3_uri)
         self.s3_handler.create_bucket_if_not_exists(bucket)
 
-    def emit(self, record):
+    def emit(self, record: logging.LogRecord) -> None:
         """Write log record to S3"""
         try:
             log_entry = self.format(record) + "\n"
@@ -205,7 +205,7 @@ class S3FileHandler(logging.Handler):
             fallback_logger.error(f"S3 logging handler failed: {e}", exc_info=True)
 
 
-def replace_file_handlers_with_s3(logger: logging.Logger, s3_uri_map: dict[str, str]):
+def replace_file_handlers_with_s3(logger: logging.Logger, s3_uri_map: dict[str, str]) -> None:
     """Replace file handlers in a logger with S3 handlers"""
     # Remove existing file handlers
     handlers_to_remove = []

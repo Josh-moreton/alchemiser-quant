@@ -24,7 +24,12 @@ logger = logging.getLogger(__name__)
 class ErrorReporter:
     """Centralized error reporting for production monitoring."""
 
-    def __init__(self, notification_manager=None):
+    def __init__(self, notification_manager: Any = None) -> None:
+        """Initialize error reporter.
+
+        Args:
+            notification_manager: Optional notification manager for alerts
+        """
         self.notification_manager = notification_manager
         self.error_counts = defaultdict(int)
         self.critical_errors = []
@@ -105,8 +110,15 @@ class ErrorReporter:
 _global_error_reporter = None
 
 
-def get_error_reporter(notification_manager=None) -> ErrorReporter:
-    """Get the global error reporter instance."""
+def get_error_reporter(notification_manager: Any = None) -> ErrorReporter:
+    """Get the global error reporter instance.
+
+    Args:
+        notification_manager: Optional notification manager for alerts
+
+    Returns:
+        Global ErrorReporter instance
+    """
     global _global_error_reporter
     if _global_error_reporter is None:
         _global_error_reporter = ErrorReporter(notification_manager)
