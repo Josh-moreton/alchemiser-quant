@@ -62,9 +62,9 @@ class StrategyRegistry:
         StrategyType.KLM: StrategyConfig(
             strategy_type=StrategyType.KLM,
             engine_class=KLMStrategyEnsemble,
-            default_allocation=0.0,
+            default_allocation=0.2,
             description="Ensemble strategy with multiple variants",
-            enabled=False,  # Disabled by default due to complexity
+            enabled=True,  # Enable to use the KLM strategy
         ),
     }
 

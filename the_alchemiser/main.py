@@ -335,21 +335,16 @@ def run_multi_strategy_trading(
             logger = get_logger(__name__)
             logger.warning("Market is closed. No trades will be placed.")
 
-            from the_alchemiser.core.ui.email.config import is_neutral_mode_enabled
             from the_alchemiser.core.ui.email_utils import (
                 build_error_email_html,
                 send_email_notification,
             )
 
-            # Check if neutral mode is enabled
-            neutral_mode = is_neutral_mode_enabled()
-            subject_suffix = " (Neutral Mode)" if neutral_mode else ""
-
             html_content = build_error_email_html(
                 "Market Closed Alert", "Market is currently closed. No trades will be placed."
             )
             send_email_notification(
-                subject=f"📈 The Alchemiser - Market Closed Alert{subject_suffix}",
+                subject="📈 The Alchemiser - Market Closed Alert",
                 html_content=html_content,
                 text_content="Market is CLOSED. No trades will be placed.",
             )
@@ -382,43 +377,14 @@ def run_multi_strategy_trading(
 
         # Send email notification for both paper and live trading
         try:
-            from the_alchemiser.core.ui.email.config import is_neutral_mode_enabled
             from the_alchemiser.core.ui.email.templates import EmailTemplates
-            from the_alchemiser.core.ui.email_utils import (
-                build_multi_strategy_email_html,
-                send_email_notification,
-            )
+            from the_alchemiser.core.ui.email_utils import send_email_notification
 
-            # Check if neutral mode is enabled
-            neutral_mode = is_neutral_mode_enabled()
-
-            if neutral_mode:
-                # Use neutral template - build the data in the same format
-                account_before = getattr(result, "account_info_before", {})
-                account_after = getattr(result, "account_info_after", {})
-                orders_executed = getattr(result, "orders_executed", [])
-                final_portfolio_state = getattr(result, "final_portfolio_state", {})
-                open_positions = account_after.get("open_positions", [])
-
-                html_content = EmailTemplates.build_trading_report_neutral(
-                    mode=mode_str,
-                    success=result.success,
-                    account_before=account_before,
-                    account_after=account_after,
-                    positions=final_portfolio_state,
-                    orders=orders_executed,
-                    signal=None,  # We can add strategy signals later if needed
-                    portfolio_history=None,
-                    open_positions=open_positions,
-                )
-                subject_suffix = " (Neutral Mode)"
-            else:
-                # Use regular template with dollar values
-                html_content = build_multi_strategy_email_html(result, mode_str)
-                subject_suffix = ""
+            # Always use neutral multi-strategy template (no financial values)
+            html_content = EmailTemplates.build_multi_strategy_report_neutral(result, mode_str)
 
             send_email_notification(
-                subject=f"📈 The Alchemiser - {mode_str.upper()} Multi-Strategy Report{subject_suffix}",
+                subject=f"📈 The Alchemiser - {mode_str.upper()} Multi-Strategy Report",
                 html_content=html_content,
                 text_content=f"Multi-strategy execution completed. Success: {result.success}",
             )

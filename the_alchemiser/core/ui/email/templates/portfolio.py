@@ -369,3 +369,175 @@ class PortfolioBuilder:
             </tbody>
         </table>
         """
+
+    @staticmethod
+    def build_portfolio_rebalancing_table(result: Any) -> str:
+        """Build a portfolio rebalancing summary table for neutral mode (percentages only)."""
+
+        # Get target portfolio from consolidated_portfolio
+        target_portfolio = getattr(result, "consolidated_portfolio", {})
+
+        # Get current positions from multiple possible sources
+        account_after = getattr(result, "account_info_after", {})
+        execution_summary = getattr(result, "execution_summary", {})
+
+        # Try to get portfolio value and positions from different sources
+        portfolio_value = 0.0
+        current_positions = {}
+
+        # First try account_info_after from execution_summary
+        if execution_summary and "account_info_after" in execution_summary:
+            account_data = execution_summary["account_info_after"]
+            portfolio_value = float(account_data.get("equity", 0)) or float(
+                account_data.get("portfolio_value", 0)
+            )
+            open_positions = account_data.get("open_positions", [])
+        # Fallback to direct account_after
+        elif account_after:
+            portfolio_value = float(account_after.get("equity", 0)) or float(
+                account_after.get("portfolio_value", 0)
+            )
+            open_positions = account_after.get("open_positions", [])
+        else:
+            open_positions = []
+
+        # Process positions to get current allocations
+        for pos in open_positions:
+            if isinstance(pos, dict):
+                symbol = pos.get("symbol", "")
+                market_value = float(pos.get("market_value", 0))
+                if symbol and market_value > 0:
+                    current_positions[symbol] = market_value
+
+        if not target_portfolio:
+            return "<p>No rebalancing data available</p>"
+
+        # Build the table
+        table_rows = []
+
+        for symbol in sorted(target_portfolio.keys()):
+            target_weight = target_portfolio.get(symbol, 0.0)
+            current_value = current_positions.get(symbol, 0.0)
+            current_weight = (current_value / portfolio_value) if portfolio_value > 0 else 0.0
+
+            weight_diff = target_weight - current_weight
+
+            # Determine action
+            if abs(weight_diff) < 0.01:  # Less than 1% difference
+                action = "HOLD"
+                action_color = "#6B7280"
+            elif weight_diff > 0:
+                action = "BUY"
+                action_color = "#10B981"
+            else:
+                action = "SELL"
+                action_color = "#EF4444"
+
+            table_rows.append(
+                f"""
+                <tr>
+                    <td style="padding: 12px 16px; border-bottom: 1px solid #E5E7EB; font-weight: 600; color: #1F2937;">
+                        {symbol}
+                    </td>
+                    <td style="padding: 12px 16px; border-bottom: 1px solid #E5E7EB; text-align: center; color: #059669;">
+                        {target_weight:.1%}
+                    </td>
+                    <td style="padding: 12px 16px; border-bottom: 1px solid #E5E7EB; text-align: center; color: #374151;">
+                        {current_weight:.1%}
+                    </td>
+                    <td style="padding: 12px 16px; border-bottom: 1px solid #E5E7EB; text-align: center; font-weight: 600; color: {action_color};">
+                        {action}
+                    </td>
+                </tr>
+            """
+            )
+
+        table_content = "".join(table_rows)
+
+        return f"""
+        <table style="width: 100%; border-collapse: collapse; background-color: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin: 16px 0;">
+            <thead>
+                <tr style="background-color: #F9FAFB;">
+                    <th style="padding: 12px 16px; text-align: left; font-weight: 600; color: #374151; border-bottom: 2px solid #E5E7EB;">
+                        Symbol
+                    </th>
+                    <th style="padding: 12px 16px; text-align: center; font-weight: 600; color: #374151; border-bottom: 2px solid #E5E7EB;">
+                        Target %
+                    </th>
+                    <th style="padding: 12px 16px; text-align: center; font-weight: 600; color: #374151; border-bottom: 2px solid #E5E7EB;">
+                        Current %
+                    </th>
+                    <th style="padding: 12px 16px; text-align: center; font-weight: 600; color: #374151; border-bottom: 2px solid #E5E7EB;">
+                        Action
+                    </th>
+                </tr>
+            </thead>
+            <tbody>
+                {table_content}
+            </tbody>
+        </table>
+        """
+
+    @staticmethod
+    def build_neutral_account_summary(account_info: dict[str, Any]) -> str:
+        """Build a neutral account summary without financial values."""
+
+        # Extract basic status information
+        account_status = account_info.get("status", "UNKNOWN")
+        daytrade_count = account_info.get("day_trade_count", 0)
+
+        # For paper trading accounts, override confusing status indicators
+        if account_status == "INACTIVE" and daytrade_count >= 10:
+            # This is likely a paper trading account misreporting status
+            account_status = "ACTIVE (Paper)"
+            daytrade_count = 0  # Paper trading doesn't have day trade limits
+
+        # Status color
+        status_color = "#10B981" if "ACTIVE" in account_status else "#EF4444"
+
+        # Trading status based on day trades
+        if daytrade_count >= 3:
+            trading_status = "⚠️ Day Trade Limit Reached"
+            trading_color = "#EF4444"
+        elif daytrade_count >= 2:
+            trading_status = "🟡 Approaching Day Trade Limit"
+            trading_color = "#F59E0B"
+        else:
+            trading_status = "🟢 Trading Available"
+            trading_color = "#10B981"
+
+        # Override for paper trading
+        if "Paper" in account_status:
+            trading_status = "🟢 Paper Trading (No Limits)"
+            trading_color = "#10B981"
+
+        return f"""
+        <table style="width: 100%; border-collapse: collapse; background-color: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin: 16px 0;">
+            <tbody>
+                <tr>
+                    <td style="padding: 16px 20px; border-bottom: 1px solid #E5E7EB;">
+                        <span style="font-weight: 600; font-size: 14px;">Account Status:</span>
+                    </td>
+                    <td style="padding: 16px 20px; border-bottom: 1px solid #E5E7EB; text-align: right; color: {status_color}; font-weight: 600; font-size: 14px;">
+                        {account_status}
+                    </td>
+                </tr>
+                <tr>
+                    <td style="padding: 16px 20px; border-bottom: 1px solid #E5E7EB;">
+                        <span style="font-weight: 600; font-size: 14px;">Day Trades Used:</span>
+                    </td>
+                    <td style="padding: 16px 20px; border-bottom: 1px solid #E5E7EB; text-align: right; font-size: 14px;">
+                        {"N/A (Paper)" if "Paper" in account_status else f"{daytrade_count}/3"}
+                    </td>
+                </tr>
+                <tr>
+                    <td style="padding: 16px 20px;">
+                        <span style="font-weight: 600; font-size: 14px;">Trading Status:</span>
+                    </td>
+                    <td style="padding: 16px 20px; text-align: right; color: {trading_color}; font-weight: 600; font-size: 14px;">
+                        {trading_status}
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+        """

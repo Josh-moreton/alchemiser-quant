@@ -118,3 +118,83 @@ class MultiStrategyReportBuilder:
         """
 
         return BaseEmailTemplate.wrap_content(content, "The Alchemiser - Multi-Strategy Report")
+
+    @staticmethod
+    def build_multi_strategy_report_neutral(result: Any, mode: str) -> str:
+        """Build a neutral multi-strategy email report without financial values."""
+
+        # Determine success status
+        success = getattr(result, "success", True)
+        status_color = "#10B981" if success else "#EF4444"
+        status_emoji = "✅" if success else "❌"
+        status_text = "Success" if success else "Failed"
+
+        # Build content sections
+        header = BaseEmailTemplate.get_header("The Alchemiser")
+        status_banner = BaseEmailTemplate.get_status_banner(
+            f"{mode.upper()} Multi-Strategy Report", status_text, status_color, status_emoji
+        )
+
+        # Get strategy signals for market regime and signals
+        strategy_signals = getattr(result, "strategy_signals", {})
+
+        # Build content sections (neutral mode - no financial data)
+        content_sections = []
+
+        # Neutral account summary (status only)
+        account_after = getattr(result, "account_info_after", {})
+        if account_after:
+            neutral_account_html = BaseEmailTemplate.create_section(
+                "📊 Account Status", PortfolioBuilder.build_neutral_account_summary(account_after)
+            )
+            content_sections.append(neutral_account_html)
+
+        # Portfolio rebalancing table (percentages only)
+        rebalancing_html = BaseEmailTemplate.create_section(
+            "🔄 Portfolio Rebalancing", PortfolioBuilder.build_portfolio_rebalancing_table(result)
+        )
+        content_sections.append(rebalancing_html)
+
+        # Market regime analysis (no financial data)
+        market_regime_html = SignalsBuilder.build_market_regime_analysis(strategy_signals)
+        if market_regime_html:
+            content_sections.append(market_regime_html)
+
+        # Strategy signals (neutral mode)
+        if strategy_signals:
+            neutral_signals_html = SignalsBuilder.build_strategy_signals_neutral(strategy_signals)
+            content_sections.append(neutral_signals_html)
+
+        # Orders executed (count only, no values)
+        orders = getattr(result, "orders_executed", [])
+        if orders:
+            neutral_orders_html = BaseEmailTemplate.create_section(
+                "📋 Trading Activity", f"<p>{len(orders)} orders executed successfully</p>"
+            )
+            content_sections.append(neutral_orders_html)
+
+        # Error section if needed
+        if not success:
+            error_html = BaseEmailTemplate.create_alert_box(
+                "⚠️ Check logs for error details", "error"
+            )
+            content_sections.append(error_html)
+
+        footer = BaseEmailTemplate.get_footer()
+
+        # Combine all content
+        main_content = "".join(content_sections)
+        content = f"""
+        {header}
+        {status_banner}
+        <tr>
+            <td style="padding: 32px 24px; background-color: white;">
+                {main_content}
+            </td>
+        </tr>
+        {footer}
+        """
+
+        return BaseEmailTemplate.wrap_content(
+            content, "The Alchemiser - Multi-Strategy Report (Neutral)"
+        )
