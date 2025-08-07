@@ -165,8 +165,6 @@ class SecretsManager:
             "ALPACA_SECRET": "ALPACA_SECRET",
             "ALPACA_PAPER_KEY": "ALPACA_PAPER_KEY",
             "ALPACA_PAPER_SECRET": "ALPACA_PAPER_SECRET",
-            "TELEGRAM_TOKEN": "TELEGRAM_TOKEN",
-            "TELEGRAM_CHAT_ID": "TELEGRAM_CHAT_ID",
             "TWELVEDATA_KEY": "TWELVEDATA_KEY",
         }
 
@@ -219,37 +217,6 @@ class SecretsManager:
 
         except Exception as e:
             logging.error(f"Error getting Alpaca keys: {e}")
-            return None, None
-
-    def get_telegram_config(self) -> tuple[str, str] | tuple[None, None]:
-        """
-        Get Telegram bot configuration
-
-        Returns:
-            Tuple of (token, chat_id) or (None, None) if not found
-        """
-        try:
-            from the_alchemiser.core.config import load_settings
-
-            config = load_settings()
-            secret_name = config.secrets_manager.secret_name
-            secrets = self.get_secret(secret_name)
-            if not secrets:
-                logging.error("No secrets found")
-                return None, None
-
-            token = secrets.get("TELEGRAM_TOKEN")
-            chat_id = secrets.get("TELEGRAM_CHAT_ID")
-
-            if not token or not chat_id:
-                logging.error("Missing Telegram configuration in secrets")
-                return None, None
-
-            logging.info("Successfully retrieved Telegram configuration")
-            return token, chat_id
-
-        except Exception as e:
-            logging.error(f"Error getting Telegram config: {e}")
             return None, None
 
     def get_twelvedata_api_key(self) -> str | None:

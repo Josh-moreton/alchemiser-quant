@@ -93,7 +93,6 @@ def mock_env_vars() -> dict[str, str]:
         "ALPACA_API_KEY": "test_key",
         "ALPACA_SECRET_KEY": "test_secret",
         "S3_BUCKET": "test-alchemiser-bucket",
-        "TELEGRAM_BOT_TOKEN": "test_token",
     }
 
 
@@ -168,7 +167,6 @@ def mock_environment_variables(mocker):
         "ALPACA_API_KEY": "test_key",
         "ALPACA_SECRET_KEY": "test_secret",
         "S3_BUCKET": "test-alchemiser-bucket",
-        "TELEGRAM_BOT_TOKEN": "test_token",
     }
 
     for key, value in env_vars.items():
