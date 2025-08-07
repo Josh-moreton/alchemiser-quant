@@ -109,9 +109,6 @@ class FractionabilityDetector:
         """
         Determine if an asset supports fractional shares using Alpaca API.
 
-        This is the authoritative method that should be used instead of
-        is_likely_non_fractionable() when possible.
-
         Args:
             symbol: Stock symbol to check
             use_cache: Whether to use cached results
@@ -162,23 +159,6 @@ class FractionabilityDetector:
         # Conservative approach: assume fractionable unless proven otherwise
         # This is safer since most assets are fractionable according to API testing
         return True
-
-    def is_likely_non_fractionable(self, symbol: str) -> bool:
-        """
-        Legacy method for backward compatibility.
-
-        DEPRECATED: Use is_fractionable() instead for API-based results.
-
-        Args:
-            symbol: Stock symbol to check
-
-        Returns:
-            True if likely non-fractionable, False otherwise
-        """
-        logging.warning(
-            "⚠️ is_likely_non_fractionable() is deprecated, use is_fractionable() instead"
-        )
-        return not self.is_fractionable(symbol)
 
     def get_asset_type(self, symbol: str) -> AssetType:
         """

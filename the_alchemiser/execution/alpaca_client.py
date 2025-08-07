@@ -66,6 +66,7 @@ from the_alchemiser.utils.smart_pricing_handler import SmartPricingHandler
 from the_alchemiser.utils.websocket_connection_manager import WebSocketConnectionManager
 from the_alchemiser.utils.websocket_order_monitor import OrderCompletionMonitor
 
+logger = logging.getLogger(__name__)
 
 class AlpacaClient:
     """Streamlined Alpaca API client for reliable order execution.
@@ -119,17 +120,6 @@ class AlpacaClient:
         """
         return self.position_manager.get_current_positions()
 
-    def get_pending_orders(self) -> list[dict[str, Any]]:
-        """Get all pending orders from Alpaca.
-
-        DEPRECATED: This function returns raw dict structures.
-        Consider using get_pending_orders_validated() for type safety.
-
-        Returns:
-            List of pending order information dictionaries.
-        """
-        return self.position_manager.get_pending_orders()
-
     def get_pending_orders_validated(self) -> list["ValidatedOrder"]:
         """
         Get all pending orders from Alpaca with type safety.
@@ -138,15 +128,20 @@ class AlpacaClient:
             List of ValidatedOrder instances for type-safe order handling.
         """
         try:
-            from the_alchemiser.execution.order_validation import convert_legacy_orders
+            from the_alchemiser.execution.order_validation import ValidatedOrder
 
-            # Get raw orders from position manager
             raw_orders = self.position_manager.get_pending_orders()
 
-            # Convert to validated orders with error handling
-            validated_orders = convert_legacy_orders(raw_orders)
+            validated_orders: list[ValidatedOrder] = []
+            for order in raw_orders:
+                try:
+                    validated_orders.append(ValidatedOrder.from_dict(order))
+                except Exception as e:
+                    logger.error(
+                        f"Failed to validate pending order {order.get('id', '?')}: {e}"
+                    )
 
-            self.logger.info(
+            logger.info(
                 f"📋 Retrieved {len(validated_orders)} validated pending orders "
                 f"(from {len(raw_orders)} raw orders)"
             )
@@ -154,7 +149,7 @@ class AlpacaClient:
             return validated_orders
 
         except Exception as e:
-            self.logger.error(f"Failed to get validated pending orders: {e}")
+            logger.error(f"Failed to get validated pending orders: {e}")
             return []
 
     def cancel_all_orders(self, symbol: str | None = None) -> bool:
