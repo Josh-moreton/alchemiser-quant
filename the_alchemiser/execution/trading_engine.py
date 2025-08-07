@@ -774,14 +774,54 @@ class TradingEngine:
         self, strategy_signals: dict[StrategyType, Any], orders_executed: list[dict[str, Any]]
     ) -> None:
         """
-        Trigger post-trade technical indicator validation for live trading
+        Trigger post-trade technical indicator validation for live trading.
+
+        Enhanced with type safety validation for orders_executed.
+
         Args:
             strategy_signals: Strategy signals that led to trades
-            orders_executed: List of executed orders
+            orders_executed: List of executed orders (being migrated to typed structure)
         """
         try:
+            # Enhanced order validation
+            if not isinstance(orders_executed, list):
+                logging.error(f"❌ orders_executed must be a list, got {type(orders_executed)}")
+                return
+
+            validated_symbols = set()
+            invalid_orders = []
+
+            # Validate each order and extract symbols
+            for i, order in enumerate(orders_executed):
+                if not isinstance(order, dict):
+                    invalid_orders.append(f"Order {i}: Expected dict, got {type(order)}")
+                    continue
+
+                symbol = order.get("symbol")
+                if not symbol:
+                    invalid_orders.append(f"Order {i}: Missing 'symbol' field")
+                    continue
+
+                if not isinstance(symbol, str):
+                    invalid_orders.append(f"Order {i}: Symbol must be string, got {type(symbol)}")
+                    continue
+
+                validated_symbols.add(symbol.strip().upper())
+
+            # Log validation issues
+            if invalid_orders:
+                logging.warning(f"⚠️ Order validation issues: {'; '.join(invalid_orders)}")
+
+            if not validated_symbols:
+                logging.warning(
+                    "🔍 No valid symbols found in orders_executed for post-trade validation"
+                )
+                return
+
+            # Rest of the original logic with validated symbols
             nuclear_symbols = []
             tecl_symbols = []
+
             for strategy_type, signal in strategy_signals.items():
                 symbol = signal.get("symbol")
                 if symbol and symbol != "NUCLEAR_PORTFOLIO" and symbol != "BEAR_PORTFOLIO":
@@ -789,7 +829,9 @@ class TradingEngine:
                         nuclear_symbols.append(symbol)
                     elif strategy_type == StrategyType.TECL:
                         tecl_symbols.append(symbol)
-            order_symbols = {order["symbol"] for order in orders_executed if "symbol" in order}
+
+            # Use validated symbols instead of unsafe extraction
+            order_symbols = validated_symbols
             nuclear_strategy_symbols = [
                 "SPY",
                 "IOO",

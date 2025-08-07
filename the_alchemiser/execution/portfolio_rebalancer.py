@@ -20,6 +20,78 @@ class PortfolioRebalancer:
         self.bot = bot
         self.order_manager = bot.order_manager
 
+    def calculate_position_delta(
+        self, symbol: str, current_qty: float, target_qty: float
+    ) -> dict[str, Any]:
+        """
+        Calculate minimal order needed to reach target position.
+
+        Args:
+            symbol: Symbol to rebalance
+            current_qty: Current position quantity
+            target_qty: Target position quantity
+
+        Returns:
+            Dictionary with action details
+        """
+        delta = target_qty - current_qty
+
+        if abs(delta) < 0.01:  # No significant change needed
+            return {
+                "action": "no_change",
+                "delta": delta,
+                "message": f"No rebalancing needed for {symbol}: {current_qty} ≈ {target_qty}",
+            }
+        elif delta < 0:
+            # Need to sell excess - round to 6 decimal places for order validation
+            sell_qty = round(abs(delta), 6)
+            return {
+                "action": "sell_excess",
+                "delta": delta,
+                "quantity": sell_qty,
+                "message": f"Rebalancing {symbol}: selling {sell_qty} shares (reducing {current_qty} -> {target_qty})",
+            }
+        else:
+            # Need to buy more - round to 6 decimal places for order validation
+            buy_qty = round(delta, 6)
+            return {
+                "action": "buy_more",
+                "delta": delta,
+                "quantity": buy_qty,
+                "message": f"Rebalancing {symbol}: buying {buy_qty} shares (increasing {current_qty} -> {target_qty})",
+            }
+
+    def execute_smart_rebalance(
+        self, symbol: str, current_qty: float, target_qty: float
+    ) -> str | None:
+        """
+        Execute smart position rebalancing to avoid unnecessary round-trips.
+
+        Args:
+            symbol: Symbol to rebalance
+            current_qty: Current position quantity
+            target_qty: Target position quantity
+
+        Returns:
+            Order ID if order placed, None if no action needed
+        """
+        rebalance_plan = self.calculate_position_delta(symbol, current_qty, target_qty)
+
+        logging.info(rebalance_plan["message"])
+
+        if rebalance_plan["action"] == "no_change":
+            return None
+        elif rebalance_plan["action"] == "sell_excess":
+            # Sell excess shares using smart execution
+            return self.order_manager.place_order(
+                symbol, rebalance_plan["quantity"], OrderSide.SELL
+            )
+        elif rebalance_plan["action"] == "buy_more":
+            # Buy additional shares using smart execution
+            return self.order_manager.place_order(symbol, rebalance_plan["quantity"], OrderSide.BUY)
+
+        return None
+
     def _get_primary_strategy_for_symbol(
         self, symbol: str, strategy_attribution: dict[str, list[StrategyType]] | None
     ) -> StrategyType:
@@ -210,7 +282,7 @@ class PortfolioRebalancer:
                     except Exception as e:
                         logging.warning(f"Failed to track liquidation order {order_id}: {e}")
 
-                    _liquidation_order_details = {
+                    order_details = {
                         "id": order_id,
                         "symbol": symbol,
                         "qty": abs(qty),
@@ -227,18 +299,36 @@ class PortfolioRebalancer:
                     order_details["estimated_value"] = estimated_value  # type: ignore
                     orders_executed.append(order_details)
             elif current_value > target_value:
+                # Use smart rebalancing instead of manual calculation
+                # Calculate target quantity first
                 price = self.bot.get_current_price(symbol)
-                diff_value = current_value - target_value
                 if price > 0:
                     # Handle both dict and object position formats for qty
                     if isinstance(pos, dict):
-                        position_qty = float(pos.get("qty", 0))
+                        position_qty = round(float(pos.get("qty", 0)), 6)
                     else:
-                        position_qty = float(getattr(pos, "qty", 0))
+                        position_qty = round(float(getattr(pos, "qty", 0)), 6)
 
-                    qty = min(int(diff_value / price * 1e6) / 1e6, position_qty)
-                    if qty > 0:
-                        sell_plans.append({"symbol": symbol, "qty": qty, "est": qty * price})
+                    target_qty = round(target_value / price if target_value > 0 else 0, 6)
+
+                    # Use smart rebalancing to calculate optimal order
+                    rebalance_result = self.calculate_position_delta(
+                        symbol, position_qty, target_qty
+                    )
+
+                    if rebalance_result["action"] == "sell_excess":
+                        qty = rebalance_result["quantity"]
+                        sell_plans.append(
+                            {
+                                "symbol": symbol,
+                                "qty": qty,
+                                "est": qty * price,
+                                "rebalance_type": "smart_delta",
+                            }
+                        )
+                        from rich.console import Console
+
+                        Console().print(f"[cyan]{rebalance_result['message']}[/cyan]")
 
         # Execute sell orders using better orders execution
         for plan in sell_plans:
@@ -259,7 +349,7 @@ class PortfolioRebalancer:
                 except Exception as e:
                     logging.warning(f"Failed to track sell order {order_id}: {e}")
 
-                _sell_order_details = {
+                order_details = {
                     "id": order_id,
                     "symbol": plan["symbol"],
                     "qty": plan["qty"],
@@ -332,18 +422,28 @@ class PortfolioRebalancer:
 
             if target_value > current_value:
                 price = self.bot.get_current_price(symbol)
-                diff_value = target_value - current_value
                 if price > 0:
-                    qty = int(diff_value / price * 1e6) / 1e6
-                    if qty > 0:
+                    # Calculate current and target quantities for smart rebalancing - round to 6 decimals
+                    current_qty = round(current_value / price if current_value > 0 else 0, 6)
+                    target_qty = round(target_value / price, 6)
+
+                    # Use smart rebalancing to calculate optimal order
+                    rebalance_result = self.calculate_position_delta(
+                        symbol, current_qty, target_qty
+                    )
+
+                    if rebalance_result["action"] == "buy_more":
+                        qty = rebalance_result["quantity"]
                         buy_plans.append(
                             {
                                 "symbol": symbol,
                                 "qty": qty,
                                 "est": qty * price,
                                 "target_value": target_value,
+                                "rebalance_type": "smart_delta",
                             }
                         )
+                        logging.debug(f"Smart rebalance buy plan: {rebalance_result['message']}")
                         logging.debug(
                             f"DEBUG: Adding to buy_plans - symbol: {symbol}, qty: {qty}, est: ${qty * price:.2f}, target_value: ${target_value:.2f}"
                         )
@@ -359,7 +459,7 @@ class PortfolioRebalancer:
                 f"Account info: cash=${account_info.get('cash', 0):.2f}, buying_power=${account_info.get('buying_power', 0):.2f}"
             )
 
-            if available_cash <= 1.0:  # Less than $1 left
+            if available_cash <= 10.0:  # Less than $10 left (increased buffer)
                 logging.warning(
                     f"Insufficient buying power (${available_cash:.2f}) for {plan['symbol']}, skipping remaining orders"
                 )
@@ -372,7 +472,7 @@ class PortfolioRebalancer:
             estimated_cost = target_qty * price
 
             # Always use notional orders for buy orders to avoid insufficient buying power issues
-            # Use the minimum of: target dollar amount or available cash (with small buffer)
+            # Use the minimum of: target dollar amount or available cash (with larger buffer for safety)
             logging.info(
                 f"Order calculation for {symbol}: estimated_cost=${estimated_cost:.2f}, available_cash=${available_cash:.2f}"
             )
@@ -388,10 +488,18 @@ class PortfolioRebalancer:
             logging.debug(f"{symbol} target_value from buy plan: ${target_value:.2f}")
             logging.debug(f"{symbol} available_cash: ${available_cash:.2f}")
 
-            # Use the target value from the rebalance plan, but limit to available cash
+            # Use the target value from the rebalance plan, but limit to available cash with larger buffer
             target_dollar_amount = min(
-                target_value, available_cash * 0.99
-            )  # 99% to leave small buffer
+                target_value, available_cash * 0.95  # 95% to leave larger buffer for safety
+            )
+
+            # Additional safety check - if the order is still too large, skip it
+            if target_dollar_amount > available_cash * 0.95:
+                logging.warning(
+                    f"Skipping {symbol} order: target=${target_dollar_amount:.2f} exceeds safe limit of ${available_cash * 0.95:.2f}"
+                )
+                continue
+
             logging.debug(
                 f"DEBUG: Final target_dollar_amount for {symbol}: ${target_dollar_amount:.2f}"
             )  # Get bid/ask for display
@@ -431,7 +539,7 @@ class PortfolioRebalancer:
                 except Exception as e:
                     logging.warning(f"Failed to track buy order {order_id}: {e}")
 
-                _buy_order_details = {
+                order_details = {
                     "id": order_id,
                     "symbol": symbol,
                     "qty": target_qty,  # Estimated quantity for display
@@ -454,7 +562,7 @@ class PortfolioRebalancer:
                 # Update order details with actual filled information
                 try:
                     # Get the actual order from API to get filled data
-                    actual_order = self.bot.order_manager.get_order_by_id(order_id)
+                    actual_order = self.order_manager.get_order_by_id(order_id)
                     if actual_order:
                         order_details["filled_qty"] = float(getattr(actual_order, "filled_qty", 0))
                         filled_price = getattr(actual_order, "filled_avg_price", None)

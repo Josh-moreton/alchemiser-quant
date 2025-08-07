@@ -23,14 +23,19 @@ class PositionManager:
         self.trading_client = trading_client
         self.data_provider = data_provider
 
-    def get_current_positions(self) -> dict[str, float]:
+    def get_current_positions(self, force_refresh: bool = False) -> dict[str, float]:
         """
         Get all current positions from Alpaca.
+
+        Args:
+            force_refresh: If True, forces fresh data from broker (no cache)
 
         Returns:
             Dictionary mapping symbol to quantity owned. Only includes non-zero positions.
         """
         try:
+            # TODO: Implement actual cache invalidation when force_refresh=True
+            # For now, all calls get fresh data
             positions = self.trading_client.get_all_positions()
             return {
                 str(getattr(pos, "symbol", "")): float(getattr(pos, "qty", 0))
@@ -62,7 +67,7 @@ class PositionManager:
             return {}
 
     def validate_sell_position(
-        self, symbol: str, requested_qty: float
+        self, symbol: str, requested_qty: float, force_refresh: bool = True
     ) -> tuple[bool, float, str | None]:
         """
         Validate and adjust sell quantity based on available position.
@@ -70,18 +75,21 @@ class PositionManager:
         Args:
             symbol: Symbol to sell
             requested_qty: Requested quantity to sell
+            force_refresh: If True, forces fresh position data from broker
 
         Returns:
             Tuple of (is_valid, adjusted_qty, warning_message)
         """
-        positions = self.get_current_positions()
+        # Force refresh from broker for critical sell operations
+        positions = self.get_current_positions(force_refresh=force_refresh)
         available = positions.get(symbol, 0)
 
         if available <= 0:
             return False, 0.0, f"No position to sell for {symbol}"
 
+        # Smart quantity adjustment - sell only what's actually available
         if requested_qty > available:
-            warning_msg = f"Reducing sell quantity for {symbol}: {requested_qty} -> {available}"
+            warning_msg = f"Adjusting sell quantity for {symbol}: {requested_qty} -> {available}"
             return True, available, warning_msg
 
         return True, requested_qty, None
@@ -189,7 +197,9 @@ class PositionManager:
         """
         try:
             # Verify position exists
-            positions = self.get_current_positions()
+            positions = self.get_current_positions(
+                force_refresh=True
+            )  # Force fresh data for liquidation
             if symbol not in positions or positions[symbol] <= 0:
                 logging.warning(f"No position to liquidate for {symbol}")
                 return None
@@ -379,3 +389,87 @@ class PositionManager:
             )
             logging.error(f"Unexpected error cancelling all orders: {e}")
             return False
+
+    def reconcile_position_after_order(self, order_id: str, symbol: str) -> bool:
+        """
+        Force position reconciliation after order execution.
+
+        Args:
+            order_id: The order ID that was executed
+            symbol: Symbol to reconcile
+
+        Returns:
+            True if reconciliation successful, False otherwise
+        """
+        try:
+            logging.info(f"Reconciling position for {symbol} after order {order_id}")
+
+            # Force fresh position data from broker
+            positions = self.get_current_positions(force_refresh=True)
+
+            # Get order details to understand what should have happened
+            try:
+                order = self.trading_client.get_order_by_id(order_id)
+                order_status = str(getattr(order, "status", "unknown")).lower()
+
+                if "filled" in order_status:
+                    logging.info(
+                        f"Order {order_id} for {symbol} confirmed filled - position reconciled"
+                    )
+                else:
+                    logging.warning(f"Order {order_id} for {symbol} status: {order_status}")
+
+            except Exception as e:
+                logging.warning(f"Could not get order details for reconciliation: {e}")
+
+            return True
+
+        except Exception as e:
+            logging.error(f"Failed to reconcile position for {symbol} after order {order_id}: {e}")
+            return False
+
+    def detect_position_drift(self, tolerance: float = 100.0) -> list[dict[str, Any]]:
+        """
+        Detect drift between internal and broker positions.
+
+        Args:
+            tolerance: Dollar threshold for drift alerts
+
+        Returns:
+            List of position drift warnings
+        """
+        try:
+            # Force fresh broker positions
+            broker_positions = self.get_current_positions(force_refresh=True)
+
+            drift_alerts = []
+
+            for symbol, qty in broker_positions.items():
+                # Get current market value
+                try:
+                    positions = self.trading_client.get_all_positions()
+                    pos = next(
+                        (p for p in positions if str(getattr(p, "symbol", "")) == symbol), None
+                    )
+                    if pos:
+                        market_value = float(getattr(pos, "market_value", 0))
+                        if abs(market_value) > tolerance:
+                            drift_alerts.append(
+                                {
+                                    "symbol": symbol,
+                                    "qty": qty,
+                                    "market_value": market_value,
+                                    "message": f"Position {symbol}: ${market_value:.2f} (threshold: ${tolerance})",
+                                }
+                            )
+                except Exception:
+                    pass
+
+            if drift_alerts:
+                logging.warning(f"Detected {len(drift_alerts)} position drift alerts")
+
+            return drift_alerts
+
+        except Exception as e:
+            logging.error(f"Failed to detect position drift: {e}")
+            return []

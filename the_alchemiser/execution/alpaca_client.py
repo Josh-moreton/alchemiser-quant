@@ -44,7 +44,10 @@ Example:
 
 import logging
 import time
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from the_alchemiser.execution.order_validation import ValidatedOrder
 
 from alpaca.trading.client import TradingClient
 from alpaca.trading.enums import OrderSide
@@ -119,10 +122,40 @@ class AlpacaClient:
     def get_pending_orders(self) -> list[dict[str, Any]]:
         """Get all pending orders from Alpaca.
 
+        DEPRECATED: This function returns raw dict structures.
+        Consider using get_pending_orders_validated() for type safety.
+
         Returns:
             List of pending order information dictionaries.
         """
         return self.position_manager.get_pending_orders()
+
+    def get_pending_orders_validated(self) -> list["ValidatedOrder"]:
+        """
+        Get all pending orders from Alpaca with type safety.
+
+        Returns:
+            List of ValidatedOrder instances for type-safe order handling.
+        """
+        try:
+            from the_alchemiser.execution.order_validation import convert_legacy_orders
+
+            # Get raw orders from position manager
+            raw_orders = self.position_manager.get_pending_orders()
+
+            # Convert to validated orders with error handling
+            validated_orders = convert_legacy_orders(raw_orders)
+
+            self.logger.info(
+                f"📋 Retrieved {len(validated_orders)} validated pending orders "
+                f"(from {len(raw_orders)} raw orders)"
+            )
+
+            return validated_orders
+
+        except Exception as e:
+            self.logger.error(f"Failed to get validated pending orders: {e}")
+            return []
 
     def cancel_all_orders(self, symbol: str | None = None) -> bool:
         """
@@ -248,6 +281,28 @@ class AlpacaClient:
 
                 logging.info(f"Market order placed for {symbol}: {order_id}")
                 return order_id
+
+            except Exception as order_error:
+                # Check for insufficient buying power error specifically
+                error_msg = str(order_error)
+                if "insufficient buying power" in error_msg.lower():
+                    logging.error(f"❌ Insufficient buying power for {symbol}: {error_msg}")
+                    # Try to extract the actual buying power from the error
+                    try:
+                        import json
+
+                        if hasattr(order_error, "text"):
+                            error_data = json.loads(order_error.text)
+                        else:
+                            error_data = json.loads(error_msg.split('{"')[1].split("}")[0] + "}")
+                        actual_buying_power = error_data.get("buying_power", "unknown")
+                        cost_basis = error_data.get("cost_basis", "unknown")
+                        logging.error(
+                            f"❌ Order cost: ${cost_basis}, Available buying power: ${actual_buying_power}"
+                        )
+                    except Exception:
+                        logging.error("❌ Could not parse buying power details from error")
+                    return None
 
             except (TradingClientError, ValueError, AttributeError) as order_error:
                 error_msg = str(order_error)
@@ -385,3 +440,19 @@ class AlpacaClient:
     def _cleanup_websocket_connection(self) -> None:
         """Clean up any existing WebSocket connection."""
         self.websocket_manager.cleanup_websocket_connection()
+
+    def get_order_by_id(self, order_id: str) -> Any:
+        """
+        Get order details by order ID from the trading client.
+
+        Args:
+            order_id: The order ID to lookup
+
+        Returns:
+            Order object from Alpaca API, or None if not found
+        """
+        try:
+            return self.trading_client.get_order_by_id(order_id)
+        except Exception as e:
+            logging.warning(f"Could not retrieve order {order_id}: {e}")
+            return None

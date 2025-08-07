@@ -339,13 +339,51 @@ class SmartExecution:
         self,
         sell_orders: list[dict[str, Any]],
         max_wait_time: int = 60,
-        poll_interval: float = 2.0,  # TODO: Phase 5 - Migrate to list[OrderDetails]
+        poll_interval: float = 2.0,
     ) -> bool:
         """
-        Wait for order settlement - delegates to SimpleOrderManager.wait_for_order_completion.
+        Wait for order settlement - with enhanced type safety.
+
+        DEPRECATED: This function is being migrated to use ValidatedOrder types.
+        Consider using OrderSettlementTracker.wait_for_settlement() instead.
         """
         if not sell_orders:
             return True
+
+        # Import here to avoid circular dependency
+        try:
+            from the_alchemiser.execution.order_validation import (
+                OrderSettlementTracker,
+                convert_legacy_orders,
+            )
+
+            # Convert legacy orders to validated orders with error handling
+            validated_orders = convert_legacy_orders(sell_orders)
+
+            if not validated_orders:
+                logging.warning("No valid orders found for settlement tracking")
+                return True
+
+            # Use the new type-safe settlement tracker
+            tracker = OrderSettlementTracker(trading_client=getattr(self, "_order_executor", None))
+            result = tracker.wait_for_settlement(validated_orders, max_wait_time, poll_interval)
+
+            # Log results
+            if result.success:
+                logging.info(f"✅ All {len(result.settled_orders)} orders settled successfully")
+            else:
+                if result.failed_orders:
+                    logging.warning(f"❌ {len(result.failed_orders)} orders failed")
+                if result.timeout_orders:
+                    logging.warning(f"⏰ {len(result.timeout_orders)} orders timed out")
+                if result.errors:
+                    logging.error(f"🚨 Settlement errors: {'; '.join(result.errors)}")
+
+            return result.success
+
+        except Exception as e:
+            logging.error(f"Error in enhanced settlement tracking, falling back to legacy: {e}")
+            # Fallback to original logic with improved validation
 
         # Extract only valid string order IDs
         order_ids: list[str] = []

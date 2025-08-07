@@ -143,17 +143,29 @@ class OrderCompletionMonitor:
                 )
                 time.sleep(sleep_time)
 
-        # Handle timeouts
+        # Handle timeouts - check final status before marking as timeout
         if len(completed) < len(order_ids):
             elapsed_time = time.time() - start_time
             logging.warning(
-                f"⏰ Timeout after {elapsed_time:.1f}s: {len(order_ids) - len(completed)} orders did not complete"
+                f"⏰ Timeout after {elapsed_time:.1f}s: checking final status for {len(order_ids) - len(completed)} orders"
             )
 
         for order_id in order_ids:
             if order_id not in completed:
-                completed[order_id] = "timeout"
-                logging.warning(f"⏰ Order {order_id}: timeout")
+                # Check final status via API before marking as timeout
+                try:
+                    order = self.trading_client.get_order_by_id(order_id)
+                    status = str(getattr(order, "status", "unknown")).lower()
+                    if "orderstatus." in status:
+                        actual_status = status.split(".")[-1]
+                    else:
+                        actual_status = status
+                    completed[order_id] = actual_status
+                    logging.info(f"Final status for {order_id}: {actual_status}")
+                except Exception as e:
+                    logging.error(f"Could not get final status for {order_id}: {e}")
+                    completed[order_id] = "unknown"
+                    logging.warning(f"⏰ Order {order_id}: marked as unknown due to API error")
 
         logging.info(f"🏁 Order settlement complete: {len(completed)} orders processed")
         return completed
@@ -270,9 +282,21 @@ class OrderCompletionMonitor:
 
             # Handle timeouts
             if remaining and not stream_stopped:
-                logging.warning(f"⏰ Timeout reached! Remaining orders: {remaining}")
+                logging.warning(f"⏰ Timeout reached! Checking final status for: {remaining}")
+                # Check final status via REST API before marking as timeout
                 for oid in remaining:
-                    completed[oid] = "timeout"
+                    try:
+                        final_order = self.trading_client.get_order_by_id(oid)
+                        final_status = str(getattr(final_order, "status", "unknown")).lower()
+                        if "orderstatus." in final_status:
+                            actual_status = final_status.split(".")[-1]
+                        else:
+                            actual_status = final_status
+                        completed[oid] = actual_status
+                        logging.info(f"Final status for {oid}: {actual_status}")
+                    except Exception as e:
+                        logging.error(f"Could not get final status for {oid}: {e}")
+                        completed[oid] = "unknown"
             else:
                 logging.info("✅ All orders completed before timeout")
 
