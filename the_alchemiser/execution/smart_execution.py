@@ -147,32 +147,6 @@ class SmartExecution:
         """Execute full position liquidation using the configured order executor."""
         return self._order_executor.liquidate_position(symbol)
 
-    def get_position_quantity(self, symbol: str) -> float:
-        """Get current position quantity using the configured order executor."""
-        positions = self._order_executor.get_current_positions()
-        return positions.get(symbol, 0.0)
-
-    # Legacy compatibility methods - delegate to new composition-based methods
-    def place_safe_sell_order(
-        self,
-        symbol: str,
-        target_qty: float,
-        max_retries: int = 3,
-        poll_timeout: int = 30,
-        poll_interval: float = 2.0,
-        slippage_bps: float | None = None,
-    ) -> str | None:
-        """Legacy compatibility wrapper for safe sell execution."""
-        return self.execute_safe_sell(symbol, target_qty)
-
-    def liquidate_position(self, symbol: str) -> str | None:
-        """Legacy compatibility wrapper for liquidation."""
-        return self.execute_liquidation(symbol)
-
-    def get_position_qty(self, symbol: str) -> float:
-        """Legacy compatibility wrapper for position quantity."""
-        return self.get_position_quantity(symbol)
-
     def place_order(
         self,
         symbol: str,
@@ -341,12 +315,7 @@ class SmartExecution:
         max_wait_time: int = 60,
         poll_interval: float = 2.0,
     ) -> bool:
-        """
-        Wait for order settlement - with enhanced type safety.
-
-        DEPRECATED: This function is being migrated to use ValidatedOrder types.
-        Consider using OrderSettlementTracker.wait_for_settlement() instead.
-        """
+        """Wait for order settlement with type-safe tracking."""
         if not sell_orders:
             return True
 
@@ -354,11 +323,15 @@ class SmartExecution:
         try:
             from the_alchemiser.execution.order_validation import (
                 OrderSettlementTracker,
-                convert_legacy_orders,
+                ValidatedOrder,
             )
 
-            # Convert legacy orders to validated orders with error handling
-            validated_orders = convert_legacy_orders(sell_orders)
+            validated_orders: list[ValidatedOrder] = []
+            for order in sell_orders:
+                try:
+                    validated_orders.append(ValidatedOrder.from_dict(order))
+                except Exception as e:
+                    logging.warning(f"Order conversion failed: {e}")
 
             if not validated_orders:
                 logging.warning("No valid orders found for settlement tracking")

@@ -213,8 +213,8 @@ class PortfolioRebalancer:
                     Console().print(
                         f"[yellow]Liquidating {symbol} (not in target portfolio)[/yellow]"
                     )
-                    # Use Alpaca's liquidate_position API instead of manual calculation
-                    order_id = self.order_manager.liquidate_position(symbol)
+                    # Use direct liquidation via order manager
+                    order_id = self.order_manager.execute_liquidation(symbol)
                     if order_id:
                         # Estimate value for tracking purposes
                         price = self.bot.get_current_price(symbol)
@@ -265,7 +265,7 @@ class PortfolioRebalancer:
                 from rich.console import Console
 
                 Console().print(f"[yellow]Liquidating {symbol} (target allocation: 0%)[/yellow]")
-                order_id = self.order_manager.liquidate_position(symbol)
+                order_id = self.order_manager.execute_liquidation(symbol)
                 if order_id:
                     # Estimate value for tracking purposes
                     qty = position_qty  # Use the already calculated position_qty

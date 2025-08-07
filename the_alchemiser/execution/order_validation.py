@@ -120,6 +120,7 @@ class ValidatedOrder(BaseModel):
         arbitrary_types_allowed = True
 
     @validator("symbol")
+    @classmethod
     def validate_symbol(cls, v: str) -> str:
         """Validate symbol format."""
         if not v or not v.strip():
@@ -130,6 +131,7 @@ class ValidatedOrder(BaseModel):
         return symbol
 
     @validator("limit_price")
+    @classmethod
     def validate_limit_price(cls, v: Decimal | None, values: dict[str, Any]) -> Decimal | None:
         """Validate limit price is required for limit orders."""
         order_type = values.get("order_type")
@@ -138,6 +140,7 @@ class ValidatedOrder(BaseModel):
         return v
 
     @validator("stop_price")
+    @classmethod
     def validate_stop_price(cls, v: Decimal | None, values: dict[str, Any]) -> Decimal | None:
         """Validate stop price is required for stop orders."""
         order_type = values.get("order_type")
@@ -146,6 +149,7 @@ class ValidatedOrder(BaseModel):
         return v
 
     @validator("filled_qty")
+    @classmethod
     def validate_filled_qty(cls, v: Decimal, values: dict[str, Any]) -> Decimal:
         """Validate filled quantity doesn't exceed order quantity."""
         quantity = values.get("quantity", Decimal("0"))
@@ -614,33 +618,5 @@ def validate_order_list(orders: list[dict[str, Any]]) -> list[ValidatedOrder]:
             validated_orders.append(result.validated_order)
         except Exception as e:
             raise OrderValidationError(f"Failed to validate order {i}: {e}")
-
-    return validated_orders
-
-
-def convert_legacy_orders(orders: list[dict[str, Any]]) -> list[ValidatedOrder]:
-    """
-    Convert legacy order dictionaries to ValidatedOrder instances with error handling.
-
-    This function provides a migration path from the unsafe list[dict[str, Any]] pattern.
-
-    Args:
-        orders: List of legacy order dictionaries
-
-    Returns:
-        List of ValidatedOrder instances (empty list if all fail validation)
-    """
-    validated_orders = []
-    validator = OrderValidator()
-
-    for i, order_data in enumerate(orders):
-        try:
-            result = validator.validate_order_structure(order_data)
-            if result.is_valid and result.validated_order:
-                validated_orders.append(result.validated_order)
-            else:
-                logging.warning(f"Order {i} failed validation: {'; '.join(result.errors)}")
-        except Exception as e:
-            logging.error(f"Failed to convert order {i}: {e}")
 
     return validated_orders
