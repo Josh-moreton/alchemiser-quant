@@ -376,9 +376,13 @@ class KlmVariant53018(BaseKLMVariant):
         # Check XLP overbought
         if "XLP" in indicators and indicators["XLP"].get("rsi_10", 0) > 75:
             allocation = self.vix_blend
-            result = (allocation, ActionType.BUY.value, "Holy Grail: XLP RSI(10) > 75 → VIX Blend")
-            self.log_decision(result[0], result[1], result[2])
-            return result
+            xlp_result = (
+                allocation,
+                ActionType.BUY.value,
+                "Holy Grail: XLP RSI(10) > 75 → VIX Blend",
+            )
+            self.log_decision(xlp_result[0], xlp_result[1], xlp_result[2])
+            return xlp_result
 
         # TQQQ cumulative return check (< -12% over 6 periods)
         tqqq_cum_return = indicators.get("TQQQ", {}).get("cumulative_return_6", 0)
@@ -387,19 +391,17 @@ class KlmVariant53018(BaseKLMVariant):
             tqqq_daily_return = indicators.get("TQQQ", {}).get("cumulative_return_1", 0)
             if tqqq_daily_return > 5.5:
                 allocation = self.vix_blend_plus
-                result = (
+                tqqq_result = (
                     allocation,
                     ActionType.BUY.value,
                     f"Holy Grail: TQQQ 6d return {tqqq_cum_return:.1f}% < -12%, daily {tqqq_daily_return:.1f}% > 5.5% → VIX Blend+",
                 )
             else:
                 # Pop bot logic
-                result = self._evaluate_holy_grail_pop_bot(
-                    indicators
-                )  # TODO: Phase 9 - Remove type ignore after converting to KLMDecision
+                tqqq_result = self._evaluate_holy_grail_pop_bot(indicators)
 
-            self.log_decision(result[0], result[1], result[2])
-            return result
+            self.log_decision(tqqq_result[0], tqqq_result[1], tqqq_result[2])
+            return tqqq_result
 
         # Default to complex KMLM switcher logic
         return self._evaluate_kmlm_switcher_plus_fngu(indicators)

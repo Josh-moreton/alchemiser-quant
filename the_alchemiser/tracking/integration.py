@@ -101,10 +101,10 @@ def get_current_strategy_context() -> StrategyType | None:
 # Integration helper functions for existing code
 
 
-def create_strategy_aware_order_callback(original_order_function):
+def create_strategy_aware_order_callback(original_order_function: Any) -> Any:
     """Decorator to make order functions strategy-aware."""
 
-    def wrapper(*args, **kwargs):
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
         """Call the wrapped function and log the order in the active context."""
 
         # Execute original order function
@@ -127,7 +127,7 @@ def create_strategy_aware_order_callback(original_order_function):
 class StrategyTrackingMixin:
     """Mixin class to add strategy tracking to trading components."""
 
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         """Initialize tracking mixin and attach tracker instance."""
 
         super().__init__(*args, **kwargs)

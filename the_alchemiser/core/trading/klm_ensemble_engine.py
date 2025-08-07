@@ -191,7 +191,15 @@ class KLMStrategyEnsemble:
         for variant in self.strategy_variants:
             try:
                 # Get strategy recommendation
-                result = variant.evaluate(indicators, market_data)
+                raw_result = variant.evaluate(indicators, market_data)
+
+                # Handle both tuple and KLMDecision return types
+                if isinstance(raw_result, dict):
+                    # KLMDecision TypedDict case
+                    result = (raw_result["symbol"], raw_result["action"], raw_result["reasoning"])
+                else:
+                    # Tuple case
+                    result = raw_result
 
                 # Calculate performance metric for ensemble selection
                 performance = self.calculate_variant_performance(variant)
@@ -200,10 +208,11 @@ class KLMStrategyEnsemble:
 
                 # Format symbol/allocation for logging
                 try:
-                    if isinstance(result[0], dict):
-                        symbol_str = f"allocation:{len(result[0])} symbols"
+                    symbol_or_allocation = result[0]
+                    if isinstance(symbol_or_allocation, dict):
+                        symbol_str = f"allocation:{len(symbol_or_allocation)} symbols"
                     else:
-                        symbol_str = str(result[0])
+                        symbol_str = str(symbol_or_allocation)
                 except (IndexError, TypeError):
                     symbol_str = "unknown"
                 self.logger.debug(

@@ -1,6 +1,7 @@
 """Coordinate execution of multiple trading strategies."""
 
 import logging
+from typing import Any
 
 from ..core.error_handler import handle_errors_with_retry
 from ..core.exceptions import (
@@ -16,13 +17,13 @@ from .types import MultiStrategyExecutionResult
 class ExecutionManager:
     """Orchestrates multi-strategy execution for the TradingEngine."""
 
-    def __init__(self, engine) -> None:
+    def __init__(self, engine: Any) -> None:
         """Store the trading engine used for order execution."""
 
         self.engine = engine
 
     @handle_errors_with_retry(operation="multi_strategy_execution", critical=True, max_retries=1)
-    def execute_multi_strategy(self):
+    def execute_multi_strategy(self) -> Any:
         """Run all strategies and rebalance portfolio."""
         try:
             account_info_before = self.engine.get_account_info()
