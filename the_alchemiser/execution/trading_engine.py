@@ -271,7 +271,7 @@ class TradingEngine:
                 handle_trading_error(
                     error=e,
                     context="account information retrieval",
-                    trading_mode="paper" if self.paper_trading else "live",
+                    component="trading_engine",
                 )
             except (ImportError, AttributeError):
                 pass
@@ -321,7 +321,16 @@ class TradingEngine:
 
             # Create enriched account info starting with base data
             enriched: EnrichedAccountInfo = {
-                **base_account,
+                "account_id": base_account["account_id"],
+                "equity": base_account["equity"],
+                "cash": base_account["cash"],
+                "buying_power": base_account["buying_power"],
+                "day_trades_remaining": base_account["day_trades_remaining"],
+                "portfolio_value": base_account["portfolio_value"],
+                "last_equity": base_account["last_equity"],
+                "daytrading_buying_power": base_account["daytrading_buying_power"],
+                "regt_buying_power": base_account["regt_buying_power"],
+                "status": base_account["status"],
                 "trading_mode": "paper" if self.paper_trading else "live",
                 "market_hours_ignored": self.ignore_market_hours,
             }
@@ -366,8 +375,18 @@ class TradingEngine:
         except (DataProviderError, TradingClientError, ConfigurationError, AttributeError) as e:
             logging.error(f"Failed to retrieve enriched account information: {e}")
             # Return minimal enriched account info
+            default_account = _create_default_account_info("error")
             return {
-                **_create_default_account_info("error"),
+                "account_id": default_account["account_id"],
+                "equity": default_account["equity"],
+                "cash": default_account["cash"],
+                "buying_power": default_account["buying_power"],
+                "day_trades_remaining": default_account["day_trades_remaining"],
+                "portfolio_value": default_account["portfolio_value"],
+                "last_equity": default_account["last_equity"],
+                "daytrading_buying_power": default_account["daytrading_buying_power"],
+                "regt_buying_power": default_account["regt_buying_power"],
+                "status": default_account["status"],
                 "trading_mode": "paper" if self.paper_trading else "live",
                 "market_hours_ignored": self.ignore_market_hours,
             }
@@ -930,7 +949,17 @@ class TradingEngine:
 
                 # Fall back to estimated value if no filled data available
                 if actual_value == 0:
-                    actual_value = float(order.get("estimated_value", 0))
+                    estimated_value = order.get("estimated_value", 0)
+                    try:
+                        # Handle various types that estimated_value might be
+                        if isinstance(estimated_value, (int, float)):
+                            actual_value = float(estimated_value)
+                        elif isinstance(estimated_value, str):
+                            actual_value = float(estimated_value)
+                        else:
+                            actual_value = 0.0
+                    except (ValueError, TypeError):
+                        actual_value = 0.0
 
                 orders_table.add_row(
                     f"[{side_color}]{side_value}[/{side_color}]",
@@ -952,7 +981,22 @@ class TradingEngine:
                 enriched_account = self.get_enriched_account_info()
                 account = enriched_account
             except (DataProviderError, AttributeError, ValueError):
-                account = execution_result.account_info_after
+                # Convert AccountInfo to EnrichedAccountInfo format
+                base_account = execution_result.account_info_after
+                account = {
+                    "account_id": base_account["account_id"],
+                    "equity": base_account["equity"],
+                    "cash": base_account["cash"],
+                    "buying_power": base_account["buying_power"],
+                    "day_trades_remaining": base_account["day_trades_remaining"],
+                    "portfolio_value": base_account.get("portfolio_value", 0.0),
+                    "last_equity": base_account.get("last_equity", 0.0),
+                    "daytrading_buying_power": base_account.get("daytrading_buying_power", 0.0),
+                    "regt_buying_power": base_account.get("regt_buying_power", 0.0),
+                    "status": base_account.get("status", "INACTIVE"),  # Use valid literal
+                    "trading_mode": "paper" if self.paper_trading else "live",
+                    "market_hours_ignored": self.ignore_market_hours,
+                }
 
             account_content = Text()
             account_content.append(
@@ -979,10 +1023,6 @@ class TradingEngine:
                     )
 
             account_panel = Panel(account_content, title="Account Summary", style="bold white")
-        else:
-            account_panel = Panel(
-                "Account information not available", title="Account Summary", style="yellow"
-            )
 
         # Recent closed positions P&L table
         closed_pnl_table = None
@@ -992,7 +1032,8 @@ class TradingEngine:
                 enriched_account = self.get_enriched_account_info()
                 closed_pnl = enriched_account.get("recent_closed_pnl", [])
             except (DataProviderError, AttributeError, ValueError):
-                closed_pnl = execution_result.account_info_after.get("recent_closed_pnl", [])
+                # AccountInfo doesn't have recent_closed_pnl, so use empty list
+                closed_pnl = []
 
             if closed_pnl:
                 closed_pnl_table = Table(
@@ -1003,7 +1044,7 @@ class TradingEngine:
                 closed_pnl_table.add_column("P&L %", style="bold", justify="right")
                 closed_pnl_table.add_column("Trades", style="white", justify="center")
 
-                total_realized_pnl = 0
+                total_realized_pnl = 0.0  # Initialize as float to handle float | int addition
 
                 for position in closed_pnl[:8]:  # Show top 8 in CLI summary
                     symbol = position.get("symbol", "N/A")

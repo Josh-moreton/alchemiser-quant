@@ -391,7 +391,7 @@ class KlmVariant53018(BaseKLMVariant):
             tqqq_daily_return = indicators.get("TQQQ", {}).get("cumulative_return_1", 0)
             if tqqq_daily_return > 5.5:
                 allocation = self.vix_blend_plus
-                tqqq_result = (
+                tqqq_result: tuple[str | dict[str, float], str, str] = (
                     allocation,
                     ActionType.BUY.value,
                     f"Holy Grail: TQQQ 6d return {tqqq_cum_return:.1f}% < -12%, daily {tqqq_daily_return:.1f}% > 5.5% → VIX Blend+",

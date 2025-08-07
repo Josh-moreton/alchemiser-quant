@@ -10,6 +10,7 @@ from ..core.exceptions import (
     StrategyExecutionError,
     TradingClientError,
 )
+from ..core.types import AccountInfo
 from .reporting import build_portfolio_state_data, create_execution_summary, save_dashboard_data
 from .types import MultiStrategyExecutionResult
 
@@ -99,13 +100,27 @@ class ExecutionManager:
                 error_type="data_provider_error",
             )
             # For data errors, return a safe result rather than crashing
+            # Create empty/error AccountInfo for error cases
+            empty_account_info: AccountInfo = {
+                "account_id": "error",
+                "equity": 0.0,
+                "cash": 0.0,
+                "buying_power": 0.0,
+                "day_trades_remaining": 0,
+                "portfolio_value": 0.0,
+                "last_equity": 0.0,
+                "daytrading_buying_power": 0.0,
+                "regt_buying_power": 0.0,
+                "status": "INACTIVE",
+            }
+
             return MultiStrategyExecutionResult(
                 success=False,
                 strategy_signals={},
                 consolidated_portfolio={"BIL": 1.0},  # Safe fallback to cash
                 orders_executed=[],
-                account_info_before=None,
-                account_info_after=None,
+                account_info_before=empty_account_info,
+                account_info_after=empty_account_info,
                 execution_summary={"error": str(e)},
                 final_portfolio_state={},
             )

@@ -196,7 +196,11 @@ class KLMStrategyEnsemble:
                 # Handle both tuple and KLMDecision return types
                 if isinstance(raw_result, dict):
                     # KLMDecision TypedDict case
-                    result = (raw_result["symbol"], raw_result["action"], raw_result["reasoning"])
+                    result: tuple[str | dict[str, float], str, str] = (
+                        raw_result["symbol"],
+                        raw_result["action"],
+                        raw_result["reasoning"],
+                    )
                 else:
                     # Tuple case
                     result = raw_result

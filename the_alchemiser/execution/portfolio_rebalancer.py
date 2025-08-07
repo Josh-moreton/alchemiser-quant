@@ -15,7 +15,7 @@ from ..utils.trading_math import calculate_rebalance_amounts
 class PortfolioRebalancer:
     """Encapsulate portfolio rebalancing workflow."""
 
-    def __init__(self, bot) -> None:
+    def __init__(self, bot: Any) -> None:
         """Initialize with parent trading system."""
         self.bot = bot
         self.order_manager = bot.order_manager
@@ -210,7 +210,7 @@ class PortfolioRebalancer:
                     except Exception as e:
                         logging.warning(f"Failed to track liquidation order {order_id}: {e}")
 
-                    order_details: OrderDetails = {
+                    liquidation_order_details = {
                         "id": order_id,
                         "symbol": symbol,
                         "qty": abs(qty),
@@ -259,7 +259,7 @@ class PortfolioRebalancer:
                 except Exception as e:
                     logging.warning(f"Failed to track sell order {order_id}: {e}")
 
-                order_details: OrderDetails = {
+                sell_order_details = {
                     "id": order_id,
                     "symbol": plan["symbol"],
                     "qty": plan["qty"],
@@ -431,7 +431,7 @@ class PortfolioRebalancer:
                 except Exception as e:
                     logging.warning(f"Failed to track buy order {order_id}: {e}")
 
-                order_details: OrderDetails = {
+                buy_order_details = {
                     "id": order_id,
                     "symbol": symbol,
                     "qty": target_qty,  # Estimated quantity for display
@@ -461,7 +461,19 @@ class PortfolioRebalancer:
                         order_details["filled_avg_price"] = (
                             float(filled_price) if filled_price else None
                         )
-                        order_details["status"] = str(getattr(actual_order, "status", "unknown"))
+                        # Ensure status matches the TypedDict literal requirements
+                        raw_status = str(getattr(actual_order, "status", "unknown"))
+                        if raw_status in [
+                            "new",
+                            "partially_filled",
+                            "filled",
+                            "canceled",
+                            "expired",
+                            "rejected",
+                        ]:
+                            order_details["status"] = raw_status  # type: ignore[typeddict-item]
+                        else:
+                            order_details["status"] = "new"  # Default fallback
                         logging.info(
                             f"Updated {symbol} order with filled data: qty={order_details['filled_qty']}, price={order_details['filled_avg_price']}"
                         )

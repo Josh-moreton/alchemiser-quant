@@ -285,11 +285,12 @@ class SmartExecution:
         # Get current bid/ask
         try:
             quote = self._order_executor.data_provider.get_latest_quote(symbol)
-            if not quote or len(quote) < 2:
-                console.print("[yellow]No quote available, using market order[/yellow]")
-                return self._order_executor.place_market_order(symbol, side, qty=qty)
-
             bid, ask = float(quote[0]), float(quote[1])
+
+            # Check if quote is invalid (fallback zeros)
+            if bid <= 0 or ask <= 0:
+                console.print("[yellow]Invalid quote data, using market order[/yellow]")
+                return self._order_executor.place_market_order(symbol, side, qty=qty)
             spread_analysis = spread_assessor.analyze_current_spread(symbol, bid, ask)
 
             console.print(
@@ -546,10 +547,11 @@ class SmartExecution:
 
                 # Get fresh quote for re-peg pricing
                 fresh_quote = self._order_executor.data_provider.get_latest_quote(symbol)
-                if fresh_quote and len(fresh_quote) >= 2:
-                    bid, ask = float(fresh_quote[0]), float(fresh_quote[1])
-                else:
-                    console.print("[yellow]No fresh quote, using market order[/yellow]")
+                bid, ask = float(fresh_quote[0]), float(fresh_quote[1])
+
+                # Check if fresh quote is invalid (fallback zeros)
+                if bid <= 0 or ask <= 0:
+                    console.print("[yellow]Invalid fresh quote, using market order[/yellow]")
                     break
             else:
                 console.print(f"[yellow]Maximum re-pegs ({max_repegs}) reached[/yellow]")
