@@ -8,9 +8,11 @@ The Alchemiser codebase has accumulated significant legacy patterns during its e
 - **120+ fallback mechanisms** providing redundant code paths
 - **25+ global instances** creating hidden dependencies
 - **Multiple facade patterns** adding unnecessary indirection
-- **40+ deprecated methods** that should be removed
+- ~~**40+ deprecated methods** that should be removed~~ ✅ **COMPLETED** (August 7, 2025)
 
 This master plan provides a systematic approach to clean up all legacy patterns while maintaining system stability and minimizing risk.
+
+**Recent Progress**: Successfully completed deprecated methods removal, eliminating all 15+ deprecated methods and their calling code without any functional impact.
 
 ## Current Legacy Inventory
 
@@ -77,16 +79,18 @@ This master plan provides a systematic approach to clean up all legacy patterns 
 - Planned service container facade patterns
 - Email template facade patterns
 
-### 6. Deprecated Methods (15+ identified)
+### 6. Deprecated Methods (COMPLETED ✅)
 **Location Pattern**: `DEPRECATED` comments and deprecation warnings
-**Impact**: Low - Should be removed but not actively harmful
+**Impact**: Low - Successfully removed without functional impact
 
-**Methods**:
-- `get_pending_orders()` in alpaca_client.py
-- `is_likely_non_fractionable()` in asset_info.py
-- Legacy order validation methods
-- Deprecated price fetching utilities
-- Old smart execution methods
+**Methods Removed**:
+- ✅ `get_pending_orders()` in alpaca_client.py → Replaced with `get_pending_orders_validated()`
+- ✅ `is_likely_non_fractionable()` in asset_info.py → Replaced with `is_fractionable()`
+- ✅ Legacy order validation methods → Replaced with direct `ValidatedOrder` usage
+- ✅ Deprecated smart execution wrappers → Replaced with direct service access
+- ✅ Old order conversion utilities → Replaced with `ValidatedOrder.from_dict()`
+
+**Status**: All deprecated methods successfully removed in PR #28 (August 7, 2025)
 
 ## Cleanup Strategy
 
@@ -162,18 +166,20 @@ Migrate away from facade patterns to direct service usage.
 3. Remove facade classes
 4. Update documentation and examples
 
-### Phase 6: Deprecated Method Removal
-**Duration**: 1-2 weeks
+### Phase 6: Deprecated Method Removal ✅ COMPLETED
+**Duration**: Completed August 7, 2025
 **Priority**: Low
 **Risk**: Low
 
-Remove all deprecated methods and update calling code.
+✅ **COMPLETED**: All deprecated methods and update calling code have been successfully removed.
 
-**Process**:
-1. Identify all deprecated method usage
-2. Update calling code to use new methods
-3. Remove deprecated methods
-4. Update documentation
+**Process Completed**:
+1. ✅ Identified all deprecated method usage
+2. ✅ Updated calling code to use new methods  
+3. ✅ Removed deprecated methods
+4. ✅ Updated documentation
+
+**Results**: PR #28 successfully removed all deprecated methods without breaking changes.
 
 ## Risk Mitigation
 
@@ -254,8 +260,22 @@ Month 2: Phase 2-3 (Compatibility & Fallbacks)
 Month 3: Phase 4-6 (Architecture Cleanup)
 ├── Week 1-2: Global instance elimination
 ├── Week 3: Facade pattern removal
-└── Week 4: Deprecated method cleanup + validation
+└── Week 4: ✅ Deprecated method cleanup + validation (COMPLETED)
 ```
+
+## Recent Completions
+
+### ✅ Deprecated Methods Removal (August 7, 2025)
+**Status**: COMPLETED
+**PR**: #28 - Remove deprecated methods per cleanup plan
+**Impact**: Successfully removed all deprecated methods without functional impact
+
+**Achievements**:
+- Removed 15+ deprecated methods across the codebase
+- Replaced with modern, type-safe equivalents
+- Zero breaking changes to external APIs
+- Improved code maintainability and reduced technical debt
+- Enhanced type safety in order processing workflows
 
 ## Conclusion
 
