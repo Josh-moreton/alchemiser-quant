@@ -398,10 +398,10 @@ class TestProductionMonitoring:
 
         # Test successful API calls
         with monitor.measure_api_call("test_api"):
-            result = slow_api_call()
+            _result = slow_api_call()
 
         with monitor.measure_api_call("test_api"):
-            result = fast_api_call()
+            _result = fast_api_call()
 
         # Test failed API call
         with pytest.raises(ConnectionError):

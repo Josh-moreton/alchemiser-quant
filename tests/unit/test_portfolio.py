@@ -70,7 +70,7 @@ class TestPortfolioRebalancing:
             portfolio_value, target_allocations, current_positions, current_cash
         )
 
-        expected_targets = {
+        {
             "AAPL": Decimal("80000.00"),  # 40% of 200k
             "GOOGL": Decimal("60000.00"),  # 30% of 200k
             "MSFT": Decimal("40000.00"),  # 20% of 200k

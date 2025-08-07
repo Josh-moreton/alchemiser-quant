@@ -281,9 +281,9 @@ class TradingSystemRegressionSuite:
                     self.values.append(value)
                     return sum(self.values[-self.period :]) / min(len(self.values), self.period)
 
-            SimpleMovingAverage = MockIndicator
-            ExponentialMovingAverage = MockIndicator
-            RelativeStrengthIndex = MockIndicator
+            simple_moving_average = MockIndicator
+            exponential_moving_average = MockIndicator
+            relative_strength_index = MockIndicator
 
         # Generate test data
         np.random.seed(42)  # Reproducible results
@@ -293,20 +293,20 @@ class TradingSystemRegressionSuite:
 
         # Test SMA performance
         start_time = time.time()
-        sma = SimpleMovingAverage(period=20)
-        sma_values = [sma.update(price) for price in prices]
+        sma = simple_moving_average(period=20)
+        _sma_values = [sma.update(price) for price in prices]
         sma_time = (time.time() - start_time) * 1000
 
         # Test EMA performance
         start_time = time.time()
-        ema = ExponentialMovingAverage(period=20)
-        ema_values = [ema.update(price) for price in prices]
+        ema = exponential_moving_average(period=20)
+        _ema_values = [ema.update(price) for price in prices]
         ema_time = (time.time() - start_time) * 1000
 
         # Test RSI performance
         start_time = time.time()
-        rsi = RelativeStrengthIndex(period=14)
-        rsi_values = [rsi.update(price) for price in prices]
+        rsi = relative_strength_index(period=14)
+        _rsi_values = [rsi.update(price) for price in prices]
         rsi_time = (time.time() - start_time) * 1000
 
         results.update(
@@ -414,7 +414,7 @@ class TradingSystemRegressionSuite:
                     "order_type": "market",
                 }
 
-                result = execution_engine.execute_order(order)
+                execution_engine.execute_order(order)
                 execution_time = (time.time() - start_time) * 1000
                 execution_times.append(execution_time)
 
@@ -460,7 +460,7 @@ class TradingSystemRegressionSuite:
 
         # Test stop loss calculation
         current_price = Decimal("155.00")
-        position_value = position_size * current_price
+        position_size * current_price
         stop_loss_distance = risk_manager.calculate_stop_loss_distance(
             entry_price=entry_price,
             current_price=current_price,

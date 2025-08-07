@@ -20,7 +20,7 @@ class ChaosTestFramework:
     @contextmanager
     def chaos_api_failures(failure_rate: float = 0.1):
         """Inject random API failures."""
-        original_request = None
+        _original_request = None
 
         def failing_request(*args, **kwargs):
             if random.random() < failure_rate:
@@ -289,7 +289,7 @@ class TestChaosEngineering:
 
         for _ in range(total_calls):
             try:
-                result = component.call_external_service()
+                _result = component.call_external_service()
             except Exception as e:
                 failure_count += 1
                 if "circuit breaker" in str(e).lower():
@@ -336,11 +336,11 @@ class TestChaosEngineering:
 
         # Test normal operation
         conn1 = resource_manager.acquire_connection()
-        conn2 = resource_manager.acquire_connection()
+        _conn2 = resource_manager.acquire_connection()
         assert resource_manager.get_connection_count() == 2
 
         # Test resource exhaustion
-        conn3 = resource_manager.acquire_connection()
+        _conn3 = resource_manager.acquire_connection()
         assert resource_manager.get_connection_count() == 3
 
         # Should fail when pool is exhausted
@@ -352,7 +352,7 @@ class TestChaosEngineering:
         assert resource_manager.get_connection_count() == 2
 
         # Should be able to acquire again after release
-        conn4 = resource_manager.acquire_connection()
+        _conn4 = resource_manager.acquire_connection()
         assert resource_manager.get_connection_count() == 3
 
     def test_data_corruption_resilience(self):

@@ -286,7 +286,7 @@ class TestStressConditions:
             operations_failed = 0
 
             try:
-                for i in range(100):  # Attempt 100 operations
+                for _i in range(100):  # Attempt 100 operations
                     try:
                         # Simulate portfolio calculation under memory pressure
                         portfolio_size = 1000
@@ -294,8 +294,8 @@ class TestStressConditions:
                         prices = np.random.uniform(50, 500, portfolio_size)
 
                         # Memory-intensive calculations
-                        portfolio_value = np.sum(positions * prices)
-                        portfolio_variance = np.var(positions * prices)
+                        _portfolio_value = np.sum(positions * prices)
+                        _portfolio_variance = np.var(positions * prices)
 
                         # Simulate indicator calculations
                         price_series = np.random.randn(1000).cumsum() + 100
@@ -469,7 +469,7 @@ class TestStressConditions:
                 strategy_signals = future.result()
                 all_signals.extend(strategy_signals)
 
-        actual_duration = time.time() - start_time
+        _actual_duration = time.time() - start_time
 
         # Collect performance statistics
         strategy_stats = [strategy.get_performance_stats() for strategy in strategies]

@@ -952,7 +952,7 @@ class TradingEngine:
                     estimated_value = order.get("estimated_value", 0)
                     try:
                         # Handle various types that estimated_value might be
-                        if isinstance(estimated_value, (int, float)):
+                        if isinstance(estimated_value, int | float):
                             actual_value = float(estimated_value)
                         elif isinstance(estimated_value, str):
                             actual_value = float(estimated_value)

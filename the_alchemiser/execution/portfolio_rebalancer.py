@@ -210,7 +210,7 @@ class PortfolioRebalancer:
                     except Exception as e:
                         logging.warning(f"Failed to track liquidation order {order_id}: {e}")
 
-                    liquidation_order_details = {
+                    _liquidation_order_details = {
                         "id": order_id,
                         "symbol": symbol,
                         "qty": abs(qty),
@@ -259,7 +259,7 @@ class PortfolioRebalancer:
                 except Exception as e:
                     logging.warning(f"Failed to track sell order {order_id}: {e}")
 
-                sell_order_details = {
+                _sell_order_details = {
                     "id": order_id,
                     "symbol": plan["symbol"],
                     "qty": plan["qty"],
@@ -431,7 +431,7 @@ class PortfolioRebalancer:
                 except Exception as e:
                     logging.warning(f"Failed to track buy order {order_id}: {e}")
 
-                buy_order_details = {
+                _buy_order_details = {
                     "id": order_id,
                     "symbol": symbol,
                     "qty": target_qty,  # Estimated quantity for display

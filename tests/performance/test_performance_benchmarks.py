@@ -164,7 +164,7 @@ class TestPerformanceBenchmarks:
         def calculate_portfolio_value(positions):
             """Calculate total portfolio value."""
             total_value = Decimal("0")
-            for symbol, position in positions.items():
+            for _symbol, position in positions.items():
                 market_value = position["quantity"] * position["current_price"]
                 total_value += market_value
             return total_value
@@ -172,7 +172,7 @@ class TestPerformanceBenchmarks:
         def calculate_portfolio_pnl(positions):
             """Calculate portfolio P&L."""
             total_pnl = Decimal("0")
-            for symbol, position in positions.items():
+            for _symbol, position in positions.items():
                 cost_basis = position["quantity"] * position["avg_price"]
                 market_value = position["quantity"] * position["current_price"]
                 pnl = market_value - cost_basis
@@ -259,7 +259,7 @@ class TestPerformanceBenchmarks:
                 data["volume_ma"] = data["volume"].rolling(10).mean()
 
                 # Calculate some statistics
-                stats = {
+                _stats = {
                     "mean_price": data["price"].mean(),
                     "std_price": data["price"].std(),
                     "max_volume": data["volume"].max(),
@@ -499,7 +499,7 @@ class TestConcurrentExecution:
             for symbol in symbols:
                 base_price = np.random.uniform(50, 500)
 
-                for i in range(data_points_per_symbol):
+                for _i in range(data_points_per_symbol):
                     data_point = {
                         "symbol": symbol,
                         "price": base_price + np.random.normal(0, 1),
@@ -766,7 +766,7 @@ class TestLoadTesting:
         num_iterations = 50
 
         for i in range(num_iterations):
-            result = create_and_process_data()
+            _result = create_and_process_data()
 
             # Force garbage collection
             gc.collect()

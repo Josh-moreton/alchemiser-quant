@@ -514,7 +514,7 @@ class TestErrorHandlingAndRecovery:
         for scenario_data in corrupted_data_scenarios:
             # Mock corrupted data response
             s3_client.get_object.return_value = {
-                "Body": Mock(read=lambda: scenario_data),
+                "Body": Mock(read=lambda data=scenario_data: data),
                 "ContentLength": len(scenario_data),
             }
 
@@ -536,7 +536,7 @@ class TestErrorHandlingAndRecovery:
 
             except (json.JSONDecodeError, ValueError, UnicodeDecodeError) as e:
                 # Trigger recovery mechanism
-                default_state = {
+                _default_state = {
                     "cash": Decimal("100000.00"),
                     "total_value": Decimal("100000.00"),
                     "positions": {},

@@ -394,7 +394,7 @@ class PortfolioBuilder:
             )
 
             # Debug: log what we have - keeping available_attrs for error handling
-            available_attrs = [attr for attr in dir(result) if not attr.startswith("_")]
+            _available_attrs = [attr for attr in dir(result) if not attr.startswith("_")]
 
             # Try different methods to get current positions data
             current_positions: dict[str, Any] = {}

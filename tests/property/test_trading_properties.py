@@ -62,7 +62,7 @@ class TestTradingMathProperties:
                 assert min(period_prices) <= sma <= max(period_prices)
 
                 # Property: SMA should be a Decimal/float
-                assert isinstance(sma, (Decimal, float))
+                assert isinstance(sma, Decimal | float)
 
                 # Property: SMA should be positive for positive prices
                 assert sma > 0
@@ -206,7 +206,7 @@ class TestTradingMathProperties:
             assert 0 <= rsi <= 100
 
             # Property: RSI should be a number
-            assert isinstance(rsi, (int, float, Decimal))
+            assert isinstance(rsi, int | float | Decimal)
 
             # Property: If all price changes are positive, RSI should be high
             changes = [prices[i] - prices[i - 1] for i in range(1, len(prices))]
@@ -316,7 +316,7 @@ class TestPortfolioMathProperties:
 
         def calculate_portfolio_value(position_list):
             total_value = Decimal("0")
-            for symbol, qty, price in position_list:
+            for _symbol, qty, price in position_list:
                 position_value = Decimal(str(qty)) * price
                 total_value += position_value
             return total_value

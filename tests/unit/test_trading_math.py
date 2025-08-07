@@ -270,8 +270,8 @@ class TestPortfolioMath:
         for daily_return in daily_returns:
             compound_factor *= Decimal("1.00") + daily_return
 
-        final_value = initial_value * compound_factor
-        total_return = compound_factor - Decimal("1.00")
+        initial_value * compound_factor
+        compound_factor - Decimal("1.00")
 
         # Verify calculation
         expected_factor = (
