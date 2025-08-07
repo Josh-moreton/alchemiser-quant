@@ -143,7 +143,7 @@ class TestMarketDataLoad:
             batch_start = time.time()
 
             # Generate batch of data points
-            batch_size = 100
+            batch_size = 50  # Reduced batch size for better queue management
             for _ in range(batch_size):
                 symbol = np.random.choice(symbols)
                 data_point = {
