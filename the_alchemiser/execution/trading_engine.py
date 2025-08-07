@@ -630,13 +630,57 @@ class TradingEngine:
 
     # --- Multi-Strategy Execution ---
     def execute_multi_strategy(self) -> MultiStrategyExecutionResult:
-        """Execute all strategies and rebalance portfolio with engine orchestration.
+        """Execute all strategies and rebalance portfolio with atomic execution.
+
+        Uses atomic execution framework to prevent race conditions and ensure
+        consistent state during multi-strategy execution.
 
         Returns:
             MultiStrategyExecutionResult with comprehensive execution details.
         """
-        logging.info("Initiating multi-strategy execution")
+        logging.info("🔒 Initiating atomic multi-strategy execution")
 
+        # Try atomic execution first (Critical Issue #3 fix)
+        try:
+            from .atomic_execution import AtomicMultiStrategyExecutor
+
+            atomic_executor = AtomicMultiStrategyExecutor(self)
+            result = atomic_executor.execute_strategies_atomically(
+                execution_id=f"engine_exec_{int(__import__('time').time())}"
+            )
+
+            if result["success"]:
+                logging.info("✅ Atomic execution completed successfully")
+
+                # Convert to expected result format
+                return MultiStrategyExecutionResult(
+                    success=True,
+                    strategy_signals=result["strategy_signals"],
+                    consolidated_portfolio=result["consolidated_portfolio"],
+                    orders_executed=result["orders_executed"],
+                    account_info_before=self.get_account_info(),
+                    account_info_after=result["account_info_after"],
+                    execution_summary=result["execution_summary"],
+                    final_portfolio_state=result.get("final_portfolio_state", {}),
+                )
+            else:
+                logging.warning("⚠️ Atomic execution failed, falling back to legacy execution")
+
+        except ImportError:
+            logging.warning("Atomic execution framework not available, using legacy execution")
+        except Exception as e:
+            logging.error(f"❌ Atomic execution failed: {e}, falling back to legacy execution")
+
+        # Fallback to legacy execution (maintains backward compatibility)
+        logging.info("🔄 Using legacy multi-strategy execution")
+        return self._legacy_execute_multi_strategy()
+
+    def _legacy_execute_multi_strategy(self) -> MultiStrategyExecutionResult:
+        """Legacy multi-strategy execution (original implementation).
+
+        This method maintains the original execution logic for backward compatibility.
+        It's used as a fallback when atomic execution is not available or fails.
+        """
         # Pre-execution validation
         try:
             account_info = self.get_account_info()
@@ -654,6 +698,51 @@ class TradingEngine:
                     execution_summary={"error": "Failed to retrieve account information"},
                     final_portfolio_state={},
                 )
+        except (DataProviderError, TradingClientError, ConfigurationError, ValueError) as e:
+            logging.error(f"Pre-execution validation failed: {e}")
+            return MultiStrategyExecutionResult(
+                success=False,
+                strategy_signals={},
+                consolidated_portfolio={},
+                orders_executed=[],
+                account_info_before=_create_default_account_info("pre_validation_error"),
+                account_info_after=_create_default_account_info("pre_validation_error"),
+                execution_summary={"error": f"Pre-execution validation failed: {e}"},
+                final_portfolio_state={},
+            )
+
+        try:
+            # Use composed multi-strategy executor
+            result = self._multi_strategy_executor.execute_multi_strategy()
+
+            # Engine-level post-processing
+            if result.success:
+                logging.info("Multi-strategy execution completed successfully")
+
+                # Add engine context to result
+                if result.execution_summary:
+                    result.execution_summary["engine_mode"] = (
+                        "paper" if self.paper_trading else "live"
+                    )
+                    result.execution_summary["market_hours_ignored"] = self.ignore_market_hours
+
+            else:
+                logging.warning("Multi-strategy execution completed with issues")
+
+            return result
+
+        except (StrategyExecutionError, Exception) as e:
+            logging.error(f"Multi-strategy execution failed: {e}")
+            return MultiStrategyExecutionResult(
+                success=False,
+                strategy_signals={},
+                consolidated_portfolio={},
+                orders_executed=[],
+                account_info_before=_create_default_account_info("execution_error"),
+                account_info_after=_create_default_account_info("execution_error"),
+                execution_summary={"error": f"Execution failed: {e}"},
+                final_portfolio_state={},
+            )
         except (DataProviderError, TradingClientError, ConfigurationError, ValueError) as e:
             logging.error(f"Pre-execution validation failed: {e}")
             return MultiStrategyExecutionResult(
