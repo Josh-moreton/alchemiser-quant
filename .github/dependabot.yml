@@ -1,0 +1,122 @@
+# Dependabot configuration for The Alchemiser Trading System
+# https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+
+version: 2
+updates:
+  # Python dependencies (Poetry)
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Europe/London"
+    open-pull-requests-limit: 5
+    target-branch: "main"
+    labels:
+      - "dependencies"
+      - "python"
+      - "security"
+    reviewers:
+      - "Josh-moreton"
+    assignees:
+      - "Josh-moreton"
+    commit-message:
+      prefix: "deps"
+      prefix-development: "deps-dev"
+      include: "scope"
+    # Group updates to reduce PR noise
+    groups:
+      # Core trading dependencies
+      trading-core:
+        patterns:
+          - "alpaca-py"
+          - "pandas"
+          - "numpy"
+          - "pydantic"
+      # Development dependencies
+      development:
+        patterns:
+          - "pytest*"
+          - "black"
+          - "ruff"
+          - "mypy"
+          - "pre-commit"
+      # AWS and infrastructure
+      aws-infrastructure:
+        patterns:
+          - "boto3"
+          - "botocore"
+          - "awscli"
+      # Minor updates
+      minor-patches:
+        update-types:
+          - "minor"
+          - "patch"
+    # Allow updates for dependencies
+    allow:
+      - dependency-type: "direct"
+      - dependency-type: "indirect"
+    # Ignore specific dependencies that need manual handling
+    ignore:
+      # Ignore major version updates for stable packages in production
+      - dependency-name: "pandas"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "numpy"
+        update-types: ["version-update:semver-major"]
+
+  # GitHub Actions dependencies
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "10:00"
+      timezone: "Europe/London"
+    open-pull-requests-limit: 3
+    target-branch: "main"
+    labels:
+      - "dependencies"
+      - "github-actions"
+      - "ci/cd"
+    reviewers:
+      - "Josh-moreton"
+    assignees:
+      - "Josh-moreton"
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+    # Group GitHub Actions updates
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+
+  # Docker dependencies (if any Dockerfiles exist)
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "tuesday"
+      time: "09:00"
+      timezone: "Europe/London"
+    open-pull-requests-limit: 2
+    target-branch: "main"
+    labels:
+      - "dependencies"
+      - "docker"
+      - "infrastructure"
+    reviewers:
+      - "Josh-moreton"
+    assignees:
+      - "Josh-moreton"
+    commit-message:
+      prefix: "docker"
+      include: "scope"
+
+# Security-focused configuration for a trading system
+# - Weekly updates to stay current with security patches
+# - Grouped updates to reduce PR noise while maintaining visibility
+# - Focused on trading-critical dependencies (alpaca-py, pandas, etc.)
+# - Ignores major version updates for stable production dependencies
+# - Includes GitHub Actions and Docker for complete CI/CD coverage
