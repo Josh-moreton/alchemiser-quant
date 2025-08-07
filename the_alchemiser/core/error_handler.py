@@ -10,6 +10,7 @@ import logging
 import random
 import time
 import traceback
+import uuid
 from collections import defaultdict
 from collections.abc import Callable
 from datetime import datetime
@@ -32,7 +33,52 @@ from .exceptions import (
 )
 
 # ✅ Phase 14 - Error handler types enabled
-from .types import ErrorDetailInfo, ErrorReportSummary
+from .types import ErrorDetailInfo, ErrorNotificationData, ErrorReportSummary
+
+
+class ErrorSeverity:
+    """Error severity levels for production monitoring."""
+
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    CRITICAL = "critical"
+
+
+class ErrorContext:
+    """Standardized error context for all error reporting."""
+
+    def __init__(
+        self,
+        operation: str,
+        component: str,
+        function_name: str | None = None,
+        request_id: str | None = None,
+        user_id: str | None = None,
+        session_id: str | None = None,
+        additional_data: dict[str, Any] | None = None,
+    ):
+        self.operation = operation
+        self.component = component
+        self.function_name = function_name
+        self.request_id = request_id
+        self.user_id = user_id
+        self.session_id = session_id
+        self.additional_data = additional_data or {}
+        self.timestamp = datetime.now()
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert context to dictionary for serialization."""
+        return {
+            "operation": self.operation,
+            "component": self.component,
+            "function_name": self.function_name,
+            "request_id": self.request_id,
+            "user_id": self.user_id,
+            "session_id": self.session_id,
+            "additional_data": self.additional_data,
+            "timestamp": self.timestamp.isoformat(),
+        }
 
 
 class ErrorCategory:
@@ -56,9 +102,7 @@ class ErrorDetails:
         category: str,
         context: str,
         component: str,
-        additional_data: (
-            dict[str, Any] | None
-        ) = None,  # ✅ Phase 14 - Compatible with ErrorDetailInfo
+        additional_data: dict[str, Any] | None = None,
         suggested_action: str | None = None,
     ):
         """Store detailed error information."""
@@ -85,6 +129,62 @@ class ErrorDetails:
             "additional_data": self.additional_data,
             "suggested_action": self.suggested_action,
         }
+
+
+class EnhancedAlchemiserError(AlchemiserError):
+    """Enhanced base exception with production monitoring support."""
+
+    def __init__(
+        self,
+        message: str,
+        context: ErrorContext | None = None,
+        severity: str = ErrorSeverity.MEDIUM,
+        recoverable: bool = True,
+        retry_count: int = 0,
+        max_retries: int = 3,
+    ):
+        super().__init__(message)
+        self.context = context
+        self.severity = severity
+        self.recoverable = recoverable
+        self.retry_count = retry_count
+        self.max_retries = max_retries
+        self.error_id = str(uuid.uuid4())
+        self.original_message = message
+
+    def should_retry(self) -> bool:
+        """Determine if error should be retried."""
+        return self.recoverable and self.retry_count < self.max_retries
+
+    def get_retry_delay(self) -> float:
+        """Get exponential backoff delay for retries."""
+        return min(2.0**self.retry_count, 60.0)  # Max 60 seconds
+
+    def increment_retry(self) -> "EnhancedAlchemiserError":
+        """Create a new instance with incremented retry count."""
+        return self.__class__(
+            message=self.original_message,
+            context=self.context,
+            severity=self.severity,
+            recoverable=self.recoverable,
+            retry_count=self.retry_count + 1,
+            max_retries=self.max_retries,
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert exception to structured data for logging/reporting."""
+        base_dict = super().to_dict()
+        base_dict.update(
+            {
+                "error_id": self.error_id,
+                "severity": self.severity,
+                "recoverable": self.recoverable,
+                "retry_count": self.retry_count,
+                "max_retries": self.max_retries,
+                "context": self.context.to_dict() if self.context else None,
+            }
+        )
+        return base_dict
 
 
 class TradingSystemErrorHandler:
@@ -159,9 +259,7 @@ class TradingSystemErrorHandler:
         error: Exception,
         context: str,
         component: str,
-        additional_data: (
-            dict[str, Any] | None
-        ) = None,  # ✅ Phase 14 - Compatible with ErrorDetailInfo
+        additional_data: dict[str, Any] | None = None,
         should_continue: bool = True,  # noqa: ARG002
     ) -> ErrorDetails:
         """Handle an error with detailed logging and categorization."""
@@ -351,6 +449,70 @@ class TradingSystemErrorHandler:
         self.errors.clear()
 
 
+# Enhanced Trading-Specific Exceptions
+
+
+class EnhancedTradingError(EnhancedAlchemiserError):
+    """Enhanced trading error with position and order context."""
+
+    def __init__(
+        self,
+        message: str,
+        symbol: str | None = None,
+        order_id: str | None = None,
+        quantity: float | None = None,
+        price: float | None = None,
+        **kwargs,
+    ):
+        super().__init__(message, **kwargs)
+        self.symbol = symbol
+        self.order_id = order_id
+        self.quantity = quantity
+        self.price = price
+
+    def to_dict(self) -> dict[str, Any]:
+        """Include trading-specific context in serialization."""
+        base_dict = super().to_dict()
+        base_dict.update(
+            {
+                "symbol": self.symbol,
+                "order_id": self.order_id,
+                "quantity": self.quantity,
+                "price": self.price,
+            }
+        )
+        return base_dict
+
+
+class EnhancedDataError(EnhancedAlchemiserError):
+    """Enhanced data error with data source context."""
+
+    def __init__(
+        self,
+        message: str,
+        data_source: str | None = None,
+        data_type: str | None = None,
+        symbol: str | None = None,
+        **kwargs,
+    ):
+        super().__init__(message, **kwargs)
+        self.data_source = data_source
+        self.data_type = data_type
+        self.symbol = symbol
+
+    def to_dict(self) -> dict[str, Any]:
+        """Include data-specific context in serialization."""
+        base_dict = super().to_dict()
+        base_dict.update(
+            {
+                "data_source": self.data_source,
+                "data_type": self.data_type,
+                "symbol": self.symbol,
+            }
+        )
+        return base_dict
+
+
 # Global error handler instance
 _error_handler = TradingSystemErrorHandler()
 
@@ -364,15 +526,13 @@ def handle_trading_error(
     error: Exception,
     context: str,
     component: str,
-    additional_data: dict[str, Any] | None = None,  # ✅ Phase 14 - Compatible with ErrorDetailInfo
+    additional_data: dict[str, Any] | None = None,
 ) -> ErrorDetails:
     """Convenience function to handle errors in trading operations."""
     return _error_handler.handle_error(error, context, component, additional_data)
 
 
-def send_error_notification_if_needed() -> (
-    None
-):  # ✅ Phase 14 - Returns None for now, ErrorNotificationData in future
+def send_error_notification_if_needed() -> ErrorNotificationData | None:
     """Send error notification email if there are errors that warrant it."""
     if not _error_handler.should_send_error_email():
         return
@@ -407,13 +567,25 @@ def send_error_notification_if_needed() -> (
             text_content=error_report,
         )
 
+        # Create notification data
+        notification_data = ErrorNotificationData(
+            severity=severity,
+            priority=priority,
+            title=f"[{priority}] The Alchemiser - {severity} Error Report",
+            error_report=error_report,
+            html_content=html_content,
+        )
+
         if success:
             logging.info("Error notification email sent successfully")
+            return notification_data
         else:
             logging.error("Failed to send error notification email")
+            return notification_data
 
     except Exception as e:
         logging.error(f"Failed to send error notification: {e}")
+        return None
 
 
 # Enhanced Error Handling Utilities for Production Resilience
@@ -724,3 +896,77 @@ def handle_errors_with_retry(
         return wrapper
 
     return decorator
+
+
+# Phase 1 Enhancement: Error Context and Utility Functions
+
+
+def create_error_context(
+    operation: str,
+    component: str,
+    function_name: str | None = None,
+    **kwargs,
+) -> ErrorContext:
+    """Factory function to create standardized error context."""
+    return ErrorContext(
+        operation=operation,
+        component=component,
+        function_name=function_name,
+        **kwargs,
+    )
+
+
+def handle_error_with_context(
+    error: Exception,
+    context: ErrorContext,
+    should_continue: bool = True,
+) -> ErrorDetails:
+    """Handle error with structured context."""
+    return _error_handler.handle_error(
+        error=error,
+        context=context.operation,
+        component=context.component,
+        additional_data=context.to_dict(),
+        should_continue=should_continue,
+    )
+
+
+def categorize_error_severity(error: Exception) -> str:
+    """Categorize error severity for monitoring."""
+    if isinstance(error, InsufficientFundsError):
+        return ErrorSeverity.HIGH
+    elif isinstance(error, OrderExecutionError | PositionValidationError):
+        return ErrorSeverity.HIGH
+    elif isinstance(error, MarketDataError | DataProviderError):
+        return ErrorSeverity.MEDIUM
+    elif isinstance(error, StrategyExecutionError):
+        return ErrorSeverity.MEDIUM
+    elif isinstance(error, ConfigurationError):
+        return ErrorSeverity.HIGH
+    elif isinstance(error, NotificationError):
+        return ErrorSeverity.LOW
+    elif isinstance(error, AlchemiserError):
+        return ErrorSeverity.CRITICAL
+    else:
+        return ErrorSeverity.MEDIUM
+
+
+def create_enhanced_error(
+    error_type: type[EnhancedAlchemiserError],
+    message: str,
+    context: ErrorContext | None = None,
+    severity: str | None = None,
+    **kwargs,
+) -> EnhancedAlchemiserError:
+    """Factory function to create enhanced errors with proper context."""
+    if severity is None:
+        # Auto-determine severity based on error type
+        temp_error = error_type(message)
+        severity = categorize_error_severity(temp_error)
+
+    return error_type(
+        message=message,
+        context=context,
+        severity=severity,
+        **kwargs,
+    )
