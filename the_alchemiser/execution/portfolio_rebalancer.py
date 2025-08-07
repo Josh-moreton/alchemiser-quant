@@ -210,7 +210,7 @@ class PortfolioRebalancer:
                     except Exception as e:
                         logging.warning(f"Failed to track liquidation order {order_id}: {e}")
 
-                    _liquidation_order_details = {
+                    order_details = {
                         "id": order_id,
                         "symbol": symbol,
                         "qty": abs(qty),
@@ -259,7 +259,7 @@ class PortfolioRebalancer:
                 except Exception as e:
                     logging.warning(f"Failed to track sell order {order_id}: {e}")
 
-                _sell_order_details = {
+                order_details = {
                     "id": order_id,
                     "symbol": plan["symbol"],
                     "qty": plan["qty"],
@@ -359,7 +359,7 @@ class PortfolioRebalancer:
                 f"Account info: cash=${account_info.get('cash', 0):.2f}, buying_power=${account_info.get('buying_power', 0):.2f}"
             )
 
-            if available_cash <= 1.0:  # Less than $1 left
+            if available_cash <= 10.0:  # Less than $10 left (increased buffer)
                 logging.warning(
                     f"Insufficient buying power (${available_cash:.2f}) for {plan['symbol']}, skipping remaining orders"
                 )
@@ -372,7 +372,7 @@ class PortfolioRebalancer:
             estimated_cost = target_qty * price
 
             # Always use notional orders for buy orders to avoid insufficient buying power issues
-            # Use the minimum of: target dollar amount or available cash (with small buffer)
+            # Use the minimum of: target dollar amount or available cash (with larger buffer for safety)
             logging.info(
                 f"Order calculation for {symbol}: estimated_cost=${estimated_cost:.2f}, available_cash=${available_cash:.2f}"
             )
@@ -388,10 +388,18 @@ class PortfolioRebalancer:
             logging.debug(f"{symbol} target_value from buy plan: ${target_value:.2f}")
             logging.debug(f"{symbol} available_cash: ${available_cash:.2f}")
 
-            # Use the target value from the rebalance plan, but limit to available cash
+            # Use the target value from the rebalance plan, but limit to available cash with larger buffer
             target_dollar_amount = min(
-                target_value, available_cash * 0.99
-            )  # 99% to leave small buffer
+                target_value, available_cash * 0.95  # 95% to leave larger buffer for safety
+            )
+
+            # Additional safety check - if the order is still too large, skip it
+            if target_dollar_amount > available_cash * 0.95:
+                logging.warning(
+                    f"Skipping {symbol} order: target=${target_dollar_amount:.2f} exceeds safe limit of ${available_cash * 0.95:.2f}"
+                )
+                continue
+
             logging.debug(
                 f"DEBUG: Final target_dollar_amount for {symbol}: ${target_dollar_amount:.2f}"
             )  # Get bid/ask for display
@@ -431,7 +439,7 @@ class PortfolioRebalancer:
                 except Exception as e:
                     logging.warning(f"Failed to track buy order {order_id}: {e}")
 
-                _buy_order_details = {
+                order_details = {
                     "id": order_id,
                     "symbol": symbol,
                     "qty": target_qty,  # Estimated quantity for display
@@ -454,7 +462,7 @@ class PortfolioRebalancer:
                 # Update order details with actual filled information
                 try:
                     # Get the actual order from API to get filled data
-                    actual_order = self.bot.order_manager.get_order_by_id(order_id)
+                    actual_order = self.order_manager.get_order_by_id(order_id)
                     if actual_order:
                         order_details["filled_qty"] = float(getattr(actual_order, "filled_qty", 0))
                         filled_price = getattr(actual_order, "filled_avg_price", None)
