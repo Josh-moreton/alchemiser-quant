@@ -44,7 +44,10 @@ Example:
 
 import logging
 import time
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from the_alchemiser.execution.order_validation import ValidatedOrder
 
 from alpaca.trading.client import TradingClient
 from alpaca.trading.enums import OrderSide
@@ -119,10 +122,40 @@ class AlpacaClient:
     def get_pending_orders(self) -> list[dict[str, Any]]:
         """Get all pending orders from Alpaca.
 
+        DEPRECATED: This function returns raw dict structures.
+        Consider using get_pending_orders_validated() for type safety.
+
         Returns:
             List of pending order information dictionaries.
         """
         return self.position_manager.get_pending_orders()
+
+    def get_pending_orders_validated(self) -> list["ValidatedOrder"]:
+        """
+        Get all pending orders from Alpaca with type safety.
+
+        Returns:
+            List of ValidatedOrder instances for type-safe order handling.
+        """
+        try:
+            from the_alchemiser.execution.order_validation import convert_legacy_orders
+
+            # Get raw orders from position manager
+            raw_orders = self.position_manager.get_pending_orders()
+
+            # Convert to validated orders with error handling
+            validated_orders = convert_legacy_orders(raw_orders)
+
+            self.logger.info(
+                f"📋 Retrieved {len(validated_orders)} validated pending orders "
+                f"(from {len(raw_orders)} raw orders)"
+            )
+
+            return validated_orders
+
+        except Exception as e:
+            self.logger.error(f"Failed to get validated pending orders: {e}")
+            return []
 
     def cancel_all_orders(self, symbol: str | None = None) -> bool:
         """
