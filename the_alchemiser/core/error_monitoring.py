@@ -9,12 +9,11 @@ This module implements Phase 3 of the error handling enhancement plan:
 """
 
 import logging
+import statistics
 from collections import defaultdict, deque
 from datetime import datetime, timedelta
 from enum import Enum
 from typing import Any
-
-import numpy as np
 
 from .error_handler import ErrorContext, ErrorSeverity
 
@@ -247,7 +246,7 @@ class AlertThresholdManager:
                 return self.static_thresholds.get(metric_name, 1.0)
 
             # Calculate baseline using 95th percentile
-            baseline = np.percentile(recent_values, 95)
+            baseline = statistics.quantiles(recent_values, n=20)[18]  # Approximates 95th percentile
 
             # Apply multiplier for alert threshold
             multiplier = self.threshold_multipliers.get(metric_name, 2.0)
