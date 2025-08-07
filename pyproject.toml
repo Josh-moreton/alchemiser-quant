@@ -136,6 +136,9 @@ warn_unreachable = true
 strict_equality = true
 extra_checks = true  # Updated from strict_concatenate
 
+# Only check specific directories
+files = ["the_alchemiser", "tests"]
+
 # Type checking strictness - Phase 16c: Progressive enablement
 disallow_any_generics = true
 disallow_subclassing_any = true

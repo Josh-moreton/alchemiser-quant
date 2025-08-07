@@ -32,8 +32,8 @@ class OrderCompletionMonitor:
         self.console = Console()
 
         # WebSocket connection state
-        self._websocket_stream = None
-        self._websocket_thread = None
+        self._websocket_stream: Any = None
+        self._websocket_thread: threading.Thread | None = None
 
     def wait_for_order_completion(
         self,
@@ -237,12 +237,7 @@ class OrderCompletionMonitor:
                         stream_stopped = True
 
         # Try to use existing WebSocket connection first
-        if (
-            hasattr(self, "_websocket_stream")
-            and hasattr(self, "_websocket_thread")
-            and self._websocket_stream is not None
-            and self._websocket_thread is not None
-        ):
+        if self._websocket_stream is not None and self._websocket_thread is not None:
             return self._use_existing_websocket(
                 on_update, remaining, completed, max_wait_seconds
             )  # TODO: Phase 7 - Return type updated to WebSocketResult
@@ -253,15 +248,18 @@ class OrderCompletionMonitor:
         )
 
     def _use_existing_websocket(
-        self, on_update, remaining, completed, max_wait_seconds
-    ):  # TODO: Phase 7 - Migrate to return WebSocketResult
+        self,
+        on_update: Any,
+        remaining: set[str],
+        completed: dict[str, str],
+        max_wait_seconds: int,
+    ) -> dict[str, str]:  # TODO: Phase 7 - Migrate to return WebSocketResult
         """Use pre-connected WebSocket stream."""
         logging.info("🎯 Using pre-connected WebSocket stream")
 
         try:
-            if self._websocket_stream is not None:
-                self._websocket_stream.subscribe_trade_updates(on_update)
-                logging.info("✅ Subscribed to trade updates on pre-connected stream")
+            self._websocket_stream.subscribe_trade_updates(on_update)
+            logging.info("✅ Subscribed to trade updates on pre-connected stream")
 
             # Wait for orders to complete
             start_time = time.time()
@@ -289,8 +287,13 @@ class OrderCompletionMonitor:
             )
 
     def _create_new_websocket(
-        self, on_update, remaining, completed, max_wait_seconds, order_ids
-    ):  # TODO: Phase 7 - Migrate to return WebSocketResult
+        self,
+        on_update: Any,
+        remaining: set[str],
+        completed: dict[str, str],
+        max_wait_seconds: int,
+        order_ids: list[str],
+    ) -> dict[str, str]:  # TODO: Phase 7 - Migrate to return WebSocketResult
         """Create new WebSocket connection."""
         api_key = self.api_key or getattr(self.trading_client, "_api_key", None)
         secret_key = self.secret_key or getattr(self.trading_client, "_secret_key", None)
@@ -362,7 +365,7 @@ class OrderCompletionMonitor:
             stream = TradingStream(str(api_key), str(secret_key), paper=paper)
 
             # Dummy handler for trade updates
-            async def dummy_handler(data):
+            async def dummy_handler(data: Any) -> None:
                 """Log WebSocket messages during initial connection setup."""
 
                 if logging.getLogger().level <= logging.DEBUG:
@@ -390,17 +393,17 @@ class OrderCompletionMonitor:
 
     def cleanup_websocket_connection(self) -> None:
         """Clean up any existing WebSocket connection."""
-        if hasattr(self, "_websocket_stream") and self._websocket_stream is not None:
+        if self._websocket_stream is not None:
             try:
                 self._websocket_stream.stop()
             except Exception:
                 pass
-            delattr(self, "_websocket_stream")
+            self._websocket_stream = None
 
-        if hasattr(self, "_websocket_thread") and self._websocket_thread is not None:
+        if self._websocket_thread is not None:
             try:
                 if self._websocket_thread.is_alive():
                     self._websocket_thread.join(timeout=1.0)
             except Exception:
                 pass
-            delattr(self, "_websocket_thread")
+            self._websocket_thread = None

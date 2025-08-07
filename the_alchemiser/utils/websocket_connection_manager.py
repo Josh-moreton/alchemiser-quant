@@ -32,8 +32,8 @@ class WebSocketConnectionManager:
         self.console = Console()
 
         # WebSocket connection state
-        self._websocket_stream = None
-        self._websocket_thread = None
+        self._websocket_stream: Any = None
+        self._websocket_thread: threading.Thread | None = None
 
     def prepare_websocket_connection(self) -> bool:
         """

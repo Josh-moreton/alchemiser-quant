@@ -23,7 +23,7 @@ class LimitOrderHandler:
     Handles limit order placement with smart asset-specific logic.
     """
 
-    def __init__(self, trading_client, position_manager, asset_handler) -> None:
+    def __init__(self, trading_client: Any, position_manager: Any, asset_handler: Any) -> None:
         """Initialize with required dependencies."""
         self.trading_client = trading_client
         self.position_manager = position_manager
@@ -96,13 +96,16 @@ class LimitOrderHandler:
             return self._submit_with_fallback(symbol, limit_order_data, qty, side, limit_price)
 
         except (TradingClientError, DataProviderError) as e:
-            self.error_handler.log_error_with_context(
-                e,
-                operation="limit_order_create",
-                symbol=symbol,
-                quantity=qty,
-                side=side.value,
-                limit_price=limit_price,
+            self.error_handler.handle_error(
+                error=e,
+                context="limit_order_create",
+                component="LimitOrderHandler.place_limit_order",
+                additional_data={
+                    "symbol": symbol,
+                    "quantity": qty,
+                    "side": side.value,
+                    "limit_price": limit_price,
+                },
             )
             return None
 
@@ -216,13 +219,16 @@ class LimitOrderHandler:
                 return order_id
 
             except TradingClientError as fallback_error:
-                self.error_handler.log_error_with_context(
-                    fallback_error,
-                    operation="limit_order_fallback",
-                    symbol=symbol,
-                    quantity=whole_qty,
-                    side=side.value,
-                    limit_price=limit_price,
+                self.error_handler.handle_error(
+                    error=fallback_error,
+                    context="limit_order_fallback",
+                    component="LimitOrderHandler._submit_with_fallback",
+                    additional_data={
+                        "symbol": symbol,
+                        "quantity": whole_qty,
+                        "side": side.value,
+                        "limit_price": limit_price,
+                    },
                 )
                 return None
         else:

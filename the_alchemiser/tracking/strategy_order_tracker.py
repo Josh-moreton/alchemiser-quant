@@ -133,7 +133,7 @@ class StrategyPnL:
 class StrategyOrderTracker:
     """Dedicated component for tracking orders and P&L by strategy."""
 
-    def __init__(self, config=None, paper_trading=True) -> None:
+    def __init__(self, config: Any = None, paper_trading: bool = True) -> None:
         """Initialize tracker with S3 configuration.
 
         Args:
@@ -162,7 +162,7 @@ class StrategyOrderTracker:
             f"StrategyOrderTracker initialized with S3 persistence ({mode_str} trading mode)"
         )
 
-    def _setup_s3_paths(self):
+    def _setup_s3_paths(self) -> None:
         """Set up S3 paths for data persistence."""
         tracking_config = self.config.tracking if self.config else None
 

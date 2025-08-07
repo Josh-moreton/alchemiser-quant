@@ -50,7 +50,7 @@ class KLMStrategyEnsemble:
     4. Returns the best strategy's recommendation
     """
 
-    def __init__(self, data_provider=None) -> None:
+    def __init__(self, data_provider: Any = None) -> None:
         if data_provider is None:
             raise ValueError("data_provider is required for KLMStrategyEnsemble")
 
@@ -198,8 +198,16 @@ class KLMStrategyEnsemble:
 
                 results.append((variant, result, performance))
 
+                # Format symbol/allocation for logging
+                try:
+                    if isinstance(result[0], dict):
+                        symbol_str = f"allocation:{len(result[0])} symbols"
+                    else:
+                        symbol_str = str(result[0])
+                except (IndexError, TypeError):
+                    symbol_str = "unknown"
                 self.logger.debug(
-                    f"Variant {variant.name}: {result[0]} (performance: {performance:.4f})"
+                    f"Variant {variant.name}: {symbol_str} (performance: {performance:.4f})"
                 )
 
             except Exception as e:

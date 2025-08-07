@@ -208,8 +208,6 @@ class RealTimePricingService:
                 if self._should_reconnect:
                     logging.info("🔄 Reconnecting in 10 seconds...")
                     time.sleep(10)
-                else:
-                    break
 
     async def _on_quote(self, quote: Quote | dict[str, Any]) -> None:
         """Handle incoming quote updates."""

@@ -77,8 +77,8 @@ class MultiStrategyManager:
     def __init__(
         self,
         strategy_allocations: dict[StrategyType, float] | None = None,
-        shared_data_provider=None,
-        config=None,
+        shared_data_provider: Any = None,
+        config: Any = None,
     ):
         """
         Initialize multi-strategy manager
@@ -603,7 +603,7 @@ class MultiStrategyManager:
 
     def _update_position_tracking(
         self, strategy_signals: dict[StrategyType, Any], consolidated_portfolio: dict[str, float]
-    ):
+    ) -> None:
         """
         Update position tracking with current strategy positions
 

@@ -94,7 +94,7 @@ class StrategyRegistry:
         }
 
     @classmethod
-    def create_strategy_engine(cls, strategy_type: StrategyType, **kwargs) -> Any:
+    def create_strategy_engine(cls, strategy_type: StrategyType, **kwargs: Any) -> Any:
         """Create a strategy engine instance.
 
         Args:

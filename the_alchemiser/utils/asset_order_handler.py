@@ -10,6 +10,7 @@ and fallback strategies.
 
 import logging
 from decimal import ROUND_DOWN, Decimal
+from typing import Any
 
 from alpaca.trading.enums import OrderSide, TimeInForce
 from alpaca.trading.requests import MarketOrderRequest
@@ -25,7 +26,7 @@ class AssetOrderHandler:
     Handles asset-specific order logic including fractionability and conversions.
     """
 
-    def __init__(self, data_provider) -> None:
+    def __init__(self, data_provider: Any) -> None:
         """Initialize with data provider for price fetching."""
         self.data_provider = data_provider
 

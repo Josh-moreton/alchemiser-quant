@@ -116,7 +116,11 @@ class SmartExecution:
     """
 
     def __init__(
-        self, trading_client, data_provider, ignore_market_hours=False, config=None
+        self,
+        trading_client: Any,
+        data_provider: Any,
+        ignore_market_hours: bool = False,
+        config: Any = None,
     ) -> None:
         """Initialize with order executor dependency injection."""
 
@@ -476,7 +480,14 @@ class SmartExecution:
         return round(price / tick_size) * tick_size
 
     def _execute_aggressive_limit_sequence(
-        self, symbol: str, qty: float, side: OrderSide, bid: float, ask: float, strategy, console
+        self,
+        symbol: str,
+        qty: float,
+        side: OrderSide,
+        bid: float,
+        ask: float,
+        strategy: Any,
+        console: Any,
     ) -> str | None:
         """
         Execute the aggressive marketable limit sequence with re-pegging.

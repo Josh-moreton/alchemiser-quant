@@ -36,7 +36,7 @@ warnings.filterwarnings("ignore")
 class KLMStrategyEngine:
     """KLM Strategy Engine - Orchestrates data, indicators, and strategy logic"""
 
-    def __init__(self, data_provider=None) -> None:
+    def __init__(self, data_provider: Any = None) -> None:
         if data_provider is None:
             raise ValueError("data_provider is required for KLMStrategyEngine")
         self.data_provider = data_provider
@@ -74,7 +74,9 @@ class KLMStrategyEngine:
                 logging.warning(f"Could not fetch data for {symbol}")
         return market_data
 
-    def safe_get_indicator(self, data, indicator_func, *args, **kwargs):
+    def safe_get_indicator(
+        self, data: Any, indicator_func: Any, *args: Any, **kwargs: Any
+    ) -> float:
         """Safely get indicator value, logging exceptions to surface data problems."""
         try:
             result = indicator_func(data, *args, **kwargs)
@@ -89,7 +91,9 @@ class KLMStrategyEngine:
             logging.error(f"Exception in safe_get_indicator for {indicator_func.__name__}: {e}")
             return 50.0
 
-    def calculate_indicators(self, market_data):
+    def calculate_indicators(
+        self, market_data: dict[str, pd.DataFrame]
+    ) -> dict[str, dict[str, float]]:
         """Calculate all technical indicators needed for KLM strategy"""
         indicators = {}
         for symbol, df in market_data.items():
@@ -104,7 +108,11 @@ class KLMStrategyEngine:
             }
         return indicators
 
-    def evaluate_klm_strategy(self, indicators, market_data=None):
+    def evaluate_klm_strategy(
+        self,
+        indicators: dict[str, dict[str, float]],
+        market_data: dict[str, pd.DataFrame] | None = None,
+    ) -> tuple[str | dict[str, float], str, str]:
         """
         Evaluate the KLM strategy using the ensemble approach.
         Returns: (recommended_symbol, action, reason)
@@ -118,13 +126,20 @@ class KLMStrategyEngine:
 class KLMTradingBot:
     """KLM Quantitative Trading Engine"""
 
-    def __init__(self, data_provider=None) -> None:
+    def __init__(self, data_provider: Any = None) -> None:
         if data_provider is None:
             data_provider = UnifiedDataProvider(paper_trading=True)
 
         self.strategy = KLMStrategyEngine(data_provider=data_provider)
 
-    def handle_klm_signal(self, symbol, action, reason, indicators, market_data):
+    def handle_klm_signal(
+        self,
+        symbol: str | dict[str, float],
+        action: str,
+        reason: str,
+        indicators: dict[str, dict[str, float]],
+        market_data: dict[str, pd.DataFrame],
+    ) -> list[Alert]:
         """Handle KLM strategy signal and convert to Alert objects"""
         alerts = []
         current_time = dt.datetime.now()
@@ -164,7 +179,7 @@ class KLMTradingBot:
 
         return alerts
 
-    def run_analysis(self):
+    def run_analysis(self) -> list[Alert] | None:
         """Run complete KLM strategy analysis"""
         logging.info("Starting KLM strategy analysis...")
 
@@ -189,7 +204,7 @@ class KLMTradingBot:
         logging.info(f"Analysis complete: {action} {symbol} - {reason}")
         return alerts
 
-    def run_once(self) -> None:
+    def run_once(self) -> list[Alert] | None:
         """Run analysis once"""
         try:
             logging.info("🧪 Starting KLM Energy Strategy Analysis")
@@ -197,7 +212,7 @@ class KLMTradingBot:
 
             if not alerts:
                 logging.error("No alerts generated")
-                return
+                return []
 
             # Display results
             if len(alerts) > 1:
