@@ -1,12 +1,16 @@
 """Position domain models."""
 
-from dataclasses import dataclass
+from dataclasses import (
+    dataclass,
+)  # TODO(PYDANTIC-MIGRATION): Convert PositionModel to Pydantic BaseModel (frozen) with validators (e.g., qty >=0, side enum) and computed properties retained.
 from typing import Literal
 
 from the_alchemiser.core.types import PositionInfo
 
 
-@dataclass(frozen=True)
+@dataclass(
+    frozen=True
+)  # TODO(PYDANTIC-MIGRATION): Replace with PositionModel(BaseModel) and move float(...) coercions to validators.
 class PositionModel:
     """Immutable position model."""
 

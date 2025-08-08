@@ -1,12 +1,16 @@
 """Strategy domain models."""
 
-from dataclasses import dataclass
+from dataclasses import (
+    dataclass,
+)  # TODO(PYDANTIC-MIGRATION): Convert Strategy* models to Pydantic BaseModel for validation (e.g. confidence range 0-1) & enums for action.
 from typing import Literal
 
 from the_alchemiser.core.types import StrategyPositionData, StrategySignal
 
 
-@dataclass(frozen=True)
+@dataclass(
+    frozen=True
+)  # TODO(PYDANTIC-MIGRATION): Replace with StrategySignalModel(BaseModel) with action Enum and confidence validators.
 class StrategySignalModel:
     """Immutable strategy signal model."""
 
@@ -68,7 +72,9 @@ class StrategySignalModel:
             return "LOW"
 
 
-@dataclass(frozen=True)
+@dataclass(
+    frozen=True
+)  # TODO(PYDANTIC-MIGRATION): Replace with StrategyPositionModel(BaseModel) and validate non-zero entry_price for percentage calculations.
 class StrategyPositionModel:
     """Immutable strategy position model."""
 

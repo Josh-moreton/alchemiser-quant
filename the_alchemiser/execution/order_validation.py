@@ -281,7 +281,9 @@ class ValidatedOrder(BaseModel):
         return float((self.filled_qty / self.quantity) * 100)
 
 
-@dataclass(frozen=True)
+@dataclass(
+    frozen=True
+)  # TODO(PYDANTIC-MIGRATION): Consider converting RiskLimits to Pydantic BaseModel for validation & ENV overrides.
 class RiskLimits:
     """Risk limits for order validation."""
 
@@ -292,7 +294,7 @@ class RiskLimits:
     max_daily_trades: int = 100  # Max trades per day
 
 
-@dataclass
+@dataclass  # TODO(PYDANTIC-MIGRATION): Could be Pydantic model with custom root validator to aggregate errors.
 class ValidationResult:
     """Result of order validation."""
 
@@ -448,7 +450,7 @@ class OrderValidator:
             raise OrderValidationError(f"Failed to create validated order: {e}")
 
 
-@dataclass
+@dataclass  # TODO(PYDANTIC-MIGRATION): Consider SettlementResult(BaseModel) if additional validation or serialization needed.
 class SettlementResult:
     """Result of order settlement tracking."""
 

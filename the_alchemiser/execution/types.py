@@ -1,6 +1,8 @@
 """Type definitions for the execution package."""
 
-from dataclasses import dataclass
+from dataclasses import (
+    dataclass,
+)  # TODO(PYDANTIC-MIGRATION): Evaluate converting MultiStrategyExecutionResult to Pydantic BaseModel (immutable) OR revert to ExecutionResult TypedDict if only a passive record. Add field type refinements for execution_summary/final_portfolio_state.
 from typing import Any
 
 from the_alchemiser.core.trading.strategy_manager import StrategyType

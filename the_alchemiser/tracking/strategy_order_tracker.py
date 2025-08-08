@@ -34,7 +34,7 @@ from ..core.exceptions import DataProviderError, StrategyExecutionError
 # from ..core.types import OrderHistoryData, EmailSummary
 
 
-@dataclass
+@dataclass  # TODO(PYDANTIC-MIGRATION): Evaluate if StrategyOrder should become Pydantic (timestamp auto & side enum) or remain simple; currently used as persistence record.
 class StrategyOrder:
     """Represents a completed order tagged with strategy information."""
 
@@ -68,7 +68,7 @@ class StrategyOrder:
         )
 
 
-@dataclass
+@dataclass  # TODO(PYDANTIC-MIGRATION): StrategyPosition may benefit from Pydantic for invariants (quantity>=0 when closed) and computed fields.
 class StrategyPosition:
     """Represents a position held by a specific strategy."""
 
@@ -111,7 +111,7 @@ class StrategyPosition:
         self.last_updated = order.timestamp
 
 
-@dataclass
+@dataclass  # TODO(PYDANTIC-MIGRATION): StrategyPnL could remain dataclass or move to Pydantic for serialization consistency; low priority.
 class StrategyPnL:
     """P&L metrics for a specific strategy."""
 

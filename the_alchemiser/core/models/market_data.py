@@ -1,6 +1,8 @@
 """Market data domain models."""
 
-from dataclasses import dataclass
+from dataclasses import (
+    dataclass,
+)  # TODO(PYDANTIC-MIGRATION): Convert BarModel, QuoteModel, PriceDataModel to Pydantic for datetime parsing & validation.
 from datetime import datetime
 
 import pandas as pd
@@ -8,7 +10,9 @@ import pandas as pd
 from the_alchemiser.core.types import MarketDataPoint, PriceData, QuoteData
 
 
-@dataclass(frozen=True)
+@dataclass(
+    frozen=True
+)  # TODO(PYDANTIC-MIGRATION): Replace with BarModel(BaseModel) and move timestamp parsing to validator.
 class BarModel:
     """Immutable market bar data model."""
 
@@ -59,7 +63,9 @@ class BarModel:
         )
 
 
-@dataclass(frozen=True)
+@dataclass(
+    frozen=True
+)  # TODO(PYDANTIC-MIGRATION): Replace with QuoteModel(BaseModel) and enforce bid<=ask, positive sizes.
 class QuoteModel:
     """Immutable quote data model."""
 
@@ -107,7 +113,9 @@ class QuoteModel:
         return (self.bid_price + self.ask_price) / 2
 
 
-@dataclass(frozen=True)
+@dataclass(
+    frozen=True
+)  # TODO(PYDANTIC-MIGRATION): Replace with PriceDataModel(BaseModel); optional bid/ask validation.
 class PriceDataModel:
     """Immutable price data model."""
 

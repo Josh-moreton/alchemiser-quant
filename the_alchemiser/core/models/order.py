@@ -1,13 +1,17 @@
 """Order domain models."""
 
-from dataclasses import dataclass
+from dataclasses import (
+    dataclass,
+)  # TODO(PYDANTIC-MIGRATION): Convert OrderModel to Pydantic BaseModel or reuse ValidatedOrder; de-duplicate order representations.
 from datetime import datetime
 from typing import Literal
 
 from the_alchemiser.core.types import OrderDetails
 
 
-@dataclass(frozen=True)
+@dataclass(
+    frozen=True
+)  # TODO(PYDANTIC-MIGRATION): Replace with OrderModel(BaseModel) or remove if ValidatedOrder supersedes; ensure single source of truth.
 class OrderModel:
     """Immutable order model."""
 
