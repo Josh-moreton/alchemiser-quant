@@ -30,7 +30,7 @@ from the_alchemiser.infrastructure.s3.s3_utils import get_s3_handler
 from the_alchemiser.services.exceptions import DataProviderError, StrategyExecutionError
 
 # TODO: Add these imports once data structures match:
-# from ..core.types import OrderHistoryData, EmailSummary
+# from the_alchemiser.domain.types import OrderHistoryData, EmailSummary
 
 
 @dataclass  # TODO(PYDANTIC-MIGRATION): Evaluate if StrategyOrder should become Pydantic (timestamp auto & side enum) or remain simple; currently used as persistence record.
@@ -208,7 +208,10 @@ class StrategyOrderTracker:
             )
 
         except StrategyExecutionError as e:
-            from ..core.logging.logging_utils import get_logger, log_error_with_context
+            from the_alchemiser.infrastructure.logging.logging_utils import (
+                get_logger,
+                log_error_with_context,
+            )
 
             logger = get_logger(__name__)
             log_error_with_context(
@@ -226,7 +229,10 @@ class StrategyOrderTracker:
             )
             logging.error(f"Strategy execution error recording order {order_id}: {e}")
         except DataProviderError as e:
-            from ..core.logging.logging_utils import get_logger, log_error_with_context
+            from the_alchemiser.infrastructure.logging.logging_utils import (
+                get_logger,
+                log_error_with_context,
+            )
 
             logger = get_logger(__name__)
             log_error_with_context(
@@ -361,7 +367,10 @@ class StrategyOrderTracker:
                 logging.error(f"Failed to archive daily P&L for {today}")
 
         except DataProviderError as e:
-            from ..core.logging.logging_utils import get_logger, log_error_with_context
+            from the_alchemiser.infrastructure.logging.logging_utils import (
+                get_logger,
+                log_error_with_context,
+            )
 
             logger = get_logger(__name__)
             log_error_with_context(
@@ -375,7 +384,10 @@ class StrategyOrderTracker:
             )
             logging.error(f"Data provider error archiving daily P&L: {e}")
         except StrategyExecutionError as e:
-            from ..core.logging.logging_utils import get_logger, log_error_with_context
+            from the_alchemiser.infrastructure.logging.logging_utils import (
+                get_logger,
+                log_error_with_context,
+            )
 
             logger = get_logger(__name__)
             log_error_with_context(
@@ -435,7 +447,10 @@ class StrategyOrderTracker:
             )
 
         except StrategyExecutionError as e:
-            from ..core.logging.logging_utils import get_logger, log_error_with_context
+            from the_alchemiser.infrastructure.logging.logging_utils import (
+                get_logger,
+                log_error_with_context,
+            )
 
             logger = get_logger(__name__)
             log_error_with_context(
@@ -451,7 +466,10 @@ class StrategyOrderTracker:
             )
             logging.error(f"Strategy execution error calculating realized P&L: {e}")
         except DataProviderError as e:
-            from ..core.logging.logging_utils import get_logger, log_error_with_context
+            from the_alchemiser.infrastructure.logging.logging_utils import (
+                get_logger,
+                log_error_with_context,
+            )
 
             logger = get_logger(__name__)
             log_error_with_context(
@@ -476,7 +494,10 @@ class StrategyOrderTracker:
             self._load_positions()
             self._load_realized_pnl()
         except DataProviderError as e:
-            from ..core.logging.logging_utils import get_logger, log_error_with_context
+            from the_alchemiser.infrastructure.logging.logging_utils import (
+                get_logger,
+                log_error_with_context,
+            )
 
             logger = get_logger(__name__)
             log_error_with_context(
@@ -489,7 +510,10 @@ class StrategyOrderTracker:
             )
             logging.error(f"Data provider error loading tracker data: {e}")
         except StrategyExecutionError as e:
-            from ..core.logging.logging_utils import get_logger, log_error_with_context
+            from the_alchemiser.infrastructure.logging.logging_utils import (
+                get_logger,
+                log_error_with_context,
+            )
 
             logger = get_logger(__name__)
             log_error_with_context(
@@ -529,7 +553,10 @@ class StrategyOrderTracker:
 
             logging.info(f"Loaded {len(self._orders_cache)} recent orders")
         except DataProviderError as e:
-            from ..core.logging.logging_utils import get_logger, log_error_with_context
+            from the_alchemiser.infrastructure.logging.logging_utils import (
+                get_logger,
+                log_error_with_context,
+            )
 
             logger = get_logger(__name__)
             log_error_with_context(
@@ -573,7 +600,10 @@ class StrategyOrderTracker:
 
             logging.info(f"Loaded {len(self._positions_cache)} positions")
         except DataProviderError as e:
-            from ..core.logging.logging_utils import get_logger, log_error_with_context
+            from the_alchemiser.infrastructure.logging.logging_utils import (
+                get_logger,
+                log_error_with_context,
+            )
 
             logger = get_logger(__name__)
             log_error_with_context(
@@ -602,7 +632,10 @@ class StrategyOrderTracker:
             self._realized_pnl_cache = data
             logging.info(f"Loaded realized P&L for {len(data)} strategies")
         except DataProviderError as e:
-            from ..core.logging.logging_utils import get_logger, log_error_with_context
+            from the_alchemiser.infrastructure.logging.logging_utils import (
+                get_logger,
+                log_error_with_context,
+            )
 
             logger = get_logger(__name__)
             log_error_with_context(
@@ -634,7 +667,10 @@ class StrategyOrderTracker:
                 logging.warning(f"Failed to save order {order.order_id} to S3")
 
         except DataProviderError as e:
-            from ..core.logging.logging_utils import get_logger, log_error_with_context
+            from the_alchemiser.infrastructure.logging.logging_utils import (
+                get_logger,
+                log_error_with_context,
+            )
 
             logger = get_logger(__name__)
             log_error_with_context(
@@ -666,7 +702,10 @@ class StrategyOrderTracker:
             self._persist_realized_pnl()
 
         except DataProviderError as e:
-            from ..core.logging.logging_utils import get_logger, log_error_with_context
+            from the_alchemiser.infrastructure.logging.logging_utils import (
+                get_logger,
+                log_error_with_context,
+            )
 
             logger = get_logger(__name__)
             log_error_with_context(
@@ -725,7 +764,10 @@ class StrategyOrderTracker:
             return summary
 
         except StrategyExecutionError as e:
-            from ..core.logging.logging_utils import get_logger, log_error_with_context
+            from the_alchemiser.infrastructure.logging.logging_utils import (
+                get_logger,
+                log_error_with_context,
+            )
 
             logger = get_logger(__name__)
             log_error_with_context(

@@ -3,6 +3,7 @@
 import logging
 from typing import Any
 
+from the_alchemiser.domain.types import AccountInfo
 from the_alchemiser.services.error_handler import handle_errors_with_retry
 from the_alchemiser.services.exceptions import (
     ConfigurationError,
@@ -10,7 +11,7 @@ from the_alchemiser.services.exceptions import (
     StrategyExecutionError,
     TradingClientError,
 )
-from the_alchemiser.domain.types import AccountInfo
+
 from .reporting import build_portfolio_state_data, create_execution_summary, save_dashboard_data
 from .types import MultiStrategyExecutionResult
 

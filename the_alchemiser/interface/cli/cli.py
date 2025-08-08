@@ -302,7 +302,7 @@ def status(
         from rich.panel import Panel
 
         from the_alchemiser.application.trading_engine import TradingEngine
-        from the_alchemiser.interface.cli_formatter import render_account_info
+        from the_alchemiser.interface.cli.cli_formatter import render_account_info
 
         # Create trader and data provider for the specified mode
         trader = TradingEngine(paper_trading=paper_trading)

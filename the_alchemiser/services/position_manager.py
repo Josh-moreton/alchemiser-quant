@@ -9,8 +9,8 @@ including position validation, liquidation logic, and buying power checks.
 import logging
 from typing import Any
 
-from ..core.exceptions import DataProviderError, TradingClientError
-from ..core.logging.logging_utils import get_logger, log_error_with_context
+from the_alchemiser.infrastructure.logging.logging_utils import get_logger, log_error_with_context
+from the_alchemiser.services.exceptions import DataProviderError, TradingClientError
 
 
 class PositionManager:

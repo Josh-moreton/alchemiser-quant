@@ -20,7 +20,7 @@ from the_alchemiser.application.tracking.strategy_order_tracker import get_strat
 from the_alchemiser.domain.strategies.strategy_manager import StrategyType
 
 # TODO: Add these imports once data structures match:
-# from ..core.types import StrategyPnLSummary, OrderDetails, AlpacaOrderProtocol
+# from the_alchemiser.domain.types import StrategyPnLSummary, OrderDetails, AlpacaOrderProtocol
 
 
 class StrategyExecutionContext:

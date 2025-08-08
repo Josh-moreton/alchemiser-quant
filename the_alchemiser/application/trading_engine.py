@@ -34,8 +34,8 @@ from the_alchemiser.domain.types import (
     OrderDetails,
     PositionsDict,
 )
+from the_alchemiser.execution.account_service import AccountService
 from the_alchemiser.infrastructure.config import Settings
-from the_alchemiser.services.account_service import AccountService
 from the_alchemiser.services.exceptions import (
     ConfigurationError,
     DataProviderError,
@@ -903,7 +903,7 @@ class TradingEngine:
         Note:
             Uses Rich table formatting via cli_formatter for beautiful display.
         """
-        from the_alchemiser.interface.cli_formatter import render_target_vs_current_allocations
+        from the_alchemiser.interface.cli.cli_formatter import render_target_vs_current_allocations
         from the_alchemiser.services.account_utils import (
             calculate_position_target_deltas,
             extract_current_position_values,

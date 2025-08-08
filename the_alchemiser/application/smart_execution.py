@@ -22,12 +22,12 @@ from alpaca.trading.enums import OrderSide
 
 # TODO: Phase 5 - Added for gradual migration
 from the_alchemiser.application.alpaca_client import AlpacaClient
+from the_alchemiser.infrastructure.data_providers.data_provider import UnifiedDataProvider
 from the_alchemiser.services.exceptions import (
     DataProviderError,
     OrderExecutionError,
     TradingClientError,
 )
-from the_alchemiser.infrastructure.data_providers.data_provider import UnifiedDataProvider
 
 
 class OrderExecutor(Protocol):
@@ -179,8 +179,8 @@ class SmartExecution:
         """
         from rich.console import Console
 
-        from the_alchemiser.domain.math.market_timing_utils import MarketOpenTimingEngine
         from the_alchemiser.application.spread_assessment import SpreadAssessment
+        from the_alchemiser.domain.math.market_timing_utils import MarketOpenTimingEngine
 
         console = Console()
         timing_engine = MarketOpenTimingEngine()

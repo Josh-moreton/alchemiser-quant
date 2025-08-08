@@ -15,8 +15,8 @@ from typing import Any
 import pandas as pd
 from alpaca.data.requests import StockLatestQuoteRequest
 
-from ..core.exceptions import DataProviderError
-from ..core.logging.logging_utils import get_logger, log_error_with_context
+from the_alchemiser.infrastructure.logging.logging_utils import get_logger, log_error_with_context
+from the_alchemiser.services.exceptions import DataProviderError
 
 
 def subscribe_for_real_time(real_time_pricing: Any, symbol: str) -> bool:

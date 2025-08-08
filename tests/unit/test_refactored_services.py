@@ -11,10 +11,6 @@ from unittest.mock import Mock, patch
 import pandas as pd
 import pytest
 
-from the_alchemiser.services.exceptions import (
-    ConfigurationError,
-    MarketDataError,
-)
 from the_alchemiser.core.services import (
     CacheManager,
     ConfigService,
@@ -33,6 +29,10 @@ from the_alchemiser.services.error_handling import (
     ErrorHandler,
     ServiceMetrics,
     handle_service_errors,
+)
+from the_alchemiser.services.exceptions import (
+    ConfigurationError,
+    MarketDataError,
 )
 
 
