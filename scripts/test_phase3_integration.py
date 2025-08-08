@@ -5,22 +5,21 @@ Tests that all services integrate properly and type checking passes
 """
 
 import sys
-from typing import Any
 
 # Test imports
 try:
+    from the_alchemiser.domain.interfaces import (
+        AccountRepository,
+        MarketDataRepository,
+        TradingRepository,
+    )
+    from the_alchemiser.services.alpaca_manager import AlpacaManager
     from the_alchemiser.services.enhanced import (
         AccountService,
         MarketDataService,
         OrderService,
         PositionService,
         TradingServiceManager,
-    )
-    from the_alchemiser.services.alpaca_manager import AlpacaManager
-    from the_alchemiser.domain.interfaces import (
-        AccountRepository,
-        MarketDataRepository,
-        TradingRepository,
     )
 
     print("✅ All imports successful")
@@ -142,7 +141,7 @@ def main():
     passed = sum(results)
     total = len(results)
 
-    print(f"\n📊 Test Summary:")
+    print("\n📊 Test Summary:")
     print(f"   Passed: {passed}/{total}")
     print(f"   Success Rate: {(passed/total)*100:.1f}%")
 

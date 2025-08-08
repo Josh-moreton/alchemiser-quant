@@ -44,7 +44,9 @@ class TradingServiceManager:
     ) -> dict[str, Any]:
         """Place a market order with validation"""
         try:
-            order_id = self.orders.place_market_order(symbol, side, quantity, validate_price=validate)
+            order_id = self.orders.place_market_order(
+                symbol, side, quantity, validate_price=validate
+            )
             return {"success": True, "order_id": order_id}
         except Exception as e:
             return {"success": False, "error": str(e)}
@@ -54,7 +56,9 @@ class TradingServiceManager:
     ) -> dict[str, Any]:
         """Place a limit order with validation"""
         try:
-            order_id = self.orders.place_limit_order(symbol, side, quantity, limit_price, validate_price=validate)
+            order_id = self.orders.place_limit_order(
+                symbol, side, quantity, limit_price, validate_price=validate
+            )
             return {"success": True, "order_id": order_id}
         except Exception as e:
             return {"success": False, "error": str(e)}
@@ -65,7 +69,7 @@ class TradingServiceManager:
         """Place a stop-loss order using liquidation (not directly supported)"""
         return {
             "success": False,
-            "error": "Stop-loss orders not directly supported. Use liquidate_position for position closure."
+            "error": "Stop-loss orders not directly supported. Use liquidate_position for position closure.",
         }
 
     def cancel_order(self, order_id: str) -> dict[str, Any]:
@@ -80,7 +84,7 @@ class TradingServiceManager:
         """Get order status (not directly available - use AlpacaManager directly)"""
         return {
             "success": False,
-            "error": "Order status queries not available in enhanced services. Use AlpacaManager directly."
+            "error": "Order status queries not available in enhanced services. Use AlpacaManager directly.",
         }
 
     def get_open_orders(self, symbol: str | None = None) -> list[dict[str, Any]]:
@@ -102,9 +106,9 @@ class TradingServiceManager:
                         "position": {
                             "quantity": position.quantity,
                             "market_value": position.market_value,
-                            "unrealized_pl": position.unrealized_pl,
-                            "position_weight": position.position_weight,
-                        }
+                            "unrealized_pnl": position.unrealized_pnl,
+                            "weight_percent": position.weight_percent,
+                        },
                     }
                 else:
                     return {"success": False, "error": f"No position found for {symbol}"}
@@ -114,11 +118,11 @@ class TradingServiceManager:
                 return {
                     "success": True,
                     "portfolio": {
-                        "total_value": portfolio.total_value,
+                        "total_market_value": portfolio.total_market_value,
                         "cash_balance": portfolio.cash_balance,
-                        "position_count": portfolio.position_count,
-                        "total_unrealized_pl": portfolio.total_unrealized_pl,
-                    }
+                        "total_positions": portfolio.total_positions,
+                        "largest_position_percent": portfolio.largest_position_percent,
+                    },
                 }
         except Exception as e:
             return {"success": False, "error": str(e)}
@@ -129,7 +133,7 @@ class TradingServiceManager:
             if percentage != 100.0:
                 return {
                     "success": False,
-                    "error": "Partial position closure not directly supported. Use liquidate_position for full closure."
+                    "error": "Partial position closure not directly supported. Use liquidate_position for full closure.",
                 }
             order_id = self.orders.liquidate_position(symbol)
             return {"success": True, "order_id": order_id}
@@ -146,30 +150,67 @@ class TradingServiceManager:
 
     def calculate_position_metrics(self) -> dict[str, Any]:
         """Calculate portfolio-wide position metrics"""
-        return self.positions.calculate_position_metrics()
+        try:
+            diversification_score = self.positions.calculate_diversification_score()
+            largest_positions = self.positions.get_largest_positions()
+            return {
+                "success": True,
+                "diversification_score": diversification_score,
+                "largest_positions": [
+                    {"symbol": pos.symbol, "weight": pos.weight_percent, "value": pos.market_value}
+                    for pos in largest_positions
+                ],
+            }
+        except Exception as e:
+            return {"success": False, "error": str(e)}
 
     # Market Data Operations
     def get_latest_price(self, symbol: str, validate: bool = True) -> dict[str, Any]:
         """Get latest price with validation and caching"""
-        return self.market_data.get_latest_price(symbol, validate)
+        try:
+            price = self.market_data.get_validated_price(symbol)
+            if price is not None:
+                return {"success": True, "symbol": symbol, "price": price}
+            else:
+                return {"success": False, "error": f"Could not get price for {symbol}"}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
 
     def get_price_history(
         self, symbol: str, timeframe: str = "1Day", limit: int = 100, validate: bool = True
     ) -> dict[str, Any]:
-        """Get price history with enhanced analytics"""
-        return self.market_data.get_price_history(symbol, timeframe, limit, validate)
+        """Get price history (not directly available - use AlpacaManager directly)"""
+        return {
+            "success": False,
+            "error": "Price history queries not available in enhanced services. Use AlpacaManager directly.",
+        }
 
     def analyze_spread(self, symbol: str) -> dict[str, Any]:
         """Analyze bid-ask spread for a symbol"""
-        return self.market_data.analyze_spread(symbol)
+        try:
+            spread_data = self.market_data.get_spread_analysis(symbol)
+            if spread_data:
+                return {"success": True, "spread_analysis": spread_data}
+            else:
+                return {"success": False, "error": f"Could not analyze spread for {symbol}"}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
 
     def get_market_status(self) -> dict[str, Any]:
         """Get current market status"""
-        return self.market_data.get_market_status()
+        try:
+            is_open = self.market_data.is_market_hours()
+            return {"success": True, "market_open": is_open}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
 
     def get_multi_symbol_quotes(self, symbols: list[str]) -> dict[str, Any]:
         """Get quotes for multiple symbols efficiently"""
-        return self.market_data.get_multi_symbol_quotes(symbols)
+        try:
+            prices = self.market_data.get_batch_prices(symbols)
+            return {"success": True, "quotes": prices}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
 
     # Account Management Operations
     def get_account_summary(self) -> dict[str, Any]:
@@ -185,10 +226,12 @@ class TradingServiceManager:
         return self.account.get_risk_metrics()
 
     def validate_trade_eligibility(
-        self, symbol: str, quantity: int, side: str, estimated_cost: float = None
+        self, symbol: str, quantity: int, side: str, estimated_cost: float | None = None
     ) -> dict[str, Any]:
         """Validate if a trade can be executed"""
-        return self.account.validate_trade_eligibility(symbol, quantity, side, estimated_cost)
+        return self.account.validate_trade_eligibility(
+            symbol, quantity, side, estimated_cost or 0.0
+        )
 
     def get_portfolio_allocation(self) -> dict[str, Any]:
         """Get portfolio allocation and diversification metrics"""
@@ -196,7 +239,7 @@ class TradingServiceManager:
 
     # High-Level Trading Operations
     def execute_smart_order(
-        self, symbol: str, quantity: int, side: str, order_type: str = "market", **kwargs
+        self, symbol: str, quantity: int, side: str, order_type: str = "market", **kwargs: Any
     ) -> dict[str, Any]:
         """
         Execute a smart order with comprehensive validation and risk management
@@ -216,7 +259,8 @@ class TradingServiceManager:
             estimated_cost = None
             if side.lower() == "buy" and order_type == "market":
                 price_data = self.get_latest_price(symbol)
-                estimated_cost = price_data["price"] * quantity
+                if price_data.get("success") and price_data.get("price"):
+                    estimated_cost = price_data["price"] * quantity
 
             eligibility = self.validate_trade_eligibility(symbol, quantity, side, estimated_cost)
             if not eligibility["eligible"]:
@@ -268,13 +312,13 @@ class TradingServiceManager:
                 "position_summary": self.get_position_summary(),
                 "open_orders": self.get_open_orders(),
                 "market_status": self.get_market_status(),
-                "timestamp": self.market_data._get_current_time().isoformat(),
+                "timestamp": __import__("datetime").datetime.now().isoformat(),
             }
         except Exception as e:
             self.logger.error(f"Failed to generate trading dashboard: {e}")
-            return {"error": str(e), "timestamp": self.market_data._get_current_time().isoformat()}
+            return {"error": str(e), "timestamp": __import__("datetime").datetime.now().isoformat()}
 
-    def close(self):
+    def close(self) -> None:
         """Clean up resources"""
         try:
             if hasattr(self.alpaca_manager, "close"):
