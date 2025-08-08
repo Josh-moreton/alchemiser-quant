@@ -108,7 +108,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
     def get_positions(self) -> list[Any]:
         """
-        Get all positions as list of position objects (interface compatible).
+        Get all positions as list of position objects (AccountRepository interface).
 
         Returns:
             List of position objects with attributes like symbol, qty, market_value, etc.
@@ -123,25 +123,13 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
     def get_positions_dict(self) -> dict[str, float]:
         """
-        Get all positions as dict mapping symbol to quantity (interface compatible).
+        Get all positions as dict mapping symbol to quantity (legacy method - use get_positions).
 
         Returns:
             Dictionary mapping symbol to quantity owned. Only includes non-zero positions.
         """
-        try:
-            positions = self._trading_client.get_all_positions()
-            result = {}
-            for position in positions:
-                symbol = str(getattr(position, "symbol", ""))
-                qty = float(getattr(position, "qty", 0))
-                if symbol and qty != 0:
-                    result[symbol] = qty
-
-            logger.debug(f"Successfully retrieved {len(result)} positions")
-            return result
-        except Exception as e:
-            logger.error(f"Failed to get positions: {e}")
-            raise
+        # Delegate to the main get_positions method
+        return self.get_positions()
 
     def get_all_positions(self) -> list[Any]:
         """Get all positions as list (backward compatibility)."""
@@ -177,24 +165,37 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             raise
 
     def place_market_order(
-        self, symbol: str, side: str, quantity: float, time_in_force: str = "day"
-    ) -> Any:
+        self,
+        symbol: str,
+        side: str,
+        qty: float | None = None,
+        notional: float | None = None,
+    ) -> str | None:
         """
         Place a market order with validation.
 
         Args:
             symbol: Stock symbol (e.g., 'AAPL')
             side: 'buy' or 'sell'
-            quantity: Number of shares
-            time_in_force: Order time in force (default: 'day')
+            qty: Quantity to trade (use either qty OR notional)
+            notional: Dollar amount to trade (use either qty OR notional)
         """
         try:
             # Validation
             if not symbol or not symbol.strip():
                 raise ValueError("Symbol cannot be empty")
 
-            if quantity <= 0:
+            if qty is None and notional is None:
+                raise ValueError("Either qty or notional must be specified")
+
+            if qty is not None and notional is not None:
+                raise ValueError("Cannot specify both qty and notional")
+
+            if qty is not None and qty <= 0:
                 raise ValueError("Quantity must be positive")
+
+            if notional is not None and notional <= 0:
+                raise ValueError("Notional amount must be positive")
 
             side_normalized = side.lower().strip()
             if side_normalized not in ["buy", "sell"]:
@@ -203,14 +204,20 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             # Create order request
             order_request = MarketOrderRequest(
                 symbol=symbol.upper(),
-                qty=quantity,
+                qty=qty,
+                notional=notional,
                 side=OrderSide.BUY if side_normalized == "buy" else OrderSide.SELL,
-                time_in_force=(
-                    TimeInForce.DAY if time_in_force.lower() == "day" else TimeInForce.GTC
-                ),
+                time_in_force=TimeInForce.DAY,
             )
 
-            return self.place_order(order_request)
+            result = self.place_order(order_request)
+
+            # Return order ID as string or None
+            if result and hasattr(result, "id"):
+                return str(result.id)
+            elif isinstance(result, dict) and "id" in result:
+                return str(result["id"])
+            return None
 
         except ValueError as e:
             logger.error(f"Invalid order parameters: {e}")

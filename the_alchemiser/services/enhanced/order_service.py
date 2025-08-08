@@ -261,7 +261,7 @@ class OrderService:
         symbol = self._validate_and_normalize_symbol(symbol)
 
         # Verify position exists
-        positions = self._trading.get_positions()
+        positions = self._trading.get_positions_dict()
         if symbol not in positions or positions[symbol] == 0:
             raise OrderValidationError(f"No position to liquidate for {symbol}")
 
@@ -412,7 +412,7 @@ class OrderService:
     ) -> None:
         """Validate that we have sufficient position for sell order."""
         try:
-            positions = self._trading.get_positions()
+            positions = self._trading.get_positions_dict()
             current_position = positions.get(symbol, 0.0)
 
             if current_position <= 0:

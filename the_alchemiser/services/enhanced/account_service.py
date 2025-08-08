@@ -138,21 +138,42 @@ class AccountService:
             account = self.account_repository.get_account()
             positions = self.account_repository.get_positions()
 
-            equity = float(account.equity)
-            cash = float(account.cash)
-            long_value = float(account.long_market_value or 0)
-            short_value = abs(float(account.short_market_value or 0))
+            if not account:
+                raise ValueError("Could not retrieve account information")
+
+            equity = float(self._get_attr(account, "equity", 0))
+            cash = float(self._get_attr(account, "cash", 0))
+            long_value = float(self._get_attr(account, "long_market_value", 0))
+            short_value = abs(float(self._get_attr(account, "short_market_value", 0)))
             total_market_value = long_value + short_value
 
             # Position concentration risk
             position_values = {}
-            total_position_value = 0
+            total_position_value = 0.0
 
             for position in positions:
-                if position.qty != 0:
-                    position_value = abs(float(position.qty) * float(position.market_value or 0))
-                    position_values[position.symbol] = position_value
-                    total_position_value += position_value
+                # Handle both object and dict position formats
+                qty = (
+                    self._get_attr(position, "qty", 0)
+                    if hasattr(position, "qty") or isinstance(position, dict)
+                    else 0
+                )
+                if qty != 0:
+                    market_value = (
+                        self._get_attr(position, "market_value", 0)
+                        if hasattr(position, "market_value") or isinstance(position, dict)
+                        else 0
+                    )
+                    symbol = (
+                        self._get_attr(position, "symbol", "")
+                        if hasattr(position, "symbol") or isinstance(position, dict)
+                        else ""
+                    )
+
+                    if symbol:
+                        position_value = abs(float(qty) * float(market_value))
+                        position_values[symbol] = position_value
+                        total_position_value += position_value
 
             # Calculate concentration metrics
             max_position_value = max(position_values.values()) if position_values else 0
@@ -169,15 +190,17 @@ class AccountService:
                 "market_exposure": round(market_exposure, 4),
                 "leverage_ratio": round(leverage, 4),
                 "max_position_concentration": round(max_concentration, 4),
-                "number_of_positions": len([p for p in positions if p.qty != 0]),
+                "number_of_positions": len(
+                    [p for p in positions if self._get_attr(p, "qty", 0) != 0]
+                ),
                 "long_exposure": round(long_value / equity, 4) if equity > 0 else 0,
                 "short_exposure": round(short_value / equity, 4) if equity > 0 else 0,
-                "day_trade_count": account.daytrade_count,
-                "pattern_day_trader": account.pattern_day_trader,
+                "day_trade_count": self._get_attr(account, "daytrade_count", 0),
+                "pattern_day_trader": self._get_attr(account, "pattern_day_trader", False),
                 "trading_restrictions": {
-                    "trading_blocked": account.trading_blocked,
-                    "transfers_blocked": account.transfers_blocked,
-                    "account_blocked": account.account_blocked,
+                    "trading_blocked": self._get_attr(account, "trading_blocked", False),
+                    "transfers_blocked": self._get_attr(account, "transfers_blocked", False),
+                    "account_blocked": self._get_attr(account, "account_blocked", False),
                 },
                 "position_breakdown": position_values,
             }
@@ -205,15 +228,18 @@ class AccountService:
             account = self.account_repository.get_account()
             positions = self.account_repository.get_positions()
 
+            if not account:
+                raise ValueError("Could not retrieve account information")
+
             # Basic account checks
-            if account.trading_blocked:
+            if self._get_attr(account, "trading_blocked", False):
                 return {
                     "eligible": False,
                     "reason": "Trading is blocked on this account",
                     "details": {"trading_blocked": True},
                 }
 
-            if account.account_blocked:
+            if self._get_attr(account, "account_blocked", False):
                 return {
                     "eligible": False,
                     "reason": "Account is blocked",
@@ -223,11 +249,14 @@ class AccountService:
             # Check for existing position
             current_position = None
             for position in positions:
-                if position.symbol == symbol:
+                position_symbol = self._get_attr(position, "symbol", "")
+                if position_symbol == symbol:
                     current_position = position
                     break
 
-            current_qty = float(current_position.qty) if current_position else 0
+            current_qty = (
+                float(self._get_attr(current_position, "qty", 0)) if current_position else 0
+            )
 
             # Validate sell orders
             if side.lower() == "sell":
@@ -259,8 +288,10 @@ class AccountService:
                     }
 
             # Pattern day trader checks
-            if account.pattern_day_trader and account.daytrade_count >= 3:
-                equity = float(account.equity)
+            pattern_day_trader = self._get_attr(account, "pattern_day_trader", False)
+            daytrade_count = self._get_attr(account, "daytrade_count", 0)
+            if pattern_day_trader and daytrade_count >= 3:
+                equity = float(self._get_attr(account, "equity", 0))
                 if equity < 25000:
                     return {
                         "eligible": False,
@@ -268,7 +299,7 @@ class AccountService:
                         "details": {
                             "equity": equity,
                             "minimum_required": 25000,
-                            "day_trade_count": account.daytrade_count,
+                            "day_trade_count": daytrade_count,
                         },
                     }
 
@@ -277,9 +308,9 @@ class AccountService:
                 "reason": "Trade is eligible",
                 "details": {
                     "current_position": current_qty,
-                    "account_equity": float(account.equity),
-                    "buying_power": float(account.buying_power),
-                    "day_trade_count": account.daytrade_count,
+                    "account_equity": float(self._get_attr(account, "equity", 0)),
+                    "buying_power": float(self._get_attr(account, "buying_power", 0)),
+                    "day_trade_count": daytrade_count,
                 },
             }
 
@@ -298,25 +329,34 @@ class AccountService:
             account = self.account_repository.get_account()
             positions = self.account_repository.get_positions()
 
-            equity = float(account.equity)
-            cash = float(account.cash)
+            if not account:
+                raise ValueError("Could not retrieve account information")
+
+            equity = float(self._get_attr(account, "equity", 0))
+            cash = float(self._get_attr(account, "cash", 0))
 
             allocations = {}
-            total_position_value = 0
+            total_position_value = 0.0
 
             for position in positions:
-                if position.qty != 0:
-                    position_value = abs(float(position.qty) * float(position.market_value or 0))
-                    allocation_pct = position_value / equity if equity > 0 else 0
+                qty = self._get_attr(position, "qty", 0)
+                if qty != 0:
+                    market_value = self._get_attr(position, "market_value", 0)
+                    symbol = self._get_attr(position, "symbol", "")
+                    if symbol:
+                        position_value = abs(float(qty) * float(market_value))
+                        allocation_pct = position_value / equity if equity > 0 else 0
 
-                    allocations[position.symbol] = {
-                        "quantity": float(position.qty),
-                        "market_value": position_value,
-                        "allocation_percentage": round(allocation_pct * 100, 2),
-                        "unrealized_pl": float(position.unrealized_pl or 0),
-                        "unrealized_plpc": float(position.unrealized_plpc or 0),
-                    }
-                    total_position_value += position_value
+                        allocations[symbol] = {
+                            "quantity": float(qty),
+                            "market_value": position_value,
+                            "allocation_percentage": round(allocation_pct * 100, 2),
+                            "unrealized_pl": float(self._get_attr(position, "unrealized_pl", 0)),
+                            "unrealized_plpc": float(
+                                self._get_attr(position, "unrealized_plpc", 0)
+                            ),
+                        }
+                        total_position_value += position_value
 
             cash_allocation = cash / equity if equity > 0 else 0
 

@@ -101,7 +101,7 @@ class PositionService:
             logger.info("Retrieving positions with analysis")
 
             # Get basic positions
-            positions = self._trading.get_positions()
+            positions = self._trading.get_positions_dict()
 
             if not positions:
                 logger.info("No positions found")
@@ -224,7 +224,7 @@ class PositionService:
 
         try:
             # Get current portfolio total
-            positions = self._trading.get_positions()
+            positions = self._trading.get_positions_dict()
             portfolio_total = self._calculate_portfolio_total(positions)
 
             if portfolio_total <= 0:
@@ -266,7 +266,7 @@ class PositionService:
             Exception: If position data cannot be retrieved
         """
         try:
-            positions = self._trading.get_positions()
+            positions = self._trading.get_positions_dict()
             quantity = positions.get(symbol, 0.0)
 
             if quantity == 0:
@@ -403,16 +403,31 @@ class PositionService:
 
         if self._account:
             try:
-                account_positions = self._account.get_account_positions()
-                position_data = account_positions.get(symbol)
+                account_positions = self._account.get_positions()
+                position_data = None
 
-                if position_data and isinstance(position_data, dict):
-                    cost_basis = position_data.get("cost_basis")
-                    unrealized_pnl = position_data.get("unrealized_pnl")
+                # Find the position data for the symbol
+                for position in account_positions:
+                    if hasattr(position, "symbol") and position.symbol == symbol:
+                        position_data = position
+                        break
+                    elif isinstance(position, dict) and position.get("symbol") == symbol:
+                        position_data = position
+                        break
+
+                if position_data:
+                    if hasattr(position_data, "cost_basis"):
+                        cost_basis = position_data.cost_basis
+                        unrealized_pnl = getattr(position_data, "unrealized_pl", None)
+                    elif isinstance(position_data, dict):
+                        cost_basis = position_data.get("cost_basis")
+                        unrealized_pnl = position_data.get("unrealized_pnl")
 
                     # Calculate PnL percentage
                     if unrealized_pnl is not None and cost_basis and cost_basis != 0:
-                        unrealized_pnl_percent = (unrealized_pnl / abs(cost_basis)) * 100
+                        unrealized_pnl_percent = (
+                            float(unrealized_pnl) / abs(float(cost_basis))
+                        ) * 100
 
             except Exception as e:
                 logger.warning(f"Could not get account data for {symbol}: {e}")
@@ -452,8 +467,14 @@ class PositionService:
             return None
 
         try:
-            account_info = self._account.get_account_info()
-            return account_info.get("cash_balance")
+            account_info = self._account.get_account()
+            if account_info:
+                if hasattr(account_info, "cash"):
+                    return float(account_info.cash)
+                elif isinstance(account_info, dict):
+                    cash = account_info.get("cash") or account_info.get("cash_balance")
+                    return float(cash) if cash is not None else None
+            return None
         except Exception as e:
             logger.warning(f"Could not get cash balance: {e}")
             return None

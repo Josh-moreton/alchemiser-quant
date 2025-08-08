@@ -23,9 +23,9 @@ class TradingRepository(Protocol):
     providing the foundation for our eventual infrastructure layer.
     """
 
-    def get_positions(self) -> dict[str, float]:
+    def get_positions_dict(self) -> dict[str, float]:
         """
-        Get all current positions.
+        Get all current positions as dict.
 
         Returns:
             Dictionary mapping symbol to quantity owned. Only includes non-zero positions.

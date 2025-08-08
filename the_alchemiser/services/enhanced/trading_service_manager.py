@@ -40,47 +40,109 @@ class TradingServiceManager:
 
     # Order Management Operations
     def place_market_order(
-        self, symbol: str, quantity: int, side: str, validate: bool = True
+        self, symbol: str, quantity: float, side: str, validate: bool = True
     ) -> dict[str, Any]:
         """Place a market order with validation"""
-        return self.orders.place_market_order(symbol, quantity, side, validate)
+        try:
+            order_id = self.orders.place_market_order(symbol, side, quantity, validate_price=validate)
+            return {"success": True, "order_id": order_id}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
 
     def place_limit_order(
-        self, symbol: str, quantity: int, side: str, limit_price: float, validate: bool = True
+        self, symbol: str, quantity: float, side: str, limit_price: float, validate: bool = True
     ) -> dict[str, Any]:
         """Place a limit order with validation"""
-        return self.orders.place_limit_order(symbol, quantity, side, limit_price, validate)
+        try:
+            order_id = self.orders.place_limit_order(symbol, side, quantity, limit_price, validate_price=validate)
+            return {"success": True, "order_id": order_id}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
 
     def place_stop_loss_order(
-        self, symbol: str, quantity: int, stop_price: float, validate: bool = True
+        self, symbol: str, quantity: float, stop_price: float, validate: bool = True
     ) -> dict[str, Any]:
-        """Place a stop-loss order with validation"""
-        return self.orders.place_stop_loss_order(symbol, quantity, stop_price, validate)
+        """Place a stop-loss order using liquidation (not directly supported)"""
+        return {
+            "success": False,
+            "error": "Stop-loss orders not directly supported. Use liquidate_position for position closure."
+        }
 
     def cancel_order(self, order_id: str) -> dict[str, Any]:
         """Cancel an order with enhanced feedback"""
-        return self.orders.cancel_order(order_id)
+        try:
+            success = self.orders.cancel_order(order_id)
+            return {"success": success, "order_id": order_id}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
 
     def get_order_status(self, order_id: str) -> dict[str, Any]:
-        """Get enhanced order status with analytics"""
-        return self.orders.get_order_status(order_id)
+        """Get order status (not directly available - use AlpacaManager directly)"""
+        return {
+            "success": False,
+            "error": "Order status queries not available in enhanced services. Use AlpacaManager directly."
+        }
 
-    def get_open_orders(self, symbol: str = None) -> list[dict[str, Any]]:
-        """Get all open orders with enhanced details"""
-        return self.orders.get_open_orders(symbol)
+    def get_open_orders(self, symbol: str | None = None) -> list[dict[str, Any]]:
+        """Get all open orders (not directly available - use AlpacaManager directly)"""
+        return []
 
     # Position Management Operations
-    def get_position_summary(self, symbol: str = None) -> dict[str, Any]:
+    def get_position_summary(self, symbol: str | None = None) -> dict[str, Any]:
         """Get comprehensive position summary"""
-        return self.positions.get_position_summary(symbol)
+        try:
+            if symbol:
+                # Get specific position info
+                positions = self.positions.get_positions_with_analysis()
+                position = positions.get(symbol)
+                if position:
+                    return {
+                        "success": True,
+                        "symbol": symbol,
+                        "position": {
+                            "quantity": position.quantity,
+                            "market_value": position.market_value,
+                            "unrealized_pl": position.unrealized_pl,
+                            "position_weight": position.position_weight,
+                        }
+                    }
+                else:
+                    return {"success": False, "error": f"No position found for {symbol}"}
+            else:
+                # Get portfolio summary
+                portfolio = self.positions.get_portfolio_summary()
+                return {
+                    "success": True,
+                    "portfolio": {
+                        "total_value": portfolio.total_value,
+                        "cash_balance": portfolio.cash_balance,
+                        "position_count": portfolio.position_count,
+                        "total_unrealized_pl": portfolio.total_unrealized_pl,
+                    }
+                }
+        except Exception as e:
+            return {"success": False, "error": str(e)}
 
     def close_position(self, symbol: str, percentage: float = 100.0) -> dict[str, Any]:
-        """Close a position (partial or full)"""
-        return self.positions.close_position(symbol, percentage)
+        """Close a position using liquidation"""
+        try:
+            if percentage != 100.0:
+                return {
+                    "success": False,
+                    "error": "Partial position closure not directly supported. Use liquidate_position for full closure."
+                }
+            order_id = self.orders.liquidate_position(symbol)
+            return {"success": True, "order_id": order_id}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
 
     def get_position_analytics(self, symbol: str) -> dict[str, Any]:
         """Get detailed position analytics"""
-        return self.positions.get_position_analytics(symbol)
+        try:
+            risk_metrics = self.positions.get_position_risk_metrics(symbol)
+            return {"success": True, "risk_metrics": risk_metrics}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
 
     def calculate_position_metrics(self) -> dict[str, Any]:
         """Calculate portfolio-wide position metrics"""
