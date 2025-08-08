@@ -24,11 +24,10 @@ from dataclasses import asdict, dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from the_alchemiser.infrastructure.config import load_settings
 from the_alchemiser.domain.strategies.strategy_manager import StrategyType
+from the_alchemiser.infrastructure.config import load_settings
 from the_alchemiser.infrastructure.s3.s3_utils import get_s3_handler
-
-from ..core.exceptions import DataProviderError, StrategyExecutionError
+from the_alchemiser.services.exceptions import DataProviderError, StrategyExecutionError
 
 # TODO: Add these imports once data structures match:
 # from ..core.types import OrderHistoryData, EmailSummary

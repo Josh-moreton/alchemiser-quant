@@ -43,16 +43,16 @@ try:
 except ImportError:
     HAS_RICH = False
 
-from the_alchemiser.core.exceptions import (
+from the_alchemiser.domain.strategies.strategy_manager import StrategyType
+from the_alchemiser.infrastructure.config import Settings, load_settings
+from the_alchemiser.infrastructure.logging.logging_utils import get_logger, setup_logging
+from the_alchemiser.services.exceptions import (
     ConfigurationError,
     DataProviderError,
     NotificationError,
     StrategyExecutionError,
     TradingClientError,
 )
-from the_alchemiser.domain.strategies.strategy_manager import StrategyType
-from the_alchemiser.infrastructure.config import Settings, load_settings
-from the_alchemiser.infrastructure.logging.logging_utils import get_logger, setup_logging
 
 
 def configure_application_logging() -> None:
@@ -167,7 +167,7 @@ def run_all_signals_display(
         - Consolidated portfolio allocation
         - Strategy execution summary
     """
-    from the_alchemiser.interface.cli_formatter import (
+    from the_alchemiser.interface.cli.cli_formatter import (
         render_footer,
         render_header,
         render_portfolio_allocation,
@@ -317,7 +317,7 @@ def run_multi_strategy_trading(
         - Technical indicators and strategy signals are displayed before execution
         - Error notifications are sent via email if configured
     """
-    from the_alchemiser.interface.cli_formatter import render_header
+    from the_alchemiser.interface.cli.cli_formatter import render_header
 
     mode_str = "LIVE" if live_trading else "PAPER"
 
@@ -335,7 +335,7 @@ def run_multi_strategy_trading(
             logger = get_logger(__name__)
             logger.warning("Market is closed. No trades will be placed.")
 
-            from the_alchemiser.interface.email_utils import (
+            from the_alchemiser.interface.email.email_utils import (
                 build_error_email_html,
                 send_email_notification,
             )
@@ -357,7 +357,7 @@ def run_multi_strategy_trading(
         )
 
         # Display strategy signals
-        from the_alchemiser.interface.cli_formatter import render_strategy_signals
+        from the_alchemiser.interface.cli.cli_formatter import render_strategy_signals
 
         render_strategy_signals(strategy_signals)
 
@@ -390,8 +390,8 @@ def run_multi_strategy_trading(
 
         # Send email notification for both paper and live trading
         try:
+            from the_alchemiser.interface.email.email_utils import send_email_notification
             from the_alchemiser.interface.email.templates import EmailTemplates
-            from the_alchemiser.interface.email_utils import send_email_notification
 
             # Enrich result with fresh position data for email templates
             try:
@@ -459,7 +459,7 @@ def run_multi_strategy_trading(
 
         # Enhanced error handling with detailed reporting
         try:
-            from the_alchemiser.core.error_handler import (
+            from the_alchemiser.services.error_handler import (
                 handle_trading_error,
                 send_error_notification_if_needed,
             )
@@ -499,7 +499,7 @@ def run_multi_strategy_trading(
 
         # For system errors, still try to send notification
         try:
-            from the_alchemiser.core.error_handler import (
+            from the_alchemiser.services.error_handler import (
                 handle_trading_error,
                 send_error_notification_if_needed,
             )
@@ -558,7 +558,7 @@ def main(argv: list[str] | None = None, settings: Settings | None = None) -> boo
         $ python main.py trade --live           # Live trading
         $ python main.py trade --ignore-market-hours  # Test during market close
     """
-    from the_alchemiser.interface.cli_formatter import render_footer, render_header
+    from the_alchemiser.interface.cli.cli_formatter import render_footer, render_header
 
     # Setup logging early to suppress chattiness
     configure_application_logging()

@@ -8,7 +8,7 @@ This variant is IDENTICAL to 506/38 except:
 Since 506/38 was just corrected to use FNGU, 410/38 only differs in the SSO addition.
 """
 
-from the_alchemiser.core.utils.common import ActionType
+from the_alchemiser.utils.common import ActionType
 
 from .variant_506_38 import KlmVariant50638
 

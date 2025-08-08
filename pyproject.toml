@@ -60,7 +60,7 @@ psutil = "^7.0.0"
 pydocstyle = ">=6.0.0"
 
 [tool.poetry.scripts]
-alchemiser = "the_alchemiser.cli:app"
+alchemiser = "the_alchemiser.interface.cli.cli:app"
 
 [tool.poetry.urls]
 Homepage = "https://github.com/Josh-moreton/The-Alchemiser"

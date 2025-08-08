@@ -11,7 +11,7 @@ from collections import defaultdict
 from datetime import datetime
 from typing import Any
 
-from the_alchemiser.core.exceptions import (
+from the_alchemiser.services.exceptions import (
     InsufficientFundsError,
     MarketClosedError,
     OrderExecutionError,

@@ -11,7 +11,7 @@ import traceback
 from collections.abc import Callable
 from typing import Any, TypeVar
 
-from the_alchemiser.core.exceptions import (
+from the_alchemiser.services.exceptions import (
     ConfigurationError,
     DataProviderError,
     MarketDataError,

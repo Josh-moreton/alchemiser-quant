@@ -22,7 +22,7 @@ from alpaca.trading.enums import OrderSide
 
 # TODO: Phase 5 - Added for gradual migration
 from the_alchemiser.application.alpaca_client import AlpacaClient
-from the_alchemiser.core.exceptions import (
+from the_alchemiser.services.exceptions import (
     DataProviderError,
     OrderExecutionError,
     TradingClientError,
@@ -179,8 +179,8 @@ class SmartExecution:
         """
         from rich.console import Console
 
-        from the_alchemiser.utils.market_timing_utils import MarketOpenTimingEngine
-        from the_alchemiser.utils.spread_assessment import SpreadAssessment
+        from the_alchemiser.domain.math.market_timing_utils import MarketOpenTimingEngine
+        from the_alchemiser.application.spread_assessment import SpreadAssessment
 
         console = Console()
         timing_engine = MarketOpenTimingEngine()
@@ -507,7 +507,7 @@ class SmartExecution:
         Step 3: Re-peg 1-2 times (2-3 second timeouts)
         Step 4: Market order fallback
         """
-        from the_alchemiser.utils.market_timing_utils import ExecutionStrategy
+        from the_alchemiser.domain.math.market_timing_utils import ExecutionStrategy
 
         # Determine timeout based on strategy and ETF speed
         if strategy == ExecutionStrategy.WAIT_FOR_SPREADS:

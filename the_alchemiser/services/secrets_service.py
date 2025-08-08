@@ -8,8 +8,8 @@ Provides a clean interface for accessing API keys and other sensitive data.
 
 import logging
 
-from the_alchemiser.core.exceptions import ConfigurationError
 from the_alchemiser.infrastructure.secrets.secrets_manager import SecretsManager
+from the_alchemiser.services.exceptions import ConfigurationError
 
 
 class SecretsService:

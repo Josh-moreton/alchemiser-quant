@@ -13,8 +13,8 @@ This is a fundamentally different architecture from other variants.
 
 import pandas as pd
 
-from the_alchemiser.core.utils.common import ActionType
 from the_alchemiser.domain.types import KLMDecision  # TODO: Phase 9 - Added for gradual migration
+from the_alchemiser.utils.common import ActionType
 
 from .base_klm_variant import BaseKLMVariant
 

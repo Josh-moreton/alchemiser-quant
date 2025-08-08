@@ -3,9 +3,9 @@
 import logging
 from typing import Any
 
-from the_alchemiser.core.exceptions import DataProviderError, TradingClientError
 from the_alchemiser.domain.strategies.strategy_manager import StrategyType
 from the_alchemiser.domain.types import AccountInfo
+from the_alchemiser.services.exceptions import DataProviderError, TradingClientError
 
 
 def create_execution_summary(
@@ -19,7 +19,7 @@ def create_execution_summary(
     account_after: AccountInfo,
 ) -> dict[str, Any]:  # TODO: Phase 10 - ReportingData structure needs alignment
     """Create execution summary using helper utilities."""
-    from the_alchemiser.utils.portfolio_pnl_utils import (
+    from the_alchemiser.application.portfolio_pnl_utils import (
         build_allocation_summary,
         build_strategy_summary,
         calculate_strategy_pnl_summary,
@@ -65,7 +65,7 @@ def save_dashboard_data(
     """Save structured data for dashboard consumption to S3."""
     try:
         from the_alchemiser.infrastructure.s3.s3_utils import get_s3_handler
-        from the_alchemiser.utils.dashboard_utils import (
+        from the_alchemiser.interface.cli.dashboard_utils import (
             build_basic_dashboard_structure,
             build_s3_paths,
             extract_portfolio_metrics,

@@ -13,14 +13,14 @@ import json
 import logging
 from typing import Any
 
-from the_alchemiser.core.exceptions import (
+from the_alchemiser.domain.types import LambdaEvent
+from the_alchemiser.main import main
+from the_alchemiser.services.exceptions import (
     DataProviderError,
     NotificationError,
     StrategyExecutionError,
     TradingClientError,
 )
-from the_alchemiser.domain.types import LambdaEvent
-from the_alchemiser.main import main
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -227,7 +227,7 @@ def lambda_handler(event: LambdaEvent | None = None, context: Any = None) -> dic
 
         # Enhanced error handling with detailed reporting
         try:
-            from the_alchemiser.core.error_handler import (
+            from the_alchemiser.services.error_handler import (
                 handle_trading_error,
                 send_error_notification_if_needed,
             )
@@ -273,7 +273,7 @@ def lambda_handler(event: LambdaEvent | None = None, context: Any = None) -> dic
 
         # Enhanced error handling with detailed reporting
         try:
-            from the_alchemiser.core.error_handler import (
+            from the_alchemiser.services.error_handler import (
                 handle_trading_error,
                 send_error_notification_if_needed,
             )

@@ -19,6 +19,9 @@ from functools import wraps
 # Enhanced error reporting and classification utilities.
 from typing import Any
 
+# ✅ Phase 14 - Error handler types enabled
+from the_alchemiser.domain.types import ErrorDetailInfo, ErrorNotificationData, ErrorReportSummary
+
 from .exceptions import (
     AlchemiserError,
     ConfigurationError,
@@ -31,9 +34,6 @@ from .exceptions import (
     StrategyExecutionError,
     TradingClientError,
 )
-
-# ✅ Phase 14 - Error handler types enabled
-from .types import ErrorDetailInfo, ErrorNotificationData, ErrorReportSummary
 
 
 class ErrorSeverity:

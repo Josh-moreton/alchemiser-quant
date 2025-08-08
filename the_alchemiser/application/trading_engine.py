@@ -21,13 +21,7 @@ from typing import Any, Protocol
 
 from alpaca.trading.enums import OrderSide
 
-from the_alchemiser.application.portfolio_rebalancer import PortfolioRebalancer
-from the_alchemiser.core.exceptions import (
-    ConfigurationError,
-    DataProviderError,
-    StrategyExecutionError,
-    TradingClientError,
-)
+from the_alchemiser.application.portfolio_rebalancer.portfolio_rebalancer import PortfolioRebalancer
 from the_alchemiser.domain.strategies.strategy_manager import (
     MultiStrategyManager,
     StrategyType,
@@ -41,8 +35,14 @@ from the_alchemiser.domain.types import (
     PositionsDict,
 )
 from the_alchemiser.infrastructure.config import Settings
+from the_alchemiser.services.account_service import AccountService
+from the_alchemiser.services.exceptions import (
+    ConfigurationError,
+    DataProviderError,
+    StrategyExecutionError,
+    TradingClientError,
+)
 
-from .account_service import AccountService
 from .execution_manager import ExecutionManager
 from .reporting import (
     build_portfolio_state_data,
@@ -269,7 +269,7 @@ class TradingEngine:
 
             # Enhanced error handling
             try:
-                from the_alchemiser.core.error_handler import handle_trading_error
+                from the_alchemiser.services.error_handler import handle_trading_error
 
                 handle_trading_error(
                     error=e,
@@ -299,7 +299,7 @@ class TradingEngine:
 
             # Enhanced error handling
             try:
-                from the_alchemiser.core.error_handler import handle_trading_error
+                from the_alchemiser.services.error_handler import handle_trading_error
 
                 handle_trading_error(
                     error=e,
@@ -703,7 +703,7 @@ class TradingEngine:
 
             # Enhanced error handling
             try:
-                from the_alchemiser.core.error_handler import handle_trading_error
+                from the_alchemiser.services.error_handler import handle_trading_error
 
                 handle_trading_error(
                     error=e,

@@ -6,10 +6,10 @@ from typing import Any
 
 from alpaca.trading.enums import OrderSide
 
-from ..core.trading.strategy_manager import StrategyType
-from ..core.types import OrderDetails
-from ..tracking.strategy_order_tracker import get_strategy_tracker
-from ..utils.trading_math import calculate_rebalance_amounts
+from the_alchemiser.application.tracking.strategy_order_tracker import get_strategy_tracker
+from the_alchemiser.domain.math.trading_math import calculate_rebalance_amounts
+from the_alchemiser.domain.registry import StrategyType
+from the_alchemiser.domain.types import OrderDetails
 
 
 class PortfolioRebalancer:

@@ -12,8 +12,8 @@ from unittest.mock import Mock, patch
 import pandas as pd
 import pytest
 
-from the_alchemiser.core.exceptions import ConfigurationError
 from the_alchemiser.infrastructure.data_providers.data_provider import UnifiedDataProvider
+from the_alchemiser.services.exceptions import ConfigurationError
 
 
 class TestUnifiedDataProviderBaseline:

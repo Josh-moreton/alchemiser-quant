@@ -10,7 +10,7 @@ Loads settings from the global application configuration.
 import logging
 from dataclasses import dataclass
 
-from the_alchemiser.infrastructure.config import load_settings
+from .config import load_settings
 
 
 @dataclass

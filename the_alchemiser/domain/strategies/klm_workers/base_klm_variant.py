@@ -12,8 +12,8 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from the_alchemiser.core.utils.common import ActionType
 from the_alchemiser.domain.types import KLMDecision  # TODO: Phase 9 - Added for gradual migration
+from the_alchemiser.utils.common import ActionType
 
 
 class BaseKLMVariant(ABC):

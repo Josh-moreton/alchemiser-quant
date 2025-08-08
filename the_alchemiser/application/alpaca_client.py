@@ -52,19 +52,21 @@ if TYPE_CHECKING:
 from alpaca.trading.client import TradingClient
 from alpaca.trading.enums import OrderSide
 
-from the_alchemiser.core.exceptions import TradingClientError
-from the_alchemiser.infrastructure.data_providers.data_provider import UnifiedDataProvider
-from the_alchemiser.utils.asset_order_handler import AssetOrderHandler
-from the_alchemiser.utils.limit_order_handler import LimitOrderHandler
-from the_alchemiser.utils.order_validation_utils import (
+from the_alchemiser.application.asset_order_handler import AssetOrderHandler
+from the_alchemiser.application.limit_order_handler import LimitOrderHandler
+from the_alchemiser.application.order_validation_utils import (
     validate_notional,
     validate_order_parameters,
     validate_quantity,
 )
-from the_alchemiser.utils.position_manager import PositionManager
-from the_alchemiser.utils.smart_pricing_handler import SmartPricingHandler
-from the_alchemiser.utils.websocket_connection_manager import WebSocketConnectionManager
-from the_alchemiser.utils.websocket_order_monitor import OrderCompletionMonitor
+from the_alchemiser.application.smart_pricing_handler import SmartPricingHandler
+from the_alchemiser.infrastructure.data_providers.data_provider import UnifiedDataProvider
+from the_alchemiser.infrastructure.websocket.websocket_connection_manager import (
+    WebSocketConnectionManager,
+)
+from the_alchemiser.infrastructure.websocket.websocket_order_monitor import OrderCompletionMonitor
+from the_alchemiser.services.exceptions import TradingClientError
+from the_alchemiser.services.position_manager import PositionManager
 
 logger = logging.getLogger(__name__)
 

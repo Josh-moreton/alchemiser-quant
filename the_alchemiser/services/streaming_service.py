@@ -31,7 +31,9 @@ class StreamingService:
     def start(self) -> None:
         """Start the real-time pricing service."""
         try:
-            from the_alchemiser.infrastructure.data_providers.real_time_pricing import RealTimePricingManager
+            from the_alchemiser.infrastructure.data_providers.real_time_pricing import (
+                RealTimePricingManager,
+            )
 
             self._real_time_pricing = RealTimePricingManager(
                 self.api_key, self.secret_key, self.paper_trading
@@ -112,7 +114,7 @@ class StreamingService:
         Returns:
             Tuple of (price, cleanup_function)
         """
-        from the_alchemiser.utils.price_fetching_utils import (
+        from the_alchemiser.services.price_fetching_utils import (
             create_cleanup_function,
             subscribe_for_real_time,
         )

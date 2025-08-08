@@ -19,7 +19,7 @@ import numpy as np
 import pandas as pd
 
 # Import action types from common module
-from the_alchemiser.core.utils.common import ActionType
+from the_alchemiser.utils.common import ActionType
 
 
 class NuclearStrategyEngine:
@@ -189,7 +189,7 @@ class NuclearStrategyEngine:
             vol2 = self._get_14_day_volatility(bear2_symbol, indicators)
 
             if vol1 is None or vol2 is None or vol1 <= 0 or vol2 <= 0:
-                from the_alchemiser.core.exceptions import StrategyExecutionError
+                from the_alchemiser.services.exceptions import StrategyExecutionError
 
                 raise StrategyExecutionError(
                     f"Cannot calculate volatility for bear strategy allocation. "
@@ -214,7 +214,7 @@ class NuclearStrategyEngine:
                 portfolio[bear2_symbol] = {"weight": weight2, "performance": 0.0}
 
             if not portfolio:
-                from the_alchemiser.core.exceptions import StrategyExecutionError
+                from the_alchemiser.services.exceptions import StrategyExecutionError
 
                 raise StrategyExecutionError(
                     f"Bear strategy allocation resulted in empty portfolio. Weights: {bear1_symbol}={weight1:.3f}, {bear2_symbol}={weight2:.3f}",
@@ -224,7 +224,7 @@ class NuclearStrategyEngine:
             return portfolio
 
         except Exception as e:
-            from the_alchemiser.core.exceptions import StrategyExecutionError
+            from the_alchemiser.services.exceptions import StrategyExecutionError
 
             if isinstance(e, StrategyExecutionError):
                 raise  # Re-raise our custom exceptions
@@ -272,7 +272,7 @@ class NuclearStrategyEngine:
                 return volatility_estimates.get(symbol, 0.3)  # Default 30% volatility
 
             # If no data available at all, raise exception
-            from the_alchemiser.core.exceptions import IndicatorCalculationError
+            from the_alchemiser.services.exceptions import IndicatorCalculationError
 
             raise IndicatorCalculationError(
                 f"No volatility data available for {symbol}. No price history, RSI, or symbol lookup found.",
@@ -281,7 +281,7 @@ class NuclearStrategyEngine:
             )
 
         except Exception as e:
-            from the_alchemiser.core.exceptions import IndicatorCalculationError
+            from the_alchemiser.services.exceptions import IndicatorCalculationError
 
             if isinstance(e, IndicatorCalculationError):
                 raise  # Re-raise our custom exceptions
@@ -370,7 +370,7 @@ class BearMarketStrategy:
             return "BEAR_PORTFOLIO", "BUY", reasoning
 
         except Exception as e:
-            from the_alchemiser.core.error_handler import TradingSystemErrorHandler
+            from the_alchemiser.services.error_handler import TradingSystemErrorHandler
 
             error_handler = TradingSystemErrorHandler()
             error_handler.handle_error(

@@ -8,14 +8,11 @@ This package contains modularized services that replace the monolithic UnifiedDa
 - TradingClientService: Trading operations
 - StreamingService: Real-time data streaming
 - CacheManager: Configurable caching with TTL
+- AccountService: Account and position management
 """
 
-from .cache_manager import CacheManager
-from .config_service import ConfigService
-from .market_data_client import MarketDataClient
-from .secrets_service import SecretsService
-from .streaming_service import StreamingService
-from .trading_client_service import TradingClientService
+# Note: Lazy imports to avoid circular dependencies and initialization issues
+# Import services individually as needed rather than all at once
 
 __all__ = [
     "ConfigService",
@@ -24,4 +21,5 @@ __all__ = [
     "TradingClientService",
     "StreamingService",
     "CacheManager",
+    "AccountService",
 ]

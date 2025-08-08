@@ -19,6 +19,8 @@ import logging
 import warnings
 from typing import Any
 
+from the_alchemiser.domain.math.indicator_utils import safe_get_indicator
+
 # Third-party imports
 # Local imports
 from the_alchemiser.domain.math.indicators import TechnicalIndicators
@@ -27,9 +29,8 @@ from the_alchemiser.domain.math.indicators import TechnicalIndicators
 from the_alchemiser.domain.strategies.tecl_strategy_engine import (
     TECLStrategyEngine as PureStrategyEngine,
 )
-from the_alchemiser.utils.config_utils import load_alert_config
-from the_alchemiser.utils.indicator_utils import safe_get_indicator
-from the_alchemiser.utils.price_utils import ensure_scalar_price
+from the_alchemiser.infrastructure.config.config_utils import load_alert_config
+from the_alchemiser.services.price_utils import ensure_scalar_price
 
 warnings.filterwarnings("ignore")
 
@@ -172,7 +173,7 @@ class TECLSignalGenerator:
         alerts = self.run_analysis()
 
         # Use the consolidated display utility
-        from the_alchemiser.utils.signal_display_utils import (
+        from the_alchemiser.interface.cli.signal_display_utils import (
             display_signal_results,
             display_technical_indicators,
         )

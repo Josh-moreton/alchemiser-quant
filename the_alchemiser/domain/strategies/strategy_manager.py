@@ -18,11 +18,11 @@ import logging
 from datetime import datetime
 from typing import Any
 
-from the_alchemiser.core.registry import StrategyRegistry, StrategyType
+from the_alchemiser.domain.registry import StrategyRegistry, StrategyType
 from the_alchemiser.domain.strategies.nuclear_signals import ActionType
 
 # Phase 6 - Strategy Layer Types
-from ..exceptions import (
+from the_alchemiser.services.exceptions import (
     DataProviderError,
     StrategyExecutionError,
 )
@@ -117,7 +117,9 @@ class MultiStrategyManager:
 
         # Use provided shared_data_provider, or create one if not given
         if shared_data_provider is None:
-            from the_alchemiser.infrastructure.data_providers.data_provider import UnifiedDataProvider
+            from the_alchemiser.infrastructure.data_providers.data_provider import (
+                UnifiedDataProvider,
+            )
 
             shared_data_provider = UnifiedDataProvider(paper_trading=True)
 
@@ -467,7 +469,7 @@ class MultiStrategyManager:
                     return {symbol: data["weight"] for symbol, data in bear_portfolio.items()}
 
                 except StrategyExecutionError as e:
-                    from the_alchemiser.core.error_handler import TradingSystemErrorHandler
+                    from the_alchemiser.services.error_handler import TradingSystemErrorHandler
 
                     error_handler = TradingSystemErrorHandler()
 
@@ -489,7 +491,7 @@ class MultiStrategyManager:
                     )
                     return {bear1_symbol: 0.6, bear2_symbol: 0.4}
                 except DataProviderError as e:
-                    from the_alchemiser.core.error_handler import TradingSystemErrorHandler
+                    from the_alchemiser.services.error_handler import TradingSystemErrorHandler
 
                     error_handler = TradingSystemErrorHandler()
 
@@ -509,7 +511,7 @@ class MultiStrategyManager:
                     logging.warning(f"Bear portfolio data error: {e}, using conservative fallback")
                     return {bear1_symbol: 0.6, bear2_symbol: 0.4}
                 except Exception as e:
-                    from the_alchemiser.core.error_handler import TradingSystemErrorHandler
+                    from the_alchemiser.services.error_handler import TradingSystemErrorHandler
 
                     error_handler = TradingSystemErrorHandler()
 

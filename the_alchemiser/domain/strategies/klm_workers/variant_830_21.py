@@ -11,7 +11,7 @@ This is the V2 (enhanced) version of the MonkeyBusiness Simons approach.
 
 import pandas as pd
 
-from the_alchemiser.core.utils.common import ActionType
+from the_alchemiser.utils.common import ActionType
 
 from .base_klm_variant import BaseKLMVariant
 

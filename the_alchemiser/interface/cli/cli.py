@@ -18,12 +18,12 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.prompt import Confirm
 from rich.text import Text
 
-from the_alchemiser.core.exceptions import (
+from the_alchemiser.infrastructure.logging.logging_utils import get_logger, log_error_with_context
+from the_alchemiser.services.exceptions import (
     AlchemiserError,
     StrategyExecutionError,
     TradingClientError,
 )
-from the_alchemiser.infrastructure.logging.logging_utils import get_logger, log_error_with_context
 
 # Initialize Typer app and Rich console
 app = typer.Typer(

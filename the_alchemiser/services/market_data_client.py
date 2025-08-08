@@ -15,7 +15,7 @@ from alpaca.data.historical import StockHistoricalDataClient
 from alpaca.data.requests import StockBarsRequest, StockLatestQuoteRequest
 from alpaca.data.timeframe import TimeFrame
 
-from the_alchemiser.core.exceptions import MarketDataError
+from the_alchemiser.services.exceptions import MarketDataError
 
 
 class MarketDataClient:

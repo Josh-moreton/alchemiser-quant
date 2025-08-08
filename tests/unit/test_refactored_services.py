@@ -11,7 +11,7 @@ from unittest.mock import Mock, patch
 import pandas as pd
 import pytest
 
-from the_alchemiser.core.exceptions import (
+from the_alchemiser.services.exceptions import (
     ConfigurationError,
     MarketDataError,
 )

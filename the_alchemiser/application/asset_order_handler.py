@@ -15,7 +15,7 @@ from typing import Any
 from alpaca.trading.enums import OrderSide, TimeInForce
 from alpaca.trading.requests import MarketOrderRequest
 
-from the_alchemiser.utils.asset_info import fractionability_detector
+from the_alchemiser.domain.math.asset_info import fractionability_detector
 
 from ..core.exceptions import DataProviderError
 from ..core.logging.logging_utils import get_logger, log_error_with_context
