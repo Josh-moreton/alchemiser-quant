@@ -7,6 +7,8 @@ It provides a transitional approach that:
 2. Adds consistent error handling
 3. Maintains backward compatibility
 4. Sets up for future improvements
+
+Phase 2 Update: Now implements domain interfaces for type safety and future migration.
 """
 
 import logging
@@ -20,16 +22,27 @@ from alpaca.trading.client import TradingClient
 from alpaca.trading.enums import OrderSide, TimeInForce
 from alpaca.trading.requests import LimitOrderRequest, MarketOrderRequest
 
+from the_alchemiser.domain.interfaces import (
+    AccountRepository,
+    MarketDataRepository,
+    TradingRepository,
+)
+
 logger = logging.getLogger(__name__)
 
 
-class AlpacaManager:
+class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
     """
-    Centralized Alpaca client management.
+    Centralized Alpaca client management implementing domain interfaces.
 
     This class consolidates all Alpaca API interactions into a single, well-managed interface.
-    It provides consistent error handling, logging, and sets up for future architectural
-    improvements.
+    It provides consistent error handling, logging, and implements the domain layer interfaces
+    for type safety and future architectural improvements.
+
+    Implements:
+    - TradingRepository: For order placement and position management
+    - MarketDataRepository: For market data and quotes
+    - AccountRepository: For account information and portfolio data
     """
 
     def __init__(
@@ -93,8 +106,30 @@ class AlpacaManager:
             logger.error(f"Failed to get account information: {e}")
             raise
 
-    def get_positions(self) -> list[Any]:
-        """Get all positions with error handling."""
+    def get_positions(self) -> dict[str, float]:
+        """
+        Get all positions as dict mapping symbol to quantity (interface compatible).
+
+        Returns:
+            Dictionary mapping symbol to quantity owned. Only includes non-zero positions.
+        """
+        try:
+            positions = self._trading_client.get_all_positions()
+            result = {}
+            for position in positions:
+                symbol = str(getattr(position, "symbol", ""))
+                qty = float(getattr(position, "qty", 0))
+                if symbol and qty != 0:
+                    result[symbol] = qty
+
+            logger.debug(f"Successfully retrieved {len(result)} positions")
+            return result
+        except Exception as e:
+            logger.error(f"Failed to get positions: {e}")
+            raise
+
+    def get_all_positions(self) -> list[Any]:
+        """Get all positions as list (backward compatibility)."""
         try:
             positions = self._trading_client.get_all_positions()
             logger.debug(f"Successfully retrieved {len(positions)} positions")
@@ -259,23 +294,49 @@ class AlpacaManager:
             logger.error(f"Failed to get current price for {symbol}: {e}")
             raise
 
-    def get_latest_quote(self, symbol: str) -> Any | None:
-        """Get latest quote for a symbol."""
+    def get_latest_quote(self, symbol: str) -> tuple[float, float] | None:
+        """
+        Get latest bid/ask quote for a symbol (interface compatible).
+
+        Args:
+            symbol: Stock symbol
+
+        Returns:
+            Tuple of (bid, ask) prices, or None if not available.
+        """
         try:
-            request = StockLatestQuoteRequest(symbol_or_symbols=symbol)
-            response = self._data_client.get_stock_latest_quote(request)
+            request = StockLatestQuoteRequest(symbol_or_symbols=[symbol])
+            quotes = self._data_client.get_stock_latest_quote(request)
+            quote = quotes.get(symbol)
 
-            if symbol in response:
-                quote = response[symbol]
-                logger.debug(f"Successfully retrieved quote for {symbol}")
-                return quote
+            if quote:
+                bid = float(getattr(quote, "bid_price", 0))
+                ask = float(getattr(quote, "ask_price", 0))
+                if bid > 0 and ask > 0:
+                    return (bid, ask)
 
-            logger.warning(f"No quote found for {symbol}")
+            logger.warning(f"No valid quote data available for {symbol}")
+            return None
+        except Exception as e:
+            logger.error(f"Failed to get latest quote for {symbol}: {e}")
             return None
 
+    def get_latest_quote_raw(self, symbol: str) -> Any | None:
+        """Get latest quote as raw object (backward compatibility)."""
+        try:
+            request = StockLatestQuoteRequest(symbol_or_symbols=[symbol])
+            quotes = self._data_client.get_stock_latest_quote(request)
+            quote = quotes.get(symbol)
+
+            if quote:
+                logger.debug(f"Successfully retrieved quote for {symbol}")
+                return quote
+            else:
+                logger.warning(f"No quote data available for {symbol}")
+                return None
         except Exception as e:
-            logger.error(f"Failed to get quote for {symbol}: {e}")
-            raise
+            logger.error(f"Failed to get latest quote for {symbol}: {e}")
+            return None
 
     def get_historical_bars(
         self, symbol: str, start_date: str, end_date: str, timeframe: str = "1Day"
@@ -357,6 +418,195 @@ class AlpacaManager:
         except Exception as e:
             logger.error(f"Failed to get portfolio value: {e}")
             raise
+
+    # Additional methods to match interface contracts
+
+    def cancel_all_orders(self, symbol: str | None = None) -> bool:
+        """
+        Cancel all orders, optionally filtered by symbol.
+
+        Args:
+            symbol: If provided, only cancel orders for this symbol
+
+        Returns:
+            True if successful, False otherwise.
+        """
+        try:
+            if symbol:
+                # Get orders for specific symbol and cancel them
+                orders = self.get_orders(status="open")
+                symbol_orders = [
+                    order for order in orders if getattr(order, "symbol", None) == symbol
+                ]
+                for order in symbol_orders:
+                    order_id = getattr(order, "id", None)
+                    if order_id:
+                        self.cancel_order(str(order_id))
+            else:
+                # Cancel all open orders
+                self._trading_client.cancel_orders()
+
+            logger.info("Successfully cancelled orders" + (f" for {symbol}" if symbol else ""))
+            return True
+        except Exception as e:
+            logger.error(f"Failed to cancel orders: {e}")
+            return False
+
+    def liquidate_position(self, symbol: str) -> str | None:
+        """
+        Liquidate entire position using close_position API.
+
+        Args:
+            symbol: Symbol to liquidate
+
+        Returns:
+            Order ID if successful, None if failed.
+        """
+        try:
+            order = self._trading_client.close_position(symbol)
+            order_id = str(getattr(order, "id", "unknown"))
+            logger.info(f"Successfully liquidated position for {symbol}: {order_id}")
+            return order_id
+        except Exception as e:
+            logger.error(f"Failed to liquidate position for {symbol}: {e}")
+            return None
+
+    def get_asset_info(self, symbol: str) -> dict[str, Any] | None:
+        """
+        Get asset information.
+
+        Args:
+            symbol: Stock symbol
+
+        Returns:
+            Asset information dictionary, or None if not found.
+        """
+        try:
+            asset = self._trading_client.get_asset(symbol)
+            # Convert to dictionary for interface compatibility
+            return {
+                "symbol": getattr(asset, "symbol", symbol),
+                "name": getattr(asset, "name", None),
+                "exchange": getattr(asset, "exchange", None),
+                "asset_class": getattr(asset, "asset_class", None),
+                "tradable": getattr(asset, "tradable", None),
+                "fractionable": getattr(asset, "fractionable", None),
+            }
+        except Exception as e:
+            logger.error(f"Failed to get asset info for {symbol}: {e}")
+            return None
+
+    def is_market_open(self) -> bool:
+        """
+        Check if the market is currently open.
+
+        Returns:
+            True if market is open, False otherwise.
+        """
+        try:
+            clock = self._trading_client.get_clock()
+            return getattr(clock, "is_open", False)
+        except Exception as e:
+            logger.error(f"Failed to get market status: {e}")
+            return False
+
+    def get_market_calendar(self, start_date: str, end_date: str) -> list[dict[str, Any]]:
+        """
+        Get market calendar information.
+
+        Args:
+            start_date: Start date (ISO format)
+            end_date: End date (ISO format)
+
+        Returns:
+            List of market calendar entries.
+        """
+        try:
+            calendar = self._trading_client.get_calendar(start=start_date, end=end_date)
+            # Convert to list of dictionaries for interface compatibility
+            return [
+                {
+                    "date": str(getattr(day, "date", "")),
+                    "open": str(getattr(day, "open", "")),
+                    "close": str(getattr(day, "close", "")),
+                }
+                for day in calendar
+            ]
+        except Exception as e:
+            logger.error(f"Failed to get market calendar: {e}")
+            return []
+
+    def get_portfolio_history(
+        self,
+        start_date: str | None = None,
+        end_date: str | None = None,
+        timeframe: str = "1Day",
+    ) -> dict[str, Any] | None:
+        """
+        Get portfolio performance history.
+
+        Args:
+            start_date: Start date (ISO format), defaults to 1 month ago
+            end_date: End date (ISO format), defaults to today
+            timeframe: Timeframe for data points
+
+        Returns:
+            Portfolio history data, or None if failed.
+        """
+        try:
+            history = self._trading_client.get_portfolio_history(
+                start=start_date, end=end_date, timeframe=timeframe
+            )
+            # Convert to dictionary for interface compatibility
+            return {
+                "timestamp": getattr(history, "timestamp", []),
+                "equity": getattr(history, "equity", []),
+                "profit_loss": getattr(history, "profit_loss", []),
+                "profit_loss_pct": getattr(history, "profit_loss_pct", []),
+                "base_value": getattr(history, "base_value", None),
+                "timeframe": timeframe,
+            }
+        except Exception as e:
+            logger.error(f"Failed to get portfolio history: {e}")
+            return None
+
+    def get_activities(
+        self,
+        activity_type: str | None = None,
+        start_date: str | None = None,
+        end_date: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """
+        Get account activities (trades, dividends, etc.).
+
+        Args:
+            activity_type: Filter by activity type (optional)
+            start_date: Start date (ISO format), defaults to 1 week ago
+            end_date: End date (ISO format), defaults to today
+
+        Returns:
+            List of activity records.
+        """
+        try:
+            activities = self._trading_client.get_activities(
+                activity_type=activity_type, date=start_date, until=end_date
+            )
+            # Convert to list of dictionaries for interface compatibility
+            return [
+                {
+                    "id": str(getattr(activity, "id", "")),
+                    "activity_type": str(getattr(activity, "activity_type", "")),
+                    "date": str(getattr(activity, "date", "")),
+                    "symbol": getattr(activity, "symbol", None),
+                    "side": getattr(activity, "side", None),
+                    "qty": getattr(activity, "qty", None),
+                    "price": getattr(activity, "price", None),
+                }
+                for activity in activities
+            ]
+        except Exception as e:
+            logger.error(f"Failed to get activities: {e}")
+            return []
 
     def __repr__(self) -> str:
         """String representation."""
