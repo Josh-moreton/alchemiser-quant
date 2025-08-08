@@ -243,48 +243,75 @@ class PositionManager:
             logging.error(f"Unexpected exception liquidating position for {symbol}: {e}")
             return None
 
-    def get_pending_orders(self) -> list[dict[str, Any]]:
-        """
-        Get all pending orders from Alpaca.
-
-        Returns:
-            List of pending order information dictionaries.
-        """
+    def get_pending_orders(self) -> dict[str, dict[str, Any]]:
+        """Get pending orders with proper null value handling."""
         try:
             orders = self.trading_client.get_orders()
-            return [
-                {
-                    "id": str(getattr(order, "id", "")),
-                    "symbol": str(getattr(order, "symbol", "")),
+            pending_orders = {}
+
+            for order in orders:
+                # Safe attribute extraction with proper null handling
+                qty_raw = getattr(order, "qty", None)
+                if qty_raw is None:
+                    qty = 0.0
+                else:
+                    try:
+                        qty = float(qty_raw)
+                    except (ValueError, TypeError):
+                        qty = 0.0
+
+                filled_qty_raw = getattr(order, "filled_qty", None)
+                if filled_qty_raw is None:
+                    filled_qty = 0.0
+                else:
+                    try:
+                        filled_qty = float(filled_qty_raw)
+                    except (ValueError, TypeError):
+                        filled_qty = 0.0
+
+                limit_price_raw = getattr(order, "limit_price", None)
+                if limit_price_raw is None:
+                    limit_price = None
+                else:
+                    try:
+                        limit_price = float(limit_price_raw) if limit_price_raw else None
+                    except (ValueError, TypeError):
+                        limit_price = None
+
+                pending_orders[str(order.id)] = {
+                    "id": str(order.id),
+                    "symbol": getattr(order, "symbol", ""),
+                    "qty": qty,
+                    "filled_qty": filled_qty,
                     "side": str(getattr(order, "side", "")),
-                    "qty": float(getattr(order, "qty", 0)),
                     "status": str(getattr(order, "status", "")),
+                    "order_type": str(getattr(order, "order_type", "")),
+                    "limit_price": limit_price,
+                    "time_in_force": str(getattr(order, "time_in_force", "")),
+                    "created_at": str(getattr(order, "created_at", "")),
+                    "updated_at": str(getattr(order, "updated_at", "")),
                 }
-                for order in orders
-            ]
-        except (AttributeError, ValueError, TypeError) as e:
-            logger = get_logger(__name__)
-            log_error_with_context(
-                logger,
-                TradingClientError(f"Failed to get pending orders: {e}"),
-                "pending_orders_retrieval",
-                function="get_pending_orders",
-                error_type=type(e).__name__,
+
+            return pending_orders
+
+        except Exception as e:
+            error_context = {
+                "function": "get_pending_orders",
+                "trading_client": type(self.trading_client).__name__,
+                "error_type": type(e).__name__,
+            }
+
+            self.logger.error(
+                f"Error in pending_orders_retrieval: Failed to get pending orders: {e}",
+                extra=error_context,
             )
-            logging.error(f"Error getting pending orders: {e}")
-            return []
-        except (TradingClientError, DataProviderError, ConnectionError, TimeoutError, OSError) as e:
-            logger = get_logger(__name__)
-            log_error_with_context(
-                logger,
-                TradingClientError(f"Unexpected error getting pending orders: {e}"),
-                "pending_orders_retrieval",
-                function="get_pending_orders",
-                error_type="unexpected_error",
-                original_error=type(e).__name__,
+            self.logger.error(
+                "Full traceback for pending_orders_retrieval error:",
+                extra=error_context,
+                exc_info=True,
             )
-            logging.error(f"Unexpected error getting pending orders: {e}")
-            return []
+
+            raise PositionManagerError(f"Failed to get pending orders: {e}") from e
 
     def cancel_symbol_orders(self, symbol: str) -> bool:
         """

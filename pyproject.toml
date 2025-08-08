@@ -128,6 +128,9 @@ known-first-party = ["the_alchemiser"]
 # Phase 15: Enhanced mypy configuration for strict typing
 python_version = "3.12"
 warn_return_any = true
+ignore_missing_imports = false
+namespace_packages = true
+explicit_package_bases = true
 warn_unused_configs = true
 warn_redundant_casts = true
 warn_unused_ignores = true
@@ -149,9 +152,6 @@ check_untyped_defs = true
 disallow_untyped_decorators = true   # Phase 16c Step 4 - ENABLED: Decorators must have types
 no_implicit_optional = true
 no_implicit_reexport = true
-
-# Import handling - Phase 16c Step 4: Gradually reduce ignored imports  
-ignore_missing_imports = true  # Phase 16c Step 4 - Keep enabled until type stubs available
 
 # Error output
 show_error_codes = true

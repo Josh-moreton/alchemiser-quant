@@ -12,17 +12,15 @@ from unittest.mock import Mock, patch
 import pandas as pd
 import pytest
 
-from the_alchemiser.core.services import (
-    CacheManager,
-    ConfigService,
-    MarketDataClient,
-    SecretsService,
-    TradingClientService,
-)
 from the_alchemiser.domain.models import AccountModel, BarModel
 from the_alchemiser.services.account_service import AccountService
+from the_alchemiser.services.cache_manager import CacheManager
+from the_alchemiser.services.config_service import ConfigService
 from the_alchemiser.services.error_handling import handle_service_errors
+from the_alchemiser.services.market_data_client import MarketDataClient
 from the_alchemiser.services.price_service import ModernPriceFetchingService
+from the_alchemiser.services.secrets_service import SecretsService
+from the_alchemiser.services.trading_client_service import TradingClientService
 
 
 class TestServiceIntegration:
