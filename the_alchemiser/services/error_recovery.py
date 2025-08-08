@@ -251,11 +251,11 @@ class CircuitBreaker:
         self.recovery_timeout = recovery_timeout
         self.expected_exception = expected_exception
         self.failure_count = 0
-        self.last_failure_time = None
+        self.last_failure_time: float | None = None
         self.state = CircuitState.CLOSED
         self.logger = logging.getLogger(__name__)
 
-    def call(self, func: Callable, *args, **kwargs):
+    def call(self, func: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
         """Execute function with circuit breaker protection."""
         if self.state == CircuitState.OPEN:
             if self._should_attempt_reset():
@@ -278,14 +278,14 @@ class CircuitBreaker:
             return True
         return time.time() - self.last_failure_time >= self.recovery_timeout
 
-    def _on_success(self):
+    def _on_success(self) -> None:
         """Handle successful operation."""
         if self.state == CircuitState.HALF_OPEN:
             self.state = CircuitState.CLOSED
             self.failure_count = 0
             self.logger.info(f"Circuit breaker {self.name} CLOSED - recovery successful")
 
-    def _on_failure(self):
+    def _on_failure(self) -> None:
         """Handle failed operation."""
         self.failure_count += 1
         self.last_failure_time = time.time()
@@ -300,7 +300,7 @@ class CircuitBreaker:
         """Get current circuit breaker state."""
         return self.state
 
-    def reset(self):
+    def reset(self) -> None:
         """Manually reset the circuit breaker."""
         self.state = CircuitState.CLOSED
         self.failure_count = 0
@@ -381,7 +381,7 @@ class FibonacciBackoffStrategy(RetryStrategy):
 class SmartRetryManager:
     """Intelligent retry management with multiple strategies."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.strategies = {
             "exponential": ExponentialBackoffStrategy(),
             "linear": LinearBackoffStrategy(),
@@ -392,13 +392,13 @@ class SmartRetryManager:
 
     def retry_with_strategy(
         self,
-        func: Callable,
+        func: Callable[..., Any],
         strategy: str = "exponential",
         max_retries: int = 3,
         exceptions: tuple[type[Exception], ...] = (Exception,),
         jitter: bool = True,
         recovery_strategies: list[ErrorRecoveryStrategy] | None = None,
-    ):
+    ) -> Any:
         """Execute function with smart retry strategy."""
         if strategy not in self.strategies:
             raise ValueError(f"Unknown retry strategy: {strategy}")
@@ -434,7 +434,7 @@ class SmartRetryManager:
                 self.logger.warning(f"Attempt {attempt + 1} failed, retrying in {delay:.2f}s: {e}")
                 time.sleep(delay)
 
-    def add_strategy(self, name: str, strategy: RetryStrategy):
+    def add_strategy(self, name: str, strategy: RetryStrategy) -> None:
         """Add a custom retry strategy."""
         self.strategies[name] = strategy
 
@@ -442,7 +442,7 @@ class SmartRetryManager:
 class ErrorRecoveryManager:
     """Central manager for error recovery operations."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.recovery_strategies: list[ErrorRecoveryStrategy] = [
             TradingErrorRecovery(),
             DataErrorRecovery(),
@@ -501,15 +501,15 @@ class ErrorRecoveryManager:
 
     def execute_with_resilience(
         self,
-        func: Callable,
+        func: Callable[..., Any],
         circuit_breaker_name: str | None = None,
         retry_strategy: str = "exponential",
         max_retries: int = 3,
         exceptions: tuple[type[Exception], ...] = (Exception,),
-    ):
+    ) -> Any:
         """Execute function with full resilience features."""
 
-        def protected_func():
+        def protected_func() -> Any:
             if circuit_breaker_name:
                 circuit_breaker = self.get_circuit_breaker(circuit_breaker_name)
                 return circuit_breaker.call(func)
@@ -524,7 +524,7 @@ class ErrorRecoveryManager:
             recovery_strategies=self.recovery_strategies,
         )
 
-    def add_recovery_strategy(self, strategy: ErrorRecoveryStrategy):
+    def add_recovery_strategy(self, strategy: ErrorRecoveryStrategy) -> None:
         """Add a custom recovery strategy."""
         self.recovery_strategies.append(strategy)
 
@@ -532,7 +532,7 @@ class ErrorRecoveryManager:
         """Get recovery statistics for monitoring."""
         return dict(self.recovery_stats)
 
-    def reset_circuit_breaker(self, name: str):
+    def reset_circuit_breaker(self, name: str) -> None:
         """Manually reset a circuit breaker."""
         if name in self.circuit_breakers:
             self.circuit_breakers[name].reset()
@@ -553,17 +553,17 @@ def with_circuit_breaker(
     name: str,
     failure_threshold: int = 5,
     recovery_timeout: float = 60.0,
-):
+) -> Callable[[F], F]:
     """Decorator to add circuit breaker protection to a function."""
 
     def decorator(func: F) -> F:
-        def wrapper(*args, **kwargs):
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
             circuit_breaker = _recovery_manager.get_circuit_breaker(
                 name, failure_threshold, recovery_timeout
             )
             return circuit_breaker.call(func, *args, **kwargs)
 
-        return wrapper
+        return wrapper  # type: ignore[return-value]
 
     return decorator
 
@@ -572,11 +572,11 @@ def with_retry(
     strategy: str = "exponential",
     max_retries: int = 3,
     exceptions: tuple[type[Exception], ...] = (Exception,),
-):
+) -> Callable[[F], F]:
     """Decorator to add retry capability to a function."""
 
     def decorator(func: F) -> F:
-        def wrapper(*args, **kwargs):
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
             return _recovery_manager.retry_manager.retry_with_strategy(
                 lambda: func(*args, **kwargs),
                 strategy=strategy,
@@ -585,7 +585,7 @@ def with_retry(
                 recovery_strategies=_recovery_manager.recovery_strategies,
             )
 
-        return wrapper
+        return wrapper  # type: ignore[return-value]
 
     return decorator
 
@@ -595,11 +595,11 @@ def with_resilience(
     retry_strategy: str = "exponential",
     max_retries: int = 3,
     exceptions: tuple[type[Exception], ...] = (Exception,),
-):
+) -> Callable[[F], F]:
     """Decorator to add full resilience features to a function."""
 
     def decorator(func: F) -> F:
-        def wrapper(*args, **kwargs):
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
             return _recovery_manager.execute_with_resilience(
                 lambda: func(*args, **kwargs),
                 circuit_breaker_name=circuit_breaker_name,
@@ -608,6 +608,6 @@ def with_resilience(
                 exceptions=exceptions,
             )
 
-        return wrapper
+        return wrapper  # type: ignore[return-value]
 
     return decorator

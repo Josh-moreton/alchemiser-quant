@@ -74,7 +74,7 @@ class CacheManager(Generic[T]):
 
             if time.time() - cached_time < ttl:
                 logging.debug(f"Cache hit for {cache_key}")
-                return data
+                return data  # type: ignore[no-any-return]
             else:
                 # Item expired, remove it
                 del self._cache[cache_key]
@@ -154,7 +154,7 @@ class CacheManager(Generic[T]):
         }
 
         # Group by data type
-        type_counts = {}
+        type_counts: dict[str, int] = {}
         for key in self._cache.keys():
             data_type = key.split(":", 1)[0] if ":" in key else "default"
             type_counts[data_type] = type_counts.get(data_type, 0) + 1
@@ -193,7 +193,7 @@ class CacheManager(Generic[T]):
     @property
     def maxsize(self) -> int:
         """Get maximum cache size."""
-        return self._cache.maxsize
+        return int(self._cache.maxsize)  # type: ignore[no-any-return]
 
     def __len__(self) -> int:
         """Get current cache size."""

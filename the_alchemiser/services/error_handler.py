@@ -137,14 +137,20 @@ class EnhancedAlchemiserError(AlchemiserError):
     def __init__(
         self,
         message: str,
-        context: ErrorContext | None = None,
+        context: ErrorContext | dict[str, Any] | None = None,
         severity: str = ErrorSeverity.MEDIUM,
         recoverable: bool = True,
         retry_count: int = 0,
         max_retries: int = 3,
     ):
         super().__init__(message)
-        self.context = context
+        if context is not None:
+            if isinstance(context, dict):
+                self.context = context
+            else:
+                self.context = context.to_dict() if hasattr(context, "to_dict") else {}
+        else:
+            self.context = {}
         self.severity = severity
         self.recoverable = recoverable
         self.retry_count = retry_count
@@ -174,6 +180,10 @@ class EnhancedAlchemiserError(AlchemiserError):
     def to_dict(self) -> dict[str, Any]:
         """Convert exception to structured data for logging/reporting."""
         base_dict = super().to_dict()
+
+        # Handle context conversion - it's always a dict now
+        context_dict = self.context if self.context else None
+
         base_dict.update(
             {
                 "error_id": self.error_id,
@@ -181,7 +191,7 @@ class EnhancedAlchemiserError(AlchemiserError):
                 "recoverable": self.recoverable,
                 "retry_count": self.retry_count,
                 "max_retries": self.max_retries,
-                "context": self.context.to_dict() if self.context else None,
+                "context": context_dict,
             }
         )
         return base_dict
@@ -462,8 +472,8 @@ class EnhancedTradingError(EnhancedAlchemiserError):
         order_id: str | None = None,
         quantity: float | None = None,
         price: float | None = None,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> None:
         super().__init__(message, **kwargs)
         self.symbol = symbol
         self.order_id = order_id
@@ -493,8 +503,8 @@ class EnhancedDataError(EnhancedAlchemiserError):
         data_source: str | None = None,
         data_type: str | None = None,
         symbol: str | None = None,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> None:
         super().__init__(message, **kwargs)
         self.data_source = data_source
         self.data_type = data_type
@@ -535,7 +545,7 @@ def handle_trading_error(
 def send_error_notification_if_needed() -> ErrorNotificationData | None:
     """Send error notification email if there are errors that warrant it."""
     if not _error_handler.should_send_error_email():
-        return
+        return None
 
     try:
         from .ui.email.client import send_email_notification
@@ -905,7 +915,7 @@ def create_error_context(
     operation: str,
     component: str,
     function_name: str | None = None,
-    **kwargs,
+    **kwargs: Any,
 ) -> ErrorContext:
     """Factory function to create standardized error context."""
     return ErrorContext(
@@ -956,7 +966,7 @@ def create_enhanced_error(
     message: str,
     context: ErrorContext | None = None,
     severity: str | None = None,
-    **kwargs,
+    **kwargs: Any,
 ) -> EnhancedAlchemiserError:
     """Factory function to create enhanced errors with proper context."""
     if severity is None:

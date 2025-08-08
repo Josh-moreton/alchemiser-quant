@@ -35,7 +35,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from decimal import Decimal
 from enum import Enum
-from typing import Any
+from typing import Any, cast
 
 from pydantic import BaseModel, Field, validator
 
@@ -163,9 +163,9 @@ class ValidatedOrder(BaseModel):
             "id": self.id or "",
             "symbol": self.symbol,
             "qty": float(self.quantity),
-            "side": self.side.value.lower(),
-            "order_type": self.order_type.value.lower(),
-            "time_in_force": self.time_in_force.lower(),
+            "side": cast(Any, self.side.value.lower()),
+            "order_type": cast(Any, self.order_type.value.lower()),
+            "time_in_force": cast(Any, self.time_in_force.lower()),
             "status": self.status.value,
             "filled_qty": float(self.filled_qty),
             "filled_avg_price": float(self.filled_avg_price) if self.filled_avg_price else None,
@@ -178,11 +178,14 @@ class ValidatedOrder(BaseModel):
         """Create ValidatedOrder from OrderDetails TypedDict."""
         return cls(
             id=order_details["id"],
+            client_order_id=None,  # Not provided in OrderDetails
             symbol=order_details["symbol"],
             quantity=Decimal(str(order_details["qty"])),
             side=ValidatedOrderSide(order_details["side"].upper()),
             order_type=ValidatedOrderType(order_details["order_type"].upper()),
             time_in_force=order_details["time_in_force"].upper(),
+            limit_price=None,  # Not provided in OrderDetails
+            stop_price=None,  # Not provided in OrderDetails
             status=OrderStatus(order_details["status"]),
             filled_qty=Decimal(str(order_details["filled_qty"])),
             filled_avg_price=(
@@ -190,6 +193,7 @@ class ValidatedOrder(BaseModel):
                 if order_details["filled_avg_price"]
                 else None
             ),
+            estimated_value=None,  # Calculate from quantity * price if needed
             created_at=datetime.fromisoformat(order_details["created_at"].replace("Z", "+00:00")),
             updated_at=datetime.fromisoformat(order_details["updated_at"].replace("Z", "+00:00")),
         )
@@ -223,6 +227,7 @@ class ValidatedOrder(BaseModel):
 
             return cls(
                 id=order_dict.get("id"),
+                client_order_id=order_dict.get("client_order_id"),
                 symbol=str(symbol),
                 quantity=Decimal(str(quantity)),
                 side=ValidatedOrderSide(str(side).upper()),
@@ -243,6 +248,7 @@ class ValidatedOrder(BaseModel):
                     if order_dict.get("filled_avg_price")
                     else None
                 ),
+                estimated_value=order_dict.get("estimated_value"),
             )
 
         except (ValueError, TypeError, KeyError) as e:
@@ -331,7 +337,7 @@ class OrderValidator:
             ValidationResult with validation outcome
         """
         errors = []
-        warnings = []
+        warnings: list[str] = []
 
         try:
             # Attempt to create ValidatedOrder (this will trigger Pydantic validation)
@@ -378,14 +384,19 @@ class OrderValidator:
                 )
 
         # Validate quantity precision
-        if order.quantity.as_tuple().exponent < -6:  # More than 6 decimal places
+        quantity_exponent = order.quantity.as_tuple().exponent
+        if (
+            isinstance(quantity_exponent, int) and quantity_exponent < -6
+        ):  # More than 6 decimal places
             errors.append("Order quantity has too many decimal places (max 6)")
 
         # Validate price precision for limit orders
-        if (
-            order.limit_price and order.limit_price.as_tuple().exponent < -2
-        ):  # More than 2 decimal places
-            errors.append("Limit price has too many decimal places (max 2)")
+        if order.limit_price:
+            limit_price_exponent = order.limit_price.as_tuple().exponent
+            if (
+                isinstance(limit_price_exponent, int) and limit_price_exponent < -2
+            ):  # More than 2 decimal places
+                errors.append("Limit price has too many decimal places (max 2)")
 
         return errors
 
@@ -428,6 +439,8 @@ class OrderValidator:
 
             # Create order
             order = ValidatedOrder(
+                id=None,  # Will be set by broker
+                client_order_id=None,  # Will be generated if needed
                 symbol=symbol,
                 quantity=Decimal(str(quantity)),
                 side=side,
@@ -435,6 +448,7 @@ class OrderValidator:
                 limit_price=Decimal(str(limit_price)) if limit_price else None,
                 stop_price=Decimal(str(stop_price)) if stop_price else None,
                 time_in_force=time_in_force,
+                filled_avg_price=None,  # Not filled yet
                 estimated_value=Decimal(str(estimated_value)) if estimated_value else None,
             )
 
@@ -617,6 +631,7 @@ def validate_order_list(orders: list[dict[str, Any]]) -> list[ValidatedOrder]:
                 raise OrderValidationError(
                     f"Order {i} validation failed: {'; '.join(result.errors)}"
                 )
+            assert result.validated_order is not None  # Should be present if validation passed
             validated_orders.append(result.validated_order)
         except Exception as e:
             raise OrderValidationError(f"Failed to validate order {i}: {e}")

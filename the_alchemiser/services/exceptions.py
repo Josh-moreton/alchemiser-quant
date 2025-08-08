@@ -205,6 +205,12 @@ class WebSocketError(DataProviderError):
     pass
 
 
+class StreamingError(DataProviderError):
+    """Raised when streaming data issues occur."""
+
+    pass
+
+
 class LoggingError(AlchemiserError):
     """Raised when logging operations fail."""
 

@@ -30,13 +30,11 @@ class OrderModel:
     @classmethod
     def from_dict(cls, data: OrderDetails) -> "OrderModel":
         """Create from OrderDetails TypedDict."""
-        created_at = data["created_at"]
-        if isinstance(created_at, str):
-            created_at = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+        created_at_raw = data["created_at"]
+        created_at_parsed = datetime.fromisoformat(created_at_raw.replace("Z", "+00:00"))
 
-        updated_at = data["updated_at"]
-        if isinstance(updated_at, str):
-            updated_at = datetime.fromisoformat(updated_at.replace("Z", "+00:00"))
+        updated_at_raw = data["updated_at"]
+        updated_at_parsed = datetime.fromisoformat(updated_at_raw.replace("Z", "+00:00"))
 
         filled_avg_price = data["filled_avg_price"]
         if filled_avg_price is not None:
@@ -52,8 +50,8 @@ class OrderModel:
             status=data["status"],
             filled_qty=float(data["filled_qty"]),
             filled_avg_price=filled_avg_price,
-            created_at=created_at,
-            updated_at=updated_at,
+            created_at=created_at_parsed,
+            updated_at=updated_at_parsed,
         )
 
     def to_dict(self) -> OrderDetails:

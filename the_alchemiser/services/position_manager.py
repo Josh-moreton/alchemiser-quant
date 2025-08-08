@@ -22,6 +22,7 @@ class PositionManager:
         """Initialize with trading client and data provider."""
         self.trading_client = trading_client
         self.data_provider = data_provider
+        self.logger = get_logger(__name__)
 
     def get_current_positions(self, force_refresh: bool = False) -> dict[str, float]:
         """
@@ -311,7 +312,7 @@ class PositionManager:
                 exc_info=True,
             )
 
-            raise PositionManagerError(f"Failed to get pending orders: {e}") from e
+            raise TradingClientError(f"Failed to get pending orders: {e}") from e
 
     def cancel_symbol_orders(self, symbol: str) -> bool:
         """
@@ -324,7 +325,8 @@ class PositionManager:
             True if successful, False otherwise
         """
         try:
-            orders = self.get_pending_orders()
+            orders_dict = self.get_pending_orders()
+            orders = list(orders_dict.values())  # Convert dict values to list
             symbol_orders = [o for o in orders if o["symbol"] == symbol]
 
             for order in symbol_orders:

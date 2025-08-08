@@ -27,13 +27,12 @@ class BarModel:
     @classmethod
     def from_dict(cls, data: MarketDataPoint) -> "BarModel":
         """Create from MarketDataPoint TypedDict."""
-        timestamp = data["timestamp"]
-        if isinstance(timestamp, str):
-            timestamp = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+        timestamp_raw = data["timestamp"]
+        timestamp_parsed = datetime.fromisoformat(timestamp_raw.replace("Z", "+00:00"))
 
         return cls(
             symbol=data["symbol"],
-            timestamp=timestamp,
+            timestamp=timestamp_parsed,
             open=data["open"],
             high=data["high"],
             low=data["low"],
@@ -79,9 +78,8 @@ class QuoteModel:
     @classmethod
     def from_dict(cls, data: QuoteData, symbol: str) -> "QuoteModel":
         """Create from QuoteData TypedDict."""
-        timestamp = data["timestamp"]
-        if isinstance(timestamp, str):
-            timestamp = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+        timestamp_raw = data["timestamp"]
+        timestamp_parsed = datetime.fromisoformat(timestamp_raw.replace("Z", "+00:00"))
 
         return cls(
             symbol=symbol,
@@ -89,7 +87,7 @@ class QuoteModel:
             ask_price=data["ask_price"],
             bid_size=data["bid_size"],
             ask_size=data["ask_size"],
-            timestamp=timestamp,
+            timestamp=timestamp_parsed,
         )
 
     def to_dict(self) -> QuoteData:
@@ -129,14 +127,13 @@ class PriceDataModel:
     @classmethod
     def from_dict(cls, data: PriceData) -> "PriceDataModel":
         """Create from PriceData TypedDict."""
-        timestamp = data["timestamp"]
-        if isinstance(timestamp, str):
-            timestamp = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+        timestamp_raw = data["timestamp"]
+        timestamp_parsed = datetime.fromisoformat(timestamp_raw.replace("Z", "+00:00"))
 
         return cls(
             symbol=data["symbol"],
             price=data["price"],
-            timestamp=timestamp,
+            timestamp=timestamp_parsed,
             bid=data.get("bid"),
             ask=data.get("ask"),
             volume=data.get("volume"),

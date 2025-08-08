@@ -136,11 +136,12 @@ class AlpacaClient:
             raw_orders = self.position_manager.get_pending_orders()
 
             validated_orders: list[ValidatedOrder] = []
-            for order in raw_orders:
+            for order_dict in raw_orders.values():  # Iterate over values, not keys
                 try:
-                    validated_orders.append(ValidatedOrder.from_dict(order))
+                    validated_orders.append(ValidatedOrder.from_dict(order_dict))
                 except Exception as e:
-                    logger.error(f"Failed to validate pending order {order.get('id', '?')}: {e}")
+                    order_id = order_dict.get("id", "?") if isinstance(order_dict, dict) else "?"
+                    logger.error(f"Failed to validate pending order {order_id}: {e}")
 
             logger.info(
                 f"📋 Retrieved {len(validated_orders)} validated pending orders "
@@ -335,6 +336,9 @@ class AlpacaClient:
 
         except (ConnectionError, TimeoutError, OSError) as e:
             logging.error(f"Network error placing market order for {symbol}: {e}")
+            return None
+        except Exception as e:
+            logging.error(f"Unexpected error placing market order for {symbol}: {e}")
             return None
 
     def place_limit_order(

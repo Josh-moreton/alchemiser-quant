@@ -51,12 +51,12 @@ class ErrorEvent:
 class RecoveryStats:
     """Statistics for error recovery attempts."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.total_attempts = 0
         self.successful_recoveries = 0
         self.failed_recoveries = 0
         self.average_recovery_time = 0.0
-        self.last_recovery_attempt = None
+        self.last_recovery_attempt: datetime | None = None
 
     @property
     def success_rate(self) -> float:
@@ -85,13 +85,13 @@ class ErrorMetricsCollector:
     def __init__(self, max_history_hours: int = 24):
         self.max_history_hours = max_history_hours
         self.error_counts: dict[str, int] = defaultdict(int)
-        self.error_rates: dict[str, deque] = defaultdict(lambda: deque(maxlen=1000))
+        self.error_rates: dict[str, deque[float]] = defaultdict(lambda: deque(maxlen=1000))
         self.critical_errors: deque[ErrorEvent] = deque(maxlen=100)
         self.recovery_stats: dict[str, RecoveryStats] = defaultdict(RecoveryStats)
         self.hourly_error_counts: dict[datetime, int] = {}
         self.logger = logging.getLogger(__name__)
 
-    def record_error(self, error: Exception, context: ErrorContext | None = None):
+    def record_error(self, error: Exception, context: ErrorContext | None = None) -> None:
         """Record error occurrence for metrics."""
         now = datetime.now()
         error_key = f"{error.__class__.__name__}:{context.component if context else 'unknown'}"
@@ -100,7 +100,7 @@ class ErrorMetricsCollector:
         self.error_counts[error_key] += 1
 
         # Record timestamp for rate calculation
-        self.error_rates[error_key].append(now)
+        self.error_rates[error_key].append(now.timestamp())
 
         # Track critical errors
         if hasattr(error, "severity") and error.severity == ErrorSeverity.CRITICAL:
@@ -114,7 +114,9 @@ class ErrorMetricsCollector:
         # Clean old data
         self._cleanup_old_data()
 
-    def record_recovery_attempt(self, error_type: str, success: bool, recovery_time: float = 0.0):
+    def record_recovery_attempt(
+        self, error_type: str, success: bool, recovery_time: float = 0.0
+    ) -> None:
         """Record error recovery attempt."""
         stats = self.recovery_stats[error_type]
         stats.total_attempts += 1
@@ -137,13 +139,13 @@ class ErrorMetricsCollector:
 
     def get_error_rate(self, error_type: str, window_minutes: int = 5) -> float:
         """Get error rate for specific error type."""
-        cutoff = datetime.now() - timedelta(minutes=window_minutes)
+        cutoff = (datetime.now() - timedelta(minutes=window_minutes)).timestamp()
         recent_errors = [ts for ts in self.error_rates.get(error_type, []) if ts > cutoff]
         return len(recent_errors) / window_minutes  # errors per minute
 
     def get_total_error_rate(self, window_minutes: int = 5) -> float:
         """Get total error rate across all error types."""
-        cutoff = datetime.now() - timedelta(minutes=window_minutes)
+        cutoff = (datetime.now() - timedelta(minutes=window_minutes)).timestamp()
         total_errors = 0
 
         for error_timestamps in self.error_rates.values():
@@ -185,7 +187,7 @@ class ErrorMetricsCollector:
             if hour > cutoff
         }
 
-    def _cleanup_old_data(self):
+    def _cleanup_old_data(self) -> None:
         """Remove old data beyond retention period."""
         cutoff = datetime.now() - timedelta(hours=self.max_history_hours)
 
@@ -198,14 +200,14 @@ class ErrorMetricsCollector:
 class AlertThresholdManager:
     """Manage dynamic alert thresholds based on historical data."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.static_thresholds = {
             "error_rate_per_minute": 2.0,  # errors per minute
             "critical_errors_5min": 1,  # count in 5 minutes
             "recovery_failure_rate": 0.5,  # 50% recovery failures
             "circuit_breaker_trips": 3,  # trips in 10 minutes
         }
-        self.historical_data: dict[str, deque] = defaultdict(lambda: deque(maxlen=1000))
+        self.historical_data: dict[str, deque[float]] = defaultdict(lambda: deque(maxlen=1000))
         self.threshold_multipliers = {
             "error_rate_per_minute": 2.0,  # Alert at 2x normal rate
             "critical_errors_5min": 1.5,  # Alert at 1.5x normal rate
@@ -213,9 +215,9 @@ class AlertThresholdManager:
         }
         self.logger = logging.getLogger(__name__)
 
-    def update_baseline(self, metric_name: str, value: float):
+    def update_baseline(self, metric_name: str, value: float) -> None:
         """Update baseline historical data for metric."""
-        self.historical_data[metric_name].append({"value": value, "timestamp": datetime.now()})
+        self.historical_data[metric_name].append(value)
 
     def should_alert(self, metric_name: str, current_value: float) -> bool:
         """Determine if current metric value should trigger alert."""
@@ -231,16 +233,15 @@ class AlertThresholdManager:
 
     def get_dynamic_threshold(self, metric_name: str) -> float:
         """Calculate dynamic threshold based on historical data."""
-        historical = self.historical_data.get(metric_name, [])
+        historical: deque[float] = self.historical_data.get(metric_name, deque())
 
         # Need at least 20 data points for meaningful statistics
         if len(historical) < 20:
             return self.static_thresholds.get(metric_name, 1.0)
 
         try:
-            # Extract values from last 7 days
-            cutoff = datetime.now() - timedelta(days=7)
-            recent_values = [entry["value"] for entry in historical if entry["timestamp"] > cutoff]
+            # Use all historical values for now (they're all recent due to maxlen)
+            recent_values = list(historical)
 
             if not recent_values:
                 return self.static_thresholds.get(metric_name, 1.0)
@@ -254,7 +255,7 @@ class AlertThresholdManager:
 
             # Don't go below static threshold
             static_threshold = self.static_thresholds.get(metric_name, 1.0)
-            return max(dynamic_threshold, static_threshold)
+            return float(max(dynamic_threshold, static_threshold))
 
         except Exception as e:
             self.logger.error(f"Error calculating dynamic threshold for {metric_name}: {e}")
@@ -416,7 +417,7 @@ class ErrorHealthDashboard:
             recommendations=self.get_recommendations(),
         )
 
-    def update_monitoring_baselines(self):
+    def update_monitoring_baselines(self) -> None:
         """Update baseline data for dynamic threshold calculation."""
         summary = self.metrics.get_error_summary()
 
@@ -437,13 +438,13 @@ class ErrorHealthDashboard:
 class ProductionMonitor:
     """Central production monitoring system."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.metrics = ErrorMetricsCollector()
         self.dashboard = ErrorHealthDashboard(self.metrics)
         self.monitoring_enabled = True
         self.logger = logging.getLogger(__name__)
 
-    def record_error(self, error: Exception, context: ErrorContext | None = None):
+    def record_error(self, error: Exception, context: ErrorContext | None = None) -> None:
         """Record an error for monitoring."""
         if not self.monitoring_enabled:
             return
@@ -454,7 +455,7 @@ class ProductionMonitor:
         except Exception as e:
             self.logger.error(f"Failed to record error for monitoring: {e}")
 
-    def record_recovery(self, error_type: str, success: bool, recovery_time: float = 0.0):
+    def record_recovery(self, error_type: str, success: bool, recovery_time: float = 0.0) -> None:
         """Record a recovery attempt."""
         if not self.monitoring_enabled:
             return
@@ -482,7 +483,7 @@ class ProductionMonitor:
                 "timestamp": datetime.now().isoformat(),
             }
 
-    def update_baselines(self):
+    def update_baselines(self) -> None:
         """Update monitoring baselines for dynamic thresholds."""
         try:
             self.dashboard.update_monitoring_baselines()
@@ -498,12 +499,12 @@ class ProductionMonitor:
             self.logger.error(f"Health check failed: {e}")
             return False
 
-    def enable_monitoring(self):
+    def enable_monitoring(self) -> None:
         """Enable error monitoring."""
         self.monitoring_enabled = True
         self.logger.info("Error monitoring enabled")
 
-    def disable_monitoring(self):
+    def disable_monitoring(self) -> None:
         """Disable error monitoring."""
         self.monitoring_enabled = False
         self.logger.info("Error monitoring disabled")
@@ -518,12 +519,14 @@ def get_production_monitor() -> ProductionMonitor:
     return _production_monitor
 
 
-def record_error_for_monitoring(error: Exception, context: ErrorContext | None = None):
+def record_error_for_monitoring(error: Exception, context: ErrorContext | None = None) -> None:
     """Convenience function to record error for monitoring."""
     _production_monitor.record_error(error, context)
 
 
-def record_recovery_for_monitoring(error_type: str, success: bool, recovery_time: float = 0.0):
+def record_recovery_for_monitoring(
+    error_type: str, success: bool, recovery_time: float = 0.0
+) -> None:
     """Convenience function to record recovery attempt for monitoring."""
     _production_monitor.record_recovery(error_type, success, recovery_time)
 

@@ -180,7 +180,7 @@ class ModernPriceFetchingService:
 
         try:
             prices = await asyncio.gather(*tasks, return_exceptions=True)
-            result = {}
+            result: dict[str, float | None] = {}
 
             for symbol, price in zip(symbols, prices, strict=True):
                 if isinstance(price, Exception):
@@ -252,6 +252,7 @@ class ModernPriceFetchingService:
             "streaming_connected": self._streaming_service.is_connected(),
             "rest_api_available": True,  # Assume available unless proven otherwise
             "active_subscriptions": len(self._price_callbacks),
+            "rest_api_error": None,  # Will be set if there's an error
         }
 
         # Test REST API availability

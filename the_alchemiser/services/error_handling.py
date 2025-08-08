@@ -166,7 +166,7 @@ def handle_service_errors(
                         e,
                     )
 
-        return wrapper
+        return wrapper  # type: ignore[return-value]
 
     return decorator
 
@@ -257,11 +257,13 @@ class ErrorContext:
         if exc_type is not None and exc_val is not None:
             if self.reraise:
                 # Log and reraise
-                self.error_handler.log_and_handle(exc_val, self.context)
+                if isinstance(exc_val, Exception):
+                    self.error_handler.log_and_handle(exc_val, self.context)
                 return False  # Let exception propagate
             else:
                 # Log and suppress
-                self.error_handler.log_and_handle(exc_val, self.context)
+                if isinstance(exc_val, Exception):
+                    self.error_handler.log_and_handle(exc_val, self.context)
                 return True  # Suppress exception
 
         return False  # No exception occurred
@@ -340,6 +342,6 @@ def with_metrics(service_name: str) -> Callable[[F], F]:
                 service_metrics.record_error(method_name, type(e).__name__)
                 raise
 
-        return wrapper
+        return wrapper  # type: ignore[return-value]
 
     return decorator
