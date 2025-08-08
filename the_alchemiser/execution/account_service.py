@@ -3,8 +3,8 @@
 import logging
 from typing import Any, Protocol
 
-from the_alchemiser.core.types import AccountInfo, PositionInfo, PositionsDict
-from the_alchemiser.utils.account_utils import extract_comprehensive_account_data
+from the_alchemiser.domain.types import AccountInfo, PositionInfo, PositionsDict
+from the_alchemiser.services.account_utils import extract_comprehensive_account_data
 
 
 class DataProvider(Protocol):

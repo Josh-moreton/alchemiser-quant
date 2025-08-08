@@ -10,9 +10,9 @@ from typing import Any
 
 import requests
 
-from the_alchemiser.core.models.account import AccountModel, PortfolioHistoryModel
-from the_alchemiser.core.models.position import PositionModel
-from the_alchemiser.core.services.trading_client_service import TradingClientService
+from the_alchemiser.domain.models.account import AccountModel, PortfolioHistoryModel
+from the_alchemiser.domain.models.position import PositionModel
+from the_alchemiser.services.trading_client_service import TradingClientService
 
 
 class AccountService:

@@ -15,12 +15,6 @@ from the_alchemiser.core.exceptions import (
     ConfigurationError,
     MarketDataError,
 )
-from the_alchemiser.core.models import (
-    AccountModel,
-    BarModel,
-    PositionModel,
-    StrategySignalModel,
-)
 from the_alchemiser.core.services import (
     CacheManager,
     ConfigService,
@@ -28,8 +22,14 @@ from the_alchemiser.core.services import (
     SecretsService,
     TradingClientService,
 )
-from the_alchemiser.core.services.account_service import AccountService
-from the_alchemiser.core.services.error_handling import (
+from the_alchemiser.domain.models import (
+    AccountModel,
+    BarModel,
+    PositionModel,
+    StrategySignalModel,
+)
+from the_alchemiser.services.account_service import AccountService
+from the_alchemiser.services.error_handling import (
     ErrorHandler,
     ServiceMetrics,
     handle_service_errors,

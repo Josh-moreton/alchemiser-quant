@@ -1,0 +1,278 @@
+[
+  {
+    "file": "the_alchemiser/lambda_handler.py",
+    "updates": "3"
+  },
+  {
+    "file": "the_alchemiser/main.py",
+    "updates": "6"
+  },
+  {
+    "file": "the_alchemiser/utils/__init__.py",
+    "updates": "1"
+  },
+  {
+    "file": "the_alchemiser/execution/account_service.py",
+    "updates": "2"
+  },
+  {
+    "file": "the_alchemiser/application/alpaca_client.py",
+    "updates": "2"
+  },
+  {
+    "file": "the_alchemiser/application/types.py",
+    "updates": "2"
+  },
+  {
+    "file": "the_alchemiser/application/trading_engine.py",
+    "updates": "9"
+  },
+  {
+    "file": "the_alchemiser/application/smart_execution.py",
+    "updates": "2"
+  },
+  {
+    "file": "the_alchemiser/application/portfolio_pnl_utils.py",
+    "updates": "2"
+  },
+  {
+    "file": "the_alchemiser/application/execution_manager.py",
+    "updates": "1"
+  },
+  {
+    "file": "the_alchemiser/application/order_validation.py",
+    "updates": "2"
+  },
+  {
+    "file": "the_alchemiser/application/reporting.py",
+    "updates": "5"
+  },
+  {
+    "file": "the_alchemiser/archived/unified_data_provider_v2.py",
+    "updates": "2"
+  },
+  {
+    "file": "the_alchemiser/services/cache_manager.py",
+    "updates": "1"
+  },
+  {
+    "file": "the_alchemiser/services/price_service.py",
+    "updates": "1"
+  },
+  {
+    "file": "the_alchemiser/services/account_utils.py",
+    "updates": "1"
+  },
+  {
+    "file": "the_alchemiser/services/streaming_service.py",
+    "updates": "1"
+  },
+  {
+    "file": "the_alchemiser/services/config_service.py",
+    "updates": "1"
+  },
+  {
+    "file": "the_alchemiser/services/secrets_service.py",
+    "updates": "1"
+  },
+  {
+    "file": "the_alchemiser/domain/strategies/klm_trading_bot.py",
+    "updates": "4"
+  },
+  {
+    "file": "the_alchemiser/domain/strategies/klm_ensemble_engine.py",
+    "updates": "3"
+  },
+  {
+    "file": "the_alchemiser/domain/strategies/tecl_signals.py",
+    "updates": "3"
+  },
+  {
+    "file": "the_alchemiser/domain/strategies/nuclear_signals.py",
+    "updates": "4"
+  },
+  {
+    "file": "the_alchemiser/domain/strategies/strategy_manager.py",
+    "updates": "3"
+  },
+  {
+    "file": "the_alchemiser/domain/strategies/tecl_strategy_engine.py",
+    "updates": "1"
+  },
+  {
+    "file": "the_alchemiser/domain/models/order.py",
+    "updates": "1"
+  },
+  {
+    "file": "the_alchemiser/domain/models/strategy.py",
+    "updates": "1"
+  },
+  {
+    "file": "the_alchemiser/domain/models/position.py",
+    "updates": "1"
+  },
+  {
+    "file": "the_alchemiser/domain/models/market_data.py",
+    "updates": "1"
+  },
+  {
+    "file": "the_alchemiser/domain/models/account.py",
+    "updates": "1"
+  },
+  {
+    "file": "the_alchemiser/domain/math/indicators.py",
+    "updates": "1"
+  },
+  {
+    "file": "the_alchemiser/domain/math/asset_info.py",
+    "updates": "1"
+  },
+  {
+    "file": "the_alchemiser/domain/math/trading_math.py",
+    "updates": "1"
+  },
+  {
+    "file": "the_alchemiser/domain/registry/strategy_registry.py",
+    "updates": "1"
+  },
+  {
+    "file": "the_alchemiser/domain/strategies/klm_workers/base_klm_variant.py",
+    "updates": "1"
+  },
+  {
+    "file": "the_alchemiser/domain/strategies/klm_workers/variant_1280_26.py",
+    "updates": "1"
+  },
+  {
+    "file": "the_alchemiser/domain/strategies/klm_workers/variant_530_18.py",
+    "updates": "1"
+  },
+  {
+    "file": "the_alchemiser/infrastructure/websocket/websocket_order_monitor.py",
+    "updates": "1"
+  },
+  {
+    "file": "the_alchemiser/infrastructure/config/execution_config.py",
+    "updates": "1"
+  },
+  {
+    "file": "the_alchemiser/infrastructure/config/config_utils.py",
+    "updates": "2"
+  },
+  {
+    "file": "the_alchemiser/infrastructure/secrets/secrets_manager.py",
+    "updates": "1"
+  },
+  {
+    "file": "the_alchemiser/infrastructure/alerts/alert_service.py",
+    "updates": "2"
+  },
+  {
+    "file": "the_alchemiser/infrastructure/data_providers/unified_data_provider_facade.py",
+    "updates": "3"
+  },
+  {
+    "file": "the_alchemiser/infrastructure/data_providers/data_provider.py",
+    "updates": "4"
+  },
+  {
+    "file": "the_alchemiser/infrastructure/data_providers/real_time_pricing.py",
+    "updates": "1"
+  },
+  {
+    "file": "the_alchemiser/infrastructure/logging/logging_utils.py",
+    "updates": "1"
+  },
+  {
+    "file": "the_alchemiser/infrastructure/validation/indicator_validator.py",
+    "updates": "1"
+  },
+  {
+    "file": "the_alchemiser/application/tracking/strategy_order_tracker.py",
+    "updates": "3"
+  },
+  {
+    "file": "the_alchemiser/application/tracking/integration.py",
+    "updates": "2"
+  },
+  {
+    "file": "the_alchemiser/core/services/account_service.py",
+    "updates": "3"
+  },
+  {
+    "file": "the_alchemiser/interface/cli/cli.py",
+    "updates": "5"
+  },
+  {
+    "file": "the_alchemiser/interface/cli/signal_display_utils.py",
+    "updates": "2"
+  },
+  {
+    "file": "the_alchemiser/interface/email/config.py",
+    "updates": "3"
+  },
+  {
+    "file": "the_alchemiser/interface/email/email_utils.py",
+    "updates": "2"
+  },
+  {
+    "file": "the_alchemiser/interface/email/client.py",
+    "updates": "1"
+  },
+  {
+    "file": "the_alchemiser/interface/email/__init__.py",
+    "updates": "1"
+  },
+  {
+    "file": "the_alchemiser/interface/email/templates/__init__.py",
+    "updates": "1"
+  },
+  {
+    "file": "the_alchemiser/interface/email/templates/performance.py",
+    "updates": "1"
+  },
+  {
+    "file": "the_alchemiser/interface/email/templates/portfolio.py",
+    "updates": "2"
+  },
+  {
+    "file": "the_alchemiser/interface/email/templates/trading_report.py",
+    "updates": "1"
+  },
+  {
+    "file": "tests/test_unified_data_provider_baseline.py",
+    "updates": "1"
+  },
+  {
+    "file": "scripts/rearchitect_codebase.py",
+    "updates": "28"
+  },
+  {
+    "file": ".aws-sam/build/TradingSystemFunction/test_error_handling.py",
+    "updates": "1"
+  },
+  {
+    "file": "tests/unit/test_refactored_services.py",
+    "updates": "3"
+  },
+  {
+    "file": "tests/unit/test_indicators.py",
+    "updates": "1"
+  },
+  {
+    "file": "tests/unit/test_types.py",
+    "updates": "1"
+  },
+  {
+    "file": "tests/integration/test_service_integration.py",
+    "updates": "4"
+  },
+  {
+    "file": "tests/deployment/test_deployment_validation.py",
+    "updates": "2"
+  },
+  {
+    "file": "tests/regression/test_regression_suite.py",
+    "updates": "3"
+  }
+]

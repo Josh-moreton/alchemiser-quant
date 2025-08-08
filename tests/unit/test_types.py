@@ -12,7 +12,7 @@ import pytest
 
 # Import the core types - adjust import path as needed
 try:
-    from the_alchemiser.core.types import (
+    from the_alchemiser.domain.types import (
         OrderRequest,
         PortfolioState,
         Position,

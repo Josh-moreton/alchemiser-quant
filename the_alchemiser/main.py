@@ -43,7 +43,6 @@ try:
 except ImportError:
     HAS_RICH = False
 
-from the_alchemiser.core.config import Settings, load_settings
 from the_alchemiser.core.exceptions import (
     ConfigurationError,
     DataProviderError,
@@ -51,8 +50,9 @@ from the_alchemiser.core.exceptions import (
     StrategyExecutionError,
     TradingClientError,
 )
-from the_alchemiser.core.logging.logging_utils import get_logger, setup_logging
-from the_alchemiser.core.trading.strategy_manager import StrategyType
+from the_alchemiser.domain.strategies.strategy_manager import StrategyType
+from the_alchemiser.infrastructure.config import Settings, load_settings
+from the_alchemiser.infrastructure.logging.logging_utils import get_logger, setup_logging
 
 
 def configure_application_logging() -> None:
@@ -62,7 +62,7 @@ def configure_application_logging() -> None:
     is_production = os.getenv("AWS_LAMBDA_FUNCTION_NAME") is not None
 
     if is_production:
-        from the_alchemiser.core.logging.logging_utils import configure_production_logging
+        from the_alchemiser.infrastructure.logging.logging_utils import configure_production_logging
 
         configure_production_logging(
             log_level=logging.INFO,
@@ -105,8 +105,8 @@ def generate_multi_strategy_signals(
     Raises:
         Exception: If data provider initialization or strategy execution fails.
     """
-    from the_alchemiser.core.data.data_provider import UnifiedDataProvider
-    from the_alchemiser.core.trading.strategy_manager import MultiStrategyManager
+    from the_alchemiser.domain.strategies.strategy_manager import MultiStrategyManager
+    from the_alchemiser.infrastructure.data_providers.data_provider import UnifiedDataProvider
 
     try:
         # Create shared UnifiedDataProvider once
@@ -115,7 +115,7 @@ def generate_multi_strategy_signals(
         strategy_signals, consolidated_portfolio, _ = manager.run_all_strategies()
         return manager, strategy_signals, consolidated_portfolio
     except (DataProviderError, StrategyExecutionError) as e:
-        from the_alchemiser.core.logging.logging_utils import log_error_with_context
+        from the_alchemiser.infrastructure.logging.logging_utils import log_error_with_context
 
         logger = get_logger(__name__)
         log_error_with_context(
@@ -129,7 +129,7 @@ def generate_multi_strategy_signals(
         # Re-raise the specific exception for proper error handling
         raise
     except (TradingClientError, ImportError, AttributeError, ValueError) as e:
-        from the_alchemiser.core.logging.logging_utils import log_error_with_context
+        from the_alchemiser.infrastructure.logging.logging_utils import log_error_with_context
 
         logger = get_logger(__name__)
         log_error_with_context(
@@ -167,7 +167,7 @@ def run_all_signals_display(
         - Consolidated portfolio allocation
         - Strategy execution summary
     """
-    from the_alchemiser.core.ui.cli_formatter import (
+    from the_alchemiser.interface.cli_formatter import (
         render_footer,
         render_header,
         render_portfolio_allocation,
@@ -266,7 +266,7 @@ def run_all_signals_display(
         render_footer("Signal analysis completed successfully!")
         return True
     except (DataProviderError, StrategyExecutionError) as e:
-        from the_alchemiser.core.logging.logging_utils import log_error_with_context
+        from the_alchemiser.infrastructure.logging.logging_utils import log_error_with_context
 
         logger = get_logger(__name__)
         log_error_with_context(
@@ -279,7 +279,7 @@ def run_all_signals_display(
         logger.exception("Error analyzing strategies: %s", e)
         return False
     except (ImportError, AttributeError, ValueError, OSError) as e:
-        from the_alchemiser.core.logging.logging_utils import log_error_with_context
+        from the_alchemiser.infrastructure.logging.logging_utils import log_error_with_context
 
         logger = get_logger(__name__)
         log_error_with_context(
@@ -317,14 +317,14 @@ def run_multi_strategy_trading(
         - Technical indicators and strategy signals are displayed before execution
         - Error notifications are sent via email if configured
     """
-    from the_alchemiser.core.ui.cli_formatter import render_header
+    from the_alchemiser.interface.cli_formatter import render_header
 
     mode_str = "LIVE" if live_trading else "PAPER"
 
     settings = settings or load_settings()
     try:
-        from the_alchemiser.execution.smart_execution import is_market_open
-        from the_alchemiser.execution.trading_engine import TradingEngine
+        from the_alchemiser.application.smart_execution import is_market_open
+        from the_alchemiser.application.trading_engine import TradingEngine
 
         trader = TradingEngine(
             paper_trading=not live_trading, ignore_market_hours=ignore_market_hours, config=settings
@@ -335,7 +335,7 @@ def run_multi_strategy_trading(
             logger = get_logger(__name__)
             logger.warning("Market is closed. No trades will be placed.")
 
-            from the_alchemiser.core.ui.email_utils import (
+            from the_alchemiser.interface.email_utils import (
                 build_error_email_html,
                 send_email_notification,
             )
@@ -357,7 +357,7 @@ def run_multi_strategy_trading(
         )
 
         # Display strategy signals
-        from the_alchemiser.core.ui.cli_formatter import render_strategy_signals
+        from the_alchemiser.interface.cli_formatter import render_strategy_signals
 
         render_strategy_signals(strategy_signals)
 
@@ -390,8 +390,8 @@ def run_multi_strategy_trading(
 
         # Send email notification for both paper and live trading
         try:
-            from the_alchemiser.core.ui.email.templates import EmailTemplates
-            from the_alchemiser.core.ui.email_utils import send_email_notification
+            from the_alchemiser.interface.email.templates import EmailTemplates
+            from the_alchemiser.interface.email_utils import send_email_notification
 
             # Enrich result with fresh position data for email templates
             try:
@@ -416,7 +416,7 @@ def run_multi_strategy_trading(
                 text_content=f"Multi-strategy execution completed. Success: {result.success}",
             )
         except NotificationError as e:
-            from the_alchemiser.core.logging.logging_utils import log_error_with_context
+            from the_alchemiser.infrastructure.logging.logging_utils import log_error_with_context
 
             logger = get_logger(__name__)
             log_error_with_context(
@@ -428,7 +428,7 @@ def run_multi_strategy_trading(
             )
             logger.warning("Email notification failed: %s", e)
         except (ConnectionError, TimeoutError, ValueError, AttributeError) as e:
-            from the_alchemiser.core.logging.logging_utils import log_error_with_context
+            from the_alchemiser.infrastructure.logging.logging_utils import log_error_with_context
 
             logger = get_logger(__name__)
             log_error_with_context(
@@ -443,7 +443,7 @@ def run_multi_strategy_trading(
         return result.success
 
     except (DataProviderError, StrategyExecutionError, TradingClientError) as e:
-        from the_alchemiser.core.logging.logging_utils import log_error_with_context
+        from the_alchemiser.infrastructure.logging.logging_utils import log_error_with_context
 
         logger = get_logger(__name__)
         log_error_with_context(
@@ -483,7 +483,7 @@ def run_multi_strategy_trading(
 
         return False
     except (OSError, ImportError, ConfigurationError, ValueError) as e:
-        from the_alchemiser.core.logging.logging_utils import log_error_with_context
+        from the_alchemiser.infrastructure.logging.logging_utils import log_error_with_context
 
         logger = get_logger(__name__)
         log_error_with_context(
@@ -558,7 +558,7 @@ def main(argv: list[str] | None = None, settings: Settings | None = None) -> boo
         $ python main.py trade --live           # Live trading
         $ python main.py trade --ignore-market-hours  # Test during market close
     """
-    from the_alchemiser.core.ui.cli_formatter import render_footer, render_header
+    from the_alchemiser.interface.cli_formatter import render_footer, render_header
 
     # Setup logging early to suppress chattiness
     configure_application_logging()
@@ -608,7 +608,7 @@ def main(argv: list[str] | None = None, settings: Settings | None = None) -> boo
             else:
                 success = result
     except (DataProviderError, StrategyExecutionError, TradingClientError) as e:
-        from the_alchemiser.core.logging.logging_utils import log_error_with_context
+        from the_alchemiser.infrastructure.logging.logging_utils import log_error_with_context
 
         logger = get_logger(__name__)
         log_error_with_context(
@@ -623,7 +623,7 @@ def main(argv: list[str] | None = None, settings: Settings | None = None) -> boo
         logger.exception("Known error in main application: %s", e)
         success = False
     except (ConfigurationError, ValueError, AttributeError, OSError, ImportError) as e:
-        from the_alchemiser.core.logging.logging_utils import log_error_with_context
+        from the_alchemiser.infrastructure.logging.logging_utils import log_error_with_context
 
         logger = get_logger(__name__)
         log_error_with_context(

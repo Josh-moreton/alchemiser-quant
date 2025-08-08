@@ -351,7 +351,7 @@ class DeploymentValidator:
 
                 # Test portfolio initialization
                 try:
-                    from the_alchemiser.core.trading.portfolio import Portfolio
+                    from the_alchemiser.domain.strategies.portfolio import Portfolio
 
                     Portfolio()  # Just test instantiation
                     health_checks["portfolio"] = {
@@ -369,7 +369,7 @@ class DeploymentValidator:
 
                 # Test execution engine
                 try:
-                    from the_alchemiser.core.trading.execution_engine import ExecutionEngine
+                    from the_alchemiser.domain.strategies.execution_engine import ExecutionEngine
 
                     ExecutionEngine()  # Just test instantiation
                     health_checks["execution_engine"] = {
@@ -387,7 +387,7 @@ class DeploymentValidator:
 
                 # Test indicator calculation
                 try:
-                    from the_alchemiser.core.indicators.sma import SimpleMovingAverage
+                    from the_alchemiser.domain.math.sma import SimpleMovingAverage
 
                     sma = SimpleMovingAverage(period=20)
                     test_values = [100, 101, 102, 103, 104]

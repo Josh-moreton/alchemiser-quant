@@ -76,7 +76,6 @@ class CodebaseRearchitect:
             "domain/": [
                 "the_alchemiser/core/types.py",
             ],
-
             # Services layer - Application services
             "services/": [
                 "the_alchemiser/core/services/config_service.py",
@@ -101,7 +100,6 @@ class CodebaseRearchitect:
                 "the_alchemiser/core/exceptions.py",
                 "the_alchemiser/core/retry_decorator.py",
             ],
-
             # Infrastructure layer - External integrations
             "infrastructure/config/": [
                 "the_alchemiser/core/config.py",
@@ -138,7 +136,6 @@ class CodebaseRearchitect:
                 "the_alchemiser/core/validation/indicator_validator.py",
                 "the_alchemiser/core/validation/__init__.py",
             ],
-
             # Application layer - Orchestration and use-cases
             "application/": [
                 "the_alchemiser/execution/trading_engine.py",
@@ -166,7 +163,6 @@ class CodebaseRearchitect:
                 "the_alchemiser/tracking/integration.py",
                 "the_alchemiser/tracking/__init__.py",
             ],
-
             # Interface layer - Presentation layer
             "interface/cli/": [
                 "the_alchemiser/cli.py",
@@ -190,13 +186,11 @@ class CodebaseRearchitect:
                 "the_alchemiser/core/ui/email/templates/signals.py",
                 "the_alchemiser/core/ui/email/templates/__init__.py",
             ],
-
             # Utils layer - Truly generic helpers
             "utils/": [
                 "the_alchemiser/core/utils/common.py",
                 "the_alchemiser/utils/__init__.py",
             ],
-
             # Root level files
             "": [
                 "the_alchemiser/main.py",
@@ -243,11 +237,13 @@ class CodebaseRearchitect:
             init_file = full_path / "__init__.py"
             if not init_file.exists():
                 init_file.touch()
-                self.move_log.append({
-                    "action": "create",
-                    "type": "init_file",
-                    "path": str(init_file.relative_to(self.root_dir))
-                })
+                self.move_log.append(
+                    {
+                        "action": "create",
+                        "type": "init_file",
+                        "path": str(init_file.relative_to(self.root_dir)),
+                    }
+                )
 
     def handle_account_service_merge(self) -> None:
         """Merge the two account_service.py files."""
@@ -262,7 +258,8 @@ class CodebaseRearchitect:
             core_content = f.read()
 
         # Create merged content - prioritize the core service
-        merged_content = '''"""
+        merged_content = (
+            '''"""
 Account Service
 
 Unified service for account information, positions and portfolio history.
@@ -324,19 +321,23 @@ class AccountService:
         if data_provider:
             self._extract_account_data = extract_comprehensive_account_data
 
-''' + core_content.split('class AccountService:')[1].split('"""')[2]
+'''
+            + core_content.split("class AccountService:")[1].split('"""')[2]
+        )
 
         # Write merged file
-        with open(merged_service_path, 'w') as f:
+        with open(merged_service_path, "w") as f:
             f.write(merged_content)
 
-        self.move_log.append({
-            "action": "merge",
-            "type": "account_service",
-            "source1": str(core_service_path.relative_to(self.root_dir)),
-            "source2": str(execution_service_path.relative_to(self.root_dir)),
-            "destination": str(merged_service_path.relative_to(self.root_dir))
-        })
+        self.move_log.append(
+            {
+                "action": "merge",
+                "type": "account_service",
+                "source1": str(core_service_path.relative_to(self.root_dir)),
+                "source2": str(execution_service_path.relative_to(self.root_dir)),
+                "destination": str(merged_service_path.relative_to(self.root_dir)),
+            }
+        )
 
     def move_files(self) -> None:
         """Move files according to the architecture mapping."""
@@ -362,12 +363,14 @@ class AccountService:
                     # Move file
                     shutil.move(str(source_path), str(target_path))
 
-                    self.move_log.append({
-                        "action": "move",
-                        "type": "file",
-                        "source": str(source_path.relative_to(self.root_dir)),
-                        "destination": str(target_path.relative_to(self.root_dir))
-                    })
+                    self.move_log.append(
+                        {
+                            "action": "move",
+                            "type": "file",
+                            "source": str(source_path.relative_to(self.root_dir)),
+                            "destination": str(target_path.relative_to(self.root_dir)),
+                        }
+                    )
                 else:
                     print(f"Warning: Source file not found: {source_path}")
 
@@ -384,12 +387,14 @@ class AccountService:
                 target_path = archive_dir / source_path.name
                 shutil.move(str(source_path), str(target_path))
 
-                self.move_log.append({
-                    "action": "archive",
-                    "type": "file",
-                    "source": str(source_path.relative_to(self.root_dir)),
-                    "destination": str(target_path.relative_to(self.root_dir))
-                })
+                self.move_log.append(
+                    {
+                        "action": "archive",
+                        "type": "file",
+                        "source": str(source_path.relative_to(self.root_dir)),
+                        "destination": str(target_path.relative_to(self.root_dir)),
+                    }
+                )
 
     def clean_empty_directories(self) -> None:
         """Remove empty directories after moving files."""
@@ -397,11 +402,26 @@ class AccountService:
 
         # List of directories that might be empty after moves
         cleanup_dirs = [
-            "core/models", "core/trading/klm_workers", "core/trading", "core/registry",
-            "core/services", "core/logging", "core/secrets", "core/alerts",
-            "core/validation", "core/indicators", "core/utils", "core/data",
-            "core/ui/email/templates", "core/ui/email", "core/ui", "core",
-            "execution", "tracking", "utils", "config"
+            "core/models",
+            "core/trading/klm_workers",
+            "core/trading",
+            "core/registry",
+            "core/services",
+            "core/logging",
+            "core/secrets",
+            "core/alerts",
+            "core/validation",
+            "core/indicators",
+            "core/utils",
+            "core/data",
+            "core/ui/email/templates",
+            "core/ui/email",
+            "core/ui",
+            "core",
+            "execution",
+            "tracking",
+            "utils",
+            "config",
         ]
 
         for dir_path in cleanup_dirs:
@@ -411,11 +431,13 @@ class AccountService:
                     # Try to remove if empty
                     if not any(full_path.iterdir()):
                         full_path.rmdir()
-                        self.move_log.append({
-                            "action": "remove",
-                            "type": "empty_directory",
-                            "path": str(full_path.relative_to(self.root_dir))
-                        })
+                        self.move_log.append(
+                            {
+                                "action": "remove",
+                                "type": "empty_directory",
+                                "path": str(full_path.relative_to(self.root_dir)),
+                            }
+                        )
                 except OSError:
                     pass  # Directory not empty, leave it
 
@@ -426,67 +448,81 @@ class AccountService:
         mappings = {}
 
         # Core model imports
-        mappings.update({
-            "from the_alchemiser.core.models.account import": "from the_alchemiser.domain.models.account import",
-            "from the_alchemiser.core.models.order import": "from the_alchemiser.domain.models.order import",
-            "from the_alchemiser.core.models.position import": "from the_alchemiser.domain.models.position import",
-            "from the_alchemiser.core.models.strategy import": "from the_alchemiser.domain.models.strategy import",
-            "from the_alchemiser.core.models.market_data import": "from the_alchemiser.domain.models.market_data import",
-            "from the_alchemiser.core.models import": "from the_alchemiser.domain.models import",
-        })
+        mappings.update(
+            {
+                "from the_alchemiser.domain.models.account import": "from the_alchemiser.domain.models.account import",
+                "from the_alchemiser.domain.models.order import": "from the_alchemiser.domain.models.order import",
+                "from the_alchemiser.domain.models.position import": "from the_alchemiser.domain.models.position import",
+                "from the_alchemiser.domain.models.strategy import": "from the_alchemiser.domain.models.strategy import",
+                "from the_alchemiser.domain.models.market_data import": "from the_alchemiser.domain.models.market_data import",
+                "from the_alchemiser.domain.models import": "from the_alchemiser.domain.models import",
+            }
+        )
 
         # Trading/strategy imports
-        mappings.update({
-            "from the_alchemiser.core.trading.": "from the_alchemiser.domain.strategies.",
-            "from the_alchemiser.core.registry.": "from the_alchemiser.domain.registry.",
-            "from the_alchemiser.core.indicators.": "from the_alchemiser.domain.math.",
-        })
+        mappings.update(
+            {
+                "from the_alchemiser.domain.strategies.": "from the_alchemiser.domain.strategies.",
+                "from the_alchemiser.domain.registry.": "from the_alchemiser.domain.registry.",
+                "from the_alchemiser.domain.math.": "from the_alchemiser.domain.math.",
+            }
+        )
 
         # Service imports
-        mappings.update({
-            "from the_alchemiser.core.services.account_service import": "from the_alchemiser.services.account_service import",
-            "from the_alchemiser.execution.account_service import": "from the_alchemiser.services.account_service import",
-            "from the_alchemiser.core.services.": "from the_alchemiser.services.",
-        })
+        mappings.update(
+            {
+                "from the_alchemiser.services.account_service import": "from the_alchemiser.services.account_service import",
+                "from the_alchemiser.services.account_service import": "from the_alchemiser.services.account_service import",
+                "from the_alchemiser.services.": "from the_alchemiser.services.",
+            }
+        )
 
         # Infrastructure imports
-        mappings.update({
-            "from the_alchemiser.core.config import": "from the_alchemiser.infrastructure.config import",
-            "from the_alchemiser.config.": "from the_alchemiser.infrastructure.config.",
-            "from the_alchemiser.core.data.": "from the_alchemiser.infrastructure.data_providers.",
-            "from the_alchemiser.core.logging.": "from the_alchemiser.infrastructure.logging.",
-            "from the_alchemiser.core.secrets.": "from the_alchemiser.infrastructure.secrets.",
-            "from the_alchemiser.core.alerts.": "from the_alchemiser.infrastructure.alerts.",
-            "from the_alchemiser.core.validation.": "from the_alchemiser.infrastructure.validation.",
-            "from the_alchemiser.core.utils.s3_utils import": "from the_alchemiser.infrastructure.s3.s3_utils import",
-        })
+        mappings.update(
+            {
+                "from the_alchemiser.infrastructure.config import": "from the_alchemiser.infrastructure.config import",
+                "from the_alchemiser.infrastructure.config.": "from the_alchemiser.infrastructure.config.",
+                "from the_alchemiser.infrastructure.data_providers.": "from the_alchemiser.infrastructure.data_providers.",
+                "from the_alchemiser.infrastructure.logging.": "from the_alchemiser.infrastructure.logging.",
+                "from the_alchemiser.infrastructure.secrets.": "from the_alchemiser.infrastructure.secrets.",
+                "from the_alchemiser.infrastructure.alerts.": "from the_alchemiser.infrastructure.alerts.",
+                "from the_alchemiser.infrastructure.validation.": "from the_alchemiser.infrastructure.validation.",
+                "from the_alchemiser.infrastructure.s3.s3_utils import": "from the_alchemiser.infrastructure.s3.s3_utils import",
+            }
+        )
 
         # Application imports
-        mappings.update({
-            "from the_alchemiser.execution.": "from the_alchemiser.application.",
-            "from the_alchemiser.tracking.": "from the_alchemiser.application.tracking.",
-        })
+        mappings.update(
+            {
+                "from the_alchemiser.application.": "from the_alchemiser.application.",
+                "from the_alchemiser.application.tracking.": "from the_alchemiser.application.tracking.",
+            }
+        )
 
         # Interface imports
-        mappings.update({
-            "from the_alchemiser.cli import": "from the_alchemiser.interface.cli.cli import",
-            "from the_alchemiser.core.ui.": "from the_alchemiser.interface.",
-        })
+        mappings.update(
+            {
+                "from the_alchemiser.interface.cli.cli import": "from the_alchemiser.interface.cli.cli import",
+                "from the_alchemiser.interface.": "from the_alchemiser.interface.",
+            }
+        )
 
         # Domain and utils imports
-        mappings.update({
-            "from the_alchemiser.core.types import": "from the_alchemiser.domain.types import",
-            "from the_alchemiser.utils.trading_math import": "from the_alchemiser.domain.math.trading_math import",
-            "from the_alchemiser.utils.math_utils import": "from the_alchemiser.domain.math.math_utils import",
-            "from the_alchemiser.utils.account_utils import": "from the_alchemiser.services.account_utils import",
-        })
+        mappings.update(
+            {
+                "from the_alchemiser.domain.types import": "from the_alchemiser.domain.types import",
+                "from the_alchemiser.domain.math.trading_math import": "from the_alchemiser.domain.math.trading_math import",
+                "from the_alchemiser.domain.math.math_utils import": "from the_alchemiser.domain.math.math_utils import",
+                "from the_alchemiser.services.account_utils import": "from the_alchemiser.services.account_utils import",
+            }
+        )
 
         return mappings
 
     def update_imports_in_file(self, file_path: Path, import_mappings: dict[str, str]) -> None:
         """Update imports in a single file."""
         try:
-            with open(file_path, encoding='utf-8') as f:
+            with open(file_path, encoding="utf-8") as f:
                 content = f.read()
 
             original_content = content
@@ -497,13 +533,17 @@ class AccountService:
 
             # Write back if changed
             if content != original_content:
-                with open(file_path, 'w', encoding='utf-8') as f:
+                with open(file_path, "w", encoding="utf-8") as f:
                     f.write(content)
 
-                self.import_updates.append({
-                    "file": str(file_path.relative_to(self.root_dir)),
-                    "updates": str(len([k for k in import_mappings.keys() if k in original_content]))
-                })
+                self.import_updates.append(
+                    {
+                        "file": str(file_path.relative_to(self.root_dir)),
+                        "updates": str(
+                            len([k for k in import_mappings.keys() if k in original_content])
+                        ),
+                    }
+                )
 
         except Exception as e:
             print(f"Error updating imports in {file_path}: {e}")
@@ -532,12 +572,12 @@ class AccountService:
 
         # Save move log
         move_log_path = self.root_dir / "rearchitecture_move_log.json"
-        with open(move_log_path, 'w') as f:
+        with open(move_log_path, "w") as f:
             json.dump(self.move_log, f, indent=2)
 
         # Save import update log
         import_log_path = self.root_dir / "rearchitecture_import_log.json"
-        with open(import_log_path, 'w') as f:
+        with open(import_log_path, "w") as f:
             json.dump(self.import_updates, f, indent=2)
 
         print(f"Move log saved to: {move_log_path}")
@@ -550,11 +590,11 @@ class AccountService:
             "files_archived": len([log for log in self.move_log if log["action"] == "archive"]),
             "directories_removed": len([log for log in self.move_log if log["action"] == "remove"]),
             "files_with_import_updates": len(self.import_updates),
-            "total_import_updates": sum(int(log["updates"]) for log in self.import_updates)
+            "total_import_updates": sum(int(log["updates"]) for log in self.import_updates),
         }
 
         summary_path = self.root_dir / "rearchitecture_summary.json"
-        with open(summary_path, 'w') as f:
+        with open(summary_path, "w") as f:
             json.dump(summary, f, indent=2)
 
         print(f"Summary saved to: {summary_path}")

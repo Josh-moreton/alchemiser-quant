@@ -6,5 +6,5 @@ mathematical calculations, data handling, and system integration.
 
 # Core utilities are imported on-demand to avoid circular dependencies
 # Example usage:
-# from the_alchemiser.utils.math_utils import calculate_position_size
+# from the_alchemiser.domain.math.math_utils import calculate_position_size
 # from the_alchemiser.utils.price_utils import format_price

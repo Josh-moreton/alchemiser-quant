@@ -267,9 +267,9 @@ class TradingSystemRegressionSuite:
         """Test indicator calculation performance regression."""
         # Mock trading system components for testing
         try:
-            from the_alchemiser.core.indicators.ema import ExponentialMovingAverage
-            from the_alchemiser.core.indicators.rsi import RelativeStrengthIndex
-            from the_alchemiser.core.indicators.sma import SimpleMovingAverage
+            from the_alchemiser.domain.math.ema import ExponentialMovingAverage
+            from the_alchemiser.domain.math.rsi import RelativeStrengthIndex
+            from the_alchemiser.domain.math.sma import SimpleMovingAverage
         except ImportError:
             # Mock the indicators if they don't exist yet
             class MockIndicator:
@@ -324,8 +324,8 @@ class TradingSystemRegressionSuite:
 
     def run_portfolio_accuracy_regression(self) -> dict[str, Any]:
         """Test portfolio calculation accuracy regression."""
-        from the_alchemiser.core.trading.portfolio import Portfolio
-        from the_alchemiser.core.trading.position import Position
+        from the_alchemiser.domain.strategies.portfolio import Portfolio
+        from the_alchemiser.domain.strategies.position import Position
 
         # Create test portfolio with known positions
         portfolio = Portfolio()
@@ -393,7 +393,7 @@ class TradingSystemRegressionSuite:
 
     def run_trade_execution_regression(self) -> dict[str, Any]:
         """Test trade execution performance regression."""
-        from the_alchemiser.core.trading.execution_engine import ExecutionEngine
+        from the_alchemiser.domain.strategies.execution_engine import ExecutionEngine
 
         # Mock execution engine
         execution_engine = ExecutionEngine()
@@ -435,8 +435,8 @@ class TradingSystemRegressionSuite:
 
     def run_risk_management_regression(self) -> dict[str, Any]:
         """Test risk management calculations regression."""
-        from the_alchemiser.core.trading.portfolio import Portfolio
-        from the_alchemiser.core.trading.risk_manager import RiskManager
+        from the_alchemiser.domain.strategies.portfolio import Portfolio
+        from the_alchemiser.domain.strategies.risk_manager import RiskManager
 
         # Setup test portfolio
         portfolio = Portfolio()
@@ -480,7 +480,9 @@ class TradingSystemRegressionSuite:
 
     def run_market_data_regression(self) -> dict[str, Any]:
         """Test market data processing performance regression."""
-        from the_alchemiser.core.data.market_data_processor import MarketDataProcessor
+        from the_alchemiser.infrastructure.data_providers.market_data_processor import (
+            MarketDataProcessor,
+        )
 
         # Mock market data processor
         processor = MarketDataProcessor()
