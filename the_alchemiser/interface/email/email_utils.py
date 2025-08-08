@@ -26,22 +26,20 @@ from typing import Any
 # TODO: Phase 10 - Types available for future migration to structured types
 # from the_alchemiser.domain.types import EmailReportData, AccountInfo
 # Import all functions from the new modular structure
-from .email import (
-    EmailClient,
+from .client import EmailClient, send_email_notification
+from .config import get_email_config, is_neutral_mode_enabled
+from .templates import (
     EmailTemplates,
     build_error_email_html,
     build_multi_strategy_email_html,
     build_trading_report_html,
-    get_email_config,
-    is_neutral_mode_enabled,
-    send_email_notification,
 )
-from .email.templates.base import BaseEmailTemplate
-from .email.templates.performance import PerformanceBuilder
+from .templates.base import BaseEmailTemplate
+from .templates.performance import PerformanceBuilder
 
 # Import specific template builders for advanced usage
-from .email.templates.portfolio import PortfolioBuilder
-from .email.templates.signals import SignalsBuilder
+from .templates.portfolio import PortfolioBuilder
+from .templates.signals import SignalsBuilder
 
 
 # Backward compatibility aliases for internal functions that might still be referenced
