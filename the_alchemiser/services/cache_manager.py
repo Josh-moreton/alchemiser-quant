@@ -193,7 +193,7 @@ class CacheManager(Generic[T]):
     @property
     def maxsize(self) -> int:
         """Get maximum cache size."""
-        return int(self._cache.maxsize)  # type: ignore[no-any-return]
+        return int(self._cache.maxsize)
 
     def __len__(self) -> int:
         """Get current cache size."""

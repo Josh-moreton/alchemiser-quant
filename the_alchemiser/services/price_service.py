@@ -193,7 +193,7 @@ class ModernPriceFetchingService:
 
         except Exception as e:
             logging.error(f"Error getting multiple prices: {e}")
-            return dict.fromkeys(symbols)
+            return dict.fromkeys(symbols, None)  # type: ignore[return-value]
 
     def get_price_with_fallback_chain(
         self, symbol: str, fallback_methods: list[str] | None = None
