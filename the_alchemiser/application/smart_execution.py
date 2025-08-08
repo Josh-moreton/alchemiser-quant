@@ -17,12 +17,12 @@ import logging
 import time
 from typing import Any, Protocol
 
-from alpaca.trading.client import TradingClient
 from alpaca.trading.enums import OrderSide
 
 # TODO: Phase 5 - Added for gradual migration
 from the_alchemiser.application.alpaca_client import AlpacaClient
 from the_alchemiser.infrastructure.data_providers.data_provider import UnifiedDataProvider
+from the_alchemiser.services.alpaca_manager import AlpacaManager
 from the_alchemiser.services.exceptions import (
     DataProviderError,
     OrderExecutionError,
@@ -68,7 +68,7 @@ class OrderExecutor(Protocol):
         ...
 
     @property
-    def trading_client(self) -> TradingClient:
+    def trading_client(self) -> Any:  # Backward compatibility
         """Access to trading client for market hours and order queries."""
         ...
 
@@ -92,7 +92,7 @@ class DataProvider(Protocol):
         ...
 
 
-def is_market_open(trading_client: TradingClient) -> bool:
+def is_market_open(trading_client: Any) -> bool:
     """Check if the market is currently open."""
     try:
         clock = trading_client.get_clock()
@@ -130,8 +130,15 @@ class SmartExecution:
         self._trading_client = trading_client
         self._data_provider = data_provider
 
+        # Create AlpacaManager from existing clients for backward compatibility
+        alpaca_manager = AlpacaManager(
+            api_key=getattr(data_provider, "api_key", ""),
+            secret_key=getattr(data_provider, "secret_key", ""),
+            paper=True,  # Default to paper trading for safety
+        )
+
         # Use composition - injected order executor handles the actual order placement
-        self._order_executor = AlpacaClient(trading_client, data_provider, validate_buying_power)
+        self._order_executor = AlpacaClient(alpaca_manager, data_provider, validate_buying_power)
         self.ignore_market_hours = ignore_market_hours
 
     def execute_safe_sell(self, symbol: str, target_qty: float) -> str | None:

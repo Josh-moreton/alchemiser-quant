@@ -4,12 +4,15 @@ Trading Client Service
 
 Handles trading operations via Alpaca API.
 Focused on order placement, account data, and positions.
+
+MIGRATION NOTE: This service now uses AlpacaManager for consolidated Alpaca access.
+This provides better error handling, logging, and testing capabilities.
 """
 
 import logging
 from typing import Any
 
-from alpaca.trading.client import TradingClient as AlpacaTradingClient
+from the_alchemiser.services.alpaca_manager import AlpacaManager
 
 
 class TradingClientService:
@@ -27,12 +30,12 @@ class TradingClientService:
         self.api_key = api_key
         self.secret_key = secret_key
         self.paper_trading = paper_trading
-        self._client = AlpacaTradingClient(api_key, secret_key, paper=paper_trading)
+        self._alpaca_manager = AlpacaManager(api_key, secret_key, paper=paper_trading)
 
     @property
-    def client(self) -> AlpacaTradingClient:
-        """Get the underlying Alpaca trading client."""
-        return self._client
+    def client(self) -> AlpacaManager:
+        """Get the underlying Alpaca manager."""
+        return self._alpaca_manager
 
     def get_account_info(self) -> dict[str, Any] | None:
         """
@@ -45,12 +48,12 @@ class TradingClientService:
             TradingClientError: If account retrieval fails
         """
         try:
-            account = self._client.get_account()
+            account = self._alpaca_manager.get_account()
             # Convert account object to dict for consistency
             if hasattr(account, "model_dump"):
-                return account.model_dump()
+                return dict(account.model_dump())
             elif hasattr(account, "__dict__"):
-                return account.__dict__
+                return dict(account.__dict__)
             else:
                 # Fallback: return as Any and cast
                 return dict(account) if account else None
@@ -70,7 +73,7 @@ class TradingClientService:
             TradingClientError: If positions retrieval fails
         """
         try:
-            positions = self._client.get_all_positions()
+            positions = self._alpaca_manager.get_positions()
             # Convert positions to list of dicts for consistency
             if isinstance(positions, list):
                 result: list[dict[str, Any]] = []
@@ -82,9 +85,6 @@ class TradingClientService:
                     else:
                         result.append(dict(pos))
                 return result
-            else:
-                # Handle RawData case - return empty list if not a list
-                return []
 
         except Exception as e:
             logging.error(f"Failed to fetch positions: {e}")

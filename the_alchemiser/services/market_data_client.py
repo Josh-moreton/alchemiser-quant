@@ -4,6 +4,9 @@ Market Data Client
 
 Handles market data REST API calls to Alpaca.
 Focused on data retrieval without trading operations.
+
+MIGRATION NOTE: This client now uses AlpacaManager for consolidated Alpaca access.
+This provides better error handling, logging, and testing capabilities.
 """
 
 import logging
@@ -11,10 +14,10 @@ from datetime import datetime, timedelta
 from typing import Any, cast
 
 import pandas as pd
-from alpaca.data.historical import StockHistoricalDataClient
-from alpaca.data.requests import StockBarsRequest, StockLatestQuoteRequest
+from alpaca.data.requests import StockBarsRequest
 from alpaca.data.timeframe import TimeFrame
 
+from the_alchemiser.services.alpaca_manager import AlpacaManager
 from the_alchemiser.services.exceptions import MarketDataError
 
 
@@ -31,7 +34,7 @@ class MarketDataClient:
         """
         self.api_key = api_key
         self.secret_key = secret_key
-        self._client = StockHistoricalDataClient(api_key, secret_key)
+        self._alpaca_manager = AlpacaManager(api_key, secret_key)
 
     def get_historical_bars(
         self, symbol: str, period: str = "1y", interval: str = "1d"
@@ -69,8 +72,8 @@ class MarketDataClient:
                 # Don't set end - let it default to 15 minutes ago for free tier
             )
 
-            # Fetch data
-            bars = self._client.get_stock_bars(request)
+            # Fetch data using AlpacaManager's data client
+            bars = self._alpaca_manager._data_client.get_stock_bars(request)
 
             if not bars:
                 return pd.DataFrame()
@@ -129,8 +132,8 @@ class MarketDataClient:
                 symbol_or_symbols=symbol, timeframe=cast(TimeFrame, timeframe), start=start, end=end
             )
 
-            # Fetch data
-            bars = self._client.get_stock_bars(request)
+            # Fetch data using AlpacaManager's data client
+            bars = self._alpaca_manager._data_client.get_stock_bars(request)
 
             # Extract bars for the symbol safely
             bar_data = self._extract_bar_data(bars, symbol)
@@ -155,11 +158,9 @@ class MarketDataClient:
             MarketDataError: If quote retrieval fails
         """
         try:
-            request = StockLatestQuoteRequest(symbol_or_symbols=symbol)
-            latest_quote = self._client.get_stock_latest_quote(request)
+            quote = self._alpaca_manager.get_latest_quote(symbol)
 
-            if latest_quote and symbol in latest_quote:
-                quote = latest_quote[symbol]
+            if quote:
                 bid = float(getattr(quote, "bid_price", 0) or 0)
                 ask = float(getattr(quote, "ask_price", 0) or 0)
                 return bid, ask
@@ -181,11 +182,9 @@ class MarketDataClient:
             Current price or None if unavailable
         """
         try:
-            request = StockLatestQuoteRequest(symbol_or_symbols=symbol)
-            latest_quote = self._client.get_stock_latest_quote(request)
+            quote = self._alpaca_manager.get_latest_quote(symbol)
 
-            if latest_quote and symbol in latest_quote:
-                quote = latest_quote[symbol]
+            if quote:
                 # Use mid-point of bid-ask spread
                 bid = float(getattr(quote, "bid_price", 0) or 0)
                 ask = float(getattr(quote, "ask_price", 0) or 0)

@@ -11,7 +11,7 @@ import logging
 from enum import Enum
 
 try:
-    from alpaca.trading.client import TradingClient
+    from the_alchemiser.services.alpaca_manager import AlpacaManager
 
     ALPACA_AVAILABLE = True
 except ImportError:
@@ -38,14 +38,14 @@ class FractionabilityDetector:
     fractionability information with intelligent caching and fallbacks.
     """
 
-    def __init__(self, trading_client: TradingClient | None = None) -> None:
+    def __init__(self, alpaca_manager: AlpacaManager | None = None) -> None:
         """
-        Initialize with optional trading client for API access.
+        Initialize with optional AlpacaManager for API access.
 
         Args:
-            trading_client: Alpaca trading client (will create one if None)
+            alpaca_manager: AlpacaManager instance (will create one if None)
         """
-        self.trading_client = trading_client
+        self.alpaca_manager = alpaca_manager
         self._fractionability_cache: dict[str, bool] = {}
 
         # Backup prediction patterns (used only when API is unavailable)
@@ -55,8 +55,8 @@ class FractionabilityDetector:
             # Most others were wrong, so we'll rely on API
         }
 
-        # Initialize trading client if needed
-        if self.trading_client is None and ALPACA_AVAILABLE:
+        # Initialize AlpacaManager if needed
+        if self.alpaca_manager is None and ALPACA_AVAILABLE:
             try:
                 from the_alchemiser.infrastructure.secrets.secrets_manager import SecretsManager
 
@@ -66,7 +66,7 @@ class FractionabilityDetector:
                 )
 
                 if paper_api_key and paper_secret_key:
-                    self.trading_client = TradingClient(
+                    self.alpaca_manager = AlpacaManager(
                         api_key=paper_api_key, secret_key=paper_secret_key, paper=True
                     )
                     logging.info("✅ FractionabilityDetector initialized with Alpaca API access")
@@ -74,7 +74,7 @@ class FractionabilityDetector:
                     logging.warning("⚠️ No Alpaca API keys found, using fallback prediction")
             except Exception as e:
                 logging.warning(
-                    f"⚠️ Could not initialize Alpaca client: {e}, using fallback prediction"
+                    f"⚠️ Could not initialize AlpacaManager: {e}, using fallback prediction"
                 )
 
     def _query_alpaca_fractionability(self, symbol: str) -> bool | None:
@@ -87,11 +87,11 @@ class FractionabilityDetector:
         Returns:
             True if fractionable, False if not, None if API unavailable/error
         """
-        if not self.trading_client:
+        if not self.alpaca_manager:
             return None
 
         try:
-            asset = self.trading_client.get_asset(symbol)
+            asset = self.alpaca_manager.trading_client.get_asset(symbol)
             fractionable = getattr(asset, "fractionable", None)
 
             if fractionable is not None:
