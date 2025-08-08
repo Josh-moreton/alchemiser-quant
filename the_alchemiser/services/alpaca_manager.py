@@ -106,7 +106,22 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             logger.error(f"Failed to get account information: {e}")
             raise
 
-    def get_positions(self) -> dict[str, float]:
+    def get_positions(self) -> list[Any]:
+        """
+        Get all positions as list of position objects (interface compatible).
+
+        Returns:
+            List of position objects with attributes like symbol, qty, market_value, etc.
+        """
+        try:
+            positions = self._trading_client.get_all_positions()
+            logger.debug(f"Successfully retrieved {len(positions)} positions")
+            return positions
+        except Exception as e:
+            logger.error(f"Failed to get positions: {e}")
+            raise
+
+    def get_positions_dict(self) -> dict[str, float]:
         """
         Get all positions as dict mapping symbol to quantity (interface compatible).
 

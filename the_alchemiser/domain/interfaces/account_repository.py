@@ -50,9 +50,18 @@ class AccountRepository(Protocol):
         """
         ...
 
-    def get_positions(self) -> dict[str, float]:
+    def get_positions(self) -> list[Any]:
         """
         Get all current positions.
+
+        Returns:
+            List of position objects with attributes like symbol, qty, market_value, etc.
+        """
+        ...
+
+    def get_positions_dict(self) -> dict[str, float]:
+        """
+        Get all current positions as simple dict.
 
         Returns:
             Dictionary mapping symbol to quantity owned. Only includes non-zero positions.

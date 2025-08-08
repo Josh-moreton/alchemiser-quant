@@ -7,7 +7,6 @@ scattered Alpaca imports. It shows before/after patterns and provides a migratio
 path that doesn't break existing code.
 """
 
-import os
 from pathlib import Path
 
 
@@ -21,7 +20,7 @@ def find_files_with_alpaca_imports():
             continue
 
         try:
-            with open(file_path, "r", encoding="utf-8") as f:
+            with open(file_path, encoding="utf-8") as f:
                 content = f.read()
 
             # Check for various Alpaca import patterns
@@ -180,7 +179,7 @@ def suggest_specific_migrations(alpaca_files):
         print(f"\n{i}. {file_path}")
 
         try:
-            with open(file_path, "r", encoding="utf-8") as f:
+            with open(file_path, encoding="utf-8") as f:
                 content = f.read()
 
             suggestions = []
@@ -314,7 +313,7 @@ if __name__ == "__main__":
     with open("examples/alpaca_manager_example.py", "w") as f:
         f.write(example_code)
 
-    print(f"\n📄 Created example usage file: examples/alpaca_manager_example.py")
+    print("\n📄 Created example usage file: examples/alpaca_manager_example.py")
 
 
 def main():
@@ -348,7 +347,7 @@ def main():
     print("4. Test thoroughly after each migration")
     print("5. Once comfortable, proceed to Phase 2 (Interface Extraction)")
 
-    print(f"\n✅ Phase 1 analysis complete!")
+    print("\n✅ Phase 1 analysis complete!")
     print(f"Found {len(alpaca_files)} files that can benefit from AlpacaManager")
 
 
