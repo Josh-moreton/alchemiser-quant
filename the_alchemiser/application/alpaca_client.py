@@ -49,7 +49,6 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from the_alchemiser.application.order_validation import ValidatedOrder
 
-from alpaca.trading.client import TradingClient
 from alpaca.trading.enums import OrderSide
 
 from the_alchemiser.application.asset_order_handler import AssetOrderHandler
@@ -65,6 +64,7 @@ from the_alchemiser.infrastructure.websocket.websocket_connection_manager import
     WebSocketConnectionManager,
 )
 from the_alchemiser.infrastructure.websocket.websocket_order_monitor import OrderCompletionMonitor
+from the_alchemiser.services.alpaca_manager import AlpacaManager
 from the_alchemiser.services.exceptions import TradingClientError
 from the_alchemiser.services.position_manager import PositionManager
 
@@ -81,39 +81,41 @@ class AlpacaClient:
     - Position management operations
 
     Attributes:
-        trading_client: Alpaca trading client for API calls.
+        alpaca_manager: AlpacaManager instance for centralized Alpaca operations.
+        trading_client: Alpaca trading client for API calls (backward compatibility).
         data_provider: Data provider for market quotes and prices.
         validate_buying_power: Whether to validate buying power for buy orders.
     """
 
     def __init__(
         self,
-        trading_client: TradingClient,
+        alpaca_manager: AlpacaManager,
         data_provider: UnifiedDataProvider,
         validate_buying_power: bool = False,
     ):
         """Initialize AlpacaClient with helper modules.
 
         Args:
-            trading_client: Alpaca trading client instance.
+            alpaca_manager: AlpacaManager instance for Alpaca API operations.
             data_provider: Data provider for quotes and prices.
             validate_buying_power: Whether to validate buying power for buy orders.
         """
-        self.trading_client = trading_client
+        self.alpaca_manager = alpaca_manager
+        self.trading_client = alpaca_manager.trading_client  # Backward compatibility
         self.data_provider = data_provider
         self.validate_buying_power = validate_buying_power
 
         # Initialize helper modules
         self.order_monitor = OrderCompletionMonitor(
-            trading_client, api_key=data_provider.api_key, secret_key=data_provider.secret_key
+            self.trading_client, api_key=data_provider.api_key, secret_key=data_provider.secret_key
         )
         self.asset_handler = AssetOrderHandler(data_provider)
-        self.position_manager = PositionManager(trading_client, data_provider)
+        self.position_manager = PositionManager(self.trading_client, data_provider)
         self.limit_order_handler = LimitOrderHandler(
-            trading_client, self.position_manager, self.asset_handler
+            self.trading_client, self.position_manager, self.asset_handler
         )
         self.pricing_handler = SmartPricingHandler(data_provider)
-        self.websocket_manager = WebSocketConnectionManager(trading_client)
+        self.websocket_manager = WebSocketConnectionManager(self.trading_client)
 
     def get_current_positions(self) -> dict[str, float]:
         """Get all current positions from Alpaca.
@@ -136,11 +138,12 @@ class AlpacaClient:
             raw_orders = self.position_manager.get_pending_orders()
 
             validated_orders: list[ValidatedOrder] = []
-            for order in raw_orders:
+            for order_dict in raw_orders.values():  # Iterate over values, not keys
                 try:
-                    validated_orders.append(ValidatedOrder.from_dict(order))
+                    validated_orders.append(ValidatedOrder.from_dict(order_dict))
                 except Exception as e:
-                    logger.error(f"Failed to validate pending order {order.get('id', '?')}: {e}")
+                    order_id = order_dict.get("id", "?") if isinstance(order_dict, dict) else "?"
+                    logger.error(f"Failed to validate pending order {order_id}: {e}")
 
             logger.info(
                 f"📋 Retrieved {len(validated_orders)} validated pending orders "
@@ -300,6 +303,9 @@ class AlpacaClient:
                         logging.error("❌ Could not parse buying power details from error")
                     return None
 
+                # Re-raise for other exception types to be handled by the next except block
+                raise order_error
+
             except (TradingClientError, ValueError, AttributeError) as order_error:
                 error_msg = str(order_error)
 
@@ -335,6 +341,9 @@ class AlpacaClient:
 
         except (ConnectionError, TimeoutError, OSError) as e:
             logging.error(f"Network error placing market order for {symbol}: {e}")
+            return None
+        except Exception as e:
+            logging.error(f"Unexpected error placing market order for {symbol}: {e}")
             return None
 
     def place_limit_order(
