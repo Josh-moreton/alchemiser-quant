@@ -331,27 +331,6 @@ class AlpacaClient:
 
                 raise
 
-            except Exception as order_error:
-                error_msg = str(order_error)
-                if "insufficient buying power" in error_msg.lower():
-                    logging.error(f"❌ Insufficient buying power for {symbol}: {error_msg}")
-                    try:
-                        import json
-
-                        if hasattr(order_error, "text"):
-                            error_data = json.loads(order_error.text)
-                        else:
-                            error_data = json.loads(error_msg.split('{"')[1].split("}")[0] + "}")
-                        actual_buying_power = error_data.get("buying_power", "unknown")
-                        cost_basis = error_data.get("cost_basis", "unknown")
-                        logging.error(
-                            f"❌ Order cost: ${cost_basis}, Available buying power: ${actual_buying_power}"
-                        )
-                    except Exception:
-                        logging.error("❌ Could not parse buying power details from error")
-                    return None
-                raise
-
         except (ConnectionError, TimeoutError, OSError) as e:
             logging.error(f"Network error placing market order for {symbol}: {e}")
             return None
