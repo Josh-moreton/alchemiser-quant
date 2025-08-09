@@ -1,25 +1,32 @@
-"""
-Core services for the trading system.
+"""Core services for the trading system.
 
-This package contains modularized services that replace the monolithic UnifiedDataProvider:
-- ConfigService: Configuration management
-- SecretsService: Credential management
-- MarketDataClient: Market data retrieval
-- TradingClientService: Trading operations
-- StreamingService: Real-time data streaming
-- CacheManager: Configurable caching with TTL
-- AccountService: Account and position management
+This package contains modularized services that replace the monolithic
+``UnifiedDataProvider``:
+
+* ConfigService: Configuration management
+* SecretsService: Credential management
+* MarketDataClient: Market data retrieval
+* TradingClientService: Trading operations
+* StreamingService: Real-time data streaming
+* CacheManager: Configurable caching with TTL
+* AccountService: Account and position management
 """
 
-# Note: Lazy imports to avoid circular dependencies and initialization issues
-# Import services individually as needed rather than all at once
+from .account_service import AccountService
+from .cache_manager import CacheManager
+from .config_service import ConfigService
+from .market_data_client import MarketDataClient
+from .secrets_service import SecretsService
+from .streaming_service import StreamingService
+from .trading_client_service import TradingClientService
 
 __all__ = [
-    "ConfigService",
-    "SecretsService",
-    "MarketDataClient",
-    "TradingClientService",
-    "StreamingService",
-    "CacheManager",
     "AccountService",
+    "CacheManager",
+    "ConfigService",
+    "MarketDataClient",
+    "SecretsService",
+    "StreamingService",
+    "TradingClientService",
 ]
+
