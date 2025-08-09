@@ -10,6 +10,7 @@ import time
 
 import boto3
 import pytest
+from botocore.exceptions import ClientError
 from moto import mock_aws
 
 
@@ -54,12 +55,12 @@ class TestAWSInfrastructure:
         bucket_name = "nonexistent-bucket"
 
         # Test handling of missing bucket
-        with pytest.raises(Exception):  # Should raise ClientError
+        with pytest.raises(ClientError):
             s3_client.get_object(Bucket=bucket_name, Key="test-key")
 
         # Test handling of missing object
         s3_client.create_bucket(Bucket=bucket_name)
-        with pytest.raises(Exception):  # Should raise NoSuchKey
+        with pytest.raises(ClientError):
             s3_client.get_object(Bucket=bucket_name, Key="missing-object")
 
     @mock_aws
@@ -105,8 +106,8 @@ class TestAWSInfrastructure:
         )
 
         # Test metric retrieval (in real scenario, would check CloudWatch)
-        # For moto, we just verify no exceptions were raised
-        assert True  # If we get here, metrics were published successfully
+        metrics = cloudwatch.list_metrics(Namespace="Alchemiser/Trading")
+        assert len(metrics.get("Metrics", [])) > 0
 
     def test_lambda_cold_start_simulation(self):
         """Test Lambda cold start performance simulation."""
@@ -371,7 +372,7 @@ class TestNetworkResilience:
 
         def failing_api_call():
             """Simulate failing API call."""
-            raise Exception("API failure")
+            raise ValueError("API failure")
 
         def successful_api_call():
             """Simulate successful API call."""
@@ -380,10 +381,10 @@ class TestNetworkResilience:
         circuit_breaker = CircuitBreaker(failure_threshold=2, recovery_timeout=1)
 
         # Test failure accumulation
-        with pytest.raises(Exception):
+        with pytest.raises(ValueError):
             circuit_breaker.call(failing_api_call)
 
-        with pytest.raises(Exception):
+        with pytest.raises(ValueError):
             circuit_breaker.call(failing_api_call)
 
         # Circuit should now be OPEN

@@ -8,6 +8,9 @@ are properly validated and handled.
 from unittest.mock import Mock
 
 import pytest
+from pytest import approx
+
+from tests.conftest import ABS_TOL, REL_TOL
 
 
 class TestAlpacaAPIContract:
@@ -330,4 +333,4 @@ class TestErrorHandlingContract:
         # Test valid data
         valid_result = handle_missing_price_data({"price": 150.50})
         assert valid_result["error"] is None
-        assert valid_result["value"] == 150.50
+        assert valid_result["value"] == approx(150.50, rel=REL_TOL, abs=ABS_TOL)

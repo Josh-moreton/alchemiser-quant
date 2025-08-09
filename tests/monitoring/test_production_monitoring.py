@@ -14,6 +14,9 @@ from decimal import Decimal
 from typing import Any
 
 import pytest
+from pytest import approx
+
+from tests.conftest import ABS_TOL, REL_TOL
 
 
 @dataclass
@@ -371,14 +374,14 @@ class TestProductionMonitoring:
         assert monitor.metrics.get_counter("test_counter") == 8
 
         # Validate gauge
-        assert monitor.metrics.get_gauge("test_gauge") == 42.5
+        assert monitor.metrics.get_gauge("test_gauge") == approx(42.5, rel=REL_TOL, abs=ABS_TOL)
 
         # Validate histogram
         hist_stats = monitor.metrics.get_histogram_stats("test_histogram")
         assert hist_stats["count"] == 3
-        assert hist_stats["mean"] == 20.0
-        assert hist_stats["min"] == 10.0
-        assert hist_stats["max"] == 30.0
+        assert hist_stats["mean"] == approx(20.0, rel=REL_TOL, abs=ABS_TOL)
+        assert hist_stats["min"] == approx(10.0, rel=REL_TOL, abs=ABS_TOL)
+        assert hist_stats["max"] == approx(30.0, rel=REL_TOL, abs=ABS_TOL)
 
     def test_api_performance_monitoring(self):
         """Test API performance monitoring."""
@@ -454,7 +457,9 @@ class TestProductionMonitoring:
         execution_stats = monitor.metrics.get_histogram_stats("trade_execution_time_ms")
         assert execution_stats["count"] == 3
         assert execution_stats["mean"] > 25  # Average should be > 25ms
-        assert execution_stats["max"] == 45.0  # Failed trade had highest latency
+        assert execution_stats["max"] == approx(
+            45.0, rel=REL_TOL, abs=ABS_TOL
+        )  # Failed trade had highest latency
 
     def test_portfolio_monitoring(self):
         """Test portfolio-level monitoring."""
@@ -477,10 +482,18 @@ class TestProductionMonitoring:
         )
 
         # Validate current metrics (should be latest values)
-        assert monitor.metrics.get_gauge("portfolio_value") == 98000.00
-        assert monitor.metrics.get_gauge("portfolio_unrealized_pnl") == -2000.00
-        assert monitor.metrics.get_gauge("portfolio_drawdown_pct") == 5.2
-        assert monitor.metrics.get_gauge("portfolio_position_count") == 8.0
+        assert monitor.metrics.get_gauge("portfolio_value") == approx(
+            98000.00, rel=REL_TOL, abs=ABS_TOL
+        )
+        assert monitor.metrics.get_gauge("portfolio_unrealized_pnl") == approx(
+            -2000.00, rel=REL_TOL, abs=ABS_TOL
+        )
+        assert monitor.metrics.get_gauge("portfolio_drawdown_pct") == approx(
+            5.2, rel=REL_TOL, abs=ABS_TOL
+        )
+        assert monitor.metrics.get_gauge("portfolio_position_count") == approx(
+            8.0, rel=REL_TOL, abs=ABS_TOL
+        )
 
     def test_alerting_system(self):
         """Test alerting system functionality."""
@@ -536,9 +549,11 @@ class TestProductionMonitoring:
             time.sleep(0.01)  # Small delay between measurements
 
         # Check final values (should be latest)
-        assert monitor.metrics.get_gauge("cpu_usage_pct") == 95.0
-        assert monitor.metrics.get_gauge("memory_usage_pct") == 95.0
-        assert monitor.metrics.get_gauge("queue_backlog") == 100.0
+        assert monitor.metrics.get_gauge("cpu_usage_pct") == approx(95.0, rel=REL_TOL, abs=ABS_TOL)
+        assert monitor.metrics.get_gauge("memory_usage_pct") == approx(
+            95.0, rel=REL_TOL, abs=ABS_TOL
+        )
+        assert monitor.metrics.get_gauge("queue_backlog") == approx(100.0, rel=REL_TOL, abs=ABS_TOL)
 
         # Check for memory usage alert
         alert_summary = monitor.alerts.get_alert_summary()
@@ -617,7 +632,9 @@ class TestProductionMonitoring:
         # Validate results
         for worker_id in range(num_workers):
             assert monitor.metrics.get_counter(f"worker_{worker_id}_counter") == 100
-            assert monitor.metrics.get_gauge(f"worker_{worker_id}_gauge") == 99.0  # Last value
+            assert monitor.metrics.get_gauge(f"worker_{worker_id}_gauge") == approx(
+                99.0, rel=REL_TOL, abs=ABS_TOL
+            )  # Last value
 
         # Validate shared histogram
         hist_stats = monitor.metrics.get_histogram_stats("shared_histogram")

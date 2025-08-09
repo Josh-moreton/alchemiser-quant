@@ -10,7 +10,9 @@ from unittest.mock import Mock, patch
 
 import pandas as pd
 import pytest
+from pytest import approx
 
+from tests.conftest import ABS_TOL, REL_TOL
 from the_alchemiser.domain.models import (
     AccountModel,
     BarModel,
@@ -128,8 +130,8 @@ class TestMarketDataClient:
 
         assert isinstance(df, pd.DataFrame)
         assert len(df) == 1
-        assert df.iloc[0]["Open"] == 100.0
-        assert df.iloc[0]["Close"] == 103.0
+        assert df.iloc[0]["Open"] == approx(100.0, rel=REL_TOL, abs=ABS_TOL)
+        assert df.iloc[0]["Close"] == approx(103.0, rel=REL_TOL, abs=ABS_TOL)
 
     @patch("the_alchemiser.core.services.market_data_client.StockHistoricalDataClient")
     def test_get_latest_quote_success(self, mock_client_class):
@@ -147,8 +149,8 @@ class TestMarketDataClient:
         client = MarketDataClient("test_key", "test_secret")
         bid, ask = client.get_latest_quote("AAPL")
 
-        assert bid == 100.50
-        assert ask == 100.75
+        assert bid == approx(100.50, rel=REL_TOL, abs=ABS_TOL)
+        assert ask == approx(100.75, rel=REL_TOL, abs=ABS_TOL)
 
 
 class TestTradingClientService:
@@ -279,7 +281,7 @@ class TestAccountService:
         account = service.get_account_info()
         assert isinstance(account, AccountModel)
         assert account.account_id == "test123"
-        assert account.equity == 10000.0
+        assert account.equity == approx(10000.0, rel=REL_TOL, abs=ABS_TOL)
 
     def test_get_positions_summary(self):
         """Test positions summary calculation."""
@@ -315,7 +317,7 @@ class TestAccountService:
         assert summary["total_positions"] == 2
         assert summary["profitable_positions"] == 1
         assert summary["losing_positions"] == 1
-        assert summary["total_unrealized_pnl"] == 0.0  # 100 - 100
+        assert summary["total_unrealized_pnl"] == approx(0.0, rel=REL_TOL, abs=ABS_TOL)  # 100 - 100
 
 
 class TestErrorHandling:
@@ -378,13 +380,13 @@ class TestDomainModels:
 
         model = AccountModel.from_dict(account_data)
         assert model.account_id == "test123"
-        assert model.equity == 10000.0
+        assert model.equity == approx(10000.0, rel=REL_TOL, abs=ABS_TOL)
         assert model.status == "ACTIVE"
 
         # Test conversion back to dict
         converted = model.to_dict()
         assert converted["account_id"] == "test123"
-        assert converted["equity"] == 10000.0
+        assert converted["equity"] == approx(10000.0, rel=REL_TOL, abs=ABS_TOL)
 
     def test_position_model_properties(self):
         """Test position model properties."""
@@ -403,7 +405,7 @@ class TestDomainModels:
         assert model.is_profitable is True
         assert model.is_long is True
         assert model.shares_count == 10
-        assert model.percentage_return == 7.1
+        assert model.percentage_return == approx(7.1, rel=REL_TOL, abs=ABS_TOL)
 
     def test_bar_model_validation(self):
         """Test bar model OHLC validation."""
@@ -420,7 +422,7 @@ class TestDomainModels:
         model = BarModel.from_dict(bar_data)
         assert model.is_valid_ohlc is True
         assert model.symbol == "AAPL"
-        assert model.open == 100.0
+        assert model.open == approx(100.0, rel=REL_TOL, abs=ABS_TOL)
 
     def test_strategy_signal_model(self):
         """Test strategy signal model."""

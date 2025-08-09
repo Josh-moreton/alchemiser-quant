@@ -5,7 +5,10 @@ Tests price calculations, rounding, position sizing, and portfolio math
 to ensure accuracy and handle edge cases.
 """
 
+import math
 from decimal import ROUND_HALF_UP, Decimal, getcontext
+
+from tests.conftest import ABS_TOL, REL_TOL
 
 # Set high precision for Decimal calculations
 getcontext().prec = 28
@@ -310,7 +313,7 @@ class TestPrecisionHandling:
         assert decimal_value == Decimal("0.3")
 
         # Float should have precision issues
-        assert float_value != 0.3
+        assert not math.isclose(float_value, 0.3, rel_tol=REL_TOL, abs_tol=ABS_TOL)
 
         # Converting float to Decimal preserves the imprecision
         decimal_from_float = Decimal(str(float_value))

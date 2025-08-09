@@ -11,7 +11,9 @@ from unittest.mock import Mock, patch
 
 import pandas as pd
 import pytest
+from pytest import approx
 
+from tests.conftest import ABS_TOL, REL_TOL
 from the_alchemiser.domain.models import AccountModel, BarModel
 from the_alchemiser.services.account_service import AccountService
 from the_alchemiser.services.cache_manager import CacheManager
@@ -176,14 +178,14 @@ class TestServiceIntegration:
         account = account_service.get_account_info()
         assert isinstance(account, AccountModel)
         assert account.account_id == "test123"
-        assert account.equity == 10000.0
+        assert account.equity == approx(10000.0, rel=REL_TOL, abs=ABS_TOL)
 
         # Test positions summary
         summary = account_service.get_positions_summary()
         assert summary["total_positions"] == 2
         assert summary["profitable_positions"] == 1
         assert summary["losing_positions"] == 1
-        assert summary["total_unrealized_pnl"] == 0.0
+        assert summary["total_unrealized_pnl"] == approx(0.0, rel=REL_TOL, abs=ABS_TOL)
 
         # Test profitable positions filtering
         profitable = account_service.get_profitable_positions()
@@ -206,7 +208,7 @@ class TestServiceIntegration:
 
         # Test async price fetching
         price = await price_service.get_current_price_async("AAPL")
-        assert price == 150.375  # Midpoint of bid/ask
+        assert price == approx(150.375, rel=REL_TOL, abs=ABS_TOL)  # Midpoint of bid/ask
 
         # Test multiple prices
         mock_market_data.get_latest_quote = Mock(
@@ -218,8 +220,8 @@ class TestServiceIntegration:
 
         prices = await price_service.get_multiple_prices_async(["AAPL", "GOOGL"])
         assert len(prices) == 2
-        assert prices["AAPL"] == 100.125
-        assert prices["GOOGL"] == 200.25
+        assert prices["AAPL"] == approx(100.125, rel=REL_TOL, abs=ABS_TOL)
+        assert prices["GOOGL"] == approx(200.25, rel=REL_TOL, abs=ABS_TOL)
 
     def test_error_handling_integration(self):
         """Test error handling integration across services."""
@@ -291,7 +293,7 @@ class TestServiceIntegration:
         bar_model = bars[0]
         assert isinstance(bar_model, BarModel)
         assert bar_model.symbol == "AAPL"
-        assert bar_model.open == 100.0
+        assert bar_model.open == approx(100.0, rel=REL_TOL, abs=ABS_TOL)
         assert bar_model.is_valid_ohlc is True
 
         # Convert back to DataFrame
@@ -331,7 +333,7 @@ class TestServiceIntegration:
         price_cache.set("AAPL", 150.0, "current_price")
         historical_cache.set("AAPL", "historical_data", "bars")
 
-        assert price_cache.get("AAPL", "current_price") == 150.0
+        assert price_cache.get("AAPL", "current_price") == approx(150.0, rel=REL_TOL, abs=ABS_TOL)
         assert historical_cache.get("AAPL", "bars") == "historical_data"
         assert price_cache.get("AAPL", "bars") is None  # Cross-cache isolation
 

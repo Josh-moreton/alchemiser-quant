@@ -9,6 +9,9 @@ from datetime import datetime
 from decimal import Decimal
 
 import pytest
+from pytest import approx
+
+from tests.conftest import ABS_TOL, REL_TOL
 
 # Import the core types - adjust import path as needed
 try:
@@ -146,7 +149,7 @@ class TestPosition:
             market_value=Decimal("15577.50"),
         )
 
-        assert position.shares == 100.5
+        assert position.shares == approx(100.5, rel=REL_TOL, abs=ABS_TOL)
         assert position.market_value == Decimal("15577.50")
 
 
@@ -212,7 +215,7 @@ class TestSignal:
 
         assert signal.symbol == "AAPL"
         assert signal.action == "BUY"
-        assert signal.strength == 0.8
+        assert signal.strength == approx(0.8, rel=REL_TOL, abs=ABS_TOL)
         assert isinstance(signal.timestamp, datetime)
         if hasattr(signal, "strategy"):
             assert signal.strategy == "test_strategy"
@@ -224,11 +227,11 @@ class TestSignal:
             signal = Signal(
                 symbol="AAPL", action="BUY", strength=strength, timestamp=datetime.now()
             )
-            assert signal.strength == strength
+            assert signal.strength == approx(strength, rel=REL_TOL, abs=ABS_TOL)
 
         # Test edge case strengths
         signal_weak = Signal(symbol="AAPL", action="HOLD", strength=0.1, timestamp=datetime.now())
-        assert signal_weak.strength == 0.1
+        assert signal_weak.strength == approx(0.1, rel=REL_TOL, abs=ABS_TOL)
 
     def test_signal_actions(self):
         """Test valid signal actions."""
