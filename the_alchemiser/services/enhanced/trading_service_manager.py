@@ -6,6 +6,7 @@ from the_alchemiser.services.enhanced.account_service import AccountService
 from the_alchemiser.services.enhanced.market_data_service import MarketDataService
 from the_alchemiser.services.enhanced.order_service import OrderService
 from the_alchemiser.services.enhanced.position_service import PositionService
+from the_alchemiser.utils.num import floats_equal
 
 
 class TradingServiceManager:
@@ -130,7 +131,8 @@ class TradingServiceManager:
     def close_position(self, symbol: str, percentage: float = 100.0) -> dict[str, Any]:
         """Close a position using liquidation"""
         try:
-            if percentage != 100.0:
+            # Sonar: replace float equality check with tolerance
+            if not floats_equal(percentage, 100.0):
                 return {
                     "success": False,
                     "error": "Partial position closure not directly supported. Use liquidate_position for full closure.",

@@ -11,7 +11,7 @@ project_root = "/Users/joshua.moreton/Documents/GitHub/the-alchemiser"
 sys.path.insert(0, project_root)
 
 
-def main():
+def main() -> int:
     print("Enhanced services Phase 3 implementation complete!")
     print("\nServices created:")
     print("✅ OrderService - Enhanced order management with validation")
@@ -35,9 +35,9 @@ def main():
     print("4. Integration with existing codebase")
     print("5. Documentation and examples")
 
-    return True
+    return 0
 
 
 if __name__ == "__main__":
-    success = main()
-    sys.exit(0 if success else 1)
+    # Sonar: main always succeeds, propagate exit code directly
+    sys.exit(main())

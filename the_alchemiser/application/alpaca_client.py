@@ -281,12 +281,12 @@ class AlpacaClient:
                 logging.info(f"Market order placed for {symbol}: {order_id}")
                 return order_id
 
-            except Exception as order_error:
-                # Check for insufficient buying power error specifically
+            except (TradingClientError, ValueError, AttributeError) as order_error:
+                # Sonar: consolidate exception handling
                 error_msg = str(order_error)
+
                 if "insufficient buying power" in error_msg.lower():
                     logging.error(f"❌ Insufficient buying power for {symbol}: {error_msg}")
-                    # Try to extract the actual buying power from the error
                     try:
                         import json
 
@@ -303,13 +303,6 @@ class AlpacaClient:
                         logging.error("❌ Could not parse buying power details from error")
                     return None
 
-                # Re-raise for other exception types to be handled by the next except block
-                raise order_error
-
-            except (TradingClientError, ValueError, AttributeError) as order_error:
-                error_msg = str(order_error)
-
-                # Handle fractionability errors using asset handler
                 if "not fractionable" in error_msg.lower() and qty is not None:
                     fallback_order, conversion_info = (
                         self.asset_handler.handle_fractionability_error(
@@ -335,9 +328,8 @@ class AlpacaClient:
                             f"❌ Fallback order also failed for {symbol}: {fallback_error}"
                         )
                         return None
-                else:
-                    # Re-raise the original error if it's not a fractionability issue
-                    raise order_error
+
+                raise
 
         except (ConnectionError, TimeoutError, OSError) as e:
             logging.error(f"Network error placing market order for {symbol}: {e}")
