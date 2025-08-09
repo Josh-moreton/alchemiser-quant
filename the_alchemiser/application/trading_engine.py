@@ -779,7 +779,7 @@ class TradingEngine:
         return build_portfolio_state_data(target_portfolio, account_info, current_positions)
 
     def _trigger_post_trade_validation(
-        self, strategy_signals: dict[StrategyType, Any], orders_executed: Any
+        self, strategy_signals: dict[StrategyType, Any], orders_executed: list[dict[str, Any]]
     ) -> None:
         """
         Trigger post-trade technical indicator validation for live trading.
