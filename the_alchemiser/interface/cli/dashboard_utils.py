@@ -68,7 +68,7 @@ def extract_portfolio_metrics(account_info: dict[str, Any]) -> dict[str, float]:
         profit_loss = portfolio_history.get("profit_loss", [])
         profit_loss_pct = portfolio_history.get("profit_loss_pct", [])
         if profit_loss:
-            latest_pl = profit_loss[-1] if profit_loss else 0
+            latest_pl = profit_loss[-1]  # Sonar: remove tautology
             latest_pl_pct = profit_loss_pct[-1] if profit_loss_pct else 0
             portfolio_metrics.update(
                 {"daily_pl": float(latest_pl), "daily_pl_percent": float(latest_pl_pct) * 100}

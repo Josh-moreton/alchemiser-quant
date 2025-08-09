@@ -779,7 +779,7 @@ class TradingEngine:
         return build_portfolio_state_data(target_portfolio, account_info, current_positions)
 
     def _trigger_post_trade_validation(
-        self, strategy_signals: dict[StrategyType, Any], orders_executed: list[dict[str, Any]]
+        self, strategy_signals: dict[StrategyType, Any], orders_executed: Any
     ) -> None:
         """
         Trigger post-trade technical indicator validation for live trading.
@@ -793,7 +793,9 @@ class TradingEngine:
         try:
             # Enhanced order validation
             if not isinstance(orders_executed, list):
-                logging.error(f"❌ orders_executed must be a list, got {type(orders_executed)}")
+                logging.error(
+                    f"❌ orders_executed must be a list, got {type(orders_executed)}"
+                )
                 return
 
             validated_symbols = set()
@@ -802,7 +804,9 @@ class TradingEngine:
             # Validate each order and extract symbols
             for i, order in enumerate(orders_executed):
                 if not isinstance(order, dict):
-                    invalid_orders.append(f"Order {i}: Expected dict, got {type(order)}")
+                    invalid_orders.append(
+                        f"Order {i}: Expected dict, got {type(order)}"
+                    )
                     continue
 
                 symbol = order.get("symbol")
@@ -1131,10 +1135,8 @@ class TradingEngine:
         console.print(portfolio_table)
         console.print()
 
-        if isinstance(orders_table, Table):
-            console.print(orders_table)
-        else:
-            console.print(orders_table)
+        # Sonar: collapse redundant type check
+        console.print(orders_table)
         console.print()
 
         # Display closed P&L table if available
