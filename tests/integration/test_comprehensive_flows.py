@@ -9,6 +9,9 @@ from decimal import Decimal
 from unittest.mock import Mock
 
 import pytest
+from pytest import approx
+
+from tests.conftest import ABS_TOL, REL_TOL
 
 
 class TestDataToSignalFlow:
@@ -380,7 +383,7 @@ class TestErrorHandlingAndRecovery:
         # Verify eventual success
         assert result is not None
         assert result.symbol == "AAPL"
-        assert result.last == 150.00
+        assert result.last == approx(150.00, rel=REL_TOL, abs=ABS_TOL)
         assert retry_count == 3  # Failed 3 times before success
 
     def test_data_consistency_validation(self, mocker, mock_aws_clients):

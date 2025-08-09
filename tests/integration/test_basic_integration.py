@@ -7,6 +7,10 @@ that might trigger pytest-mock recursion issues.
 
 from decimal import Decimal
 
+from pytest import approx
+
+from tests.conftest import ABS_TOL, REL_TOL
+
 
 class TestBasicIntegration:
     """Basic integration tests without complex mocking."""
@@ -107,8 +111,8 @@ class TestBasicIntegration:
         avg_loss = sum(losses) / len(losses) if losses else 0
 
         # Verify calculations
-        assert round(sma_3, 2) == 152.33  # (152 + 150 + 155) / 3
-        assert sma_5 == 150.0  # (145 + 148 + 152 + 150 + 155) / 5
+        assert round(sma_3, 2) == approx(152.33, rel=REL_TOL, abs=ABS_TOL)  # (152 + 150 + 155) / 3
+        assert sma_5 == approx(150.0, rel=REL_TOL, abs=ABS_TOL)  # (145 + 148 + 152 + 150 + 155) / 5
         assert avg_gain > 0  # Should have some gains
         assert avg_loss > 0  # Should have some losses
 
@@ -132,7 +136,7 @@ class TestBasicIntegration:
             return data.get(key, default)
 
         test_data = {"price": 150.0}
-        assert safe_get(test_data, "price") == 150.0
+        assert safe_get(test_data, "price") == approx(150.0, rel=REL_TOL, abs=ABS_TOL)
         assert safe_get(test_data, "volume") is None
         assert safe_get(None, "price", 0) == 0
 

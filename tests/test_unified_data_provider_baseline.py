@@ -11,7 +11,9 @@ from unittest.mock import Mock, patch
 
 import pandas as pd
 import pytest
+from pytest import approx
 
+from tests.conftest import ABS_TOL, REL_TOL
 from the_alchemiser.infrastructure.data_providers.data_provider import UnifiedDataProvider
 from the_alchemiser.services.exceptions import ConfigurationError
 
@@ -163,7 +165,7 @@ class TestUnifiedDataProviderBaseline:
         # Mock the REST API method
         with patch.object(provider, "get_current_price_rest", return_value=150.75):
             result = provider.get_current_price("AAPL")
-            assert result == 150.75
+            assert result == approx(150.75, rel=REL_TOL, abs=ABS_TOL)
             assert isinstance(result, float)
 
     def test_get_latest_quote_returns_bid_ask_tuple(
@@ -183,8 +185,8 @@ class TestUnifiedDataProviderBaseline:
 
         bid, ask = provider.get_latest_quote("AAPL")
 
-        assert bid == 150.50
-        assert ask == 150.75
+        assert bid == approx(150.50, rel=REL_TOL, abs=ABS_TOL)
+        assert ask == approx(150.75, rel=REL_TOL, abs=ABS_TOL)
         assert isinstance(bid, float)
         assert isinstance(ask, float)
 
@@ -208,7 +210,7 @@ class TestUnifiedDataProviderBaseline:
 
         assert isinstance(result, dict)
         assert result["account_number"] == "123456"
-        assert result["equity"] == 10000.0
+        assert result["equity"] == approx(10000.0, rel=REL_TOL, abs=ABS_TOL)
 
     def test_get_positions_returns_list_of_dicts(
         self, mock_config, mock_secrets_manager, mock_alpaca_clients
@@ -280,8 +282,8 @@ class TestUnifiedDataProviderBaseline:
 
         # Should return (0.0, 0.0) on error
         bid, ask = provider.get_latest_quote("AAPL")
-        assert bid == 0.0
-        assert ask == 0.0
+        assert bid == approx(0.0, rel=REL_TOL, abs=ABS_TOL)
+        assert ask == approx(0.0, rel=REL_TOL, abs=ABS_TOL)
 
     def test_historical_data_date_range_interface(
         self, mock_config, mock_secrets_manager, mock_alpaca_clients
