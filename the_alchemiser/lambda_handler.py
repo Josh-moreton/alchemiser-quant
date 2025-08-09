@@ -13,14 +13,14 @@ import json
 import logging
 from typing import Any
 
-from the_alchemiser.core.exceptions import (
+from the_alchemiser.domain.types import LambdaEvent
+from the_alchemiser.main import main
+from the_alchemiser.services.exceptions import (
     DataProviderError,
     NotificationError,
     StrategyExecutionError,
     TradingClientError,
 )
-from the_alchemiser.core.types import LambdaEvent
-from the_alchemiser.main import main
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -176,7 +176,7 @@ def lambda_handler(event: LambdaEvent | None = None, context: Any = None) -> dic
 
         logger.info(f"Executing command: {' '.join(command_args)}")
 
-        from the_alchemiser.core.config import load_settings
+        from the_alchemiser.infrastructure.config import load_settings
 
         settings = load_settings()
         result = main(command_args, settings=settings)
@@ -206,7 +206,7 @@ def lambda_handler(event: LambdaEvent | None = None, context: Any = None) -> dic
         return response
 
     except (DataProviderError, StrategyExecutionError, TradingClientError) as e:
-        from the_alchemiser.core.logging.logging_utils import log_error_with_context
+        from the_alchemiser.infrastructure.logging.logging_utils import log_error_with_context
 
         # Safely get variables that might not be defined
         mode = locals().get("mode", "unknown")
@@ -227,7 +227,7 @@ def lambda_handler(event: LambdaEvent | None = None, context: Any = None) -> dic
 
         # Enhanced error handling with detailed reporting
         try:
-            from the_alchemiser.core.error_handler import (
+            from the_alchemiser.services.error_handler import (
                 handle_trading_error,
                 send_error_notification_if_needed,
             )
@@ -257,7 +257,7 @@ def lambda_handler(event: LambdaEvent | None = None, context: Any = None) -> dic
             "request_id": request_id,
         }
     except (ImportError, AttributeError, ValueError, KeyError, TypeError, OSError) as e:
-        from the_alchemiser.core.logging.logging_utils import log_error_with_context
+        from the_alchemiser.infrastructure.logging.logging_utils import log_error_with_context
 
         error_message = f"Lambda execution critical error: {str(e)}"
         log_error_with_context(
@@ -273,7 +273,7 @@ def lambda_handler(event: LambdaEvent | None = None, context: Any = None) -> dic
 
         # Enhanced error handling with detailed reporting
         try:
-            from the_alchemiser.core.error_handler import (
+            from the_alchemiser.services.error_handler import (
                 handle_trading_error,
                 send_error_notification_if_needed,
             )

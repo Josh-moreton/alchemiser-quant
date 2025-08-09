@@ -13,7 +13,7 @@ import pytest
 
 # Import the indicators module - adjust import path as needed
 try:
-    from the_alchemiser.core.indicators.indicators import (
+    from the_alchemiser.domain.math.indicators import (
         calculate_bollinger_bands,
         calculate_macd,
         calculate_moving_average,

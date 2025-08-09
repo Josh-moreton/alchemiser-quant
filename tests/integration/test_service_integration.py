@@ -12,17 +12,15 @@ from unittest.mock import Mock, patch
 import pandas as pd
 import pytest
 
-from the_alchemiser.core.models import AccountModel, BarModel
-from the_alchemiser.core.services import (
-    CacheManager,
-    ConfigService,
-    MarketDataClient,
-    SecretsService,
-    TradingClientService,
-)
-from the_alchemiser.core.services.account_service import AccountService
-from the_alchemiser.core.services.error_handling import handle_service_errors
-from the_alchemiser.core.services.price_service import ModernPriceFetchingService
+from the_alchemiser.domain.models import AccountModel, BarModel
+from the_alchemiser.services.account_service import AccountService
+from the_alchemiser.services.cache_manager import CacheManager
+from the_alchemiser.services.config_service import ConfigService
+from the_alchemiser.services.error_handling import handle_service_errors
+from the_alchemiser.services.market_data_client import MarketDataClient
+from the_alchemiser.services.price_service import ModernPriceFetchingService
+from the_alchemiser.services.secrets_service import SecretsService
+from the_alchemiser.services.trading_client_service import TradingClientService
 
 
 class TestServiceIntegration:
@@ -285,7 +283,7 @@ class TestServiceIntegration:
         df = market_data_client.get_historical_bars("AAPL", "1y", "1d")
 
         # Convert to domain model
-        from the_alchemiser.core.models.market_data import dataframe_to_bars
+        from the_alchemiser.domain.models.market_data import dataframe_to_bars
 
         bars = dataframe_to_bars(df, "AAPL")
 
@@ -297,7 +295,7 @@ class TestServiceIntegration:
         assert bar_model.is_valid_ohlc is True
 
         # Convert back to DataFrame
-        from the_alchemiser.core.models.market_data import bars_to_dataframe
+        from the_alchemiser.domain.models.market_data import bars_to_dataframe
 
         df_converted = bars_to_dataframe(bars)
 
