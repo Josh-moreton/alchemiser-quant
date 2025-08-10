@@ -1,0 +1,12 @@
+[run]
+branch = True
+source = the_alchemiser
+omit =
+    */.venv/*
+    */tests/*
+    */migrations/*
+    */version.py
+concurrency = multiprocessing,thread
+
+[report]
+skip_covered = False

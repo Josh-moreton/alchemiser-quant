@@ -219,7 +219,9 @@ addopts = [
     "--cov=the_alchemiser",        # Coverage for main package
     "--cov-report=term-missing",   # Show missing lines in coverage
     "--cov-report=html:htmlcov",   # HTML coverage report
+    "--cov-report=xml",            # XML coverage report for CI
     "--cov-branch",                # Include branch coverage
+    "--cov-fail-under=85",         # Enforce minimum coverage threshold
     "--timeout=30",                # Global test timeout
 ]
 
