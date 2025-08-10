@@ -52,8 +52,7 @@ class BaseEmailTemplate:
         timestamp: datetime | None = None,
     ) -> str:
         """Get combined header and status in one section."""
-        if timestamp is None:
-            timestamp = datetime.now()
+        timestamp = timestamp or datetime.now()
 
         return f"""
         <tr>
@@ -86,8 +85,7 @@ class BaseEmailTemplate:
         timestamp: datetime | None = None,
     ) -> str:
         """Get HTML status banner section."""
-        if timestamp is None:
-            timestamp = datetime.now()
+        timestamp = timestamp or datetime.now()
 
         return f"""
         <tr>

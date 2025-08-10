@@ -115,9 +115,7 @@ class TradingErrorRecovery(ErrorRecoveryStrategy):
 
     def _handle_rate_limit(self, error: EnhancedAlchemiserError) -> RecoveryResult:
         """Handle rate limit errors with appropriate delays."""
-        retry_delay = getattr(error, "retry_after", 60.0)
-        if retry_delay is None:
-            retry_delay = 60.0
+        retry_delay = getattr(error, "retry_after", None) or 60.0
 
         return RecoveryResult(
             success=True,
