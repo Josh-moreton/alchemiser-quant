@@ -56,6 +56,9 @@ def show_welcome() -> None:
 def signal(
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable verbose output"),
     no_header: bool = typer.Option(False, "--no-header", help="Skip welcome header"),
+    use_di: bool = typer.Option(
+        False, "--use-di", help="Use dependency injection system (experimental)"
+    ),
 ) -> None:
     """
     🎯 [bold cyan]Generate and display strategy signals[/bold cyan] (analysis only, no trading)
@@ -80,10 +83,15 @@ def signal(
     console.print("[dim]📊 Generating strategy signals...[/dim]")
 
     try:
-        # Import and run the main logic
-        from the_alchemiser.main import run_all_signals_display
+        # Import and run the main logic with DI support
+        from the_alchemiser.main import main
 
-        success = run_all_signals_display()
+        # Build argv for main function
+        argv = ["signal"]
+        if use_di:
+            argv.append("--use-di")
+
+        success = main(argv=argv)
 
         if success:
             console.print("\n[bold green]Signal analysis completed successfully![/bold green]")
@@ -145,6 +153,9 @@ def trade(
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable verbose output"),
     no_header: bool = typer.Option(False, "--no-header", help="Skip welcome header"),
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompts"),
+    use_di: bool = typer.Option(
+        False, "--use-di", help="Use dependency injection system (experimental)"
+    ),
 ) -> None:
     """
     💰 [bold green]Execute multi-strategy trading[/bold green]
@@ -177,22 +188,28 @@ def trade(
     console.print(f"[bold yellow]Starting {mode_display} trading...[/bold yellow]")
 
     try:
-        # Import and run the main trading logic
-        from the_alchemiser.main import run_multi_strategy_trading
+        # Import and run the main trading logic with DI support
+        from the_alchemiser.main import main
 
         console.print("[dim]📊 Analyzing market conditions...[/dim]")
         time.sleep(0.5)  # Brief pause for UI
 
         console.print("[dim]⚡ Generating strategy signals...[/dim]")
-        result = run_multi_strategy_trading(
-            live_trading=live, ignore_market_hours=ignore_market_hours
-        )
+
+        # Build argv for main function
+        argv = ["trade"]
+        if live:
+            argv.append("--live")
+        if ignore_market_hours:
+            argv.append("--ignore-market-hours")
+        if use_di:
+            argv.append("--use-di")
+
+        result = main(argv=argv)
 
         console.print("[dim]✅ Trading completed![/dim]")
 
-        if result == "market_closed":
-            console.print("\n[bold yellow]Market is closed - no trades executed[/bold yellow]")
-        elif result:
+        if result:
             console.print(
                 f"\n[bold green]{mode_display} trading completed successfully![/bold green]"
             )

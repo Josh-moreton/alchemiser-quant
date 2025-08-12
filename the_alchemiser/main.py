@@ -590,7 +590,7 @@ def main(argv: list[str] | None = None, settings: Settings | None = None) -> boo
         True if operation completed successfully, False otherwise.
 
     Modes:
-        bot: Display multi-strategy signals without trading
+        signal: Display multi-strategy signals without trading
         trade: Execute multi-strategy trading (Nuclear + TECL combined)
 
     Trading Modes:
@@ -599,12 +599,14 @@ def main(argv: list[str] | None = None, settings: Settings | None = None) -> boo
 
     Options:
         --ignore-market-hours: Override market hours check for testing
+        --use-di: Use dependency injection system (experimental)
 
     Examples:
-        $ python main.py bot                    # Show signals only
+        $ python main.py signal                 # Show signals only
         $ python main.py trade                  # Paper trading
         $ python main.py trade --live           # Live trading
         $ python main.py trade --ignore-market-hours  # Test during market close
+        $ python main.py signal --use-di       # Use DI for signal analysis
     """
     from the_alchemiser.interface.cli.cli_formatter import render_footer, render_header
 
@@ -615,8 +617,8 @@ def main(argv: list[str] | None = None, settings: Settings | None = None) -> boo
     parser = argparse.ArgumentParser(description="Multi-Strategy Quantitative Trading System")
     parser.add_argument(
         "mode",
-        choices=["bot", "trade"],
-        help="Operation mode: bot (show signals), trade (execute trading)",
+        choices=["signal", "trade"],
+        help="Operation mode: signal (show signals), trade (execute trading)",
     )
 
     # Trading mode selection
@@ -650,7 +652,7 @@ def main(argv: list[str] | None = None, settings: Settings | None = None) -> boo
 
     success: bool | str = False
     try:
-        if args.mode == "bot":
+        if args.mode == "signal":
             # Display multi-strategy signals (no trading)
             success = run_all_signals_display(settings)
         elif args.mode == "trade":

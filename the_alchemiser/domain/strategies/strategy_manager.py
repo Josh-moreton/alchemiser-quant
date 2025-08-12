@@ -15,6 +15,7 @@ Key Features:
 """
 
 import logging
+import time
 from datetime import datetime
 from typing import Any
 
@@ -221,12 +222,23 @@ class MultiStrategyManager:
         if not shared_data_provider:
             raise RuntimeError("No data provider available from strategy engines")
 
-        for symbol in all_symbols:
-            data = shared_data_provider.get_data(symbol)
-            if not data.empty:
-                market_data[symbol] = data
-            else:
-                logging.warning(f"Could not fetch data for {symbol}")
+        for i, symbol in enumerate(all_symbols):
+            try:
+                # Add rate limiting - small delay between requests
+                if i > 0:
+                    time.sleep(0.1)  # 100ms delay between requests
+
+                data = shared_data_provider.get_data(symbol)
+                if not data.empty:
+                    market_data[symbol] = data
+                    logging.debug(f"Successfully fetched data for {symbol}: {len(data)} bars")
+                else:
+                    logging.warning(f"No data returned for {symbol}")
+            except Exception as e:
+                # Handle API errors gracefully
+                logging.warning(f"Failed to fetch data for {symbol}: {type(e).__name__}: {e}")
+                # Continue with other symbols instead of failing completely
+                continue
 
         # Market data fetched successfully
         logging.debug(
