@@ -34,8 +34,8 @@ class ApplicationContainer(containers.DeclarativeContainer):
 
         # Load environment-specific configuration
         if env == "test":
-            container.config.alpaca_api_key.override("test_key")
-            container.config.alpaca_secret_key.override("test_secret")
+            container.config.alpaca_api_key.override("test_api_key_valid_for_testing")
+            container.config.alpaca_secret_key.override("test_secret_key_valid_for_testing")
             container.config.paper_trading.override(True)
         elif env == "production":
             # Production uses environment variables (default behavior)
@@ -48,10 +48,22 @@ class ApplicationContainer(containers.DeclarativeContainer):
         """Create container with test doubles."""
         container = cls.create_for_environment("test")
 
-        # Override with mocks for testing (will be used in tests)
+        # Override with mocks for testing
         from unittest.mock import Mock
 
+        # Create a mock AlpacaManager that behaves like the real one
         mock_alpaca_manager = Mock()
+        mock_alpaca_manager.is_paper_trading = True
+        mock_alpaca_manager.get_account.return_value = {
+            "account_id": "test_account",
+            "equity": 100000.0,
+            "cash": 10000.0,
+            "buying_power": 50000.0,
+            "portfolio_value": 100000.0,
+        }
+        mock_alpaca_manager.get_all_positions.return_value = {}
+        
+        # Override the entire infrastructure layer with mocks
         container.infrastructure.alpaca_manager.override(mock_alpaca_manager)
 
         return container
