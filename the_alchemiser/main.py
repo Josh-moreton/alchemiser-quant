@@ -28,7 +28,6 @@ import logging
 import os
 import sys
 from datetime import datetime
-from typing import Any
 
 # TODO: Add these imports once types are fully implemented:
 # from .core.types import StrategySignal
@@ -43,6 +42,8 @@ try:
 except ImportError:
     HAS_RICH = False
 
+# DI imports
+from the_alchemiser.container.application_container import ApplicationContainer
 from the_alchemiser.domain.strategies.strategy_manager import StrategyType
 from the_alchemiser.infrastructure.config import Settings, load_settings
 from the_alchemiser.infrastructure.logging.logging_utils import get_logger, setup_logging
@@ -53,6 +54,20 @@ from the_alchemiser.services.exceptions import (
     StrategyExecutionError,
     TradingClientError,
 )
+from the_alchemiser.services.service_factory import ServiceFactory
+
+# Global DI container
+_di_container = None
+
+
+def initialize_dependency_injection() -> None:
+    """Initialize dependency injection system."""
+    global _di_container
+
+    _di_container = ApplicationContainer()
+    ServiceFactory.initialize(_di_container)
+    logger = get_logger(__name__)
+    logger.info("Dependency injection initialized")
 
 
 def configure_application_logging() -> None:
@@ -76,75 +91,6 @@ def configure_application_logging() -> None:
             suppress_third_party=True,
             structured_format=False,  # Human-readable for CLI
         )
-
-
-def generate_multi_strategy_signals(
-    settings: Settings,
-) -> tuple[
-    Any, dict[Any, Any], dict[str, float]
-]:  # TODO: Change to tuple[MultiStrategyManager, dict[StrategyType, StrategySignal], dict[str, float]] once imports added
-    """Generate signals for all strategies and return consolidated results.
-
-    Creates a shared data provider and multi-strategy manager to generate signals
-    for both Nuclear and TECL strategies with configurable allocation weights.
-
-    Returns:
-        tuple: A 3-tuple containing:
-            - manager (MultiStrategyManager): The strategy manager instance
-            - strategy_signals (dict): Individual strategy signals by type
-            - consolidated_portfolio (dict): Consolidated portfolio allocation
-
-        Returns (None, None, None) if signal generation fails.
-
-    Example:
-        >>> manager, signals, portfolio = generate_multi_strategy_signals()
-        >>> if signals:
-        ...     nuclear_signal = signals[StrategyType.NUCLEAR]
-        ...     tecl_signal = signals[StrategyType.TECL]
-
-    Raises:
-        Exception: If data provider initialization or strategy execution fails.
-    """
-    from the_alchemiser.domain.strategies.strategy_manager import MultiStrategyManager
-    from the_alchemiser.infrastructure.data_providers.data_provider import UnifiedDataProvider
-
-    try:
-        # Create shared UnifiedDataProvider once
-        shared_data_provider = UnifiedDataProvider(paper_trading=True)
-        manager = MultiStrategyManager(shared_data_provider=shared_data_provider, config=settings)
-        strategy_signals, consolidated_portfolio, _ = manager.run_all_strategies()
-        return manager, strategy_signals, consolidated_portfolio
-    except (DataProviderError, StrategyExecutionError) as e:
-        from the_alchemiser.infrastructure.logging.logging_utils import log_error_with_context
-
-        logger = get_logger(__name__)
-        log_error_with_context(
-            logger,
-            e,
-            "strategy_signal_generation",
-            function="run_all_signals_simple",
-            error_type=type(e).__name__,
-        )
-        print(f"ERROR: Strategy signal generation failed: {str(e)}")
-        # Re-raise the specific exception for proper error handling
-        raise
-    except (TradingClientError, ImportError, AttributeError, ValueError) as e:
-        from the_alchemiser.infrastructure.logging.logging_utils import log_error_with_context
-
-        logger = get_logger(__name__)
-        log_error_with_context(
-            logger,
-            e,
-            "strategy_initialization_error",
-            function="run_all_signals_simple",
-            error_type=type(e).__name__,
-        )
-        print(f"ERROR: Strategy initialization failed: {str(e)}")
-        # Convert to our exception hierarchy
-        raise StrategyExecutionError(
-            f"Strategy initialization failed: {str(e)}",
-            strategy_name="multi_strategy",
-        ) from e
 
 
 def run_all_signals_display(
@@ -178,10 +124,11 @@ def run_all_signals_display(
 
     settings = settings or load_settings()
     try:
-        # Generate multi-strategy signals (this includes both Nuclear and TECL)
-        manager, strategy_signals, consolidated_portfolio = generate_multi_strategy_signals(
-            settings
-        )
+        from the_alchemiser.application.trading_engine import TradingEngine
+
+        # Generate multi-strategy signals using DI
+        trader = TradingEngine.create_with_di(container=_di_container)
+        strategy_signals, consolidated_portfolio, _ = trader.strategy_manager.run_all_strategies()
         if not strategy_signals:
             logger = get_logger(__name__)
             logger.error("Failed to generate multi-strategy signals")
@@ -294,7 +241,8 @@ def run_all_signals_display(
 
 
 def run_multi_strategy_trading(
-    live_trading: bool = False, ignore_market_hours: bool = False, settings: Settings | None = None
+    live_trading: bool = False,
+    ignore_market_hours: bool = False,
 ) -> bool | str:
     """Execute multi-strategy trading with both Nuclear and TECL strategies.
 
@@ -306,7 +254,6 @@ def run_multi_strategy_trading(
             Defaults to False for safety.
         ignore_market_hours: Whether to ignore market hours and trade
             during closed market periods. Defaults to False.
-
     Returns:
         Union[bool, str]: Returns True if trading was successful, False if failed,
             or "market_closed" if market is closed and trading was skipped.
@@ -321,14 +268,14 @@ def run_multi_strategy_trading(
 
     mode_str = "LIVE" if live_trading else "PAPER"
 
-    settings = settings or load_settings()
     try:
         from the_alchemiser.application.smart_execution import is_market_open
         from the_alchemiser.application.trading_engine import TradingEngine
 
-        trader = TradingEngine(
-            paper_trading=not live_trading, ignore_market_hours=ignore_market_hours, config=settings
+        trader = TradingEngine.create_with_di(
+            container=_di_container, ignore_market_hours=ignore_market_hours
         )
+        trader.paper_trading = not live_trading
 
         # Check market hours unless ignore_market_hours is set
         if not ignore_market_hours and not is_market_open(trader.trading_client):
@@ -542,7 +489,7 @@ def main(argv: list[str] | None = None, settings: Settings | None = None) -> boo
         True if operation completed successfully, False otherwise.
 
     Modes:
-        bot: Display multi-strategy signals without trading
+        signal: Display multi-strategy signals without trading
         trade: Execute multi-strategy trading (Nuclear + TECL combined)
 
     Trading Modes:
@@ -553,7 +500,7 @@ def main(argv: list[str] | None = None, settings: Settings | None = None) -> boo
         --ignore-market-hours: Override market hours check for testing
 
     Examples:
-        $ python main.py bot                    # Show signals only
+        $ python main.py signal                 # Show signals only
         $ python main.py trade                  # Paper trading
         $ python main.py trade --live           # Live trading
         $ python main.py trade --ignore-market-hours  # Test during market close
@@ -567,8 +514,8 @@ def main(argv: list[str] | None = None, settings: Settings | None = None) -> boo
     parser = argparse.ArgumentParser(description="Multi-Strategy Quantitative Trading System")
     parser.add_argument(
         "mode",
-        choices=["bot", "trade"],
-        help="Operation mode: bot (show signals), trade (execute trading)",
+        choices=["signal", "trade"],
+        help="Operation mode: signal (show signals), trade (execute trading)",
     )
 
     # Trading mode selection
@@ -585,14 +532,18 @@ def main(argv: list[str] | None = None, settings: Settings | None = None) -> boo
 
     args = parser.parse_args(argv)
 
+    # Initialize DI
+    initialize_dependency_injection()
+
     mode_label = "LIVE TRADING ⚠️" if args.mode == "trade" and args.live else "Paper Trading"
     render_header(
-        "Multi-Strategy Quantitative Trading System", f"{args.mode.upper()} | {mode_label}"
+        "Multi-Strategy Quantitative Trading System",
+        f"{args.mode.upper()} | {mode_label}",
     )
 
     success: bool | str = False
     try:
-        if args.mode == "bot":
+        if args.mode == "signal":
             # Display multi-strategy signals (no trading)
             success = run_all_signals_display(settings)
         elif args.mode == "trade":
@@ -600,7 +551,6 @@ def main(argv: list[str] | None = None, settings: Settings | None = None) -> boo
             result = run_multi_strategy_trading(
                 live_trading=args.live,
                 ignore_market_hours=args.ignore_market_hours,
-                settings=settings,
             )
             if result == "market_closed":
                 render_footer("Market closed - no action taken")

@@ -23,8 +23,8 @@ Modules:
 Example:
     Basic usage for running trading signals:
 
-    >>> from the_alchemiser.main import generate_multi_strategy_signals
-    >>> signals = generate_multi_strategy_signals()
+    >>> from the_alchemiser.main import run_all_signals_display
+    >>> run_all_signals_display()
 
 Author: Josh Moreton
 License: Private
