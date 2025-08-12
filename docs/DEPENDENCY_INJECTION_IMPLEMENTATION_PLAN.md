@@ -661,37 +661,19 @@ def main(use_dependency_injection: bool = False) -> dict[str, Any]:
         raise
 ```
 
-**Add CLI argument for DI**:
+**CLI uses DI by default**:
 
-```python
-def parse_arguments() -> argparse.Namespace:
-    """Parse command line arguments."""
-    parser = argparse.ArgumentParser(description="The Alchemiser Trading System")
-    
-    # Existing arguments...
-    
-    # NEW: DI option
-    parser.add_argument(
-        "--use-di",
-        action="store_true",
-        help="Use dependency injection system (experimental)"
-    )
-    
-    return parser.parse_args()
-```
+Dependency injection is initialized automatically; no additional CLI flags are required.
 
 **Update CLI entry point**:
 
 ```python
 if __name__ == "__main__":
-    args = parse_arguments()
-    
-    if args.command == "trade":
-        result = main(use_dependency_injection=args.use_di)
+    result = main()
     # ... rest of CLI logic
 ```
 
-**Deliverable**: main.py supports optional DI while maintaining existing functionality
+**Deliverable**: main.py initializes dependency injection automatically
 
 #### 2.2.2 Update lambda_handler.py for DI
 
