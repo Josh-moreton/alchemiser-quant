@@ -16,10 +16,8 @@
 
 ### 2. Main.py Entry Point Enhancement
 
-- ✅ **DI CLI Option** - Added `--use-di` flag for dependency injection mode
-- ✅ **Optional DI Initialization** - DI system only loads when requested
-- ✅ **Visual Indicators** - "(DI)" shows in header when DI mode is active
-- ✅ **Function Parameter Updates** - All trading functions accept DI parameters
+- ✅ **Dependency Injection Default** - DI container initializes automatically
+- ✅ **Simplified Initialization** - Old non-DI path removed
 
 ### 3. Three Initialization Modes Implemented
 
@@ -57,19 +55,17 @@ engine = TradingEngine.create_with_di(container=container)
 
 ### 4. CLI Integration
 
-- ✅ **New Flag**: `--use-di` enables dependency injection
-- ✅ **Visual Feedback**: Header shows "(DI)" when DI is active
-- ✅ **Backward Compatible**: Default behavior unchanged
+- ✅ **Unified Mode**: CLI always uses dependency injection
+- ✅ **Simplified Usage**: No additional flags required
 
 #### Usage Examples
 
 ```bash
-# Traditional mode (unchanged)
+# Signal analysis
 python main.py bot
 
-# DI mode
-python main.py bot --use-di
-python main.py trade --use-di --ignore-market-hours
+# Trading with market hours override
+python main.py trade --ignore-market-hours
 ```
 
 ## 🔍 Validation Results
@@ -163,12 +159,9 @@ else:
 ### CLI DI Integration
 
 ```python
-# Initialize DI if requested
-initialize_dependency_injection(use_di=args.use_di)
-
-# DI-aware header
-di_label = " (DI)" if args.use_di else ""
-render_header(f"{args.mode.upper()} | {mode_label}{di_label}")
+# Initialize DI
+initialize_dependency_injection()
+render_header(f"{args.mode.upper()} | {mode_label}")
 ```
 
 ## 💡 Ready for Production Use
@@ -186,21 +179,20 @@ engine = TradingEngine.create_with_di(container=container)
 result = engine.execute_multi_strategy()
 
 # CLI usage
-python main.py trade --use-di
+python main.py trade
 ```
 
 ## 🔒 Safety & Risk Mitigation
 
-1. **Default Behavior Unchanged** - All existing code works exactly as before
-2. **Optional DI Activation** - DI is only used when explicitly requested
-3. **Graceful Error Handling** - Failures fall back to mock components
-4. **Visual Indicators** - Clear feedback when DI is active
-5. **Comprehensive Testing** - All modes thoroughly validated
+1. **Unified DI Approach** - Dependency injection is always used
+2. **Graceful Error Handling** - Failures fall back to mock components
+3. **Visual Indicators** - Clear feedback during operations
+4. **Comprehensive Testing** - All components thoroughly validated
 
 ---
 
 **Phase 2 Duration:** ~2 hours  
 **Breaking Changes:** None - 100% backward compatible  
-**New Capabilities:** Multi-mode initialization, CLI DI option  
+**New Capabilities:** Simplified initialization with dependency injection by default
 **Test Coverage:** 100% of new DI functionality validated  
 **Production Ready:** Yes - safe deployment with existing systems
