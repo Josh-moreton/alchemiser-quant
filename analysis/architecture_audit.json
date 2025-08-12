@@ -1,0 +1,4631 @@
+{
+  "architecture_summary": {
+    "layers": [
+      "domain",
+      "services",
+      "infrastructure",
+      "application",
+      "interface"
+    ],
+    "policies": [
+      "Domain has no IO and uses Decimal for money",
+      "Application orchestrates use-cases without concrete IO",
+      "Services expose TradingServiceManager facade; AlpacaManager hidden",
+      "Infrastructure implements concrete adapters and AWS/Lambda glue",
+      "Interface is Typer+Rich only; user formatting"
+    ],
+    "testing_layout": [
+      "tests/unit",
+      "tests/integration",
+      "tests/infrastructure",
+      "tests/performance",
+      "tests/property"
+    ],
+    "assumptions": []
+  },
+  "files": [
+    {
+      "path": "poetry.lock",
+      "layer_guess": "unknown",
+      "summary": "poetry module",
+      "key_imports": [],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Fail",
+      "smells": [
+        "overly_long_file"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "Medium",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "package-lock.json",
+      "layer_guess": "unknown",
+      "summary": "package-lock module",
+      "key_imports": [],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Pass",
+      "smells": [],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "Low",
+      "recommended_action": "None"
+    },
+    {
+      "path": "PHASE3_ARCHITECTURE_DOCUMENTATION.md",
+      "layer_guess": "unknown",
+      "summary": "PHASE3_ARCHITECTURE_DOCUMENTATION module",
+      "key_imports": [
+        "the_alchemiser.services.alpaca_manager",
+        "the_alchemiser.services.enhanced.order_service",
+        "the_alchemiser.services.enhanced.position_service",
+        "the_alchemiser.services.enhanced.market_data_service",
+        "the_alchemiser.services.enhanced.account_service"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Fail",
+      "smells": [
+        "services_bypass_facade",
+        "overly_long_file"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "High",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "template.yaml",
+      "layer_guess": "unknown",
+      "summary": "template module",
+      "key_imports": [],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Pass",
+      "smells": [],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "Low",
+      "recommended_action": "None"
+    },
+    {
+      "path": "INCREMENTAL_IMPROVEMENT_PLAN.md",
+      "layer_guess": "unknown",
+      "summary": "INCREMENTAL_IMPROVEMENT_PLAN module",
+      "key_imports": [
+        "alpaca.trading.client",
+        "the_alchemiser.services.alpaca_manager",
+        "typing",
+        "alpaca.trading.client",
+        "the_alchemiser.services.alpaca_manager"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Fail",
+      "smells": [
+        "services_bypass_facade",
+        "overly_long_file"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "High",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "pyproject.toml",
+      "layer_guess": "unknown",
+      "summary": "pyproject module",
+      "key_imports": [],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Pass",
+      "smells": [],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "Low",
+      "recommended_action": "None"
+    },
+    {
+      "path": "ALPACA_ARCHITECTURE_REDESIGN_PLAN.md",
+      "layer_guess": "unknown",
+      "summary": "ALPACA_ARCHITECTURE_REDESIGN_PLAN module",
+      "key_imports": [
+        "typing",
+        "alpaca.trading.client",
+        "the_alchemiser.domain.interfaces.trading_repository",
+        "the_alchemiser.domain.models.orders",
+        "the_alchemiser.domain.models.positions"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Fail",
+      "smells": [
+        "overly_long_file"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "Medium",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "PHASE2_INTERFACE_EXTRACTION_COMPLETE.md",
+      "layer_guess": "unknown",
+      "summary": "PHASE2_INTERFACE_EXTRACTION_COMPLETE module",
+      "key_imports": [
+        "the_alchemiser.domain.interfaces"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Fail",
+      "smells": [
+        "services_bypass_facade"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "High",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": ".pre-commit-config.yaml",
+      "layer_guess": "unknown",
+      "summary": ".pre-commit-config module",
+      "key_imports": [],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Pass",
+      "smells": [],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "Low",
+      "recommended_action": "None"
+    },
+    {
+      "path": "reacrchitecting.md",
+      "layer_guess": "unknown",
+      "summary": "reacrchitecting module",
+      "key_imports": [
+        "the_alchemiser.core.services.account_service",
+        "the_alchemiser.services.account_service"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Pass",
+      "smells": [],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "Low",
+      "recommended_action": "None"
+    },
+    {
+      "path": "package.json",
+      "layer_guess": "unknown",
+      "summary": "package module",
+      "key_imports": [],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Pass",
+      "smells": [],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "Low",
+      "recommended_action": "None"
+    },
+    {
+      "path": "samconfig.toml",
+      "layer_guess": "unknown",
+      "summary": "samconfig module",
+      "key_imports": [],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Pass",
+      "smells": [],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "Low",
+      "recommended_action": "None"
+    },
+    {
+      "path": "PHASE1_MIGRATION_COMPLETE.md",
+      "layer_guess": "unknown",
+      "summary": "PHASE1_MIGRATION_COMPLETE module",
+      "key_imports": [
+        "alpaca.trading.client",
+        "alpaca.data.historical",
+        "the_alchemiser.services.alpaca_manager"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Fail",
+      "smells": [
+        "services_bypass_facade"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "High",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "README.md",
+      "layer_guess": "unknown",
+      "summary": "README module",
+      "key_imports": [
+        "the_alchemiser.core.error_handler",
+        "the_alchemiser.core.error_handler",
+        "the_alchemiser.core.exceptions",
+        "pytest",
+        "unittest.mock"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Fail",
+      "smells": [
+        "silent_exception",
+        "overly_long_file"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "tests/README.md",
+      "risk": "Medium",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "SOC_DUPLICATION_REPORT.md",
+      "layer_guess": "unknown",
+      "summary": "SOC_DUPLICATION_REPORT module",
+      "key_imports": [],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Pass",
+      "smells": [],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "Low",
+      "recommended_action": "None"
+    },
+    {
+      "path": ".github/dependabot.yml",
+      "layer_guess": "unknown",
+      "summary": "dependabot module",
+      "key_imports": [],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Pass",
+      "smells": [],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "Low",
+      "recommended_action": "None"
+    },
+    {
+      "path": ".github/copilot-instructions.md",
+      "layer_guess": "unknown",
+      "summary": "copilot-instructions module",
+      "key_imports": [
+        "the_alchemiser.services.error_handler",
+        "the_alchemiser.services.exceptions",
+        "the_alchemiser.domain.interfaces",
+        "the_alchemiser.services.enhanced",
+        "decimal"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Fail",
+      "smells": [
+        "services_bypass_facade"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "High",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "tests/__init__.py",
+      "layer_guess": "tests",
+      "summary": "The Alchemiser Testing Framework",
+      "key_imports": [],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Pass",
+      "smells": [],
+      "public_api": "none",
+      "test_coverage_presence": "tests/__init__.py,tests/utils/__init__.py,tests/fixtures/__init__.py,tests/property/__init__.py,tests/integration/__init__.py",
+      "risk": "Low",
+      "recommended_action": "None"
+    },
+    {
+      "path": "tests/test_unified_data_provider_baseline.py",
+      "layer_guess": "tests",
+      "summary": "test_unified_data_provider_baseline module",
+      "key_imports": [
+        "datetime",
+        "unittest.mock",
+        "pandas",
+        "pytest",
+        "pytest"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Fail",
+      "smells": [
+        "overly_long_file"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "tests/test_unified_data_provider_baseline.py",
+      "risk": "Medium",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "tests/conftest.py",
+      "layer_guess": "tests",
+      "summary": "Global test configuration and fixtures for The Alchemiser testing framework.",
+      "key_imports": [
+        "os",
+        "sys",
+        "collections.abc",
+        "contextlib",
+        "decimal"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Fail",
+      "smells": [
+        "overly_long_file"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "tests/conftest.py",
+      "risk": "Medium",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "tests/README.md",
+      "layer_guess": "tests",
+      "summary": "README module",
+      "key_imports": [
+        "hypothesis"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Pass",
+      "smells": [],
+      "public_api": "none",
+      "test_coverage_presence": "tests/README.md",
+      "risk": "Low",
+      "recommended_action": "None"
+    },
+    {
+      "path": "the_alchemiser/__init__.py",
+      "layer_guess": "unknown",
+      "summary": "The Alchemiser Quantitative Trading System Package.",
+      "key_imports": [],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Pass",
+      "smells": [],
+      "public_api": "none",
+      "test_coverage_presence": "tests/__init__.py,tests/utils/__init__.py,tests/fixtures/__init__.py,tests/property/__init__.py,tests/integration/__init__.py",
+      "risk": "Low",
+      "recommended_action": "None"
+    },
+    {
+      "path": "the_alchemiser/main.py",
+      "layer_guess": "unknown",
+      "summary": "main module",
+      "key_imports": [
+        "argparse",
+        "logging",
+        "os",
+        "sys",
+        "datetime"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Fail",
+      "smells": [
+        "overly_long_file",
+        "cli_logic_outside_interface"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "Medium",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "the_alchemiser/lambda_handler.py",
+      "layer_guess": "unknown",
+      "summary": "AWS Lambda Handler for The Alchemiser Quantitative Trading System.",
+      "key_imports": [
+        "json",
+        "logging",
+        "typing",
+        "the_alchemiser.domain.types",
+        "the_alchemiser.main"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Fail",
+      "smells": [
+        "overly_long_file"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "Medium",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "tests/utils/__init__.py",
+      "layer_guess": "tests",
+      "summary": "Testing utilities and mock framework for The Alchemiser.",
+      "key_imports": [],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Pass",
+      "smells": [],
+      "public_api": "none",
+      "test_coverage_presence": "tests/__init__.py,tests/utils/__init__.py,tests/fixtures/__init__.py,tests/property/__init__.py,tests/integration/__init__.py",
+      "risk": "Low",
+      "recommended_action": "None"
+    },
+    {
+      "path": "tests/utils/mocks.py",
+      "layer_guess": "tests",
+      "summary": "Mock framework for external dependencies in The Alchemiser.",
+      "key_imports": [
+        "collections.abc",
+        "contextlib",
+        "decimal",
+        "typing",
+        "unittest.mock"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Fail",
+      "smells": [
+        "overly_long_file"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "tests/utils/mocks.py",
+      "risk": "Medium",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "tests/utils/test_num.py",
+      "layer_guess": "tests",
+      "summary": "test_num module",
+      "key_imports": [
+        "math",
+        "numpy",
+        "the_alchemiser.utils.num"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Pass",
+      "smells": [],
+      "public_api": "none",
+      "test_coverage_presence": "tests/utils/test_num.py",
+      "risk": "Low",
+      "recommended_action": "None"
+    },
+    {
+      "path": "tests/fixtures/__init__.py",
+      "layer_guess": "tests",
+      "summary": "Market data fixtures for testing.",
+      "key_imports": [],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Pass",
+      "smells": [],
+      "public_api": "none",
+      "test_coverage_presence": "tests/__init__.py,tests/utils/__init__.py,tests/fixtures/__init__.py,tests/property/__init__.py,tests/integration/__init__.py",
+      "risk": "Low",
+      "recommended_action": "None"
+    },
+    {
+      "path": "tests/fixtures/market_data.py",
+      "layer_guess": "tests",
+      "summary": "Market data fixtures for comprehensive testing scenarios.",
+      "key_imports": [
+        "decimal",
+        "typing",
+        "numpy",
+        "pandas",
+        "pytest"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Fail",
+      "smells": [
+        "overly_long_file"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "tests/fixtures/market_data.py",
+      "risk": "Medium",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "tests/public_api/test_services_public_api.py",
+      "layer_guess": "tests",
+      "summary": "test_services_public_api module",
+      "key_imports": [
+        "the_alchemiser.services"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Pass",
+      "smells": [],
+      "public_api": "none",
+      "test_coverage_presence": "tests/public_api/test_services_public_api.py",
+      "risk": "Low",
+      "recommended_action": "None"
+    },
+    {
+      "path": "tests/unit/test_refactored_services.py",
+      "layer_guess": "tests",
+      "summary": "Unit tests for the refactored service-based architecture.",
+      "key_imports": [
+        "datetime",
+        "unittest.mock",
+        "pandas",
+        "pytest",
+        "pytest"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Fail",
+      "smells": [
+        "overly_long_file"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "tests/unit/test_refactored_services.py",
+      "risk": "Medium",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "tests/unit/test_portfolio.py",
+      "layer_guess": "tests",
+      "summary": "Unit tests for portfolio management and rebalancing logic.",
+      "key_imports": [
+        "datetime",
+        "decimal",
+        "typing"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Fail",
+      "smells": [
+        "overly_long_file"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "tests/unit/test_portfolio.py",
+      "risk": "Medium",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "tests/unit/test_pytest_mock_integration.py",
+      "layer_guess": "tests",
+      "summary": "Example test demonstrating pytest-mock usage.",
+      "key_imports": [
+        "decimal",
+        "pytest",
+        "os",
+        "os.path",
+        "os.path"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Pass",
+      "smells": [],
+      "public_api": "none",
+      "test_coverage_presence": "tests/unit/test_pytest_mock_integration.py",
+      "risk": "Low",
+      "recommended_action": "None"
+    },
+    {
+      "path": "tests/unit/test_trading_math.py",
+      "layer_guess": "tests",
+      "summary": "Unit tests for trading math calculations.",
+      "key_imports": [
+        "math",
+        "decimal",
+        "tests.conftest"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Fail",
+      "smells": [
+        "overly_long_file"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "tests/unit/test_trading_math.py",
+      "risk": "Medium",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "tests/unit/test_types.py",
+      "layer_guess": "tests",
+      "summary": "Unit tests for core type definitions and validation.",
+      "key_imports": [
+        "datetime",
+        "decimal",
+        "pytest",
+        "pytest",
+        "tests.conftest"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Fail",
+      "smells": [
+        "overly_long_file"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "tests/unit/test_types.py",
+      "risk": "Medium",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "tests/unit/test_indicators.py",
+      "layer_guess": "tests",
+      "summary": "Unit tests for technical indicators calculations.",
+      "key_imports": [
+        "decimal",
+        "numpy",
+        "pandas",
+        "pytest",
+        "the_alchemiser.domain.math.indicators"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Fail",
+      "smells": [
+        "overly_long_file"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "tests/unit/test_indicators.py",
+      "risk": "Medium",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "tests/infrastructure/test_aws_infrastructure.py",
+      "layer_guess": "tests",
+      "summary": "Infrastructure Testing",
+      "key_imports": [
+        "json",
+        "time",
+        "boto3",
+        "pytest",
+        "botocore.exceptions"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Fail",
+      "smells": [
+        "overly_long_file"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "tests/infrastructure/test_aws_infrastructure.py",
+      "risk": "Medium",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "tests/deployment/test_deployment_validation.py",
+      "layer_guess": "tests",
+      "summary": "Production Deployment Testing",
+      "key_imports": [
+        "json",
+        "time",
+        "contextlib",
+        "dataclasses",
+        "datetime"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Fail",
+      "smells": [
+        "overly_long_file"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "tests/deployment/test_deployment_validation.py",
+      "risk": "Medium",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "tests/simulation/test_chaos_engineering.py",
+      "layer_guess": "tests",
+      "summary": "Chaos Engineering Tests",
+      "key_imports": [
+        "random",
+        "time",
+        "contextlib",
+        "unittest.mock",
+        "pytest"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Fail",
+      "smells": [
+        "overly_long_file"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "tests/simulation/test_chaos_engineering.py",
+      "risk": "Medium",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "tests/simulation/test_market_scenarios.py",
+      "layer_guess": "tests",
+      "summary": "Market Scenario Testing",
+      "key_imports": [
+        "decimal",
+        "unittest.mock",
+        "numpy",
+        "pandas",
+        "numpy"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Fail",
+      "smells": [
+        "overly_long_file"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "tests/simulation/test_market_scenarios.py",
+      "risk": "Medium",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "tests/monitoring/test_production_monitoring.py",
+      "layer_guess": "tests",
+      "summary": "Production Monitoring & Metrics Testing",
+      "key_imports": [
+        "threading",
+        "time",
+        "contextlib",
+        "dataclasses",
+        "datetime"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Fail",
+      "smells": [
+        "overly_long_file"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "tests/monitoring/test_production_monitoring.py",
+      "risk": "Medium",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "tests/regression/test_regression_suite.py",
+      "layer_guess": "tests",
+      "summary": "Regression Testing Framework",
+      "key_imports": [
+        "json",
+        "tempfile",
+        "time",
+        "dataclasses",
+        "datetime"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Fail",
+      "smells": [
+        "overly_long_file"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "tests/regression/test_regression_suite.py",
+      "risk": "Medium",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "tests/performance/test_performance_benchmarks.py",
+      "layer_guess": "tests",
+      "summary": "Performance & Load Testing",
+      "key_imports": [
+        "concurrent.futures",
+        "gc",
+        "threading",
+        "time",
+        "contextlib"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Fail",
+      "smells": [
+        "silent_exception",
+        "overly_long_file"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "tests/performance/test_performance_benchmarks.py",
+      "risk": "Medium",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "tests/performance/test_load_testing.py",
+      "layer_guess": "tests",
+      "summary": "Load Testing for Trading System",
+      "key_imports": [
+        "queue",
+        "threading",
+        "time",
+        "concurrent.futures",
+        "dataclasses"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Fail",
+      "smells": [
+        "silent_exception",
+        "overly_long_file"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "tests/performance/test_load_testing.py",
+      "risk": "Medium",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "tests/performance/test_stress_testing.py",
+      "layer_guess": "tests",
+      "summary": "Stress Testing & Edge Case Performance",
+      "key_imports": [
+        "os",
+        "threading",
+        "time",
+        "concurrent.futures",
+        "decimal"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Fail",
+      "smells": [
+        "silent_exception",
+        "overly_long_file"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "tests/performance/test_stress_testing.py",
+      "risk": "Medium",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "tests/performance/run_phase5_summary.py",
+      "layer_guess": "tests",
+      "summary": "run_phase5_summary module",
+      "key_imports": [
+        "subprocess",
+        "sys",
+        "time",
+        "pathlib"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Pass",
+      "smells": [],
+      "public_api": "none",
+      "test_coverage_presence": "tests/performance/run_phase5_summary.py",
+      "risk": "Low",
+      "recommended_action": "None"
+    },
+    {
+      "path": "tests/property/__init__.py",
+      "layer_guess": "tests",
+      "summary": "Property-based tests for The Alchemiser trading system.",
+      "key_imports": [],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Pass",
+      "smells": [],
+      "public_api": "none",
+      "test_coverage_presence": "tests/__init__.py,tests/utils/__init__.py,tests/fixtures/__init__.py,tests/property/__init__.py,tests/integration/__init__.py",
+      "risk": "Low",
+      "recommended_action": "None"
+    },
+    {
+      "path": "tests/property/test_trading_properties.py",
+      "layer_guess": "tests",
+      "summary": "Property-based tests for trading mathematics and calculations.",
+      "key_imports": [
+        "math",
+        "decimal",
+        "hypothesis",
+        "hypothesis",
+        "hypothesis.strategies"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Fail",
+      "smells": [
+        "overly_long_file"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "tests/property/test_trading_properties.py",
+      "risk": "Medium",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "tests/application/test_alpaca_client.py",
+      "layer_guess": "tests",
+      "summary": "test_alpaca_client module",
+      "key_imports": [
+        "types",
+        "alpaca.trading.enums",
+        "the_alchemiser.application.alpaca_client",
+        "the_alchemiser.services.exceptions"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Pass",
+      "smells": [],
+      "public_api": "none",
+      "test_coverage_presence": "tests/application/test_alpaca_client.py",
+      "risk": "Low",
+      "recommended_action": "None"
+    },
+    {
+      "path": "tests/application/test_trading_engine.py",
+      "layer_guess": "tests",
+      "summary": "test_trading_engine module",
+      "key_imports": [
+        "rich.panel",
+        "the_alchemiser.application.trading_engine",
+        "the_alchemiser.application.types"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Fail",
+      "smells": [
+        "cli_logic_outside_interface"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "tests/application/test_trading_engine.py",
+      "risk": "Medium",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "tests/integration/__init__.py",
+      "layer_guess": "tests",
+      "summary": "Integration tests package for The Alchemiser.",
+      "key_imports": [],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Pass",
+      "smells": [],
+      "public_api": "none",
+      "test_coverage_presence": "tests/__init__.py,tests/utils/__init__.py,tests/fixtures/__init__.py,tests/property/__init__.py,tests/integration/__init__.py",
+      "risk": "Low",
+      "recommended_action": "None"
+    },
+    {
+      "path": "tests/integration/test_service_integration.py",
+      "layer_guess": "tests",
+      "summary": "Integration tests for the refactored service-based architecture.",
+      "key_imports": [
+        "asyncio",
+        "datetime",
+        "unittest.mock",
+        "pandas",
+        "pytest"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Fail",
+      "smells": [
+        "overly_long_file"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "tests/integration/test_service_integration.py",
+      "risk": "Medium",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "tests/integration/test_contract_validation.py",
+      "layer_guess": "tests",
+      "summary": "Contract tests for external API integrations.",
+      "key_imports": [
+        "unittest.mock",
+        "pytest",
+        "pytest",
+        "tests.conftest",
+        "requests.exceptions"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Fail",
+      "smells": [
+        "overly_long_file"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "tests/integration/test_contract_validation.py",
+      "risk": "Medium",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "tests/integration/test_comprehensive_flows.py",
+      "layer_guess": "tests",
+      "summary": "Comprehensive integration tests for The Alchemiser component interactions.",
+      "key_imports": [
+        "decimal",
+        "unittest.mock",
+        "pytest",
+        "pytest",
+        "tests.conftest"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Fail",
+      "smells": [
+        "overly_long_file"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "tests/integration/test_comprehensive_flows.py",
+      "risk": "Medium",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "tests/integration/test_basic_integration.py",
+      "layer_guess": "tests",
+      "summary": "Basic integration tests for The Alchemiser trading system.",
+      "key_imports": [
+        "decimal",
+        "pytest",
+        "tests.conftest"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Pass",
+      "smells": [],
+      "public_api": "none",
+      "test_coverage_presence": "tests/integration/test_basic_integration.py",
+      "risk": "Low",
+      "recommended_action": "None"
+    },
+    {
+      "path": "tests/interface/cli/test_dashboard_utils.py",
+      "layer_guess": "tests",
+      "summary": "test_dashboard_utils module",
+      "key_imports": [
+        "pytest",
+        "tests.conftest",
+        "the_alchemiser.interface.cli.dashboard_utils"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Pass",
+      "smells": [],
+      "public_api": "interface",
+      "test_coverage_presence": "tests/interface/cli/test_dashboard_utils.py",
+      "risk": "Low",
+      "recommended_action": "None"
+    },
+    {
+      "path": "tests/services/enhanced/test_trading_service_manager.py",
+      "layer_guess": "tests",
+      "summary": "test_trading_service_manager module",
+      "key_imports": [
+        "logging",
+        "types",
+        "the_alchemiser.services.enhanced.trading_service_manager"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Pass",
+      "smells": [],
+      "public_api": "none",
+      "test_coverage_presence": "tests/services/enhanced/test_trading_service_manager.py",
+      "risk": "Low",
+      "recommended_action": "None"
+    },
+    {
+      "path": "the_alchemiser/utils/__init__.py",
+      "layer_guess": "utils",
+      "summary": "Utility functions and helpers for The Alchemiser Quantitative Trading System.",
+      "key_imports": [],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Pass",
+      "smells": [],
+      "public_api": "none",
+      "test_coverage_presence": "tests/__init__.py,tests/utils/__init__.py,tests/fixtures/__init__.py,tests/property/__init__.py,tests/integration/__init__.py",
+      "risk": "Low",
+      "recommended_action": "None"
+    },
+    {
+      "path": "the_alchemiser/utils/common.py",
+      "layer_guess": "utils",
+      "summary": "Common constants and enums shared across the trading system.",
+      "key_imports": [
+        "enum"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Pass",
+      "smells": [],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "Low",
+      "recommended_action": "None"
+    },
+    {
+      "path": "the_alchemiser/utils/num.py",
+      "layer_guess": "utils",
+      "summary": "num module",
+      "key_imports": [
+        "math",
+        "typing",
+        "numpy"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Pass",
+      "smells": [],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "Low",
+      "recommended_action": "None"
+    },
+    {
+      "path": "the_alchemiser/execution/account_service.py",
+      "layer_guess": "unknown",
+      "summary": "Account and position management helpers.",
+      "key_imports": [
+        "logging",
+        "typing",
+        "the_alchemiser.domain.types",
+        "the_alchemiser.services.account_utils"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Pass",
+      "smells": [],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "Low",
+      "recommended_action": "None"
+    },
+    {
+      "path": "the_alchemiser/services/price_fetching_utils.py",
+      "layer_guess": "services",
+      "summary": "price_fetching_utils module",
+      "key_imports": [
+        "logging",
+        "time",
+        "collections.abc",
+        "typing",
+        "pandas"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Fail",
+      "smells": [
+        "float_money"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "Medium",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "the_alchemiser/services/error_recovery.py",
+      "layer_guess": "services",
+      "summary": "error_recovery module",
+      "key_imports": [
+        "logging",
+        "random",
+        "time",
+        "abc",
+        "collections"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Fail",
+      "smells": [
+        "float_money",
+        "overly_long_file",
+        "non_deterministic_time_in_core"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "Medium",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "the_alchemiser/services/__init__.py",
+      "layer_guess": "services",
+      "summary": "Core services for the trading system.",
+      "key_imports": [
+        ".account_service",
+        ".cache_manager",
+        ".config_service",
+        ".market_data_client",
+        ".secrets_service"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Pass",
+      "smells": [],
+      "public_api": "none",
+      "test_coverage_presence": "tests/__init__.py,tests/utils/__init__.py,tests/fixtures/__init__.py,tests/property/__init__.py,tests/integration/__init__.py",
+      "risk": "Low",
+      "recommended_action": "None"
+    },
+    {
+      "path": "the_alchemiser/services/streaming_service.py",
+      "layer_guess": "services",
+      "summary": "streaming_service module",
+      "key_imports": [
+        "logging",
+        "collections.abc",
+        "the_alchemiser.infrastructure.data_providers.real_time_pricing",
+        "time",
+        "the_alchemiser.services.price_fetching_utils"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Fail",
+      "smells": [
+        "float_money"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "Medium",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "the_alchemiser/services/error_handling.py",
+      "layer_guess": "services",
+      "summary": "Centralized error handling and logging utilities.",
+      "key_imports": [
+        "functools",
+        "logging",
+        "traceback",
+        "collections.abc",
+        "typing"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Fail",
+      "smells": [
+        "overly_long_file"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "Medium",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "the_alchemiser/services/position_manager.py",
+      "layer_guess": "services",
+      "summary": "position_manager module",
+      "key_imports": [
+        "logging",
+        "typing",
+        "the_alchemiser.infrastructure.logging.logging_utils",
+        "the_alchemiser.services.exceptions"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Fail",
+      "smells": [
+        "float_money",
+        "silent_exception",
+        "overly_long_file"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "Medium",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "the_alchemiser/services/cache_manager.py",
+      "layer_guess": "services",
+      "summary": "Cache management service with TTL support.",
+      "key_imports": [
+        "logging",
+        "time",
+        "typing",
+        "cachetools",
+        "the_alchemiser.services.config_service"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Fail",
+      "smells": [
+        "non_deterministic_time_in_core"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "Medium",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "the_alchemiser/services/error_reporter.py",
+      "layer_guess": "services",
+      "summary": "error_reporter module",
+      "key_imports": [
+        "logging",
+        "collections",
+        "datetime",
+        "typing",
+        "the_alchemiser.services.exceptions"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Fail",
+      "smells": [
+        "non_deterministic_time_in_core"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "Medium",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "the_alchemiser/services/account_service.py",
+      "layer_guess": "services",
+      "summary": "Account Service",
+      "key_imports": [
+        "logging",
+        "typing",
+        "the_alchemiser.domain.models.account",
+        "the_alchemiser.domain.types",
+        "the_alchemiser.services.account_utils"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Fail",
+      "smells": [
+        "float_money"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "Medium",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "the_alchemiser/services/exceptions.py",
+      "layer_guess": "services",
+      "summary": "exceptions module",
+      "key_imports": [
+        "datetime",
+        "typing"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Fail",
+      "smells": [
+        "non_deterministic_time_in_core"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "Medium",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "the_alchemiser/services/error_monitoring.py",
+      "layer_guess": "services",
+      "summary": "error_monitoring module",
+      "key_imports": [
+        "logging",
+        "statistics",
+        "collections",
+        "datetime",
+        "enum"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Fail",
+      "smells": [
+        "float_money",
+        "overly_long_file",
+        "non_deterministic_time_in_core"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "Medium",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "the_alchemiser/services/price_service.py",
+      "layer_guess": "services",
+      "summary": "Modern price fetching service.",
+      "key_imports": [
+        "asyncio",
+        "logging",
+        "collections.abc",
+        "typing",
+        "the_alchemiser.services.market_data_client"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Fail",
+      "smells": [
+        "float_money"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "Medium",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "the_alchemiser/services/price_utils.py",
+      "layer_guess": "services",
+      "summary": "Price Utilities",
+      "key_imports": [
+        "typing",
+        "pandas"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Pass",
+      "smells": [],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "Low",
+      "recommended_action": "None"
+    },
+    {
+      "path": "the_alchemiser/services/account_utils.py",
+      "layer_guess": "services",
+      "summary": "account_utils module",
+      "key_imports": [
+        "data providers, including portfolio values, P&L calculations, and position data.",
+        "logging",
+        "typing",
+        "the_alchemiser.domain.types"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Fail",
+      "smells": [
+        "float_money"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "Medium",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "the_alchemiser/services/config_service.py",
+      "layer_guess": "services",
+      "summary": "config_service module",
+      "key_imports": [
+        "the_alchemiser.infrastructure.config"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Pass",
+      "smells": [],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "Low",
+      "recommended_action": "None"
+    },
+    {
+      "path": "the_alchemiser/services/market_data_client.py",
+      "layer_guess": "services",
+      "summary": "market_data_client module",
+      "key_imports": [
+        "logging",
+        "datetime",
+        "typing",
+        "pandas",
+        "alpaca.data.requests"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Fail",
+      "smells": [
+        "float_money",
+        "non_deterministic_time_in_core"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "Medium",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "the_alchemiser/services/secrets_service.py",
+      "layer_guess": "services",
+      "summary": "secrets_service module",
+      "key_imports": [
+        "logging",
+        "the_alchemiser.infrastructure.secrets.secrets_manager",
+        "the_alchemiser.services.exceptions"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Pass",
+      "smells": [],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "Low",
+      "recommended_action": "None"
+    },
+    {
+      "path": "the_alchemiser/services/error_handler.py",
+      "layer_guess": "services",
+      "summary": "error_handler module",
+      "key_imports": [
+        "logging",
+        "random",
+        "time",
+        "traceback",
+        "uuid"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Fail",
+      "smells": [
+        "float_money",
+        "overly_long_file",
+        "non_deterministic_time_in_core"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "Medium",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "the_alchemiser/services/alpaca_manager.py",
+      "layer_guess": "services",
+      "summary": "Centralized Alpaca client management - Phase 1 of incremental improvements.",
+      "key_imports": [
+        "logging",
+        "decimal",
+        "typing",
+        "alpaca.data.historical",
+        "alpaca.data.requests"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Fail",
+      "smells": [
+        "overly_long_file"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "Medium",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "the_alchemiser/services/retry_decorator.py",
+      "layer_guess": "services",
+      "summary": "retry_decorator module",
+      "key_imports": [
+        "logging",
+        "random",
+        "time",
+        "collections.abc",
+        "functools"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Fail",
+      "smells": [
+        "float_money"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "Medium",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "the_alchemiser/services/trading_client_service.py",
+      "layer_guess": "services",
+      "summary": "trading_client_service module",
+      "key_imports": [
+        "logging",
+        "typing",
+        "the_alchemiser.services.alpaca_manager"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Pass",
+      "smells": [],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "Low",
+      "recommended_action": "None"
+    },
+    {
+      "path": "the_alchemiser/domain/__init__.py",
+      "layer_guess": "domain",
+      "summary": "Domain Layer",
+      "key_imports": [
+        ".interfaces"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Pass",
+      "smells": [],
+      "public_api": "none",
+      "test_coverage_presence": "tests/__init__.py,tests/utils/__init__.py,tests/fixtures/__init__.py,tests/property/__init__.py,tests/integration/__init__.py",
+      "risk": "Low",
+      "recommended_action": "None"
+    },
+    {
+      "path": "the_alchemiser/domain/types.py",
+      "layer_guess": "domain",
+      "summary": "Core type definitions for The Alchemiser trading system.",
+      "key_imports": [
+        "typing"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Fail",
+      "smells": [
+        "overly_long_file"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "Medium",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "the_alchemiser/application/portfolio_pnl_utils.py",
+      "layer_guess": "application",
+      "summary": "portfolio_pnl_utils module",
+      "key_imports": [
+        "logging",
+        "typing",
+        "the_alchemiser.application.tracking.strategy_order_tracker"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Pass",
+      "smells": [],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "Low",
+      "recommended_action": "None"
+    },
+    {
+      "path": "the_alchemiser/application/__init__.py",
+      "layer_guess": "application",
+      "summary": "Execution package for The Alchemiser Quantitative Trading System.",
+      "key_imports": [],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Pass",
+      "smells": [],
+      "public_api": "none",
+      "test_coverage_presence": "tests/__init__.py,tests/utils/__init__.py,tests/fixtures/__init__.py,tests/property/__init__.py,tests/integration/__init__.py",
+      "risk": "Low",
+      "recommended_action": "None"
+    },
+    {
+      "path": "the_alchemiser/application/smart_execution.py",
+      "layer_guess": "application",
+      "summary": "smart_execution module",
+      "key_imports": [
+        "logging",
+        "time",
+        "typing",
+        "alpaca.trading.enums",
+        "the_alchemiser.application.alpaca_client"
+      ],
+      "is_correct_location": "No",
+      "recommended_location": "the_alchemiser/services/smart_execution.py",
+      "single_concern": "Fail",
+      "smells": [
+        "app_uses_infra_directly",
+        "services_bypass_facade",
+        "direct_alpaca_in_app",
+        "silent_exception",
+        "overly_long_file",
+        "cli_logic_outside_interface"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "High",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "the_alchemiser/application/spread_assessment.py",
+      "layer_guess": "application",
+      "summary": "spread_assessment module",
+      "key_imports": [
+        "logging",
+        "dataclasses",
+        "enum",
+        "typing"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Pass",
+      "smells": [],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "Low",
+      "recommended_action": "None"
+    },
+    {
+      "path": "the_alchemiser/application/types.py",
+      "layer_guess": "application",
+      "summary": "Type definitions for the execution package.",
+      "key_imports": [
+        "dataclasses",
+        "typing",
+        "the_alchemiser.domain.strategies.strategy_manager",
+        "the_alchemiser.domain.types"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Pass",
+      "smells": [],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "Low",
+      "recommended_action": "None"
+    },
+    {
+      "path": "the_alchemiser/application/smart_pricing_handler.py",
+      "layer_guess": "application",
+      "summary": "smart_pricing_handler module",
+      "key_imports": [
+        "logging",
+        "typing",
+        "alpaca.trading.enums",
+        "the_alchemiser.infrastructure.logging.logging_utils",
+        "the_alchemiser.services.exceptions"
+      ],
+      "is_correct_location": "No",
+      "recommended_location": "the_alchemiser/services/smart_pricing_handler.py",
+      "single_concern": "Fail",
+      "smells": [
+        "app_uses_infra_directly"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "High",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "the_alchemiser/application/execution_manager.py",
+      "layer_guess": "application",
+      "summary": "Coordinate execution of multiple trading strategies.",
+      "key_imports": [
+        "logging",
+        "typing",
+        "the_alchemiser.domain.types",
+        "the_alchemiser.services.error_handler",
+        "the_alchemiser.services.exceptions"
+      ],
+      "is_correct_location": "No",
+      "recommended_location": "the_alchemiser/services/execution_manager.py",
+      "single_concern": "Fail",
+      "smells": [
+        "app_uses_infra_directly"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "High",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "the_alchemiser/application/asset_order_handler.py",
+      "layer_guess": "application",
+      "summary": "asset_order_handler module",
+      "key_imports": [
+        "logging",
+        "decimal",
+        "typing",
+        "alpaca.trading.enums",
+        "alpaca.trading.requests"
+      ],
+      "is_correct_location": "No",
+      "recommended_location": "the_alchemiser/services/asset_order_handler.py",
+      "single_concern": "Fail",
+      "smells": [
+        "app_uses_infra_directly"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "High",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "the_alchemiser/application/order_validation_utils.py",
+      "layer_guess": "application",
+      "summary": "order_validation_utils module",
+      "key_imports": [
+        "logging",
+        "math",
+        "decimal",
+        "typing"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Pass",
+      "smells": [],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "Low",
+      "recommended_action": "None"
+    },
+    {
+      "path": "the_alchemiser/application/reporting.py",
+      "layer_guess": "application",
+      "summary": "Helpers for building execution summaries and dashboard data.",
+      "key_imports": [
+        "logging",
+        "typing",
+        "the_alchemiser.domain.strategies.strategy_manager",
+        "the_alchemiser.domain.types",
+        "the_alchemiser.services.exceptions"
+      ],
+      "is_correct_location": "No",
+      "recommended_location": "the_alchemiser/services/reporting.py",
+      "single_concern": "Fail",
+      "smells": [
+        "app_uses_infra_directly"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "High",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "the_alchemiser/application/alpaca_client.py",
+      "layer_guess": "application",
+      "summary": "alpaca_client module",
+      "key_imports": [
+        "logging",
+        "time",
+        "typing",
+        "the_alchemiser.application.order_validation",
+        "alpaca.trading.enums"
+      ],
+      "is_correct_location": "No",
+      "recommended_location": "the_alchemiser/services/alpaca_client.py",
+      "single_concern": "Fail",
+      "smells": [
+        "app_uses_infra_directly",
+        "services_bypass_facade",
+        "direct_alpaca_in_app",
+        "silent_exception",
+        "overly_long_file"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "High",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "the_alchemiser/application/order_validation.py",
+      "layer_guess": "application",
+      "summary": "order_validation module",
+      "key_imports": [
+        "the_alchemiser.application.order_validation",
+        "logging",
+        "dataclasses",
+        "datetime",
+        "decimal"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Fail",
+      "smells": [
+        "overly_long_file"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "Medium",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "the_alchemiser/application/trading_engine.py",
+      "layer_guess": "application",
+      "summary": "trading_engine module",
+      "key_imports": [
+        "logging",
+        "datetime",
+        "typing",
+        "alpaca.trading.enums",
+        "the_alchemiser.application.portfolio_rebalancer.portfolio_rebalancer"
+      ],
+      "is_correct_location": "No",
+      "recommended_location": "the_alchemiser/services/trading_engine.py",
+      "single_concern": "Fail",
+      "smells": [
+        "app_uses_infra_directly",
+        "overly_long_file",
+        "cli_logic_outside_interface"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "High",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "the_alchemiser/application/limit_order_handler.py",
+      "layer_guess": "application",
+      "summary": "limit_order_handler module",
+      "key_imports": [
+        "logging",
+        "decimal",
+        "typing",
+        "alpaca.trading.enums",
+        "alpaca.trading.requests"
+      ],
+      "is_correct_location": "No",
+      "recommended_location": "the_alchemiser/services/limit_order_handler.py",
+      "single_concern": "Fail",
+      "smells": [
+        "app_uses_infra_directly"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "High",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "the_alchemiser/application/progressive_order_utils.py",
+      "layer_guess": "application",
+      "summary": "progressive_order_utils module",
+      "key_imports": [
+        "logging",
+        "dataclasses",
+        "typing",
+        "alpaca.trading.enums",
+        "datetime"
+      ],
+      "is_correct_location": "No",
+      "recommended_location": "the_alchemiser/services/progressive_order_utils.py",
+      "single_concern": "Fail",
+      "smells": [
+        "app_uses_infra_directly",
+        "overly_long_file"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "High",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "the_alchemiser/interface/email/config.py",
+      "layer_guess": "interface",
+      "summary": "Email configuration management module.",
+      "key_imports": [
+        "logging",
+        "the_alchemiser.domain.types",
+        "the_alchemiser.infrastructure.config",
+        "the_alchemiser.infrastructure.secrets.secrets_manager"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Pass",
+      "smells": [],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "Low",
+      "recommended_action": "None"
+    },
+    {
+      "path": "the_alchemiser/interface/email/__init__.py",
+      "layer_guess": "interface",
+      "summary": "Email module for The Alchemiser quantitative trading system.",
+      "key_imports": [
+        "the_alchemiser.interface.email",
+        "the_alchemiser.interface.email.templates",
+        ".client",
+        ".config",
+        ".templates"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Pass",
+      "smells": [],
+      "public_api": "none",
+      "test_coverage_presence": "tests/__init__.py,tests/utils/__init__.py,tests/fixtures/__init__.py,tests/property/__init__.py,tests/integration/__init__.py",
+      "risk": "Low",
+      "recommended_action": "None"
+    },
+    {
+      "path": "the_alchemiser/interface/email/email_utils.py",
+      "layer_guess": "interface",
+      "summary": "Email utilities module - REFACTORED",
+      "key_imports": [
+        "the_alchemiser.interface.email",
+        "the_alchemiser.interface.email.templates",
+        "typing",
+        ".client",
+        ".config"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Pass",
+      "smells": [],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "Low",
+      "recommended_action": "None"
+    },
+    {
+      "path": "the_alchemiser/interface/email/client.py",
+      "layer_guess": "interface",
+      "summary": "Email client module for sending notifications.",
+      "key_imports": [
+        "logging",
+        "smtplib",
+        "email",
+        "email.mime.base",
+        "email.mime.multipart"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Pass",
+      "smells": [],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "Low",
+      "recommended_action": "None"
+    },
+    {
+      "path": "the_alchemiser/interface/cli/__init__.py",
+      "layer_guess": "interface",
+      "summary": "__init__ module",
+      "key_imports": [],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Pass",
+      "smells": [],
+      "public_api": "interface",
+      "test_coverage_presence": "tests/__init__.py,tests/utils/__init__.py,tests/fixtures/__init__.py,tests/property/__init__.py,tests/integration/__init__.py",
+      "risk": "Low",
+      "recommended_action": "None"
+    },
+    {
+      "path": "the_alchemiser/interface/cli/cli.py",
+      "layer_guess": "interface",
+      "summary": "cli module",
+      "key_imports": [
+        "logging",
+        "subprocess",
+        "time",
+        "datetime",
+        "typer"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Fail",
+      "smells": [
+        "overly_long_file"
+      ],
+      "public_api": "interface",
+      "test_coverage_presence": "tests/interface/cli",
+      "risk": "Medium",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "the_alchemiser/interface/cli/signal_display_utils.py",
+      "layer_guess": "interface",
+      "summary": "signal_display_utils module",
+      "key_imports": [
+        "typing",
+        "the_alchemiser.infrastructure.alerts.alert_service",
+        "the_alchemiser.infrastructure.logging.logging_utils",
+        "the_alchemiser.infrastructure.alerts.alert_service"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Pass",
+      "smells": [],
+      "public_api": "interface",
+      "test_coverage_presence": "unknown",
+      "risk": "Low",
+      "recommended_action": "None"
+    },
+    {
+      "path": "the_alchemiser/interface/cli/cli_formatter.py",
+      "layer_guess": "interface",
+      "summary": "cli_formatter module",
+      "key_imports": [
+        "typing",
+        "rich.align",
+        "rich.console",
+        "rich.panel",
+        "rich.rule"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Fail",
+      "smells": [
+        "overly_long_file"
+      ],
+      "public_api": "interface",
+      "test_coverage_presence": "unknown",
+      "risk": "Medium",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "the_alchemiser/interface/cli/dashboard_utils.py",
+      "layer_guess": "interface",
+      "summary": "dashboard_utils module",
+      "key_imports": [
+        "logging",
+        "datetime",
+        "typing"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Pass",
+      "smells": [],
+      "public_api": "interface",
+      "test_coverage_presence": "unknown",
+      "risk": "Low",
+      "recommended_action": "None"
+    },
+    {
+      "path": "the_alchemiser/interface/email/templates/multi_strategy.py",
+      "layer_guess": "interface",
+      "summary": "Multi-strategy report template builder.",
+      "key_imports": [
+        "typing",
+        ".base",
+        ".performance",
+        ".portfolio",
+        ".signals"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Pass",
+      "smells": [],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "Low",
+      "recommended_action": "None"
+    },
+    {
+      "path": "the_alchemiser/interface/email/templates/__init__.py",
+      "layer_guess": "interface",
+      "summary": "Email templates module for The Alchemiser.",
+      "key_imports": [
+        "the_alchemiser.interface.email.templates",
+        "typing",
+        ".base",
+        ".error_report",
+        ".multi_strategy"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Pass",
+      "smells": [],
+      "public_api": "none",
+      "test_coverage_presence": "tests/__init__.py,tests/utils/__init__.py,tests/fixtures/__init__.py,tests/property/__init__.py,tests/integration/__init__.py",
+      "risk": "Low",
+      "recommended_action": "None"
+    },
+    {
+      "path": "the_alchemiser/interface/email/templates/trading_report.py",
+      "layer_guess": "interface",
+      "summary": "Main trading report template builder.",
+      "key_imports": [
+        "typing",
+        "the_alchemiser.domain.types",
+        ".base",
+        ".performance",
+        ".portfolio"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Pass",
+      "smells": [],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "Low",
+      "recommended_action": "None"
+    },
+    {
+      "path": "the_alchemiser/interface/email/templates/portfolio.py",
+      "layer_guess": "interface",
+      "summary": "Portfolio content builder for email templates.",
+      "key_imports": [
+        "typing",
+        "the_alchemiser.domain.types",
+        ".base",
+        "the_alchemiser.services.account_utils"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Fail",
+      "smells": [
+        "silent_exception",
+        "overly_long_file"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "Medium",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "the_alchemiser/interface/email/templates/base.py",
+      "layer_guess": "interface",
+      "summary": "Base HTML email template module.",
+      "key_imports": [
+        "datetime"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Pass",
+      "smells": [],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "Low",
+      "recommended_action": "None"
+    },
+    {
+      "path": "the_alchemiser/interface/email/templates/performance.py",
+      "layer_guess": "interface",
+      "summary": "Performance content builder for email templates.",
+      "key_imports": [
+        "typing",
+        ".base"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Fail",
+      "smells": [
+        "overly_long_file"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "tests/performance",
+      "risk": "Medium",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "the_alchemiser/interface/email/templates/error_report.py",
+      "layer_guess": "interface",
+      "summary": "Error report template builder.",
+      "key_imports": [
+        ".base"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Pass",
+      "smells": [],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "Low",
+      "recommended_action": "None"
+    },
+    {
+      "path": "the_alchemiser/interface/email/templates/signals.py",
+      "layer_guess": "interface",
+      "summary": "Signals content builder for email templates.",
+      "key_imports": [
+        "typing",
+        ".base"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Fail",
+      "smells": [
+        "silent_exception",
+        "overly_long_file"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "Medium",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "the_alchemiser/infrastructure/validation/__init__.py",
+      "layer_guess": "infrastructure",
+      "summary": "Validation utilities for The Alchemiser Quantitative Trading System.",
+      "key_imports": [
+        ".indicator_validator"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Pass",
+      "smells": [],
+      "public_api": "none",
+      "test_coverage_presence": "tests/__init__.py,tests/utils/__init__.py,tests/fixtures/__init__.py,tests/property/__init__.py,tests/integration/__init__.py",
+      "risk": "Low",
+      "recommended_action": "None"
+    },
+    {
+      "path": "the_alchemiser/infrastructure/validation/indicator_validator.py",
+      "layer_guess": "infrastructure",
+      "summary": "indicator_validator module",
+      "key_imports": [
+        "json",
+        "logging",
+        "time",
+        "datetime",
+        "typing"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Fail",
+      "smells": [
+        "overly_long_file",
+        "cli_logic_outside_interface"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "Medium",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "the_alchemiser/infrastructure/logging/__init__.py",
+      "layer_guess": "infrastructure",
+      "summary": "Logging helpers and structured formatter.",
+      "key_imports": [],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Pass",
+      "smells": [],
+      "public_api": "none",
+      "test_coverage_presence": "tests/__init__.py,tests/utils/__init__.py,tests/fixtures/__init__.py,tests/property/__init__.py,tests/integration/__init__.py",
+      "risk": "Low",
+      "recommended_action": "None"
+    },
+    {
+      "path": "the_alchemiser/infrastructure/logging/logging_utils.py",
+      "layer_guess": "infrastructure",
+      "summary": "Logging helpers for consistent structured output.",
+      "key_imports": [
+        "json",
+        "logging",
+        "os",
+        "sys",
+        "collections.abc"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Pass",
+      "smells": [],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "Low",
+      "recommended_action": "None"
+    },
+    {
+      "path": "the_alchemiser/infrastructure/secrets/secrets_manager.py",
+      "layer_guess": "infrastructure",
+      "summary": "secrets_manager module",
+      "key_imports": [
+        "json",
+        "logging",
+        "os",
+        "boto3",
+        "botocore.exceptions"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Pass",
+      "smells": [],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "Low",
+      "recommended_action": "None"
+    },
+    {
+      "path": "the_alchemiser/infrastructure/secrets/__init__.py",
+      "layer_guess": "infrastructure",
+      "summary": "Secret management utilities.",
+      "key_imports": [],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Pass",
+      "smells": [],
+      "public_api": "none",
+      "test_coverage_presence": "tests/__init__.py,tests/utils/__init__.py,tests/fixtures/__init__.py,tests/property/__init__.py,tests/integration/__init__.py",
+      "risk": "Low",
+      "recommended_action": "None"
+    },
+    {
+      "path": "the_alchemiser/infrastructure/websocket/__init__.py",
+      "layer_guess": "infrastructure",
+      "summary": "__init__ module",
+      "key_imports": [],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Pass",
+      "smells": [],
+      "public_api": "none",
+      "test_coverage_presence": "tests/__init__.py,tests/utils/__init__.py,tests/fixtures/__init__.py,tests/property/__init__.py,tests/integration/__init__.py",
+      "risk": "Low",
+      "recommended_action": "None"
+    },
+    {
+      "path": "the_alchemiser/infrastructure/websocket/websocket_connection_manager.py",
+      "layer_guess": "infrastructure",
+      "summary": "websocket_connection_manager module",
+      "key_imports": [
+        "logging",
+        "threading",
+        "time",
+        "typing",
+        "rich.console"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Fail",
+      "smells": [
+        "silent_exception",
+        "cli_logic_outside_interface"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "Medium",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "the_alchemiser/infrastructure/websocket/websocket_order_monitor.py",
+      "layer_guess": "infrastructure",
+      "summary": "websocket_order_monitor module",
+      "key_imports": [
+        "logging",
+        "threading",
+        "time",
+        "typing",
+        "rich.console"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Fail",
+      "smells": [
+        "silent_exception",
+        "overly_long_file",
+        "cli_logic_outside_interface"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "Medium",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "the_alchemiser/infrastructure/s3/__init__.py",
+      "layer_guess": "infrastructure",
+      "summary": "__init__ module",
+      "key_imports": [],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Pass",
+      "smells": [],
+      "public_api": "none",
+      "test_coverage_presence": "tests/__init__.py,tests/utils/__init__.py,tests/fixtures/__init__.py,tests/property/__init__.py,tests/integration/__init__.py",
+      "risk": "Low",
+      "recommended_action": "None"
+    },
+    {
+      "path": "the_alchemiser/infrastructure/s3/s3_utils.py",
+      "layer_guess": "infrastructure",
+      "summary": "s3_utils module",
+      "key_imports": [
+        "json",
+        "logging",
+        "typing",
+        "urllib.parse",
+        "boto3"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Pass",
+      "smells": [],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "Low",
+      "recommended_action": "None"
+    },
+    {
+      "path": "the_alchemiser/infrastructure/data_providers/real_time_pricing.py",
+      "layer_guess": "infrastructure",
+      "summary": "real_time_pricing module",
+      "key_imports": [
+        "logging",
+        "threading",
+        "time",
+        "collections.abc",
+        "dataclasses"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Fail",
+      "smells": [
+        "overly_long_file"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "Medium",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "the_alchemiser/infrastructure/data_providers/__init__.py",
+      "layer_guess": "infrastructure",
+      "summary": "Data provider utilities and abstractions.",
+      "key_imports": [],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Pass",
+      "smells": [],
+      "public_api": "none",
+      "test_coverage_presence": "tests/__init__.py,tests/utils/__init__.py,tests/fixtures/__init__.py,tests/property/__init__.py,tests/integration/__init__.py",
+      "risk": "Low",
+      "recommended_action": "None"
+    },
+    {
+      "path": "the_alchemiser/infrastructure/data_providers/data_provider.py",
+      "layer_guess": "infrastructure",
+      "summary": "Unified historical and real-time market data access layer.",
+      "key_imports": [
+        "logging",
+        "time",
+        "collections.abc",
+        "datetime",
+        "typing"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Fail",
+      "smells": [
+        "overly_long_file"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "Medium",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "the_alchemiser/infrastructure/data_providers/unified_data_provider_facade.py",
+      "layer_guess": "infrastructure",
+      "summary": "Backward-compatible facade for UnifiedDataProvider using refactored services.",
+      "key_imports": [
+        "logging",
+        "typing",
+        "pandas",
+        "the_alchemiser.infrastructure.config",
+        "the_alchemiser.services.account_service"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Fail",
+      "smells": [
+        "silent_exception"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "Medium",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "the_alchemiser/infrastructure/alerts/__init__.py",
+      "layer_guess": "infrastructure",
+      "summary": "Alerting utilities for translating strategy signals into notifications.",
+      "key_imports": [],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Pass",
+      "smells": [],
+      "public_api": "none",
+      "test_coverage_presence": "tests/__init__.py,tests/utils/__init__.py,tests/fixtures/__init__.py,tests/property/__init__.py,tests/integration/__init__.py",
+      "risk": "Low",
+      "recommended_action": "None"
+    },
+    {
+      "path": "the_alchemiser/infrastructure/alerts/alert_service.py",
+      "layer_guess": "infrastructure",
+      "summary": "Utility functions and classes for generating trading alerts.",
+      "key_imports": [
+        "datetime",
+        "json",
+        "logging",
+        "re",
+        "typing"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Pass",
+      "smells": [],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "Low",
+      "recommended_action": "None"
+    },
+    {
+      "path": "the_alchemiser/infrastructure/config/config.py",
+      "layer_guess": "infrastructure",
+      "summary": "config module",
+      "key_imports": [
+        "__future__",
+        "typing",
+        "pydantic",
+        "pydantic_settings"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Pass",
+      "smells": [],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "Low",
+      "recommended_action": "None"
+    },
+    {
+      "path": "the_alchemiser/infrastructure/config/__init__.py",
+      "layer_guess": "infrastructure",
+      "summary": "Configuration package for The Alchemiser Quantitative Trading System.",
+      "key_imports": [
+        ".config",
+        ".execution_config"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Pass",
+      "smells": [],
+      "public_api": "none",
+      "test_coverage_presence": "tests/__init__.py,tests/utils/__init__.py,tests/fixtures/__init__.py,tests/property/__init__.py,tests/integration/__init__.py",
+      "risk": "Low",
+      "recommended_action": "None"
+    },
+    {
+      "path": "the_alchemiser/infrastructure/config/execution_config.py",
+      "layer_guess": "infrastructure",
+      "summary": "execution_config module",
+      "key_imports": [
+        "logging",
+        "dataclasses",
+        ".config"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Pass",
+      "smells": [],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "Low",
+      "recommended_action": "None"
+    },
+    {
+      "path": "the_alchemiser/infrastructure/config/config_utils.py",
+      "layer_guess": "infrastructure",
+      "summary": "Configuration Utilities",
+      "key_imports": [
+        "json",
+        "logging",
+        "os",
+        "typing",
+        "the_alchemiser.infrastructure.s3.s3_utils"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Pass",
+      "smells": [],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "Low",
+      "recommended_action": "None"
+    },
+    {
+      "path": "the_alchemiser/services/enhanced/__init__.py",
+      "layer_guess": "services",
+      "summary": "Enhanced Services Layer",
+      "key_imports": [
+        ".account_service",
+        ".market_data_service",
+        ".order_service",
+        ".position_service",
+        ".trading_service_manager"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Pass",
+      "smells": [],
+      "public_api": "none",
+      "test_coverage_presence": "tests/__init__.py,tests/utils/__init__.py,tests/fixtures/__init__.py,tests/property/__init__.py,tests/integration/__init__.py",
+      "risk": "Low",
+      "recommended_action": "None"
+    },
+    {
+      "path": "the_alchemiser/services/enhanced/position_service.py",
+      "layer_guess": "services",
+      "summary": "Enhanced Position Service",
+      "key_imports": [
+        "logging",
+        "dataclasses",
+        "the_alchemiser.domain.interfaces"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Fail",
+      "smells": [
+        "float_money",
+        "overly_long_file"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "Medium",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "the_alchemiser/services/enhanced/account_service.py",
+      "layer_guess": "services",
+      "summary": "account_service module",
+      "key_imports": [
+        "logging",
+        "typing",
+        "the_alchemiser.domain.interfaces"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Fail",
+      "smells": [
+        "float_money",
+        "overly_long_file"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "Medium",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "the_alchemiser/services/enhanced/trading_service_manager.py",
+      "layer_guess": "services",
+      "summary": "trading_service_manager module",
+      "key_imports": [
+        "logging",
+        "typing",
+        "the_alchemiser.services.alpaca_manager",
+        "the_alchemiser.services.enhanced.account_service",
+        "the_alchemiser.services.enhanced.market_data_service"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Fail",
+      "smells": [
+        "float_money",
+        "overly_long_file",
+        "non_deterministic_time_in_core"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "Medium",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "the_alchemiser/services/enhanced/market_data_service.py",
+      "layer_guess": "services",
+      "summary": "Market Data Service - Enhanced market data operations with caching and validation.",
+      "key_imports": [
+        "logging",
+        "datetime",
+        "typing",
+        "the_alchemiser.domain.interfaces"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Fail",
+      "smells": [
+        "float_money",
+        "non_deterministic_time_in_core"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "Medium",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "the_alchemiser/services/enhanced/order_service.py",
+      "layer_guess": "services",
+      "summary": "Enhanced Order Service",
+      "key_imports": [
+        "logging",
+        "decimal",
+        "enum",
+        "alpaca.trading.enums",
+        "alpaca.trading.requests"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Fail",
+      "smells": [
+        "float_money",
+        "overly_long_file"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "Medium",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "the_alchemiser/domain/models/__init__.py",
+      "layer_guess": "domain",
+      "summary": "Domain models for the trading system.",
+      "key_imports": [
+        ".account",
+        ".market_data",
+        ".order",
+        ".position",
+        ".strategy"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Pass",
+      "smells": [],
+      "public_api": "none",
+      "test_coverage_presence": "tests/__init__.py,tests/utils/__init__.py,tests/fixtures/__init__.py,tests/property/__init__.py,tests/integration/__init__.py",
+      "risk": "Low",
+      "recommended_action": "None"
+    },
+    {
+      "path": "the_alchemiser/domain/models/account.py",
+      "layer_guess": "domain",
+      "summary": "Account domain models.",
+      "key_imports": [
+        "dataclasses",
+        "typing",
+        "the_alchemiser.domain.types"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Pass",
+      "smells": [],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "Low",
+      "recommended_action": "None"
+    },
+    {
+      "path": "the_alchemiser/domain/models/market_data.py",
+      "layer_guess": "domain",
+      "summary": "Market data domain models.",
+      "key_imports": [
+        "dataclasses",
+        "datetime",
+        "pandas",
+        "the_alchemiser.domain.types"
+      ],
+      "is_correct_location": "No",
+      "recommended_location": "the_alchemiser/infrastructure/market_data.py",
+      "single_concern": "Fail",
+      "smells": [
+        "io_in_domain"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "tests/fixtures/market_data.py",
+      "risk": "High",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "the_alchemiser/domain/models/position.py",
+      "layer_guess": "domain",
+      "summary": "Position domain models.",
+      "key_imports": [
+        "dataclasses",
+        "typing",
+        "the_alchemiser.domain.types"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Fail",
+      "smells": [
+        "float_money"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "Medium",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "the_alchemiser/domain/models/strategy.py",
+      "layer_guess": "domain",
+      "summary": "Strategy domain models.",
+      "key_imports": [
+        "dataclasses",
+        "typing",
+        "the_alchemiser.domain.types"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Fail",
+      "smells": [
+        "float_money"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "Medium",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "the_alchemiser/domain/models/order.py",
+      "layer_guess": "domain",
+      "summary": "Order domain models.",
+      "key_imports": [
+        "dataclasses",
+        "datetime",
+        "typing",
+        "the_alchemiser.domain.types"
+      ],
+      "is_correct_location": "No",
+      "recommended_location": "the_alchemiser/infrastructure/order.py",
+      "single_concern": "Fail",
+      "smells": [
+        "io_in_domain",
+        "float_money"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "High",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "the_alchemiser/domain/math/market_timing_utils.py",
+      "layer_guess": "domain",
+      "summary": "market_timing_utils module",
+      "key_imports": [
+        "datetime",
+        "enum",
+        "pytz"
+      ],
+      "is_correct_location": "No",
+      "recommended_location": "the_alchemiser/infrastructure/market_timing_utils.py",
+      "single_concern": "Fail",
+      "smells": [
+        "io_in_domain",
+        "float_money",
+        "non_deterministic_time_in_core"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "High",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "the_alchemiser/domain/math/__init__.py",
+      "layer_guess": "domain",
+      "summary": "Indicator calculation utilities.",
+      "key_imports": [],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Pass",
+      "smells": [],
+      "public_api": "none",
+      "test_coverage_presence": "tests/__init__.py,tests/utils/__init__.py,tests/fixtures/__init__.py,tests/property/__init__.py,tests/integration/__init__.py",
+      "risk": "Low",
+      "recommended_action": "None"
+    },
+    {
+      "path": "the_alchemiser/domain/math/indicator_utils.py",
+      "layer_guess": "domain",
+      "summary": "Indicator utility functions for safe calculation and error handling.",
+      "key_imports": [
+        "logging",
+        "collections.abc",
+        "typing",
+        "pandas"
+      ],
+      "is_correct_location": "No",
+      "recommended_location": "the_alchemiser/infrastructure/indicator_utils.py",
+      "single_concern": "Fail",
+      "smells": [
+        "io_in_domain",
+        "float_money"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "High",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "the_alchemiser/domain/math/math_utils.py",
+      "layer_guess": "domain",
+      "summary": "Mathematical Utilities for Trading Strategies",
+      "key_imports": [
+        "logging",
+        "pandas"
+      ],
+      "is_correct_location": "No",
+      "recommended_location": "the_alchemiser/infrastructure/math_utils.py",
+      "single_concern": "Fail",
+      "smells": [
+        "io_in_domain",
+        "float_money",
+        "silent_exception"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "High",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "the_alchemiser/domain/math/asset_info.py",
+      "layer_guess": "domain",
+      "summary": "asset_info module",
+      "key_imports": [
+        "logging",
+        "enum",
+        "the_alchemiser.services.alpaca_manager",
+        "the_alchemiser.infrastructure.secrets.secrets_manager"
+      ],
+      "is_correct_location": "No",
+      "recommended_location": "the_alchemiser/infrastructure/asset_info.py",
+      "single_concern": "Fail",
+      "smells": [
+        "io_in_domain",
+        "domain_depends_on_infra",
+        "services_bypass_facade",
+        "float_money"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "High",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "the_alchemiser/domain/math/indicators.py",
+      "layer_guess": "domain",
+      "summary": "Technical indicators for trading strategies.",
+      "key_imports": [
+        "pandas"
+      ],
+      "is_correct_location": "No",
+      "recommended_location": "the_alchemiser/infrastructure/indicators.py",
+      "single_concern": "Fail",
+      "smells": [
+        "io_in_domain",
+        "float_money",
+        "silent_exception"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "High",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "the_alchemiser/domain/math/trading_math.py",
+      "layer_guess": "domain",
+      "summary": "trading_math module",
+      "key_imports": [
+        "the target allocation for a specific position. It returns both the"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Fail",
+      "smells": [
+        "float_money"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "Medium",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "the_alchemiser/domain/interfaces/__init__.py",
+      "layer_guess": "domain",
+      "summary": "Domain Layer Interfaces",
+      "key_imports": [
+        ".account_repository",
+        ".market_data_repository",
+        ".trading_repository"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Pass",
+      "smells": [],
+      "public_api": "none",
+      "test_coverage_presence": "tests/__init__.py,tests/utils/__init__.py,tests/fixtures/__init__.py,tests/property/__init__.py,tests/integration/__init__.py",
+      "risk": "Low",
+      "recommended_action": "None"
+    },
+    {
+      "path": "the_alchemiser/domain/interfaces/trading_repository.py",
+      "layer_guess": "domain",
+      "summary": "Trading Repository Interface",
+      "key_imports": [
+        "typing"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Fail",
+      "smells": [
+        "services_bypass_facade"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "High",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "the_alchemiser/domain/interfaces/account_repository.py",
+      "layer_guess": "domain",
+      "summary": "Account Repository Interface",
+      "key_imports": [
+        "typing"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Fail",
+      "smells": [
+        "services_bypass_facade"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "High",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "the_alchemiser/domain/interfaces/market_data_repository.py",
+      "layer_guess": "domain",
+      "summary": "Market Data Repository Interface",
+      "key_imports": [
+        "typing"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Fail",
+      "smells": [
+        "services_bypass_facade"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "High",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "the_alchemiser/domain/strategies/klm_trading_bot.py",
+      "layer_guess": "domain",
+      "summary": "klm_trading_bot module",
+      "key_imports": [
+        "datetime",
+        "logging",
+        "warnings",
+        "typing",
+        "pandas"
+      ],
+      "is_correct_location": "No",
+      "recommended_location": "the_alchemiser/infrastructure/klm_trading_bot.py",
+      "single_concern": "Fail",
+      "smells": [
+        "io_in_domain",
+        "domain_depends_on_infra",
+        "float_money",
+        "non_deterministic_time_in_core"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "High",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "the_alchemiser/domain/strategies/__init__.py",
+      "layer_guess": "domain",
+      "summary": "Trading strategy engines and orchestration.",
+      "key_imports": [],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Pass",
+      "smells": [],
+      "public_api": "none",
+      "test_coverage_presence": "tests/__init__.py,tests/utils/__init__.py,tests/fixtures/__init__.py,tests/property/__init__.py,tests/integration/__init__.py",
+      "risk": "Low",
+      "recommended_action": "None"
+    },
+    {
+      "path": "the_alchemiser/domain/strategies/nuclear_signals.py",
+      "layer_guess": "domain",
+      "summary": "nuclear_signals module",
+      "key_imports": [
+        "logging",
+        "warnings",
+        "enum",
+        "typing",
+        "the_alchemiser.domain.math.indicator_utils"
+      ],
+      "is_correct_location": "No",
+      "recommended_location": "the_alchemiser/infrastructure/nuclear_signals.py",
+      "single_concern": "Fail",
+      "smells": [
+        "io_in_domain",
+        "domain_depends_on_infra",
+        "overly_long_file"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "High",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "the_alchemiser/domain/strategies/tecl_strategy_engine.py",
+      "layer_guess": "domain",
+      "summary": "tecl_strategy_engine module",
+      "key_imports": [
+        "logging",
+        "warnings",
+        "typing",
+        "the_alchemiser.domain.math.indicator_utils",
+        "the_alchemiser.domain.math.indicators"
+      ],
+      "is_correct_location": "No",
+      "recommended_location": "the_alchemiser/infrastructure/tecl_strategy_engine.py",
+      "single_concern": "Fail",
+      "smells": [
+        "io_in_domain",
+        "float_money",
+        "overly_long_file"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "High",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "the_alchemiser/domain/strategies/strategy_manager.py",
+      "layer_guess": "domain",
+      "summary": "strategy_manager module",
+      "key_imports": [
+        "logging",
+        "datetime",
+        "typing",
+        "the_alchemiser.domain.registry",
+        "the_alchemiser.domain.strategies.nuclear_signals"
+      ],
+      "is_correct_location": "No",
+      "recommended_location": "the_alchemiser/infrastructure/strategy_manager.py",
+      "single_concern": "Fail",
+      "smells": [
+        "io_in_domain",
+        "domain_depends_on_infra",
+        "float_money",
+        "overly_long_file",
+        "non_deterministic_time_in_core"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "High",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "the_alchemiser/domain/strategies/strategy_engine.py",
+      "layer_guess": "domain",
+      "summary": "Nuclear Trading Strategy Scenario Classes",
+      "key_imports": [
+        "logging",
+        "typing",
+        "numpy",
+        "pandas",
+        "the_alchemiser.utils.common"
+      ],
+      "is_correct_location": "No",
+      "recommended_location": "the_alchemiser/infrastructure/strategy_engine.py",
+      "single_concern": "Fail",
+      "smells": [
+        "io_in_domain",
+        "float_money",
+        "overly_long_file"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "High",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "the_alchemiser/domain/strategies/tecl_signals.py",
+      "layer_guess": "domain",
+      "summary": "tecl_signals module",
+      "key_imports": [
+        "logging",
+        "warnings",
+        "typing",
+        "the_alchemiser.domain.math.indicator_utils",
+        "the_alchemiser.domain.math.indicators"
+      ],
+      "is_correct_location": "No",
+      "recommended_location": "the_alchemiser/infrastructure/tecl_signals.py",
+      "single_concern": "Fail",
+      "smells": [
+        "io_in_domain",
+        "domain_depends_on_infra",
+        "float_money"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "High",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "the_alchemiser/domain/strategies/klm_ensemble_engine.py",
+      "layer_guess": "domain",
+      "summary": "KLM Strategy Ensemble Engine",
+      "key_imports": [
+        "logging",
+        "warnings",
+        "typing",
+        "pandas",
+        "the_alchemiser.domain.math.indicator_utils"
+      ],
+      "is_correct_location": "No",
+      "recommended_location": "the_alchemiser/infrastructure/klm_ensemble_engine.py",
+      "single_concern": "Fail",
+      "smells": [
+        "io_in_domain",
+        "domain_depends_on_infra",
+        "float_money",
+        "overly_long_file"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "High",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "the_alchemiser/domain/registry/__init__.py",
+      "layer_guess": "domain",
+      "summary": "Registry package for The Alchemiser Quantitative Trading System.",
+      "key_imports": [
+        ".strategy_registry"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Pass",
+      "smells": [],
+      "public_api": "none",
+      "test_coverage_presence": "tests/__init__.py,tests/utils/__init__.py,tests/fixtures/__init__.py,tests/property/__init__.py,tests/integration/__init__.py",
+      "risk": "Low",
+      "recommended_action": "None"
+    },
+    {
+      "path": "the_alchemiser/domain/registry/strategy_registry.py",
+      "layer_guess": "domain",
+      "summary": "strategy_registry module",
+      "key_imports": [
+        "dataclasses",
+        "enum",
+        "typing",
+        "the_alchemiser.domain.strategies.klm_ensemble_engine",
+        "the_alchemiser.domain.strategies.nuclear_signals"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Fail",
+      "smells": [
+        "float_money"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "Medium",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "the_alchemiser/domain/strategies/klm_workers/variant_830_21.py",
+      "layer_guess": "domain",
+      "summary": "KLM Strategy Variant 830/21 - \"MonkeyBusiness Simons variant V2\"",
+      "key_imports": [
+        "pandas",
+        "the_alchemiser.utils.common",
+        ".base_klm_variant"
+      ],
+      "is_correct_location": "No",
+      "recommended_location": "the_alchemiser/infrastructure/variant_830_21.py",
+      "single_concern": "Fail",
+      "smells": [
+        "io_in_domain",
+        "silent_exception"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "High",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "the_alchemiser/domain/strategies/klm_workers/__init__.py",
+      "layer_guess": "domain",
+      "summary": "KLM Strategy Workers Package",
+      "key_imports": [
+        ".base_klm_variant",
+        ".variant_410_38",
+        ".variant_506_38",
+        ".variant_520_22",
+        ".variant_530_18"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Pass",
+      "smells": [],
+      "public_api": "none",
+      "test_coverage_presence": "tests/__init__.py,tests/utils/__init__.py,tests/fixtures/__init__.py,tests/property/__init__.py,tests/integration/__init__.py",
+      "risk": "Low",
+      "recommended_action": "None"
+    },
+    {
+      "path": "the_alchemiser/domain/strategies/klm_workers/variant_1200_28.py",
+      "layer_guess": "domain",
+      "summary": "KLM Strategy Variant 1200/28 - \"KMLM (43)\"",
+      "key_imports": [
+        "pandas",
+        "the_alchemiser.utils.common",
+        ".base_klm_variant"
+      ],
+      "is_correct_location": "No",
+      "recommended_location": "the_alchemiser/infrastructure/variant_1200_28.py",
+      "single_concern": "Fail",
+      "smells": [
+        "io_in_domain",
+        "silent_exception"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "High",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "the_alchemiser/domain/strategies/klm_workers/variant_1280_26.py",
+      "layer_guess": "domain",
+      "summary": "KLM Strategy Variant 1280/26 - \"KMLM (50)\"",
+      "key_imports": [
+        "pandas",
+        "the_alchemiser.domain.types",
+        "the_alchemiser.utils.common",
+        ".base_klm_variant"
+      ],
+      "is_correct_location": "No",
+      "recommended_location": "the_alchemiser/infrastructure/variant_1280_26.py",
+      "single_concern": "Fail",
+      "smells": [
+        "io_in_domain",
+        "float_money"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "High",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "the_alchemiser/domain/strategies/klm_workers/variant_530_18.py",
+      "layer_guess": "domain",
+      "summary": "KLM Strategy Variant 530/18 - \"KMLM Switcher | Anansi Mods\"",
+      "key_imports": [
+        "pandas",
+        "the_alchemiser.domain.types",
+        "the_alchemiser.utils.common",
+        ".base_klm_variant"
+      ],
+      "is_correct_location": "No",
+      "recommended_location": "the_alchemiser/infrastructure/variant_530_18.py",
+      "single_concern": "Fail",
+      "smells": [
+        "io_in_domain",
+        "float_money",
+        "overly_long_file"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "High",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "the_alchemiser/domain/strategies/klm_workers/variant_520_22.py",
+      "layer_guess": "domain",
+      "summary": "KLM Strategy Variant 520/22 - \"KMLM (23) - Original\"",
+      "key_imports": [
+        "pandas",
+        "the_alchemiser.utils.common",
+        ".base_klm_variant"
+      ],
+      "is_correct_location": "No",
+      "recommended_location": "the_alchemiser/infrastructure/variant_520_22.py",
+      "single_concern": "Fail",
+      "smells": [
+        "io_in_domain",
+        "silent_exception"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "High",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "the_alchemiser/domain/strategies/klm_workers/variant_nova.py",
+      "layer_guess": "domain",
+      "summary": "KLM Strategy Variant Nova - \"Nerfed 2900/8 (373) - Nova - Short BT\"",
+      "key_imports": [
+        "pandas",
+        "the_alchemiser.utils.common",
+        ".base_klm_variant"
+      ],
+      "is_correct_location": "No",
+      "recommended_location": "the_alchemiser/infrastructure/variant_nova.py",
+      "single_concern": "Fail",
+      "smells": [
+        "io_in_domain"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "High",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "the_alchemiser/domain/strategies/klm_workers/base_klm_variant.py",
+      "layer_guess": "domain",
+      "summary": "Base KLM Strategy Variant",
+      "key_imports": [
+        "logging",
+        "abc",
+        "typing",
+        "numpy",
+        "pandas"
+      ],
+      "is_correct_location": "No",
+      "recommended_location": "the_alchemiser/infrastructure/base_klm_variant.py",
+      "single_concern": "Fail",
+      "smells": [
+        "io_in_domain",
+        "float_money",
+        "overly_long_file"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "High",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "the_alchemiser/domain/strategies/klm_workers/variant_410_38.py",
+      "layer_guess": "domain",
+      "summary": "KLM Strategy Variant 410/38 - \"MonkeyBusiness Simons variant\"",
+      "key_imports": [
+        "the_alchemiser.utils.common",
+        ".variant_506_38"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Fail",
+      "smells": [
+        "silent_exception"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "Medium",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "the_alchemiser/domain/strategies/klm_workers/variant_506_38.py",
+      "layer_guess": "domain",
+      "summary": "KLM Strategy Variant 506/38 - \"KMLM (13) - Longer BT\"",
+      "key_imports": [
+        "pandas",
+        "the_alchemiser.utils.common",
+        ".base_klm_variant"
+      ],
+      "is_correct_location": "No",
+      "recommended_location": "the_alchemiser/infrastructure/variant_506_38.py",
+      "single_concern": "Fail",
+      "smells": [
+        "io_in_domain"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "High",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "the_alchemiser/application/tracking/integration.py",
+      "layer_guess": "application",
+      "summary": "integration module",
+      "key_imports": [
+        "logging",
+        "contextlib",
+        "typing",
+        "the_alchemiser.application.tracking.strategy_order_tracker",
+        "the_alchemiser.domain.strategies.strategy_manager"
+      ],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Pass",
+      "smells": [],
+      "public_api": "none",
+      "test_coverage_presence": "tests/integration",
+      "risk": "Low",
+      "recommended_action": "None"
+    },
+    {
+      "path": "the_alchemiser/application/tracking/__init__.py",
+      "layer_guess": "application",
+      "summary": "Strategy tracking package for The Alchemiser.",
+      "key_imports": [],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Pass",
+      "smells": [],
+      "public_api": "none",
+      "test_coverage_presence": "tests/__init__.py,tests/utils/__init__.py,tests/fixtures/__init__.py,tests/property/__init__.py,tests/integration/__init__.py",
+      "risk": "Low",
+      "recommended_action": "None"
+    },
+    {
+      "path": "the_alchemiser/application/tracking/strategy_order_tracker.py",
+      "layer_guess": "application",
+      "summary": "strategy_order_tracker module",
+      "key_imports": [
+        "logging",
+        "dataclasses",
+        "datetime",
+        "typing",
+        "the_alchemiser.domain.strategies.strategy_manager"
+      ],
+      "is_correct_location": "No",
+      "recommended_location": "the_alchemiser/services/strategy_order_tracker.py",
+      "single_concern": "Fail",
+      "smells": [
+        "app_uses_infra_directly",
+        "overly_long_file"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "High",
+      "recommended_action": "Refactor to comply with architecture"
+    },
+    {
+      "path": "the_alchemiser/application/portfolio_rebalancer/__init__.py",
+      "layer_guess": "application",
+      "summary": "__init__ module",
+      "key_imports": [],
+      "is_correct_location": "Yes",
+      "recommended_location": null,
+      "single_concern": "Pass",
+      "smells": [],
+      "public_api": "none",
+      "test_coverage_presence": "tests/__init__.py,tests/utils/__init__.py,tests/fixtures/__init__.py,tests/property/__init__.py,tests/integration/__init__.py",
+      "risk": "Low",
+      "recommended_action": "None"
+    },
+    {
+      "path": "the_alchemiser/application/portfolio_rebalancer/portfolio_rebalancer.py",
+      "layer_guess": "application",
+      "summary": "portfolio_rebalancer module",
+      "key_imports": [
+        "logging",
+        "typing",
+        "alpaca.trading.enums",
+        "the_alchemiser.application.tracking.strategy_order_tracker",
+        "the_alchemiser.domain.math.trading_math"
+      ],
+      "is_correct_location": "No",
+      "recommended_location": "the_alchemiser/services/portfolio_rebalancer.py",
+      "single_concern": "Fail",
+      "smells": [
+        "app_uses_infra_directly",
+        "overly_long_file",
+        "cli_logic_outside_interface"
+      ],
+      "public_api": "none",
+      "test_coverage_presence": "unknown",
+      "risk": "High",
+      "recommended_action": "Refactor to comply with architecture"
+    }
+  ],
+  "layer_violations": [
+    {
+      "from": "application",
+      "to": "infrastructure",
+      "paths": [
+        "the_alchemiser/application/smart_execution.py"
+      ],
+      "evidence": "import the_alchemiser.infrastructure.data_providers.data_provider at L24"
+    },
+    {
+      "from": "application",
+      "to": "infrastructure",
+      "paths": [
+        "the_alchemiser/application/smart_pricing_handler.py"
+      ],
+      "evidence": "import the_alchemiser.infrastructure.logging.logging_utils at L15"
+    },
+    {
+      "from": "application",
+      "to": "infrastructure",
+      "paths": [
+        "the_alchemiser/application/execution_manager.py"
+      ],
+      "evidence": "import the_alchemiser.infrastructure.logging.logging_utils at L81"
+    },
+    {
+      "from": "application",
+      "to": "infrastructure",
+      "paths": [
+        "the_alchemiser/application/execution_manager.py"
+      ],
+      "evidence": "import the_alchemiser.infrastructure.logging.logging_utils at L96"
+    },
+    {
+      "from": "application",
+      "to": "infrastructure",
+      "paths": [
+        "the_alchemiser/application/execution_manager.py"
+      ],
+      "evidence": "import the_alchemiser.infrastructure.logging.logging_utils at L135"
+    },
+    {
+      "from": "application",
+      "to": "infrastructure",
+      "paths": [
+        "the_alchemiser/application/asset_order_handler.py"
+      ],
+      "evidence": "import the_alchemiser.infrastructure.logging.logging_utils at L19"
+    },
+    {
+      "from": "application",
+      "to": "infrastructure",
+      "paths": [
+        "the_alchemiser/application/reporting.py"
+      ],
+      "evidence": "import the_alchemiser.infrastructure.s3.s3_utils at L67"
+    },
+    {
+      "from": "application",
+      "to": "infrastructure",
+      "paths": [
+        "the_alchemiser/application/alpaca_client.py"
+      ],
+      "evidence": "import the_alchemiser.infrastructure.data_providers.data_provider at L62"
+    },
+    {
+      "from": "application",
+      "to": "infrastructure",
+      "paths": [
+        "the_alchemiser/application/alpaca_client.py"
+      ],
+      "evidence": "import the_alchemiser.infrastructure.websocket.websocket_connection_manager at L63"
+    },
+    {
+      "from": "application",
+      "to": "infrastructure",
+      "paths": [
+        "the_alchemiser/application/alpaca_client.py"
+      ],
+      "evidence": "import the_alchemiser.infrastructure.websocket.websocket_order_monitor at L66"
+    },
+    {
+      "from": "application",
+      "to": "infrastructure",
+      "paths": [
+        "the_alchemiser/application/trading_engine.py"
+      ],
+      "evidence": "import the_alchemiser.infrastructure.config at L38"
+    },
+    {
+      "from": "application",
+      "to": "infrastructure",
+      "paths": [
+        "the_alchemiser/application/trading_engine.py"
+      ],
+      "evidence": "import the_alchemiser.infrastructure.config at L163"
+    },
+    {
+      "from": "application",
+      "to": "infrastructure",
+      "paths": [
+        "the_alchemiser/application/trading_engine.py"
+      ],
+      "evidence": "import the_alchemiser.infrastructure.data_providers.data_provider at L172"
+    },
+    {
+      "from": "application",
+      "to": "infrastructure",
+      "paths": [
+        "the_alchemiser/application/trading_engine.py"
+      ],
+      "evidence": "import the_alchemiser.infrastructure.logging.logging_utils at L254"
+    },
+    {
+      "from": "application",
+      "to": "infrastructure",
+      "paths": [
+        "the_alchemiser/application/trading_engine.py"
+      ],
+      "evidence": "import the_alchemiser.infrastructure.logging.logging_utils at L284"
+    },
+    {
+      "from": "domain",
+      "to": "datetime",
+      "paths": [
+        "the_alchemiser/domain/models/market_data.py"
+      ],
+      "evidence": "import datetime at L6"
+    },
+    {
+      "from": "domain",
+      "to": "pandas",
+      "paths": [
+        "the_alchemiser/domain/models/market_data.py"
+      ],
+      "evidence": "import pandas at L8"
+    },
+    {
+      "from": "domain",
+      "to": "datetime",
+      "paths": [
+        "the_alchemiser/domain/models/order.py"
+      ],
+      "evidence": "import datetime at L6"
+    },
+    {
+      "from": "domain",
+      "to": "datetime",
+      "paths": [
+        "the_alchemiser/domain/math/market_timing_utils.py"
+      ],
+      "evidence": "import datetime at L10"
+    },
+    {
+      "from": "domain",
+      "to": "logging",
+      "paths": [
+        "the_alchemiser/domain/math/indicator_utils.py"
+      ],
+      "evidence": "import logging at L6"
+    },
+    {
+      "from": "domain",
+      "to": "pandas",
+      "paths": [
+        "the_alchemiser/domain/math/indicator_utils.py"
+      ],
+      "evidence": "import pandas at L10"
+    },
+    {
+      "from": "domain",
+      "to": "logging",
+      "paths": [
+        "the_alchemiser/domain/math/math_utils.py"
+      ],
+      "evidence": "import logging at L15"
+    },
+    {
+      "from": "domain",
+      "to": "pandas",
+      "paths": [
+        "the_alchemiser/domain/math/math_utils.py"
+      ],
+      "evidence": "import pandas at L17"
+    },
+    {
+      "from": "domain",
+      "to": "logging",
+      "paths": [
+        "the_alchemiser/domain/math/asset_info.py"
+      ],
+      "evidence": "import logging at L10"
+    },
+    {
+      "from": "domain",
+      "to": "infrastructure",
+      "paths": [
+        "the_alchemiser/domain/math/asset_info.py"
+      ],
+      "evidence": "import the_alchemiser.infrastructure.secrets.secrets_manager at L61"
+    },
+    {
+      "from": "domain",
+      "to": "pandas",
+      "paths": [
+        "the_alchemiser/domain/math/indicators.py"
+      ],
+      "evidence": "import pandas at L17"
+    },
+    {
+      "from": "domain",
+      "to": "datetime",
+      "paths": [
+        "the_alchemiser/domain/strategies/klm_trading_bot.py"
+      ],
+      "evidence": "import datetime at L17"
+    },
+    {
+      "from": "domain",
+      "to": "logging",
+      "paths": [
+        "the_alchemiser/domain/strategies/klm_trading_bot.py"
+      ],
+      "evidence": "import logging at L18"
+    },
+    {
+      "from": "domain",
+      "to": "pandas",
+      "paths": [
+        "the_alchemiser/domain/strategies/klm_trading_bot.py"
+      ],
+      "evidence": "import pandas at L23"
+    },
+    {
+      "from": "domain",
+      "to": "infrastructure",
+      "paths": [
+        "the_alchemiser/domain/strategies/klm_trading_bot.py"
+      ],
+      "evidence": "import the_alchemiser.infrastructure.alerts.alert_service at L31"
+    },
+    {
+      "from": "domain",
+      "to": "infrastructure",
+      "paths": [
+        "the_alchemiser/domain/strategies/klm_trading_bot.py"
+      ],
+      "evidence": "import the_alchemiser.infrastructure.data_providers.data_provider at L32"
+    },
+    {
+      "from": "domain",
+      "to": "logging",
+      "paths": [
+        "the_alchemiser/domain/strategies/nuclear_signals.py"
+      ],
+      "evidence": "import logging at L17"
+    },
+    {
+      "from": "domain",
+      "to": "infrastructure",
+      "paths": [
+        "the_alchemiser/domain/strategies/nuclear_signals.py"
+      ],
+      "evidence": "import the_alchemiser.infrastructure.config at L32"
+    },
+    {
+      "from": "domain",
+      "to": "infrastructure",
+      "paths": [
+        "the_alchemiser/domain/strategies/nuclear_signals.py"
+      ],
+      "evidence": "import the_alchemiser.infrastructure.config.config_utils at L33"
+    },
+    {
+      "from": "domain",
+      "to": "infrastructure",
+      "paths": [
+        "the_alchemiser/domain/strategies/nuclear_signals.py"
+      ],
+      "evidence": "import the_alchemiser.infrastructure.alerts.alert_service at L225"
+    },
+    {
+      "from": "domain",
+      "to": "infrastructure",
+      "paths": [
+        "the_alchemiser/domain/strategies/nuclear_signals.py"
+      ],
+      "evidence": "import the_alchemiser.infrastructure.alerts.alert_service at L267"
+    },
+    {
+      "from": "domain",
+      "to": "time",
+      "paths": [
+        "the_alchemiser/domain/strategies/nuclear_signals.py"
+      ],
+      "evidence": "import time at L298"
+    },
+    {
+      "from": "domain",
+      "to": "logging",
+      "paths": [
+        "the_alchemiser/domain/strategies/tecl_strategy_engine.py"
+      ],
+      "evidence": "import logging at L26"
+    },
+    {
+      "from": "domain",
+      "to": "logging",
+      "paths": [
+        "the_alchemiser/domain/strategies/strategy_manager.py"
+      ],
+      "evidence": "import logging at L17"
+    },
+    {
+      "from": "domain",
+      "to": "datetime",
+      "paths": [
+        "the_alchemiser/domain/strategies/strategy_manager.py"
+      ],
+      "evidence": "import datetime at L18"
+    },
+    {
+      "from": "domain",
+      "to": "infrastructure",
+      "paths": [
+        "the_alchemiser/domain/strategies/strategy_manager.py"
+      ],
+      "evidence": "import the_alchemiser.infrastructure.config at L92"
+    },
+    {
+      "from": "domain",
+      "to": "infrastructure",
+      "paths": [
+        "the_alchemiser/domain/strategies/strategy_manager.py"
+      ],
+      "evidence": "import the_alchemiser.infrastructure.data_providers.data_provider at L120"
+    },
+    {
+      "from": "domain",
+      "to": "logging",
+      "paths": [
+        "the_alchemiser/domain/strategies/strategy_engine.py"
+      ],
+      "evidence": "import logging at L15"
+    },
+    {
+      "from": "domain",
+      "to": "pandas",
+      "paths": [
+        "the_alchemiser/domain/strategies/strategy_engine.py"
+      ],
+      "evidence": "import pandas at L19"
+    },
+    {
+      "from": "domain",
+      "to": "logging",
+      "paths": [
+        "the_alchemiser/domain/strategies/tecl_signals.py"
+      ],
+      "evidence": "import logging at L18"
+    },
+    {
+      "from": "domain",
+      "to": "infrastructure",
+      "paths": [
+        "the_alchemiser/domain/strategies/tecl_signals.py"
+      ],
+      "evidence": "import the_alchemiser.infrastructure.config.config_utils at L32"
+    },
+    {
+      "from": "domain",
+      "to": "infrastructure",
+      "paths": [
+        "the_alchemiser/domain/strategies/tecl_signals.py"
+      ],
+      "evidence": "import the_alchemiser.infrastructure.alerts.alert_service at L124"
+    },
+    {
+      "from": "domain",
+      "to": "infrastructure",
+      "paths": [
+        "the_alchemiser/domain/strategies/tecl_signals.py"
+      ],
+      "evidence": "import the_alchemiser.infrastructure.alerts.alert_service at L167"
+    },
+    {
+      "from": "domain",
+      "to": "time",
+      "paths": [
+        "the_alchemiser/domain/strategies/tecl_signals.py"
+      ],
+      "evidence": "import time at L191"
+    },
+    {
+      "from": "domain",
+      "to": "logging",
+      "paths": [
+        "the_alchemiser/domain/strategies/klm_ensemble_engine.py"
+      ],
+      "evidence": "import logging at L11"
+    },
+    {
+      "from": "domain",
+      "to": "pandas",
+      "paths": [
+        "the_alchemiser/domain/strategies/klm_ensemble_engine.py"
+      ],
+      "evidence": "import pandas at L15"
+    },
+    {
+      "from": "domain",
+      "to": "infrastructure",
+      "paths": [
+        "the_alchemiser/domain/strategies/klm_ensemble_engine.py"
+      ],
+      "evidence": "import the_alchemiser.infrastructure.data_providers.data_provider at L444"
+    },
+    {
+      "from": "domain",
+      "to": "pandas",
+      "paths": [
+        "the_alchemiser/domain/strategies/klm_workers/variant_830_21.py"
+      ],
+      "evidence": "import pandas at L12"
+    },
+    {
+      "from": "domain",
+      "to": "pandas",
+      "paths": [
+        "the_alchemiser/domain/strategies/klm_workers/variant_1200_28.py"
+      ],
+      "evidence": "import pandas at L12"
+    },
+    {
+      "from": "domain",
+      "to": "pandas",
+      "paths": [
+        "the_alchemiser/domain/strategies/klm_workers/variant_1280_26.py"
+      ],
+      "evidence": "import pandas at L14"
+    },
+    {
+      "from": "domain",
+      "to": "pandas",
+      "paths": [
+        "the_alchemiser/domain/strategies/klm_workers/variant_530_18.py"
+      ],
+      "evidence": "import pandas at L19"
+    },
+    {
+      "from": "domain",
+      "to": "pandas",
+      "paths": [
+        "the_alchemiser/domain/strategies/klm_workers/variant_520_22.py"
+      ],
+      "evidence": "import pandas at L12"
+    },
+    {
+      "from": "domain",
+      "to": "pandas",
+      "paths": [
+        "the_alchemiser/domain/strategies/klm_workers/variant_nova.py"
+      ],
+      "evidence": "import pandas at L13"
+    },
+    {
+      "from": "domain",
+      "to": "logging",
+      "paths": [
+        "the_alchemiser/domain/strategies/klm_workers/base_klm_variant.py"
+      ],
+      "evidence": "import logging at L8"
+    },
+    {
+      "from": "domain",
+      "to": "pandas",
+      "paths": [
+        "the_alchemiser/domain/strategies/klm_workers/base_klm_variant.py"
+      ],
+      "evidence": "import pandas at L13"
+    },
+    {
+      "from": "domain",
+      "to": "pandas",
+      "paths": [
+        "the_alchemiser/domain/strategies/klm_workers/variant_506_38.py"
+      ],
+      "evidence": "import pandas at L16"
+    },
+    {
+      "from": "application",
+      "to": "infrastructure",
+      "paths": [
+        "the_alchemiser/application/tracking/strategy_order_tracker.py"
+      ],
+      "evidence": "import the_alchemiser.infrastructure.config at L28"
+    },
+    {
+      "from": "application",
+      "to": "infrastructure",
+      "paths": [
+        "the_alchemiser/application/tracking/strategy_order_tracker.py"
+      ],
+      "evidence": "import the_alchemiser.infrastructure.s3.s3_utils at L29"
+    },
+    {
+      "from": "application",
+      "to": "infrastructure",
+      "paths": [
+        "the_alchemiser/application/tracking/strategy_order_tracker.py"
+      ],
+      "evidence": "import the_alchemiser.infrastructure.logging.logging_utils at L211"
+    },
+    {
+      "from": "application",
+      "to": "infrastructure",
+      "paths": [
+        "the_alchemiser/application/tracking/strategy_order_tracker.py"
+      ],
+      "evidence": "import the_alchemiser.infrastructure.logging.logging_utils at L232"
+    },
+    {
+      "from": "application",
+      "to": "infrastructure",
+      "paths": [
+        "the_alchemiser/application/tracking/strategy_order_tracker.py"
+      ],
+      "evidence": "import the_alchemiser.infrastructure.logging.logging_utils at L370"
+    },
+    {
+      "from": "application",
+      "to": "infrastructure",
+      "paths": [
+        "the_alchemiser/application/tracking/strategy_order_tracker.py"
+      ],
+      "evidence": "import the_alchemiser.infrastructure.logging.logging_utils at L387"
+    },
+    {
+      "from": "application",
+      "to": "infrastructure",
+      "paths": [
+        "the_alchemiser/application/tracking/strategy_order_tracker.py"
+      ],
+      "evidence": "import the_alchemiser.infrastructure.logging.logging_utils at L450"
+    },
+    {
+      "from": "application",
+      "to": "infrastructure",
+      "paths": [
+        "the_alchemiser/application/tracking/strategy_order_tracker.py"
+      ],
+      "evidence": "import the_alchemiser.infrastructure.logging.logging_utils at L469"
+    },
+    {
+      "from": "application",
+      "to": "infrastructure",
+      "paths": [
+        "the_alchemiser/application/tracking/strategy_order_tracker.py"
+      ],
+      "evidence": "import the_alchemiser.infrastructure.logging.logging_utils at L497"
+    },
+    {
+      "from": "application",
+      "to": "infrastructure",
+      "paths": [
+        "the_alchemiser/application/tracking/strategy_order_tracker.py"
+      ],
+      "evidence": "import the_alchemiser.infrastructure.logging.logging_utils at L513"
+    },
+    {
+      "from": "application",
+      "to": "infrastructure",
+      "paths": [
+        "the_alchemiser/application/tracking/strategy_order_tracker.py"
+      ],
+      "evidence": "import the_alchemiser.infrastructure.logging.logging_utils at L556"
+    },
+    {
+      "from": "application",
+      "to": "infrastructure",
+      "paths": [
+        "the_alchemiser/application/tracking/strategy_order_tracker.py"
+      ],
+      "evidence": "import the_alchemiser.infrastructure.logging.logging_utils at L603"
+    },
+    {
+      "from": "application",
+      "to": "infrastructure",
+      "paths": [
+        "the_alchemiser/application/tracking/strategy_order_tracker.py"
+      ],
+      "evidence": "import the_alchemiser.infrastructure.logging.logging_utils at L635"
+    },
+    {
+      "from": "application",
+      "to": "infrastructure",
+      "paths": [
+        "the_alchemiser/application/tracking/strategy_order_tracker.py"
+      ],
+      "evidence": "import the_alchemiser.infrastructure.logging.logging_utils at L670"
+    },
+    {
+      "from": "application",
+      "to": "infrastructure",
+      "paths": [
+        "the_alchemiser/application/tracking/strategy_order_tracker.py"
+      ],
+      "evidence": "import the_alchemiser.infrastructure.logging.logging_utils at L705"
+    },
+    {
+      "from": "application",
+      "to": "infrastructure",
+      "paths": [
+        "the_alchemiser/application/tracking/strategy_order_tracker.py"
+      ],
+      "evidence": "import the_alchemiser.infrastructure.logging.logging_utils at L767"
+    }
+  ],
+  "facade_breaches": [
+    {
+      "file": "PHASE3_ARCHITECTURE_DOCUMENTATION.md",
+      "evidence": "uses AlpacaManager"
+    },
+    {
+      "file": "INCREMENTAL_IMPROVEMENT_PLAN.md",
+      "evidence": "uses AlpacaManager"
+    },
+    {
+      "file": "PHASE2_INTERFACE_EXTRACTION_COMPLETE.md",
+      "evidence": "uses AlpacaManager"
+    },
+    {
+      "file": "PHASE1_MIGRATION_COMPLETE.md",
+      "evidence": "uses AlpacaManager"
+    },
+    {
+      "file": ".github/copilot-instructions.md",
+      "evidence": "uses AlpacaManager"
+    },
+    {
+      "file": "the_alchemiser/application/smart_execution.py",
+      "evidence": "uses AlpacaManager"
+    },
+    {
+      "file": "the_alchemiser/application/alpaca_client.py",
+      "evidence": "uses AlpacaManager"
+    },
+    {
+      "file": "the_alchemiser/domain/math/asset_info.py",
+      "evidence": "uses AlpacaManager"
+    },
+    {
+      "file": "the_alchemiser/domain/interfaces/trading_repository.py",
+      "evidence": "uses AlpacaManager"
+    },
+    {
+      "file": "the_alchemiser/domain/interfaces/account_repository.py",
+      "evidence": "uses AlpacaManager"
+    },
+    {
+      "file": "the_alchemiser/domain/interfaces/market_data_repository.py",
+      "evidence": "uses AlpacaManager"
+    }
+  ],
+  "decimal_violations": [
+    {
+      "file": "the_alchemiser/services/price_fetching_utils.py",
+      "evidence": "float arithmetic",
+      "fix": "Use Decimal"
+    },
+    {
+      "file": "the_alchemiser/services/error_recovery.py",
+      "evidence": "float arithmetic",
+      "fix": "Use Decimal"
+    },
+    {
+      "file": "the_alchemiser/services/streaming_service.py",
+      "evidence": "float arithmetic",
+      "fix": "Use Decimal"
+    },
+    {
+      "file": "the_alchemiser/services/position_manager.py",
+      "evidence": "float arithmetic",
+      "fix": "Use Decimal"
+    },
+    {
+      "file": "the_alchemiser/services/account_service.py",
+      "evidence": "float arithmetic",
+      "fix": "Use Decimal"
+    },
+    {
+      "file": "the_alchemiser/services/error_monitoring.py",
+      "evidence": "float arithmetic",
+      "fix": "Use Decimal"
+    },
+    {
+      "file": "the_alchemiser/services/price_service.py",
+      "evidence": "float arithmetic",
+      "fix": "Use Decimal"
+    },
+    {
+      "file": "the_alchemiser/services/account_utils.py",
+      "evidence": "float arithmetic",
+      "fix": "Use Decimal"
+    },
+    {
+      "file": "the_alchemiser/services/market_data_client.py",
+      "evidence": "float arithmetic",
+      "fix": "Use Decimal"
+    },
+    {
+      "file": "the_alchemiser/services/error_handler.py",
+      "evidence": "float arithmetic",
+      "fix": "Use Decimal"
+    },
+    {
+      "file": "the_alchemiser/services/retry_decorator.py",
+      "evidence": "float arithmetic",
+      "fix": "Use Decimal"
+    },
+    {
+      "file": "the_alchemiser/services/enhanced/position_service.py",
+      "evidence": "float arithmetic",
+      "fix": "Use Decimal"
+    },
+    {
+      "file": "the_alchemiser/services/enhanced/account_service.py",
+      "evidence": "float arithmetic",
+      "fix": "Use Decimal"
+    },
+    {
+      "file": "the_alchemiser/services/enhanced/trading_service_manager.py",
+      "evidence": "float arithmetic",
+      "fix": "Use Decimal"
+    },
+    {
+      "file": "the_alchemiser/services/enhanced/market_data_service.py",
+      "evidence": "float arithmetic",
+      "fix": "Use Decimal"
+    },
+    {
+      "file": "the_alchemiser/services/enhanced/order_service.py",
+      "evidence": "float arithmetic",
+      "fix": "Use Decimal"
+    },
+    {
+      "file": "the_alchemiser/domain/models/position.py",
+      "evidence": "float arithmetic",
+      "fix": "Use Decimal"
+    },
+    {
+      "file": "the_alchemiser/domain/models/strategy.py",
+      "evidence": "float arithmetic",
+      "fix": "Use Decimal"
+    },
+    {
+      "file": "the_alchemiser/domain/models/order.py",
+      "evidence": "float arithmetic",
+      "fix": "Use Decimal"
+    },
+    {
+      "file": "the_alchemiser/domain/math/market_timing_utils.py",
+      "evidence": "float arithmetic",
+      "fix": "Use Decimal"
+    },
+    {
+      "file": "the_alchemiser/domain/math/indicator_utils.py",
+      "evidence": "float arithmetic",
+      "fix": "Use Decimal"
+    },
+    {
+      "file": "the_alchemiser/domain/math/math_utils.py",
+      "evidence": "float arithmetic",
+      "fix": "Use Decimal"
+    },
+    {
+      "file": "the_alchemiser/domain/math/asset_info.py",
+      "evidence": "float arithmetic",
+      "fix": "Use Decimal"
+    },
+    {
+      "file": "the_alchemiser/domain/math/indicators.py",
+      "evidence": "float arithmetic",
+      "fix": "Use Decimal"
+    },
+    {
+      "file": "the_alchemiser/domain/math/trading_math.py",
+      "evidence": "float arithmetic",
+      "fix": "Use Decimal"
+    },
+    {
+      "file": "the_alchemiser/domain/strategies/klm_trading_bot.py",
+      "evidence": "float arithmetic",
+      "fix": "Use Decimal"
+    },
+    {
+      "file": "the_alchemiser/domain/strategies/tecl_strategy_engine.py",
+      "evidence": "float arithmetic",
+      "fix": "Use Decimal"
+    },
+    {
+      "file": "the_alchemiser/domain/strategies/strategy_manager.py",
+      "evidence": "float arithmetic",
+      "fix": "Use Decimal"
+    },
+    {
+      "file": "the_alchemiser/domain/strategies/strategy_engine.py",
+      "evidence": "float arithmetic",
+      "fix": "Use Decimal"
+    },
+    {
+      "file": "the_alchemiser/domain/strategies/tecl_signals.py",
+      "evidence": "float arithmetic",
+      "fix": "Use Decimal"
+    },
+    {
+      "file": "the_alchemiser/domain/strategies/klm_ensemble_engine.py",
+      "evidence": "float arithmetic",
+      "fix": "Use Decimal"
+    },
+    {
+      "file": "the_alchemiser/domain/registry/strategy_registry.py",
+      "evidence": "float arithmetic",
+      "fix": "Use Decimal"
+    },
+    {
+      "file": "the_alchemiser/domain/strategies/klm_workers/variant_1280_26.py",
+      "evidence": "float arithmetic",
+      "fix": "Use Decimal"
+    },
+    {
+      "file": "the_alchemiser/domain/strategies/klm_workers/variant_530_18.py",
+      "evidence": "float arithmetic",
+      "fix": "Use Decimal"
+    },
+    {
+      "file": "the_alchemiser/domain/strategies/klm_workers/base_klm_variant.py",
+      "evidence": "float arithmetic",
+      "fix": "Use Decimal"
+    }
+  ],
+  "error_handling_gaps": [
+    {
+      "file": "README.md",
+      "evidence": "bare except",
+      "fix": "Use TradingSystemErrorHandler"
+    },
+    {
+      "file": "tests/performance/test_performance_benchmarks.py",
+      "evidence": "bare except",
+      "fix": "Use TradingSystemErrorHandler"
+    },
+    {
+      "file": "tests/performance/test_load_testing.py",
+      "evidence": "bare except",
+      "fix": "Use TradingSystemErrorHandler"
+    },
+    {
+      "file": "tests/performance/test_stress_testing.py",
+      "evidence": "bare except",
+      "fix": "Use TradingSystemErrorHandler"
+    },
+    {
+      "file": "the_alchemiser/services/position_manager.py",
+      "evidence": "bare except",
+      "fix": "Use TradingSystemErrorHandler"
+    },
+    {
+      "file": "the_alchemiser/application/smart_execution.py",
+      "evidence": "bare except",
+      "fix": "Use TradingSystemErrorHandler"
+    },
+    {
+      "file": "the_alchemiser/application/alpaca_client.py",
+      "evidence": "bare except",
+      "fix": "Use TradingSystemErrorHandler"
+    },
+    {
+      "file": "the_alchemiser/interface/email/templates/portfolio.py",
+      "evidence": "bare except",
+      "fix": "Use TradingSystemErrorHandler"
+    },
+    {
+      "file": "the_alchemiser/interface/email/templates/signals.py",
+      "evidence": "bare except",
+      "fix": "Use TradingSystemErrorHandler"
+    },
+    {
+      "file": "the_alchemiser/infrastructure/websocket/websocket_connection_manager.py",
+      "evidence": "bare except",
+      "fix": "Use TradingSystemErrorHandler"
+    },
+    {
+      "file": "the_alchemiser/infrastructure/websocket/websocket_order_monitor.py",
+      "evidence": "bare except",
+      "fix": "Use TradingSystemErrorHandler"
+    },
+    {
+      "file": "the_alchemiser/infrastructure/data_providers/unified_data_provider_facade.py",
+      "evidence": "bare except",
+      "fix": "Use TradingSystemErrorHandler"
+    },
+    {
+      "file": "the_alchemiser/domain/math/math_utils.py",
+      "evidence": "bare except",
+      "fix": "Use TradingSystemErrorHandler"
+    },
+    {
+      "file": "the_alchemiser/domain/math/indicators.py",
+      "evidence": "bare except",
+      "fix": "Use TradingSystemErrorHandler"
+    },
+    {
+      "file": "the_alchemiser/domain/strategies/klm_workers/variant_830_21.py",
+      "evidence": "bare except",
+      "fix": "Use TradingSystemErrorHandler"
+    },
+    {
+      "file": "the_alchemiser/domain/strategies/klm_workers/variant_1200_28.py",
+      "evidence": "bare except",
+      "fix": "Use TradingSystemErrorHandler"
+    },
+    {
+      "file": "the_alchemiser/domain/strategies/klm_workers/variant_520_22.py",
+      "evidence": "bare except",
+      "fix": "Use TradingSystemErrorHandler"
+    },
+    {
+      "file": "the_alchemiser/domain/strategies/klm_workers/variant_410_38.py",
+      "evidence": "bare except",
+      "fix": "Use TradingSystemErrorHandler"
+    }
+  ],
+  "duplications": []
+}
