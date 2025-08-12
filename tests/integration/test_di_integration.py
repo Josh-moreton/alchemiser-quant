@@ -11,13 +11,14 @@ These tests ensure the DI system works correctly in all scenarios
 while maintaining backward compatibility.
 """
 
-import pytest
 from decimal import Decimal
+
+import pytest
 
 # Skip all tests if DI is not available
 try:
-    from the_alchemiser.container.application_container import ApplicationContainer
     from the_alchemiser.application.trading_engine import TradingEngine
+    from the_alchemiser.container.application_container import ApplicationContainer
     from the_alchemiser.services.enhanced.trading_service_manager import TradingServiceManager
 
     DI_AVAILABLE = True
@@ -78,10 +79,14 @@ class TestTradingEngineDIIntegration:
     def test_trading_engine_di_vs_traditional_attributes(self, di_comparison_data):
         """Test that DI and traditional engines have equivalent attributes."""
         traditional = di_comparison_data["traditional"]
-        di_engine = di_comparison_data["di"]
+        di_engine = di_comparison_data["di"]  # type: Optional[TradingEngine]
 
         if di_engine is None:
             pytest.skip("DI engine not available")
+            return  # make control-flow explicit for static analysis
+
+        # Narrow type for static/type checkers and linters
+        assert di_engine is not None
 
         # Both should have the same core attributes
         core_attributes = [
@@ -168,7 +173,7 @@ class TestDIServiceBehavior:
     def test_di_configuration_injection(self, di_container):
         """Test that configuration is properly injected into services."""
         config = di_container.config()
-        trading_manager = di_container.services.trading_service_manager()
+        di_container.services.trading_service_manager()
 
         # Services should receive the same configuration
         assert config.alpaca.paper_trading is True
@@ -196,10 +201,14 @@ class TestDIBackwardCompatibility:
     def test_existing_api_compatibility(self, di_comparison_data):
         """Test that DI engines support the same API as traditional engines."""
         traditional = di_comparison_data["traditional"]
-        di_engine = di_comparison_data["di"]
+        di_engine = di_comparison_data["di"]  # type: Optional[TradingEngine]
 
         if di_engine is None:
             pytest.skip("DI engine not available")
+            return  # make control-flow explicit for static analysis
+
+        # Narrow type for static/type checkers and linters
+        assert di_engine is not None
 
         # Test that both engines support the same public methods
         public_methods = [
@@ -216,13 +225,18 @@ class TestDIBackwardCompatibility:
             assert callable(getattr(traditional, method_name))
             assert callable(getattr(di_engine, method_name))
 
-    def test_no_breaking_changes_in_signatures(self, di_comparison_data):
+    @pytest.mark.parametrize("engine_present", [True, False])
+    def test_no_breaking_changes_in_signatures(self, di_comparison_data, engine_present):
         """Test that method signatures are identical between modes."""
         traditional = di_comparison_data["traditional"]
-        di_engine = di_comparison_data["di"]
+        di_engine = di_comparison_data["di"] if engine_present else None  # type: Optional[TradingEngine]
 
         if di_engine is None:
             pytest.skip("DI engine not available")
+            return  # make control-flow explicit for static analysis
+
+        # Narrow type for static/type checkers and linters
+        assert di_engine is not None
 
         # Check that execute_multi_strategy has the same signature
         import inspect
@@ -275,11 +289,11 @@ class TestDIPerformanceAndReliability:
         # First, simulate an error condition
         mocker.patch(
             "the_alchemiser.container.application_container.ApplicationContainer.create_for_testing",
-            side_effect=Exception("Temporary error"),
+            side_effect=RuntimeError("Temporary error"),
         )
 
         # Should be able to handle the error
-        with pytest.raises(Exception):
+        with pytest.raises(RuntimeError):
             ApplicationContainer.create_for_testing()
 
         # Then verify it can recover when the error is resolved
@@ -314,7 +328,7 @@ class TestDIFullWorkflow:
             assert account_info is not None
 
             positions = engine.get_current_positions()
-            assert isinstance(positions, (list, dict))
+            assert isinstance(positions, list | dict)
 
         except Exception as e:
             # Errors should be related to mocked data, not DI issues
@@ -324,10 +338,14 @@ class TestDIFullWorkflow:
     def test_di_vs_traditional_workflow_equivalence(self, di_comparison_data, mocker):
         """Test that DI and traditional workflows produce equivalent results."""
         traditional = di_comparison_data["traditional"]
-        di_engine = di_comparison_data["di"]
+        di_engine = di_comparison_data["di"]  # type: Optional[TradingEngine]
 
         if di_engine is None:
             pytest.skip("DI engine not available")
+            return  # make control-flow explicit for static analysis
+
+        # Narrow type for static/type checkers and linters
+        assert di_engine is not None
 
         # Mock consistent data for both
         mock_account = mocker.Mock()
@@ -340,8 +358,9 @@ class TestDIFullWorkflow:
             di_account = di_engine.get_account_information()
 
             # Results should be structurally similar
-            assert type(trad_account) == type(di_account)
+            assert type(trad_account) is type(di_account)
 
         except Exception as e:
             # If one fails, both should fail similarly
             pytest.skip(f"Both engines failed similarly: {e}")
+            return  # make control-flow explicit for static analysis
