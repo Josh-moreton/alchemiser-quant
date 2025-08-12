@@ -38,6 +38,7 @@ Icon?
 
 # Test outputs
 htmlcov/
+htmlcov*/
 .coverage
 .tox/
 .nox/

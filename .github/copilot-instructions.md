@@ -1,21 +1,22 @@
 # Alchemiser Copilot Instructions
 
 ## Overview
-The Alchemiser is a sophisticated multi-strategy quantitative trading system built with modern Python practices and clean architecture principles.
+The Alchemiser is a sophisticated multi-strategy quantitative trading system built with modern Python practices and Domain-Driven Design (DDD) architecture, deployed as AWS Lambda functions.
 
 ### Core Architecture (Layered DDD)
-- **Domain Layer** (`the_alchemiser/domain/`): Core business logic, interfaces, and types
-- **Services Layer** (`the_alchemiser/services/`): Business logic orchestration and enhanced services
-- **Infrastructure Layer** (`the_alchemiser/infrastructure/`): External integrations (Alpaca, AWS)  
-- **Application Layer** (`the_alchemiser/application/`): High-level workflows and trading engines
-- **Interface Layer** (`the_alchemiser/interface/`): CLI, email notifications, and external APIs
+- **Domain Layer** (`the_alchemiser/domain/`): Pure business logic, strategy engines (Nuclear, TECL, KLM), interfaces, and domain types
+- **Services Layer** (`the_alchemiser/services/`): Business logic orchestration and enhanced services facade
+- **Infrastructure Layer** (`the_alchemiser/infrastructure/`): External integrations (Alpaca API, AWS services, WebSocket streaming)  
+- **Application Layer** (`the_alchemiser/application/`): Trading orchestration, smart execution, portfolio rebalancing
+- **Interface Layer** (`the_alchemiser/interface/`): Rich CLI with Typer, email notifications, dashboard utilities
 
-### Key Components
-- **AlpacaManager** (`services/alpaca_manager.py`): Unified Alpaca API client implementing all repository interfaces
-- **TradingEngine** (`application/trading_engine.py`): Main trading orchestration with multi-strategy execution
-- **Enhanced Services** (`services/enhanced/`): OrderService, PositionService, MarketDataService, AccountService
-- **CLI Interface** (`interface/cli/`): Rich Typer-based CLI with commands: `signal`, `trade`, `status`, `deploy`
-- **Error System** (`services/error_handler.py`): Comprehensive error categorization with email notifications
+### Key Components & Data Flow
+- **AlpacaManager** (`services/alpaca_manager.py`): Central repository implementation for all Alpaca API operations
+- **TradingServiceManager** (`services/enhanced/trading_service_manager.py`): Facade providing unified access to OrderService, PositionService, MarketDataService, AccountService
+- **Multi-Strategy Engine** (`domain/strategies/`): Nuclear (sector rotation), TECL (volatility), KLM (ML ensemble)
+- **Smart Execution** (`application/smart_execution.py`): Progressive orders, spread analysis, market impact optimization
+- **Portfolio Rebalancer** (`application/portfolio_rebalancer/`): Target allocation computation and trade sizing
+- **CLI Commands**: `signal` (analysis only), `trade` (execution), `status` (account), `deploy` (AWS), `validate-indicators`
 
 ## Development Standards
 
@@ -51,25 +52,37 @@ def risky_trading_operation():
 
 ### Architecture Patterns
 
-**Repository Pattern** (Use domain interfaces):
+**Repository Pattern** (Domain interfaces with infrastructure implementations):
 ```python
-from the_alchemiser.domain.interfaces import TradingRepository
+from the_alchemiser.domain.interfaces import TradingRepository, MarketDataRepository
+from the_alchemiser.services.alpaca_manager import AlpacaManager
 
-# Depend on abstractions, not implementations
-def create_service(trading_repo: TradingRepository):
-    return OrderService(trading_repo)
+# AlpacaManager implements all repository interfaces
+alpaca_manager = AlpacaManager(api_key, secret_key, paper=True)
+# Use through enhanced services for business operations
 ```
 
-**Service Layer Pattern**:
+**Service Facade Pattern** (TradingServiceManager):
 ```python
-from the_alchemiser.services.enhanced import OrderService, TradingServiceManager
+from the_alchemiser.services.enhanced import TradingServiceManager
 
-# Use enhanced services for business logic
-order_service = OrderService(alpaca_manager)
-order_id = order_service.place_market_order("AAPL", "buy", 1.0, validate_price=True)
+# Single entry point for all trading operations
+trading_manager = TradingServiceManager(api_key, secret_key, paper=True)
+order_result = trading_manager.execute_smart_order("AAPL", 10, "buy")
+positions = trading_manager.get_all_positions()
 ```
 
-**Dependency Injection**: Inject dependencies via constructors, avoid global instances
+**Strategy Engine Pattern** (Multi-strategy execution):
+```python
+from the_alchemiser.domain.strategies import StrategyManager
+
+# Strategies run independently and merge signals
+strategy_manager = StrategyManager()
+nuclear_signals = strategy_manager.nuclear_strategy.generate_signals()
+tecl_signals = strategy_manager.tecl_strategy.generate_signals()
+```
+
+**Dependency Injection**: Inject dependencies via constructors, prefer composition over inheritance
 
 ## Code Style and Quality
 
@@ -124,31 +137,62 @@ def test_order_placement(mocker):
 
 ### Development Commands
 ```bash
-# Setup
-make dev                          # Install dev dependencies
-poetry install                    # Alternative setup
+# Setup (Poetry-based)
+poetry install                   # Install dependencies
+poetry shell                     # Activate virtual environment
+make dev                         # Install with dev dependencies
 
-# Quality
-make format                       # Black + Ruff formatting
-make lint                         # Linting and type checking
-make test                         # Run test suite with coverage
-mypy the_alchemiser/             # Type checking
+# Quality & Testing
+make format                      # Black + Ruff formatting
+make lint                        # Linting, type checking, security
+make test                        # Run pytest with coverage reporting
+pytest tests/unit/              # Fast unit tests only
+pytest tests/integration/       # Integration tests
+mypy the_alchemiser/            # Type checking standalone
 
-# Trading Operations
-alchemiser signal                 # Generate strategy signals (analysis only)
-alchemiser trade                  # Execute paper trading
-alchemiser trade --live           # Execute live trading (requires confirmation)
-alchemiser status                 # Show account status and positions
-alchemiser deploy                 # Deploy to AWS Lambda
+# Trading Operations (CLI)
+alchemiser signal               # Strategy analysis (no trading)
+alchemiser trade                # Paper trading execution
+alchemiser trade --live         # Live trading (requires confirmation)
+alchemiser status               # Account positions and P&L
+alchemiser deploy               # Deploy to AWS Lambda
+alchemiser validate-indicators  # Validate strategy indicators
+
+# AWS Deployment
+sam build --cached              # Build Lambda deployment package
+sam deploy --guided             # Deploy with guided configuration
+aws logs tail /aws/lambda/the-alchemiser-v2-lambda --follow  # Monitor logs
 ```
 
 ### CLI Architecture (Rich + Typer)
-- **Built with Typer**: Modern CLI framework with automatic help generation
-- **Rich formatting**: Console output with colors, tables, and progress indicators
-- **Error handling**: Comprehensive error display with suggested actions
-- **Safety features**: Confirmation prompts for live trading, clear mode indicators
+- **Built with Typer**: Modern CLI framework with automatic help generation and type validation
+- **Rich formatting**: Console output with progress bars, tables, panels, and styled text using Rich library  
+- **Dashboard utilities**: (`interface/cli/dashboard_utils.py`) Format positions, P&L, account status
+- **Signal display**: (`interface/cli/signal_display_utils.py`) Strategy signal visualization with color coding
+- **Error handling**: Comprehensive error display with suggested actions and formatted stack traces
+- **Safety features**: Multiple confirmation prompts for live trading, clear paper/live mode indicators
 
 ## Critical Patterns
+
+### Trading Service Usage (Always use TradingServiceManager)
+```python
+from the_alchemiser.services.enhanced import TradingServiceManager
+
+# Initialize with environment detection
+trading_manager = TradingServiceManager(api_key, secret_key, paper=True)
+
+# Smart order execution with validation
+result = trading_manager.execute_smart_order(
+    symbol="AAPL", 
+    quantity=10, 
+    side="buy",
+    order_type="market"
+)
+
+# Enhanced position management
+positions = trading_manager.get_all_positions()
+portfolio_value = trading_manager.get_portfolio_value()
+```
 
 ### Money and Precision
 ```python
@@ -159,23 +203,39 @@ portfolio_value = Decimal("100000.00")
 position_size = portfolio_value * Decimal("0.1")
 ```
 
-### Market Data Handling
+### Strategy Implementation Pattern
 ```python
-from the_alchemiser.services.enhanced import MarketDataService
+from the_alchemiser.domain.strategies import StrategyEngine
 
-# Use enhanced services for data operations
-market_data = MarketDataService(alpaca_manager)
-price = market_data.get_current_price("AAPL", validate=True)
-spread_info = market_data.analyze_spread("AAPL")
+# Inherit from StrategyEngine for new strategies
+class CustomStrategy(StrategyEngine):
+    def generate_signals(self) -> Dict[str, Any]:
+        # Implement strategy logic
+        return {
+            "signal": "BUY",
+            "confidence": 0.8,
+            "target_allocation": 0.25,
+            "reasoning": "Custom indicator triggered"
+        }
+    
+    def validate_signals(self, signals: Dict[str, Any]) -> bool:
+        # Implement validation logic
+        return signals.get("confidence", 0) > 0.5
 ```
 
-### Trading Execution
+### AWS Lambda Integration Pattern
 ```python
-from the_alchemiser.services.enhanced import TradingServiceManager
+# lambda_handler.py entry point
+from the_alchemiser.main import main as trading_main
 
-# Use TradingServiceManager for high-level operations
-trading_manager = TradingServiceManager(api_key, secret_key, paper=True)
-result = trading_manager.execute_smart_order("AAPL", 10, "buy", order_type="market")
+def lambda_handler(event: dict, context) -> dict:
+    """AWS Lambda handler with proper error handling and logging"""
+    try:
+        result = trading_main()
+        return {"statusCode": 200, "body": result}
+    except Exception as e:
+        # Error handler automatically sends email notifications
+        return {"statusCode": 500, "body": str(e)}
 ```
 
 ### Configuration Management
@@ -185,13 +245,39 @@ from the_alchemiser.infrastructure.config import load_settings
 # Pydantic-based settings with environment variable support
 settings = load_settings()
 paper_trading = settings.alpaca.paper_trading
+cash_reserve = settings.alpaca.cash_reserve_pct
 ```
 
-## Security and Environment
+## Testing & Quality Requirements
 
-### Environment Variables
+### Test Structure & Organization
+- **Unit tests**: `tests/unit/` - Fast, isolated, mocked dependencies (pytest-mock)
+- **Integration tests**: `tests/integration/` - Component interactions with real data flows
+- **Infrastructure tests**: `tests/infrastructure/` - AWS/deployment validation
+- **Performance tests**: `tests/performance/` - Latency and throughput validation
+- **Property tests**: `tests/property/` - Hypothesis-based property testing
+- **Fixtures**: `tests/conftest.py` provides shared mocks, test data builders
+
+### Critical Testing Patterns
+```python
+def test_trading_operation(mocker):
+    # Use pytest-mock, not unittest.mock
+    mock_alpaca = mocker.Mock()
+    mock_alpaca.place_market_order.return_value = "ORDER123"
+    
+    # Test through service layer, not direct repository
+    trading_manager = TradingServiceManager("key", "secret", paper=True)
+    trading_manager.alpaca_manager = mock_alpaca
+    
+    result = trading_manager.place_market_order("AAPL", 10, "buy")
+    assert result["order_id"] == "ORDER123"
+```
+
+## Security and Environment Management
+
+### Environment Variables (Required for all operations)
 ```bash
-# Required for all operations
+# Alpaca Trading API
 ALPACA_API_KEY=your_api_key
 ALPACA_SECRET_KEY=your_secret_key
 PAPER_TRADING=true                # false for live trading
@@ -199,25 +285,33 @@ PAPER_TRADING=true                # false for live trading
 # AWS Infrastructure
 AWS_ACCESS_KEY_ID=your_aws_key
 AWS_SECRET_ACCESS_KEY=your_aws_secret
-AWS_REGION=us-east-1
+AWS_REGION=eu-west-2             # Default deployment region
 
 # Email notifications
 EMAIL_RECIPIENT=your@email.com
+
+# Optional: Advanced configuration
+ALPACA__CASH_RESERVE_PCT=0.05    # 5% cash reserve
+ALPACA__SLIPPAGE_BPS=5           # 5 basis points slippage allowance
+LOGGING__LEVEL=INFO              # Logging verbosity
 ```
 
-### Trading Mode Safety
-- **Default to paper trading**: Always initialize with `paper=True` unless explicitly live
-- **Environment isolation**: Separate API keys for paper vs live accounts
-- **Confirmation prompts**: CLI requires explicit confirmation for live trading
-- **Error notifications**: Automatic email alerts for all error categories
+### Trading Mode Safety & Production Readiness
+- **Default to paper trading**: All services initialize with `paper=True` unless explicitly overridden
+- **Environment isolation**: Separate API keys and AWS accounts for paper vs live environments
+- **Confirmation prompts**: CLI requires explicit `--live` flag and confirmation for live trading  
+- **Error notifications**: Automatic email alerts for all error categories with detailed context
+- **AWS Lambda deployment**: Production system runs as scheduled Lambda functions with dead letter queues
+- **Monitoring**: CloudWatch logs, error tracking, and performance monitoring built-in
 
 ## Common Pitfalls to Avoid
 
-1. **Silent failures**: Always raise proper exceptions, never return `None` without handling
-2. **Global state**: Use dependency injection, avoid global variables
-3. **Untyped code**: Every function needs type annotations for mypy compliance
-4. **Direct API calls**: Use repository interfaces and enhanced services
-5. **Bare except blocks**: Catch specific exceptions and handle appropriately
-6. **Float precision**: Use `Decimal` for all financial calculations
-7. **Missing error context**: Include component, context, and debugging data in error handling
+1. **Silent failures**: Always raise proper exceptions with detailed context, never return `None` for failures
+2. **Direct repository usage**: Use TradingServiceManager facade, not AlpacaManager directly in application code
+3. **Untyped code**: Every function needs complete type annotations for mypy compliance (100% coverage required)
+4. **Missing error handling**: All trading operations must use TradingSystemErrorHandler for consistency
+5. **Float precision**: Use `Decimal` for all financial calculations, avoid float arithmetic
+6. **Global state**: Use dependency injection through constructors, avoid global variables
+7. **Strategy coupling**: Keep strategies independent - they should not call each other directly
+8. **Test isolation**: Mock all external APIs in tests, use fixtures from `conftest.py`
 
