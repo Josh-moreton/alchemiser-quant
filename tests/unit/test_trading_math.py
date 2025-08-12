@@ -8,6 +8,8 @@ to ensure accuracy and handle edge cases.
 import math
 from decimal import ROUND_HALF_UP, Decimal, getcontext
 
+import pytest
+
 from tests.conftest import ABS_TOL, REL_TOL
 
 # Set high precision for Decimal calculations
@@ -372,3 +374,21 @@ class TestHelperFunctions:
             Decimal("1000"), Decimal("333.33"), round_down=True
         )
         assert shares_rounded == Decimal("3")
+
+
+class TestAllocationDiscrepancy:
+    """Tests for calculate_allocation_discrepancy."""
+
+    def test_allocation_discrepancy_standard_case(self):
+        from the_alchemiser.domain.math.trading_math import calculate_allocation_discrepancy
+
+        current_weight, diff = calculate_allocation_discrepancy(0.25, 3000, 10000)
+        assert current_weight == pytest.approx(0.3)
+        assert diff == pytest.approx(-0.05)
+
+    def test_allocation_discrepancy_handles_invalid_inputs(self):
+        from the_alchemiser.domain.math.trading_math import calculate_allocation_discrepancy
+
+        current_weight, diff = calculate_allocation_discrepancy(0.25, "bad", 0)
+        assert current_weight == 0.0
+        assert diff == pytest.approx(0.25)
