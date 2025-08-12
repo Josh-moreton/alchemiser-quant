@@ -433,3 +433,16 @@ def assert_no_negative_positions(portfolio_state: dict[str, Any]) -> None:
         assert (
             position["market_value"] >= 0
         ), f"Market value cannot be negative for {position['symbol']}"
+
+if DI_AVAILABLE:
+    @pytest.fixture
+    def di_container():
+        """Application container configured for tests."""
+        return ApplicationContainer.create_for_testing()
+
+
+@pytest.fixture
+def cli_runner():
+    """Provide Typer CLI test runner."""
+    from typer.testing import CliRunner
+    return CliRunner()
