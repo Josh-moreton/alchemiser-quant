@@ -1,0 +1,57 @@
+"""Main application container for dependency injection."""
+
+import os
+from dependency_injector import containers, providers
+
+from the_alchemiser.container.config_providers import ConfigProviders
+from the_alchemiser.container.infrastructure_providers import InfrastructureProviders
+from the_alchemiser.container.service_providers import ServiceProviders
+
+
+class ApplicationContainer(containers.DeclarativeContainer):
+    """Main application container orchestrating all dependencies."""
+
+    # Wire configuration
+    wiring_config = containers.WiringConfiguration(
+        modules=[
+            "the_alchemiser.main",
+            "the_alchemiser.lambda_handler",
+            "the_alchemiser.application.trading_engine",
+        ]
+    )
+
+    # Sub-containers
+    config = providers.Container(ConfigProviders)
+    infrastructure = providers.Container(InfrastructureProviders, config=config)
+    services = providers.Container(ServiceProviders, infrastructure=infrastructure, config=config)
+
+    # Application layer (will be added in Phase 2)
+
+    @classmethod
+    def create_for_environment(cls, env: str = "development") -> "ApplicationContainer":
+        """Create container configured for specific environment."""
+        container = cls()
+
+        # Load environment-specific configuration
+        if env == "test":
+            container.config.alpaca_api_key.override("test_key")
+            container.config.alpaca_secret_key.override("test_secret")
+            container.config.paper_trading.override(True)
+        elif env == "production":
+            # Production uses environment variables (default behavior)
+            pass
+
+        return container
+
+    @classmethod
+    def create_for_testing(cls) -> "ApplicationContainer":
+        """Create container with test doubles."""
+        container = cls.create_for_environment("test")
+
+        # Override with mocks for testing (will be used in tests)
+        from unittest.mock import Mock
+
+        mock_alpaca_manager = Mock()
+        container.infrastructure.alpaca_manager.override(mock_alpaca_manager)
+
+        return container
