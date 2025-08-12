@@ -5,13 +5,14 @@ including test builders, assertion helpers, and common testing patterns.
 """
 
 from decimal import Decimal
-from typing import Any, Dict, List, Optional
+from typing import Any
+
 import pytest
 
 # Conditional imports for DI
 try:
-    from the_alchemiser.container.application_container import ApplicationContainer
     from the_alchemiser.application.trading_engine import TradingEngine
+    from the_alchemiser.container.application_container import ApplicationContainer
     from the_alchemiser.services.enhanced.trading_service_manager import TradingServiceManager
 
     DI_AVAILABLE = True
@@ -84,6 +85,7 @@ class DITestBuilder:
         """Build and configure DI container."""
         if not DI_AVAILABLE:
             pytest.skip("Dependency injection not available")
+            return  # make control-flow explicit for static analysis
 
         self._container = ApplicationContainer.create_for_testing()
         return self._container
@@ -102,7 +104,7 @@ class DITestBuilder:
 
         return self._container.services.trading_service_manager()
 
-    def build_comparison_set(self) -> Dict[str, Any]:
+    def build_comparison_set(self) -> dict[str, Any]:
         """Build both traditional and DI instances for comparison."""
         # Traditional instance
         traditional_engine = TradingEngine(paper_trading=True)
@@ -129,6 +131,7 @@ class DIAssertionHelper:
         """Assert that DI is available for testing."""
         if not DI_AVAILABLE:
             pytest.skip("Dependency injection not available")
+            return  # make control-flow explicit for static analysis
 
     @staticmethod
     def assert_container_valid(container: ApplicationContainer):
@@ -236,7 +239,7 @@ class DIPerformanceProfiler:
             ), f"Service creation took {self.measurements['service_creation']:.2f}s"
 
 
-def create_di_test_scenario(mocker, scenario_name: str = "default") -> Dict[str, Any]:
+def create_di_test_scenario(mocker, scenario_name: str = "default") -> dict[str, Any]:
     """Factory function for creating common DI test scenarios."""
     builder = DITestBuilder(mocker)
 
@@ -272,6 +275,7 @@ def skip_if_di_unavailable(func):
     def wrapper(*args, **kwargs):
         if not DI_AVAILABLE:
             pytest.skip("Dependency injection not available")
+            return None  # make control-flow explicit for static analysis
         return func(*args, **kwargs)
 
     return wrapper

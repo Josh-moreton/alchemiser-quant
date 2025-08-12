@@ -27,7 +27,6 @@ sys.path.insert(0, str(project_root))
 # DI imports for testing infrastructure
 try:
     from the_alchemiser.container.application_container import ApplicationContainer
-    from the_alchemiser.services.enhanced.trading_service_manager import TradingServiceManager
 
     DI_AVAILABLE = True
 except ImportError:
@@ -243,6 +242,7 @@ def di_container(mocker):
     """Pytest fixture for DI container with mocked dependencies."""
     if not DI_AVAILABLE:
         pytest.skip("Dependency injection not available")
+        return  # make control-flow explicit for static analysis
 
     from the_alchemiser.container.application_container import ApplicationContainer
 
