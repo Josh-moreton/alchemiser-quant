@@ -58,6 +58,7 @@ from the_alchemiser.services.exceptions import (
 try:
     from the_alchemiser.container.application_container import ApplicationContainer
     from the_alchemiser.services.service_factory import ServiceFactory
+
     DI_AVAILABLE = True
 except ImportError:
     DI_AVAILABLE = False
@@ -70,7 +71,7 @@ _di_container = None
 def initialize_dependency_injection(use_di: bool = False) -> None:
     """Initialize dependency injection system."""
     global _di_container
-    
+
     if use_di and DI_AVAILABLE:
         _di_container = ApplicationContainer()
         ServiceFactory.initialize(_di_container)
@@ -324,10 +325,10 @@ def run_all_signals_display(
 
 
 def run_multi_strategy_trading(
-    live_trading: bool = False, 
-    ignore_market_hours: bool = False, 
+    live_trading: bool = False,
+    ignore_market_hours: bool = False,
     settings: Settings | None = None,
-    use_dependency_injection: bool = False
+    use_dependency_injection: bool = False,
 ) -> bool | str:
     """Execute multi-strategy trading with both Nuclear and TECL strategies.
 
@@ -365,17 +366,16 @@ def run_multi_strategy_trading(
         if use_dependency_injection and _di_container is not None:
             # Use DI mode
             trader = TradingEngine.create_with_di(
-                container=_di_container,
-                ignore_market_hours=ignore_market_hours
+                container=_di_container, ignore_market_hours=ignore_market_hours
             )
             # Override paper_trading based on live_trading parameter
             trader.paper_trading = not live_trading
         else:
             # Traditional mode (existing logic)
             trader = TradingEngine(
-                paper_trading=not live_trading, 
-                ignore_market_hours=ignore_market_hours, 
-                config=settings
+                paper_trading=not live_trading,
+                ignore_market_hours=ignore_market_hours,
+                config=settings,
             )
 
         # Check market hours unless ignore_market_hours is set
@@ -633,9 +633,7 @@ def main(argv: list[str] | None = None, settings: Settings | None = None) -> boo
 
     # NEW: DI option
     parser.add_argument(
-        "--use-di",
-        action="store_true",
-        help="Use dependency injection system (experimental)"
+        "--use-di", action="store_true", help="Use dependency injection system (experimental)"
     )
 
     args = parser.parse_args(argv)
@@ -646,8 +644,8 @@ def main(argv: list[str] | None = None, settings: Settings | None = None) -> boo
     mode_label = "LIVE TRADING ⚠️" if args.mode == "trade" and args.live else "Paper Trading"
     di_label = " (DI)" if args.use_di else ""
     render_header(
-        "Multi-Strategy Quantitative Trading System", 
-        f"{args.mode.upper()} | {mode_label}{di_label}"
+        "Multi-Strategy Quantitative Trading System",
+        f"{args.mode.upper()} | {mode_label}{di_label}",
     )
 
     success: bool | str = False

@@ -62,7 +62,7 @@ class ApplicationContainer(containers.DeclarativeContainer):
             "portfolio_value": 100000.0,
         }
         mock_alpaca_manager.get_all_positions.return_value = {}
-        
+
         # Override the entire infrastructure layer with mocks
         container.infrastructure.alpaca_manager.override(mock_alpaca_manager)
 

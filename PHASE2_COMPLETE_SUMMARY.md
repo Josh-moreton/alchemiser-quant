@@ -8,12 +8,14 @@
 ## 🎯 What Was Accomplished
 
 ### 1. TradingEngine DI Integration
+
 - ✅ **Multi-Mode Constructor** - Supports traditional, partial DI, and full DI initialization
 - ✅ **Backward Compatibility** - All existing TradingEngine usage continues to work unchanged
 - ✅ **DI Factory Method** - `TradingEngine.create_with_di()` for clean DI instantiation
 - ✅ **Error Handling** - Graceful fallback to mocks when DI components fail
 
 ### 2. Main.py Entry Point Enhancement
+
 - ✅ **DI CLI Option** - Added `--use-di` flag for dependency injection mode
 - ✅ **Optional DI Initialization** - DI system only loads when requested
 - ✅ **Visual Indicators** - "(DI)" shows in header when DI mode is active
@@ -22,37 +24,45 @@
 ### 3. Three Initialization Modes Implemented
 
 #### Traditional Mode (Backward Compatibility)
+
 ```python
 engine = TradingEngine(paper_trading=True)
 ```
+
 - Uses existing initialization logic
 - No DI container involved
 - All current code continues to work unchanged
 
 #### Partial DI Mode
+
 ```python
 trading_manager = container.services.trading_service_manager()
 engine = TradingEngine(trading_service_manager=trading_manager)
 ```
+
 - Accepts injected TradingServiceManager
 - Bridge between traditional and full DI
 - Useful for gradual migration
 
 #### Full DI Mode
+
 ```python
 container = ApplicationContainer.create_for_testing()
 engine = TradingEngine.create_with_di(container=container)
 ```
+
 - All dependencies injected via container
 - Clean separation of concerns
 - Fully testable with mocks
 
 ### 4. CLI Integration
+
 - ✅ **New Flag**: `--use-di` enables dependency injection
 - ✅ **Visual Feedback**: Header shows "(DI)" when DI is active
 - ✅ **Backward Compatible**: Default behavior unchanged
 
-#### Usage Examples:
+#### Usage Examples
+
 ```bash
 # Traditional mode (unchanged)
 python main.py bot
@@ -111,15 +121,18 @@ All validation tests passed successfully:
 ## 📁 Files Modified
 
 **Enhanced Files (2):**
+
 1. `the_alchemiser/application/trading_engine.py` - Multi-mode DI constructor
 2. `the_alchemiser/main.py` - DI CLI integration
 
 **Validation Files (1):**
+
 1. `phase2_validation.py` - Comprehensive Phase 2 testing
 
 ## 🔄 Key Architectural Improvements
 
 ### TradingEngine Constructor Enhancement
+
 ```python
 def __init__(
     self,
@@ -134,6 +147,7 @@ def __init__(
 ```
 
 ### Initialization Mode Detection
+
 ```python
 if container is not None:
     # Full DI mode
@@ -147,6 +161,7 @@ else:
 ```
 
 ### CLI DI Integration
+
 ```python
 # Initialize DI if requested
 initialize_dependency_injection(use_di=args.use_di)

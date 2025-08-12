@@ -24,6 +24,15 @@ import pytest
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
+# DI imports for testing infrastructure
+try:
+    from the_alchemiser.container.application_container import ApplicationContainer
+    from the_alchemiser.services.enhanced.trading_service_manager import TradingServiceManager
+
+    DI_AVAILABLE = True
+except ImportError:
+    DI_AVAILABLE = False
+
 REL_TOL = 1e-6
 ABS_TOL = 1e-12
 
@@ -222,6 +231,110 @@ def mock_aws_services(mocker):
 
     mocker.patch("boto3.client", side_effect=get_service)
     yield service_mocks
+
+
+# ============================================================================
+# DEPENDENCY INJECTION TEST FIXTURES (Phase 3)
+# ============================================================================
+
+
+@pytest.fixture
+def di_container(mocker):
+    """Pytest fixture for DI container with mocked dependencies."""
+    if not DI_AVAILABLE:
+        pytest.skip("Dependency injection not available")
+
+    from the_alchemiser.container.application_container import ApplicationContainer
+
+    # Create test container
+    container = ApplicationContainer.create_for_testing()
+
+    # Mock the underlying Alpaca client to prevent real API calls
+    mock_alpaca_client = mocker.Mock()
+    mock_alpaca_client.submit_order.return_value = mocker.Mock(
+        id="test_order_123", status="ACCEPTED"
+    )
+    mock_alpaca_client.get_account.return_value = mocker.Mock(
+        buying_power=Decimal("50000.00"),
+        portfolio_value=Decimal("100000.00"),
+        cash=Decimal("25000.00"),
+    )
+    mock_alpaca_client.get_positions.return_value = []
+    mock_alpaca_client.get_bars.return_value = []
+    mock_alpaca_client.get_latest_quote.return_value = mocker.Mock(bid=150.0, ask=150.01)
+
+    # Override the trading client in the container
+    mocker.patch("alpaca.trading.TradingClient", return_value=mock_alpaca_client)
+
+    return container
+
+
+@pytest.fixture
+def di_trading_service_manager(di_container):
+    """Pytest fixture for DI-created TradingServiceManager."""
+    return di_container.services.trading_service_manager()
+
+
+@pytest.fixture
+def di_trading_engine(di_container):
+    """Pytest fixture for DI-created TradingEngine."""
+    from the_alchemiser.application.trading_engine import TradingEngine
+
+    return TradingEngine.create_with_di(container=di_container)
+
+
+@pytest.fixture
+def di_mock_environment(mocker):
+    """Environment setup specifically for DI testing."""
+    # Mock environment variables required for DI
+    env_vars = {
+        "ALPACA_API_KEY": "test_key_for_di",
+        "ALPACA_SECRET_KEY": "test_secret_for_di",
+        "PAPER_TRADING": "true",
+        "AWS_REGION": "us-east-1",
+    }
+
+    for key, value in env_vars.items():
+        mocker.patch.dict("os.environ", {key: value})
+
+    return env_vars
+
+
+@pytest.fixture
+def di_comparison_data(mocker):
+    """Fixture providing both traditional and DI instances for comparison testing."""
+    # Traditional instance
+    from the_alchemiser.application.trading_engine import TradingEngine
+
+    # Mock Alpaca client for both modes
+    mock_alpaca_client = mocker.Mock()
+    mock_alpaca_client.submit_order.return_value = mocker.Mock(
+        id="test_order_123", status="ACCEPTED"
+    )
+    mock_alpaca_client.get_account.return_value = mocker.Mock(
+        buying_power=Decimal("50000.00"), portfolio_value=Decimal("100000.00")
+    )
+    mock_alpaca_client.get_positions.return_value = []
+
+    mocker.patch("alpaca.trading.TradingClient", return_value=mock_alpaca_client)
+
+    # Create both instances
+    traditional_engine = TradingEngine(paper_trading=True)
+
+    if DI_AVAILABLE:
+        from the_alchemiser.container.application_container import ApplicationContainer
+
+        di_container = ApplicationContainer.create_for_testing()
+        di_engine = TradingEngine.create_with_di(container=di_container)
+    else:
+        di_engine = None
+
+    return {"traditional": traditional_engine, "di": di_engine, "mock_client": mock_alpaca_client}
+
+
+# ============================================================================
+# END DEPENDENCY INJECTION FIXTURES
+# ============================================================================
 
 
 def create_sample_price_data(
