@@ -1,7 +1,8 @@
 """Test the RebalancePlan value object."""
 
-import pytest
 from decimal import Decimal
+
+import pytest
 
 from the_alchemiser.domain.portfolio.rebalancing.rebalance_plan import RebalancePlan
 
@@ -19,9 +20,9 @@ class TestRebalancePlan:
             target_value=Decimal("3000.00"),
             current_value=Decimal("4000.00"),
             trade_amount=Decimal("-1000.00"),
-            needs_rebalance=True
+            needs_rebalance=True,
         )
-        
+
         assert plan.symbol == "AAPL"
         assert plan.current_weight == Decimal("0.40")
         assert plan.target_weight == Decimal("0.30")
@@ -41,9 +42,9 @@ class TestRebalancePlan:
             target_value=Decimal("3000.00"),
             current_value=Decimal("4000.00"),
             trade_amount=Decimal("-1000.00"),
-            needs_rebalance=True
+            needs_rebalance=True,
         )
-        
+
         assert plan.trade_direction == "SELL"
 
     def test_trade_direction_buy(self):
@@ -56,9 +57,9 @@ class TestRebalancePlan:
             target_value=Decimal("3000.00"),
             current_value=Decimal("2000.00"),
             trade_amount=Decimal("1000.00"),
-            needs_rebalance=True
+            needs_rebalance=True,
         )
-        
+
         assert plan.trade_direction == "BUY"
 
     def test_trade_direction_hold(self):
@@ -71,9 +72,9 @@ class TestRebalancePlan:
             target_value=Decimal("3000.00"),
             current_value=Decimal("3000.00"),
             trade_amount=Decimal("0.00"),
-            needs_rebalance=False
+            needs_rebalance=False,
         )
-        
+
         assert plan.trade_direction == "HOLD"
 
     def test_trade_amount_abs(self):
@@ -86,9 +87,9 @@ class TestRebalancePlan:
             target_value=Decimal("3000.00"),
             current_value=Decimal("4000.00"),
             trade_amount=Decimal("-1000.00"),
-            needs_rebalance=True
+            needs_rebalance=True,
         )
-        
+
         assert plan.trade_amount_abs == Decimal("1000.00")
 
     def test_weight_change_bps(self):
@@ -101,9 +102,9 @@ class TestRebalancePlan:
             target_value=Decimal("3000.00"),
             current_value=Decimal("4000.00"),
             trade_amount=Decimal("-1000.00"),
-            needs_rebalance=True
+            needs_rebalance=True,
         )
-        
+
         assert plan.weight_change_bps == -1000  # -0.10 * 10000 = -1000 bps
 
     def test_string_representation_sell(self):
@@ -116,9 +117,9 @@ class TestRebalancePlan:
             target_value=Decimal("3000.00"),
             current_value=Decimal("4000.00"),
             trade_amount=Decimal("-1000.00"),
-            needs_rebalance=True
+            needs_rebalance=True,
         )
-        
+
         expected = "AAPL: SELL $1000.00 (40.0% → 30.0%)"
         assert str(plan) == expected
 
@@ -132,9 +133,9 @@ class TestRebalancePlan:
             target_value=Decimal("3000.00"),
             current_value=Decimal("2000.00"),
             trade_amount=Decimal("1000.00"),
-            needs_rebalance=True
+            needs_rebalance=True,
         )
-        
+
         expected = "MSFT: BUY $1000.00 (20.0% → 30.0%)"
         assert str(plan) == expected
 
@@ -148,9 +149,9 @@ class TestRebalancePlan:
             target_value=Decimal("3000.00"),
             current_value=Decimal("3000.00"),
             trade_amount=Decimal("0.00"),
-            needs_rebalance=False
+            needs_rebalance=False,
         )
-        
+
         expected = "GOOGL: HOLD (within threshold)"
         assert str(plan) == expected
 
@@ -164,9 +165,9 @@ class TestRebalancePlan:
             target_value=Decimal("3000.00"),
             current_value=Decimal("4000.00"),
             trade_amount=Decimal("-1000.00"),
-            needs_rebalance=True
+            needs_rebalance=True,
         )
-        
+
         # Attempting to modify should raise an error
         with pytest.raises(AttributeError):
             plan.symbol = "MSFT"

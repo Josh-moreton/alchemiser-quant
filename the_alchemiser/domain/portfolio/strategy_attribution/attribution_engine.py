@@ -20,9 +20,7 @@ class StrategyAttributionEngine:
         self._classifier = symbol_classifier or SymbolClassifier()
 
     def get_primary_strategy(
-        self,
-        symbol: str,
-        strategy_attribution: dict[str, list[StrategyType]] | None = None
+        self, symbol: str, strategy_attribution: dict[str, list[StrategyType]] | None = None
     ) -> StrategyType:
         """Determine the primary strategy responsible for a symbol.
 
@@ -41,9 +39,7 @@ class StrategyAttributionEngine:
         return self._classifier.classify_symbol(symbol)
 
     def get_all_strategies_for_symbol(
-        self,
-        symbol: str,
-        strategy_attribution: dict[str, list[StrategyType]] | None = None
+        self, symbol: str, strategy_attribution: dict[str, list[StrategyType]] | None = None
     ) -> list[StrategyType]:
         """Get all strategies that have an interest in a symbol.
 
@@ -61,9 +57,7 @@ class StrategyAttributionEngine:
         return [self._classifier.classify_symbol(symbol)]
 
     def group_symbols_by_strategy(
-        self,
-        symbols: list[str],
-        strategy_attribution: dict[str, list[StrategyType]] | None = None
+        self, symbols: list[str], strategy_attribution: dict[str, list[StrategyType]] | None = None
     ) -> dict[StrategyType, list[str]]:
         """Group symbols by their primary strategy.
 
@@ -88,7 +82,7 @@ class StrategyAttributionEngine:
         self,
         strategy: StrategyType,
         symbols: list[str],
-        strategy_attribution: dict[str, list[StrategyType]] | None = None
+        strategy_attribution: dict[str, list[StrategyType]] | None = None,
     ) -> list[str]:
         """Get all symbols that belong to a specific strategy.
 
@@ -101,6 +95,7 @@ class StrategyAttributionEngine:
             List of symbols belonging to the strategy
         """
         return [
-            symbol for symbol in symbols
+            symbol
+            for symbol in symbols
             if self.get_primary_strategy(symbol, strategy_attribution) == strategy
         ]

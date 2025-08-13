@@ -20,7 +20,9 @@ class TestRebalanceCalculator:
         calculator = RebalanceCalculator(min_trade_threshold=Decimal("0.05"))
         assert calculator.min_trade_threshold == Decimal("0.05")
 
-    @patch('the_alchemiser.domain.portfolio.rebalancing.rebalance_calculator.calculate_rebalance_amounts')
+    @patch(
+        "the_alchemiser.domain.portfolio.rebalancing.rebalance_calculator.calculate_rebalance_amounts"
+    )
     def test_calculate_rebalance_plan(self, mock_calculate):
         """Test calculate_rebalance_plan method."""
         # Mock the response from calculate_rebalance_amounts
@@ -32,7 +34,7 @@ class TestRebalanceCalculator:
                 "target_value": 3000.0,
                 "current_value": 4000.0,
                 "trade_amount": -1000.0,
-                "needs_rebalance": True
+                "needs_rebalance": True,
             },
             "MSFT": {
                 "current_weight": 0.2,
@@ -41,8 +43,8 @@ class TestRebalanceCalculator:
                 "target_value": 3000.0,
                 "current_value": 2000.0,
                 "trade_amount": 1000.0,
-                "needs_rebalance": True
-            }
+                "needs_rebalance": True,
+            },
         }
 
         calculator = RebalanceCalculator()
@@ -50,14 +52,13 @@ class TestRebalanceCalculator:
         current_values = {"AAPL": Decimal("4000"), "MSFT": Decimal("2000")}
         portfolio_value = Decimal("10000")
 
-        result = calculator.calculate_rebalance_plan(target_weights, current_values, portfolio_value)
+        result = calculator.calculate_rebalance_plan(
+            target_weights, current_values, portfolio_value
+        )
 
         # Verify the mock was called correctly
         mock_calculate.assert_called_once_with(
-            {"AAPL": 0.3, "MSFT": 0.3},
-            {"AAPL": 4000.0, "MSFT": 2000.0},
-            10000.0,
-            0.01
+            {"AAPL": 0.3, "MSFT": 0.3}, {"AAPL": 4000.0, "MSFT": 2000.0}, 10000.0, 0.01
         )
 
         # Verify the result is properly converted to domain objects
@@ -79,20 +80,35 @@ class TestRebalanceCalculator:
 
         rebalance_plan = {
             "AAPL": RebalancePlan(
-                symbol="AAPL", current_weight=Decimal("0.4"), target_weight=Decimal("0.3"),
-                weight_diff=Decimal("-0.1"), target_value=Decimal("3000"), current_value=Decimal("4000"),
-                trade_amount=Decimal("-1000"), needs_rebalance=True
+                symbol="AAPL",
+                current_weight=Decimal("0.4"),
+                target_weight=Decimal("0.3"),
+                weight_diff=Decimal("-0.1"),
+                target_value=Decimal("3000"),
+                current_value=Decimal("4000"),
+                trade_amount=Decimal("-1000"),
+                needs_rebalance=True,
             ),
             "MSFT": RebalancePlan(
-                symbol="MSFT", current_weight=Decimal("0.3"), target_weight=Decimal("0.3"),
-                weight_diff=Decimal("0.0"), target_value=Decimal("3000"), current_value=Decimal("3000"),
-                trade_amount=Decimal("0"), needs_rebalance=False
+                symbol="MSFT",
+                current_weight=Decimal("0.3"),
+                target_weight=Decimal("0.3"),
+                weight_diff=Decimal("0.0"),
+                target_value=Decimal("3000"),
+                current_value=Decimal("3000"),
+                trade_amount=Decimal("0"),
+                needs_rebalance=False,
             ),
             "GOOGL": RebalancePlan(
-                symbol="GOOGL", current_weight=Decimal("0.2"), target_weight=Decimal("0.3"),
-                weight_diff=Decimal("0.1"), target_value=Decimal("3000"), current_value=Decimal("2000"),
-                trade_amount=Decimal("1000"), needs_rebalance=True
-            )
+                symbol="GOOGL",
+                current_weight=Decimal("0.2"),
+                target_weight=Decimal("0.3"),
+                weight_diff=Decimal("0.1"),
+                target_value=Decimal("3000"),
+                current_value=Decimal("2000"),
+                trade_amount=Decimal("1000"),
+                needs_rebalance=True,
+            ),
         }
 
         result = calculator.get_symbols_needing_rebalance(rebalance_plan)
@@ -108,20 +124,35 @@ class TestRebalanceCalculator:
 
         rebalance_plan = {
             "AAPL": RebalancePlan(
-                symbol="AAPL", current_weight=Decimal("0.4"), target_weight=Decimal("0.3"),
-                weight_diff=Decimal("-0.1"), target_value=Decimal("3000"), current_value=Decimal("4000"),
-                trade_amount=Decimal("-1000"), needs_rebalance=True
+                symbol="AAPL",
+                current_weight=Decimal("0.4"),
+                target_weight=Decimal("0.3"),
+                weight_diff=Decimal("-0.1"),
+                target_value=Decimal("3000"),
+                current_value=Decimal("4000"),
+                trade_amount=Decimal("-1000"),
+                needs_rebalance=True,
             ),
             "MSFT": RebalancePlan(
-                symbol="MSFT", current_weight=Decimal("0.3"), target_weight=Decimal("0.3"),
-                weight_diff=Decimal("0.0"), target_value=Decimal("3000"), current_value=Decimal("3000"),
-                trade_amount=Decimal("0"), needs_rebalance=False
+                symbol="MSFT",
+                current_weight=Decimal("0.3"),
+                target_weight=Decimal("0.3"),
+                weight_diff=Decimal("0.0"),
+                target_value=Decimal("3000"),
+                current_value=Decimal("3000"),
+                trade_amount=Decimal("0"),
+                needs_rebalance=False,
             ),
             "GOOGL": RebalancePlan(
-                symbol="GOOGL", current_weight=Decimal("0.2"), target_weight=Decimal("0.3"),
-                weight_diff=Decimal("0.1"), target_value=Decimal("3000"), current_value=Decimal("2000"),
-                trade_amount=Decimal("1000"), needs_rebalance=True
-            )
+                symbol="GOOGL",
+                current_weight=Decimal("0.2"),
+                target_weight=Decimal("0.3"),
+                weight_diff=Decimal("0.1"),
+                target_value=Decimal("3000"),
+                current_value=Decimal("2000"),
+                trade_amount=Decimal("1000"),
+                needs_rebalance=True,
+            ),
         }
 
         result = calculator.get_sell_plans(rebalance_plan)
@@ -136,15 +167,25 @@ class TestRebalanceCalculator:
 
         rebalance_plan = {
             "AAPL": RebalancePlan(
-                symbol="AAPL", current_weight=Decimal("0.4"), target_weight=Decimal("0.3"),
-                weight_diff=Decimal("-0.1"), target_value=Decimal("3000"), current_value=Decimal("4000"),
-                trade_amount=Decimal("-1000"), needs_rebalance=True
+                symbol="AAPL",
+                current_weight=Decimal("0.4"),
+                target_weight=Decimal("0.3"),
+                weight_diff=Decimal("-0.1"),
+                target_value=Decimal("3000"),
+                current_value=Decimal("4000"),
+                trade_amount=Decimal("-1000"),
+                needs_rebalance=True,
             ),
             "GOOGL": RebalancePlan(
-                symbol="GOOGL", current_weight=Decimal("0.2"), target_weight=Decimal("0.3"),
-                weight_diff=Decimal("0.1"), target_value=Decimal("3000"), current_value=Decimal("2000"),
-                trade_amount=Decimal("1000"), needs_rebalance=True
-            )
+                symbol="GOOGL",
+                current_weight=Decimal("0.2"),
+                target_weight=Decimal("0.3"),
+                weight_diff=Decimal("0.1"),
+                target_value=Decimal("3000"),
+                current_value=Decimal("2000"),
+                trade_amount=Decimal("1000"),
+                needs_rebalance=True,
+            ),
         }
 
         result = calculator.get_buy_plans(rebalance_plan)
@@ -159,20 +200,35 @@ class TestRebalanceCalculator:
 
         rebalance_plan = {
             "AAPL": RebalancePlan(
-                symbol="AAPL", current_weight=Decimal("0.4"), target_weight=Decimal("0.3"),
-                weight_diff=Decimal("-0.1"), target_value=Decimal("3000"), current_value=Decimal("4000"),
-                trade_amount=Decimal("-1000"), needs_rebalance=True
+                symbol="AAPL",
+                current_weight=Decimal("0.4"),
+                target_weight=Decimal("0.3"),
+                weight_diff=Decimal("-0.1"),
+                target_value=Decimal("3000"),
+                current_value=Decimal("4000"),
+                trade_amount=Decimal("-1000"),
+                needs_rebalance=True,
             ),
             "GOOGL": RebalancePlan(
-                symbol="GOOGL", current_weight=Decimal("0.2"), target_weight=Decimal("0.3"),
-                weight_diff=Decimal("0.1"), target_value=Decimal("3000"), current_value=Decimal("2000"),
-                trade_amount=Decimal("1000"), needs_rebalance=True
+                symbol="GOOGL",
+                current_weight=Decimal("0.2"),
+                target_weight=Decimal("0.3"),
+                weight_diff=Decimal("0.1"),
+                target_value=Decimal("3000"),
+                current_value=Decimal("2000"),
+                trade_amount=Decimal("1000"),
+                needs_rebalance=True,
             ),
             "MSFT": RebalancePlan(
-                symbol="MSFT", current_weight=Decimal("0.3"), target_weight=Decimal("0.3"),
-                weight_diff=Decimal("0.0"), target_value=Decimal("3000"), current_value=Decimal("3000"),
-                trade_amount=Decimal("0"), needs_rebalance=False
-            )
+                symbol="MSFT",
+                current_weight=Decimal("0.3"),
+                target_weight=Decimal("0.3"),
+                weight_diff=Decimal("0.0"),
+                target_value=Decimal("3000"),
+                current_value=Decimal("3000"),
+                trade_amount=Decimal("0"),
+                needs_rebalance=False,
+            ),
         }
 
         result = calculator.calculate_total_trade_value(rebalance_plan)

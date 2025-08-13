@@ -1,6 +1,6 @@
 """Test the SymbolClassifier."""
 
-from the_alchemiser.domain.portfolio.attribution.symbol_classifier import SymbolClassifier
+from the_alchemiser.domain.portfolio.strategy_attribution.symbol_classifier import SymbolClassifier
 
 
 class TestSymbolClassifier:
@@ -118,8 +118,13 @@ class TestSymbolClassifier:
         strategies = classifier.get_all_strategies()
 
         expected_strategies = {
-            "large_cap", "mid_cap", "small_cap", "crypto",
-            "bonds", "index_funds", "unknown"
+            "large_cap",
+            "mid_cap",
+            "small_cap",
+            "crypto",
+            "bonds",
+            "index_funds",
+            "unknown",
         }
 
         assert strategies == expected_strategies
@@ -150,7 +155,7 @@ class TestSymbolClassifier:
             "crypto": "Cryptocurrency assets",
             "bonds": "Fixed income securities",
             "index_funds": "Broad market index funds",
-            "unknown": "Unclassified securities"
+            "unknown": "Unclassified securities",
         }
 
         for strategy, expected_desc in descriptions.items():

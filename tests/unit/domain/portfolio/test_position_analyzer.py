@@ -2,8 +2,8 @@
 
 from decimal import Decimal
 
-from the_alchemiser.domain.portfolio.analysis.position_analyzer import PositionAnalyzer
-from the_alchemiser.domain.portfolio.types.position_delta import PositionDelta
+from the_alchemiser.domain.portfolio.position.position_analyzer import PositionAnalyzer
+from the_alchemiser.domain.portfolio.position.position_delta import PositionDelta
 
 
 class TestPositionAnalyzer:
@@ -31,13 +31,13 @@ class TestPositionAnalyzer:
         current_positions = {
             "AAPL": Decimal("5000"),
             "MSFT": Decimal("2000"),
-            "GOOGL": Decimal("1000")
+            "GOOGL": Decimal("1000"),
         }
         target_positions = {
             "AAPL": Decimal("3000"),
             "MSFT": Decimal("3000"),
             "GOOGL": Decimal("2000"),
-            "AMZN": Decimal("1000")  # New position
+            "AMZN": Decimal("1000"),  # New position
         }
 
         deltas = analyzer.analyze_all_positions(current_positions, target_positions)
@@ -74,20 +74,14 @@ class TestPositionAnalyzer:
         analyzer = PositionAnalyzer()
         deltas = {
             "AAPL": PositionDelta(
-                symbol="AAPL",
-                current_value=Decimal("5000"),
-                target_value=Decimal("3000")
+                symbol="AAPL", current_value=Decimal("5000"), target_value=Decimal("3000")
             ),
             "MSFT": PositionDelta(
-                symbol="MSFT",
-                current_value=Decimal("2000"),
-                target_value=Decimal("3000")
+                symbol="MSFT", current_value=Decimal("2000"), target_value=Decimal("3000")
             ),
             "GOOGL": PositionDelta(
-                symbol="GOOGL",
-                current_value=Decimal("3000"),
-                target_value=Decimal("3000")
-            )
+                symbol="GOOGL", current_value=Decimal("3000"), target_value=Decimal("3000")
+            ),
         }
 
         sell_positions = analyzer.get_positions_to_sell(deltas)
@@ -101,20 +95,14 @@ class TestPositionAnalyzer:
         analyzer = PositionAnalyzer()
         deltas = {
             "AAPL": PositionDelta(
-                symbol="AAPL",
-                current_value=Decimal("5000"),
-                target_value=Decimal("3000")
+                symbol="AAPL", current_value=Decimal("5000"), target_value=Decimal("3000")
             ),
             "MSFT": PositionDelta(
-                symbol="MSFT",
-                current_value=Decimal("2000"),
-                target_value=Decimal("3000")
+                symbol="MSFT", current_value=Decimal("2000"), target_value=Decimal("3000")
             ),
             "GOOGL": PositionDelta(
-                symbol="GOOGL",
-                current_value=Decimal("3000"),
-                target_value=Decimal("3000")
-            )
+                symbol="GOOGL", current_value=Decimal("3000"), target_value=Decimal("3000")
+            ),
         }
 
         buy_positions = analyzer.get_positions_to_buy(deltas)
@@ -128,20 +116,14 @@ class TestPositionAnalyzer:
         analyzer = PositionAnalyzer()
         deltas = {
             "AAPL": PositionDelta(
-                symbol="AAPL",
-                current_value=Decimal("5000"),
-                target_value=Decimal("3000")
+                symbol="AAPL", current_value=Decimal("5000"), target_value=Decimal("3000")
             ),
             "MSFT": PositionDelta(
-                symbol="MSFT",
-                current_value=Decimal("2000"),
-                target_value=Decimal("3000")
+                symbol="MSFT", current_value=Decimal("2000"), target_value=Decimal("3000")
             ),
             "GOOGL": PositionDelta(
-                symbol="GOOGL",
-                current_value=Decimal("1000"),
-                target_value=Decimal("2000")
-            )
+                symbol="GOOGL", current_value=Decimal("1000"), target_value=Decimal("2000")
+            ),
         }
 
         total_sells, total_buys = analyzer.calculate_total_adjustments_needed(deltas)
@@ -157,15 +139,11 @@ class TestPositionAnalyzer:
         analyzer = PositionAnalyzer()
         deltas = {
             "AAPL": PositionDelta(
-                symbol="AAPL",
-                current_value=Decimal("5000"),
-                target_value=Decimal("3000")
+                symbol="AAPL", current_value=Decimal("5000"), target_value=Decimal("3000")
             ),
             "MSFT": PositionDelta(
-                symbol="MSFT",
-                current_value=Decimal("2000"),
-                target_value=Decimal("3000")
-            )
+                symbol="MSFT", current_value=Decimal("2000"), target_value=Decimal("3000")
+            ),
         }
         portfolio_value = Decimal("10000")
 

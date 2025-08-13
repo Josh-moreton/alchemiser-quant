@@ -19,7 +19,7 @@ class TestPositionDelta:
             delta=Decimal("0.0"),
             action="no_change",
             quantity=Decimal("0.0"),
-            message="No rebalancing needed for AAPL: 100.0 ≈ 100.0"
+            message="No rebalancing needed for AAPL: 100.0 ≈ 100.0",
         )
 
         assert delta.symbol == "AAPL"
@@ -39,7 +39,7 @@ class TestPositionDelta:
             delta=Decimal("-50.0"),
             action="sell_excess",
             quantity=Decimal("50.0"),
-            message="Rebalancing MSFT: selling 50.0 shares"
+            message="Rebalancing MSFT: selling 50.0 shares",
         )
 
         assert delta.symbol == "MSFT"
@@ -59,7 +59,7 @@ class TestPositionDelta:
             delta=Decimal("50.0"),
             action="buy_more",
             quantity=Decimal("50.0"),
-            message="Rebalancing GOOGL: buying 50.0 shares"
+            message="Rebalancing GOOGL: buying 50.0 shares",
         )
 
         assert delta.symbol == "GOOGL"
@@ -74,50 +74,85 @@ class TestPositionDelta:
         """Test needs_action property."""
         # No change scenario
         no_change_delta = PositionDelta(
-            symbol="AAPL", current_qty=Decimal("100"), target_qty=Decimal("100"),
-            delta=Decimal("0"), action="no_change", quantity=Decimal("0"), message=""
+            symbol="AAPL",
+            current_qty=Decimal("100"),
+            target_qty=Decimal("100"),
+            delta=Decimal("0"),
+            action="no_change",
+            quantity=Decimal("0"),
+            message="",
         )
         assert not no_change_delta.needs_action
 
         # Sell scenario
         sell_delta = PositionDelta(
-            symbol="MSFT", current_qty=Decimal("150"), target_qty=Decimal("100"),
-            delta=Decimal("-50"), action="sell_excess", quantity=Decimal("50"), message=""
+            symbol="MSFT",
+            current_qty=Decimal("150"),
+            target_qty=Decimal("100"),
+            delta=Decimal("-50"),
+            action="sell_excess",
+            quantity=Decimal("50"),
+            message="",
         )
         assert sell_delta.needs_action
 
         # Buy scenario
         buy_delta = PositionDelta(
-            symbol="GOOGL", current_qty=Decimal("50"), target_qty=Decimal("100"),
-            delta=Decimal("50"), action="buy_more", quantity=Decimal("50"), message=""
+            symbol="GOOGL",
+            current_qty=Decimal("50"),
+            target_qty=Decimal("100"),
+            delta=Decimal("50"),
+            action="buy_more",
+            quantity=Decimal("50"),
+            message="",
         )
         assert buy_delta.needs_action
 
     def test_is_buy_property(self):
         """Test is_buy property."""
         buy_delta = PositionDelta(
-            symbol="GOOGL", current_qty=Decimal("50"), target_qty=Decimal("100"),
-            delta=Decimal("50"), action="buy_more", quantity=Decimal("50"), message=""
+            symbol="GOOGL",
+            current_qty=Decimal("50"),
+            target_qty=Decimal("100"),
+            delta=Decimal("50"),
+            action="buy_more",
+            quantity=Decimal("50"),
+            message="",
         )
         assert buy_delta.is_buy
 
         sell_delta = PositionDelta(
-            symbol="MSFT", current_qty=Decimal("150"), target_qty=Decimal("100"),
-            delta=Decimal("-50"), action="sell_excess", quantity=Decimal("50"), message=""
+            symbol="MSFT",
+            current_qty=Decimal("150"),
+            target_qty=Decimal("100"),
+            delta=Decimal("-50"),
+            action="sell_excess",
+            quantity=Decimal("50"),
+            message="",
         )
         assert not sell_delta.is_buy
 
     def test_is_sell_property(self):
         """Test is_sell property."""
         sell_delta = PositionDelta(
-            symbol="MSFT", current_qty=Decimal("150"), target_qty=Decimal("100"),
-            delta=Decimal("-50"), action="sell_excess", quantity=Decimal("50"), message=""
+            symbol="MSFT",
+            current_qty=Decimal("150"),
+            target_qty=Decimal("100"),
+            delta=Decimal("-50"),
+            action="sell_excess",
+            quantity=Decimal("50"),
+            message="",
         )
         assert sell_delta.is_sell
 
         buy_delta = PositionDelta(
-            symbol="GOOGL", current_qty=Decimal("50"), target_qty=Decimal("100"),
-            delta=Decimal("50"), action="buy_more", quantity=Decimal("50"), message=""
+            symbol="GOOGL",
+            current_qty=Decimal("50"),
+            target_qty=Decimal("100"),
+            delta=Decimal("50"),
+            action="buy_more",
+            quantity=Decimal("50"),
+            message="",
         )
         assert not buy_delta.is_sell
 
@@ -125,15 +160,25 @@ class TestPositionDelta:
         """Test quantity_abs property."""
         # Positive quantity
         buy_delta = PositionDelta(
-            symbol="GOOGL", current_qty=Decimal("50"), target_qty=Decimal("100"),
-            delta=Decimal("50"), action="buy_more", quantity=Decimal("50"), message=""
+            symbol="GOOGL",
+            current_qty=Decimal("50"),
+            target_qty=Decimal("100"),
+            delta=Decimal("50"),
+            action="buy_more",
+            quantity=Decimal("50"),
+            message="",
         )
         assert buy_delta.quantity_abs == Decimal("50")
 
         # Already positive quantity for sell
         sell_delta = PositionDelta(
-            symbol="MSFT", current_qty=Decimal("150"), target_qty=Decimal("100"),
-            delta=Decimal("-50"), action="sell_excess", quantity=Decimal("50"), message=""
+            symbol="MSFT",
+            current_qty=Decimal("150"),
+            target_qty=Decimal("100"),
+            delta=Decimal("-50"),
+            action="sell_excess",
+            quantity=Decimal("50"),
+            message="",
         )
         assert sell_delta.quantity_abs == Decimal("50")
 
@@ -146,7 +191,7 @@ class TestPositionDelta:
             delta=Decimal("50.0"),
             action="buy_more",
             quantity=Decimal("50.0"),
-            message="Need to buy 50 more shares"
+            message="Need to buy 50 more shares",
         )
 
         assert str(delta) == "Need to buy 50 more shares"
@@ -154,8 +199,13 @@ class TestPositionDelta:
     def test_immutability(self):
         """Test that PositionDelta is immutable."""
         delta = PositionDelta(
-            symbol="AAPL", current_qty=Decimal("100"), target_qty=Decimal("150"),
-            delta=Decimal("50"), action="buy_more", quantity=Decimal("50"), message=""
+            symbol="AAPL",
+            current_qty=Decimal("100"),
+            target_qty=Decimal("150"),
+            delta=Decimal("50"),
+            action="buy_more",
+            quantity=Decimal("50"),
+            message="",
         )
 
         # Attempting to modify should raise an error

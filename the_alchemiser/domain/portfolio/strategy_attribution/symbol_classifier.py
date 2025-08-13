@@ -10,13 +10,11 @@ class SymbolClassifier:
     is responsible for each symbol in the portfolio.
     """
 
-    NUCLEAR_SYMBOLS = frozenset([
-        "SMR", "LEU", "OKLO", "NLR", "BWXT", "PSQ", "SQQQ", "UUP", "UVXY", "BTAL"
-    ])
+    NUCLEAR_SYMBOLS = frozenset(
+        ["SMR", "LEU", "OKLO", "NLR", "BWXT", "PSQ", "SQQQ", "UUP", "UVXY", "BTAL"]
+    )
 
-    TECL_SYMBOLS = frozenset([
-        "TECL", "TQQQ", "UPRO", "BIL", "QQQ"
-    ])
+    TECL_SYMBOLS = frozenset(["TECL", "TQQQ", "UPRO", "BIL", "QQQ"])
 
     def classify_symbol(self, symbol: str) -> StrategyType:
         """Classify symbol to its primary strategy.

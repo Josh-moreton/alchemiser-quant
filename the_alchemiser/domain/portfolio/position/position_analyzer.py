@@ -35,7 +35,7 @@ class PositionAnalyzer:
                 delta=delta,
                 action="no_change",
                 quantity=Decimal("0"),
-                message=f"No rebalancing needed for {symbol}: {current_qty} ≈ {target_qty}"
+                message=f"No rebalancing needed for {symbol}: {current_qty} ≈ {target_qty}",
             )
         elif delta < 0:
             sell_qty = abs(delta).quantize(Decimal("0.000001"))
@@ -46,7 +46,7 @@ class PositionAnalyzer:
                 delta=delta,
                 action="sell_excess",
                 quantity=sell_qty,
-                message=f"Rebalancing {symbol}: selling {sell_qty} shares (reducing {current_qty} → {target_qty})"
+                message=f"Rebalancing {symbol}: selling {sell_qty} shares (reducing {current_qty} → {target_qty})",
             )
         else:
             buy_qty = delta.quantize(Decimal("0.000001"))
@@ -57,7 +57,7 @@ class PositionAnalyzer:
                 delta=delta,
                 action="buy_more",
                 quantity=buy_qty,
-                message=f"Rebalancing {symbol}: buying {buy_qty} shares (increasing {current_qty} → {target_qty})"
+                message=f"Rebalancing {symbol}: buying {buy_qty} shares (increasing {current_qty} → {target_qty})",
             )
 
     def calculate_position_deltas(
@@ -78,7 +78,7 @@ class PositionAnalyzer:
             symbol: self.calculate_position_delta(
                 symbol=symbol,
                 current_qty=current_quantities.get(symbol, Decimal("0")),
-                target_qty=target_quantities.get(symbol, Decimal("0"))
+                target_qty=target_quantities.get(symbol, Decimal("0")),
             )
             for symbol in all_symbols
         }
@@ -87,28 +87,14 @@ class PositionAnalyzer:
         self, position_deltas: dict[str, PositionDelta]
     ) -> dict[str, PositionDelta]:
         """Filter to only position deltas that require action."""
-        return {
-            symbol: delta
-            for symbol, delta in position_deltas.items()
-            if delta.needs_action
-        }
+        return {symbol: delta for symbol, delta in position_deltas.items() if delta.needs_action}
 
     def get_sell_deltas(
         self, position_deltas: dict[str, PositionDelta]
     ) -> dict[str, PositionDelta]:
         """Get position deltas that require selling."""
-        return {
-            symbol: delta
-            for symbol, delta in position_deltas.items()
-            if delta.is_sell
-        }
+        return {symbol: delta for symbol, delta in position_deltas.items() if delta.is_sell}
 
-    def get_buy_deltas(
-        self, position_deltas: dict[str, PositionDelta]
-    ) -> dict[str, PositionDelta]:
+    def get_buy_deltas(self, position_deltas: dict[str, PositionDelta]) -> dict[str, PositionDelta]:
         """Get position deltas that require buying."""
-        return {
-            symbol: delta
-            for symbol, delta in position_deltas.items()
-            if delta.is_buy
-        }
+        return {symbol: delta for symbol, delta in position_deltas.items() if delta.is_buy}

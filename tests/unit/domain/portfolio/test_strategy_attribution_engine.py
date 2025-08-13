@@ -3,8 +3,10 @@
 from decimal import Decimal
 from unittest.mock import Mock
 
-from the_alchemiser.domain.portfolio.attribution.strategy_attribution_engine import StrategyAttributionEngine
-from the_alchemiser.domain.portfolio.attribution.symbol_classifier import SymbolClassifier
+from the_alchemiser.domain.portfolio.strategy_attribution.symbol_classifier import SymbolClassifier
+from the_alchemiser.domain.portfolio.strategy_attribution.attribution_engine import (
+    StrategyAttributionEngine,
+)
 
 
 class TestStrategyAttributionEngine:
@@ -50,7 +52,7 @@ class TestStrategyAttributionEngine:
             "MSFT": "large_cap",
             "TSLA": "mid_cap",
             "NVDA": "large_cap",
-            "RBLX": "small_cap"
+            "RBLX": "small_cap",
         }.get(symbol, "unknown")
 
         engine = StrategyAttributionEngine(mock_classifier)
@@ -60,7 +62,7 @@ class TestStrategyAttributionEngine:
             "MSFT": Decimal("3000"),
             "TSLA": Decimal("2000"),
             "NVDA": Decimal("4000"),
-            "RBLX": Decimal("1000")
+            "RBLX": Decimal("1000"),
         }
 
         grouped = engine.group_positions_by_strategy(positions)
@@ -93,7 +95,7 @@ class TestStrategyAttributionEngine:
         mock_classifier.classify_symbol.side_effect = lambda symbol: {
             "AAPL": "large_cap",
             "MSFT": "large_cap",
-            "TSLA": "mid_cap"
+            "TSLA": "mid_cap",
         }.get(symbol, "unknown")
 
         engine = StrategyAttributionEngine(mock_classifier)
@@ -101,7 +103,7 @@ class TestStrategyAttributionEngine:
         positions = {
             "AAPL": Decimal("6000"),  # 60%
             "MSFT": Decimal("3000"),  # 30%
-            "TSLA": Decimal("1000")   # 10%
+            "TSLA": Decimal("1000"),  # 10%
         }
         portfolio_value = Decimal("10000")
 
@@ -123,16 +125,12 @@ class TestStrategyAttributionEngine:
         mock_classifier.classify_symbol.side_effect = lambda symbol: {
             "AAPL": "large_cap",
             "MSFT": "large_cap",
-            "TSLA": "mid_cap"
+            "TSLA": "mid_cap",
         }.get(symbol, "unknown")
 
         engine = StrategyAttributionEngine(mock_classifier)
 
-        positions = {
-            "AAPL": Decimal("6000"),
-            "MSFT": Decimal("3000"),
-            "TSLA": Decimal("1000")
-        }
+        positions = {"AAPL": Decimal("6000"), "MSFT": Decimal("3000"), "TSLA": Decimal("1000")}
         portfolio_value = Decimal("10000")
 
         exposures = engine.get_strategy_exposures(positions, portfolio_value)
