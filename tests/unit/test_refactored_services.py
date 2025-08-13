@@ -41,7 +41,7 @@ class TestConfigService:
 
     def test_config_service_initialization(self):
         """Test config service initialization with mock config."""
-        with patch("the_alchemiser.core.services.config_service.load_settings") as mock_load:
+        with patch("the_alchemiser.services.config_service.load_settings") as mock_load:
             mock_config = Mock()
             mock_config.data.cache_duration = 1800
             mock_config.alpaca.paper_endpoint = "https://paper-api.alpaca.markets"
