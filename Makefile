@@ -54,16 +54,21 @@ status:
 
 # Development
 test:
-	@echo "🧪 Running tests..."
-	pytest tests/ -v
+        @echo "🧪 Running tests..."
+        pytest -q
 
 format:
 	@echo "🎨 Formatting code..."
 	black the_alchemiser/ tests/
 
 lint:
-	@echo "🔍 Running linting..."
-	ruff check the_alchemiser/ tests/
+        @echo "🔍 Running linting..."
+        ruff check the_alchemiser/ tests/
+        black --check the_alchemiser/ tests/
+
+type:
+        @echo "🔡 Running type checks..."
+        mypy the_alchemiser/backtest the_alchemiser/brokers the_alchemiser/data the_alchemiser/execution the_alchemiser/accounting tests/backtest
 
 clean:
 	@echo "🧹 Cleaning build artifacts..."
@@ -75,10 +80,14 @@ clean:
 
 # Deployment
 deploy:
-	@echo "🚀 Deploying to AWS Lambda..."
-	alchemiser deploy
+        @echo "🚀 Deploying to AWS Lambda..."
+        alchemiser deploy
 
 # Legacy commands (for backward compatibility)
 bot: run-bot
 trade: run-trade
 trade-live: run-trade-live
+
+backtest:
+        @echo "📈 Running example backtest..."
+        poetry run alchemiser backtest --start 2024-06-03 --end 2024-06-07 --symbols AAPL,MSFT --config configs/backtest.example.yaml

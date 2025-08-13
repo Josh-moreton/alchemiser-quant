@@ -1,0 +1,22 @@
+start: 2024-01-01
+end: 2024-12-31
+bar_interval: "1m"
+latency_ms:
+  inbound: 40
+  exchange: 30
+  outbound: 30
+fees:
+  sec_per_million: 22.9
+  taf_per_share: 0.000145
+  min_fee: 0.0
+execution:
+  impact_coeff: 0.15
+  fill_queue_model: "volume-through"
+  partial_fills: true
+  extended_hours: false
+risk:
+  mode: "cash"
+  pdt_enforced: true
+marking: "mid"
+universe: "universes/sp500_pit.csv"
+seed: 42
