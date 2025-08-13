@@ -56,9 +56,6 @@ def show_welcome() -> None:
 def signal(
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable verbose output"),
     no_header: bool = typer.Option(False, "--no-header", help="Skip welcome header"),
-    legacy: bool = typer.Option(
-        False, "--legacy", help="Use legacy initialization (no dependency injection)"
-    ),
 ) -> None:
     """
     🎯 [bold cyan]Generate and display strategy signals[/bold cyan] (analysis only, no trading)
@@ -83,13 +80,11 @@ def signal(
     console.print("[dim]📊 Generating strategy signals...[/dim]")
 
     try:
-        # Import and run the main logic with DI support
+        # Import and run the main logic with DI
         from the_alchemiser.main import main
 
         # Build argv for main function
         argv = ["signal"]
-        if legacy:
-            argv.append("--legacy")
 
         success = main(argv=argv)
 
@@ -153,9 +148,6 @@ def trade(
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable verbose output"),
     no_header: bool = typer.Option(False, "--no-header", help="Skip welcome header"),
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompts"),
-    legacy: bool = typer.Option(
-        False, "--legacy", help="Use legacy initialization (no dependency injection)"
-    ),
 ) -> None:
     """
     💰 [bold green]Execute multi-strategy trading[/bold green]
@@ -188,7 +180,7 @@ def trade(
     console.print(f"[bold yellow]Starting {mode_display} trading...[/bold yellow]")
 
     try:
-        # Import and run the main trading logic with DI support
+        # Import and run the main trading logic with DI
         from the_alchemiser.main import main
 
         console.print("[dim]📊 Analyzing market conditions...[/dim]")
@@ -202,8 +194,6 @@ def trade(
             argv.append("--live")
         if ignore_market_hours:
             argv.append("--ignore-market-hours")
-        if legacy:
-            argv.append("--legacy")
 
         result = main(argv=argv)
 
