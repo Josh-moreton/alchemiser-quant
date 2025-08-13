@@ -52,7 +52,7 @@ class TradingExecutor:
 
         if not self.use_legacy:
             # Use DI mode
-            from the_alchemiser.main_refactored import _di_container
+            from the_alchemiser.main import _di_container
 
             if _di_container is not None:
                 trader = TradingEngine.create_with_di(
