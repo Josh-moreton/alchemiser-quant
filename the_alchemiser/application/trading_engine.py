@@ -204,8 +204,9 @@ class TradingEngine:
             # UnifiedDataProvider has get_data() method needed by strategies
             self.data_provider = container.infrastructure.data_provider()
 
-            # AlpacaManager for trading operations
-            self.trading_client = container.infrastructure.alpaca_manager()
+            # AlpacaManager for trading operations - use its trading_client property
+            alpaca_manager = container.infrastructure.alpaca_manager()
+            self.trading_client = alpaca_manager.trading_client
 
             self.logger.info("Successfully initialized services from DI container")
         except Exception as e:

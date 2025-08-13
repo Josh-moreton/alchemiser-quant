@@ -1,5 +1,32 @@
 # Test Import Error Resolution Plan
 
+## URGENT: Market Hours Detection Issue ⚠️
+
+**Issue**: System incorrectly detects market as closed during normal trading hours
+
+**Current Status**: Market should be open (10:01 AM ET, Wednesday) but Alpaca API reports closed
+
+**Immediate Workaround**:
+
+```bash
+# Use --ignore-market-hours flag to bypass the check
+alchemiser trade --ignore-market-hours
+```
+
+**Root Cause**:
+
+- System time shows market should be open (9:30 AM - 4:00 PM ET, weekdays)
+- Alpaca API `get_clock().is_open` returns False
+- Possible causes: Holiday, early market closure, API issue, or timezone problem
+
+**Investigation Needed**:
+
+1. Check if today is a market holiday
+2. Verify Alpaca API clock response details  
+3. Consider implementing backup market hours logic
+
+---
+
 ## Current Status (August 13, 2025)
 
 ### Progress Summary
