@@ -23,6 +23,7 @@
 ### Architecture Achievements
 
 #### Before (Monolithic)
+
 ```
 main.py (734 lines)
 ├── run_all_signals_display (150+ lines)
@@ -32,6 +33,7 @@ main.py (734 lines)
 ```
 
 #### After (Modular)
+
 ```
 main.py (180 lines)
 ├── TradingSystem orchestrator

@@ -16,6 +16,7 @@ Now your Python virtual environment and all project settings are automatically a
 ### Manual Setup (Alternative)
 
 If you prefer manual environment management:
+
 ```bash
 source .venv/bin/activate
 export PYTHONPATH="${PWD}:${PWD}/the_alchemiser:${PYTHONPATH}"
