@@ -18,9 +18,14 @@ def render_technical_indicators(
     strategy_signals: dict[Any, Any],
     console: Console | None = None,  # TODO: Phase 13 - CLISignalData
 ) -> None:
-    """
-    Pretty-print technical indicators using rich Table.
-    If console is None, creates a new Console and prints directly.
+    """Render technical indicators as a Rich table.
+
+    Args:
+        strategy_signals: Mapping of strategy identifiers to indicator data.
+        console: Optional console used for rendering. Creates a new console if ``None``.
+
+    Returns:
+        None
     """
     all_indicators: dict[str, dict[str, Any]] = {}
     for _, data in strategy_signals.items():
@@ -122,7 +127,15 @@ def render_strategy_signals(
     strategy_signals: dict[Any, Any],
     console: Console | None = None,  # TODO: Phase 13 - CLISignalData
 ) -> None:
-    """Pretty-print strategy signals using rich panels with detailed explanations."""
+    """Render strategy signals using Rich panels.
+
+    Args:
+        strategy_signals: Mapping of strategy identifiers to their signal data.
+        console: Optional console used for rendering. A new console is created if ``None``.
+
+    Returns:
+        None
+    """
     c = console or Console()
 
     if not strategy_signals:
