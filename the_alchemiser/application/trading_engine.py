@@ -316,19 +316,20 @@ class TradingEngine:
                 ignore_market_hours=self.ignore_market_hours,
                 config=config_dict,
             )
-        except Exception:
-            # If SmartExecution fails (e.g., with mocks), create a mock
-            from unittest.mock import Mock
-
-            self.order_manager = Mock()
+        except Exception as e:
+            raise TradingClientError(
+                f"Failed to initialize smart execution: {e}",
+                context={"trading_client_type": type(self.trading_client).__name__},
+            ) from e
 
         # Portfolio rebalancer
         try:
             self.portfolio_rebalancer = PortfolioRebalancer(self)
-        except Exception:
-            from unittest.mock import Mock
-
-            self.portfolio_rebalancer = Mock()
+        except Exception as e:
+            raise TradingClientError(
+                f"Failed to initialize portfolio rebalancer: {e}",
+                context={"engine_type": type(self).__name__},
+            ) from e
 
         # Strategy manager - pass our data provider to ensure same trading mode
         try:
@@ -337,20 +338,27 @@ class TradingEngine:
                 shared_data_provider=self.data_provider,  # Pass our data provider
                 config=getattr(self, "config", None),
             )
-        except Exception:
-            from unittest.mock import Mock
-
-            self.strategy_manager = Mock()
+        except Exception as e:
+            raise TradingClientError(
+                f"Failed to initialize strategy manager: {e}",
+                context={
+                    "initialization_mode": "DI",
+                    "container_available": self._container is not None,
+                },
+            ) from e
 
         # Supporting services for composition-based access
         try:
             self.account_service = AccountService(self.data_provider)
             self.execution_manager = ExecutionManager(self)
-        except Exception:
-            from unittest.mock import Mock
-
-            self.account_service = Mock()
-            self.execution_manager = Mock()
+        except Exception as e:
+            raise TradingClientError(
+                f"Failed to initialize account service or execution manager: {e}",
+                context={
+                    "initialization_mode": "DI",
+                    "data_provider_type": type(self.data_provider).__name__,
+                },
+            ) from e
 
         # Compose dependencies for type-safe delegation
         self._account_info_provider: AccountInfoProvider = self.account_service

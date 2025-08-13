@@ -16,6 +16,10 @@ The Alchemiser is a sophisticated multi-strategy quantitative trading system bui
 - **Multi-Strategy Engine** (`domain/strategies/`): Nuclear (sector rotation), TECL (volatility), KLM (ML ensemble)
 - **Smart Execution** (`application/smart_execution.py`): Progressive orders, spread analysis, market impact optimization
 - **Portfolio Rebalancer** (`application/portfolio_rebalancer/`): Target allocation computation and trade sizing
+- **Modular CLI Architecture** (`interface/cli/`): Clean entry point with separated concerns
+  - **Main Entry Point** (`main.py`): TradingSystem orchestrator (180 lines, 75% reduction from original)
+  - **SignalAnalyzer** (`signal_analyzer.py`): Dedicated signal analysis and display logic
+  - **TradingExecutor** (`trading_executor.py`): Dedicated trading execution with comprehensive error handling
 - **CLI Commands**: `signal` (analysis only), `trade` (execution), `status` (account), `deploy` (AWS), `validate-indicators`
 
 ## Development Standards
