@@ -194,20 +194,30 @@ class TradingEngine:
         """Initialize using full DI container."""
         self._container = container
 
-        # Get TradingServiceManager from container
+        # Use correct services from container - provide correct objects to correct consumers
         try:
-            self.data_provider = container.services.trading_service_manager()
-            self.trading_client = self.data_provider.alpaca_manager
+            self.logger.info("Initializing services from DI container")
+
+            # AccountService implements the required protocols for TradingEngine
+            self.account_service = container.services.account_service()
+
+            # UnifiedDataProvider has get_data() method needed by strategies
+            self.data_provider = container.infrastructure.data_provider()
+
+            # AlpacaManager for trading operations
+            self.trading_client = container.infrastructure.alpaca_manager()
+
+            self.logger.info("Successfully initialized services from DI container")
         except Exception as e:
-            # If DI service creation fails, create mock for testing
-            from unittest.mock import Mock
+            self.logger.error(
+                f"Failed to initialize services from DI container: {e}", exc_info=True
+            )
+            # Don't fallback to Mock - let the error propagate
+            raise ConfigurationError(
+                f"DI container failed to provide required services: {e}"
+            ) from e
 
-            self.data_provider = Mock()
-            self.data_provider.alpaca_manager = Mock()
-            self.data_provider.alpaca_manager.is_paper_trading = True
-            self.trading_client = self.data_provider.alpaca_manager
-
-        # Get configuration from container
+        # Get configuration from container with proper error handling
         try:
             self.paper_trading = container.config.paper_trading()
             config_dict = {
@@ -217,10 +227,12 @@ class TradingEngine:
                     "paper_trading": container.config.paper_trading(),
                 }
             }
-        except Exception:
-            # Fallback if config providers fail
-            self.paper_trading = True
-            config_dict = {}
+            self.logger.info(
+                f"Successfully loaded config from DI container: paper_trading={self.paper_trading}"
+            )
+        except Exception as e:
+            self.logger.error(f"Failed to load config from DI container: {e}", exc_info=True)
+            raise ConfigurationError(f"DI container failed to provide configuration: {e}") from e
 
         self.ignore_market_hours = ignore_market_hours
 

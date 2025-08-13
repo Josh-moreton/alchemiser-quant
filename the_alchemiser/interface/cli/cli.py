@@ -56,8 +56,8 @@ def show_welcome() -> None:
 def signal(
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable verbose output"),
     no_header: bool = typer.Option(False, "--no-header", help="Skip welcome header"),
-    use_di: bool = typer.Option(
-        False, "--use-di", help="Use dependency injection system (experimental)"
+    legacy: bool = typer.Option(
+        False, "--legacy", help="Use legacy initialization (no dependency injection)"
     ),
 ) -> None:
     """
@@ -88,8 +88,8 @@ def signal(
 
         # Build argv for main function
         argv = ["signal"]
-        if use_di:
-            argv.append("--use-di")
+        if legacy:
+            argv.append("--legacy")
 
         success = main(argv=argv)
 
@@ -153,8 +153,8 @@ def trade(
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable verbose output"),
     no_header: bool = typer.Option(False, "--no-header", help="Skip welcome header"),
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompts"),
-    use_di: bool = typer.Option(
-        False, "--use-di", help="Use dependency injection system (experimental)"
+    legacy: bool = typer.Option(
+        False, "--legacy", help="Use legacy initialization (no dependency injection)"
     ),
 ) -> None:
     """
@@ -202,8 +202,8 @@ def trade(
             argv.append("--live")
         if ignore_market_hours:
             argv.append("--ignore-market-hours")
-        if use_di:
-            argv.append("--use-di")
+        if legacy:
+            argv.append("--legacy")
 
         result = main(argv=argv)
 

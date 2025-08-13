@@ -68,22 +68,22 @@ from the_alchemiser.services.exceptions import (
 _di_container = None
 
 
-def initialize_dependency_injection(use_di: bool = False) -> None:
-    """Initialize dependency injection system."""
+def initialize_dependency_injection(use_legacy: bool = False) -> None:
+    """Initialize dependency injection system (default) or legacy mode."""
     global _di_container
 
-    if use_di and DI_AVAILABLE:
+    if not use_legacy and DI_AVAILABLE:
         _di_container = ApplicationContainer()
         ServiceFactory.initialize(_di_container)
         logger = get_logger(__name__)
         logger.info("Dependency injection initialized")
     else:
-        if use_di and not DI_AVAILABLE:
+        if not use_legacy and not DI_AVAILABLE:
             logger = get_logger(__name__)
-            logger.warning("DI requested but not available - using traditional initialization")
+            logger.warning("DI not available - falling back to legacy initialization")
         else:
             logger = get_logger(__name__)
-            logger.info("Using traditional initialization (no DI)")
+            logger.info("Using legacy initialization (no DI)")
 
 
 def configure_application_logging() -> None:
@@ -142,7 +142,19 @@ def generate_multi_strategy_signals(
     try:
         # Create shared UnifiedDataProvider once
         shared_data_provider = UnifiedDataProvider(paper_trading=True)
-        manager = MultiStrategyManager(shared_data_provider=shared_data_provider, config=settings)
+
+        # Extract strategy allocations from config (same as DI mode)
+        strategy_allocations = {
+            StrategyType.NUCLEAR: settings.strategy.default_strategy_allocations["nuclear"],
+            StrategyType.TECL: settings.strategy.default_strategy_allocations["tecl"],
+            StrategyType.KLM: settings.strategy.default_strategy_allocations["klm"],
+        }
+
+        manager = MultiStrategyManager(
+            shared_data_provider=shared_data_provider,
+            config=settings,
+            strategy_allocations=strategy_allocations,
+        )
         strategy_signals, consolidated_portfolio, _ = manager.run_all_strategies()
         return manager, strategy_signals, consolidated_portfolio
     except (DataProviderError, StrategyExecutionError) as e:
@@ -361,11 +373,22 @@ def run_multi_strategy_trading(
         from the_alchemiser.application.smart_execution import is_market_open
         from the_alchemiser.application.trading_engine import TradingEngine
 
+        # Convert settings allocations to StrategyType enum dict
+        strategy_allocations = {
+            StrategyType.NUCLEAR: settings.strategy.default_strategy_allocations.get(
+                "nuclear", 0.3
+            ),
+            StrategyType.TECL: settings.strategy.default_strategy_allocations.get("tecl", 0.5),
+            StrategyType.KLM: settings.strategy.default_strategy_allocations.get("klm", 0.2),
+        }
+
         # Initialize TradingEngine with or without DI
         if use_dependency_injection and _di_container is not None:
-            # Use DI mode
+            # Use DI mode with proper strategy allocations
             trader = TradingEngine.create_with_di(
-                container=_di_container, ignore_market_hours=ignore_market_hours
+                container=_di_container,
+                strategy_allocations=strategy_allocations,
+                ignore_market_hours=ignore_market_hours,
             )
             # Override paper_trading based on live_trading parameter
             trader.paper_trading = not live_trading
@@ -598,14 +621,14 @@ def main(argv: list[str] | None = None, settings: Settings | None = None) -> boo
 
     Options:
         --ignore-market-hours: Override market hours check for testing
-        --use-di: Use dependency injection system (experimental)
+        --legacy: Use legacy initialization (no dependency injection)
 
     Examples:
-        $ python main.py signal                 # Show signals only
-        $ python main.py trade                  # Paper trading
-        $ python main.py trade --live           # Live trading
-        $ python main.py trade --ignore-market-hours  # Test during market close
-        $ python main.py signal --use-di       # Use DI for signal analysis
+        $ python main.py signal                 # Show signals only (DI mode)
+        $ python main.py trade                  # Paper trading (DI mode)
+        $ python main.py trade --live           # Live trading (DI mode)
+        $ python main.py trade --ignore-market-hours  # Test during market close (DI mode)
+        $ python main.py signal --legacy       # Use legacy mode for signal analysis
     """
     from the_alchemiser.interface.cli.cli_formatter import render_footer, render_header
 
@@ -632,21 +655,21 @@ def main(argv: list[str] | None = None, settings: Settings | None = None) -> boo
         help="Ignore market hours and run during closed market (for testing)",
     )
 
-    # NEW: DI option
+    # NEW: Legacy option
     parser.add_argument(
-        "--use-di", action="store_true", help="Use dependency injection system (experimental)"
+        "--legacy", action="store_true", help="Use legacy initialization (no dependency injection)"
     )
 
     args = parser.parse_args(argv)
 
-    # Initialize DI if requested
-    initialize_dependency_injection(use_di=args.use_di)
+    # Initialize DI by default, unless legacy is requested
+    initialize_dependency_injection(use_legacy=args.legacy)
 
     mode_label = "LIVE TRADING ⚠️" if args.mode == "trade" and args.live else "Paper Trading"
-    di_label = " (DI)" if args.use_di else ""
+    legacy_label = " (Legacy)" if args.legacy else ""
     render_header(
         "Multi-Strategy Quantitative Trading System",
-        f"{args.mode.upper()} | {mode_label}{di_label}",
+        f"{args.mode.upper()} | {mode_label}{legacy_label}",
     )
 
     success: bool | str = False
@@ -660,7 +683,7 @@ def main(argv: list[str] | None = None, settings: Settings | None = None) -> boo
                 live_trading=args.live,
                 ignore_market_hours=args.ignore_market_hours,
                 settings=settings,
-                use_dependency_injection=args.use_di,
+                use_dependency_injection=not args.legacy,
             )
             if result == "market_closed":
                 render_footer("Market closed - no action taken")
