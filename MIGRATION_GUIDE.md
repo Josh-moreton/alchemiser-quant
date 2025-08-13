@@ -9,11 +9,13 @@ This document provides a comprehensive list of every file that needs to be updat
 **IMPORTANT**: The migration can be done gradually using feature flags with **zero downtime** and **zero breaking changes**.
 
 ### Phase 1: Enable New System with Legacy Interface (RECOMMENDED)
+
 - Use `LegacyPortfolioRebalancerAdapter` with `use_new_system=True`
 - Keep all existing code unchanged
 - Benefit from enhanced capabilities immediately
 
 ### Phase 2: Migrate to Direct New System (OPTIONAL)
+
 - Replace with `PortfolioManagementFacade` for full power
 - Enhanced features and better architecture
 
@@ -26,6 +28,7 @@ This document provides a comprehensive list of every file that needs to be updat
 #### `the_alchemiser/application/trading_engine.py`
 
 **Current Code (Lines 29, 328, 368, 739):**
+
 ```python
 # Line 29 - Import
 from the_alchemiser.application.portfolio_rebalancer.portfolio_rebalancer import PortfolioRebalancer
@@ -45,6 +48,7 @@ raw_orders = self._rebalancing_service.rebalance_portfolio(
 **Migration Options:**
 
 #### Option A: Minimal Risk - Legacy Adapter (RECOMMENDED)
+
 ```python
 # Line 29 - Replace import
 from the_alchemiser.infrastructure.adapters.legacy_portfolio_adapter import LegacyPortfolioRebalancerAdapter
@@ -63,6 +67,7 @@ raw_orders = self._rebalancing_service.rebalance_portfolio(
 ```
 
 #### Option B: Full Migration - New System
+
 ```python
 # Line 29 - Replace import
 from the_alchemiser.application.portfolio.services.portfolio_management_facade import PortfolioManagementFacade
@@ -126,6 +131,7 @@ self.portfolio_rebalancer = LegacyPortfolioRebalancerAdapter(
 ```
 
 **Benefits:**
+
 - ✅ **Zero breaking changes** - same interface
 - ✅ **Enhanced capabilities** - portfolio analysis, drift detection
 - ✅ **Better architecture** - modular, testable code
@@ -188,6 +194,7 @@ The following files reference portfolio rebalancing but **do not require updates
 ### Required Dependencies
 
 The new system uses existing dependencies:
+
 - `TradingServiceManager` (already exists)
 - `Decimal` for financial calculations
 - All domain objects are new but self-contained
@@ -208,6 +215,7 @@ comparison = rebalancer.compare_systems(target_weights)
 ### Error Handling
 
 The new system includes comprehensive error handling:
+
 - Validation of target weights
 - Market data validation
 - Order placement error recovery
@@ -218,6 +226,7 @@ The new system includes comprehensive error handling:
 ## 🧪 Testing Strategy
 
 ### 1. Unit Tests
+
 ```bash
 # Test domain layer
 poetry run pytest tests/unit/domain/portfolio/ -v
@@ -227,6 +236,7 @@ poetry run pytest tests/unit/application/portfolio/ -v
 ```
 
 ### 2. Integration Tests
+
 ```bash
 # With API keys
 export ALPACA_API_KEY='your_paper_key'
@@ -236,6 +246,7 @@ python examples/portfolio_rebalancer_usage.py
 ```
 
 ### 3. System Comparison
+
 ```bash
 # Compare old vs new system results
 python simple_portfolio_test.py
@@ -251,7 +262,8 @@ python simple_portfolio_test.py
 | **Legacy Interface** | 0 files | 🟢 None | 0 minutes |
 | **Full Migration** | 1 file (major) | 🟡 Medium | 30 minutes |
 
-### Minimal Risk Path (RECOMMENDED):
+### Minimal Risk Path (RECOMMENDED)
+
 1. **Update 1 file**: `trading_engine.py` (3 line changes)
 2. **Test**: Run existing test suite
 3. **Deploy**: Feature flag rollout
