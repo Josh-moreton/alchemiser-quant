@@ -2,6 +2,7 @@
 
 from dependency_injector import containers, providers
 
+from the_alchemiser.infrastructure.data_providers.data_provider import UnifiedDataProvider
 from the_alchemiser.services.alpaca_manager import AlpacaManager
 
 
@@ -17,6 +18,12 @@ class InfrastructureProviders(containers.DeclarativeContainer):
         api_key=config.alpaca_api_key,
         secret_key=config.alpaca_secret_key,
         paper=config.paper_trading,
+    )
+
+    # Data provider for strategies
+    data_provider = providers.Singleton(
+        UnifiedDataProvider,
+        paper_trading=config.paper_trading,
     )
 
     # Backward compatibility: provide same interface

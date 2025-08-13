@@ -1,47 +1,24 @@
 #!/usr/bin/env python3
-"""Main Entry Point for The Alchemiser Trading Engine.
+"""Main Entry Point for The Alchemiser Trading System.
 
-This module provides the command-line interface and orchestration for the multi-strategy
-trading system. It handles argument parsing, logging configuration, and delegates business
-logic to specialized components in the core/ package.
-
-The main functions support:
-    - Signal analysis mode: Display strategy signals without executing trades
-    - Trading mode: Execute multi-strategy trading with Nuclear and TECL strategies
-    - Paper and live trading modes with market hours validation
-    - Rich console output with email notifications for both paper and live trading
-
-Example:
-    Run signal analysis only:
-        $ python main.py bot
-
-    Execute paper trading:
-        $ python main.py trade
-
-    Execute live trading:
-        $ python main.py trade --live
+A clean, focused entry point for the multi-strategy quantitative trading system.
+Supports signal analysis and trading execution with dependency injection.
 """
 
-# Standard library imports
 import argparse
 import logging
 import os
 import sys
-from datetime import datetime
-from typing import Any
 
-# TODO: Add these imports once types are fully implemented:
-# from .core.types import StrategySignal
-# from .core.trading.strategy_manager import MultiStrategyManager, StrategyType
-
-# Optional rich import - only for CLI usage
-try:
-    # Check if rich is available
-    import importlib.util
-
-    HAS_RICH = importlib.util.find_spec("rich") is not None
-except ImportError:
-    HAS_RICH = False
+from the_alchemiser.domain.strategies.strategy_manager import StrategyType
+from the_alchemiser.infrastructure.config import Settings, load_settings
+from the_alchemiser.infrastructure.logging.logging_utils import get_logger, setup_logging
+from the_alchemiser.services.exceptions import (
+    ConfigurationError,
+    DataProviderError,
+    StrategyExecutionError,
+    TradingClientError,
+)
 
 # DI imports (optional)
 try:
@@ -52,659 +29,174 @@ try:
 except ImportError:
     DI_AVAILABLE = False
 
-from the_alchemiser.domain.strategies.strategy_manager import StrategyType
-from the_alchemiser.infrastructure.config import Settings, load_settings
-from the_alchemiser.infrastructure.logging.logging_utils import get_logger, setup_logging
-from the_alchemiser.services.exceptions import (
-    ConfigurationError,
-    DataProviderError,
-    NotificationError,
-    StrategyExecutionError,
-    TradingClientError,
-)
-
-
-# Global DI container (optional)
+# Global DI container
 _di_container = None
 
 
-def initialize_dependency_injection(use_di: bool = False) -> None:
-    """Initialize dependency injection system."""
-    global _di_container
+class TradingSystem:
+    """Main trading system orchestrator."""
 
-    if use_di and DI_AVAILABLE:
-        _di_container = ApplicationContainer()
-        ServiceFactory.initialize(_di_container)
-        logger = get_logger(__name__)
-        logger.info("Dependency injection initialized")
-    else:
-        if use_di and not DI_AVAILABLE:
-            logger = get_logger(__name__)
-            logger.warning("DI requested but not available - using traditional initialization")
+    def __init__(self, settings: Settings | None = None, use_legacy: bool = False):
+        self.settings = settings or load_settings()
+        self.use_legacy = use_legacy
+        self.logger = get_logger(__name__)
+        self._initialize_di()
+
+    def _initialize_di(self) -> None:
+        """Initialize dependency injection if available and not using legacy mode."""
+        global _di_container
+
+        if not self.use_legacy and DI_AVAILABLE:
+            _di_container = ApplicationContainer()
+            ServiceFactory.initialize(_di_container)
+            self.logger.info("Dependency injection initialized")
         else:
-            logger = get_logger(__name__)
-            logger.info("Using traditional initialization (no DI)")
+            if not self.use_legacy and not DI_AVAILABLE:
+                self.logger.warning("DI not available - falling back to legacy mode")
+            else:
+                self.logger.info("Using legacy initialization")
+
+    def _get_strategy_allocations(self) -> dict[StrategyType, float]:
+        """Extract strategy allocations from configuration."""
+        return {
+            StrategyType.NUCLEAR: self.settings.strategy.default_strategy_allocations["nuclear"],
+            StrategyType.TECL: self.settings.strategy.default_strategy_allocations["tecl"],
+            StrategyType.KLM: self.settings.strategy.default_strategy_allocations["klm"],
+        }
+
+    def analyze_signals(self) -> bool:
+        """Generate and display strategy signals without trading."""
+        from the_alchemiser.interface.cli.signal_analyzer import SignalAnalyzer
+
+        try:
+            analyzer = SignalAnalyzer(self.settings, use_legacy=self.use_legacy)
+            return analyzer.run()
+        except (DataProviderError, StrategyExecutionError) as e:
+            self.logger.error(f"Signal analysis failed: {e}")
+            return False
+
+    def execute_trading(
+        self, live_trading: bool = False, ignore_market_hours: bool = False
+    ) -> bool:
+        """Execute multi-strategy trading."""
+        from the_alchemiser.interface.cli.trading_executor import TradingExecutor
+
+        try:
+            executor = TradingExecutor(
+                settings=self.settings,
+                use_legacy=self.use_legacy,
+                live_trading=live_trading,
+                ignore_market_hours=ignore_market_hours,
+            )
+            return executor.run()
+        except (TradingClientError, StrategyExecutionError) as e:
+            self.logger.error(f"Trading execution failed: {e}")
+            return False
 
 
 def configure_application_logging() -> None:
-    """Configure centralized logging for the application."""
-
-    # Check if we're in production (AWS Lambda or similar)
+    """Configure application logging."""
     is_production = os.getenv("AWS_LAMBDA_FUNCTION_NAME") is not None
 
     if is_production:
         from the_alchemiser.infrastructure.logging.logging_utils import configure_production_logging
 
-        configure_production_logging(
-            log_level=logging.INFO,
-            log_file=None,  # Use CloudWatch in Lambda
-        )
+        configure_production_logging(log_level=logging.INFO, log_file=None)
     else:
-        # Development/CLI environment
         setup_logging(
-            log_level=logging.WARNING,  # Cleaner CLI output
+            log_level=logging.WARNING,
             console_level=logging.WARNING,
             suppress_third_party=True,
-            structured_format=False,  # Human-readable for CLI
+            structured_format=False,
         )
 
 
-def generate_multi_strategy_signals(
-    settings: Settings,
-) -> tuple[
-    Any, dict[Any, Any], dict[str, float]
-]:  # TODO: Change to tuple[MultiStrategyManager, dict[StrategyType, StrategySignal], dict[str, float]] once imports added
-    """Generate signals for all strategies and return consolidated results.
-
-    Creates a shared data provider and multi-strategy manager to generate signals
-    for both Nuclear and TECL strategies with configurable allocation weights.
-
-    Returns:
-        tuple: A 3-tuple containing:
-            - manager (MultiStrategyManager): The strategy manager instance
-            - strategy_signals (dict): Individual strategy signals by type
-            - consolidated_portfolio (dict): Consolidated portfolio allocation
-
-        Returns (None, None, None) if signal generation fails.
-
-    Example:
-        >>> manager, signals, portfolio = generate_multi_strategy_signals()
-        >>> if signals:
-        ...     nuclear_signal = signals[StrategyType.NUCLEAR]
-        ...     tecl_signal = signals[StrategyType.TECL]
-
-    Raises:
-        Exception: If data provider initialization or strategy execution fails.
-    """
-    from the_alchemiser.domain.strategies.strategy_manager import MultiStrategyManager
-    from the_alchemiser.infrastructure.data_providers.data_provider import UnifiedDataProvider
-
-    try:
-        # Create shared UnifiedDataProvider once
-        shared_data_provider = UnifiedDataProvider(paper_trading=True)
-        manager = MultiStrategyManager(shared_data_provider=shared_data_provider, config=settings)
-        strategy_signals, consolidated_portfolio, _ = manager.run_all_strategies()
-        return manager, strategy_signals, consolidated_portfolio
-    except (DataProviderError, StrategyExecutionError) as e:
-        from the_alchemiser.infrastructure.logging.logging_utils import log_error_with_context
-
-        logger = get_logger(__name__)
-        log_error_with_context(
-            logger,
-            e,
-            "strategy_signal_generation",
-            function="run_all_signals_simple",
-            error_type=type(e).__name__,
-        )
-        print(f"ERROR: Strategy signal generation failed: {str(e)}")
-        # Re-raise the specific exception for proper error handling
-        raise
-    except (TradingClientError, ImportError, AttributeError, ValueError) as e:
-        from the_alchemiser.infrastructure.logging.logging_utils import log_error_with_context
-
-        logger = get_logger(__name__)
-        log_error_with_context(
-            logger,
-            e,
-            "strategy_initialization_error",
-            function="run_all_signals_simple",
-            error_type=type(e).__name__,
-        )
-        print(f"ERROR: Strategy initialization failed: {str(e)}")
-        # Convert to our exception hierarchy
-        raise StrategyExecutionError(
-            f"Strategy initialization failed: {str(e)}",
-            strategy_name="multi_strategy",
-        ) from e
-
-
-def run_all_signals_display(
-    settings: Settings | None = None,
-) -> bool:
-    """Generate and display multi-strategy signals without executing trades.
-
-    Shows comprehensive analysis including Nuclear and TECL strategy signals,
-    technical indicators, and consolidated multi-strategy portfolio allocation.
-    This is a read-only operation that performs analysis without trading.
-
-    Returns:
-        bool: True if signals were successfully generated and displayed,
-              False if signal generation failed.
-
-    Note:
-        This function displays results using Rich console formatting with:
-        - Technical indicators for all tracked symbols
-        - Individual strategy signals and reasoning
-        - Consolidated portfolio allocation
-        - Strategy execution summary
-    """
-    from the_alchemiser.interface.cli.cli_formatter import (
-        render_footer,
-        render_header,
-        render_portfolio_allocation,
-        render_strategy_signals,
+def create_argument_parser() -> argparse.ArgumentParser:
+    """Create and configure the command line argument parser."""
+    parser = argparse.ArgumentParser(
+        description="The Alchemiser - Multi-Strategy Quantitative Trading System",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  alchemiser signal                    # Analyze signals (DI mode)
+  alchemiser trade                     # Paper trading (DI mode)
+  alchemiser trade --live              # Live trading (DI mode)
+  alchemiser signal --legacy           # Legacy mode
+        """,
     )
 
-    render_header("MULTI-STRATEGY SIGNAL ANALYSIS", f"Analysis at {datetime.now()}")
-
-    settings = settings or load_settings()
-    try:
-        # Generate multi-strategy signals (this includes both Nuclear and TECL)
-        manager, strategy_signals, consolidated_portfolio = generate_multi_strategy_signals(
-            settings
-        )
-        if not strategy_signals:
-            logger = get_logger(__name__)
-            logger.error("Failed to generate multi-strategy signals")
-            return False
-
-        # Display strategy signals
-        render_strategy_signals(strategy_signals)
-
-        # Display consolidated portfolio
-        if consolidated_portfolio:
-            render_portfolio_allocation(consolidated_portfolio)
-
-        # Calculate actual position counts from signals
-        nuclear_signal = (strategy_signals or {}).get(StrategyType.NUCLEAR, {})
-        tecl_signal = (strategy_signals or {}).get(StrategyType.TECL, {})
-
-        # Determine position count based on the specific signal
-        if nuclear_signal.get("action") == "BUY":
-            if nuclear_signal.get("symbol") == "UVXY_BTAL_PORTFOLIO":
-                nuclear_positions = 2  # UVXY and BTAL
-            elif nuclear_signal.get("symbol") == "UVXY":
-                nuclear_positions = 1  # Just UVXY
-            else:
-                nuclear_positions = 3  # Default for other portfolios
-        else:
-            nuclear_positions = 0
-        tecl_positions = 1 if tecl_signal.get("action") == "BUY" else 0
-
-        # Rich console for CLI output (optional)
-        if HAS_RICH:
-            from rich.console import Console
-            from rich.panel import Panel
-
-            console = Console()
-
-        # Get actual allocation percentages from config
-        allocations = settings.strategy.default_strategy_allocations
-
-        # Build strategy summary dynamically for all active strategies
-        strategy_lines = []
-
-        # Count positions for each strategy type
-        nuclear_pct = int(allocations.get("nuclear", 0) * 100)
-        tecl_pct = int(allocations.get("tecl", 0) * 100)
-        klm_pct = int(allocations.get("klm", 0) * 100)
-
-        if nuclear_pct > 0:
-            strategy_lines.append(
-                f"[bold cyan]NUCLEAR:[/bold cyan] {nuclear_positions} positions, {nuclear_pct}% allocation"
-            )
-        if tecl_pct > 0:
-            strategy_lines.append(
-                f"[bold cyan]TECL:[/bold cyan] {tecl_positions} positions, {tecl_pct}% allocation"
-            )
-        if klm_pct > 0:
-            # Count KLM positions from consolidated portfolio
-            klm_positions = 1  # Default to 1 position for KLM
-            if consolidated_portfolio:
-                # Count symbols that might be from KLM (if we can determine)
-                klm_symbols = set()
-                if StrategyType.KLM in strategy_signals:
-                    klm_signal = strategy_signals[StrategyType.KLM]
-                    if isinstance(klm_signal.get("symbol"), str):
-                        klm_symbols.add(klm_signal["symbol"])
-                    elif isinstance(klm_signal.get("symbol"), dict):
-                        klm_symbols.update(klm_signal["symbol"].keys())
-                klm_positions = len([s for s in klm_symbols if s in consolidated_portfolio]) or 1
-            strategy_lines.append(
-                f"[bold cyan]KLM:[/bold cyan] {klm_positions} positions, {klm_pct}% allocation"
-            )
-
-        strategy_summary = "\n".join(strategy_lines)
-
-        # Display strategy summary (if rich is available)
-        if HAS_RICH and "console" in locals():
-            console.print(Panel(strategy_summary, title="Strategy Summary", border_style="blue"))
-        else:
-            # Use logger from module-level import
-            local_logger = get_logger(__name__)
-            local_logger.info(f"Strategy Summary:\n{strategy_summary}")
-
-        render_footer("Signal analysis completed successfully!")
-        return True
-    except (DataProviderError, StrategyExecutionError) as e:
-        from the_alchemiser.infrastructure.logging.logging_utils import log_error_with_context
-
-        logger = get_logger(__name__)
-        log_error_with_context(
-            logger,
-            e,
-            "strategy_analysis",
-            function="run_all_signals_display",
-            error_type=type(e).__name__,
-        )
-        logger.exception("Error analyzing strategies: %s", e)
-        return False
-    except (ImportError, AttributeError, ValueError, OSError) as e:
-        from the_alchemiser.infrastructure.logging.logging_utils import log_error_with_context
-
-        logger = get_logger(__name__)
-        log_error_with_context(
-            logger,
-            e,
-            "strategy_display_error",
-            function="run_all_signals_display",
-            error_type=type(e).__name__,
-        )
-        logger.exception("Display error analyzing strategies: %s", e)
-        return False
-
-
-def run_multi_strategy_trading(
-    live_trading: bool = False,
-    ignore_market_hours: bool = False,
-    settings: Settings | None = None,
-    use_dependency_injection: bool = False,
-) -> bool | str:
-    """Execute multi-strategy trading with both Nuclear and TECL strategies.
-
-    Initializes the trading engine with equal allocation between Nuclear and TECL
-    strategies, checks market hours, generates signals, and executes trades.
-
-    Args:
-        live_trading: True for live trading, False for paper trading.
-            Defaults to False for safety.
-        ignore_market_hours: Whether to ignore market hours and trade
-            during closed market periods. Defaults to False.
-        settings: Configuration settings
-        use_dependency_injection: Whether to use DI system (default: False for backward compatibility)
-    Returns:
-        Union[bool, str]: Returns True if trading was successful, False if failed,
-            or "market_closed" if market is closed and trading was skipped.
-
-    Note:
-        - Market hours are checked unless ignore_market_hours is True
-        - Email notifications are sent for both paper and live trading modes
-        - Technical indicators and strategy signals are displayed before execution
-        - Error notifications are sent via email if configured
-    """
-    from the_alchemiser.interface.cli.cli_formatter import render_header
-
-    mode_str = "LIVE" if live_trading else "PAPER"
-
-    settings = settings or load_settings()
-    try:
-        from the_alchemiser.application.smart_execution import is_market_open
-        from the_alchemiser.application.trading_engine import TradingEngine
-
-        # Initialize TradingEngine with or without DI
-        if use_dependency_injection and _di_container is not None:
-            # Use DI mode
-            trader = TradingEngine.create_with_di(
-                container=_di_container, ignore_market_hours=ignore_market_hours
-            )
-            # Override paper_trading based on live_trading parameter
-            trader.paper_trading = not live_trading
-        else:
-            # Traditional mode (existing logic)
-            trader = TradingEngine(
-                paper_trading=not live_trading,
-                ignore_market_hours=ignore_market_hours,
-                config=settings,
-            )
-
-        # Check market hours unless ignore_market_hours is set
-        if not ignore_market_hours and not is_market_open(trader.trading_client):
-            logger = get_logger(__name__)
-            logger.warning("Market is closed. No trades will be placed.")
-
-            from the_alchemiser.interface.email.email_utils import (
-                build_error_email_html,
-                send_email_notification,
-            )
-
-            html_content = build_error_email_html(
-                "Market Closed Alert", "Market is currently closed. No trades will be placed."
-            )
-            send_email_notification(
-                subject="📈 The Alchemiser - Market Closed Alert",
-                html_content=html_content,
-                text_content="Market is CLOSED. No trades will be placed.",
-            )
-            return "market_closed"
-
-        # Generate strategy signals for display
-        render_header("Analyzing market conditions...", "Multi-Strategy Trading")
-        strategy_signals, consolidated_portfolio, strategy_attribution = (
-            trader.strategy_manager.run_all_strategies()
-        )
-
-        # Display strategy signals
-        from the_alchemiser.interface.cli.cli_formatter import render_strategy_signals
-
-        render_strategy_signals(strategy_signals)
-
-        # Display portfolio rebalancing summary before execution
-        try:
-            account_info = trader.get_account_info()
-            current_positions = trader.get_positions_dict()
-            if account_info and consolidated_portfolio:
-                trader.display_target_vs_current_allocations(
-                    consolidated_portfolio, account_info, current_positions
-                )
-        except Exception as e:
-            logging.warning(f"Could not display portfolio rebalancing summary: {e}")
-
-        # Execute multi-strategy with clean progress indication
-        if HAS_RICH:
-            from rich.console import Console
-
-            console = Console()
-            console.print("[dim]🔄 Executing trading strategy...[/dim]")
-        else:
-            # Use logger from module-level import
-            local_logger = get_logger(__name__)
-            local_logger.info("🔄 Executing trading strategy...")
-
-        result = trader.execute_multi_strategy()
-
-        # Display results
-        trader.display_multi_strategy_summary(result)
-
-        # Send email notification for both paper and live trading
-        try:
-            from the_alchemiser.interface.email.email_utils import send_email_notification
-            from the_alchemiser.interface.email.templates import EmailTemplates
-
-            # Enrich result with fresh position data for email templates
-            try:
-                fresh_positions = trader.get_positions_dict()
-                # Add fresh positions to result object for email template access
-                if (
-                    hasattr(result, "final_portfolio_state")
-                    and result.final_portfolio_state is not None
-                ):
-                    result.final_portfolio_state["current_positions"] = fresh_positions
-                else:
-                    result.final_portfolio_state = {"current_positions": fresh_positions}
-            except Exception as e:
-                logging.warning(f"Could not add fresh position data to result: {e}")
-
-            # Always use neutral multi-strategy template (no financial values)
-            html_content = EmailTemplates.build_multi_strategy_report_neutral(result, mode_str)
-
-            send_email_notification(
-                subject=f"📈 The Alchemiser - {mode_str.upper()} Multi-Strategy Report",
-                html_content=html_content,
-                text_content=f"Multi-strategy execution completed. Success: {result.success}",
-            )
-        except NotificationError as e:
-            from the_alchemiser.infrastructure.logging.logging_utils import log_error_with_context
-
-            logger = get_logger(__name__)
-            log_error_with_context(
-                logger,
-                e,
-                "email_notification",
-                function="run_multi_strategy_trading",
-                notification_type="trading_report",
-            )
-            logger.warning("Email notification failed: %s", e)
-        except (ConnectionError, TimeoutError, ValueError, AttributeError) as e:
-            from the_alchemiser.infrastructure.logging.logging_utils import log_error_with_context
-
-            logger = get_logger(__name__)
-            log_error_with_context(
-                logger,
-                e,
-                "email_formatting_error",
-                function="run_multi_strategy_trading",
-                error_type=type(e).__name__,
-            )
-            logger.warning("Email formatting/connection error: %s", e)
-
-        return result.success
-
-    except (DataProviderError, StrategyExecutionError, TradingClientError) as e:
-        from the_alchemiser.infrastructure.logging.logging_utils import log_error_with_context
-
-        logger = get_logger(__name__)
-        log_error_with_context(
-            logger,
-            e,
-            "multi_strategy_trading",
-            function="run_multi_strategy_trading",
-            error_type=type(e).__name__,
-            live_trading=live_trading,
-            ignore_market_hours=ignore_market_hours,
-        )
-        logger.exception("Error in multi-strategy trading: %s", e)
-
-        # Enhanced error handling with detailed reporting
-        try:
-            from the_alchemiser.services.error_handler import (
-                handle_trading_error,
-                send_error_notification_if_needed,
-            )
-
-            handle_trading_error(
-                error=e,
-                context="multi-strategy trading execution",
-                component="main.run_multi_strategy_trading",
-                additional_data={
-                    "mode": mode_str,
-                    "live_trading": live_trading,
-                    "ignore_market_hours": ignore_market_hours,
-                },
-            )
-
-            # Send detailed error notification if needed
-            send_error_notification_if_needed()
-
-        except NotificationError as notification_error:
-            logger.warning("Failed to send error notification: %s", notification_error)
-
-        return False
-    except (OSError, ImportError, ConfigurationError, ValueError) as e:
-        from the_alchemiser.infrastructure.logging.logging_utils import log_error_with_context
-
-        logger = get_logger(__name__)
-        log_error_with_context(
-            logger,
-            e,
-            "system_configuration_error",
-            function="run_multi_strategy_trading",
-            error_type=type(e).__name__,
-            live_trading=live_trading,
-            ignore_market_hours=ignore_market_hours,
-        )
-        logger.exception("System/configuration error in multi-strategy trading: %s", e)
-
-        # For system errors, still try to send notification
-        try:
-            from the_alchemiser.services.error_handler import (
-                handle_trading_error,
-                send_error_notification_if_needed,
-            )
-
-            handle_trading_error(
-                error=e,
-                context="multi-strategy trading execution - unexpected error",
-                component="main.run_multi_strategy_trading",
-                additional_data={
-                    "mode": mode_str,
-                    "live_trading": live_trading,
-                    "ignore_market_hours": ignore_market_hours,
-                    "original_error": type(e).__name__,
-                },
-            )
-
-            send_error_notification_if_needed()
-
-        except (
-            NotificationError,
-            ConnectionError,
-            TimeoutError,
-            AttributeError,
-        ) as notification_error:
-            logger.warning("Failed to send error notification: %s", notification_error)
-
-        return False
-
-
-def main(argv: list[str] | None = None, settings: Settings | None = None) -> bool:
-    """Main entry point for the Multi-Strategy Quantitative Trading System.
-
-    Provides command-line interface for running the trading system in different modes.
-    Supports both signal analysis and actual trading execution.
-
-    Args:
-        argv: Command line arguments. If None, uses sys.argv.
-
-    Returns:
-        True if operation completed successfully, False otherwise.
-
-    Modes:
-        signal: Display multi-strategy signals without trading
-        trade: Execute multi-strategy trading (Nuclear + TECL combined)
-
-    Trading Modes:
-        Default: Paper trading (safe default)
-        --live: Live trading (requires explicit flag)
-
-    Options:
-        --ignore-market-hours: Override market hours check for testing
-        --use-di: Use dependency injection system (experimental)
-
-    Examples:
-        $ python main.py signal                 # Show signals only
-        $ python main.py trade                  # Paper trading
-        $ python main.py trade --live           # Live trading
-        $ python main.py trade --ignore-market-hours  # Test during market close
-        $ python main.py signal --use-di       # Use DI for signal analysis
-    """
-    from the_alchemiser.interface.cli.cli_formatter import render_footer, render_header
-
-    # Setup logging early to suppress chattiness
-    configure_application_logging()
-
-    settings = settings or load_settings()
-    parser = argparse.ArgumentParser(description="Multi-Strategy Quantitative Trading System")
     parser.add_argument(
         "mode",
         choices=["signal", "trade"],
-        help="Operation mode: signal (show signals), trade (execute trading)",
+        help="Operation mode: signal (analyze only) or trade (execute)",
     )
 
-    # Trading mode selection
     parser.add_argument(
-        "--live", action="store_true", help="Use live trading (default is paper trading)"
+        "--live", action="store_true", help="Execute live trading (default: paper trading)"
     )
 
-    # Market hours override
     parser.add_argument(
-        "--ignore-market-hours",
-        action="store_true",
-        help="Ignore market hours and run during closed market (for testing)",
+        "--ignore-market-hours", action="store_true", help="Override market hours check"
     )
 
-    # NEW: DI option
     parser.add_argument(
-        "--use-di", action="store_true", help="Use dependency injection system (experimental)"
+        "--legacy", action="store_true", help="Use legacy mode (disable dependency injection)"
     )
 
+    return parser
+
+
+def main(argv: list[str] | None = None) -> bool:
+    """Main entry point for The Alchemiser Trading System.
+
+    Args:
+        argv: Command line arguments (uses sys.argv if None)
+
+    Returns:
+        True if operation completed successfully, False otherwise
+    """
+    from the_alchemiser.interface.cli.cli_formatter import render_footer, render_header
+
+    # Setup
+    configure_application_logging()
+    parser = create_argument_parser()
     args = parser.parse_args(argv)
 
-    # Initialize DI if requested
-    initialize_dependency_injection(use_di=args.use_di)
+    # Initialize system
+    system = TradingSystem(use_legacy=args.legacy)
 
+    # Display header
     mode_label = "LIVE TRADING ⚠️" if args.mode == "trade" and args.live else "Paper Trading"
-    di_label = " (DI)" if args.use_di else ""
+    legacy_label = " (Legacy)" if args.legacy else ""
     render_header(
-        "Multi-Strategy Quantitative Trading System",
-        f"{args.mode.upper()} | {mode_label}{di_label}",
+        "The Alchemiser Trading System", f"{args.mode.upper()} | {mode_label}{legacy_label}"
     )
 
-    success: bool | str = False
+    # Execute operation
     try:
         if args.mode == "signal":
-            # Display multi-strategy signals (no trading)
-            success = run_all_signals_display(settings)
+            success = system.analyze_signals()
         elif args.mode == "trade":
-            # Multi-strategy trading
-            result = run_multi_strategy_trading(
-                live_trading=args.live,
-                ignore_market_hours=args.ignore_market_hours,
-                settings=settings,
-                use_dependency_injection=args.use_di,
+            success = system.execute_trading(
+                live_trading=args.live, ignore_market_hours=args.ignore_market_hours
             )
-            if result == "market_closed":
-                render_footer("Market closed - no action taken")
-                return True
-            else:
-                success = result
-    except (DataProviderError, StrategyExecutionError, TradingClientError) as e:
-        from the_alchemiser.infrastructure.logging.logging_utils import log_error_with_context
+        else:
+            success = False
 
+        # Display result
+        if success:
+            render_footer("Operation completed successfully!")
+        else:
+            render_footer("Operation failed!")
+
+        return success
+
+    except (ConfigurationError, ValueError, ImportError) as e:
         logger = get_logger(__name__)
-        log_error_with_context(
-            logger,
-            e,
-            "main_application",
-            function="main",
-            error_type=type(e).__name__,
-            mode=args.mode,
-            live_trading=getattr(args, "live", False),
-        )
-        logger.exception("Known error in main application: %s", e)
-        success = False
-    except (ConfigurationError, ValueError, AttributeError, OSError, ImportError) as e:
-        from the_alchemiser.infrastructure.logging.logging_utils import log_error_with_context
-
-        logger = get_logger(__name__)
-        log_error_with_context(
-            logger,
-            e,
-            "main_application_system_error",
-            function="main",
-            error_type=type(e).__name__,
-            mode=args.mode,
-            live_trading=getattr(args, "live", False),
-        )
-        logger.exception("System error in main application: %s", e)
-        success = False
-
-    if success:
-        render_footer("Operation completed successfully!")
-        return True
-    else:
-        render_footer("Operation failed!")
+        logger.error(f"System error: {e}")
+        render_footer("System error occurred!")
         return False
 
 
 if __name__ == "__main__":
-    sys.exit(0 if main(settings=load_settings()) else 1)
+    sys.exit(0 if main() else 1)

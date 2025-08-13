@@ -316,6 +316,29 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             logger.error(f"Failed to get current price for {symbol}: {e}")
             raise
 
+    def get_current_prices(self, symbols: list[str]) -> dict[str, float]:
+        """
+        Get current prices for multiple symbols.
+
+        Args:
+            symbols: List of stock symbols
+
+        Returns:
+            Dictionary mapping symbols to their current prices
+        """
+        try:
+            prices = {}
+            for symbol in symbols:
+                price = self.get_current_price(symbol)
+                if price is not None:
+                    prices[symbol] = price
+                else:
+                    logger.warning(f"Could not get price for {symbol}")
+            return prices
+        except Exception as e:
+            logger.error(f"Failed to get current prices for {symbols}: {e}")
+            raise
+
     def get_latest_quote(self, symbol: str) -> tuple[float, float] | None:
         """
         Get latest bid/ask quote for a symbol (interface compatible).

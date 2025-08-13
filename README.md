@@ -16,6 +16,7 @@ Now your Python virtual environment and all project settings are automatically a
 ### Manual Setup (Alternative)
 
 If you prefer manual environment management:
+
 ```bash
 source .venv/bin/activate
 export PYTHONPATH="${PWD}:${PWD}/the_alchemiser:${PYTHONPATH}"
@@ -23,23 +24,38 @@ export PYTHONPATH="${PWD}:${PWD}/the_alchemiser:${PYTHONPATH}"
 
 ## System Architecture
 
+### Layered DDD Architecture (Domain-Driven Design)
+
+- **Domain Layer** (`the_alchemiser/domain/`): Pure business logic, strategy engines (Nuclear, TECL, KLM), interfaces, and domain types
+- **Services Layer** (`the_alchemiser/services/`): Business logic orchestration and enhanced services facade
+- **Infrastructure Layer** (`the_alchemiser/infrastructure/`): External integrations (Alpaca API, AWS services, WebSocket streaming)
+- **Application Layer** (`the_alchemiser/application/`): Trading orchestration, smart execution, portfolio rebalancing
+- **Interface Layer** (`the_alchemiser/interface/`): Modular CLI with clean separation of concerns
+
+### Entry Point and CLI Architecture
+
+- **Main Entry Point** (`main.py`): Clean, focused entry point (180 lines) with `TradingSystem` orchestrator
+- **Signal Analyzer** (`interface/cli/signal_analyzer.py`): Dedicated signal analysis and display logic
+- **Trading Executor** (`interface/cli/trading_executor.py`): Dedicated trading execution with comprehensive error handling
+- **Dependency Injection**: Default DI mode with `--legacy` flag support for traditional initialization
+
 ### Configuration and Settings
 
-- `the_alchemiser.core.config` uses Pydantic settings models to load configuration from environment variables and `.env` files.
+- `the_alchemiser.infrastructure.config` uses Pydantic settings models to load configuration from environment variables and `.env` files.
 
 ### Data Layer
 
-- `the_alchemiser.core.data.UnifiedDataProvider` unifies Alpaca REST and WebSocket access to provide account details, quotes and historical data.
+- `the_alchemiser.infrastructure.data_providers.UnifiedDataProvider` unifies Alpaca REST and WebSocket access to provide account details, quotes and historical data.
 
 ### Strategy Layer
 
-- Strategy engines live in `the_alchemiser.core.trading`.
+- Strategy engines live in `the_alchemiser.domain.strategies`.
 - `MultiStrategyManager` instantiates enabled strategies and keeps per‑strategy position tracking and allocation.
 
 ### Execution Layer
 
 - `TradingEngine` orchestrates the full trading cycle: it gathers strategy signals, invokes `PortfolioRebalancer` to compute target allocations and delegates order placement to `SmartExecution`.
-- `ExecutionManager` drives multi‑strategy execution; `AccountService` exposes account and position data.
+- `ExecutionManager` drives multi‑strategy execution; enhanced services provide unified access to trading operations.
 
 ### Error Handling and Monitoring
 
@@ -508,12 +524,19 @@ def lambda_handler(event, context):
 ## Quick Commands
 
 ```bash
-make dev        # install with dev dependencies
-make format     # run black
-make lint       # run flake8
-make test       # run pytest
-alchemiser bot  # show current strategy signals
-alchemiser trade --live  # live trading
+make dev                            # install with dev dependencies
+make format                         # run black + ruff formatting
+make lint                          # run flake8, mypy, security checks
+make test                          # run pytest with coverage
+
+# Modern CLI (DI-first architecture)
+alchemiser signal                  # strategy analysis (DI mode, default)
+alchemiser signal --legacy         # strategy analysis (legacy mode)
+alchemiser trade                   # paper trading (DI mode)
+alchemiser trade --live            # live trading (DI mode)
+alchemiser trade --ignore-market-hours  # override market hours
+alchemiser status                  # account status and positions
+alchemiser deploy                  # deploy to AWS Lambda
 ```
 
 ## Development Workflow for AI Agents

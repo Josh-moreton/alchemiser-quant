@@ -387,3 +387,92 @@ class AccountService:
         except Exception as e:
             self.logger.error(f"Failed to calculate portfolio allocation: {e}")
             raise
+
+    # Protocol method implementations for DI compatibility
+    def get_account_info(self) -> dict[str, Any]:
+        """
+        Protocol-compliant account info method for TradingEngine DI mode.
+
+        Returns AccountInfo-compatible dict as expected by AccountInfoProvider protocol.
+        """
+        try:
+            summary = self.get_account_summary()
+
+            # Map comprehensive summary to protocol-expected format
+            return {
+                "account_id": summary["account_id"],
+                "equity": summary["equity"],
+                "cash": summary["cash"],
+                "buying_power": summary["buying_power"],
+                "day_trades_remaining": max(0, 3 - summary["day_trade_count"]),
+                "portfolio_value": summary["equity"],
+                "last_equity": summary["last_equity"],
+                "daytrading_buying_power": summary["buying_power"],
+                "regt_buying_power": summary["buying_power"],
+                "status": "BLOCKED" if summary["trading_blocked"] else "ACTIVE",
+                "pattern_day_trader": summary["pattern_day_trader"],
+                "trading_blocked": summary["trading_blocked"],
+                "transfers_blocked": summary["transfers_blocked"],
+                "account_blocked": summary["account_blocked"],
+                "market_value": summary["market_value"],
+                "calculated_metrics": summary["calculated_metrics"],
+            }
+        except Exception as e:
+            self.logger.error(f"Failed to get protocol-compliant account info: {e}")
+            raise
+
+    def get_positions_dict(self) -> dict[str, dict[str, Any]]:
+        """
+        Protocol-compliant positions method for TradingEngine DI mode.
+
+        Returns PositionsDict as expected by PositionProvider protocol.
+        """
+        try:
+            positions = self.account_repository.get_positions()
+            positions_dict = {}
+
+            for position in positions:
+                symbol = self._get_attr(position, "symbol", "")
+                qty = self._get_attr(position, "qty", 0)
+
+                # Only include positions with non-zero quantity
+                if symbol and float(qty) != 0:
+                    positions_dict[symbol] = {
+                        "symbol": symbol,
+                        "qty": float(qty),
+                        "market_value": float(self._get_attr(position, "market_value", 0)),
+                        "avg_entry_price": float(self._get_attr(position, "avg_entry_price", 0)),
+                        "unrealized_pl": float(self._get_attr(position, "unrealized_pl", 0)),
+                        "unrealized_plpc": float(self._get_attr(position, "unrealized_plpc", 0)),
+                        "current_price": float(self._get_attr(position, "current_price", 0)),
+                        "side": "long" if float(qty) > 0 else "short",
+                    }
+
+            return positions_dict
+        except Exception as e:
+            self.logger.error(f"Failed to get protocol-compliant positions dict: {e}")
+            raise
+
+    def get_current_price(self, symbol: str) -> float:
+        """
+        Protocol-compliant price method for TradingEngine DI mode.
+
+        Returns current price as expected by PriceProvider protocol.
+        """
+        try:
+            return self.account_repository.get_current_price(symbol)
+        except Exception as e:
+            self.logger.error(f"Failed to get current price for {symbol}: {e}")
+            raise
+
+    def get_current_prices(self, symbols: list[str]) -> dict[str, float]:
+        """
+        Protocol-compliant prices method for TradingEngine DI mode.
+
+        Returns price dict as expected by PriceProvider protocol.
+        """
+        try:
+            return self.account_repository.get_current_prices(symbols)
+        except Exception as e:
+            self.logger.error(f"Failed to get current prices for {symbols}: {e}")
+            raise
