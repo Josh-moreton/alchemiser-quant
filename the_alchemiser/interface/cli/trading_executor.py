@@ -26,12 +26,10 @@ class TradingExecutor:
     def __init__(
         self,
         settings: Settings,
-        use_legacy: bool = False,
         live_trading: bool = False,
         ignore_market_hours: bool = False,
     ):
         self.settings = settings
-        self.use_legacy = use_legacy
         self.live_trading = live_trading
         self.ignore_market_hours = ignore_market_hours
         self.logger = get_logger(__name__)
@@ -47,29 +45,22 @@ class TradingExecutor:
         }
 
     def _create_trading_engine(self) -> TradingEngine:
-        """Create and configure the trading engine."""
+        """Create and configure the trading engine using DI."""
         strategy_allocations = self._get_strategy_allocations()
 
-        if not self.use_legacy:
-            # Use DI mode
-            from the_alchemiser.main import _di_container
+        # Use DI mode
+        from the_alchemiser.main import _di_container
 
-            if _di_container is not None:
-                trader = TradingEngine.create_with_di(
-                    container=_di_container,
-                    strategy_allocations=strategy_allocations,
-                    ignore_market_hours=self.ignore_market_hours,
-                )
-                trader.paper_trading = not self.live_trading
-                return trader
+        if _di_container is None:
+            raise RuntimeError("DI container not available - ensure system is properly initialized")
 
-        # Fall back to traditional mode
-        return TradingEngine(
-            paper_trading=not self.live_trading,
-            ignore_market_hours=self.ignore_market_hours,
-            config=self.settings,
+        trader = TradingEngine.create_with_di(
+            container=_di_container,
             strategy_allocations=strategy_allocations,
+            ignore_market_hours=self.ignore_market_hours,
         )
+        trader.paper_trading = not self.live_trading
+        return trader
 
     def _check_market_hours(self, trader: TradingEngine) -> bool:
         """Check if market is open for trading."""
