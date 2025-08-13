@@ -2,6 +2,7 @@ import logging
 from typing import Any
 
 from the_alchemiser.domain.interfaces import AccountRepository
+from the_alchemiser.domain.types import AccountInfo, PositionsDict
 
 
 class AccountService:
@@ -389,7 +390,7 @@ class AccountService:
             raise
 
     # Protocol method implementations for DI compatibility
-    def get_account_info(self) -> dict[str, Any]:
+    def get_account_info(self) -> AccountInfo:
         """
         Protocol-compliant account info method for TradingEngine DI mode.
 
@@ -421,7 +422,7 @@ class AccountService:
             self.logger.error(f"Failed to get protocol-compliant account info: {e}")
             raise
 
-    def get_positions_dict(self) -> dict[str, dict[str, Any]]:
+    def get_positions_dict(self) -> PositionsDict:
         """
         Protocol-compliant positions method for TradingEngine DI mode.
 
@@ -440,12 +441,12 @@ class AccountService:
                     positions_dict[symbol] = {
                         "symbol": symbol,
                         "qty": float(qty),
+                        "side": "long" if float(qty) > 0 else "short",
                         "market_value": float(self._get_attr(position, "market_value", 0)),
-                        "avg_entry_price": float(self._get_attr(position, "avg_entry_price", 0)),
+                        "cost_basis": float(self._get_attr(position, "avg_entry_price", 0)),
                         "unrealized_pl": float(self._get_attr(position, "unrealized_pl", 0)),
                         "unrealized_plpc": float(self._get_attr(position, "unrealized_plpc", 0)),
                         "current_price": float(self._get_attr(position, "current_price", 0)),
-                        "side": "long" if float(qty) > 0 else "short",
                     }
 
             return positions_dict

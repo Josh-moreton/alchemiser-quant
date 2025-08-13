@@ -36,25 +36,22 @@ _di_container = None
 class TradingSystem:
     """Main trading system orchestrator."""
 
-    def __init__(self, settings: Settings | None = None, use_legacy: bool = False):
+    def __init__(self, settings: Settings | None = None):
         self.settings = settings or load_settings()
-        self.use_legacy = use_legacy
         self.logger = get_logger(__name__)
         self._initialize_di()
 
     def _initialize_di(self) -> None:
-        """Initialize dependency injection if available and not using legacy mode."""
+        """Initialize dependency injection system."""
         global _di_container
 
-        if not self.use_legacy and DI_AVAILABLE:
+        if DI_AVAILABLE:
             _di_container = ApplicationContainer()
             ServiceFactory.initialize(_di_container)
             self.logger.info("Dependency injection initialized")
         else:
-            if not self.use_legacy and not DI_AVAILABLE:
-                self.logger.warning("DI not available - falling back to legacy mode")
-            else:
-                self.logger.info("Using legacy initialization")
+            self.logger.error("DI not available - system requires dependency injection")
+            raise ConfigurationError("Dependency injection system is required but not available")
 
     def _get_strategy_allocations(self) -> dict[StrategyType, float]:
         """Extract strategy allocations from configuration."""
@@ -69,7 +66,7 @@ class TradingSystem:
         from the_alchemiser.interface.cli.signal_analyzer import SignalAnalyzer
 
         try:
-            analyzer = SignalAnalyzer(self.settings, use_legacy=self.use_legacy)
+            analyzer = SignalAnalyzer(self.settings)
             return analyzer.run()
         except (DataProviderError, StrategyExecutionError) as e:
             self.logger.error(f"Signal analysis failed: {e}")
@@ -84,7 +81,6 @@ class TradingSystem:
         try:
             executor = TradingExecutor(
                 settings=self.settings,
-                use_legacy=self.use_legacy,
                 live_trading=live_trading,
                 ignore_market_hours=ignore_market_hours,
             )
@@ -118,10 +114,9 @@ def create_argument_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  alchemiser signal                    # Analyze signals (DI mode)
-  alchemiser trade                     # Paper trading (DI mode)
-  alchemiser trade --live              # Live trading (DI mode)
-  alchemiser signal --legacy           # Legacy mode
+  alchemiser signal                    # Analyze signals
+  alchemiser trade                     # Paper trading
+  alchemiser trade --live              # Live trading
         """,
     )
 
@@ -137,10 +132,6 @@ Examples:
 
     parser.add_argument(
         "--ignore-market-hours", action="store_true", help="Override market hours check"
-    )
-
-    parser.add_argument(
-        "--legacy", action="store_true", help="Use legacy mode (disable dependency injection)"
     )
 
     return parser
@@ -163,14 +154,11 @@ def main(argv: list[str] | None = None) -> bool:
     args = parser.parse_args(argv)
 
     # Initialize system
-    system = TradingSystem(use_legacy=args.legacy)
+    system = TradingSystem()
 
     # Display header
     mode_label = "LIVE TRADING ⚠️" if args.mode == "trade" and args.live else "Paper Trading"
-    legacy_label = " (Legacy)" if args.legacy else ""
-    render_header(
-        "The Alchemiser Trading System", f"{args.mode.upper()} | {mode_label}{legacy_label}"
-    )
+    render_header("The Alchemiser Trading System", f"{args.mode.upper()} | {mode_label}")
 
     # Execute operation
     try:

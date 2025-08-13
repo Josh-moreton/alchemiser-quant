@@ -21,9 +21,8 @@ from the_alchemiser.services.exceptions import DataProviderError, StrategyExecut
 class SignalAnalyzer:
     """Handles signal analysis and display."""
 
-    def __init__(self, settings: Settings, use_legacy: bool = False):
+    def __init__(self, settings: Settings):
         self.settings = settings
-        self.use_legacy = use_legacy
         self.logger = get_logger(__name__)
 
     def _get_strategy_allocations(self) -> dict[StrategyType, float]:
