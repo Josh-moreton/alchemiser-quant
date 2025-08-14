@@ -1,5 +1,6 @@
 # Pre-commit hooks for The Alchemiser - automated code quality on commit
 # All tool configurations are in pyproject.toml
+# Configured to run ONLY on staged files for optimal performance
 
 repos:
   - repo: local
@@ -10,6 +11,7 @@ repos:
         language: system
         types: [python]
         pass_filenames: true
+        stages: [commit]
 
       - id: black-format
         name: Black Code Formatter
@@ -17,11 +19,12 @@ repos:
         language: system
         types: [python]
         pass_filenames: true
+        stages: [commit]
 
       - id: mypy-typecheck
         name: MyPy Type Checking
         entry: poetry run mypy
         language: system
         types: [python]
-        pass_filenames: false
-        args: [the_alchemiser/]
+        pass_filenames: true
+        stages: [commit]
