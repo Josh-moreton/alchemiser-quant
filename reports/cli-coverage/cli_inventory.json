@@ -1,0 +1,175 @@
+{
+  "alchemiser": {
+    "entrypoint": "the_alchemiser.interface.cli.cli:app",
+    "commands": {
+      "signal": {
+        "help": "\ud83c\udfaf [bold cyan]Generate and display strategy signals[/bold cyan] (analysis only, no trading)\n\nAnalyzes market conditions and generates trading signals from multiple strategies:\n\u2022 Nuclear strategy (nuclear sector + market conditions)\n\u2022 TECL strategy (tech leverage + volatility hedging)\n\u2022 KLM strategy (ensemble machine learning)\n\u2022 Market regime analysis (bull/bear/overbought conditions)\n\nPerfect for:\n\u2022 Market analysis without trading\n\u2022 Strategy validation\n\u2022 Understanding current market signals",
+        "options": [
+          {
+            "name": "verbose",
+            "flags": [
+              "--verbose",
+              "-v"
+            ],
+            "type": "boolean",
+            "choices": null,
+            "default": false,
+            "required": false,
+            "help": "Enable verbose output"
+          },
+          {
+            "name": "no_header",
+            "flags": [
+              "--no-header"
+            ],
+            "type": "boolean",
+            "choices": null,
+            "default": false,
+            "required": false,
+            "help": "Skip welcome header"
+          }
+        ],
+        "commands": {}
+      },
+      "trade": {
+        "help": "\ud83d\udcb0 [bold green]Execute multi-strategy trading[/bold green]\n\nRuns Nuclear, TECL, and KLM strategies with automatic portfolio allocation.\nDefault mode is paper trading for safety.\n\n[bold red]\u26a0\ufe0f  Use --live flag for real money trading![/bold red]",
+        "options": [
+          {
+            "name": "live",
+            "flags": [
+              "--live"
+            ],
+            "type": "boolean",
+            "choices": null,
+            "default": false,
+            "required": false,
+            "help": "\ud83d\udea8 Enable LIVE trading (real money)"
+          },
+          {
+            "name": "ignore_market_hours",
+            "flags": [
+              "--ignore-market-hours"
+            ],
+            "type": "boolean",
+            "choices": null,
+            "default": false,
+            "required": false,
+            "help": "Trade outside market hours (testing only)"
+          },
+          {
+            "name": "verbose",
+            "flags": [
+              "--verbose",
+              "-v"
+            ],
+            "type": "boolean",
+            "choices": null,
+            "default": false,
+            "required": false,
+            "help": "Enable verbose output"
+          },
+          {
+            "name": "no_header",
+            "flags": [
+              "--no-header"
+            ],
+            "type": "boolean",
+            "choices": null,
+            "default": false,
+            "required": false,
+            "help": "Skip welcome header"
+          },
+          {
+            "name": "force",
+            "flags": [
+              "--force"
+            ],
+            "type": "boolean",
+            "choices": null,
+            "default": false,
+            "required": false,
+            "help": "Skip confirmation prompts"
+          }
+        ],
+        "commands": {}
+      },
+      "status": {
+        "help": "\ud83d\udcc8 [bold blue]Show account status and positions[/bold blue]\n\nDisplays current account balance, positions, portfolio performance, and P&L.\nUse --live flag to view live account instead of paper account.",
+        "options": [
+          {
+            "name": "live",
+            "flags": [
+              "--live"
+            ],
+            "type": "boolean",
+            "choices": null,
+            "default": false,
+            "required": false,
+            "help": "\ud83d\udea8 Show LIVE account status (real account)"
+          }
+        ],
+        "commands": {}
+      },
+      "deploy": {
+        "help": "\ud83d\ude80 [bold cyan]Deploy to AWS Lambda[/bold cyan]\n\nBuilds and deploys to AWS Lambda using SAM (Serverless Application Model).",
+        "options": [],
+        "commands": {}
+      },
+      "version": {
+        "help": "\u2139\ufe0f  [bold]Show version information[/bold]",
+        "options": [],
+        "commands": {}
+      },
+      "validate-indicators": {
+        "help": "\ud83d\udd2c [bold blue]Validate technical indicators against TwelveData API[/bold blue]\n\nThis command runs a comprehensive validation suite that tests all technical\nindicators used by our trading strategies against TwelveData API values.\n\nExamples:\n  alchemiser validate-indicators --mode quick\n  alchemiser validate-indicators --symbols SPY,TQQQ --save results.json\n  alchemiser validate-indicators --mode full\n\nModes:\n\u2022 quick: Test core symbols (SPY, QQQ) with main indicators\n\u2022 core: Test all strategy symbols with key indicators\n\u2022 full: Comprehensive test of all symbols and indicators\n\nTwelveData API key is automatically retrieved from AWS Secrets Manager.",
+        "options": [
+          {
+            "name": "mode",
+            "flags": [
+              "--mode"
+            ],
+            "type": "text",
+            "choices": null,
+            "default": "core",
+            "required": false,
+            "help": "Validation mode: quick, core, or full"
+          },
+          {
+            "name": "symbols",
+            "flags": [
+              "--symbols"
+            ],
+            "type": "text",
+            "choices": null,
+            "default": null,
+            "required": false,
+            "help": "Comma-separated symbols to test"
+          },
+          {
+            "name": "save_file",
+            "flags": [
+              "--save"
+            ],
+            "type": "text",
+            "choices": null,
+            "default": null,
+            "required": false,
+            "help": "Save results to JSON file"
+          },
+          {
+            "name": "verbose_validation",
+            "flags": [
+              "--verbose-validation"
+            ],
+            "type": "boolean",
+            "choices": null,
+            "default": false,
+            "required": false,
+            "help": "Enable verbose validation logging"
+          }
+        ],
+        "commands": {}
+      }
+    }
+  }
+}

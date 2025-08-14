@@ -1,7 +1,7 @@
 # The Alchemiser Makefile
 # Quick commands for development and deployment
 
-.PHONY: help install dev test clean run-signals run-trade run-trade-live status deploy format lint
+.PHONY: help install dev test clean run-signals run-trade run-trade-live status deploy format lint cli-coverage
 
 # Default target
 help:
@@ -75,8 +75,15 @@ clean:
 
 # Deployment
 deploy:
-	@echo "🚀 Deploying to AWS Lambda..."
-	alchemiser deploy
+        @echo "🚀 Deploying to AWS Lambda..."
+        alchemiser deploy
+
+cli-coverage:
+        @echo "📊 Running CLI coverage pipeline..."
+        poetry run python tools/cli_inventory.py
+        poetry run python tools/build_matrix.py
+        poetry run python tools/run_cli_coverage.py
+        poetry run python tools/collect_usage.py
 
 # Legacy commands (for backward compatibility)
 bot: run-bot

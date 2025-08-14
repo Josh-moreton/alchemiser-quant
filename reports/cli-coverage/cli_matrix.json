@@ -1,0 +1,98 @@
+[
+  {
+    "id": "signal_default",
+    "entrypoint": "alchemiser",
+    "args": [
+      "signal"
+    ],
+    "reason": "Baseline run with default options"
+  },
+  {
+    "id": "trade_default",
+    "entrypoint": "alchemiser",
+    "args": [
+      "trade"
+    ],
+    "reason": "Baseline run with default options"
+  },
+  {
+    "id": "trade_live",
+    "entrypoint": "alchemiser",
+    "args": [
+      "trade",
+      "--live",
+      "--force"
+    ],
+    "reason": "Exercise boolean flag --live"
+  },
+  {
+    "id": "trade_ignore_market_hours",
+    "entrypoint": "alchemiser",
+    "args": [
+      "trade",
+      "--ignore-market-hours"
+    ],
+    "reason": "Exercise boolean flag --ignore-market-hours"
+  },
+  {
+    "id": "status_default",
+    "entrypoint": "alchemiser",
+    "args": [
+      "status"
+    ],
+    "reason": "Baseline run with default options"
+  },
+  {
+    "id": "status_live",
+    "entrypoint": "alchemiser",
+    "args": [
+      "status",
+      "--live"
+    ],
+    "reason": "Exercise boolean flag --live"
+  },
+  {
+    "id": "deploy_default",
+    "entrypoint": "alchemiser",
+    "args": [
+      "deploy"
+    ],
+    "reason": "Baseline run with default options"
+  },
+  {
+    "id": "version_default",
+    "entrypoint": "alchemiser",
+    "args": [
+      "version"
+    ],
+    "reason": "Baseline run with default options"
+  },
+  {
+    "id": "validate-indicators_default",
+    "entrypoint": "alchemiser",
+    "args": [
+      "validate-indicators"
+    ],
+    "reason": "Baseline run with default options"
+  },
+  {
+    "id": "validate-indicators_mode_quick",
+    "entrypoint": "alchemiser",
+    "args": [
+      "validate-indicators",
+      "--mode",
+      "quick"
+    ],
+    "reason": "Test mode quick"
+  },
+  {
+    "id": "validate-indicators_mode_full",
+    "entrypoint": "alchemiser",
+    "args": [
+      "validate-indicators",
+      "--mode",
+      "full"
+    ],
+    "reason": "Test mode full"
+  }
+]

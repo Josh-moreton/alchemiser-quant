@@ -1,0 +1,11 @@
+[run]
+branch = True
+source = the_alchemiser
+omit =
+    tests/*
+    */.venv/*
+    */venv/*
+    **/__init__.py
+
+[html]
+directory = reports/cli-coverage/html
