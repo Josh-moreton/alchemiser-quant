@@ -21,10 +21,9 @@ import argparse
 import filecmp
 import shutil
 import sys
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
-from collections.abc import Iterable
-
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SERVICES_ROOT = REPO_ROOT / "the_alchemiser" / "services"
