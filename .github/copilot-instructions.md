@@ -74,7 +74,7 @@ alpaca_manager = AlpacaManager(api_key, secret_key, paper=True)
 
 **Service Facade Pattern** (TradingServiceManager):
 ```python
-from the_alchemiser.services.enhanced import TradingServiceManager
+from the_alchemiser.services.trading.trading_service_manager import TradingServiceManager
 
 # Single entry point for all trading operations
 trading_manager = TradingServiceManager(api_key, secret_key, paper=True)
@@ -202,7 +202,7 @@ poetry run python -m the_alchemiser.main  # Run main module
 
 ### Trading Service Usage (Always use TradingServiceManager)
 ```python
-from the_alchemiser.services.enhanced import TradingServiceManager
+from the_alchemiser.services.trading.trading_service_manager import TradingServiceManager
 
 # Initialize with environment detection
 trading_manager = TradingServiceManager(api_key, secret_key, paper=True)
