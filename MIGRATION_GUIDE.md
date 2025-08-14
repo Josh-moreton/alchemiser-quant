@@ -30,8 +30,8 @@ This document provides a comprehensive list of every file that needs to be updat
 **Current Code (Lines 29, 328, 368, 739):**
 
 ```python
-# Line 29 - Import
-from the_alchemiser.application.portfolio_rebalancer.portfolio_rebalancer import PortfolioRebalancer
+# Line 29 - Import (UPDATED: Now points to legacy backup)
+from legacy.portfolio_rebalancer.portfolio_rebalancer_legacy import PortfolioRebalancer
 
 # Line 328 - Initialization
 self.portfolio_rebalancer = PortfolioRebalancer(self)

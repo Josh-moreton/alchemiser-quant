@@ -26,7 +26,7 @@ from typing import Any, Protocol
 
 from alpaca.trading.enums import OrderSide
 
-from the_alchemiser.application.portfolio_rebalancer.portfolio_rebalancer import (
+from legacy.portfolio_rebalancer.portfolio_rebalancer_legacy import (
     PortfolioRebalancer,
 )
 from the_alchemiser.domain.strategies.strategy_manager import (
