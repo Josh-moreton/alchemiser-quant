@@ -314,7 +314,7 @@ def status(
     try:
         from rich.panel import Panel
 
-        from the_alchemiser.application.trading_engine import TradingEngine
+        from the_alchemiser.application.trading.trading_engine import TradingEngine
         from the_alchemiser.interface.cli.cli_formatter import render_account_info
 
         # Create trader and data provider for the specified mode

@@ -9,6 +9,7 @@ import argparse
 import logging
 import os
 import sys
+from typing import Optional
 
 from the_alchemiser.domain.strategies.strategy_manager import StrategyType
 from the_alchemiser.infrastructure.config import Settings, load_settings
@@ -30,7 +31,8 @@ except ImportError:
     DI_AVAILABLE = False
 
 # Global DI container
-_di_container = None
+# Use Optional for proper type inference by static type checkers
+_di_container: Optional["ApplicationContainer"] = None
 
 
 class TradingSystem:

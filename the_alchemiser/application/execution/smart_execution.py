@@ -20,7 +20,7 @@ from typing import Any, Protocol
 from alpaca.trading.enums import OrderSide
 
 # TODO: Phase 5 - Added for gradual migration
-from the_alchemiser.application.alpaca_client import AlpacaClient
+from the_alchemiser.application.trading.alpaca_client import AlpacaClient
 from the_alchemiser.infrastructure.data_providers.data_provider import UnifiedDataProvider
 from the_alchemiser.services.alpaca_manager import AlpacaManager
 from the_alchemiser.services.exceptions import (
@@ -186,7 +186,7 @@ class SmartExecution:
         """
         from rich.console import Console
 
-        from the_alchemiser.application.spread_assessment import SpreadAssessment
+        from the_alchemiser.application.execution.spread_assessment import SpreadAssessment
         from the_alchemiser.domain.math.market_timing_utils import MarketOpenTimingEngine
 
         console = Console()
@@ -327,7 +327,7 @@ class SmartExecution:
 
         # Import here to avoid circular dependency
         try:
-            from the_alchemiser.application.order_validation import (
+            from the_alchemiser.application.orders.order_validation import (
                 OrderSettlementTracker,
                 ValidatedOrder,
             )

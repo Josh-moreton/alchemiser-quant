@@ -47,18 +47,18 @@ import time
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from the_alchemiser.application.order_validation import ValidatedOrder
+    from the_alchemiser.application.orders.order_validation import ValidatedOrder
 
 from alpaca.trading.enums import OrderSide
 
-from the_alchemiser.application.asset_order_handler import AssetOrderHandler
-from the_alchemiser.application.limit_order_handler import LimitOrderHandler
-from the_alchemiser.application.order_validation_utils import (
+from the_alchemiser.application.execution.smart_pricing_handler import SmartPricingHandler
+from the_alchemiser.application.orders.asset_order_handler import AssetOrderHandler
+from the_alchemiser.application.orders.limit_order_handler import LimitOrderHandler
+from the_alchemiser.application.orders.order_validation_utils import (
     validate_notional,
     validate_order_parameters,
     validate_quantity,
 )
-from the_alchemiser.application.smart_pricing_handler import SmartPricingHandler
 from the_alchemiser.infrastructure.data_providers.data_provider import UnifiedDataProvider
 from the_alchemiser.infrastructure.websocket.websocket_connection_manager import (
     WebSocketConnectionManager,
@@ -133,7 +133,7 @@ class AlpacaClient:
             List of ValidatedOrder instances for type-safe order handling.
         """
         try:
-            from the_alchemiser.application.order_validation import ValidatedOrder
+            from the_alchemiser.application.orders.order_validation import ValidatedOrder
 
             raw_orders = self.position_manager.get_pending_orders()
 

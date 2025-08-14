@@ -53,11 +53,11 @@ from the_alchemiser.services.exceptions import (
     TradingClientError,
 )
 
-from .execution_manager import ExecutionManager
-from .reporting import (
+from ..execution.execution_manager import ExecutionManager
+from ..reporting.reporting import (
     build_portfolio_state_data,
 )
-from .types import MultiStrategyExecutionResult
+from ..types import MultiStrategyExecutionResult
 
 
 # Protocol definitions for dependency injection
@@ -314,7 +314,7 @@ class TradingEngine:
         }
 
         # Order manager setup
-        from the_alchemiser.application.smart_execution import SmartExecution
+        from the_alchemiser.application.execution.smart_execution import SmartExecution
 
         try:
             self.order_manager = SmartExecution(

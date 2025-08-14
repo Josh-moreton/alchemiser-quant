@@ -5,7 +5,7 @@ from typing import Any
 
 from alpaca.trading.enums import OrderSide
 
-from the_alchemiser.application.smart_execution import SmartExecution
+from the_alchemiser.application.execution.smart_execution import SmartExecution
 from the_alchemiser.domain.portfolio.rebalancing.rebalance_plan import RebalancePlan
 from the_alchemiser.services.enhanced.trading_service_manager import TradingServiceManager
 from the_alchemiser.services.error_handler import TradingSystemErrorHandler
