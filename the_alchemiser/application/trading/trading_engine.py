@@ -1264,7 +1264,7 @@ class TradingEngine:
                     pl_color = "green" if recent_pl >= 0 else "red"
                     pl_sign = "+" if recent_pl >= 0 else ""
                     account_content.append(
-                        f"Recent P&L: {pl_sign}${recent_pl:,.2f} ({pl_sign}{recent_pl_pct*100:.2f}%)\n",
+                        f"Recent P&L: {pl_sign}${recent_pl:,.2f} ({pl_sign}{recent_pl_pct * 100:.2f}%)\n",
                         style=f"bold {pl_color}",
                     )
 
