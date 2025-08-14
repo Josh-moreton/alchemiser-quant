@@ -46,7 +46,7 @@ except ImportError:
 # DI imports (optional)
 try:
     from the_alchemiser.container.application_container import ApplicationContainer
-    from the_alchemiser.services.service_factory import ServiceFactory
+    from the_alchemiser.services.shared.service_factory import ServiceFactory
 
     DI_AVAILABLE = True
 except ImportError:
@@ -55,7 +55,7 @@ except ImportError:
 from the_alchemiser.domain.strategies.strategy_manager import StrategyType
 from the_alchemiser.infrastructure.config import Settings, load_settings
 from the_alchemiser.infrastructure.logging.logging_utils import get_logger, setup_logging
-from the_alchemiser.services.exceptions import (
+from the_alchemiser.services.errors.exceptions import (
     ConfigurationError,
     DataProviderError,
     NotificationError,
@@ -528,7 +528,7 @@ def run_multi_strategy_trading(
 
         # Enhanced error handling with detailed reporting
         try:
-            from the_alchemiser.services.error_handler import (
+            from the_alchemiser.services.errors.error_handler import (
                 handle_trading_error,
                 send_error_notification_if_needed,
             )
@@ -568,7 +568,7 @@ def run_multi_strategy_trading(
 
         # For system errors, still try to send notification
         try:
-            from the_alchemiser.services.error_handler import (
+            from the_alchemiser.services.errors.error_handler import (
                 handle_trading_error,
                 send_error_notification_if_needed,
             )

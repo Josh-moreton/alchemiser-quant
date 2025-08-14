@@ -19,7 +19,7 @@ from rich.prompt import Confirm
 from rich.text import Text
 
 from the_alchemiser.infrastructure.logging.logging_utils import get_logger, log_error_with_context
-from the_alchemiser.services.exceptions import (
+from the_alchemiser.services.errors.exceptions import (
     AlchemiserError,
     StrategyExecutionError,
     TradingClientError,

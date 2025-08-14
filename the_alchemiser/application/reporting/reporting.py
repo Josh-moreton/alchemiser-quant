@@ -5,7 +5,7 @@ from typing import Any
 
 from the_alchemiser.domain.strategies.strategy_manager import StrategyType
 from the_alchemiser.domain.types import AccountInfo
-from the_alchemiser.services.exceptions import DataProviderError, TradingClientError
+from the_alchemiser.services.errors.exceptions import DataProviderError, TradingClientError
 
 
 def create_execution_summary(
@@ -121,7 +121,7 @@ def build_portfolio_state_data(
 ) -> dict[str, Any]:
     """Build portfolio state data for reporting purposes."""
     from the_alchemiser.domain.math.trading_math import calculate_allocation_discrepancy
-    from the_alchemiser.services.account_utils import (
+    from the_alchemiser.services.account.account_utils import (
         extract_current_position_values,
     )
 

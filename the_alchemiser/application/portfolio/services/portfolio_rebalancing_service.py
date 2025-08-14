@@ -10,7 +10,7 @@ from the_alchemiser.domain.portfolio.rebalancing.rebalance_plan import Rebalance
 from the_alchemiser.domain.portfolio.strategy_attribution.attribution_engine import (
     StrategyAttributionEngine,
 )
-from the_alchemiser.services.enhanced.trading_service_manager import TradingServiceManager
+from the_alchemiser.services.trading.trading_service_manager import TradingServiceManager
 
 
 class PortfolioRebalancingService:

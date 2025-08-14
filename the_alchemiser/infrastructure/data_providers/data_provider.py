@@ -14,7 +14,7 @@ from alpaca.trading.client import TradingClient
 
 from the_alchemiser.infrastructure.config import Settings
 from the_alchemiser.infrastructure.secrets.secrets_manager import SecretsManager
-from the_alchemiser.services.exceptions import (
+from the_alchemiser.services.errors.exceptions import (
     ConfigurationError,
     DataProviderError,
     MarketDataError,
@@ -458,7 +458,7 @@ class UnifiedDataProvider:
         Returns:
             tuple: (price, cleanup_function) where cleanup_function unsubscribes
         """
-        from the_alchemiser.services.price_fetching_utils import (
+        from the_alchemiser.services.market_data.price_fetching_utils import (
             create_cleanup_function,
             subscribe_for_real_time,
         )
@@ -491,7 +491,7 @@ class UnifiedDataProvider:
         Returns:
             float: Current price or None if unavailable
         """
-        from the_alchemiser.services.price_fetching_utils import (
+        from the_alchemiser.services.market_data.price_fetching_utils import (
             get_price_from_historical_fallback,
             get_price_from_quote_api,
         )

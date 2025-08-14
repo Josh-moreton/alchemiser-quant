@@ -46,7 +46,7 @@ from the_alchemiser.infrastructure.adapters.legacy_portfolio_adapter import (
     LegacyPortfolioRebalancerAdapter,
 )
 from the_alchemiser.infrastructure.config import Settings
-from the_alchemiser.services.exceptions import (
+from the_alchemiser.services.errors.exceptions import (
     ConfigurationError,
     DataProviderError,
     StrategyExecutionError,
@@ -450,7 +450,7 @@ class TradingEngine:
 
             # Enhanced error handling
             try:
-                from the_alchemiser.services.error_handler import handle_trading_error
+                from the_alchemiser.services.errors.error_handler import handle_trading_error
 
                 handle_trading_error(
                     error=e,
@@ -480,7 +480,7 @@ class TradingEngine:
 
             # Enhanced error handling
             try:
-                from the_alchemiser.services.error_handler import handle_trading_error
+                from the_alchemiser.services.errors.error_handler import handle_trading_error
 
                 handle_trading_error(
                     error=e,
@@ -884,7 +884,7 @@ class TradingEngine:
 
             # Enhanced error handling
             try:
-                from the_alchemiser.services.error_handler import handle_trading_error
+                from the_alchemiser.services.errors.error_handler import handle_trading_error
 
                 handle_trading_error(
                     error=e,
@@ -1077,7 +1077,7 @@ class TradingEngine:
             Uses Rich table formatting via cli_formatter for beautiful display.
         """
         from the_alchemiser.interface.cli.cli_formatter import render_target_vs_current_allocations
-        from the_alchemiser.services.account_utils import (
+        from the_alchemiser.services.account.account_utils import (
             calculate_position_target_deltas,
             extract_current_position_values,
         )

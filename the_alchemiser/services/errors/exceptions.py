@@ -1,0 +1,259 @@
+#!/usr/bin/env python3
+"""
+Custom exception classes for The Alchemiser Quantitative Trading System.
+
+This module defines specific exception types for different failure scenarios
+to enable better error handling and debugging throughout the application.
+"""
+
+from datetime import datetime
+from typing import Any
+
+
+class AlchemiserError(Exception):
+    """Base exception class for all Alchemiser-specific errors."""
+
+    def __init__(self, message: str, context: dict[str, Any] | None = None) -> None:
+        """Initialize base error with optional contextual data."""
+        super().__init__(message)
+        self.message = message
+        self.context = context or {}
+        self.timestamp = datetime.now()
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert exception to structured data for logging/reporting."""
+        return {
+            "error_type": self.__class__.__name__,
+            "message": self.message,
+            "context": self.context,
+            "timestamp": self.timestamp.isoformat(),
+        }
+
+
+class ConfigurationError(AlchemiserError):
+    """Raised when there are configuration-related issues."""
+
+    def __init__(
+        self, message: str, config_key: str | None = None, config_value: Any = None
+    ) -> None:
+        """Raise when configuration values are missing or invalid."""
+        context = {}
+        if config_key:
+            context["config_key"] = config_key
+        if config_value is not None:
+            context["config_value"] = str(config_value)  # Convert to string for safety
+        super().__init__(message, context)
+        self.config_key = config_key
+        self.config_value = config_value
+
+
+class DataProviderError(AlchemiserError):
+    """Raised when data provider operations fail."""
+
+    pass
+
+
+class TradingClientError(AlchemiserError):
+    """Raised when trading client operations fail."""
+
+    pass
+
+
+class OrderExecutionError(TradingClientError):
+    """Raised when order placement or execution fails."""
+
+    def __init__(
+        self,
+        message: str,
+        symbol: str | None = None,
+        order_type: str | None = None,
+        order_id: str | None = None,
+        quantity: float | None = None,
+        price: float | None = None,
+        account_id: str | None = None,
+        retry_count: int = 0,
+    ) -> None:
+        """Create an order execution error with contextual details."""
+        context: dict[str, Any] = {}
+        if symbol:
+            context["symbol"] = symbol
+        if order_type:
+            context["order_type"] = order_type
+        if order_id:
+            context["order_id"] = order_id
+        if quantity is not None:
+            context["quantity"] = quantity
+        if price is not None:
+            context["price"] = price
+        if account_id:
+            context["account_id"] = account_id
+        if retry_count > 0:
+            context["retry_count"] = retry_count
+
+        super().__init__(message, context)
+        self.symbol = symbol
+        self.order_type = order_type
+        self.order_id = order_id
+        self.quantity = quantity
+        self.price = price
+        self.account_id = account_id
+        self.retry_count = retry_count
+
+
+class InsufficientFundsError(OrderExecutionError):
+    """Raised when there are insufficient funds for an order."""
+
+    pass
+
+
+class PositionValidationError(TradingClientError):
+    """Raised when position validation fails."""
+
+    def __init__(
+        self,
+        message: str,
+        symbol: str | None = None,
+        requested_qty: float | None = None,
+        available_qty: float | None = None,
+    ) -> None:
+        """Initialize position validation error."""
+        super().__init__(message)
+        self.symbol = symbol
+        self.requested_qty = requested_qty
+        self.available_qty = available_qty
+
+
+class StrategyExecutionError(AlchemiserError):
+    """Raised when strategy execution fails."""
+
+    def __init__(self, message: str, strategy_name: str | None = None) -> None:
+        """Create a strategy execution error."""
+        super().__init__(message)
+        self.strategy_name = strategy_name
+
+
+class IndicatorCalculationError(AlchemiserError):
+    """Raised when technical indicator calculations fail."""
+
+    def __init__(
+        self, message: str, indicator_name: str | None = None, symbol: str | None = None
+    ) -> None:
+        """Raise when an indicator cannot be computed."""
+        super().__init__(message)
+        self.indicator_name = indicator_name
+        self.symbol = symbol
+
+
+class MarketDataError(DataProviderError):
+    """Raised when market data retrieval fails."""
+
+    def __init__(
+        self, message: str, symbol: str | None = None, data_type: str | None = None
+    ) -> None:
+        """Raise when market data retrieval fails."""
+        super().__init__(message)
+        self.symbol = symbol
+        self.data_type = data_type
+
+
+class ValidationError(AlchemiserError):
+    """Raised when data validation fails."""
+
+    def __init__(
+        self, message: str, field_name: str | None = None, value: Any | None = None
+    ) -> None:
+        """Create a validation error for invalid user data."""
+        super().__init__(message)
+        self.field_name = field_name
+        self.value = value
+
+
+class NotificationError(AlchemiserError):
+    """Raised when notification sending fails."""
+
+    pass
+
+
+class S3OperationError(AlchemiserError):
+    """Raised when S3 operations fail."""
+
+    def __init__(self, message: str, bucket: str | None = None, key: str | None = None) -> None:
+        """Raise when interacting with Amazon S3 fails."""
+        super().__init__(message)
+        self.bucket = bucket
+        self.key = key
+
+
+class RateLimitError(AlchemiserError):
+    """Raised when API rate limits are exceeded."""
+
+    def __init__(self, message: str, retry_after: int | None = None) -> None:
+        """Raise when API rate limit is exceeded."""
+        super().__init__(message)
+        self.retry_after = retry_after
+
+
+class MarketClosedError(TradingClientError):
+    """Raised when attempting to trade while markets are closed."""
+
+    pass
+
+
+class WebSocketError(DataProviderError):
+    """Raised when WebSocket connection issues occur."""
+
+    pass
+
+
+class StreamingError(DataProviderError):
+    """Raised when streaming data issues occur."""
+
+    pass
+
+
+class LoggingError(AlchemiserError):
+    """Raised when logging operations fail."""
+
+    def __init__(self, message: str, logger_name: str | None = None) -> None:
+        """Raise when logging infrastructure fails."""
+        super().__init__(message)
+        self.logger_name = logger_name
+
+
+class FileOperationError(AlchemiserError):
+    """Raised when file operations fail."""
+
+    def __init__(
+        self, message: str, file_path: str | None = None, operation: str | None = None
+    ) -> None:
+        """Raise when a filesystem operation fails."""
+        super().__init__(message)
+        self.file_path = file_path
+        self.operation = operation
+
+
+class DatabaseError(AlchemiserError):
+    """Raised when database operations fail."""
+
+    def __init__(
+        self, message: str, table_name: str | None = None, operation: str | None = None
+    ) -> None:
+        """Raise when a database operation fails."""
+        super().__init__(message)
+        self.table_name = table_name
+        self.operation = operation
+
+
+class SecurityError(AlchemiserError):
+    """Raised when security-related issues occur."""
+
+    pass
+
+
+class EnvironmentError(ConfigurationError):
+    """Raised when environment setup issues occur."""
+
+    def __init__(self, message: str, env_var: str | None = None) -> None:
+        """Raise when an environment variable configuration is invalid."""
+        super().__init__(message)
+        self.env_var = env_var

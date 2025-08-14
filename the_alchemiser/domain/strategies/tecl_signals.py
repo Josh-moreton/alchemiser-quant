@@ -30,7 +30,7 @@ from the_alchemiser.domain.strategies.tecl_strategy_engine import (
     TECLStrategyEngine as PureStrategyEngine,
 )
 from the_alchemiser.infrastructure.config.config_utils import load_alert_config
-from the_alchemiser.services.price_utils import ensure_scalar_price
+from the_alchemiser.services.market_data.price_utils import ensure_scalar_price
 
 warnings.filterwarnings("ignore")
 

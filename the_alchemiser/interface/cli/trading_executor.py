@@ -14,7 +14,7 @@ from the_alchemiser.interface.cli.cli_formatter import (
     render_header,
     render_strategy_signals,
 )
-from the_alchemiser.services.exceptions import (
+from the_alchemiser.services.errors.exceptions import (
     NotificationError,
     StrategyExecutionError,
     TradingClientError,
@@ -174,7 +174,7 @@ class TradingExecutor:
     def _handle_trading_error(self, error: Exception, mode_str: str) -> None:
         """Handle trading execution errors."""
         try:
-            from the_alchemiser.services.error_handler import (
+            from the_alchemiser.services.errors.error_handler import (
                 handle_trading_error,
                 send_error_notification_if_needed,
             )
