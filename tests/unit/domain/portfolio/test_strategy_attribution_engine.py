@@ -3,10 +3,10 @@
 from decimal import Decimal
 from unittest.mock import Mock
 
-from the_alchemiser.domain.portfolio.strategy_attribution.symbol_classifier import SymbolClassifier
 from the_alchemiser.domain.portfolio.strategy_attribution.attribution_engine import (
     StrategyAttributionEngine,
 )
+from the_alchemiser.domain.portfolio.strategy_attribution.symbol_classifier import SymbolClassifier
 
 
 class TestStrategyAttributionEngine:

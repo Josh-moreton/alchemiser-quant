@@ -1,38 +1,40 @@
 {
     // VS Code Editor Behavior (tools configured in pyproject.toml)
     "editor.formatOnSave": true,
-    "editor.rulers": [100],
+    "editor.rulers": [
+        100
+    ],
     "editor.tabSize": 4,
     "editor.insertSpaces": true,
     "files.trimTrailingWhitespace": true,
     "files.insertFinalNewline": true,
-    
     // Python Editor Settings
     "[python]": {
         "editor.defaultFormatter": "ms-python.black-formatter",
         "editor.codeActionsOnSave": {
-            "source.organizeImports": "never"  // Let Ruff handle imports
+            "source.organizeImports": "never" // Let Ruff handle imports
         }
     },
-    
     // Tool Configuration References (actual config in pyproject.toml)
-    "black-formatter.args": ["--config=pyproject.toml"],
-    "mypy-type-checker.args": ["--config-file=pyproject.toml"],
+    "black-formatter.args": [
+        "--config=pyproject.toml"
+    ],
+    "mypy-type-checker.args": [
+        "--config-file=pyproject.toml"
+    ],
     "ruff.lint.enable": true,
     "ruff.organizeImports": true,
-    
     // Testing Configuration
     "python.testing.pytestEnabled": true,
-    "python.testing.pytestArgs": ["tests"],
+    "python.testing.pytestArgs": [
+        "tests"
+    ],
     "python.testing.unittestEnabled": false,
-    
     // Type Checking
     "python.analysis.typeCheckingMode": "basic",
-    
     // Disable Extensions Not Needed for This Project
     "prisma.showPrismaDataPlatformNotification": false,
     "prisma.prismaSchemaPath": "",
-    
     // File Exclusions
     "files.exclude": {
         "**/__pycache__": true,
@@ -44,13 +46,11 @@
         "**/.aws-sam": true,
         "**/node_modules": true
     },
-    
     // Terminal Settings for macOS
     "terminal.integrated.defaultProfile.osx": "zsh",
     "terminal.integrated.env.osx": {
         "PYTHONPATH": "${workspaceFolder}"
     },
-    
     // AWS Configuration
     "aws.samcli.location": "/opt/homebrew/bin/sam",
     "yaml.schemas": {

@@ -63,7 +63,6 @@ from the_alchemiser.services.exceptions import (
     TradingClientError,
 )
 
-
 # Global DI container (optional)
 _di_container = None
 

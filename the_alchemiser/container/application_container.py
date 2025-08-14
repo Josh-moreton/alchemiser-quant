@@ -1,6 +1,5 @@
 """Main application container for dependency injection."""
 
-import os
 from dependency_injector import containers, providers
 
 from the_alchemiser.container.config_providers import ConfigProviders
