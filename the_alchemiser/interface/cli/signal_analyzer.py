@@ -4,6 +4,7 @@ Handles signal generation and display without trading execution.
 """
 
 from datetime import datetime
+from typing import Any
 
 from the_alchemiser.domain.strategies.strategy_manager import MultiStrategyManager, StrategyType
 from the_alchemiser.infrastructure.config import Settings
@@ -15,7 +16,7 @@ from the_alchemiser.interface.cli.cli_formatter import (
     render_portfolio_allocation,
     render_strategy_signals,
 )
-from the_alchemiser.services.exceptions import DataProviderError, StrategyExecutionError
+from the_alchemiser.services.errors.exceptions import DataProviderError, StrategyExecutionError
 
 
 class SignalAnalyzer:
@@ -33,7 +34,7 @@ class SignalAnalyzer:
             StrategyType.KLM: self.settings.strategy.default_strategy_allocations["klm"],
         }
 
-    def _generate_signals(self) -> tuple[dict, dict[str, float]]:
+    def _generate_signals(self) -> tuple[dict[StrategyType, dict[str, Any]], dict[str, float]]:
         """Generate strategy signals."""
         # Create shared data provider
         shared_data_provider = UnifiedDataProvider(paper_trading=True)
@@ -51,7 +52,9 @@ class SignalAnalyzer:
         return strategy_signals, consolidated_portfolio
 
     def _display_results(
-        self, strategy_signals: dict, consolidated_portfolio: dict[str, float]
+        self,
+        strategy_signals: dict[StrategyType, dict[str, Any]],
+        consolidated_portfolio: dict[str, float],
     ) -> None:
         """Display signal analysis results."""
         # Display strategy signals
@@ -65,7 +68,9 @@ class SignalAnalyzer:
         self._display_strategy_summary(strategy_signals, consolidated_portfolio)
 
     def _display_strategy_summary(
-        self, strategy_signals: dict, consolidated_portfolio: dict[str, float]
+        self,
+        strategy_signals: dict[StrategyType, dict[str, Any]],
+        consolidated_portfolio: dict[str, float],
     ) -> None:
         """Display strategy allocation summary."""
         try:
@@ -100,7 +105,10 @@ class SignalAnalyzer:
             self.logger.info(f"Strategy Summary:\n{strategy_summary}")
 
     def _count_positions_for_strategy(
-        self, strategy_name: str, strategy_signals: dict, consolidated_portfolio: dict[str, float]
+        self,
+        strategy_name: str,
+        strategy_signals: dict[StrategyType, dict[str, Any]],
+        consolidated_portfolio: dict[str, float],
     ) -> int:
         """Count positions for a specific strategy."""
         strategy_type = getattr(StrategyType, strategy_name.upper(), None)
@@ -128,21 +136,23 @@ class SignalAnalyzer:
             strategy_symbols = self._get_symbols_for_strategy(strategy_name, strategy_signals)
             return len([s for s in strategy_symbols if s in consolidated_portfolio])
 
-    def _get_symbols_for_strategy(self, strategy_name: str, strategy_signals: dict) -> set[str]:
+    def _get_symbols_for_strategy(
+        self, strategy_name: str, strategy_signals: dict[StrategyType, dict[str, Any]]
+    ) -> set[str]:
         """Get symbols associated with a strategy."""
         strategy_type = getattr(StrategyType, strategy_name.upper(), None)
         if not strategy_type or strategy_type not in strategy_signals:
             return set()
 
         signal = strategy_signals[strategy_type]
-        symbol = signal.get("symbol")
+        symbol: Any = signal.get("symbol")
 
         if isinstance(symbol, str):
             return {symbol}
         elif isinstance(symbol, dict):
             return set(symbol.keys())
-        else:
-            return set()
+
+        return set()
 
     def run(self) -> bool:
         """Run signal analysis."""

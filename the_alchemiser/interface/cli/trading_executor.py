@@ -3,8 +3,9 @@
 Handles trading execution with comprehensive error handling and notifications.
 """
 
-from the_alchemiser.application.smart_execution import is_market_open
-from the_alchemiser.application.trading_engine import TradingEngine
+from the_alchemiser.application.execution.smart_execution import is_market_open
+from the_alchemiser.application.trading.trading_engine import TradingEngine
+from the_alchemiser.application.types import MultiStrategyExecutionResult
 from the_alchemiser.domain.strategies.strategy_manager import StrategyType
 from the_alchemiser.infrastructure.config import Settings
 from the_alchemiser.infrastructure.logging.logging_utils import get_logger
@@ -13,7 +14,7 @@ from the_alchemiser.interface.cli.cli_formatter import (
     render_header,
     render_strategy_signals,
 )
-from the_alchemiser.services.exceptions import (
+from the_alchemiser.services.errors.exceptions import (
     NotificationError,
     StrategyExecutionError,
     TradingClientError,
@@ -48,14 +49,16 @@ class TradingExecutor:
         """Create and configure the trading engine using DI."""
         strategy_allocations = self._get_strategy_allocations()
 
-        # Use DI mode
-        from the_alchemiser.main import _di_container
+        # Use DI mode - import module to allow MyPy to narrow attribute types
+        import the_alchemiser.main as app_main
 
-        if _di_container is None:
+        # Check and use container in one step to avoid MyPy unreachable code issues
+        container = app_main._di_container
+        if container is None:
             raise RuntimeError("DI container not available - ensure system is properly initialized")
 
         trader = TradingEngine.create_with_di(
-            container=_di_container,
+            container=container,
             strategy_allocations=strategy_allocations,
             ignore_market_hours=self.ignore_market_hours,
         )
@@ -93,7 +96,7 @@ class TradingExecutor:
         except NotificationError as e:
             self.logger.warning(f"Failed to send market closed notification: {e}")
 
-    def _execute_strategy(self, trader: TradingEngine):
+    def _execute_strategy(self, trader: TradingEngine) -> MultiStrategyExecutionResult:
         """Execute the trading strategy."""
         # Generate and display strategy signals
         render_header("Analyzing market conditions...", "Multi-Strategy Trading")
@@ -133,7 +136,9 @@ class TradingExecutor:
         except ImportError:
             self.logger.info("🔄 Executing trading strategy...")
 
-    def _send_trading_notification(self, result, mode_str: str) -> None:
+    def _send_trading_notification(
+        self, result: MultiStrategyExecutionResult, mode_str: str
+    ) -> None:
         """Send trading completion notification."""
         try:
             from the_alchemiser.interface.email.email_utils import send_email_notification
@@ -169,7 +174,7 @@ class TradingExecutor:
     def _handle_trading_error(self, error: Exception, mode_str: str) -> None:
         """Handle trading execution errors."""
         try:
-            from the_alchemiser.services.error_handler import (
+            from the_alchemiser.services.errors.error_handler import (
                 handle_trading_error,
                 send_error_notification_if_needed,
             )

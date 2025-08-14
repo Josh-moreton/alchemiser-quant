@@ -6,7 +6,7 @@ The Alchemiser is a sophisticated multi-strategy quantitative trading system bui
 ### Core Architecture (Layered DDD)
 - **Domain Layer** (`the_alchemiser/domain/`): Pure business logic, strategy engines (Nuclear, TECL, KLM), interfaces, and domain types
 - **Services Layer** (`the_alchemiser/services/`): Business logic orchestration and enhanced services facade
-- **Infrastructure Layer** (`the_alchemiser/infrastructure/`): External integrations (Alpaca API, AWS services, WebSocket streaming)  
+- **Infrastructure Layer** (`the_alchemiser/infrastructure/`): External integrations (Alpaca API, AWS services, WebSocket streaming)
 - **Application Layer** (`the_alchemiser/application/`): Trading orchestration, smart execution, portfolio rebalancing
 - **Interface Layer** (`the_alchemiser/interface/`): Rich CLI with Typer, email notifications, dashboard utilities
 
@@ -23,6 +23,12 @@ The Alchemiser is a sophisticated multi-strategy quantitative trading system bui
 - **CLI Commands**: `signal` (analysis only), `trade` (execution), `status` (account), `deploy` (AWS), `validate-indicators`
 
 ## Development Standards
+
+### Python Environment (CRITICAL)
+- **Always use Poetry**: ALL Python commands must use `poetry run` prefix
+- **Never use bare python**: Use `poetry run python` instead of `python`
+- **Virtual environment**: Poetry automatically manages the virtual environment
+- **Dependencies**: Use `poetry add` for new dependencies, `poetry install` for setup
 
 ### Type Safety (Required)
 - **100% mypy compliance**: Every function must have type annotations
@@ -68,7 +74,7 @@ alpaca_manager = AlpacaManager(api_key, secret_key, paper=True)
 
 **Service Facade Pattern** (TradingServiceManager):
 ```python
-from the_alchemiser.services.enhanced import TradingServiceManager
+from the_alchemiser.services.trading.trading_service_manager import TradingServiceManager
 
 # Single entry point for all trading operations
 trading_manager = TradingServiceManager(api_key, secret_key, paper=True)
@@ -105,10 +111,17 @@ tecl_signals = strategy_manager.tecl_strategy.generate_signals()
 
 ### Module Placement Rules
 - **Pure business logic**: `domain/` layer
-- **External API calls**: `infrastructure/` or `services/` layer  
+- **External API calls**: `infrastructure/` or `services/` layer
 - **Application workflows**: `application/` layer
 - **User interfaces**: `interface/` layer
 - **Shared utilities**: `utils/` package
+
+### Documentation Management
+- **Wiki Repository**: Use the `alchemiser-quant.wiki` workspace for all documentation
+- **Architecture docs**: Create comprehensive guides in the wiki
+- **API documentation**: Document interfaces and usage patterns in wiki
+- **Deployment guides**: Step-by-step instructions in wiki format
+- **Note**: The wiki appears as a separate git repository in the workspace but is linked to the main repo
 
 ## Testing Requirements
 
@@ -118,10 +131,10 @@ def test_order_placement(mocker):
     # Use pytest-mock, not unittest.mock
     mock_trading = mocker.Mock()
     mock_trading.place_market_order.return_value = "ORDER123"
-    
+
     service = OrderService(mock_trading)
     order_id = service.place_market_order("AAPL", "buy", 1.0)
-    
+
     assert order_id == "ORDER123"
     mock_trading.place_market_order.assert_called_once()
 ```
@@ -141,36 +154,45 @@ def test_order_placement(mocker):
 
 ### Development Commands
 ```bash
-# Setup (Poetry-based)
+# Setup (Poetry-based - ALWAYS REQUIRED)
 poetry install                   # Install dependencies
 poetry shell                     # Activate virtual environment
 make dev                         # Install with dev dependencies
 
-# Quality & Testing
+# Quality & Testing (ALL commands use poetry run)
 make format                      # Black + Ruff formatting
 make lint                        # Linting, type checking, security
 make test                        # Run pytest with coverage reporting
-pytest tests/unit/              # Fast unit tests only
-pytest tests/integration/       # Integration tests
-mypy the_alchemiser/            # Type checking standalone
+poetry run pytest tests/unit/   # Fast unit tests only
+poetry run pytest tests/integration/  # Integration tests
+poetry run mypy the_alchemiser/ # Type checking standalone
 
-# Trading Operations (CLI)
-alchemiser signal               # Strategy analysis (no trading)
-alchemiser trade                # Paper trading execution
-alchemiser trade --live         # Live trading (requires confirmation)
-alchemiser status               # Account positions and P&L
-alchemiser deploy               # Deploy to AWS Lambda
-alchemiser validate-indicators  # Validate strategy indicators
+# Trading Operations (CLI - ALL use poetry run)
+poetry run alchemiser signal               # Strategy analysis (no trading)
+poetry run alchemiser trade                # Paper trading execution
+poetry run alchemiser trade --live         # Live trading (requires confirmation)
+poetry run alchemiser status               # Account positions and P&L
+poetry run alchemiser deploy               # Deploy to AWS Lambda
+poetry run alchemiser validate-indicators  # Validate strategy indicators
 
 # AWS Deployment
 sam build --cached              # Build Lambda deployment package
 sam deploy --guided             # Deploy with guided configuration
 aws logs tail /aws/lambda/the-alchemiser-v2-lambda --follow  # Monitor logs
+
+# Documentation (Use Wiki Workspace)
+# All documentation should be written in the alchemiser-quant.wiki workspace
+# The wiki presents as a separate git repo but is linked to the main repository
+
+# Testing and Development (ALWAYS use poetry run)
+poetry run python -c "import the_alchemiser; print('Import test')"
+poetry run python test_script.py
+poetry run python -m the_alchemiser.main  # Run main module
 ```
 
 ### CLI Architecture (Rich + Typer)
 - **Built with Typer**: Modern CLI framework with automatic help generation and type validation
-- **Rich formatting**: Console output with progress bars, tables, panels, and styled text using Rich library  
+- **Rich formatting**: Console output with progress bars, tables, panels, and styled text using Rich library
 - **Dashboard utilities**: (`interface/cli/dashboard_utils.py`) Format positions, P&L, account status
 - **Signal display**: (`interface/cli/signal_display_utils.py`) Strategy signal visualization with color coding
 - **Error handling**: Comprehensive error display with suggested actions and formatted stack traces
@@ -180,15 +202,15 @@ aws logs tail /aws/lambda/the-alchemiser-v2-lambda --follow  # Monitor logs
 
 ### Trading Service Usage (Always use TradingServiceManager)
 ```python
-from the_alchemiser.services.enhanced import TradingServiceManager
+from the_alchemiser.services.trading.trading_service_manager import TradingServiceManager
 
 # Initialize with environment detection
 trading_manager = TradingServiceManager(api_key, secret_key, paper=True)
 
 # Smart order execution with validation
 result = trading_manager.execute_smart_order(
-    symbol="AAPL", 
-    quantity=10, 
+    symbol="AAPL",
+    quantity=10,
     side="buy",
     order_type="market"
 )
@@ -221,7 +243,7 @@ class CustomStrategy(StrategyEngine):
             "target_allocation": 0.25,
             "reasoning": "Custom indicator triggered"
         }
-    
+
     def validate_signals(self, signals: Dict[str, Any]) -> bool:
         # Implement validation logic
         return signals.get("confidence", 0) > 0.5
@@ -268,13 +290,16 @@ def test_trading_operation(mocker):
     # Use pytest-mock, not unittest.mock
     mock_alpaca = mocker.Mock()
     mock_alpaca.place_market_order.return_value = "ORDER123"
-    
+
     # Test through service layer, not direct repository
     trading_manager = TradingServiceManager("key", "secret", paper=True)
     trading_manager.alpaca_manager = mock_alpaca
-    
+
     result = trading_manager.place_market_order("AAPL", 10, "buy")
     assert result["order_id"] == "ORDER123"
+
+# Run tests with: poetry run pytest tests/unit/test_file.py
+# Run all tests with: poetry run pytest
 ```
 
 ## Security and Environment Management
@@ -303,7 +328,7 @@ LOGGING__LEVEL=INFO              # Logging verbosity
 ### Trading Mode Safety & Production Readiness
 - **Default to paper trading**: All services initialize with `paper=True` unless explicitly overridden
 - **Environment isolation**: Separate API keys and AWS accounts for paper vs live environments
-- **Confirmation prompts**: CLI requires explicit `--live` flag and confirmation for live trading  
+- **Confirmation prompts**: CLI requires explicit `--live` flag and confirmation for live trading
 - **Error notifications**: Automatic email alerts for all error categories with detailed context
 - **AWS Lambda deployment**: Production system runs as scheduled Lambda functions with dead letter queues
 - **Monitoring**: CloudWatch logs, error tracking, and performance monitoring built-in
@@ -318,4 +343,6 @@ LOGGING__LEVEL=INFO              # Logging verbosity
 6. **Global state**: Use dependency injection through constructors, avoid global variables
 7. **Strategy coupling**: Keep strategies independent - they should not call each other directly
 8. **Test isolation**: Mock all external APIs in tests, use fixtures from `conftest.py`
+9. **Forgetting Poetry**: ALWAYS use `poetry run` for Python commands - never use bare `python`
+10. **Documentation in wrong place**: Use the `alchemiser-quant.wiki` workspace for documentation, not the main repo
 

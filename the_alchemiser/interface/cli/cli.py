@@ -19,7 +19,7 @@ from rich.prompt import Confirm
 from rich.text import Text
 
 from the_alchemiser.infrastructure.logging.logging_utils import get_logger, log_error_with_context
-from the_alchemiser.services.exceptions import (
+from the_alchemiser.services.errors.exceptions import (
     AlchemiserError,
     StrategyExecutionError,
     TradingClientError,
@@ -36,7 +36,13 @@ console = Console()
 
 
 def show_welcome() -> None:
-    """Display a beautiful welcome message"""
+    """Render the CLI welcome banner.
+
+    Displays a rich-formatted header panel describing the trading system.
+
+    Returns:
+        None
+    """
     welcome_text = Text()
     welcome_text.append(" The Alchemiser Quantitative Trading System\n", style="bold cyan")
     welcome_text.append("Advanced Multi-Strategy Trading System", style="italic")
@@ -308,7 +314,7 @@ def status(
     try:
         from rich.panel import Panel
 
-        from the_alchemiser.application.trading_engine import TradingEngine
+        from the_alchemiser.application.trading.trading_engine import TradingEngine
         from the_alchemiser.interface.cli.cli_formatter import render_account_info
 
         # Create trader and data provider for the specified mode

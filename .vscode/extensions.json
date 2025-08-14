@@ -1,0 +1,34 @@
+{
+    "recommendations": [
+        // Python Development Stack
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "ms-python.mypy-type-checker",
+        // Code Quality & Formatting
+        "charliermarsh.ruff",
+        "ms-python.black-formatter",
+        // Testing & Coverage
+        "ms-python.pytest",
+        "ryanluker.vscode-coverage-gutters",
+        // AWS & Cloud Infrastructure
+        "amazonwebservices.aws-toolkit-vscode",
+        // File Support
+        "redhat.vscode-yaml",
+        "tamasfe.even-better-toml",
+        "ms-vscode.makefile-tools",
+        // Git & Productivity
+        "eamodio.gitlens",
+        "github.copilot",
+        "github.copilot-chat"
+    ],
+    "unwantedRecommendations": [
+        // Database extensions not needed for this trading system
+        "prisma.prisma",
+        "bradlc.vscode-tailwindcss",
+        "ms-vscode.vscode-node-azure-pack",
+        // Alternative Python tools we don't use
+        "ms-python.flake8",
+        "ms-python.pylint",
+        "ms-python.autopep8"
+    ]
+}

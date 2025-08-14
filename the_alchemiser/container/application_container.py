@@ -1,6 +1,5 @@
 """Main application container for dependency injection."""
 
-import os
 from dependency_injector import containers, providers
 
 from the_alchemiser.container.config_providers import ConfigProviders
@@ -16,7 +15,7 @@ class ApplicationContainer(containers.DeclarativeContainer):
         modules=[
             "the_alchemiser.main",
             "the_alchemiser.lambda_handler",
-            "the_alchemiser.application.trading_engine",
+            "the_alchemiser.application.trading.trading_engine",
         ]
     )
 
