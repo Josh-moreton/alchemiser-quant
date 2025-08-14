@@ -26,6 +26,9 @@ from typing import Any, Protocol
 
 from alpaca.trading.enums import OrderSide
 
+from the_alchemiser.application.portfolio_rebalancer.portfolio_rebalancer import (
+    PortfolioRebalancer,
+)
 from the_alchemiser.domain.strategies.strategy_manager import (
     MultiStrategyManager,
     StrategyType,
@@ -328,21 +331,19 @@ class TradingEngine:
 
         # Portfolio rebalancer
         try:
-            # Use the trading service manager if available, otherwise fall back to self
-            trading_manager = getattr(self, "_trading_service_manager", None) or self.data_provider
-            if hasattr(trading_manager, "alpaca_manager"):
-                # This is a TradingServiceManager
-                self.portfolio_rebalancer = LegacyPortfolioRebalancerAdapter(
+            # Use the trading service manager if available, otherwise use old portfolio rebalancer
+            trading_manager = getattr(self, "_trading_service_manager", None)
+            if trading_manager and hasattr(trading_manager, "alpaca_manager"):
+                # This is a TradingServiceManager - use new system
+                self.portfolio_rebalancer: (
+                    LegacyPortfolioRebalancerAdapter | PortfolioRebalancer
+                ) = LegacyPortfolioRebalancerAdapter(
                     trading_manager=trading_manager,
                     use_new_system=True,  # Enable enhanced features with legacy interface
                 )
             else:
-                # No compatible trading manager available - skip portfolio rebalancer
-                # or implement a different approach for TradingEngine compatibility
-                self.portfolio_rebalancer = None  # type: ignore[assignment]
-                logging.warning(
-                    "Portfolio rebalancer not initialized - no compatible trading manager available"
-                )
+                # Fall back to original portfolio rebalancer for backward compatibility
+                self.portfolio_rebalancer = PortfolioRebalancer(self)
         except Exception as e:
             raise TradingClientError(
                 f"Failed to initialize portfolio rebalancer: {e}",

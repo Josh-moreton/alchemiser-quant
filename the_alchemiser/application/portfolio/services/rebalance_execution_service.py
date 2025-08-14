@@ -3,6 +3,8 @@
 from decimal import Decimal
 from typing import Any
 
+from alpaca.trading.enums import OrderSide
+
 from the_alchemiser.application.smart_execution import SmartExecution
 from the_alchemiser.domain.portfolio.rebalancing.rebalance_plan import RebalancePlan
 from the_alchemiser.services.enhanced.trading_service_manager import TradingServiceManager
@@ -33,7 +35,10 @@ class RebalanceExecutionService:
             error_handler: Error handler for trading errors (optional)
         """
         self.trading_manager = trading_manager
-        self.smart_execution = smart_execution or SmartExecution(trading_manager)
+        self.smart_execution = smart_execution or SmartExecution(
+            trading_client=trading_manager.alpaca_manager,
+            data_provider=trading_manager,
+        )
         self.error_handler = error_handler or TradingSystemErrorHandler()
 
     def execute_rebalancing_plan(
@@ -150,7 +155,7 @@ class RebalanceExecutionService:
         Returns:
             Validation results with any issues found
         """
-        validation_results = {
+        validation_results: dict[str, Any] = {
             "is_valid": True,
             "issues": [],
             "warnings": [],
@@ -183,7 +188,8 @@ class RebalanceExecutionService:
             )
 
             if buy_amount > 0:
-                buying_power = self.trading_manager.get_buying_power()
+                account_summary = self.trading_manager.account.get_account_summary()
+                buying_power = account_summary["buying_power"]
                 if buy_amount > Decimal(str(buying_power)):
                     validation_results["is_valid"] = False
                     validation_results["issues"].append(
@@ -191,9 +197,12 @@ class RebalanceExecutionService:
                     )
 
             # Validate positions for sell orders
+            positions = self.trading_manager.get_all_positions()
+            position_dict = {pos.symbol: pos for pos in positions}
+
             for symbol, plan in rebalance_plan.items():
                 if plan.needs_rebalance and plan.trade_amount < 0:
-                    position = self.trading_manager.get_position(symbol)
+                    position = position_dict.get(symbol)
                     if not position or position.qty <= 0:
                         validation_results["is_valid"] = False
                         validation_results["issues"].append(
@@ -254,12 +263,12 @@ class RebalanceExecutionService:
                     "message": f"Would sell ${amount} of {symbol}",
                 }
 
-            # Use smart execution for sell order
+                # Use smart execution for sell order
             current_price = self.trading_manager.get_latest_price(symbol)
             shares_to_sell = amount / Decimal(str(current_price))
 
-            order_result = self.smart_execution.execute_progressive_order(
-                symbol=symbol, side="sell", quantity=float(shares_to_sell), order_type="market"
+            order_result = self.smart_execution.place_order(
+                symbol=symbol, qty=float(shares_to_sell), side=OrderSide.SELL
             )
 
             return {
@@ -268,7 +277,7 @@ class RebalanceExecutionService:
                 "amount": amount,
                 "shares": shares_to_sell,
                 "status": "placed",
-                "order_id": order_result.get("order_id"),
+                "order_id": order_result,
                 "message": f"Placed sell order for {shares_to_sell} shares of {symbol}",
             }
 
@@ -296,12 +305,12 @@ class RebalanceExecutionService:
                     "message": f"Would buy ${amount} of {symbol}",
                 }
 
-            # Use smart execution for buy order
+                # Use smart execution for buy order
             current_price = self.trading_manager.get_latest_price(symbol)
             shares_to_buy = amount / Decimal(str(current_price))
 
-            order_result = self.smart_execution.execute_progressive_order(
-                symbol=symbol, side="buy", quantity=float(shares_to_buy), order_type="market"
+            order_result = self.smart_execution.place_order(
+                symbol=symbol, qty=float(shares_to_buy), side=OrderSide.BUY
             )
 
             return {
@@ -310,7 +319,7 @@ class RebalanceExecutionService:
                 "amount": amount,
                 "shares": shares_to_buy,
                 "status": "placed",
-                "order_id": order_result.get("order_id"),
+                "order_id": order_result,
                 "message": f"Placed buy order for {shares_to_buy} shares of {symbol}",
             }
 
