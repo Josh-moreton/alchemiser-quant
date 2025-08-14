@@ -7,7 +7,7 @@ from the_alchemiser.domain.portfolio.position.position_analyzer import PositionA
 from the_alchemiser.domain.portfolio.strategy_attribution.attribution_engine import (
     StrategyAttributionEngine,
 )
-from the_alchemiser.services.enhanced.trading_service_manager import TradingServiceManager
+from the_alchemiser.services.trading.trading_service_manager import TradingServiceManager
 
 
 class PortfolioAnalysisService:
@@ -186,12 +186,26 @@ class PortfolioAnalysisService:
             "summary": {
                 "total_strategies": len(strategy_analysis),
                 "most_allocated_strategy": (
-                    max(strategy_analysis.items(), key=lambda x: x[1]["allocation_percentage"])[0]
+                    max(
+                        strategy_analysis.items(),
+                        key=lambda item: (
+                            float(str(item[1]["allocation_percentage"]))
+                            if not isinstance(item[1]["allocation_percentage"], int | float)
+                            else float(item[1]["allocation_percentage"])
+                        ),
+                    )[0]
                     if strategy_analysis
                     else None
                 ),
                 "least_allocated_strategy": (
-                    min(strategy_analysis.items(), key=lambda x: x[1]["allocation_percentage"])[0]
+                    min(
+                        strategy_analysis.items(),
+                        key=lambda item: (
+                            float(str(item[1]["allocation_percentage"]))
+                            if not isinstance(item[1]["allocation_percentage"], int | float)
+                            else float(item[1]["allocation_percentage"])
+                        ),
+                    )[0]
                     if strategy_analysis
                     else None
                 ),
@@ -252,7 +266,12 @@ class PortfolioAnalysisService:
                     1 for comp in comparison.values() if comp["needs_adjustment"]
                 ),
                 "total_strategy_drift": sum(
-                    abs(comp["difference"]) for comp in comparison.values()
+                    (
+                        comp["difference"]
+                        if isinstance(comp["difference"], Decimal)
+                        else Decimal(str(comp["difference"]))
+                    ).copy_abs()
+                    for comp in comparison.values()
                 ),
             },
         }
@@ -272,14 +291,28 @@ class PortfolioAnalysisService:
     def _get_account_information(self) -> dict[str, Any]:
         """Get account information from trading manager."""
         try:
-            account = self.trading_manager.get_account()
-            return {
-                "cash": Decimal(str(account.cash)),
-                "buying_power": Decimal(str(account.buying_power)),
-                "equity": Decimal(str(account.equity)),
-            }
+            # Prefer account service property when available
+            account = getattr(self.trading_manager, "account", None)
+            if account and hasattr(account, "get_account_summary"):
+                summary = account.get_account_summary()
+                return {
+                    "cash": Decimal(str(summary.get("cash", 0))),
+                    "buying_power": Decimal(str(summary.get("buying_power", 0))),
+                    "equity": Decimal(str(summary.get("equity", 0))),
+                }
+            # Fallback to repository style if direct account object is returned
+            account = getattr(self.trading_manager, "get_account", None)
+            if callable(account):
+                acct_obj = account()
+                return {
+                    "cash": Decimal(str(getattr(acct_obj, "cash", 0))),
+                    "buying_power": Decimal(str(getattr(acct_obj, "buying_power", 0))),
+                    "equity": Decimal(str(getattr(acct_obj, "equity", 0))),
+                }
         except Exception:
             return {"cash": Decimal("0"), "buying_power": Decimal("0"), "equity": Decimal("0")}
+        # Default if neither branch returned
+        return {"cash": Decimal("0"), "buying_power": Decimal("0"), "equity": Decimal("0")}
 
     def _get_largest_positions(
         self, positions: dict[str, Decimal], portfolio_value: Decimal

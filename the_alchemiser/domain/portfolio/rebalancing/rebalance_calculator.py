@@ -54,7 +54,7 @@ class RebalanceCalculator:
                 target_value=Decimal(str(data["target_value"])),
                 current_value=Decimal(str(data["current_value"])),
                 trade_amount=Decimal(str(data["trade_amount"])),
-                needs_rebalance=data["needs_rebalance"],
+                needs_rebalance=bool(data.get("needs_rebalance", False)),
             )
             for symbol, data in raw_plan.items()
         }
@@ -84,5 +84,6 @@ class RebalanceCalculator:
     def calculate_total_trade_value(self, rebalance_plan: dict[str, RebalancePlan]) -> Decimal:
         """Calculate the total dollar value of trades needed."""
         return sum(
-            plan.trade_amount_abs for plan in rebalance_plan.values() if plan.needs_rebalance
+            (plan.trade_amount_abs for plan in rebalance_plan.values() if plan.needs_rebalance),
+            Decimal("0"),
         )

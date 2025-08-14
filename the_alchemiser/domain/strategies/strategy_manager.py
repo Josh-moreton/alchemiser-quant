@@ -21,9 +21,13 @@ from typing import Any
 
 from the_alchemiser.domain.registry import StrategyRegistry, StrategyType
 from the_alchemiser.domain.strategies.nuclear_signals import ActionType
+from the_alchemiser.infrastructure.logging.logging_utils import (
+    get_logger,
+    log_error_with_context,
+)
 
 # Phase 6 - Strategy Layer Types
-from the_alchemiser.services.exceptions import (
+from the_alchemiser.services.errors.exceptions import (
     DataProviderError,
     StrategyExecutionError,
 )
@@ -136,8 +140,6 @@ class MultiStrategyManager:
                     f"{strategy_type.value} strategy initialized with {self.strategy_allocations[strategy_type]:.1%} allocation"
                 )
             except StrategyExecutionError as e:
-                from ..logging.logging_utils import get_logger, log_error_with_context
-
                 logger = get_logger(__name__)
                 log_error_with_context(
                     logger,
@@ -150,8 +152,6 @@ class MultiStrategyManager:
                 # Remove from allocations if initialization failed
                 del self.strategy_allocations[strategy_type]
             except DataProviderError as e:
-                from ..logging.logging_utils import get_logger, log_error_with_context
-
                 logger = get_logger(__name__)
                 log_error_with_context(
                     logger,
@@ -166,8 +166,6 @@ class MultiStrategyManager:
                 # Remove from allocations if initialization failed
                 del self.strategy_allocations[strategy_type]
             except Exception as e:
-                from ..logging.logging_utils import get_logger, log_error_with_context
-
                 logger = get_logger(__name__)
                 log_error_with_context(
                     logger,
@@ -299,8 +297,6 @@ class MultiStrategyManager:
                     )
 
             except StrategyExecutionError as e:
-                from ..logging.logging_utils import get_logger, log_error_with_context
-
                 logger = get_logger(__name__)
                 log_error_with_context(
                     logger,
@@ -318,8 +314,6 @@ class MultiStrategyManager:
                     "market_data": market_data,
                 }
             except DataProviderError as e:
-                from ..logging.logging_utils import get_logger, log_error_with_context
-
                 logger = get_logger(__name__)
                 log_error_with_context(
                     logger,
@@ -337,8 +331,6 @@ class MultiStrategyManager:
                     "market_data": {},
                 }
             except Exception as e:
-                from ..logging.logging_utils import get_logger, log_error_with_context
-
                 logger = get_logger(__name__)
                 log_error_with_context(
                     logger,
@@ -481,7 +473,9 @@ class MultiStrategyManager:
                     return {symbol: data["weight"] for symbol, data in bear_portfolio.items()}
 
                 except StrategyExecutionError as e:
-                    from the_alchemiser.services.error_handler import TradingSystemErrorHandler
+                    from the_alchemiser.services.errors.error_handler import (
+                        TradingSystemErrorHandler,
+                    )
 
                     error_handler = TradingSystemErrorHandler()
 
@@ -503,7 +497,9 @@ class MultiStrategyManager:
                     )
                     return {bear1_symbol: 0.6, bear2_symbol: 0.4}
                 except DataProviderError as e:
-                    from the_alchemiser.services.error_handler import TradingSystemErrorHandler
+                    from the_alchemiser.services.errors.error_handler import (
+                        TradingSystemErrorHandler,
+                    )
 
                     error_handler = TradingSystemErrorHandler()
 
@@ -523,7 +519,9 @@ class MultiStrategyManager:
                     logging.warning(f"Bear portfolio data error: {e}, using conservative fallback")
                     return {bear1_symbol: 0.6, bear2_symbol: 0.4}
                 except Exception as e:
-                    from the_alchemiser.services.error_handler import TradingSystemErrorHandler
+                    from the_alchemiser.services.errors.error_handler import (
+                        TradingSystemErrorHandler,
+                    )
 
                     error_handler = TradingSystemErrorHandler()
 
@@ -546,8 +544,6 @@ class MultiStrategyManager:
                     return {bear1_symbol: 0.6, bear2_symbol: 0.4}
 
             except StrategyExecutionError as e:
-                from ..logging.logging_utils import get_logger, log_error_with_context
-
                 logger = get_logger(__name__)
                 log_error_with_context(
                     logger,
@@ -560,8 +556,6 @@ class MultiStrategyManager:
                 # Safe fallback - single defensive position
                 return {"SQQQ": 1.0}
             except DataProviderError as e:
-                from ..logging.logging_utils import get_logger, log_error_with_context
-
                 logger = get_logger(__name__)
                 log_error_with_context(
                     logger,
@@ -574,8 +568,6 @@ class MultiStrategyManager:
                 # Safe fallback - single defensive position
                 return {"SQQQ": 1.0}
             except Exception as e:
-                from ..logging.logging_utils import get_logger, log_error_with_context
-
                 logger = get_logger(__name__)
                 log_error_with_context(
                     logger,
@@ -655,10 +647,7 @@ class MultiStrategyManager:
 
             # Position tracking between runs is disabled
             logging.debug("Position tracking disabled - not saving positions")
-
         except StrategyExecutionError as e:
-            from ..logging.logging_utils import get_logger, log_error_with_context
-
             logger = get_logger(__name__)
             log_error_with_context(
                 logger,
@@ -669,8 +658,6 @@ class MultiStrategyManager:
             )
             logging.error(f"Strategy execution error updating position tracking: {e}")
         except (AttributeError, KeyError) as e:
-            from ..logging.logging_utils import get_logger, log_error_with_context
-
             logger = get_logger(__name__)
             log_error_with_context(
                 logger,
@@ -681,8 +668,6 @@ class MultiStrategyManager:
             )
             logging.error(f"Data structure error updating position tracking: {e}")
         except Exception as e:
-            from ..logging.logging_utils import get_logger, log_error_with_context
-
             logger = get_logger(__name__)
             log_error_with_context(
                 logger,
