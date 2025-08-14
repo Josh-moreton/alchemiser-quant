@@ -11,7 +11,7 @@ repos:
         language: system
         types: [python]
         pass_filenames: true
-        stages: [commit]
+        stages: [pre-commit]
 
       - id: black-format
         name: Black Code Formatter
@@ -19,7 +19,7 @@ repos:
         language: system
         types: [python]
         pass_filenames: true
-        stages: [commit]
+        stages: [pre-commit]
 
       - id: mypy-typecheck
         name: MyPy Type Checking
@@ -27,4 +27,4 @@ repos:
         language: system
         types: [python]
         pass_filenames: true
-        stages: [commit]
+        stages: [pre-commit]
