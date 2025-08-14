@@ -266,11 +266,11 @@ class PortfolioAnalysisService:
                     1 for comp in comparison.values() if comp["needs_adjustment"]
                 ),
                 "total_strategy_drift": sum(
-                    (
+                    abs(
                         comp["difference"]
                         if isinstance(comp["difference"], Decimal)
                         else Decimal(str(comp["difference"]))
-                    ).copy_abs()
+                    )
                     for comp in comparison.values()
                 ),
             },
