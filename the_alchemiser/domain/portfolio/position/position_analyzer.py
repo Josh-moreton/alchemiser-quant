@@ -98,3 +98,78 @@ class PositionAnalyzer:
     def get_buy_deltas(self, position_deltas: dict[str, PositionDelta]) -> dict[str, PositionDelta]:
         """Get position deltas that require buying."""
         return {symbol: delta for symbol, delta in position_deltas.items() if delta.is_buy}
+
+    def analyze_all_positions(
+        self, current_positions: dict[str, Decimal], target_positions: dict[str, Decimal]
+    ) -> dict[str, PositionDelta]:
+        """Analyze all positions and return position deltas.
+
+        Args:
+            current_positions: Dictionary mapping symbols to current position values
+            target_positions: Dictionary mapping symbols to target position values
+
+        Returns:
+            Dictionary mapping symbols to PositionDelta objects
+        """
+        return self.calculate_position_deltas(current_positions, target_positions)
+
+    def calculate_total_adjustments_needed(
+        self, position_deltas: dict[str, PositionDelta]
+    ) -> tuple[Decimal, Decimal]:
+        """Calculate total sell and buy amounts needed.
+
+        Args:
+            position_deltas: Dictionary of position deltas
+
+        Returns:
+            Tuple of (total_sells, total_buys) as Decimal amounts
+        """
+        total_sells = sum(
+            (delta.quantity_abs for delta in position_deltas.values() if delta.is_sell),
+            Decimal("0"),
+        )
+        total_buys = sum(
+            (delta.quantity_abs for delta in position_deltas.values() if delta.is_buy), Decimal("0")
+        )
+
+        return total_sells, total_buys
+
+    def calculate_portfolio_turnover(
+        self, position_deltas: dict[str, PositionDelta], portfolio_value: Decimal
+    ) -> Decimal:
+        """Calculate portfolio turnover from position deltas.
+
+        Args:
+            position_deltas: Dictionary of position deltas
+            portfolio_value: Total portfolio value
+
+        Returns:
+            Portfolio turnover as a decimal percentage
+        """
+        if portfolio_value == 0:
+            return Decimal("0")
+
+        total_trade_value = sum(delta.quantity_abs for delta in position_deltas.values())
+        return total_trade_value / portfolio_value
+
+    def get_positions_to_sell(self, position_deltas: dict[str, PositionDelta]) -> list[str]:
+        """Get list of symbols that need to be sold.
+
+        Args:
+            position_deltas: Dictionary of position deltas
+
+        Returns:
+            List of symbols requiring sell orders
+        """
+        return [symbol for symbol, delta in position_deltas.items() if delta.is_sell]
+
+    def get_positions_to_buy(self, position_deltas: dict[str, PositionDelta]) -> list[str]:
+        """Get list of symbols that need to be bought.
+
+        Args:
+            position_deltas: Dictionary of position deltas
+
+        Returns:
+            List of symbols requiring buy orders
+        """
+        return [symbol for symbol, delta in position_deltas.items() if delta.is_buy]

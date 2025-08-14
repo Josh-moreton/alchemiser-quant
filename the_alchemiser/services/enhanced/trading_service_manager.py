@@ -239,6 +239,14 @@ class TradingServiceManager:
         """Get portfolio allocation and diversification metrics"""
         return self.account.get_portfolio_allocation()
 
+    def get_all_positions(self) -> list[Any]:
+        """Get all positions from the underlying repository"""
+        return self.alpaca_manager.get_all_positions()
+
+    def get_portfolio_value(self) -> Any:
+        """Get total portfolio value from the underlying repository"""
+        return self.alpaca_manager.get_portfolio_value()
+
     # High-Level Trading Operations
     def execute_smart_order(
         self, symbol: str, quantity: int, side: str, order_type: str = "market", **kwargs: Any
