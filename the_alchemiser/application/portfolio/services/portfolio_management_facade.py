@@ -17,7 +17,7 @@ from the_alchemiser.domain.portfolio.rebalancing.rebalance_calculator import Reb
 from the_alchemiser.domain.portfolio.strategy_attribution.attribution_engine import (
     StrategyAttributionEngine,
 )
-from the_alchemiser.services.enhanced.trading_service_manager import TradingServiceManager
+from the_alchemiser.services.trading.trading_service_manager import TradingServiceManager
 
 
 class PortfolioManagementFacade:
@@ -178,7 +178,7 @@ class PortfolioManagementFacade:
         include_analysis: bool = True,
     ) -> dict[str, Any]:
         """Complete portfolio rebalancing workflow with analysis."""
-        workflow_results = {}
+        workflow_results: dict[str, Any] = {}
 
         # Step 1: Pre-rebalancing analysis
         if include_analysis:
@@ -208,7 +208,7 @@ class PortfolioManagementFacade:
             workflow_results["execution"] = {
                 "status": "skipped",
                 "reason": "Validation failed",
-                "issues": validation["issues"],
+                "issues": validation.get("issues", []),
             }
 
         # Step 4: Post-rebalancing analysis (if executed)

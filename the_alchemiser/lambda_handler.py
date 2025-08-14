@@ -15,7 +15,7 @@ from typing import Any
 
 from the_alchemiser.domain.types import LambdaEvent
 from the_alchemiser.main import main
-from the_alchemiser.services.exceptions import (
+from the_alchemiser.services.errors.exceptions import (
     DataProviderError,
     NotificationError,
     StrategyExecutionError,
@@ -178,8 +178,9 @@ def lambda_handler(event: LambdaEvent | None = None, context: Any = None) -> dic
 
         from the_alchemiser.infrastructure.config import load_settings
 
-        settings = load_settings()
-        result = main(command_args, settings=settings)
+        _settings = load_settings()
+        # main() loads settings internally; do not pass unsupported kwargs
+        result = main(command_args)
 
         # Build response message
         if mode == "bot":
@@ -227,7 +228,7 @@ def lambda_handler(event: LambdaEvent | None = None, context: Any = None) -> dic
 
         # Enhanced error handling with detailed reporting
         try:
-            from the_alchemiser.services.error_handler import (
+            from the_alchemiser.services.errors.error_handler import (
                 handle_trading_error,
                 send_error_notification_if_needed,
             )
@@ -273,7 +274,7 @@ def lambda_handler(event: LambdaEvent | None = None, context: Any = None) -> dic
 
         # Enhanced error handling with detailed reporting
         try:
-            from the_alchemiser.services.error_handler import (
+            from the_alchemiser.services.errors.error_handler import (
                 handle_trading_error,
                 send_error_notification_if_needed,
             )

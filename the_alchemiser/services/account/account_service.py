@@ -1,5 +1,5 @@
 import logging
-from typing import Any
+from typing import Any, Literal, cast
 
 from the_alchemiser.domain.interfaces import AccountRepository
 from the_alchemiser.domain.types import AccountInfo, PositionsDict
@@ -399,7 +399,10 @@ class AccountService:
         try:
             summary = self.get_account_summary()
 
-            # Map comprehensive summary to protocol-expected format
+            # Map comprehensive summary to protocol-expected format (constrained to AccountInfo keys)
+            status: Literal["ACTIVE", "INACTIVE"] = (
+                "ACTIVE" if not summary["trading_blocked"] else "INACTIVE"
+            )
             return {
                 "account_id": summary["account_id"],
                 "equity": summary["equity"],
@@ -410,13 +413,7 @@ class AccountService:
                 "last_equity": summary["last_equity"],
                 "daytrading_buying_power": summary["buying_power"],
                 "regt_buying_power": summary["buying_power"],
-                "status": "BLOCKED" if summary["trading_blocked"] else "ACTIVE",
-                "pattern_day_trader": summary["pattern_day_trader"],
-                "trading_blocked": summary["trading_blocked"],
-                "transfers_blocked": summary["transfers_blocked"],
-                "account_blocked": summary["account_blocked"],
-                "market_value": summary["market_value"],
-                "calculated_metrics": summary["calculated_metrics"],
+                "status": status,  # Literal["ACTIVE","INACTIVE"]
             }
         except Exception as e:
             self.logger.error(f"Failed to get protocol-compliant account info: {e}")
@@ -430,7 +427,7 @@ class AccountService:
         """
         try:
             positions = self.account_repository.get_positions()
-            positions_dict = {}
+            positions_dict: PositionsDict = {}
 
             for position in positions:
                 symbol = self._get_attr(position, "symbol", "")
@@ -461,7 +458,12 @@ class AccountService:
         Returns current price as expected by PriceProvider protocol.
         """
         try:
-            return self.account_repository.get_current_price(symbol)
+            # AccountRepository does not expose pricing; delegate if underlying repo supports MarketDataRepository
+            if hasattr(self.account_repository, "get_current_price"):
+                # runtime duck-typing; cast repository to Any and call method directly
+                price_func = cast(Any, self.account_repository).get_current_price
+                return cast(float, price_func(symbol))
+            raise NotImplementedError("Current price not available from AccountRepository")
         except Exception as e:
             self.logger.error(f"Failed to get current price for {symbol}: {e}")
             raise
@@ -473,7 +475,10 @@ class AccountService:
         Returns price dict as expected by PriceProvider protocol.
         """
         try:
-            return self.account_repository.get_current_prices(symbols)
+            if hasattr(self.account_repository, "get_current_prices"):
+                prices_func = cast(Any, self.account_repository).get_current_prices
+                return cast(dict[str, float], prices_func(symbols))
+            raise NotImplementedError("Batch prices not available from AccountRepository")
         except Exception as e:
             self.logger.error(f"Failed to get current prices for {symbols}: {e}")
             raise

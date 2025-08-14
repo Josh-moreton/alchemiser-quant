@@ -1,31 +1,28 @@
-"""Core services for the trading system.
+"""Service layer package.
 
-This package contains modularized services that replace the monolithic
-``UnifiedDataProvider``:
+Lightweight package initializer for the restructured service layer. The
+concrete services now live in dedicated subpackages:
 
-* ConfigService: Configuration management
-* SecretsService: Credential management
-* MarketDataClient: Market data retrieval
-* TradingClientService: Trading operations
-* StreamingService: Real-time data streaming
-* CacheManager: Configurable caching with TTL
-* AccountService: Account and position management
+- account: Account and position management services
+- market_data: Market data retrieval and streaming services
+- trading: Order execution and position services/facade
+- repository: External provider implementations (e.g., AlpacaManager)
+- shared: Cross-cutting concerns (config, secrets, cache, retry)
+- errors: Error handling, reporting and exceptions
+
+Note: We intentionally avoid re-exporting concrete classes at the package root
+to prevent import-time side effects and circular import issues. Import directly
+from the relevant subpackage, for example:
+
+    from the_alchemiser.services.account.account_service import AccountService
+    from the_alchemiser.services.trading.trading_service_manager import TradingServiceManager
 """
 
-from .account_service import AccountService
-from .cache_manager import CacheManager
-from .config_service import ConfigService
-from .market_data_client import MarketDataClient
-from .secrets_service import SecretsService
-from .streaming_service import StreamingService
-from .trading_client_service import TradingClientService
-
 __all__ = [
-    "AccountService",
-    "CacheManager",
-    "ConfigService",
-    "MarketDataClient",
-    "SecretsService",
-    "StreamingService",
-    "TradingClientService",
+    "account",
+    "market_data",
+    "trading",
+    "repository",
+    "shared",
+    "errors",
 ]

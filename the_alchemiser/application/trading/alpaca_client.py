@@ -64,9 +64,9 @@ from the_alchemiser.infrastructure.websocket.websocket_connection_manager import
     WebSocketConnectionManager,
 )
 from the_alchemiser.infrastructure.websocket.websocket_order_monitor import OrderCompletionMonitor
-from the_alchemiser.services.alpaca_manager import AlpacaManager
-from the_alchemiser.services.exceptions import TradingClientError
-from the_alchemiser.services.position_manager import PositionManager
+from the_alchemiser.services.errors.exceptions import TradingClientError
+from the_alchemiser.services.repository.alpaca_manager import AlpacaManager
+from the_alchemiser.services.trading.position_manager import PositionManager
 
 logger = logging.getLogger(__name__)
 

@@ -1,11 +1,11 @@
 import logging
 from typing import Any
 
-from the_alchemiser.services.alpaca_manager import AlpacaManager
-from the_alchemiser.services.enhanced.account_service import AccountService
-from the_alchemiser.services.enhanced.market_data_service import MarketDataService
-from the_alchemiser.services.enhanced.order_service import OrderService
-from the_alchemiser.services.enhanced.position_service import PositionService
+from the_alchemiser.services.account.account_service import AccountService
+from the_alchemiser.services.market_data.market_data_service import MarketDataService
+from the_alchemiser.services.repository.alpaca_manager import AlpacaManager
+from the_alchemiser.services.trading.order_service import OrderService
+from the_alchemiser.services.trading.position_service import PositionService
 from the_alchemiser.utils.num import floats_equal
 
 

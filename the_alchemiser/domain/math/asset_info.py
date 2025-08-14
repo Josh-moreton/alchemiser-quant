@@ -11,7 +11,7 @@ import logging
 from enum import Enum
 
 try:
-    from the_alchemiser.services.alpaca_manager import AlpacaManager
+    from the_alchemiser.services.repository.alpaca_manager import AlpacaManager
 
     ALPACA_AVAILABLE = True
 except ImportError:

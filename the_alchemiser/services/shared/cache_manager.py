@@ -8,9 +8,9 @@ import logging
 import time
 from typing import Any, Generic, TypeVar
 
-from cachetools import TTLCache
+from cachetools import TTLCache  # type: ignore[import-untyped]
 
-from the_alchemiser.services.config_service import ConfigService
+from the_alchemiser.services.shared.config_service import ConfigService
 
 T = TypeVar("T")
 

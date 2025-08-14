@@ -14,7 +14,7 @@ from typing import Optional
 from the_alchemiser.domain.strategies.strategy_manager import StrategyType
 from the_alchemiser.infrastructure.config import Settings, load_settings
 from the_alchemiser.infrastructure.logging.logging_utils import get_logger, setup_logging
-from the_alchemiser.services.exceptions import (
+from the_alchemiser.services.errors.exceptions import (
     ConfigurationError,
     DataProviderError,
     StrategyExecutionError,
@@ -24,7 +24,7 @@ from the_alchemiser.services.exceptions import (
 # DI imports (optional)
 try:
     from the_alchemiser.container.application_container import ApplicationContainer
-    from the_alchemiser.services.service_factory import ServiceFactory
+    from the_alchemiser.services.shared.service_factory import ServiceFactory
 
     DI_AVAILABLE = True
 except ImportError:

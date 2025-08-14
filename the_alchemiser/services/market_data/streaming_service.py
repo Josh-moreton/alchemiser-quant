@@ -8,6 +8,18 @@ Provides callback-based API for current price requests.
 
 import logging
 from collections.abc import Callable
+from typing import Protocol, cast
+
+
+class _RealTimePricingProtocol(Protocol):
+    """Structural protocol for the real-time pricing manager used by this service."""
+
+    def set_fallback_provider(self, provider: Callable[[str], float | None]) -> None: ...
+    def start(self) -> None: ...
+    def stop(self) -> None: ...
+    def is_connected(self) -> bool: ...
+    def get_current_price(self, symbol: str) -> float | None: ...
+    def subscribe_for_trading(self, symbol: str) -> None: ...
 
 
 class StreamingService:
@@ -22,10 +34,11 @@ class StreamingService:
             secret_key: Alpaca secret key
             paper_trading: Whether to use paper trading
         """
+
         self.api_key = api_key
         self.secret_key = secret_key
         self.paper_trading = paper_trading
-        self._real_time_pricing = None
+        self._real_time_pricing: _RealTimePricingProtocol | None = None
         self._fallback_provider: Callable[[str], float | None] | None = None
 
     def start(self) -> None:
@@ -35,8 +48,10 @@ class StreamingService:
                 RealTimePricingManager,
             )
 
-            self._real_time_pricing = RealTimePricingManager(
-                self.api_key, self.secret_key, self.paper_trading
+            # Cast to protocol to satisfy static typing without importing types at module top
+            self._real_time_pricing = cast(
+                _RealTimePricingProtocol,
+                RealTimePricingManager(self.api_key, self.secret_key, self.paper_trading),
             )
             if self._fallback_provider:
                 self._real_time_pricing.set_fallback_provider(self._fallback_provider)
@@ -114,7 +129,7 @@ class StreamingService:
         Returns:
             Tuple of (price, cleanup_function)
         """
-        from the_alchemiser.services.price_fetching_utils import (
+        from the_alchemiser.services.market_data.price_fetching_utils import (
             create_cleanup_function,
             subscribe_for_real_time,
         )

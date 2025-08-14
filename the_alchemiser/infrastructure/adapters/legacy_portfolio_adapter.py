@@ -8,7 +8,7 @@ from the_alchemiser.application.portfolio.services.portfolio_management_facade i
 )
 from the_alchemiser.domain.registry import StrategyType
 from the_alchemiser.domain.types import OrderDetails
-from the_alchemiser.services.enhanced.trading_service_manager import TradingServiceManager
+from the_alchemiser.services.trading.trading_service_manager import TradingServiceManager
 
 
 class LegacyPortfolioRebalancerAdapter:

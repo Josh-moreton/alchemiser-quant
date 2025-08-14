@@ -3,7 +3,7 @@
 from typing import cast
 
 from the_alchemiser.container.application_container import ApplicationContainer
-from the_alchemiser.services.enhanced.trading_service_manager import TradingServiceManager
+from the_alchemiser.services.trading.trading_service_manager import TradingServiceManager
 
 
 class ServiceFactory:

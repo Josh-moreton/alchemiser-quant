@@ -12,7 +12,7 @@ This provides better error handling, logging, and testing capabilities.
 import logging
 from typing import Any
 
-from the_alchemiser.services.alpaca_manager import AlpacaManager
+from the_alchemiser.services.repository.alpaca_manager import AlpacaManager
 
 
 class TradingClientService:

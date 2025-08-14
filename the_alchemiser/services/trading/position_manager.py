@@ -10,7 +10,7 @@ import logging
 from typing import Any
 
 from the_alchemiser.infrastructure.logging.logging_utils import get_logger, log_error_with_context
-from the_alchemiser.services.exceptions import DataProviderError, TradingClientError
+from the_alchemiser.services.errors.exceptions import DataProviderError, TradingClientError
 
 
 class PositionManager:
@@ -434,7 +434,7 @@ class PositionManager:
             logging.info(f"Reconciling position for {symbol} after order {order_id}")
 
             # Force fresh position data from broker
-            positions = self.get_current_positions(force_refresh=True)
+            self.get_current_positions(force_refresh=True)
 
             # Get order details to understand what should have happened
             try:

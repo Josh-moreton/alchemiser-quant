@@ -7,12 +7,12 @@ Separates account operations from market data responsibilities.
 """
 
 import logging
-from typing import Any, Protocol
+from typing import Any, Protocol, cast
 
 from the_alchemiser.domain.models.account import AccountModel
 from the_alchemiser.domain.types import AccountInfo, PositionInfo, PositionsDict
-from the_alchemiser.services.account_utils import extract_comprehensive_account_data
-from the_alchemiser.services.trading_client_service import TradingClientService
+from the_alchemiser.services.account.account_utils import extract_comprehensive_account_data
+from the_alchemiser.services.trading.trading_client_service import TradingClientService
 
 
 class DataProvider(Protocol):
@@ -69,7 +69,8 @@ class AccountService:
         try:
             account_data = self._trading_client_service.get_account_info()
             if account_data:
-                return AccountModel.from_dict(account_data)
+                # Help mypy by asserting the precise type expected by the model builder
+                return AccountModel.from_dict(cast(AccountInfo, account_data))
             return None
         except Exception as e:
             logging.error(f"Error getting account info: {e}")
@@ -82,7 +83,9 @@ class AccountService:
         Returns:
             Account information as dict or None if error
         """
-        return self._trading_client_service.get_account_info()
+        model = self.get_account_info()
+        # model.to_dict() returns AccountInfo (TypedDict) - cast to dict[str, Any] for compatibility
+        return cast(dict[str, Any], model.to_dict()) if model else None
 
     # Legacy API methods using DataProvider for backward compatibility
     def get_account_info_legacy(self) -> AccountInfo:

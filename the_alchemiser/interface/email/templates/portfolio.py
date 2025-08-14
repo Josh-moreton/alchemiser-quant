@@ -384,7 +384,9 @@ class PortfolioBuilder:
 
         # Use the same logic as CLI - import the utility functions
         try:
-            from the_alchemiser.services.account_utils import extract_current_position_values
+            from the_alchemiser.services.account.account_utils import (
+                extract_current_position_values,
+            )
 
             # Try multiple sources for positions and account data
             final_positions = getattr(result, "final_positions", {})

@@ -4,8 +4,8 @@ import logging
 from typing import Any
 
 from the_alchemiser.domain.types import AccountInfo
-from the_alchemiser.services.error_handler import handle_errors_with_retry
-from the_alchemiser.services.exceptions import (
+from the_alchemiser.services.errors.error_handler import handle_errors_with_retry
+from the_alchemiser.services.errors.exceptions import (
     ConfigurationError,
     DataProviderError,
     StrategyExecutionError,

@@ -3,7 +3,7 @@
 from dependency_injector import containers, providers
 
 from the_alchemiser.infrastructure.data_providers.data_provider import UnifiedDataProvider
-from the_alchemiser.services.alpaca_manager import AlpacaManager
+from the_alchemiser.services.repository.alpaca_manager import AlpacaManager
 
 
 class InfrastructureProviders(containers.DeclarativeContainer):

@@ -31,8 +31,8 @@ from the_alchemiser.domain.strategies.strategy_engine import (
 # Local imports
 from the_alchemiser.infrastructure.config import load_settings
 from the_alchemiser.infrastructure.config.config_utils import load_alert_config
-from the_alchemiser.services.exceptions import StrategyExecutionError
-from the_alchemiser.services.price_utils import ensure_scalar_price
+from the_alchemiser.services.errors.exceptions import StrategyExecutionError
+from the_alchemiser.services.market_data.price_utils import ensure_scalar_price
 
 # Setup
 warnings.filterwarnings("ignore")
@@ -311,7 +311,10 @@ class NuclearSignalGenerator:
                 logging.info("Stopping Nuclear Energy bot...")
                 break
             except StrategyExecutionError as e:
-                from ..logging.logging_utils import get_logger, log_error_with_context
+                from the_alchemiser.infrastructure.logging.logging_utils import (
+                    get_logger,
+                    log_error_with_context,
+                )
 
                 error_count += 1
                 logger = get_logger(__name__)
@@ -334,7 +337,10 @@ class NuclearSignalGenerator:
                     )
                     break
             except Exception as e:
-                from ..logging.logging_utils import get_logger, log_error_with_context
+                from the_alchemiser.infrastructure.logging.logging_utils import (
+                    get_logger,
+                    log_error_with_context,
+                )
 
                 error_count += 1
                 logger = get_logger(__name__)

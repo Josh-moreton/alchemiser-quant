@@ -22,12 +22,12 @@ from alpaca.trading.enums import OrderSide
 # TODO: Phase 5 - Added for gradual migration
 from the_alchemiser.application.trading.alpaca_client import AlpacaClient
 from the_alchemiser.infrastructure.data_providers.data_provider import UnifiedDataProvider
-from the_alchemiser.services.alpaca_manager import AlpacaManager
-from the_alchemiser.services.exceptions import (
+from the_alchemiser.services.errors.exceptions import (
     DataProviderError,
     OrderExecutionError,
     TradingClientError,
 )
+from the_alchemiser.services.repository.alpaca_manager import AlpacaManager
 
 
 class OrderExecutor(Protocol):

@@ -7,9 +7,9 @@ from alpaca.trading.enums import OrderSide
 
 from the_alchemiser.application.execution.smart_execution import SmartExecution
 from the_alchemiser.domain.portfolio.rebalancing.rebalance_plan import RebalancePlan
-from the_alchemiser.services.enhanced.trading_service_manager import TradingServiceManager
-from the_alchemiser.services.error_handler import TradingSystemErrorHandler
-from the_alchemiser.services.exceptions import StrategyExecutionError
+from the_alchemiser.services.errors.error_handler import TradingSystemErrorHandler
+from the_alchemiser.services.errors.exceptions import StrategyExecutionError
+from the_alchemiser.services.trading.trading_service_manager import TradingServiceManager
 
 
 class RebalanceExecutionService:

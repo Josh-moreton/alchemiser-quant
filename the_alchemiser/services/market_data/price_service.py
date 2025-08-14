@@ -10,8 +10,8 @@ import logging
 from collections.abc import Awaitable, Callable
 from typing import Any
 
-from the_alchemiser.services.market_data_client import MarketDataClient
-from the_alchemiser.services.streaming_service import StreamingService
+from the_alchemiser.services.market_data.market_data_client import MarketDataClient
+from the_alchemiser.services.market_data.streaming_service import StreamingService
 
 
 class ModernPriceFetchingService:
@@ -20,7 +20,7 @@ class ModernPriceFetchingService:
     def __init__(
         self,
         market_data_client: MarketDataClient,
-        streaming_service: StreamingService,
+        streaming_service: StreamingService | None,
     ) -> None:
         """
         Initialize modern price fetching service.
@@ -48,7 +48,7 @@ class ModernPriceFetchingService:
         """
         try:
             # Try streaming first
-            if self._streaming_service.is_connected():
+            if self._streaming_service and self._streaming_service.is_connected():
                 price = await asyncio.wait_for(
                     self._get_streaming_price_async(symbol), timeout=timeout_seconds
                 )
@@ -69,8 +69,11 @@ class ModernPriceFetchingService:
 
     async def _get_streaming_price_async(self, symbol: str) -> float | None:
         """Get price from streaming service asynchronously."""
+        service = self._streaming_service
+        if not service:
+            return None
         loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(None, self._streaming_service.get_current_price, symbol)
+        return await loop.run_in_executor(None, service.get_current_price, symbol)
 
     def get_current_price_with_callback(
         self,
@@ -88,7 +91,7 @@ class ModernPriceFetchingService:
         """
         try:
             # Try streaming first
-            if self._streaming_service.is_connected():
+            if self._streaming_service and self._streaming_service.is_connected():
                 price = self._streaming_service.get_current_price(symbol)
                 if price is not None:
                     callback(symbol, price)
@@ -121,7 +124,8 @@ class ModernPriceFetchingService:
         if symbol not in self._price_callbacks:
             self._price_callbacks[symbol] = []
             # Subscribe to streaming service
-            self._streaming_service.subscribe_for_trading(symbol)
+            if self._streaming_service:
+                self._streaming_service.subscribe_for_trading(symbol)
 
         self._price_callbacks[symbol].append(callback)
         subscription_id = f"{symbol}_{len(self._price_callbacks[symbol])}"
@@ -174,7 +178,7 @@ class ModernPriceFetchingService:
     ) -> dict[str, float | None]:
         """Internal method to fetch multiple prices concurrently."""
         tasks = [
-            self.get_current_price_async(symbol, timeout_seconds / len(symbols))
+            self.get_current_price_async(symbol, timeout_seconds / max(len(symbols), 1))
             for symbol in symbols
         ]
 
@@ -183,17 +187,19 @@ class ModernPriceFetchingService:
             result: dict[str, float | None] = {}
 
             for symbol, price in zip(symbols, prices, strict=True):
-                if isinstance(price, Exception):
+                if isinstance(price, BaseException):
                     logging.error(f"Error getting price for {symbol}: {price}")
                     result[symbol] = None
                 else:
+                    # price is float | None and result expects float | None
                     result[symbol] = price
 
             return result
 
         except Exception as e:
             logging.error(f"Error getting multiple prices: {e}")
-            return dict.fromkeys(symbols, None)  # type: ignore[return-value]
+            # Ensure keys exist with None values on error
+            return dict.fromkeys(symbols, None)
 
     def get_price_with_fallback_chain(
         self, symbol: str, fallback_methods: list[str] | None = None
@@ -214,7 +220,11 @@ class ModernPriceFetchingService:
 
         for method in fallback_methods:
             try:
-                if method == "streaming" and self._streaming_service.is_connected():
+                if (
+                    method == "streaming"
+                    and self._streaming_service
+                    and self._streaming_service.is_connected()
+                ):
                     price = self._streaming_service.get_current_price(symbol)
                     if price is not None:
                         logging.debug(f"Got price for {symbol} via streaming: ${price:.2f}")
@@ -248,8 +258,10 @@ class ModernPriceFetchingService:
         Returns:
             Health status dictionary
         """
-        status = {
-            "streaming_connected": self._streaming_service.is_connected(),
+        status: dict[str, Any] = {
+            "streaming_connected": (
+                self._streaming_service.is_connected() if self._streaming_service else False
+            ),
             "rest_api_available": True,  # Assume available unless proven otherwise
             "active_subscriptions": len(self._price_callbacks),
             "rest_api_error": None,  # Will be set if there's an error
