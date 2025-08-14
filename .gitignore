@@ -10,7 +10,7 @@ ENV/
 .pytest_cache/
 .lsp/
 .clj-kondo/
-.ruff-cache*/
+.ruff-cache/
 
 # Node.js (not used but prevent accidental commits)
 node_modules/
