@@ -179,7 +179,7 @@ class UnifiedDataProviderFacade:
             bid, ask = self._market_data_client.get_latest_quote(symbol)
             return (bid + ask) / 2 if bid and ask else None
         except Exception as e:
-            self._error_handler.log_and_handle(e, {"symbol": symbol}, None)
+            self._error_handler.log_and_handle("Error getting latest quote", {"symbol": symbol}, e)
             return None
 
     @handle_service_errors(default_return={})
