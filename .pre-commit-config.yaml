@@ -1,27 +1,27 @@
+# Pre-commit hooks for The Alchemiser - automated code quality on commit
+# All tool configurations are in pyproject.toml
+
 repos:
   - repo: local
     hooks:
-      - id: ruff
-        name: Ruff Lint & Imports
-        entry: bash
+      - id: ruff-check
+        name: Ruff Lint & Format Imports
+        entry: poetry run ruff check --fix
         language: system
         types: [python]
         pass_filenames: true
-        args:
-          - -c
-          - |
-            # First fix imports and lint issues
-            poetry run ruff check --fix "$@"
-            git add "$@"  # auto-stage changes
 
-      - id: black
-        name: Black Format
-        entry: bash
+      - id: black-format
+        name: Black Code Formatter
+        entry: poetry run black
         language: system
         types: [python]
         pass_filenames: true
-        args:
-          - -c
-          - |
-            poetry run black "$@"
-            git add "$@"  # auto-stage changes
+
+      - id: mypy-typecheck
+        name: MyPy Type Checking
+        entry: poetry run mypy
+        language: system
+        types: [python]
+        pass_filenames: false
+        args: [the_alchemiser/]

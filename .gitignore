@@ -10,6 +10,12 @@ ENV/
 .pytest_cache/
 .lsp/
 .clj-kondo/
+.ruff-cache*/
+
+# Node.js (not used but prevent accidental commits)
+node_modules/
+package-lock.json
+*.lock
 
 # macOS system files
 .DS_Store

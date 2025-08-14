@@ -1,38 +1,59 @@
 {
-    // Format on save with Black
+    // VS Code Editor Behavior (tools configured in pyproject.toml)
     "editor.formatOnSave": true,
-    "python.formatting.provider": "none",
-    // Disable legacy Python linting to avoid duplicate MyPy runs
-    "python.linting.enabled": false,
-    "python.linting.mypyEnabled": false,
+    "editor.rulers": [100],
+    "editor.tabSize": 4,
+    "editor.insertSpaces": true,
+    "files.trimTrailingWhitespace": true,
+    "files.insertFinalNewline": true,
+    
+    // Python Editor Settings
     "[python]": {
-        "editor.formatOnSave": true,
         "editor.defaultFormatter": "ms-python.black-formatter",
         "editor.codeActionsOnSave": {
-            // Let Ruff handle imports instead of VS Code
-            "source.organizeImports": "never"
+            "source.organizeImports": "never"  // Let Ruff handle imports
         }
     },
-    // Ruff: lint + auto-fix + import sorting (new settings)
+    
+    // Tool Configuration References (actual config in pyproject.toml)
+    "black-formatter.args": ["--config=pyproject.toml"],
+    "mypy-type-checker.args": ["--config-file=pyproject.toml"],
     "ruff.lint.enable": true,
     "ruff.organizeImports": true,
-    // MyPy Type Checker extension (new method)
-    "mypy-type-checker.args": [
-        "--config-file=pyproject.toml"
-    ],
-    // Black config
-    "black-formatter.args": [
-        "--config=pyproject.toml"
-    ],
-    // Optional: Reduce duplicate type checking from Pylance
-    // "basic" still gives hover hints and light warnings
-    "python.analysis.typeCheckingMode": "basic",
-    "sonarlint.rules": {
-        "python:S1481": "off"
-    },
-    "python.testing.pytestArgs": [
-        "tests"
-    ],
+    
+    // Testing Configuration
+    "python.testing.pytestEnabled": true,
+    "python.testing.pytestArgs": ["tests"],
     "python.testing.unittestEnabled": false,
-    "python.testing.pytestEnabled": true
+    
+    // Type Checking
+    "python.analysis.typeCheckingMode": "basic",
+    
+    // Disable Extensions Not Needed for This Project
+    "prisma.showPrismaDataPlatformNotification": false,
+    "prisma.prismaSchemaPath": "",
+    
+    // File Exclusions
+    "files.exclude": {
+        "**/__pycache__": true,
+        "**/*.pyc": true,
+        "**/.pytest_cache": true,
+        "**/.mypy_cache": true,
+        "**/.coverage": true,
+        "**/htmlcov": true,
+        "**/.aws-sam": true,
+        "**/node_modules": true
+    },
+    
+    // Terminal Settings for macOS
+    "terminal.integrated.defaultProfile.osx": "zsh",
+    "terminal.integrated.env.osx": {
+        "PYTHONPATH": "${workspaceFolder}"
+    },
+    
+    // AWS Configuration
+    "aws.samcli.location": "/opt/homebrew/bin/sam",
+    "yaml.schemas": {
+        "https://raw.githubusercontent.com/aws/serverless-application-model/main/samtranslator/schema/schema.json": "template.yaml"
+    }
 }
