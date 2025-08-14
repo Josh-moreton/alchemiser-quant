@@ -36,7 +36,13 @@ console = Console()
 
 
 def show_welcome() -> None:
-    """Display a beautiful welcome message"""
+    """Render the CLI welcome banner.
+
+    Displays a rich-formatted header panel describing the trading system.
+
+    Returns:
+        None
+    """
     welcome_text = Text()
     welcome_text.append(" The Alchemiser Quantitative Trading System\n", style="bold cyan")
     welcome_text.append("Advanced Multi-Strategy Trading System", style="italic")
