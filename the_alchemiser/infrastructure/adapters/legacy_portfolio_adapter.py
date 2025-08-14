@@ -6,6 +6,8 @@ from typing import Any
 from the_alchemiser.application.portfolio.services.portfolio_management_facade import (
     PortfolioManagementFacade,
 )
+from the_alchemiser.domain.registry import StrategyType
+from the_alchemiser.domain.types import OrderDetails
 from the_alchemiser.services.enhanced.trading_service_manager import TradingServiceManager
 
 
@@ -34,6 +36,7 @@ class LegacyPortfolioRebalancerAdapter:
         """
         self.trading_manager = trading_manager
         self.use_new_system = use_new_system
+        self.portfolio_facade: PortfolioManagementFacade | None
 
         # Initialize new system components
         if use_new_system:
@@ -56,9 +59,11 @@ class LegacyPortfolioRebalancerAdapter:
         """
         if not self.use_new_system or self.portfolio_facade is None:
             # Fall back to original trading_math calculation
-            from the_alchemiser.utils.trading_math import calculate_rebalance_amounts
+            from the_alchemiser.utils.trading_math import (  # type: ignore[import-untyped]
+                calculate_rebalance_amounts,
+            )
 
-            return calculate_rebalance_amounts(
+            return calculate_rebalance_amounts(  # type: ignore[no-any-return]
                 target_weights, current_values, portfolio_value, threshold
             )
 
@@ -203,7 +208,7 @@ class LegacyPortfolioRebalancerAdapter:
                         if trade_amount > 0:
                             # Buy order
                             result = self.trading_manager.place_market_order(
-                                symbol, "buy", abs(trade_amount)
+                                symbol, abs(trade_amount), "buy"
                             )
                             orders_placed[symbol] = {
                                 "status": "placed",
@@ -214,7 +219,7 @@ class LegacyPortfolioRebalancerAdapter:
                         else:
                             # Sell order
                             result = self.trading_manager.place_market_order(
-                                symbol, "sell", abs(trade_amount)
+                                symbol, abs(trade_amount), "sell"
                             )
                             orders_placed[symbol] = {
                                 "status": "placed",
@@ -257,6 +262,82 @@ class LegacyPortfolioRebalancerAdapter:
     def switch_to_legacy_system(self) -> None:
         """Switch back to using the legacy system."""
         self.use_new_system = False
+
+    def rebalance_portfolio(
+        self,
+        target_portfolio: dict[str, float],
+        strategy_attribution: dict[str, list[StrategyType]] | None = None,
+    ) -> list[OrderDetails]:
+        """Main rebalancing interface compatible with RebalancingService protocol.
+
+        Args:
+            target_portfolio: Target allocation weights by symbol
+            strategy_attribution: Optional strategy attribution mapping
+
+        Returns:
+            List of order details from execution
+        """
+        try:
+            # Execute rebalancing using the appropriate system
+            result = self.execute_rebalancing(target_portfolio, dry_run=False)
+
+            # Extract orders from execution results
+            if result.get("status") == "completed":
+                execution_results = result.get("execution_results", {})
+                orders_placed = execution_results.get("orders_placed", {})
+
+                # Convert to list format expected by the protocol
+                order_list: list[OrderDetails] = []
+                for symbol, order_data in orders_placed.items():
+                    if isinstance(order_data, dict):
+                        # Convert to expected OrderDetails format
+                        side = order_data.get("side", "buy")
+                        # Ensure side is valid
+                        if side not in ["buy", "sell"]:
+                            side = "buy"
+
+                        status = order_data.get("status", "new")
+                        # Ensure status is valid
+                        if status not in [
+                            "new",
+                            "partially_filled",
+                            "filled",
+                            "canceled",
+                            "expired",
+                            "rejected",
+                        ]:
+                            status = "new"
+
+                        # Extract quantity with proper type handling
+                        qty_value = order_data.get("shares") or order_data.get("amount") or 0
+                        qty_float = float(qty_value) if qty_value is not None else 0.0
+
+                        order_details: OrderDetails = {
+                            "id": order_data.get("order_id", ""),
+                            "symbol": symbol,
+                            "qty": qty_float,
+                            "side": side,
+                            "order_type": "market",
+                            "time_in_force": "day",
+                            "status": status,
+                            "filled_qty": 0.0,
+                            "filled_avg_price": None,
+                            "created_at": "",
+                            "updated_at": "",
+                        }
+                        order_list.append(order_details)
+
+                return order_list
+            else:
+                # Return empty list if execution failed
+                return []
+
+        except Exception as e:
+            # Log error and return empty list
+            import logging
+
+            logging.error(f"Portfolio rebalancing failed: {e}")
+            return []
 
     def compare_systems(self, target_weights: dict[str, float]) -> dict[str, Any]:
         """Compare results between legacy and new systems for validation."""

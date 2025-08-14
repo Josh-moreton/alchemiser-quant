@@ -26,7 +26,6 @@ from typing import Any, Protocol
 
 from alpaca.trading.enums import OrderSide
 
-from the_alchemiser.application.portfolio_rebalancer.portfolio_rebalancer import PortfolioRebalancer
 from the_alchemiser.domain.strategies.strategy_manager import (
     MultiStrategyManager,
     StrategyType,
@@ -40,6 +39,9 @@ from the_alchemiser.domain.types import (
     PositionsDict,
 )
 from the_alchemiser.execution.account_service import AccountService
+from the_alchemiser.infrastructure.adapters.legacy_portfolio_adapter import (
+    LegacyPortfolioRebalancerAdapter,
+)
 from the_alchemiser.infrastructure.config import Settings
 from the_alchemiser.services.exceptions import (
     ConfigurationError,
@@ -149,8 +151,8 @@ class TradingEngine:
         ignore_market_hours: bool = False,
         config: Settings | None = None,
         # NEW: DI-aware parameters
-        trading_service_manager=None,
-        container=None,
+        trading_service_manager: Any = None,
+        container: Any = None,
     ) -> None:
         """Initialize the TradingEngine with optional dependency injection.
 
@@ -187,7 +189,7 @@ class TradingEngine:
 
     def _init_with_container(
         self,
-        container,
+        container: Any,
         strategy_allocations: dict[StrategyType, float] | None,
         ignore_market_hours: bool,
     ) -> None:
@@ -242,19 +244,20 @@ class TradingEngine:
 
     def _init_with_service_manager(
         self,
-        trading_service_manager,
+        trading_service_manager: Any,
         strategy_allocations: dict[StrategyType, float] | None,
         ignore_market_hours: bool,
     ) -> None:
         """Initialize using injected TradingServiceManager."""
         self._container = None
+        self._trading_service_manager = trading_service_manager
         self.data_provider = trading_service_manager
         self.trading_client = trading_service_manager.alpaca_manager
         self.paper_trading = trading_service_manager.alpaca_manager.is_paper_trading
         self.ignore_market_hours = ignore_market_hours
 
         # Create minimal config for components
-        config_dict = {}
+        config_dict: dict[str, Any] = {}
 
         self._init_common_components(strategy_allocations, config_dict)
 
@@ -325,7 +328,21 @@ class TradingEngine:
 
         # Portfolio rebalancer
         try:
-            self.portfolio_rebalancer = PortfolioRebalancer(self)
+            # Use the trading service manager if available, otherwise fall back to self
+            trading_manager = getattr(self, "_trading_service_manager", None) or self.data_provider
+            if hasattr(trading_manager, "alpaca_manager"):
+                # This is a TradingServiceManager
+                self.portfolio_rebalancer = LegacyPortfolioRebalancerAdapter(
+                    trading_manager=trading_manager,
+                    use_new_system=True,  # Enable enhanced features with legacy interface
+                )
+            else:
+                # No compatible trading manager available - skip portfolio rebalancer
+                # or implement a different approach for TradingEngine compatibility
+                self.portfolio_rebalancer = None  # type: ignore[assignment]
+                logging.warning(
+                    "Portfolio rebalancer not initialized - no compatible trading manager available"
+                )
         except Exception as e:
             raise TradingClientError(
                 f"Failed to initialize portfolio rebalancer: {e}",
@@ -955,19 +972,11 @@ class TradingEngine:
         """
         try:
             # Enhanced order validation
-            if not isinstance(orders_executed, list):
-                logging.error(f"❌ orders_executed must be a list, got {type(orders_executed)}")
-                return
-
             validated_symbols = set()
             invalid_orders = []
 
             # Validate each order and extract symbols
             for i, order in enumerate(orders_executed):
-                if not isinstance(order, dict):
-                    invalid_orders.append(f"Order {i}: Expected dict, got {type(order)}")
-                    continue
-
                 symbol = order.get("symbol")
                 if not symbol:
                     invalid_orders.append(f"Order {i}: Missing 'symbol' field")
@@ -1317,7 +1326,7 @@ class TradingEngine:
     @classmethod
     def create_with_di(
         cls,
-        container=None,
+        container: Any = None,
         strategy_allocations: dict[StrategyType, float] | None = None,
         ignore_market_hours: bool = False,
     ) -> "TradingEngine":
