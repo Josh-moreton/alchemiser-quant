@@ -24,6 +24,12 @@ The Alchemiser is a sophisticated multi-strategy quantitative trading system bui
 
 ## Development Standards
 
+### Python Environment (CRITICAL)
+- **Always use Poetry**: ALL Python commands must use `poetry run` prefix
+- **Never use bare python**: Use `poetry run python` instead of `python`
+- **Virtual environment**: Poetry automatically manages the virtual environment
+- **Dependencies**: Use `poetry add` for new dependencies, `poetry install` for setup
+
 ### Type Safety (Required)
 - **100% mypy compliance**: Every function must have type annotations
 - **Strict typing**: Use `from typing import` for complex types, prefer Protocol over ABC
@@ -110,6 +116,13 @@ tecl_signals = strategy_manager.tecl_strategy.generate_signals()
 - **User interfaces**: `interface/` layer
 - **Shared utilities**: `utils/` package
 
+### Documentation Management
+- **Wiki Repository**: Use the `alchemiser-quant.wiki` workspace for all documentation
+- **Architecture docs**: Create comprehensive guides in the wiki
+- **API documentation**: Document interfaces and usage patterns in wiki
+- **Deployment guides**: Step-by-step instructions in wiki format
+- **Note**: The wiki appears as a separate git repository in the workspace but is linked to the main repo
+
 ## Testing Requirements
 
 ### Testing Framework (pytest + pytest-mock)
@@ -141,31 +154,40 @@ def test_order_placement(mocker):
 
 ### Development Commands
 ```bash
-# Setup (Poetry-based)
+# Setup (Poetry-based - ALWAYS REQUIRED)
 poetry install                   # Install dependencies
 poetry shell                     # Activate virtual environment
 make dev                         # Install with dev dependencies
 
-# Quality & Testing
+# Quality & Testing (ALL commands use poetry run)
 make format                      # Black + Ruff formatting
 make lint                        # Linting, type checking, security
 make test                        # Run pytest with coverage reporting
-pytest tests/unit/              # Fast unit tests only
-pytest tests/integration/       # Integration tests
-mypy the_alchemiser/            # Type checking standalone
+poetry run pytest tests/unit/   # Fast unit tests only
+poetry run pytest tests/integration/  # Integration tests
+poetry run mypy the_alchemiser/ # Type checking standalone
 
-# Trading Operations (CLI)
-alchemiser signal               # Strategy analysis (no trading)
-alchemiser trade                # Paper trading execution
-alchemiser trade --live         # Live trading (requires confirmation)
-alchemiser status               # Account positions and P&L
-alchemiser deploy               # Deploy to AWS Lambda
-alchemiser validate-indicators  # Validate strategy indicators
+# Trading Operations (CLI - ALL use poetry run)
+poetry run alchemiser signal               # Strategy analysis (no trading)
+poetry run alchemiser trade                # Paper trading execution
+poetry run alchemiser trade --live         # Live trading (requires confirmation)
+poetry run alchemiser status               # Account positions and P&L
+poetry run alchemiser deploy               # Deploy to AWS Lambda
+poetry run alchemiser validate-indicators  # Validate strategy indicators
 
 # AWS Deployment
 sam build --cached              # Build Lambda deployment package
 sam deploy --guided             # Deploy with guided configuration
 aws logs tail /aws/lambda/the-alchemiser-v2-lambda --follow  # Monitor logs
+
+# Documentation (Use Wiki Workspace)
+# All documentation should be written in the alchemiser-quant.wiki workspace
+# The wiki presents as a separate git repo but is linked to the main repository
+
+# Testing and Development (ALWAYS use poetry run)
+poetry run python -c "import the_alchemiser; print('Import test')"
+poetry run python test_script.py
+poetry run python -m the_alchemiser.main  # Run main module
 ```
 
 ### CLI Architecture (Rich + Typer)
@@ -275,6 +297,9 @@ def test_trading_operation(mocker):
     
     result = trading_manager.place_market_order("AAPL", 10, "buy")
     assert result["order_id"] == "ORDER123"
+
+# Run tests with: poetry run pytest tests/unit/test_file.py
+# Run all tests with: poetry run pytest
 ```
 
 ## Security and Environment Management
@@ -318,4 +343,6 @@ LOGGING__LEVEL=INFO              # Logging verbosity
 6. **Global state**: Use dependency injection through constructors, avoid global variables
 7. **Strategy coupling**: Keep strategies independent - they should not call each other directly
 8. **Test isolation**: Mock all external APIs in tests, use fixtures from `conftest.py`
+9. **Forgetting Poetry**: ALWAYS use `poetry run` for Python commands - never use bare `python`
+10. **Documentation in wrong place**: Use the `alchemiser-quant.wiki` workspace for documentation, not the main repo
 
