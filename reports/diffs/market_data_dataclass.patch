@@ -1,0 +1,29 @@
+# Rationale: add slots/kw_only to market data models and prepare for pydantic boundary DTOs
+--- a/the_alchemiser/domain/models/market_data.py
++++ b/the_alchemiser/domain/models/market_data.py
+@@
+-from dataclasses import (
+-    dataclass,
+-)  # TODO(PYDANTIC-MIGRATION): Convert BarModel, QuoteModel, PriceDataModel to Pydantic for datetime parsing & validation.
++from dataclasses import dataclass
+@@
+-@dataclass(
+-    frozen=True
+-)  # TODO(PYDANTIC-MIGRATION): Replace with BarModel(BaseModel) and move timestamp parsing to validator.
+-class BarModel:
++@dataclass(frozen=True, slots=True, kw_only=True)
++class Bar:
+@@
+-@dataclass(
+-    frozen=True
+-)  # TODO(PYDANTIC-MIGRATION): Replace with QuoteModel(BaseModel) and enforce bid<=ask, positive sizes.
+-class QuoteModel:
++@dataclass(frozen=True, slots=True, kw_only=True)
++class Quote:
+@@
+-@dataclass(
+-    frozen=True
+-)  # TODO(PYDANTIC-MIGRATION): Replace with PriceDataModel(BaseModel); optional bid/ask validation.
+-class PriceDataModel:
++@dataclass(frozen=True, slots=True, kw_only=True)
++class PriceData:

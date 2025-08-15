@@ -1,0 +1,59 @@
+# Rationale: Migrate ValidatedOrder from deprecated Pydantic v1 validators to v2 field_validator API
+--- a/the_alchemiser/application/orders/order_validation.py
++++ b/the_alchemiser/application/orders/order_validation.py
+@@
+-from pydantic import BaseModel, Field, validator
++from pydantic import BaseModel, Field, field_validator
+@@
+-    @validator("symbol")
+-    @classmethod
+-    def validate_symbol(cls, v: str) -> str:
++    @field_validator("symbol")
++    @classmethod
++    def validate_symbol(cls, v: str) -> str:
+@@
+-    @validator("limit_price")
+-    @classmethod
+-    def validate_limit_price(cls, v: Decimal | None, values: dict[str, Any]) -> Decimal | None:
++    @field_validator("limit_price")
++    @classmethod
++    def validate_limit_price(cls, v: Decimal | None, info: Any) -> Decimal | None:
+         """Validate limit price is required for limit orders."""
+-        order_type = values.get("order_type")
++        order_type = info.data.get("order_type")
+         if order_type in [ValidatedOrderType.LIMIT, ValidatedOrderType.STOP_LIMIT] and v is None:
+             raise ValueError("Limit price required for limit orders")
+         return v
+@@
+-    @validator("stop_price")
+-    @classmethod
+-    def validate_stop_price(cls, v: Decimal | None, values: dict[str, Any]) -> Decimal | None:
++    @field_validator("stop_price")
++    @classmethod
++    def validate_stop_price(cls, v: Decimal | None, info: Any) -> Decimal | None:
+         """Validate stop price is required for stop orders."""
+-        order_type = values.get("order_type")
++        order_type = info.data.get("order_type")
+         if order_type in [ValidatedOrderType.STOP, ValidatedOrderType.STOP_LIMIT] and v is None:
+             raise ValueError("Stop price required for stop orders")
+         return v
+@@
+-    @validator("filled_qty")
+-    @classmethod
+-    def validate_filled_qty(cls, v: Decimal, values: dict[str, Any]) -> Decimal:
++    @field_validator("filled_qty")
++    @classmethod
++    def validate_filled_qty(cls, v: Decimal, info: Any) -> Decimal:
+         """Validate filled quantity doesn't exceed order quantity."""
+-        quantity = values.get("quantity", Decimal("0"))
++        quantity = info.data.get("quantity", Decimal("0"))
+         if v > quantity:
+             raise ValueError("Filled quantity cannot exceed order quantity")
+         return v
+@@
+-    def to_order_details(self) -> OrderDetails:
+-        """Convert to domain DTO using Pydantic v1 .dict()."""
+-        return cast(OrderDetails, self.dict())
++    def to_order_details(self) -> OrderDetails:
++        """Convert to domain DTO using Pydantic v2 .model_dump()."""
++        return cast(OrderDetails, self.model_dump())
