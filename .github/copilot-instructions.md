@@ -346,3 +346,7 @@ LOGGING__LEVEL=INFO              # Logging verbosity
 9. **Forgetting Poetry**: ALWAYS use `poetry run` for Python commands - never use bare `python`
 10. **Documentation in wrong place**: Use the `alchemiser-quant.wiki` workspace for documentation, not the main repo
 
+### General Fix Policy
+- **No short-term patches or hotfixes**: All changes must be robust, thoroughly tested, and designed for long-term maintainability.
+- **Avoid technical debt**: Implement solutions that address root causes rather than applying temporary workarounds.
+- **Refactor with care**: Ensure all refactors maintain existing functionality and are covered by tests.
