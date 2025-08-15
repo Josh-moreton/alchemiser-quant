@@ -136,7 +136,7 @@ from the_alchemiser.core.error_handler import TradingSystemErrorHandler
 error_handler = TradingSystemErrorHandler()
 error_details = error_handler.handle_error(
     error=exception,
-    component="ComponentName.method_name", 
+    component="ComponentName.method_name",
     context="operation_description",
     additional_data={"symbol": "AAPL", "qty": 100}
 )
@@ -145,7 +145,7 @@ error_details = error_handler.handle_error(
 ### Error Categories
 
 - **CRITICAL**: System-level failures that stop all operations
-- **TRADING**: Order execution, position validation issues  
+- **TRADING**: Order execution, position validation issues
 - **DATA**: Market data, API connectivity issues
 - **STRATEGY**: Strategy calculation, signal generation issues
 - **CONFIGURATION**: Config, authentication, setup issues
@@ -327,10 +327,10 @@ class AlchemiserError(Exception):
 
 class TradingClientError(AlchemiserError):
     """Base for trading-related errors"""
-    
+
 class StrategyExecutionError(AlchemiserError):
     """Strategy calculation and execution errors"""
-    
+
 class IndicatorCalculationError(AlchemiserError):
     """Technical indicator calculation errors"""
 ```
@@ -353,7 +353,7 @@ def risky_operation():
             context="specific_operation_description",
             additional_data={"relevant": "debugging_data"}
         )
-        
+
         # Re-raise if critical, or handle gracefully
         if isinstance(e, StrategyExecutionError):
             raise  # Critical strategy errors should bubble up
@@ -376,13 +376,13 @@ class TestNuclearStrategy:
     def setup_method(self):
         """Setup for each test method"""
         self.engine = NuclearStrategyEngine()
-        
+
     def test_volatility_calculation_with_valid_data(self):
         """Test normal volatility calculation"""
         indicators = {"AAPL": {"price_history": [100, 101, 99, 102]}}
         result = self.engine._get_14_day_volatility("AAPL", indicators)
         assert result > 0
-        
+
     def test_volatility_calculation_raises_on_invalid_data(self):
         """Test that invalid data raises proper exception"""
         with pytest.raises(IndicatorCalculationError):
@@ -399,12 +399,12 @@ from typing import Optional
 
 class Settings(BaseSettings):
     """Type-safe configuration with environment variable support"""
-    
+
     alpaca_api_key: str = Field(..., env="ALPACA_API_KEY")
     alpaca_secret_key: str = Field(..., env="ALPACA_SECRET_KEY")
     paper_trading: bool = Field(True, env="PAPER_TRADING")
     email_recipient: str = Field(..., env="EMAIL_RECIPIENT")
-    
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
@@ -433,7 +433,7 @@ class PositionProvider(Protocol):
 class TradingEngine:
     def __init__(self, account_provider: AccountInfoProvider):
         self._account_provider = account_provider
-        
+
     def get_account_info(self) -> Dict[str, Any]:
         return self._account_provider.get_account_info()
 ```
@@ -573,7 +573,7 @@ def lambda_handler(event, context):
 ### Monitoring and Debugging
 
 - **CloudWatch Logs**: Comprehensive logging with error categorization
-- **SQS Dead Letter Queue**: 14-day retention for failed execution investigation  
+- **SQS Dead Letter Queue**: 14-day retention for failed execution investigation
 - **Email Alerts**: Immediate notification of critical issues
 - **Error Context**: Full debugging information captured automatically
 
