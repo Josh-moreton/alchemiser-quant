@@ -325,17 +325,35 @@ def status(
 
         account_info = trader.get_account_info()
 
+        # Prefer enriched typed account summary when the feature flag is ON
+        tsm: TradingServiceManager | None = None
+        if type_system_v2_enabled():
+            try:
+                api_key, secret_key = secrets_manager.get_alpaca_keys(paper_trading=not live)
+                if not api_key or not secret_key:
+                    raise RuntimeError("Alpaca credentials not available")
+                tsm = TradingServiceManager(api_key, secret_key, paper=not live)
+                enriched = tsm.get_account_summary_enriched()
+                # If enriched path returned a wrapped structure, use the summary for display
+                if isinstance(enriched, dict) and "summary" in enriched:
+                    account_info = enriched["summary"]
+            except Exception as e:
+                console.print(f"[dim yellow]Enriched account summary unavailable: {e}[/dim yellow]")
+
         if account_info:
             render_account_info(account_info)
 
             # Optional enriched positions display using the new typed path
             if type_system_v2_enabled():
                 try:
-                    # Retrieve Alpaca credentials via Secrets Manager (typed and consistent)
-                    api_key, secret_key = secrets_manager.get_alpaca_keys(paper_trading=not live)
-                    if not api_key or not secret_key:
-                        raise RuntimeError("Alpaca credentials not available")
-                    tsm = TradingServiceManager(api_key, secret_key, paper=not live)
+                    # Reuse TSM if available, otherwise instantiate
+                    if tsm is None:
+                        api_key, secret_key = secrets_manager.get_alpaca_keys(
+                            paper_trading=not live
+                        )
+                        if not api_key or not secret_key:
+                            raise RuntimeError("Alpaca credentials not available")
+                        tsm = TradingServiceManager(api_key, secret_key, paper=not live)
                     enriched_positions = tsm.get_positions_enriched()
                     if enriched_positions:
                         table = Table(
