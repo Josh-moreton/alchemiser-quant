@@ -148,7 +148,8 @@ def render_strategy_signals(
     for strategy_type, signal in strategy_signals.items():
         action = signal.get("action", "HOLD")
         symbol = signal.get("symbol", "N/A")
-        reason = signal.get("reason", "No reason provided")
+        # Support both legacy 'reason' and typed 'reasoning'
+        reason = signal.get("reason", signal.get("reasoning", "No reason provided"))
 
         # Color code by action
         if action == "BUY":
