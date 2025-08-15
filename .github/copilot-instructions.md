@@ -33,8 +33,46 @@ The Alchemiser is a sophisticated multi-strategy quantitative trading system bui
 ### Type Safety (Required)
 - **100% mypy compliance**: Every function must have type annotations
 - **Strict typing**: Use `from typing import` for complex types, prefer Protocol over ABC
-- **Domain types**: Use types from `the_alchemiser.domain.types` for business objects
+- **Domain types (Typed Domain V2)**: Use value objects and entities under `the_alchemiser/domain/**` (e.g., `domain/shared_kernel/value_objects/{money,percentage,identifier}.py`, `domain/trading/{entities,value_objects}/**`) instead of ad-hoc dicts or legacy `types` modules
 - **Return annotations**: Always specify return types, use `None` explicitly
+- **Decimals only for money/qty**: Always use `Decimal` for financial values
+- **Protocols for boundaries**: Repository interfaces live under `domain/**/protocols/` and are implemented in `infrastructure/`
+
+## Typed Domain System (V2)
+
+The project is migrating to a strongly-typed Domain-Driven Design model behind a feature flag for safe, incremental rollout.
+
+### Key concepts
+- **Shared Kernel Value Objects**: `Money`, `Percentage`, `Identifier` in `domain/shared_kernel/value_objects/`
+- **Trading Domain**: `Order`, `Position`, `Account` entities and `Symbol`, `Quantity`, `OrderStatus` value objects in `domain/trading/`
+- **Strategies Domain**: `StrategySignal`, `Confidence`, `Alert` in `domain/strategies/value_objects/`
+- **Anti-corruption layer**: Pure mapping functions in `application/mapping/` (DTO ↔ Domain ↔ Infra)
+- **Infra adapters**: Alpaca response/requests mapped in `infrastructure/` only; domain remains framework-free
+
+### Feature flag
+- `TYPES_V2_ENABLED` (truthy: `1`, `true`, `yes`, `on`)
+- When ON, selected slices run through typed domain + mappers while legacy remains as fallback
+
+### Migrated slices (flagged)
+- Portfolio value parity via `TradingServiceManager`
+- Enriched positions summary and CLI rendering
+- Enriched account summary and CLI status integration
+- Order placement (market/limit): build typed requests, map responses to `domain.trading.entities.Order`
+- Open orders retrieval mapped to typed domain structures
+- StrategySignal mapping and usage in execution + CLI
+
+### Contributor rules for Typed Domain V2
+- Domain purity: no framework or network imports in `the_alchemiser/domain/**` (no Pydantic, requests, logging)
+- Use `@dataclass(frozen=True)` for value objects; entities hold behavior
+- Keep all DTOs (Pydantic) in `interfaces/schemas/`
+- Put all boundary mappings in `application/mapping/`
+- Use `Decimal` for money/quantities; normalize in mappers
+- Prefer `Protocol` interfaces under `domain/**/protocols/`; implement in services/infra
+
+### Testing the typed path
+- Add parity tests for flag ON/OFF when behavior should match
+- Unit test mappers (infra ↔ domain ↔ DTO) with realistic fixtures
+- Mock external APIs (pytest-mock fixtures) – never hit real services in tests
 
 ### Error Handling Patterns
 **Never fail silently** - Always use proper exception handling:
@@ -274,6 +312,10 @@ paper_trading = settings.alpaca.paper_trading
 cash_reserve = settings.alpaca.cash_reserve_pct
 ```
 
+### Enabling the typed domain path (locally and CI)
+- Set `TYPES_V2_ENABLED=1` in your environment to exercise the V2 code paths for the migrated slices.
+- Keep legacy paths intact for any features not yet migrated; submit PRs with parity tests before expanding the flag’s surface area.
+
 ## Testing & Quality Requirements
 
 ### Test Structure & Organization
@@ -323,6 +365,7 @@ EMAIL_RECIPIENT=your@email.com
 ALPACA__CASH_RESERVE_PCT=0.05    # 5% cash reserve
 ALPACA__SLIPPAGE_BPS=5           # 5 basis points slippage allowance
 LOGGING__LEVEL=INFO              # Logging verbosity
+TYPES_V2_ENABLED=true            # Enable typed domain v2 slices (truthy: 1/true/yes/on)
 ```
 
 ### Trading Mode Safety & Production Readiness

@@ -32,6 +32,46 @@ export PYTHONPATH="${PWD}:${PWD}/the_alchemiser:${PYTHONPATH}"
 - **Application Layer** (`the_alchemiser/application/`): Trading orchestration, smart execution, portfolio rebalancing
 - **Interface Layer** (`the_alchemiser/interface/`): Modular CLI with clean separation of concerns
 
+## Typed Domain System (V2)
+
+We’re migrating to a strongly-typed, framework-free domain model with incremental rollout behind a feature flag. The goal is >95% precise typing, clearer boundaries, and safer refactors.
+
+### Key Concepts
+- Shared Kernel Value Objects (immutable): `Money`, `Percentage`, `Identifier` under `the_alchemiser/domain/shared_kernel/value_objects/`
+- Trading Domain: Entities `Order`, `Position`, `Account`; Value Objects `Symbol`, `Quantity`, `OrderStatus` under `the_alchemiser/domain/trading/`
+- Strategies Domain: `StrategySignal`, `Confidence`, `Alert` under `the_alchemiser/domain/strategies/value_objects/`
+- Anti‑corruption Mappers: `the_alchemiser/application/mapping/` handles DTO ↔ Domain ↔ Infra translations
+- Infra Adapters: Alpaca requests/responses mapped in `the_alchemiser/infrastructure/`; domain stays pure
+
+### Enable the Typed Path
+
+Set the feature flag to exercise the typed slices end‑to‑end:
+
+```bash
+export TYPES_V2_ENABLED=1   # truthy values: 1, true, yes, on
+```
+
+### What’s Migrated (behind the flag)
+- Portfolio value parity via `TradingServiceManager`
+- Enriched positions summary and CLI rendering (status)
+- Enriched account summary and CLI status integration
+- Order placement (market and limit): typed request build + domain `Order` mapping
+- Open orders retrieval mapped to domain `Order`
+- StrategySignal typed mapping through Execution and CLI
+
+### Contributor Notes
+- Domain purity: no framework imports (no Pydantic, requests, logging) in `the_alchemiser/domain/**`
+- Use `@dataclass(frozen=True)` for value objects; entities encapsulate behavior
+- Keep Pydantic DTOs in `the_alchemiser/interfaces/schemas/`
+- Place all boundary mapping in `the_alchemiser/application/mapping/`
+- Use `Decimal` for all financial/quantity values; normalize in mappers
+- Prefer `Protocol` for repository/service interfaces under `domain/**/protocols/`; implemented in `infrastructure/` or `services/`
+
+### Testing the Typed Path
+- Add parity tests for flag ON vs OFF where behavior should be identical
+- Unit test mappers with realistic fixtures; mock external APIs (pytest‑mock)
+- CI runs mypy across the codebase; value objects and entities must be fully typed
+
 ### Entry Point and CLI Architecture
 
 - **Main Entry Point** (`main.py`): Clean, focused entry point (180 lines) with `TradingSystem` orchestrator
@@ -154,6 +194,7 @@ Automatic email alerts include:
 
 - Project managed with Poetry and a single `pyproject.toml`.
 - Strict typing checked by `mypy` with `disallow_untyped_defs`.
+    - Typed Domain V2 gate: keep domain free of frameworks; all financial values are `Decimal`.
 - Configuration and domain models defined with Pydantic.
 - Code style enforced by `black` (line length 100) and linted by `flake8`.
 - Tests run with `pytest`; `make test` executes the suite.
@@ -182,6 +223,7 @@ warn_unused_ignores = true
 - ✅ **Use Protocols for dependency injection**: Clean interfaces over inheritance
 - ✅ **Pydantic for configuration**: Type-safe settings and data models
 - ✅ **Dataclasses for structured data**: Replace dictionaries with typed structures
+- ✅ **Typed Domain V2**: Prefer domain value objects/entities over untyped dicts; route new work via mappers
 
 ### Code Formatting and Linting
 
@@ -212,7 +254,7 @@ select = ["E", "W", "F", "I", "N", "UP", "ANN", "S", "BLE", "COM", "C4", "DTZ", 
 
 ```
 the_alchemiser/
-├── core/                          # Core business logic
+├── core/                          # Legacy/core logic (being migrated to domain/)
 │   ├── config.py                  # Pydantic settings models
 │   ├── exceptions.py              # Custom exception hierarchy
 │   ├── error_handler.py           # Centralized error handling
@@ -239,6 +281,20 @@ the_alchemiser/
 ├── cli.py                         # Typer-based command line interface
 ├── main.py                        # Main execution entry point
 └── lambda_handler.py              # AWS Lambda handler
+
+# New typed domain directories (incremental rollout)
+the_alchemiser/domain/
+├── shared_kernel/
+│   └── value_objects/             # Money, Percentage, Identifier
+├── trading/
+│   ├── entities/                  # Order, Position, Account
+│   ├── value_objects/             # Symbol, Quantity, OrderStatus
+│   └── protocols/                 # Repository interfaces
+└── strategies/
+    └── value_objects/             # StrategySignal, Confidence, Alert
+
+the_alchemiser/application/mapping/  # Anti‑corruption mappers (DTO ↔ Domain ↔ Infra)
+the_alchemiser/interfaces/schemas/   # Pydantic DTOs for I/O
 ```
 
 ### Dependency Management with Poetry
@@ -537,6 +593,13 @@ alchemiser trade --live            # live trading (DI mode)
 alchemiser trade --ignore-market-hours  # override market hours
 alchemiser status                  # account status and positions
 alchemiser deploy                  # deploy to AWS Lambda
+```
+
+Tip: to review typed behavior via CLI, export `TYPES_V2_ENABLED=1` and run:
+
+```bash
+poetry run alchemiser status -v
+poetry run alchemiser trade --ignore-market-hours -v  # paper mode by default
 ```
 
 ## Development Workflow for AI Agents
