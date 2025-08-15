@@ -1,11 +1,17 @@
 import logging
 from typing import Any
 
+from the_alchemiser.application.mapping.account_mapping import to_money_usd
+from the_alchemiser.application.mapping.order_mapping import (
+    alpaca_order_to_domain,
+    summarize_order,
+)
 from the_alchemiser.services.account.account_service import AccountService
 from the_alchemiser.services.market_data.market_data_service import MarketDataService
 from the_alchemiser.services.repository.alpaca_manager import AlpacaManager
 from the_alchemiser.services.trading.order_service import OrderService
 from the_alchemiser.services.trading.position_service import PositionService
+from the_alchemiser.utils.feature_flags import type_system_v2_enabled
 from the_alchemiser.utils.num import floats_equal
 
 
@@ -89,8 +95,57 @@ class TradingServiceManager:
         }
 
     def get_open_orders(self, symbol: str | None = None) -> list[dict[str, Any]]:
-        """Get all open orders (not directly available - use AlpacaManager directly)"""
-        return []
+        """Get open orders.
+
+        Legacy path returns raw-ish dicts derived from Alpaca objects.
+        When the type system flag is enabled, returns a richer dict with
+        a 'domain' key containing the mapped domain Order and a 'summary'.
+        """
+        try:
+            orders = self.alpaca_manager.get_orders(status="open")
+            # Optional symbol filter for safety (Alpaca filter applied earlier best-effort)
+            if symbol:
+                orders = [
+                    o
+                    for o in orders
+                    if getattr(o, "symbol", None) == symbol
+                    or (isinstance(o, dict) and o.get("symbol") == symbol)
+                ]
+
+            if type_system_v2_enabled():
+                enriched: list[dict[str, Any]] = []
+                for o in orders:
+                    dom = alpaca_order_to_domain(o)
+                    enriched.append(
+                        {
+                            "raw": o,
+                            "domain": dom,
+                            "summary": summarize_order(dom),
+                        }
+                    )
+                return enriched
+
+            # Legacy best-effort mapping to simple dicts
+            legacy: list[dict[str, Any]] = []
+            for o in orders:
+                if isinstance(o, dict):
+                    legacy.append(o)
+                else:
+                    legacy.append(
+                        {
+                            "id": getattr(o, "id", None),
+                            "symbol": getattr(o, "symbol", None),
+                            "qty": getattr(o, "qty", None),
+                            "status": getattr(o, "status", None),
+                            "type": getattr(o, "order_type", getattr(o, "type", None)),
+                            "limit_price": getattr(o, "limit_price", None),
+                            "created_at": getattr(o, "created_at", None),
+                        }
+                    )
+            return legacy
+        except Exception as e:
+            self.logger.error(f"Failed to get open orders: {e}")
+            return []
 
     # Position Management Operations
     def get_position_summary(self, symbol: str | None = None) -> dict[str, Any]:
@@ -244,8 +299,12 @@ class TradingServiceManager:
         return self.alpaca_manager.get_all_positions()
 
     def get_portfolio_value(self) -> Any:
-        """Get total portfolio value from the underlying repository"""
-        return self.alpaca_manager.get_portfolio_value()
+        """Get total portfolio value (feature-flagged typed path)."""
+        raw = self.alpaca_manager.get_portfolio_value()
+        if type_system_v2_enabled():
+            money = to_money_usd(raw)
+            return {"value": raw, "money": money}
+        return raw
 
     # High-Level Trading Operations
     def execute_smart_order(
