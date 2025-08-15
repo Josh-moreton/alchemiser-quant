@@ -9,7 +9,7 @@ from rich.table import Table
 from the_alchemiser.utils.feature_flags import type_system_v2_enabled
 
 # TODO: Phase 13 - Replace dict[Any, Any] with proper CLISignalData
-# TODO: Phase 13 - Replace dict[str, Any] with AccountInfo from core.types
+# TODO: Phase 13 - Replace dict[str, Any] with AccountInfo from the_alchemiser.domain.types
 # TODO: Phase 13 - Replace dict[str, float] with CLIPortfolioData
 # TODO: Phase 13 - Replace list[dict[str, Any]] with list[CLIOrderDisplay]
 
