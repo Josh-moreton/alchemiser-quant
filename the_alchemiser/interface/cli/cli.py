@@ -15,7 +15,6 @@ import typer
 from rich.console import Console
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
-from rich.prompt import Confirm
 from rich.table import Table
 from rich.text import Text
 
@@ -175,21 +174,11 @@ def trade(
     if not no_header:
         show_welcome()
 
-    # Safety confirmation for live trading
-    if live and not force:
+    # Live mode proceeds without interactive confirmations
+    if live:
         console.print(
-            Panel(
-                "[bold red]⚠️  LIVE TRADING MODE[/bold red]\n\n"
-                "This will place real orders with real money!\n"
-                "Make sure you understand the risks.",
-                title="[bold red]Warning[/bold red]",
-                border_style="red",
-            )
+            "[dim yellow]LIVE trading mode active. Proceeding without confirmation.[/dim yellow]"
         )
-
-        if not Confirm.ask("Are you sure you want to proceed with LIVE trading?"):
-            console.print("[yellow]Operation cancelled.[/yellow]")
-            raise typer.Exit(0)
 
     mode_display = "[bold red]LIVE[/bold red]" if live else "[bold blue]PAPER[/bold blue]"
     console.print(f"[bold yellow]Starting {mode_display} trading...[/bold yellow]")
