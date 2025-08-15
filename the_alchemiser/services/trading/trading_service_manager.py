@@ -1,7 +1,11 @@
 import logging
 from typing import Any
 
-from the_alchemiser.application.mapping.account_mapping import to_money_usd
+from the_alchemiser.application.mapping.account_mapping import (
+    account_summary_to_typed,
+    account_typed_to_serializable,
+    to_money_usd,
+)
 from the_alchemiser.application.mapping.order_mapping import (
     alpaca_order_to_domain,
     summarize_order,
@@ -52,6 +56,39 @@ class TradingServiceManager:
     ) -> dict[str, Any]:
         """Place a market order with validation"""
         try:
+            # Typed path: build MarketOrderRequest and return enriched order details
+            if type_system_v2_enabled():
+                try:
+                    from alpaca.trading.enums import OrderSide, TimeInForce
+                    from alpaca.trading.requests import MarketOrderRequest
+                except Exception as e:
+                    # Fallback to legacy if imports unavailable in test stubs
+                    self.logger.debug(f"Falling back to legacy order path: {e}")
+                    order_id = self.orders.place_market_order(
+                        symbol, side, quantity, validate_price=validate
+                    )
+                    return {"success": True, "order_id": order_id}
+
+                req = MarketOrderRequest(
+                    symbol=symbol.upper(),
+                    qty=quantity,
+                    notional=None,
+                    side=OrderSide.BUY if side.lower() == "buy" else OrderSide.SELL,
+                    time_in_force=TimeInForce.DAY,
+                )
+                placed = self.alpaca_manager.place_order(req)
+                dom = alpaca_order_to_domain(placed)
+                return {
+                    "success": True,
+                    "order_id": str(getattr(placed, "id", getattr(placed, "order_id", ""))),
+                    "order": {
+                        "raw": placed,
+                        "domain": dom,
+                        "summary": summarize_order(dom),
+                    },
+                }
+
+            # Legacy path: use enhanced OrderService
             order_id = self.orders.place_market_order(
                 symbol, side, quantity, validate_price=validate
             )
@@ -294,6 +331,23 @@ class TradingServiceManager:
     def get_portfolio_allocation(self) -> dict[str, Any]:
         """Get portfolio allocation and diversification metrics"""
         return self.account.get_portfolio_allocation()
+
+    def get_account_summary_enriched(self) -> dict[str, Any]:
+        """Feature-flagged enriched account summary.
+
+        - Legacy (flag OFF): return the original summary dict unchanged.
+        - Flag ON: return {"raw": legacy_summary, "summary": typed_serializable_dict}
+        """
+        try:
+            legacy = self.account.get_account_summary()
+            if not type_system_v2_enabled():
+                return legacy
+
+            typed = account_summary_to_typed(legacy)
+            return {"raw": legacy, "summary": account_typed_to_serializable(typed)}
+        except Exception as e:
+            self.logger.error(f"Failed to get account summary: {e}")
+            return {"error": str(e)}
 
     def get_all_positions(self) -> list[Any]:
         """Get all positions from the underlying repository"""
