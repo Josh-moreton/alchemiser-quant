@@ -6,6 +6,7 @@ from the_alchemiser.application.mapping.order_mapping import (
     alpaca_order_to_domain,
     summarize_order,
 )
+from the_alchemiser.application.mapping.position_mapping import alpaca_position_to_summary
 from the_alchemiser.services.account.account_service import AccountService
 from the_alchemiser.services.market_data.market_data_service import MarketDataService
 from the_alchemiser.services.repository.alpaca_manager import AlpacaManager
@@ -297,6 +298,39 @@ class TradingServiceManager:
     def get_all_positions(self) -> list[Any]:
         """Get all positions from the underlying repository"""
         return self.alpaca_manager.get_all_positions()
+
+    def get_positions_enriched(self) -> list[dict[str, Any]]:
+        """Feature-flagged enriched positions list.
+
+        - Legacy: return the raw objects from Alpaca as-is.
+        - Flag ON: return list of {"raw": pos, "summary": PositionSummary-as-dict}
+        """
+        try:
+            raw_positions = self.alpaca_manager.get_all_positions()
+            if not type_system_v2_enabled():
+                return list(raw_positions)
+
+            enriched: list[dict[str, Any]] = []
+            for p in raw_positions:
+                s = alpaca_position_to_summary(p)
+                enriched.append(
+                    {
+                        "raw": p,
+                        "summary": {
+                            "symbol": s.symbol,
+                            "qty": float(s.qty),
+                            "avg_entry_price": float(s.avg_entry_price),
+                            "current_price": float(s.current_price),
+                            "market_value": float(s.market_value),
+                            "unrealized_pl": float(s.unrealized_pl),
+                            "unrealized_plpc": float(s.unrealized_plpc),
+                        },
+                    }
+                )
+            return enriched
+        except Exception as e:
+            self.logger.error(f"Failed to get positions: {e}")
+            return []
 
     def get_portfolio_value(self) -> Any:
         """Get total portfolio value (feature-flagged typed path)."""

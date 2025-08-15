@@ -6,6 +6,8 @@ from rich.panel import Panel
 from rich.rule import Rule
 from rich.table import Table
 
+from the_alchemiser.utils.feature_flags import type_system_v2_enabled
+
 # TODO: Phase 13 - Replace dict[Any, Any] with proper CLISignalData
 # TODO: Phase 13 - Replace dict[str, Any] with AccountInfo from core.types
 # TODO: Phase 13 - Replace dict[str, float] with CLIPortfolioData
@@ -276,6 +278,25 @@ def render_orders_executed(
         c.print(detail_table)
 
 
+def _format_money(value: Any) -> str:
+    """Format value that may be a Money domain object or raw number."""
+    # Domain Money path
+    try:
+        # Money has amount (Decimal) and currency; access directly when present
+        if hasattr(value, "amount") and hasattr(value, "currency"):
+            amt = float(value.amount)
+            cur = str(value.currency)
+            symbol = "$" if cur == "USD" else f"{cur} "
+            return f"{symbol}{amt:,.2f}"
+    except Exception:
+        pass
+    # Legacy numeric path
+    try:
+        return f"${float(value):,.2f}"
+    except Exception:
+        return "-"
+
+
 def render_account_info(
     account_info: dict[str, Any], console: Console | None = None
 ) -> None:  # TODO: Phase 13 - Use AccountInfo type
@@ -295,11 +316,22 @@ def render_account_info(
     cash = account_data.get("cash", 0)
     buying_power = account_data.get("buying_power", 0)
 
+    # Feature-flagged domain Money display support
+    if type_system_v2_enabled():
+        # If account_data contains nested money fields, honor them; otherwise fallback
+        pv_display = _format_money(account_data.get("portfolio_value_money", portfolio_value))
+        cash_display = _format_money(account_data.get("cash_money", cash))
+        bp_display = _format_money(account_data.get("buying_power_money", buying_power))
+    else:
+        pv_display = f"${float(portfolio_value):,.2f}"
+        cash_display = f"${float(cash):,.2f}"
+        bp_display = f"${float(buying_power):,.2f}"
+
     # Create account summary with P&L
     content_lines = [
-        f"[bold green]Portfolio Value:[/bold green] ${float(portfolio_value):,.2f}",
-        f"[bold blue]Available Cash:[/bold blue] ${float(cash):,.2f}",
-        f"[bold yellow]Buying Power:[/bold yellow] ${float(buying_power):,.2f}",
+        f"[bold green]Portfolio Value:[/bold green] {pv_display}",
+        f"[bold blue]Available Cash:[/bold blue] {cash_display}",
+        f"[bold yellow]Buying Power:[/bold yellow] {bp_display}",
     ]
 
     # Add P&L from portfolio history if available
