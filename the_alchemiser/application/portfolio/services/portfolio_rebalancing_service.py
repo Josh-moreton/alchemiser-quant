@@ -254,8 +254,16 @@ class PortfolioRebalancingService:
 
     def _get_portfolio_value(self) -> Decimal:
         """Get total portfolio value from trading manager."""
-        portfolio_value = self.trading_manager.get_portfolio_value()
-        return Decimal(str(portfolio_value))
+        raw = self.trading_manager.get_portfolio_value()
+        # Support typed path returning {"value": float, "money": Money}
+        if isinstance(raw, dict) and "value" in raw:
+            raw_value = raw.get("value", 0)
+        else:
+            raw_value = raw
+        try:
+            return Decimal(str(raw_value))
+        except Exception:
+            return Decimal("0")
 
     def _calculate_strategy_changes(
         self, current_exposures: dict[str, Any], target_exposures: dict[str, Any]

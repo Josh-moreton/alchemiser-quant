@@ -26,10 +26,9 @@ from typing import Any, Protocol
 
 from alpaca.trading.enums import OrderSide
 
-from the_alchemiser.domain.strategies.strategy_manager import (
-    MultiStrategyManager,
-    StrategyType,
-)
+from the_alchemiser.application.execution.smart_execution import SmartExecution
+from the_alchemiser.application.trading.alpaca_client import AlpacaClient
+from the_alchemiser.domain.strategies.strategy_manager import MultiStrategyManager, StrategyType
 from the_alchemiser.domain.types import (
     AccountInfo,
     EnrichedAccountInfo,
@@ -47,11 +46,10 @@ from the_alchemiser.services.errors.exceptions import (
     StrategyExecutionError,
     TradingClientError,
 )
+from the_alchemiser.services.repository.alpaca_manager import AlpacaManager
 
 from ..execution.execution_manager import ExecutionManager
-from ..reporting.reporting import (
-    build_portfolio_state_data,
-)
+from ..reporting.reporting import build_portfolio_state_data
 from ..types import MultiStrategyExecutionResult
 
 # Conditional import for legacy portfolio rebalancer
@@ -246,6 +244,13 @@ class TradingEngine:
 
         # Get configuration from container with proper error handling
         try:
+            # Acquire TradingServiceManager for enhanced portfolio operations
+            try:
+                self._trading_service_manager = container.services.trading_service_manager()
+            except Exception:
+                # Optional; portfolio rebalancer will fall back if not available
+                self._trading_service_manager = None
+
             self.paper_trading = container.config.paper_trading()
             config_dict = {
                 "alpaca": {
@@ -276,7 +281,11 @@ class TradingEngine:
         self._container = None
         self._trading_service_manager = trading_service_manager
         self.data_provider = trading_service_manager
-        self.trading_client = trading_service_manager.alpaca_manager
+        # Use the actual Alpaca TradingClient for correct market-hours and order queries
+        try:
+            self.trading_client = trading_service_manager.alpaca_manager.trading_client
+        except Exception as e:
+            raise ConfigurationError(f"TradingServiceManager missing trading client: {e}") from e
         self.paper_trading = trading_service_manager.alpaca_manager.is_paper_trading
         self.ignore_market_hours = ignore_market_hours
 
@@ -335,11 +344,30 @@ class TradingEngine:
         }
 
         # Order manager setup
-        from the_alchemiser.application.execution.smart_execution import SmartExecution
 
         try:
+            # Build an AlpacaClient once using the same authenticated trading client
+            alpaca_manager: AlpacaManager
+            # If UnifiedDataProvider encapsulates a TradingClient directly, wrap it in an AlpacaManager
+            if hasattr(self, "_trading_service_manager") and hasattr(
+                self._trading_service_manager, "alpaca_manager"
+            ):
+                alpaca_manager = self._trading_service_manager.alpaca_manager
+            else:
+                # Construct a temporary AlpacaManager from the UnifiedDataProvider credentials
+                # UnifiedDataProvider stores api_key/secret_key and paper_trading
+                api_key = getattr(self.data_provider, "api_key", None)
+                secret_key = getattr(self.data_provider, "secret_key", None)
+                paper_flag = getattr(self.data_provider, "paper_trading", True)
+                if not api_key or not secret_key:
+                    raise TradingClientError(
+                        "TradingEngine requires credentials to construct order manager"
+                    )
+                alpaca_manager = AlpacaManager(str(api_key), str(secret_key), bool(paper_flag))
+
+            alpaca_client = AlpacaClient(alpaca_manager, self.data_provider)
             self.order_manager = SmartExecution(
-                trading_client=self.trading_client,
+                order_executor=alpaca_client,
                 data_provider=self.data_provider,
                 ignore_market_hours=self.ignore_market_hours,
                 config=config_dict,
@@ -355,10 +383,10 @@ class TradingEngine:
             # Use the trading service manager if available, otherwise use old portfolio rebalancer
             trading_manager = getattr(self, "_trading_service_manager", None)
             if trading_manager and hasattr(trading_manager, "alpaca_manager"):
-                # This is a TradingServiceManager - use new system
+                # This is a TradingServiceManager - use new system for real order execution
                 self.portfolio_rebalancer = LegacyPortfolioRebalancerAdapter(
                     trading_manager=trading_manager,
-                    use_new_system=True,  # Enable enhanced features with legacy interface
+                    use_new_system=True,
                 )
             else:
                 # Fall back to original portfolio rebalancer for backward compatibility

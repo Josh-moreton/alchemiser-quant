@@ -279,14 +279,27 @@ class PortfolioAnalysisService:
     def _get_current_position_values(self) -> dict[str, Decimal]:
         """Get current position values from trading manager."""
         positions = self.trading_manager.get_all_positions()
-        return {
-            pos.symbol: Decimal(str(pos.market_value)) for pos in positions if pos.market_value > 0
-        }
+        values: dict[str, Decimal] = {}
+        for pos in positions:
+            try:
+                mv = Decimal(str(getattr(pos, "market_value", 0) or 0))
+            except Exception:
+                mv = Decimal("0")
+            if mv > Decimal("0"):
+                values[getattr(pos, "symbol", "")] = mv
+        return values
 
     def _get_portfolio_value(self) -> Decimal:
         """Get total portfolio value from trading manager."""
-        portfolio_value = self.trading_manager.get_portfolio_value()
-        return Decimal(str(portfolio_value))
+        raw = self.trading_manager.get_portfolio_value()
+        if isinstance(raw, dict) and "value" in raw:
+            raw_value = raw.get("value", 0)
+        else:
+            raw_value = raw
+        try:
+            return Decimal(str(raw_value))
+        except Exception:
+            return Decimal("0")
 
     def _get_account_information(self) -> dict[str, Any]:
         """Get account information from trading manager."""

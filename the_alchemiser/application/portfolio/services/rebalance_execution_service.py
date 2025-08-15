@@ -6,6 +6,7 @@ from typing import Any
 from alpaca.trading.enums import OrderSide
 
 from the_alchemiser.application.execution.smart_execution import SmartExecution
+from the_alchemiser.application.trading.alpaca_client import AlpacaClient
 from the_alchemiser.domain.portfolio.rebalancing.rebalance_plan import RebalancePlan
 from the_alchemiser.services.errors.error_handler import TradingSystemErrorHandler
 from the_alchemiser.services.errors.exceptions import StrategyExecutionError
@@ -35,10 +36,17 @@ class RebalanceExecutionService:
             error_handler: Error handler for trading errors (optional)
         """
         self.trading_manager = trading_manager
-        self.smart_execution = smart_execution or SmartExecution(
-            trading_client=trading_manager.alpaca_manager,
-            data_provider=trading_manager,
-        )
+        # Build a single AlpacaClient using the authenticated AlpacaManager and use it for execution
+        if smart_execution is not None:
+            self.smart_execution = smart_execution
+        else:
+            # Use AlpacaManager as the price/quote provider; it implements the minimal methods
+            price_quote_provider = trading_manager.alpaca_manager
+            alpaca_client = AlpacaClient(trading_manager.alpaca_manager, price_quote_provider)
+            self.smart_execution = SmartExecution(
+                order_executor=alpaca_client,
+                data_provider=price_quote_provider,
+            )
         self.error_handler = error_handler or TradingSystemErrorHandler()
 
     def execute_rebalancing_plan(
@@ -198,12 +206,28 @@ class RebalanceExecutionService:
 
             # Validate positions for sell orders
             positions = self.trading_manager.get_all_positions()
-            position_dict = {pos.symbol: pos for pos in positions}
+            position_dict = {
+                getattr(pos, "symbol", getattr(pos, "symbol", "")): pos for pos in positions
+            }
 
             for symbol, plan in rebalance_plan.items():
                 if plan.needs_rebalance and plan.trade_amount < 0:
                     position = position_dict.get(symbol)
-                    if not position or position.qty <= 0:
+                    # Extract quantity robustly (handles str, float, Decimal, or dict)
+                    qty_raw = None
+                    if position is None:
+                        qty = Decimal("0")
+                    else:
+                        if isinstance(position, dict):
+                            qty_raw = position.get("qty")
+                        else:
+                            qty_raw = getattr(position, "qty", None)
+                        try:
+                            qty = Decimal(str(qty_raw or 0))
+                        except Exception:
+                            qty = Decimal("0")
+
+                    if position is None or qty <= Decimal("0"):
                         validation_results["is_valid"] = False
                         validation_results["issues"].append(
                             f"Cannot sell {symbol}: no position found"
@@ -264,8 +288,16 @@ class RebalanceExecutionService:
                 }
 
                 # Use smart execution for sell order
-            current_price = self.trading_manager.get_latest_price(symbol)
-            shares_to_sell = amount / Decimal(str(current_price))
+            price_val = self.trading_manager.alpaca_manager.get_current_price(symbol)
+            try:
+                price = Decimal(str(price_val))
+            except Exception:
+                price = Decimal("0")
+
+            if price <= 0:
+                raise ValueError(f"Invalid price for {symbol}: {price_val}")
+
+            shares_to_sell = amount / price
 
             order_result = self.smart_execution.place_order(
                 symbol=symbol, qty=float(shares_to_sell), side=OrderSide.SELL
@@ -306,8 +338,16 @@ class RebalanceExecutionService:
                 }
 
                 # Use smart execution for buy order
-            current_price = self.trading_manager.get_latest_price(symbol)
-            shares_to_buy = amount / Decimal(str(current_price))
+            price_val = self.trading_manager.alpaca_manager.get_current_price(symbol)
+            try:
+                price = Decimal(str(price_val))
+            except Exception:
+                price = Decimal("0")
+
+            if price <= 0:
+                raise ValueError(f"Invalid price for {symbol}: {price_val}")
+
+            shares_to_buy = amount / price
 
             order_result = self.smart_execution.place_order(
                 symbol=symbol, qty=float(shares_to_buy), side=OrderSide.BUY
