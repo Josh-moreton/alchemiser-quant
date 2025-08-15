@@ -555,3 +555,75 @@ __all__ = [
     "render_target_vs_current_allocations",
     "render_execution_plan",
 ]
+
+
+def render_enriched_order_summaries(
+    orders: list[dict[str, Any]] | list[dict[str, Any] | Any],
+    console: Console | None = None,
+) -> None:
+    """Render enriched order summaries returned by TradingServiceManager.
+
+    Accepts a list of items where each item may be an enriched dict with a 'summary' key
+    or already a summary-like dict. Safely formats a concise table.
+    """
+    c = console or Console()
+
+    if not orders:
+        c.print(Panel("No open orders", title="Open Orders (Enriched)", style="yellow"))
+        return
+
+    # Normalize to summary dicts
+    summaries: list[dict[str, Any]] = []
+    for item in orders:
+        if isinstance(item, dict) and "summary" in item:
+            maybe = item.get("summary")
+            if isinstance(maybe, dict):
+                summaries.append(maybe)
+        elif isinstance(item, dict):
+            summaries.append(item)
+
+    if not summaries:
+        c.print(Panel("No enriched order summaries available", title="Open Orders", style="yellow"))
+        return
+
+    table = Table(title="Open Orders (Enriched)", show_lines=False, expand=True)
+    table.add_column("ID", style="dim", justify="left")
+    table.add_column("Symbol", style="bold cyan", justify="center")
+    table.add_column("Type", style="white", justify="center")
+    table.add_column("Qty", style="white", justify="right")
+    table.add_column("Limit", style="white", justify="right")
+    table.add_column("Status", style="bold", justify="center")
+    table.add_column("Created", style="dim", justify="left")
+
+    for s in summaries[:50]:  # cap to avoid very large output
+        oid = str(s.get("id", ""))
+        short_id = oid[:8] + "…" if len(oid) > 12 else oid
+        symbol = str(s.get("symbol", ""))
+        otype = str(s.get("type", "")).upper()
+        qty = s.get("qty", 0.0)
+        try:
+            qty_str = f"{float(qty):.6f}"
+        except Exception:
+            qty_str = "-"
+        limit = s.get("limit_price")
+        limit_str = _format_money(limit) if limit is not None else "-"
+        status = str(s.get("status", "")).upper()
+        created = str(s.get("created_at", ""))
+
+        status_color = (
+            "green"
+            if status == "FILLED"
+            else ("yellow" if status in {"NEW", "PARTIALLY_FILLED"} else "red")
+        )
+
+        table.add_row(
+            short_id,
+            symbol,
+            otype,
+            qty_str,
+            limit_str,
+            f"[{status_color}]{status}[/{status_color}]",
+            created,
+        )
+
+    c.print(table)

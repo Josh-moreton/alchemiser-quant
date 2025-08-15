@@ -15,7 +15,15 @@ def clear_flag_env(monkeypatch: pytest.MonkeyPatch):
 
 
 class DummyOrderObj:
-    def __init__(self, id: str, symbol: str, qty: float, status: str = "new", order_type: str = "limit", limit_price: float = 0):
+    def __init__(
+        self,
+        id: str,
+        symbol: str,
+        qty: float,
+        status: str = "new",
+        order_type: str = "limit",
+        limit_price: float = 0,
+    ):
         self.id = id
         self.symbol = symbol
         self.qty = qty
@@ -30,14 +38,28 @@ class DummyAlpacaManager:
 
     def place_order(self, req):
         self.placed.append(req)
-        return DummyOrderObj("cccccccc-cccc-cccc-cccc-cccccccccccc", req.symbol, req.qty, "new", "limit", getattr(req, "limit_price", 0))
+        return DummyOrderObj(
+            "cccccccc-cccc-cccc-cccc-cccccccccccc",
+            req.symbol,
+            req.qty,
+            "new",
+            "limit",
+            getattr(req, "limit_price", 0),
+        )
 
 
 class DummyOrdersService:
     def __init__(self):
         self.calls = []
 
-    def place_limit_order(self, symbol: str, side: str, quantity: float, limit_price: float, validate_price: bool = True) -> str:
+    def place_limit_order(
+        self,
+        symbol: str,
+        side: str,
+        quantity: float,
+        limit_price: float,
+        validate_price: bool = True,
+    ) -> str:
         self.calls.append((symbol, side, quantity, limit_price, validate_price))
         return "dddddddd-dddd-dddd-dddd-dddddddddddd"
 
