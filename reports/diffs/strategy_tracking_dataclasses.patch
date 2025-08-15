@@ -1,0 +1,21 @@
+# Rationale: freeze strategy tracking dataclasses to prevent accidental mutation
+--- a/the_alchemiser/application/tracking/strategy_order_tracker.py
++++ b/the_alchemiser/application/tracking/strategy_order_tracker.py
+@@
+-from dataclasses import asdict, dataclass
++from dataclasses import asdict, dataclass
+@@
+-@dataclass  # TODO(PYDANTIC-MIGRATION): Evaluate if StrategyOrder should become Pydantic (timestamp auto & side enum) or remain simple; currently used as persistence record.
+-class StrategyOrder:
++@dataclass(frozen=True, slots=True, kw_only=True)
++class StrategyOrder:
+@@
+-@dataclass  # TODO(PYDANTIC-MIGRATION): StrategyPosition may benefit from Pydantic for invariants (quantity>=0 when closed) and computed fields.
+-class StrategyPosition:
++@dataclass(frozen=True, slots=True, kw_only=True)
++class StrategyPosition:
+@@
+-@dataclass  # TODO(PYDANTIC-MIGRATION): StrategyPnL could remain dataclass or move to Pydantic for serialization consistency; low priority.
+-class StrategyPnL:
++@dataclass(frozen=True, slots=True, kw_only=True)
++class StrategyPnL:
