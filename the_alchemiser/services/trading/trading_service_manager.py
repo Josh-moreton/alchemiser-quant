@@ -101,6 +101,38 @@ class TradingServiceManager:
     ) -> dict[str, Any]:
         """Place a limit order with validation"""
         try:
+            if type_system_v2_enabled():
+                try:
+                    from alpaca.trading.enums import OrderSide, TimeInForce
+                    from alpaca.trading.requests import LimitOrderRequest
+                except Exception as e:
+                    # Fallback to legacy if imports unavailable in tests
+                    self.logger.debug(f"Falling back to legacy limit path: {e}")
+                    order_id = self.orders.place_limit_order(
+                        symbol, side, quantity, limit_price, validate_price=validate
+                    )
+                    return {"success": True, "order_id": order_id}
+
+                req = LimitOrderRequest(
+                    symbol=symbol.upper(),
+                    qty=quantity,
+                    side=OrderSide.BUY if side.lower() == "buy" else OrderSide.SELL,
+                    time_in_force=TimeInForce.DAY,
+                    limit_price=limit_price,
+                )
+                placed = self.alpaca_manager.place_order(req)
+                dom = alpaca_order_to_domain(placed)
+                return {
+                    "success": True,
+                    "order_id": str(getattr(placed, "id", getattr(placed, "order_id", ""))),
+                    "order": {
+                        "raw": placed,
+                        "domain": dom,
+                        "summary": summarize_order(dom),
+                    },
+                }
+
+            # Legacy path
             order_id = self.orders.place_limit_order(
                 symbol, side, quantity, limit_price, validate_price=validate
             )
