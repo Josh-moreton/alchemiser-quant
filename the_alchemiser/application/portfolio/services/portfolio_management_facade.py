@@ -111,11 +111,25 @@ class PortfolioManagementFacade:
         self, target_weights: dict[str, Decimal], dry_run: bool = True
     ) -> dict[str, Any]:
         """Execute complete portfolio rebalancing."""
+        import logging
+
+        logging.debug(
+            "PortfolioManagementFacade.execute_rebalancing called: target_weights=%s dry_run=%s",
+            target_weights,
+            dry_run,
+        )
+
         # Calculate rebalancing plan
         rebalance_plan = self.rebalancing_service.calculate_rebalancing_plan(target_weights)
 
+        logging.debug(
+            "Rebalancing plan computed for symbols=%s",
+            list(rebalance_plan.keys()),
+        )
+
         # Validate plan
         validation = self.execution_service.validate_rebalancing_plan(rebalance_plan)
+        logging.debug("Validation results: %s", validation)
         if not validation["is_valid"]:
             return {
                 "status": "validation_failed",
@@ -125,6 +139,8 @@ class PortfolioManagementFacade:
 
         # Execute plan
         execution_results = self.execution_service.execute_rebalancing_plan(rebalance_plan, dry_run)
+
+        logging.debug("Execution results: %s", execution_results)
 
         return {
             "status": "completed",

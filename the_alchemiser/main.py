@@ -93,17 +93,49 @@ class TradingSystem:
 
 
 def configure_application_logging() -> None:
-    """Configure application logging."""
+    """Configure application logging.
+
+    Honors any logging already configured by the CLI (root handlers present),
+    and supports environment/config-driven log level via Settings.logging.level
+    or LOGGING__LEVEL env var. Avoids overriding CLI --verbose behavior.
+    """
     is_production = os.getenv("AWS_LAMBDA_FUNCTION_NAME") is not None
+
+    # If logging already configured (e.g., by Typer CLI callback), don't override it
+    root_logger = logging.getLogger()
+    if root_logger.hasHandlers() and not is_production:
+        return
+
+    # Resolve desired level from env or settings; fallback to WARNING in dev, INFO in prod
+    level_str = os.getenv("LOGGING__LEVEL")
+    resolved_level = None
+    if level_str:
+        try:
+            resolved_level = getattr(logging, level_str.upper())
+        except Exception:
+            resolved_level = None
+
+    if resolved_level is None:
+        try:
+            # Load settings lazily to avoid circular imports
+            from the_alchemiser.infrastructure.config import load_settings  # local import
+
+            settings = load_settings()
+            resolved_level = getattr(logging, settings.logging.level.upper(), None)
+        except Exception:
+            resolved_level = None
+
+    if resolved_level is None:
+        resolved_level = logging.INFO if is_production else logging.WARNING
 
     if is_production:
         from the_alchemiser.infrastructure.logging.logging_utils import configure_production_logging
 
-        configure_production_logging(log_level=logging.INFO, log_file=None)
+        configure_production_logging(log_level=resolved_level, log_file=None)
     else:
         setup_logging(
-            log_level=logging.WARNING,
-            console_level=logging.WARNING,
+            log_level=resolved_level,
+            console_level=resolved_level,
             suppress_third_party=True,
             structured_format=False,
         )

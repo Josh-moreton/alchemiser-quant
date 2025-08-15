@@ -163,6 +163,8 @@ class RebalanceExecutionService:
         Returns:
             Validation results with any issues found
         """
+        import logging
+
         validation_results: dict[str, Any] = {
             "is_valid": True,
             "issues": [],
@@ -188,20 +190,41 @@ class RebalanceExecutionService:
             )
             validation_results["total_trade_value"] = total_trade_value
 
+            logging.debug(
+                "Rebalance validation - symbols_to_trade=%s total_trade_value=%s",
+                symbols_to_trade,
+                str(total_trade_value),
+            )
+
             # Validate account balance for buy orders
             buy_amount = sum(
                 plan.trade_amount
                 for plan in rebalance_plan.values()
                 if plan.needs_rebalance and plan.trade_amount > 0
             )
+            sell_proceeds = sum(
+                abs(plan.trade_amount)
+                for plan in rebalance_plan.values()
+                if plan.needs_rebalance and plan.trade_amount < 0
+            )
 
             if buy_amount > 0:
                 account_summary = self.trading_manager.account.get_account_summary()
                 buying_power = account_summary["buying_power"]
-                if buy_amount > Decimal(str(buying_power)):
+                # Consider sell proceeds as additional available funds within the workflow
+                effective_buying_power = Decimal(str(buying_power)) + Decimal(str(sell_proceeds))
+                logging.debug(
+                    "Rebalance validation - buy_amount=%s sell_proceeds=%s buying_power=%s effective=%s",
+                    str(buy_amount),
+                    str(sell_proceeds),
+                    str(buying_power),
+                    str(effective_buying_power),
+                )
+                if buy_amount > effective_buying_power:
                     validation_results["is_valid"] = False
                     validation_results["issues"].append(
-                        f"Insufficient buying power: need ${buy_amount}, have ${buying_power}"
+                        f"Insufficient buying power: need ${buy_amount}, have ${buying_power}, "
+                        f"sell proceeds considered ${sell_proceeds}"
                     )
 
             # Validate positions for sell orders
@@ -209,6 +232,11 @@ class RebalanceExecutionService:
             position_dict = {
                 getattr(pos, "symbol", getattr(pos, "symbol", "")): pos for pos in positions
             }
+
+            logging.debug(
+                "Rebalance validation - positions available: %s",
+                [getattr(p, "symbol", "?") for p in positions],
+            )
 
             for symbol, plan in rebalance_plan.items():
                 if plan.needs_rebalance and plan.trade_amount < 0:
