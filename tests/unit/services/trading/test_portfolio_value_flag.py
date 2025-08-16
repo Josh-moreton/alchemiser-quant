@@ -4,6 +4,8 @@ from decimal import Decimal
 
 import pytest
 
+from tests._tolerances import DEFAULT_ATL
+
 from the_alchemiser.services.trading.trading_service_manager import TradingServiceManager
 
 
@@ -34,7 +36,8 @@ def test_get_portfolio_value_legacy(monkeypatch: pytest.MonkeyPatch):
     mgr = make_manager(12345.67)
     result = mgr.get_portfolio_value()
     assert isinstance(result, float)
-    assert result == 12345.67
+    # Sonar rule: avoid direct float comparison (IEEE-754 rounding).
+    assert result == pytest.approx(12345.67, rel=1e-9, abs=DEFAULT_ATL)
 
 
 def test_get_portfolio_value_typed(monkeypatch: pytest.MonkeyPatch):
@@ -42,7 +45,8 @@ def test_get_portfolio_value_typed(monkeypatch: pytest.MonkeyPatch):
     mgr = make_manager(12345.67)
     result = mgr.get_portfolio_value()
     assert isinstance(result, dict)
-    assert result["value"] == 12345.67
+    # Sonar rule: avoid direct float comparison (IEEE-754 rounding).
+    assert result["value"] == pytest.approx(12345.67, rel=1e-9, abs=DEFAULT_ATL)
     money = result["money"]
     assert money is not None
     assert money.currency == "USD"
