@@ -18,7 +18,7 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.table import Table
 from rich.text import Text
 
-from the_alchemiser.application.trading.trading_engine import TradingEngine
+from the_alchemiser.application.trading.engine_service import TradingEngine
 from the_alchemiser.infrastructure.logging.logging_utils import (
     get_logger,
     log_error_with_context,
