@@ -1,0 +1,197 @@
+[1m===================================================== test session starts ======================================================[0m
+platform linux -- Python 3.12.10, pytest-8.4.1, pluggy-1.6.0
+rootdir: /workspace/alchemiser-quant
+configfile: pyproject.toml
+testpaths: tests
+plugins: xdist-3.8.0, timeout-2.4.0, asyncio-1.1.0, hypothesis-6.137.3, mock-3.14.1, cov-6.2.1
+timeout: 30.0s
+timeout method: thread
+timeout func_only: False
+asyncio: mode=Mode.STRICT, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 24 items
+
+tests/application/test_engine_service.py [32m.[0m[32m                                                                               [  4%][0m
+tests/domain/services/test_rebalancing_policy.py [32m.[0m[32m                                                                       [  8%][0m
+tests/unit/application/execution/test_strategy_signal_parity_flag.py [32m.[0m[32m.[0m[32m                                                  [ 16%][0m
+tests/unit/application/mapping/test_strategy_signal_mapping.py [32m.[0m[32m.[0m[32m.[0m[32m                                                       [ 29%][0m
+tests/unit/interface/cli/test_cli_enriched_orders_rendering.py [32m.[0m[32m.[0m[32m.[0m[32m                                                       [ 41%][0m
+tests/unit/services/trading/test_get_account_summary_enriched_flag.py [32m.[0m[32m.[0m[32m                                                 [ 50%][0m
+tests/unit/services/trading/test_get_open_orders_flag.py [32m.[0m[32m.[0m[32m                                                              [ 58%][0m
+tests/unit/services/trading/test_get_positions_enriched_flag.py [32m.[0m[32m.[0m[32m                                                       [ 66%][0m
+tests/unit/services/trading/test_place_limit_order_flag.py [32m.[0m[32m.[0m[32m                                                            [ 75%][0m
+tests/unit/services/trading/test_place_market_order_flag.py [32m.[0m[32m.[0m[32m                                                           [ 83%][0m
+tests/unit/services/trading/test_portfolio_value_flag.py [32m.[0m[32m.[0m[32m                                                              [ 91%][0m
+tests/unit/services/trading/test_position_mapping.py [32m.[0m[32m.[0m[32m                                                                  [100%][0m
+
+======================================================== tests coverage ========================================================
+_______________________________________ coverage: platform linux, python 3.12.10-final-0 _______________________________________
+
+Name                                                                             Stmts   Miss Branch BrPart  Cover   Missing
+----------------------------------------------------------------------------------------------------------------------------
+the_alchemiser/__init__.py                                                           0      0      0      0   100%
+the_alchemiser/application/__init__.py                                               0      0      0      0   100%
+the_alchemiser/application/engine_service.py                                       486    426    104      1    10%   69, 76, 92, 194-210, 219-272, 281-295, 305-333, 340-441, 468-545, 556-617, 640-645, 657, 668-685, 696-725, 742-749, 775, 793-846, 861-864, 876-952, 966-983, 989-1002, 1011, 1025-1104, 1130-1156, 1166-1370, 1395, 1404-1427, 1431
+the_alchemiser/application/execution/__init__.py                                     0      0      0      0   100%
+the_alchemiser/application/execution/execution_manager.py                           55     21     10      4    62%   41, 55-56, 60, 76, 94-164
+the_alchemiser/application/execution/smart_execution.py                            215    186     62      0    10%   93-101, 122-128, 136, 140, 173-269, 278-412, 441-451, 470-534, 538-542
+the_alchemiser/application/execution/smart_pricing_handler.py                       60     47     14      0    18%   26, 42-86, 103-127, 140, 153, 174-179, 190-201
+the_alchemiser/application/execution/spread_assessment.py                           54     54     10      0     0%   9-112
+the_alchemiser/application/mapping/account_mapping.py                               44      3      2      1    91%   16, 19-20
+the_alchemiser/application/mapping/order_mapping.py                                 88     24     26      6    68%   40-41, 47, 52, 55-60, 78, 102, 106-108, 111-112, 149-157
+the_alchemiser/application/mapping/position_mapping.py                              37      3      4      1    90%   22, 24-25
+the_alchemiser/application/mapping/strategy_signal_mapping.py                       37     10     10      2    70%   25, 28-32, 55-56, 60-61
+the_alchemiser/application/orders/__init__.py                                        0      0      0      0   100%
+the_alchemiser/application/orders/asset_order_handler.py                            91     75     24      0    14%   30, 51-56, 64-127, 133-139, 156-210, 226-252, 269-287
+the_alchemiser/application/orders/limit_order_handler.py                            93     79     30      0    11%   28-31, 55-110, 116-158, 169-186, 192-237
+the_alchemiser/application/orders/order_validation.py                              259    259     66      0     0%   33-639
+the_alchemiser/application/orders/order_validation_utils.py                         49     41     22      0    11%   28-48, 63-83, 105-115, 130-140
+the_alchemiser/application/orders/progressive_order_utils.py                       109    109     46      0     0%   11-329
+the_alchemiser/application/portfolio/__init__.py                                     0      0      0      0   100%
+the_alchemiser/application/portfolio/portfolio_pnl_utils.py                         44     13     14      2    60%   50-52, 82-91, 132
+the_alchemiser/application/portfolio/services/__init__.py                            0      0      0      0   100%
+the_alchemiser/application/portfolio/services/portfolio_analysis_service.py        124    104     32      0    13%   35-37, 48-69, 105-136, 157-184, 227-262, 281-290, 294-302, 306-328, 334-336, 350-370, 381, 393-401, 411-418, 422
+the_alchemiser/application/portfolio/services/portfolio_management_facade.py       101     73     20      0    23%   41-58, 63, 67, 71, 75, 85, 91, 95, 99, 103, 108, 114-145, 157-164, 173-188, 197-237, 242-250, 254-263, 267-273
+the_alchemiser/application/portfolio/services/portfolio_rebalancing_service.py      87     68     16      0    18%   42-45, 65-72, 94-106, 118-152, 176-178, 190-192, 204-231, 244-253, 257-266, 272-286
+the_alchemiser/application/portfolio/services/rebalance_execution_service.py       140    121     40      0    11%   38-50, 65-108, 124-148, 166-275, 281-289, 295-303, 307-345, 357-395, 407-413
+the_alchemiser/application/reporting/__init__.py                                     0      0      0      0   100%
+the_alchemiser/application/reporting/reporting.py                                   64     30      8      0    50%   33-36, 66-114
+the_alchemiser/application/tracking/__init__.py                                      0      0      0      0   100%
+the_alchemiser/application/tracking/integration.py                                 102    102     16      0     0%   15-253
+the_alchemiser/application/tracking/strategy_order_tracker.py                      333    213     74      7    32%   59, 83-110, 127-129, 170-174, 199-252, 257-268, 287->298, 289-295, 326-343, 347-402, 406-420, 424-487, 496-528, 541-570, 574-579, 590-616, 627-648, 652-686, 692-693, 697-719, 723-731, 735-738, 744-781, 807-809
+the_alchemiser/application/trading/__init__.py                                       0      0      0      0   100%
+the_alchemiser/application/trading/alpaca_client.py                                170    139     48      0    14%   112-130, 138, 147-169, 181-184, 197-200, 224-351, 374, 389-406, 422, 426, 430, 438, 447, 451, 463-467
+the_alchemiser/application/trading/trading_engine.py                                 2      0      0      0   100%
+the_alchemiser/application/types.py                                                 14      0      0      0   100%
+the_alchemiser/container/__init__.py                                                 5      5      0      0     0%   3-8
+the_alchemiser/container/application_container.py                                   29     29      4      0     0%   3-68
+the_alchemiser/container/config_providers.py                                        11     11      0      0     0%   3-34
+the_alchemiser/container/infrastructure_providers.py                                10     10      0      0     0%   3-32
+the_alchemiser/container/service_providers.py                                       14     14      0      0     0%   3-35
+the_alchemiser/domain/__init__.py                                                    2      0      0      0   100%
+the_alchemiser/domain/interfaces/__init__.py                                         4      0      0      0   100%
+the_alchemiser/domain/interfaces/account_repository.py                              12      0      0      0   100%
+the_alchemiser/domain/interfaces/market_data_repository.py                          11      0      0      0   100%
+the_alchemiser/domain/interfaces/trading_repository.py                              16      0      0      0   100%
+the_alchemiser/domain/math/__init__.py                                               0      0      0      0   100%
+the_alchemiser/domain/math/asset_info.py                                            91     59     28      2    29%   17-18, 59->exit, 69-72, 75-76, 90-106, 119-141, 153-161, 173-188, 207-219, 238-253, 257
+the_alchemiser/domain/math/indicator_utils.py                                       23     18      8      0    16%   33-64
+the_alchemiser/domain/math/indicators.py                                            32     22      0      0    31%   74-86, 116, 145-150, 180-184
+the_alchemiser/domain/math/market_timing_utils.py                                   34     34     14      0     0%   10-68
+the_alchemiser/domain/math/math_utils.py                                            87     77     38      0     8%   40-49, 71-84, 106-119, 133-135, 150-168, 183-188, 207-211, 227-246
+the_alchemiser/domain/math/trading_math.py                                          44     33     12      1    21%   52-61, 114-127, 160, 196, 201-202, 259-292
+the_alchemiser/domain/models/__init__.py                                             6      6      0      0     0%   8-14
+the_alchemiser/domain/models/account.py                                             40     40      0      0     0%   3-97
+the_alchemiser/domain/models/market_data.py                                         74     74      4      0     0%   3-184
+the_alchemiser/domain/models/order.py                                               57     57      6      0     0%   3-111
+the_alchemiser/domain/models/position.py                                            38     38      2      0     0%   3-79
+the_alchemiser/domain/models/strategy.py                                            66     66      6      0     0%   3-132
+the_alchemiser/domain/portfolio/__init__.py                                          0      0      0      0   100%
+the_alchemiser/domain/portfolio/position/__init__.py                                 0      0      0      0   100%
+the_alchemiser/domain/portfolio/position/position_analyzer.py                       36     23      6      0    31%   28-53, 75-77, 90, 96, 100, 114, 127-135, 149-153, 164, 175
+the_alchemiser/domain/portfolio/position/position_delta.py                          26      5      0      0    81%   28, 33, 38, 43, 47
+the_alchemiser/domain/portfolio/rebalancing/__init__.py                              0      0      0      0   100%
+the_alchemiser/domain/portfolio/rebalancing/rebalance_calculator.py                 17      7      0      0    59%   22, 41-48, 66, 70, 78, 86
+the_alchemiser/domain/portfolio/rebalancing/rebalance_plan.py                       29      9      4      0    61%   29-31, 36, 41, 45-49
+the_alchemiser/domain/portfolio/strategy_attribution/__init__.py                     0      0      0      0   100%
+the_alchemiser/domain/portfolio/strategy_attribution/attribution_engine.py          61     47     26      0    16%   23, 34, 48-60, 74-78, 92-100, 113-121, 139, 157-174, 188-198
+the_alchemiser/domain/portfolio/strategy_attribution/symbol_classifier.py           47     30     18      0    26%   73-97, 101, 105, 116-117, 128-138, 146, 167-178, 189
+the_alchemiser/domain/registry/__init__.py                                           2      0      0      0   100%
+the_alchemiser/domain/registry/strategy_registry.py                                 60     24     10      0    51%   81, 90, 110-117, 126-138, 150-151, 160, 172-176, 188-192
+the_alchemiser/domain/services/__init__.py                                           0      0      0      0   100%
+the_alchemiser/domain/services/rebalancing_policy.py                                 6      0      0      0   100%
+the_alchemiser/domain/shared_kernel/__init__.py                                      2      0      0      0   100%
+the_alchemiser/domain/shared_kernel/types.py                                         4      0      0      0   100%
+the_alchemiser/domain/shared_kernel/value_objects/identifier.py                     14      1      0      0    93%   21
+the_alchemiser/domain/shared_kernel/value_objects/money.py                          13      4      2      0    60%   28-30, 33
+the_alchemiser/domain/shared_kernel/value_objects/percentage.py                     11      2      0      0    82%   22, 25
+the_alchemiser/domain/strategies/__init__.py                                         0      0      0      0   100%
+the_alchemiser/domain/strategies/klm_ensemble_engine.py                            194    172     44      1    10%   54-96, 100-112, 118-166, 176, 189-233, 248-262, 277-303, 320-414, 418, 439-472, 476
+the_alchemiser/domain/strategies/klm_trading_bot.py                                141    141     50      0     0%   17-290
+the_alchemiser/domain/strategies/klm_workers/__init__.py                            10      0      0      0   100%
+the_alchemiser/domain/strategies/klm_workers/base_klm_variant.py                   132     98     58      0    18%   28-31, 54, 61-68, 74-75, 81-82, 88-93, 99, 104, 109, 114, 130-174, 188-199, 211-231, 247-283, 293, 299-303, 310, 339-344, 351-355, 359-362
+the_alchemiser/domain/strategies/klm_workers/variant_410_38.py                      26     20      6      0    19%   24-27, 40-66, 73-78
+the_alchemiser/domain/strategies/klm_workers/variant_506_38.py                      79     67     28      0    11%   34, 51-57, 68-79, 91-111, 125-165, 178-194, 209-240, 255-294
+the_alchemiser/domain/strategies/klm_workers/variant_520_22.py                      84     71     32      0    11%   29, 43-49, 59-70, 78-93, 103-121, 129, 140-168, 181-203, 211-240
+the_alchemiser/domain/strategies/klm_workers/variant_530_18.py                     220    200     98      0     6%   43, 61-101, 107-133, 139-163, 169-193, 199-223, 229-253, 259-283, 289-313, 322-352, 370-407, 415-427, 438-530, 536-575, 585
+the_alchemiser/domain/strategies/klm_workers/variant_830_21.py                      95     82     40      0    10%   29, 43-49, 59-70, 78-93, 103-121, 129, 140-168, 180-230, 238-267
+the_alchemiser/domain/strategies/klm_workers/variant_1200_28.py                     84     71     32      0    11%   27, 41-47, 57-68, 76-91, 101-119, 127, 138-166, 176-195, 203-235
+the_alchemiser/domain/strategies/klm_workers/variant_1280_26.py                     75     63     28      0    12%   34, 53-59, 71-95, 103, 114-156, 168-188, 196-223
+the_alchemiser/domain/strategies/klm_workers/variant_nova.py                        86     73     32      0    11%   31, 45-51, 61-72, 80-95, 105-123, 131, 142-173, 183-205, 213-245
+the_alchemiser/domain/strategies/nuclear_signals.py                                188    154     60      0    14%   55-56, 61-79, 89-96, 100-116, 125-202, 209-210, 214, 225-227, 240-263, 267-269, 273-294, 298-368, 373-408
+the_alchemiser/domain/strategies/strategy_engine.py                                250    224    104      0     7%   30-32, 42-89, 93-132, 136-161, 165-169, 173-177, 186-232, 242-289, 298, 303-328, 333, 336-394, 399-422, 430-453, 458-483
+the_alchemiser/domain/strategies/strategy_manager.py                               281    258    100      1     6%   49-53, 56, 68, 96-182, 198-433, 439-589, 595-606, 618-680, 687-713, 718-739, 743
+the_alchemiser/domain/strategies/tecl_signals.py                                   112     89     30      0    16%   50-64, 68-75, 79-92, 101, 108-109, 113, 124-129, 142-163, 167-169, 173-187, 191-217, 222-259
+the_alchemiser/domain/strategies/tecl_strategy_engine.py                           197    178     52      1     8%   41-62, 66-73, 77-88, 100-123, 131-153, 161-206, 216-285, 297-325, 329, 365-401, 405
+the_alchemiser/domain/trading/entities/order.py                                     33     12      8      0    51%   29-31, 35-46
+the_alchemiser/domain/trading/value_objects/order_id.py                              6      0      0      0   100%
+the_alchemiser/domain/trading/value_objects/order_status.py                          8      0      0      0   100%
+the_alchemiser/domain/trading/value_objects/quantity.py                              6      0      0      0   100%
+the_alchemiser/domain/trading/value_objects/symbol.py                                5      0      0      0   100%
+the_alchemiser/domain/types.py                                                     283      0      0      0   100%
+the_alchemiser/execution/account_service.py                                         49     35     14      0    22%   33-35, 45, 56-88, 96-97, 106-116, 120-124
+the_alchemiser/infrastructure/adapters/__init__.py                                   0      0      0      0   100%
+the_alchemiser/infrastructure/adapters/legacy_portfolio_adapter.py                 130    111     40      0    11%   37-45, 60-97, 101-116, 122-130, 134-157, 161-174, 180-245, 254, 258-260, 264, 280-340, 345-407
+the_alchemiser/infrastructure/config/__init__.py                                     3      0      0      0   100%
+the_alchemiser/infrastructure/config/config.py                                      72      0      0      0   100%
+the_alchemiser/infrastructure/config/config_utils.py                                25     20      6      0    16%   25-55
+the_alchemiser/infrastructure/config/execution_config.py                            35     13      2      0    59%   40-55, 68, 72, 76, 86-88, 94
+the_alchemiser/infrastructure/logging/__init__.py                                    0      0      0      0   100%
+the_alchemiser/infrastructure/logging/logging_utils.py                              78     58     24      0    20%   22, 31-54, 67, 80-81, 106-179, 188, 200, 223-227, 240-246, 261-265
+the_alchemiser/infrastructure/s3/__init__.py                                         0      0      0      0   100%
+the_alchemiser/infrastructure/s3/s3_utils.py                                       138     98     22      2    26%   24-29, 35, 44-56, 60-78, 82-87, 91-103, 107-119, 127, 130-134, 141-167, 177->179, 188-194, 198-207, 213-225
+the_alchemiser/infrastructure/secrets/__init__.py                                    0      0      0      0   100%
+the_alchemiser/infrastructure/secrets/secrets_manager.py                           136     82     46      8    35%   21-23, 36->41, 52-70, 84, 87-96, 101-105, 107-129, 134-135, 152, 174-178, 202-220, 229-250
+the_alchemiser/infrastructure/websocket/__init__.py                                  0      0      0      0   100%
+the_alchemiser/infrastructure/websocket/websocket_connection_manager.py             68     56     12      0    15%   29-36, 45-103, 107-120, 124, 128, 132-134
+the_alchemiser/infrastructure/websocket/websocket_order_monitor.py                 233    219     76      0     5%   29-36, 44-88, 94-171, 177-258, 270-309, 322-366, 370-416, 420-433
+the_alchemiser/interface/cli/__init__.py                                             0      0      0      0   100%
+the_alchemiser/interface/cli/cli_formatter.py                                      336    276    118      4    16%   32-125, 141-184, 193-211, 219-279, 288-293, 297-298, 305-413, 418-424, 429-437, 447-513, 522-545, 581->578, 583->578, 587-588, 607-608
+the_alchemiser/lambda_handler.py                                                    76     76     18      0     0%   12-307
+the_alchemiser/main.py                                                             102    102     20      0     0%   8-224
+the_alchemiser/ports/__init__.py                                                    10     10      0      0     0%   6-56
+the_alchemiser/services/__init__.py                                                  1      0      0      0   100%
+the_alchemiser/services/account/__init__.py                                          0      0      0      0   100%
+the_alchemiser/services/account/account_service.py                                 178    160     56      0     8%   33-37, 46-90, 102-129, 138-211, 228-320, 329-390, 399-420, 428-452, 460-469, 477-484
+the_alchemiser/services/account/account_utils.py                                    29     19      6      1    31%   25-73, 97, 118-119, 134-137
+the_alchemiser/services/account/legacy_account_service.py                           76     76     26      0     0%   9-185
+the_alchemiser/services/errors/__init__.py                                           0      0      0      0   100%
+the_alchemiser/services/errors/error_handler.py                                    418    319    152      2    18%   61-68, 72, 110-117, 121, 146-159, 163, 167, 171, 182-197, 211-242, 246-265, 276-300, 304, 308, 313-373, 378-381, 385-455, 459, 477-481, 485-494, 508-511, 515-523, 532, 542, 547-598, 635-660, 694-699, 702-734, 746-749, 768-796, 800-803, 811-814, 818, 832, 843-845, 875, 879-904, 921, 935, 946-961, 972-977
+the_alchemiser/services/errors/error_handling.py                                   117    117     26      0     0%   8-347
+the_alchemiser/services/errors/error_monitoring.py                                 252    252     56      0     0%   11-541
+the_alchemiser/services/errors/error_recovery.py                                   272    272     66      0     0%   11-611
+the_alchemiser/services/errors/error_reporter.py                                    43     43      8      0     0%   9-135
+the_alchemiser/services/errors/exceptions.py                                       113     66     18      0    36%   18-21, 25, 40-47, 77-100, 120-123, 131-132, 142-144, 154-156, 166-168, 182-184, 192-193, 219-220, 230-232, 242-244, 258-259
+the_alchemiser/services/market_data/__init__.py                                      0      0      0      0   100%
+the_alchemiser/services/market_data/market_data_client.py                           93     93     28      0     0%   12-245
+the_alchemiser/services/market_data/market_data_service.py                         110     89     36      0    14%   60-92, 107-141, 153-161, 173-183, 200-204, 213-220, 229, 247-259, 274-288
+the_alchemiser/services/market_data/price_fetching_utils.py                         89     89     20      0     0%   10-251
+the_alchemiser/services/market_data/price_service.py                               113    113     40      0     0%   8-278
+the_alchemiser/services/market_data/price_utils.py                                  14     11      6      0    15%   27-40
+the_alchemiser/services/market_data/streaming_service.py                            64     64     22      0     0%   9-158
+the_alchemiser/services/repository/__init__.py                                       0      0      0      0   100%
+the_alchemiser/services/repository/alpaca_manager.py                               337    278     66      0    15%   75-77, 82, 87, 92, 98, 103, 108, 113-119, 128-135, 145-160, 164-170, 174-183, 187-196, 214-258, 278-311, 315-321, 325-338, 347-356, 368-379, 391-406, 410-423, 437-491, 496-504, 508-515, 519-526, 540-559, 571-578, 590-603, 612-617, 630-644, 663-677, 696-719, 723, 736
+the_alchemiser/services/shared/__init__.py                                           0      0      0      0   100%
+the_alchemiser/services/shared/cache_manager.py                                     81     81     10      0     0%   7-204
+the_alchemiser/services/shared/config_service.py                                    20     20      2      0     0%   9-56
+the_alchemiser/services/shared/retry_decorator.py                                   42     42     10      0     0%   9-105
+the_alchemiser/services/shared/secrets_service.py                                   14     14      2      0     0%   9-51
+the_alchemiser/services/shared/service_factory.py                                   21     21      4      0     0%   3-43
+the_alchemiser/services/trading/__init__.py                                          0      0      0      0   100%
+the_alchemiser/services/trading/order_service.py                                   177    146     74      0    12%   97-140, 170-213, 229-245, 261-282, 288-296, 300-308, 312-323, 327-338, 342-353, 357-371, 375-383, 387-408, 414-429
+the_alchemiser/services/trading/position_manager.py                                197    181     34      0     7%   23-25, 37-68, 85-96, 109-116, 129-187, 199-245, 249-315, 327-385, 394-420, 433-458, 470-504
+the_alchemiser/services/trading/position_service.py                                210    171     78      0    14%   100-143, 155-206, 222-253, 268-299, 314-330, 342-373, 381-435, 448-462, 466-480
+the_alchemiser/services/trading/trading_client_service.py                           38     38     12      0     0%   12-91
+the_alchemiser/services/trading/trading_service_manager.py                         234    129     52      1    44%   64-70, 96-97, 108-114, 140-141, 147, 154-158, 162, 178, 216-218, 223-254, 258-268, 272-276, 280-292, 297-304, 310, 317-324, 328-332, 336-340, 345, 349, 353, 359, 365, 380-382, 386, 417-419, 446-487, 496-508, 512-517
+the_alchemiser/utils/__init__.py                                                     0      0      0      0   100%
+the_alchemiser/utils/common.py                                                       5      0      0      0   100%
+the_alchemiser/utils/feature_flags.py                                               14      1      4      1    89%   16
+the_alchemiser/utils/num.py                                                          9      4      2      0    45%   22-31
+----------------------------------------------------------------------------------------------------------------------------
+TOTAL                                                                            11359   8983   3002     49    17%
+Coverage HTML written to dir htmlcov
+===================================================== slowest 10 durations =====================================================
+0.17s call     tests/unit/application/execution/test_strategy_signal_parity_flag.py::test_strategy_signal_parity_flag_on_off
+0.01s call     tests/unit/interface/cli/test_cli_enriched_orders_rendering.py::test_render_enriched_order_summaries_basic
+
+(8 durations < 0.005s hidden.  Use -vv to show these durations.)
+[32m===================================================== [32m[1m24 passed[0m[32m in 13.42s[0m[32m ======================================================[0m

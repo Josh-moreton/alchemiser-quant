@@ -15,7 +15,7 @@ class ApplicationContainer(containers.DeclarativeContainer):
         modules=[
             "the_alchemiser.main",
             "the_alchemiser.lambda_handler",
-            "the_alchemiser.application.trading.trading_engine",
+            "the_alchemiser.application.engine_service",
         ]
     )
 
