@@ -7,7 +7,8 @@ from the_alchemiser.application.execution.smart_execution import is_market_open
 from the_alchemiser.application.mapping.strategy_signal_mapping import (
     map_signals_dict as _map_signals_to_typed,
 )
-from the_alchemiser.application.trading.trading_engine import TradingEngine
+from the_alchemiser.application.trading.engine_service import TradingEngine
+from the_alchemiser.application.types import MultiStrategyExecutionResult
 from the_alchemiser.application.types import MultiStrategyExecutionResult
 from the_alchemiser.domain.strategies.strategy_manager import StrategyType
 from the_alchemiser.infrastructure.config import Settings
@@ -142,7 +143,7 @@ class TradingExecutor:
 
         # Execute trading
         self._show_execution_progress()
-        result = trader.execute_multi_strategy()
+        result: MultiStrategyExecutionResult = trader.execute_multi_strategy()
 
         # Display results
         trader.display_multi_strategy_summary(result)

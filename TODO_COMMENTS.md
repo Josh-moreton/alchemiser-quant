@@ -22,7 +22,7 @@ Affected files: `domain/strategies/klm_*` and `strategy_manager.py`.
 
 ## Return Type Alignment (9 TODOs)
 Standardize return values in trading and tracking code to domain-specific summaries (`StrategyPnLSummary`, `OrderHistoryData`, etc.).
-Primary locations: `application/trading/trading_engine.py` and `application/tracking/*`.
+Primary locations: `application/trading/engine_service.py` and `application/tracking/*`.
 
 ## Implementation Gaps (3 TODOs)
 Actual logic still pending:
