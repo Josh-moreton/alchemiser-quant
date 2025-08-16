@@ -9,7 +9,6 @@ from the_alchemiser.application.mapping.strategy_signal_mapping import (
 )
 from the_alchemiser.application.trading.engine_service import TradingEngine
 from the_alchemiser.application.types import MultiStrategyExecutionResult
-from the_alchemiser.application.types import MultiStrategyExecutionResult
 from the_alchemiser.domain.strategies.strategy_manager import StrategyType
 from the_alchemiser.infrastructure.config import Settings
 from the_alchemiser.infrastructure.logging.logging_utils import get_logger
