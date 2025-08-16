@@ -1,0 +1,8 @@
+coverage_threshold: 85
+mutation_score_threshold: 60
+max_test_duration: 300  # seconds
+forbid_network: true
+naming:
+  tests: "test_*.py"
+structure:
+  unit_tests_path: tests/unit

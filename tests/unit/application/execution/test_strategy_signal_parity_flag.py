@@ -120,6 +120,11 @@ def _no_dashboard_save(monkeypatch: pytest.MonkeyPatch) -> None:
         lambda *_args, **_kwargs: {"allocations": {}},
     )
 
+    # Prevent boto3 from attempting network calls during tests
+    import boto3
+
+    monkeypatch.setattr(boto3, "client", lambda *a, **k: object())
+
 
 def _run_with_flag(flag_value: str | None) -> Any:
     # Set/unset feature flag and execute once

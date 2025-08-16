@@ -33,6 +33,8 @@ Icon?
 # Data outputs and logs
 *.log
 *.csv
+!reports/test_matrix.csv
+!reports/coverage_summary.csv
 
 # Environment variables
 .env*

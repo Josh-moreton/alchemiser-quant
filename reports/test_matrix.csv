@@ -1,0 +1,8 @@
+module,tests
+the_alchemiser.application.execution.execution_manager,tests/unit/application/execution/test_strategy_signal_parity_flag.py
+the_alchemiser.application.mapping.position_mapping,tests/unit/services/trading/test_position_mapping.py
+the_alchemiser.application.mapping.strategy_signal_mapping,tests/unit/application/mapping/test_strategy_signal_mapping.py
+the_alchemiser.application.reporting.reporting,tests/unit/application/execution/test_strategy_signal_parity_flag.py
+the_alchemiser.domain.strategies.strategy_manager,tests/unit/application/execution/test_strategy_signal_parity_flag.py
+the_alchemiser.interface.cli.cli_formatter,tests/unit/interface/cli/test_cli_enriched_orders_rendering.py
+the_alchemiser.services.trading.trading_service_manager,tests/unit/services/trading/test_get_account_summary_enriched_flag.py tests/unit/services/trading/test_get_open_orders_flag.py tests/unit/services/trading/test_get_positions_enriched_flag.py tests/unit/services/trading/test_place_limit_order_flag.py tests/unit/services/trading/test_place_market_order_flag.py tests/unit/services/trading/test_portfolio_value_flag.py

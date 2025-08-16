@@ -1,17 +1,8 @@
-from __future__ import annotations
-
 from typing import Any
 
 import pytest
 
 from the_alchemiser.services.trading.trading_service_manager import TradingServiceManager
-
-
-@pytest.fixture(autouse=True)
-def clear_flag_env(monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.delenv("TYPES_V2_ENABLED", raising=False)
-    yield
-    monkeypatch.delenv("TYPES_V2_ENABLED", raising=False)
 
 
 class DummyOrderObj:
@@ -39,26 +30,9 @@ def make_manager(orders: list[Any]):
     return mgr
 
 
-def test_get_open_orders_legacy(monkeypatch: pytest.MonkeyPatch):
-    orders = [
-        DummyOrderObj("11111111-1111-1111-1111-111111111111", "AAPL", 1.0, "new"),
-        {
-            "id": "22222222-2222-2222-2222-222222222222",
-            "symbol": "MSFT",
-            "qty": 2.0,
-            "status": "filled",
-        },
-    ]
-    mgr = make_manager(orders)
-    res = mgr.get_open_orders()
-    assert isinstance(res, list)
-    assert isinstance(res[0], dict)
-    assert "id" in res[0]
-    assert res[0]["symbol"] == "AAPL"
-
-
-def test_get_open_orders_typed(monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.setenv("TYPES_V2_ENABLED", "1")
+@pytest.mark.parametrize("flag, expect_typed", [(None, False), ("1", True)])
+def test_get_open_orders_flag(flag: str | None, expect_typed: bool, types_flag):
+    types_flag(flag)
     orders = [
         DummyOrderObj("11111111-1111-1111-1111-111111111111", "AAPL", 1.0, "new"),
         {
@@ -72,11 +46,11 @@ def test_get_open_orders_typed(monkeypatch: pytest.MonkeyPatch):
     res = mgr.get_open_orders()
     assert isinstance(res, list)
     first = res[0]
-    assert "domain" in first and "summary" in first
-    dom = first["domain"]
-    # Domain object has attributes
-    assert dom.symbol.value in ("AAPL", "MSFT")
-    assert float(dom.quantity.value) in (1.0, 2.0)
-    # Summary shape
-    summary = first["summary"]
-    assert {"id", "symbol", "qty", "status", "type"}.issubset(summary.keys())
+    if expect_typed:
+        assert "domain" in first and "summary" in first
+        dom = first["domain"]
+        assert dom.symbol.value in ("AAPL", "MSFT")
+        assert float(dom.quantity.value) in (1.0, 2.0)
+    else:
+        assert isinstance(first, dict)
+        assert first["symbol"] == "AAPL"

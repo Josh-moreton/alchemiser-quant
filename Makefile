@@ -1,7 +1,7 @@
 # The Alchemiser Makefile
 # Quick commands for development and deployment
 
-.PHONY: help install dev test clean run-signals run-trade run-trade-live status deploy format lint
+.PHONY: help install dev test cov mutate mutate-report clean run-signals run-trade run-trade-live status deploy format lint
 
 # Default target
 help:
@@ -54,8 +54,20 @@ status:
 
 # Development
 test:
-	@echo "🧪 Running tests..."
-	poetry run pytest tests/ -v
+        @echo "🧪 Running tests..."
+        pytest -q
+
+cov:
+        @echo "📊 Running tests with coverage..."
+        pytest --cov=the_alchemiser --cov-report=term-missing --cov-report=xml:reports/coverage.xml
+
+mutate:
+        @echo "🧬 Running mutation tests..."
+        mutmut run --paths-to-mutate the_alchemiser --runner "pytest -q"
+
+mutate-report:
+        @echo "📝 Generating mutation report..."
+        mutmut results > reports/mutation_summary.txt
 
 format:
 	@echo "🎨 Formatting code..."
