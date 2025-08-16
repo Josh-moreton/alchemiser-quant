@@ -1,0 +1,97 @@
+todo_id,file_path,line_no,detected_phase,inferred_phase,short_text,category,target_type(s),blocking_dep,proposed_fix_summary
+T001,the_alchemiser/application/types.py,5,,8,)  PYDANTIC-MIGRATION): Evaluate converting MultiStrategyExecutionResult to Pyda,services,ExecutionResult,phase 7,Introduce ExecutionResult and refactor
+T002,the_alchemiser/application/execution/smart_execution.py,341,5,5,)  Phase 5 - Migrate to AlpacaOrderObject,services,,,Introduce typed model and refactor
+T003,the_alchemiser/application/portfolio/portfolio_pnl_utils.py,14,12,12,Phase 12 - Types available for future migration to structured performance data,services,,phase 11,Introduce typed model and refactor
+T004,the_alchemiser/application/portfolio/portfolio_pnl_utils.py,76,12,12,)  Phase 12 - Consider migrating to OrderDetails type,services,OrderDetails,phase 11,Introduce OrderDetails and refactor
+T005,the_alchemiser/application/portfolio/portfolio_pnl_utils.py,79,12,12,)  Phase 12 - Consider migrating to OrderDetails type,services,OrderDetails,phase 11,Introduce OrderDetails and refactor
+T009,TODO_COMMENTS.md,12,,8,## Structured Type Migration (Phase-based) (80 TODOs),services,,phase 7,Introduce typed model and refactor
+T010,TODO_COMMENTS.md,13,,8,Roll out well-defined types across interfaces and services. Most TODOs reference,services,,phase 7,Introduce typed model and refactor
+T012,TODO_COMMENTS.md,23,,8,## Return Type Alignment (9 TODOs),services,,phase 7,Introduce typed model and refactor
+T015,TODO_COMMENTS.md,39,,8,- Updated CLI TODO to reference `the_alchemiser.domain.types.AccountInfo` instea,services,AccountInfo,phase 7,Introduce AccountInfo and refactor
+T019,the_alchemiser/application/orders/limit_order_handler.py,114,7,7,) -> tuple[Any; ...]:  Phase 7 - Migrate to LimitOrderResult,services,,phase 6,Introduce typed model and refactor
+T020,the_alchemiser/application/reporting/reporting.py,12,10,10,engine: Any;  Phase 10 - Add proper TradingEngine type when available,services,,phase 9,Introduce typed model and refactor
+T021,the_alchemiser/application/reporting/reporting.py,17,10,10,];  Phase 10 - OrderDetails has different structure than expected,services,OrderDetails,phase 9,Introduce OrderDetails and refactor
+T022,the_alchemiser/application/reporting/reporting.py,20,10,10,) -> dict[str; Any]:  Phase 10 - ReportingData structure needs alignment,services,,phase 9,Introduce typed model and refactor
+T023,the_alchemiser/application/reporting/reporting.py,63,10,10,engine: Any; execution_result: Any  Phase 10 - Add proper types when available,services,,phase 9,Introduce typed model and refactor
+T024,the_alchemiser/application/tracking/integration.py,22,,8,Add these imports once data structures match:,services,,phase 7,Introduce typed model and refactor
+T025,the_alchemiser/application/tracking/integration.py,153,,8,) -> dict[str; Any]:  Change to StrategyPnLSummary once data structure matches,services,,phase 7,Introduce typed model and refactor
+T026,the_alchemiser/application/tracking/integration.py,160,15,15,order: Any;  Phase 15 - Use AlpacaOrderProtocol when ready,services,,phase 14,Introduce typed model and refactor
+T027,the_alchemiser/application/tracking/integration.py,161,15,15,) -> dict[str; Any]:  Phase 15 - Return OrderDetails when structure matches,services,OrderDetails,phase 14,Introduce OrderDetails and refactor
+T028,the_alchemiser/application/tracking/integration.py,198,15,15,) -> None:  Phase 15 - Use AlpacaOrderProtocol when ready,services,,phase 14,Introduce typed model and refactor
+T029,the_alchemiser/application/tracking/integration.py,232,15,15,) -> None:  Phase 15 - Use TradingEngine type when ready,services,,phase 14,Introduce typed model and refactor
+T030,the_alchemiser/application/tracking/strategy_order_tracker.py,32,,8,Add these imports once data structures match:,services,,phase 7,Introduce typed model and refactor
+T034,the_alchemiser/application/tracking/strategy_order_tracker.py,690,,8,) -> None:  Change to OrderHistoryData once data structure matches,services,,phase 7,Introduce typed model and refactor
+T035,the_alchemiser/application/tracking/strategy_order_tracker.py,742,,8,) -> dict[str; Any]:  Change to EmailSummary once data structure matches,services,,phase 7,Introduce typed model and refactor
+T036,the_alchemiser/application/tracking/strategy_order_tracker.py,747,,8,summary: dict[str; Any] = {  Change to EmailSummary once data structure matches,services,,phase 7,Introduce typed model and refactor
+T037,pyproject.toml,185,15,15,# Third-party library ignores - TODO: Phase 15 - Add proper type stubs,services,,phase 14,Introduce typed model and refactor
+T038,the_alchemiser/application/trading/trading_engine.py,446,,8,) -> dict[str; Any]:  Change to AccountInfo once data structure matches,services,AccountInfo,phase 7,Introduce AccountInfo and refactor
+T040,the_alchemiser/application/trading/trading_engine.py,1007,,8,account_info: dict[str; Any];  Change to AccountInfo once structure matches,services,AccountInfo,phase 7,Introduce AccountInfo and refactor
+T041,the_alchemiser/application/trading/trading_engine.py,1008,,8,current_positions: dict[str; Any];  Change to PositionsDict once structure match,services,,phase 7,Introduce typed model and refactor
+T042,the_alchemiser/application/trading/trading_engine.py,1009,,8,) -> dict[str; Any]:  Change to ExecutionResult once structure matches,services,ExecutionResult,phase 7,Introduce ExecutionResult and refactor
+T043,the_alchemiser/interface/cli/cli_formatter.py,11,13,13,Phase 13 - Replace dict[Any; Any] with proper CLISignalData,cli,,phase 12,Introduce typed model and refactor
+T044,the_alchemiser/interface/cli/cli_formatter.py,12,13,13,Phase 13 - Replace dict[str; Any] with AccountInfo from the_alchemiser.domain.ty,cli,AccountInfo,phase 12,Introduce AccountInfo and refactor
+T045,the_alchemiser/interface/cli/cli_formatter.py,13,13,13,Phase 13 - Replace dict[str; float] with CLIPortfolioData,cli,,phase 12,Introduce typed model and refactor
+T046,the_alchemiser/interface/cli/cli_formatter.py,14,13,13,Phase 13 - Replace list[dict[str; Any]] with list[CLIOrderDisplay],cli,,phase 12,Introduce typed model and refactor
+T047,the_alchemiser/interface/cli/cli_formatter.py,21,13,13,console: Console | None = None;  Phase 13 - CLISignalData,cli,,phase 12,Introduce typed model and refactor
+T048,the_alchemiser/interface/cli/cli_formatter.py,130,13,13,console: Console | None = None;  Phase 13 - CLISignalData,cli,,phase 12,Introduce typed model and refactor
+T049,the_alchemiser/interface/cli/cli_formatter.py,147,13,13,panels: list[Panel] = []  Phase 13 - Use structured type,cli,,phase 12,Introduce typed model and refactor
+T050,the_alchemiser/interface/cli/cli_formatter.py,190,13,13,console: Console | None = None;  Phase 13 - Use CLIPortfolioData list,cli,,phase 12,Introduce typed model and refactor
+T051,the_alchemiser/interface/cli/cli_formatter.py,216,13,13,console: Console | None = None;  Phase 13 - list[CLIOrderDisplay],cli,,phase 12,Introduce typed model and refactor
+T052,the_alchemiser/interface/cli/cli_formatter.py,226,13,13,Phase 13 - Use proper typing for buy/sell orders,cli,,phase 12,Introduce typed model and refactor
+T053,the_alchemiser/interface/cli/cli_formatter.py,227,13,13,buy_orders: list[dict[str; Any]] = []  Phase 13 - list[CLIOrderDisplay],cli,,phase 12,Introduce typed model and refactor
+T054,the_alchemiser/interface/cli/cli_formatter.py,228,13,13,sell_orders: list[dict[str; Any]] = []  Phase 13 - list[CLIOrderDisplay],cli,,phase 12,Introduce typed model and refactor
+T055,the_alchemiser/interface/cli/cli_formatter.py,303,13,13,) -> None:  Phase 13 - Use AccountInfo type,cli,AccountInfo,phase 12,Introduce AccountInfo and refactor
+T056,the_alchemiser/interface/cli/cli_formatter.py,441,13,13,target_portfolio: dict[str; float];  Phase 13 - Use CLIPortfolioData list,cli,,phase 12,Introduce typed model and refactor
+T057,the_alchemiser/interface/cli/cli_formatter.py,442,13,13,account_info: dict[str; Any];  Phase 13 - Use AccountInfo,cli,AccountInfo,phase 12,Introduce AccountInfo and refactor
+T058,the_alchemiser/interface/cli/cli_formatter.py,443,13,13,current_positions: dict[str; Any];  Phase 13 - Use dict[str; PositionInfo],cli,,phase 12,Introduce typed model and refactor
+T059,the_alchemiser/interface/cli/cli_formatter.py,517,13,13,sell_orders: list[dict[str; Any]];  Phase 13 - list[CLIOrderDisplay],cli,,phase 12,Introduce typed model and refactor
+T060,the_alchemiser/interface/cli/cli_formatter.py,518,13,13,buy_orders: list[dict[str; Any]];  Phase 13 - list[CLIOrderDisplay],cli,,phase 12,Introduce typed model and refactor
+T061,the_alchemiser/interface/cli/cli_formatter.py,552,13,13,"""render_orders_executed"";  Phase 13 - Updated function name",cli,,phase 12,Introduce typed model and refactor
+T062,the_alchemiser/execution/account_service.py,13,,8,def get_positions(self) -> Any:  Use proper typing once Alpaca types are availab,services,,phase 7,Introduce typed model and refactor
+T063,the_alchemiser/domain/strategies/klm_ensemble_engine.py,182,6,6,]:  Phase 6 - Migrate to list[KLMVariantResult],services,,phase 5,Introduce typed model and refactor
+T064,the_alchemiser/domain/strategies/klm_ensemble_engine.py,239,6,6,];  Phase 6 - Migrate to list[KLMVariantResult],services,,phase 5,Introduce typed model and refactor
+T065,the_alchemiser/domain/strategies/klm_ensemble_engine.py,242,6,6,]:  Phase 6 - Migrate to tuple[StrategySignal; BaseKLMVariant],services,,phase 5,Introduce typed model and refactor
+T066,the_alchemiser/domain/strategies/klm_ensemble_engine.py,315,6,6,];  Phase 6 - Migrate to list[KLMVariantResult],services,,phase 5,Introduce typed model and refactor
+T067,the_alchemiser/interface/email/email_utils.py,26,10,10,Phase 10 - Types available for future migration to structured types,email,,phase 9,Introduce typed model and refactor
+T068,the_alchemiser/interface/email/email_utils.py,48,10,10,) -> str:  Phase 10 - Migrate to ExecutionResult type,email,ExecutionResult,phase 9,Introduce ExecutionResult and refactor
+T069,the_alchemiser/interface/email/email_utils.py,55,10,10,) -> str:  Phase 10 - Migrate to AccountInfo type,email,AccountInfo,phase 9,Introduce AccountInfo and refactor
+T070,the_alchemiser/interface/email/email_utils.py,62,10,10,) -> str:  Phase 10 - Add proper signal types,email,,phase 9,Introduce typed model and refactor
+T071,the_alchemiser/interface/email/email_utils.py,69,10,10,) -> str:  Phase 10 - Add proper types,email,,phase 9,Introduce typed model and refactor
+T072,the_alchemiser/interface/email/email_utils.py,76,10,10,) -> str:  Phase 10 - Add proper trading summary type,email,,phase 9,Introduce typed model and refactor
+T073,the_alchemiser/interface/email/templates/performance.py,11,12,12,Phase 12 - Types available for future migration to structured performance report,email,,phase 11,Introduce typed model and refactor
+T074,the_alchemiser/domain/strategies/klm_workers/variant_1280_26.py,16,9,9,from the_alchemiser.domain.types import KLMDecision  Phase 9 - Added for gradual,services,,phase 8,Introduce typed model and refactor
+T075,the_alchemiser/domain/strategies/klm_workers/variant_1280_26.py,44,9,9,):  Phase 9 - Gradual migration to KLMDecision,services,,phase 8,Introduce typed model and refactor
+T076,the_alchemiser/domain/strategies/klm_workers/variant_1280_26.py,139,9,9,result = (  Phase 9 - Remove type ignore after converting to KLMDecision,services,,phase 8,Introduce typed model and refactor
+T077,the_alchemiser/domain/strategies/klm_workers/variant_1280_26.py,146,9,9,result = (  Phase 9 - Remove type ignore after converting to KLMDecision,services,,phase 8,Introduce typed model and refactor
+T078,the_alchemiser/domain/strategies/klm_workers/base_klm_variant.py,15,9,9,from the_alchemiser.domain.types import KLMDecision  Phase 9 - Added for gradual,services,,phase 8,Introduce typed model and refactor
+T079,the_alchemiser/domain/strategies/klm_workers/base_klm_variant.py,40,9,9,):  Phase 9 - Gradual migration to KLMDecision,services,,phase 8,Introduce typed model and refactor
+T081,the_alchemiser/interface/email/templates/portfolio.py,9,8,8,Phase 8/10 - Types available for future migration to structured types,email,,phase 7,Introduce typed model and refactor
+T082,the_alchemiser/interface/email/templates/portfolio.py,89,8,8,) -> str:  Phase 8 - Migrate to AccountInfo (needs extended type for daily_pl),email,AccountInfo,phase 7,Introduce AccountInfo and refactor
+T083,the_alchemiser/interface/email/templates/portfolio.py,144,8,8,) -> str:  Phase 8 - Migrate to ExecutionResult (needs object access pattern),email,ExecutionResult,phase 7,Introduce ExecutionResult and refactor
+T084,the_alchemiser/interface/email/templates/portfolio.py,154,10,10,)  Phase 10 - Added type annotation for clarity,email,,phase 9,Introduce typed model and refactor
+T085,the_alchemiser/interface/email/templates/portfolio.py,181,8,8,) -> str:  Phase 8 - Migrate to AccountInfo,email,AccountInfo,phase 7,Introduce AccountInfo and refactor
+T086,the_alchemiser/interface/email/templates/portfolio.py,307,8,8,) -> str:  Phase 8 - Migrate to AccountInfo,email,AccountInfo,phase 7,Introduce AccountInfo and refactor
+T087,the_alchemiser/domain/strategies/klm_workers/variant_530_18.py,21,9,9,from the_alchemiser.domain.types import KLMDecision  Phase 9 - Added for gradual,services,,phase 8,Introduce typed model and refactor
+T088,the_alchemiser/domain/strategies/klm_workers/variant_530_18.py,53,9,9,):  Phase 9 - Gradual migration to KLMDecision,services,,phase 8,Introduce typed model and refactor
+T089,the_alchemiser/domain/strategies/klm_workers/variant_530_18.py,476,9,9,result = (  # type: ignore[assignment] Phase 9 - Remove type ignore after conver,services,,phase 8,Introduce typed model and refactor
+T090,the_alchemiser/domain/strategies/klm_workers/variant_530_18.py,486,9,9,)  Phase 9 - Remove type ignore after converting to KLMDecision,services,,phase 8,Introduce typed model and refactor
+T091,the_alchemiser/domain/strategies/klm_workers/variant_530_18.py,489,9,9,result = (  # type: ignore[assignment] Phase 9 - Remove type ignore after conver,services,,phase 8,Introduce typed model and refactor
+T092,the_alchemiser/domain/strategies/klm_workers/variant_530_18.py,516,9,9,result = (  # type: ignore[assignment] Phase 9 - Remove type ignore after conver,services,,phase 8,Introduce typed model and refactor
+T093,the_alchemiser/domain/strategies/klm_workers/variant_530_18.py,527,9,9,)  Phase 9 - Remove type ignore after converting to KLMDecision,services,,phase 8,Introduce typed model and refactor
+T094,the_alchemiser/domain/strategies/strategy_manager.py,55,6,6,def to_dict(self) -> dict[str; Any]:  Phase 6 - Migrate to StrategyPositionData,services,,phase 5,Introduce typed model and refactor
+T095,the_alchemiser/domain/strategies/strategy_manager.py,67,6,6,") -> ""StrategyPosition"":  Phase 6 - Migrate parameter to StrategyPositionData",services,,phase 5,Introduce typed model and refactor
+T096,the_alchemiser/domain/strategies/strategy_manager.py,437,6,6,) -> dict[str; float]:  Phase 6 - Migrate parameter to StrategySignal,services,,phase 5,Introduce typed model and refactor
+T097,the_alchemiser/domain/strategies/strategy_manager.py,684,6,6,) -> dict[str; Any]:  Phase 6 - Migrate to StrategyPnLSummary,services,,phase 5,Introduce typed model and refactor
+T098,the_alchemiser/domain/strategies/strategy_manager.py,689,6,6,}  Phase 6 - Migrate to list[StrategyPositionData],services,,phase 5,Introduce typed model and refactor
+T099,the_alchemiser/domain/strategies/strategy_manager.py,691,6,6,summary: dict[str; Any] = {  Phase 6 - Migrate to StrategyPnLSummary,services,,phase 5,Introduce typed model and refactor
+T101,the_alchemiser/domain/math/trading_math.py,19,12,12,Phase 12 - Types available for future migration to structured trading calculatio,services,,phase 11,Introduce typed model and refactor
+T102,the_alchemiser/domain/math/indicators.py,19,11,11,Phase 11 - Type available for future structured indicator results,services,,phase 10,Introduce typed model and refactor
+T103,the_alchemiser/domain/math/indicators.py,43,11,11,) -> pd.Series:  Phase 11 - Consider IndicatorData for structured output,services,,phase 10,Introduce typed model and refactor
+T105,the_alchemiser/infrastructure/websocket/websocket_order_monitor.py,255,7,7,)  Phase 7 - Return type updated to WebSocketResult,services,,phase 6,Introduce typed model and refactor
+T106,the_alchemiser/infrastructure/websocket/websocket_order_monitor.py,258,7,7,return self._create_new_websocket(  Phase 7 - Return type updated to WebSocketRe,services,,phase 6,Introduce typed model and refactor
+T107,the_alchemiser/infrastructure/websocket/websocket_order_monitor.py,268,7,7,) -> dict[str; str]:  Phase 7 - Migrate to return WebSocketResult,services,,phase 6,Introduce typed model and refactor
+T108,the_alchemiser/infrastructure/websocket/websocket_order_monitor.py,320,7,7,) -> dict[str; str]:  Phase 7 - Migrate to return WebSocketResult,services,,phase 6,Introduce typed model and refactor
+T109,the_alchemiser/infrastructure/data_providers/real_time_pricing.py,39,11,11,Phase 11 - Types available for future migration to structured pricing data,cache,,phase 10,Introduce typed model and refactor
+T110,the_alchemiser/infrastructure/data_providers/data_provider.py,24,11,11,Phase 11 - Types available for future migration to structured data types,cache,,phase 10,Introduce typed model and refactor
+T111,the_alchemiser/infrastructure/data_providers/data_provider.py,73,11,11,)  Phase 11 - Typed cache structure,cache,,phase 10,Introduce typed model and refactor
+T112,the_alchemiser/infrastructure/data_providers/data_provider.py,177,11,11,) -> pd.DataFrame | None:  Phase 11 - Consider migrating to MarketDataPoint stru,cache,,phase 10,Introduce typed model and refactor
