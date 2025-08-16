@@ -38,6 +38,20 @@ The Alchemiser is a sophisticated multi-strategy quantitative trading system bui
 - **Decimals only for money/qty**: Always use `Decimal` for financial values
 - **Protocols for boundaries**: Repository interfaces live under `domain/**/protocols/` and are implemented in `infrastructure/`
 
+### TypedDict vs Dataclass/Pydantic
+- **TypedDict**: Use for data exchanged at system boundaries or for record-style containers that are serialized to
+  JSON/dicts. Keep it for external API payloads (e.g. `AccountInfo`, `PositionInfo`, `OrderDetails`), transient
+  integration results (`ExecutionResult`, `TradingPlan`, `WebSocketResult`, `LimitOrderResult`), strategy summaries
+  (`StrategySignal`, `StrategyPnLSummary`, `KLMVariantResult`), CLI/config output (`CLIOptions`, `CLIAccountDisplay`,
+  `CLIOrderDisplay`, `EmailReportData`, `LambdaEvent`, `EmailCredentials`) and structured error data
+  (`ErrorDetailInfo`, `ErrorReportSummary`, etc.).
+- **Dataclass or Pydantic model**: Use for core domain objects or any structure needing behavior, validation, or
+  type conversion. Examples include `AccountModel`, `PortfolioHistoryModel`, `PositionModel`, `OrderModel`,
+  `BarModel`, `QuoteModel`, `PriceDataModel`, `StrategySignalModel`, `StrategyPositionModel`, `ValidatedOrder`, and
+  helper classes like `ErrorContext`/`ErrorDetails`.
+- **Pattern**: Convert incoming `TypedDict` data to dataclass/Pydantic models as soon as it enters the system, use these
+  models throughout business logic, then convert back to `TypedDict` when returning data or producing JSON.
+
 ## Typed Domain System (V2)
 
 The project is migrating to a strongly-typed Domain-Driven Design model behind a feature flag for safe, incremental rollout.
