@@ -79,7 +79,4 @@ deploy:
 	@echo "🚀 Deploying to AWS Lambda..."
 	poetry run alchemiser deploy
 
-# Legacy commands (for backward compatibility)
-bot: run-bot
-trade: run-trade
-trade-live: run-trade-live
+
