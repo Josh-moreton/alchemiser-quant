@@ -184,7 +184,8 @@ class UnifiedDataProviderFacade:
             return None
 
     @handle_service_errors(default_return=None)
-    def get_account_info(self, **kwargs: Any) -> dict[str, Any] | None:
+    @handle_service_errors(default_return={})
+    def get_account_info(self, **kwargs: Any) -> dict[str, Any]:
         """
         Get account information - maintains exact original interface.
 
