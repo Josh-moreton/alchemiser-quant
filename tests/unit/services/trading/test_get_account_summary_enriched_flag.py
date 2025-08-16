@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import pytest
 
+from tests._tolerances import DEFAULT_ATL
+
 from the_alchemiser.services.trading.trading_service_manager import TradingServiceManager
 
 
@@ -46,7 +48,8 @@ def test_account_summary_enriched_legacy(monkeypatch: pytest.MonkeyPatch):
     out = mgr.get_account_summary_enriched()
     # Without flag, returns legacy dict directly
     assert isinstance(out, dict)
-    assert out["equity"] == 100000.0
+    # Sonar rule: avoid direct float comparison (IEEE-754 rounding).
+    assert out["equity"] == pytest.approx(100000.0, rel=1e-9, abs=DEFAULT_ATL)
     assert "summary" not in out
 
 
@@ -57,6 +60,11 @@ def test_account_summary_enriched_typed(monkeypatch: pytest.MonkeyPatch):
     assert isinstance(out, dict)
     assert "raw" in out and "summary" in out
     summary = out["summary"]
-    assert summary["equity"] == 100000.0
-    assert summary["cash"] == 25000.0
-    assert summary["calculated_metrics"]["cash_ratio"] == 0.25
+    # Sonar rule: avoid direct float comparison (IEEE-754 rounding).
+    assert summary["equity"] == pytest.approx(100000.0, rel=1e-9, abs=DEFAULT_ATL)
+    # Sonar rule: avoid direct float comparison (IEEE-754 rounding).
+    assert summary["cash"] == pytest.approx(25000.0, rel=1e-9, abs=DEFAULT_ATL)
+    # Sonar rule: avoid direct float comparison (IEEE-754 rounding).
+    assert summary["calculated_metrics"]["cash_ratio"] == pytest.approx(
+        0.25, rel=1e-9, abs=DEFAULT_ATL
+    )

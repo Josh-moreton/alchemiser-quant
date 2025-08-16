@@ -1,3 +1,6 @@
+import pytest
+
+from tests._tolerances import DEFAULT_ATL
 from the_alchemiser.services.trading.trading_service_manager import TradingServiceManager
 
 
@@ -56,5 +59,7 @@ def test_get_positions_enriched_typed(monkeypatch):
     assert "raw" in first and "summary" in first
     summary = first["summary"]
     assert summary["symbol"] == "AAPL"
-    assert summary["qty"] == 10.0
-    assert summary["avg_entry_price"] == 150.0
+    # Sonar rule: avoid direct float comparison (IEEE-754 rounding).
+    assert summary["qty"] == pytest.approx(10.0, rel=1e-9, abs=DEFAULT_ATL)
+    # Sonar rule: avoid direct float comparison (IEEE-754 rounding).
+    assert summary["avg_entry_price"] == pytest.approx(150.0, rel=1e-9, abs=DEFAULT_ATL)

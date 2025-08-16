@@ -4,6 +4,8 @@ from types import SimpleNamespace
 
 import pytest
 
+from tests._tolerances import DEFAULT_ATL
+
 from the_alchemiser.services.trading.trading_service_manager import TradingServiceManager
 
 
@@ -111,7 +113,8 @@ def test_place_limit_order_typed(monkeypatch: pytest.MonkeyPatch):
         assert "order" in out
         summary = out["order"]["summary"]
         assert summary["symbol"] == "MSFT"
-        assert summary["qty"] == 10.0
+        # Sonar rule: avoid direct float comparison (IEEE-754 rounding).
+        assert summary["qty"] == pytest.approx(10.0, rel=1e-9, abs=DEFAULT_ATL)
         assert summary["type"].lower() == "limit"
     finally:
         builtins.__import__ = real_import  # type: ignore[assignment]
