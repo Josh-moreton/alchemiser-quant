@@ -1,16 +1,12 @@
 """Account domain models."""
 
-from dataclasses import (
-    dataclass,
-)  # TODO(PYDANTIC-MIGRATION): Convert this and other domain dataclasses in core/models to Pydantic BaseModel (frozen=True) for runtime validation & parsing. Keep boundary TypedDicts in core.types as IO schema. Ensure numeric string coercion moves into Pydantic validators and remove manual float(...) casts in from_dict during migration.
+from dataclasses import dataclass
 from typing import Literal
 
 from the_alchemiser.domain.types import AccountInfo, PortfolioHistoryData
 
 
-@dataclass(
-    frozen=True
-)  # TODO(PYDANTIC-MIGRATION): Replace with Pydantic model AccountModel(BaseModel) (frozen) providing validators for numeric coercion and status literal enforcement.
+@dataclass(frozen=True)
 class AccountModel:
     """Immutable account information model."""
 
@@ -57,9 +53,7 @@ class AccountModel:
         }
 
 
-@dataclass(
-    frozen=True
-)  # TODO(PYDANTIC-MIGRATION): Convert to PortfolioHistoryModel(BaseModel) for optional list validation & immutability.
+@dataclass(frozen=True)
 class PortfolioHistoryModel:
     """Immutable portfolio history model."""
 

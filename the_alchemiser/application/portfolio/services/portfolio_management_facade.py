@@ -111,11 +111,25 @@ class PortfolioManagementFacade:
         self, target_weights: dict[str, Decimal], dry_run: bool = True
     ) -> dict[str, Any]:
         """Execute complete portfolio rebalancing."""
+        import logging
+
+        logging.debug(
+            "PortfolioManagementFacade.execute_rebalancing called: target_weights=%s dry_run=%s",
+            target_weights,
+            dry_run,
+        )
+
         # Calculate rebalancing plan
         rebalance_plan = self.rebalancing_service.calculate_rebalancing_plan(target_weights)
 
+        logging.debug(
+            "Rebalancing plan computed for symbols=%s",
+            list(rebalance_plan.keys()),
+        )
+
         # Validate plan
         validation = self.execution_service.validate_rebalancing_plan(rebalance_plan)
+        logging.debug("Validation results: %s", validation)
         if not validation["is_valid"]:
             return {
                 "status": "validation_failed",
@@ -125,6 +139,8 @@ class PortfolioManagementFacade:
 
         # Execute plan
         execution_results = self.execution_service.execute_rebalancing_plan(rebalance_plan, dry_run)
+
+        logging.debug("Execution results: %s", execution_results)
 
         return {
             "status": "completed",
@@ -223,14 +239,28 @@ class PortfolioManagementFacade:
     # Utility methods
     def get_current_portfolio_value(self) -> Decimal:
         """Get current total portfolio value."""
-        return Decimal(str(self.trading_manager.get_portfolio_value()))
+        raw = self.trading_manager.get_portfolio_value()
+        if isinstance(raw, dict) and "value" in raw:
+            raw_value = raw.get("value", 0)
+        else:
+            raw_value = raw
+        try:
+            return Decimal(str(raw_value))
+        except Exception:
+            return Decimal("0")
 
     def get_current_positions(self) -> dict[str, Decimal]:
         """Get current position values."""
         positions = self.trading_manager.get_all_positions()
-        return {
-            pos.symbol: Decimal(str(pos.market_value)) for pos in positions if pos.market_value > 0
-        }
+        values: dict[str, Decimal] = {}
+        for pos in positions:
+            try:
+                mv = Decimal(str(getattr(pos, "market_value", 0) or 0))
+            except Exception:
+                mv = Decimal("0")
+            if mv > Decimal("0"):
+                values[getattr(pos, "symbol", "")] = mv
+        return values
 
     def get_current_weights(self) -> dict[str, Decimal]:
         """Get current portfolio weights."""

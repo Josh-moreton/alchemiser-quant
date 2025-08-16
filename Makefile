@@ -28,42 +28,43 @@ help:
 
 # Setup & Installation
 install:
-	@echo "🔧 Installing The Alchemiser in development mode..."
-	pip install -e .
+	@echo "🔧 Installing The Alchemiser with Poetry..."
+	poetry install
 
 dev:
-	@echo "🔧 Installing The Alchemiser with development dependencies..."
-	pip install -e ".[dev]"
+	@echo "🔧 Installing The Alchemiser with development dependencies (Poetry groups)..."
+	poetry install --with dev
 
 # Trading Commands (using the CLI)
 run-signals:
 	@echo "🎯 Running signal analysis mode (no trading)..."
-	alchemiser bot
+	poetry run alchemiser bot
 
 run-trade:
 	@echo "💰 Running paper trading..."
-	alchemiser trade
+	poetry run alchemiser trade
 
 run-trade-live:
 	@echo "⚠️  Running LIVE trading (real money)..."
-	alchemiser trade --live
+	poetry run alchemiser trade --live
 
 status:
 	@echo "📊 Checking account status..."
-	alchemiser status
+	poetry run alchemiser status
 
 # Development
 test:
 	@echo "🧪 Running tests..."
-	pytest tests/ -v
+	poetry run pytest tests/ -v
 
 format:
 	@echo "🎨 Formatting code..."
-	black the_alchemiser/ tests/
+	poetry run black the_alchemiser/ tests/
+	poetry run ruff check --fix the_alchemiser/ tests/
 
 lint:
 	@echo "🔍 Running linting..."
-	ruff check the_alchemiser/ tests/
+	poetry run ruff check the_alchemiser/ tests/
 
 clean:
 	@echo "🧹 Cleaning build artifacts..."
@@ -76,9 +77,6 @@ clean:
 # Deployment
 deploy:
 	@echo "🚀 Deploying to AWS Lambda..."
-	alchemiser deploy
+	poetry run alchemiser deploy
 
-# Legacy commands (for backward compatibility)
-bot: run-bot
-trade: run-trade
-trade-live: run-trade-live
+

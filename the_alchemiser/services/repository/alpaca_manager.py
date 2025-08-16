@@ -91,6 +91,22 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         """Check if using paper trading."""
         return self._paper
 
+    # Public, read-only accessors for credentials and mode (for factories/streams)
+    @property
+    def api_key(self) -> str:
+        """Public accessor for the API key (read-only)."""
+        return self._api_key
+
+    @property
+    def secret_key(self) -> str:
+        """Public accessor for the Secret key (read-only)."""
+        return self._secret_key
+
+    @property
+    def paper(self) -> bool:
+        """Public accessor indicating paper/live mode."""
+        return self._paper
+
     # Trading Operations
     def get_account(self) -> Any:
         """Get account information with error handling."""

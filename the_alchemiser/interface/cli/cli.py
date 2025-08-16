@@ -15,15 +15,23 @@ import typer
 from rich.console import Console
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
-from rich.prompt import Confirm
+from rich.table import Table
 from rich.text import Text
 
-from the_alchemiser.infrastructure.logging.logging_utils import get_logger, log_error_with_context
+from the_alchemiser.application.trading.engine_service import TradingEngine
+from the_alchemiser.infrastructure.logging.logging_utils import (
+    get_logger,
+    log_error_with_context,
+)
+from the_alchemiser.infrastructure.secrets.secrets_manager import secrets_manager
+from the_alchemiser.interface.cli.cli_formatter import render_account_info
 from the_alchemiser.services.errors.exceptions import (
     AlchemiserError,
     StrategyExecutionError,
     TradingClientError,
 )
+from the_alchemiser.services.trading.trading_service_manager import TradingServiceManager
+from the_alchemiser.utils.feature_flags import type_system_v2_enabled
 
 # Initialize Typer app and Rich console
 app = typer.Typer(
@@ -166,21 +174,11 @@ def trade(
     if not no_header:
         show_welcome()
 
-    # Safety confirmation for live trading
-    if live and not force:
+    # Live mode proceeds without interactive confirmations
+    if live:
         console.print(
-            Panel(
-                "[bold red]⚠️  LIVE TRADING MODE[/bold red]\n\n"
-                "This will place real orders with real money!\n"
-                "Make sure you understand the risks.",
-                title="[bold red]Warning[/bold red]",
-                border_style="red",
-            )
+            "[dim yellow]LIVE trading mode active. Proceeding without confirmation.[/dim yellow]"
         )
-
-        if not Confirm.ask("Are you sure you want to proceed with LIVE trading?"):
-            console.print("[yellow]Operation cancelled.[/yellow]")
-            raise typer.Exit(0)
 
     mode_display = "[bold red]LIVE[/bold red]" if live else "[bold blue]PAPER[/bold blue]"
     console.print(f"[bold yellow]Starting {mode_display} trading...[/bold yellow]")
@@ -297,8 +295,6 @@ def status(
     mode_display = "[bold red]LIVE[/bold red]" if live else "[bold blue]PAPER[/bold blue]"
 
     if live:
-        from rich.panel import Panel
-
         console.print(
             Panel(
                 "[bold red]⚠️  LIVE ACCOUNT STATUS[/bold red]\n\n"
@@ -312,18 +308,68 @@ def status(
     console.print(f"[bold yellow]Fetching {mode_display} account status...[/bold yellow]")
 
     try:
-        from rich.panel import Panel
-
-        from the_alchemiser.application.trading.trading_engine import TradingEngine
-        from the_alchemiser.interface.cli.cli_formatter import render_account_info
 
         # Create trader and data provider for the specified mode
         trader = TradingEngine(paper_trading=paper_trading)
 
         account_info = trader.get_account_info()
 
+        # Prefer enriched typed account summary when the feature flag is ON
+        tsm: TradingServiceManager | None = None
+        if type_system_v2_enabled():
+            try:
+                api_key, secret_key = secrets_manager.get_alpaca_keys(paper_trading=not live)
+                if not api_key or not secret_key:
+                    raise RuntimeError("Alpaca credentials not available")
+                tsm = TradingServiceManager(api_key, secret_key, paper=not live)
+                enriched = tsm.get_account_summary_enriched()
+                # If enriched path returned a wrapped structure, use the summary for display
+                if isinstance(enriched, dict) and "summary" in enriched:
+                    account_info = enriched["summary"]
+            except Exception as e:
+                console.print(f"[dim yellow]Enriched account summary unavailable: {e}[/dim yellow]")
+
         if account_info:
             render_account_info(account_info)
+
+            # Optional enriched positions display using the new typed path
+            if type_system_v2_enabled():
+                try:
+                    # Reuse TSM if available, otherwise instantiate
+                    if tsm is None:
+                        api_key, secret_key = secrets_manager.get_alpaca_keys(
+                            paper_trading=not live
+                        )
+                        if not api_key or not secret_key:
+                            raise RuntimeError("Alpaca credentials not available")
+                        tsm = TradingServiceManager(api_key, secret_key, paper=not live)
+                    enriched_positions = tsm.get_positions_enriched()
+                    if enriched_positions:
+                        table = Table(
+                            title="Open Positions (Enriched)", show_lines=True, expand=True
+                        )
+                        table.add_column("Symbol", style="bold cyan")
+                        table.add_column("Qty", justify="right")
+                        table.add_column("Avg Price", justify="right")
+                        table.add_column("Current", justify="right")
+                        table.add_column("Mkt Value", justify="right")
+                        table.add_column("Unrlzd P&L", justify="right")
+
+                        for item in enriched_positions[:50]:  # Cap display to avoid huge tables
+                            summary = item.get("summary", {})
+                            table.add_row(
+                                str(summary.get("symbol", "")),
+                                f"{float(summary.get('qty', 0.0)):.4f}",
+                                f"${float(summary.get('avg_entry_price', 0.0)):.2f}",
+                                f"${float(summary.get('current_price', 0.0)):.2f}",
+                                f"${float(summary.get('market_value', 0.0)):.2f}",
+                                f"${float(summary.get('unrealized_pl', 0.0)):.2f} ({float(summary.get('unrealized_plpc', 0.0)):.2%})",
+                            )
+
+                        console.print()
+                        console.print(table)
+                except Exception as e:  # Non-fatal UI enhancement
+                    console.print(f"[dim yellow]Enriched positions unavailable: {e}[/dim yellow]")
             console.print("[bold green]Account status retrieved successfully![/bold green]")
         else:
             console.print("[bold red]Could not retrieve account status![/bold red]")

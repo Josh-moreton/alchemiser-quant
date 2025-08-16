@@ -44,9 +44,12 @@ Example:
 
 import logging
 import time
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Protocol
 
 if TYPE_CHECKING:
+    from the_alchemiser.application.execution.smart_execution import (
+        DataProvider as ExecDataProvider,
+    )
     from the_alchemiser.application.orders.order_validation import ValidatedOrder
 
 from alpaca.trading.enums import OrderSide
@@ -59,7 +62,6 @@ from the_alchemiser.application.orders.order_validation_utils import (
     validate_order_parameters,
     validate_quantity,
 )
-from the_alchemiser.infrastructure.data_providers.data_provider import UnifiedDataProvider
 from the_alchemiser.infrastructure.websocket.websocket_connection_manager import (
     WebSocketConnectionManager,
 )
@@ -87,10 +89,17 @@ class AlpacaClient:
         validate_buying_power: Whether to validate buying power for buy orders.
     """
 
+    class PriceQuoteProvider(Protocol):
+        """Minimal interface for price/quote access used by order helpers."""
+
+        def get_current_price(self, symbol: str) -> float | None: ...
+
+        def get_latest_quote(self, symbol: str) -> tuple[float, float] | None: ...
+
     def __init__(
         self,
         alpaca_manager: AlpacaManager,
-        data_provider: UnifiedDataProvider,
+        data_provider: "ExecDataProvider",
         validate_buying_power: bool = False,
     ):
         """Initialize AlpacaClient with helper modules.
@@ -106,8 +115,11 @@ class AlpacaClient:
         self.validate_buying_power = validate_buying_power
 
         # Initialize helper modules
+        # Provide API keys to the order monitor from AlpacaManager (authoritative source)
+        api_key = getattr(self.alpaca_manager, "api_key", None)
+        secret_key = getattr(self.alpaca_manager, "secret_key", None)
         self.order_monitor = OrderCompletionMonitor(
-            self.trading_client, api_key=data_provider.api_key, secret_key=data_provider.secret_key
+            self.trading_client, api_key=api_key, secret_key=secret_key
         )
         self.asset_handler = AssetOrderHandler(data_provider)
         self.position_manager = PositionManager(self.trading_client, data_provider)

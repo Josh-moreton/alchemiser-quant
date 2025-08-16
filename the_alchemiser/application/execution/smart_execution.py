@@ -19,15 +19,11 @@ from typing import Any, Protocol
 
 from alpaca.trading.enums import OrderSide
 
-# TODO: Phase 5 - Added for gradual migration
-from the_alchemiser.application.trading.alpaca_client import AlpacaClient
-from the_alchemiser.infrastructure.data_providers.data_provider import UnifiedDataProvider
 from the_alchemiser.services.errors.exceptions import (
     DataProviderError,
     OrderExecutionError,
     TradingClientError,
 )
-from the_alchemiser.services.repository.alpaca_manager import AlpacaManager
 
 
 class OrderExecutor(Protocol):
@@ -73,7 +69,7 @@ class OrderExecutor(Protocol):
         ...
 
     @property
-    def data_provider(self) -> UnifiedDataProvider:
+    def data_provider(self) -> "DataProvider":
         """Access to data provider for quotes and prices."""
         ...
 
@@ -87,7 +83,7 @@ class DataProvider(Protocol):
 
     def get_latest_quote(
         self, symbol: str
-    ) -> tuple[Any, ...]:  # TODO: Phase 5 - Migrate to QuoteData
+    ) -> tuple[float, float] | None:  # Phase 5: precise tuple typing for bid/ask
         """Get latest quote for a symbol."""
         ...
 
@@ -116,29 +112,19 @@ class SmartExecution:
 
     def __init__(
         self,
-        trading_client: Any,
-        data_provider: Any,
+        order_executor: "OrderExecutor",
+        data_provider: "DataProvider",
         ignore_market_hours: bool = False,
         config: Any = None,
     ) -> None:
-        """Initialize with order executor dependency injection."""
+        """Initialize with dependency injection for execution and data access."""
 
         self.config = config or {}
-        validate_buying_power = self.config.get("validate_buying_power", False)
-
         # Store dependencies for composition
-        self._trading_client = trading_client
+        self._order_executor = order_executor
         self._data_provider = data_provider
-
-        # Create AlpacaManager from existing clients for backward compatibility
-        alpaca_manager = AlpacaManager(
-            api_key=getattr(data_provider, "api_key", ""),
-            secret_key=getattr(data_provider, "secret_key", ""),
-            paper=True,  # Default to paper trading for safety
-        )
-
-        # Use composition - injected order executor handles the actual order placement
-        self._order_executor = AlpacaClient(alpaca_manager, data_provider, validate_buying_power)
+        # Backward compatibility accessor used by is_market_open()
+        self._trading_client = getattr(order_executor, "trading_client", None)
         self.ignore_market_hours = ignore_market_hours
 
     def execute_safe_sell(self, symbol: str, target_qty: float) -> str | None:
@@ -214,49 +200,11 @@ class SmartExecution:
                     )
                     return self._order_executor.place_market_order(symbol, side, notional=notional)
 
-            except DataProviderError as e:
-                logging.warning(
-                    f"Data provider error calculating quantity for {symbol}: {e}, using market order"
-                )
-                return self._order_executor.place_market_order(symbol, side, notional=notional)
-            except (ValueError, TypeError) as e:
-                logging.warning(
-                    f"Invalid data calculating quantity for {symbol}: {e}, using market order"
-                )
-                return self._order_executor.place_market_order(symbol, side, notional=notional)
-            except Exception as e:
-                logging.warning(
-                    f"Unexpected error calculating quantity for {symbol}: {e}, using market order"
-                )
-                return self._order_executor.place_market_order(symbol, side, notional=notional)
-
-        # For SELL notional orders, use market order directly
-        elif side == OrderSide.SELL and notional is not None:
-            return self._order_executor.place_market_order(symbol, side, notional=notional)
-
-        # For BUY quantity orders, round down and scale to 99%
-        elif side == OrderSide.BUY:
-            rounded_qty = int(qty * 1e6) / 1e6
-            qty = rounded_qty * 0.99
-
-        # Step 0: Pre-Check (if before market open)
-        if not is_market_open(self._order_executor.trading_client):
-            console.print(
-                f"[yellow]Market closed - assessing pre-market conditions for {symbol}[/yellow]"
-            )
-
-            premarket = spread_assessor.assess_premarket_conditions(symbol)
-            if premarket:
+            except DataProviderError:
                 console.print(
-                    f"[dim]Pre-market spread: {premarket.spread_cents:.1f}¢ ({premarket.spread_quality.value})[/dim]"
+                    f"[yellow]Price unavailable for {symbol}, using market order[/yellow]"
                 )
-                console.print(
-                    f"[dim]Recommended wait: {premarket.recommended_wait_minutes} min after open[/dim]"
-                )
-
-                # Use premarket slippage tolerance if not specified
-                if max_slippage_bps is None:
-                    max_slippage_bps = premarket.max_slippage_bps
+                return self._order_executor.place_market_order(symbol, side, notional=notional)
 
         # Step 1: Market timing and spread assessment
         strategy = timing_engine.get_execution_strategy()
@@ -265,6 +213,9 @@ class SmartExecution:
         # Get current bid/ask
         try:
             quote = self._order_executor.data_provider.get_latest_quote(symbol)
+            if not quote or len(quote) < 2:
+                console.print("[yellow]No valid quote data, using market order[/yellow]")
+                return self._order_executor.place_market_order(symbol, side, qty=qty)
             bid, ask = float(quote[0]), float(quote[1])
 
             # Check if quote is invalid (fallback zeros)
@@ -289,10 +240,12 @@ class SmartExecution:
 
                 # Re-get quote after waiting
                 quote = self._order_executor.data_provider.get_latest_quote(symbol)
-                if quote and len(quote) >= 2:
-                    bid, ask = float(quote[0]), float(quote[1])
-                    spread_analysis = spread_assessor.analyze_current_spread(symbol, bid, ask)
-                    console.print(f"[dim]Updated spread: {spread_analysis.spread_cents:.1f}¢[/dim]")
+                if not quote or len(quote) < 2:
+                    console.print("[yellow]No valid quote after wait, using market order[/yellow]")
+                    return self._order_executor.place_market_order(symbol, side, qty=qty)
+                bid, ask = float(quote[0]), float(quote[1])
+                spread_analysis = spread_assessor.analyze_current_spread(symbol, bid, ask)
+                console.print(f"[dim]Updated spread: {spread_analysis.spread_cents:.1f}¢[/dim]")
 
             # Step 2 & 3: Aggressive Marketable Limit with Re-pegging
             return self._execute_aggressive_limit_sequence(
@@ -564,6 +517,9 @@ class SmartExecution:
 
                 # Get fresh quote for re-peg pricing
                 fresh_quote = self._order_executor.data_provider.get_latest_quote(symbol)
+                if not fresh_quote or len(fresh_quote) < 2:
+                    console.print("[yellow]Invalid fresh quote, using market order[/yellow]")
+                    break
                 bid, ask = float(fresh_quote[0]), float(fresh_quote[1])
 
                 # Check if fresh quote is invalid (fallback zeros)

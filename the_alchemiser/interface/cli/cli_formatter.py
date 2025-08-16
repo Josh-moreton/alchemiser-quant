@@ -6,8 +6,10 @@ from rich.panel import Panel
 from rich.rule import Rule
 from rich.table import Table
 
+from the_alchemiser.utils.feature_flags import type_system_v2_enabled
+
 # TODO: Phase 13 - Replace dict[Any, Any] with proper CLISignalData
-# TODO: Phase 13 - Replace dict[str, Any] with AccountInfo from core.types
+# TODO: Phase 13 - Replace dict[str, Any] with AccountInfo from the_alchemiser.domain.types
 # TODO: Phase 13 - Replace dict[str, float] with CLIPortfolioData
 # TODO: Phase 13 - Replace list[dict[str, Any]] with list[CLIOrderDisplay]
 
@@ -146,7 +148,8 @@ def render_strategy_signals(
     for strategy_type, signal in strategy_signals.items():
         action = signal.get("action", "HOLD")
         symbol = signal.get("symbol", "N/A")
-        reason = signal.get("reason", "No reason provided")
+        # Support both legacy 'reason' and typed 'reasoning'
+        reason = signal.get("reason", signal.get("reasoning", "No reason provided"))
 
         # Color code by action
         if action == "BUY":
@@ -276,6 +279,25 @@ def render_orders_executed(
         c.print(detail_table)
 
 
+def _format_money(value: Any) -> str:
+    """Format value that may be a Money domain object or raw number."""
+    # Domain Money path
+    try:
+        # Money has amount (Decimal) and currency; access directly when present
+        if hasattr(value, "amount") and hasattr(value, "currency"):
+            amt = float(value.amount)
+            cur = str(value.currency)
+            symbol = "$" if cur == "USD" else f"{cur} "
+            return f"{symbol}{amt:,.2f}"
+    except Exception:
+        pass
+    # Legacy numeric path
+    try:
+        return f"${float(value):,.2f}"
+    except Exception:
+        return "-"
+
+
 def render_account_info(
     account_info: dict[str, Any], console: Console | None = None
 ) -> None:  # TODO: Phase 13 - Use AccountInfo type
@@ -295,11 +317,22 @@ def render_account_info(
     cash = account_data.get("cash", 0)
     buying_power = account_data.get("buying_power", 0)
 
+    # Feature-flagged domain Money display support
+    if type_system_v2_enabled():
+        # If account_data contains nested money fields, honor them; otherwise fallback
+        pv_display = _format_money(account_data.get("portfolio_value_money", portfolio_value))
+        cash_display = _format_money(account_data.get("cash_money", cash))
+        bp_display = _format_money(account_data.get("buying_power_money", buying_power))
+    else:
+        pv_display = f"${float(portfolio_value):,.2f}"
+        cash_display = f"${float(cash):,.2f}"
+        bp_display = f"${float(buying_power):,.2f}"
+
     # Create account summary with P&L
     content_lines = [
-        f"[bold green]Portfolio Value:[/bold green] ${float(portfolio_value):,.2f}",
-        f"[bold blue]Available Cash:[/bold blue] ${float(cash):,.2f}",
-        f"[bold yellow]Buying Power:[/bold yellow] ${float(buying_power):,.2f}",
+        f"[bold green]Portfolio Value:[/bold green] {pv_display}",
+        f"[bold blue]Available Cash:[/bold blue] {cash_display}",
+        f"[bold yellow]Buying Power:[/bold yellow] {bp_display}",
     ]
 
     # Add P&L from portfolio history if available
@@ -523,3 +556,75 @@ __all__ = [
     "render_target_vs_current_allocations",
     "render_execution_plan",
 ]
+
+
+def render_enriched_order_summaries(
+    orders: list[dict[str, Any]] | list[dict[str, Any] | Any],
+    console: Console | None = None,
+) -> None:
+    """Render enriched order summaries returned by TradingServiceManager.
+
+    Accepts a list of items where each item may be an enriched dict with a 'summary' key
+    or already a summary-like dict. Safely formats a concise table.
+    """
+    c = console or Console()
+
+    if not orders:
+        c.print(Panel("No open orders", title="Open Orders (Enriched)", style="yellow"))
+        return
+
+    # Normalize to summary dicts
+    summaries: list[dict[str, Any]] = []
+    for item in orders:
+        if isinstance(item, dict) and "summary" in item:
+            maybe = item.get("summary")
+            if isinstance(maybe, dict):
+                summaries.append(maybe)
+        elif isinstance(item, dict):
+            summaries.append(item)
+
+    if not summaries:
+        c.print(Panel("No enriched order summaries available", title="Open Orders", style="yellow"))
+        return
+
+    table = Table(title="Open Orders (Enriched)", show_lines=False, expand=True)
+    table.add_column("ID", style="dim", justify="left")
+    table.add_column("Symbol", style="bold cyan", justify="center")
+    table.add_column("Type", style="white", justify="center")
+    table.add_column("Qty", style="white", justify="right")
+    table.add_column("Limit", style="white", justify="right")
+    table.add_column("Status", style="bold", justify="center")
+    table.add_column("Created", style="dim", justify="left")
+
+    for s in summaries[:50]:  # cap to avoid very large output
+        oid = str(s.get("id", ""))
+        short_id = oid[:8] + "…" if len(oid) > 12 else oid
+        symbol = str(s.get("symbol", ""))
+        otype = str(s.get("type", "")).upper()
+        qty = s.get("qty", 0.0)
+        try:
+            qty_str = f"{float(qty):.6f}"
+        except Exception:
+            qty_str = "-"
+        limit = s.get("limit_price")
+        limit_str = _format_money(limit) if limit is not None else "-"
+        status = str(s.get("status", "")).upper()
+        created = str(s.get("created_at", ""))
+
+        status_color = (
+            "green"
+            if status == "FILLED"
+            else ("yellow" if status in {"NEW", "PARTIALLY_FILLED"} else "red")
+        )
+
+        table.add_row(
+            short_id,
+            symbol,
+            otype,
+            qty_str,
+            limit_str,
+            f"[{status_color}]{status}[/{status_color}]",
+            created,
+        )
+
+    c.print(table)

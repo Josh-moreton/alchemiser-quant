@@ -4,12 +4,16 @@ Handles trading execution with comprehensive error handling and notifications.
 """
 
 from the_alchemiser.application.execution.smart_execution import is_market_open
-from the_alchemiser.application.trading.trading_engine import TradingEngine
+from the_alchemiser.application.mapping.strategy_signal_mapping import (
+    map_signals_dict as _map_signals_to_typed,
+)
+from the_alchemiser.application.trading.engine_service import TradingEngine
 from the_alchemiser.application.types import MultiStrategyExecutionResult
 from the_alchemiser.domain.strategies.strategy_manager import StrategyType
 from the_alchemiser.infrastructure.config import Settings
 from the_alchemiser.infrastructure.logging.logging_utils import get_logger
 from the_alchemiser.interface.cli.cli_formatter import (
+    render_enriched_order_summaries,
     render_footer,
     render_header,
     render_strategy_signals,
@@ -19,6 +23,7 @@ from the_alchemiser.services.errors.exceptions import (
     StrategyExecutionError,
     TradingClientError,
 )
+from the_alchemiser.utils.feature_flags import type_system_v2_enabled
 
 
 class TradingExecutor:
@@ -56,6 +61,15 @@ class TradingExecutor:
         container = app_main._di_container
         if container is None:
             raise RuntimeError("DI container not available - ensure system is properly initialized")
+
+        # Ensure DI container respects requested trading mode before instantiation
+        try:
+            desired_paper_mode = not self.live_trading
+            # Override the paper_trading provider so downstream providers pick the right keys/endpoints
+            container.config.paper_trading.override(desired_paper_mode)
+        except Exception:
+            # Non-fatal; fallback will still set trader.paper_trading later for UI, but endpoints may remain default
+            pass
 
         trader = TradingEngine.create_with_di(
             container=container,
@@ -103,6 +117,15 @@ class TradingExecutor:
         strategy_signals, consolidated_portfolio, strategy_attribution = (
             trader.strategy_manager.run_all_strategies()
         )
+        if type_system_v2_enabled():
+            try:
+                # Visible indicator in logs when typed path is active
+                self.logger.info(
+                    "TYPES_V2_ENABLED detected: using typed StrategySignal mapping for execution"
+                )
+                strategy_signals = _map_signals_to_typed(strategy_signals)  # type: ignore[assignment]
+            except Exception:
+                pass
 
         render_strategy_signals(strategy_signals)
 
@@ -119,10 +142,33 @@ class TradingExecutor:
 
         # Execute trading
         self._show_execution_progress()
-        result = trader.execute_multi_strategy()
+        result: MultiStrategyExecutionResult = trader.execute_multi_strategy()
 
         # Display results
         trader.display_multi_strategy_summary(result)
+
+        # Optional: show enriched open orders using the new typed path under feature flag
+        try:
+            if type_system_v2_enabled():
+                # Acquire TradingServiceManager from DI container credentials
+                import the_alchemiser.main as app_main
+
+                container = app_main._di_container
+                if container is not None:
+                    api_key = container.config.alpaca_api_key()
+                    secret_key = container.config.alpaca_secret_key()
+                    paper = container.config.paper_trading()
+                    from the_alchemiser.services.trading.trading_service_manager import (
+                        TradingServiceManager,
+                    )
+
+                    tsm = TradingServiceManager(api_key, secret_key, paper=paper)
+                    open_orders = tsm.get_open_orders()
+                    if open_orders:
+                        render_enriched_order_summaries(open_orders)
+        except Exception:
+            # Non-fatal UI enhancement; ignore errors here
+            pass
 
         return result
 
@@ -202,6 +248,17 @@ class TradingExecutor:
         try:
             # Create trading engine
             trader = self._create_trading_engine()
+
+            # Indicate typed mode in console if enabled
+            if type_system_v2_enabled():
+                try:
+                    from rich.console import Console
+
+                    Console().print(
+                        "[dim]TYPES_V2_ENABLED: typed StrategySignal path is ACTIVE[/dim]"
+                    )
+                except Exception:
+                    self.logger.info("TYPES_V2_ENABLED: typed StrategySignal path is ACTIVE")
 
             # Check market hours
             if not self._check_market_hours(trader):
