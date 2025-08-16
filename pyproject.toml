@@ -38,6 +38,9 @@ pydantic-settings = ">=2.0.0"
 rich = ">=13.0.0"
 cachetools = "^6.1.0"
 dependency-injector = "^4.48.1"
+python-json-logger = "^2.0.7"
+opentelemetry-sdk = "^1.26.0"
+opentelemetry-instrumentation-logging = "^0.46b0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = ">=7.0.0"
@@ -111,6 +114,7 @@ select = [
     "C4", # flake8-comprehensions
     "UP", # pyupgrade
     "N",  # pep8-naming
+    "T20",  # flake8-print
 ]
 ignore = [
     "E501", # line too long, handled by black
@@ -121,7 +125,7 @@ fixable = ["ALL"]
 unfixable = []
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**/*" = ["B011"]  # assert False is fine in tests
+"tests/**/*" = ["B011", "T201"]  # asserts & prints allowed in tests
 
 [tool.ruff.lint.isort]
 known-first-party = ["the_alchemiser"]
@@ -193,6 +197,10 @@ module = [
     "tqdm.*",
     "yaml.*"
 ]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["opentelemetry.*", "pythonjsonlogger.*"]
 ignore_missing_imports = true
 
 # Test files - more lenient

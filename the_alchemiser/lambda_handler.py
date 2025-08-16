@@ -9,11 +9,11 @@ response formatting for AWS Lambda integration. It supports different trading
 modes based on the event payload.
 """
 
-import json
-import logging
+import os
 from typing import Any
 
 from the_alchemiser.domain.types import LambdaEvent
+from the_alchemiser.logging import configure_logging, get_logger
 from the_alchemiser.main import main
 from the_alchemiser.services.errors.exceptions import (
     DataProviderError,
@@ -22,8 +22,15 @@ from the_alchemiser.services.errors.exceptions import (
     TradingClientError,
 )
 
-# Set up logging
-logger = logging.getLogger(__name__)
+# Configure logging at cold start
+configure_logging(
+    env=os.getenv("ENV", "PROD"),
+    level=os.getenv("LOG_LEVEL"),
+    service=os.getenv("SERVICE_NAME", "alchemiser"),
+    region=os.getenv("REGION", "us-east-1"),
+    version=os.getenv("RELEASE_SHA", ""),
+)
+logger = get_logger(__name__)
 
 
 def parse_event_mode(event: LambdaEvent) -> list[str]:
@@ -55,14 +62,18 @@ def parse_event_mode(event: LambdaEvent) -> list[str]:
     # Handle empty, None, or events without mode specified
     if not event or not event.get("mode"):
         logger.info(
-            "No event or mode provided, using default paper trading mode with market hours ignored"
+            "No event or mode provided, using default paper trading mode with market hours ignored",
+            extra={"event": "lambda.default_mode"},
         )
         return default_args
 
     # Extract mode (bot or trade)
     mode = event.get("mode", "trade")
     if mode not in ["bot", "trade"]:
-        logger.warning(f"Invalid mode '{mode}', defaulting to 'trade'")
+        logger.warning(
+            "Invalid mode provided",
+            extra={"event": "lambda.invalid_mode", "mode": mode},
+        )
         mode = "trade"
 
     # Build command arguments
@@ -73,7 +84,10 @@ def parse_event_mode(event: LambdaEvent) -> list[str]:
         # Extract trading mode (paper or live)
         trading_mode = event.get("trading_mode", "live")  # Default to live when event is provided
         if trading_mode not in ["paper", "live"]:
-            logger.warning(f"Invalid trading_mode '{trading_mode}', defaulting to 'live'")
+            logger.warning(
+                "Invalid trading_mode provided",
+                extra={"event": "lambda.invalid_trading_mode", "trading_mode": trading_mode},
+            )
             trading_mode = "live"
 
         # Add live flag if specified
@@ -84,7 +98,10 @@ def parse_event_mode(event: LambdaEvent) -> list[str]:
         if event.get("ignore_market_hours", False):
             args.append("--ignore-market-hours")
 
-    logger.info(f"Parsed event to command: {' '.join(args)}")
+    logger.info(
+        "Parsed event to command",
+        extra={"event": "lambda.parsed_command", "command": " ".join(args)},
+    )
     return args
 
 
@@ -157,8 +174,8 @@ def lambda_handler(event: LambdaEvent | None = None, context: Any = None) -> dic
     request_id = getattr(context, "aws_request_id", "unknown") if context else "local"
 
     try:
-        # Log the incoming event for debugging
-        logger.info(f"Lambda invoked with event: {json.dumps(event) if event else 'None'}")
+        # Log the invocation without dumping full event to avoid PII
+        logger.info("Lambda invoked", extra={"event": "lambda.invoked"})
 
         # Parse event to determine command arguments
         command_args = parse_event_mode(event or {})
@@ -174,7 +191,10 @@ def lambda_handler(event: LambdaEvent | None = None, context: Any = None) -> dic
         else:
             trading_mode = "n/a"
 
-        logger.info(f"Executing command: {' '.join(command_args)}")
+        logger.info(
+            "Executing command",
+            extra={"event": "lambda.execute", "command": " ".join(command_args)},
+        )
 
         from the_alchemiser.infrastructure.config import load_settings
 
@@ -203,7 +223,10 @@ def lambda_handler(event: LambdaEvent | None = None, context: Any = None) -> dic
             "request_id": request_id,
         }
 
-        logger.info(f"Lambda execution completed: {response}")
+        logger.info(
+            "Lambda execution completed",
+            extra={"event": "lambda.completed", "response": response},
+        )
         return response
 
     except (DataProviderError, StrategyExecutionError, TradingClientError) as e:
@@ -224,7 +247,11 @@ def lambda_handler(event: LambdaEvent | None = None, context: Any = None) -> dic
             trading_mode=trading_mode,
             request_id=request_id,
         )
-        logger.error(error_message, exc_info=True)
+        logger.error(
+            "Lambda execution error",
+            extra={"event": "lambda.execution.error", "error": error_message},
+            exc_info=True,
+        )
 
         # Enhanced error handling with detailed reporting
         try:
@@ -248,7 +275,10 @@ def lambda_handler(event: LambdaEvent | None = None, context: Any = None) -> dic
             send_error_notification_if_needed()
 
         except NotificationError as notification_error:
-            logger.warning("Failed to send error notification: %s", notification_error)
+            logger.warning(
+                "Failed to send error notification",
+                extra={"event": "lambda.notify.failed", "error": str(notification_error)},
+            )
 
         return {
             "status": "failed",
@@ -270,7 +300,11 @@ def lambda_handler(event: LambdaEvent | None = None, context: Any = None) -> dic
             original_error=type(e).__name__,
             request_id=request_id,
         )
-        logger.error(error_message, exc_info=True)
+        logger.error(
+            "Lambda critical error",
+            extra={"event": "lambda.critical_error", "error": error_message},
+            exc_info=True,
+        )
 
         # Enhanced error handling with detailed reporting
         try:
@@ -302,7 +336,10 @@ def lambda_handler(event: LambdaEvent | None = None, context: Any = None) -> dic
             KeyError,
             TypeError,
         ) as notification_error:
-            logger.warning("Failed to send error notification: %s", notification_error)
+            logger.warning(
+                "Failed to send error notification",
+                extra={"event": "lambda.notify.failed", "error": str(notification_error)},
+            )
 
         return {
             "status": "failed",

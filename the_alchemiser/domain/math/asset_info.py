@@ -7,9 +7,11 @@ This helps optimize order placement strategies for different asset types.
 """
 
 
-import logging
 from enum import Enum
 
+from the_alchemiser.logging import get_logger
+
+logger = get_logger(__name__)
 try:
     from the_alchemiser.services.repository.alpaca_manager import AlpacaManager
 
@@ -69,12 +71,19 @@ class FractionabilityDetector:
                     self.alpaca_manager = AlpacaManager(
                         api_key=paper_api_key, secret_key=paper_secret_key, paper=True
                     )
-                    logging.info("✅ FractionabilityDetector initialized with Alpaca API access")
+                    logger.info(
+                        "✅ FractionabilityDetector initialized with Alpaca API access",
+                        extra={"event": "fractionability.init"},
+                    )
                 else:
-                    logging.warning("⚠️ No Alpaca API keys found, using fallback prediction")
+                    logger.warning(
+                        "⚠️ No Alpaca API keys found, using fallback prediction",
+                        extra={"event": "fractionability.no_keys"},
+                    )
             except Exception as e:
-                logging.warning(
-                    f"⚠️ Could not initialize AlpacaManager: {e}, using fallback prediction"
+                logger.warning(
+                    "⚠️ Could not initialize AlpacaManager",
+                    extra={"event": "fractionability.init_failed", "error": str(e)},
                 )
 
     def _query_alpaca_fractionability(self, symbol: str) -> bool | None:
@@ -95,14 +104,22 @@ class FractionabilityDetector:
             fractionable = getattr(asset, "fractionable", None)
 
             if fractionable is not None:
-                logging.debug(f"📡 Alpaca API: {symbol} fractionable = {fractionable}")
+                logger.debug(
+                    f"📡 Alpaca API: {symbol} fractionable = {fractionable}",
+                    extra={"event": "auto.migrated"},
+                )
                 return bool(fractionable)
             else:
-                logging.warning(f"⚠️ Alpaca API returned no fractionability info for {symbol}")
+                logger.warning(
+                    f"⚠️ Alpaca API returned no fractionability info for {symbol}",
+                    extra={"event": "auto.migrated"},
+                )
                 return None
 
         except Exception as e:
-            logging.warning(f"⚠️ Alpaca API error for {symbol}: {e}")
+            logger.warning(
+                f"⚠️ Alpaca API error for {symbol}: {e}", extra={"event": "auto.migrated"}
+            )
             return None
 
     def is_fractionable(self, symbol: str, use_cache: bool = True) -> bool:
@@ -121,7 +138,10 @@ class FractionabilityDetector:
         # Check cache first
         if use_cache and symbol in self._fractionability_cache:
             cached_result = self._fractionability_cache[symbol]
-            logging.debug(f"📋 Cache hit: {symbol} fractionable = {cached_result}")
+            logger.debug(
+                f"📋 Cache hit: {symbol} fractionable = {cached_result}",
+                extra={"event": "auto.migrated"},
+            )
             return cached_result
 
         # Query Alpaca API for authoritative answer
@@ -133,7 +153,10 @@ class FractionabilityDetector:
             return api_result
 
         # Fallback to backup prediction if API unavailable
-        logging.info(f"🔄 Using fallback prediction for {symbol} (API unavailable)")
+        logger.info(
+            f"🔄 Using fallback prediction for {symbol} (API unavailable)",
+            extra={"event": "auto.migrated"},
+        )
         fallback_result = self._fallback_fractionability_prediction(symbol)
 
         # Cache the fallback result with a warning
@@ -245,9 +268,10 @@ class FractionabilityDetector:
         if used_rounding:
             original_value = quantity * current_price
             new_value = whole_shares * current_price
-            logging.info(
+            logger.info(
                 f"🔄 API-confirmed non-fractionable {symbol}: {quantity:.6f} → {whole_shares} shares "
-                f"(${original_value:.2f} → ${new_value:.2f})"
+                f"(${original_value:.2f} → ${new_value:.2f})",
+                extra={"event": "auto.migrated"},
             )
 
         return float(whole_shares), used_rounding

@@ -6,14 +6,13 @@ Supports signal analysis and trading execution with dependency injection.
 """
 
 import argparse
-import logging
 import os
 import sys
 from typing import Optional
 
 from the_alchemiser.domain.strategies.strategy_manager import StrategyType
 from the_alchemiser.infrastructure.config import Settings, load_settings
-from the_alchemiser.infrastructure.logging.logging_utils import get_logger, setup_logging
+from the_alchemiser.logging import configure_logging, get_logger
 from the_alchemiser.services.errors.exceptions import (
     ConfigurationError,
     DataProviderError,
@@ -50,9 +49,15 @@ class TradingSystem:
         if DI_AVAILABLE:
             _di_container = ApplicationContainer()
             ServiceFactory.initialize(_di_container)
-            self.logger.info("Dependency injection initialized")
+            self.logger.info(
+                "Dependency injection initialized",
+                extra={"event": "di.initialized"},
+            )
         else:
-            self.logger.error("DI not available - system requires dependency injection")
+            self.logger.error(
+                "DI not available - system requires dependency injection",
+                extra={"event": "di.missing"},
+            )
             raise ConfigurationError("Dependency injection system is required but not available")
 
     def _get_strategy_allocations(self) -> dict[StrategyType, float]:
@@ -71,7 +76,10 @@ class TradingSystem:
             analyzer = SignalAnalyzer(self.settings)
             return analyzer.run()
         except (DataProviderError, StrategyExecutionError) as e:
-            self.logger.error(f"Signal analysis failed: {e}")
+            self.logger.error(
+                "Signal analysis failed",
+                extra={"event": "signal.analysis.failed", "error": str(e)},
+            )
             return False
 
     def execute_trading(
@@ -88,57 +96,21 @@ class TradingSystem:
             )
             return executor.run()
         except (TradingClientError, StrategyExecutionError) as e:
-            self.logger.error(f"Trading execution failed: {e}")
+            self.logger.error(
+                "Trading execution failed",
+                extra={"event": "trading.execution.failed", "error": str(e)},
+            )
             return False
 
 
 def configure_application_logging() -> None:
-    """Configure application logging.
-
-    Honors any logging already configured by the CLI (root handlers present),
-    and supports environment/config-driven log level via Settings.logging.level
-    or LOGGING__LEVEL env var. Avoids overriding CLI --verbose behavior.
-    """
-    is_production = os.getenv("AWS_LAMBDA_FUNCTION_NAME") is not None
-
-    # If logging already configured (e.g., by Typer CLI callback), don't override it
-    root_logger = logging.getLogger()
-    if root_logger.hasHandlers() and not is_production:
-        return
-
-    # Resolve desired level from env or settings; fallback to WARNING in dev, INFO in prod
-    level_str = os.getenv("LOGGING__LEVEL")
-    resolved_level = None
-    if level_str:
-        try:
-            resolved_level = getattr(logging, level_str.upper())
-        except Exception:
-            resolved_level = None
-
-    if resolved_level is None:
-        try:
-            # Load settings lazily to avoid circular imports
-            from the_alchemiser.infrastructure.config import load_settings  # local import
-
-            settings = load_settings()
-            resolved_level = getattr(logging, settings.logging.level.upper(), None)
-        except Exception:
-            resolved_level = None
-
-    if resolved_level is None:
-        resolved_level = logging.INFO if is_production else logging.WARNING
-
-    if is_production:
-        from the_alchemiser.infrastructure.logging.logging_utils import configure_production_logging
-
-        configure_production_logging(log_level=resolved_level, log_file=None)
-    else:
-        setup_logging(
-            log_level=resolved_level,
-            console_level=resolved_level,
-            suppress_third_party=True,
-            structured_format=False,
-        )
+    """Configure structured logging for CLI usage."""
+    env = os.getenv("ENV", "DEV")
+    level = os.getenv("LOG_LEVEL")
+    service = os.getenv("SERVICE_NAME", "alchemiser")
+    region = os.getenv("REGION", "local")
+    version = os.getenv("RELEASE_SHA", "dev")
+    configure_logging(env=env, level=level, service=service, region=region, version=version)
 
 
 def create_argument_parser() -> argparse.ArgumentParser:
@@ -215,7 +187,10 @@ def main(argv: list[str] | None = None) -> bool:
 
     except (ConfigurationError, ValueError, ImportError) as e:
         logger = get_logger(__name__)
-        logger.error(f"System error: {e}")
+        logger.error(
+            "System error",
+            extra={"event": "system.error", "error": str(e)},
+        )
         render_footer("System error occurred!")
         return False
 

@@ -33,6 +33,15 @@ repos:
         pass_filenames: true
         stages: [pre-commit]
 
+      - id: logging-call-check
+        name: Structured Log Call Check
+        entry: poetry run python scripts/check_log_calls.py
+        language: system
+        types: [python]
+        files: ^the_alchemiser/.*\.py$
+        pass_filenames: true
+        stages: [pre-commit]
+
       # Optional: Basic formatting for scripts and legacy files (no mypy)
       - id: black-format-scripts
         name: Black Format (Scripts & Legacy)
