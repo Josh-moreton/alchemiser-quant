@@ -1,0 +1,2 @@
+# Code ownership for critical modules
+/the_alchemiser/infrastructure/data_providers/unified_data_provider_facade.py @alchemiser-devs

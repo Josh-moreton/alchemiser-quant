@@ -29,7 +29,7 @@ from the_alchemiser.domain.strategies.klm_ensemble_engine import KLMStrategyEnse
 
 # Local imports
 from the_alchemiser.infrastructure.alerts.alert_service import Alert
-from the_alchemiser.infrastructure.data_providers.data_provider import UnifiedDataProvider
+from the_alchemiser.infrastructure.data_providers.unified_data_provider_facade import UnifiedDataProvider
 
 warnings.filterwarnings("ignore")
 

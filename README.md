@@ -463,7 +463,14 @@ class TradingEngine:
 
 ### Data Provider Architecture
 
-**Unified Data Access** (`core/data/data_provider.py`):
+#### Data Provider Facade
+
+All services now import `UnifiedDataProvider` from
+`the_alchemiser.infrastructure.data_providers.unified_data_provider_facade`.
+The facade preserves the legacy interface while delegating to modular
+services. The old `data_provider.py` module is deprecated.
+
+**Unified Data Access**:
 
 - **Real-time Priority**: WebSocket data preferred over REST
 - **Automatic Fallbacks**: REST API backup for real-time failures
