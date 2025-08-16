@@ -1,3 +1,6 @@
+import pytest
+
+from tests._tolerances import DEFAULT_ATL
 from the_alchemiser.application.mapping.strategy_signal_mapping import (
     legacy_signal_to_typed,
 )
@@ -15,9 +18,11 @@ def test_legacy_to_typed_basic_buy():
 
     assert typed["symbol"] == "AAPL"
     assert typed["action"] == "BUY"
-    assert typed["confidence"] == 0.75
+    # Sonar rule: avoid direct float comparison (IEEE-754 rounding).
+    assert typed["confidence"] == pytest.approx(0.75, rel=1e-9, abs=DEFAULT_ATL)
     assert typed["reasoning"] == "RSI oversold"
-    assert typed["allocation_percentage"] == 25.0
+    # Sonar rule: avoid direct float comparison (IEEE-754 rounding).
+    assert typed["allocation_percentage"] == pytest.approx(25.0, rel=1e-9, abs=DEFAULT_ATL)
 
 
 def test_legacy_to_typed_action_enum_like():

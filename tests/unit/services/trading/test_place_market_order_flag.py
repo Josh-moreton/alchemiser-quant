@@ -4,6 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from tests._tolerances import DEFAULT_ATL
 from the_alchemiser.services.trading.trading_service_manager import TradingServiceManager
 
 
@@ -97,6 +98,9 @@ def test_place_market_order_typed(monkeypatch: pytest.MonkeyPatch):
         assert out["success"] is True
         assert "order" in out
         assert out["order"]["summary"]["symbol"] == "MSFT"
-        assert out["order"]["summary"]["qty"] == 10.0
+        # Sonar rule: avoid direct float comparison (IEEE-754 rounding).
+        assert out["order"]["summary"]["qty"] == pytest.approx(
+            10.0, rel=1e-9, abs=DEFAULT_ATL
+        )
     finally:
         builtins.__import__ = real_import  # type: ignore[assignment]
