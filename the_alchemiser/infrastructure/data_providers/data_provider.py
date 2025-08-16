@@ -1,4 +1,12 @@
-"""Unified historical and real-time market data access layer."""
+"""Unified historical and real-time market data access layer.
+
+This legacy module is retained temporarily for parity tests.
+Do not edit. All new code must import the facade implementation.
+TODO: flip ImportError and delete after 2025-01-01.
+"""
+
+import os
+import warnings
 
 import logging
 import time
@@ -19,6 +27,17 @@ from the_alchemiser.services.errors.exceptions import (
     DataProviderError,
     MarketDataError,
     TradingClientError,
+)
+
+if os.getenv("IMPORTERROR_ON_LEGACY") == "1":
+    raise ImportError(
+        "Legacy data_provider.py is deprecated; use unified_data_provider_facade instead."
+    )
+warnings.warn(
+    "the_alchemiser.infrastructure.data_providers.data_provider is deprecated; "
+    "use unified_data_provider_facade",
+    DeprecationWarning,
+    stacklevel=2,
 )
 
 # TODO: Phase 11 - Types available for future migration to structured data types

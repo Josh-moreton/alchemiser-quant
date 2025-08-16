@@ -183,8 +183,8 @@ class UnifiedDataProviderFacade:
             self._error_handler.log_and_handle(e, {"symbol": symbol}, None)
             return None
 
-    @handle_service_errors(default_return={})
-    def get_account_info(self, **kwargs: Any) -> dict[str, Any]:
+    @handle_service_errors(default_return=None)
+    def get_account_info(self, **kwargs: Any) -> dict[str, Any] | None:
         """
         Get account information - maintains exact original interface.
 
@@ -192,13 +192,13 @@ class UnifiedDataProviderFacade:
             **kwargs: Additional arguments for backward compatibility
 
         Returns:
-            Dictionary with account information
+            Dictionary with account information or None on failure
         """
         account_model = self._account_service.get_account_info()
         if account_model:
             # Convert TypedDict to plain dict for broader compatibility
             return cast(dict[str, Any], dict(account_model.to_dict()))
-        return {}
+        return None
 
     @handle_service_errors(default_return=[])
     def get_positions(self, **kwargs: Any) -> list[dict[str, Any]]:

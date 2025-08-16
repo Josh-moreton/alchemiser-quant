@@ -122,7 +122,7 @@ class MultiStrategyManager:
 
         # Use provided shared_data_provider, or create one if not given
         if shared_data_provider is None:
-            from the_alchemiser.infrastructure.data_providers.data_provider import (
+            from the_alchemiser.infrastructure.data_providers.unified_data_provider_facade import (
                 UnifiedDataProvider,
             )
 
