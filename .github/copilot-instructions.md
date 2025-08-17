@@ -38,6 +38,15 @@ The Alchemiser is a sophisticated multi-strategy quantitative trading system bui
 - **Decimals only for money/qty**: Always use `Decimal` for financial values
 - **Protocols for boundaries**: Repository interfaces live under `domain/**/protocols/` and are implemented in `infrastructure/`
 
+### No Legacy Fallback Policy (MANDATORY)
+- Do NOT add legacy fallbacks in new or refactored code. If a modern service/method fails, surface a clear error; do not silently fall back to legacy implementations.
+- Prohibited in production code:
+    - Importing or instantiating legacy monolith provider: `the_alchemiser.infrastructure.data_providers.data_provider.UnifiedDataProvider`
+    - Calling legacy adapters/methods like `AccountService.get_account_info_legacy`, `get_positions_dict` for runtime behavior
+    - Wiring "data_provider" parameters to modern services to enable legacy paths outside of tests
+- Allowed only in tests for contract/parity verification; never in application, services, or infrastructure code paths executed in production.
+- If a typed/modern path is unavailable, implement it or raise a typed exception (prefer explicit failure over hidden legacy execution).
+
 ### TypedDict vs Dataclass/Pydantic
 - **TypedDict**: Use for data exchanged at system boundaries or for record-style containers that are serialized to
   JSON/dicts. Keep it for external API payloads (e.g. `AccountInfo`, `PositionInfo`, `OrderDetails`), transient
@@ -65,7 +74,7 @@ The project is migrating to a strongly-typed Domain-Driven Design model behind a
 
 ### Feature flag
 - `TYPES_V2_ENABLED` (truthy: `1`, `true`, `yes`, `on`)
-- When ON, selected slices run through typed domain + mappers while legacy remains as fallback
+- When ON, selected slices run through typed domain + mappers. Legacy is DEPRECATED and MUST NOT be used as a runtime fallback. If typed path errors, fail fast with explicit errors and fix the typed path.
 
 ### Migrated slices (flagged)
 - Portfolio value parity via `TradingServiceManager`
@@ -75,6 +84,8 @@ The project is migrating to a strongly-typed Domain-Driven Design model behind a
 - Open orders retrieval mapped to typed domain structures
 - StrategySignal mapping and usage in execution + CLI
 
+Legacy deprecation stance: do not add new call sites to any legacy module. Any remaining legacy code exists only for historical tests and will be removed.
+
 ### Contributor rules for Typed Domain V2
 - Domain purity: no framework or network imports in `the_alchemiser/domain/**` (no Pydantic, requests, logging)
 - Use `@dataclass(frozen=True)` for value objects; entities hold behavior
@@ -82,11 +93,15 @@ The project is migrating to a strongly-typed Domain-Driven Design model behind a
 - Put all boundary mappings in `application/mapping/`
 - Use `Decimal` for money/quantities; normalize in mappers
 - Prefer `Protocol` interfaces under `domain/**/protocols/`; implement in services/infra
+- Do NOT introduce fallbacks to legacy modules. Replace functionality by extending typed services and mappers.
 
 ### Testing the typed path
 - Add parity tests for flag ON/OFF when behavior should match
 - Unit test mappers (infra ↔ domain ↔ DTO) with realistic fixtures
 - Mock external APIs (pytest-mock fixtures) – never hit real services in tests
+
+Legacy in tests only:
+- Parity/contract tests may stub legacy provider behavior to assert output equivalence, but facade/modern paths must be stubbed and exercised primarily. Do not write new tests that expect legacy fallbacks to trigger inside production code.
 
 ### Error Handling Patterns
 **Never fail silently** - Always use proper exception handling:
@@ -270,6 +285,19 @@ result = trading_manager.execute_smart_order(
 # Enhanced position management
 positions = trading_manager.get_all_positions()
 portfolio_value = trading_manager.get_portfolio_value()
+
+Prohibited pattern examples (do not do this):
+```python
+# ❌ No legacy provider wiring
+from the_alchemiser.infrastructure.data_providers.data_provider import UnifiedDataProvider
+dp = UnifiedDataProvider()  # Not allowed in new code
+
+# ❌ No runtime legacy fallback
+try:
+    positions = trading_manager.get_all_positions()
+except Exception:
+    positions = legacy_dp.get_positions()  # Not allowed
+```
 ```
 
 ### Money and Precision
@@ -402,8 +430,15 @@ TYPES_V2_ENABLED=true            # Enable typed domain v2 slices (truthy: 1/true
 8. **Test isolation**: Mock all external APIs in tests, use fixtures from `conftest.py`
 9. **Forgetting Poetry**: ALWAYS use `poetry run` for Python commands - never use bare `python`
 10. **Documentation in wrong place**: Use the `alchemiser-quant.wiki` workspace for documentation, not the main repo
+11. **Legacy fallbacks**: Never add conditional fallbacks to legacy modules; fail fast and fix the typed/modern path instead.
 
 ### General Fix Policy
 - **No short-term patches or hotfixes**: All changes must be robust, thoroughly tested, and designed for long-term maintainability.
 - **Avoid technical debt**: Implement solutions that address root causes rather than applying temporary workarounds.
 - **Refactor with care**: Ensure all refactors maintain existing functionality and are covered by tests.
+
+### Code Review Checklist (No-Legacy)
+- [ ] No imports from `infrastructure/data_providers/data_provider.py` or other legacy modules in production code
+- [ ] No parameters enabling legacy paths (e.g., `data_provider=`) outside tests
+- [ ] Failure paths raise typed exceptions or return explicit error structures; no hidden fallbacks
+- [ ] Tests target typed/modern services; parity tests do not rely on runtime legacy fallback
