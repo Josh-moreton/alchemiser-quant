@@ -55,6 +55,7 @@ export TYPES_V2_ENABLED=0   # or: false / no / off
 - Place all boundary mapping in `the_alchemiser/application/mapping/`
 - Use `Decimal` for all financial/quantity values; normalize in mappers
 - Prefer `Protocol` for repository/service interfaces under `domain/**/protocols/`; implemented in `infrastructure/` or `services/`
+- **See [Mapping Boundaries Documentation](docs/typing-migration/mapping-boundaries.md)** for detailed guidance on DTO ↔ Domain ↔ Infra translations
 
 ### Testing the Typed Path
 - Add parity tests for flag ON vs OFF where behavior should be identical
