@@ -2,9 +2,9 @@
 
 from dependency_injector import containers, providers
 
-# Use the facade implementation for all data provider access
-from the_alchemiser.infrastructure.data_providers.unified_data_provider_facade import (
-    UnifiedDataProvider,
+from the_alchemiser.services.market_data.market_data_service import MarketDataService
+from the_alchemiser.services.market_data.typed_data_provider_adapter import (
+    TypedDataProviderAdapter,
 )
 from the_alchemiser.services.repository.alpaca_manager import AlpacaManager
 
@@ -23,10 +23,17 @@ class InfrastructureProviders(containers.DeclarativeContainer):
         paper=config.paper_trading,
     )
 
-    # Data provider for strategies
+    # Data provider for strategies: typed adapter returning DataFrames (temporary)
     data_provider = providers.Singleton(
-        UnifiedDataProvider,
-        paper_trading=config.paper_trading,
+        TypedDataProviderAdapter,
+        api_key=config.alpaca_api_key,
+        secret_key=config.alpaca_secret_key,
+    )
+
+    # Typed market data service (new path)
+    market_data_service = providers.Singleton(
+        MarketDataService,
+        market_data_repo=alpaca_manager,
     )
 
     # Backward compatibility: provide same interface

@@ -81,6 +81,7 @@ class MultiStrategyManager:
         self,
         strategy_allocations: dict[StrategyType, float] | None = None,
         shared_data_provider: Any = None,
+        market_data_port: Any | None = None,
         config: Any = None,
     ):
         """
@@ -120,13 +121,11 @@ class MultiStrategyManager:
         if abs(total_allocation - 1.0) > 0.01:
             raise ValueError(f"Strategy allocations must sum to 1.0, got {total_allocation}")
 
-        # Use provided shared_data_provider, or create one if not given
+        # Use provided shared_data_provider; no new creation of legacy facade here
         if shared_data_provider is None:
-            from the_alchemiser.infrastructure.data_providers.unified_data_provider_facade import (
-                UnifiedDataProvider,
-            )
+            raise ValueError("shared_data_provider is required (temporary adapter provided via DI)")
 
-            shared_data_provider = UnifiedDataProvider(paper_trading=True)
+        self._market_data_port = market_data_port
 
         # Create strategy engines using the registry
         self.strategy_engines = {}
@@ -226,10 +225,32 @@ class MultiStrategyManager:
                 if i > 0:
                     time.sleep(0.1)  # 100ms delay between requests
 
-                data = shared_data_provider.get_data(symbol)
-                if not data.empty:
-                    market_data[symbol] = data
-                    logging.debug(f"Successfully fetched data for {symbol}: {len(data)} bars")
+                if self._market_data_port is not None:
+                    # Typed path: fetch domain bars and convert to pandas for existing engines
+                    try:
+                        from the_alchemiser.application.mapping.pandas_time_series import (
+                            bars_to_dataframe,
+                        )
+                        from the_alchemiser.domain.shared_kernel.value_objects.symbol import (
+                            Symbol,
+                        )
+
+                        bars = self._market_data_port.get_bars(
+                            Symbol(symbol), period="1y", timeframe="1day"
+                        )
+                        df = bars_to_dataframe(bars)
+                    except Exception as e:
+                        logging.warning(
+                            f"Typed market data fetch failed for {symbol}: {type(e).__name__}: {e}; falling back to adapter"
+                        )
+                        df = shared_data_provider.get_data(symbol)
+                else:
+                    # Legacy-compatible adapter path
+                    df = shared_data_provider.get_data(symbol)
+
+                if hasattr(df, "empty") and not df.empty:
+                    market_data[symbol] = df
+                    logging.debug(f"Successfully fetched data for {symbol}: {len(df)} bars")
                 else:
                     logging.warning(f"No data returned for {symbol}")
             except Exception as e:

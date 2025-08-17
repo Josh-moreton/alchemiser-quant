@@ -11,9 +11,6 @@ from the_alchemiser.application.mapping.strategy_signal_mapping import (
 )
 from the_alchemiser.domain.strategies.strategy_manager import MultiStrategyManager, StrategyType
 from the_alchemiser.infrastructure.config import Settings
-from the_alchemiser.infrastructure.data_providers.unified_data_provider_facade import (
-    UnifiedDataProvider,
-)
 from the_alchemiser.infrastructure.logging.logging_utils import get_logger
 from the_alchemiser.interface.cli.cli_formatter import (
     render_footer,
@@ -42,13 +39,22 @@ class SignalAnalyzer:
 
     def _generate_signals(self) -> tuple[dict[StrategyType, dict[str, Any]], dict[str, float]]:
         """Generate strategy signals."""
-        # Create shared data provider respecting configured trading mode
-        shared_data_provider = UnifiedDataProvider(paper_trading=self.settings.alpaca.paper_trading)
+        # Acquire DI container initialized by main entry point
+        import the_alchemiser.main as app_main
+
+        container = app_main._di_container
+        if container is None:
+            raise RuntimeError("DI container not available - ensure system is properly initialized")
+
+        # Use typed adapter for engines (DataFrame compatibility) and typed port for fetching
+        shared_data_provider = container.infrastructure.data_provider()
+        market_data_port = container.infrastructure.market_data_service()
 
         # Create strategy manager with proper allocations
         strategy_allocations = self._get_strategy_allocations()
         manager = MultiStrategyManager(
             shared_data_provider=shared_data_provider,
+            market_data_port=market_data_port,
             config=self.settings,
             strategy_allocations=strategy_allocations,
         )

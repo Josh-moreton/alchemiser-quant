@@ -6,13 +6,22 @@ This service builds on the MarketDataRepository interface to provide:
 - Data validation and quality checks
 - Batch operations for multiple symbols
 - Market timing and schedule awareness
+
+Typed Domain additions:
+- Implements methods compatible with MarketDataPort (get_bars, get_latest_quote, get_mid_price)
+    to support the Typed Domain V2 migration without legacy fallbacks.
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
+from decimal import Decimal
 from typing import Any
 
+from the_alchemiser.application.mapping.market_data_mappers import bars_to_domain
 from the_alchemiser.domain.interfaces import MarketDataRepository
+from the_alchemiser.domain.market_data.models.bar import BarModel
+from the_alchemiser.domain.market_data.models.quote import QuoteModel
+from the_alchemiser.domain.shared_kernel.value_objects.symbol import Symbol
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +54,66 @@ class MarketDataService:
         self._enable_validation = enable_validation
         self._price_cache: dict[str, tuple[float, datetime]] = {}
         self._quote_cache: dict[str, tuple[tuple[float, float], datetime]] = {}
+
+    # --- Typed Domain V2: MarketDataPort-compatible methods ---
+    def get_bars(self, symbol: Symbol, period: str, timeframe: str) -> list[BarModel]:
+        """Fetch historical bars mapped to domain models (BarModel list).
+
+        Args:
+            symbol: Domain Symbol
+            period: e.g., '1y', '6mo', '3mo', '1mo', '200d'
+            timeframe: e.g., '1d', '1h', '1m', '5m', '15m'
+
+        Returns:
+            List[BarModel] (may be empty on failure)
+        """
+        try:
+            # Map period to start/end ISO strings
+            end_dt = datetime.now()
+            start_dt = end_dt - timedelta(days=self._map_period_to_days(period))
+            start_iso = start_dt.date().isoformat()
+            end_iso = end_dt.date().isoformat()
+
+            repo_timeframe = self._map_timeframe_for_repo(timeframe)
+
+            rows = self._market_data.get_historical_bars(
+                symbol=str(symbol), start_date=start_iso, end_date=end_iso, timeframe=repo_timeframe
+            )
+            return bars_to_domain(rows)
+        except Exception as e:
+            logger.error(
+                f"Failed to fetch bars for {symbol} period={period} timeframe={timeframe}: {e}"
+            )
+            return []
+
+    def get_latest_quote(self, symbol: Symbol) -> QuoteModel | None:
+        """Fetch latest quote and map to domain QuoteModel.
+
+        Note: Repository interface returns a (bid, ask) tuple; timestamp may be unavailable.
+        """
+        try:
+            quote = self._market_data.get_latest_quote(str(symbol))
+            if quote is None:
+                return None
+            bid, ask = quote
+            # Validate basic positivity similar to _is_valid_price
+            if bid <= 0 or ask <= 0 or bid >= ask:
+                logger.warning(f"Invalid latest quote for {symbol}: bid={bid}, ask={ask}")
+                return None
+            return QuoteModel(ts=None, bid=Decimal(str(bid)), ask=Decimal(str(ask)))
+        except Exception as e:
+            logger.error(f"Failed to fetch latest quote for {symbol}: {e}")
+            return None
+
+    def get_mid_price(self, symbol: Symbol) -> float | None:
+        """Return mid price from latest quote as float (protocol-compatible)."""
+        q = self.get_latest_quote(symbol)
+        if q is None:
+            return None
+        try:
+            return float(q.mid)
+        except Exception:
+            return None
 
     def get_validated_price(self, symbol: str, max_age_seconds: int | None = None) -> float | None:
         """
@@ -286,3 +355,27 @@ class MarketDataService:
             # Don't return False here, just warn - wide spreads can be legitimate
 
         return True
+
+    # --- helpers ---
+    def _map_period_to_days(self, period: str) -> int:
+        mapping: dict[str, int] = {
+            "1y": 365,
+            "6mo": 180,
+            "3mo": 90,
+            "1mo": 30,
+            "200d": 200,
+        }
+        return mapping.get(period, 365)
+
+    def _map_timeframe_for_repo(self, tf: str) -> str:
+        tf_norm = tf.lower().strip()
+        if tf_norm in {"1d", "1day", "day", "d"}:
+            return "1Day"
+        if tf_norm in {"1h", "1hour", "hour", "h"}:
+            return "1Hour"
+        if tf_norm in {"15m", "15min"}:
+            return "15Min"
+        if tf_norm in {"5m", "5min"}:
+            return "5Min"
+        # default minute granularity
+        return "1Min"
