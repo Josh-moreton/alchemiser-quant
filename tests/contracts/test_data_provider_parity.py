@@ -93,10 +93,11 @@ def provider(request, monkeypatch):
             "get_latest_quote",
             lambda symbol: (10.0, 10.2),
         )
+        # Modern path stubs
         monkeypatch.setattr(
-            prov._account_service,
+            prov._trading_client_service,
             "get_account_info",
-            lambda: SimpleNamespace(to_dict=lambda: {"equity": 1000}),
+            lambda: {"equity": 1000},
         )
         # Positions now flow through the modern trading client service
         monkeypatch.setattr(
