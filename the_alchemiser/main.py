@@ -91,6 +91,71 @@ class TradingSystem:
             self.logger.error(f"Trading execution failed: {e}")
             return False
 
+    def generate_monthly_summary(
+        self, target_month: str | None = None, live_trading: bool = False
+    ) -> bool:
+        """Generate and send monthly trading summary."""
+        from datetime import datetime
+
+        from the_alchemiser.application.reporting.monthly_summary_service import (
+            MonthlySummaryService,
+        )
+        from the_alchemiser.interface.email.client import send_email_notification
+        from the_alchemiser.interface.email.templates.monthly_summary import MonthlySummaryBuilder
+
+        try:
+            # Parse target month if provided
+            target_month_dt = None
+            if target_month:
+                try:
+                    target_month_dt = datetime.strptime(target_month, "%Y-%m")
+                except ValueError:
+                    self.logger.error(f"Invalid month format: {target_month}. Use YYYY-MM format.")
+                    return False
+
+            paper_trading = not live_trading
+
+            # Get API credentials
+            alpaca_api_key = self.settings.alpaca.api_key
+            alpaca_secret_key = self.settings.alpaca.secret_key
+
+            if not alpaca_api_key or not alpaca_secret_key:
+                self.logger.error("Alpaca API credentials not found in settings")
+                return False
+
+            self.logger.info(f"Generating monthly summary - Paper trading: {paper_trading}")
+
+            # Generate monthly summary
+            summary_service = MonthlySummaryService(
+                api_key=alpaca_api_key, secret_key=alpaca_secret_key, paper=paper_trading
+            )
+
+            summary_data = summary_service.generate_monthly_summary(target_month_dt)
+
+            # Build email content
+            email_html = MonthlySummaryBuilder.build_monthly_summary_email(summary_data)
+
+            # Send email notification
+            month_name = summary_data.get("month", "Unknown")
+            subject = f"The Alchemiser - Monthly Summary ({month_name})"
+
+            # Add trading mode to subject if paper trading
+            if paper_trading:
+                subject += " [PAPER]"
+
+            send_email_notification(
+                subject=subject,
+                html_content=email_html,
+                plain_text_content=f"Monthly trading summary for {month_name}. Please view HTML version for full details.",
+            )
+
+            self.logger.info(f"Monthly summary for {month_name} generated and sent successfully")
+            return True
+
+        except (DataProviderError, TradingClientError) as e:
+            self.logger.error(f"Monthly summary generation failed: {e}")
+            return False
+
 
 def configure_application_logging() -> None:
     """Configure application logging.
@@ -151,13 +216,15 @@ Examples:
   alchemiser signal                    # Analyze signals
   alchemiser trade                     # Paper trading
   alchemiser trade --live              # Live trading
+  alchemiser monthly-summary           # Generate monthly summary
+  alchemiser monthly-summary --month 2024-01  # Summary for specific month
         """,
     )
 
     parser.add_argument(
         "mode",
-        choices=["signal", "trade"],
-        help="Operation mode: signal (analyze only) or trade (execute)",
+        choices=["signal", "trade", "monthly-summary"],
+        help="Operation mode: signal (analyze only), trade (execute), or monthly-summary (generate monthly report)",
     )
 
     parser.add_argument(
@@ -166,6 +233,11 @@ Examples:
 
     parser.add_argument(
         "--ignore-market-hours", action="store_true", help="Override market hours check"
+    )
+
+    parser.add_argument(
+        "--month",
+        help="Target month for monthly summary (YYYY-MM format, defaults to previous month)",
     )
 
     return parser
@@ -191,8 +263,12 @@ def main(argv: list[str] | None = None) -> bool:
     system = TradingSystem()
 
     # Display header
-    mode_label = "LIVE TRADING ⚠️" if args.mode == "trade" and args.live else "Paper Trading"
-    render_header("The Alchemiser Trading System", f"{args.mode.upper()} | {mode_label}")
+    if args.mode == "monthly-summary":
+        mode_label = "LIVE MODE ⚠️" if args.live else "Paper Mode"
+        render_header("The Alchemiser Trading System", f"MONTHLY SUMMARY | {mode_label}")
+    else:
+        mode_label = "LIVE TRADING ⚠️" if args.mode == "trade" and args.live else "Paper Trading"
+        render_header("The Alchemiser Trading System", f"{args.mode.upper()} | {mode_label}")
 
     # Execute operation
     try:
@@ -201,6 +277,10 @@ def main(argv: list[str] | None = None) -> bool:
         elif args.mode == "trade":
             success = system.execute_trading(
                 live_trading=args.live, ignore_market_hours=args.ignore_market_hours
+            )
+        elif args.mode == "monthly-summary":
+            success = system.generate_monthly_summary(
+                target_month=args.month, live_trading=args.live
             )
         else:
             success = False

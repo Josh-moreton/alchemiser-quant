@@ -18,6 +18,7 @@ from typing import Any
 # Import the specialized builders
 from .base import BaseEmailTemplate
 from .error_report import ErrorReportBuilder
+from .monthly_summary import MonthlySummaryBuilder
 from .multi_strategy import MultiStrategyReportBuilder
 from .performance import PerformanceBuilder
 from .portfolio import PortfolioBuilder
@@ -26,6 +27,7 @@ from .signals import SignalsBuilder
 __all__ = [
     "BaseEmailTemplate",
     "ErrorReportBuilder",
+    "MonthlySummaryBuilder",
     "MultiStrategyReportBuilder",
     "PerformanceBuilder",
     "PortfolioBuilder",
@@ -42,6 +44,12 @@ class EmailTemplates:
     def build_multi_strategy_report_neutral(*args: Any, **kwargs: Any) -> str:
         """Build a neutral multi-strategy report email without financial values."""
         return MultiStrategyReportBuilder.build_multi_strategy_report_neutral(*args, **kwargs)
+
+    # Monthly summary reports
+    @staticmethod
+    def build_monthly_summary_email(*args: Any, **kwargs: Any) -> str:
+        """Build a monthly summary email."""
+        return MonthlySummaryBuilder.build_monthly_summary_email(*args, **kwargs)
 
     # Error reports
     @staticmethod

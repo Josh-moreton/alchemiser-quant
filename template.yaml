@@ -90,6 +90,19 @@ Resources:
         - !Ref DependenciesLayer
       # No Events here - using separate EventBridge Scheduler below
 
+  MonthlySummaryFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: the-alchemiser-monthly-summary
+      PackageType: Zip
+      Runtime: python3.12
+      CodeUri: .
+      Handler: the_alchemiser.monthly_summary_handler.monthly_summary_lambda_handler
+      Role: !GetAtt TradingSystemExecutionRole.Arn
+      Layers:
+        - !Ref DependenciesLayer
+      # No Events here - using separate EventBridge Scheduler below
+
   # Dead Letter Queue for failed trading executions
   TradingSystemDLQ:
     Type: AWS::SQS::Queue
@@ -122,6 +135,29 @@ Resources:
           Arn: !GetAtt TradingSystemDLQ.Arn
       State: "ENABLED"
 
+  # Monthly Summary EventBridge Scheduler
+  MonthlySummarySchedule:
+    Type: AWS::Scheduler::Schedule
+    Properties:
+      Name: the-alchemiser-monthly-summary
+      Description: "Generate and send monthly trading summary on the first day of each month"
+      ScheduleExpression: "cron(0 10 1 * ? *)"  # 10:00 AM on the 1st of every month
+      ScheduleExpressionTimezone: "America/New_York"
+      FlexibleTimeWindow:
+        Mode: "OFF"
+      Target:
+        Arn: !GetAtt MonthlySummaryFunction.Arn
+        RoleArn: !GetAtt SchedulerExecutionRole.Arn
+        Input: |
+          {
+            "trading_mode": "live"
+          }
+        RetryPolicy:
+          MaximumRetryAttempts: 2 # Allow retries for monthly summary
+        DeadLetterConfig:
+          Arn: !GetAtt TradingSystemDLQ.Arn
+      State: "ENABLED"
+
   # IAM Role for EventBridge Scheduler to invoke Lambda
   SchedulerExecutionRole:
     Type: AWS::IAM::Role
@@ -141,7 +177,9 @@ Resources:
               - Effect: Allow
                 Action:
                   - lambda:InvokeFunction
-                Resource: !GetAtt TradingSystemFunction.Arn
+                Resource: 
+                  - !GetAtt TradingSystemFunction.Arn
+                  - !GetAtt MonthlySummaryFunction.Arn
               - Effect: Allow
                 Action:
                   - sqs:SendMessage
@@ -207,6 +245,10 @@ Outputs:
   TradingSystemFunction:
     Description: "Quantitative Trading System Lambda Function ARN"
     Value: !GetAtt TradingSystemFunction.Arn
+
+  MonthlySummaryFunction:
+    Description: "Monthly Summary Lambda Function ARN"
+    Value: !GetAtt MonthlySummaryFunction.Arn
 
   TradingSystemLogGroup:
     Description: "CloudWatch Log Group for monitoring"
