@@ -290,8 +290,10 @@ class MonthlySummaryService:
 
             # Sort by market value (absolute value)
             position_list.sort(
-                key=lambda x: abs(x["market_value"]) if isinstance(x["market_value"], (int, float)) else 0, 
-                reverse=True
+                key=lambda x: (
+                    abs(x["market_value"]) if isinstance(x["market_value"], int | float) else 0
+                ),
+                reverse=True,
             )
 
             return {

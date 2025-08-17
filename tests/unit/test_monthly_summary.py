@@ -5,9 +5,10 @@ Test suite for monthly summary functionality.
 This module tests the monthly summary service and email template generation.
 """
 
-import pytest
 from datetime import datetime
 from unittest.mock import Mock, patch
+
+import pytest
 
 from the_alchemiser.application.reporting.monthly_summary_service import MonthlySummaryService
 from the_alchemiser.interface.email.templates.monthly_summary import MonthlySummaryBuilder
@@ -29,7 +30,7 @@ class TestMonthlySummaryService:
         # Mock AlpacaManager methods
         mock_alpaca_instance = Mock()
         mock_alpaca.return_value = mock_alpaca_instance
-        
+
         # Mock account data
         mock_alpaca_instance.get_account.return_value = {
             "portfolio_value": 100000.0,
@@ -39,14 +40,14 @@ class TestMonthlySummaryService:
             "day_trades_remaining": 3,
             "status": "ACTIVE",
         }
-        
+
         # Mock portfolio history
         mock_alpaca_instance.get_portfolio_history.return_value = {
             "equity": [95000.0, 98000.0, 100000.0],
             "profit_loss": [0.0, 3000.0, 5000.0],
             "timestamp": ["2024-01-01", "2024-01-15", "2024-01-31"],
         }
-        
+
         # Mock trading activities
         mock_alpaca_instance.get_activities.return_value = [
             {
@@ -57,19 +58,19 @@ class TestMonthlySummaryService:
                 "date": "2024-01-15",
             },
             {
-                "symbol": "AAPL", 
+                "symbol": "AAPL",
                 "side": "SELL",
                 "qty": 5.0,
                 "price": 160.0,
                 "date": "2024-01-25",
             },
         ]
-        
+
         # Mock positions
         mock_alpaca_instance.get_positions.return_value = []
         mock_alpaca_instance.get_positions_dict.return_value = {}
         mock_alpaca_instance.get_current_prices.return_value = {}
-        
+
         # Mock strategy tracker
         mock_tracker_instance = Mock()
         mock_tracker.return_value = mock_tracker_instance
@@ -78,9 +79,9 @@ class TestMonthlySummaryService:
         # Create service and generate summary
         service = MonthlySummaryService("test_key", "test_secret", paper=True)
         target_month = datetime(2024, 1, 1)
-        
+
         summary = service.generate_monthly_summary(target_month)
-        
+
         # Verify summary structure
         assert "month" in summary
         assert "account_summary" in summary
@@ -90,7 +91,7 @@ class TestMonthlySummaryService:
         assert "fees_and_costs" in summary
         assert "positions_summary" in summary
         assert "generated_at" in summary
-        
+
         # Verify specific data
         assert summary["month"] == "January 2024"
         assert summary["account_summary"]["portfolio_value"] == 100000.0
@@ -100,24 +101,28 @@ class TestMonthlySummaryService:
 
     def test_generate_monthly_summary_default_month(self):
         """Test monthly summary with default month (previous month)."""
-        with patch("the_alchemiser.application.reporting.monthly_summary_service.AlpacaManager") as mock_alpaca:
+        with patch(
+            "the_alchemiser.application.reporting.monthly_summary_service.AlpacaManager"
+        ) as mock_alpaca:
             mock_alpaca_instance = Mock()
             mock_alpaca.return_value = mock_alpaca_instance
-            
+
             # Mock minimal data to avoid errors
             mock_alpaca_instance.get_account.return_value = {}
             mock_alpaca_instance.get_portfolio_history.return_value = None
             mock_alpaca_instance.get_activities.return_value = []
             mock_alpaca_instance.get_positions.return_value = []
-            
-            with patch("the_alchemiser.application.reporting.monthly_summary_service.get_strategy_tracker") as mock_tracker:
+
+            with patch(
+                "the_alchemiser.application.reporting.monthly_summary_service.get_strategy_tracker"
+            ) as mock_tracker:
                 mock_tracker_instance = Mock()
                 mock_tracker.return_value = mock_tracker_instance
                 mock_tracker_instance.get_all_strategy_pnl.return_value = {}
-                
+
                 service = MonthlySummaryService("test_key", "test_secret", paper=True)
                 summary = service.generate_monthly_summary()
-                
+
                 # Should generate for previous month
                 assert "month" in summary
                 assert summary["month"] is not None
@@ -193,19 +198,19 @@ class TestMonthlySummaryBuilder:
                 "note": "Alpaca provides commission-free trading",
             },
         }
-        
+
         # Generate email HTML
         html = MonthlySummaryBuilder.build_monthly_summary_email(summary_data)
-        
+
         # Verify HTML contains key elements
         assert "January 2024" in html
         assert "Monthly Trading Summary" in html
         assert "$100,000" in html  # Portfolio value
-        assert "+$5,000" in html   # Monthly return
-        assert "+5.3%" in html     # Return percentage
-        assert "10" in html        # Total trades
-        assert "NUCLEAR" in html   # Strategy name
-        assert "AAPL" in html      # Position symbol
+        assert "+$5,000" in html  # Monthly return
+        assert "+5.3%" in html  # Return percentage
+        assert "10" in html  # Total trades
+        assert "NUCLEAR" in html  # Strategy name
+        assert "AAPL" in html  # Position symbol
         assert "commission-free" in html  # Fees note
 
     def test_build_monthly_summary_email_empty_data(self):
@@ -219,7 +224,7 @@ class TestMonthlySummaryBuilder:
             "positions_summary": {},
             "fees_and_costs": {},
         }
-        
+
         # Should handle empty data gracefully
         html = MonthlySummaryBuilder.build_monthly_summary_email(summary_data)
         assert "February 2024" in html

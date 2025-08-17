@@ -70,11 +70,10 @@ def monthly_summary_lambda_handler(
         logger.info(f"Generating monthly summary - Paper trading: {paper_trading}")
 
         # Get API credentials
-        alpaca_api_key = settings.alpaca.api_key
-        alpaca_secret_key = settings.alpaca.secret_key
+        from the_alchemiser.services.shared.secrets_service import SecretsService
 
-        if not alpaca_api_key or not alpaca_secret_key:
-            raise ValueError("Alpaca API credentials not found in settings")
+        secrets_service = SecretsService()
+        alpaca_api_key, alpaca_secret_key = secrets_service.get_alpaca_credentials(paper_trading)
 
         # Generate monthly summary
         summary_service = MonthlySummaryService(
@@ -97,7 +96,7 @@ def monthly_summary_lambda_handler(
         send_email_notification(
             subject=subject,
             html_content=email_html,
-            plain_text_content=f"Monthly trading summary for {month_name}. Please view HTML version for full details.",
+            text_content=f"Monthly trading summary for {month_name}. Please view HTML version for full details.",
         )
 
         # Build response

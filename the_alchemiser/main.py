@@ -116,12 +116,12 @@ class TradingSystem:
             paper_trading = not live_trading
 
             # Get API credentials
-            alpaca_api_key = self.settings.alpaca.api_key
-            alpaca_secret_key = self.settings.alpaca.secret_key
+            from the_alchemiser.services.shared.secrets_service import SecretsService
 
-            if not alpaca_api_key or not alpaca_secret_key:
-                self.logger.error("Alpaca API credentials not found in settings")
-                return False
+            secrets_service = SecretsService()
+            alpaca_api_key, alpaca_secret_key = secrets_service.get_alpaca_credentials(
+                paper_trading
+            )
 
             self.logger.info(f"Generating monthly summary - Paper trading: {paper_trading}")
 
@@ -146,7 +146,7 @@ class TradingSystem:
             send_email_notification(
                 subject=subject,
                 html_content=email_html,
-                plain_text_content=f"Monthly trading summary for {month_name}. Please view HTML version for full details.",
+                text_content=f"Monthly trading summary for {month_name}. Please view HTML version for full details.",
             )
 
             self.logger.info(f"Monthly summary for {month_name} generated and sent successfully")
