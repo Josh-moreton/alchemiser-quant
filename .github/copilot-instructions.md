@@ -41,7 +41,7 @@ The Alchemiser is a sophisticated multi-strategy quantitative trading system bui
 ### No Legacy Fallback Policy (MANDATORY)
 - Do NOT add legacy fallbacks in new or refactored code. If a modern service/method fails, surface a clear error; do not silently fall back to legacy implementations.
 - Prohibited in production code:
-    - Importing or instantiating legacy monolith provider: `the_alchemiser.infrastructure.data_providers.data_provider.UnifiedDataProvider`
+    - Importing or instantiating legacy monolith provider (deprecated module has been removed)
     - Calling legacy adapters/methods like `AccountService.get_account_info_legacy`, `get_positions_dict` for runtime behavior
     - Wiring "data_provider" parameters to modern services to enable legacy paths outside of tests
 - Allowed only in tests for contract/parity verification; never in application, services, or infrastructure code paths executed in production.
@@ -289,8 +289,8 @@ portfolio_value = trading_manager.get_portfolio_value()
 Prohibited pattern examples (do not do this):
 ```python
 # ❌ No legacy provider wiring
-from the_alchemiser.infrastructure.data_providers.data_provider import UnifiedDataProvider
-dp = UnifiedDataProvider()  # Not allowed in new code
+# Legacy data provider module has been removed - use TradingServiceManager instead
+# dp = LegacyDataProvider()  # Not allowed in new code
 
 # ❌ No runtime legacy fallback
 try:
