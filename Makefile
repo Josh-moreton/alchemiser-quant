@@ -54,8 +54,19 @@ status:
 
 # Development
 test:
-	@echo "🧪 Running tests..."
-	poetry run pytest tests/ -v
+        @echo "🧪 Running tests..."
+        poetry run pytest tests/ -v
+
+contract-tests:
+        @echo "🤝 Running contract tests..."
+        poetry run pytest tests/contracts -m contract -v
+
+check-no-legacy-dataprovider:
+        @bash tools/ci/check_no_legacy_dataprovider.sh
+
+smoke:
+        @echo "🚬 Running CLI smoke tests..."
+        poetry run pytest tests/e2e/test_cli_trade.py -v
 
 format:
 	@echo "🎨 Formatting code..."

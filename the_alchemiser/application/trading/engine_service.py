@@ -317,7 +317,7 @@ class TradingEngine:
 
         # Initialize data provider (existing logic)
         try:
-            from the_alchemiser.infrastructure.data_providers.data_provider import (
+            from the_alchemiser.infrastructure.data_providers.unified_data_provider_facade import (
                 UnifiedDataProvider,
             )
 
