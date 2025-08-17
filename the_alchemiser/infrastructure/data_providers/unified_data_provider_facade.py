@@ -213,15 +213,24 @@ class UnifiedDataProviderFacade:
         Returns:
             List of position dictionaries
         """
+<<<<<<< HEAD
         # Prefer direct positions from trading client service to avoid legacy path errors
+=======
+        # Only use the modern trading client service; no legacy fallback
+>>>>>>> 851fe1c (fix)
         try:
             positions = self._trading_client_service.get_all_positions()
             return positions
         except Exception as e:
+<<<<<<< HEAD
             # Fall back to legacy dictionary format via account service
             logger.warning(f"Falling back to legacy get_positions due to error: {e}")
             positions_dict = self._account_service.get_positions_dict()
             return [dict(p) for p in positions_dict.values()]
+=======
+            logger.error(f"Error fetching positions from trading client service: {e}")
+            return []
+>>>>>>> 851fe1c (fix)
 
     @handle_service_errors(default_return=(None, None))
     def get_latest_quote(self, symbol: str, **kwargs: Any) -> tuple[float | None, float | None]:
