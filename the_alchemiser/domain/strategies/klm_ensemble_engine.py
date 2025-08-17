@@ -441,7 +441,9 @@ def main() -> None:
 
     try:
         # Initialize ensemble
-        from the_alchemiser.infrastructure.data_providers.unified_data_provider_facade import UnifiedDataProvider
+        from the_alchemiser.infrastructure.data_providers.unified_data_provider_facade import (
+            UnifiedDataProvider,
+        )
 
         data_provider = UnifiedDataProvider(paper_trading=True)
         ensemble = KLMStrategyEnsemble(data_provider=data_provider)

@@ -1,11 +1,15 @@
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from types import SimpleNamespace
 
 import pandas as pd
 import pytest
 
-from the_alchemiser.infrastructure.data_providers.data_provider import UnifiedDataProvider as LegacyProvider
-from the_alchemiser.infrastructure.data_providers.unified_data_provider_facade import UnifiedDataProvider as FacadeProvider
+from the_alchemiser.infrastructure.data_providers.data_provider import (
+    UnifiedDataProvider as LegacyProvider,
+)
+from the_alchemiser.infrastructure.data_providers.unified_data_provider_facade import (
+    UnifiedDataProvider as FacadeProvider,
+)
 from the_alchemiser.services.errors.exceptions import MarketDataError
 
 pytestmark = pytest.mark.contract
@@ -18,10 +22,12 @@ GOLDEN_DF = pd.DataFrame(
         "Close": [1.1, 2.1],
         "Volume": [100, 200],
     },
-    index=pd.to_datetime([
-        datetime(2023, 1, 1, tzinfo=UTC),
-        datetime(2023, 1, 2, tzinfo=UTC),
-    ]),
+    index=pd.to_datetime(
+        [
+            datetime(2023, 1, 1, tzinfo=UTC),
+            datetime(2023, 1, 2, tzinfo=UTC),
+        ]
+    ),
 )
 GOLDEN_DF.index.name = "Date"
 
@@ -92,10 +98,11 @@ def provider(request, monkeypatch):
             "get_account_info",
             lambda: SimpleNamespace(to_dict=lambda: {"equity": 1000}),
         )
+        # Positions now flow through the modern trading client service
         monkeypatch.setattr(
-            prov._account_service,
-            "get_positions_dict",
-            lambda: {"AAPL": {"symbol": "AAPL", "qty": "10"}},
+            prov._trading_client_service,
+            "get_all_positions",
+            lambda: [{"symbol": "AAPL", "qty": "10"}],
         )
     return prov
 
@@ -112,8 +119,8 @@ def test_get_current_price_parity(provider):
 
 def test_get_latest_quote_parity(provider):
     bid, ask = provider.get_latest_quote("AAPL")
-    assert bid == 10.0
-    assert ask == 10.2
+    assert bid == pytest.approx(10.0)
+    assert ask == pytest.approx(10.2)
 
 
 def test_account_positions_parity(provider):

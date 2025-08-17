@@ -11,7 +11,9 @@ from the_alchemiser.application.mapping.strategy_signal_mapping import (
 )
 from the_alchemiser.domain.strategies.strategy_manager import MultiStrategyManager, StrategyType
 from the_alchemiser.infrastructure.config import Settings
-from the_alchemiser.infrastructure.data_providers.unified_data_provider_facade import UnifiedDataProvider
+from the_alchemiser.infrastructure.data_providers.unified_data_provider_facade import (
+    UnifiedDataProvider,
+)
 from the_alchemiser.infrastructure.logging.logging_utils import get_logger
 from the_alchemiser.interface.cli.cli_formatter import (
     render_footer,

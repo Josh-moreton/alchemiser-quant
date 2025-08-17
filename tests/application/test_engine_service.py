@@ -1,4 +1,5 @@
 """Basic integration test for TradingEngine compatibility wrappers."""
+
 from the_alchemiser.application.engine_service import (
     TradingEngine as RootTradingEngine,
 )

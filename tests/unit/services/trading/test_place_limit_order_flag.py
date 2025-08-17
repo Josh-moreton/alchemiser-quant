@@ -5,7 +5,6 @@ from types import SimpleNamespace
 import pytest
 
 from tests._tolerances import DEFAULT_ATL
-
 from the_alchemiser.services.trading.trading_service_manager import TradingServiceManager
 
 

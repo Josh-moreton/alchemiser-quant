@@ -3,6 +3,7 @@
 These protocol interfaces describe the behaviour required by the trading
 application.  Concrete implementations live in the ``adapters`` package.
 """
+
 from __future__ import annotations
 
 from datetime import datetime

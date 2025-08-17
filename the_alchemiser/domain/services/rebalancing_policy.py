@@ -5,9 +5,10 @@ rebalanced based on target allocations and current positions.  The functions
 contain no side effects and are fully typed to enable straightforward unit
 testing.
 """
+
 from __future__ import annotations
 
-from typing import Iterable, Mapping
+from collections.abc import Mapping
 
 from the_alchemiser.domain.types import OrderDetails, PositionsDict
 

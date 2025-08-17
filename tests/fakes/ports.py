@@ -1,11 +1,19 @@
 """Test fakes for port protocols."""
+
 from __future__ import annotations
 
 from datetime import datetime
 from typing import Any
 
 from the_alchemiser.domain.types import AccountInfo, OrderDetails, PositionsDict
-from the_alchemiser.ports import Clock, MarketData, Notifier, OrderExecution, PositionStore, RiskChecks
+from the_alchemiser.ports import (
+    Clock,
+    MarketData,
+    Notifier,
+    OrderExecution,
+    PositionStore,
+    RiskChecks,
+)
 
 
 class FakeMarketData(MarketData):
@@ -27,7 +35,9 @@ class FakeOrderExecution(OrderExecution):
         self.orders.append(order)
         return order.get("id")
 
-    def wait_for_settlement(self, order_ids: list[str], max_wait_time: int, poll_interval: float) -> bool:  # noqa: ARG002
+    def wait_for_settlement(
+        self, order_ids: list[str], max_wait_time: int, poll_interval: float
+    ) -> bool:  # noqa: ARG002
         return True
 
 
@@ -60,7 +70,9 @@ class FakeClock(Clock):
 
 
 class FakeNotifier(Notifier):
-    def send(self, message: str, *, subject: str | None = None, **kwargs: Any) -> None:  # pragma: no cover - trivial
+    def send(
+        self, message: str, *, subject: str | None = None, **kwargs: Any
+    ) -> None:  # pragma: no cover - trivial
         self.last_message = message
         self.last_subject = subject
         self.last_kwargs = kwargs

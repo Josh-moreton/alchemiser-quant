@@ -3,7 +3,7 @@
 This package must remain framework-agnostic and side-effect free.
 """
 
-from .types import Money, Percentage, Identifier
+from .types import Identifier, Money, Percentage
 
 __all__ = [
     "Money",

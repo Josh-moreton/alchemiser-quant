@@ -99,8 +99,6 @@ def test_place_market_order_typed(monkeypatch: pytest.MonkeyPatch):
         assert "order" in out
         assert out["order"]["summary"]["symbol"] == "MSFT"
         # Sonar rule: avoid direct float comparison (IEEE-754 rounding).
-        assert out["order"]["summary"]["qty"] == pytest.approx(
-            10.0, rel=1e-9, abs=DEFAULT_ATL
-        )
+        assert out["order"]["summary"]["qty"] == pytest.approx(10.0, rel=1e-9, abs=DEFAULT_ATL)
     finally:
         builtins.__import__ = real_import  # type: ignore[assignment]
