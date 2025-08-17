@@ -55,5 +55,9 @@
     "aws.samcli.location": "/opt/homebrew/bin/sam",
     "yaml.schemas": {
         "https://raw.githubusercontent.com/aws/serverless-application-model/main/samtranslator/schema/schema.json": "template.yaml"
+    },
+    "sonarlint.connectedMode.project": {
+        "connectionId": "josh-moreton",
+        "projectKey": "Josh-moreton_alchemiser-quant"
     }
 }

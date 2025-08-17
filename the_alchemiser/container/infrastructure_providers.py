@@ -2,7 +2,10 @@
 
 from dependency_injector import containers, providers
 
-from the_alchemiser.infrastructure.data_providers.data_provider import UnifiedDataProvider
+# Use the facade implementation for all data provider access
+from the_alchemiser.infrastructure.data_providers.unified_data_provider_facade import (
+    UnifiedDataProvider,
+)
 from the_alchemiser.services.repository.alpaca_manager import AlpacaManager
 
 

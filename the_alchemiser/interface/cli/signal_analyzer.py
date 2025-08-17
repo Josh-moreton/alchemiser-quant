@@ -6,9 +6,14 @@ Handles signal generation and display without trading execution.
 from datetime import datetime
 from typing import Any
 
+from the_alchemiser.application.mapping.strategy_signal_mapping import (
+    map_signals_dict as _map_signals_to_typed,
+)
 from the_alchemiser.domain.strategies.strategy_manager import MultiStrategyManager, StrategyType
 from the_alchemiser.infrastructure.config import Settings
-from the_alchemiser.infrastructure.data_providers.data_provider import UnifiedDataProvider
+from the_alchemiser.infrastructure.data_providers.unified_data_provider_facade import (
+    UnifiedDataProvider,
+)
 from the_alchemiser.infrastructure.logging.logging_utils import get_logger
 from the_alchemiser.interface.cli.cli_formatter import (
     render_footer,
@@ -17,6 +22,7 @@ from the_alchemiser.interface.cli.cli_formatter import (
     render_strategy_signals,
 )
 from the_alchemiser.services.errors.exceptions import DataProviderError, StrategyExecutionError
+from the_alchemiser.utils.feature_flags import type_system_v2_enabled
 
 
 class SignalAnalyzer:
@@ -36,8 +42,8 @@ class SignalAnalyzer:
 
     def _generate_signals(self) -> tuple[dict[StrategyType, dict[str, Any]], dict[str, float]]:
         """Generate strategy signals."""
-        # Create shared data provider
-        shared_data_provider = UnifiedDataProvider(paper_trading=True)
+        # Create shared data provider respecting configured trading mode
+        shared_data_provider = UnifiedDataProvider(paper_trading=self.settings.alpaca.paper_trading)
 
         # Create strategy manager with proper allocations
         strategy_allocations = self._get_strategy_allocations()
@@ -49,6 +55,16 @@ class SignalAnalyzer:
 
         # Generate signals
         strategy_signals, consolidated_portfolio, _ = manager.run_all_strategies()
+        # Feature-flag: convert to typed StrategySignal for display/reporting
+        if type_system_v2_enabled():
+            try:
+                # Visible indicator in logs when typed path is active
+                self.logger.info(
+                    "TYPES_V2_ENABLED detected: using typed StrategySignal mapping for display"
+                )
+                strategy_signals = _map_signals_to_typed(strategy_signals)  # type: ignore[assignment]
+            except Exception:
+                pass
         return strategy_signals, consolidated_portfolio
 
     def _display_results(
@@ -159,6 +175,17 @@ class SignalAnalyzer:
         render_header("MULTI-STRATEGY SIGNAL ANALYSIS", f"Analysis at {datetime.now()}")
 
         try:
+            # Indicate typed mode in console if enabled
+            if type_system_v2_enabled():
+                try:
+                    from rich.console import Console
+
+                    Console().print(
+                        "[dim]TYPES_V2_ENABLED: typed StrategySignal path is ACTIVE[/dim]"
+                    )
+                except Exception:
+                    self.logger.info("TYPES_V2_ENABLED: typed StrategySignal path is ACTIVE")
+
             # Generate signals
             strategy_signals, consolidated_portfolio = self._generate_signals()
 

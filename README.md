@@ -4,18 +4,7 @@ Internal notes on how the trading bot is put together and how the pieces interac
 
 ## Quick Start
 
-### Environment Setup with direnv (Recommended)
-
-1. **Install direnv**: `brew install direnv` (macOS) or see [direnv.net](https://direnv.net/)
-2. **Configure your shell**: Add `eval "$(direnv hook zsh)"` to `~/.zshrc` (or bash equivalent)
-3. **Set up the project**: `cp .envrc.template .envrc && direnv allow`
-4. **Test**: `cd .. && cd the-alchemiser` - you should see "🔧 Environment activated"
-
-Now your Python virtual environment and all project settings are automatically activated when you enter the directory!
-
-### Manual Setup (Alternative)
-
-If you prefer manual environment management:
+### Environment Setup
 
 ```bash
 source .venv/bin/activate
@@ -31,6 +20,46 @@ export PYTHONPATH="${PWD}:${PWD}/the_alchemiser:${PYTHONPATH}"
 - **Infrastructure Layer** (`the_alchemiser/infrastructure/`): External integrations (Alpaca API, AWS services, WebSocket streaming)
 - **Application Layer** (`the_alchemiser/application/`): Trading orchestration, smart execution, portfolio rebalancing
 - **Interface Layer** (`the_alchemiser/interface/`): Modular CLI with clean separation of concerns
+
+## Typed Domain System (V2)
+
+We’re migrating to a strongly-typed, framework-free domain model with incremental rollout behind a feature flag. The goal is >95% precise typing, clearer boundaries, and safer refactors.
+
+### Key Concepts
+- Shared Kernel Value Objects (immutable): `Money`, `Percentage`, `Identifier` under `the_alchemiser/domain/shared_kernel/value_objects/`
+- Trading Domain: Entities `Order`, `Position`, `Account`; Value Objects `Symbol`, `Quantity`, `OrderStatus` under `the_alchemiser/domain/trading/`
+- Strategies Domain: `StrategySignal`, `Confidence`, `Alert` under `the_alchemiser/domain/strategies/value_objects/`
+- Anti‑corruption Mappers: `the_alchemiser/application/mapping/` handles DTO ↔ Domain ↔ Infra translations
+- Infra Adapters: Alpaca requests/responses mapped in `the_alchemiser/infrastructure/`; domain stays pure
+
+### Enable/Disable the Typed Path
+
+Typed Domain V2 is ON by default. To opt out (legacy behavior), set:
+
+```bash
+export TYPES_V2_ENABLED=0   # or: false / no / off
+```
+
+### What’s Migrated (behind the flag)
+- Portfolio value parity via `TradingServiceManager`
+- Enriched positions summary and CLI rendering (status)
+- Enriched account summary and CLI status integration
+- Order placement (market and limit): typed request build + domain `Order` mapping
+- Open orders retrieval mapped to domain `Order`
+- StrategySignal typed mapping through Execution and CLI
+
+### Contributor Notes
+- Domain purity: no framework imports (no Pydantic, requests, logging) in `the_alchemiser/domain/**`
+- Use `@dataclass(frozen=True)` for value objects; entities encapsulate behavior
+- Keep Pydantic DTOs in `the_alchemiser/interfaces/schemas/`
+- Place all boundary mapping in `the_alchemiser/application/mapping/`
+- Use `Decimal` for all financial/quantity values; normalize in mappers
+- Prefer `Protocol` for repository/service interfaces under `domain/**/protocols/`; implemented in `infrastructure/` or `services/`
+
+### Testing the Typed Path
+- Add parity tests for flag ON vs OFF where behavior should be identical
+- Unit test mappers with realistic fixtures; mock external APIs (pytest‑mock)
+- CI runs mypy across the codebase; value objects and entities must be fully typed
 
 ### Entry Point and CLI Architecture
 
@@ -96,7 +125,7 @@ from the_alchemiser.core.error_handler import TradingSystemErrorHandler
 error_handler = TradingSystemErrorHandler()
 error_details = error_handler.handle_error(
     error=exception,
-    component="ComponentName.method_name", 
+    component="ComponentName.method_name",
     context="operation_description",
     additional_data={"symbol": "AAPL", "qty": 100}
 )
@@ -105,7 +134,7 @@ error_details = error_handler.handle_error(
 ### Error Categories
 
 - **CRITICAL**: System-level failures that stop all operations
-- **TRADING**: Order execution, position validation issues  
+- **TRADING**: Order execution, position validation issues
 - **DATA**: Market data, API connectivity issues
 - **STRATEGY**: Strategy calculation, signal generation issues
 - **CONFIGURATION**: Config, authentication, setup issues
@@ -154,6 +183,7 @@ Automatic email alerts include:
 
 - Project managed with Poetry and a single `pyproject.toml`.
 - Strict typing checked by `mypy` with `disallow_untyped_defs`.
+    - Typed Domain V2 gate: keep domain free of frameworks; all financial values are `Decimal`.
 - Configuration and domain models defined with Pydantic.
 - Code style enforced by `black` (line length 100) and linted by `flake8`.
 - Tests run with `pytest`; `make test` executes the suite.
@@ -182,6 +212,7 @@ warn_unused_ignores = true
 - ✅ **Use Protocols for dependency injection**: Clean interfaces over inheritance
 - ✅ **Pydantic for configuration**: Type-safe settings and data models
 - ✅ **Dataclasses for structured data**: Replace dictionaries with typed structures
+- ✅ **Typed Domain V2**: Prefer domain value objects/entities over untyped dicts; route new work via mappers
 
 ### Code Formatting and Linting
 
@@ -212,7 +243,7 @@ select = ["E", "W", "F", "I", "N", "UP", "ANN", "S", "BLE", "COM", "C4", "DTZ", 
 
 ```
 the_alchemiser/
-├── core/                          # Core business logic
+├── core/                          # Legacy/core logic (being migrated to domain/)
 │   ├── config.py                  # Pydantic settings models
 │   ├── exceptions.py              # Custom exception hierarchy
 │   ├── error_handler.py           # Centralized error handling
@@ -239,6 +270,20 @@ the_alchemiser/
 ├── cli.py                         # Typer-based command line interface
 ├── main.py                        # Main execution entry point
 └── lambda_handler.py              # AWS Lambda handler
+
+# New typed domain directories (incremental rollout)
+the_alchemiser/domain/
+├── shared_kernel/
+│   └── value_objects/             # Money, Percentage, Identifier
+├── trading/
+│   ├── entities/                  # Order, Position, Account
+│   ├── value_objects/             # Symbol, Quantity, OrderStatus
+│   └── protocols/                 # Repository interfaces
+└── strategies/
+    └── value_objects/             # StrategySignal, Confidence, Alert
+
+the_alchemiser/application/mapping/  # Anti‑corruption mappers (DTO ↔ Domain ↔ Infra)
+the_alchemiser/interfaces/schemas/   # Pydantic DTOs for I/O
 ```
 
 ### Dependency Management with Poetry
@@ -271,10 +316,10 @@ class AlchemiserError(Exception):
 
 class TradingClientError(AlchemiserError):
     """Base for trading-related errors"""
-    
+
 class StrategyExecutionError(AlchemiserError):
     """Strategy calculation and execution errors"""
-    
+
 class IndicatorCalculationError(AlchemiserError):
     """Technical indicator calculation errors"""
 ```
@@ -297,7 +342,7 @@ def risky_operation():
             context="specific_operation_description",
             additional_data={"relevant": "debugging_data"}
         )
-        
+
         # Re-raise if critical, or handle gracefully
         if isinstance(e, StrategyExecutionError):
             raise  # Critical strategy errors should bubble up
@@ -320,13 +365,13 @@ class TestNuclearStrategy:
     def setup_method(self):
         """Setup for each test method"""
         self.engine = NuclearStrategyEngine()
-        
+
     def test_volatility_calculation_with_valid_data(self):
         """Test normal volatility calculation"""
         indicators = {"AAPL": {"price_history": [100, 101, 99, 102]}}
         result = self.engine._get_14_day_volatility("AAPL", indicators)
         assert result > 0
-        
+
     def test_volatility_calculation_raises_on_invalid_data(self):
         """Test that invalid data raises proper exception"""
         with pytest.raises(IndicatorCalculationError):
@@ -343,12 +388,12 @@ from typing import Optional
 
 class Settings(BaseSettings):
     """Type-safe configuration with environment variable support"""
-    
+
     alpaca_api_key: str = Field(..., env="ALPACA_API_KEY")
     alpaca_secret_key: str = Field(..., env="ALPACA_SECRET_KEY")
     paper_trading: bool = Field(True, env="PAPER_TRADING")
     email_recipient: str = Field(..., env="EMAIL_RECIPIENT")
-    
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
@@ -377,7 +422,7 @@ class PositionProvider(Protocol):
 class TradingEngine:
     def __init__(self, account_provider: AccountInfoProvider):
         self._account_provider = account_provider
-        
+
     def get_account_info(self) -> Dict[str, Any]:
         return self._account_provider.get_account_info()
 ```
@@ -418,7 +463,14 @@ class TradingEngine:
 
 ### Data Provider Architecture
 
-**Unified Data Access** (`core/data/data_provider.py`):
+#### Data Provider Facade
+
+All services now import `UnifiedDataProvider` from
+`the_alchemiser.infrastructure.data_providers.unified_data_provider_facade`.
+The facade preserves the legacy interface while delegating to modular
+services. The old `data_provider.py` module is deprecated.
+
+**Unified Data Access**:
 
 - **Real-time Priority**: WebSocket data preferred over REST
 - **Automatic Fallbacks**: REST API backup for real-time failures
@@ -517,7 +569,7 @@ def lambda_handler(event, context):
 ### Monitoring and Debugging
 
 - **CloudWatch Logs**: Comprehensive logging with error categorization
-- **SQS Dead Letter Queue**: 14-day retention for failed execution investigation  
+- **SQS Dead Letter Queue**: 14-day retention for failed execution investigation
 - **Email Alerts**: Immediate notification of critical issues
 - **Error Context**: Full debugging information captured automatically
 
@@ -537,6 +589,13 @@ alchemiser trade --live            # live trading (DI mode)
 alchemiser trade --ignore-market-hours  # override market hours
 alchemiser status                  # account status and positions
 alchemiser deploy                  # deploy to AWS Lambda
+```
+
+Tip: typed behavior is default. To force legacy behavior for comparison, export `TYPES_V2_ENABLED=0` and run:
+
+```bash
+poetry run alchemiser status -v
+poetry run alchemiser trade --ignore-market-hours -v  # paper mode by default
 ```
 
 ## Development Workflow for AI Agents

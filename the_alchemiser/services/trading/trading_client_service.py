@@ -49,14 +49,40 @@ class TradingClientService:
         """
         try:
             account = self._alpaca_manager.get_account()
-            # Convert account object to dict for consistency
+            # Convert account object to a plain dict first
             if hasattr(account, "model_dump"):
-                return dict(account.model_dump())
+                raw: dict[str, Any] = dict(account.model_dump())
             elif hasattr(account, "__dict__"):
-                return dict(account.__dict__)
+                raw = dict(account.__dict__)
             else:
-                # Fallback: return as Any and cast
-                return dict(account) if account else None
+                raw = dict(account) if account else {}
+
+            if not raw:
+                return None
+
+            # Map Alpaca fields to our AccountInfo schema keys
+            status_raw = str(raw.get("status", "INACTIVE")).upper()
+            status = "ACTIVE" if status_raw == "ACTIVE" else "INACTIVE"
+
+            mapped: dict[str, Any] = {
+                "account_id": str(raw.get("account_number") or raw.get("id") or "unknown"),
+                "equity": float(raw.get("equity", 0) or 0),
+                "cash": float(raw.get("cash", 0) or 0),
+                "buying_power": float(raw.get("buying_power", 0) or 0),
+                # Alpaca uses daytrade_count
+                "day_trades_remaining": int(
+                    raw.get("daytrade_count", raw.get("day_trades_remaining", 0)) or 0
+                ),
+                "portfolio_value": float(raw.get("portfolio_value", 0) or 0),
+                "last_equity": float((raw.get("last_equity", raw.get("equity", 0))) or 0),
+                "daytrading_buying_power": float(raw.get("daytrading_buying_power", 0) or 0),
+                "regt_buying_power": float(
+                    raw.get("regt_buying_power", raw.get("buying_power", 0)) or 0
+                ),
+                "status": status,
+            }
+
+            return mapped
 
         except Exception as e:
             logging.error(f"Failed to fetch account info: {e}")

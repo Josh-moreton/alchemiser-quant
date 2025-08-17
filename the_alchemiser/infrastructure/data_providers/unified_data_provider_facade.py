@@ -73,11 +73,13 @@ class UnifiedDataProviderFacade:
         self._trading_client_service = TradingClientService(api_key, secret_key, paper_trading)
 
         # Initialize specialized services
+        # Pass self as data_provider for legacy compatibility paths used by AccountService
         self._account_service = AccountService(
             self._trading_client_service,
             api_key,
             secret_key,
             self._config_service.get_endpoint(paper_trading),
+            data_provider=self,
         )
 
         if enable_real_time:
@@ -179,11 +181,12 @@ class UnifiedDataProviderFacade:
             bid, ask = self._market_data_client.get_latest_quote(symbol)
             return (bid + ask) / 2 if bid and ask else None
         except Exception as e:
-            self._error_handler.log_and_handle("Error getting latest quote", {"symbol": symbol}, e)
+            # Log handled error with correct argument order and return None
+            self._error_handler.log_and_handle(e, {"symbol": symbol}, None)
             return None
 
-    @handle_service_errors(default_return={})
-    def get_account_info(self, **kwargs: Any) -> dict[str, Any]:
+    @handle_service_errors(default_return=None)
+    def get_account_info(self, **kwargs: Any) -> dict[str, Any] | None:
         """
         Get account information - maintains exact original interface.
 
@@ -191,13 +194,13 @@ class UnifiedDataProviderFacade:
             **kwargs: Additional arguments for backward compatibility
 
         Returns:
-            Dictionary with account information
+            Dictionary with account information or None on failure
         """
         account_model = self._account_service.get_account_info()
         if account_model:
             # Convert TypedDict to plain dict for broader compatibility
             return cast(dict[str, Any], dict(account_model.to_dict()))
-        return {}
+        return None
 
     @handle_service_errors(default_return=[])
     def get_positions(self, **kwargs: Any) -> list[dict[str, Any]]:
@@ -210,9 +213,13 @@ class UnifiedDataProviderFacade:
         Returns:
             List of position dictionaries
         """
-        positions = self._account_service.get_positions_dict()
-        # PositionsDict (TypedDict values) -> list[dict[str, Any]] for backward compatibility
-        return [dict(p) for p in positions.values()]
+        # Only use the modern trading client service; no legacy fallback
+        try:
+            positions = self._trading_client_service.get_all_positions()
+            return positions
+        except Exception as e:
+            logger.error(f"Error fetching positions from trading client service: {e}")
+            return []
 
     @handle_service_errors(default_return=(None, None))
     def get_latest_quote(self, symbol: str, **kwargs: Any) -> tuple[float | None, float | None]:
