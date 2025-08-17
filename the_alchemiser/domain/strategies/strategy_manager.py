@@ -90,7 +90,7 @@ class MultiStrategyManager:
         Args:
             strategy_allocations: Dict mapping strategy types to portfolio percentages
                                 Example: {StrategyType.NUCLEAR: 0.5, StrategyType.TECL: 0.5}
-            shared_data_provider: Shared UnifiedDataProvider instance (optional)
+            shared_data_provider: Shared data provider instance (temporary typed adapter)
             config: Configuration object. If None, will load from global config.
         """
         # Use provided config or load global config
