@@ -32,12 +32,12 @@ We’re migrating to a strongly-typed, framework-free domain model with incremen
 - Anti‑corruption Mappers: `the_alchemiser/application/mapping/` handles DTO ↔ Domain ↔ Infra translations
 - Infra Adapters: Alpaca requests/responses mapped in `the_alchemiser/infrastructure/`; domain stays pure
 
-### Enable the Typed Path
+### Enable/Disable the Typed Path
 
-Set the feature flag to exercise the typed slices end‑to‑end:
+Typed Domain V2 is ON by default. To opt out (legacy behavior), set:
 
 ```bash
-export TYPES_V2_ENABLED=1   # truthy values: 1, true, yes, on
+export TYPES_V2_ENABLED=0   # or: false / no / off
 ```
 
 ### What’s Migrated (behind the flag)
@@ -591,7 +591,7 @@ alchemiser status                  # account status and positions
 alchemiser deploy                  # deploy to AWS Lambda
 ```
 
-Tip: to review typed behavior via CLI, export `TYPES_V2_ENABLED=1` and run:
+Tip: typed behavior is default. To force legacy behavior for comparison, export `TYPES_V2_ENABLED=0` and run:
 
 ```bash
 poetry run alchemiser status -v

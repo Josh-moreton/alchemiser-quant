@@ -125,7 +125,8 @@ def _run_with_flag(flag_value: str | None) -> Any:
     # Set/unset feature flag and execute once
     env_name = "TYPES_V2_ENABLED"
     if flag_value is None:
-        os.environ.pop(env_name, None)
+        # Default is now ON; explicitly set OFF for legacy path
+        os.environ[env_name] = "0"
     else:
         os.environ[env_name] = flag_value
 
@@ -136,7 +137,7 @@ def _run_with_flag(flag_value: str | None) -> Any:
 
 def test_strategy_signal_parity_flag_on_off() -> None:
     # OFF path (legacy dict signals)
-    res_off = _run_with_flag(None)
+    res_off = _run_with_flag("0")
     legacy = res_off.strategy_signals  # dict[StrategyType, dict]
 
     # ON path (typed StrategySignal)
@@ -162,7 +163,7 @@ def test_strategy_signal_parity_flag_on_off() -> None:
 
 def test_strategy_signal_parity_conf_alloc_reason() -> None:
     # OFF path (legacy dict signals)
-    res_off = _run_with_flag(None)
+    res_off = _run_with_flag("0")
     legacy = res_off.strategy_signals  # dict[StrategyType, dict]
 
     # ON path (typed StrategySignal)

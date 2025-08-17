@@ -24,6 +24,10 @@ def is_enabled(name: str, default: bool = False) -> bool:
     return default
 
 
-def type_system_v2_enabled(default: bool = False) -> bool:
-    """Is the typed DDD path enabled?"""
+def type_system_v2_enabled(default: bool = True) -> bool:
+    """Is the typed DDD path enabled?
+
+    Default is True (typed domain V2 ON by default). Set TYPES_V2_ENABLED to a falsey value
+    (0/false/no/off) to opt out locally or in tests.
+    """
     return is_enabled(TYPE_SYSTEM_V2_FLAG, default)

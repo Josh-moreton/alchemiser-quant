@@ -8,7 +8,8 @@ from the_alchemiser.services.trading.trading_service_manager import TradingServi
 
 @pytest.fixture(autouse=True)
 def clear_flag_env(monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.delenv("TYPES_V2_ENABLED", raising=False)
+    # Default legacy for tests unless explicitly enabled
+    monkeypatch.setenv("TYPES_V2_ENABLED", "0")
     yield
     monkeypatch.delenv("TYPES_V2_ENABLED", raising=False)
 
