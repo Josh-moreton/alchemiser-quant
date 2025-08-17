@@ -42,8 +42,24 @@ class SignalAnalyzer:
 
     def _generate_signals(self) -> tuple[dict[StrategyType, dict[str, Any]], dict[str, float]]:
         """Generate strategy signals."""
-        # Create shared data provider respecting configured trading mode
-        shared_data_provider = UnifiedDataProvider(paper_trading=self.settings.alpaca.paper_trading)
+        # Create data provider respecting configured trading mode and typed flag
+        if type_system_v2_enabled():
+            # Use typed market data port via adapter
+            from the_alchemiser.infrastructure.adapters.typed_data_provider_adapter import (
+                TypedDataProviderAdapter,
+            )
+
+            shared_data_provider = TypedDataProviderAdapter(
+                paper_trading=self.settings.alpaca.paper_trading, config=self.settings
+            )
+            self.logger.info(
+                "TYPES_V2_ENABLED: using TypedDataProviderAdapter for market data access"
+            )
+        else:
+            # Use legacy UnifiedDataProvider
+            shared_data_provider = UnifiedDataProvider(
+                paper_trading=self.settings.alpaca.paper_trading
+            )
 
         # Create strategy manager with proper allocations
         strategy_allocations = self._get_strategy_allocations()
