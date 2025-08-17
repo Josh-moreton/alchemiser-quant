@@ -73,11 +73,13 @@ class UnifiedDataProviderFacade:
         self._trading_client_service = TradingClientService(api_key, secret_key, paper_trading)
 
         # Initialize specialized services
+        # Pass self as data_provider for legacy compatibility paths used by AccountService
         self._account_service = AccountService(
             self._trading_client_service,
             api_key,
             secret_key,
             self._config_service.get_endpoint(paper_trading),
+            data_provider=self,
         )
 
         if enable_real_time:
@@ -184,8 +186,7 @@ class UnifiedDataProviderFacade:
             return None
 
     @handle_service_errors(default_return=None)
-    @handle_service_errors(default_return={})
-    def get_account_info(self, **kwargs: Any) -> dict[str, Any]:
+    def get_account_info(self, **kwargs: Any) -> dict[str, Any] | None:
         """
         Get account information - maintains exact original interface.
 
@@ -212,9 +213,15 @@ class UnifiedDataProviderFacade:
         Returns:
             List of position dictionaries
         """
-        positions = self._account_service.get_positions_dict()
-        # PositionsDict (TypedDict values) -> list[dict[str, Any]] for backward compatibility
-        return [dict(p) for p in positions.values()]
+        # Prefer direct positions from trading client service to avoid legacy path errors
+        try:
+            positions = self._trading_client_service.get_all_positions()
+            return positions
+        except Exception as e:
+            # Fall back to legacy dictionary format via account service
+            logger.warning(f"Falling back to legacy get_positions due to error: {e}")
+            positions_dict = self._account_service.get_positions_dict()
+            return [dict(p) for p in positions_dict.values()]
 
     @handle_service_errors(default_return=(None, None))
     def get_latest_quote(self, symbol: str, **kwargs: Any) -> tuple[float | None, float | None]:
