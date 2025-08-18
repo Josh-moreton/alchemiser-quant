@@ -79,71 +79,13 @@ class ExecutionStatus(str, Enum):
 StrategyLiteral = Literal["NUCLEAR", "TECL", "KLM"]
 
 
-class StrategyOrderEventDTO(BaseModel):
+class StrategyValidationMixin:
     """
-    Strategy order event DTO with comprehensive validation.
+    Mixin providing common validation methods for strategy tracking DTOs.
 
-    Represents a single order event tagged with strategy information,
-    providing immutable tracking of order lifecycle events.
+    Centralizes validation logic to eliminate code duplication while
+    maintaining type safety and reusability across strategy DTO classes.
     """
-
-    # Event identification
-    event_id: str = Field(
-        ...,
-        min_length=1,
-        description="Unique event identifier"
-    )
-
-    # Strategy and symbol information
-    strategy: StrategyLiteral = Field(
-        ...,
-        description="Strategy name from registered strategies"
-    )
-    symbol: str = Field(
-        ...,
-        min_length=1,
-        max_length=10,
-        description="Stock symbol (normalized to uppercase)"
-    )
-
-    # Order details
-    side: Literal["buy", "sell"] = Field(
-        ...,
-        description="Order side"
-    )
-    quantity: Decimal = Field(
-        ...,
-        gt=0,
-        description="Order quantity (positive decimal)"
-    )
-    status: OrderEventStatus = Field(
-        ...,
-        description="Order event status"
-    )
-
-    # Pricing and timing
-    price: Decimal | None = Field(
-        None,
-        ge=0,
-        description="Order price (null for market orders initially)"
-    )
-    ts: datetime = Field(
-        ...,
-        description="Event timestamp"
-    )
-
-    # Error tracking
-    error: str | None = Field(
-        None,
-        description="Error message if status indicates failure"
-    )
-
-    model_config = {
-        "frozen": True,  # Immutable
-        "str_strip_whitespace": True,  # Strip whitespace
-        "validate_assignment": True,  # Validate on assignment
-        "use_enum_values": True,  # Use enum values in serialization
-    }
 
     @field_validator("strategy")
     @classmethod
@@ -171,6 +113,45 @@ class StrategyOrderEventDTO(BaseModel):
             raise ValueError(f"Invalid symbol format: {symbol}")
 
         return symbol
+
+
+class StrategyOrderEventDTO(BaseModel, StrategyValidationMixin):
+    """
+    Strategy order event DTO with comprehensive validation.
+
+    Represents a single order event tagged with strategy information,
+    providing immutable tracking of order lifecycle events.
+    """
+
+    # Event identification
+    event_id: str = Field(..., min_length=1, description="Unique event identifier")
+
+    # Strategy and symbol information
+    strategy: StrategyLiteral = Field(..., description="Strategy name from registered strategies")
+    symbol: str = Field(
+        ..., min_length=1, max_length=10, description="Stock symbol (normalized to uppercase)"
+    )
+
+    # Order details
+    side: Literal["buy", "sell"] = Field(..., description="Order side")
+    quantity: Decimal = Field(..., gt=0, description="Order quantity (positive decimal)")
+    status: OrderEventStatus = Field(..., description="Order event status")
+
+    # Pricing and timing
+    price: Decimal | None = Field(
+        None, ge=0, description="Order price (null for market orders initially)"
+    )
+    ts: datetime = Field(..., description="Event timestamp")
+
+    # Error tracking
+    error: str | None = Field(None, description="Error message if status indicates failure")
+
+    model_config = {
+        "frozen": True,  # Immutable
+        "str_strip_whitespace": True,  # Strip whitespace
+        "validate_assignment": True,  # Validate on assignment
+        "use_enum_values": True,  # Use enum values in serialization
+    }
 
     @field_validator("quantity")
     @classmethod
@@ -188,7 +169,7 @@ class StrategyOrderEventDTO(BaseModel):
 
         return v
 
-    @model_validator(mode='after')
+    @model_validator(mode="after")
     def validate_error_status_consistency(self) -> Self:
         """Ensure error field is consistent with status."""
         if self.status in [OrderEventStatus.ERROR, OrderEventStatus.REJECTED]:
@@ -201,7 +182,7 @@ class StrategyOrderEventDTO(BaseModel):
         return self
 
 
-class StrategyExecutionSummaryDTO(BaseModel):
+class StrategyExecutionSummaryDTO(BaseModel, StrategyValidationMixin):
     """
     Strategy execution summary DTO with aggregated metrics.
 
@@ -210,41 +191,24 @@ class StrategyExecutionSummaryDTO(BaseModel):
     """
 
     # Strategy and symbol identification
-    strategy: StrategyLiteral = Field(
-        ...,
-        description="Strategy name from registered strategies"
-    )
+    strategy: StrategyLiteral = Field(..., description="Strategy name from registered strategies")
     symbol: str = Field(
-        ...,
-        min_length=1,
-        max_length=10,
-        description="Stock symbol (normalized to uppercase)"
+        ..., min_length=1, max_length=10, description="Stock symbol (normalized to uppercase)"
     )
 
     # Aggregate metrics
     total_qty: Decimal = Field(
-        ...,
-        ge=0,
-        description="Total quantity across all events (non-negative)"
+        ..., ge=0, description="Total quantity across all events (non-negative)"
     )
     avg_price: Decimal | None = Field(
-        None,
-        ge=0,
-        description="Average execution price (null if no fills)"
+        None, ge=0, description="Average execution price (null if no fills)"
     )
-    pnl: Decimal | None = Field(
-        None,
-        description="Profit and loss (null if cannot be calculated)"
-    )
+    pnl: Decimal | None = Field(None, description="Profit and loss (null if cannot be calculated)")
 
     # Status and details
-    status: ExecutionStatus = Field(
-        ...,
-        description="Overall execution status"
-    )
+    status: ExecutionStatus = Field(..., description="Overall execution status")
     details: list[StrategyOrderEventDTO] = Field(
-        default_factory=list,
-        description="List of order events (ordered by timestamp)"
+        default_factory=list, description="List of order events (ordered by timestamp)"
     )
 
     model_config = {
@@ -254,33 +218,6 @@ class StrategyExecutionSummaryDTO(BaseModel):
         "use_enum_values": True,  # Use enum values in serialization
     }
 
-    @field_validator("strategy")
-    @classmethod
-    def validate_strategy(cls, v: str) -> str:
-        """Validate strategy is a registered strategy type."""
-        try:
-            # Verify it's a valid strategy type
-            StrategyType(v)
-            return v
-        except ValueError:
-            valid_strategies = [s.value for s in StrategyType]
-            raise ValueError(f"Strategy must be one of {valid_strategies}, got: {v}")
-
-    @field_validator("symbol")
-    @classmethod
-    def normalize_symbol(cls, v: str) -> str:
-        """Normalize symbol to uppercase and validate format."""
-        if not v or not v.strip():
-            raise ValueError("Symbol cannot be empty")
-
-        symbol = v.strip().upper()
-
-        # Basic symbol validation
-        if not symbol.isalpha() or len(symbol) > 10:
-            raise ValueError(f"Invalid symbol format: {symbol}")
-
-        return symbol
-
     @field_validator("total_qty")
     @classmethod
     def validate_total_qty_non_negative(cls, v: Decimal) -> Decimal:
@@ -289,7 +226,7 @@ class StrategyExecutionSummaryDTO(BaseModel):
             raise ValueError("Total quantity must be non-negative")
         return v
 
-    @model_validator(mode='after')
+    @model_validator(mode="after")
     def validate_event_ordering_and_consistency(self) -> Self:
         """Validate event ordering by timestamp and data consistency."""
         if not self.details:
