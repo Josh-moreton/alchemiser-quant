@@ -21,28 +21,13 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
 
-class OrderRequestDTO(BaseModel):
+class OrderValidationMixin:
     """
-    DTO for incoming order requests.
+    Mixin providing common validation methods for order DTOs.
 
-    Used when creating new orders from user input or API requests.
-    Provides validation and normalization of order parameters.
+    Centralizes validation logic to eliminate code duplication while
+    maintaining type safety and reusability across order DTO classes.
     """
-
-    model_config = ConfigDict(
-        strict=True,
-        frozen=True,
-        validate_assignment=True,
-        str_strip_whitespace=True,
-    )
-
-    symbol: str
-    side: Literal["buy", "sell"]
-    quantity: Decimal
-    order_type: Literal["market", "limit"]
-    time_in_force: Literal["day", "gtc", "ioc", "fok"] = "day"
-    limit_price: Decimal | None = None
-    client_order_id: str | None = None
 
     @field_validator("symbol")
     @classmethod
@@ -72,14 +57,39 @@ class OrderRequestDTO(BaseModel):
         return v
 
     @model_validator(mode="after")
-    def validate_limit_price_required(self) -> OrderRequestDTO:
+    def validate_limit_price_required(self) -> OrderValidationMixin:
         """Validate limit_price is required for limit orders."""
-        if self.order_type == "limit" and self.limit_price is None:
-            raise ValueError("Limit price required for limit orders")
+        if hasattr(self, "order_type") and hasattr(self, "limit_price"):
+            if self.order_type == "limit" and self.limit_price is None:
+                raise ValueError("Limit price required for limit orders")
         return self
 
 
-class ValidatedOrderDTO(BaseModel):
+class OrderRequestDTO(BaseModel, OrderValidationMixin):
+    """
+    DTO for incoming order requests.
+
+    Used when creating new orders from user input or API requests.
+    Provides validation and normalization of order parameters.
+    """
+
+    model_config = ConfigDict(
+        strict=True,
+        frozen=True,
+        validate_assignment=True,
+        str_strip_whitespace=True,
+    )
+
+    symbol: str
+    side: Literal["buy", "sell"]
+    quantity: Decimal
+    order_type: Literal["market", "limit"]
+    time_in_force: Literal["day", "gtc", "ioc", "fok"] = "day"
+    limit_price: Decimal | None = None
+    client_order_id: str | None = None
+
+
+class ValidatedOrderDTO(BaseModel, OrderValidationMixin):
     """
     DTO for validated orders with derived and normalized fields.
 
@@ -109,40 +119,6 @@ class ValidatedOrderDTO(BaseModel):
     normalized_quantity: Decimal | None = None
     risk_score: Decimal | None = None
     validation_timestamp: datetime
-
-    @field_validator("symbol")
-    @classmethod
-    def validate_symbol(cls, v: str) -> str:
-        """Validate and normalize symbol to uppercase."""
-        if not v or not v.strip():
-            raise ValueError("Symbol cannot be empty")
-        symbol = v.strip().upper()
-        if not symbol.isalnum():
-            raise ValueError("Symbol must be alphanumeric")
-        return symbol
-
-    @field_validator("quantity")
-    @classmethod
-    def validate_quantity(cls, v: Decimal) -> Decimal:
-        """Validate quantity is positive."""
-        if v <= 0:
-            raise ValueError("Quantity must be greater than 0")
-        return v
-
-    @field_validator("limit_price")
-    @classmethod
-    def validate_limit_price_positive(cls, v: Decimal | None) -> Decimal | None:
-        """Validate limit_price is positive when provided."""
-        if v is not None and v <= 0:
-            raise ValueError("Limit price must be greater than 0")
-        return v
-
-    @model_validator(mode="after")
-    def validate_limit_price_required(self) -> ValidatedOrderDTO:
-        """Validate limit_price is required for limit orders."""
-        if self.order_type == "limit" and self.limit_price is None:
-            raise ValueError("Limit price required for limit orders")
-        return self
 
 
 class OrderExecutionResultDTO(BaseModel):
