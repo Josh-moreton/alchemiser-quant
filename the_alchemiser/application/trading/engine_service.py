@@ -46,6 +46,10 @@ from the_alchemiser.services.errors.exceptions import (
     StrategyExecutionError,
     TradingClientError,
 )
+from the_alchemiser.services.market_data.market_data_service import MarketDataService
+from the_alchemiser.services.market_data.typed_data_provider_adapter import (
+    TypedDataProviderAdapter,
+)
 from the_alchemiser.services.repository.alpaca_manager import AlpacaManager
 
 from ..execution.execution_manager import ExecutionManager
@@ -225,12 +229,15 @@ class TradingEngine:
             # AccountService implements the required protocols for TradingEngine
             self.account_service = container.services.account_service()
 
-            # UnifiedDataProvider has get_data() method needed by strategies
+            # Data provider shim (pandas DataFrame) for current strategy engines
             self.data_provider = container.infrastructure.data_provider()
 
             # AlpacaManager for trading operations - use its trading_client property
             alpaca_manager = container.infrastructure.alpaca_manager()
             self.trading_client = alpaca_manager.trading_client
+
+            # Typed market data port for migrated codepaths
+            self._market_data_port = container.infrastructure.market_data_service()
 
             self.logger.info("Successfully initialized services from DI container")
         except Exception as e:
@@ -287,6 +294,11 @@ class TradingEngine:
         except Exception as e:
             raise ConfigurationError(f"TradingServiceManager missing trading client: {e}") from e
         self.paper_trading = trading_service_manager.alpaca_manager.is_paper_trading
+        # Provide typed market data port in this mode
+        try:
+            self._market_data_port = MarketDataService(trading_service_manager.alpaca_manager)
+        except Exception:
+            self._market_data_port = None
         self.ignore_market_hours = ignore_market_hours
 
         # Create minimal config for components
@@ -315,18 +327,37 @@ class TradingEngine:
             self.logger.error(f"Failed to load configuration: {e}")
             raise ConfigurationError(f"Configuration error: {e}")
 
-        # Initialize data provider (existing logic)
+        # Initialize repositories/services without legacy facade
         try:
-            from the_alchemiser.infrastructure.data_providers.unified_data_provider_facade import (
-                UnifiedDataProvider,
+            # Load credentials via SecretsManager to avoid legacy provider
+            from the_alchemiser.infrastructure.secrets.secrets_manager import SecretsManager
+            from the_alchemiser.services.trading.trading_service_manager import (
+                TradingServiceManager,
             )
 
-            self.data_provider = UnifiedDataProvider(
-                paper_trading=paper_trading, config=self.config
+            sm = SecretsManager()
+            api_key, secret_key = sm.get_alpaca_keys(paper_trading=paper_trading)
+            if not api_key or not secret_key:
+                raise ConfigurationError(
+                    "Missing Alpaca credentials for traditional initialization"
+                )
+
+            # Core repositories/services
+            self._alpaca_manager = AlpacaManager(str(api_key), str(secret_key), paper_trading)
+            self.trading_client = self._alpaca_manager.trading_client
+
+            # Temporary pandas adapter for strategy engines
+            self.data_provider = TypedDataProviderAdapter(str(api_key), str(secret_key))
+
+            # Typed market data port
+            self._market_data_port = MarketDataService(self._alpaca_manager)
+
+            # Optional enhanced service manager for downstream ops
+            self._trading_service_manager = TradingServiceManager(
+                str(api_key), str(secret_key), paper=paper_trading
             )
-            self.trading_client = self.data_provider.trading_client
         except Exception as e:
-            self.logger.error(f"Failed to initialize data provider: {e}")
+            self.logger.error(f"Failed to initialize services: {e}")
             raise
 
         config_dict = self.config.model_dump() if self.config else {}
@@ -348,22 +379,16 @@ class TradingEngine:
         try:
             # Build an AlpacaClient once using the same authenticated trading client
             alpaca_manager: AlpacaManager
-            # If UnifiedDataProvider encapsulates a TradingClient directly, wrap it in an AlpacaManager
             if hasattr(self, "_trading_service_manager") and hasattr(
                 self._trading_service_manager, "alpaca_manager"
             ):
                 alpaca_manager = self._trading_service_manager.alpaca_manager
+            elif hasattr(self, "_alpaca_manager"):
+                alpaca_manager = self._alpaca_manager
             else:
-                # Construct a temporary AlpacaManager from the UnifiedDataProvider credentials
-                # UnifiedDataProvider stores api_key/secret_key and paper_trading
-                api_key = getattr(self.data_provider, "api_key", None)
-                secret_key = getattr(self.data_provider, "secret_key", None)
-                paper_flag = getattr(self.data_provider, "paper_trading", True)
-                if not api_key or not secret_key:
-                    raise TradingClientError(
-                        "TradingEngine requires credentials to construct order manager"
-                    )
-                alpaca_manager = AlpacaManager(str(api_key), str(secret_key), bool(paper_flag))
+                raise TradingClientError(
+                    "TradingEngine missing AlpacaManager; initialize with DI or credentials"
+                )
 
             alpaca_client = AlpacaClient(alpaca_manager, self.data_provider)
             self.order_manager = SmartExecution(
@@ -406,6 +431,7 @@ class TradingEngine:
             self.strategy_manager = MultiStrategyManager(
                 self.strategy_allocations,
                 shared_data_provider=self.data_provider,  # Pass our data provider
+                market_data_port=getattr(self, "_market_data_port", None),
                 config=getattr(self, "config", None),
             )
         except Exception as e:
