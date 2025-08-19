@@ -22,11 +22,26 @@ Design:
 import logging
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from decimal import Decimal
+from typing import Any, cast
 
+from the_alchemiser.application.mapping.tracking_mapping import (
+    strategy_order_to_event_dto,
+    orders_to_execution_summary_dto,
+    strategy_pnl_to_dict,
+    ensure_decimal_precision,
+)
 from the_alchemiser.domain.strategies.strategy_manager import StrategyType
 from the_alchemiser.infrastructure.config import load_settings
 from the_alchemiser.infrastructure.s3.s3_utils import get_s3_handler
+from the_alchemiser.interfaces.schemas.tracking import (
+    StrategyOrderEventDTO,
+    StrategyExecutionSummaryDTO,
+    OrderEventStatus,
+    ExecutionStatus,
+    StrategyLiteral,
+)
+from the_alchemiser.services.errors.error_handler import TradingSystemErrorHandler
 from the_alchemiser.services.errors.exceptions import DataProviderError, StrategyExecutionError
 
 # TODO: Add these imports once data structures match:
@@ -142,6 +157,7 @@ class StrategyOrderTracker:
         self.config = config or load_settings()
         self.s3_handler = get_s3_handler()
         self.paper_trading = paper_trading
+        self.error_handler = TradingSystemErrorHandler()
 
         # Initialize S3 paths for data persistence
         self._setup_s3_paths()
@@ -207,65 +223,145 @@ class StrategyOrderTracker:
                 f"Recorded {strategy.value} order: {side} {quantity} {symbol} @ ${price:.2f}"
             )
 
-        except StrategyExecutionError as e:
-            from the_alchemiser.infrastructure.logging.logging_utils import (
-                get_logger,
-                log_error_with_context,
+        except (StrategyExecutionError, DataProviderError) as e:
+            # Use TradingSystemErrorHandler for comprehensive error handling
+            self.error_handler.handle_error(
+                error=e,
+                context="order_recording",
+                component="StrategyOrderTracker.record_order",
+                additional_data={
+                    "order_id": order_id,
+                    "strategy": strategy.value,
+                    "symbol": symbol,
+                    "side": side,
+                    "quantity": quantity,
+                    "price": price,
+                },
             )
-
-            logger = get_logger(__name__)
-            log_error_with_context(
-                logger,
-                e,
-                "order_recording",
-                function="record_order",
-                order_id=order_id,
-                strategy=strategy.value,
-                symbol=symbol,
-                side=side,
-                quantity=quantity,
-                price=price,
-                error_type=type(e).__name__,
-            )
-            logging.error(f"Strategy execution error recording order {order_id}: {e}")
-        except DataProviderError as e:
-            from the_alchemiser.infrastructure.logging.logging_utils import (
-                get_logger,
-                log_error_with_context,
-            )
-
-            logger = get_logger(__name__)
-            log_error_with_context(
-                logger,
-                e,
-                "order_recording",
-                function="record_order",
-                order_id=order_id,
-                strategy=strategy.value,
-                symbol=symbol,
-                side=side,
-                quantity=quantity,
-                price=price,
-                error_type="unexpected_error",
-                original_error=type(e).__name__,
+            logging.error(f"Error recording order {order_id}: {e}")
+        except Exception as e:
+            # Handle unexpected errors
+            self.error_handler.handle_error(
+                error=e,
+                context="order_recording_unexpected",
+                component="StrategyOrderTracker.record_order",
+                additional_data={
+                    "order_id": order_id,
+                    "strategy": strategy.value,
+                    "symbol": symbol,
+                    "side": side,
+                    "quantity": quantity,
+                    "price": price,
+                },
             )
             logging.error(f"Unexpected error recording order {order_id}: {e}")
 
     def _process_order(self, order: StrategyOrder) -> None:
         """Process a new order - update caches and persist to S3."""
-        # Add to cache
-        self._orders_cache.append(order)
+        try:
+            # Add to cache
+            self._orders_cache.append(order)
 
-        # Update position
-        self._update_position(order)
+            # Update position
+            self._update_position(order)
 
-        # Calculate realized P&L if this is a sell
-        if order.side.upper() == "SELL":
-            self._calculate_realized_pnl(order)
+            # Calculate realized P&L if this is a sell
+            if order.side.upper() == "SELL":
+                self._calculate_realized_pnl(order)
 
-        # Persist to S3
-        self._persist_order(order)
-        self._persist_positions()
+            # Persist to S3
+            self._persist_order(order)
+            self._persist_positions()
+            
+        except Exception as e:
+            # Use error handler for processing errors
+            self.error_handler.handle_error(
+                error=e,
+                context="order_processing",
+                component="StrategyOrderTracker._process_order",
+                additional_data={
+                    "order_id": order.order_id,
+                    "strategy": order.strategy,
+                    "symbol": order.symbol,
+                },
+            )
+            raise  # Re-raise to be handled by record_order
+
+    def get_execution_summary_dto(
+        self,
+        strategy: StrategyType,
+        symbol: str | None = None,
+        days: int = 30,
+    ) -> StrategyExecutionSummaryDTO:
+        """Get execution summary as DTO for the specified strategy and symbol."""
+        try:
+            # Get filtered orders
+            orders = self.get_order_history(strategy, symbol, days)
+            
+            if not orders:
+                return StrategyExecutionSummaryDTO(
+                    strategy=strategy.value,
+                    symbol=symbol or "ALL",
+                    total_qty=Decimal("0"),
+                    avg_price=None,
+                    pnl=None,
+                    status=ExecutionStatus.OK,
+                    details=[],
+                )
+            
+            # Filter to single symbol if specified
+            if symbol:
+                orders = [o for o in orders if o.symbol == symbol]
+                target_symbol = symbol
+            else:
+                # Use the most common symbol for multi-symbol summary
+                symbols = [o.symbol for o in orders]
+                target_symbol = max(set(symbols), key=symbols.count) if symbols else "ALL"
+            
+            # Calculate P&L for this strategy/symbol
+            pnl_data = self.get_strategy_pnl(strategy)
+            if symbol and symbol in pnl_data.positions:
+                # Simplified P&L for single symbol (this could be enhanced)
+                symbol_pnl = Decimal(str(pnl_data.total_pnl))
+            else:
+                symbol_pnl = Decimal(str(pnl_data.total_pnl))
+            
+            # Determine execution status
+            status = ExecutionStatus.OK
+            if self.error_handler.has_critical_errors():
+                status = ExecutionStatus.FAILED
+            elif self.error_handler.has_trading_errors():
+                status = ExecutionStatus.PARTIAL
+                
+            return orders_to_execution_summary_dto(
+                orders=orders,
+                strategy=strategy.value,
+                symbol=target_symbol,
+                status=status,
+                pnl=symbol_pnl,
+            )
+            
+        except Exception as e:
+            self.error_handler.handle_error(
+                error=e,
+                context="execution_summary_generation",
+                component="StrategyOrderTracker.get_execution_summary_dto",
+                additional_data={
+                    "strategy": strategy.value,
+                    "symbol": symbol,
+                    "days": days,
+                },
+            )
+            # Return a failed summary on error
+            return StrategyExecutionSummaryDTO(
+                strategy=strategy.value,
+                symbol=symbol or "ALL",
+                total_qty=Decimal("0"),
+                avg_price=None,
+                pnl=None,
+                status=ExecutionStatus.FAILED,
+                details=[],
+            )
 
     def get_strategy_pnl(
         self, strategy: StrategyType, current_prices: dict[str, float] | None = None
@@ -350,11 +446,14 @@ class StrategyOrderTracker:
             # Get P&L for all strategies
             all_pnl = self.get_all_strategy_pnl(current_prices)
 
-            # Create archive record
+            # Create archive record with Decimal precision
             archive_data = {
                 "date": today,
                 "timestamp": datetime.now(UTC).isoformat(),
-                "strategies": {strategy.value: asdict(pnl) for strategy, pnl in all_pnl.items()},
+                "strategies": {
+                    strategy.value: strategy_pnl_to_dict(pnl) 
+                    for strategy, pnl in all_pnl.items()
+                },
             }
 
             # Save to S3
@@ -366,40 +465,17 @@ class StrategyOrderTracker:
             else:
                 logging.error(f"Failed to archive daily P&L for {today}")
 
-        except DataProviderError as e:
-            from the_alchemiser.infrastructure.logging.logging_utils import (
-                get_logger,
-                log_error_with_context,
+        except Exception as e:
+            self.error_handler.handle_error(
+                error=e,
+                context="pnl_archive",
+                component="StrategyOrderTracker.archive_daily_pnl",
+                additional_data={
+                    "date": today if "today" in locals() else "unknown",
+                    "strategies_count": len(all_pnl) if "all_pnl" in locals() else 0,
+                },
             )
-
-            logger = get_logger(__name__)
-            log_error_with_context(
-                logger,
-                e,
-                "pnl_archive_data_error",
-                function="archive_daily_pnl",
-                date=today,
-                strategies_count=len(all_pnl) if "all_pnl" in locals() else 0,
-                error_type=type(e).__name__,
-            )
-            logging.error(f"Data provider error archiving daily P&L: {e}")
-        except StrategyExecutionError as e:
-            from the_alchemiser.infrastructure.logging.logging_utils import (
-                get_logger,
-                log_error_with_context,
-            )
-
-            logger = get_logger(__name__)
-            log_error_with_context(
-                logger,
-                e,
-                "pnl_archive_error",
-                function="archive_daily_pnl",
-                date=today if "today" in locals() else "unknown",
-                error_type="unexpected_error",
-                original_error=type(e).__name__,
-            )
-            logging.error(f"Unexpected error archiving daily P&L: {e}")
+            logging.error(f"Error archiving daily P&L: {e}")
 
     def _update_position(self, order: StrategyOrder) -> None:
         """Update position cache with new order."""
@@ -446,45 +522,19 @@ class StrategyOrderTracker:
                 f"Realized P&L for {sell_order.strategy} {sell_order.symbol}: ${realized_pnl:.2f}"
             )
 
-        except StrategyExecutionError as e:
-            from the_alchemiser.infrastructure.logging.logging_utils import (
-                get_logger,
-                log_error_with_context,
+        except Exception as e:
+            self.error_handler.handle_error(
+                error=e,
+                context="realized_pnl_calculation",
+                component="StrategyOrderTracker._calculate_realized_pnl",
+                additional_data={
+                    "strategy": sell_order.strategy,
+                    "symbol": sell_order.symbol,
+                    "quantity": sell_order.quantity,
+                    "price": sell_order.price,
+                },
             )
-
-            logger = get_logger(__name__)
-            log_error_with_context(
-                logger,
-                e,
-                "realized_pnl_calculation",
-                function="_calculate_realized_pnl",
-                strategy=sell_order.strategy,
-                symbol=sell_order.symbol,
-                quantity=sell_order.quantity,
-                price=sell_order.price,
-                error_type=type(e).__name__,
-            )
-            logging.error(f"Strategy execution error calculating realized P&L: {e}")
-        except DataProviderError as e:
-            from the_alchemiser.infrastructure.logging.logging_utils import (
-                get_logger,
-                log_error_with_context,
-            )
-
-            logger = get_logger(__name__)
-            log_error_with_context(
-                logger,
-                e,
-                "realized_pnl_calculation",
-                function="_calculate_realized_pnl",
-                strategy=sell_order.strategy,
-                symbol=sell_order.symbol,
-                quantity=sell_order.quantity,
-                price=sell_order.price,
-                error_type="unexpected_error",
-                original_error=type(e).__name__,
-            )
-            logging.error(f"Unexpected error calculating realized P&L: {e}")
+            logging.error(f"Error calculating realized P&L: {e}")
 
     def _load_data(self) -> None:
         """Load existing data from S3."""
@@ -493,39 +543,16 @@ class StrategyOrderTracker:
             self._load_recent_orders(days=90)
             self._load_positions()
             self._load_realized_pnl()
-        except DataProviderError as e:
-            from the_alchemiser.infrastructure.logging.logging_utils import (
-                get_logger,
-                log_error_with_context,
+        except Exception as e:
+            self.error_handler.handle_error(
+                error=e,
+                context="tracker_data_loading",
+                component="StrategyOrderTracker._load_data",
+                additional_data={
+                    "load_operations": ["orders", "positions", "realized_pnl"],
+                },
             )
-
-            logger = get_logger(__name__)
-            log_error_with_context(
-                logger,
-                e,
-                "tracker_data_loading",
-                function="_load_data",
-                load_operations=["orders", "positions", "realized_pnl"],
-                error_type=type(e).__name__,
-            )
-            logging.error(f"Data provider error loading tracker data: {e}")
-        except StrategyExecutionError as e:
-            from the_alchemiser.infrastructure.logging.logging_utils import (
-                get_logger,
-                log_error_with_context,
-            )
-
-            logger = get_logger(__name__)
-            log_error_with_context(
-                logger,
-                e,
-                "tracker_data_loading",
-                function="_load_data",
-                load_operations=["orders", "positions", "realized_pnl"],
-                error_type="unexpected_error",
-                original_error=type(e).__name__,
-            )
-            logging.error(f"Unexpected error loading tracker data: {e}")
+            logging.error(f"Error loading tracker data: {e}")
 
     def _load_recent_orders(self, days: int = 90) -> None:
         """Load recent orders from S3."""
@@ -552,22 +579,14 @@ class StrategyOrderTracker:
             self._filter_orders_by_date(days)
 
             logging.info(f"Loaded {len(self._orders_cache)} recent orders")
-        except DataProviderError as e:
-            from the_alchemiser.infrastructure.logging.logging_utils import (
-                get_logger,
-                log_error_with_context,
+        except Exception as e:
+            self.error_handler.handle_error(
+                error=e,
+                context="orders_loading",
+                component="StrategyOrderTracker._load_recent_orders",
+                additional_data={"days": days},
             )
-
-            logger = get_logger(__name__)
-            log_error_with_context(
-                logger,
-                e,
-                "orders_loading",
-                function="_load_recent_orders",
-                days=days,
-                error_type=type(e).__name__,
-            )
-            logging.error(f"Data provider error loading orders: {e}")
+            logging.error(f"Error loading orders: {e}")
 
     def _filter_orders_by_date(self, days: int) -> None:
         """Filter orders cache to only include orders from the last N days."""
@@ -599,21 +618,13 @@ class StrategyOrderTracker:
                 self._positions_cache[key] = pos
 
             logging.info(f"Loaded {len(self._positions_cache)} positions")
-        except DataProviderError as e:
-            from the_alchemiser.infrastructure.logging.logging_utils import (
-                get_logger,
-                log_error_with_context,
+        except Exception as e:
+            self.error_handler.handle_error(
+                error=e,
+                context="positions_loading",
+                component="StrategyOrderTracker._load_positions",
             )
-
-            logger = get_logger(__name__)
-            log_error_with_context(
-                logger,
-                e,
-                "positions_loading",
-                function="_load_positions",
-                error_type=type(e).__name__,
-            )
-            logging.error(f"Data provider error loading positions: {e}")
+            logging.error(f"Error loading positions: {e}")
 
     def _load_realized_pnl(self) -> None:
         """Load realized P&L from S3."""
@@ -631,21 +642,13 @@ class StrategyOrderTracker:
 
             self._realized_pnl_cache = data
             logging.info(f"Loaded realized P&L for {len(data)} strategies")
-        except DataProviderError as e:
-            from the_alchemiser.infrastructure.logging.logging_utils import (
-                get_logger,
-                log_error_with_context,
+        except Exception as e:
+            self.error_handler.handle_error(
+                error=e,
+                context="realized_pnl_loading",
+                component="StrategyOrderTracker._load_realized_pnl",
             )
-
-            logger = get_logger(__name__)
-            log_error_with_context(
-                logger,
-                e,
-                "realized_pnl_loading",
-                function="_load_realized_pnl",
-                error_type=type(e).__name__,
-            )
-            logging.error(f"Data provider error loading realized P&L: {e}")
+            logging.error(f"Error loading realized P&L: {e}")
 
     def _persist_order(self, order: StrategyOrder) -> None:
         """Persist single order to S3."""
@@ -666,24 +669,18 @@ class StrategyOrderTracker:
             if not success:
                 logging.warning(f"Failed to save order {order.order_id} to S3")
 
-        except DataProviderError as e:
-            from the_alchemiser.infrastructure.logging.logging_utils import (
-                get_logger,
-                log_error_with_context,
+        except Exception as e:
+            self.error_handler.handle_error(
+                error=e,
+                context="order_persistence",
+                component="StrategyOrderTracker._persist_order",
+                additional_data={
+                    "order_id": order.order_id,
+                    "strategy": order.strategy,
+                    "symbol": order.symbol,
+                },
             )
-
-            logger = get_logger(__name__)
-            log_error_with_context(
-                logger,
-                e,
-                "order_persistence",
-                function="_persist_order",
-                order_id=order.order_id,
-                strategy=order.strategy,
-                symbol=order.symbol,
-                error_type=type(e).__name__,
-            )
-            logging.error(f"Data provider error persisting order: {e}")
+            logging.error(f"Error persisting order: {e}")
 
     def _apply_order_history_limit(
         self, data: dict[str, Any]
@@ -701,22 +698,16 @@ class StrategyOrderTracker:
             # Save realized P&L
             self._persist_realized_pnl()
 
-        except DataProviderError as e:
-            from the_alchemiser.infrastructure.logging.logging_utils import (
-                get_logger,
-                log_error_with_context,
+        except Exception as e:
+            self.error_handler.handle_error(
+                error=e,
+                context="positions_persistence",
+                component="StrategyOrderTracker._persist_positions",
+                additional_data={
+                    "positions_count": len(self._positions_cache),
+                },
             )
-
-            logger = get_logger(__name__)
-            log_error_with_context(
-                logger,
-                e,
-                "positions_persistence",
-                function="_persist_positions",
-                positions_count=len(self._positions_cache),
-                error_type=type(e).__name__,
-            )
-            logging.error(f"Data provider error persisting positions: {e}")
+            logging.error(f"Error persisting positions: {e}")
 
     def _persist_positions_data(self) -> None:
         """Save positions data to S3."""
@@ -763,21 +754,13 @@ class StrategyOrderTracker:
 
             return summary
 
-        except StrategyExecutionError as e:
-            from the_alchemiser.infrastructure.logging.logging_utils import (
-                get_logger,
-                log_error_with_context,
+        except Exception as e:
+            self.error_handler.handle_error(
+                error=e,
+                context="email_summary_generation",
+                component="StrategyOrderTracker.get_summary_for_email",
             )
-
-            logger = get_logger(__name__)
-            log_error_with_context(
-                logger,
-                e,
-                "email_summary_generation",
-                function="get_summary_for_email",
-                error_type=type(e).__name__,
-            )
-            logging.error(f"Strategy execution error generating email summary: {e}")
+            logging.error(f"Error generating email summary: {e}")
             return {}
 
 
