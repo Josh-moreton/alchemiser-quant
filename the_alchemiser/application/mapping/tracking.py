@@ -9,22 +9,22 @@ Part of the anti-corruption layer for clean DTO boundaries.
 
 from __future__ import annotations
 
-from typing import Any
 from decimal import Decimal
+from typing import Any
 
 from the_alchemiser.interfaces.schemas.tracking import (
-    StrategyOrderEventDTO,
     StrategyExecutionSummaryDTO,
+    StrategyOrderEventDTO,
 )
 
 
 def strategy_order_event_dto_to_dict(event: StrategyOrderEventDTO) -> dict[str, Any]:
     """
     Convert StrategyOrderEventDTO to dictionary for external reporting.
-    
+
     Args:
         event: StrategyOrderEventDTO instance to convert
-        
+
     Returns:
         Dictionary representation suitable for external reporting/logging
     """
@@ -47,19 +47,19 @@ def strategy_order_event_dto_to_dict(event: StrategyOrderEventDTO) -> dict[str, 
 def strategy_execution_summary_dto_to_dict(summary: StrategyExecutionSummaryDTO) -> dict[str, Any]:
     """
     Convert StrategyExecutionSummaryDTO to dictionary for external reporting.
-    
+
     Args:
         summary: StrategyExecutionSummaryDTO instance to convert
-        
+
     Returns:
         Dictionary representation suitable for external reporting/dashboards
     """
     # Convert event details to dictionaries
     event_details = [
-        strategy_order_event_dto_to_dict(event) 
+        strategy_order_event_dto_to_dict(event)
         for event in summary.details
     ]
-    
+
     return {
         "strategy": summary.strategy,
         "symbol": summary.symbol,
@@ -78,13 +78,13 @@ def strategy_execution_summary_dto_to_dict(summary: StrategyExecutionSummaryDTO)
 def dict_to_strategy_order_event_dto(data: dict[str, Any]) -> StrategyOrderEventDTO:
     """
     Convert dictionary data to StrategyOrderEventDTO.
-    
+
     Args:
         data: Raw event data dictionary
-        
+
     Returns:
         StrategyOrderEventDTO instance
-        
+
     Raises:
         ValueError: If required fields are missing or invalid
     """
@@ -93,13 +93,13 @@ def dict_to_strategy_order_event_dto(data: dict[str, Any]) -> StrategyOrderEvent
     for field in required_fields:
         if field not in data:
             raise ValueError(f"Missing required field: {field}")
-    
+
     # Handle timestamp - could be string or datetime
     timestamp = data["ts"]
     if isinstance(timestamp, str):
         from datetime import datetime
         timestamp = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
-    
+
     return StrategyOrderEventDTO(
         event_id=data["event_id"],
         strategy=data["strategy"],
@@ -116,13 +116,13 @@ def dict_to_strategy_order_event_dto(data: dict[str, Any]) -> StrategyOrderEvent
 def dict_to_strategy_execution_summary_dto(data: dict[str, Any]) -> StrategyExecutionSummaryDTO:
     """
     Convert dictionary data to StrategyExecutionSummaryDTO.
-    
+
     Args:
         data: Raw summary data dictionary
-        
+
     Returns:
         StrategyExecutionSummaryDTO instance
-        
+
     Raises:
         ValueError: If required fields are missing or invalid
     """
@@ -131,15 +131,15 @@ def dict_to_strategy_execution_summary_dto(data: dict[str, Any]) -> StrategyExec
     for field in required_fields:
         if field not in data:
             raise ValueError(f"Missing required field: {field}")
-    
+
     # Convert event details if present
     event_details = []
     if "event_details" in data and data["event_details"]:
         event_details = [
-            dict_to_strategy_order_event_dto(event_data) 
+            dict_to_strategy_order_event_dto(event_data)
             for event_data in data["event_details"]
         ]
-    
+
     return StrategyExecutionSummaryDTO(
         strategy=data["strategy"],
         symbol=data["symbol"],
@@ -149,3 +149,4 @@ def dict_to_strategy_execution_summary_dto(data: dict[str, Any]) -> StrategyExec
         status=data["status"],
         details=event_details,
     )
+
