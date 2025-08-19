@@ -461,30 +461,46 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
             response = self._data_client.get_stock_bars(request)
 
-            if symbol in response:
-                bars = response[symbol]
-                logger.debug(f"Successfully retrieved {len(bars)} bars for {symbol}")
-                # Convert to list of dicts for interface compatibility
-                result: list[dict[str, Any]] = []
-                for b in bars:
-                    try:
-                        result.append(
-                            {
-                                "t": getattr(b, "timestamp", None),
-                                "o": float(getattr(b, "open", 0)),
-                                "h": float(getattr(b, "high", 0)),
-                                "l": float(getattr(b, "low", 0)),
-                                "c": float(getattr(b, "close", 0)),
-                                "v": float(getattr(b, "volume", 0)),
-                            }
-                        )
-                    except Exception:
-                        # Best-effort conversion
-                        result.append({})
-                return result
+            # Extract bars for symbol from various possible response shapes
+            bars_obj: Any | None = None
+            try:
+                # Preferred: BarsBySymbol has a `.data` dict
+                data_attr = getattr(response, "data", None)
+                if isinstance(data_attr, dict) and symbol in data_attr:
+                    bars_obj = data_attr[symbol]
+                # Some SDKs expose attributes per symbol
+                elif hasattr(response, symbol):
+                    bars_obj = getattr(response, symbol)
+                # Fallback: mapping-like access
+                elif isinstance(response, dict) and symbol in response:
+                    bars_obj = response[symbol]
+            except Exception:
+                bars_obj = None
 
-            logger.warning(f"No historical data found for {symbol}")
-            return []
+            if not bars_obj:
+                logger.warning(f"No historical data found for {symbol}")
+                return []
+
+            bars = list(bars_obj)
+            logger.debug(f"Successfully retrieved {len(bars)} bars for {symbol}")
+            # Convert to list of dicts for interface compatibility
+            result: list[dict[str, Any]] = []
+            for b in bars:
+                try:
+                    result.append(
+                        {
+                            "t": getattr(b, "timestamp", None),
+                            "o": float(getattr(b, "open", 0) or 0),
+                            "h": float(getattr(b, "high", 0) or 0),
+                            "l": float(getattr(b, "low", 0) or 0),
+                            "c": float(getattr(b, "close", 0) or 0),
+                            "v": float(getattr(b, "volume", 0) or 0),
+                        }
+                    )
+                except Exception:
+                    # Best-effort conversion
+                    continue
+            return result
 
         except Exception as e:
             logger.error(f"Failed to get historical data for {symbol}: {e}")
