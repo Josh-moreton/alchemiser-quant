@@ -23,23 +23,18 @@ import logging
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
-from typing import Any, cast
+from typing import Any
 
 from the_alchemiser.application.mapping.tracking_mapping import (
-    strategy_order_to_event_dto,
     orders_to_execution_summary_dto,
     strategy_pnl_to_dict,
-    ensure_decimal_precision,
 )
 from the_alchemiser.domain.strategies.strategy_manager import StrategyType
 from the_alchemiser.infrastructure.config import load_settings
 from the_alchemiser.infrastructure.s3.s3_utils import get_s3_handler
 from the_alchemiser.interfaces.schemas.tracking import (
-    StrategyOrderEventDTO,
-    StrategyExecutionSummaryDTO,
-    OrderEventStatus,
     ExecutionStatus,
-    StrategyLiteral,
+    StrategyExecutionSummaryDTO,
 )
 from the_alchemiser.services.errors.error_handler import TradingSystemErrorHandler
 from the_alchemiser.services.errors.exceptions import DataProviderError, StrategyExecutionError
@@ -272,7 +267,7 @@ class StrategyOrderTracker:
             # Persist to S3
             self._persist_order(order)
             self._persist_positions()
-            
+
         except Exception as e:
             # Use error handler for processing errors
             self.error_handler.handle_error(
@@ -297,7 +292,7 @@ class StrategyOrderTracker:
         try:
             # Get filtered orders
             orders = self.get_order_history(strategy, symbol, days)
-            
+
             if not orders:
                 return StrategyExecutionSummaryDTO(
                     strategy=strategy.value,
@@ -308,7 +303,7 @@ class StrategyOrderTracker:
                     status=ExecutionStatus.OK,
                     details=[],
                 )
-            
+
             # Filter to single symbol if specified
             if symbol:
                 orders = [o for o in orders if o.symbol == symbol]
@@ -317,22 +312,18 @@ class StrategyOrderTracker:
                 # Use the most common symbol for multi-symbol summary
                 symbols = [o.symbol for o in orders]
                 target_symbol = max(set(symbols), key=symbols.count) if symbols else "ALL"
-            
-            # Calculate P&L for this strategy/symbol
+
+            # Calculate P&L for this strategy (symbol-specific breakdown can be added later)
             pnl_data = self.get_strategy_pnl(strategy)
-            if symbol and symbol in pnl_data.positions:
-                # Simplified P&L for single symbol (this could be enhanced)
-                symbol_pnl = Decimal(str(pnl_data.total_pnl))
-            else:
-                symbol_pnl = Decimal(str(pnl_data.total_pnl))
-            
+            symbol_pnl = Decimal(str(pnl_data.total_pnl))
+
             # Determine execution status
             status = ExecutionStatus.OK
             if self.error_handler.has_critical_errors():
                 status = ExecutionStatus.FAILED
             elif self.error_handler.has_trading_errors():
                 status = ExecutionStatus.PARTIAL
-                
+
             return orders_to_execution_summary_dto(
                 orders=orders,
                 strategy=strategy.value,
@@ -340,7 +331,7 @@ class StrategyOrderTracker:
                 status=status,
                 pnl=symbol_pnl,
             )
-            
+
         except Exception as e:
             self.error_handler.handle_error(
                 error=e,
@@ -451,8 +442,7 @@ class StrategyOrderTracker:
                 "date": today,
                 "timestamp": datetime.now(UTC).isoformat(),
                 "strategies": {
-                    strategy.value: strategy_pnl_to_dict(pnl) 
-                    for strategy, pnl in all_pnl.items()
+                    strategy.value: strategy_pnl_to_dict(pnl) for strategy, pnl in all_pnl.items()
                 },
             }
 
