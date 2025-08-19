@@ -12,6 +12,11 @@ import pandas as pd
 from the_alchemiser.services.market_data.market_data_client import MarketDataClient
 
 
+# TODO: Phase 3 - Strategy Migration
+# Remove this adapter once all strategies consume the typed MarketDataPort directly.
+# This is a temporary shim to preserve the legacy get_data/get_latest_quote/current_price
+# shapes while using the modern typed MarketDataClient underneath.
+# Enforcement: search for usages of TypedDataProviderAdapter and delete them, then remove this file.
 class TypedDataProviderAdapter:
     """Adapter to expose legacy get_data/get_latest_quote/current_price shape.
 
