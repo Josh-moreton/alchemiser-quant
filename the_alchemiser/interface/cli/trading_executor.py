@@ -8,7 +8,7 @@ from the_alchemiser.application.mapping.strategy_signal_mapping import (
     map_signals_dict as _map_signals_to_typed,
 )
 from the_alchemiser.application.trading.engine_service import TradingEngine
-from the_alchemiser.application.types import MultiStrategyExecutionResult
+from the_alchemiser.interfaces.schemas.common import MultiStrategyExecutionResultDTO
 from the_alchemiser.domain.strategies.strategy_manager import StrategyType
 from the_alchemiser.infrastructure.config import Settings
 from the_alchemiser.infrastructure.logging.logging_utils import get_logger
@@ -110,7 +110,7 @@ class TradingExecutor:
         except NotificationError as e:
             self.logger.warning(f"Failed to send market closed notification: {e}")
 
-    def _execute_strategy(self, trader: TradingEngine) -> MultiStrategyExecutionResult:
+    def _execute_strategy(self, trader: TradingEngine) -> MultiStrategyExecutionResultDTO:
         """Execute the trading strategy."""
         # Generate and display strategy signals
         render_header("Analyzing market conditions...", "Multi-Strategy Trading")
@@ -142,7 +142,7 @@ class TradingExecutor:
 
         # Execute trading
         self._show_execution_progress()
-        result: MultiStrategyExecutionResult = trader.execute_multi_strategy()
+        result: MultiStrategyExecutionResultDTO = trader.execute_multi_strategy()
 
         # Display results
         trader.display_multi_strategy_summary(result)
@@ -183,7 +183,7 @@ class TradingExecutor:
             self.logger.info("🔄 Executing trading strategy...")
 
     def _send_trading_notification(
-        self, result: MultiStrategyExecutionResult, mode_str: str
+        self, result: MultiStrategyExecutionResultDTO, mode_str: str
     ) -> None:
         """Send trading completion notification."""
         try:

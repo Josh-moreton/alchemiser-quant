@@ -21,7 +21,7 @@ from ..reporting.reporting import (
     create_execution_summary,
     save_dashboard_data,
 )
-from ..types import MultiStrategyExecutionResult
+from the_alchemiser.interfaces.schemas.common import MultiStrategyExecutionResultDTO
 
 
 class ExecutionManager:
@@ -78,7 +78,7 @@ class ExecutionManager:
             final_portfolio_state = build_portfolio_state_data(
                 consolidated_portfolio, account_info_after, final_positions
             )
-            result = MultiStrategyExecutionResult(
+            result = MultiStrategyExecutionResultDTO(
                 success=True,
                 strategy_signals=strategy_signals,
                 consolidated_portfolio=consolidated_portfolio,
@@ -135,7 +135,7 @@ class ExecutionManager:
                 "status": "INACTIVE",
             }
 
-            return MultiStrategyExecutionResult(
+            return MultiStrategyExecutionResultDTO(
                 success=False,
                 strategy_signals={},
                 consolidated_portfolio={"BIL": 1.0},  # Safe fallback to cash
