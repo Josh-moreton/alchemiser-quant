@@ -12,7 +12,18 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any, Literal, cast
 
-from the_alchemiser.interfaces.schemas.orders import OrderRequestDTO, ValidatedOrderDTO
+from the_alchemiser.interfaces.schemas.orders import (
+    OrderExecutionResultDTO,
+    OrderRequestDTO,
+    ValidatedOrderDTO,
+)
+from the_alchemiser.domain.shared_kernel.value_objects.identifier import Identifier
+from the_alchemiser.domain.shared_kernel.value_objects.money import Money
+from the_alchemiser.domain.trading.entities.order import Order
+from the_alchemiser.domain.trading.value_objects.order_id import OrderId
+from the_alchemiser.domain.trading.value_objects.order_status import OrderStatus
+from the_alchemiser.domain.trading.value_objects.quantity import Quantity
+from the_alchemiser.domain.trading.value_objects.symbol import Symbol
 
 
 def dict_to_order_request_dto(order_data: dict[str, Any]) -> OrderRequestDTO:
@@ -138,3 +149,97 @@ def validated_dto_to_dict(validated_order: ValidatedOrderDTO) -> dict[str, Any]:
         "risk_score": float(validated_order.risk_score) if validated_order.risk_score else None,
         "validation_timestamp": validated_order.validation_timestamp.isoformat(),
     }
+
+
+def order_request_dto_to_domain_order_params(dto: OrderRequestDTO) -> dict[str, Any]:
+    """
+    Convert OrderRequestDTO to domain Order entity creation parameters.
+    
+    Args:
+        dto: OrderRequestDTO instance to convert
+        
+    Returns:
+        Dictionary with parameters needed to create domain Order entity
+        
+    Raises:
+        ValueError: If required domain conversions fail
+    """
+    # Convert DTO fields to domain value objects
+    symbol = Symbol(dto.symbol)
+    quantity = Quantity(dto.quantity)
+    
+    # Convert limit price to Money if present
+    limit_price = None
+    if dto.limit_price is not None:
+        limit_price = Money(dto.limit_price, "USD")
+    
+    # Generate a new OrderId - this would typically come from infrastructure
+    order_id = OrderId.generate()
+    
+    # Map order type and time in force to the format expected by domain
+    order_type_mapping = {
+        "market": "MARKET",
+        "limit": "LIMIT"
+    }
+    order_type = order_type_mapping.get(dto.order_type, dto.order_type.upper())
+    
+    return {
+        "id": order_id,
+        "symbol": symbol,
+        "quantity": quantity,
+        "status": OrderStatus.NEW,
+        "order_type": order_type,
+        "limit_price": limit_price,
+        # Additional context that might be useful for order creation
+        "side": dto.side,
+        "time_in_force": dto.time_in_force,
+        "client_order_id": dto.client_order_id,
+    }
+
+
+def domain_order_to_execution_result_dto(order: Order) -> OrderExecutionResultDTO:
+    """
+    Convert domain Order entity to OrderExecutionResultDTO.
+    
+    Args:
+        order: Domain Order entity to convert
+        
+    Returns:
+        OrderExecutionResultDTO instance with execution result data
+        
+    Raises:
+        ValueError: If order data cannot be converted to DTO format
+    """
+    # Map domain OrderStatus to DTO status literals
+    status_mapping = {
+        OrderStatus.NEW: "accepted",
+        OrderStatus.PARTIALLY_FILLED: "partially_filled", 
+        OrderStatus.FILLED: "filled",
+        OrderStatus.CANCELLED: "canceled",
+        OrderStatus.REJECTED: "rejected",
+    }
+    
+    dto_status = status_mapping.get(order.status)
+    if dto_status is None:
+        raise ValueError(f"Cannot map order status {order.status} to DTO format")
+    
+    # Calculate average fill price if filled quantity > 0
+    avg_fill_price = None
+    if order.filled_quantity.value > 0 and order.limit_price is not None:
+        # For simplicity, use limit price as avg fill price
+        # In real implementation, this would track actual fill prices
+        avg_fill_price = order.limit_price.amount
+    
+    # Determine completion time based on status
+    completed_at = None
+    if order.status in (OrderStatus.FILLED, OrderStatus.CANCELLED, OrderStatus.REJECTED):
+        completed_at = order.created_at  # Simplified - would track actual completion time
+    
+    return OrderExecutionResultDTO(
+        order_id=str(order.id.value),
+        status=cast(Literal["accepted", "filled", "partially_filled", "rejected", "canceled"], dto_status),
+        filled_qty=order.filled_quantity.value,
+        avg_fill_price=avg_fill_price,
+        submitted_at=order.created_at,
+        completed_at=completed_at,
+    )
