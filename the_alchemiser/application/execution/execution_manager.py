@@ -7,6 +7,7 @@ from the_alchemiser.application.mapping.strategy_signal_mapping import (
     map_signals_dict as _map_signals_to_typed,
 )
 from the_alchemiser.domain.types import AccountInfo
+from the_alchemiser.interfaces.schemas.common import MultiStrategyExecutionResultDTO
 from the_alchemiser.services.errors.error_handler import handle_errors_with_retry
 from the_alchemiser.services.errors.exceptions import (
     ConfigurationError,
@@ -21,7 +22,6 @@ from ..reporting.reporting import (
     create_execution_summary,
     save_dashboard_data,
 )
-from ..types import MultiStrategyExecutionResult
 
 
 class ExecutionManager:
@@ -78,7 +78,7 @@ class ExecutionManager:
             final_portfolio_state = build_portfolio_state_data(
                 consolidated_portfolio, account_info_after, final_positions
             )
-            result = MultiStrategyExecutionResult(
+            result = MultiStrategyExecutionResultDTO(
                 success=True,
                 strategy_signals=strategy_signals,
                 consolidated_portfolio=consolidated_portfolio,
@@ -135,7 +135,7 @@ class ExecutionManager:
                 "status": "INACTIVE",
             }
 
-            return MultiStrategyExecutionResult(
+            return MultiStrategyExecutionResultDTO(
                 success=False,
                 strategy_signals={},
                 consolidated_portfolio={"BIL": 1.0},  # Safe fallback to cash

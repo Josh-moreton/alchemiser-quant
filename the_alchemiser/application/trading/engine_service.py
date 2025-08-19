@@ -40,6 +40,7 @@ from the_alchemiser.infrastructure.adapters.legacy_portfolio_adapter import (
     LegacyPortfolioRebalancerAdapter,
 )
 from the_alchemiser.infrastructure.config import Settings
+from the_alchemiser.interfaces.schemas.common import MultiStrategyExecutionResultDTO
 from the_alchemiser.services.errors.exceptions import (
     ConfigurationError,
     DataProviderError,
@@ -54,7 +55,6 @@ from the_alchemiser.services.repository.alpaca_manager import AlpacaManager
 
 from ..execution.execution_manager import ExecutionManager
 from ..reporting.reporting import build_portfolio_state_data
-from ..types import MultiStrategyExecutionResult
 
 # Conditional import for legacy portfolio rebalancer
 try:
@@ -144,7 +144,7 @@ class RebalancingService(Protocol):
 class MultiStrategyExecutor(Protocol):
     """Protocol for multi-strategy execution."""
 
-    def execute_multi_strategy(self) -> MultiStrategyExecutionResult:
+    def execute_multi_strategy(self) -> MultiStrategyExecutionResultDTO:
         """Execute all strategies and rebalance portfolio."""
         ...
 
@@ -893,11 +893,11 @@ class TradingEngine:
         }
 
     # --- Multi-Strategy Execution ---
-    def execute_multi_strategy(self) -> MultiStrategyExecutionResult:
+    def execute_multi_strategy(self) -> MultiStrategyExecutionResultDTO:
         """Execute all strategies and rebalance portfolio with engine orchestration.
 
         Returns:
-            MultiStrategyExecutionResult with comprehensive execution details.
+            MultiStrategyExecutionResultDTO with comprehensive execution details.
         """
         logging.info("Initiating multi-strategy execution")
 
@@ -908,7 +908,7 @@ class TradingEngine:
                 logging.error(
                     "Cannot proceed with multi-strategy execution: account info unavailable"
                 )
-                return MultiStrategyExecutionResult(
+                return MultiStrategyExecutionResultDTO(
                     success=False,
                     strategy_signals={},
                     consolidated_portfolio={},
@@ -920,7 +920,7 @@ class TradingEngine:
                 )
         except (DataProviderError, TradingClientError, ConfigurationError, ValueError) as e:
             logging.error(f"Pre-execution validation failed: {e}")
-            return MultiStrategyExecutionResult(
+            return MultiStrategyExecutionResultDTO(
                 success=False,
                 strategy_signals={},
                 consolidated_portfolio={},
@@ -975,7 +975,7 @@ class TradingEngine:
             except (ImportError, AttributeError):
                 pass  # Fallback for backward compatibility
 
-            return MultiStrategyExecutionResult(
+            return MultiStrategyExecutionResultDTO(
                 success=False,
                 strategy_signals={},
                 consolidated_portfolio={},
@@ -1182,7 +1182,7 @@ class TradingEngine:
         return target_values, current_values
 
     def display_multi_strategy_summary(
-        self, execution_result: MultiStrategyExecutionResult
+        self, execution_result: MultiStrategyExecutionResultDTO
     ) -> None:
         """
         Display a summary of multi-strategy execution results using Rich
