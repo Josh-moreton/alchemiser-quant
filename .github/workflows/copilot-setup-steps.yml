@@ -1,0 +1,86 @@
+name: Copilot Setup Steps
+
+on:
+  workflow_call:
+    inputs:
+      run-lint:
+        description: "Run lint/typecheck after setup"
+        required: false
+        default: false
+        type: boolean
+      run-tests:
+        description: "Run unit tests after setup"
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Cache Poetry installation
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pipx
+            ~/.local/pipx/venvs/poetry
+          key: ${{ runner.os }}-poetry-v2
+
+      - name: Install Poetry
+        run: |
+          python -m pip install --upgrade pip pipx
+          python -m pipx install poetry
+          poetry --version
+
+      - name: Configure Poetry
+        run: |
+          poetry config virtualenvs.in-project true
+          poetry config installer.max-workers 10
+
+      - name: Cache virtualenv
+        id: venv-cache
+        uses: actions/cache@v4
+        with:
+          path: ./.venv
+          key: ${{ runner.os }}-venv-${{ hashFiles('**/poetry.lock') }}
+
+      - name: Install dependencies
+        if: steps.venv-cache.outputs.cache-hit != 'true'
+        run: |
+          poetry install --no-interaction --no-ansi
+
+      - name: Set safe default environment for tools
+        run: |
+          echo "TYPES_V2_ENABLED=1" >> $GITHUB_ENV
+          echo "PAPER_TRADING=true" >> $GITHUB_ENV
+          echo "LOGGING__LEVEL=INFO" >> $GITHUB_ENV
+          echo "PYTHONUNBUFFERED=1" >> $GITHUB_ENV
+
+      - name: Verify environment
+        run: |
+          poetry run python -c "import sys; print('Python:', sys.version.split()[0])"
+          poetry run python -c "import the_alchemiser; print('Import OK')"
+
+      - name: Lint and typecheck (optional)
+        if: inputs.run-lint == true
+        run: |
+          make lint || true
+
+      - name: Run unit tests (optional)
+        if: inputs.run-tests == true
+        run: |
+          make test || poetry run pytest -q
