@@ -37,6 +37,7 @@ The Alchemiser is a sophisticated multi-strategy quantitative trading system bui
 - **Return annotations**: Always specify return types, use `None` explicitly
 - **Decimals only for money/qty**: Always use `Decimal` for financial values
 - **Protocols for boundaries**: Repository interfaces live under `domain/**/protocols/` and are implemented in `infrastructure/`
+ - **No float equality checks**: Never compare floats with `==` or `!=` in production or tests. For monetary/quantity values use `Decimal`. For non-financial floats (e.g., ratios), use tolerant comparisons like `pytest.approx` in tests and explicit epsilon thresholds in code when necessary. This avoids flaky tests and precision bugs.
 
 ### No Legacy Fallback Policy (MANDATORY)
 - Do NOT add legacy fallbacks in new or refactored code. If a modern service/method fails, surface a clear error; do not silently fall back to legacy implementations.
@@ -307,6 +308,16 @@ from decimal import Decimal
 # Always use Decimal for financial calculations
 portfolio_value = Decimal("100000.00")
 position_size = portfolio_value * Decimal("0.1")
+```
+
+### Floating Point Comparison Policy
+- Do not perform direct equality checks on floats.
+- Prefer `Decimal` for all financial calculations and comparisons.
+- In tests, use `pytest.approx` for float comparisons:
+```python
+import pytest
+
+assert computed_ratio == pytest.approx(0.25, rel=1e-6)
 ```
 
 ### Strategy Implementation Pattern

@@ -9,7 +9,6 @@ from datetime import datetime
 from decimal import Decimal
 
 import pytest
-from pydantic import ValidationError
 
 from the_alchemiser.application.orders.order_validation import (
     OrderValidationError,
@@ -323,11 +322,11 @@ class TestRiskLimits:
     def test_default_risk_limits(self) -> None:
         """Test default risk limits are reasonable."""
         limits = RiskLimits()
-        
-        assert limits.max_position_pct == 0.10
-        assert limits.max_portfolio_concentration == 0.25
-        assert limits.max_order_value == 50000.0
-        assert limits.min_order_value == 1.0
+        # Avoid float equality checks; use tolerant comparisons
+        assert limits.max_position_pct == pytest.approx(0.10)
+        assert limits.max_portfolio_concentration == pytest.approx(0.25)
+        assert limits.max_order_value == pytest.approx(50000.0)
+        assert limits.min_order_value == pytest.approx(1.0)
         assert limits.max_daily_trades == 100
 
     def test_custom_risk_limits(self) -> None:
@@ -337,9 +336,9 @@ class TestRiskLimits:
             min_order_value=10.0,
             max_daily_trades=50,
         )
-        
-        assert limits.max_order_value == 25000.0
-        assert limits.min_order_value == 10.0
+        # Avoid float equality checks; use tolerant comparisons
+        assert limits.max_order_value == pytest.approx(25000.0)
+        assert limits.min_order_value == pytest.approx(10.0)
         assert limits.max_daily_trades == 50
 
 
@@ -356,12 +355,12 @@ class TestValidationResult:
             time_in_force="day",
             validation_timestamp=datetime.now(),
         )
-        
+
         result = ValidationResult(
             is_valid=True,
             validated_order=validated_order,
         )
-        
+
         assert result.is_valid is True
         assert len(result.errors) == 0
         assert len(result.warnings) == 0
@@ -374,7 +373,7 @@ class TestValidationResult:
             errors=["Missing symbol", "Invalid quantity"],
             warnings=["Order may incur fees"],
         )
-        
+
         assert result.is_valid is False
         assert len(result.errors) == 2
         assert len(result.warnings) == 1
