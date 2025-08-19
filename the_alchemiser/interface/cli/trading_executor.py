@@ -8,7 +8,6 @@ from the_alchemiser.application.mapping.strategy_signal_mapping import (
     map_signals_dict as _map_signals_to_typed,
 )
 from the_alchemiser.application.trading.engine_service import TradingEngine
-from the_alchemiser.interfaces.schemas.common import MultiStrategyExecutionResultDTO
 from the_alchemiser.domain.strategies.strategy_manager import StrategyType
 from the_alchemiser.infrastructure.config import Settings
 from the_alchemiser.infrastructure.logging.logging_utils import get_logger
@@ -18,6 +17,7 @@ from the_alchemiser.interface.cli.cli_formatter import (
     render_header,
     render_strategy_signals,
 )
+from the_alchemiser.interfaces.schemas.common import MultiStrategyExecutionResultDTO
 from the_alchemiser.services.errors.exceptions import (
     NotificationError,
     StrategyExecutionError,

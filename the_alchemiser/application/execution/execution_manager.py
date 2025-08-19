@@ -7,6 +7,7 @@ from the_alchemiser.application.mapping.strategy_signal_mapping import (
     map_signals_dict as _map_signals_to_typed,
 )
 from the_alchemiser.domain.types import AccountInfo
+from the_alchemiser.interfaces.schemas.common import MultiStrategyExecutionResultDTO
 from the_alchemiser.services.errors.error_handler import handle_errors_with_retry
 from the_alchemiser.services.errors.exceptions import (
     ConfigurationError,
@@ -21,7 +22,6 @@ from ..reporting.reporting import (
     create_execution_summary,
     save_dashboard_data,
 )
-from the_alchemiser.interfaces.schemas.common import MultiStrategyExecutionResultDTO
 
 
 class ExecutionManager:

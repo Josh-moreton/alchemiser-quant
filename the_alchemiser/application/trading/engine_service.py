@@ -40,6 +40,7 @@ from the_alchemiser.infrastructure.adapters.legacy_portfolio_adapter import (
     LegacyPortfolioRebalancerAdapter,
 )
 from the_alchemiser.infrastructure.config import Settings
+from the_alchemiser.interfaces.schemas.common import MultiStrategyExecutionResultDTO
 from the_alchemiser.services.errors.exceptions import (
     ConfigurationError,
     DataProviderError,
@@ -54,7 +55,6 @@ from the_alchemiser.services.repository.alpaca_manager import AlpacaManager
 
 from ..execution.execution_manager import ExecutionManager
 from ..reporting.reporting import build_portfolio_state_data
-from the_alchemiser.interfaces.schemas.common import MultiStrategyExecutionResultDTO
 
 # Conditional import for legacy portfolio rebalancer
 try:
