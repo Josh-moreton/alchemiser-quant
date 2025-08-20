@@ -68,7 +68,9 @@ def dict_to_order_request_dto(order_data: dict[str, Any]) -> OrderRequestDTO:
 
     time_in_force_str = str(order_data.get("time_in_force", "day")).lower()
     if time_in_force_str not in ["day", "gtc", "ioc", "fok"]:
-        raise ValueError(f"Invalid time_in_force: {time_in_force_str}. Must be one of 'day', 'gtc', 'ioc', 'fok'")
+        raise ValueError(
+            f"Invalid time_in_force: {time_in_force_str}. Must be one of 'day', 'gtc', 'ioc', 'fok'"
+        )
 
     # Convert to DTO with validation
     return OrderRequestDTO(
@@ -142,9 +144,15 @@ def validated_dto_to_dict(validated_order: ValidatedOrderDTO) -> dict[str, Any]:
         "time_in_force": validated_order.time_in_force,
         "limit_price": float(validated_order.limit_price) if validated_order.limit_price else None,
         "client_order_id": validated_order.client_order_id,
-        "estimated_value": float(validated_order.estimated_value) if validated_order.estimated_value else None,
+        "estimated_value": (
+            float(validated_order.estimated_value) if validated_order.estimated_value else None
+        ),
         "is_fractional": validated_order.is_fractional,
-        "normalized_quantity": float(validated_order.normalized_quantity) if validated_order.normalized_quantity else None,
+        "normalized_quantity": (
+            float(validated_order.normalized_quantity)
+            if validated_order.normalized_quantity
+            else None
+        ),
         "risk_score": float(validated_order.risk_score) if validated_order.risk_score else None,
         "validation_timestamp": validated_order.validation_timestamp.isoformat(),
     }
@@ -176,10 +184,7 @@ def order_request_dto_to_domain_order_params(dto: OrderRequestDTO) -> dict[str, 
     order_id = OrderId.generate()
 
     # Map order type and time in force to the format expected by domain
-    order_type_mapping = {
-        "market": "MARKET",
-        "limit": "LIMIT"
-    }
+    order_type_mapping = {"market": "MARKET", "limit": "LIMIT"}
     order_type = order_type_mapping.get(dto.order_type, dto.order_type.upper())
 
     return {
@@ -236,7 +241,9 @@ def domain_order_to_execution_result_dto(order: Order) -> OrderExecutionResultDT
 
     return OrderExecutionResultDTO(
         order_id=str(order.id.value),
-        status=cast(Literal["accepted", "filled", "partially_filled", "rejected", "canceled"], dto_status),
+        status=cast(
+            Literal["accepted", "filled", "partially_filled", "rejected", "canceled"], dto_status
+        ),
         filled_qty=order.filled_quantity.value,
         avg_fill_price=avg_fill_price,
         submitted_at=order.created_at,

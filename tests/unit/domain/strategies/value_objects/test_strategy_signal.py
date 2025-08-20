@@ -1,12 +1,13 @@
 """Tests for StrategySignal value object."""
 
-import pytest
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from decimal import Decimal
 
-from the_alchemiser.domain.strategies.value_objects.strategy_signal import StrategySignal
-from the_alchemiser.domain.strategies.value_objects.confidence import Confidence
+import pytest
+
 from the_alchemiser.domain.shared_kernel.value_objects.percentage import Percentage
+from the_alchemiser.domain.strategies.value_objects.confidence import Confidence
+from the_alchemiser.domain.strategies.value_objects.strategy_signal import StrategySignal
 from the_alchemiser.domain.trading.value_objects.symbol import Symbol
 
 
@@ -18,7 +19,7 @@ class TestStrategySignal:
         symbol = Symbol("AAPL")
         confidence = Confidence(Decimal("0.8"))
         target_allocation = Percentage(Decimal("0.25"))  # 25%
-        
+
         signal = StrategySignal(
             symbol=symbol,
             action="BUY",
@@ -26,7 +27,7 @@ class TestStrategySignal:
             target_allocation=target_allocation,
             reasoning="Strong earnings forecast",
         )
-        
+
         assert signal.symbol == symbol
         assert signal.action == "BUY"
         assert signal.confidence == confidence
@@ -40,9 +41,9 @@ class TestStrategySignal:
         symbol = Symbol("SPY")
         confidence = Confidence(Decimal("0.7"))
         target_allocation = Percentage(Decimal("0.1"))
-        
+
         actions = ["BUY", "SELL", "HOLD"]
-        
+
         for action in actions:
             signal = StrategySignal(
                 symbol=symbol,
@@ -58,7 +59,7 @@ class TestStrategySignal:
         symbol = Symbol("TSLA")
         confidence = Confidence(Decimal("0.6"))
         target_allocation = Percentage(Decimal("0.2"))
-        
+
         with pytest.raises(ValueError, match="Invalid signal action"):
             StrategySignal(
                 symbol=symbol,
@@ -74,7 +75,7 @@ class TestStrategySignal:
         confidence = Confidence(Decimal("0.9"))
         target_allocation = Percentage(Decimal("0.05"))
         custom_time = datetime(2023, 6, 15, 14, 30, 0, tzinfo=UTC)
-        
+
         signal = StrategySignal(
             symbol=symbol,
             action="SELL",
@@ -83,7 +84,7 @@ class TestStrategySignal:
             reasoning="Crypto volatility concern",
             timestamp=custom_time,
         )
-        
+
         assert signal.timestamp == custom_time
 
     def test_default_timestamp_is_recent(self) -> None:
@@ -91,7 +92,7 @@ class TestStrategySignal:
         symbol = Symbol("QQQ")
         confidence = Confidence(Decimal("0.75"))
         target_allocation = Percentage(Decimal("0.3"))
-        
+
         signal = StrategySignal(
             symbol=symbol,
             action="HOLD",
@@ -99,7 +100,7 @@ class TestStrategySignal:
             target_allocation=target_allocation,
             reasoning="Market uncertainty",
         )
-        
+
         now = datetime.now(UTC)
         time_diff = (now - signal.timestamp).total_seconds()
         assert time_diff < 5  # Should be created within 5 seconds
@@ -109,7 +110,7 @@ class TestStrategySignal:
         symbol = Symbol("GOLD")
         confidence = Confidence(Decimal("0.65"))
         target_allocation = Percentage(Decimal("0.15"))
-        
+
         signal = StrategySignal(
             symbol=symbol,
             action="BUY",
@@ -117,7 +118,7 @@ class TestStrategySignal:
             target_allocation=target_allocation,
             reasoning="Inflation hedge",
         )
-        
+
         # Should not be able to modify any field
         with pytest.raises(AttributeError):
             signal.action = "SELL"  # type: ignore
@@ -131,7 +132,7 @@ class TestStrategySignal:
         confidence = Confidence(Decimal("0.85"))
         target_allocation = Percentage(Decimal("0.4"))
         timestamp = datetime.now(UTC)
-        
+
         signal1 = StrategySignal(
             symbol=symbol,
             action="BUY",
@@ -156,7 +157,7 @@ class TestStrategySignal:
             reasoning="Cloud growth",
             timestamp=timestamp,
         )
-        
+
         assert signal1 == signal2
         assert signal1 != signal3
 
@@ -170,10 +171,10 @@ class TestStrategySignal:
             target_allocation=Percentage(Decimal("0.5")),
             reasoning="Strong Q4 expected",
         )
-        
+
         assert high_conf_signal.confidence.is_high
         assert high_conf_signal.target_allocation.to_percent() == Decimal("50")
-        
+
         # Low confidence, small allocation
         low_conf_signal = StrategySignal(
             symbol=Symbol("RISKY"),
@@ -182,7 +183,7 @@ class TestStrategySignal:
             target_allocation=Percentage(Decimal("0.01")),
             reasoning="Uncertain outlook",
         )
-        
+
         assert low_conf_signal.confidence.is_low
         assert low_conf_signal.target_allocation.to_percent() == Decimal("1")
 
@@ -191,7 +192,7 @@ class TestStrategySignal:
         symbol = Symbol("TEST")
         confidence = Confidence(Decimal("0.7"))
         target_allocation = Percentage(Decimal("0.1"))
-        
+
         # Empty reasoning
         signal_empty = StrategySignal(
             symbol=symbol,
@@ -201,7 +202,7 @@ class TestStrategySignal:
             reasoning="",
         )
         assert signal_empty.reasoning == ""
-        
+
         # Long reasoning
         long_reasoning = "This is a very detailed reasoning that explains the complex analysis behind this trading signal, including technical indicators, fundamental analysis, and market sentiment."
         signal_long = StrategySignal(

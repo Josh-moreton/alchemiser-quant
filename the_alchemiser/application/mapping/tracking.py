@@ -34,7 +34,7 @@ def strategy_order_event_dto_to_dict(event: StrategyOrderEventDTO) -> dict[str, 
         "symbol": event.symbol,
         "side": event.side,
         "quantity": float(event.quantity),  # Convert Decimal to float for JSON serialization
-        "status": event.status.value if hasattr(event.status, 'value') else str(event.status),
+        "status": event.status.value if hasattr(event.status, "value") else str(event.status),
         "price": float(event.price) if event.price is not None else None,
         "timestamp": event.ts.isoformat(),
         "error": event.error,
@@ -55,10 +55,7 @@ def strategy_execution_summary_dto_to_dict(summary: StrategyExecutionSummaryDTO)
         Dictionary representation suitable for external reporting/dashboards
     """
     # Convert event details to dictionaries
-    event_details = [
-        strategy_order_event_dto_to_dict(event)
-        for event in summary.details
-    ]
+    event_details = [strategy_order_event_dto_to_dict(event) for event in summary.details]
 
     return {
         "strategy": summary.strategy,
@@ -66,7 +63,7 @@ def strategy_execution_summary_dto_to_dict(summary: StrategyExecutionSummaryDTO)
         "total_quantity": float(summary.total_qty),
         "average_price": float(summary.avg_price) if summary.avg_price is not None else None,
         "pnl": float(summary.pnl) if summary.pnl is not None else None,
-        "status": summary.status.value if hasattr(summary.status, 'value') else str(summary.status),
+        "status": summary.status.value if hasattr(summary.status, "value") else str(summary.status),
         "event_count": len(summary.details),
         "event_details": event_details,
         # Additional metadata for reporting
@@ -98,7 +95,8 @@ def dict_to_strategy_order_event_dto(data: dict[str, Any]) -> StrategyOrderEvent
     timestamp = data["ts"]
     if isinstance(timestamp, str):
         from datetime import datetime
-        timestamp = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+
+        timestamp = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
 
     return StrategyOrderEventDTO(
         event_id=data["event_id"],
@@ -136,8 +134,7 @@ def dict_to_strategy_execution_summary_dto(data: dict[str, Any]) -> StrategyExec
     event_details = []
     if "event_details" in data and data["event_details"]:
         event_details = [
-            dict_to_strategy_order_event_dto(event_data)
-            for event_data in data["event_details"]
+            dict_to_strategy_order_event_dto(event_data) for event_data in data["event_details"]
         ]
 
     return StrategyExecutionSummaryDTO(
@@ -149,4 +146,3 @@ def dict_to_strategy_execution_summary_dto(data: dict[str, Any]) -> StrategyExec
         status=data["status"],
         details=event_details,
     )
-
