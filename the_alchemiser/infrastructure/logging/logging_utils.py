@@ -178,6 +178,18 @@ def setup_logging(
         respect_existing_handlers: If True, don't clear existing handlers (useful for CLI)
     """
     root_logger = logging.getLogger()
+    
+    # Production hygiene: Guard against S3 logging in Lambda environments
+    is_lambda = os.environ.get("AWS_LAMBDA_FUNCTION_NAME") is not None
+    s3_logging_enabled = os.environ.get("ENABLE_S3_LOGGING", "").lower() in ("1", "true", "yes", "on")
+    
+    if is_lambda and log_file and log_file.startswith("s3://") and not s3_logging_enabled:
+        logger = get_logger(__name__)
+        logger.warning(
+            "S3 logging requested in Lambda environment but ENABLE_S3_LOGGING not set. "
+            "Defaulting to CloudWatch-only logging for production hygiene."
+        )
+        log_file = None
 
     # Only clear handlers if we're not respecting existing ones
     if not respect_existing_handlers and root_logger.hasHandlers():
@@ -274,7 +286,21 @@ def configure_test_logging(log_level: int = logging.WARNING) -> None:
 def configure_production_logging(
     log_level: int = logging.INFO, log_file: str | None = None
 ) -> None:
-    """Configure logging for production environment with structured format."""
+    """Configure logging for production environment with structured format.
+    
+    In Lambda environments, defaults to CloudWatch-only logging unless S3 is explicitly enabled.
+    """
+    # Production hygiene: Only allow S3 logging if explicitly enabled
+    is_lambda = os.environ.get("AWS_LAMBDA_FUNCTION_NAME") is not None
+    s3_logging_enabled = os.environ.get("ENABLE_S3_LOGGING", "").lower() in ("1", "true", "yes", "on")
+    
+    # If in Lambda and S3 logging not explicitly enabled, force log_file to None
+    if is_lambda and not s3_logging_enabled:
+        if log_file and log_file.startswith("s3://"):
+            logger = get_logger(__name__)
+            logger.info("Lambda production mode: defaulting to CloudWatch-only logging")
+        log_file = None
+    
     setup_logging(
         log_level=log_level,
         log_file=log_file,
