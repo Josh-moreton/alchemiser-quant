@@ -25,6 +25,7 @@ from the_alchemiser.services.errors.exceptions import (
     StrategyExecutionError,
     TradingClientError,
 )
+from the_alchemiser.services.errors.handler import TradingSystemErrorHandler
 
 # DI imports (optional)
 try:
@@ -46,6 +47,7 @@ class TradingSystem:
     def __init__(self, settings: Settings | None = None):
         self.settings = settings or load_settings()
         self.logger = get_logger(__name__)
+        self.error_handler = TradingSystemErrorHandler()
         self._initialize_di()
 
     def _initialize_di(self) -> None:
@@ -76,7 +78,12 @@ class TradingSystem:
             analyzer = SignalAnalyzer(self.settings)
             return analyzer.run()
         except (DataProviderError, StrategyExecutionError) as e:
-            self.logger.error(f"Signal analysis failed: {e}")
+            self.error_handler.handle_error(
+                error=e,
+                context="signal analysis operation",
+                component="TradingSystem.analyze_signals",
+                additional_data={"settings_loaded": True}
+            )
             return False
 
     def execute_trading(
@@ -93,7 +100,15 @@ class TradingSystem:
             )
             return executor.run()
         except (TradingClientError, StrategyExecutionError) as e:
-            self.logger.error(f"Trading execution failed: {e}")
+            self.error_handler.handle_error(
+                error=e,
+                context="multi-strategy trading execution",
+                component="TradingSystem.execute_trading",
+                additional_data={
+                    "live_trading": live_trading,
+                    "ignore_market_hours": ignore_market_hours
+                }
+            )
             return False
 
 
@@ -225,8 +240,18 @@ def main(argv: list[str] | None = None) -> bool:
         return success
 
     except (ConfigurationError, ValueError, ImportError) as e:
-        logger = get_logger(__name__)
-        logger.error(f"System error: {e}")
+        # Create error handler instance for boundary logging
+        error_handler = TradingSystemErrorHandler()
+        error_handler.handle_error(
+            error=e,
+            context="application initialization and execution",
+            component="main",
+            additional_data={
+                "mode": args.mode,
+                "live_trading": getattr(args, 'live', False),
+                "ignore_market_hours": getattr(args, 'ignore_market_hours', False)
+            }
+        )
         render_footer("System error occurred!")
         return False
 

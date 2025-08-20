@@ -274,11 +274,9 @@ class TradingExecutor:
             return result.success
 
         except (TradingClientError, StrategyExecutionError) as e:
-            self.logger.error(f"Trading execution failed: {e}")
             self._handle_trading_error(e, mode_str)
             return False
 
         except Exception as e:
-            self.logger.error(f"Unexpected error in trading execution: {e}")
             self._handle_trading_error(e, mode_str)
             return False
