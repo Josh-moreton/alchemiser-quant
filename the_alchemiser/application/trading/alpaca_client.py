@@ -163,7 +163,24 @@ class AlpacaClient:
                         estimated_value=None,  # Will be calculated if needed
                         is_fractional=False,
                         normalized_quantity=order_request.quantity,
-                        risk_score=None,
+                    # Calculate estimated_value (price * quantity if available)
+                    estimated_value = None
+                    if hasattr(order_request, "price") and order_request.price is not None:
+                        estimated_value = order_request.price * order_request.quantity
+                    # Determine if asset is fractional using AssetOrderHandler
+                    is_fractional = False
+                    try:
+                        is_fractional = AssetOrderHandler.is_fractionable(order_request.symbol)
+                    except Exception:
+                        is_fractional = False
+                    # Calculate risk_score if a utility is available, else set to None
+                    risk_score = None
+                    validated_order = order_request_to_validated_dto(
+                        request=order_request,
+                        estimated_value=estimated_value,
+                        is_fractional=is_fractional,
+                        normalized_quantity=order_request.quantity,
+                        risk_score=risk_score,
                     )
                     validated_orders.append(validated_order)
                 except Exception as e:
