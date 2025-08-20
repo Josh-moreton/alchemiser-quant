@@ -12,7 +12,6 @@ from typing import Any
 
 import pandas as pd
 
-from the_alchemiser.domain.strategies.protocols.market_data_port import MarketDataPort
 from the_alchemiser.services.market_data.market_data_client import MarketDataClient
 
 logger = logging.getLogger(__name__)
@@ -56,14 +55,14 @@ class StrategyMarketDataService:
         try:
             # Map timeframe to interval format expected by MarketDataClient
             interval = self._map_timeframe_to_interval(timeframe)
-            
+
             # Use MarketDataClient to fetch historical bars
             return self._client.get_historical_bars(
                 symbol=symbol,
                 period=period,
                 interval=interval
             )
-            
+
         except Exception as e:
             logger.error(f"Failed to get data for {symbol}: {e}")
             # Return empty DataFrame on error to maintain compatibility
@@ -112,7 +111,7 @@ class StrategyMarketDataService:
         """
         # Normalize timeframe to lowercase for comparison
         timeframe_lower = timeframe.lower()
-        
+
         # Map common timeframe variations to standard intervals
         if timeframe_lower in {"1day", "1d", "day", "daily"}:
             return "1d"
