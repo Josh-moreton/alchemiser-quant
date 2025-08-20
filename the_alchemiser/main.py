@@ -241,7 +241,8 @@ def main(argv: list[str] | None = None) -> bool:
 
     except (ConfigurationError, ValueError, ImportError) as e:
         # Create error handler instance for boundary logging
-        error_handler = TradingSystemErrorHandler()
+        # Use the TradingSystem instance's error handler for boundary logging
+        error_handler = getattr(system, "error_handler", TradingSystemErrorHandler())
         error_handler.handle_error(
             error=e,
             context="application initialization and execution",
