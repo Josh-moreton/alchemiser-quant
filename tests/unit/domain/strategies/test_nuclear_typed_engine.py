@@ -19,9 +19,9 @@ class TestNuclearTypedEngine:
     """Test cases for NuclearTypedEngine."""
 
     @pytest.fixture
-    def engine(self) -> NuclearTypedEngine:
+    def engine(self, mock_port: Mock) -> NuclearTypedEngine:
         """Create Nuclear typed engine instance."""
-        return NuclearTypedEngine()
+        return NuclearTypedEngine(mock_port)
 
     @pytest.fixture
     def mock_port(self) -> Mock:
@@ -114,7 +114,7 @@ class TestNuclearTypedEngine:
     def test_generate_signals_success(self, engine: NuclearTypedEngine, mock_port: Mock) -> None:
         """Test successful signal generation."""
         now = datetime.now(UTC)
-        signals = engine.generate_signals(mock_port, now)
+        signals = engine.generate_signals(now)
 
         assert isinstance(signals, list)
         assert len(signals) >= 1
@@ -132,7 +132,7 @@ class TestNuclearTypedEngine:
     ) -> None:
         """Test signal generation with SPY overbought condition."""
         now = datetime.now(UTC)
-        signals = engine.generate_signals(mock_port_spy_overbought, now)
+        signals = engine.generate_signals(now)
 
         assert len(signals) == 1
         signal = signals[0]
@@ -149,7 +149,7 @@ class TestNuclearTypedEngine:
     ) -> None:
         """Test signal generation with SPY oversold condition."""
         now = datetime.now(UTC)
-        signals = engine.generate_signals(mock_port_spy_oversold, now)
+        signals = engine.generate_signals(now)
 
         assert len(signals) == 1
         signal = signals[0]
@@ -166,7 +166,7 @@ class TestNuclearTypedEngine:
         mock_port.get_current_price.return_value = None
 
         now = datetime.now(UTC)
-        signals = engine.generate_signals(mock_port, now)
+        signals = engine.generate_signals(now)
 
         # Should return empty list when no data
         assert signals == []
@@ -195,7 +195,7 @@ class TestNuclearTypedEngine:
         mock_port.get_current_price.return_value = 100.0
 
         now = datetime.now(UTC)
-        signals = engine.generate_signals(mock_port, now)
+        signals = engine.generate_signals(now)
 
         assert len(signals) == 1
         signal = signals[0]
@@ -211,7 +211,7 @@ class TestNuclearTypedEngine:
 
         # With the current implementation, errors in data fetching result in empty data
         # which leads to empty signals, not an exception
-        signals = engine.generate_signals(mock_port, now)
+        signals = engine.generate_signals(now)
         assert signals == []
 
     def test_confidence_calculation_extremes(self, engine: NuclearTypedEngine) -> None:
@@ -266,7 +266,7 @@ class TestNuclearTypedEngine:
         mock_port.get_data.return_value = df
 
         now = datetime.now(UTC)
-        signals = engine.generate_signals(mock_port, now)
+        signals = engine.generate_signals(now)
 
         if signals and "BTAL" in signals[0].reasoning:
             signal = signals[0]
@@ -296,7 +296,7 @@ class TestNuclearTypedEngine:
         mock_port.get_data.side_effect = Exception("Network error")
 
         now = datetime.now(UTC)
-        signals = engine.safe_generate_signals(mock_port, now)
+        signals = engine.safe_generate_signals(now)
 
         # Should return empty list on error
         assert signals == []

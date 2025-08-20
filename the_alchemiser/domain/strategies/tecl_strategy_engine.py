@@ -25,12 +25,14 @@ Key Symbols:
 
 import logging
 import warnings
+from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
 from the_alchemiser.domain.math.indicator_utils import safe_get_indicator
 from the_alchemiser.domain.math.indicators import TechnicalIndicators
 from the_alchemiser.domain.shared_kernel.value_objects.percentage import Percentage
+from the_alchemiser.domain.strategies.engine import StrategyEngine
 from the_alchemiser.domain.strategies.protocols.market_data_port import MarketDataPort
 from the_alchemiser.domain.strategies.value_objects.alert import Alert
 from the_alchemiser.domain.strategies.value_objects.confidence import Confidence
@@ -41,7 +43,7 @@ from the_alchemiser.utils.common import ActionType
 warnings.filterwarnings("ignore")
 
 
-class TECLStrategyEngine:
+class TECLStrategyEngine(StrategyEngine):
     """TECL Strategy Engine - Long-term technology leverage with volatility protection"""
 
     def __init__(self, data_provider: MarketDataPort) -> None:
@@ -50,7 +52,8 @@ class TECLStrategyEngine:
         Args:
             data_provider: Market data provider implementing MarketDataPort protocol
         """
-        self.data_provider = data_provider
+        super().__init__("TECL", data_provider)
+        self.data_provider = data_provider  # Keep for backward compatibility with existing methods
         self.indicators = TechnicalIndicators()
 
         # Core symbols used in TECL strategy
@@ -70,6 +73,10 @@ class TECLStrategyEngine:
         )
 
         logging.debug("TECLStrategyEngine initialized")
+
+    def get_required_symbols(self) -> list[str]:
+        """Return all symbols required by the TECL strategy."""
+        return self.all_symbols
 
     def get_market_data(self) -> dict[str, Any]:
         """Fetch data for all symbols"""
@@ -336,9 +343,12 @@ class TECLStrategyEngine:
 
         return symbol, ActionType.BUY.value, reasoning
 
-    def generate_signals(self) -> list[StrategySignal]:
+    def generate_signals(self, now: datetime) -> list[StrategySignal]:
         """Generate typed strategy signals (new typed interface).
         
+        Args:
+            now: Current timestamp for signal generation
+            
         Returns:
             List of StrategySignal objects with typed domain values
         """
@@ -393,7 +403,8 @@ class TECLStrategyEngine:
     def run_once(self) -> list[Alert] | None:
         """Run strategy once and return alerts (StrategyEngine protocol)."""
         try:
-            signals = self.generate_signals()
+            from datetime import datetime
+            signals = self.generate_signals(datetime.now())
             if not signals:
                 return None
             

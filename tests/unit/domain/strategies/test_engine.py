@@ -20,13 +20,13 @@ from the_alchemiser.services.errors.exceptions import StrategyExecutionError, Va
 class ConcreteTestStrategy(StrategyEngine):
     """Concrete strategy implementation for testing."""
 
-    def __init__(self, strategy_name: str = "TestStrategy"):
-        super().__init__(strategy_name)
+    def __init__(self, market_data_port: MarketDataPort, strategy_name: str = "TestStrategy"):
+        super().__init__(strategy_name, market_data_port)
         self.should_fail = False
         self.signals_to_return: list[StrategySignal] = []
         self.required_symbols_list: list[str] = ["SPY", "QQQ"]
 
-    def generate_signals(self, port: MarketDataPort, now: datetime) -> list[StrategySignal]:
+    def generate_signals(self, now: datetime) -> list[StrategySignal]:
         """Generate test signals."""
         if self.should_fail:
             raise StrategyExecutionError("Test strategy failure", strategy_name=self.strategy_name)
@@ -38,9 +38,9 @@ class ConcreteTestStrategy(StrategyEngine):
 
 
 @pytest.fixture
-def strategy() -> ConcreteTestStrategy:
+def strategy(mock_port: Mock) -> ConcreteTestStrategy:
     """Create a test strategy instance."""
-    return ConcreteTestStrategy()
+    return ConcreteTestStrategy(mock_port)
 
 
 @pytest.fixture
@@ -69,23 +69,23 @@ def valid_signal() -> StrategySignal:
 class TestStrategyEngine:
     """Test cases for StrategyEngine base class."""
 
-    def test_strategy_initialization(self) -> None:
+    def test_strategy_initialization(self, mock_port: Mock) -> None:
         """Test strategy engine initialization."""
-        strategy = ConcreteTestStrategy("MyStrategy")
+        strategy = ConcreteTestStrategy(mock_port, "MyStrategy")
 
         assert strategy.strategy_name == "MyStrategy"
+        assert strategy.market_data_port is mock_port
         assert strategy.logger is not None
         assert strategy.error_handler is not None
 
-    def test_generate_signals_abstract_method(self) -> None:
+    def test_generate_signals_abstract_method(self, mock_port: Mock) -> None:
         """Test that generate_signals is abstract."""
         # This test verifies the abstract nature - ConcreteTestStrategy implements it
-        strategy = ConcreteTestStrategy()
-        mock_port = Mock(spec=MarketDataPort)
+        strategy = ConcreteTestStrategy(mock_port)
         now = datetime.now(UTC)
 
         # Should not raise NotImplementedError since we implemented it
-        result = strategy.generate_signals(mock_port, now)
+        result = strategy.generate_signals(now)
         assert isinstance(result, list)
 
     def test_validate_signals_empty_list(self, strategy: ConcreteTestStrategy) -> None:
@@ -167,7 +167,7 @@ class TestStrategyEngine:
         strategy.signals_to_return = [valid_signal]
         now = datetime.now(UTC)
 
-        result = strategy.safe_generate_signals(mock_port, now)
+        result = strategy.safe_generate_signals(now)
 
         assert len(result) == 1
         assert result[0] == valid_signal
@@ -179,20 +179,20 @@ class TestStrategyEngine:
         strategy.should_fail = True
         now = datetime.now(UTC)
 
-        result = strategy.safe_generate_signals(mock_port, now)
+        result = strategy.safe_generate_signals(now)
 
         assert result == []
         assert len(strategy.error_handler.errors) > 0
 
-    def test_get_required_symbols_default(self) -> None:
+    def test_get_required_symbols_default(self, mock_port: Mock) -> None:
         """Test default required symbols returns empty list."""
 
         # Create a strategy that doesn't override get_required_symbols
         class MinimalStrategy(StrategyEngine):
-            def generate_signals(self, port: MarketDataPort, now: datetime) -> list[StrategySignal]:
+            def generate_signals(self, now: datetime) -> list[StrategySignal]:
                 return []
 
-        strategy = MinimalStrategy("minimal")
+        strategy = MinimalStrategy("minimal", mock_port)
         assert strategy.get_required_symbols() == []
 
     def test_get_required_symbols_override(self, strategy: ConcreteTestStrategy) -> None:
@@ -203,7 +203,7 @@ class TestStrategyEngine:
         self, strategy: ConcreteTestStrategy, mock_port: Mock
     ) -> None:
         """Test market data availability validation success."""
-        result = strategy.validate_market_data_availability(mock_port)
+        result = strategy.validate_market_data_availability()
         assert result is True
 
         # Verify it called get_current_price for each required symbol
@@ -218,7 +218,7 @@ class TestStrategyEngine:
         mock_port.get_current_price.side_effect = lambda symbol: None if symbol == "SPY" else 100.0
 
         with pytest.raises(ValidationError, match="Required market data unavailable"):
-            strategy.validate_market_data_availability(mock_port)
+            strategy.validate_market_data_availability()
 
     def test_validate_market_data_availability_with_symbols(
         self, strategy: ConcreteTestStrategy, mock_port: Mock
@@ -226,7 +226,7 @@ class TestStrategyEngine:
         """Test market data availability validation with custom symbols."""
         custom_symbols = ["AAPL", "MSFT"]
 
-        result = strategy.validate_market_data_availability(mock_port, custom_symbols)
+        result = strategy.validate_market_data_availability(custom_symbols)
         assert result is True
 
         # Should check custom symbols, not required symbols
@@ -239,7 +239,7 @@ class TestStrategyEngine:
         """Test market data availability with empty symbols list."""
         strategy.required_symbols_list = []
 
-        result = strategy.validate_market_data_availability(mock_port)
+        result = strategy.validate_market_data_availability()
         assert result is True
 
         # Should not call get_current_price
@@ -253,7 +253,7 @@ class TestStrategyEngine:
         mock_port.get_current_price.side_effect = Exception("Network error")
 
         with pytest.raises(ValidationError, match="Required market data unavailable"):
-            strategy.validate_market_data_availability(mock_port)
+            strategy.validate_market_data_availability()
 
     def test_log_strategy_state(
         self, strategy: ConcreteTestStrategy, caplog: pytest.LogCaptureFixture
@@ -287,7 +287,7 @@ class TestStrategyEngine:
         now = datetime.now(UTC)
 
         # This should handle errors gracefully
-        result = strategy.safe_generate_signals(mock_port, now)
+        result = strategy.safe_generate_signals(now)
 
         assert result == []
         assert len(strategy.error_handler.errors) > 0
@@ -296,3 +296,26 @@ class TestStrategyEngine:
         error = strategy.error_handler.errors[0]
         assert error.component == "TestStrategy.safe_generate_signals"
         assert error.context == "signal_generation"
+
+    def test_deprecation_warning_for_legacy_method(
+        self, strategy: ConcreteTestStrategy, mock_port: Mock
+    ) -> None:
+        """Test that the legacy method generates deprecation warning."""
+        import warnings
+        
+        now = datetime.now(UTC)
+        
+        with warnings.catch_warnings(record=True) as warning_list:
+            warnings.simplefilter("always")  # Ensure all deprecation warnings are recorded
+            
+            # Call the legacy method with market_data_port parameter
+            result = strategy.generate_signals_legacy(market_data_port=mock_port, now=now)
+            
+            # Check that warning was issued
+            assert len(warning_list) == 1
+            assert issubclass(warning_list[0].category, DeprecationWarning)
+            assert "Passing MarketDataPort to generate_signals() is deprecated" in str(warning_list[0].message)
+            assert "v2.0.0" in str(warning_list[0].message)
+            
+            # Should still return the signals
+            assert isinstance(result, list)

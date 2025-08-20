@@ -23,25 +23,26 @@ class StrategyEngine(ABC):
     """Abstract base class for typed strategy engines.
 
     Provides a clean contract for strategy implementations with validation,
-    error handling, and typed market data access.
+    error handling, and typed market data access using constructor injection.
     """
 
-    def __init__(self, strategy_name: str) -> None:
-        """Initialize strategy engine.
+    def __init__(self, strategy_name: str, market_data_port: MarketDataPort) -> None:
+        """Initialize strategy engine with required dependencies.
 
         Args:
             strategy_name: Human-readable name for this strategy
+            market_data_port: Market data access interface
         """
         self.strategy_name = strategy_name
+        self.market_data_port = market_data_port
         self.logger = logging.getLogger(f"{__name__}.{strategy_name}")
         self.error_handler = TradingSystemErrorHandler()
 
     @abstractmethod
-    def generate_signals(self, port: MarketDataPort, now: datetime) -> list[StrategySignal]:
+    def generate_signals(self, now: datetime) -> list[StrategySignal]:
         """Generate trading signals based on current market data.
 
         Args:
-            port: Market data access interface
             now: Current timestamp for signal generation
 
         Returns:
@@ -128,18 +129,17 @@ class StrategyEngine(ABC):
         if allocation_value < 0:
             raise ValidationError(f"Target allocation cannot be negative, got {allocation_value}")
 
-    def safe_generate_signals(self, port: MarketDataPort, now: datetime) -> list[StrategySignal]:
+    def safe_generate_signals(self, now: datetime) -> list[StrategySignal]:
         """Safely generate signals with error handling.
 
         Args:
-            port: Market data access interface
             now: Current timestamp for signal generation
 
         Returns:
             List of validated signals, or empty list if generation fails
         """
         try:
-            signals = self.generate_signals(port, now)
+            signals = self.generate_signals(now)
             self.validate_signals(signals)
             return signals
         except Exception as e:
@@ -164,12 +164,11 @@ class StrategyEngine(ABC):
         return []
 
     def validate_market_data_availability(
-        self, port: MarketDataPort, symbols: list[str] | None = None
+        self, symbols: list[str] | None = None
     ) -> bool:
         """Validate that required market data is available.
 
         Args:
-            port: Market data access interface
             symbols: Optional list of symbols to check, defaults to required_symbols
 
         Returns:
@@ -187,7 +186,7 @@ class StrategyEngine(ABC):
         unavailable_symbols = []
         for symbol in symbols:
             try:
-                price = port.get_current_price(symbol)
+                price = self.market_data_port.get_current_price(symbol)
                 if price is None:
                     unavailable_symbols.append(symbol)
             except Exception as e:
@@ -199,6 +198,46 @@ class StrategyEngine(ABC):
             raise ValidationError(error_msg)
 
         return True
+
+    def generate_signals_legacy(
+        self, market_data_port: MarketDataPort | None = None, now: datetime | None = None, **kwargs: Any
+    ) -> list[StrategySignal]:
+        """DEPRECATED: Legacy method for backward compatibility.
+        
+        This method provides temporary backward compatibility for code that still
+        passes MarketDataPort as a parameter. Use generate_signals() instead.
+        
+        Args:
+            market_data_port: DEPRECATED - MarketDataPort should be passed to constructor
+            now: Current timestamp for signal generation
+            **kwargs: Additional arguments (ignored)
+            
+        Returns:
+            List of strategy signals
+            
+        Raises:
+            DeprecationWarning: Always warns about deprecated usage
+        """
+        import warnings
+        
+        warnings.warn(
+            f"{self.strategy_name}: Passing MarketDataPort to generate_signals() is deprecated. "
+            "Pass MarketDataPort to constructor instead. This parameter will be removed in v2.0.0.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+        
+        # If a port was passed as parameter, temporarily use it (not recommended)
+        if market_data_port is not None:
+            original_port = self.market_data_port
+            self.market_data_port = market_data_port
+            try:
+                return self.generate_signals(now or datetime.now())
+            finally:
+                self.market_data_port = original_port
+        
+        # Use the injected port
+        return self.generate_signals(now or datetime.now())
 
     def log_strategy_state(self, additional_info: dict[str, Any] | None = None) -> None:
         """Log current strategy state for debugging.

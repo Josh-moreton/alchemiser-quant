@@ -33,8 +33,8 @@ from the_alchemiser.services.errors.exceptions import StrategyExecutionError
 class NuclearTypedEngine(StrategyEngine):
     """Typed Nuclear Strategy Engine using MarketDataPort and producing StrategySignal objects."""
 
-    def __init__(self) -> None:
-        super().__init__("Nuclear")
+    def __init__(self, market_data_port: MarketDataPort) -> None:
+        super().__init__("Nuclear", market_data_port)
         self.indicators = TechnicalIndicators()
         self.pure_strategy = PureStrategyEngine()
 
@@ -58,11 +58,10 @@ class NuclearTypedEngine(StrategyEngine):
         """Return all symbols required by the Nuclear strategy."""
         return self._all_symbols
 
-    def generate_signals(self, port: MarketDataPort, now: datetime) -> list[StrategySignal]:
+    def generate_signals(self, now: datetime) -> list[StrategySignal]:
         """Generate Nuclear strategy signals using MarketDataPort.
 
         Args:
-            port: Market data access interface
             now: Current timestamp for signal generation
 
         Returns:
@@ -73,7 +72,7 @@ class NuclearTypedEngine(StrategyEngine):
         """
         try:
             # Fetch market data for all symbols
-            market_data = self._fetch_market_data(port)
+            market_data = self._fetch_market_data()
             if not market_data:
                 self.logger.warning("No market data available for Nuclear strategy")
                 return []
@@ -94,12 +93,12 @@ class NuclearTypedEngine(StrategyEngine):
         except Exception as e:
             raise StrategyExecutionError(f"Nuclear strategy generation failed: {e}") from e
 
-    def _fetch_market_data(self, port: MarketDataPort) -> dict[str, pd.DataFrame]:
+    def _fetch_market_data(self) -> dict[str, pd.DataFrame]:
         """Fetch market data for all required symbols."""
         market_data = {}
         for symbol in self._all_symbols:
             try:
-                data = port.get_data(symbol, timeframe="1day", period="1y")
+                data = self.market_data_port.get_data(symbol, timeframe="1day", period="1y")
                 if not data.empty:
                     market_data[symbol] = data
                 else:

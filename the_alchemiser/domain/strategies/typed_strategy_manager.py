@@ -120,14 +120,13 @@ class TypedStrategyManager:
     def _create_typed_engine(self, strategy_type: StrategyType) -> StrategyEngine:
         """Create typed strategy engine instance."""
         if strategy_type == StrategyType.NUCLEAR:
-            return NuclearTypedEngine()
+            return NuclearTypedEngine(self.market_data_port)
         elif strategy_type == StrategyType.KLM:
-            return TypedKLMStrategyEngine()
+            return TypedKLMStrategyEngine(self.market_data_port)
         elif strategy_type == StrategyType.TECL:
-            # TECL needs special handling as it uses MarketDataPort directly
             from the_alchemiser.domain.strategies.tecl_strategy_engine import TECLStrategyEngine
 
-            return TECLStrategyEngine(self.market_data_port)  # type: ignore
+            return TECLStrategyEngine(self.market_data_port)
         else:
             raise ValueError(f"Unknown strategy type: {strategy_type}")
 
@@ -155,12 +154,8 @@ class TypedStrategyManager:
                 self.logger.info(f"Generating signals from {strategy_type.value} strategy")
 
                 if hasattr(engine, "generate_signals"):
-                    if strategy_type == StrategyType.TECL:
-                        # TECL has old-style generate_signals method
-                        signals = engine.generate_signals()  # type: ignore
-                    else:
-                        # Use new typed interface
-                        signals = engine.generate_signals(self.market_data_port, timestamp)
+                    # All engines now use new constructor injection interface
+                    signals = engine.generate_signals(timestamp)
                 else:
                     self.logger.warning(
                         f"{strategy_type.value} engine doesn't have generate_signals method"
