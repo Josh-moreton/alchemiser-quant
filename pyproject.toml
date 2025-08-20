@@ -51,7 +51,7 @@ hypothesis = ">=6.70.0"
 black = ">=22.0.0"
 ruff = ">=0.1.0"
 mypy = ">=1.0.0"
-pre-commit = ">=3.0.0"
+pre-commit = "^3.7.0"
 types-PyYAML = ">=6.0.0"
 types-requests = ">=2.31.0"
 types-pytz = ">=2023.3.0"
@@ -173,7 +173,7 @@ disallow_any_generics = true
 warn_return_any = true
 
 [[tool.mypy.overrides]]
-module = "the_alchemiser.execution.trading_engine"  
+module = "the_alchemiser.execution.trading_engine"
 disallow_incomplete_defs = true
 check_untyped_defs = true
 
@@ -186,7 +186,7 @@ check_untyped_defs = true
 [[tool.mypy.overrides]]
 module = [
     "alpaca.*",
-    "boto3.*", 
+    "boto3.*",
     "botocore.*",
     "pandas.*",
     "numpy.*",
@@ -228,7 +228,7 @@ addopts = [
 # Markers for test organization
 markers = [
     "unit: Unit tests for isolated components",
-    "integration: Integration tests for component interactions", 
+    "integration: Integration tests for component interactions",
     "contract: Contract tests for external API compatibility",
     "property: Property-based tests for edge cases",
     "simulation: Market scenario simulation tests",
