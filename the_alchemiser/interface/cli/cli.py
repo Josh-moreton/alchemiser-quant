@@ -110,7 +110,6 @@ def signal(
             raise typer.Exit(1)
 
     except StrategyExecutionError as e:
-        error_handler = TradingSystemErrorHandler()
         error_handler.handle_error(
             error=e,
             context="CLI signal command - strategy execution",
