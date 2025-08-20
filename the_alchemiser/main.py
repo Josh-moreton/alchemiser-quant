@@ -138,6 +138,7 @@ def configure_application_logging() -> None:
             console_level=resolved_level,
             suppress_third_party=True,
             structured_format=False,
+            respect_existing_handlers=True,  # Respect CLI-configured handlers in dev
         )
 
 

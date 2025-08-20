@@ -5,10 +5,15 @@ import logging
 import os
 import sys
 from collections.abc import MutableMapping
+from contextvars import ContextVar
 from datetime import datetime
 from typing import Any
 
 from the_alchemiser.infrastructure.s3.s3_utils import S3FileHandler
+
+# Context variables for request tracking
+request_id_context: ContextVar[str | None] = ContextVar('request_id', default=None)
+error_id_context: ContextVar[str | None] = ContextVar('error_id', default=None)
 
 
 class AlchemiserLoggerAdapter(logging.LoggerAdapter[logging.Logger]):
@@ -37,6 +42,15 @@ class StructuredFormatter(logging.Formatter):
             "function": record.funcName,
             "line": record.lineno,
         }
+
+        # Add request_id and error_id from context vars if present
+        request_id = request_id_context.get()
+        if request_id:
+            log_entry["request_id"] = request_id
+
+        error_id = error_id_context.get()
+        if error_id:
+            log_entry["error_id"] = error_id
 
         # Add exception info if present
         if record.exc_info:
@@ -67,6 +81,42 @@ def get_logger(name: str) -> logging.Logger:
     return logging.getLogger(name)
 
 
+def set_request_id(request_id: str | None) -> None:
+    """Set the request ID in the logging context.
+
+    Args:
+        request_id: The request ID to set, or None to clear
+    """
+    request_id_context.set(request_id)
+
+
+def set_error_id(error_id: str | None) -> None:
+    """Set the error ID in the logging context.
+
+    Args:
+        error_id: The error ID to set, or None to clear
+    """
+    error_id_context.set(error_id)
+
+
+def get_request_id() -> str | None:
+    """Get the current request ID from the logging context.
+
+    Returns:
+        The current request ID, or None if not set
+    """
+    return request_id_context.get()
+
+
+def get_error_id() -> str | None:
+    """Get the current error ID from the logging context.
+
+    Returns:
+        The current error ID, or None if not set
+    """
+    return error_id_context.get()
+
+
 def log_with_context(logger: logging.Logger, level: int, message: str, **context: Any) -> None:
     """
     Log a message with additional context fields.
@@ -89,6 +139,7 @@ def setup_logging(
     structured_format: bool = False,
     enable_file_rotation: bool = False,
     max_file_size_mb: int = 100,
+    respect_existing_handlers: bool = False,
 ) -> None:
     """
     Set up centralized logging for the project.
@@ -101,10 +152,12 @@ def setup_logging(
         structured_format: Whether to use JSON structured logging format
         enable_file_rotation: Whether to enable file rotation for local files
         max_file_size_mb: Maximum file size in MB before rotation
+        respect_existing_handlers: If True, don't clear existing handlers (useful for CLI)
     """
-    # Clear any existing handlers to avoid duplicates
     root_logger = logging.getLogger()
-    if root_logger.hasHandlers():
+
+    # Only clear handlers if we're not respecting existing ones
+    if not respect_existing_handlers and root_logger.hasHandlers():
         root_logger.handlers.clear()
 
     # Choose formatter based on structured_format setting
@@ -116,12 +169,14 @@ def setup_logging(
         log_format = "%(asctime)s - %(levelname)s - %(name)s - %(message)s"
         formatter = logging.Formatter(log_format)
 
-    # Console handler - always add one
-    console_handler = logging.StreamHandler(sys.stdout)
-    console_handler.setFormatter(formatter)
-    console_handler.setLevel(console_level if console_level is not None else log_level)
+    handlers: list[logging.Handler] = []
 
-    handlers: list[logging.Handler] = [console_handler]
+    # Console handler - only add if we don't have existing handlers or are not respecting them
+    if not respect_existing_handlers or not root_logger.hasHandlers():
+        console_handler = logging.StreamHandler(sys.stdout)
+        console_handler.setFormatter(formatter)
+        console_handler.setLevel(console_level if console_level is not None else log_level)
+        handlers.append(console_handler)
 
     # File handler if specified
     if log_file:
@@ -204,7 +259,24 @@ def configure_production_logging(
         suppress_third_party=True,
         structured_format=True,  # Use JSON format for production
         enable_file_rotation=True,
+        respect_existing_handlers=False,  # Production always controls logging
     )
+
+
+def get_service_logger(service_name: str) -> logging.Logger:
+    """
+    Get a properly configured logger for a service.
+
+    This replaces create_service_logger by using the centrally configured
+    logging system instead of creating individual handlers.
+
+    Args:
+        service_name: Name of the service
+
+    Returns:
+        Logger instance using central configuration
+    """
+    return logging.getLogger(f"the_alchemiser.services.{service_name}")
 
 
 def get_trading_logger(

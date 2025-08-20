@@ -1,4 +1,9 @@
-"""Core type definitions for The Alchemiser trading system."""
+"""Core type definitions for The Alchemiser trading system.
+
+This module contains domain-appropriate TypedDict definitions that represent
+core business entities and concepts. Interface/UI types have been moved to
+interfaces/schemas modules as part of the Pydantic migration.
+"""
 
 from typing import Any, Literal, Protocol, TypedDict
 
@@ -115,42 +120,19 @@ class KLMVariantResult(TypedDict):
     confidence: float
 
 
-# Trading Execution Types
-class ExecutionResult(TypedDict):
-    orders_executed: list[OrderDetails]
-    account_info_before: AccountInfo
-    account_info_after: AccountInfo
-    execution_summary: dict[str, Any]  # Will be refined in Phase 2
-    final_portfolio_state: dict[str, Any] | None
+# Trading Execution Types (moved to interfaces/schemas/execution.py)
+# Import for backward compatibility
+from the_alchemiser.interfaces.schemas.execution import ExecutionResult, TradingPlan
 
 
-# Phase 5: Execution Layer Types
-class TradingPlan(TypedDict):
-    symbol: str
-    action: Literal["BUY", "SELL"]
-    quantity: float
-    estimated_price: float
-    reasoning: str
+# Phase 5: Execution Layer Types (moved to interfaces/schemas/execution.py)
+# Import for backward compatibility
+from the_alchemiser.interfaces.schemas.execution import QuoteData
 
 
-class QuoteData(TypedDict):
-    bid_price: float
-    ask_price: float
-    bid_size: float
-    ask_size: float
-    timestamp: str
-
-
-# Phase 7: Utility Functions Types
-class LimitOrderResult(TypedDict):
-    order_request: Any | None  # LimitOrderRequest - using Any to avoid import
-    error_message: str | None
-
-
-class WebSocketResult(TypedDict):
-    status: Literal["completed", "timeout", "error"]
-    message: str
-    orders_completed: list[str]
+# Phase 7: Utility Functions Types (moved to interfaces/schemas/execution.py)
+# Import for backward compatibility
+from the_alchemiser.interfaces.schemas.execution import LimitOrderResult, WebSocketResult
 
 
 # Phase 9: KLM Variants Types
@@ -160,27 +142,9 @@ class KLMDecision(TypedDict):
     reasoning: str
 
 
-# Phase 10: Reporting/Dashboard Types
-class ReportingData(TypedDict):
-    timestamp: str
-    portfolio_summary: dict[str, Any]
-    performance_metrics: dict[str, float]
-    recent_trades: list[OrderDetails]
-
-
-class DashboardMetrics(TypedDict):
-    total_portfolio_value: float
-    daily_pnl: float
-    daily_pnl_percentage: float
-    active_positions: int
-    cash_balance: float
-
-
-class EmailReportData(TypedDict):
-    subject: str
-    html_content: str
-    recipient: str
-    metadata: dict[str, Any]
+# Phase 10: Reporting/Dashboard Types (moved to interfaces/schemas/reporting.py)
+# Import for backward compatibility
+from the_alchemiser.interfaces.schemas.reporting import DashboardMetrics, EmailReportData, ReportingData
 
 
 # Phase 11: Data Layer Types
@@ -218,27 +182,9 @@ class DataProviderResult(TypedDict):
     timestamp: str
 
 
-# Phase 12: Backtest/Performance Types
-class BacktestResult(TypedDict):
-    strategy_name: str
-    start_date: str
-    end_date: str
-    total_return: float
-    sharpe_ratio: float
-    max_drawdown: float
-    total_trades: int
-    win_rate: float
-    metadata: dict[str, Any]
-
-
-class PerformanceMetrics(TypedDict):
-    returns: list[float]
-    cumulative_return: float
-    volatility: float
-    sharpe_ratio: float
-    max_drawdown: float
-    calmar_ratio: float
-    sortino_ratio: float
+# Phase 12: Backtest/Performance Types (moved to interfaces/schemas/reporting.py)
+# Import for backward compatibility
+from the_alchemiser.interfaces.schemas.reporting import BacktestResult, PerformanceMetrics
 
 
 class TradeAnalysis(TypedDict):
@@ -270,98 +216,37 @@ class ErrorContext(TypedDict):
     additional_data: dict[str, Any]
 
 
-# Phase 13: CLI Types
-class CLIOptions(TypedDict):
-    verbose: bool
-    quiet: bool
-    live: bool
-    ignore_market_hours: bool
-    force: bool
-    no_header: bool
+# Phase 13: CLI Types (moved to interfaces/schemas/cli.py)
+# Import for backward compatibility
+from the_alchemiser.interfaces.schemas.cli import (
+    CLIAccountDisplay,
+    CLICommandResult,
+    CLIOptions,
+    CLIOrderDisplay,
+    CLIPortfolioData,
+    CLISignalData,
+)
 
 
-class CLICommandResult(TypedDict):
-    success: bool
-    message: str
-    exit_code: int
+# Phase 14: Error Handler Types (moved to interfaces/schemas/errors.py)
+# Import for backward compatibility
+from the_alchemiser.interfaces.schemas.errors import (
+    ErrorContextData,
+    ErrorDetailInfo,
+    ErrorNotificationData,
+    ErrorReportSummary,
+    ErrorSummaryData,
+)
 
 
-class CLISignalData(TypedDict):
-    strategy_type: str
-    signals: dict[str, StrategySignal]
-    indicators: dict[str, dict[str, float]]
+# Email Configuration Types (moved to interfaces/schemas/reporting.py)
+# Import for backward compatibility  
+from the_alchemiser.interfaces.schemas.reporting import EmailCredentials
 
 
-class CLIAccountDisplay(TypedDict):
-    account_info: AccountInfo
-    positions: dict[str, PositionInfo]
-    mode: Literal["live", "paper"]
-
-
-class CLIPortfolioData(TypedDict):
-    symbol: str
-    allocation_percentage: float
-    current_value: float
-    target_value: float
-
-
-class CLIOrderDisplay(TypedDict):
-    order_details: OrderDetails
-    display_style: str
-    formatted_amount: str
-
-
-# Phase 14: Error Handler Types
-class ErrorDetailInfo(TypedDict):
-    error_type: str
-    error_message: str
-    category: str
-    context: str
-    component: str
-    timestamp: str
-    traceback: str
-    additional_data: dict[str, Any]
-    suggested_action: str | None
-
-
-class ErrorSummaryData(TypedDict):
-    count: int
-    errors: list[ErrorDetailInfo]
-
-
-class ErrorReportSummary(TypedDict):
-    critical: ErrorSummaryData | None
-    trading: ErrorSummaryData | None
-    data: ErrorSummaryData | None
-    strategy: ErrorSummaryData | None
-    configuration: ErrorSummaryData | None
-    notification: ErrorSummaryData | None
-    warning: ErrorSummaryData | None
-
-
-class ErrorNotificationData(TypedDict):
-    severity: str
-    priority: str
-    title: str
-    error_report: str
-    html_content: str
-
-
-# Email Configuration Types
-class EmailCredentials(TypedDict):
-    smtp_server: str
-    smtp_port: int
-    email_address: str
-    email_password: str
-    recipient_email: str
-
-
-# Lambda Integration Types
-class LambdaEvent(TypedDict, total=False):
-    mode: str | None
-    trading_mode: str | None
-    ignore_market_hours: bool | None
-    arguments: list[str] | None
+# Lambda Integration Types (moved to interfaces/schemas/execution.py)
+# Import for backward compatibility
+from the_alchemiser.interfaces.schemas.execution import LambdaEvent
 
 
 # Alpaca Integration Protocols
@@ -389,14 +274,7 @@ class AlpacaOrderObject(Protocol):
     filled_qty: str
 
 
-# Tracking and Monitoring Types
-class OrderHistoryData(TypedDict):
-    orders: list[OrderDetails]
-    metadata: dict[str, Any]
-
-
-class EmailSummary(TypedDict):
-    total_orders: int
-    recent_orders: list[OrderDetails]
-    performance_metrics: dict[str, float]
-    strategy_summaries: dict[str, StrategyPnLSummary]
+# Tracking and Monitoring Types (moved to interfaces/schemas/execution.py and reporting.py)
+# Import for backward compatibility
+from the_alchemiser.interfaces.schemas.execution import OrderHistoryData
+from the_alchemiser.interfaces.schemas.reporting import EmailSummary
