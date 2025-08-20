@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Protocol
+from typing import Protocol, runtime_checkable
 
 from the_alchemiser.domain.strategies.value_objects.alert import Alert
 from the_alchemiser.domain.strategies.value_objects.strategy_signal import (
@@ -8,6 +8,7 @@ from the_alchemiser.domain.strategies.value_objects.strategy_signal import (
 )
 
 
+@runtime_checkable
 class StrategyEngine(Protocol):
     """Strategy engine protocol with precise typing."""
 

@@ -21,7 +21,6 @@ from typing import Any
 
 from the_alchemiser.domain.math.indicator_utils import safe_get_indicator
 
-# Third-party imports
 # Local imports
 from the_alchemiser.domain.math.indicators import TechnicalIndicators
 
@@ -31,6 +30,7 @@ from the_alchemiser.domain.strategies.tecl_strategy_engine import (
 )
 from the_alchemiser.infrastructure.config.config_utils import load_alert_config
 from the_alchemiser.services.market_data.price_utils import ensure_scalar_price
+from the_alchemiser.services.market_data.typed_data_provider_adapter import TypedDataProviderAdapter
 
 warnings.filterwarnings("ignore")
 
@@ -46,10 +46,24 @@ warnings.filterwarnings("ignore")
 class TECLStrategyEngine:
     """TECL Strategy Engine - Orchestrates data, indicators, and strategy logic"""
 
-    def __init__(self, data_provider: Any = None) -> None:
-        if data_provider is None:
-            raise ValueError("data_provider is required for TECLStrategyEngine")
-        self.data_provider = data_provider
+    def __init__(self, data_provider: Any = None, api_key: str | None = None, secret_key: str | None = None) -> None:
+        """Initialize TECL strategy orchestrator.
+        
+        Args:
+            data_provider: Legacy data provider (for backward compatibility)
+            api_key: Alpaca API key (for typed data provider)
+            secret_key: Alpaca secret key (for typed data provider)
+        """
+        # Support both legacy and typed data providers
+        if data_provider is not None:
+            # Legacy path - use provided data provider
+            self.data_provider = data_provider
+        elif api_key and secret_key:
+            # Typed path - create typed adapter
+            self.data_provider = TypedDataProviderAdapter(api_key, secret_key)
+        else:
+            raise ValueError("Either data_provider or (api_key, secret_key) must be provided")
+            
         self.indicators = TechnicalIndicators()
 
         # Use static import - strategy class imported at module level
@@ -104,8 +118,26 @@ class TECLStrategyEngine:
 class TECLSignalGenerator:
     """TECL Signal Generator"""
 
-    def __init__(self) -> None:
-        self.strategy = TECLStrategyEngine()
+    def __init__(self, api_key: str | None = None, secret_key: str | None = None) -> None:
+        """Initialize TECL signal generator.
+        
+        Args:
+            api_key: Alpaca API key
+            secret_key: Alpaca secret key
+        """
+        if api_key and secret_key:
+            # Use typed data provider
+            self.strategy = TECLStrategyEngine(api_key=api_key, secret_key=secret_key)
+        else:
+            # Try to get from environment or configuration
+            try:
+                from the_alchemiser.infrastructure.secrets.secrets_manager import SecretsManager
+                secrets_manager = SecretsManager()
+                api_key, secret_key = secrets_manager.get_alpaca_keys(paper_trading=True)
+                self.strategy = TECLStrategyEngine(api_key=api_key, secret_key=secret_key)
+            except Exception as e:
+                raise ValueError(f"Could not initialize TECL strategy: API keys required. {e}")
+        
         self.load_config()
 
     def load_config(self) -> None:

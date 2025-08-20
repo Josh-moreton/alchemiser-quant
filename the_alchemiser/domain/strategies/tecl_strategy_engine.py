@@ -25,10 +25,17 @@ Key Symbols:
 
 import logging
 import warnings
+from decimal import Decimal
 from typing import Any
 
 from the_alchemiser.domain.math.indicator_utils import safe_get_indicator
 from the_alchemiser.domain.math.indicators import TechnicalIndicators
+from the_alchemiser.domain.shared_kernel.value_objects.percentage import Percentage
+from the_alchemiser.domain.strategies.protocols.market_data_port import MarketDataPort
+from the_alchemiser.domain.strategies.value_objects.alert import Alert
+from the_alchemiser.domain.strategies.value_objects.confidence import Confidence
+from the_alchemiser.domain.strategies.value_objects.strategy_signal import StrategySignal
+from the_alchemiser.domain.trading.value_objects.symbol import Symbol
 from the_alchemiser.utils.common import ActionType
 
 warnings.filterwarnings("ignore")
@@ -37,9 +44,12 @@ warnings.filterwarnings("ignore")
 class TECLStrategyEngine:
     """TECL Strategy Engine - Long-term technology leverage with volatility protection"""
 
-    def __init__(self, data_provider: Any = None) -> None:
-        if data_provider is None:
-            raise ValueError("data_provider is required for TECLStrategyEngine")
+    def __init__(self, data_provider: MarketDataPort) -> None:
+        """Initialize TECL strategy with typed MarketDataPort.
+        
+        Args:
+            data_provider: Market data provider implementing MarketDataPort protocol
+        """
         self.data_provider = data_provider
         self.indicators = TechnicalIndicators()
 
@@ -82,7 +92,9 @@ class TECLStrategyEngine:
             indicators[symbol] = {
                 "rsi_9": safe_get_indicator(close, self.indicators.rsi, 9),
                 "rsi_10": safe_get_indicator(close, self.indicators.rsi, 10),
+                "rsi_20": safe_get_indicator(close, self.indicators.rsi, 20),
                 "ma_200": safe_get_indicator(close, self.indicators.moving_average, 200),
+                "ma_20": safe_get_indicator(close, self.indicators.moving_average, 20),
                 "current_price": float(close.iloc[-1]),
             }
         return indicators
@@ -324,6 +336,101 @@ class TECLStrategyEngine:
 
         return symbol, ActionType.BUY.value, reasoning
 
+    def generate_signals(self) -> list[StrategySignal]:
+        """Generate typed strategy signals (new typed interface).
+        
+        Returns:
+            List of StrategySignal objects with typed domain values
+        """
+        try:
+            # Get market data and indicators
+            market_data = self.get_market_data()
+            if not market_data:
+                return []
+                
+            indicators = self.calculate_indicators(market_data)
+            if not indicators:
+                return []
+            
+            # Get legacy strategy recommendation
+            symbol_or_allocation, action, reasoning = self.evaluate_tecl_strategy(indicators, market_data)
+            
+            # Convert to typed signals
+            signals = []
+            
+            if isinstance(symbol_or_allocation, dict):
+                # Portfolio allocation - create a single signal representing the portfolio
+                # Use the largest allocation as the primary symbol
+                primary_symbol = max(symbol_or_allocation.keys(), 
+                                   key=lambda s: symbol_or_allocation[s])
+                total_allocation = sum(symbol_or_allocation.values())
+                
+                signal = StrategySignal(
+                    symbol=Symbol(primary_symbol),
+                    action=action,  # type: ignore  # action comes from ActionType.value
+                    confidence=Confidence(Decimal("0.8")),  # High confidence for TECL strategy
+                    target_allocation=Percentage(Decimal(str(total_allocation))),
+                    reasoning=reasoning
+                )
+                signals.append(signal)
+            else:
+                # Single symbol recommendation
+                signal = StrategySignal(
+                    symbol=Symbol(symbol_or_allocation),
+                    action=action,  # type: ignore  # action comes from ActionType.value
+                    confidence=Confidence(Decimal("0.8")),  # High confidence for TECL strategy
+                    target_allocation=Percentage(Decimal("1.0")),  # 100% allocation
+                    reasoning=reasoning
+                )
+                signals.append(signal)
+            
+            return signals
+            
+        except Exception as e:
+            logging.error(f"Error generating TECL signals: {e}")
+            return []
+
+    def run_once(self) -> list[Alert] | None:
+        """Run strategy once and return alerts (StrategyEngine protocol)."""
+        try:
+            signals = self.generate_signals()
+            if not signals:
+                return None
+            
+            # Convert signals to alerts (simplified implementation)
+            alerts = []
+            for signal in signals:
+                alert = Alert(
+                    message=f"TECL Strategy: {signal.action} {signal.symbol.value} - {signal.reasoning[:100]}...",
+                    severity="INFO",
+                    symbol=signal.symbol
+                )
+                alerts.append(alert)
+            
+            return alerts
+            
+        except Exception as e:
+            logging.error(f"Error in TECL run_once: {e}")
+            return None
+
+    def validate_signal(self, signal: StrategySignal) -> bool:
+        """Validate generated signal (StrategyEngine protocol)."""
+        try:
+            # Basic validation
+            if not signal.symbol.value:
+                return False
+            if signal.action not in ("BUY", "SELL", "HOLD"):
+                return False
+            if signal.confidence.value < 0 or signal.confidence.value > 1:
+                return False
+            if signal.target_allocation.value < 0 or signal.target_allocation.value > 1:
+                return False
+            
+            return True
+            
+        except Exception:
+            return False
+
     def get_strategy_summary(self) -> str:
         """Get a summary description of the TECL strategy"""
         return """
@@ -361,44 +468,11 @@ class TECLStrategyEngine:
 
 def main() -> None:
     """Test the TECL strategy engine"""
-
+    
     print("🚀 TECL Strategy Engine Test")
     print("=" * 50)
-
-    # Initialize engine
-    engine = TECLStrategyEngine()
-
-    # Get market data
-    print("📊 Fetching market data...")
-    market_data = engine.get_market_data()
-    print(f"✅ Fetched data for {len(market_data)} symbols")
-
-    # Calculate indicators
-    print("🔬 Calculating technical indicators...")
-    indicators = engine.calculate_indicators(market_data)
-    print(f"✅ Calculated indicators for {len(indicators)} symbols")
-
-    # Evaluate strategy
-    print("⚡ Evaluating TECL strategy...")
-    symbol_or_allocation, action, reason = engine.evaluate_tecl_strategy(indicators, market_data)
-
-    print("\n🎯 TECL STRATEGY RESULT:")
-    print(f"   Action: {action}")
-    if isinstance(symbol_or_allocation, dict):
-        print(f"   Allocation: {symbol_or_allocation}")
-    else:
-        print(f"   Symbol: {symbol_or_allocation}")
-    print(f"   Reason: {reason}")
-
-    # Print key indicators
-    print("\n🔬 Key Technical Indicators:")
-    key_symbols = ["SPY", "XLK", "KMLM", "TQQQ", "UVXY"]
-    for sym in key_symbols:
-        if sym in indicators:
-            print(f"   {sym}: RSI(10)={indicators[sym]['rsi_10']:.1f}")
-
-    print("\n📈 Strategy Summary:")
-    print(engine.get_strategy_summary())
+    print("Note: This test requires a configured data provider")
+    print("Use the strategy through the signal generator for full functionality")
 
 
 if __name__ == "__main__":
