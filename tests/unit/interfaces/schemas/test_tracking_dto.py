@@ -16,7 +16,10 @@ from the_alchemiser.interfaces.schemas.tracking import (
     ExecutionStatus,
     OrderEventStatus,
     StrategyExecutionSummaryDTO,
+    StrategyOrderDTO,
     StrategyOrderEventDTO,
+    StrategyPnLDTO,
+    StrategyPositionDTO,
 )
 
 
@@ -576,3 +579,345 @@ class TestStrategyExecutionSummaryDTO:
         assert summary.details[0].event_id == "evt_buy"
         assert summary.details[1].event_id == "evt_sell_partial"
         assert summary.details[2].event_id == "evt_sell_failed"
+
+
+class TestStrategyOrderDTO:
+    """Test StrategyOrderDTO validation and behavior."""
+
+    def test_valid_order_creation(self) -> None:
+        """Test creating valid strategy orders."""
+        order = StrategyOrderDTO(
+            order_id="order_123",
+            strategy="NUCLEAR",
+            symbol="AAPL",
+            side="buy",
+            quantity=Decimal("100"),
+            price=Decimal("150.25"),
+            timestamp=datetime.now(UTC),
+        )
+
+        assert order.order_id == "order_123"
+        assert order.strategy == "NUCLEAR"
+        assert order.symbol == "AAPL"
+        assert order.side == "buy"
+        assert order.quantity == Decimal("100")
+        assert order.price == Decimal("150.25")
+
+    def test_factory_method(self) -> None:
+        """Test factory method for creating from raw data."""
+        order = StrategyOrderDTO.from_strategy_order_data(
+            order_id="order_123",
+            strategy="NUCLEAR",
+            symbol="aapl",  # Should be normalized
+            side="BUY",  # Should be normalized
+            quantity=100.5,
+            price=150.25,
+        )
+
+        assert order.order_id == "order_123"
+        assert order.strategy == "NUCLEAR"
+        assert order.symbol == "AAPL"  # Normalized to uppercase
+        assert order.side == "buy"  # Normalized to lowercase
+        assert order.quantity == Decimal("100.5")
+        assert order.price == Decimal("150.25")
+
+    def test_side_normalization(self) -> None:
+        """Test side is normalized to lowercase."""
+        order = StrategyOrderDTO(
+            order_id="order_123",
+            strategy="TECL",
+            symbol="AAPL",
+            side="SELL",  # Uppercase input
+            quantity=Decimal("50"),
+            price=Decimal("150.00"),
+            timestamp=datetime.now(UTC),
+        )
+
+        assert order.side == "sell"
+
+    def test_validation_errors(self) -> None:
+        """Test validation errors for invalid data."""
+        # Invalid strategy
+        with pytest.raises(ValidationError):
+            StrategyOrderDTO(
+                order_id="order_123",
+                strategy="INVALID",
+                symbol="AAPL",
+                side="buy",
+                quantity=Decimal("100"),
+                price=Decimal("150.25"),
+                timestamp=datetime.now(UTC),
+            )
+
+        # Invalid side
+        with pytest.raises(ValidationError):
+            StrategyOrderDTO(
+                order_id="order_123",
+                strategy="NUCLEAR",
+                symbol="AAPL",
+                side="invalid_side",
+                quantity=Decimal("100"),
+                price=Decimal("150.25"),
+                timestamp=datetime.now(UTC),
+            )
+
+        # Zero quantity
+        with pytest.raises(ValidationError):
+            StrategyOrderDTO(
+                order_id="order_123",
+                strategy="NUCLEAR",
+                symbol="AAPL",
+                side="buy",
+                quantity=Decimal("0"),
+                price=Decimal("150.25"),
+                timestamp=datetime.now(UTC),
+            )
+
+        # Negative price
+        with pytest.raises(ValidationError):
+            StrategyOrderDTO(
+                order_id="order_123",
+                strategy="NUCLEAR",
+                symbol="AAPL",
+                side="buy",
+                quantity=Decimal("100"),
+                price=Decimal("-150.25"),
+                timestamp=datetime.now(UTC),
+            )
+
+
+class TestStrategyPositionDTO:
+    """Test StrategyPositionDTO validation and behavior."""
+
+    def test_valid_position_creation(self) -> None:
+        """Test creating valid strategy positions."""
+        position = StrategyPositionDTO(
+            strategy="NUCLEAR",
+            symbol="AAPL",
+            quantity=Decimal("100"),
+            average_cost=Decimal("150.00"),
+            total_cost=Decimal("15000.00"),
+            last_updated=datetime.now(UTC),
+        )
+
+        assert position.strategy == "NUCLEAR"
+        assert position.symbol == "AAPL"
+        assert position.quantity == Decimal("100")
+        assert position.average_cost == Decimal("150.00")
+        assert position.total_cost == Decimal("15000.00")
+
+    def test_factory_method(self) -> None:
+        """Test factory method for creating from raw data."""
+        position = StrategyPositionDTO.from_position_data(
+            strategy="NUCLEAR",
+            symbol="aapl",  # Should be normalized
+            quantity=100.0,
+            average_cost=150.0,
+            total_cost=15000.0,
+        )
+
+        assert position.strategy == "NUCLEAR"
+        assert position.symbol == "AAPL"  # Normalized to uppercase
+        assert position.quantity == Decimal("100.0")
+        assert position.average_cost == Decimal("150.0")
+        assert position.total_cost == Decimal("15000.0")
+
+    def test_closed_position_validation(self) -> None:
+        """Test validation for closed positions."""
+        # Valid closed position
+        position = StrategyPositionDTO(
+            strategy="NUCLEAR",
+            symbol="AAPL",
+            quantity=Decimal("0"),
+            average_cost=Decimal("0"),
+            total_cost=Decimal("0"),
+            last_updated=datetime.now(UTC),
+        )
+
+        assert position.quantity == Decimal("0")
+
+        # Invalid closed position with non-zero costs
+        with pytest.raises(ValidationError) as exc_info:
+            StrategyPositionDTO(
+                strategy="NUCLEAR",
+                symbol="AAPL",
+                quantity=Decimal("0"),
+                average_cost=Decimal("150.00"),  # Should be 0 for closed position
+                total_cost=Decimal("0"),
+                last_updated=datetime.now(UTC),
+            )
+
+        assert "Closed position" in str(exc_info.value)
+
+    def test_open_position_validation(self) -> None:
+        """Test validation for open positions."""
+        # Valid open position
+        position = StrategyPositionDTO(
+            strategy="NUCLEAR",
+            symbol="AAPL",
+            quantity=Decimal("100"),
+            average_cost=Decimal("150.00"),
+            total_cost=Decimal("15000.00"),
+            last_updated=datetime.now(UTC),
+        )
+
+        assert position.quantity == Decimal("100")
+
+        # Invalid open position with zero average cost
+        with pytest.raises(ValidationError) as exc_info:
+            StrategyPositionDTO(
+                strategy="NUCLEAR",
+                symbol="AAPL",
+                quantity=Decimal("100"),
+                average_cost=Decimal("0"),  # Should be positive for open position
+                total_cost=Decimal("15000.00"),
+                last_updated=datetime.now(UTC),
+            )
+
+        assert "positive average cost" in str(exc_info.value)
+
+    def test_cost_consistency_validation(self) -> None:
+        """Test validation for cost consistency."""
+        # Valid consistent costs
+        position = StrategyPositionDTO(
+            strategy="NUCLEAR",
+            symbol="AAPL",
+            quantity=Decimal("100"),
+            average_cost=Decimal("150.00"),
+            total_cost=Decimal("15000.00"),  # 100 * 150
+            last_updated=datetime.now(UTC),
+        )
+
+        assert position.total_cost == Decimal("15000.00")
+
+        # Invalid inconsistent costs (difference > 0.01)
+        with pytest.raises(ValidationError) as exc_info:
+            StrategyPositionDTO(
+                strategy="NUCLEAR",
+                symbol="AAPL",
+                quantity=Decimal("100"),
+                average_cost=Decimal("150.00"),
+                total_cost=Decimal("14000.00"),  # Should be 15000
+                last_updated=datetime.now(UTC),
+            )
+
+        assert "inconsistent" in str(exc_info.value)
+
+
+class TestStrategyPnLDTO:
+    """Test StrategyPnLDTO validation and behavior."""
+
+    def test_valid_pnl_creation(self) -> None:
+        """Test creating valid strategy P&L."""
+        pnl = StrategyPnLDTO(
+            strategy="NUCLEAR",
+            realized_pnl=Decimal("250.50"),
+            unrealized_pnl=Decimal("100.25"),
+            total_pnl=Decimal("350.75"),
+            positions={"AAPL": Decimal("100"), "GOOGL": Decimal("50")},
+            allocation_value=Decimal("25000.00"),
+        )
+
+        assert pnl.strategy == "NUCLEAR"
+        assert pnl.realized_pnl == Decimal("250.50")
+        assert pnl.unrealized_pnl == Decimal("100.25")
+        assert pnl.total_pnl == Decimal("350.75")
+        assert pnl.allocation_value == Decimal("25000.00")
+
+    def test_factory_method(self) -> None:
+        """Test factory method for creating from raw data."""
+        pnl = StrategyPnLDTO.from_pnl_data(
+            strategy="NUCLEAR",
+            realized_pnl=250.50,
+            unrealized_pnl=100.25,
+            total_pnl=350.75,
+            positions={"aapl": 100.0, "googl": 50.0},  # Should normalize symbols
+            allocation_value=25000.0,
+        )
+
+        assert pnl.strategy == "NUCLEAR"
+        assert pnl.total_pnl == Decimal("350.75")
+        assert "AAPL" in pnl.positions  # Normalized to uppercase
+        assert "GOOGL" in pnl.positions
+
+    def test_computed_properties(self) -> None:
+        """Test computed properties."""
+        pnl = StrategyPnLDTO(
+            strategy="NUCLEAR",
+            realized_pnl=Decimal("250.50"),
+            unrealized_pnl=Decimal("100.25"),
+            total_pnl=Decimal("350.75"),
+            positions={"AAPL": Decimal("100"), "GOOGL": Decimal("0")},  # One zero position
+            allocation_value=Decimal("25000.00"),
+        )
+
+        # Total return percentage
+        expected_return_pct = (Decimal("350.75") / Decimal("25000.00")) * Decimal("100")
+        assert pnl.total_return_pct == expected_return_pct
+
+        # Position count (non-zero positions only)
+        assert pnl.position_count == 1  # Only AAPL has non-zero quantity
+
+    def test_pnl_consistency_validation(self) -> None:
+        """Test validation for P&L consistency."""
+        # Valid consistent P&L
+        pnl = StrategyPnLDTO(
+            strategy="NUCLEAR",
+            realized_pnl=Decimal("250.50"),
+            unrealized_pnl=Decimal("100.25"),
+            total_pnl=Decimal("350.75"),  # 250.50 + 100.25
+            positions={},
+            allocation_value=Decimal("25000.00"),
+        )
+
+        assert pnl.total_pnl == Decimal("350.75")
+
+        # Invalid inconsistent P&L (difference > 0.01)
+        with pytest.raises(ValidationError) as exc_info:
+            StrategyPnLDTO(
+                strategy="NUCLEAR",
+                realized_pnl=Decimal("250.50"),
+                unrealized_pnl=Decimal("100.25"),
+                total_pnl=Decimal("300.00"),  # Should be 350.75
+                positions={},
+                allocation_value=Decimal("25000.00"),
+            )
+
+        assert "inconsistent" in str(exc_info.value)
+
+    def test_positions_validation(self) -> None:
+        """Test positions validation and normalization."""
+        # Valid positions with normalization
+        pnl = StrategyPnLDTO(
+            strategy="NUCLEAR",
+            realized_pnl=Decimal("0"),
+            unrealized_pnl=Decimal("0"),
+            total_pnl=Decimal("0"),
+            positions={"  aapl  ": Decimal("100")},  # Should normalize symbol
+            allocation_value=Decimal("25000.00"),
+        )
+
+        assert "AAPL" in pnl.positions
+        assert "  aapl  " not in pnl.positions
+
+        # Invalid symbol format
+        with pytest.raises(ValidationError):
+            StrategyPnLDTO(
+                strategy="NUCLEAR",
+                realized_pnl=Decimal("0"),
+                unrealized_pnl=Decimal("0"),
+                total_pnl=Decimal("0"),
+                positions={"AAPL123": Decimal("100")},  # Invalid symbol
+                allocation_value=Decimal("25000.00"),
+            )
+
+        # Invalid negative quantity
+        with pytest.raises(ValidationError):
+            StrategyPnLDTO(
+                strategy="NUCLEAR",
+                realized_pnl=Decimal("0"),
+                unrealized_pnl=Decimal("0"),
+                total_pnl=Decimal("0"),
+                positions={"AAPL": Decimal("-100")},  # Negative quantity
+                allocation_value=Decimal("25000.00"),
+            )
