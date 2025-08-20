@@ -19,6 +19,7 @@ from typing import Any
 
 # Enhanced error reporting and classification utilities.
 from the_alchemiser.domain.types import ErrorDetailInfo, ErrorNotificationData, ErrorReportSummary
+from the_alchemiser.infrastructure.logging.logging_utils import set_error_id
 
 from .context import ErrorContextData
 from .exceptions import (
@@ -123,6 +124,9 @@ class EnhancedAlchemiserError(AlchemiserError):
         self.max_retries = max_retries
         self.error_id = str(uuid.uuid4())
         self.original_message = message
+
+        # Set error_id in context for logging
+        set_error_id(self.error_id)
 
     def should_retry(self) -> bool:
         """Determine if error should be retried."""
