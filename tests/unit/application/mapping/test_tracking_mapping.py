@@ -1,20 +1,21 @@
 """Tests for tracking mapping functions."""
 
-import pytest
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from decimal import Decimal
 
+import pytest
+
 from the_alchemiser.application.mapping.tracking import (
-    strategy_order_event_dto_to_dict,
-    strategy_execution_summary_dto_to_dict,
-    dict_to_strategy_order_event_dto,
     dict_to_strategy_execution_summary_dto,
+    dict_to_strategy_order_event_dto,
+    strategy_execution_summary_dto_to_dict,
+    strategy_order_event_dto_to_dict,
 )
 from the_alchemiser.interfaces.schemas.tracking import (
-    StrategyOrderEventDTO,
-    StrategyExecutionSummaryDTO,
-    OrderEventStatus,
     ExecutionStatus,
+    OrderEventStatus,
+    StrategyExecutionSummaryDTO,
+    StrategyOrderEventDTO,
 )
 
 
@@ -102,7 +103,7 @@ class TestStrategyExecutionSummaryDTOToDict:
         """Test converting summary with event details to dictionary."""
         timestamp1 = datetime.now(UTC)
         timestamp2 = datetime.now(UTC)
-        
+
         event1 = StrategyOrderEventDTO(
             event_id="evt_1",
             strategy="NUCLEAR",
@@ -113,7 +114,7 @@ class TestStrategyExecutionSummaryDTOToDict:
             price=Decimal("150.00"),
             ts=timestamp1,
         )
-        
+
         event2 = StrategyOrderEventDTO(
             event_id="evt_2",
             strategy="NUCLEAR",
@@ -390,7 +391,7 @@ class TestMappingPurityAndTypes:
         # Create event with high precision Decimal
         original_quantity = Decimal("100.123456")
         original_price = Decimal("150.654321")
-        
+
         event_dict = {
             "event_id": "evt_precision_test",
             "strategy": "NUCLEAR",

@@ -3,23 +3,23 @@
 Mapping utilities between tracking DTOs and internal dataclasses.
 
 This module provides anti-corruption layer mappings for the strategy_order_tracker
-refactor, converting between StrategyOrderEventDTO/StrategyExecutionSummaryDTO 
+refactor, converting between StrategyOrderEventDTO/StrategyExecutionSummaryDTO
 and internal dataclasses.
 """
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any, assert_never, cast
 
 # Import only DTOs to avoid circular imports
 from the_alchemiser.interfaces.schemas.tracking import (
-    StrategyOrderEventDTO,
-    StrategyExecutionSummaryDTO,
-    OrderEventStatus,
     ExecutionStatus,
+    OrderEventStatus,
+    StrategyExecutionSummaryDTO,
     StrategyLiteral,
+    StrategyOrderEventDTO,
 )
 
 
@@ -38,9 +38,11 @@ def strategy_order_to_event_dto(
         quantity=Decimal(str(order.quantity)),
         status=status,
         price=Decimal(str(order.price)) if order.price > 0 else None,
-        ts=datetime.fromisoformat(order.timestamp.replace("Z", "+00:00"))
-        if isinstance(order.timestamp, str)
-        else order.timestamp,
+        ts=(
+            datetime.fromisoformat(order.timestamp.replace("Z", "+00:00"))
+            if isinstance(order.timestamp, str)
+            else order.timestamp
+        ),
         error=error,
     )
 
@@ -91,10 +93,10 @@ def orders_to_execution_summary_dto(
         for order in sorted_orders
     ]
 
-    # Calculate totals  
+    # Calculate totals
     quantities = [Decimal(str(order.quantity)) for order in sorted_orders]
     total_qty: Decimal = sum(quantities, Decimal(0))
-    
+
     # Calculate weighted average price
     if total_qty > 0:
         total_value = sum(
@@ -124,9 +126,7 @@ def strategy_pnl_to_dict(pnl: Any) -> dict[str, Any]:  # StrategyPnL - avoid imp
         "realized_pnl": Decimal(str(pnl.realized_pnl)),
         "unrealized_pnl": Decimal(str(pnl.unrealized_pnl)),
         "total_pnl": Decimal(str(pnl.total_pnl)),
-        "positions": {
-            symbol: Decimal(str(quantity)) for symbol, quantity in pnl.positions.items()
-        },
+        "positions": {symbol: Decimal(str(quantity)) for symbol, quantity in pnl.positions.items()},
         "allocation_value": Decimal(str(pnl.allocation_value)),
         "total_return_pct": Decimal(str(pnl.total_return_pct)),
     }
@@ -153,14 +153,14 @@ def normalize_timestamp(ts: str | datetime) -> datetime:
         try:
             dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
             if dt.tzinfo is None:
-                dt = dt.replace(tzinfo=timezone.utc)
+                dt = dt.replace(tzinfo=UTC)
             return dt
         except ValueError:
             # Fallback to current time if parsing fails
-            return datetime.now(timezone.utc)
+            return datetime.now(UTC)
     elif isinstance(ts, datetime):
         if ts.tzinfo is None:
-            return ts.replace(tzinfo=timezone.utc)
+            return ts.replace(tzinfo=UTC)
         else:
             return ts
     else:

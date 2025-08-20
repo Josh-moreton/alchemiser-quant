@@ -145,8 +145,11 @@ class AlpacaClient:
             List of ValidatedOrderDTO instances for type-safe order handling.
         """
         try:
+            from the_alchemiser.application.mapping.orders import (
+                dict_to_order_request_dto,
+                order_request_to_validated_dto,
+            )
             from the_alchemiser.interfaces.schemas.orders import ValidatedOrderDTO
-            from the_alchemiser.application.mapping.orders import dict_to_order_request_dto, order_request_to_validated_dto
 
             raw_orders = self.position_manager.get_pending_orders()
 

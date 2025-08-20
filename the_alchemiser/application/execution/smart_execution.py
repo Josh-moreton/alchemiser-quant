@@ -280,8 +280,11 @@ class SmartExecution:
 
         # Import here to avoid circular dependency
         try:
+            from the_alchemiser.application.mapping.orders import (
+                dict_to_order_request_dto,
+                order_request_to_validated_dto,
+            )
             from the_alchemiser.interfaces.schemas.orders import ValidatedOrderDTO
-            from the_alchemiser.application.mapping.orders import dict_to_order_request_dto, order_request_to_validated_dto
 
             validated_orders: list[ValidatedOrderDTO] = []
             for order in sell_orders:

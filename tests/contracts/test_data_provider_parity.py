@@ -1,4 +1,5 @@
 import pytest
+
 pytest.skip(
     "UnifiedDataProviderFacade removed; parity test obsolete under DDD migration. Replace with MarketDataClient/TypedDataProviderAdapter contract tests.",
     allow_module_level=True,

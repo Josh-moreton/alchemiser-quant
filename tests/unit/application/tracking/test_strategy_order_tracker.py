@@ -6,9 +6,10 @@ This module validates that the strategy order tracker correctly consumes/produce
 StrategyOrderEventDTO and StrategyExecutionSummaryDTO, replacing untyped dict flows.
 """
 
-import pytest
 from decimal import Decimal
 from unittest.mock import Mock, patch
+
+import pytest
 
 from the_alchemiser.application.tracking.strategy_order_tracker import (
     StrategyOrderTracker,
@@ -74,7 +75,9 @@ class TestStrategyOrderTracker:
 
         position = tracker._positions_cache[position_key]
         assert position.quantity == pytest.approx(100.0, rel=1e-9, abs=1e-9)  # 50 + 50
-        assert position.average_cost == pytest.approx(202.5, rel=1e-9, abs=1e-9)  # (50*200 + 50*205) / 100
+        assert position.average_cost == pytest.approx(
+            202.5, rel=1e-9, abs=1e-9
+        )  # (50*200 + 50*205) / 100
 
     @patch("the_alchemiser.application.tracking.strategy_order_tracker.get_s3_handler")
     def test_error_event_capturing(self, mock_get_s3_handler):
@@ -166,7 +169,9 @@ class TestStrategyOrderTracker:
         # Check realized P&L was calculated
         assert "NUCLEAR" in tracker._realized_pnl_cache
         expected_pnl = 50 * (160.0 - 150.0)  # 50 shares * $10 profit
-        assert tracker._realized_pnl_cache["NUCLEAR"] == pytest.approx(expected_pnl, rel=1e-9, abs=1e-2)
+        assert tracker._realized_pnl_cache["NUCLEAR"] == pytest.approx(
+            expected_pnl, rel=1e-9, abs=1e-2
+        )
 
     @patch("the_alchemiser.application.tracking.strategy_order_tracker.get_s3_handler")
     def test_strategy_pnl_summary(self, mock_get_s3_handler):
@@ -185,7 +190,9 @@ class TestStrategyOrderTracker:
 
         assert pnl.strategy == "NUCLEAR"
         assert pnl.realized_pnl == pytest.approx(250.0, rel=1e-9, abs=1e-9)  # 25 * (160 - 150)
-        assert pnl.positions["AAPL"] == pytest.approx(75.0, rel=1e-9, abs=1e-9)  # 100 - 25 remaining
+        assert pnl.positions["AAPL"] == pytest.approx(
+            75.0, rel=1e-9, abs=1e-9
+        )  # 100 - 25 remaining
 
         # Check unrealized P&L: 75 shares * (155 - 150) = 375
         assert pnl.unrealized_pnl == pytest.approx(375.0, rel=1e-9, abs=1e-2)

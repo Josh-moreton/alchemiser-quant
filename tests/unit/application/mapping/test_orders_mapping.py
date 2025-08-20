@@ -1,20 +1,21 @@
 """Tests for order mapping functions."""
 
-import pytest
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from decimal import Decimal
 
+import pytest
+
 from the_alchemiser.application.mapping.orders import (
-    order_request_dto_to_domain_order_params,
     domain_order_to_execution_result_dto,
+    order_request_dto_to_domain_order_params,
 )
-from the_alchemiser.interfaces.schemas.orders import OrderRequestDTO, OrderExecutionResultDTO
+from the_alchemiser.domain.shared_kernel.value_objects.money import Money
 from the_alchemiser.domain.trading.entities.order import Order
 from the_alchemiser.domain.trading.value_objects.order_id import OrderId
 from the_alchemiser.domain.trading.value_objects.order_status import OrderStatus
 from the_alchemiser.domain.trading.value_objects.quantity import Quantity
 from the_alchemiser.domain.trading.value_objects.symbol import Symbol
-from the_alchemiser.domain.shared_kernel.value_objects.money import Money
+from the_alchemiser.interfaces.schemas.orders import OrderExecutionResultDTO, OrderRequestDTO
 
 
 class TestOrderRequestDTOToDomainOrderParams:
@@ -95,7 +96,9 @@ class TestOrderRequestDTOToDomainOrderParams:
         # Quantities should be preserved as Decimal
         assert params["quantity"].value == Decimal("100.000000")
         assert isinstance(params["limit_price"], Money)
-        assert params["limit_price"].amount == Decimal("150.25")  # Money normalizes to 2 decimal places
+        assert params["limit_price"].amount == Decimal(
+            "150.25"
+        )  # Money normalizes to 2 decimal places
 
 
 class TestDomainOrderToExecutionResultDTO:
@@ -126,7 +129,7 @@ class TestDomainOrderToExecutionResultDTO:
         order_id = OrderId.generate()
         limit_price = Money(Decimal("150.00"), "USD")
         created_time = datetime.now(UTC)
-        
+
         order = Order(
             id=order_id,
             symbol=Symbol("AAPL"),

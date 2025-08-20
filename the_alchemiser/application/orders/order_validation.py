@@ -30,14 +30,12 @@ Usage:
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
 from the_alchemiser.application.mapping.orders import (
     dict_to_order_request_dto,
     order_request_to_validated_dto,
-    validated_dto_to_dict,
 )
 from the_alchemiser.interfaces.schemas.orders import OrderRequestDTO, ValidatedOrderDTO
 from the_alchemiser.services.errors.error_handler import TradingSystemErrorHandler
@@ -50,9 +48,7 @@ class OrderValidationError(ValidationError):
     pass
 
 
-@dataclass(
-    frozen=True
-)
+@dataclass(frozen=True)
 class RiskLimits:
     """Risk limits for order validation."""
 
