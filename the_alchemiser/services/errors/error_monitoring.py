@@ -15,7 +15,8 @@ from datetime import datetime, timedelta
 from enum import Enum
 from typing import Any
 
-from .error_handler import ErrorContext, ErrorSeverity
+from .handler import ErrorSeverity
+from .context import ErrorContextData
 
 
 class HealthStatus(Enum):
@@ -30,7 +31,7 @@ class HealthStatus(Enum):
 class ErrorEvent:
     """Represents an error event for monitoring."""
 
-    def __init__(self, error: Exception, context: ErrorContext, timestamp: datetime):
+    def __init__(self, error: Exception, context: ErrorContextData, timestamp: datetime):
         self.error = error
         self.context = context
         self.timestamp = timestamp
@@ -91,7 +92,7 @@ class ErrorMetricsCollector:
         self.hourly_error_counts: dict[datetime, int] = {}
         self.logger = logging.getLogger(__name__)
 
-    def record_error(self, error: Exception, context: ErrorContext | None = None) -> None:
+    def record_error(self, error: Exception, context: ErrorContextData | None = None) -> None:
         """Record error occurrence for metrics."""
         now = datetime.now()
         error_key = f"{error.__class__.__name__}:{context.component if context else 'unknown'}"
@@ -444,7 +445,7 @@ class ProductionMonitor:
         self.monitoring_enabled = True
         self.logger = logging.getLogger(__name__)
 
-    def record_error(self, error: Exception, context: ErrorContext | None = None) -> None:
+    def record_error(self, error: Exception, context: ErrorContextData | None = None) -> None:
         """Record an error for monitoring."""
         if not self.monitoring_enabled:
             return
@@ -519,7 +520,7 @@ def get_production_monitor() -> ProductionMonitor:
     return _production_monitor
 
 
-def record_error_for_monitoring(error: Exception, context: ErrorContext | None = None) -> None:
+def record_error_for_monitoring(error: Exception, context: ErrorContextData | None = None) -> None:
     """Convenience function to record error for monitoring."""
     _production_monitor.record_error(error, context)
 

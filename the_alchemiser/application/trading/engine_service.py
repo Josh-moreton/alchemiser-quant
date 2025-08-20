@@ -527,7 +527,7 @@ class TradingEngine:
 
             # Enhanced error handling
             try:
-                from the_alchemiser.services.errors.error_handler import handle_trading_error
+                from the_alchemiser.services.errors import handle_trading_error
 
                 handle_trading_error(
                     error=e,
@@ -557,7 +557,7 @@ class TradingEngine:
 
             # Enhanced error handling
             try:
-                from the_alchemiser.services.errors.error_handler import handle_trading_error
+                from the_alchemiser.services.errors import handle_trading_error
 
                 handle_trading_error(
                     error=e,
@@ -961,7 +961,7 @@ class TradingEngine:
 
             # Enhanced error handling
             try:
-                from the_alchemiser.services.errors.error_handler import handle_trading_error
+                from the_alchemiser.services.errors import handle_trading_error
 
                 handle_trading_error(
                     error=e,

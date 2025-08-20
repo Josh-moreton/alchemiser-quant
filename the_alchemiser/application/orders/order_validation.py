@@ -38,7 +38,7 @@ from the_alchemiser.application.mapping.orders import (
     order_request_to_validated_dto,
 )
 from the_alchemiser.interfaces.schemas.orders import OrderRequestDTO, ValidatedOrderDTO
-from the_alchemiser.services.errors.error_handler import TradingSystemErrorHandler
+from the_alchemiser.services.errors import TradingSystemErrorHandler
 from the_alchemiser.services.errors.exceptions import ValidationError
 
 

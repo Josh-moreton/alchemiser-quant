@@ -14,7 +14,7 @@ from alpaca.trading.enums import OrderSide, TimeInForce
 from alpaca.trading.requests import LimitOrderRequest
 
 from the_alchemiser.domain.math.asset_info import fractionability_detector
-from the_alchemiser.services.errors.error_handler import get_error_handler
+from the_alchemiser.services.errors import get_error_handler
 from the_alchemiser.services.errors.exceptions import DataProviderError, TradingClientError
 
 
