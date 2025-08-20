@@ -114,8 +114,8 @@ class TestNuclearStrategyParity:
 
     @pytest.fixture
     def typed_strategy(self) -> TypedNuclearStrategy:
-        """Create typed Nuclear strategy."""
-        return TypedNuclearStrategy()
+        """Create typed Nuclear strategy with dynamic allocation enabled for parity testing."""
+        return TypedNuclearStrategy(enable_dynamic_allocation=True)
 
     @pytest.fixture
     def mock_port(self, mock_data_provider: Mock) -> MarketDataPort:

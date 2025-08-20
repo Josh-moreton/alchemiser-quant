@@ -21,8 +21,13 @@ class TestTypedNuclearStrategy:
 
     @pytest.fixture
     def strategy(self) -> TypedNuclearStrategy:
-        """Create strategy instance for testing."""
-        return TypedNuclearStrategy()
+        """Create strategy instance for testing (legacy mode by default)."""
+        return TypedNuclearStrategy(enable_dynamic_allocation=False)
+
+    @pytest.fixture
+    def dynamic_strategy(self) -> TypedNuclearStrategy:
+        """Create strategy instance with dynamic allocation enabled."""
+        return TypedNuclearStrategy(enable_dynamic_allocation=True)
 
     @pytest.fixture
     def mock_port(self) -> Mock:
@@ -81,7 +86,7 @@ class TestTypedNuclearStrategy:
         assert len(symbols) > 15
 
     def test_generate_signals_spy_extremely_overbought(
-        self, strategy: TypedNuclearStrategy, mock_port: Mock, now: datetime
+        self, dynamic_strategy: TypedNuclearStrategy, mock_port: Mock, now: datetime
     ) -> None:
         """Test signal generation when SPY is extremely overbought (RSI > 81)."""
         # Mock data for SPY extremely overbought scenario
@@ -96,7 +101,7 @@ class TestTypedNuclearStrategy:
         
         mock_port.get_data.side_effect = get_data_side_effect
 
-        signals = strategy.generate_signals(mock_port, now)
+        signals = dynamic_strategy.generate_signals(mock_port, now)
 
         assert len(signals) == 1
         signal = signals[0]
@@ -152,13 +157,13 @@ class TestTypedNuclearStrategy:
         assert len(signal.reasoning) > 0
 
     def test_generate_signals_portfolio_hedge_signal(
-        self, strategy: TypedNuclearStrategy, mock_port: Mock, now: datetime
+        self, dynamic_strategy: TypedNuclearStrategy, mock_port: Mock, now: datetime
     ) -> None:
         """Test portfolio hedge signal generation structure."""
         # Note: This test validates the structure rather than specific conditions
         # since exact RSI calculations depend on complex data patterns
         
-        signals = strategy.generate_signals(mock_port, now)
+        signals = dynamic_strategy.generate_signals(mock_port, now)
 
         assert len(signals) == 1
         signal = signals[0]
@@ -207,37 +212,54 @@ class TestTypedNuclearStrategy:
         with pytest.raises(StrategyExecutionError, match="signal generation failed"):
             strategy.generate_signals(mock_port, now)
 
-    def test_confidence_calculation_various_scenarios(self, strategy: TypedNuclearStrategy) -> None:
+    def test_confidence_calculation_various_scenarios(self, dynamic_strategy: TypedNuclearStrategy) -> None:
         """Test confidence calculation for various signal types."""
         # High confidence scenarios
-        assert strategy._calculate_confidence("UVXY", "BUY", "volatility hedge") >= 0.9
-        assert strategy._calculate_confidence("SPY", "BUY", "extremely overbought") >= 0.8
-        assert strategy._calculate_confidence("UPRO", "BUY", "oversold") >= 0.8
+        assert dynamic_strategy._calculate_confidence("UVXY", "BUY", "volatility hedge") >= 0.9
+        assert dynamic_strategy._calculate_confidence("SPY", "BUY", "extremely overbought") >= 0.8
+        assert dynamic_strategy._calculate_confidence("UPRO", "BUY", "oversold") >= 0.8
         
         # Medium confidence scenarios
-        assert 0.6 <= strategy._calculate_confidence("QQQ", "BUY", "bull market") <= 0.8
-        assert 0.6 <= strategy._calculate_confidence("SQQQ", "BUY", "bear market") <= 0.8
+        assert 0.6 <= dynamic_strategy._calculate_confidence("QQQ", "BUY", "bull market") <= 0.8
+        assert 0.6 <= dynamic_strategy._calculate_confidence("SQQQ", "BUY", "bear market") <= 0.8
         
         # Low confidence scenarios
-        assert strategy._calculate_confidence("SPY", "HOLD", "neutral") <= 0.4
+        assert dynamic_strategy._calculate_confidence("SPY", "HOLD", "neutral") <= 0.4
 
-    def test_target_allocation_calculation(self, strategy: TypedNuclearStrategy) -> None:
+    def test_target_allocation_calculation(self, dynamic_strategy: TypedNuclearStrategy) -> None:
         """Test target allocation calculation for various signal types."""
         # Hold and sell signals
-        assert strategy._calculate_target_allocation("SPY", "HOLD") == 0.0
-        assert strategy._calculate_target_allocation("SPY", "SELL") == 0.0
+        assert dynamic_strategy._calculate_target_allocation("SPY", "HOLD") == 0.0
+        assert dynamic_strategy._calculate_target_allocation("SPY", "SELL") == 0.0
         
         # High allocation for volatility hedge
-        assert strategy._calculate_target_allocation("UVXY", "BUY") == 0.5
-        assert strategy._calculate_target_allocation("PORTFOLIO", "BUY") == 0.75
+        assert dynamic_strategy._calculate_target_allocation("UVXY", "BUY") == 0.5
+        assert dynamic_strategy._calculate_target_allocation("PORTFOLIO", "BUY") == 0.75
         
         # Moderate allocation for leveraged ETFs
-        assert strategy._calculate_target_allocation("UPRO", "BUY") == 0.4
-        assert strategy._calculate_target_allocation("TQQQ", "BUY") == 0.4
+        assert dynamic_strategy._calculate_target_allocation("UPRO", "BUY") == 0.4
+        assert dynamic_strategy._calculate_target_allocation("TQQQ", "BUY") == 0.4
         
         # Equal weight for nuclear stocks
-        assert strategy._calculate_target_allocation("SMR", "BUY") == 0.33
-        assert strategy._calculate_target_allocation("BWXT", "BUY") == 0.33
+        assert dynamic_strategy._calculate_target_allocation("SMR", "BUY") == 0.33
+        assert dynamic_strategy._calculate_target_allocation("BWXT", "BUY") == 0.33
+
+    def test_legacy_mode_behavior(self, strategy: TypedNuclearStrategy, mock_port: Mock, now: datetime) -> None:
+        """Test that legacy mode produces zero confidence and allocation values."""
+        signals = strategy.generate_signals(mock_port, now)
+
+        assert len(signals) == 1
+        signal = signals[0]
+        assert isinstance(signal, StrategySignal)
+        
+        # Legacy mode should have zero confidence and allocation
+        assert signal.confidence.value == Decimal("0.0")
+        assert signal.target_allocation.value == Decimal("0.0")
+        
+        # But should still have valid symbol, action, and reasoning
+        assert signal.symbol.value is not None
+        assert signal.action in ["BUY", "SELL", "HOLD"]
+        assert len(signal.reasoning) > 0
 
     def test_signal_validation(
         self, strategy: TypedNuclearStrategy, mock_port: Mock, now: datetime

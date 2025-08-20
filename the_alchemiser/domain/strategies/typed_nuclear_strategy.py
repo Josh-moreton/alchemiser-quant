@@ -7,6 +7,32 @@ typed StrategySignal objects.
 
 The strategy implements the same hierarchical logic as the legacy Nuclear
 strategy but with full type safety and clean dependency boundaries.
+
+## Usage Examples
+
+### Legacy Mode (Default - Backward Compatible)
+```python
+# Default behavior maintains compatibility with existing systems
+strategy = TypedNuclearStrategy()
+signals = strategy.generate_signals(market_data_port, datetime.now())
+signal = signals[0]
+# signal.confidence.value == 0.0 (legacy behavior)
+# signal.target_allocation.value == 0.0 (legacy behavior)
+```
+
+### Dynamic Mode (New Features)
+```python
+# Enable dynamic confidence scoring and target allocation
+strategy = TypedNuclearStrategy(enable_dynamic_allocation=True)
+signals = strategy.generate_signals(market_data_port, datetime.now())
+signal = signals[0]
+# signal.confidence.value ranges from 0.3-0.9 based on signal type
+# signal.target_allocation.value ranges from 0.0-0.75 based on signal type
+```
+
+The dynamic allocation feature provides:
+- Confidence scoring: 0.3 (HOLD) to 0.9 (high-conviction volatility hedge)
+- Target allocation: 0.0 (HOLD/SELL) to 0.75 (portfolio hedge strategies)
 """
 
 from __future__ import annotations
@@ -43,12 +69,18 @@ class TypedNuclearStrategy(StrategyEngine):
     - Consumes MarketDataPort for clean data access
     - Produces typed StrategySignal objects
     - Has clear separation between data access and strategy logic
+    
+    The strategy maintains backward compatibility with legacy behavior by defaulting
+    to zero confidence and allocation values unless explicitly enabled.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, enable_dynamic_allocation: bool = False) -> None:
         super().__init__("TypedNuclearStrategy")
         self.indicators = TechnicalIndicators()
         self.pure_strategy = PureNuclearEngine()
+        
+        # Backward compatibility: disable dynamic features by default
+        self.enable_dynamic_allocation = enable_dynamic_allocation
         
         # Core symbols from the Nuclear strategy
         self.market_symbols = ["SPY", "IOO", "TQQQ", "VTV", "XLF", "VOX"]
@@ -107,10 +139,16 @@ class TypedNuclearStrategy(StrategyEngine):
             # Convert to typed signal
             signal = self._create_strategy_signal(symbol, action, reasoning, now)
             
-            self.logger.info(
-                f"Nuclear strategy generated signal: {signal.symbol.value} {signal.action} "
-                f"(confidence: {signal.confidence.value:.2f})"
-            )
+            if self.enable_dynamic_allocation:
+                self.logger.info(
+                    f"Nuclear strategy generated signal: {signal.symbol.value} {signal.action} "
+                    f"(confidence: {signal.confidence.value:.2f}, allocation: {signal.target_allocation.value:.2f})"
+                )
+            else:
+                self.logger.info(
+                    f"Nuclear strategy generated signal: {signal.symbol.value} {signal.action} "
+                    f"(legacy mode - confidence and allocation disabled)"
+                )
             
             return [signal]
 
@@ -289,11 +327,15 @@ class TypedNuclearStrategy(StrategyEngine):
     ) -> StrategySignal:
         """Create a typed StrategySignal from strategy output."""
         
-        # Determine confidence based on action and market conditions
-        confidence_value = self._calculate_confidence(symbol, action, reasoning)
-        
-        # Determine target allocation based on signal type
-        allocation_value = self._calculate_target_allocation(symbol, action)
+        # Backward compatibility: use legacy behavior by default
+        if not self.enable_dynamic_allocation:
+            # Legacy behavior: no confidence scoring or allocation changes
+            confidence_value = 0.0
+            allocation_value = 0.0
+        else:
+            # New dynamic behavior (optional)
+            confidence_value = self._calculate_confidence(symbol, action, reasoning)
+            allocation_value = self._calculate_target_allocation(symbol, action)
         
         # Handle special portfolio symbols
         if symbol == "UVXY_BTAL_PORTFOLIO":
@@ -309,7 +351,11 @@ class TypedNuclearStrategy(StrategyEngine):
         )
 
     def _calculate_confidence(self, symbol: str, action: str, reasoning: str) -> float:
-        """Calculate confidence level based on signal characteristics."""
+        """Calculate confidence level based on signal characteristics.
+        
+        Note: This is only used when enable_dynamic_allocation=True.
+        For backward compatibility, defaults to 0.0 unless explicitly enabled.
+        """
         if action == "HOLD":
             return 0.3  # Low confidence for hold signals
             
@@ -329,7 +375,11 @@ class TypedNuclearStrategy(StrategyEngine):
         return 0.65
 
     def _calculate_target_allocation(self, symbol: str, action: str) -> float:
-        """Calculate target allocation percentage based on signal type."""
+        """Calculate target allocation percentage based on signal type.
+        
+        Note: This is only used when enable_dynamic_allocation=True.
+        For backward compatibility, defaults to 0.0 unless explicitly enabled.
+        """
         if action == "HOLD":
             return 0.0
             
