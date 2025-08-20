@@ -11,6 +11,8 @@ import logging
 from datetime import datetime
 from typing import Any
 
+from the_alchemiser.domain.types import AccountInfo, PositionInfo
+
 
 def build_basic_dashboard_structure(paper_trading: bool) -> dict[str, Any]:
     """
@@ -43,7 +45,7 @@ def build_basic_dashboard_structure(paper_trading: bool) -> dict[str, Any]:
     }
 
 
-def extract_portfolio_metrics(account_info: dict[str, Any]) -> dict[str, float]:
+def extract_portfolio_metrics(account_info: AccountInfo | dict[str, Any]) -> dict[str, float]:
     """
     Extract portfolio metrics from account information.
 
@@ -63,8 +65,8 @@ def extract_portfolio_metrics(account_info: dict[str, Any]) -> dict[str, float]:
     }
 
     # Extract P&L from portfolio history if available
-    portfolio_history = account_info.get("portfolio_history", {})
-    if portfolio_history:
+    portfolio_history = account_info.get("portfolio_history", {}) if isinstance(account_info, dict) else getattr(account_info, "portfolio_history", {})
+    if portfolio_history and isinstance(portfolio_history, dict):
         profit_loss = portfolio_history.get("profit_loss", [])
         profit_loss_pct = portfolio_history.get("profit_loss_pct", [])
         if profit_loss:
@@ -77,7 +79,7 @@ def extract_portfolio_metrics(account_info: dict[str, Any]) -> dict[str, float]:
     return portfolio_metrics
 
 
-def extract_positions_data(open_positions: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def extract_positions_data(open_positions: list[PositionInfo] | list[dict[str, Any]]) -> list[dict[str, Any]]:
     """
     Extract positions data for dashboard.
 

@@ -8,17 +8,12 @@ from rich.table import Table
 
 from the_alchemiser.utils.feature_flags import type_system_v2_enabled
 
-# TODO: Phase 13 - Replace dict[Any, Any] with proper CLISignalData
-# TODO: Phase 13 - Replace dict[str, Any] with AccountInfo from the_alchemiser.domain.types
-# TODO: Phase 13 - Replace dict[str, float] with CLIPortfolioData
-# TODO: Phase 13 - Replace list[dict[str, Any]] with list[CLIOrderDisplay]
-
 """Console formatting utilities for quantitative trading system output using rich."""
 
 
 def render_technical_indicators(
     strategy_signals: dict[Any, Any],
-    console: Console | None = None,  # TODO: Phase 13 - CLISignalData
+    console: Console | None = None,
 ) -> None:
     """Render technical indicators as a Rich table.
 
@@ -127,7 +122,7 @@ def render_technical_indicators(
 
 def render_strategy_signals(
     strategy_signals: dict[Any, Any],
-    console: Console | None = None,  # TODO: Phase 13 - CLISignalData
+    console: Console | None = None,
 ) -> None:
     """Render strategy signals using Rich panels.
 
@@ -144,7 +139,7 @@ def render_strategy_signals(
         c.print(Panel("No strategy signals available", title="STRATEGY SIGNALS", style="yellow"))
         return
 
-    panels: list[Panel] = []  # TODO: Phase 13 - Use structured type
+    panels: list[Panel] = []
     for strategy_type, signal in strategy_signals.items():
         action = signal.get("action", "HOLD")
         symbol = signal.get("symbol", "N/A")
@@ -187,7 +182,7 @@ def render_strategy_signals(
 def render_portfolio_allocation(
     portfolio: dict[str, float],
     title: str = "PORTFOLIO ALLOCATION",
-    console: Console | None = None,  # TODO: Phase 13 - Use CLIPortfolioData list
+    console: Console | None = None,
 ) -> None:
     """Pretty-print portfolio allocation using rich table."""
     c = console or Console()
@@ -213,7 +208,7 @@ def render_portfolio_allocation(
 
 def render_orders_executed(
     orders_executed: list[dict[str, Any]],
-    console: Console | None = None,  # TODO: Phase 13 - list[CLIOrderDisplay]
+    console: Console | None = None,
 ) -> None:
     """Pretty-print trading execution summary."""
     c = console or Console()
@@ -223,9 +218,8 @@ def render_orders_executed(
         return
 
     # Analyze orders
-    # TODO: Phase 13 - Use proper typing for buy/sell orders
-    buy_orders: list[dict[str, Any]] = []  # TODO: Phase 13 - list[CLIOrderDisplay]
-    sell_orders: list[dict[str, Any]] = []  # TODO: Phase 13 - list[CLIOrderDisplay]
+    buy_orders: list[dict[str, Any]] = []
+    sell_orders: list[dict[str, Any]] = []
 
     for order in orders_executed:
         side = order.get("side")
@@ -300,7 +294,7 @@ def _format_money(value: Any) -> str:
 
 def render_account_info(
     account_info: dict[str, Any], console: Console | None = None
-) -> None:  # TODO: Phase 13 - Use AccountInfo type
+) -> None:
     """Render account information including P&L data"""
     c = console or Console()
 
@@ -438,9 +432,9 @@ def render_footer(message: str, success: bool = True, console: Console | None = 
 
 
 def render_target_vs_current_allocations(
-    target_portfolio: dict[str, float],  # TODO: Phase 13 - Use CLIPortfolioData list
-    account_info: dict[str, Any],  # TODO: Phase 13 - Use AccountInfo
-    current_positions: dict[str, Any],  # TODO: Phase 13 - Use dict[str, PositionInfo]
+    target_portfolio: dict[str, float],
+    account_info: dict[str, Any],
+    current_positions: dict[str, Any],
     console: Console | None = None,
 ) -> None:
     """Pretty-print target vs current allocations comparison with enhanced Rich table."""
@@ -514,8 +508,8 @@ def render_target_vs_current_allocations(
 
 
 def render_execution_plan(
-    sell_orders: list[dict[str, Any]],  # TODO: Phase 13 - list[CLIOrderDisplay]
-    buy_orders: list[dict[str, Any]],  # TODO: Phase 13 - list[CLIOrderDisplay]
+    sell_orders: list[dict[str, Any]],
+    buy_orders: list[dict[str, Any]],
     console: Console | None = None,
 ) -> None:
     """Pretty-print the execution plan before trading."""
@@ -549,7 +543,7 @@ __all__ = [
     "render_technical_indicators",
     "render_strategy_signals",
     "render_portfolio_allocation",
-    "render_orders_executed",  # TODO: Phase 13 - Updated function name
+    "render_orders_executed",
     "render_account_info",
     "render_header",
     "render_footer",
@@ -559,7 +553,7 @@ __all__ = [
 
 
 def render_enriched_order_summaries(
-    orders: list[dict[str, Any]] | list[dict[str, Any] | Any],
+    orders: list[dict[str, Any]],
     console: Console | None = None,
 ) -> None:
     """Render enriched order summaries returned by TradingServiceManager.

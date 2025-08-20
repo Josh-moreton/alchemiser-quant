@@ -16,6 +16,8 @@ Usage:
 from typing import Any
 
 # Import the specialized builders
+from the_alchemiser.interfaces.schemas.common import MultiStrategyExecutionResultDTO
+
 from .base import BaseEmailTemplate
 from .error_report import ErrorReportBuilder
 from .multi_strategy import MultiStrategyReportBuilder
@@ -39,9 +41,9 @@ class EmailTemplates:
 
     # Multi-strategy reports (neutral mode only)
     @staticmethod
-    def build_multi_strategy_report_neutral(*args: Any, **kwargs: Any) -> str:
+    def build_multi_strategy_report_neutral(result: MultiStrategyExecutionResultDTO | Any, mode: str) -> str:
         """Build a neutral multi-strategy report email without financial values."""
-        return MultiStrategyReportBuilder.build_multi_strategy_report_neutral(*args, **kwargs)
+        return MultiStrategyReportBuilder.build_multi_strategy_report_neutral(result, mode)
 
     # Error reports
     @staticmethod
