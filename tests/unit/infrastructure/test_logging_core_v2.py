@@ -8,6 +8,7 @@ from unittest.mock import patch
 import pytest
 
 from the_alchemiser.infrastructure.logging.logging_utils import (
+    AlchemiserLoggerAdapter,
     StructuredFormatter,
     configure_production_logging,
     get_error_id,
@@ -106,13 +107,14 @@ class TestStructuredFormatter:
     def test_exception_info_included(self):
         """Test that exception information is properly formatted."""
         formatter = StructuredFormatter()
-        
+
         try:
             raise ValueError("Test exception")
         except ValueError:
             import sys
+
             exc_info = sys.exc_info()
-            
+
         record = logging.LogRecord(
             name="test_logger",
             level=logging.ERROR,
@@ -185,6 +187,168 @@ class TestContextVarHelpers:
         set_error_id(None)
         assert get_error_id() is None
 
+    def test_context_vars_propagate_across_nested_calls(self):
+        """Test that context variables propagate across nested function calls."""
+
+        def inner_function() -> tuple[str | None, str | None]:
+            """Inner function that should see the context vars."""
+            return get_request_id(), get_error_id()
+
+        def middle_function() -> tuple[str | None, str | None]:
+            """Middle function that calls inner function."""
+            return inner_function()
+
+        # Set context vars
+        set_request_id("nested-req-123")
+        set_error_id("nested-err-456")
+
+        try:
+            # Call nested functions
+            req_id, err_id = middle_function()
+
+            # Should propagate correctly
+            assert req_id == "nested-req-123"
+            assert err_id == "nested-err-456"
+
+        finally:
+            # Clean up
+            set_request_id(None)
+            set_error_id(None)
+
+    def test_generate_request_id(self):
+        """Test that generate_request_id creates unique IDs."""
+        from the_alchemiser.infrastructure.logging.logging_utils import generate_request_id
+
+        # Generate multiple IDs
+        id1 = generate_request_id()
+        id2 = generate_request_id()
+
+        # Should be different
+        assert id1 != id2
+
+        # Should be valid UUIDs (36 characters with hyphens)
+        assert len(id1) == 36
+        assert len(id2) == 36
+        assert "-" in id1
+        assert "-" in id2
+
+
+class TestAlchemiserLoggerAdapter:
+    """Test the AlchemiserLoggerAdapter for context variable inclusion."""
+
+    def test_adapter_includes_context_vars_when_set(self):
+        """Test that the adapter includes request_id and error_id when set."""
+        logger = logging.getLogger("test")
+        adapter = AlchemiserLoggerAdapter(logger, {})
+
+        # Set context vars
+        set_request_id("adapter-req-123")
+        set_error_id("adapter-err-456")
+
+        try:
+            # Process a message
+            message, kwargs = adapter.process("Test message", {})
+
+            # Should include both context IDs
+            assert "req_id=adapter-req-123" in message
+            assert "error_id=adapter-err-456" in message
+            assert "[ALCHEMISER]" in message
+            assert "Test message" in message
+
+        finally:
+            # Clean up
+            set_request_id(None)
+            set_error_id(None)
+
+    def test_adapter_includes_only_request_id_when_error_id_not_set(self):
+        """Test that the adapter only includes request_id when error_id is not set."""
+        logger = logging.getLogger("test")
+        adapter = AlchemiserLoggerAdapter(logger, {})
+
+        # Set only request_id
+        set_request_id("adapter-req-only-123")
+        set_error_id(None)
+
+        try:
+            # Process a message
+            message, kwargs = adapter.process("Test message", {})
+
+            # Should include only request_id
+            assert "req_id=adapter-req-only-123" in message
+            assert "error_id=" not in message
+            assert "[ALCHEMISER]" in message
+            assert "Test message" in message
+
+        finally:
+            # Clean up
+            set_request_id(None)
+
+    def test_adapter_includes_no_context_when_none_set(self):
+        """Test that the adapter works normally when no context vars are set."""
+        logger = logging.getLogger("test")
+        adapter = AlchemiserLoggerAdapter(logger, {})
+
+        # Ensure context vars are not set
+        set_request_id(None)
+        set_error_id(None)
+
+        # Process a message
+        message, kwargs = adapter.process("Test message", {})
+
+        # Should be the basic format without context
+        assert message == "[ALCHEMISER] Test message"
+        assert "req_id=" not in message
+        assert "error_id=" not in message
+
+
+class TestErrorIdInjection:
+    """Test that error_id is automatically set when EnhancedAlchemiserError is raised."""
+
+    def test_enhanced_error_sets_error_id_in_context(self):
+        """Test that creating EnhancedAlchemiserError sets error_id in context."""
+        from the_alchemiser.services.errors.handler import EnhancedAlchemiserError
+
+        # Ensure error_id is not set initially
+        set_error_id(None)
+        assert get_error_id() is None
+
+        try:
+            # Create an enhanced error
+            error = EnhancedAlchemiserError("Test error message")
+
+            # The error_id should now be set in context
+            context_error_id = get_error_id()
+            assert context_error_id is not None
+            assert context_error_id == error.error_id
+
+        finally:
+            # Clean up
+            set_error_id(None)
+
+    def test_multiple_errors_update_context_error_id(self):
+        """Test that multiple errors update the context error_id correctly."""
+        from the_alchemiser.services.errors.handler import EnhancedAlchemiserError
+
+        # Ensure error_id is not set initially
+        set_error_id(None)
+        assert get_error_id() is None
+
+        try:
+            # Create first error
+            error1 = EnhancedAlchemiserError("First error")
+            first_id = get_error_id()
+            assert first_id == error1.error_id
+
+            # Create second error
+            error2 = EnhancedAlchemiserError("Second error")
+            second_id = get_error_id()
+            assert second_id == error2.error_id
+            assert second_id != first_id
+
+        finally:
+            # Clean up
+            set_error_id(None)
+
 
 class TestSetupLogging:
     """Test the centralized logging setup."""
@@ -198,36 +362,36 @@ class TestSetupLogging:
     def test_setup_logging_respects_existing_handlers(self):
         """Test that setup_logging respects existing handlers when configured."""
         root_logger = logging.getLogger()
-        
+
         # Add a dummy handler
         existing_handler = logging.StreamHandler()
         root_logger.addHandler(existing_handler)
-        
+
         # Setup with respect_existing_handlers=True
         setup_logging(
             log_level=logging.INFO,
             respect_existing_handlers=True,
             structured_format=False,
         )
-        
+
         # Should still have the original handler plus potentially no new ones
         assert existing_handler in root_logger.handlers
 
     def test_setup_logging_clears_handlers_when_not_respecting(self):
         """Test that setup_logging clears handlers when not respecting existing ones."""
         root_logger = logging.getLogger()
-        
+
         # Add a dummy handler
         existing_handler = logging.StreamHandler()
         root_logger.addHandler(existing_handler)
-        
+
         # Setup with respect_existing_handlers=False (default)
         setup_logging(
             log_level=logging.INFO,
             respect_existing_handlers=False,
             structured_format=False,
         )
-        
+
         # Should not have the original handler
         assert existing_handler not in root_logger.handlers
 
@@ -236,20 +400,19 @@ class TestSetupLogging:
         # Reset logging first
         root_logger = logging.getLogger()
         root_logger.handlers.clear()
-        
+
         configure_production_logging(log_level=logging.INFO)
-        
+
         # Get a logger and log a message
         logger = logging.getLogger("test.production")
-        
+
         # Verify that the handlers are configured with StructuredFormatter
         root_logger = logging.getLogger()
         assert len(root_logger.handlers) > 0
-        
+
         # Check that at least one handler uses StructuredFormatter
         structured_handlers = [
-            h for h in root_logger.handlers 
-            if isinstance(h.formatter, StructuredFormatter)
+            h for h in root_logger.handlers if isinstance(h.formatter, StructuredFormatter)
         ]
         assert len(structured_handlers) > 0
 
@@ -276,7 +439,7 @@ class TestIntegrationWithMainLoggingConfig:
         """Test that production environment is detected correctly."""
         with patch.dict(os.environ, {"AWS_LAMBDA_FUNCTION_NAME": "test-lambda"}):
             from the_alchemiser.main import configure_application_logging
-            
+
             # Should not raise an exception
             configure_application_logging()
 
@@ -285,14 +448,14 @@ class TestIntegrationWithMainLoggingConfig:
         with patch.dict(os.environ, {}, clear=True):
             # Remove AWS_LAMBDA_FUNCTION_NAME if it exists
             os.environ.pop("AWS_LAMBDA_FUNCTION_NAME", None)
-            
+
             from the_alchemiser.main import configure_application_logging
-            
+
             # Add a mock CLI handler
             root_logger = logging.getLogger()
             cli_handler = logging.StreamHandler()
             root_logger.addHandler(cli_handler)
-            
+
             # Should preserve the CLI handler
             configure_application_logging()
             assert cli_handler in root_logger.handlers
@@ -309,44 +472,52 @@ class TestProductionJSONValidation:
             structured_format=True,
             respect_existing_handlers=False,
         )
-        
+
         # Set context vars
         set_request_id("prod-req-789")
         set_error_id("prod-err-012")
-        
+
         # Capture log output
         import io
         import sys
+
         log_capture = io.StringIO()
-        
+
         # Create a test logger with custom handler
         test_logger = logging.getLogger("test.production.validation")
         handler = logging.StreamHandler(log_capture)
         handler.setFormatter(StructuredFormatter())
         test_logger.addHandler(handler)
         test_logger.setLevel(logging.INFO)
-        
+
         # Log a message
         test_logger.info("Production test message")
-        
+
         # Parse the JSON output
         log_output = log_capture.getvalue().strip()
         log_data = json.loads(log_output)
-        
+
         # Verify all required fields are present
         required_fields = [
-            "timestamp", "level", "logger", "message", 
-            "module", "function", "line", "request_id", "error_id"
+            "timestamp",
+            "level",
+            "logger",
+            "message",
+            "module",
+            "function",
+            "line",
+            "request_id",
+            "error_id",
         ]
         for field in required_fields:
             assert field in log_data, f"Required field '{field}' missing from log output"
-        
+
         # Verify specific values
         assert log_data["level"] == "INFO"
         assert log_data["message"] == "Production test message"
         assert log_data["request_id"] == "prod-req-789"
         assert log_data["error_id"] == "prod-err-012"
-        
+
         # Clean up
         set_request_id(None)
         set_error_id(None)

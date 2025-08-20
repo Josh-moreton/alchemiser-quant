@@ -14,6 +14,7 @@ import logging
 from typing import Any
 
 from the_alchemiser.domain.types import LambdaEvent
+from the_alchemiser.infrastructure.logging.logging_utils import generate_request_id, set_request_id
 from the_alchemiser.main import main
 from the_alchemiser.services.errors.exceptions import (
     DataProviderError,
@@ -155,6 +156,10 @@ def lambda_handler(event: LambdaEvent | None = None, context: Any = None) -> dic
     """
     # Extract request ID for tracking
     request_id = getattr(context, "aws_request_id", "unknown") if context else "local"
+
+    # Generate and set correlation request ID for all downstream logs
+    correlation_id = generate_request_id()
+    set_request_id(correlation_id)
 
     try:
         # Log the incoming event for debugging

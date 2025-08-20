@@ -13,7 +13,12 @@ from typing import Optional
 
 from the_alchemiser.domain.strategies.strategy_manager import StrategyType
 from the_alchemiser.infrastructure.config import Settings, load_settings
-from the_alchemiser.infrastructure.logging.logging_utils import get_logger, setup_logging
+from the_alchemiser.infrastructure.logging.logging_utils import (
+    generate_request_id,
+    get_logger,
+    set_request_id,
+    setup_logging,
+)
 from the_alchemiser.services.errors.exceptions import (
     ConfigurationError,
     DataProviderError,
@@ -185,6 +190,11 @@ def main(argv: list[str] | None = None) -> bool:
 
     # Setup
     configure_application_logging()
+
+    # Generate and set request ID for correlation
+    request_id = generate_request_id()
+    set_request_id(request_id)
+
     parser = create_argument_parser()
     args = parser.parse_args(argv)
 

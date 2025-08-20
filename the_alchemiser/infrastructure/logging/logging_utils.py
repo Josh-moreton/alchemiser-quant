@@ -4,6 +4,7 @@ import json
 import logging
 import os
 import sys
+import uuid
 from collections.abc import MutableMapping
 from contextvars import ContextVar
 from datetime import datetime
@@ -12,8 +13,8 @@ from typing import Any
 from the_alchemiser.infrastructure.s3.s3_utils import S3FileHandler
 
 # Context variables for request tracking
-request_id_context: ContextVar[str | None] = ContextVar('request_id', default=None)
-error_id_context: ContextVar[str | None] = ContextVar('error_id', default=None)
+request_id_context: ContextVar[str | None] = ContextVar("request_id", default=None)
+error_id_context: ContextVar[str | None] = ContextVar("error_id", default=None)
 
 
 class AlchemiserLoggerAdapter(logging.LoggerAdapter[logging.Logger]):
@@ -22,9 +23,22 @@ class AlchemiserLoggerAdapter(logging.LoggerAdapter[logging.Logger]):
     def process(
         self, msg: Any, kwargs: MutableMapping[str, Any]
     ) -> tuple[str, MutableMapping[str, Any]]:
-        """Prefix log messages with system identifier."""
+        """Prefix log messages with system identifier and add context IDs."""
 
-        return f"[ALCHEMISER] {msg}", kwargs
+        # Get context variables
+        request_id = request_id_context.get()
+        error_id = error_id_context.get()
+
+        # Build context suffix
+        context_parts = []
+        if request_id:
+            context_parts.append(f"req_id={request_id}")
+        if error_id:
+            context_parts.append(f"error_id={error_id}")
+
+        context_suffix = f" [{', '.join(context_parts)}]" if context_parts else ""
+
+        return f"[ALCHEMISER]{context_suffix} {msg}", kwargs
 
 
 class StructuredFormatter(logging.Formatter):
@@ -115,6 +129,15 @@ def get_error_id() -> str | None:
         The current error ID, or None if not set
     """
     return error_id_context.get()
+
+
+def generate_request_id() -> str:
+    """Generate a new request ID.
+
+    Returns:
+        A unique request ID string
+    """
+    return str(uuid.uuid4())
 
 
 def log_with_context(logger: logging.Logger, level: int, message: str, **context: Any) -> None:
