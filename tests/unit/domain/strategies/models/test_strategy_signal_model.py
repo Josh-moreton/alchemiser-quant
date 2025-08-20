@@ -1,13 +1,19 @@
 """Tests for StrategySignalModel."""
 
-import pytest
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from decimal import Decimal
 
-from the_alchemiser.domain.strategies.models.strategy_signal_model import StrategySignalModel
-from the_alchemiser.domain.strategies.value_objects.strategy_signal import StrategySignal
-from the_alchemiser.domain.strategies.value_objects.confidence import Confidence
+import pytest
+
+from tests.utils.float_checks import assert_close
 from the_alchemiser.domain.shared_kernel.value_objects.percentage import Percentage
+from the_alchemiser.domain.strategies.models.strategy_signal_model import (
+    StrategySignalModel,
+)
+from the_alchemiser.domain.strategies.value_objects.confidence import Confidence
+from the_alchemiser.domain.strategies.value_objects.strategy_signal import (
+    StrategySignal,
+)
 from the_alchemiser.domain.trading.value_objects.symbol import Symbol
 from the_alchemiser.domain.types import StrategySignal as StrategySignalDTO
 
@@ -25,10 +31,10 @@ class TestStrategySignalModel:
             target_allocation=Percentage(Decimal("0.25")),
             reasoning="Strong earnings forecast",
         )
-        
+
         # Create model from domain object
         model = StrategySignalModel.from_domain_signal(domain_signal)
-        
+
         assert model.symbol == domain_signal.symbol
         assert model.action == domain_signal.action
         assert model.confidence == domain_signal.confidence
@@ -45,9 +51,9 @@ class TestStrategySignalModel:
             "reasoning": "Overvalued stock",
             "allocation_percentage": 15.0,
         }
-        
+
         model = StrategySignalModel.from_dto(dto)
-        
+
         assert model.symbol.value == "TSLA"
         assert model.action == "SELL"
         assert model.confidence.value == Decimal("0.75")
@@ -63,9 +69,9 @@ class TestStrategySignalModel:
             "reasoning": "Portfolio rebalancing",
             "allocation_percentage": 0.0,
         }
-        
+
         model = StrategySignalModel.from_dto(dto)
-        
+
         # Should be converted to "PORTFOLIO" which is 9 chars - too long for Symbol
         # Need to fix the model to handle this case
         assert model.symbol.value == "PORT"  # Shortened version
@@ -83,9 +89,9 @@ class TestStrategySignalModel:
             "reason": "Strong market momentum",  # Legacy field name
             "allocation_percentage": 30.0,
         }
-        
+
         model = StrategySignalModel.from_dto(dto)  # type: ignore
-        
+
         assert model.reasoning == "Strong market momentum"
 
     def test_to_dto_conversion(self) -> None:
@@ -98,14 +104,14 @@ class TestStrategySignalModel:
             reasoning="Cloud growth potential",
             timestamp=datetime.now(UTC),
         )
-        
+
         dto = model.to_dto()
-        
+
         assert dto["symbol"] == "MSFT"
         assert dto["action"] == "BUY"
-        assert dto["confidence"] == 0.85
+        assert_close(dto["confidence"], 0.85)
         assert dto["reasoning"] == "Cloud growth potential"
-        assert dto["allocation_percentage"] == 40.0
+        assert_close(dto["allocation_percentage"], 40.0)
 
     def test_signal_type_properties(self) -> None:
         """Test signal type property methods."""
@@ -117,11 +123,11 @@ class TestStrategySignalModel:
             reasoning="Buy signal",
             timestamp=datetime.now(UTC),
         )
-        
+
         assert buy_model.is_buy_signal
         assert not buy_model.is_sell_signal
         assert not buy_model.is_hold_signal
-        
+
         sell_model = StrategySignalModel(
             symbol=Symbol("SELLX"),
             action="SELL",
@@ -130,11 +136,11 @@ class TestStrategySignalModel:
             reasoning="Sell signal",
             timestamp=datetime.now(UTC),
         )
-        
+
         assert not sell_model.is_buy_signal
         assert sell_model.is_sell_signal
         assert not sell_model.is_hold_signal
-        
+
         hold_model = StrategySignalModel(
             symbol=Symbol("HOLDX"),
             action="HOLD",
@@ -143,7 +149,7 @@ class TestStrategySignalModel:
             reasoning="Hold signal",
             timestamp=datetime.now(UTC),
         )
-        
+
         assert not hold_model.is_buy_signal
         assert not hold_model.is_sell_signal
         assert hold_model.is_hold_signal
@@ -158,11 +164,11 @@ class TestStrategySignalModel:
             reasoning="High confidence signal",
             timestamp=datetime.now(UTC),
         )
-        
+
         assert high_conf_model.is_high_confidence
         assert not high_conf_model.is_low_confidence
         assert high_conf_model.confidence_level == "HIGH"
-        
+
         low_conf_model = StrategySignalModel(
             symbol=Symbol("LO"),
             action="HOLD",
@@ -171,11 +177,11 @@ class TestStrategySignalModel:
             reasoning="Low confidence signal",
             timestamp=datetime.now(UTC),
         )
-        
+
         assert not low_conf_model.is_high_confidence
         assert low_conf_model.is_low_confidence
         assert low_conf_model.confidence_level == "LOW"
-        
+
         medium_conf_model = StrategySignalModel(
             symbol=Symbol("MED"),
             action="SELL",
@@ -184,7 +190,7 @@ class TestStrategySignalModel:
             reasoning="Medium confidence signal",
             timestamp=datetime.now(UTC),
         )
-        
+
         assert not medium_conf_model.is_high_confidence
         assert not medium_conf_model.is_low_confidence
         assert medium_conf_model.confidence_level == "MEDIUM"
@@ -199,7 +205,7 @@ class TestStrategySignalModel:
             reasoning="Test allocation",
             timestamp=datetime.now(UTC),
         )
-        
+
         assert model.allocation_percentage == Decimal("25")
 
     def test_model_immutability(self) -> None:
@@ -212,7 +218,7 @@ class TestStrategySignalModel:
             reasoning="Test immutability",
             timestamp=datetime.now(UTC),
         )
-        
+
         # Should not be able to modify fields
         with pytest.raises(AttributeError):
             model.action = "SELL"  # type: ignore
@@ -231,11 +237,11 @@ class TestStrategySignalModel:
             "reasoning": "Test roundtrip",
             "allocation_percentage": 20.0,
         }
-        
+
         # Convert to model and back
         model = StrategySignalModel.from_dto(original_dto)
         converted_dto = model.to_dto()
-        
+
         # Values should be preserved (with precision consideration)
         assert converted_dto["symbol"] == original_dto["symbol"]
         assert converted_dto["action"] == original_dto["action"]

@@ -1,0 +1,16 @@
+{
+  "assert close (pytest)": {
+    "prefix": "aclose",
+    "body": [
+      "from tests.utils.float_checks import assert_close",
+      "assert_close(${1:actual}, ${2:expected}, rtol=${3:1e-6}, atol=${4:0.0})"
+    ]
+  },
+  "assert allclose (numpy)": {
+    "prefix": "allclose",
+    "body": [
+      "import numpy as np",
+      "np.testing.assert_allclose(${1:actual}, ${2:expected}, rtol=${3:1e-6}, atol=${4:0.0})"
+    ]
+  }
+}

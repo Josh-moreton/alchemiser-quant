@@ -1,5 +1,11 @@
 # Alchemiser Copilot Instructions
 
+Rules for this repo (enforced):
+- Never use == or != with floats.
+- Use assert_close()/pytest.approx for scalars.
+- Use numpy.testing.assert_allclose for arrays.
+- Suggestions that violate the above must be rewritten.
+
 ## Overview
 The Alchemiser is a sophisticated multi-strategy quantitative trading system built with modern Python practices and Domain-Driven Design (DDD) architecture, deployed as AWS Lambda functions.
 

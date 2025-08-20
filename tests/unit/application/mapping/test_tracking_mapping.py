@@ -1,20 +1,22 @@
 """Tests for tracking mapping functions."""
 
-import pytest
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from decimal import Decimal
 
+import pytest
+
+from tests.utils.float_checks import assert_close
 from the_alchemiser.application.mapping.tracking import (
-    strategy_order_event_dto_to_dict,
-    strategy_execution_summary_dto_to_dict,
-    dict_to_strategy_order_event_dto,
     dict_to_strategy_execution_summary_dto,
+    dict_to_strategy_order_event_dto,
+    strategy_execution_summary_dto_to_dict,
+    strategy_order_event_dto_to_dict,
 )
 from the_alchemiser.interfaces.schemas.tracking import (
-    StrategyOrderEventDTO,
-    StrategyExecutionSummaryDTO,
-    OrderEventStatus,
     ExecutionStatus,
+    OrderEventStatus,
+    StrategyExecutionSummaryDTO,
+    StrategyOrderEventDTO,
 )
 
 
@@ -89,8 +91,8 @@ class TestStrategyOrderEventDTOToDict:
 
         result = strategy_order_event_dto_to_dict(event)
 
-        assert result["quantity"] == 100.5
-        assert result["price"] == 400.1234
+        assert_close(result["quantity"], 100.5)
+        assert_close(result["price"], 400.1234)
         assert isinstance(result["quantity"], float)
         assert isinstance(result["price"], float)
 
@@ -102,7 +104,7 @@ class TestStrategyExecutionSummaryDTOToDict:
         """Test converting summary with event details to dictionary."""
         timestamp1 = datetime.now(UTC)
         timestamp2 = datetime.now(UTC)
-        
+
         event1 = StrategyOrderEventDTO(
             event_id="evt_1",
             strategy="NUCLEAR",
@@ -113,7 +115,7 @@ class TestStrategyExecutionSummaryDTOToDict:
             price=Decimal("150.00"),
             ts=timestamp1,
         )
-        
+
         event2 = StrategyOrderEventDTO(
             event_id="evt_2",
             strategy="NUCLEAR",
@@ -139,9 +141,9 @@ class TestStrategyExecutionSummaryDTOToDict:
 
         assert result["strategy"] == "NUCLEAR"
         assert result["symbol"] == "AAPL"
-        assert result["total_quantity"] == 100.0
-        assert result["average_price"] == 150.5
-        assert result["pnl"] == 50.0
+        assert_close(result["total_quantity"], 100.0)
+        assert_close(result["average_price"], 150.5)
+        assert_close(result["pnl"], 50.0)
         assert result["status"] == "ok"
         assert result["event_count"] == 2
         assert len(result["event_details"]) == 2
@@ -162,7 +164,7 @@ class TestStrategyExecutionSummaryDTOToDict:
 
         result = strategy_execution_summary_dto_to_dict(summary)
 
-        assert result["total_quantity"] == 0.0
+        assert_close(result["total_quantity"], 0.0)
         assert result["average_price"] is None
         assert result["pnl"] is None
         assert result["status"] == "failed"
@@ -390,7 +392,7 @@ class TestMappingPurityAndTypes:
         # Create event with high precision Decimal
         original_quantity = Decimal("100.123456")
         original_price = Decimal("150.654321")
-        
+
         event_dict = {
             "event_id": "evt_precision_test",
             "strategy": "NUCLEAR",
