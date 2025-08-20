@@ -1,0 +1,353 @@
+"""
+Typed Nuclear Trading Strategy Implementation
+
+This module provides the typed Nuclear energy trading strategy that extends the
+typed StrategyEngine base class and consumes MarketDataPort while producing
+typed StrategySignal objects.
+
+The strategy implements the same hierarchical logic as the legacy Nuclear
+strategy but with full type safety and clean dependency boundaries.
+"""
+
+from __future__ import annotations
+
+from datetime import datetime
+from decimal import Decimal
+from typing import Any
+
+import numpy as np
+import pandas as pd
+
+from the_alchemiser.domain.shared_kernel.value_objects.percentage import Percentage
+from the_alchemiser.domain.strategies.engine import StrategyEngine
+from the_alchemiser.domain.strategies.protocols.market_data_port import MarketDataPort
+from the_alchemiser.domain.strategies.strategy_engine import (
+    BearMarketStrategy,
+    BullMarketStrategy,
+    NuclearStrategyEngine as PureNuclearEngine,
+    VoxOverboughtStrategy,
+)
+from the_alchemiser.domain.strategies.value_objects.confidence import Confidence
+from the_alchemiser.domain.strategies.value_objects.strategy_signal import StrategySignal
+from the_alchemiser.domain.trading.value_objects.symbol import Symbol
+from the_alchemiser.domain.math.indicator_utils import safe_get_indicator
+from the_alchemiser.domain.math.indicators import TechnicalIndicators
+from the_alchemiser.services.errors.exceptions import StrategyExecutionError
+
+
+class TypedNuclearStrategy(StrategyEngine):
+    """Typed Nuclear Energy trading strategy with clean boundaries.
+    
+    This strategy implements the same logic as the legacy Nuclear strategy but:
+    - Extends the typed StrategyEngine base class
+    - Consumes MarketDataPort for clean data access
+    - Produces typed StrategySignal objects
+    - Has clear separation between data access and strategy logic
+    """
+
+    def __init__(self) -> None:
+        super().__init__("TypedNuclearStrategy")
+        self.indicators = TechnicalIndicators()
+        self.pure_strategy = PureNuclearEngine()
+        
+        # Core symbols from the Nuclear strategy
+        self.market_symbols = ["SPY", "IOO", "TQQQ", "VTV", "XLF", "VOX"]
+        self.volatility_symbols = ["UVXY", "BTAL"]
+        self.tech_symbols = ["QQQ", "SQQQ", "PSQ", "UPRO"]
+        self.bond_symbols = ["TLT", "IEF"]
+        self.nuclear_symbols = ["SMR", "BWXT", "LEU", "EXC", "NLR", "OKLO"]
+        
+        self.all_symbols = (
+            self.market_symbols
+            + self.volatility_symbols
+            + self.tech_symbols
+            + self.bond_symbols
+            + self.nuclear_symbols
+        )
+
+    def get_required_symbols(self) -> list[str]:
+        """Return symbols required by this strategy."""
+        return self.all_symbols
+
+    def generate_signals(
+        self, port: MarketDataPort, now: datetime
+    ) -> list[StrategySignal]:
+        """Generate Nuclear trading signals based on current market conditions.
+
+        Args:
+            port: Market data access interface
+            now: Current timestamp for signal generation
+
+        Returns:
+            List of strategy signals based on Nuclear strategy analysis
+
+        Raises:
+            StrategyExecutionError: If signal generation fails
+        """
+        try:
+            # Fetch market data for all symbols
+            market_data = self._fetch_market_data(port)
+            if not market_data:
+                raise StrategyExecutionError(
+                    "No market data available for Nuclear strategy",
+                    strategy_name=self.strategy_name
+                )
+
+            # Calculate technical indicators
+            indicators = self._calculate_indicators(market_data)
+            if not indicators:
+                raise StrategyExecutionError(
+                    "No indicators calculated for Nuclear strategy", 
+                    strategy_name=self.strategy_name
+                )
+
+            # Generate strategy recommendation using pure logic
+            symbol, action, reasoning = self._evaluate_nuclear_strategy(indicators, market_data)
+            
+            # Convert to typed signal
+            signal = self._create_strategy_signal(symbol, action, reasoning, now)
+            
+            self.logger.info(
+                f"Nuclear strategy generated signal: {signal.symbol.value} {signal.action} "
+                f"(confidence: {signal.confidence.value:.2f})"
+            )
+            
+            return [signal]
+
+        except Exception as e:
+            raise StrategyExecutionError(
+                f"Nuclear strategy signal generation failed: {e}",
+                strategy_name=self.strategy_name
+            ) from e
+
+    def _fetch_market_data(self, port: MarketDataPort) -> dict[str, pd.DataFrame]:
+        """Fetch market data for all required symbols."""
+        market_data = {}
+        
+        for symbol in self.all_symbols:
+            try:
+                data = port.get_data(symbol, timeframe="1day", period="1y")
+                if not data.empty:
+                    market_data[symbol] = data
+                else:
+                    self.logger.warning(f"Could not fetch data for {symbol}")
+            except Exception as e:
+                self.logger.warning(f"Failed to fetch data for {symbol}: {e}")
+                continue
+                
+        return market_data
+
+    def _calculate_indicators(self, market_data: dict[str, pd.DataFrame]) -> dict[str, Any]:
+        """Calculate all technical indicators required by the Nuclear strategy."""
+        indicators = {}
+        
+        for symbol, df in market_data.items():
+            if df.empty:
+                continue
+                
+            try:
+                close = df["Close"]
+                indicators[symbol] = {
+                    "rsi_10": safe_get_indicator(close, self.indicators.rsi, 10),
+                    "rsi_20": safe_get_indicator(close, self.indicators.rsi, 20),
+                    "ma_200": safe_get_indicator(close, self.indicators.moving_average, 200),
+                    "ma_20": safe_get_indicator(close, self.indicators.moving_average, 20),
+                    "ma_return_90": safe_get_indicator(
+                        close, self.indicators.moving_average_return, 90
+                    ),
+                    "cum_return_60": safe_get_indicator(close, self.indicators.cumulative_return, 60),
+                    "current_price": float(close.iloc[-1]),
+                }
+            except Exception as e:
+                self.logger.warning(f"Failed to calculate indicators for {symbol}: {e}")
+                continue
+                
+        return indicators
+
+    def _evaluate_nuclear_strategy(
+        self, indicators: dict[str, Any], market_data: dict[str, pd.DataFrame] | None = None
+    ) -> tuple[str, str, str]:
+        """
+        Evaluate the Nuclear Energy strategy using the canonical hierarchical logic.
+        Returns: (recommended_symbol, action, detailed_reason)
+        """
+        if "SPY" not in indicators:
+            return "SPY", "HOLD", "Missing SPY data - cannot evaluate market conditions"
+
+        # Get key market indicators for detailed reasoning
+        spy_rsi_10 = indicators["SPY"]["rsi_10"]
+        spy_price = indicators["SPY"]["current_price"]
+        spy_ma_200 = indicators["SPY"]["ma_200"]
+        market_trend = "Bull Market" if spy_price > spy_ma_200 else "Bear Market"
+
+        # PRIMARY BRANCH: SPY RSI > 79 (ALL nested overbought checks happen HERE)
+        if spy_rsi_10 > 79:
+            base_explanation = (
+                f"Market Analysis: {market_trend} (SPY ${spy_price:.2f} vs 200MA ${spy_ma_200:.2f})\n"
+                f"SPY RSI(10): {spy_rsi_10:.1f} - Primary overbought condition triggered (>79)"
+            )
+
+            # First: SPY extremely overbought (> 81)
+            if spy_rsi_10 > 81:
+                explanation = (
+                    f"{base_explanation}\n\n"
+                    f"Signal: SPY extremely overbought (RSI {spy_rsi_10:.1f} > 81)\n"
+                    f"Action: Buy UVXY volatility hedge - expect major market correction"
+                )
+                return "UVXY", "BUY", explanation
+
+            # Then: Nested checks for IOO, TQQQ, VTV, XLF (RSI > 81) - IN ORDER
+            for symbol in ["IOO", "TQQQ", "VTV", "XLF"]:
+                if symbol in indicators and indicators[symbol]["rsi_10"] > 81:
+                    symbol_rsi = indicators[symbol]["rsi_10"]
+                    explanation = (
+                        f"{base_explanation}\n\n"
+                        f"Secondary Check: {symbol} RSI(10): {symbol_rsi:.1f} - Extremely overbought (>81)\n"
+                        f"Action: Buy UVXY volatility hedge - sector rotation imminent"
+                    )
+                    return "UVXY", "BUY", explanation
+
+            # Finally: SPY moderately overbought (79-81) - hedge portfolio
+            explanation = (
+                f"{base_explanation}\n\n"
+                f"Signal: SPY moderately overbought (79 < RSI {spy_rsi_10:.1f} < 81)\n"
+                f"Action: Defensive hedged position - UVXY 75% + BTAL 25%\n"
+                f"Rationale: Partial volatility hedge while maintaining some upside exposure"
+            )
+            return "UVXY_BTAL_PORTFOLIO", "BUY", explanation
+
+        # PRIMARY BRANCH: SPY RSI <= 79 - Continue with VOX, oversold checks, bull/bear logic
+        base_explanation = (
+            f"Market Analysis: {market_trend} (SPY ${spy_price:.2f} vs 200MA ${spy_ma_200:.2f})\n"
+            f"SPY RSI(10): {spy_rsi_10:.1f} - Not overbought, checking secondary conditions"
+        )
+
+        # VOX overbought check
+        if "VOX" in indicators and indicators["VOX"]["rsi_10"] > 79:
+            vox_rsi = indicators["VOX"]["rsi_10"]
+            result = VoxOverboughtStrategy().recommend(indicators)
+            if result:
+                symbol, action, basic_reason = result
+                explanation = (
+                    f"{base_explanation}\n\n"
+                    f"VOX Telecom Analysis: RSI(10) {vox_rsi:.1f} > 79 (overbought)\n"
+                    f"{basic_reason}"
+                )
+                return symbol, action, explanation
+
+        # Oversold conditions (TQQQ first, then SPY)
+        if "TQQQ" in indicators and indicators["TQQQ"]["rsi_10"] < 30:
+            tqqq_rsi = indicators["TQQQ"]["rsi_10"]
+            explanation = (
+                f"{base_explanation}\n\n"
+                f"Oversold Opportunity: TQQQ RSI(10) {tqqq_rsi:.1f} < 30\n"
+                f"Action: Buy the dip in leveraged tech - oversold bounce expected"
+            )
+            return "TQQQ", "BUY", explanation
+
+        if indicators["SPY"]["rsi_10"] < 30:
+            explanation = (
+                f"{base_explanation}\n\n"
+                f"Oversold Opportunity: SPY RSI(10) {spy_rsi_10:.1f} < 30\n"
+                f"Action: Buy UPRO (3x leveraged SPY) - market oversold, strong bounce expected"
+            )
+            return "UPRO", "BUY", explanation
+
+        # Bull vs Bear market determination (SPY above/below 200 MA)
+        if "SPY" in indicators and spy_price > spy_ma_200:
+            result = BullMarketStrategy(self.pure_strategy).recommend(indicators, market_data)
+            if result:
+                symbol, action, basic_reason = result
+                explanation = (
+                    f"{base_explanation}\n\n"
+                    f"Bull Market Strategy: SPY above 200MA (${spy_price:.2f} > ${spy_ma_200:.2f})\n"
+                    f"{basic_reason}"
+                )
+                return symbol, action, explanation
+        else:
+            result = BearMarketStrategy(self.pure_strategy).recommend(indicators)
+            if result:
+                symbol, action, basic_reason = result
+                explanation = (
+                    f"{base_explanation}\n\n"
+                    f"Bear Market Strategy: SPY below 200MA (${spy_price:.2f} < ${spy_ma_200:.2f})\n"
+                    f"{basic_reason}"
+                )
+                return symbol, action, explanation
+
+        # Fallback - no clear signal
+        explanation = (
+            f"{base_explanation}\n\n"
+            f"No Clear Signal: Market conditions neutral\n"
+            f"RSI not overbought/oversold, no strong trend signals\n"
+            f"Action: Hold current positions, wait for clearer market direction"
+        )
+        return "SPY", "HOLD", explanation
+
+    def _create_strategy_signal(
+        self, symbol: str, action: str, reasoning: str, timestamp: datetime
+    ) -> StrategySignal:
+        """Create a typed StrategySignal from strategy output."""
+        
+        # Determine confidence based on action and market conditions
+        confidence_value = self._calculate_confidence(symbol, action, reasoning)
+        
+        # Determine target allocation based on signal type
+        allocation_value = self._calculate_target_allocation(symbol, action)
+        
+        # Handle special portfolio symbols
+        if symbol == "UVXY_BTAL_PORTFOLIO":
+            symbol = "PORTFOLIO"  # Use portfolio label for complex allocations
+        
+        return StrategySignal(
+            symbol=Symbol(symbol),
+            action=action,  # Already validated by StrategySignal
+            confidence=Confidence(Decimal(str(confidence_value))),
+            target_allocation=Percentage(Decimal(str(allocation_value))),
+            reasoning=reasoning,
+            timestamp=timestamp,
+        )
+
+    def _calculate_confidence(self, symbol: str, action: str, reasoning: str) -> float:
+        """Calculate confidence level based on signal characteristics."""
+        if action == "HOLD":
+            return 0.3  # Low confidence for hold signals
+            
+        # High confidence for volatility hedge signals
+        if "UVXY" in symbol or "volatility hedge" in reasoning.lower():
+            return 0.9
+            
+        # High confidence for oversold/overbought extremes
+        if "extremely overbought" in reasoning.lower() or "oversold" in reasoning.lower():
+            return 0.85
+            
+        # Medium-high confidence for trend-following signals
+        if "bull market" in reasoning.lower() or "bear market" in reasoning.lower():
+            return 0.75
+            
+        # Default medium confidence
+        return 0.65
+
+    def _calculate_target_allocation(self, symbol: str, action: str) -> float:
+        """Calculate target allocation percentage based on signal type."""
+        if action == "HOLD":
+            return 0.0
+            
+        if action == "SELL":
+            return 0.0  # Sell signals have zero target allocation
+            
+        # BUY signals - vary allocation based on signal type
+        if symbol == "PORTFOLIO":
+            return 0.75  # High allocation for portfolio hedge strategies
+            
+        if "UVXY" in symbol:
+            return 0.5  # High allocation for volatility hedge
+            
+        if symbol in ["UPRO", "TQQQ"]:
+            return 0.4  # Moderate allocation for leveraged ETFs
+            
+        if symbol in self.nuclear_symbols:
+            return 0.33  # Equal weight for nuclear stocks
+            
+        # Default allocation for other signals
+        return 0.25
