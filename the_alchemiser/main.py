@@ -47,7 +47,7 @@ class TradingSystem:
     def __init__(self, settings: Settings | None = None):
         self.settings = settings or load_settings()
         self.logger = get_logger(__name__)
-        self.error_handler = TradingSystemErrorHandler()
+        self.error_handler = TradingSystemErrorHandler(self.logger)
         self._initialize_di()
 
     def _initialize_di(self) -> None:
