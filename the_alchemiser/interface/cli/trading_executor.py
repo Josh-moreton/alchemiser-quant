@@ -6,9 +6,14 @@ Handles trading execution with comprehensive error handling and notifications.
 from the_alchemiser.application.execution.smart_execution import is_market_open
 from the_alchemiser.application.mapping.strategy_signal_mapping import (
     map_signals_dict as _map_signals_to_typed,
+    typed_strategy_signal_to_validated_order,
+    convert_signals_dict_to_domain,
 )
 from the_alchemiser.application.trading.engine_service import TradingEngine
 from the_alchemiser.domain.strategies.strategy_manager import StrategyType
+from the_alchemiser.domain.strategies.value_objects.strategy_signal import (
+    StrategySignal as TypedStrategySignal,
+)
 from the_alchemiser.infrastructure.config import Settings
 from the_alchemiser.infrastructure.logging.logging_utils import get_logger
 from the_alchemiser.interface.cli.cli_formatter import (
@@ -18,6 +23,7 @@ from the_alchemiser.interface.cli.cli_formatter import (
     render_strategy_signals,
 )
 from the_alchemiser.interfaces.schemas.common import MultiStrategyExecutionResultDTO
+from the_alchemiser.interfaces.schemas.orders import ValidatedOrderDTO
 from the_alchemiser.services.errors.exceptions import (
     NotificationError,
     StrategyExecutionError,
@@ -123,8 +129,18 @@ class TradingExecutor:
                 self.logger.info(
                     "TYPES_V2_ENABLED detected: using typed StrategySignal mapping for execution"
                 )
-                strategy_signals = _map_signals_to_typed(strategy_signals)  # type: ignore[assignment]
-            except Exception:
+                legacy_typed_signals = _map_signals_to_typed(strategy_signals)  # dict -> TypedDict
+                typed_domain_signals = convert_signals_dict_to_domain(legacy_typed_signals)  # TypedDict -> domain
+                
+                # NEW: Convert typed signals to ValidatedOrders when V2 enabled
+                validated_orders = self._convert_signals_to_validated_orders(typed_domain_signals, trader)
+                if validated_orders:
+                    self.logger.info(f"Generated {len(validated_orders)} validated orders from typed signals")
+                    # Log order details for debugging
+                    for order in validated_orders:
+                        self.logger.info(f"Order: {order.symbol} {order.side} {order.quantity} @ {order.order_type}")
+            except Exception as e:
+                self.logger.warning(f"Failed to convert signals to validated orders: {e}")
                 pass
 
         render_strategy_signals(strategy_signals)
@@ -171,6 +187,71 @@ class TradingExecutor:
             pass
 
         return result
+
+    def _convert_signals_to_validated_orders(
+        self, strategy_signals: dict[StrategyType, TypedStrategySignal], trader: TradingEngine
+    ) -> list[ValidatedOrderDTO]:
+        """Convert typed strategy signals to validated orders.
+        
+        Args:
+            strategy_signals: Dict of strategy signals by strategy type
+            trader: Trading engine instance for getting portfolio value
+            
+        Returns:
+            List of ValidatedOrderDTO instances ready for execution
+        """
+        validated_orders = []
+        
+        try:
+            # Get portfolio value for quantity calculations
+            account_info = trader.get_account_info()
+            if not account_info:
+                self.logger.warning("Cannot convert signals to orders: account info unavailable")
+                return []
+            
+            # Extract portfolio value (use equity as total portfolio value)
+            portfolio_value = float(account_info.get("equity", 0))
+            if portfolio_value <= 0:
+                self.logger.warning(f"Invalid portfolio value: {portfolio_value}")
+                return []
+                
+            from decimal import Decimal
+            portfolio_decimal = Decimal(str(portfolio_value))
+            
+            # Convert each signal to validated order
+            for strategy_type, signal in strategy_signals.items():
+                try:
+                    # Skip HOLD signals
+                    if signal.action == "HOLD":
+                        self.logger.info(f"Skipping HOLD signal from {strategy_type}")
+                        continue
+                    
+                    # Convert signal to validated order
+                    validated_order = typed_strategy_signal_to_validated_order(
+                        signal=signal,
+                        portfolio_value=portfolio_decimal,
+                        order_type="market",  # Default to market orders
+                        time_in_force="day",
+                        client_order_id=f"{strategy_type.value}_{signal.symbol.value}_{int(signal.timestamp.timestamp())}"
+                    )
+                    
+                    validated_orders.append(validated_order)
+                    self.logger.info(
+                        f"Converted {strategy_type} signal to order: {validated_order.symbol} "
+                        f"{validated_order.side} {validated_order.quantity}"
+                    )
+                    
+                except ValueError as e:
+                    self.logger.warning(f"Failed to convert {strategy_type} signal to order: {e}")
+                    continue
+                except Exception as e:
+                    self.logger.error(f"Unexpected error converting {strategy_type} signal: {e}")
+                    continue
+                    
+        except Exception as e:
+            self.logger.error(f"Failed to convert strategy signals to validated orders: {e}")
+            
+        return validated_orders
 
     def _show_execution_progress(self) -> None:
         """Show trading execution progress."""
