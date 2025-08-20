@@ -301,12 +301,14 @@ class TradingExecutor:
     def _handle_trading_error(self, error: Exception, mode_str: str) -> None:
         """Handle trading execution errors."""
         try:
-            from the_alchemiser.services.errors import (
-                handle_trading_error,
+            from the_alchemiser.services.errors.handler import (
+                TradingSystemErrorHandler,
                 send_error_notification_if_needed,
             )
 
-            handle_trading_error(
+            # Use TradingSystemErrorHandler directly for consistency
+            error_handler = TradingSystemErrorHandler()
+            error_handler.handle_error(
                 error=error,
                 context="multi-strategy trading execution",
                 component="TradingExecutor.run",
