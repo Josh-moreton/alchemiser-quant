@@ -378,7 +378,6 @@ def status(
             raise typer.Exit(1)
 
     except TradingClientError as e:
-        error_handler = TradingSystemErrorHandler()
         error_handler.handle_error(
             error=e,
             context="CLI status command - trading client operation", 
