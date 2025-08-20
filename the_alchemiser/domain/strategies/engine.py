@@ -199,45 +199,7 @@ class StrategyEngine(ABC):
 
         return True
 
-    def generate_signals_legacy(
-        self, market_data_port: MarketDataPort | None = None, now: datetime | None = None, **kwargs: Any
-    ) -> list[StrategySignal]:
-        """DEPRECATED: Legacy method for backward compatibility.
-        
-        This method provides temporary backward compatibility for code that still
-        passes MarketDataPort as a parameter. Use generate_signals() instead.
-        
-        Args:
-            market_data_port: DEPRECATED - MarketDataPort should be passed to constructor
-            now: Current timestamp for signal generation
-            **kwargs: Additional arguments (ignored)
-            
-        Returns:
-            List of strategy signals
-            
-        Raises:
-            DeprecationWarning: Always warns about deprecated usage
-        """
-        import warnings
-        
-        warnings.warn(
-            f"{self.strategy_name}: Passing MarketDataPort to generate_signals() is deprecated. "
-            "Pass MarketDataPort to constructor instead. This parameter will be removed in v2.0.0.",
-            DeprecationWarning,
-            stacklevel=2
-        )
-        
-        # If a port was passed as parameter, temporarily use it (not recommended)
-        if market_data_port is not None:
-            original_port = self.market_data_port
-            self.market_data_port = market_data_port
-            try:
-                return self.generate_signals(now or datetime.now())
-            finally:
-                self.market_data_port = original_port
-        
-        # Use the injected port
-        return self.generate_signals(now or datetime.now())
+
 
     def log_strategy_state(self, additional_info: dict[str, Any] | None = None) -> None:
         """Log current strategy state for debugging.

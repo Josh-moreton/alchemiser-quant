@@ -50,9 +50,9 @@ def legacy_engine(sample_market_data: dict[str, pd.DataFrame]) -> KLMStrategyEns
 
 
 @pytest.fixture
-def typed_engine() -> TypedKLMStrategyEngine:
+def typed_engine(typed_port: Mock) -> TypedKLMStrategyEngine:
     """Create typed KLM strategy engine."""
-    return TypedKLMStrategyEngine()
+    return TypedKLMStrategyEngine(typed_port)
 
 
 @pytest.fixture
@@ -101,7 +101,7 @@ class TestKLMStrategyParity:
         legacy_data = legacy_engine.get_market_data()
         
         # Typed engine market data fetching
-        typed_data = typed_engine._get_market_data(typed_port)
+        typed_data = typed_engine._get_market_data()
         
         # Should fetch data for the same symbols (at least the ones with data)
         available_symbols = set(sample_market_data.keys())
@@ -171,7 +171,7 @@ class TestKLMStrategyParity:
         test_timestamp: datetime,
     ) -> None:
         """Test that signal generation produces expected structure."""
-        signals = typed_engine.generate_signals(typed_port, test_timestamp)
+        signals = typed_engine.generate_signals(test_timestamp)
         
         # Should return a list of signals
         assert isinstance(signals, list)
@@ -202,8 +202,11 @@ class TestKLMStrategyParity:
         empty_port = Mock(spec=MarketDataPort)
         empty_port.get_data.return_value = pd.DataFrame()
         
+        # Create engine with empty port for this test
+        empty_engine = TypedKLMStrategyEngine(empty_port)
+        
         # Should not raise exception, but return hold signal
-        signals = typed_engine.generate_signals(empty_port, test_timestamp)
+        signals = empty_engine.generate_signals(test_timestamp)
         
         assert len(signals) == 1
         signal = signals[0]

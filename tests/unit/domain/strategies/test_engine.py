@@ -297,25 +297,4 @@ class TestStrategyEngine:
         assert error.component == "TestStrategy.safe_generate_signals"
         assert error.context == "signal_generation"
 
-    def test_deprecation_warning_for_legacy_method(
-        self, strategy: ConcreteTestStrategy, mock_port: Mock
-    ) -> None:
-        """Test that the legacy method generates deprecation warning."""
-        import warnings
-        
-        now = datetime.now(UTC)
-        
-        with warnings.catch_warnings(record=True) as warning_list:
-            warnings.simplefilter("always")  # Ensure all deprecation warnings are recorded
-            
-            # Call the legacy method with market_data_port parameter
-            result = strategy.generate_signals_legacy(market_data_port=mock_port, now=now)
-            
-            # Check that warning was issued
-            assert len(warning_list) == 1
-            assert issubclass(warning_list[0].category, DeprecationWarning)
-            assert "Passing MarketDataPort to generate_signals() is deprecated" in str(warning_list[0].message)
-            assert "v2.0.0" in str(warning_list[0].message)
-            
-            # Should still return the signals
-            assert isinstance(result, list)
+

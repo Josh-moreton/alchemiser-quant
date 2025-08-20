@@ -60,11 +60,11 @@ class TestTypedKLMStrategyEngineIntegration:
         integration_port: Mock
     ) -> None:
         """Test complete signal generation pipeline with realistic data."""
-        engine = TypedKLMStrategyEngine()
+        engine = TypedKLMStrategyEngine(integration_port)
         timestamp = datetime(2023, 12, 15, 10, 30, 0, tzinfo=UTC)
         
         # Generate signals
-        signals = engine.generate_signals(integration_port, timestamp)
+        signals = engine.generate_signals(timestamp)
         
         # Should generate valid signals
         assert len(signals) > 0
@@ -96,14 +96,14 @@ class TestTypedKLMStrategyEngineIntegration:
         integration_port: Mock,
     ) -> None:
         """Test compatibility with strategy manager patterns."""
-        engine = TypedKLMStrategyEngine()
+        engine = TypedKLMStrategyEngine(integration_port)
         timestamp = datetime(2023, 12, 15, 10, 30, 0, tzinfo=UTC)
         
         # Test the legacy interface compatibility (what StrategyManager expects)
         # This simulates how the typed engine would be called in a migration scenario
         
         # 1. Generate signals
-        signals = engine.generate_signals(integration_port, timestamp)
+        signals = engine.generate_signals(timestamp)
         
         # 2. Convert to legacy-compatible format for gradual migration
         legacy_compatible_result = None
@@ -130,9 +130,6 @@ class TestTypedKLMStrategyEngineIntegration:
         self,
     ) -> None:
         """Test error handling in integration scenarios."""
-        engine = TypedKLMStrategyEngine()
-        timestamp = datetime(2023, 12, 15, 10, 30, 0, tzinfo=UTC)
-        
         # Test with port that fails for some symbols
         failing_port = Mock(spec=MarketDataPort)
         
@@ -156,8 +153,11 @@ class TestTypedKLMStrategyEngineIntegration:
         
         failing_port.get_data = failing_get_data
         
+        engine = TypedKLMStrategyEngine(failing_port)
+        timestamp = datetime(2023, 12, 15, 10, 30, 0, tzinfo=UTC)
+        
         # Should still generate signals (graceful degradation)
-        signals = engine.generate_signals(failing_port, timestamp)
+        signals = engine.generate_signals(timestamp)
         
         # Should return at least a hold signal
         assert len(signals) >= 1
@@ -172,14 +172,14 @@ class TestTypedKLMStrategyEngineIntegration:
         integration_port: Mock,
     ) -> None:
         """Test performance characteristics for integration."""
-        engine = TypedKLMStrategyEngine()
+        engine = TypedKLMStrategyEngine(integration_port)
         timestamp = datetime(2023, 12, 15, 10, 30, 0, tzinfo=UTC)
         
         import time
         
         # Measure signal generation time
         start_time = time.time()
-        signals = engine.generate_signals(integration_port, timestamp)
+        signals = engine.generate_signals(timestamp)
         end_time = time.time()
         
         execution_time = end_time - start_time
@@ -198,10 +198,10 @@ class TestTypedKLMStrategyEngineIntegration:
         integration_port: Mock,
     ) -> None:
         """Test multi-asset allocation scenarios."""
-        engine = TypedKLMStrategyEngine()
+        engine = TypedKLMStrategyEngine(integration_port)
         timestamp = datetime(2023, 12, 15, 10, 30, 0, tzinfo=UTC)
         
-        signals = engine.generate_signals(integration_port, timestamp)
+        signals = engine.generate_signals(timestamp)
         
         # Check if we have multi-asset allocation (more than one signal)
         if len(signals) > 1:
@@ -224,10 +224,10 @@ class TestTypedKLMStrategyEngineIntegration:
         integration_port: Mock,
     ) -> None:
         """Test the quality and informativeness of signal reasoning."""
-        engine = TypedKLMStrategyEngine()
+        engine = TypedKLMStrategyEngine(integration_port)
         timestamp = datetime(2023, 12, 15, 10, 30, 0, tzinfo=UTC)
         
-        signals = engine.generate_signals(integration_port, timestamp)
+        signals = engine.generate_signals(timestamp)
         
         for signal in signals:
             reasoning = signal.reasoning
