@@ -47,7 +47,7 @@ class TradingSystem:
     def __init__(self, settings: Settings | None = None):
         self.settings = settings or load_settings()
         self.logger = get_logger(__name__)
-        self.error_handler = TradingSystemErrorHandler(self.logger)
+        self.error_handler = TradingSystemErrorHandler()
         self._initialize_di()
 
     def _initialize_di(self) -> None:
@@ -226,15 +226,15 @@ def main(argv: list[str] | None = None) -> bool:
     parser = create_argument_parser()
     args = parser.parse_args(argv)
 
-    # Initialize system
-    system = TradingSystem()
-
-    # Display header
-    mode_label = "LIVE TRADING ⚠️" if args.mode == "trade" and args.live else "Paper Trading"
-    render_header("The Alchemiser Trading System", f"{args.mode.upper()} | {mode_label}")
-
-    # Execute operation
+    # Execute operation with proper error boundary for all phases
     try:
+        # Initialize system
+        system = TradingSystem()
+
+        # Display header
+        mode_label = "LIVE TRADING ⚠️" if args.mode == "trade" and args.live else "Paper Trading"
+        render_header("The Alchemiser Trading System", f"{args.mode.upper()} | {mode_label}")
+
         if args.mode == "signal":
             success = system.analyze_signals()
         elif args.mode == "trade":
@@ -253,9 +253,8 @@ def main(argv: list[str] | None = None) -> bool:
         return success
 
     except (ConfigurationError, ValueError, ImportError) as e:
-        # Create error handler instance for boundary logging
-        # Use the TradingSystem instance's error handler for boundary logging
-        error_handler = getattr(system, "error_handler", TradingSystemErrorHandler())
+        # Use TradingSystemErrorHandler for boundary logging - exactly once
+        error_handler = TradingSystemErrorHandler()
         error_handler.handle_error(
             error=e,
             context="application initialization and execution",
