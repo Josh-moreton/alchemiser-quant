@@ -124,7 +124,6 @@ def signal(
             console.print_exception()
         raise typer.Exit(1)
     except AlchemiserError as e:
-        error_handler = TradingSystemErrorHandler()
         error_handler.handle_error(
             error=e,
             context="CLI signal command - application error", 
