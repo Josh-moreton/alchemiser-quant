@@ -151,7 +151,7 @@ class TestTypedStrategyManager:
         mock_nuclear = Mock()
         monkeypatch.setattr(
             "the_alchemiser.domain.strategies.typed_strategy_manager.NuclearTypedEngine",
-            lambda: mock_nuclear,
+            lambda port: mock_nuclear,
         )
 
         engine = manager._create_typed_engine(StrategyType.NUCLEAR)
@@ -165,7 +165,7 @@ class TestTypedStrategyManager:
         mock_klm = Mock()
         monkeypatch.setattr(
             "the_alchemiser.domain.strategies.typed_strategy_manager.TypedKLMStrategyEngine",
-            lambda: mock_klm,
+            lambda port, strategy_name="KLM_Ensemble": mock_klm,
         )
 
         engine = manager._create_typed_engine(StrategyType.KLM)

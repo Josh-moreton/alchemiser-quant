@@ -1,5 +1,6 @@
 """Unit tests for typed TECL strategy engine."""
 
+from datetime import datetime
 from decimal import Decimal
 from unittest.mock import Mock
 
@@ -107,7 +108,7 @@ class TestTECLStrategyEngineTyped:
         })
         tecl_strategy.calculate_indicators = Mock(return_value=indicators)
         
-        signals = tecl_strategy.generate_signals()
+        from datetime import datetime; signals = tecl_strategy.generate_signals(datetime.now())
         
         assert isinstance(signals, list)
         assert len(signals) > 0
@@ -133,7 +134,7 @@ class TestTECLStrategyEngineTyped:
         })
         tecl_strategy.calculate_indicators = Mock(return_value=indicators)
         
-        signals = tecl_strategy.generate_signals()
+        from datetime import datetime; signals = tecl_strategy.generate_signals(datetime.now())
         
         assert isinstance(signals, list)
         assert len(signals) > 0
@@ -156,7 +157,7 @@ class TestTECLStrategyEngineTyped:
             "Mixed allocation strategy"
         ))
         
-        signals = tecl_strategy.generate_signals()
+        from datetime import datetime; signals = tecl_strategy.generate_signals(datetime.now())
         
         assert len(signals) == 1
         signal = signals[0]
@@ -170,7 +171,7 @@ class TestTECLStrategyEngineTyped:
         # Mock to raise exception
         tecl_strategy.get_market_data = Mock(side_effect=Exception("Market data error"))
         
-        signals = tecl_strategy.generate_signals()
+        from datetime import datetime; signals = tecl_strategy.generate_signals(datetime.now())
         
         # Should return empty list on error
         assert signals == []
