@@ -174,7 +174,7 @@ def display_typed_signal_results(
 
 
 def display_signal_results_unified(
-    data: Union[list[Alert], dict[StrategyType, StrategySignal]], 
+    data: Union[list[Alert], dict[StrategyType, StrategySignal], Any], 
     strategy_name: str = "Strategy", 
     key_symbols: list[str] | None = None
 ) -> Union[Alert, StrategySignal, None]:
