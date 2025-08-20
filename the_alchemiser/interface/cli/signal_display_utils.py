@@ -6,10 +6,13 @@ This module provides helper functions for displaying and logging signal results
 that are common across different strategy signal generators.
 """
 
-from typing import Any
+from typing import Any, Union
 
+from the_alchemiser.domain.strategies.strategy_manager import StrategyType
+from the_alchemiser.domain.types import StrategySignal
 from the_alchemiser.infrastructure.alerts.alert_service import Alert
 from the_alchemiser.infrastructure.logging.logging_utils import get_logger, log_trade_event
+from the_alchemiser.utils.feature_flags import type_system_v2_enabled
 
 
 def display_signal_results(
@@ -80,6 +83,124 @@ def display_signal_results(
             print(f"   Reason: {alert.reason}")
 
     return alerts[0]  # Return first alert for compatibility
+
+
+def display_typed_signal_results(
+    signals: dict[StrategyType, StrategySignal], 
+    strategy_name: str = "Strategy", 
+    key_symbols: list[str] | None = None
+) -> StrategySignal | None:
+    """
+    Display typed strategy signal results in a consistent format.
+
+    Args:
+        signals: Dict mapping StrategyType to StrategySignal
+        strategy_name: Name of the strategy (e.g., "TECL", "NUCLEAR")  
+        key_symbols: List of symbols to display technical indicators for
+
+    Returns:
+        First signal for compatibility, or None if no signals
+    """
+    logger = get_logger(__name__)
+
+    if not signals:
+        logger.warning("Unable to generate %s strategy signal", strategy_name)
+        return None
+
+    # Log all signals 
+    for strategy_type, signal in signals.items():
+        # Support both symbol string and portfolio dict
+        symbol_display = signal["symbol"]
+        if isinstance(symbol_display, dict):
+            symbol_display = "PORTFOLIO"
+        
+        # Support both 'reason' and 'reasoning' fields
+        reason = signal.get("reasoning", signal.get("reason", "No reason provided"))
+        
+        # Mock price for display (typed signals don't include price currently)
+        price = 0.0
+        
+        # Log trade event for structured logging
+        log_trade_event(
+            logger,
+            "signal_generated",
+            symbol_display,
+            strategy=strategy_name,
+            action=signal["action"],
+            price=price,
+            reason=reason,
+        )
+
+    # Log results based on number of signals
+    if len(signals) > 1:
+        # Multi-strategy signal
+        logger.info(
+            "%s multi-strategy signal generated with %d strategies",
+            strategy_name.upper(),
+            len(signals),
+        )
+        for strategy_type, signal in signals.items():
+            if signal["action"] != "HOLD":
+                symbol_display = signal["symbol"]
+                if isinstance(symbol_display, dict):
+                    symbol_display = "PORTFOLIO"
+                reason = signal.get("reasoning", signal.get("reason", ""))
+                logger.info(
+                    "%s %s - %s", signal["action"], symbol_display, reason
+                )
+    else:
+        # Single signal
+        signal = next(iter(signals.values()))
+        symbol_display = signal["symbol"]
+        if isinstance(symbol_display, dict):
+            symbol_display = "PORTFOLIO"
+        reason = signal.get("reasoning", signal.get("reason", ""))
+        
+        if signal["action"] != "HOLD":
+            logger.info(
+                "%s trading signal: %s %s - %s",
+                strategy_name.upper(),
+                signal["action"],
+                symbol_display,
+                reason,
+            )
+        else:
+            print(
+                f"📊 {strategy_name} Analysis: {signal['action']} {symbol_display}"
+            )
+            print(f"   Reason: {reason}")
+
+    return next(iter(signals.values()))  # Return first signal for compatibility
+
+
+def display_signal_results_unified(
+    data: Union[list[Alert], dict[StrategyType, StrategySignal]], 
+    strategy_name: str = "Strategy", 
+    key_symbols: list[str] | None = None
+) -> Union[Alert, StrategySignal, None]:
+    """
+    Unified display function that handles both Alert objects and typed StrategySignal data.
+    
+    Uses feature flag to determine which path to take when both are available.
+    
+    Args:
+        data: Either list of Alert objects or dict of StrategySignal objects
+        strategy_name: Name of the strategy
+        key_symbols: List of symbols to display technical indicators for
+        
+    Returns:
+        First alert/signal for compatibility, or None if no data
+    """
+    if isinstance(data, list):
+        # Legacy Alert objects path
+        return display_signal_results(data, strategy_name, key_symbols)
+    elif isinstance(data, dict):
+        # Typed StrategySignal path
+        return display_typed_signal_results(data, strategy_name, key_symbols)
+    else:
+        logger = get_logger(__name__)
+        logger.warning("Invalid data type for signal display: %s", type(data))
+        return None
 
 
 def display_technical_indicators(
