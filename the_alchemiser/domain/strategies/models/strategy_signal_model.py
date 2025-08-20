@@ -17,7 +17,7 @@ from the_alchemiser.domain.types import StrategySignal as StrategySignalDTO
 @dataclass(frozen=True)
 class StrategySignalModel:
     """Immutable strategy signal model using domain value objects.
-    
+
     This model uses proper domain value objects with Decimal for financial values
     and type-safe value objects for all fields. It provides mapping to/from
     TypedDict DTOs for interface boundaries.
@@ -33,14 +33,14 @@ class StrategySignalModel:
     @classmethod
     def from_domain_signal(
         cls, signal: Any  # Use Any to avoid forward reference issues
-    ) -> "StrategySignalModel":
+    ) -> StrategySignalModel:
         """Create from domain StrategySignal value object."""
         # Import here to avoid circular dependency
         from the_alchemiser.domain.strategies.value_objects.strategy_signal import StrategySignal
-        
+
         if not isinstance(signal, StrategySignal):
             raise TypeError("Expected StrategySignal value object")
-            
+
         return cls(
             symbol=signal.symbol,
             action=signal.action,
@@ -51,7 +51,7 @@ class StrategySignalModel:
         )
 
     @classmethod
-    def from_dto(cls, data: StrategySignalDTO) -> "StrategySignalModel":
+    def from_dto(cls, data: StrategySignalDTO) -> StrategySignalModel:
         """Create from StrategySignal TypedDict DTO."""
         # Handle flexible symbol field (can be string or dict for portfolio)
         symbol_value = data["symbol"]
@@ -64,7 +64,7 @@ class StrategySignalModel:
             if len(symbol_str) > 5:
                 symbol_str = symbol_str[:5]
             # Remove non-alphabetic characters
-            symbol_str = ''.join(c for c in symbol_str if c.isalpha()).upper()
+            symbol_str = "".join(c for c in symbol_str if c.isalpha()).upper()
             if not symbol_str:
                 symbol_str = "UNK"  # Unknown symbol fallback
             symbol = Symbol(symbol_str)

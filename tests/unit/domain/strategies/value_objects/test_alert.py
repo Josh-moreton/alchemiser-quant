@@ -1,7 +1,8 @@
 """Tests for Alert value object."""
 
+from datetime import UTC, datetime
+
 import pytest
-from datetime import datetime, UTC
 
 from the_alchemiser.domain.strategies.value_objects.alert import Alert
 from the_alchemiser.domain.trading.value_objects.symbol import Symbol
@@ -13,14 +14,14 @@ class TestAlert:
     def test_valid_alert_creation(self) -> None:
         """Test creating valid alerts."""
         symbol = Symbol("AAPL")
-        
+
         # Test with all fields
         alert = Alert(
             message="Test alert message",
             severity="WARNING",
             symbol=symbol,
         )
-        
+
         assert alert.message == "Test alert message"
         assert alert.severity == "WARNING"
         assert alert.symbol == symbol
@@ -32,7 +33,7 @@ class TestAlert:
             message="System alert",
             severity="INFO",
         )
-        
+
         assert alert.message == "System alert"
         assert alert.severity == "INFO"
         assert alert.symbol is None
@@ -40,7 +41,7 @@ class TestAlert:
     def test_all_severity_levels(self) -> None:
         """Test all valid severity levels."""
         severities = ["INFO", "WARNING", "ERROR"]
-        
+
         for severity in severities:
             alert = Alert(
                 message=f"Test {severity} message",
@@ -65,7 +66,7 @@ class TestAlert:
     def test_alert_immutability(self) -> None:
         """Test that Alert objects are immutable."""
         alert = Alert(message="Test", severity="INFO")
-        
+
         # Should not be able to modify fields
         with pytest.raises(AttributeError):
             alert.message = "Modified"  # type: ignore
@@ -81,13 +82,13 @@ class TestAlert:
             severity="ERROR",
             timestamp=custom_time,
         )
-        
+
         assert alert.timestamp == custom_time
 
     def test_default_timestamp_is_utc(self) -> None:
         """Test that default timestamp is in UTC."""
         alert = Alert(message="Test", severity="INFO")
-        
+
         assert alert.timestamp.tzinfo == UTC
         # Should be very recent (within last few seconds)
         now = datetime.now(UTC)
@@ -98,7 +99,7 @@ class TestAlert:
         """Test alert equality comparison."""
         timestamp = datetime.now(UTC)
         symbol = Symbol("AAPL")
-        
+
         alert1 = Alert(
             message="Test",
             severity="INFO",
@@ -117,7 +118,7 @@ class TestAlert:
             symbol=symbol,
             timestamp=timestamp,
         )
-        
+
         assert alert1 == alert2
         assert alert1 != alert3
 
@@ -130,6 +131,6 @@ class TestAlert:
             severity="WARNING",
             symbol=symbol,
         )
-        
+
         assert alert.symbol == symbol
         assert alert.symbol.value == "TSLA"

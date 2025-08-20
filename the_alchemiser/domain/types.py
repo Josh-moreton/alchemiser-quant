@@ -82,6 +82,7 @@ class StrategySignalBase(TypedDict):
     action: Literal["BUY", "SELL", "HOLD"] | str  # Allow both strict and loose action values
     confidence: float
 
+
 class StrategySignal(StrategySignalBase, total=False):
     reasoning: str
     allocation_percentage: float

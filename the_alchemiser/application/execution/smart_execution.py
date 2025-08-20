@@ -276,19 +276,19 @@ class SmartExecution:
     ) -> bool:
         """
         Wait for order settlement using polling-based tracking.
-        
+
         This is a temporary implementation using legacy polling logic.
         TODO: Implement proper OrderSettlementTracker with type-safe tracking
         and WebSocket-based monitoring for real-time settlement detection.
-        
+
         Args:
             sell_orders: List of order dictionaries to monitor
             max_wait_time: Maximum time to wait in seconds
             poll_interval: Polling interval (currently unused in polling implementation)
-            
+
         Returns:
             bool: True if all orders settle successfully, False if any fail or timeout
-            
+
         Note: This method can return False when settlement fails, preventing
         masking of real settlement failures.
         """

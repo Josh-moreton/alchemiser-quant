@@ -1,8 +1,4 @@
-import pytest
-pytest.skip(
-    "UnifiedDataProviderFacade removed; parity test obsolete under DDD migration. Replace with MarketDataClient/TypedDataProviderAdapter contract tests.",
-    allow_module_level=True,
-)
+from datetime import UTC, datetime
 from types import SimpleNamespace
 
 import pandas as pd
@@ -12,6 +8,11 @@ from the_alchemiser.infrastructure.data_providers.data_provider import (
     UnifiedDataProvider as LegacyProvider,
 )
 from the_alchemiser.services.errors.exceptions import MarketDataError
+
+pytest.skip(
+    "UnifiedDataProviderFacade removed; parity test obsolete under DDD migration. Replace with MarketDataClient/TypedDataProviderAdapter contract tests.",
+    allow_module_level=True,
+)
 
 pytestmark = pytest.mark.contract
 

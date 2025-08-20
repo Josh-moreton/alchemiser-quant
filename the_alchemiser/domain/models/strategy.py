@@ -1,7 +1,7 @@
 """Strategy domain models."""
 
 from dataclasses import dataclass
-from typing import Literal
+from typing import Literal, cast
 
 from the_alchemiser.domain.types import StrategyPositionData, StrategySignal
 
@@ -19,12 +19,23 @@ class StrategySignalModel:
     @classmethod
     def from_dict(cls, data: StrategySignal) -> "StrategySignalModel":
         """Create from StrategySignal TypedDict."""
+        # Normalize symbol - extract first symbol if it's a dict
+        symbol = data["symbol"]
+        if isinstance(symbol, dict):
+            # Take the first symbol from the portfolio dict
+            symbol = next(iter(symbol.keys()))
+
+        # Normalize action - ensure it's a valid literal
+        action = str(data["action"]).upper()
+        if action not in ["BUY", "SELL", "HOLD"]:
+            action = "HOLD"  # Default fallback
+
         return cls(
-            symbol=data["symbol"],
-            action=data["action"],
+            symbol=symbol,
+            action=cast(Literal["BUY", "SELL", "HOLD"], action),
             confidence=data["confidence"],
-            reasoning=data["reasoning"],
-            allocation_percentage=data["allocation_percentage"],
+            reasoning=data.get("reasoning", data.get("reason", "")),  # Handle both field names
+            allocation_percentage=data.get("allocation_percentage", 0.0),
         )
 
     def to_dict(self) -> StrategySignal:

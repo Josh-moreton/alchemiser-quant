@@ -1,7 +1,8 @@
 """Tests for Confidence value object."""
 
-import pytest
 from decimal import Decimal
+
+import pytest
 
 from the_alchemiser.domain.strategies.value_objects.confidence import Confidence
 
@@ -61,7 +62,7 @@ class TestConfidence:
     def test_confidence_immutability(self) -> None:
         """Test that Confidence objects are immutable."""
         confidence = Confidence(Decimal("0.8"))
-        
+
         # Should not be able to modify the value
         with pytest.raises(AttributeError):
             confidence.value = Decimal("0.5")  # type: ignore

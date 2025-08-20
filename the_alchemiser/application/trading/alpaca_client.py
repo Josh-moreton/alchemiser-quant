@@ -50,7 +50,7 @@ if TYPE_CHECKING:
     from the_alchemiser.application.execution.smart_execution import (
         DataProvider as ExecDataProvider,
     )
-    from the_alchemiser.application.orders.order_validation import ValidatedOrder
+    from the_alchemiser.interfaces.schemas.orders import ValidatedOrderDTO
 
 from alpaca.trading.enums import OrderSide
 
@@ -137,22 +137,30 @@ class AlpacaClient:
         """
         return self.position_manager.get_current_positions()
 
-    def get_pending_orders_validated(self) -> list["ValidatedOrder"]:
+    def get_pending_orders_validated(self) -> list["ValidatedOrderDTO"]:
         """
         Get all pending orders from Alpaca with type safety.
 
         Returns:
-            List of ValidatedOrder instances for type-safe order handling.
+            List of ValidatedOrderDTO instances for type-safe order handling.
         """
         try:
-            from the_alchemiser.application.orders.order_validation import ValidatedOrder
+            from the_alchemiser.interfaces.schemas.orders import ValidatedOrderDTO
 
             raw_orders = self.position_manager.get_pending_orders()
 
-            validated_orders: list[ValidatedOrder] = []
+            validated_orders: list[ValidatedOrderDTO] = []
             for order_dict in raw_orders.values():  # Iterate over values, not keys
                 try:
-                    validated_orders.append(ValidatedOrder.from_dict(order_dict))
+                    # Convert dict to OrderRequestDTO first, then to ValidatedOrderDTO
+                    from the_alchemiser.application.mapping.orders import (
+                        dict_to_order_request_dto,
+                        order_request_to_validated_dto,
+                    )
+
+                    order_request = dict_to_order_request_dto(order_dict)
+                    validated_order = order_request_to_validated_dto(order_request)
+                    validated_orders.append(validated_order)
                 except Exception as e:
                     order_id = order_dict.get("id", "?") if isinstance(order_dict, dict) else "?"
                     logger.error(f"Failed to validate pending order {order_id}: {e}")

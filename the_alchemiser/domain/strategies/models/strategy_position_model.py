@@ -12,7 +12,7 @@ from the_alchemiser.domain.types import StrategyPositionData as StrategyPosition
 @dataclass(frozen=True)
 class StrategyPositionModel:
     """Immutable strategy position model using domain value objects.
-    
+
     This model uses proper domain value objects with Decimal for financial values
     and provides mapping to/from TypedDict DTOs for interface boundaries.
     """
@@ -31,10 +31,10 @@ class StrategyPositionModel:
             raise ValueError("Current price cannot be negative")
 
     @classmethod
-    def from_dto(cls, data: StrategyPositionDTO) -> "StrategyPositionModel":
+    def from_dto(cls, data: StrategyPositionDTO) -> StrategyPositionModel:
         """Create from StrategyPositionData TypedDict DTO."""
         symbol = Symbol(str(data["symbol"]))
-        
+
         # Convert to Decimal for financial precision
         quantity = Decimal(str(data["quantity"]))
         entry_price = Decimal(str(data["entry_price"]))
