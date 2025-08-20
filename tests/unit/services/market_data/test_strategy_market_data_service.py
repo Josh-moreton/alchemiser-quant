@@ -1,10 +1,12 @@
 """Unit tests for StrategyMarketDataService implementation of MarketDataPort."""
 
-import pytest
-import pandas as pd
 from unittest.mock import Mock
 
-from the_alchemiser.services.market_data.strategy_market_data_service import StrategyMarketDataService
+import pandas as pd
+
+from the_alchemiser.services.market_data.strategy_market_data_service import (
+    StrategyMarketDataService,
+)
 
 
 class TestStrategyMarketDataService:
@@ -14,7 +16,7 @@ class TestStrategyMarketDataService:
         """Set up test fixtures."""
         # Create service instance with mock credentials
         self.service = StrategyMarketDataService("test_key", "test_secret")
-        
+
         # Mock the underlying MarketDataClient
         self.mock_client = Mock()
         self.service._client = self.mock_client
@@ -22,24 +24,24 @@ class TestStrategyMarketDataService:
     def test_get_data_success(self):
         """Test successful data retrieval."""
         # Arrange
-        expected_df = pd.DataFrame({
-            'Open': [100.0, 101.0],
-            'High': [105.0, 106.0],
-            'Low': [99.0, 100.0],
-            'Close': [102.0, 103.0],
-            'Volume': [1000, 1100]
-        })
+        expected_df = pd.DataFrame(
+            {
+                "Open": [100.0, 101.0],
+                "High": [105.0, 106.0],
+                "Low": [99.0, 100.0],
+                "Close": [102.0, 103.0],
+                "Volume": [1000, 1100],
+            }
+        )
         self.mock_client.get_historical_bars.return_value = expected_df
-        
+
         # Act
         result = self.service.get_data("AAPL", timeframe="1day", period="1y")
-        
+
         # Assert
         assert result.equals(expected_df)
         self.mock_client.get_historical_bars.assert_called_once_with(
-            symbol="AAPL",
-            period="1y",
-            interval="1d"
+            symbol="AAPL", period="1y", interval="1d"
         )
 
     def test_get_data_with_different_timeframes(self):
@@ -59,30 +61,28 @@ class TestStrategyMarketDataService:
             ("min", "1m"),
             ("unknown", "1d"),  # Should default to 1d
         ]
-        
+
         for timeframe, expected_interval in test_cases:
             # Arrange
             self.mock_client.reset_mock()
             self.mock_client.get_historical_bars.return_value = pd.DataFrame()
-            
+
             # Act
             self.service.get_data("AAPL", timeframe=timeframe)
-            
+
             # Assert
             self.mock_client.get_historical_bars.assert_called_once_with(
-                symbol="AAPL",
-                period="1y",
-                interval=expected_interval
+                symbol="AAPL", period="1y", interval=expected_interval
             )
 
     def test_get_data_error_handling(self):
         """Test error handling in get_data."""
         # Arrange
         self.mock_client.get_historical_bars.side_effect = Exception("API Error")
-        
+
         # Act
         result = self.service.get_data("AAPL")
-        
+
         # Assert
         assert isinstance(result, pd.DataFrame)
         assert result.empty
@@ -92,10 +92,10 @@ class TestStrategyMarketDataService:
         # Arrange
         expected_price = 150.25
         self.mock_client.get_current_price_from_quote.return_value = expected_price
-        
+
         # Act
         result = self.service.get_current_price("AAPL")
-        
+
         # Assert
         assert result == expected_price
         self.mock_client.get_current_price_from_quote.assert_called_once_with("AAPL")
@@ -104,10 +104,10 @@ class TestStrategyMarketDataService:
         """Test error handling in get_current_price."""
         # Arrange
         self.mock_client.get_current_price_from_quote.side_effect = Exception("API Error")
-        
+
         # Act
         result = self.service.get_current_price("AAPL")
-        
+
         # Assert
         assert result is None
 
@@ -116,10 +116,10 @@ class TestStrategyMarketDataService:
         # Arrange
         expected_quote = (149.50, 150.00)
         self.mock_client.get_latest_quote.return_value = expected_quote
-        
+
         # Act
         result = self.service.get_latest_quote("AAPL")
-        
+
         # Assert
         assert result == expected_quote
         self.mock_client.get_latest_quote.assert_called_once_with("AAPL")
@@ -128,10 +128,10 @@ class TestStrategyMarketDataService:
         """Test error handling in get_latest_quote."""
         # Arrange
         self.mock_client.get_latest_quote.side_effect = Exception("API Error")
-        
+
         # Act
         result = self.service.get_latest_quote("AAPL")
-        
+
         # Assert
         assert result == (None, None)
 
@@ -147,20 +147,19 @@ class TestStrategyMarketDataService:
             ("MINUTE", "1m"),
             ("invalid_timeframe", "1d"),  # Default case
         ]
-        
+
         for timeframe, expected in test_cases:
             result = self.service._map_timeframe_to_interval(timeframe)
             assert result == expected
 
     def test_protocol_compliance(self):
         """Test that the service implements the MarketDataPort protocol correctly."""
-        from the_alchemiser.domain.strategies.protocols.market_data_port import MarketDataPort
-        
+
         # Check that the service has all required methods
-        assert hasattr(self.service, 'get_data')
-        assert hasattr(self.service, 'get_current_price')
-        assert hasattr(self.service, 'get_latest_quote')
-        
+        assert hasattr(self.service, "get_data")
+        assert hasattr(self.service, "get_current_price")
+        assert hasattr(self.service, "get_latest_quote")
+
         # Check that methods have correct signatures (basic check)
         assert callable(self.service.get_data)
         assert callable(self.service.get_current_price)
@@ -172,12 +171,12 @@ class TestStrategyMarketDataService:
         self.mock_client.get_historical_bars.return_value = pd.DataFrame()
         self.mock_client.get_current_price_from_quote.return_value = 100.0
         self.mock_client.get_latest_quote.return_value = (99.0, 101.0)
-        
+
         # Act - test that kwargs don't break the methods
         self.service.get_data("AAPL", extra_param="test")
         self.service.get_current_price("AAPL", extra_param="test")
         self.service.get_latest_quote("AAPL", extra_param="test")
-        
+
         # Assert - methods should complete without error
         # The kwargs are accepted but not necessarily passed through to the client
         assert True  # If we get here, the methods handled kwargs correctly
@@ -187,4 +186,4 @@ class TestStrategyMarketDataService:
         # Test that service can be created with valid credentials
         service = StrategyMarketDataService("api_key", "secret_key")
         assert service is not None
-        assert hasattr(service, '_client')
+        assert hasattr(service, "_client")
