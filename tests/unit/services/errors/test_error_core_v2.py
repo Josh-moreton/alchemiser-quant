@@ -472,15 +472,47 @@ class TestBackwardCompatibility:
             ErrorCategory,
             ErrorSeverity,
             translate_service_errors,
-            handle_service_errors,  # Legacy from error_handling.py
-            ErrorHandler,  # Legacy from error_handling.py
+            create_service_logger,  # Only remaining legacy import
         )
         
         # Should be able to create instances
         handler = TradingSystemErrorHandler()
         context = ErrorContextData("test_op", "test_comp")
-        legacy_handler = ErrorHandler()
+        logger = create_service_logger("test_service")
         
         assert isinstance(handler, TradingSystemErrorHandler)
         assert isinstance(context, ErrorContextData)
-        assert isinstance(legacy_handler, ErrorHandler)
+        assert logger is not None
+
+    def test_deprecated_apis_raise_warnings(self) -> None:
+        """Test that deprecated APIs raise proper warnings/errors."""
+        import warnings
+        import importlib
+        import sys
+        
+        # Remove the module if it's already imported to test fresh import
+        module_name = "the_alchemiser.services.errors.error_handling"
+        if module_name in sys.modules:
+            del sys.modules[module_name]
+        
+        # Test that importing error_handling module issues deprecation warning
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            
+            # Import the module directly to trigger warning
+            import the_alchemiser.services.errors.error_handling as error_handling
+            
+            # Should have at least one deprecation warning
+            deprecation_warnings = [warning for warning in w if issubclass(warning.category, DeprecationWarning)]
+            assert len(deprecation_warnings) >= 1
+            assert "deprecated" in str(deprecation_warnings[0].message)
+        
+        # Test that using deprecated classes raises errors
+        with pytest.raises(DeprecationWarning):
+            error_handling.ErrorHandler()
+        
+        with pytest.raises(DeprecationWarning):
+            error_handling.ServiceMetrics()
+        
+        with pytest.raises(DeprecationWarning):
+            error_handling.handle_service_errors()

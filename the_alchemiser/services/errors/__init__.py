@@ -43,18 +43,8 @@ from .handler import (
 from .scope import ErrorScope, create_error_scope
 
 # Backward compatibility imports from old modules
-from .error_handling import (
-    ErrorHandler,
-    ServiceMetrics,
-    create_service_logger,
-    handle_config_errors,
-    handle_market_data_errors,
-    handle_service_errors,
-    handle_streaming_errors,
-    handle_trading_errors,
-    service_metrics,
-    with_metrics,
-)
+# NOTE: Most items from error_handling are now deprecated
+from .error_handling import create_service_logger  # Keep for backward compatibility
 
 # Legacy ErrorContext - kept temporarily for backward compatibility
 # The old ErrorContext from error_handling.py is now available as ErrorScope
@@ -98,17 +88,8 @@ __all__ = [
     "translate_trading_errors",
     "translate_streaming_errors",
     "translate_config_errors",
-    # Legacy compatibility from error_handling.py
-    "ErrorHandler",
-    "handle_service_errors",
-    "handle_market_data_errors",
-    "handle_trading_errors",
-    "handle_streaming_errors",
-    "handle_config_errors",
-    "create_service_logger",
-    "ServiceMetrics",
-    "service_metrics",
-    "with_metrics",
+    # Legacy compatibility - minimal set
+    "create_service_logger",  # Keep for backward compatibility
     # Legacy aliases (deprecated)
     "ErrorContext",  # Use ErrorScope instead
 ]
