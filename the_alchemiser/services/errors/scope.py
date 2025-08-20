@@ -7,9 +7,46 @@ Renamed from ErrorContext to avoid naming collision.
 """
 
 import logging
+import traceback
 from typing import Any
 
-from .error_handling import ErrorHandler
+
+class _ScopeErrorHandler:
+    """Minimal error handler for ErrorScope logging needs."""
+
+    def __init__(self, logger: logging.Logger | None = None) -> None:
+        """Initialize with logger."""
+        self.logger = logger or logging.getLogger(__name__)
+
+    def log_and_handle(
+        self,
+        error: Exception,
+        context: dict[str, Any] | None = None,
+        default_return: Any = None,
+    ) -> Any:
+        """
+        Log error and return default value instead of raising.
+
+        Args:
+            error: Exception that occurred
+            context: Additional context for logging
+            default_return: Value to return instead of raising
+
+        Returns:
+            Default return value
+        """
+        context = context or {}
+
+        # Log with context
+        log_message = f"Handled error: {error}"
+        if context:
+            context_str = ", ".join(f"{k}={v}" for k, v in context.items())
+            log_message += f" [Context: {context_str}]"
+
+        self.logger.error(log_message)
+        self.logger.debug(f"Traceback: {traceback.format_exc()}")
+
+        return default_return
 
 
 class ErrorScope:
@@ -17,7 +54,7 @@ class ErrorScope:
 
     def __init__(
         self,
-        error_handler: ErrorHandler,
+        error_handler: _ScopeErrorHandler,
         context: dict[str, Any] | None = None,
         reraise: bool = True,
     ) -> None:
@@ -62,5 +99,5 @@ def create_error_scope(
     reraise: bool = True,
 ) -> ErrorScope:
     """Factory function to create an error scope with default error handler."""
-    error_handler = ErrorHandler(logger)
+    error_handler = _ScopeErrorHandler(logger)
     return ErrorScope(error_handler, context, reraise)
