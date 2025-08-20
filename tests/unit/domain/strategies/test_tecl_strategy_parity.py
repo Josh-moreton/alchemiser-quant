@@ -54,6 +54,8 @@ class TestTECLStrategyParity:
 
     def test_legacy_vs_typed_signal_consistency(self, tecl_strategy: TECLStrategyEngine):
         """Test that typed signals are consistent with legacy evaluate_tecl_strategy output."""
+        from datetime import datetime, UTC
+        
         # Get market data and indicators
         market_data = tecl_strategy.get_market_data()
         indicators = tecl_strategy.calculate_indicators(market_data)
@@ -62,7 +64,8 @@ class TestTECLStrategyParity:
         symbol_or_allocation, action, reasoning = tecl_strategy.evaluate_tecl_strategy(indicators, market_data)
         
         # Get typed signals
-        signals = tecl_strategy.generate_signals()
+        now = datetime.now(UTC)
+        signals = tecl_strategy.generate_signals(now)
         
         # Should have exactly one signal
         assert len(signals) == 1
@@ -92,6 +95,8 @@ class TestTECLStrategyParity:
 
     def test_bull_market_parity(self, tecl_strategy: TECLStrategyEngine):
         """Test parity in bull market conditions."""
+        from datetime import datetime, UTC
+        
         # Create bull market indicators
         indicators = self._create_bull_market_indicators()
         market_data = {symbol: pd.DataFrame({'Close': [100.0]}) for symbol in tecl_strategy.all_symbols}
@@ -104,7 +109,8 @@ class TestTECLStrategyParity:
         tecl_strategy.calculate_indicators = Mock(return_value=indicators)
         
         # Test typed interface
-        signals = tecl_strategy.generate_signals()
+        now = datetime.now(UTC)
+        signals = tecl_strategy.generate_signals(now)
         
         # Verify parity
         assert len(signals) == 1
@@ -119,6 +125,8 @@ class TestTECLStrategyParity:
 
     def test_bear_market_parity(self, tecl_strategy: TECLStrategyEngine):
         """Test parity in bear market conditions."""
+        from datetime import datetime, UTC
+        
         # Create bear market indicators
         indicators = self._create_bear_market_indicators()
         market_data = {symbol: pd.DataFrame({'Close': [100.0]}) for symbol in tecl_strategy.all_symbols}
@@ -131,7 +139,8 @@ class TestTECLStrategyParity:
         tecl_strategy.calculate_indicators = Mock(return_value=indicators)
         
         # Test typed interface
-        signals = tecl_strategy.generate_signals()
+        now = datetime.now(UTC)
+        signals = tecl_strategy.generate_signals(now)
         
         # Verify parity
         assert len(signals) == 1
@@ -165,7 +174,9 @@ class TestTECLStrategyParity:
         tecl_strategy.calculate_indicators = Mock(return_value=indicators)
         
         # Test typed interface
-        signals = tecl_strategy.generate_signals()
+        from datetime import datetime, UTC
+        now = datetime.now(UTC)
+        signals = tecl_strategy.generate_signals(now)
         
         # Verify parity
         assert len(signals) == 1
@@ -204,7 +215,9 @@ class TestTECLStrategyParity:
             tecl_strategy.calculate_indicators = Mock(return_value=indicators)
             
             # Typed result
-            signals = tecl_strategy.generate_signals()
+            from datetime import datetime, UTC
+            now = datetime.now(UTC)
+            signals = tecl_strategy.generate_signals(now)
             
             # Verify parity
             assert len(signals) == 1, f"Scenario {scenario_name}: Expected 1 signal"
@@ -233,7 +246,9 @@ class TestTECLStrategyParity:
         tecl_strategy.calculate_indicators = Mock(return_value=incomplete_indicators)
         
         # Typed interface should handle gracefully
-        signals = tecl_strategy.generate_signals()
+        from datetime import datetime, UTC
+        now = datetime.now(UTC)
+        signals = tecl_strategy.generate_signals(now)
         
         if legacy_succeeded and legacy_result:
             # If legacy succeeded, typed should produce equivalent signal

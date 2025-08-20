@@ -20,9 +20,9 @@ from tests.utils.float_checks import assert_close
 
 
 @pytest.fixture
-def strategy_engine() -> TypedKLMStrategyEngine:
+def strategy_engine(mock_port: Mock) -> TypedKLMStrategyEngine:
     """Create a typed KLM strategy engine instance."""
-    return TypedKLMStrategyEngine()
+    return TypedKLMStrategyEngine(mock_port)
 
 
 @pytest.fixture
@@ -99,7 +99,7 @@ class TestTypedKLMStrategyEngine:
         test_timestamp: datetime,
     ) -> None:
         """Test successful signal generation."""
-        signals = strategy_engine.generate_signals(mock_port, test_timestamp)
+        signals = strategy_engine.generate_signals(test_timestamp)
 
         # Should return list of StrategySignal objects
         assert isinstance(signals, list)
@@ -121,7 +121,9 @@ class TestTypedKLMStrategyEngine:
         test_timestamp: datetime,
     ) -> None:
         """Test signal generation when no market data is available."""
-        signals = strategy_engine.generate_signals(empty_port, test_timestamp)
+        # Create engine with empty port for this specific test
+        empty_engine = TypedKLMStrategyEngine(empty_port)
+        signals = empty_engine.generate_signals(test_timestamp)
 
         # Should return hold signal for BIL
         assert len(signals) == 1
@@ -155,7 +157,9 @@ class TestTypedKLMStrategyEngine:
 
         port.get_data.side_effect = mock_get_data
 
-        signals = strategy_engine.generate_signals(port, test_timestamp)
+        # Create engine with specific port for this test
+        partial_engine = TypedKLMStrategyEngine(port)
+        signals = partial_engine.generate_signals(test_timestamp)
 
         # Should still generate signals with available data
         assert len(signals) > 0
@@ -171,9 +175,12 @@ class TestTypedKLMStrategyEngine:
         port = Mock(spec=MarketDataPort)
         port.get_data.side_effect = Exception("Market data error")
 
+        # Create engine with error port for this test
+        error_engine = TypedKLMStrategyEngine(port)
+        
         # The current implementation handles port errors gracefully by returning hold signals
         # when no data is available, rather than raising exceptions
-        signals = strategy_engine.generate_signals(port, test_timestamp)
+        signals = error_engine.generate_signals(test_timestamp)
 
         # Should return hold signal when market data is unavailable
         assert len(signals) == 1
@@ -188,9 +195,10 @@ class TestTypedKLMStrategyEngine:
         mock_port: Mock,
     ) -> None:
         """Test market data fetching."""
-        market_data = strategy_engine._get_market_data(mock_port)
+        market_data = strategy_engine._get_market_data()
 
         # Should call get_data for all required symbols
+        # The mock_port should be the same one injected into strategy_engine
         assert mock_port.get_data.call_count == len(strategy_engine.all_symbols)
 
         # All calls should have correct parameters
@@ -399,7 +407,7 @@ class TestTypedKLMStrategyEngine:
     ) -> None:
         """Integration test for the complete ensemble evaluation."""
         # This tests the full pipeline
-        signals = strategy_engine.generate_signals(mock_port, test_timestamp)
+        signals = strategy_engine.generate_signals(test_timestamp)
 
         # Should produce valid signals
         assert len(signals) > 0

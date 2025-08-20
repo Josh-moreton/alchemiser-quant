@@ -59,8 +59,8 @@ class TypedKLMStrategyEngine(StrategyEngine):
     4. Returns typed StrategySignal objects
     """
 
-    def __init__(self, strategy_name: str = "KLM_Ensemble") -> None:
-        super().__init__(strategy_name)
+    def __init__(self, market_data_port: MarketDataPort, strategy_name: str = "KLM_Ensemble") -> None:
+        super().__init__(strategy_name, market_data_port)
         self.indicators = TechnicalIndicators()
 
         # Initialize all strategy variants
@@ -105,11 +105,11 @@ class TypedKLMStrategyEngine(StrategyEngine):
         """Return all symbols required by the KLM ensemble."""
         return self.all_symbols
 
-    def generate_signals(self, port: MarketDataPort, now: datetime) -> list[StrategySignal]:
+    def generate_signals(self, now: datetime) -> list[StrategySignal]:
         """Generate typed trading signals from KLM ensemble evaluation."""
         try:
             # Fetch market data using typed port
-            market_data = self._get_market_data(port)
+            market_data = self._get_market_data()
             if not market_data:
                 self.logger.warning("No market data available, returning hold signal")
                 return self._create_hold_signal("No market data available", now)
@@ -137,12 +137,12 @@ class TypedKLMStrategyEngine(StrategyEngine):
                 strategy_name=self.strategy_name
             ) from e
 
-    def _get_market_data(self, port: MarketDataPort) -> dict[str, pd.DataFrame]:
+    def _get_market_data(self) -> dict[str, pd.DataFrame]:
         """Fetch market data for all required symbols using typed port."""
         market_data = {}
         for symbol in self.all_symbols:
             try:
-                data = port.get_data(symbol, timeframe="1day", period="1y")
+                data = self.market_data_port.get_data(symbol, timeframe="1day", period="1y")
                 if not data.empty:
                     market_data[symbol] = data
                 else:
