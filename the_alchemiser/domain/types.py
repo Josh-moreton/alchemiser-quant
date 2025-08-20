@@ -77,12 +77,16 @@ class OrderDetails(TypedDict):
 
 
 # Strategy Types
-class StrategySignal(TypedDict):
-    symbol: str
-    action: Literal["BUY", "SELL", "HOLD"]
+class StrategySignalBase(TypedDict):
+    symbol: str | dict[str, float]  # Allow both symbol string and portfolio dict
+    action: Literal["BUY", "SELL", "HOLD"] | str  # Allow both strict and loose action values
     confidence: float
+
+class StrategySignal(StrategySignalBase, total=False):
     reasoning: str
     allocation_percentage: float
+    # Legacy field aliases for backward compatibility
+    reason: str  # Alias for reasoning
 
 
 class StrategyPnLSummary(TypedDict):

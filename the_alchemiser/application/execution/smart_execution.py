@@ -274,48 +274,29 @@ class SmartExecution:
         max_wait_time: int = 60,
         poll_interval: float = 2.0,
     ) -> bool:
-        """Wait for order settlement with type-safe tracking."""
+        """
+        Wait for order settlement using polling-based tracking.
+        
+        This is a temporary implementation using legacy polling logic.
+        TODO: Implement proper OrderSettlementTracker with type-safe tracking
+        and WebSocket-based monitoring for real-time settlement detection.
+        
+        Args:
+            sell_orders: List of order dictionaries to monitor
+            max_wait_time: Maximum time to wait in seconds
+            poll_interval: Polling interval (currently unused in polling implementation)
+            
+        Returns:
+            bool: True if all orders settle successfully, False if any fail or timeout
+            
+        Note: This method can return False when settlement fails, preventing
+        masking of real settlement failures.
+        """
         if not sell_orders:
             return True
 
-        # Import here to avoid circular dependency
-        try:
-            from the_alchemiser.application.orders.order_validation import (
-                OrderSettlementTracker,
-                ValidatedOrder,
-            )
-
-            validated_orders: list[ValidatedOrder] = []
-            for order in sell_orders:
-                try:
-                    validated_orders.append(ValidatedOrder.from_dict(order))
-                except Exception as e:
-                    logging.warning(f"Order conversion failed: {e}")
-
-            if not validated_orders:
-                logging.warning("No valid orders found for settlement tracking")
-                return True
-
-            # Use the new type-safe settlement tracker
-            tracker = OrderSettlementTracker(trading_client=getattr(self, "_order_executor", None))
-            result = tracker.wait_for_settlement(validated_orders, max_wait_time, poll_interval)
-
-            # Log results
-            if result.success:
-                logging.info(f"✅ All {len(result.settled_orders)} orders settled successfully")
-            else:
-                if result.failed_orders:
-                    logging.warning(f"❌ {len(result.failed_orders)} orders failed")
-                if result.timeout_orders:
-                    logging.warning(f"⏰ {len(result.timeout_orders)} orders timed out")
-                if result.errors:
-                    logging.error(f"🚨 Settlement errors: {'; '.join(result.errors)}")
-
-            return result.success
-
-        except Exception as e:
-            logging.error(f"Error in enhanced settlement tracking, falling back to legacy: {e}")
-            # Fallback to original logic with improved validation
+        # TODO: Replace with proper OrderSettlementTracker implementation
+        # Current implementation uses polling-based settlement detection
 
         # Extract only valid string order IDs
         order_ids: list[str] = []
