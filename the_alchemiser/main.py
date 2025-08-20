@@ -118,6 +118,8 @@ def configure_application_logging() -> None:
     Honors any logging already configured by the CLI (root handlers present),
     and supports environment/config-driven log level via Settings.logging.level
     or LOGGING__LEVEL env var. Avoids overriding CLI --verbose behavior.
+    
+    In production (Lambda), defaults to CloudWatch-only logging with explicit S3 opt-in.
     """
     is_production = os.getenv("AWS_LAMBDA_FUNCTION_NAME") is not None
 
@@ -151,7 +153,18 @@ def configure_application_logging() -> None:
     if is_production:
         from the_alchemiser.infrastructure.logging.logging_utils import configure_production_logging
 
-        configure_production_logging(log_level=resolved_level, log_file=None)
+        # In production, determine if S3 logging should be used based on settings
+        log_file = None
+        try:
+            from the_alchemiser.infrastructure.config import load_settings
+            settings = load_settings()
+            if settings.logging.enable_s3_logging and settings.logging.s3_log_uri:
+                log_file = settings.logging.s3_log_uri
+        except Exception:
+            # If settings can't be loaded, default to CloudWatch-only
+            pass
+
+        configure_production_logging(log_level=resolved_level, log_file=log_file)
     else:
         setup_logging(
             log_level=resolved_level,
