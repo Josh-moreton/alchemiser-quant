@@ -194,6 +194,7 @@ class TestSignalAggregation:
         manager.market_data_port = mock_market_data_port
         manager.strategy_allocations = {StrategyType.NUCLEAR: 0.6, StrategyType.TECL: 0.4}
         manager.logger = Mock()
+        manager.error_handler = Mock()  # Add mock error handler
 
         # Create mock engines
         mock_nuclear = Mock()
