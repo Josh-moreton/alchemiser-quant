@@ -19,6 +19,20 @@ from .decorators import (
     translate_streaming_errors,
     translate_trading_errors,
 )
+
+# Backward compatibility imports from old modules
+from .error_handling import (
+    ErrorHandler,
+    ServiceMetrics,
+    create_service_logger,
+    handle_config_errors,
+    handle_market_data_errors,
+    handle_service_errors,
+    handle_streaming_errors,
+    handle_trading_errors,
+    service_metrics,
+    with_metrics,
+)
 from .handler import (
     CircuitBreaker,
     CircuitBreakerOpenError,
@@ -42,20 +56,6 @@ from .handler import (
 )
 from .scope import ErrorScope, create_error_scope
 
-# Backward compatibility imports from old modules
-from .error_handling import (
-    ErrorHandler,
-    ServiceMetrics,
-    create_service_logger,
-    handle_config_errors,
-    handle_market_data_errors,
-    handle_service_errors,
-    handle_streaming_errors,
-    handle_trading_errors,
-    service_metrics,
-    with_metrics,
-)
-
 # Legacy ErrorContext - kept temporarily for backward compatibility
 # The old ErrorContext from error_handling.py is now available as ErrorScope
 # The old ErrorContext from error_handler.py is now ErrorContextData
@@ -71,7 +71,7 @@ __all__ = [
     # New consolidated API
     "ErrorContextData",
     "create_error_context",
-    "ErrorScope", 
+    "ErrorScope",
     "create_error_scope",
     "TradingSystemErrorHandler",
     "ErrorCategory",
@@ -94,7 +94,7 @@ __all__ = [
     "CircuitBreakerOpenError",
     # Translation decorators
     "translate_service_errors",
-    "translate_market_data_errors", 
+    "translate_market_data_errors",
     "translate_trading_errors",
     "translate_streaming_errors",
     "translate_config_errors",

@@ -78,7 +78,7 @@ class StrategyOrder:
         )
 
 
-@dataclass  # Note: Pydantic DTOs available in interfaces.schemas.tracking for I/O boundaries  
+@dataclass  # Note: Pydantic DTOs available in interfaces.schemas.tracking for I/O boundaries
 class StrategyPosition:
     """Represents a position held by a specific strategy."""
 

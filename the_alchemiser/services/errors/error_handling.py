@@ -286,7 +286,7 @@ def create_service_logger(service_name: str, level: int = logging.INFO) -> loggi
     """
     # Import here to avoid circular imports
     from the_alchemiser.infrastructure.logging.logging_utils import get_service_logger
-    
+
     return get_service_logger(service_name)
 
 

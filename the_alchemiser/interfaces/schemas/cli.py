@@ -30,7 +30,7 @@ class CLICommandResult(TypedDict):
     exit_code: int
 
 
-# CLI Display Types  
+# CLI Display Types
 class CLISignalData(TypedDict):
     """Strategy signal data for CLI display."""
     strategy_type: str

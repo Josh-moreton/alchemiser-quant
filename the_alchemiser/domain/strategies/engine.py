@@ -15,8 +15,8 @@ from typing import Any
 
 from the_alchemiser.domain.strategies.protocols.market_data_port import MarketDataPort
 from the_alchemiser.domain.strategies.value_objects.strategy_signal import StrategySignal
-from the_alchemiser.services.errors.handler import TradingSystemErrorHandler
 from the_alchemiser.services.errors.exceptions import ValidationError
+from the_alchemiser.services.errors.handler import TradingSystemErrorHandler
 
 
 class StrategyEngine(ABC):

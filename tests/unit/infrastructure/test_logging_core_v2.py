@@ -5,8 +5,6 @@ import logging
 import os
 from unittest.mock import patch
 
-import pytest
-
 from the_alchemiser.infrastructure.logging.logging_utils import (
     StructuredFormatter,
     configure_production_logging,
@@ -106,13 +104,13 @@ class TestStructuredFormatter:
     def test_exception_info_included(self):
         """Test that exception information is properly formatted."""
         formatter = StructuredFormatter()
-        
+
         try:
             raise ValueError("Test exception")
         except ValueError:
             import sys
             exc_info = sys.exc_info()
-            
+
         record = logging.LogRecord(
             name="test_logger",
             level=logging.ERROR,
@@ -198,36 +196,36 @@ class TestSetupLogging:
     def test_setup_logging_respects_existing_handlers(self):
         """Test that setup_logging respects existing handlers when configured."""
         root_logger = logging.getLogger()
-        
+
         # Add a dummy handler
         existing_handler = logging.StreamHandler()
         root_logger.addHandler(existing_handler)
-        
+
         # Setup with respect_existing_handlers=True
         setup_logging(
             log_level=logging.INFO,
             respect_existing_handlers=True,
             structured_format=False,
         )
-        
+
         # Should still have the original handler plus potentially no new ones
         assert existing_handler in root_logger.handlers
 
     def test_setup_logging_clears_handlers_when_not_respecting(self):
         """Test that setup_logging clears handlers when not respecting existing ones."""
         root_logger = logging.getLogger()
-        
+
         # Add a dummy handler
         existing_handler = logging.StreamHandler()
         root_logger.addHandler(existing_handler)
-        
+
         # Setup with respect_existing_handlers=False (default)
         setup_logging(
             log_level=logging.INFO,
             respect_existing_handlers=False,
             structured_format=False,
         )
-        
+
         # Should not have the original handler
         assert existing_handler not in root_logger.handlers
 
@@ -236,19 +234,19 @@ class TestSetupLogging:
         # Reset logging first
         root_logger = logging.getLogger()
         root_logger.handlers.clear()
-        
+
         configure_production_logging(log_level=logging.INFO)
-        
+
         # Get a logger and log a message
         logger = logging.getLogger("test.production")
-        
+
         # Verify that the handlers are configured with StructuredFormatter
         root_logger = logging.getLogger()
         assert len(root_logger.handlers) > 0
-        
+
         # Check that at least one handler uses StructuredFormatter
         structured_handlers = [
-            h for h in root_logger.handlers 
+            h for h in root_logger.handlers
             if isinstance(h.formatter, StructuredFormatter)
         ]
         assert len(structured_handlers) > 0
@@ -276,7 +274,7 @@ class TestIntegrationWithMainLoggingConfig:
         """Test that production environment is detected correctly."""
         with patch.dict(os.environ, {"AWS_LAMBDA_FUNCTION_NAME": "test-lambda"}):
             from the_alchemiser.main import configure_application_logging
-            
+
             # Should not raise an exception
             configure_application_logging()
 
@@ -285,14 +283,14 @@ class TestIntegrationWithMainLoggingConfig:
         with patch.dict(os.environ, {}, clear=True):
             # Remove AWS_LAMBDA_FUNCTION_NAME if it exists
             os.environ.pop("AWS_LAMBDA_FUNCTION_NAME", None)
-            
+
             from the_alchemiser.main import configure_application_logging
-            
+
             # Add a mock CLI handler
             root_logger = logging.getLogger()
             cli_handler = logging.StreamHandler()
             root_logger.addHandler(cli_handler)
-            
+
             # Should preserve the CLI handler
             configure_application_logging()
             assert cli_handler in root_logger.handlers
@@ -309,44 +307,43 @@ class TestProductionJSONValidation:
             structured_format=True,
             respect_existing_handlers=False,
         )
-        
+
         # Set context vars
         set_request_id("prod-req-789")
         set_error_id("prod-err-012")
-        
+
         # Capture log output
         import io
-        import sys
         log_capture = io.StringIO()
-        
+
         # Create a test logger with custom handler
         test_logger = logging.getLogger("test.production.validation")
         handler = logging.StreamHandler(log_capture)
         handler.setFormatter(StructuredFormatter())
         test_logger.addHandler(handler)
         test_logger.setLevel(logging.INFO)
-        
+
         # Log a message
         test_logger.info("Production test message")
-        
+
         # Parse the JSON output
         log_output = log_capture.getvalue().strip()
         log_data = json.loads(log_output)
-        
+
         # Verify all required fields are present
         required_fields = [
-            "timestamp", "level", "logger", "message", 
+            "timestamp", "level", "logger", "message",
             "module", "function", "line", "request_id", "error_id"
         ]
         for field in required_fields:
             assert field in log_data, f"Required field '{field}' missing from log output"
-        
+
         # Verify specific values
         assert log_data["level"] == "INFO"
         assert log_data["message"] == "Production test message"
         assert log_data["request_id"] == "prod-req-789"
         assert log_data["error_id"] == "prod-err-012"
-        
+
         # Clean up
         set_request_id(None)
         set_error_id(None)

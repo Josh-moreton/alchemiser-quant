@@ -56,7 +56,7 @@ def translate_service_errors(
                 custom_error_type = error_types.get(type(e), DataProviderError)
                 translated_error = custom_error_type(f"Service error in {func.__name__}: {e}")
                 translated_error.__cause__ = e
-                
+
                 if default_return is not None:
                     return default_return
                 else:
@@ -65,7 +65,7 @@ def translate_service_errors(
                 # Handle unexpected errors
                 translated_error = DataProviderError(f"Unexpected error in {func.__name__}: {e}")
                 translated_error.__cause__ = e
-                
+
                 if default_return is not None:
                     return default_return
                 else:

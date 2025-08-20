@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from decimal import Decimal
-from unittest.mock import Mock, call
+from unittest.mock import Mock
 
 import pandas as pd
 import pytest
@@ -33,12 +33,12 @@ class TestTypedNuclearStrategy:
     def mock_port(self) -> Mock:
         """Create mock market data port."""
         port = Mock(spec=MarketDataPort)
-        
+
         # Default successful returns
         port.get_current_price.return_value = 100.0
         port.get_data.return_value = self._create_mock_dataframe()
         port.get_latest_quote.return_value = (99.5, 100.5)
-        
+
         return port
 
     @pytest.fixture
@@ -68,20 +68,20 @@ class TestTypedNuclearStrategy:
     def test_get_required_symbols(self, strategy: TypedNuclearStrategy) -> None:
         """Test required symbols include all expected categories."""
         symbols = strategy.get_required_symbols()
-        
+
         # Should include market symbols
         assert "SPY" in symbols
         assert "IOO" in symbols
         assert "TQQQ" in symbols
-        
+
         # Should include volatility symbols
         assert "UVXY" in symbols
         assert "BTAL" in symbols
-        
+
         # Should include nuclear symbols
         assert "SMR" in symbols
         assert "BWXT" in symbols
-        
+
         # Should be reasonable length
         assert len(symbols) > 15
 
@@ -93,12 +93,12 @@ class TestTypedNuclearStrategy:
         spy_data = self._create_mock_dataframe()
         # Create RSI > 81 scenario by having recent prices much higher
         spy_data.loc[spy_data.index[-20:], "Close"] = spy_data["Close"].iloc[-21] * 1.15
-        
+
         def get_data_side_effect(symbol: str, **kwargs) -> pd.DataFrame:
             if symbol == "SPY":
                 return spy_data
             return self._create_mock_dataframe()
-        
+
         mock_port.get_data.side_effect = get_data_side_effect
 
         signals = dynamic_strategy.generate_signals(mock_port, now)
@@ -117,13 +117,13 @@ class TestTypedNuclearStrategy:
         """Test signal generation when SPY is oversold (RSI < 30)."""
         # This test focuses on the structure and logic rather than exact RSI calculation
         # since calculating exact RSI conditions is complex and depends on specific data patterns
-        
+
         signals = strategy.generate_signals(mock_port, now)
 
         assert len(signals) == 1
         signal = signals[0]
         assert isinstance(signal, StrategySignal)
-        
+
         # The signal should be valid regardless of exact symbol
         assert signal.action in ["BUY", "SELL", "HOLD"]
         assert signal.confidence.value >= Decimal("0.0")
@@ -162,7 +162,7 @@ class TestTypedNuclearStrategy:
         """Test portfolio hedge signal generation structure."""
         # Note: This test validates the structure rather than specific conditions
         # since exact RSI calculations depend on complex data patterns
-        
+
         signals = dynamic_strategy.generate_signals(mock_port, now)
 
         assert len(signals) == 1
@@ -170,7 +170,7 @@ class TestTypedNuclearStrategy:
         assert isinstance(signal, StrategySignal)
         assert signal.action == "BUY"
         assert signal.confidence.value >= Decimal("0.6")  # Should have reasonable confidence
-        
+
         # Should have reasonable allocation and reasoning
         assert signal.target_allocation.value > Decimal("0.0")
         assert len(signal.reasoning) > 0
@@ -192,7 +192,7 @@ class TestTypedNuclearStrategy:
             if symbol == "SPY":
                 return pd.DataFrame()  # Empty dataframe for SPY
             return self._create_mock_dataframe()
-        
+
         mock_port.get_data.side_effect = get_data_side_effect
 
         signals = strategy.generate_signals(mock_port, now)
@@ -218,11 +218,11 @@ class TestTypedNuclearStrategy:
         assert dynamic_strategy._calculate_confidence("UVXY", "BUY", "volatility hedge") >= 0.9
         assert dynamic_strategy._calculate_confidence("SPY", "BUY", "extremely overbought") >= 0.8
         assert dynamic_strategy._calculate_confidence("UPRO", "BUY", "oversold") >= 0.8
-        
+
         # Medium confidence scenarios
         assert 0.6 <= dynamic_strategy._calculate_confidence("QQQ", "BUY", "bull market") <= 0.8
         assert 0.6 <= dynamic_strategy._calculate_confidence("SQQQ", "BUY", "bear market") <= 0.8
-        
+
         # Low confidence scenarios
         assert dynamic_strategy._calculate_confidence("SPY", "HOLD", "neutral") <= 0.4
 
@@ -231,15 +231,15 @@ class TestTypedNuclearStrategy:
         # Hold and sell signals
         assert dynamic_strategy._calculate_target_allocation("SPY", "HOLD") == 0.0
         assert dynamic_strategy._calculate_target_allocation("SPY", "SELL") == 0.0
-        
+
         # High allocation for volatility hedge
         assert dynamic_strategy._calculate_target_allocation("UVXY", "BUY") == 0.5
         assert dynamic_strategy._calculate_target_allocation("PORTFOLIO", "BUY") == 0.75
-        
+
         # Moderate allocation for leveraged ETFs
         assert dynamic_strategy._calculate_target_allocation("UPRO", "BUY") == 0.4
         assert dynamic_strategy._calculate_target_allocation("TQQQ", "BUY") == 0.4
-        
+
         # Equal weight for nuclear stocks
         assert dynamic_strategy._calculate_target_allocation("SMR", "BUY") == 0.33
         assert dynamic_strategy._calculate_target_allocation("BWXT", "BUY") == 0.33
@@ -251,11 +251,11 @@ class TestTypedNuclearStrategy:
         assert len(signals) == 1
         signal = signals[0]
         assert isinstance(signal, StrategySignal)
-        
+
         # Legacy mode should have zero confidence and allocation
         assert signal.confidence.value == Decimal("0.0")
         assert signal.target_allocation.value == Decimal("0.0")
-        
+
         # But should still have valid symbol, action, and reasoning
         assert signal.symbol.value is not None
         assert signal.action in ["BUY", "SELL", "HOLD"]
@@ -266,10 +266,10 @@ class TestTypedNuclearStrategy:
     ) -> None:
         """Test that generated signals are valid StrategySignal objects."""
         signals = strategy.generate_signals(mock_port, now)
-        
+
         assert len(signals) == 1
         signal = signals[0]
-        
+
         # Validate signal structure
         assert isinstance(signal, StrategySignal)
         assert isinstance(signal.symbol, Symbol)
@@ -289,7 +289,7 @@ class TestTypedNuclearStrategy:
         # Should call get_data for all required symbols
         required_symbols = strategy.get_required_symbols()
         assert mock_port.get_data.call_count == len(required_symbols)
-        
+
         # Check that get_data was called with correct parameters
         for call_args in mock_port.get_data.call_args_list:
             args, kwargs = call_args
@@ -328,7 +328,7 @@ class TestTypedNuclearStrategy:
             if symbol in ["UVXY", "BTAL"]:  # Some symbols return empty data
                 return pd.DataFrame()
             return self._create_mock_dataframe()
-        
+
         mock_port.get_data.side_effect = get_data_side_effect
 
         # Should still generate signals despite some missing data
@@ -352,7 +352,7 @@ class TestTypedNuclearStrategy:
             if symbol == "SPY":
                 return short_data
             return self._create_mock_dataframe()
-        
+
         mock_port.get_data.side_effect = get_data_side_effect
 
         # Should handle indicator calculation failures gracefully
@@ -363,7 +363,7 @@ class TestTypedNuclearStrategy:
         """Test that all expected nuclear symbols are included."""
         symbols = strategy.get_required_symbols()
         expected_nuclear = ["SMR", "BWXT", "LEU", "EXC", "NLR", "OKLO"]
-        
+
         for nuclear_symbol in expected_nuclear:
             assert nuclear_symbol in symbols
 
@@ -376,6 +376,6 @@ class TestTypedNuclearStrategy:
 
         # Should fail when some data is unavailable
         mock_port.get_current_price.side_effect = lambda symbol: None if symbol == "SPY" else 100.0
-        
+
         with pytest.raises(Exception):  # ValidationError
             strategy.validate_market_data_availability(mock_port)
