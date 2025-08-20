@@ -2,6 +2,7 @@
 
 from dependency_injector import containers, providers
 
+from the_alchemiser.domain.strategies.typed_klm_ensemble_engine import TypedKLMStrategyEngine
 from the_alchemiser.services.account.account_service import AccountService
 from the_alchemiser.services.market_data.market_data_service import MarketDataService
 from the_alchemiser.services.trading.order_service import OrderService
@@ -37,4 +38,10 @@ class ServiceProviders(containers.DeclarativeContainer):
         api_key=config.alpaca_api_key,
         secret_key=config.alpaca_secret_key,
         paper=config.paper_trading,
+    )
+
+    # Typed strategy engines
+    typed_klm_strategy_engine = providers.Factory(
+        TypedKLMStrategyEngine,
+        strategy_name="KLM_Ensemble",
     )
