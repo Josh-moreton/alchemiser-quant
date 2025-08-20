@@ -11,6 +11,7 @@ import pytest
 
 from the_alchemiser.domain.models.strategy import StrategySignalModel
 from the_alchemiser.domain.types import StrategySignal
+from tests.utils.float_checks import assert_close
 
 
 class TestStrategySignalModelFromDict:
@@ -30,9 +31,9 @@ class TestStrategySignalModelFromDict:
 
         assert model.symbol == "AAPL"
         assert model.action == "BUY"
-        assert model.confidence == 0.85
+        assert_close(model.confidence, 0.85)
         assert model.reasoning == "Strong earnings"
-        assert model.allocation_percentage == 25.0
+        assert_close(model.allocation_percentage, 25.0)
 
     def test_from_dict_with_dict_symbol_takes_first_key(self) -> None:
         """Test from_dict with dict symbol extracts first key."""
@@ -48,9 +49,9 @@ class TestStrategySignalModelFromDict:
 
         assert model.symbol == "TSLA"  # First key from dict
         assert model.action == "SELL"
-        assert model.confidence == 0.7
+        assert_close(model.confidence, 0.7)
         assert model.reasoning == "Portfolio rebalancing"
-        assert model.allocation_percentage == 0.0
+        assert_close(model.allocation_percentage, 0.0)
 
     def test_from_dict_with_lowercase_action_normalizes_to_uppercase(self) -> None:
         """Test from_dict normalizes action to uppercase."""
@@ -94,9 +95,9 @@ class TestStrategySignalModelFromDict:
 
         assert model.symbol == "MSFT"
         assert model.action == "HOLD"
-        assert model.confidence == 0.6
+        assert_close(model.confidence, 0.6)
         assert model.reasoning == ""  # Default empty string
-        assert model.allocation_percentage == 0.0  # Default value
+        assert_close(model.allocation_percentage, 0.0)  # Default value
 
     def test_from_dict_prefers_reasoning_over_reason(self) -> None:
         """Test from_dict prefers 'reasoning' field over legacy 'reason'."""
@@ -161,8 +162,8 @@ class TestStrategySignalModelFromDict:
 
         model = StrategySignalModel.from_dict(data)
 
-        assert model.confidence == 0.123456789
-        assert model.allocation_percentage == 12.345
+        assert_close(model.confidence, 0.123456789)
+        assert_close(model.allocation_percentage, 12.345)
 
     def test_from_dict_with_empty_dict_symbol(self) -> None:
         """Test from_dict handles empty dict symbol gracefully."""
@@ -193,9 +194,9 @@ class TestStrategySignalModelFromDict:
 
         assert model.symbol == "QQQ"
         assert model.action == "BUY"
-        assert model.confidence == 0.875
+        assert_close(model.confidence, 0.875)
         assert model.reasoning == "Strong tech sector momentum with high confidence"
-        assert model.allocation_percentage == 22.5
+        assert_close(model.allocation_percentage, 22.5)
         # Verify it's still frozen/immutable
         with pytest.raises(AttributeError):
             model.symbol = "CHANGED"  # type: ignore

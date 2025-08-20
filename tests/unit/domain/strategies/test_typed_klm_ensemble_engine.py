@@ -16,6 +16,7 @@ from the_alchemiser.domain.strategies.value_objects.confidence import Confidence
 from the_alchemiser.domain.strategies.value_objects.strategy_signal import StrategySignal
 from the_alchemiser.domain.trading.value_objects.symbol import Symbol
 from the_alchemiser.services.errors.exceptions import StrategyExecutionError
+from tests.utils.float_checks import assert_close
 
 
 @pytest.fixture
@@ -226,8 +227,8 @@ class TestTypedKLMStrategyEngine:
             assert "current_price" in spy_indicators
             
             # Values should be reasonable
-            assert spy_indicators["close"] == 349.0  # Last close price
-            assert spy_indicators["current_price"] == 349.0
+            assert_close(spy_indicators["close"], 349.0)  # Last close price
+            assert_close(spy_indicators["current_price"], 349.0)
         else:
             # If no indicators calculated, that's acceptable for this test
             # The real implementation should handle missing indicators gracefully

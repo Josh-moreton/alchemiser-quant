@@ -12,6 +12,7 @@ import pytest
 from the_alchemiser.domain.strategies.nuclear_typed_engine import NuclearTypedEngine
 from the_alchemiser.domain.strategies.protocols.market_data_port import MarketDataPort
 from the_alchemiser.domain.strategies.value_objects.strategy_signal import StrategySignal
+from tests.utils.float_checks import assert_close
 
 
 class TestNuclearTypedEngine:
@@ -196,37 +197,37 @@ class TestNuclearTypedEngine:
         confidence = engine._calculate_confidence(
             "UVXY", "BUY", "SPY extremely overbought - volatility hedge"
         )
-        assert confidence == 0.9
+        assert_close(confidence, 0.9)
 
         # Test oversold
         confidence = engine._calculate_confidence(
             "TQQQ", "BUY", "TQQQ oversold opportunity"
         )
-        assert confidence == 0.85
+        assert_close(confidence, 0.85)
 
         # Test hold signal
         confidence = engine._calculate_confidence(
             "SPY", "HOLD", "Neutral market conditions"
         )
-        assert confidence == 0.6
+        assert_close(confidence, 0.6)
 
     def test_target_allocation_calculation(self, engine: NuclearTypedEngine) -> None:
         """Test target allocation calculation for different signal types."""
         # Test hold signals
         allocation = engine._calculate_target_allocation("SPY", "HOLD")
-        assert allocation == 0.0
+        assert_close(allocation, 0.0)
 
         # Test portfolio signals
         allocation = engine._calculate_target_allocation("UVXY_BTAL_PORTFOLIO", "BUY")
-        assert allocation == 1.0
+        assert_close(allocation, 1.0)
 
         # Test volatility hedge
         allocation = engine._calculate_target_allocation("UVXY", "BUY")
-        assert allocation == 0.25
+        assert_close(allocation, 0.25)
 
         # Test leveraged positions
         allocation = engine._calculate_target_allocation("TQQQ", "BUY")
-        assert allocation == 0.30
+        assert_close(allocation, 0.30)
 
     def test_portfolio_signal_handling(
         self, engine: NuclearTypedEngine, mock_port: Mock
