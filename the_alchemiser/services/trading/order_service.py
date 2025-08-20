@@ -21,6 +21,7 @@ from alpaca.trading.enums import OrderSide, TimeInForce
 from alpaca.trading.requests import LimitOrderRequest
 
 from the_alchemiser.domain.interfaces import MarketDataRepository, TradingRepository
+from the_alchemiser.services.errors.decorators import translate_trading_errors
 
 logger = logging.getLogger(__name__)
 
@@ -68,6 +69,7 @@ class OrderService:
         self._max_order_value = max_order_value
         self._min_order_value = min_order_value
 
+    @translate_trading_errors()
     def place_market_order(
         self,
         symbol: str,
@@ -119,26 +121,22 @@ class OrderService:
             self._validate_sell_position(symbol, quantity, notional)
 
         # Place the order through repository
-        try:
-            logger.info(
-                f"Placing market {side} order for {symbol}: "
-                f"qty={quantity}, notional=${notional}"
-            )
+        logger.info(
+            f"Placing market {side} order for {symbol}: "
+            f"qty={quantity}, notional=${notional}"
+        )
 
-            order_id = self._trading.place_market_order(
-                symbol=symbol, side=side, qty=quantity, notional=notional
-            )
+        order_id = self._trading.place_market_order(
+            symbol=symbol, side=side, qty=quantity, notional=notional
+        )
 
-            if not order_id:
-                raise Exception("Order placement returned None - failed")
+        if not order_id:
+            raise Exception("Order placement returned None - failed")
 
-            logger.info(f"✅ Market order placed successfully: {order_id}")
-            return order_id
+        logger.info(f"✅ Market order placed successfully: {order_id}")
+        return order_id
 
-        except Exception as e:
-            logger.error(f"❌ Failed to place market order for {symbol}: {e}")
-            raise
-
+    @translate_trading_errors()
     def place_limit_order(
         self,
         symbol: str,
@@ -182,36 +180,32 @@ class OrderService:
             self._validate_sell_position(symbol, quantity, None)
 
         # Create and place limit order
-        try:
-            logger.info(
-                f"Placing limit {side} order for {symbol}: "
-                f"qty={quantity}, price=${limit_price:.2f}, tif={tif}"
-            )
+        logger.info(
+            f"Placing limit {side} order for {symbol}: "
+            f"qty={quantity}, price=${limit_price:.2f}, tif={tif}"
+        )
 
-            # Create Alpaca limit order request
-            order_request = LimitOrderRequest(
-                symbol=symbol,
-                qty=quantity,
-                side=OrderSide.BUY if side == "buy" else OrderSide.SELL,
-                time_in_force=tif,
-                limit_price=limit_price,
-            )
+        # Create Alpaca limit order request
+        order_request = LimitOrderRequest(
+            symbol=symbol,
+            qty=quantity,
+            side=OrderSide.BUY if side == "buy" else OrderSide.SELL,
+            time_in_force=tif,
+            limit_price=limit_price,
+        )
 
-            order_result = self._trading.place_order(order_request)
+        order_result = self._trading.place_order(order_request)
 
-            if not order_result:
-                raise Exception("Limit order placement returned None - failed")
+        if not order_result:
+            raise Exception("Limit order placement returned None - failed")
 
-            # Extract order ID
-            order_id = str(getattr(order_result, "id", order_result))
+        # Extract order ID
+        order_id = str(getattr(order_result, "id", order_result))
 
-            logger.info(f"✅ Limit order placed successfully: {order_id}")
-            return order_id
+        logger.info(f"✅ Limit order placed successfully: {order_id}")
+        return order_id
 
-        except Exception as e:
-            logger.error(f"❌ Failed to place limit order for {symbol}: {e}")
-            raise
-
+    @translate_trading_errors()
     def cancel_order(self, order_id: str) -> bool:
         """
         Cancel an order with enhanced error handling.
@@ -229,21 +223,17 @@ class OrderService:
         if not order_id or not isinstance(order_id, str):
             raise OrderValidationError("Invalid order ID")
 
-        try:
-            logger.info(f"Cancelling order: {order_id}")
-            result = self._trading.cancel_order(order_id)
+        logger.info(f"Cancelling order: {order_id}")
+        result = self._trading.cancel_order(order_id)
 
-            if result:
-                logger.info(f"✅ Order cancelled successfully: {order_id}")
-            else:
-                logger.warning(f"⚠️ Order cancellation returned False: {order_id}")
+        if result:
+            logger.info(f"✅ Order cancelled successfully: {order_id}")
+        else:
+            logger.warning(f"⚠️ Order cancellation returned False: {order_id}")
 
-            return result
+        return result
 
-        except Exception as e:
-            logger.error(f"❌ Failed to cancel order {order_id}: {e}")
-            raise
-
+    @translate_trading_errors()
     def liquidate_position(self, symbol: str) -> str:
         """
         Liquidate entire position with validation.
@@ -265,21 +255,16 @@ class OrderService:
         if symbol not in positions or positions[symbol] == 0:
             raise OrderValidationError(f"No position to liquidate for {symbol}")
 
-        try:
-            position_size = positions[symbol]
-            logger.info(f"Liquidating position: {symbol} ({position_size} shares)")
+        position_size = positions[symbol]
+        logger.info(f"Liquidating position: {symbol} ({position_size} shares)")
 
-            order_id = self._trading.liquidate_position(symbol)
+        order_id = self._trading.liquidate_position(symbol)
 
-            if not order_id:
-                raise Exception("Position liquidation returned None - failed")
+        if not order_id:
+            raise Exception("Position liquidation returned None - failed")
 
-            logger.info(f"✅ Position liquidated successfully: {order_id}")
-            return order_id
-
-        except Exception as e:
-            logger.error(f"❌ Failed to liquidate position for {symbol}: {e}")
-            raise
+        logger.info(f"✅ Position liquidated successfully: {order_id}")
+        return order_id
 
     # Private validation methods
 

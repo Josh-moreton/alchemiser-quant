@@ -22,6 +22,7 @@ from the_alchemiser.domain.interfaces import MarketDataRepository
 from the_alchemiser.domain.market_data.models.bar import BarModel
 from the_alchemiser.domain.market_data.models.quote import QuoteModel
 from the_alchemiser.domain.shared_kernel.value_objects.symbol import Symbol
+from the_alchemiser.services.errors.decorators import translate_market_data_errors
 
 logger = logging.getLogger(__name__)
 
@@ -56,6 +57,7 @@ class MarketDataService:
         self._quote_cache: dict[str, tuple[tuple[float, float], datetime]] = {}
 
     # --- Typed Domain V2: MarketDataPort-compatible methods ---
+    @translate_market_data_errors(default_return=[])
     def get_bars(self, symbol: Symbol, period: str, timeframe: str) -> list[BarModel]:
         """Fetch historical bars mapped to domain models (BarModel list).
 
@@ -67,43 +69,34 @@ class MarketDataService:
         Returns:
             List[BarModel] (may be empty on failure)
         """
-        try:
-            # Map period to start/end ISO strings
-            end_dt = datetime.now()
-            start_dt = end_dt - timedelta(days=self._map_period_to_days(period))
-            start_iso = start_dt.date().isoformat()
-            end_iso = end_dt.date().isoformat()
+        # Map period to start/end ISO strings
+        end_dt = datetime.now()
+        start_dt = end_dt - timedelta(days=self._map_period_to_days(period))
+        start_iso = start_dt.date().isoformat()
+        end_iso = end_dt.date().isoformat()
 
-            repo_timeframe = self._map_timeframe_for_repo(timeframe)
+        repo_timeframe = self._map_timeframe_for_repo(timeframe)
 
-            rows = self._market_data.get_historical_bars(
-                symbol=str(symbol), start_date=start_iso, end_date=end_iso, timeframe=repo_timeframe
-            )
-            return bars_to_domain(rows)
-        except Exception as e:
-            logger.error(
-                f"Failed to fetch bars for {symbol} period={period} timeframe={timeframe}: {e}"
-            )
-            return []
+        rows = self._market_data.get_historical_bars(
+            symbol=str(symbol), start_date=start_iso, end_date=end_iso, timeframe=repo_timeframe
+        )
+        return bars_to_domain(rows)
 
+    @translate_market_data_errors(default_return=None)
     def get_latest_quote(self, symbol: Symbol) -> QuoteModel | None:
         """Fetch latest quote and map to domain QuoteModel.
 
         Note: Repository interface returns a (bid, ask) tuple; timestamp may be unavailable.
         """
-        try:
-            quote = self._market_data.get_latest_quote(str(symbol))
-            if quote is None:
-                return None
-            bid, ask = quote
-            # Validate basic positivity similar to _is_valid_price
-            if bid <= 0 or ask <= 0 or bid >= ask:
-                logger.warning(f"Invalid latest quote for {symbol}: bid={bid}, ask={ask}")
-                return None
-            return QuoteModel(ts=None, bid=Decimal(str(bid)), ask=Decimal(str(ask)))
-        except Exception as e:
-            logger.error(f"Failed to fetch latest quote for {symbol}: {e}")
+        quote = self._market_data.get_latest_quote(str(symbol))
+        if quote is None:
             return None
+        bid, ask = quote
+        # Validate basic positivity similar to _is_valid_price
+        if bid <= 0 or ask <= 0 or bid >= ask:
+            logger.warning(f"Invalid latest quote for {symbol}: bid={bid}, ask={ask}")
+            return None
+        return QuoteModel(ts=None, bid=Decimal(str(bid)), ask=Decimal(str(ask)))
 
     def get_mid_price(self, symbol: Symbol) -> float | None:
         """Return mid price from latest quote as float (protocol-compatible)."""
@@ -115,6 +108,7 @@ class MarketDataService:
         except Exception:
             return None
 
+    @translate_market_data_errors(default_return=None)
     def get_validated_price(self, symbol: str, max_age_seconds: int | None = None) -> float | None:
         """
         Get current price with validation and optional caching.
@@ -138,28 +132,24 @@ class MarketDataService:
                 return cached_price
 
         # Fetch fresh data
-        try:
-            price = self._market_data.get_current_price(symbol)
+        price = self._market_data.get_current_price(symbol)
 
-            if price is None:
-                logger.warning(f"No price data available for {symbol}")
-                return None
-
-            # Validate price
-            if self._enable_validation and not self._is_valid_price(price, symbol):
-                logger.warning(f"Invalid price for {symbol}: ${price}")
-                return None
-
-            # Cache the result
-            self._price_cache[symbol] = (price, datetime.now())
-            logger.debug(f"Fresh price for {symbol}: ${price:.2f}")
-
-            return price
-
-        except Exception as e:
-            logger.error(f"Failed to get price for {symbol}: {e}")
+        if price is None:
+            logger.warning(f"No price data available for {symbol}")
             return None
 
+        # Validate price
+        if self._enable_validation and not self._is_valid_price(price, symbol):
+            logger.warning(f"Invalid price for {symbol}: ${price}")
+            return None
+
+        # Cache the result
+        self._price_cache[symbol] = (price, datetime.now())
+        logger.debug(f"Fresh price for {symbol}: ${price:.2f}")
+
+        return price
+
+    @translate_market_data_errors(default_return=None)
     def get_validated_quote(
         self, symbol: str, max_age_seconds: int | None = None
     ) -> tuple[float, float] | None:
@@ -185,29 +175,24 @@ class MarketDataService:
                 return cached_quote
 
         # Fetch fresh data
-        try:
-            quote = self._market_data.get_latest_quote(symbol)
+        quote = self._market_data.get_latest_quote(symbol)
 
-            if quote is None:
-                logger.warning(f"No quote data available for {symbol}")
-                return None
-
-            bid, ask = quote
-
-            # Validate quote
-            if self._enable_validation and not self._is_valid_quote(bid, ask, symbol):
-                logger.warning(f"Invalid quote for {symbol}: bid=${bid}, ask=${ask}")
-                return None
-
-            # Cache the result
-            self._quote_cache[symbol] = (quote, datetime.now())
-            logger.debug(f"Fresh quote for {symbol}: bid=${bid:.2f}, ask=${ask:.2f}")
-
-            return quote
-
-        except Exception as e:
-            logger.error(f"Failed to get quote for {symbol}: {e}")
+        if quote is None:
+            logger.warning(f"No quote data available for {symbol}")
             return None
+
+        bid, ask = quote
+
+        # Validate quote
+        if self._enable_validation and not self._is_valid_quote(bid, ask, symbol):
+            logger.warning(f"Invalid quote for {symbol}: bid=${bid}, ask=${ask}")
+            return None
+
+        # Cache the result
+        self._quote_cache[symbol] = (quote, datetime.now())
+        logger.debug(f"Fresh quote for {symbol}: bid=${bid:.2f}, ask=${ask:.2f}")
+
+        return quote
 
     def get_batch_prices(self, symbols: list[str]) -> dict[str, float]:
         """
@@ -259,6 +244,7 @@ class MarketDataService:
             "timestamp": datetime.now().isoformat(),
         }
 
+    @translate_market_data_errors(default_return=False)
     def is_market_hours(self) -> bool:
         """
         Check if market is currently in trading hours.
@@ -266,11 +252,7 @@ class MarketDataService:
         Returns:
             True if market is open, False otherwise
         """
-        try:
-            return self._market_data.is_market_open()
-        except Exception as e:
-            logger.error(f"Failed to check market hours: {e}")
-            return False
+        return self._market_data.is_market_open()
 
     def clear_cache(self, symbol: str | None = None) -> None:
         """

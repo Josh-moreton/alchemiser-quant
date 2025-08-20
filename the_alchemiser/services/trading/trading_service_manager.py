@@ -12,6 +12,7 @@ from the_alchemiser.application.mapping.order_mapping import (
 )
 from the_alchemiser.application.mapping.position_mapping import alpaca_position_to_summary
 from the_alchemiser.services.account.account_service import AccountService
+from the_alchemiser.services.errors.decorators import translate_trading_errors
 from the_alchemiser.services.market_data.market_data_service import MarketDataService
 from the_alchemiser.services.repository.alpaca_manager import AlpacaManager
 from the_alchemiser.services.trading.order_service import OrderService
@@ -164,6 +165,7 @@ class TradingServiceManager:
             "error": "Order status queries not available in enhanced services. Use AlpacaManager directly.",
         }
 
+    @translate_trading_errors(default_return=[])
     def get_open_orders(self, symbol: str | None = None) -> list[dict[str, Any]]:
         """Get open orders.
 
@@ -171,51 +173,47 @@ class TradingServiceManager:
         When the type system flag is enabled, returns a richer dict with
         a 'domain' key containing the mapped domain Order and a 'summary'.
         """
-        try:
-            orders = self.alpaca_manager.get_orders(status="open")
-            # Optional symbol filter for safety (Alpaca filter applied earlier best-effort)
-            if symbol:
-                orders = [
-                    o
-                    for o in orders
-                    if getattr(o, "symbol", None) == symbol
-                    or (isinstance(o, dict) and o.get("symbol") == symbol)
-                ]
+        orders = self.alpaca_manager.get_orders(status="open")
+        # Optional symbol filter for safety (Alpaca filter applied earlier best-effort)
+        if symbol:
+            orders = [
+                o
+                for o in orders
+                if getattr(o, "symbol", None) == symbol
+                or (isinstance(o, dict) and o.get("symbol") == symbol)
+            ]
 
-            if type_system_v2_enabled():
-                enriched: list[dict[str, Any]] = []
-                for o in orders:
-                    dom = alpaca_order_to_domain(o)
-                    enriched.append(
-                        {
-                            "raw": o,
-                            "domain": dom,
-                            "summary": summarize_order(dom),
-                        }
-                    )
-                return enriched
-
-            # Legacy best-effort mapping to simple dicts
-            legacy: list[dict[str, Any]] = []
+        if type_system_v2_enabled():
+            enriched: list[dict[str, Any]] = []
             for o in orders:
-                if isinstance(o, dict):
-                    legacy.append(o)
-                else:
-                    legacy.append(
-                        {
-                            "id": getattr(o, "id", None),
-                            "symbol": getattr(o, "symbol", None),
-                            "qty": getattr(o, "qty", None),
-                            "status": getattr(o, "status", None),
-                            "type": getattr(o, "order_type", getattr(o, "type", None)),
-                            "limit_price": getattr(o, "limit_price", None),
-                            "created_at": getattr(o, "created_at", None),
-                        }
-                    )
-            return legacy
-        except Exception as e:
-            self.logger.error(f"Failed to get open orders: {e}")
-            return []
+                dom = alpaca_order_to_domain(o)
+                enriched.append(
+                    {
+                        "raw": o,
+                        "domain": dom,
+                        "summary": summarize_order(dom),
+                    }
+                )
+            return enriched
+
+        # Legacy best-effort mapping to simple dicts
+        legacy: list[dict[str, Any]] = []
+        for o in orders:
+            if isinstance(o, dict):
+                legacy.append(o)
+            else:
+                legacy.append(
+                    {
+                        "id": getattr(o, "id", None),
+                        "symbol": getattr(o, "symbol", None),
+                        "qty": getattr(o, "qty", None),
+                        "status": getattr(o, "status", None),
+                        "type": getattr(o, "order_type", getattr(o, "type", None)),
+                        "limit_price": getattr(o, "limit_price", None),
+                        "created_at": getattr(o, "created_at", None),
+                    }
+                )
+        return legacy
 
     # Position Management Operations
     def get_position_summary(self, symbol: str | None = None) -> dict[str, Any]:
@@ -364,59 +362,53 @@ class TradingServiceManager:
         """Get portfolio allocation and diversification metrics"""
         return self.account.get_portfolio_allocation()
 
+    @translate_trading_errors(default_return={"error": "Failed to get account summary"})
     def get_account_summary_enriched(self) -> dict[str, Any]:
         """Feature-flagged enriched account summary.
 
         - Legacy (flag OFF): return the original summary dict unchanged.
         - Flag ON: return {"raw": legacy_summary, "summary": typed_serializable_dict}
         """
-        try:
-            legacy = self.account.get_account_summary()
-            if not type_system_v2_enabled():
-                return legacy
+        legacy = self.account.get_account_summary()
+        if not type_system_v2_enabled():
+            return legacy
 
-            typed = account_summary_to_typed(legacy)
-            return {"raw": legacy, "summary": account_typed_to_serializable(typed)}
-        except Exception as e:
-            self.logger.error(f"Failed to get account summary: {e}")
-            return {"error": str(e)}
+        typed = account_summary_to_typed(legacy)
+        return {"raw": legacy, "summary": account_typed_to_serializable(typed)}
 
     def get_all_positions(self) -> list[Any]:
         """Get all positions from the underlying repository"""
         return self.alpaca_manager.get_all_positions()
 
+    @translate_trading_errors(default_return=[])
     def get_positions_enriched(self) -> list[dict[str, Any]]:
         """Feature-flagged enriched positions list.
 
         - Legacy: return the raw objects from Alpaca as-is.
         - Flag ON: return list of {"raw": pos, "summary": PositionSummary-as-dict}
         """
-        try:
-            raw_positions = self.alpaca_manager.get_all_positions()
-            if not type_system_v2_enabled():
-                return list(raw_positions)
+        raw_positions = self.alpaca_manager.get_all_positions()
+        if not type_system_v2_enabled():
+            return list(raw_positions)
 
-            enriched: list[dict[str, Any]] = []
-            for p in raw_positions:
-                s = alpaca_position_to_summary(p)
-                enriched.append(
-                    {
-                        "raw": p,
-                        "summary": {
-                            "symbol": s.symbol,
-                            "qty": float(s.qty),
-                            "avg_entry_price": float(s.avg_entry_price),
-                            "current_price": float(s.current_price),
-                            "market_value": float(s.market_value),
-                            "unrealized_pl": float(s.unrealized_pl),
-                            "unrealized_plpc": float(s.unrealized_plpc),
-                        },
-                    }
-                )
-            return enriched
-        except Exception as e:
-            self.logger.error(f"Failed to get positions: {e}")
-            return []
+        enriched: list[dict[str, Any]] = []
+        for p in raw_positions:
+            s = alpaca_position_to_summary(p)
+            enriched.append(
+                {
+                    "raw": p,
+                    "summary": {
+                        "symbol": s.symbol,
+                        "qty": float(s.qty),
+                        "avg_entry_price": float(s.avg_entry_price),
+                        "current_price": float(s.current_price),
+                        "market_value": float(s.market_value),
+                        "unrealized_pl": float(s.unrealized_pl),
+                        "unrealized_plpc": float(s.unrealized_plpc),
+                    },
+                }
+            )
+        return enriched
 
     def get_portfolio_value(self) -> Any:
         """Get total portfolio value (feature-flagged typed path)."""
@@ -427,6 +419,7 @@ class TradingServiceManager:
         return raw
 
     # High-Level Trading Operations
+    @translate_trading_errors(default_return={"success": False, "reason": "Order execution failed", "error": "Service error"})
     def execute_smart_order(
         self, symbol: str, quantity: int, side: str, order_type: str = "market", **kwargs: Any
     ) -> dict[str, Any]:
@@ -443,49 +436,45 @@ class TradingServiceManager:
         Returns:
             Comprehensive order execution result
         """
-        try:
-            # Pre-trade validation
-            estimated_cost = None
-            if side.lower() == "buy" and order_type == "market":
-                price_data = self.get_latest_price(symbol)
-                if price_data.get("success") and price_data.get("price"):
-                    estimated_cost = price_data["price"] * quantity
+        # Pre-trade validation
+        estimated_cost = None
+        if side.lower() == "buy" and order_type == "market":
+            price_data = self.get_latest_price(symbol)
+            if price_data.get("success") and price_data.get("price"):
+                estimated_cost = price_data["price"] * quantity
 
-            eligibility = self.validate_trade_eligibility(symbol, quantity, side, estimated_cost)
-            if not eligibility["eligible"]:
-                return {
-                    "success": False,
-                    "reason": eligibility["reason"],
-                    "details": eligibility["details"],
-                }
+        eligibility = self.validate_trade_eligibility(symbol, quantity, side, estimated_cost)
+        if not eligibility["eligible"]:
+            return {
+                "success": False,
+                "reason": eligibility["reason"],
+                "details": eligibility["details"],
+            }
 
-            # Execute the order based on type
-            if order_type.lower() == "market":
-                result = self.place_market_order(symbol, quantity, side, validate=False)
-            elif order_type.lower() == "limit":
-                limit_price = kwargs.get("limit_price")
-                if not limit_price:
-                    return {"success": False, "reason": "limit_price required for limit orders"}
-                result = self.place_limit_order(symbol, quantity, side, limit_price, validate=False)
-            elif order_type.lower() == "stop_loss":
-                stop_price = kwargs.get("stop_price")
-                if not stop_price:
-                    return {"success": False, "reason": "stop_price required for stop_loss orders"}
-                result = self.place_stop_loss_order(symbol, quantity, stop_price, validate=False)
-            else:
-                return {"success": False, "reason": f"Unsupported order type: {order_type}"}
+        # Execute the order based on type
+        if order_type.lower() == "market":
+            result = self.place_market_order(symbol, quantity, side, validate=False)
+        elif order_type.lower() == "limit":
+            limit_price = kwargs.get("limit_price")
+            if not limit_price:
+                return {"success": False, "reason": "limit_price required for limit orders"}
+            result = self.place_limit_order(symbol, quantity, side, limit_price, validate=False)
+        elif order_type.lower() == "stop_loss":
+            stop_price = kwargs.get("stop_price")
+            if not stop_price:
+                return {"success": False, "reason": "stop_price required for stop_loss orders"}
+            result = self.place_stop_loss_order(symbol, quantity, stop_price, validate=False)
+        else:
+            return {"success": False, "reason": f"Unsupported order type: {order_type}"}
 
-            # Add post-execution analytics
-            if result.get("success"):
-                result["pre_trade_validation"] = eligibility
-                result["account_impact"] = self.get_account_summary()
+        # Add post-execution analytics
+        if result.get("success"):
+            result["pre_trade_validation"] = eligibility
+            result["account_impact"] = self.get_account_summary()
 
-            return result
+        return result
 
-        except Exception as e:
-            self.logger.error(f"Failed to execute smart order: {e}")
-            return {"success": False, "reason": f"Execution failed: {str(e)}", "error": str(e)}
-
+    @translate_trading_errors(default_return={"error": "Failed to generate dashboard", "timestamp": ""})
     def get_trading_dashboard(self) -> dict[str, Any]:
         """
         Get a comprehensive trading dashboard with all key metrics
@@ -493,19 +482,15 @@ class TradingServiceManager:
         Returns:
             Complete trading dashboard data
         """
-        try:
-            return {
-                "account": self.get_account_summary(),
-                "risk_metrics": self.get_risk_metrics(),
-                "portfolio_allocation": self.get_portfolio_allocation(),
-                "position_summary": self.get_position_summary(),
-                "open_orders": self.get_open_orders(),
-                "market_status": self.get_market_status(),
-                "timestamp": __import__("datetime").datetime.now().isoformat(),
-            }
-        except Exception as e:
-            self.logger.error(f"Failed to generate trading dashboard: {e}")
-            return {"error": str(e), "timestamp": __import__("datetime").datetime.now().isoformat()}
+        return {
+            "account": self.get_account_summary(),
+            "risk_metrics": self.get_risk_metrics(),
+            "portfolio_allocation": self.get_portfolio_allocation(),
+            "position_summary": self.get_position_summary(),
+            "open_orders": self.get_open_orders(),
+            "market_status": self.get_market_status(),
+            "timestamp": __import__("datetime").datetime.now().isoformat(),
+        }
 
     def close(self) -> None:
         """Clean up resources"""

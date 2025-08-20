@@ -21,6 +21,7 @@ from the_alchemiser.domain.interfaces import (
     MarketDataRepository,
     TradingRepository,
 )
+from the_alchemiser.services.errors.decorators import translate_trading_errors
 
 logger = logging.getLogger(__name__)
 
@@ -87,6 +88,7 @@ class PositionService:
         self._account = account_repo
         self._max_position_weight = max_position_weight
 
+    @translate_trading_errors()
     def get_positions_with_analysis(self) -> dict[str, PositionInfo]:
         """
         Get all positions with detailed analysis.
@@ -97,51 +99,47 @@ class PositionService:
         Raises:
             Exception: If position data cannot be retrieved
         """
-        try:
-            logger.info("Retrieving positions with analysis")
+        logger.info("Retrieving positions with analysis")
 
-            # Get basic positions
-            positions = self._trading.get_positions_dict()
+        # Get basic positions
+        positions = self._trading.get_positions_dict()
 
-            if not positions:
-                logger.info("No positions found")
-                return {}
+        if not positions:
+            logger.info("No positions found")
+            return {}
 
-            # Get portfolio total for weight calculations
-            portfolio_total = self._calculate_portfolio_total(positions)
+        # Get portfolio total for weight calculations
+        portfolio_total = self._calculate_portfolio_total(positions)
 
-            # Enhance each position with analysis
-            enhanced_positions = {}
+        # Enhance each position with analysis
+        enhanced_positions = {}
 
-            for symbol, quantity in positions.items():
-                if quantity == 0:
-                    continue  # Skip zero positions
+        for symbol, quantity in positions.items():
+            if quantity == 0:
+                continue  # Skip zero positions
 
-                try:
-                    position_info = self._create_position_info(symbol, quantity, portfolio_total)
-                    enhanced_positions[symbol] = position_info
+            try:
+                position_info = self._create_position_info(symbol, quantity, portfolio_total)
+                enhanced_positions[symbol] = position_info
 
-                except Exception as e:
-                    logger.error(f"Failed to analyze position {symbol}: {e}")
-                    # Create minimal position info
-                    enhanced_positions[symbol] = PositionInfo(
-                        symbol=symbol,
-                        quantity=quantity,
-                        market_value=None,
-                        unrealized_pnl=None,
-                        unrealized_pnl_percent=None,
-                        cost_basis=None,
-                        current_price=None,
-                        weight_percent=None,
-                    )
+            except Exception as e:
+                logger.error(f"Failed to analyze position {symbol}: {e}")
+                # Create minimal position info
+                enhanced_positions[symbol] = PositionInfo(
+                    symbol=symbol,
+                    quantity=quantity,
+                    market_value=None,
+                    unrealized_pnl=None,
+                    unrealized_pnl_percent=None,
+                    cost_basis=None,
+                    current_price=None,
+                    weight_percent=None,
+                )
 
-            logger.info(f"✅ Retrieved {len(enhanced_positions)} positions with analysis")
-            return enhanced_positions
+        logger.info(f"✅ Retrieved {len(enhanced_positions)} positions with analysis")
+        return enhanced_positions
 
-        except Exception as e:
-            logger.error(f"❌ Failed to get positions with analysis: {e}")
-            raise
-
+    @translate_trading_errors()
     def get_portfolio_summary(self) -> PortfolioSummary:
         """
         Get portfolio-level summary and analysis.
@@ -152,58 +150,53 @@ class PositionService:
         Raises:
             Exception: If portfolio data cannot be retrieved
         """
-        try:
-            logger.info("Calculating portfolio summary")
+        logger.info("Calculating portfolio summary")
 
-            positions = self.get_positions_with_analysis()
+        positions = self.get_positions_with_analysis()
 
-            if not positions:
-                return PortfolioSummary(
-                    total_market_value=0.0,
-                    total_positions=0,
-                    largest_position_value=0.0,
-                    largest_position_percent=0.0,
-                    cash_balance=self._get_cash_balance(),
-                    total_equity=None,
-                )
-
-            # Calculate summary metrics
-            total_market_value = 0.0
-            largest_position_value = 0.0
-            largest_position_percent = 0.0
-
-            for position in positions.values():
-                if position.market_value:
-                    total_market_value += position.market_value
-
-                    if position.market_value > largest_position_value:
-                        largest_position_value = position.market_value
-
-                if position.weight_percent:
-                    if position.weight_percent > largest_position_percent:
-                        largest_position_percent = position.weight_percent
-
-            cash_balance = self._get_cash_balance()
-            total_equity = total_market_value + (cash_balance or 0.0)
-
-            summary = PortfolioSummary(
-                total_market_value=total_market_value,
-                total_positions=len(positions),
-                largest_position_value=largest_position_value,
-                largest_position_percent=largest_position_percent,
-                cash_balance=cash_balance,
-                total_equity=total_equity,
+        if not positions:
+            return PortfolioSummary(
+                total_market_value=0.0,
+                total_positions=0,
+                largest_position_value=0.0,
+                largest_position_percent=0.0,
+                cash_balance=self._get_cash_balance(),
+                total_equity=None,
             )
 
-            logger.info(
-                f"✅ Portfolio summary: {summary.total_positions} positions, "
-                f"${summary.total_market_value:.2f} market value"
-            )
-            return summary
+        # Calculate summary metrics
+        total_market_value = 0.0
+        largest_position_value = 0.0
+        largest_position_percent = 0.0
 
-        except Exception as e:
-            logger.error(f"❌ Failed to get portfolio summary: {e}")
-            raise
+        for position in positions.values():
+            if position.market_value:
+                total_market_value += position.market_value
+
+                if position.market_value > largest_position_value:
+                    largest_position_value = position.market_value
+
+            if position.weight_percent:
+                if position.weight_percent > largest_position_percent:
+                    largest_position_percent = position.weight_percent
+
+        cash_balance = self._get_cash_balance()
+        total_equity = total_market_value + (cash_balance or 0.0)
+
+        summary = PortfolioSummary(
+            total_market_value=total_market_value,
+            total_positions=len(positions),
+            largest_position_value=largest_position_value,
+            largest_position_percent=largest_position_percent,
+            cash_balance=cash_balance,
+            total_equity=total_equity,
+        )
+
+        logger.info(
+            f"✅ Portfolio summary: {summary.total_positions} positions, "
+            f"${summary.total_market_value:.2f} market value"
+        )
+        return summary
 
     def check_position_limits(self, symbol: str, proposed_quantity: float) -> bool:
         """
@@ -252,6 +245,7 @@ class PositionService:
             logger.warning(f"Could not validate position limits for {symbol}: {e}")
             return True  # Allow if we can't validate
 
+    @translate_trading_errors()
     def get_position_risk_metrics(self, symbol: str) -> dict[str, float | None]:
         """
         Get risk metrics for a specific position.
@@ -265,39 +259,35 @@ class PositionService:
         Raises:
             Exception: If position data cannot be retrieved
         """
-        try:
-            positions = self._trading.get_positions_dict()
-            quantity = positions.get(symbol, 0.0)
+        positions = self._trading.get_positions_dict()
+        quantity = positions.get(symbol, 0.0)
 
-            if quantity == 0:
-                return {
-                    "position_value": 0.0,
-                    "portfolio_weight": 0.0,
-                    "unrealized_pnl": 0.0,
-                    "unrealized_pnl_percent": 0.0,
-                }
-
-            position_info = self.get_positions_with_analysis().get(symbol)
-
-            if not position_info:
-                return {
-                    "position_value": None,
-                    "portfolio_weight": None,
-                    "unrealized_pnl": None,
-                    "unrealized_pnl_percent": None,
-                }
-
+        if quantity == 0:
             return {
-                "position_value": position_info.market_value,
-                "portfolio_weight": position_info.weight_percent,
-                "unrealized_pnl": position_info.unrealized_pnl,
-                "unrealized_pnl_percent": position_info.unrealized_pnl_percent,
+                "position_value": 0.0,
+                "portfolio_weight": 0.0,
+                "unrealized_pnl": 0.0,
+                "unrealized_pnl_percent": 0.0,
             }
 
-        except Exception as e:
-            logger.error(f"❌ Failed to get risk metrics for {symbol}: {e}")
-            raise
+        position_info = self.get_positions_with_analysis().get(symbol)
 
+        if not position_info:
+            return {
+                "position_value": None,
+                "portfolio_weight": None,
+                "unrealized_pnl": None,
+                "unrealized_pnl_percent": None,
+            }
+
+        return {
+            "position_value": position_info.market_value,
+            "portfolio_weight": position_info.weight_percent,
+            "unrealized_pnl": position_info.unrealized_pnl,
+            "unrealized_pnl_percent": position_info.unrealized_pnl_percent,
+        }
+
+    @translate_trading_errors()
     def get_largest_positions(self, limit: int = 5) -> list[PositionInfo]:
         """
         Get the largest positions by market value.
@@ -311,24 +301,20 @@ class PositionService:
         Raises:
             Exception: If position data cannot be retrieved
         """
-        try:
-            positions = self.get_positions_with_analysis()
+        positions = self.get_positions_with_analysis()
 
-            # Filter positions with market value and sort
-            valued_positions = [
-                pos
-                for pos in positions.values()
-                if pos.market_value is not None and pos.market_value > 0
-            ]
+        # Filter positions with market value and sort
+        valued_positions = [
+            pos
+            for pos in positions.values()
+            if pos.market_value is not None and pos.market_value > 0
+        ]
 
-            valued_positions.sort(key=lambda p: p.market_value or 0, reverse=True)
+        valued_positions.sort(key=lambda p: p.market_value or 0, reverse=True)
 
-            return valued_positions[:limit]
+        return valued_positions[:limit]
 
-        except Exception as e:
-            logger.error(f"❌ Failed to get largest positions: {e}")
-            raise
-
+    @translate_trading_errors(default_return=0.0)
     def calculate_diversification_score(self) -> float:
         """
         Calculate a simple diversification score (0-1, higher is more diversified).
@@ -339,38 +325,33 @@ class PositionService:
         Raises:
             Exception: If position data cannot be retrieved
         """
-        try:
-            positions = self.get_positions_with_analysis()
+        positions = self.get_positions_with_analysis()
 
-            if len(positions) <= 1:
-                return 0.0  # No diversification with 0-1 positions
+        if len(positions) <= 1:
+            return 0.0  # No diversification with 0-1 positions
 
-            # Calculate concentration (sum of squared weights)
-            total_squared_weights = 0.0
-            valid_weights = 0
+        # Calculate concentration (sum of squared weights)
+        total_squared_weights = 0.0
+        valid_weights = 0
 
-            for position in positions.values():
-                if position.weight_percent is not None:
-                    weight = position.weight_percent / 100.0  # Convert to decimal
-                    total_squared_weights += weight**2
-                    valid_weights += 1
+        for position in positions.values():
+            if position.weight_percent is not None:
+                weight = position.weight_percent / 100.0  # Convert to decimal
+                total_squared_weights += weight**2
+                valid_weights += 1
 
-            if valid_weights == 0:
-                return 0.0
-
-            # Herfindahl index (concentration measure)
-            herfindahl = total_squared_weights
-
-            # Convert to diversification score (1 - concentration)
-            # Perfect diversification (equal weights) would give score closer to 1
-            max_herfindahl = 1.0  # Maximum concentration (one position = 100%)
-            diversification_score = 1.0 - (herfindahl / max_herfindahl)
-
-            return min(1.0, max(0.0, diversification_score))
-
-        except Exception as e:
-            logger.error(f"❌ Failed to calculate diversification score: {e}")
+        if valid_weights == 0:
             return 0.0
+
+        # Herfindahl index (concentration measure)
+        herfindahl = total_squared_weights
+
+        # Convert to diversification score (1 - concentration)
+        # Perfect diversification (equal weights) would give score closer to 1
+        max_herfindahl = 1.0  # Maximum concentration (one position = 100%)
+        diversification_score = 1.0 - (herfindahl / max_herfindahl)
+
+        return min(1.0, max(0.0, diversification_score))
 
     # Private helper methods
 
