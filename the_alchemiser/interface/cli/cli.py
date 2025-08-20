@@ -138,7 +138,6 @@ def signal(
             console.print_exception()
         raise typer.Exit(1)
     except (ImportError, AttributeError, ValueError, KeyError, TypeError, OSError) as e:
-        error_handler = TradingSystemErrorHandler()
         error_handler.handle_error(
             error=e,
             context="CLI signal command - unexpected system error",
