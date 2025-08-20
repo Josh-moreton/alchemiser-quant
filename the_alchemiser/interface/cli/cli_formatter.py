@@ -6,17 +6,6 @@ from rich.panel import Panel
 from rich.rule import Rule
 from rich.table import Table
 
-from the_alchemiser.domain.types import (
-    AccountInfo,
-    CLIOrderDisplay,
-    CLIPortfolioData,
-    CLISignalData,
-    OrderDetails,
-    PositionInfo,
-    PositionsDict,
-)
-from the_alchemiser.interfaces.schemas.common import MultiStrategyExecutionResultDTO
-from the_alchemiser.interfaces.schemas.orders import OrderExecutionResultDTO
 from the_alchemiser.utils.feature_flags import type_system_v2_enabled
 
 """Console formatting utilities for quantitative trading system output using rich."""
