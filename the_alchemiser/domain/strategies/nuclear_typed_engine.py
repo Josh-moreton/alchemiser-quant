@@ -22,11 +22,6 @@ from the_alchemiser.domain.strategies.protocols.market_data_port import MarketDa
 
 # Import the pure strategy logic
 from the_alchemiser.domain.strategies.strategy_engine import (
-    BearMarketStrategy,
-    BullMarketStrategy,
-    VoxOverboughtStrategy,
-)
-from the_alchemiser.domain.strategies.strategy_engine import (
     NuclearStrategyEngine as PureStrategyEngine,
 )
 from the_alchemiser.domain.strategies.value_objects.confidence import Confidence
@@ -131,7 +126,9 @@ class NuclearTypedEngine(StrategyEngine):
                     "ma_return_90": safe_get_indicator(
                         close, self.indicators.moving_average_return, 90
                     ),
-                    "cum_return_60": safe_get_indicator(close, self.indicators.cumulative_return, 60),
+                    "cum_return_60": safe_get_indicator(
+                        close, self.indicators.cumulative_return, 60
+                    ),
                     "current_price": float(close.iloc[-1]),
                 }
             except Exception as e:
@@ -143,81 +140,21 @@ class NuclearTypedEngine(StrategyEngine):
         self, indicators: dict[str, Any], market_data: dict[str, Any] | None = None
     ) -> tuple[str, str, str]:
         """
-        Evaluate Nuclear strategy using the original hierarchical logic.
+        Evaluate Nuclear strategy using the shared strategy logic.
         Returns: (recommended_symbol, action, detailed_reason)
         """
-        if "SPY" not in indicators:
-            return (
-                "SPY",
-                "HOLD",
-                "Missing SPY data - cannot evaluate market conditions",
-            )
+        # Import the shared evaluation logic
+        from the_alchemiser.domain.strategies.nuclear_signals import NuclearStrategyEngine
 
-        # Get key market indicators for detailed reasoning
-        spy_rsi_10 = indicators["SPY"]["rsi_10"]
-        spy_price = indicators["SPY"]["current_price"]
-        spy_ma_200 = indicators["SPY"]["ma_200"]
-        market_trend = "Bull Market" if spy_price > spy_ma_200 else "Bear Market"
+        # Create a mock data provider for the legacy engine
+        class MockDataProvider:
+            def get_data(self, symbol: str) -> pd.DataFrame:
+                # Return empty DataFrame - indicators are already calculated
+                return pd.DataFrame()
 
-        # PRIMARY BRANCH: SPY RSI > 79 (ALL nested overbought checks happen HERE)
-        if spy_rsi_10 > 79:
-            base_explanation = f"Market Analysis: {market_trend} (SPY ${spy_price:.2f} vs 200MA ${spy_ma_200:.2f})\nSPY RSI(10): {spy_rsi_10:.1f} - Primary overbought condition triggered (>79)"
-
-            # First: SPY extremely overbought (> 81)
-            if spy_rsi_10 > 81:
-                explanation = f"{base_explanation}\n\nSignal: SPY extremely overbought (RSI {spy_rsi_10:.1f} > 81)\nAction: Buy UVXY volatility hedge - expect major market correction"
-                return "UVXY", "BUY", explanation
-
-            # Then: Nested checks for IOO, TQQQ, VTV, XLF (RSI > 81) - IN ORDER
-            for symbol in ["IOO", "TQQQ", "VTV", "XLF"]:
-                if symbol in indicators and indicators[symbol]["rsi_10"] > 81:
-                    symbol_rsi = indicators[symbol]["rsi_10"]
-                    explanation = f"{base_explanation}\n\nSecondary Check: {symbol} RSI(10): {symbol_rsi:.1f} - Extremely overbought (>81)\nAction: Buy UVXY volatility hedge - sector rotation imminent"
-                    return "UVXY", "BUY", explanation
-
-            # Finally: SPY moderately overbought (79-81) - hedge portfolio
-            explanation = f"{base_explanation}\n\nSignal: SPY moderately overbought (79 < RSI {spy_rsi_10:.1f} < 81)\nAction: Defensive hedged position - UVXY 75% + BTAL 25%\nRationale: Partial volatility hedge while maintaining some upside exposure"
-            return "UVXY_BTAL_PORTFOLIO", "BUY", explanation
-
-        # PRIMARY BRANCH: SPY RSI <= 79 - Continue with VOX, oversold checks, bull/bear logic
-        base_explanation = f"Market Analysis: {market_trend} (SPY ${spy_price:.2f} vs 200MA ${spy_ma_200:.2f})\nSPY RSI(10): {spy_rsi_10:.1f} - Not overbought, checking secondary conditions"
-
-        # VOX overbought check
-        if "VOX" in indicators and indicators["VOX"]["rsi_10"] > 79:
-            vox_rsi = indicators["VOX"]["rsi_10"]
-            result = VoxOverboughtStrategy().recommend(indicators)
-            if result:
-                symbol, action, basic_reason = result
-                explanation = f"{base_explanation}\n\nVOX Telecom Analysis: RSI(10) {vox_rsi:.1f} > 79 (overbought)\n{basic_reason}"
-                return symbol, action, explanation
-
-        # Oversold conditions (TQQQ first, then SPY)
-        if "TQQQ" in indicators and indicators["TQQQ"]["rsi_10"] < 30:
-            tqqq_rsi = indicators["TQQQ"]["rsi_10"]
-            explanation = f"{base_explanation}\n\nOversold Opportunity: TQQQ RSI(10) {tqqq_rsi:.1f} < 30\nAction: Buy the dip in leveraged tech - oversold bounce expected"
-            return "TQQQ", "BUY", explanation
-
-        if indicators["SPY"]["rsi_10"] < 30:
-            explanation = f"{base_explanation}\n\nOversold Opportunity: SPY RSI(10) {spy_rsi_10:.1f} < 30\nAction: Buy UPRO (3x leveraged SPY) - market oversold, strong bounce expected"
-            return "UPRO", "BUY", explanation
-
-        # Bull vs Bear market determination (SPY above/below 200 MA)
-        if "SPY" in indicators and spy_price > spy_ma_200:
-            result = BullMarketStrategy(self.pure_strategy).recommend(indicators, market_data)
-            if result:
-                symbol, action, basic_reason = result
-                explanation = f"{base_explanation}\n\nBull Market Strategy: SPY above 200MA (${spy_price:.2f} > ${spy_ma_200:.2f})\n{basic_reason}"
-                return symbol, action, explanation
-        else:
-            result = BearMarketStrategy(self.pure_strategy).recommend(indicators)
-            if result:
-                symbol, action, basic_reason = result
-                explanation = f"{base_explanation}\n\nBear Market Strategy: SPY below 200MA (${spy_price:.2f} < ${spy_ma_200:.2f})\n{basic_reason}"
-                return symbol, action, explanation
-
-        # Fallback - no clear signal
-        explanation = f"{base_explanation}\n\nNo Clear Signal: Market conditions neutral\nRSI not overbought/oversold, no strong trend signals\nAction: Hold current positions, wait for clearer market direction"
-        return "SPY", "HOLD", explanation
+        # Use the existing evaluation logic
+        legacy_engine = NuclearStrategyEngine(MockDataProvider())
+        return legacy_engine.evaluate_nuclear_strategy(indicators, market_data)
 
     def _create_strategy_signal(
         self, symbol: str, action: str, reasoning: str, timestamp: datetime
