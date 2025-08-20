@@ -5,6 +5,8 @@ This module handles the multi-strategy email template generation.
 
 from typing import Any
 
+from the_alchemiser.interfaces.schemas.common import MultiStrategyExecutionResultDTO
+
 from .base import BaseEmailTemplate
 from .performance import PerformanceBuilder
 from .portfolio import PortfolioBuilder
@@ -15,7 +17,7 @@ class MultiStrategyReportBuilder:
     """Builds multi-strategy email templates."""
 
     @staticmethod
-    def build_multi_strategy_report(result: Any, mode: str) -> str:
+    def build_multi_strategy_report(result: MultiStrategyExecutionResultDTO | Any, mode: str) -> str:
         """Build a comprehensive multi-strategy email report."""
 
         # Determine success status
@@ -120,7 +122,7 @@ class MultiStrategyReportBuilder:
         return BaseEmailTemplate.wrap_content(content, "The Alchemiser - Multi-Strategy Report")
 
     @staticmethod
-    def build_multi_strategy_report_neutral(result: Any, mode: str) -> str:
+    def build_multi_strategy_report_neutral(result: MultiStrategyExecutionResultDTO | Any, mode: str) -> str:
         """Build a neutral multi-strategy email report without financial values."""
 
         # Determine success status

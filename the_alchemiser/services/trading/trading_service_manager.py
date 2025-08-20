@@ -11,6 +11,7 @@ from the_alchemiser.application.mapping.order_mapping import (
     summarize_order,
 )
 from the_alchemiser.application.mapping.position_mapping import alpaca_position_to_summary
+from the_alchemiser.interfaces.schemas.orders import OrderExecutionResultDTO
 from the_alchemiser.services.account.account_service import AccountService
 from the_alchemiser.services.market_data.market_data_service import MarketDataService
 from the_alchemiser.services.repository.alpaca_manager import AlpacaManager

@@ -3,6 +3,7 @@ from typing import Any, Literal, cast
 
 from the_alchemiser.domain.interfaces import AccountRepository
 from the_alchemiser.domain.types import AccountInfo, PositionsDict
+from the_alchemiser.interfaces.schemas.common import MultiStrategyExecutionResultDTO
 
 
 class AccountService:
