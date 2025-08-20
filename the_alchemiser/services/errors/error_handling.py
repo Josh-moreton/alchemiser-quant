@@ -271,26 +271,23 @@ class ErrorContext:
 
 def create_service_logger(service_name: str, level: int = logging.INFO) -> logging.Logger:
     """
-    Create a standardized logger for a service.
+    [DEPRECATED] Create a standardized logger for a service.
+    
+    This function is deprecated. Use get_service_logger from 
+    the_alchemiser.infrastructure.logging.logging_utils instead,
+    which uses centralized logging configuration.
 
     Args:
         service_name: Name of the service
-        level: Logging level
+        level: Logging level (ignored - use central config)
 
     Returns:
-        Configured logger
+        Configured logger using central configuration
     """
-    logger = logging.getLogger(f"the_alchemiser.services.{service_name}")
-    logger.setLevel(level)
-
-    # Add handler if not already present
-    if not logger.handlers:
-        handler = logging.StreamHandler()
-        formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-        handler.setFormatter(formatter)
-        logger.addHandler(handler)
-
-    return logger
+    # Import here to avoid circular imports
+    from the_alchemiser.infrastructure.logging.logging_utils import get_service_logger
+    
+    return get_service_logger(service_name)
 
 
 class ServiceMetrics:
