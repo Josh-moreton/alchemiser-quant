@@ -1,7 +1,7 @@
 # The Alchemiser Makefile
 # Quick commands for development and deployment
 
-.PHONY: help install dev test clean run-signals run-trade run-trade-live status deploy format lint
+.PHONY: help install dev test test-all perf perf-check clean run-signals run-trade run-trade-live status deploy format lint
 
 # Default target
 help:
@@ -19,6 +19,9 @@ help:
 	@echo ""
 	@echo "Development:"
 	@echo "  test            Run tests"
+	@echo "  test-all        Run all tests including performance"
+	@echo "  perf            Run performance benchmarks"
+	@echo "  perf-check      Run performance check (non-blocking)"
 	@echo "  format          Format code with black"
 	@echo "  lint            Run linting"
 	@echo "  clean           Clean build artifacts"
@@ -56,6 +59,18 @@ status:
 test:
 	@echo "🧪 Running tests..."
 	poetry run pytest tests/ -v
+
+test-all:
+	@echo "🧪 Running all tests including performance..."
+	poetry run pytest tests/ -v
+
+perf:
+	@echo "⚡ Running performance tests..."
+	poetry run pytest tests/performance/ -v -s
+
+perf-check:
+	@echo "⚡ Running performance check (non-blocking)..."
+	poetry run pytest tests/performance/ -v || echo "⚠️ Performance tests failed but continuing..."
 
 contract-tests:
 	@echo "🤝 Running contract tests..."
