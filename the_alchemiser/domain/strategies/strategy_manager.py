@@ -494,7 +494,7 @@ class MultiStrategyManager:
                     return {symbol: data["weight"] for symbol, data in bear_portfolio.items()}
 
                 except StrategyExecutionError as e:
-                    from the_alchemiser.services.errors.error_handler import (
+                    from the_alchemiser.services.errors import (
                         TradingSystemErrorHandler,
                     )
 
@@ -518,7 +518,7 @@ class MultiStrategyManager:
                     )
                     return {bear1_symbol: 0.6, bear2_symbol: 0.4}
                 except DataProviderError as e:
-                    from the_alchemiser.services.errors.error_handler import (
+                    from the_alchemiser.services.errors import (
                         TradingSystemErrorHandler,
                     )
 
@@ -540,7 +540,7 @@ class MultiStrategyManager:
                     logging.warning(f"Bear portfolio data error: {e}, using conservative fallback")
                     return {bear1_symbol: 0.6, bear2_symbol: 0.4}
                 except Exception as e:
-                    from the_alchemiser.services.errors.error_handler import (
+                    from the_alchemiser.services.errors import (
                         TradingSystemErrorHandler,
                     )
 

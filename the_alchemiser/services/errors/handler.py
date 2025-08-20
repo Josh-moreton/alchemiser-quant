@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Enhanced Error Handler for The Alchemiser Trading System.
+Main error handler for The Alchemiser Trading System.
 
-This module provides comprehensive error handling, categorization, and detailed
-error reporting via email notifications for autonomous trading operations.
+This module provides the single facade TradingSystemErrorHandler for all error handling,
+categorization, and detailed error reporting via email notifications.
 """
 
 import logging
@@ -15,13 +15,12 @@ from collections import defaultdict
 from collections.abc import Callable
 from datetime import datetime
 from functools import wraps
-
-# Enhanced error reporting and classification utilities.
 from typing import Any
 
-# ✅ Phase 14 - Error handler types enabled
+# Enhanced error reporting and classification utilities.
 from the_alchemiser.domain.types import ErrorDetailInfo, ErrorNotificationData, ErrorReportSummary
 
+from .context import ErrorContextData
 from .exceptions import (
     AlchemiserError,
     ConfigurationError,
@@ -43,42 +42,6 @@ class ErrorSeverity:
     MEDIUM = "medium"
     HIGH = "high"
     CRITICAL = "critical"
-
-
-class ErrorContext:
-    """Standardized error context for all error reporting."""
-
-    def __init__(
-        self,
-        operation: str,
-        component: str,
-        function_name: str | None = None,
-        request_id: str | None = None,
-        user_id: str | None = None,
-        session_id: str | None = None,
-        additional_data: dict[str, Any] | None = None,
-    ):
-        self.operation = operation
-        self.component = component
-        self.function_name = function_name
-        self.request_id = request_id
-        self.user_id = user_id
-        self.session_id = session_id
-        self.additional_data = additional_data or {}
-        self.timestamp = datetime.now()
-
-    def to_dict(self) -> dict[str, Any]:
-        """Convert context to dictionary for serialization."""
-        return {
-            "operation": self.operation,
-            "component": self.component,
-            "function_name": self.function_name,
-            "request_id": self.request_id,
-            "user_id": self.user_id,
-            "session_id": self.session_id,
-            "additional_data": self.additional_data,
-            "timestamp": self.timestamp.isoformat(),
-        }
 
 
 class ErrorCategory:
@@ -116,7 +79,7 @@ class ErrorDetails:
         self.timestamp = datetime.now()
         self.traceback = traceback.format_exc()
 
-    def to_dict(self) -> ErrorDetailInfo:  # ✅ Phase 14 - Return ErrorDetailInfo
+    def to_dict(self) -> ErrorDetailInfo:
         """Convert error details to dictionary for serialization."""
         return {
             "error_type": type(self.error).__name__,
@@ -137,7 +100,7 @@ class EnhancedAlchemiserError(AlchemiserError):
     def __init__(
         self,
         message: str,
-        context: ErrorContext | dict[str, Any] | None = None,
+        context: ErrorContextData | dict[str, Any] | Any | None = None,
         severity: str = ErrorSeverity.MEDIUM,
         recoverable: bool = True,
         retry_count: int = 0,
@@ -145,9 +108,12 @@ class EnhancedAlchemiserError(AlchemiserError):
     ):
         super().__init__(message)
         if context is not None:
-            if isinstance(context, dict):
+            if isinstance(context, ErrorContextData):
+                self.context = context.to_dict()
+            elif isinstance(context, dict):
                 self.context = context
             else:
+                # For any other object that might have a to_dict method (backward compatibility)
                 self.context = context.to_dict() if hasattr(context, "to_dict") else {}
         else:
             self.context = {}
@@ -299,6 +265,21 @@ class TradingSystemErrorHandler:
 
         return error_details
 
+    def handle_error_with_context(
+        self,
+        error: Exception,
+        context: ErrorContextData,
+        should_continue: bool = True,
+    ) -> ErrorDetails:
+        """Handle error with structured context."""
+        return self.handle_error(
+            error=error,
+            context=context.operation,
+            component=context.component,
+            additional_data=context.to_dict(),
+            should_continue=should_continue,
+        )
+
     def has_critical_errors(self) -> bool:
         """Check if any critical errors occurred."""
         return any(error.category == ErrorCategory.CRITICAL for error in self.errors)
@@ -307,7 +288,7 @@ class TradingSystemErrorHandler:
         """Check if any trading-related errors occurred."""
         return any(error.category == ErrorCategory.TRADING for error in self.errors)
 
-    def get_error_summary(self) -> ErrorReportSummary:  # ✅ Phase 14 - Return ErrorReportSummary
+    def get_error_summary(self) -> ErrorReportSummary:
         """Get a summary of all errors by category."""
         # Initialize summary with all categories as None
         summary: ErrorReportSummary = {
@@ -454,7 +435,7 @@ class TradingSystemErrorHandler:
 
         return report
 
-    def clear_errors(self) -> None:  # ✅ Phase 14 - Properly typed
+    def clear_errors(self) -> None:
         """Clear all recorded errors."""
         self.errors.clear()
 
@@ -734,6 +715,47 @@ class CircuitBreaker:
         return wrapper
 
 
+def categorize_error_severity(error: Exception) -> str:
+    """Categorize error severity for monitoring."""
+    if isinstance(error, InsufficientFundsError):
+        return ErrorSeverity.HIGH
+    elif isinstance(error, OrderExecutionError | PositionValidationError):
+        return ErrorSeverity.HIGH
+    elif isinstance(error, MarketDataError | DataProviderError):
+        return ErrorSeverity.MEDIUM
+    elif isinstance(error, StrategyExecutionError):
+        return ErrorSeverity.MEDIUM
+    elif isinstance(error, ConfigurationError):
+        return ErrorSeverity.HIGH
+    elif isinstance(error, NotificationError):
+        return ErrorSeverity.LOW
+    elif isinstance(error, AlchemiserError):
+        return ErrorSeverity.CRITICAL
+    else:
+        return ErrorSeverity.MEDIUM
+
+
+def create_enhanced_error(
+    error_type: type[EnhancedAlchemiserError],
+    message: str,
+    context: ErrorContextData | None = None,
+    severity: str | None = None,
+    **kwargs: Any,
+) -> EnhancedAlchemiserError:
+    """Factory function to create enhanced errors with proper context."""
+    if severity is None:
+        # Auto-determine severity based on error type
+        temp_error = error_type(message)
+        severity = categorize_error_severity(temp_error)
+
+    return error_type(
+        message=message,
+        context=context,
+        severity=severity,
+        **kwargs,
+    )
+
+
 class EnhancedErrorReporter:
     """
     Enhanced error reporting with rate monitoring and aggregation.
@@ -777,7 +799,7 @@ class EnhancedErrorReporter:
         # Use existing error handler for notifications
         if is_critical:
             # Use the global error handler to process the error
-            _error_handler.handle_error(
+            get_error_handler().handle_error(
                 error=error,
                 context=operation or "unknown",
                 component="enhanced_reporter",
@@ -906,77 +928,3 @@ def handle_errors_with_retry(
         return wrapper
 
     return decorator
-
-
-# Phase 1 Enhancement: Error Context and Utility Functions
-
-
-def create_error_context(
-    operation: str,
-    component: str,
-    function_name: str | None = None,
-    **kwargs: Any,
-) -> ErrorContext:
-    """Factory function to create standardized error context."""
-    return ErrorContext(
-        operation=operation,
-        component=component,
-        function_name=function_name,
-        **kwargs,
-    )
-
-
-def handle_error_with_context(
-    error: Exception,
-    context: ErrorContext,
-    should_continue: bool = True,
-) -> ErrorDetails:
-    """Handle error with structured context."""
-    return _error_handler.handle_error(
-        error=error,
-        context=context.operation,
-        component=context.component,
-        additional_data=context.to_dict(),
-        should_continue=should_continue,
-    )
-
-
-def categorize_error_severity(error: Exception) -> str:
-    """Categorize error severity for monitoring."""
-    if isinstance(error, InsufficientFundsError):
-        return ErrorSeverity.HIGH
-    elif isinstance(error, OrderExecutionError | PositionValidationError):
-        return ErrorSeverity.HIGH
-    elif isinstance(error, MarketDataError | DataProviderError):
-        return ErrorSeverity.MEDIUM
-    elif isinstance(error, StrategyExecutionError):
-        return ErrorSeverity.MEDIUM
-    elif isinstance(error, ConfigurationError):
-        return ErrorSeverity.HIGH
-    elif isinstance(error, NotificationError):
-        return ErrorSeverity.LOW
-    elif isinstance(error, AlchemiserError):
-        return ErrorSeverity.CRITICAL
-    else:
-        return ErrorSeverity.MEDIUM
-
-
-def create_enhanced_error(
-    error_type: type[EnhancedAlchemiserError],
-    message: str,
-    context: ErrorContext | None = None,
-    severity: str | None = None,
-    **kwargs: Any,
-) -> EnhancedAlchemiserError:
-    """Factory function to create enhanced errors with proper context."""
-    if severity is None:
-        # Auto-determine severity based on error type
-        temp_error = error_type(message)
-        severity = categorize_error_severity(temp_error)
-
-    return error_type(
-        message=message,
-        context=context,
-        severity=severity,
-        **kwargs,
-    )

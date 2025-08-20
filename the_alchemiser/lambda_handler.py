@@ -228,7 +228,7 @@ def lambda_handler(event: LambdaEvent | None = None, context: Any = None) -> dic
 
         # Enhanced error handling with detailed reporting
         try:
-            from the_alchemiser.services.errors.error_handler import (
+            from the_alchemiser.services.errors import (
                 handle_trading_error,
                 send_error_notification_if_needed,
             )
@@ -274,7 +274,7 @@ def lambda_handler(event: LambdaEvent | None = None, context: Any = None) -> dic
 
         # Enhanced error handling with detailed reporting
         try:
-            from the_alchemiser.services.errors.error_handler import (
+            from the_alchemiser.services.errors import (
                 handle_trading_error,
                 send_error_notification_if_needed,
             )

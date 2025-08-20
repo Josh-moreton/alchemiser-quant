@@ -36,7 +36,7 @@ from the_alchemiser.interfaces.schemas.tracking import (
     ExecutionStatus,
     StrategyExecutionSummaryDTO,
 )
-from the_alchemiser.services.errors.error_handler import TradingSystemErrorHandler
+from the_alchemiser.services.errors import TradingSystemErrorHandler
 from the_alchemiser.services.errors.exceptions import DataProviderError, StrategyExecutionError
 
 # TODO: Import order history and email summary types once implementation aligns

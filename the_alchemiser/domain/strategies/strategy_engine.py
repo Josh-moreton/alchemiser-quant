@@ -370,7 +370,7 @@ class BearMarketStrategy:
             return "BEAR_PORTFOLIO", "BUY", reasoning
 
         except Exception as e:
-            from the_alchemiser.services.errors.error_handler import TradingSystemErrorHandler
+            from the_alchemiser.services.errors import TradingSystemErrorHandler
 
             error_handler = TradingSystemErrorHandler()
             error_handler.handle_error(
