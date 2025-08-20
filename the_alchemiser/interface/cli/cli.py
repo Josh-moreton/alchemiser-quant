@@ -30,6 +30,7 @@ from the_alchemiser.services.errors.exceptions import (
     StrategyExecutionError,
     TradingClientError,
 )
+from the_alchemiser.services.errors.handler import TradingSystemErrorHandler
 from the_alchemiser.services.trading.trading_service_manager import TradingServiceManager
 from the_alchemiser.utils.feature_flags import type_system_v2_enabled
 
@@ -109,43 +110,43 @@ def signal(
             raise typer.Exit(1)
 
     except StrategyExecutionError as e:
-        logger = get_logger(__name__)
-        log_error_with_context(
-            logger,
-            e,
-            "cli_signal_analysis",
-            function="signals",
-            command="signals",
-            error_type=type(e).__name__,
+        error_handler.handle_error(
+            error=e,
+            context="CLI signal command - strategy execution",
+            component="cli.signal",
+            additional_data={
+                "verbose": verbose,
+                "error_type": type(e).__name__
+            }
         )
         console.print(f"\n[bold red]Strategy execution error: {e}[/bold red]")
         if verbose:
             console.print_exception()
         raise typer.Exit(1)
     except AlchemiserError as e:
-        logger = get_logger(__name__)
-        log_error_with_context(
-            logger,
-            e,
-            "cli_signal_analysis",
-            function="signals",
-            command="signals",
-            error_type=type(e).__name__,
+        error_handler.handle_error(
+            error=e,
+            context="CLI signal command - application error", 
+            component="cli.signal",
+            additional_data={
+                "verbose": verbose,
+                "error_type": type(e).__name__
+            }
         )
         console.print(f"\n[bold red]Application error: {e}[/bold red]")
         if verbose:
             console.print_exception()
         raise typer.Exit(1)
     except (ImportError, AttributeError, ValueError, KeyError, TypeError, OSError) as e:
-        logger = get_logger(__name__)
-        log_error_with_context(
-            logger,
-            e,
-            "cli_signal_analysis",
-            function="signals",
-            command="signals",
-            error_type="unexpected_error",
-            original_error=type(e).__name__,
+        error_handler.handle_error(
+            error=e,
+            context="CLI signal command - unexpected system error",
+            component="cli.signal", 
+            additional_data={
+                "verbose": verbose,
+                "error_type": "unexpected_error",
+                "original_error": type(e).__name__
+            }
         )
         console.print(f"\n[bold red]Unexpected error: {e}[/bold red]")
         if verbose:
@@ -376,42 +377,40 @@ def status(
             raise typer.Exit(1)
 
     except TradingClientError as e:
-        logger = get_logger(__name__)
-        log_error_with_context(
-            logger,
-            e,
-            "cli_status_trading_error",
-            function="status",
-            command="status",
-            live_trading=live,
-            error_type=type(e).__name__,
+        error_handler.handle_error(
+            error=e,
+            context="CLI status command - trading client operation", 
+            component="cli.status",
+            additional_data={
+                "live_trading": live,
+                "error_type": type(e).__name__
+            }
         )
         console.print(f"[bold red]Trading client error: {e}[/bold red]")
         raise typer.Exit(1)
     except AlchemiserError as e:
-        logger = get_logger(__name__)
-        log_error_with_context(
-            logger,
-            e,
-            "cli_status_application_error",
-            function="status",
-            command="status",
-            live_trading=live,
-            error_type=type(e).__name__,
+        error_handler = TradingSystemErrorHandler()
+        error_handler.handle_error(
+            error=e,
+            context="CLI status command - application error",
+            component="cli.status", 
+            additional_data={
+                "live_trading": live,
+                "error_type": type(e).__name__
+            }
         )
         console.print(f"[bold red]Application error: {e}[/bold red]")
         raise typer.Exit(1)
     except (ImportError, AttributeError, ValueError, KeyError, TypeError, OSError) as e:
-        logger = get_logger(__name__)
-        log_error_with_context(
-            logger,
-            e,
-            "cli_status_unexpected_error",
-            function="status",
-            command="status",
-            live_trading=live,
-            error_type="unexpected_error",
-            original_error=type(e).__name__,
+        error_handler.handle_error(
+            error=e,
+            context="CLI status command - unexpected system error",
+            component="cli.status",
+            additional_data={
+                "live_trading": live,
+                "error_type": "unexpected_error",
+                "original_error": type(e).__name__
+            }
         )
         console.print(f"[bold red]Unexpected error: {e}[/bold red]")
         raise typer.Exit(1)
