@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from decimal import Decimal
-from typing import Any, cast
+from typing import Any, assert_never, cast
 
 # Import only DTOs to avoid circular imports
 from the_alchemiser.interfaces.schemas.tracking import (
@@ -161,10 +161,11 @@ def normalize_timestamp(ts: str | datetime) -> datetime:
     elif isinstance(ts, datetime):
         if ts.tzinfo is None:
             return ts.replace(tzinfo=timezone.utc)
-        return ts
-    
-    # For any other type, return current time
-    return datetime.now(timezone.utc)
+        else:
+            return ts
+    else:
+        # This should never happen given the type annotation
+        assert_never(ts)
 
 
 def ensure_decimal_precision(value: float | str | Decimal) -> Decimal:

@@ -36,7 +36,7 @@ class TestStrategyOrderTracker:
         """Test recording sequence of events (submitted->accepted->filled)."""
         mock_get_s3_handler.return_value = self.mock_s3_handler
 
-    tracker = StrategyOrderTracker(paper_trading=True)
+        tracker = StrategyOrderTracker(paper_trading=True)
 
         # Record initial order
         tracker.record_order(
@@ -49,23 +49,20 @@ class TestStrategyOrderTracker:
         )
 
         # Verify order was processed correctly
-                symbol="AAPL",
         order = tracker._orders_cache[0]
         assert order.order_id == "order_123"
         assert order.strategy == "NUCLEAR"
         assert order.symbol == "AAPL"
         assert order.side == "BUY"
-    assert order.quantity == pytest.approx(100.0, rel=1e-9, abs=1e-9)
-    assert order.price == pytest.approx(150.25, rel=1e-9, abs=1e-9)
+        assert order.quantity == pytest.approx(100.0, rel=1e-9, abs=1e-9)
+        assert order.price == pytest.approx(150.25, rel=1e-9, abs=1e-9)
 
     @patch("the_alchemiser.application.tracking.strategy_order_tracker.get_s3_handler")
     def test_partial_fills_aggregation(self, mock_get_s3_handler):
         """Test partial fills aggregation."""
         mock_get_s3_handler.return_value = self.mock_s3_handler
-            assert order.quantity == pytest.approx(100.0, rel=1e-9, abs=1e-9)
-            assert order.price == pytest.approx(150.25, rel=1e-9, abs=1e-9)
 
-    tracker = StrategyOrderTracker(paper_trading=True)
+        tracker = StrategyOrderTracker(paper_trading=True)
 
         # Record partial fills
         tracker.record_order("order_1", StrategyType.TECL, "TSLA", "buy", 50, 200.0)
@@ -73,20 +70,18 @@ class TestStrategyOrderTracker:
 
         # Check position aggregation
         position_key = ("TECL", "TSLA")
-    assert position_key in tracker._positions_cache
+        assert position_key in tracker._positions_cache
 
         position = tracker._positions_cache[position_key]
-    assert position.quantity == pytest.approx(100.0, rel=1e-9, abs=1e-9)  # 50 + 50
-    assert position.average_cost == pytest.approx(202.5, rel=1e-9, abs=1e-9)  # (50*200 + 50*205) / 100
+        assert position.quantity == pytest.approx(100.0, rel=1e-9, abs=1e-9)  # 50 + 50
+        assert position.average_cost == pytest.approx(202.5, rel=1e-9, abs=1e-9)  # (50*200 + 50*205) / 100
 
     @patch("the_alchemiser.application.tracking.strategy_order_tracker.get_s3_handler")
     def test_error_event_capturing(self, mock_get_s3_handler):
-            assert position.quantity == pytest.approx(100.0, rel=1e-9, abs=1e-9)  # 50 + 50
-            assert position.average_cost == pytest.approx(202.5, rel=1e-9, abs=1e-9)  # (50*200 + 50*205) / 100
         """Test error event capturing and summary status == 'failed'."""
         mock_get_s3_handler.return_value = self.mock_s3_handler
 
-    tracker = StrategyOrderTracker(paper_trading=True)
+        tracker = StrategyOrderTracker(paper_trading=True)
 
         # Simulate error during order recording
         with patch.object(tracker, "_process_order", side_effect=Exception("Test error")):
@@ -102,7 +97,7 @@ class TestStrategyOrderTracker:
         """Test that events maintain timestamp ordering."""
         mock_get_s3_handler.return_value = self.mock_s3_handler
 
-    tracker = StrategyOrderTracker(paper_trading=True)
+        tracker = StrategyOrderTracker(paper_trading=True)
 
         # Record multiple orders
         tracker.record_order("order_1", StrategyType.NUCLEAR, "AAPL", "buy", 100, 150.0)
@@ -146,7 +141,7 @@ class TestStrategyOrderTracker:
     def test_get_strategy_tracker_singleton(self):
         """Test that get_strategy_tracker returns singleton instances."""
         tracker1 = get_strategy_tracker(paper_trading=True)
-    tracker2 = get_strategy_tracker(paper_trading=True)
+        tracker2 = get_strategy_tracker(paper_trading=True)
 
         # Should be the same instance
         assert tracker1 is tracker2
@@ -160,7 +155,7 @@ class TestStrategyOrderTracker:
         """Test realized P&L calculation for sell orders."""
         mock_get_s3_handler.return_value = self.mock_s3_handler
 
-    tracker = StrategyOrderTracker(paper_trading=True)
+        tracker = StrategyOrderTracker(paper_trading=True)
 
         # Buy some shares
         tracker.record_order("buy_1", StrategyType.NUCLEAR, "AAPL", "buy", 100, 150.0)
@@ -170,15 +165,15 @@ class TestStrategyOrderTracker:
 
         # Check realized P&L was calculated
         assert "NUCLEAR" in tracker._realized_pnl_cache
-    expected_pnl = 50 * (160.0 - 150.0)  # 50 shares * $10 profit
-    assert tracker._realized_pnl_cache["NUCLEAR"] == pytest.approx(expected_pnl, rel=1e-9, abs=1e-2)
+        expected_pnl = 50 * (160.0 - 150.0)  # 50 shares * $10 profit
+        assert tracker._realized_pnl_cache["NUCLEAR"] == pytest.approx(expected_pnl, rel=1e-9, abs=1e-2)
 
     @patch("the_alchemiser.application.tracking.strategy_order_tracker.get_s3_handler")
     def test_strategy_pnl_summary(self, mock_get_s3_handler):
         """Test strategy P&L summary generation."""
         mock_get_s3_handler.return_value = self.mock_s3_handler
 
-    tracker = StrategyOrderTracker(paper_trading=True)
+        tracker = StrategyOrderTracker(paper_trading=True)
 
         # Record some trades
         tracker.record_order("order_1", StrategyType.NUCLEAR, "AAPL", "buy", 100, 150.0)
@@ -186,28 +181,28 @@ class TestStrategyOrderTracker:
 
         # Get P&L summary with current prices
         current_prices = {"AAPL": 155.0}
-    pnl = tracker.get_strategy_pnl(StrategyType.NUCLEAR, current_prices)
+        pnl = tracker.get_strategy_pnl(StrategyType.NUCLEAR, current_prices)
 
-    assert pnl.strategy == "NUCLEAR"
-    assert pnl.realized_pnl == pytest.approx(250.0, rel=1e-9, abs=1e-9)  # 25 * (160 - 150)
-    assert pnl.positions["AAPL"] == pytest.approx(75.0, rel=1e-9, abs=1e-9)  # 100 - 25 remaining
+        assert pnl.strategy == "NUCLEAR"
+        assert pnl.realized_pnl == pytest.approx(250.0, rel=1e-9, abs=1e-9)  # 25 * (160 - 150)
+        assert pnl.positions["AAPL"] == pytest.approx(75.0, rel=1e-9, abs=1e-9)  # 100 - 25 remaining
 
-    # Check unrealized P&L: 75 shares * (155 - 150) = 375
-    assert pnl.unrealized_pnl == pytest.approx(375.0, rel=1e-9, abs=1e-2)
+        # Check unrealized P&L: 75 shares * (155 - 150) = 375
+        assert pnl.unrealized_pnl == pytest.approx(375.0, rel=1e-9, abs=1e-2)
 
     @patch("the_alchemiser.application.tracking.strategy_order_tracker.get_s3_handler")
     def test_get_execution_summary_dto(self, mock_get_s3_handler):
         """Test getting execution summary as DTO."""
         mock_get_s3_handler.return_value = self.mock_s3_handler
 
-    tracker = StrategyOrderTracker(paper_trading=True)
+        tracker = StrategyOrderTracker(paper_trading=True)
 
         # Record some trades
         tracker.record_order("order_1", StrategyType.TECL, "TSLA", "buy", 100, 200.0)
         tracker.record_order("order_2", StrategyType.TECL, "TSLA", "sell", 50, 210.0)
 
         # Get execution summary DTO
-    summary = tracker.get_execution_summary_dto(StrategyType.TECL, "TSLA")
+        summary = tracker.get_execution_summary_dto(StrategyType.TECL, "TSLA")
 
         assert summary.strategy == "TECL"
         assert summary.symbol == "TSLA"
@@ -235,12 +230,12 @@ class TestStrategyOrderTracker:
         summary = tracker.get_execution_summary_dto(StrategyType.KLM, "NVDA")
 
         # Check decimal precision is maintained
-    assert isinstance(summary.total_qty, Decimal)
-    assert summary.total_qty == pytest.approx(Decimal("33.333"), rel=1e-9, abs=Decimal("0.001"))
+        assert isinstance(summary.total_qty, Decimal)
+        assert summary.total_qty == pytest.approx(Decimal("33.333"), rel=1e-9, abs=Decimal("0.001"))
 
         # Check event details use Decimal
-    event = summary.details[0]
-    assert isinstance(event.quantity, Decimal)
-    assert isinstance(event.price, Decimal)
-    assert event.quantity == pytest.approx(Decimal("33.333"), rel=1e-9, abs=Decimal("0.001"))
-    assert event.price == pytest.approx(Decimal("523.45"), rel=1e-9, abs=Decimal("0.01"))
+        event = summary.details[0]
+        assert isinstance(event.quantity, Decimal)
+        assert isinstance(event.price, Decimal)
+        assert event.quantity == pytest.approx(Decimal("33.333"), rel=1e-9, abs=Decimal("0.001"))
+        assert event.price == pytest.approx(Decimal("523.45"), rel=1e-9, abs=Decimal("0.01"))
