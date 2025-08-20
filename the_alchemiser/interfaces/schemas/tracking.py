@@ -45,10 +45,10 @@ Usage:
     )
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 from enum import Enum
-from typing import Literal, Self
+from typing import Literal, Self, cast
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -180,6 +180,261 @@ class StrategyOrderEventDTO(BaseModel, StrategyValidationMixin):
             pass
 
         return self
+
+
+class StrategyOrderDTO(BaseModel, StrategyValidationMixin):
+    """
+    Strategy order DTO representing a completed order with strategy information.
+
+    This replaces the StrategyOrder dataclass with comprehensive validation,
+    timestamp handling, and side normalization for consistent data representation.
+    """
+
+    order_id: str = Field(..., min_length=1, description="Unique order identifier")
+    strategy: StrategyLiteral = Field(..., description="Strategy name from registered strategies")
+    symbol: str = Field(
+        ..., min_length=1, max_length=10, description="Stock symbol (normalized to uppercase)"
+    )
+    side: Literal["buy", "sell"] = Field(..., description="Order side (normalized to lowercase)")
+    quantity: Decimal = Field(..., gt=0, description="Order quantity (positive decimal)")
+    price: Decimal = Field(..., ge=0, description="Order execution price")
+    timestamp: datetime = Field(..., description="Order execution timestamp")
+
+    model_config = {
+        "frozen": True,  # Immutable
+        "str_strip_whitespace": True,  # Strip whitespace
+        "validate_assignment": True,  # Validate on assignment
+        "use_enum_values": True,  # Use enum values in serialization
+    }
+
+    @field_validator("side", mode="before")
+    @classmethod
+    def normalize_side(cls, v: str) -> str:
+        """Normalize side to lowercase."""
+        return v.lower().strip()
+
+    @field_validator("quantity", "price")
+    @classmethod
+    def validate_financial_precision(cls, v: Decimal) -> Decimal:
+        """Ensure financial values have reasonable precision."""
+        if not v.is_finite():
+            raise ValueError("Financial values must be finite")
+
+        # Check precision for quantity (max 6 decimal places for fractional shares)
+        exponent = v.as_tuple().exponent
+        if isinstance(exponent, int) and exponent < -6:
+            raise ValueError("Precision too high (max 6 decimal places)")
+
+        return v
+
+    @classmethod
+    def from_strategy_order_data(
+        cls,
+        order_id: str,
+        strategy: str,
+        symbol: str,
+        side: str,
+        quantity: float,
+        price: float,
+        timestamp: str | datetime | None = None,
+    ) -> "StrategyOrderDTO":
+        """Create DTO from raw order data (factory method for legacy compatibility)."""
+        if timestamp is None:
+            ts = datetime.now(UTC)
+        elif isinstance(timestamp, str):
+            ts = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+        else:
+            ts = timestamp
+
+        return cls(
+            order_id=order_id,
+            strategy=cast(StrategyLiteral, strategy),
+            symbol=symbol,
+            side=cast(Literal["buy", "sell"], side),
+            quantity=Decimal(str(quantity)),
+            price=Decimal(str(price)),
+            timestamp=ts,
+        )
+
+
+class StrategyPositionDTO(BaseModel, StrategyValidationMixin):
+    """
+    Strategy position DTO with validation invariants and computed fields.
+
+    Replaces StrategyPosition dataclass with strict validation for position
+    invariants (e.g., non-negative quantities when position is closed).
+    """
+
+    strategy: StrategyLiteral = Field(..., description="Strategy name from registered strategies")
+    symbol: str = Field(
+        ..., min_length=1, max_length=10, description="Stock symbol (normalized to uppercase)"
+    )
+    quantity: Decimal = Field(..., ge=0, description="Position quantity (non-negative)")
+    average_cost: Decimal = Field(..., ge=0, description="Average cost per share")
+    total_cost: Decimal = Field(..., ge=0, description="Total cost basis")
+    last_updated: datetime = Field(..., description="Last update timestamp")
+
+    model_config = {
+        "frozen": True,  # Immutable
+        "str_strip_whitespace": True,  # Strip whitespace
+        "validate_assignment": True,  # Validate on assignment
+        "use_enum_values": True,  # Use enum values in serialization
+    }
+
+    @model_validator(mode="after")
+    def validate_position_invariants(self) -> Self:
+        """Validate position invariants for data consistency."""
+        # If position is closed (quantity = 0), cost fields should also be 0
+        if self.quantity == 0:
+            if self.total_cost != 0 or self.average_cost != 0:
+                raise ValueError("Closed position (quantity=0) must have zero cost fields")
+
+        # If position exists, average cost should be positive
+        elif self.quantity > 0:
+            if self.average_cost <= 0:
+                raise ValueError("Open position must have positive average cost")
+
+            # Validate total_cost consistency with quantity * average_cost
+            expected_total = self.quantity * self.average_cost
+            # Allow small floating point differences (within 0.01)
+            if abs(self.total_cost - expected_total) > Decimal("0.01"):
+                raise ValueError(
+                    f"Total cost {self.total_cost} inconsistent with quantity * average_cost {expected_total}"
+                )
+
+        return self
+
+    @classmethod
+    def from_position_data(
+        cls,
+        strategy: str,
+        symbol: str,
+        quantity: float,
+        average_cost: float,
+        total_cost: float,
+        last_updated: str | datetime | None = None,
+    ) -> "StrategyPositionDTO":
+        """Create DTO from raw position data (factory method for legacy compatibility)."""
+        if last_updated is None:
+            ts = datetime.now(UTC)
+        elif isinstance(last_updated, str):
+            ts = datetime.fromisoformat(last_updated.replace("Z", "+00:00"))
+        else:
+            ts = last_updated
+
+        return cls(
+            strategy=cast(StrategyLiteral, strategy),
+            symbol=symbol,
+            quantity=Decimal(str(quantity)),
+            average_cost=Decimal(str(average_cost)),
+            total_cost=Decimal(str(total_cost)),
+            last_updated=ts,
+        )
+
+
+class StrategyPnLDTO(BaseModel):
+    """
+    Strategy P&L DTO for serialization consistency and computed metrics.
+
+    Replaces StrategyPnL dataclass with validation and computed fields
+    for consistent P&L reporting across the system.
+    """
+
+    strategy: StrategyLiteral = Field(..., description="Strategy name from registered strategies")
+    realized_pnl: Decimal = Field(..., description="Realized profit/loss")
+    unrealized_pnl: Decimal = Field(..., description="Unrealized profit/loss")
+    total_pnl: Decimal = Field(..., description="Total profit/loss")
+    positions: dict[str, Decimal] = Field(
+        default_factory=dict, description="Current positions by symbol (symbol -> quantity)"
+    )
+    allocation_value: Decimal = Field(..., ge=0, description="Total allocation value")
+
+    model_config = {
+        "frozen": True,  # Immutable
+        "str_strip_whitespace": True,  # Strip whitespace
+        "validate_assignment": True,  # Validate on assignment
+        "use_enum_values": True,  # Use enum values in serialization
+    }
+
+    @field_validator("strategy")
+    @classmethod
+    def validate_strategy(cls, v: str) -> str:
+        """Validate strategy is a registered strategy type."""
+        try:
+            # Verify it's a valid strategy type
+            StrategyType(v)
+            return v
+        except ValueError:
+            valid_strategies = [s.value for s in StrategyType]
+            raise ValueError(f"Strategy must be one of {valid_strategies}, got: {v}")
+
+    @field_validator("positions")
+    @classmethod
+    def validate_positions_format(cls, v: dict[str, Decimal]) -> dict[str, Decimal]:
+        """Validate position symbols and quantities."""
+        validated_positions = {}
+        for symbol, quantity in v.items():
+            # Validate symbol format
+            if not symbol or not symbol.strip() or not symbol.isalpha():
+                raise ValueError(f"Invalid symbol format: {symbol}")
+
+            # Normalize symbol to uppercase
+            normalized_symbol = symbol.strip().upper()
+
+            # Validate quantity is non-negative
+            if quantity < 0:
+                raise ValueError(f"Position quantity must be non-negative, got {quantity} for {normalized_symbol}")
+
+            validated_positions[normalized_symbol] = quantity
+
+        return validated_positions
+
+    @model_validator(mode="after")
+    def validate_pnl_consistency(self) -> Self:
+        """Validate P&L calculation consistency."""
+        # Total P&L should equal realized + unrealized
+        expected_total = self.realized_pnl + self.unrealized_pnl
+        if abs(self.total_pnl - expected_total) > Decimal("0.01"):  # Allow small rounding differences
+            raise ValueError(
+                f"Total P&L {self.total_pnl} inconsistent with realized {self.realized_pnl} + unrealized {self.unrealized_pnl}"
+            )
+
+        return self
+
+    @property
+    def total_return_pct(self) -> Decimal:
+        """Calculate total return percentage."""
+        if self.allocation_value <= 0:
+            return Decimal("0.0")
+        return (self.total_pnl / self.allocation_value) * Decimal("100")
+
+    @property
+    def position_count(self) -> int:
+        """Count of non-zero positions."""
+        return len([q for q in self.positions.values() if q > 0])
+
+    @classmethod
+    def from_pnl_data(
+        cls,
+        strategy: str,
+        realized_pnl: float,
+        unrealized_pnl: float,
+        total_pnl: float,
+        positions: dict[str, float],
+        allocation_value: float,
+    ) -> "StrategyPnLDTO":
+        """Create DTO from raw P&L data (factory method for legacy compatibility)."""
+        # Convert positions to Decimal
+        decimal_positions = {symbol: Decimal(str(qty)) for symbol, qty in positions.items()}
+
+        return cls(
+            strategy=cast(StrategyLiteral, strategy),
+            realized_pnl=Decimal(str(realized_pnl)),
+            unrealized_pnl=Decimal(str(unrealized_pnl)),
+            total_pnl=Decimal(str(total_pnl)),
+            positions=decimal_positions,
+            allocation_value=Decimal(str(allocation_value)),
+        )
 
 
 class StrategyExecutionSummaryDTO(BaseModel, StrategyValidationMixin):

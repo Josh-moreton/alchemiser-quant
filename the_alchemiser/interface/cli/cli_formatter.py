@@ -292,9 +292,7 @@ def _format_money(value: Any) -> str:
         return "-"
 
 
-def render_account_info(
-    account_info: dict[str, Any], console: Console | None = None
-) -> None:
+def render_account_info(account_info: dict[str, Any], console: Console | None = None) -> None:
     """Render account information including P&L data"""
     c = console or Console()
 

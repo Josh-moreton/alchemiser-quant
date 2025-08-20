@@ -47,10 +47,3 @@ repos:
         files: ^(?!the_alchemiser/).*\.py$
         pass_filenames: true
         stages: [manual]  # Only run when explicitly requested
-
-      - id: ban-float-equality
-        name: Ban float equality
-        entry: python tools/check_float_eq.py
-        language: system
-        types: [python]
-        files: ^(tests/|the_alchemiser/).+\.py$

@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 class StrategyMarketDataService:
     """Typed implementation of MarketDataPort for strategy layer.
-    
+
     This service implements the MarketDataPort protocol using the existing
     MarketDataClient infrastructure, providing strategies with a clean,
     typed interface without exposing infrastructure details.
@@ -27,7 +27,7 @@ class StrategyMarketDataService:
 
     def __init__(self, api_key: str, secret_key: str) -> None:
         """Initialize the strategy market data service.
-        
+
         Args:
             api_key: Alpaca API key
             secret_key: Alpaca secret key
@@ -42,13 +42,13 @@ class StrategyMarketDataService:
         **kwargs: Any,
     ) -> pd.DataFrame:
         """Retrieve historical market data for a symbol.
-        
+
         Args:
             symbol: The ticker symbol to fetch data for
             timeframe: The data timeframe (e.g., "1day", "1hour", "1min")
             period: The historical period to fetch (e.g., "1y", "6m", "1m")
             **kwargs: Additional parameters for data fetching
-            
+
         Returns:
             DataFrame with OHLCV data indexed by timestamp
         """
@@ -57,11 +57,7 @@ class StrategyMarketDataService:
             interval = self._map_timeframe_to_interval(timeframe)
 
             # Use MarketDataClient to fetch historical bars
-            return self._client.get_historical_bars(
-                symbol=symbol,
-                period=period,
-                interval=interval
-            )
+            return self._client.get_historical_bars(symbol=symbol, period=period, interval=interval)
 
         except Exception as e:
             logger.error(f"Failed to get data for {symbol}: {e}")
@@ -70,11 +66,11 @@ class StrategyMarketDataService:
 
     def get_current_price(self, symbol: str, **kwargs: Any) -> float | None:
         """Get the current/latest price for a symbol.
-        
+
         Args:
             symbol: The ticker symbol to get price for
             **kwargs: Additional parameters
-            
+
         Returns:
             Current price as float, or None if unavailable
         """
@@ -86,11 +82,11 @@ class StrategyMarketDataService:
 
     def get_latest_quote(self, symbol: str, **kwargs: Any) -> tuple[float | None, float | None]:
         """Get the latest bid/ask quote for a symbol.
-        
+
         Args:
             symbol: The ticker symbol to get quote for
             **kwargs: Additional parameters
-            
+
         Returns:
             Tuple of (bid_price, ask_price), either can be None if unavailable
         """
@@ -102,10 +98,10 @@ class StrategyMarketDataService:
 
     def _map_timeframe_to_interval(self, timeframe: str) -> str:
         """Map strategy timeframe to MarketDataClient interval format.
-        
+
         Args:
             timeframe: Strategy timeframe (e.g., "1day", "1hour", "1min")
-            
+
         Returns:
             Interval format expected by MarketDataClient
         """

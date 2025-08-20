@@ -4,7 +4,7 @@ Mapping utilities between tracking DTOs and internal dataclasses.
 
 This module provides anti-corruption layer mappings for the strategy_order_tracker
 refactor, converting between StrategyOrderEventDTO/StrategyExecutionSummaryDTO
-and internal dataclasses.
+and internal dataclasses. Updated to support new Pydantic DTOs for strategy tracking.
 """
 
 from __future__ import annotations
@@ -13,13 +13,16 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any, cast
 
-# Import only DTOs to avoid circular imports
+# Import DTOs and new strategy DTOs
 from the_alchemiser.interfaces.schemas.tracking import (
     ExecutionStatus,
     OrderEventStatus,
     StrategyExecutionSummaryDTO,
     StrategyLiteral,
+    StrategyOrderDTO,
     StrategyOrderEventDTO,
+    StrategyPnLDTO,
+    StrategyPositionDTO,
 )
 
 
@@ -169,3 +172,102 @@ def ensure_decimal_precision(value: float | str | Decimal) -> Decimal:
     if isinstance(value, Decimal):
         return value
     return Decimal(str(value))
+
+
+# New DTO mapping functions
+
+
+def strategy_order_dataclass_to_dto(order: Any) -> StrategyOrderDTO:
+    """Convert StrategyOrder dataclass to StrategyOrderDTO."""
+    return StrategyOrderDTO(
+        order_id=order.order_id,
+        strategy=cast(StrategyLiteral, order.strategy),
+        symbol=order.symbol,
+        side=order.side.lower(),  # DTO expects lowercase
+        quantity=Decimal(str(order.quantity)),
+        price=Decimal(str(order.price)),
+        timestamp=(
+            datetime.fromisoformat(order.timestamp.replace("Z", "+00:00"))
+            if isinstance(order.timestamp, str)
+            else order.timestamp
+        ),
+    )
+
+
+def strategy_order_dto_to_dataclass_dict(dto: StrategyOrderDTO) -> dict[str, Any]:
+    """Convert StrategyOrderDTO to dataclass creation dict."""
+    return {
+        "order_id": dto.order_id,
+        "strategy": dto.strategy,
+        "symbol": dto.symbol,
+        "side": dto.side.upper(),  # Dataclass uses uppercase
+        "quantity": float(dto.quantity),
+        "price": float(dto.price),
+        "timestamp": dto.timestamp.isoformat(),
+    }
+
+
+def strategy_position_dataclass_to_dto(position: Any) -> StrategyPositionDTO:
+    """Convert StrategyPosition dataclass to StrategyPositionDTO."""
+    return StrategyPositionDTO(
+        strategy=cast(StrategyLiteral, position.strategy),
+        symbol=position.symbol,
+        quantity=Decimal(str(position.quantity)),
+        average_cost=Decimal(str(position.average_cost)),
+        total_cost=Decimal(str(position.total_cost)),
+        last_updated=(
+            datetime.fromisoformat(position.last_updated.replace("Z", "+00:00"))
+            if isinstance(position.last_updated, str)
+            else position.last_updated
+        ),
+    )
+
+
+def strategy_position_dto_to_dataclass_dict(dto: StrategyPositionDTO) -> dict[str, Any]:
+    """Convert StrategyPositionDTO to dataclass creation dict."""
+    return {
+        "strategy": dto.strategy,
+        "symbol": dto.symbol,
+        "quantity": float(dto.quantity),
+        "average_cost": float(dto.average_cost),
+        "total_cost": float(dto.total_cost),
+        "last_updated": dto.last_updated.isoformat(),
+    }
+
+
+def strategy_pnl_dataclass_to_dto(pnl: Any) -> StrategyPnLDTO:
+    """Convert StrategyPnL dataclass to StrategyPnLDTO."""
+    return StrategyPnLDTO(
+        strategy=cast(StrategyLiteral, pnl.strategy),
+        realized_pnl=Decimal(str(pnl.realized_pnl)),
+        unrealized_pnl=Decimal(str(pnl.unrealized_pnl)),
+        total_pnl=Decimal(str(pnl.total_pnl)),
+        positions={symbol: Decimal(str(qty)) for symbol, qty in pnl.positions.items()},
+        allocation_value=Decimal(str(pnl.allocation_value)),
+    )
+
+
+def strategy_pnl_dto_to_dataclass_dict(dto: StrategyPnLDTO) -> dict[str, Any]:
+    """Convert StrategyPnLDTO to dataclass creation dict."""
+    return {
+        "strategy": dto.strategy,
+        "realized_pnl": float(dto.realized_pnl),
+        "unrealized_pnl": float(dto.unrealized_pnl),
+        "total_pnl": float(dto.total_pnl),
+        "positions": {symbol: float(qty) for symbol, qty in dto.positions.items()},
+        "allocation_value": float(dto.allocation_value),
+    }
+
+
+def strategy_pnl_dto_to_dict(dto: StrategyPnLDTO) -> dict[str, Any]:
+    """Convert StrategyPnLDTO to dict with Decimal precision for serialization."""
+    return {
+        "strategy": dto.strategy,
+        "realized_pnl": dto.realized_pnl,
+        "unrealized_pnl": dto.unrealized_pnl,
+        "total_pnl": dto.total_pnl,
+        "positions": dict(dto.positions),  # Keep as Decimal
+        "allocation_value": dto.allocation_value,
+        "total_return_pct": dto.total_return_pct,
+        "position_count": dto.position_count,
+    }

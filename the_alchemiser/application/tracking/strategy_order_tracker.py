@@ -39,11 +39,12 @@ from the_alchemiser.interfaces.schemas.tracking import (
 from the_alchemiser.services.errors.error_handler import TradingSystemErrorHandler
 from the_alchemiser.services.errors.exceptions import DataProviderError, StrategyExecutionError
 
-# TODO: Add these imports once data structures match:
-# from the_alchemiser.domain.types import OrderHistoryData, EmailSummary
+# TODO: Import order history and email summary types once implementation aligns
+# from the_alchemiser.interfaces.schemas.execution import OrderHistoryData
+# from the_alchemiser.interfaces.schemas.reporting import EmailSummary
 
 
-@dataclass  # TODO(PYDANTIC-MIGRATION): Evaluate if StrategyOrder should become Pydantic (timestamp auto & side enum) or remain simple; currently used as persistence record.
+@dataclass  # Note: Pydantic DTOs available in interfaces.schemas.tracking for I/O boundaries
 class StrategyOrder:
     """Represents a completed order tagged with strategy information."""
 
@@ -77,7 +78,7 @@ class StrategyOrder:
         )
 
 
-@dataclass  # TODO(PYDANTIC-MIGRATION): StrategyPosition may benefit from Pydantic for invariants (quantity>=0 when closed) and computed fields.
+@dataclass  # Note: Pydantic DTOs available in interfaces.schemas.tracking for I/O boundaries  
 class StrategyPosition:
     """Represents a position held by a specific strategy."""
 
@@ -120,7 +121,7 @@ class StrategyPosition:
         self.last_updated = order.timestamp
 
 
-@dataclass  # TODO(PYDANTIC-MIGRATION): StrategyPnL could remain dataclass or move to Pydantic for serialization consistency; low priority.
+@dataclass  # Note: Pydantic DTOs available in interfaces.schemas.tracking for I/O boundaries
 class StrategyPnL:
     """P&L metrics for a specific strategy."""
 
@@ -672,9 +673,7 @@ class StrategyOrderTracker:
             )
             logging.error(f"Error persisting order: {e}")
 
-    def _apply_order_history_limit(
-        self, data: dict[str, Any]
-    ) -> None:  # TODO: Change to OrderHistoryData once data structure matches
+    def _apply_order_history_limit(self, data: dict[str, Any]) -> None:
         """Limit the number of orders kept in history."""
         if len(data["orders"]) > self.order_history_limit:
             data["orders"] = data["orders"][-self.order_history_limit :]
@@ -718,14 +717,12 @@ class StrategyOrderTracker:
         if not success:
             logging.warning("Failed to save realized P&L data to S3")
 
-    def get_summary_for_email(
-        self, current_prices: dict[str, float] | None = None
-    ) -> dict[str, Any]:  # TODO: Change to EmailSummary once data structure matches
+    def get_summary_for_email(self, current_prices: dict[str, float] | None = None) -> dict[str, Any]:
         """Get summary data suitable for email reporting."""
         try:
             all_pnl = self.get_all_strategy_pnl(current_prices)
 
-            summary: dict[str, Any] = {  # TODO: Change to EmailSummary once data structure matches
+            summary: dict[str, Any] = {
                 "total_portfolio_pnl": sum(pnl.total_pnl for pnl in all_pnl.values()),
                 "total_realized_pnl": sum(pnl.realized_pnl for pnl in all_pnl.values()),
                 "total_unrealized_pnl": sum(pnl.unrealized_pnl for pnl in all_pnl.values()),
