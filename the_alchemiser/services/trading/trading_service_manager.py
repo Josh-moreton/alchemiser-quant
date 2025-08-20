@@ -474,7 +474,7 @@ class TradingServiceManager:
 
         return result
 
-    @translate_trading_errors(default_return={"error": "Failed to generate dashboard", "timestamp": ""})
+    @translate_trading_errors(default_return={"error": "Failed to generate dashboard", "timestamp": datetime.datetime.now().isoformat()})
     def get_trading_dashboard(self) -> dict[str, Any]:
         """
         Get a comprehensive trading dashboard with all key metrics
