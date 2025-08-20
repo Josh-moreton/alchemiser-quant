@@ -12,6 +12,7 @@ import pytest
 from the_alchemiser.domain.strategies.nuclear_typed_engine import NuclearTypedEngine
 from the_alchemiser.domain.strategies.protocols.market_data_port import MarketDataPort
 from the_alchemiser.domain.strategies.value_objects.strategy_signal import StrategySignal
+from tests.utils.float_checks import assert_close
 
 
 class TestNuclearTypedEngine:
@@ -31,13 +32,16 @@ class TestNuclearTypedEngine:
         port.get_current_price.return_value = 100.0
 
         # Default market data with basic OHLCV structure
-        default_df = pd.DataFrame({
-            "Open": [99.0, 100.0, 101.0] * 50,  # 150 rows for sufficient history
-            "High": [101.0, 102.0, 103.0] * 50,
-            "Low": [98.0, 99.0, 100.0] * 50,
-            "Close": [100.0, 101.0, 102.0] * 50,
-            "Volume": [1000000, 1100000, 1200000] * 50,
-        }, index=pd.date_range('2023-01-01', periods=150, freq='D'))
+        default_df = pd.DataFrame(
+            {
+                "Open": [99.0, 100.0, 101.0] * 50,  # 150 rows for sufficient history
+                "High": [101.0, 102.0, 103.0] * 50,
+                "Low": [98.0, 99.0, 100.0] * 50,
+                "Close": [100.0, 101.0, 102.0] * 50,
+                "Volume": [1000000, 1100000, 1200000] * 50,
+            },
+            index=pd.date_range("2023-01-01", periods=150, freq="D"),
+        )
 
         port.get_data.return_value = default_df
         return port
@@ -47,13 +51,16 @@ class TestNuclearTypedEngine:
         """Mock port with SPY in overbought condition (RSI > 79)."""
         # Create data that will produce high RSI
         overbought_prices = [50.0] + [60.0 + i * 2 for i in range(149)]  # Strong uptrend
-        df = pd.DataFrame({
-            "Open": overbought_prices,
-            "High": [p * 1.02 for p in overbought_prices],
-            "Low": [p * 0.98 for p in overbought_prices],
-            "Close": overbought_prices,
-            "Volume": [1000000] * 150,
-        }, index=pd.date_range('2023-01-01', periods=150, freq='D'))
+        df = pd.DataFrame(
+            {
+                "Open": overbought_prices,
+                "High": [p * 1.02 for p in overbought_prices],
+                "Low": [p * 0.98 for p in overbought_prices],
+                "Close": overbought_prices,
+                "Volume": [1000000] * 150,
+            },
+            index=pd.date_range("2023-01-01", periods=150, freq="D"),
+        )
 
         mock_port.get_data.return_value = df
         return mock_port
@@ -63,13 +70,16 @@ class TestNuclearTypedEngine:
         """Mock port with SPY in oversold condition (RSI < 30)."""
         # Create data that will produce low RSI
         oversold_prices = [100.0] + [80.0 - i * 0.5 for i in range(149)]  # Strong downtrend
-        df = pd.DataFrame({
-            "Open": oversold_prices,
-            "High": [p * 1.01 for p in oversold_prices],
-            "Low": [p * 0.99 for p in oversold_prices],
-            "Close": oversold_prices,
-            "Volume": [1000000] * 150,
-        }, index=pd.date_range('2023-01-01', periods=150, freq='D'))
+        df = pd.DataFrame(
+            {
+                "Open": oversold_prices,
+                "High": [p * 1.01 for p in oversold_prices],
+                "Low": [p * 0.99 for p in oversold_prices],
+                "Close": oversold_prices,
+                "Volume": [1000000] * 150,
+            },
+            index=pd.date_range("2023-01-01", periods=150, freq="D"),
+        )
 
         mock_port.get_data.return_value = df
         return mock_port
@@ -86,7 +96,18 @@ class TestNuclearTypedEngine:
         symbols = engine.get_required_symbols()
 
         # Check key symbols are present
-        expected_symbols = ["SPY", "IOO", "TQQQ", "VTV", "XLF", "VOX", "UVXY", "BTAL", "QQQ", "SQQQ"]
+        expected_symbols = [
+            "SPY",
+            "IOO",
+            "TQQQ",
+            "VTV",
+            "XLF",
+            "VOX",
+            "UVXY",
+            "BTAL",
+            "QQQ",
+            "SQQQ",
+        ]
         for symbol in expected_symbols:
             assert symbol in symbols
 
@@ -159,13 +180,16 @@ class TestNuclearTypedEngine:
             if symbol == "SPY":
                 return pd.DataFrame()  # Empty for SPY
             else:
-                return pd.DataFrame({
-                    "Open": [100.0] * 50,
-                    "High": [101.0] * 50,
-                    "Low": [99.0] * 50,
-                    "Close": [100.0] * 50,
-                    "Volume": [1000000] * 50,
-                }, index=pd.date_range('2023-01-01', periods=50, freq='D'))
+                return pd.DataFrame(
+                    {
+                        "Open": [100.0] * 50,
+                        "High": [101.0] * 50,
+                        "Low": [99.0] * 50,
+                        "Close": [100.0] * 50,
+                        "Volume": [1000000] * 50,
+                    },
+                    index=pd.date_range("2023-01-01", periods=50, freq="D"),
+                )
 
         mock_port.get_data.side_effect = mock_get_data
         mock_port.get_current_price.return_value = 100.0
@@ -196,51 +220,48 @@ class TestNuclearTypedEngine:
         confidence = engine._calculate_confidence(
             "UVXY", "BUY", "SPY extremely overbought - volatility hedge"
         )
-        assert confidence == 0.9
+        assert_close(confidence, 0.9)
 
         # Test oversold
-        confidence = engine._calculate_confidence(
-            "TQQQ", "BUY", "TQQQ oversold opportunity"
-        )
-        assert confidence == 0.85
+        confidence = engine._calculate_confidence("TQQQ", "BUY", "TQQQ oversold opportunity")
+        assert_close(confidence, 0.85)
 
         # Test hold signal
-        confidence = engine._calculate_confidence(
-            "SPY", "HOLD", "Neutral market conditions"
-        )
-        assert confidence == 0.6
+        confidence = engine._calculate_confidence("SPY", "HOLD", "Neutral market conditions")
+        assert_close(confidence, 0.6)
 
     def test_target_allocation_calculation(self, engine: NuclearTypedEngine) -> None:
         """Test target allocation calculation for different signal types."""
         # Test hold signals
         allocation = engine._calculate_target_allocation("SPY", "HOLD")
-        assert allocation == 0.0
+        assert_close(allocation, 0.0)
 
         # Test portfolio signals
         allocation = engine._calculate_target_allocation("UVXY_BTAL_PORTFOLIO", "BUY")
-        assert allocation == 1.0
+        assert_close(allocation, 1.0)
 
         # Test volatility hedge
         allocation = engine._calculate_target_allocation("UVXY", "BUY")
-        assert allocation == 0.25
+        assert_close(allocation, 0.25)
 
         # Test leveraged positions
         allocation = engine._calculate_target_allocation("TQQQ", "BUY")
-        assert allocation == 0.30
+        assert_close(allocation, 0.30)
 
-    def test_portfolio_signal_handling(
-        self, engine: NuclearTypedEngine, mock_port: Mock
-    ) -> None:
+    def test_portfolio_signal_handling(self, engine: NuclearTypedEngine, mock_port: Mock) -> None:
         """Test handling of portfolio signals (UVXY_BTAL_PORTFOLIO)."""
         # Mock SPY in moderate overbought range (79-81)
         moderate_overbought_prices = [50.0] + [55.0 + i * 0.8 for i in range(149)]
-        df = pd.DataFrame({
-            "Open": moderate_overbought_prices,
-            "High": [p * 1.02 for p in moderate_overbought_prices],
-            "Low": [p * 0.98 for p in moderate_overbought_prices],
-            "Close": moderate_overbought_prices,
-            "Volume": [1000000] * 150,
-        }, index=pd.date_range('2023-01-01', periods=150, freq='D'))
+        df = pd.DataFrame(
+            {
+                "Open": moderate_overbought_prices,
+                "High": [p * 1.02 for p in moderate_overbought_prices],
+                "Low": [p * 0.98 for p in moderate_overbought_prices],
+                "Close": moderate_overbought_prices,
+                "Volume": [1000000] * 150,
+            },
+            index=pd.date_range("2023-01-01", periods=150, freq="D"),
+        )
 
         mock_port.get_data.return_value = df
 
@@ -265,12 +286,11 @@ class TestNuclearTypedEngine:
         mock_port.get_current_price.side_effect = lambda symbol: None if symbol == "SPY" else 100.0
 
         from the_alchemiser.services.errors.exceptions import ValidationError
+
         with pytest.raises(ValidationError):
             engine.validate_market_data_availability(mock_port)
 
-    def test_safe_generate_signals_with_error(
-        self, engine: NuclearTypedEngine
-    ) -> None:
+    def test_safe_generate_signals_with_error(self, engine: NuclearTypedEngine) -> None:
         """Test safe signal generation handles errors gracefully."""
         mock_port = Mock(spec=MarketDataPort)
         mock_port.get_data.side_effect = Exception("Network error")

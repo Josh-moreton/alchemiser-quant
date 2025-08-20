@@ -12,6 +12,7 @@ from the_alchemiser.domain.strategies.protocols.market_data_port import MarketDa
 from the_alchemiser.services.market_data.strategy_market_data_service import (
     StrategyMarketDataService,
 )
+from tests.utils.float_checks import assert_close
 
 
 class TestMarketDataPortIntegration:
@@ -57,12 +58,12 @@ class TestMarketDataPortIntegration:
 
         # Test get_current_price
         price = market_data_port.get_current_price("AAPL")
-        assert price == 150.75
+        assert_close(price, 150.75)
 
         # Test get_latest_quote
         bid, ask = market_data_port.get_latest_quote("AAPL")
-        assert bid == 150.50
-        assert ask == 151.00
+        assert_close(bid, 150.50)
+        assert_close(ask, 151.00)
 
         # Assert correct underlying calls were made
         mock_client.get_historical_bars.assert_called_once_with(
