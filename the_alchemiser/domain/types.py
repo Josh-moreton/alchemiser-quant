@@ -347,17 +347,6 @@ class ErrorNotificationData(TypedDict):
     html_content: str
 
 
-class ErrorContextData(TypedDict):
-    operation: str
-    component: str
-    function_name: str | None
-    request_id: str | None
-    user_id: str | None
-    session_id: str | None
-    additional_data: dict[str, Any]
-    timestamp: str
-
-
 # Email Configuration Types
 class EmailCredentials(TypedDict):
     smtp_server: str

@@ -100,7 +100,7 @@ class EnhancedAlchemiserError(AlchemiserError):
     def __init__(
         self,
         message: str,
-        context: ErrorContextData | dict[str, Any] | None = None,
+        context: ErrorContextData | dict[str, Any] | Any | None = None,
         severity: str = ErrorSeverity.MEDIUM,
         recoverable: bool = True,
         retry_count: int = 0,
@@ -113,6 +113,7 @@ class EnhancedAlchemiserError(AlchemiserError):
             elif isinstance(context, dict):
                 self.context = context
             else:
+                # For any other object that might have a to_dict method (backward compatibility)
                 self.context = context.to_dict() if hasattr(context, "to_dict") else {}
         else:
             self.context = {}
