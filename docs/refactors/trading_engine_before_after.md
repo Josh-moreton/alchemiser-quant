@@ -2,7 +2,7 @@
 
 | Responsibility (Before) | New Location (After) |
 | --- | --- |
-| Initialisation modes and orchestration | `application/trading/engine_service.py` (legacy) |
+| Initialisation modes and orchestration | `application/trading/engine_service.py` |
 | Account/position access | future `domain/services` & `ports.PositionStore` |
 | Order execution & settlement | `ports.OrderExecution` with adapter implementations |
 | Portfolio rebalancing policy | `domain/services/rebalancing_policy.py` |

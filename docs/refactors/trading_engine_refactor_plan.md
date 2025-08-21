@@ -7,26 +7,25 @@
   adapter I/O and introducing typed ports.
 
 ## Phased Approach
-1. **Extraction (this commit)**
-   - Move legacy `TradingEngine` to `application/trading/engine_service.py`.
-   - Provide compatibility wrappers at previous paths for backwards compatibility.
-   - Introduce typed ports and placeholder domain services.
+1. **Extraction (completed)**
+   - Moved `TradingEngine` to canonical location `application/trading/engine_service.py`.
+   - Removed compatibility wrappers following No Legacy Fallback policy.
+   - Introduced typed ports and placeholder domain services.
 2. **Behaviour‑preserving refactors**
    - Gradually replace direct adapter imports with protocol‑driven dependencies.
    - Decompose orchestration into smaller application services.
 3. **Consolidation & Cleanup**
-   - Remove obsolete wrappers and legacy adapters once callers migrate.
+   - Remove legacy adapters once callers migrate.
    - Strengthen typing and delete dead code.
 
 ## Risks & Mitigation
-- **Integration drift**: wrapper ensures existing entry points keep working.
+- **Integration drift**: imports now use canonical path `application/trading/engine_service`.
 - **Type regressions**: mypy run added to pipeline.
-- **Large merge conflicts**: follow phased approach and keep wrapper until callers
-  adopt new service.
+- **Breaking changes**: minimal impact as all callers already used canonical path.
 
 ## Rollback Strategy
-Revert `application/trading/engine_service.py` to previous location and remove
-wrappers; imports in CLI/container can be pointed back if issues arise.
+No rollback needed as compatibility wrapper was not in use. All imports already reference
+the canonical path `application/trading/engine_service.py`.
 
 ## Quality Gates
 ```
