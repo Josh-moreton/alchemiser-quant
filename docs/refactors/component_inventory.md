@@ -11,7 +11,7 @@
 - `ports` package defining `MarketData`, `OrderExecution`, `RiskChecks`,
   `PositionStore`, `Clock`, and `Notifier` protocols.
 - `domain/services/rebalancing_policy.py` – pure portfolio policy placeholder.
-- `application/trading/engine_service.py` – relocated legacy `TradingEngine`
+- `application/trading/engine_service.py` – canonical location for `TradingEngine`
   awaiting further decomposition.
 
 ## Candidates for Deletion / Consolidation
