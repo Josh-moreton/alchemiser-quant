@@ -122,17 +122,14 @@ class KLMVariantResult(TypedDict):
 
 # Trading Execution Types (moved to interfaces/schemas/execution.py)
 # Import for backward compatibility
-from the_alchemiser.interfaces.schemas.execution import ExecutionResult, TradingPlan
 
 
 # Phase 5: Execution Layer Types (moved to interfaces/schemas/execution.py)
 # Import for backward compatibility
-from the_alchemiser.interfaces.schemas.execution import QuoteData
 
 
 # Phase 7: Utility Functions Types (moved to interfaces/schemas/execution.py)
 # Import for backward compatibility
-from the_alchemiser.interfaces.schemas.execution import LimitOrderResult, WebSocketResult
 
 
 # Phase 9: KLM Variants Types
@@ -144,7 +141,6 @@ class KLMDecision(TypedDict):
 
 # Phase 10: Reporting/Dashboard Types (moved to interfaces/schemas/reporting.py)
 # Import for backward compatibility
-from the_alchemiser.interfaces.schemas.reporting import DashboardMetrics, EmailReportData, ReportingData
 
 
 # Phase 11: Data Layer Types
@@ -184,7 +180,6 @@ class DataProviderResult(TypedDict):
 
 # Phase 12: Backtest/Performance Types (moved to interfaces/schemas/reporting.py)
 # Import for backward compatibility
-from the_alchemiser.interfaces.schemas.reporting import BacktestResult, PerformanceMetrics
 
 
 class TradeAnalysis(TypedDict):
@@ -218,35 +213,18 @@ class ErrorContext(TypedDict):
 
 # Phase 13: CLI Types (moved to interfaces/schemas/cli.py)
 # Import for backward compatibility
-from the_alchemiser.interfaces.schemas.cli import (
-    CLIAccountDisplay,
-    CLICommandResult,
-    CLIOptions,
-    CLIOrderDisplay,
-    CLIPortfolioData,
-    CLISignalData,
-)
 
 
 # Phase 14: Error Handler Types (moved to interfaces/schemas/errors.py)
 # Import for backward compatibility
-from the_alchemiser.interfaces.schemas.errors import (
-    ErrorContextData,
-    ErrorDetailInfo,
-    ErrorNotificationData,
-    ErrorReportSummary,
-    ErrorSummaryData,
-)
 
 
 # Email Configuration Types (moved to interfaces/schemas/reporting.py)
-# Import for backward compatibility  
-from the_alchemiser.interfaces.schemas.reporting import EmailCredentials
+# Import for backward compatibility
 
 
 # Lambda Integration Types (moved to interfaces/schemas/execution.py)
 # Import for backward compatibility
-from the_alchemiser.interfaces.schemas.execution import LambdaEvent
 
 
 # Alpaca Integration Protocols
@@ -276,5 +254,3 @@ class AlpacaOrderObject(Protocol):
 
 # Tracking and Monitoring Types (moved to interfaces/schemas/execution.py and reporting.py)
 # Import for backward compatibility
-from the_alchemiser.interfaces.schemas.execution import OrderHistoryData
-from the_alchemiser.interfaces.schemas.reporting import EmailSummary

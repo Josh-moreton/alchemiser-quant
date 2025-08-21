@@ -18,13 +18,13 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, TypeVar
 
-from .handler import EnhancedAlchemiserError, ErrorSeverity
 from .exceptions import (
     MarketDataError,
     OrderExecutionError,
     RateLimitError,
     TradingClientError,
 )
+from .handler import EnhancedAlchemiserError, ErrorSeverity
 
 F = TypeVar("F", bound=Callable[..., Any])
 

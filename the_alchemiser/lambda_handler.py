@@ -13,8 +13,8 @@ import json
 import logging
 from typing import Any
 
-from the_alchemiser.domain.types import LambdaEvent
 from the_alchemiser.infrastructure.logging.logging_utils import generate_request_id, set_request_id
+from the_alchemiser.interfaces.schemas.execution import LambdaEvent
 from the_alchemiser.main import main
 from the_alchemiser.services.errors.exceptions import (
     DataProviderError,

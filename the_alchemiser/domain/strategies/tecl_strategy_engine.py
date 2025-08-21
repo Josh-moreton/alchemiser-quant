@@ -48,7 +48,7 @@ class TECLStrategyEngine(StrategyEngine):
 
     def __init__(self, data_provider: MarketDataPort) -> None:
         """Initialize TECL strategy with typed MarketDataPort.
-        
+
         Args:
             data_provider: Market data provider implementing MarketDataPort protocol
         """
@@ -345,10 +345,10 @@ class TECLStrategyEngine(StrategyEngine):
 
     def generate_signals(self, now: datetime) -> list[StrategySignal]:
         """Generate typed strategy signals (new typed interface).
-        
+
         Args:
             now: Current timestamp for signal generation
-            
+
         Returns:
             List of StrategySignal objects with typed domain values
         """
@@ -357,30 +357,33 @@ class TECLStrategyEngine(StrategyEngine):
             market_data = self.get_market_data()
             if not market_data:
                 return []
-                
+
             indicators = self.calculate_indicators(market_data)
             if not indicators:
                 return []
-            
+
             # Get legacy strategy recommendation
-            symbol_or_allocation, action, reasoning = self.evaluate_tecl_strategy(indicators, market_data)
-            
+            symbol_or_allocation, action, reasoning = self.evaluate_tecl_strategy(
+                indicators, market_data
+            )
+
             # Convert to typed signals
             signals = []
-            
+
             if isinstance(symbol_or_allocation, dict):
                 # Portfolio allocation - create a single signal representing the portfolio
                 # Use the largest allocation as the primary symbol
-                primary_symbol = max(symbol_or_allocation.keys(), 
-                                   key=lambda s: symbol_or_allocation[s])
+                primary_symbol = max(
+                    symbol_or_allocation.keys(), key=lambda s: symbol_or_allocation[s]
+                )
                 total_allocation = sum(symbol_or_allocation.values())
-                
+
                 signal = StrategySignal(
                     symbol=Symbol(primary_symbol),
                     action=action,  # type: ignore  # action comes from ActionType.value
                     confidence=Confidence(Decimal("0.8")),  # High confidence for TECL strategy
                     target_allocation=Percentage(Decimal(str(total_allocation))),
-                    reasoning=reasoning
+                    reasoning=reasoning,
                 )
                 signals.append(signal)
             else:
@@ -390,12 +393,12 @@ class TECLStrategyEngine(StrategyEngine):
                     action=action,  # type: ignore  # action comes from ActionType.value
                     confidence=Confidence(Decimal("0.8")),  # High confidence for TECL strategy
                     target_allocation=Percentage(Decimal("1.0")),  # 100% allocation
-                    reasoning=reasoning
+                    reasoning=reasoning,
                 )
                 signals.append(signal)
-            
+
             return signals
-            
+
         except Exception as e:
             logging.error(f"Error generating TECL signals: {e}")
             return []
@@ -404,22 +407,23 @@ class TECLStrategyEngine(StrategyEngine):
         """Run strategy once and return alerts (StrategyEngine protocol)."""
         try:
             from datetime import datetime
+
             signals = self.generate_signals(datetime.now())
             if not signals:
                 return None
-            
+
             # Convert signals to alerts (simplified implementation)
             alerts = []
             for signal in signals:
                 alert = Alert(
                     message=f"TECL Strategy: {signal.action} {signal.symbol.value} - {signal.reasoning[:100]}...",
                     severity="INFO",
-                    symbol=signal.symbol
+                    symbol=signal.symbol,
                 )
                 alerts.append(alert)
-            
+
             return alerts
-            
+
         except Exception as e:
             logging.error(f"Error in TECL run_once: {e}")
             return None
@@ -436,9 +440,9 @@ class TECLStrategyEngine(StrategyEngine):
                 return False
             if signal.target_allocation.value < 0 or signal.target_allocation.value > 1:
                 return False
-            
+
             return True
-            
+
         except Exception:
             return False
 
@@ -479,7 +483,7 @@ class TECLStrategyEngine(StrategyEngine):
 
 def main() -> None:
     """Test the TECL strategy engine"""
-    
+
     print("🚀 TECL Strategy Engine Test")
     print("=" * 50)
     print("Note: This test requires a configured data provider")

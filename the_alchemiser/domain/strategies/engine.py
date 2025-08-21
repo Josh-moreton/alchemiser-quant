@@ -15,8 +15,8 @@ from typing import Any
 
 from the_alchemiser.domain.strategies.protocols.market_data_port import MarketDataPort
 from the_alchemiser.domain.strategies.value_objects.strategy_signal import StrategySignal
-from the_alchemiser.services.errors.handler import TradingSystemErrorHandler
 from the_alchemiser.services.errors.exceptions import ValidationError
+from the_alchemiser.services.errors.handler import TradingSystemErrorHandler
 
 
 class StrategyEngine(ABC):
@@ -163,9 +163,7 @@ class StrategyEngine(ABC):
         """
         return []
 
-    def validate_market_data_availability(
-        self, symbols: list[str] | None = None
-    ) -> bool:
+    def validate_market_data_availability(self, symbols: list[str] | None = None) -> bool:
         """Validate that required market data is available.
 
         Args:
@@ -198,8 +196,6 @@ class StrategyEngine(ABC):
             raise ValidationError(error_msg)
 
         return True
-
-
 
     def log_strategy_state(self, additional_info: dict[str, Any] | None = None) -> None:
         """Log current strategy state for debugging.

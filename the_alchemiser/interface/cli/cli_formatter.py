@@ -145,6 +145,8 @@ def render_strategy_signals(
         symbol = signal.get("symbol", "N/A")
         # Support both legacy 'reason' and typed 'reasoning'
         reason = signal.get("reason", signal.get("reasoning", "No reason provided"))
+        allocation = signal.get("allocation_percentage")
+        confidence = signal.get("confidence")
 
         # Color code by action
         if action == "BUY":
@@ -160,10 +162,34 @@ def render_strategy_signals(
         # Create header with action and symbol
         header = f"[bold]{indicator} {symbol}[/bold]"
 
+        # Extra details block: allocation/confidence and special symbol expansions
+        details_lines: list[str] = []
+        try:
+            if isinstance(allocation, int | float):
+                details_lines.append(f"Target Allocation: {float(allocation):.1%}")
+        except Exception:
+            pass
+        try:
+            if isinstance(confidence, int | float) and 0 <= float(confidence) <= 1:
+                details_lines.append(f"Confidence: {float(confidence):.0%}")
+        except Exception:
+            pass
+
+        # Expand well-known portfolio symbols for clarity
+        if str(symbol) == "UVXY_BTAL_PORTFOLIO" and action == "BUY":
+            details_lines.append("Portfolio Components:")
+            details_lines.append("• UVXY: 75% (volatility hedge)")
+            details_lines.append("• BTAL: 25% (anti-beta hedge)")
+
         # Format the detailed explanation with better spacing
         formatted_reason = reason.replace("\n", "\n\n")  # Add extra spacing between sections
 
-        content = f"{header}\n\n{formatted_reason}"
+        # Combine content sections
+        content_sections = [header]
+        if details_lines:
+            content_sections.append("\n".join(details_lines))
+        content_sections.append(formatted_reason)
+        content = "\n\n".join(content_sections)
         panel = Panel(
             content,
             title=f"{strategy_type.value if hasattr(strategy_type, 'value') else strategy_type}",

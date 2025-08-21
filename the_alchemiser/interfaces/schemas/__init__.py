@@ -7,7 +7,7 @@ for data exchanged at system boundaries while keeping the domain layer framework
 
 Modules:
 - orders: Order validation and processing DTOs
-- tracking: Strategy tracking and P&L DTOs  
+- tracking: Strategy tracking and P&L DTOs
 - cli: Command-line interface DTOs
 - errors: Error reporting and notification DTOs
 - reporting: Dashboard, metrics, and email DTOs

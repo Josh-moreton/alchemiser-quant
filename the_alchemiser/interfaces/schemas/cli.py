@@ -15,6 +15,7 @@ from the_alchemiser.domain.types import AccountInfo, OrderDetails, PositionInfo,
 # CLI Command Types
 class CLIOptions(TypedDict):
     """CLI command options."""
+
     verbose: bool
     quiet: bool
     live: bool
@@ -25,14 +26,16 @@ class CLIOptions(TypedDict):
 
 class CLICommandResult(TypedDict):
     """Result of CLI command execution."""
+
     success: bool
     message: str
     exit_code: int
 
 
-# CLI Display Types  
+# CLI Display Types
 class CLISignalData(TypedDict):
     """Strategy signal data for CLI display."""
+
     strategy_type: str
     signals: dict[str, StrategySignal]
     indicators: dict[str, dict[str, float]]
@@ -40,6 +43,7 @@ class CLISignalData(TypedDict):
 
 class CLIAccountDisplay(TypedDict):
     """Account information formatted for CLI display."""
+
     account_info: AccountInfo
     positions: dict[str, PositionInfo]
     mode: Literal["live", "paper"]
@@ -47,6 +51,7 @@ class CLIAccountDisplay(TypedDict):
 
 class CLIPortfolioData(TypedDict):
     """Portfolio allocation data for CLI display."""
+
     symbol: str
     allocation_percentage: float
     current_value: float
@@ -55,6 +60,7 @@ class CLIPortfolioData(TypedDict):
 
 class CLIOrderDisplay(TypedDict):
     """Order information formatted for CLI display."""
+
     order_details: OrderDetails
     display_style: str
     formatted_amount: str

@@ -21,11 +21,9 @@ from the_alchemiser.domain.strategies.engine import StrategyEngine
 from the_alchemiser.domain.strategies.nuclear_typed_engine import NuclearTypedEngine
 from the_alchemiser.domain.strategies.protocols.market_data_port import MarketDataPort
 from the_alchemiser.domain.strategies.typed_klm_ensemble_engine import TypedKLMStrategyEngine
-from the_alchemiser.domain.strategies.value_objects.strategy_signal import StrategySignal
-from the_alchemiser.domain.shared_kernel.value_objects.percentage import Percentage
 from the_alchemiser.domain.strategies.value_objects.confidence import Confidence
+from the_alchemiser.domain.strategies.value_objects.strategy_signal import StrategySignal
 from the_alchemiser.domain.trading.value_objects.symbol import Symbol
-from the_alchemiser.services.errors.exceptions import StrategyExecutionError
 from the_alchemiser.services.errors.handler import TradingSystemErrorHandler
 
 
