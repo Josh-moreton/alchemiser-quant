@@ -1,15 +1,14 @@
 """Signal analysis CLI module.
 
 Handles signal generation and display without trading execution.
+Uses the typed strategy system (TypedStrategyManager) for end-to-end type safety.
 """
 
-from datetime import datetime
+from datetime import datetime, UTC
 from typing import Any
 
-from the_alchemiser.application.mapping.strategy_signal_mapping import (
-    map_signals_dict as _map_signals_to_typed,
-)
-from the_alchemiser.domain.strategies.strategy_manager import MultiStrategyManager, StrategyType
+from the_alchemiser.domain.registry.strategy_registry import StrategyType
+from the_alchemiser.domain.strategies.typed_strategy_manager import TypedStrategyManager
 from the_alchemiser.infrastructure.config import Settings
 from the_alchemiser.infrastructure.logging.logging_utils import get_logger
 from the_alchemiser.interface.cli.cli_formatter import (
@@ -19,7 +18,6 @@ from the_alchemiser.interface.cli.cli_formatter import (
     render_strategy_signals,
 )
 from the_alchemiser.services.errors.exceptions import DataProviderError, StrategyExecutionError
-from the_alchemiser.utils.feature_flags import type_system_v2_enabled
 
 
 class SignalAnalyzer:
@@ -38,7 +36,7 @@ class SignalAnalyzer:
         }
 
     def _generate_signals(self) -> tuple[dict[StrategyType, dict[str, Any]], dict[str, float]]:
-        """Generate strategy signals."""
+        """Generate strategy signals using TypedStrategyManager."""
         # Acquire DI container initialized by main entry point
         import the_alchemiser.main as app_main
 
@@ -46,32 +44,77 @@ class SignalAnalyzer:
         if container is None:
             raise RuntimeError("DI container not available - ensure system is properly initialized")
 
-        # Use typed adapter for engines (DataFrame compatibility) and typed port for fetching
-        shared_data_provider = container.infrastructure.data_provider()
+        # Use market data port for typed strategy manager
         market_data_port = container.infrastructure.market_data_service()
 
-        # Create strategy manager with proper allocations
+        # Create typed strategy manager with proper allocations
         strategy_allocations = self._get_strategy_allocations()
-        manager = MultiStrategyManager(
-            shared_data_provider=shared_data_provider,
+        manager = TypedStrategyManager(
             market_data_port=market_data_port,
-            config=self.settings,
             strategy_allocations=strategy_allocations,
         )
 
-        # Generate signals
-        strategy_signals, consolidated_portfolio, _ = manager.run_all_strategies()
-        # Feature-flag: convert to typed StrategySignal for display/reporting
-        if type_system_v2_enabled():
-            try:
-                # Visible indicator in logs when typed path is active
-                self.logger.info(
-                    "TYPES_V2_ENABLED detected: using typed StrategySignal mapping for display"
-                )
-                strategy_signals = _map_signals_to_typed(strategy_signals)  # type: ignore[assignment]
-            except Exception:
-                pass
-        return strategy_signals, consolidated_portfolio
+        # Generate signals using typed strategy manager
+        aggregated_signals = manager.generate_all_signals(datetime.now(UTC))
+        
+        # Convert typed signals to legacy format for display compatibility
+        # TODO: Update display functions to use typed signals directly
+        legacy_format_signals = self._convert_to_legacy_format(aggregated_signals)
+        consolidated_portfolio = self._create_consolidated_portfolio(aggregated_signals)
+        
+        return legacy_format_signals, consolidated_portfolio
+
+    def _convert_to_legacy_format(self, aggregated_signals) -> dict[StrategyType, dict[str, Any]]:
+        """Convert AggregatedSignals to legacy format for display compatibility.
+        
+        TODO: Remove this once display functions are updated to use typed signals.
+        """
+        legacy_signals = {}
+        
+        for strategy_type, signals in aggregated_signals.get_signals_by_strategy().items():
+            if signals:
+                # Take the first signal as the primary signal for this strategy
+                signal = signals[0]
+                legacy_signals[strategy_type] = {
+                    "action": signal.action,
+                    "symbol": signal.symbol.value,
+                    "reasoning": signal.reasoning,
+                    "confidence": float(signal.confidence.value),
+                    "target_allocation": float(signal.target_allocation.value),
+                    "timestamp": signal.timestamp,
+                }
+            else:
+                # No signals for this strategy
+                legacy_signals[strategy_type] = {
+                    "action": "HOLD",
+                    "symbol": "N/A",
+                    "reasoning": "No signals generated",
+                    "confidence": 0.0,
+                    "target_allocation": 0.0,
+                    "timestamp": datetime.now(UTC),
+                }
+        
+        return legacy_signals
+
+    def _create_consolidated_portfolio(self, aggregated_signals) -> dict[str, float]:
+        """Create consolidated portfolio allocation from typed signals.
+        
+        TODO: Remove this once display functions are updated to use typed signals.
+        """
+        portfolio = {}
+        
+        # Get all signals and aggregate by symbol
+        all_signals = aggregated_signals.get_all_signals()
+        for signal in all_signals:
+            symbol = signal.symbol.value
+            allocation = float(signal.target_allocation.value)
+            
+            if symbol in portfolio:
+                portfolio[symbol] += allocation
+            else:
+                portfolio[symbol] = allocation
+        
+        return portfolio
 
     def _display_results(
         self,
