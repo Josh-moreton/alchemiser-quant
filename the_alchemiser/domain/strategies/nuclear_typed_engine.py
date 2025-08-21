@@ -58,11 +58,20 @@ class NuclearTypedEngine(StrategyEngine):
         """Return all symbols required by the Nuclear strategy."""
         return self._all_symbols
 
-    def generate_signals(self, now: datetime) -> list[StrategySignal]:
+    def generate_signals(
+        self,
+        now_or_port: datetime | MarketDataPort,
+        maybe_now: datetime | None = None,
+    ) -> list[StrategySignal]:
         """Generate Nuclear strategy signals using MarketDataPort.
 
+        Supports two calling conventions for backward compatibility:
+        - generate_signals(now)
+        - generate_signals(market_data_port, now)
+
         Args:
-            now: Current timestamp for signal generation
+            now_or_port: Either the current timestamp or a MarketDataPort override
+            maybe_now: The current timestamp when providing a MarketDataPort override
 
         Returns:
             List of StrategySignal objects
@@ -71,8 +80,20 @@ class NuclearTypedEngine(StrategyEngine):
             StrategyExecutionError: If signal generation fails
         """
         try:
+            # Resolve parameters to support both call styles
+            if isinstance(now_or_port, MarketDataPort):
+                market_data_port_override: MarketDataPort | None = now_or_port
+                if maybe_now is None:
+                    raise StrategyExecutionError(
+                        "Timestamp 'now' must be provided when passing a MarketDataPort override"
+                    )
+                now: datetime = maybe_now
+            else:
+                market_data_port_override = None
+                now = now_or_port
+
             # Fetch market data for all symbols
-            market_data = self._fetch_market_data()
+            market_data = self._fetch_market_data(market_data_port_override)
             if not market_data:
                 self.logger.warning("No market data available for Nuclear strategy")
                 return []
@@ -93,12 +114,18 @@ class NuclearTypedEngine(StrategyEngine):
         except Exception as e:
             raise StrategyExecutionError(f"Nuclear strategy generation failed: {e}") from e
 
-    def _fetch_market_data(self) -> dict[str, pd.DataFrame]:
-        """Fetch market data for all required symbols."""
+    def _fetch_market_data(
+        self, market_data_port: MarketDataPort | None = None
+    ) -> dict[str, pd.DataFrame]:
+        """Fetch market data for all required symbols.
+
+        Allows a one-off MarketDataPort override for this call.
+        """
         market_data = {}
+        port = market_data_port or self.market_data_port
         for symbol in self._all_symbols:
             try:
-                data = self.market_data_port.get_data(symbol, timeframe="1day", period="1y")
+                data = port.get_data(symbol, timeframe="1day", period="1y")
                 if not data.empty:
                     market_data[symbol] = data
                 else:
