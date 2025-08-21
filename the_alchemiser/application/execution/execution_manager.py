@@ -15,7 +15,6 @@ from the_alchemiser.services.errors.exceptions import (
     StrategyExecutionError,
     TradingClientError,
 )
-from the_alchemiser.utils.feature_flags import type_system_v2_enabled
 
 from ..reporting.reporting import (
     build_portfolio_state_data,
@@ -45,12 +44,11 @@ class ExecutionManager:
             strategy_signals, consolidated_portfolio, strategy_attribution = (
                 self.engine.strategy_manager.run_all_strategies()
             )
-            # Feature-flagged: migrate legacy strategy signals to typed StrategySignal
-            if type_system_v2_enabled():
-                try:
-                    strategy_signals = _map_signals_to_typed(strategy_signals)
-                except Exception as e:  # pragma: no cover - defensive
-                    logging.warning(f"Failed to map strategy signals to typed: {e}")
+            # Always migrate strategy signals to typed (V2 migration complete)
+            try:
+                strategy_signals = _map_signals_to_typed(strategy_signals)
+            except Exception as e:  # pragma: no cover - defensive
+                logging.warning(f"Failed to map strategy signals to typed: {e}")
             if not consolidated_portfolio:
                 consolidated_portfolio = {"BIL": 1.0}
                 logging.info("No portfolio signals generated, defaulting to cash (BIL)")

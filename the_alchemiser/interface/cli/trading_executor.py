@@ -3,6 +3,8 @@
 Handles trading execution with comprehensive error handling and notifications.
 """
 
+from typing import Any
+
 from the_alchemiser.application.execution.smart_execution import is_market_open
 from the_alchemiser.application.mapping.strategy_signal_mapping import (
     convert_signals_dict_to_domain,
@@ -31,7 +33,6 @@ from the_alchemiser.services.errors.exceptions import (
     StrategyExecutionError,
     TradingClientError,
 )
-from the_alchemiser.utils.feature_flags import type_system_v2_enabled
 
 
 class TradingExecutor:
@@ -125,33 +126,27 @@ class TradingExecutor:
         strategy_signals, consolidated_portfolio, strategy_attribution = (
             trader.strategy_manager.run_all_strategies()
         )
-        if type_system_v2_enabled():
-            try:
-                # Visible indicator in logs when typed path is active
-                self.logger.info(
-                    "TYPES_V2_ENABLED detected: using typed StrategySignal mapping for execution"
-                )
-                legacy_typed_signals = _map_signals_to_typed(strategy_signals)  # dict -> TypedDict
-                typed_domain_signals = convert_signals_dict_to_domain(
-                    legacy_typed_signals
-                )  # TypedDict -> domain
 
-                # NEW: Convert typed signals to ValidatedOrders when V2 enabled
-                validated_orders = self._convert_signals_to_validated_orders(
-                    typed_domain_signals, trader
+        # Always use typed StrategySignal mapping (V2 path permanently enabled)
+        try:
+            legacy_typed_signals = _map_signals_to_typed(strategy_signals)  # dict -> TypedDict
+            typed_domain_signals = convert_signals_dict_to_domain(
+                legacy_typed_signals
+            )  # TypedDict -> domain
+
+            validated_orders = self._convert_signals_to_validated_orders(
+                typed_domain_signals, trader
+            )
+            if validated_orders:
+                self.logger.info(
+                    f"Generated {len(validated_orders)} validated orders from typed signals"
                 )
-                if validated_orders:
+                for order in validated_orders:
                     self.logger.info(
-                        f"Generated {len(validated_orders)} validated orders from typed signals"
+                        f"Order: {order.symbol} {order.side} {order.quantity} @ {order.order_type}"
                     )
-                    # Log order details for debugging
-                    for order in validated_orders:
-                        self.logger.info(
-                            f"Order: {order.symbol} {order.side} {order.quantity} @ {order.order_type}"
-                        )
-            except Exception as e:
-                self.logger.warning(f"Failed to convert signals to validated orders: {e}")
-                pass
+        except Exception as e:
+            self.logger.warning(f"Failed to convert signals to validated orders: {e}")
 
         render_strategy_signals(strategy_signals)
 
@@ -173,25 +168,24 @@ class TradingExecutor:
         # Display results
         trader.display_multi_strategy_summary(result)
 
-        # Optional: show enriched open orders using the new typed path under feature flag
+        # Show enriched open orders using typed path (V2 migration complete)
         try:
-            if type_system_v2_enabled():
-                # Acquire TradingServiceManager from DI container credentials
-                import the_alchemiser.main as app_main
+            # Acquire TradingServiceManager from DI container credentials
+            import the_alchemiser.main as app_main
 
-                container = app_main._di_container
-                if container is not None:
-                    api_key = container.config.alpaca_api_key()
-                    secret_key = container.config.alpaca_secret_key()
-                    paper = container.config.paper_trading()
-                    from the_alchemiser.services.trading.trading_service_manager import (
-                        TradingServiceManager,
-                    )
+            container = app_main._di_container
+            if container is not None:
+                api_key = container.config.alpaca_api_key()
+                secret_key = container.config.alpaca_secret_key()
+                paper = container.config.paper_trading()
+                from the_alchemiser.services.trading.trading_service_manager import (
+                    TradingServiceManager,
+                )
 
-                    tsm = TradingServiceManager(api_key, secret_key, paper=paper)
-                    open_orders = tsm.get_open_orders()
-                    if open_orders:
-                        render_enriched_order_summaries(open_orders)
+                tsm = TradingServiceManager(api_key, secret_key, paper=paper)
+                open_orders = tsm.get_open_orders()
+                if open_orders:
+                    render_enriched_order_summaries(open_orders)
         except Exception:
             # Non-fatal UI enhancement; ignore errors here
             pass
@@ -215,9 +209,6 @@ class TradingExecutor:
         try:
             # Get portfolio value for quantity calculations
             account_info = trader.get_account_info()
-            if not account_info:
-                self.logger.warning("Cannot convert signals to orders: account info unavailable")
-                return []
 
             # Extract portfolio value (use equity as total portfolio value)
             portfolio_value = float(account_info.get("equity", 0))
@@ -282,21 +273,38 @@ class TradingExecutor:
             from the_alchemiser.interface.email.email_utils import send_email_notification
             from the_alchemiser.interface.email.templates import EmailTemplates
 
-            # Enrich result with fresh position data
+            # Enrich result with fresh position data without mutating the frozen DTO
             try:
-                # This is a bit of a hack, but we need fresh positions for email
                 trader = self._create_trading_engine()
                 fresh_positions = trader.get_positions_dict()
-
-                if hasattr(result, "final_portfolio_state") and result.final_portfolio_state:
-                    result.final_portfolio_state["current_positions"] = fresh_positions
-                else:
-                    result.final_portfolio_state = {"current_positions": fresh_positions}
+                # Safely construct an updated copy for email rendering
+                try:
+                    updated_state = {
+                        **(result.final_portfolio_state or {}),
+                        "current_positions": fresh_positions,
+                    }
+                    email_result: MultiStrategyExecutionResultDTO | Any = result.model_copy(
+                        update={"final_portfolio_state": updated_state}, deep=True
+                    )
+                except Exception:
+                    # If model_copy is unavailable, fall back to passing a tuple of (result, state)
+                    email_result = result
             except Exception as e:
-                self.logger.warning(f"Could not add fresh position data: {e}")
+                updated_state = {
+                    **(result.final_portfolio_state or {}),
+                    "current_positions": fresh_positions,
+                }
+                email_result: MultiStrategyExecutionResultDTO | Any = result.model_copy(
+                    update={"final_portfolio_state": updated_state}, deep=True
+                )
+            except Exception as e:
+                self.logger.warning(f"Could not enrich result with fresh position data: {e}")
+                email_result = result
 
             # Generate email content
-            html_content = EmailTemplates.build_multi_strategy_report_neutral(result, mode_str)
+            html_content = EmailTemplates.build_multi_strategy_report_neutral(
+                email_result, mode_str
+            )
 
             send_email_notification(
                 subject=f"📈 The Alchemiser - {mode_str.upper()} Multi-Strategy Report",
@@ -343,16 +351,13 @@ class TradingExecutor:
             # Create trading engine
             trader = self._create_trading_engine()
 
-            # Indicate typed mode in console if enabled
-            if type_system_v2_enabled():
-                try:
-                    from rich.console import Console
+            # Indicate typed mode is always active (V2 migration complete)
+            try:
+                from rich.console import Console
 
-                    Console().print(
-                        "[dim]TYPES_V2_ENABLED: typed StrategySignal path is ACTIVE[/dim]"
-                    )
-                except Exception:
-                    self.logger.info("TYPES_V2_ENABLED: typed StrategySignal path is ACTIVE")
+                Console().print("[dim]TYPES_V2: fully typed StrategySignal path is ACTIVE[/dim]")
+            except Exception:
+                self.logger.info("TYPES_V2: fully typed StrategySignal path is ACTIVE")
 
             # Check market hours
             if not self._check_market_hours(trader):

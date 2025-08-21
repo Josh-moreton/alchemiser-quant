@@ -1,7 +1,8 @@
 """Portfolio management facade - unified interface for all portfolio operations."""
 
+import logging
 from decimal import Decimal
-from typing import Any
+from typing import Any, Literal, cast
 
 from the_alchemiser.application.portfolio.services.portfolio_analysis_service import (
     PortfolioAnalysisService,
@@ -17,7 +18,32 @@ from the_alchemiser.domain.portfolio.rebalancing.rebalance_calculator import Reb
 from the_alchemiser.domain.portfolio.strategy_attribution.attribution_engine import (
     StrategyAttributionEngine,
 )
+from the_alchemiser.domain.registry.strategy_registry import StrategyType
+from the_alchemiser.domain.types import OrderDetails
 from the_alchemiser.services.trading.trading_service_manager import TradingServiceManager
+
+# Typed alias for order status literals required by OrderDetails
+OrderStatusLiteral = Literal["new", "partially_filled", "filled", "canceled", "expired", "rejected"]
+
+
+def _normalize_order_status(raw_status: str) -> OrderStatusLiteral:
+    """Normalize various internal statuses to the allowed OrderStatus literal."""
+    s = (raw_status or "").strip().lower()
+    if s in ("placed", "simulated"):
+        return "new"
+    if s == "failed":
+        return "rejected"
+    allowed: tuple[OrderStatusLiteral, ...] = (
+        "new",
+        "partially_filled",
+        "filled",
+        "canceled",
+        "expired",
+        "rejected",
+    )
+    if s in allowed:
+        return cast(OrderStatusLiteral, s)
+    return "new"
 
 
 class PortfolioManagementFacade:
@@ -111,8 +137,6 @@ class PortfolioManagementFacade:
         self, target_weights: dict[str, Decimal], dry_run: bool = True
     ) -> dict[str, Any]:
         """Execute complete portfolio rebalancing."""
-        import logging
-
         logging.debug(
             "PortfolioManagementFacade.execute_rebalancing called: target_weights=%s dry_run=%s",
             target_weights,
@@ -131,6 +155,11 @@ class PortfolioManagementFacade:
         validation = self.execution_service.validate_rebalancing_plan(rebalance_plan)
         logging.debug("Validation results: %s", validation)
         if not validation["is_valid"]:
+            logging.warning(
+                "Rebalancing validation failed. Issues: %s | Symbols to trade: %s",
+                validation.get("issues", []),
+                validation.get("symbols_to_trade", []),
+            )
             return {
                 "status": "validation_failed",
                 "validation_results": validation,
@@ -141,6 +170,16 @@ class PortfolioManagementFacade:
         execution_results = self.execution_service.execute_rebalancing_plan(rebalance_plan, dry_run)
 
         logging.debug("Execution results: %s", execution_results)
+        try:
+            summary = execution_results.get("execution_summary", {})
+            logging.info(
+                "Rebalancing execution summary: total=%s success=%s failed=%s",
+                summary.get("total_orders", 0),
+                summary.get("successful_orders", 0),
+                summary.get("failed_orders", 0),
+            )
+        except Exception:
+            pass
 
         return {
             "status": "completed",
@@ -235,6 +274,155 @@ class PortfolioManagementFacade:
             }
 
         return workflow_results
+
+    # RebalancingService Protocol Implementation
+    def rebalance_portfolio(
+        self,
+        target_portfolio: dict[str, float],
+        _strategy_attribution: dict[str, list[StrategyType]] | None = None,
+    ) -> list[OrderDetails]:
+        """
+        Main rebalancing interface compatible with RebalancingService protocol.
+
+        Args:
+            target_portfolio: Target allocation weights by symbol
+            strategy_attribution: Optional strategy attribution mapping
+
+        Returns:
+            List of order details from execution
+        """
+        # Convert to Decimal for internal processing
+        target_weights_decimal = {
+            symbol: Decimal(str(weight)) for symbol, weight in target_portfolio.items()
+        }
+
+        # Execute rebalancing and get results
+        execution_result = self.execute_rebalancing(target_weights_decimal, dry_run=False)
+
+        # Extract orders from execution results
+        orders_list: list[OrderDetails] = []
+
+        if execution_result.get("status") == "completed":
+            execution_results = execution_result.get("execution_results", {})
+            orders_placed = execution_results.get("orders_placed", {})
+
+            # Convert to OrderDetails format
+            for symbol, order_data in orders_placed.items():
+                if not isinstance(order_data, dict):
+                    continue
+
+                # Determine side and quantity from order data
+                side = order_data.get("side", "buy")
+                qty_value = (
+                    order_data.get("shares")
+                    or order_data.get("quantity")
+                    or order_data.get("amount")
+                    or 0
+                )
+                qty_float = float(qty_value) if qty_value is not None else 0.0
+
+                # Normalize status to allowed literal values for DTO
+                status_norm = _normalize_order_status(str(order_data.get("status", "new")))
+
+                order_details: OrderDetails = {
+                    "id": order_data.get("order_id", "unknown"),
+                    "symbol": symbol,
+                    "qty": qty_float,
+                    "side": side,
+                    "order_type": "market",
+                    "time_in_force": "day",
+                    "status": status_norm,
+                    "filled_qty": 0.0,
+                    "filled_avg_price": None,
+                    "created_at": "",
+                    "updated_at": "",
+                }
+                orders_list.append(order_details)
+
+        else:
+            # Surface validation failure via a log entry; return empty list per protocol
+            logging.warning(
+                "Rebalancing workflow did not complete (status=%s). No orders mapped.",
+                execution_result.get("status"),
+            )
+
+        return orders_list
+
+    def rebalance_portfolio_phase(
+        self,
+        target_portfolio: dict[str, float],
+        phase: str,  # "sell" or "buy"
+    ) -> list[OrderDetails]:
+        """Execute only one phase of the rebalancing: sells or buys.
+
+        This enables true sequential execution: execute sells first, wait for BP refresh,
+        then execute buys sized to current buying power.
+        """
+        phase_normalized = phase.lower().strip()
+        if phase_normalized not in {"sell", "buy"}:
+            phase_normalized = "buy"
+
+        # Convert to Decimal for internal processing
+        target_weights_decimal = {
+            symbol: Decimal(str(weight)) for symbol, weight in target_portfolio.items()
+        }
+
+        # Calculate and filter plan to the requested phase
+        full_plan = self.rebalancing_service.calculate_rebalancing_plan(target_weights_decimal)
+        filtered_plan: dict[str, Any] = {
+            symbol: plan
+            for symbol, plan in full_plan.items()
+            if plan.needs_rebalance
+            and (
+                (phase_normalized == "sell" and plan.trade_amount < 0)
+                or (phase_normalized == "buy" and plan.trade_amount > 0)
+            )
+        }
+
+        if not filtered_plan:
+            return []
+
+        # Execute only the filtered plan; execution service caps buys to BP
+        execution_results = self.execution_service.execute_rebalancing_plan(
+            filtered_plan, dry_run=False
+        )
+
+        # Map to OrderDetails
+        orders_list: list[OrderDetails] = []
+        orders_placed = (
+            execution_results.get("orders_placed", {})
+            if isinstance(execution_results, dict)
+            else {}
+        )
+        for symbol, order_data in orders_placed.items():
+            if not isinstance(order_data, dict):
+                continue
+            side = order_data.get("side", "buy")
+            qty_value = (
+                order_data.get("shares")
+                or order_data.get("quantity")
+                or order_data.get("amount")
+                or 0
+            )
+            qty_float = float(qty_value) if qty_value is not None else 0.0
+            # Normalize status to allowed literal values
+            status_norm = _normalize_order_status(str(order_data.get("status", "new")))
+            order_details: OrderDetails = {
+                "id": order_data.get("order_id", "unknown"),
+                "symbol": symbol,
+                "qty": qty_float,
+                "side": side,
+                "order_type": "market",
+                "time_in_force": "day",
+                "status": status_norm,
+                "filled_qty": 0.0,
+                "filled_avg_price": None,
+                "created_at": "",
+                "updated_at": "",
+            }
+            orders_list.append(order_details)
+
+        return orders_list
 
     # Utility methods
     def get_current_portfolio_value(self) -> Decimal:

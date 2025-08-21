@@ -6,9 +6,9 @@ Replaces the `get_email_config` function from the original email_utils.py.
 
 import logging
 
-from the_alchemiser.domain.types import EmailCredentials
 from the_alchemiser.infrastructure.config import load_settings
 from the_alchemiser.infrastructure.secrets.secrets_manager import SecretsManager
+from the_alchemiser.interfaces.schemas.reporting import EmailCredentials
 
 
 class EmailConfig:

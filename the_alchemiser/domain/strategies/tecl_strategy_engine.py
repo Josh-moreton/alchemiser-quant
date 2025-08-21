@@ -362,7 +362,7 @@ class TECLStrategyEngine(StrategyEngine):
             if not indicators:
                 return []
 
-            # Get legacy strategy recommendation
+            # Get strategy recommendation
             symbol_or_allocation, action, reasoning = self.evaluate_tecl_strategy(
                 indicators, market_data
             )

@@ -182,6 +182,13 @@ class LegacyPortfolioRebalancerAdapter:
             current_values = {
                 pos.symbol: pos.market_value for pos in self.trading_manager.get_all_positions()
             }
+
+            # Include ALL symbols from target weights with 0 value if not in current positions
+            # This ensures that symbols not currently held are properly considered for purchase
+            for symbol in target_weights.keys():
+                if symbol not in current_values:
+                    current_values[symbol] = 0.0
+
             portfolio_value = self.trading_manager.get_portfolio_value()
 
             rebalance_data = self.calculate_rebalance_amounts(
