@@ -19,14 +19,12 @@ from rich.table import Table
 from rich.text import Text
 
 from the_alchemiser.application.trading.engine_service import TradingEngine
-from the_alchemiser.infrastructure.config import load_settings
 from the_alchemiser.infrastructure.logging.logging_utils import (
     get_logger,
     log_error_with_context,
 )
 from the_alchemiser.infrastructure.secrets.secrets_manager import secrets_manager
 from the_alchemiser.interface.cli.cli_formatter import render_account_info
-from the_alchemiser.interface.cli.signal_analyzer import SignalAnalyzer
 from the_alchemiser.services.errors.exceptions import (
     AlchemiserError,
     StrategyExecutionError,
@@ -100,12 +98,13 @@ def signal(
 
             progress.update(task, description="[cyan]📊 Generating strategy signals...")
 
-            # Initialize signal analyzer with settings
-            settings = load_settings()
-            analyzer = SignalAnalyzer(settings)
+            # Use the main entry point to ensure proper DI initialization
+            from the_alchemiser.main import main
 
-            # Run signal generation
-            success = analyzer.run()
+            # Build argv for main function - signal mode
+            argv = ["signal"]
+
+            success = main(argv=argv)
 
         if success:
             console.print("\n[bold green]Signal analysis completed successfully![/bold green]")

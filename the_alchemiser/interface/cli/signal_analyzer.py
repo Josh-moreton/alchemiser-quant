@@ -57,6 +57,7 @@ class SignalAnalyzer:
         class _Adapter:
             def __init__(self, port: Any, allocs: dict[StrategyType, float]):
                 self._typed = TypedStrategyManager(port, allocs)
+                self._strategy_allocations = allocs
 
             def run_all_strategies(
                 self,
@@ -67,18 +68,60 @@ class SignalAnalyzer:
 
                 agg = self._typed.generate_all_signals(datetime.now(UTC))
                 legacy: dict[StrategyType, dict[str, Any]] = {}
+                consolidated_portfolio: dict[str, float] = {}
+
+                # Process signals by strategy for legacy format
                 for st, signals in agg.get_signals_by_strategy().items():
                     if signals:
-                        s = signals[0]
-                        symbol_value = s.symbol.value
-                        symbol_str = "NUCLEAR_PORTFOLIO" if symbol_value == "PORT" else symbol_value
-                        legacy[st] = {
-                            "symbol": symbol_str,
-                            "action": s.action,
-                            "confidence": float(s.confidence.value),
-                            "reasoning": s.reasoning,
-                            "allocation_percentage": float(s.target_allocation.value),
-                        }
+                        # Use the strategy's actual allocation percentage
+                        actual_allocation = self._strategy_allocations.get(st, 0.0) * 100
+
+                        if len(signals) == 1:
+                            # Single signal strategy
+                            s = signals[0]
+                            symbol_value = s.symbol.value
+                            symbol_str = (
+                                "NUCLEAR_PORTFOLIO" if symbol_value == "PORT" else symbol_value
+                            )
+
+                            legacy[st] = {
+                                "symbol": symbol_str,
+                                "action": s.action,
+                                "confidence": float(s.confidence.value),
+                                "reasoning": s.reasoning,
+                                "allocation_percentage": actual_allocation,
+                            }
+                        else:
+                            # Multi-signal strategy (like nuclear portfolio)
+                            # Create a consolidated display showing all symbols
+                            first_signal = signals[0]
+                            symbol_names = [s.symbol.value for s in signals]
+                            symbol_display = f"NUCLEAR_PORTFOLIO ({', '.join(symbol_names)})"
+
+                            # Combine reasoning with portfolio breakdown
+                            base_reasoning = first_signal.reasoning.split(
+                                " | Nuclear portfolio constituent"
+                            )[0]
+                            portfolio_breakdown = "\n\nNuclear Portfolio Breakdown:\n"
+                            for signal in signals:
+                                # signal.target_allocation.value is the proportion within the strategy (e.g., 0.333 for 33.3%)
+                                # actual_allocation is the strategy's total allocation as percentage (e.g., 30.0 for 30%)
+                                individual_weight_pct = (
+                                    float(signal.target_allocation.value) * actual_allocation
+                                )
+                                portfolio_breakdown += (
+                                    f"• {signal.symbol.value}: {individual_weight_pct:.1f}%\n"
+                                )
+
+                            combined_reasoning = base_reasoning + portfolio_breakdown.rstrip()
+
+                            legacy[st] = {
+                                "symbol": symbol_display,
+                                "action": first_signal.action,
+                                "confidence": float(first_signal.confidence.value),
+                                "reasoning": combined_reasoning,
+                                "allocation_percentage": actual_allocation,
+                            }
                     else:
                         legacy[st] = {
                             "symbol": "N/A",
@@ -87,7 +130,24 @@ class SignalAnalyzer:
                             "reasoning": "No signal produced",
                             "allocation_percentage": 0.0,
                         }
-                return legacy, {}, {}
+
+                # Build consolidated portfolio from all signals
+                for strategy_type, signals in agg.get_signals_by_strategy().items():
+                    strategy_allocation = self._strategy_allocations.get(strategy_type, 0.0)
+
+                    for signal in signals:
+                        if signal.action in ["BUY", "LONG"]:
+                            symbol_str = signal.symbol.value
+
+                            # Use the actual signal allocation for individual symbols
+                            if symbol_str != "PORT":
+                                # Calculate individual allocation as signal proportion * strategy allocation
+                                individual_allocation = (
+                                    float(signal.target_allocation.value) * strategy_allocation
+                                )
+                                consolidated_portfolio[symbol_str] = individual_allocation
+
+                return legacy, consolidated_portfolio, {}
 
         manager = _Adapter(market_data_port, strategy_allocations)
 
