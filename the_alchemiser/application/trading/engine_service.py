@@ -1107,7 +1107,7 @@ class TradingEngine:
 
         # Get fresh account info to update buying power
         account_info = self.get_account_info()
-        current_buying_power = float(account_info.get("buying_power", 0))
+        current_buying_power = float(account_info.buying_power)
         logging.info(f"Current buying power: ${current_buying_power:,.2f}")
 
         # Execute only BUY phase via facade to leverage scaled buys
