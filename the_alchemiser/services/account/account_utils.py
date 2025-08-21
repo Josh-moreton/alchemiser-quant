@@ -17,7 +17,7 @@ def extract_comprehensive_account_data(data_provider: Any) -> AccountInfo:
     Extract comprehensive account information from a data provider.
 
     Args:
-        data_provider: UnifiedDataProvider instance
+        data_provider: Market data provider instance
 
     Returns:
         AccountInfo containing account information

@@ -440,10 +440,10 @@ def main() -> None:
     print("=" * 50)
 
     try:
-        # Initialize ensemble with typed adapter (temporary pandas shim)
+        # Initialize ensemble with strategy market data service
         from the_alchemiser.infrastructure.secrets.secrets_manager import SecretsManager
-        from the_alchemiser.services.market_data.typed_data_provider_adapter import (
-            TypedDataProviderAdapter,
+        from the_alchemiser.services.market_data.strategy_market_data_service import (
+            StrategyMarketDataService,
         )
 
         sm = SecretsManager()
@@ -451,7 +451,7 @@ def main() -> None:
         if not api_key or not secret_key:
             raise RuntimeError("Missing Alpaca credentials for KLM ensemble test")
 
-        data_provider = TypedDataProviderAdapter(api_key, secret_key)
+        data_provider = StrategyMarketDataService(api_key, secret_key)
         ensemble = KLMStrategyEnsemble(data_provider=data_provider)
 
         print(f"✅ Ensemble initialized with {len(ensemble.strategy_variants)} variants")

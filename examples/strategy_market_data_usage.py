@@ -1,7 +1,7 @@
 """Example usage of MarketDataPort in strategy implementation.
 
 This demonstrates how strategies can be updated to use the MarketDataPort protocol
-instead of direct dependencies on UnifiedDataProvider or other infrastructure.
+instead of direct dependencies on infrastructure components.
 """
 
 from typing import Any
