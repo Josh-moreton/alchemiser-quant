@@ -27,6 +27,9 @@ from typing import Any, Protocol, cast
 from alpaca.trading.enums import OrderSide
 
 from the_alchemiser.application.execution.smart_execution import SmartExecution
+from the_alchemiser.application.portfolio.services.portfolio_management_facade import (
+    PortfolioManagementFacade,
+)
 from the_alchemiser.application.trading.alpaca_client import AlpacaClient
 from the_alchemiser.domain.registry import StrategyType
 from the_alchemiser.domain.strategies.typed_strategy_manager import TypedStrategyManager
@@ -35,9 +38,6 @@ from the_alchemiser.domain.types import (
     EnrichedAccountInfo,
     OrderDetails,
     PositionsDict,
-)
-from the_alchemiser.infrastructure.adapters.legacy_portfolio_adapter import (
-    LegacyPortfolioRebalancerAdapter,
 )
 from the_alchemiser.infrastructure.config import Settings
 from the_alchemiser.interfaces.schemas.common import MultiStrategyExecutionResultDTO
@@ -290,7 +290,7 @@ class TradingEngine:
         self.logger = logging.getLogger(__name__)
 
         # Type annotations for attributes that can have multiple types
-        self.portfolio_rebalancer: Any  # Can be LegacyPortfolioRebalancerAdapter, _RuntimePortfolioRebalancer, or LegacyPortfolioRebalancerStub
+        self.portfolio_rebalancer: Any  # Can be PortfolioManagementFacade, _RuntimePortfolioRebalancer, or LegacyPortfolioRebalancerStub
 
         # Determine initialization mode
         if container is not None:
@@ -506,10 +506,9 @@ class TradingEngine:
             # Use the trading service manager if available, otherwise use old portfolio rebalancer
             trading_manager = getattr(self, "_trading_service_manager", None)
             if trading_manager and hasattr(trading_manager, "alpaca_manager"):
-                # This is a TradingServiceManager - use new system for real order execution
-                self.portfolio_rebalancer = LegacyPortfolioRebalancerAdapter(
+                # This is a TradingServiceManager - use modern portfolio management facade directly
+                self.portfolio_rebalancer = PortfolioManagementFacade(
                     trading_manager=trading_manager,
-                    use_new_system=True,
                 )
             else:
                 # Fall back to original portfolio rebalancer for backward compatibility
@@ -929,7 +928,10 @@ class TradingEngine:
         target_portfolio: dict[str, float],
         strategy_attribution: dict[str, list[StrategyType]] | None = None,
     ) -> list[OrderDetails]:  # Phase 18: Migrated from list[dict[str, Any]] to list[OrderDetails]
-        """Rebalance portfolio to target allocation with engine-level orchestration.
+        """Rebalance portfolio to target allocation with sequential execution to prevent buying power issues.
+
+        Executes sells first, waits for settlement via WebSocket monitoring, then executes buys
+        with refreshed buying power to prevent insufficient funds errors.
 
         Args:
             target_portfolio: Dictionary mapping symbols to target weight percentages.
@@ -948,50 +950,34 @@ class TradingEngine:
             logging.warning(f"Portfolio allocation sums to {total_allocation:.1%}, expected ~100%")
 
         # Log rebalancing initiation
-        logging.info(f"Initiating portfolio rebalancing with {len(target_portfolio)} symbols")
+        logging.info(
+            f"🚀 Initiating sequential portfolio rebalancing with {len(target_portfolio)} symbols"
+        )
         logging.debug(f"Target allocations: {target_portfolio}")
 
         try:
-            # Use composed rebalancing service (returns legacy dict format)
-            raw_orders = self._rebalancing_service.rebalance_portfolio(
-                target_portfolio, strategy_attribution
+            all_orders: list[OrderDetails] = []
+
+            # Phase 1: Execute SELL orders to free buying power
+            sell_orders = self._execute_sell_orders_phase(target_portfolio, strategy_attribution)
+            all_orders.extend(sell_orders)
+
+            # Phase 2: Wait for sell order settlements and buying power refresh
+            self._wait_for_buying_power_refresh(sell_orders)
+
+            # Phase 3: Execute BUY orders with refreshed buying power
+            buy_orders = self._execute_buy_orders_phase(target_portfolio, strategy_attribution)
+            all_orders.extend(buy_orders)
+
+            # Final summary
+            sell_count = len(sell_orders)
+            buy_count = len(buy_orders)
+            logging.info(
+                f"✅ Sequential portfolio rebalancing completed: "
+                f"{sell_count} SELLs, {buy_count} BUYs, {len(all_orders)} total orders"
             )
 
-            # Convert raw orders to OrderDetails
-            orders: list[OrderDetails] = []
-            for raw_order in raw_orders:
-                # Ensure all required fields have valid non-None values
-                order_id = raw_order.get("id") or "unknown"
-                symbol = raw_order.get("symbol") or ""
-                side = raw_order.get("side") or "buy"
-                order_type = raw_order.get("order_type") or "market"
-                time_in_force = raw_order.get("time_in_force") or "day"
-                status = raw_order.get("status") or "new"
-                created_at = raw_order.get("created_at") or ""
-                updated_at = raw_order.get("updated_at") or ""
-
-                order_details: OrderDetails = {
-                    "id": order_id,
-                    "symbol": symbol,
-                    "qty": raw_order.get("qty", 0.0),
-                    "side": side,
-                    "order_type": order_type,
-                    "time_in_force": time_in_force,
-                    "status": status,
-                    "filled_qty": raw_order.get("filled_qty", 0.0),
-                    "filled_avg_price": raw_order.get("filled_avg_price", 0.0),
-                    "created_at": created_at,
-                    "updated_at": updated_at,
-                }
-                orders.append(order_details)
-
-            # Engine-level post-processing
-            if orders:
-                logging.info(f"Portfolio rebalancing completed with {len(orders)} orders")
-            else:
-                logging.info("Portfolio rebalancing completed with no orders needed")
-
-            return orders
+            return all_orders
 
         except (
             TradingClientError,
@@ -1000,8 +986,122 @@ class TradingEngine:
             ValueError,
             AttributeError,
         ) as e:
-            logging.error(f"Portfolio rebalancing failed: {e}")
+            logging.error(f"Sequential portfolio rebalancing failed: {e}")
             return []
+
+    def _execute_sell_orders_phase(
+        self,
+        target_portfolio: dict[str, float],
+        strategy_attribution: dict[str, list[StrategyType]] | None = None,
+    ) -> list[OrderDetails]:
+        """Execute only SELL orders from the rebalancing plan."""
+        logging.info("🔄 Phase 1: Executing SELL orders to free buying power")
+
+        # Get the full rebalancing plan (returns list[OrderDetails])
+        all_orders = self._rebalancing_service.rebalance_portfolio(
+            target_portfolio, strategy_attribution
+        )
+
+        # Filter for SELL orders only
+        sell_orders = []
+        for order_details in all_orders:
+            if order_details["side"] == "sell":
+                sell_orders.append(order_details)
+
+        if sell_orders:
+            logging.info(f"Executing {len(sell_orders)} SELL orders")
+            for order in sell_orders:
+                logging.info(f"SELL {order['symbol']}: {order['qty']} shares")
+        else:
+            logging.info("No SELL orders needed")
+
+        return sell_orders
+
+    def _execute_buy_orders_phase(
+        self,
+        target_portfolio: dict[str, float],
+        strategy_attribution: dict[str, list[StrategyType]] | None = None,
+    ) -> list[OrderDetails]:
+        """Execute only BUY orders with refreshed buying power."""
+        logging.info("🔄 Phase 3: Executing BUY orders with refreshed buying power")
+
+        # Get fresh account info to update buying power
+        account_info = self.get_account_info()
+        current_buying_power = float(account_info.get("buying_power", 0))
+        logging.info(f"Current buying power: ${current_buying_power:,.2f}")
+
+        # Get the full rebalancing plan with fresh data (returns list[OrderDetails])
+        all_orders = self._rebalancing_service.rebalance_portfolio(
+            target_portfolio, strategy_attribution
+        )
+
+        # Filter for BUY orders only
+        buy_orders = []
+        for order_details in all_orders:
+            if order_details["side"] == "buy":
+                buy_orders.append(order_details)
+
+        if buy_orders:
+            logging.info(f"Executing {len(buy_orders)} BUY orders")
+            for order in buy_orders:
+                logging.info(f"BUY {order['symbol']}: {order['qty']} shares")
+        else:
+            logging.info("No BUY orders needed")
+
+        return buy_orders
+
+    def _wait_for_buying_power_refresh(self, sell_orders: list[OrderDetails]) -> None:
+        """Wait for sell order settlements and buying power to refresh via WebSocket monitoring."""
+        if not sell_orders:
+            return
+
+        logging.info("⏳ Phase 2: Waiting for sell order settlements and buying power refresh...")
+
+        # Extract order IDs for monitoring
+        sell_order_ids = [order["id"] for order in sell_orders if order["id"] != "unknown"]
+
+        if not sell_order_ids:
+            logging.warning("No valid order IDs to monitor, using time-based delay")
+            import time
+
+            time.sleep(5)  # Fallback delay
+            return
+
+        try:
+            # Use WebSocket monitoring to track order completion
+            # Get API credentials for WebSocket monitoring
+            from the_alchemiser.infrastructure.secrets.secrets_manager import SecretsManager
+            from the_alchemiser.infrastructure.websocket.websocket_order_monitor import (
+                OrderCompletionMonitor,
+            )
+
+            sm = SecretsManager()
+            api_key, secret_key = sm.get_alpaca_keys(paper_trading=self.paper_trading)
+
+            monitor = OrderCompletionMonitor(self.trading_client, api_key, secret_key)
+
+            # Wait for all sell orders to complete (30 second timeout)
+            completion_status = monitor.wait_for_order_completion(
+                sell_order_ids, max_wait_seconds=30
+            )
+
+            completed_orders = [
+                oid for oid, status in completion_status.items() if status == "filled"
+            ]
+            logging.info(
+                f"✅ {len(completed_orders)} sell orders completed, buying power should be refreshed"
+            )
+
+            # Brief additional delay to ensure buying power propagation
+            import time
+
+            time.sleep(2)
+
+        except Exception as e:
+            logging.warning(f"WebSocket monitoring failed, using fallback delay: {e}")
+            import time
+
+            time.sleep(10)  # Fallback delay if WebSocket fails
 
     def execute_rebalancing(
         self, target_allocations: dict[str, float], mode: str = "market"

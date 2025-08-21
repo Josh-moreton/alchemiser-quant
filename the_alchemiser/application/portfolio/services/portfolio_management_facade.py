@@ -17,6 +17,8 @@ from the_alchemiser.domain.portfolio.rebalancing.rebalance_calculator import Reb
 from the_alchemiser.domain.portfolio.strategy_attribution.attribution_engine import (
     StrategyAttributionEngine,
 )
+from the_alchemiser.domain.registry.strategy_registry import StrategyType
+from the_alchemiser.domain.types import OrderDetails
 from the_alchemiser.services.trading.trading_service_manager import TradingServiceManager
 
 
@@ -235,6 +237,67 @@ class PortfolioManagementFacade:
             }
 
         return workflow_results
+
+    # RebalancingService Protocol Implementation
+    def rebalance_portfolio(
+        self,
+        target_portfolio: dict[str, float],
+        strategy_attribution: dict[str, list[StrategyType]] | None = None,
+    ) -> list[OrderDetails]:
+        """
+        Main rebalancing interface compatible with RebalancingService protocol.
+
+        Args:
+            target_portfolio: Target allocation weights by symbol
+            strategy_attribution: Optional strategy attribution mapping
+
+        Returns:
+            List of order details from execution
+        """
+        # Convert to Decimal for internal processing
+        target_weights_decimal = {
+            symbol: Decimal(str(weight)) for symbol, weight in target_portfolio.items()
+        }
+
+        # Execute rebalancing and get results
+        execution_result = self.execute_rebalancing(target_weights_decimal, dry_run=False)
+
+        # Extract orders from execution results
+        orders_list: list[OrderDetails] = []
+
+        if execution_result.get("status") == "completed":
+            execution_results = execution_result.get("execution_results", {})
+            orders_placed = execution_results.get("orders_placed", {})
+
+            # Convert to OrderDetails format
+            for symbol, order_data in orders_placed.items():
+                if isinstance(order_data, dict) and order_data.get("status") != "failed":
+                    # Determine side and quantity from order data
+                    side = order_data.get("side", "buy")
+                    qty_value = (
+                        order_data.get("shares")
+                        or order_data.get("quantity")
+                        or order_data.get("amount")
+                        or 0
+                    )
+                    qty_float = float(qty_value) if qty_value is not None else 0.0
+
+                    order_details: OrderDetails = {
+                        "id": order_data.get("order_id", ""),
+                        "symbol": symbol,
+                        "qty": qty_float,
+                        "side": side,
+                        "order_type": "market",
+                        "time_in_force": "day",
+                        "status": order_data.get("status", "new"),
+                        "filled_qty": 0.0,
+                        "filled_avg_price": None,
+                        "created_at": "",
+                        "updated_at": "",
+                    }
+                    orders_list.append(order_details)
+
+        return orders_list
 
     # Utility methods
     def get_current_portfolio_value(self) -> Decimal:
