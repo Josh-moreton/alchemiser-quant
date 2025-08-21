@@ -2,8 +2,8 @@
 """
 WebSocket Order Monitoring Utilities
 
-This module provides WebSocket-based order completion monitoring for faster
-order settlement detection compared to polling-based approaches.
+This module provides WebSocket-based order completion monitoring for real-time
+order settlement detection. No legacy polling fallbacks - WebSocket only.
 """
 
 
@@ -17,9 +17,9 @@ from rich.console import Console
 
 class OrderCompletionMonitor:
     """
-    Monitor order completion using WebSocket streams for faster detection.
+    Monitor order completion using WebSocket streams for real-time detection.
 
-    Provides both streaming and polling methods with automatic fallback.
+    WebSocket-only implementation with no legacy polling fallbacks.
     """
 
     def __init__(
@@ -40,7 +40,7 @@ class OrderCompletionMonitor:
         order_ids: list[str],
         max_wait_seconds: int = 60,
     ) -> dict[str, str]:
-        """Wait for orders to reach a final state."""
+        """Wait for orders to reach a final state using WebSocket streaming only."""
         if not order_ids:
             return {}
 
@@ -59,116 +59,21 @@ class OrderCompletionMonitor:
 
         self.console.print(f"[blue]🔑 API keys available: {has_keys}[/blue]")
 
-        if has_keys and websocket_enabled:
-            try:
-                if logging.getLogger().level <= logging.DEBUG:
-                    self.console.print(
-                        "[blue]🚀 Attempting WebSocket streaming method for order completion[/blue]"
-                    )
-                return self._wait_for_order_completion_stream(order_ids, max_wait_seconds)
-            except Exception as e:  # pragma: no cover - streaming errors fallback
-                error_msg = str(e).lower()
-                if "insufficient subscription" in error_msg:
-                    self.console.print(
-                        "[yellow]⚠️ WebSocket subscription insufficient, using polling instead[/yellow]"
-                    )
-                    logging.warning(
-                        "⚠️ WebSocket subscription insufficient for TradingStream, falling back to polling"
-                    )
-                else:
-                    self.console.print(
-                        f"[red]❌ Falling back to polling due to streaming error: {e}[/red]"
-                    )
-                    logging.warning(f"❌ Falling back to polling due to streaming error: {e}")
-        elif not websocket_enabled:
-            self.console.print("[yellow]📡 WebSocket order monitoring disabled in config[/yellow]")
+        if not has_keys:
+            raise ValueError("API keys are required for WebSocket order monitoring")
+
+        if not websocket_enabled:
+            raise ValueError(
+                "WebSocket order monitoring is disabled in config but is required (no polling fallback)"
+            )
 
         if logging.getLogger().level <= logging.DEBUG:
-            self.console.print("[blue]🔄 Using polling method for order completion[/blue]")
-        return self._wait_for_order_completion_polling(order_ids, max_wait_seconds)
-
-    def _wait_for_order_completion_polling(
-        self, order_ids: list[str], max_wait_seconds: int
-    ) -> dict[str, str]:
-        """Original polling-based settlement check."""
-        logging.info(f"⏳ Waiting for {len(order_ids)} orders to complete via polling...")
-
-        start_time = time.time()
-        completed: dict[str, str] = {}
-
-        while time.time() - start_time < max_wait_seconds and len(completed) < len(order_ids):
-            logging.info(
-                f"🔍 Checking {len(order_ids)} orders, {len(completed)} completed so far..."
+            self.console.print(
+                "[blue]🚀 Using WebSocket streaming method for order completion[/blue]"
             )
 
-            for order_id in order_ids:
-                if order_id in completed:
-                    continue
-
-                try:
-                    order = self.trading_client.get_order_by_id(order_id)
-                    status = getattr(order, "status", "unknown")
-                    status_str = str(status)
-                    logging.info(f"📋 Order {order_id}: status={status_str}")
-
-                    final_states = [
-                        "filled",
-                        "canceled",
-                        "rejected",
-                        "expired",
-                        "OrderStatus.FILLED",
-                        "OrderStatus.CANCELED",
-                        "OrderStatus.REJECTED",
-                        "OrderStatus.EXPIRED",
-                    ]
-
-                    if status_str in final_states or str(status).lower() in [
-                        "filled",
-                        "canceled",
-                        "rejected",
-                        "expired",
-                    ]:
-                        completed[order_id] = status_str
-                        logging.info(f"✅ Order {order_id}: {status_str}")
-
-                except Exception as e:
-                    logging.warning(f"❌ Error checking order {order_id}: {e}")
-                    completed[order_id] = "error"
-
-            if len(completed) < len(order_ids):
-                # Use shorter polling interval for faster detection
-                sleep_time = min(1.0, max_wait_seconds / 10)
-                logging.info(
-                    f"⏳ {len(order_ids) - len(completed)} orders still pending, waiting {sleep_time}s..."
-                )
-                time.sleep(sleep_time)
-
-        # Handle timeouts - check final status before marking as timeout
-        if len(completed) < len(order_ids):
-            elapsed_time = time.time() - start_time
-            logging.warning(
-                f"⏰ Timeout after {elapsed_time:.1f}s: checking final status for {len(order_ids) - len(completed)} orders"
-            )
-
-        for order_id in order_ids:
-            if order_id not in completed:
-                # Check final status via API before marking as timeout
-                try:
-                    order = self.trading_client.get_order_by_id(order_id)
-                    status = str(getattr(order, "status", "unknown")).lower()
-                    if "orderstatus." in status:
-                        actual_status = status.split(".")[-1]
-                    else:
-                        actual_status = status
-                    completed[order_id] = actual_status
-                    logging.info(f"Final status for {order_id}: {actual_status}")
-                except Exception as e:
-                    logging.error(f"Could not get final status for {order_id}: {e}")
-                    completed[order_id] = "unknown"
-                    logging.warning(f"⏰ Order {order_id}: marked as unknown due to API error")
-
-        logging.info(f"🏁 Order settlement complete: {len(completed)} orders processed")
-        return completed
+        # Use WebSocket streaming - no fallback to polling
+        return self._wait_for_order_completion_stream(order_ids, max_wait_seconds)
 
     def _wait_for_order_completion_stream(
         self, order_ids: list[str], max_wait_seconds: int
@@ -305,10 +210,8 @@ class OrderCompletionMonitor:
 
         except Exception as e:
             logging.error(f"❌ Error using pre-connected WebSocket: {e}")
-            # Fall back to polling
-            return self._wait_for_order_completion_polling(
-                list(remaining) + list(completed.keys()), max_wait_seconds
-            )
+            # No fallback to polling - raise exception
+            raise RuntimeError(f"WebSocket order monitoring failed: {e}") from e
 
     def _create_new_websocket(
         self,
@@ -326,7 +229,7 @@ class OrderCompletionMonitor:
         # Validate API keys
         if not api_key or not secret_key:
             logging.error("❌ Missing API keys for WebSocket connection")
-            return self._wait_for_order_completion_polling(order_ids, max_wait_seconds)
+            raise ValueError("API keys are required for WebSocket order monitoring")
 
         logging.info("Creating new WebSocket connection")
 
@@ -345,7 +248,7 @@ class OrderCompletionMonitor:
 
         except Exception as e:
             logging.error(f"❌ Failed to initialize new WebSocket stream: {e}")
-            return self._wait_for_order_completion_polling(order_ids, max_wait_seconds)
+            raise RuntimeError(f"Failed to create WebSocket connection: {e}") from e
 
         # Wait for completion
         start_time = time.time()
