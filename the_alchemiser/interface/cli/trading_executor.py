@@ -290,7 +290,15 @@ class TradingExecutor:
                     # If model_copy is unavailable, fall back to passing a tuple of (result, state)
                     email_result = result
             except Exception as e:
-                self.logger.warning(f"Could not add fresh position data: {e}")
+                updated_state = {
+                    **(result.final_portfolio_state or {}),
+                    "current_positions": fresh_positions,
+                }
+                email_result: MultiStrategyExecutionResultDTO | Any = result.model_copy(
+                    update={"final_portfolio_state": updated_state}, deep=True
+                )
+            except Exception as e:
+                self.logger.warning(f"Could not enrich result with fresh position data: {e}")
                 email_result = result
 
             # Generate email content
