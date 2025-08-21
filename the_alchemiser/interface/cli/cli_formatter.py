@@ -6,8 +6,6 @@ from rich.panel import Panel
 from rich.rule import Rule
 from rich.table import Table
 
-from the_alchemiser.utils.feature_flags import type_system_v2_enabled
-
 """Console formatting utilities for quantitative trading system output using rich."""
 
 
@@ -335,16 +333,11 @@ def render_account_info(account_info: dict[str, Any], console: Console | None = 
     cash = account_data.get("cash", 0)
     buying_power = account_data.get("buying_power", 0)
 
-    # Feature-flagged domain Money display support
-    if type_system_v2_enabled():
-        # If account_data contains nested money fields, honor them; otherwise fallback
-        pv_display = _format_money(account_data.get("portfolio_value_money", portfolio_value))
-        cash_display = _format_money(account_data.get("cash_money", cash))
-        bp_display = _format_money(account_data.get("buying_power_money", buying_power))
-    else:
-        pv_display = f"${float(portfolio_value):,.2f}"
-        cash_display = f"${float(cash):,.2f}"
-        bp_display = f"${float(buying_power):,.2f}"
+    # Always use typed domain Money display (V2 migration complete)
+    # If account_data contains nested money fields, honor them; otherwise fallback
+    pv_display = _format_money(account_data.get("portfolio_value_money", portfolio_value))
+    cash_display = _format_money(account_data.get("cash_money", cash))
+    bp_display = _format_money(account_data.get("buying_power_money", buying_power))
 
     # Create account summary with P&L
     content_lines = [
