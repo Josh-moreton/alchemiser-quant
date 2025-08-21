@@ -42,19 +42,21 @@ def fixed_market_data() -> dict[str, pd.DataFrame]:
         "SQQQ": [15.0, 14.8, 14.6, 14.4, 14.2] * 50,
         "BSV": [77.0, 77.1, 77.2, 77.3, 77.4] * 50,
     }
-    
+
     # Convert to DataFrames with OHLCV structure
     result = {}
     for symbol, prices in base_data.items():
-        df = pd.DataFrame({
-            'Open': [p * 0.998 for p in prices],
-            'High': [p * 1.005 for p in prices],
-            'Low': [p * 0.995 for p in prices],
-            'Close': prices,
-            'Volume': [1000000 + i * 1000 for i in range(len(prices))]
-        })
+        df = pd.DataFrame(
+            {
+                "Open": [p * 0.998 for p in prices],
+                "High": [p * 1.005 for p in prices],
+                "Low": [p * 0.995 for p in prices],
+                "Close": prices,
+                "Volume": [1000000 + i * 1000 for i in range(len(prices))],
+            }
+        )
         result[symbol] = df
-    
+
     return result
 
 
@@ -76,7 +78,10 @@ class TestTECLStrategyParity(StrategyParityTestBase):
 
     def create_typed_engine(self, **kwargs) -> TECLStrategyEngine:
         """Create the typed TECL strategy engine."""
-        return TECLStrategyEngine(data_provider=kwargs.get('data_provider'))
+        market_data_port = kwargs.get("market_data_port")
+        if market_data_port is None:
+            raise ValueError("market_data_port is required for TECLStrategyEngine")
+        return TECLStrategyEngine(data_provider=market_data_port)
 
     def get_legacy_signals(self, engine: TECLStrategyEngine) -> tuple:
         """Get signals from the legacy TECL engine."""
@@ -84,11 +89,14 @@ class TestTECLStrategyParity(StrategyParityTestBase):
         indicators = engine.calculate_indicators(market_data)
         return engine.evaluate_tecl_strategy(indicators, market_data)
 
-    def get_typed_signals(self, engine: TECLStrategyEngine, market_data_port: Mock, **kwargs) -> list:
+    def get_typed_signals(
+        self, engine: TECLStrategyEngine, market_data_port: Mock, **kwargs
+    ) -> list:
         """Get signals from the typed TECL engine."""
         # For TECL, we need to provide the data provider
         engine_with_port = TECLStrategyEngine(data_provider=market_data_port)
-        return engine_with_port.generate_signals()
+        test_timestamp = kwargs.get("test_timestamp", datetime.now(UTC))
+        return engine_with_port.generate_signals(test_timestamp)
 
     def _assert_signal_equivalence(
         self,
@@ -103,8 +111,16 @@ class TestTECLStrategyParity(StrategyParityTestBase):
         """Assert that legacy and typed signals are equivalent."""
         # Use shared comparator for basic equivalence
         StrategySignalComparator.assert_basic_signal_equivalence(
-            str(legacy_symbol_or_allocation) if not isinstance(legacy_symbol_or_allocation, dict) else "portfolio",
-            legacy_action, legacy_reasoning, typed_symbol, typed_action, typed_reasoning
+            (
+                str(legacy_symbol_or_allocation)
+                if not isinstance(legacy_symbol_or_allocation, dict)
+                else "portfolio"
+            ),
+            legacy_action,
+            legacy_reasoning,
+            typed_symbol,
+            typed_action,
+            typed_reasoning,
         )
 
         # TECL-specific portfolio allocation handling
@@ -127,7 +143,9 @@ class TestTECLStrategyParity(StrategyParityTestBase):
         try:
             # Legacy should work regardless of flag
             legacy_engine = self.create_legacy_engine(mock_legacy_data_provider)
-            legacy_symbol_or_allocation, legacy_action, legacy_reasoning = self.get_legacy_signals(legacy_engine)
+            legacy_symbol_or_allocation, legacy_action, legacy_reasoning = self.get_legacy_signals(
+                legacy_engine
+            )
 
             # Typed interface should also work
             typed_signals = self.get_typed_signals(None, mock_market_data_port)
@@ -138,9 +156,13 @@ class TestTECLStrategyParity(StrategyParityTestBase):
 
             # Should produce equivalent signals
             self._assert_signal_equivalence(
-                legacy_symbol_or_allocation, legacy_action, legacy_reasoning,
-                typed_signal.symbol.value, typed_signal.action, typed_signal.reasoning,
-                typed_signal.target_allocation.value
+                legacy_symbol_or_allocation,
+                legacy_action,
+                legacy_reasoning,
+                typed_signal.symbol.value,
+                typed_signal.action,
+                typed_signal.reasoning,
+                typed_signal.target_allocation.value,
             )
 
             # Typed signal should have valid confidence and allocation
@@ -160,7 +182,9 @@ class TestTECLStrategyParity(StrategyParityTestBase):
         try:
             # Legacy should still work
             legacy_engine = self.create_legacy_engine(mock_legacy_data_provider)
-            legacy_symbol_or_allocation, legacy_action, legacy_reasoning = self.get_legacy_signals(legacy_engine)
+            legacy_symbol_or_allocation, legacy_action, legacy_reasoning = self.get_legacy_signals(
+                legacy_engine
+            )
 
             # Typed interface with flag on
             typed_signals = self.get_typed_signals(None, mock_market_data_port)
@@ -170,9 +194,13 @@ class TestTECLStrategyParity(StrategyParityTestBase):
 
             # Should produce equivalent signals
             self._assert_signal_equivalence(
-                legacy_symbol_or_allocation, legacy_action, legacy_reasoning,
-                typed_signal.symbol.value, typed_signal.action, typed_signal.reasoning,
-                typed_signal.target_allocation.value
+                legacy_symbol_or_allocation,
+                legacy_action,
+                legacy_reasoning,
+                typed_signal.symbol.value,
+                typed_signal.action,
+                typed_signal.reasoning,
+                typed_signal.target_allocation.value,
             )
 
             # Typed signal should have valid confidence and allocation
@@ -193,9 +221,11 @@ class TestTECLStrategyParity(StrategyParityTestBase):
             try:
                 # Create engines
                 legacy_engine = self.create_legacy_engine(mock_legacy_data_provider)
-                
+
                 # Get legacy result
-                legacy_symbol_or_allocation, legacy_action, legacy_reasoning = self.get_legacy_signals(legacy_engine)
+                legacy_symbol_or_allocation, legacy_action, legacy_reasoning = (
+                    self.get_legacy_signals(legacy_engine)
+                )
 
                 # Get typed result
                 typed_signals = self.get_typed_signals(None, mock_market_data_port)
@@ -204,9 +234,13 @@ class TestTECLStrategyParity(StrategyParityTestBase):
 
                 # Assert equivalence
                 self._assert_signal_equivalence(
-                    legacy_symbol_or_allocation, legacy_action, legacy_reasoning,
-                    typed_signal.symbol.value, typed_signal.action, typed_signal.reasoning,
-                    typed_signal.target_allocation.value
+                    legacy_symbol_or_allocation,
+                    legacy_action,
+                    legacy_reasoning,
+                    typed_signal.symbol.value,
+                    typed_signal.action,
+                    typed_signal.reasoning,
+                    typed_signal.target_allocation.value,
                 )
 
             finally:
@@ -224,28 +258,36 @@ class TestTECLStrategyParity(StrategyParityTestBase):
             try:
                 # Create engines
                 legacy_engine = self.create_legacy_engine(mock_legacy_data_provider)
-                
+
                 # Get baseline results from both engines
-                legacy_symbol_or_allocation, legacy_action, legacy_reasoning = self.get_legacy_signals(legacy_engine)
-                
+                legacy_symbol_or_allocation, legacy_action, legacy_reasoning = (
+                    self.get_legacy_signals(legacy_engine)
+                )
+
                 typed_signals = self.get_typed_signals(None, mock_market_data_port)
-                
+
                 # If we have results from both, compare them
                 if typed_signals:
                     typed_signal = typed_signals[0]
-                    
+
                     # Use our standard equivalence check
                     self._assert_signal_equivalence(
-                        legacy_symbol_or_allocation, legacy_action, legacy_reasoning,
-                        typed_signal.symbol.value, typed_signal.action, typed_signal.reasoning,
-                        typed_signal.target_allocation.value
+                        legacy_symbol_or_allocation,
+                        legacy_action,
+                        legacy_reasoning,
+                        typed_signal.symbol.value,
+                        typed_signal.action,
+                        typed_signal.reasoning,
+                        typed_signal.target_allocation.value,
                     )
-                    
+
                     # Additional checks for portfolio case
                     if isinstance(legacy_symbol_or_allocation, dict):
                         # Primary symbol should be the one with highest allocation
-                        primary_symbol = max(legacy_symbol_or_allocation.keys(),
-                                           key=lambda s: legacy_symbol_or_allocation[s])
+                        primary_symbol = max(
+                            legacy_symbol_or_allocation.keys(),
+                            key=lambda s: legacy_symbol_or_allocation[s],
+                        )
                         assert typed_signal.symbol.value == primary_symbol
                     else:
                         # Single symbol case

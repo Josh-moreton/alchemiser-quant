@@ -31,25 +31,28 @@ from the_alchemiser.domain.strategies.typed_klm_ensemble_engine import TypedKLMS
 def fixed_market_data() -> dict[str, pd.DataFrame]:
     """Fixed market data fixture for consistent testing across flag states."""
     # Create sample OHLCV data with sufficient periods for ML indicators
-    base_data = pd.DataFrame({
-        "Open": [100.0] * 250 + [110.0] * 50,
-        "High": [105.0] * 250 + [115.0] * 50,
-        "Low": [95.0] * 250 + [105.0] * 50,
-        "Close": list(range(100, 350)) + list(range(350, 400)),  # 300 periods total
-        "Volume": [1000] * 300,
-    }, index=pd.date_range("2022-01-01", periods=300, freq="D"))
-    
+    base_data = pd.DataFrame(
+        {
+            "Open": [100.0] * 250 + [110.0] * 50,
+            "High": [105.0] * 250 + [115.0] * 50,
+            "Low": [95.0] * 250 + [105.0] * 50,
+            "Close": list(range(100, 350)) + list(range(350, 400)),  # 300 periods total
+            "Volume": [1000] * 300,
+        },
+        index=pd.date_range("2022-01-01", periods=300, freq="D"),
+    )
+
     # Create data for key KLM symbols with realistic variations
     return {
         "SPY": base_data.copy(),
         "TECL": base_data.copy() * 1.1,  # Technology leverage
-        "BIL": base_data.copy() * 0.5,   # Bills
+        "BIL": base_data.copy() * 0.5,  # Bills
         "UVXY": base_data.copy() * 0.8,  # Volatility
         "XLK": base_data.copy() * 1.05,  # Technology sector
-        "KMLM": base_data.copy() * 0.95, # KLM target
+        "KMLM": base_data.copy() * 0.95,  # KLM target
         "TQQQ": base_data.copy() * 1.2,  # NASDAQ 3x
         "SQQQ": base_data.copy() * 0.7,  # NASDAQ inverse 3x
-        "QQQ": base_data.copy() * 1.0,   # NASDAQ
+        "QQQ": base_data.copy() * 1.0,  # NASDAQ
     }
 
 
@@ -77,7 +80,10 @@ class TestKLMStrategyParity(StrategyParityTestBase):
 
     def create_typed_engine(self, **kwargs) -> TypedKLMStrategyEngine:
         """Create the typed KLM strategy engine."""
-        return TypedKLMStrategyEngine()
+        market_data_port = kwargs.get("market_data_port")
+        if market_data_port is None:
+            raise ValueError("market_data_port is required for TypedKLMStrategyEngine")
+        return TypedKLMStrategyEngine(market_data_port)
 
     def get_legacy_signals(self, engine: KLMStrategyEnsemble) -> tuple:
         """Get signals from the legacy KLM engine."""
@@ -85,10 +91,12 @@ class TestKLMStrategyParity(StrategyParityTestBase):
         indicators = engine.calculate_indicators(market_data)
         return engine.evaluate_ensemble(indicators, market_data)
 
-    def get_typed_signals(self, engine: TypedKLMStrategyEngine, market_data_port: Mock, **kwargs) -> list:
+    def get_typed_signals(
+        self, engine: TypedKLMStrategyEngine, market_data_port: Mock, **kwargs
+    ) -> list:
         """Get signals from the typed KLM engine."""
-        test_timestamp = kwargs.get('test_timestamp', datetime.now(UTC))
-        return engine.generate_signals(market_data_port, test_timestamp)
+        test_timestamp = kwargs.get("test_timestamp", datetime.now(UTC))
+        return engine.generate_signals(test_timestamp)
 
     def _assert_signal_equivalence(
         self,
@@ -105,10 +113,14 @@ class TestKLMStrategyParity(StrategyParityTestBase):
         """Assert that legacy and typed signals have equivalent structure and valid values."""
         # Use shared comparator for basic equivalence
         StrategySignalComparator.assert_basic_signal_equivalence(
-            legacy_symbol, legacy_action, legacy_reasoning,
-            typed_symbol, typed_action, typed_reasoning
+            legacy_symbol,
+            legacy_action,
+            legacy_reasoning,
+            typed_symbol,
+            typed_action,
+            typed_reasoning,
         )
-        
+
         # KLM-specific confidence comparison if available (with tolerance for float precision)
         if legacy_confidence is not None and typed_confidence is not None:
             self.assert_float_tolerance(float(typed_confidence), legacy_confidence)
@@ -131,10 +143,12 @@ class TestKLMStrategyParity(StrategyParityTestBase):
             # Legacy should work regardless of flag
             legacy_engine = self.create_legacy_engine(mock_legacy_data_provider)
             legacy_result = self.get_legacy_signals(legacy_engine)
-            
+
             # Typed should also work (not flag-dependent at strategy level)
-            typed_engine = self.create_typed_engine()
-            typed_signals = self.get_typed_signals(typed_engine, mock_market_data_port, test_timestamp=test_timestamp)
+            typed_engine = self.create_typed_engine(market_data_port=mock_market_data_port)
+            typed_signals = self.get_typed_signals(
+                typed_engine, mock_market_data_port, test_timestamp=test_timestamp
+            )
 
             # Both should produce some result
             assert legacy_result is not None
@@ -144,15 +158,20 @@ class TestKLMStrategyParity(StrategyParityTestBase):
             if legacy_result and typed_signals:
                 # Unpack legacy result tuple: (symbol_or_allocation, action, reason, variant_name)
                 legacy_symbol, legacy_action, legacy_reasoning, legacy_variant = legacy_result
-                
+
                 # Compare with first typed signal
                 typed_signal = typed_signals[0]
-                
+
                 self._assert_signal_equivalence(
-                    legacy_symbol, legacy_action, legacy_reasoning,
-                    typed_signal.symbol.value, typed_signal.action, typed_signal.reasoning,
-                    None, typed_signal.confidence.value, 
-                    typed_signal.target_allocation.value
+                    legacy_symbol,
+                    legacy_action,
+                    legacy_reasoning,
+                    typed_signal.symbol.value,
+                    typed_signal.action,
+                    typed_signal.reasoning,
+                    None,
+                    typed_signal.confidence.value,
+                    typed_signal.target_allocation.value,
                 )
 
         finally:
@@ -173,8 +192,10 @@ class TestKLMStrategyParity(StrategyParityTestBase):
             legacy_result = self.get_legacy_signals(legacy_engine)
 
             # Typed interface with flag on
-            typed_engine = self.create_typed_engine()
-            typed_signals = self.get_typed_signals(typed_engine, mock_market_data_port, test_timestamp=test_timestamp)
+            typed_engine = self.create_typed_engine(market_data_port=mock_market_data_port)
+            typed_signals = self.get_typed_signals(
+                typed_engine, mock_market_data_port, test_timestamp=test_timestamp
+            )
 
             # Both should produce some result
             assert legacy_result is not None
@@ -188,10 +209,15 @@ class TestKLMStrategyParity(StrategyParityTestBase):
                 typed_signal = typed_signals[0]
 
                 self._assert_signal_equivalence(
-                    legacy_symbol, legacy_action, legacy_reasoning,
-                    typed_signal.symbol.value, typed_signal.action, typed_signal.reasoning,
-                    None, typed_signal.confidence.value,
-                    typed_signal.target_allocation.value
+                    legacy_symbol,
+                    legacy_action,
+                    legacy_reasoning,
+                    typed_signal.symbol.value,
+                    typed_signal.action,
+                    typed_signal.reasoning,
+                    None,
+                    typed_signal.confidence.value,
+                    typed_signal.target_allocation.value,
                 )
 
                 # Typed signal should have valid values
@@ -213,7 +239,7 @@ class TestKLMStrategyParity(StrategyParityTestBase):
             try:
                 # Create engines
                 legacy_engine = self.create_legacy_engine(mock_legacy_data_provider)
-                typed_engine = self.create_typed_engine()
+                typed_engine = self.create_typed_engine(market_data_port=mock_market_data_port)
 
                 # Both engines should have strategy variants
                 legacy_variants = legacy_engine.strategy_variants
@@ -237,8 +263,9 @@ class TestKLMStrategyParity(StrategyParityTestBase):
                     # or calculation methods in legacy vs typed implementations
                     perf_diff = abs(legacy_perf - typed_perf)
                     tolerance = 1.0  # Allow full range difference for now
-                    assert perf_diff <= tolerance, \
-                        f"Performance values in range but different in flag state {flag_enabled}: {legacy_perf} vs {typed_perf}"
+                    assert (
+                        perf_diff <= tolerance
+                    ), f"Performance values in range but different in flag state {flag_enabled}: {legacy_perf} vs {typed_perf}"
 
             finally:
                 self.restore_feature_flag()
@@ -253,8 +280,10 @@ class TestKLMStrategyParity(StrategyParityTestBase):
             self.set_feature_flag(flag_enabled)
 
             try:
-                typed_engine = self.create_typed_engine()
-                typed_signals = self.get_typed_signals(typed_engine, mock_market_data_port, test_timestamp=test_timestamp)
+                typed_engine = self.create_typed_engine(market_data_port=mock_market_data_port)
+                typed_signals = self.get_typed_signals(
+                    typed_engine, mock_market_data_port, test_timestamp=test_timestamp
+                )
 
                 # Should generate at least 0 signals without error
                 assert isinstance(typed_signals, list)
@@ -279,11 +308,13 @@ class TestKLMStrategyParity(StrategyParityTestBase):
                 invalid_port = Mock(spec=MarketDataPort)
                 invalid_port.get_data.side_effect = Exception("Network error")
 
-                typed_engine = self.create_typed_engine()
-                
+                typed_engine = self.create_typed_engine(market_data_port=mock_market_data_port)
+
                 # Should handle errors gracefully (not crash)
                 try:
-                    typed_signals = self.get_typed_signals(typed_engine, invalid_port, test_timestamp=test_timestamp)
+                    typed_signals = self.get_typed_signals(
+                        typed_engine, invalid_port, test_timestamp=test_timestamp
+                    )
                     # If it succeeds, signals should be empty or valid
                     assert isinstance(typed_signals, list)
                 except Exception as e:

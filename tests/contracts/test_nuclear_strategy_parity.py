@@ -106,9 +106,9 @@ class TestNuclearStrategyParity:
         )
 
         # Typed implementation
-        typed_engine = NuclearTypedEngine()
+        typed_engine = NuclearTypedEngine(mock_market_data_port)
         now = datetime.now(UTC)
-        typed_signals = typed_engine.generate_signals(mock_market_data_port, now)
+        typed_signals = typed_engine.generate_signals(now)
 
         assert len(typed_signals) == 1
         typed_signal = typed_signals[0]
@@ -139,9 +139,9 @@ class TestNuclearStrategyParity:
             )
 
             # Typed should also work (not flag-dependent at strategy level)
-            typed_engine = NuclearTypedEngine()
+            typed_engine = NuclearTypedEngine(mock_market_data_port)
             now = datetime.now(UTC)
-            typed_signals = typed_engine.generate_signals(mock_market_data_port, now)
+            typed_signals = typed_engine.generate_signals(now)
 
             assert len(typed_signals) == 1
             typed_signal = typed_signals[0]
@@ -179,9 +179,9 @@ class TestNuclearStrategyParity:
             )
 
             # Typed implementation
-            typed_engine = NuclearTypedEngine()
+            typed_engine = NuclearTypedEngine(mock_market_data_port)
             now = datetime.now(UTC)
-            typed_signals = typed_engine.generate_signals(mock_market_data_port, now)
+            typed_signals = typed_engine.generate_signals(now)
 
             assert len(typed_signals) == 1
             typed_signal = typed_signals[0]
@@ -239,9 +239,9 @@ class TestNuclearStrategyParity:
         )
 
         # Typed implementation
-        typed_engine = NuclearTypedEngine()
+        typed_engine = NuclearTypedEngine(mock_market_data_port)
         now = datetime.now(UTC)
-        typed_signals = typed_engine.generate_signals(mock_market_data_port, now)
+        typed_signals = typed_engine.generate_signals(now)
 
         # Both should handle missing SPY gracefully
         assert legacy_action == "HOLD"
