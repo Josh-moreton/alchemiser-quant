@@ -128,9 +128,9 @@ class TradingExecutor:
         # Always use typed strategy signal mapping (V2 migration complete)
         try:
             self.logger.info("Processing signals through typed StrategySignal execution path")
-            legacy_typed_signals = _map_signals_to_typed(strategy_signals)  # dict -> TypedDict
+            typed_signals = _map_signals_to_typed(strategy_signals)  # dict -> TypedDict
             typed_domain_signals = convert_signals_dict_to_domain(
-                legacy_typed_signals
+                typed_signals
             )  # TypedDict -> domain
 
             # Convert typed signals to ValidatedOrders
