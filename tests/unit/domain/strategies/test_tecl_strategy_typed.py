@@ -41,13 +41,13 @@ class TestTECLStrategyEngineTyped:
     @pytest.fixture
     def tecl_strategy(self, mock_market_data_port: Mock) -> TECLStrategyEngine:
         """Create a TECL strategy instance for testing."""
-        return TECLStrategyEngine(data_provider=mock_market_data_port)
+        return TECLStrategyEngine(market_data_port=mock_market_data_port)
 
     def test_init_with_typed_port(self, mock_market_data_port: Mock):
         """Test initialization with MarketDataPort."""
-        strategy = TECLStrategyEngine(data_provider=mock_market_data_port)
+        strategy = TECLStrategyEngine(market_data_port=mock_market_data_port)
         
-        assert strategy.data_provider is mock_market_data_port
+        assert strategy.market_data_port is mock_market_data_port
         assert strategy.indicators is not None
         assert len(strategy.all_symbols) > 0
         assert "SPY" in strategy.market_symbols

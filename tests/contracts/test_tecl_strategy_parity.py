@@ -74,14 +74,14 @@ class TestTECLStrategyParity(StrategyParityTestBase):
 
     def create_legacy_engine(self, data_provider: Mock) -> TECLStrategyEngine:
         """Create the legacy TECL strategy engine."""
-        return TECLStrategyEngine(data_provider=data_provider)
+        return TECLStrategyEngine(market_data_port=data_provider)
 
     def create_typed_engine(self, **kwargs) -> TECLStrategyEngine:
         """Create the typed TECL strategy engine."""
         market_data_port = kwargs.get("market_data_port")
         if market_data_port is None:
             raise ValueError("market_data_port is required for TECLStrategyEngine")
-        return TECLStrategyEngine(data_provider=market_data_port)
+        return TECLStrategyEngine(market_data_port=market_data_port)
 
     def get_legacy_signals(self, engine: TECLStrategyEngine) -> tuple:
         """Get signals from the legacy TECL engine."""
@@ -94,7 +94,7 @@ class TestTECLStrategyParity(StrategyParityTestBase):
     ) -> list:
         """Get signals from the typed TECL engine."""
         # For TECL, we need to provide the data provider
-        engine_with_port = TECLStrategyEngine(data_provider=market_data_port)
+        engine_with_port = TECLStrategyEngine(market_data_port=market_data_port)
         test_timestamp = kwargs.get("test_timestamp", datetime.now(UTC))
         return engine_with_port.generate_signals(test_timestamp)
 
