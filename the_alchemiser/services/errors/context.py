@@ -15,11 +15,11 @@ from typing import Any
 class ErrorContextData:
     """
     Standardized error context data for all error reporting.
-    
+
     This frozen dataclass provides immutable error context information
     that can be safely passed around and serialized.
     """
-    
+
     operation: str
     component: str
     function_name: str | None = None
@@ -27,13 +27,13 @@ class ErrorContextData:
     user_id: str | None = None
     session_id: str | None = None
     additional_data: dict[str, Any] | None = None
-    
+
     def __post_init__(self) -> None:
         """Post-initialization to handle mutable defaults."""
         if self.additional_data is None:
             # Use object.__setattr__ since the dataclass is frozen
-            object.__setattr__(self, 'additional_data', {})
-    
+            object.__setattr__(self, "additional_data", {})
+
     def to_dict(self) -> dict[str, Any]:
         """Convert context to dictionary for serialization."""
         return {

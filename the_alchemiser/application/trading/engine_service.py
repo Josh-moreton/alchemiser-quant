@@ -28,7 +28,8 @@ from alpaca.trading.enums import OrderSide
 
 from the_alchemiser.application.execution.smart_execution import SmartExecution
 from the_alchemiser.application.trading.alpaca_client import AlpacaClient
-from the_alchemiser.domain.strategies.strategy_manager import MultiStrategyManager, StrategyType
+from the_alchemiser.domain.registry import StrategyType
+from the_alchemiser.domain.strategies.typed_strategy_manager import TypedStrategyManager
 from the_alchemiser.domain.types import (
     AccountInfo,
     EnrichedAccountInfo,
@@ -48,9 +49,6 @@ from the_alchemiser.services.errors.exceptions import (
     TradingClientError,
 )
 from the_alchemiser.services.market_data.market_data_service import MarketDataService
-from the_alchemiser.services.market_data.strategy_market_data_service import (
-    StrategyMarketDataService,
-)
 from the_alchemiser.services.repository.alpaca_manager import AlpacaManager
 
 from ..execution.execution_manager import ExecutionManager
@@ -78,6 +76,74 @@ class LegacyPortfolioRebalancerStub:
         strategy_attribution: dict[str, list["StrategyType"]] | None = None,
     ) -> list["OrderDetails"]:
         return []
+
+
+class StrategyManagerAdapter:
+    """Typed-backed adapter to provide run_all_strategies for callers.
+
+    This avoids importing legacy modules by wrapping TypedStrategyManager.
+    """
+
+    def __init__(
+        self,
+        market_data_port: Any,
+        strategy_allocations: dict[StrategyType, float],
+    ) -> None:
+        self._typed = TypedStrategyManager(
+            market_data_port=market_data_port,
+            strategy_allocations=strategy_allocations,
+        )
+
+    def run_all_strategies(
+        self,
+    ) -> tuple[dict[StrategyType, dict[str, Any]], dict[str, float], dict[str, list[StrategyType]]]:
+        from datetime import UTC, datetime
+
+        aggregated = self._typed.generate_all_signals(datetime.now(UTC))
+
+        def to_legacy_dict(signal: Any) -> dict[str, Any]:
+            symbol_value = signal.symbol.value
+            symbol_str = "NUCLEAR_PORTFOLIO" if symbol_value == "PORT" else symbol_value
+            return {
+                "symbol": symbol_str,
+                "action": signal.action,
+                "confidence": float(signal.confidence.value),
+                "reasoning": signal.reasoning,
+                "allocation_percentage": float(signal.target_allocation.value),
+            }
+
+        legacy_signals: dict[StrategyType, dict[str, Any]] = {}
+        for st, signals in aggregated.get_signals_by_strategy().items():
+            if not signals:
+                legacy_signals[st] = {
+                    "symbol": "N/A",
+                    "action": "HOLD",
+                    "confidence": 0.0,
+                    "reasoning": "No signal produced",
+                    "allocation_percentage": 0.0,
+                }
+            else:
+                legacy_signals[st] = to_legacy_dict(signals[0])
+
+        return legacy_signals, {}, {}
+
+    # Expose strategy_allocations for reporting usage
+    @property
+    def strategy_allocations(self) -> dict[StrategyType, float]:
+        return self._typed.strategy_allocations
+
+    # Minimal performance summary placeholder for typed manager
+    def get_strategy_performance_summary(self) -> dict[str, Any]:
+        try:
+            # If typed manager exposes a similar method, delegate
+            from typing import cast
+
+            return cast(dict[str, Any], self._typed.get_strategy_performance_summary())  # type: ignore[attr-defined]
+        except Exception:
+            # Provide a basic empty summary structure
+            return {
+                st.name: {"pnl": 0.0, "trades": 0} for st in self._typed.strategy_allocations.keys()
+            }
 
 
 # Protocol definitions for dependency injection
@@ -287,7 +353,15 @@ class TradingEngine:
         """Initialize using injected TradingServiceManager."""
         self._container = None
         self._trading_service_manager = trading_service_manager
-        self.data_provider = trading_service_manager
+        # Use typed MarketDataService for both typed port and pandas-compat provider
+        # so strategies get a consistent implementation exposing get_data (temporary compat).
+        try:
+            alpaca_manager = trading_service_manager.alpaca_manager
+            self.data_provider = MarketDataService(alpaca_manager)
+        except Exception as e:
+            raise ConfigurationError(
+                f"TradingServiceManager missing AlpacaManager for market data: {e}"
+            ) from e
         # Use the actual Alpaca TradingClient for correct market-hours and order queries
         try:
             self.trading_client = trading_service_manager.alpaca_manager.trading_client
@@ -346,11 +420,9 @@ class TradingEngine:
             self._alpaca_manager = AlpacaManager(str(api_key), str(secret_key), paper_trading)
             self.trading_client = self._alpaca_manager.trading_client
 
-            # Strategy market data service for strategy engines
-            self.data_provider = StrategyMarketDataService(str(api_key), str(secret_key))
-
-            # Typed market data port
+            # Use typed market data service for both provider (pandas compat) and typed port
             self._market_data_port = MarketDataService(self._alpaca_manager)
+            self.data_provider = self._market_data_port
 
             # Optional enhanced service manager for downstream ops
             self._trading_service_manager = TradingServiceManager(
@@ -428,11 +500,9 @@ class TradingEngine:
 
         # Strategy manager - pass our data provider to ensure same trading mode
         try:
-            self.strategy_manager = MultiStrategyManager(
-                self.strategy_allocations,
-                shared_data_provider=self.data_provider,  # Pass our data provider
+            self.strategy_manager = StrategyManagerAdapter(
                 market_data_port=getattr(self, "_market_data_port", None),
-                config=getattr(self, "config", None),
+                strategy_allocations=self.strategy_allocations,
             )
         except Exception as e:
             raise TradingClientError(

@@ -12,9 +12,11 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any
 
-from the_alchemiser.domain.strategies.klm_ensemble_engine import KLMStrategyEnsemble
-from the_alchemiser.domain.strategies.nuclear_signals import NuclearStrategyEngine
-from the_alchemiser.domain.strategies.tecl_signals import TECLStrategyEngine
+from the_alchemiser.domain.strategies.nuclear_typed_engine import NuclearTypedEngine
+from the_alchemiser.domain.strategies.tecl_strategy_engine import TECLStrategyEngine
+from the_alchemiser.domain.strategies.typed_klm_ensemble_engine import (
+    TypedKLMStrategyEngine,
+)
 
 
 class StrategyType(Enum):
@@ -47,7 +49,7 @@ class StrategyRegistry:
     _strategies: dict[StrategyType, StrategyConfig] = {
         StrategyType.NUCLEAR: StrategyConfig(
             strategy_type=StrategyType.NUCLEAR,
-            engine_class=NuclearStrategyEngine,
+            engine_class=NuclearTypedEngine,
             default_allocation=0.4,
             description="Nuclear energy and volatility hedge strategy",
             enabled=True,
@@ -61,7 +63,7 @@ class StrategyRegistry:
         ),
         StrategyType.KLM: StrategyConfig(
             strategy_type=StrategyType.KLM,
-            engine_class=KLMStrategyEnsemble,
+            engine_class=TypedKLMStrategyEngine,
             default_allocation=0.2,
             description="Ensemble strategy with multiple variants",
             enabled=True,  # Enable to use the KLM strategy

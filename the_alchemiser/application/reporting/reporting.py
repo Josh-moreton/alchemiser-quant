@@ -3,7 +3,7 @@
 import logging
 from typing import Any
 
-from the_alchemiser.domain.strategies.strategy_manager import StrategyType
+from the_alchemiser.domain.registry import StrategyType
 from the_alchemiser.domain.types import AccountInfo
 from the_alchemiser.services.errors.exceptions import DataProviderError, TradingClientError
 

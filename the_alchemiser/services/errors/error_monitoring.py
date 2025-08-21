@@ -15,8 +15,8 @@ from datetime import datetime, timedelta
 from enum import Enum
 from typing import Any
 
-from .handler import ErrorSeverity
 from .context import ErrorContextData
+from .handler import ErrorSeverity
 
 
 class HealthStatus(Enum):

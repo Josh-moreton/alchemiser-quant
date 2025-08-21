@@ -11,7 +11,7 @@ import os
 import sys
 from typing import Optional
 
-from the_alchemiser.domain.strategies.strategy_manager import StrategyType
+from the_alchemiser.domain.registry import StrategyType
 from the_alchemiser.infrastructure.config import Settings, load_settings
 from the_alchemiser.infrastructure.logging.logging_utils import (
     generate_request_id,
@@ -82,7 +82,7 @@ class TradingSystem:
                 error=e,
                 context="signal analysis operation",
                 component="TradingSystem.analyze_signals",
-                additional_data={"settings_loaded": True}
+                additional_data={"settings_loaded": True},
             )
             return False
 
@@ -106,8 +106,8 @@ class TradingSystem:
                 component="TradingSystem.execute_trading",
                 additional_data={
                     "live_trading": live_trading,
-                    "ignore_market_hours": ignore_market_hours
-                }
+                    "ignore_market_hours": ignore_market_hours,
+                },
             )
             return False
 
@@ -118,7 +118,7 @@ def configure_application_logging() -> None:
     Honors any logging already configured by the CLI (root handlers present),
     and supports environment/config-driven log level via Settings.logging.level
     or LOGGING__LEVEL env var. Avoids overriding CLI --verbose behavior.
-    
+
     In production (Lambda), defaults to CloudWatch-only logging with explicit S3 opt-in.
     """
     is_production = os.getenv("AWS_LAMBDA_FUNCTION_NAME") is not None
@@ -157,6 +157,7 @@ def configure_application_logging() -> None:
         log_file = None
         try:
             from the_alchemiser.infrastructure.config import load_settings
+
             settings = load_settings()
             if settings.logging.enable_s3_logging and settings.logging.s3_log_uri:
                 log_file = settings.logging.s3_log_uri
@@ -261,9 +262,9 @@ def main(argv: list[str] | None = None) -> bool:
             component="main",
             additional_data={
                 "mode": args.mode,
-                "live_trading": getattr(args, 'live', False),
-                "ignore_market_hours": getattr(args, 'ignore_market_hours', False)
-            }
+                "live_trading": getattr(args, "live", False),
+                "ignore_market_hours": getattr(args, "ignore_market_hours", False),
+            },
         )
         render_footer("System error occurred!")
         return False

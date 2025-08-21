@@ -13,7 +13,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any, Literal
 
-from the_alchemiser.domain.strategies.strategy_manager import StrategyType
+from the_alchemiser.domain.registry import StrategyType
 from the_alchemiser.domain.strategies.value_objects.strategy_signal import (
     StrategySignal as TypedStrategySignal,
 )
@@ -86,18 +86,17 @@ def map_signals_dict(
 
 def typed_dict_to_domain_signal(typed_dict_signal: StrategySignal) -> TypedStrategySignal:
     """Convert legacy TypedDict StrategySignal to new typed domain StrategySignal.
-    
+
     Args:
         typed_dict_signal: Legacy StrategySignal (TypedDict) from domain.types
-        
+
     Returns:
         New typed domain StrategySignal with value objects
     """
-    from decimal import Decimal
-    from the_alchemiser.domain.strategies.value_objects.confidence import Confidence
     from the_alchemiser.domain.shared_kernel.value_objects.percentage import Percentage
+    from the_alchemiser.domain.strategies.value_objects.confidence import Confidence
     from the_alchemiser.domain.trading.value_objects.symbol import Symbol
-    
+
     # Extract symbol, handling special cases
     symbol_value = typed_dict_signal["symbol"]
     if isinstance(symbol_value, dict):
@@ -105,41 +104,40 @@ def typed_dict_to_domain_signal(typed_dict_signal: StrategySignal) -> TypedStrat
         symbol_str = "PORT"  # 4 characters, within Symbol limit
     else:
         symbol_str = str(symbol_value)
-    
+
     # Convert action to proper format
     action = typed_dict_signal["action"]
     if isinstance(action, str):
         action = action.upper()
         if action not in ("BUY", "SELL", "HOLD"):
             action = "HOLD"  # Default fallback
-    
-    # Extract confidence
-    confidence_value = typed_dict_signal.get("confidence", 0.0)
-    if not isinstance(confidence_value, (int, float)):
-        confidence_value = 0.0
-    
-    # Extract allocation percentage  
-    allocation_value = typed_dict_signal.get("allocation_percentage", 0.0)
-    if not isinstance(allocation_value, (int, float)):
-        allocation_value = 0.0
-    
+
+    # Extract confidence (always present in StrategySignalBase)
+    confidence_value: float = float(typed_dict_signal["confidence"])  # TypedDict field
+
+    # Extract allocation percentage
+    allocation_value: float = float(typed_dict_signal.get("allocation_percentage", 0.0))
+
     # Extract reasoning
-    reasoning = typed_dict_signal.get("reasoning", typed_dict_signal.get("reason", ""))
-    if not isinstance(reasoning, str):
-        reasoning = ""
-    
+    _reason_val = typed_dict_signal.get("reasoning", typed_dict_signal.get("reason", ""))
+    reasoning: str = str(_reason_val) if _reason_val is not None else ""
+
     # Create the new typed domain signal
     return TypedStrategySignal(
         symbol=Symbol(symbol_str),
         action=action,  # type: ignore[arg-type]  # We validated above
         confidence=Confidence(Decimal(str(confidence_value))),
-        target_allocation=Percentage(Decimal(str(allocation_value / 100.0)) if allocation_value > 1 else Decimal(str(allocation_value))),
-        reasoning=reasoning
+        target_allocation=Percentage(
+            Decimal(str(allocation_value / 100.0))
+            if allocation_value > 1
+            else Decimal(str(allocation_value))
+        ),
+        reasoning=reasoning,
     )
 
 
 def convert_signals_dict_to_domain(
-    legacy_signals_dict: dict[StrategyType, StrategySignal]
+    legacy_signals_dict: dict[StrategyType, StrategySignal],
 ) -> dict[StrategyType, TypedStrategySignal]:
     """Convert dict of legacy TypedDict signals to new typed domain signals."""
     return {k: typed_dict_to_domain_signal(v) for k, v in legacy_signals_dict.items()}
@@ -154,7 +152,7 @@ def typed_strategy_signal_to_validated_order(
     client_order_id: str | None = None,
 ) -> ValidatedOrderDTO:
     """Convert typed domain StrategySignal to ValidatedOrderDTO.
-    
+
     Args:
         signal: Typed domain StrategySignal with value objects
         portfolio_value: Total portfolio value for quantity calculation
@@ -162,10 +160,10 @@ def typed_strategy_signal_to_validated_order(
         time_in_force: Time in force specification
         limit_price: Limit price for limit orders
         client_order_id: Optional client order ID
-        
+
     Returns:
         ValidatedOrderDTO instance ready for order execution
-        
+
     Raises:
         ValueError: If signal action is HOLD or other invalid states
         ValueError: If limit order without limit_price
@@ -173,7 +171,7 @@ def typed_strategy_signal_to_validated_order(
     # Handle HOLD signals - these should not generate orders
     if signal.action == "HOLD":
         raise ValueError("HOLD signals cannot be converted to orders")
-    
+
     # Convert action from strategy signal to order side with proper typing
     side: Literal["buy", "sell"]
     if signal.action == "BUY":
@@ -182,23 +180,23 @@ def typed_strategy_signal_to_validated_order(
         side = "sell"
     else:
         raise ValueError(f"Invalid signal action: {signal.action}")
-    
+
     # Calculate quantity from target allocation and portfolio value
     # target_allocation is Percentage (0.0 to 1.0), portfolio_value is Decimal
     allocation_value = portfolio_value * signal.target_allocation.value
-    
+
     # For now, use allocation_value as quantity (dollar amount)
     # In a real implementation, this might need current stock price to convert to shares
     quantity = allocation_value
-    
+
     # Validate minimum quantity
     if quantity <= Decimal("0"):
         raise ValueError(f"Calculated quantity must be positive, got: {quantity}")
-    
+
     # Validate limit price requirement
     if order_type == "limit" and limit_price is None:
         raise ValueError("Limit price required for limit orders")
-    
+
     # Create ValidatedOrderDTO
     return ValidatedOrderDTO(
         symbol=signal.symbol.value,

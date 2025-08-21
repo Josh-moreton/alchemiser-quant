@@ -17,9 +17,14 @@ from datetime import datetime
 from functools import wraps
 from typing import Any
 
-# Enhanced error reporting and classification utilities.
-from the_alchemiser.domain.types import ErrorDetailInfo, ErrorNotificationData, ErrorReportSummary
 from the_alchemiser.infrastructure.logging.logging_utils import set_error_id
+
+# Enhanced error reporting and classification utilities.
+from the_alchemiser.interfaces.schemas.errors import (
+    ErrorDetailInfo,
+    ErrorNotificationData,
+    ErrorReportSummary,
+)
 
 from .context import ErrorContextData
 from .exceptions import (

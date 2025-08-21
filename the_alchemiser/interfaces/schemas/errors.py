@@ -12,6 +12,7 @@ from typing import Any, TypedDict
 # Error Detail Types
 class ErrorDetailInfo(TypedDict):
     """Detailed error information for reporting."""
+
     error_type: str
     error_message: str
     category: str
@@ -25,12 +26,14 @@ class ErrorDetailInfo(TypedDict):
 
 class ErrorSummaryData(TypedDict):
     """Summary of errors by category."""
+
     count: int
     errors: list[ErrorDetailInfo]
 
 
 class ErrorReportSummary(TypedDict):
     """Comprehensive error report summary."""
+
     critical: ErrorSummaryData | None
     trading: ErrorSummaryData | None
     data: ErrorSummaryData | None
@@ -43,6 +46,7 @@ class ErrorReportSummary(TypedDict):
 # Error Notification Types
 class ErrorNotificationData(TypedDict):
     """Data for error notifications."""
+
     severity: str
     priority: str
     title: str
@@ -52,6 +56,7 @@ class ErrorNotificationData(TypedDict):
 
 class ErrorContextData(TypedDict):
     """Context information for error tracking."""
+
     operation: str
     component: str
     function_name: str | None

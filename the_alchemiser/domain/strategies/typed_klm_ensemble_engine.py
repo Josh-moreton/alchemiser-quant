@@ -80,7 +80,7 @@ class TypedKLMStrategyEngine(StrategyEngine):
         self.market_symbols = ["SPY", "QQQE", "VTV", "VOX", "TECL", "VOOG", "VOOV", "IOO", "QQQ"]
         self.sector_symbols = ["XLP", "TQQQ", "XLY", "FAS", "XLF", "RETL", "XLK"]
         self.tech_symbols = ["SOXL", "SPXL", "SPLV", "FNGU"]
-        self.volatility_symbols = ["UVXY", "VIXY", "VXX", "VIXM", "SVIX", "SQQQ", "SVXY"]
+        self.volatility_symbols = ["UVXY", "UVIX", "VIXY", "VXX", "VIXM", "SVIX", "SQQQ", "SVXY"]
         self.bond_symbols = ["TLT", "BIL", "BTAL", "BND", "KMLM", "AGG"]
         self.bear_symbols = ["LABD", "TZA"]
         self.biotech_symbols = ["LABU"]
@@ -189,23 +189,41 @@ class TypedKLMStrategyEngine(StrategyEngine):
             try:
                 symbol_indicators = {}
 
-                # Calculate common indicators used by KLM variants
+                # Always operate on the Close price series
+                if data.empty or "Close" not in data.columns:
+                    continue
+                close = data["Close"]
+
+                # Calculate common indicators used by KLM variants using Close series
                 symbol_indicators["rsi_10"] = safe_get_indicator(
-                    data, self.indicators.rsi, window=10
+                    close, self.indicators.rsi, window=10
                 )
                 symbol_indicators["rsi_14"] = safe_get_indicator(
-                    data, self.indicators.rsi, window=14
+                    close, self.indicators.rsi, window=14
+                )
+                # Additional RSI windows required by variants
+                symbol_indicators["rsi_11"] = safe_get_indicator(
+                    close, self.indicators.rsi, window=11
+                )
+                symbol_indicators["rsi_15"] = safe_get_indicator(
+                    close, self.indicators.rsi, window=15
+                )
+                symbol_indicators["rsi_21"] = safe_get_indicator(
+                    close, self.indicators.rsi, window=21
+                )
+                symbol_indicators["rsi_70"] = safe_get_indicator(
+                    close, self.indicators.rsi, window=70
                 )
                 symbol_indicators["sma_200"] = safe_get_indicator(
-                    data, self.indicators.moving_average, window=200
+                    close, self.indicators.moving_average, window=200
                 )
-                symbol_indicators["ma_return_90"] = calculate_moving_average_return(data, 90)
-                symbol_indicators["stdev_return_5"] = calculate_stdev_returns(data, 5)
+                symbol_indicators["ma_return_90"] = calculate_moving_average_return(close, 90)
+                symbol_indicators["stdev_return_5"] = calculate_stdev_returns(close, 5)
+                symbol_indicators["stdev_return_6"] = calculate_stdev_returns(close, 6)
 
                 # Add current price and close price
-                if not data.empty:
-                    symbol_indicators["close"] = float(data["Close"].iloc[-1])
-                    symbol_indicators["current_price"] = float(data["Close"].iloc[-1])
+                symbol_indicators["close"] = float(close.iloc[-1])
+                symbol_indicators["current_price"] = float(close.iloc[-1])
 
                 indicators[symbol] = symbol_indicators
 

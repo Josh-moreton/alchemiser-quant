@@ -69,39 +69,42 @@ def show_welcome() -> None:
 
 @app.command()
 def signal(
-    verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable verbose output"),
-    no_header: bool = typer.Option(False, "--no-header", help="Skip welcome header"),
+    verbose: bool = typer.Option(
+        False, "--verbose", "-v", help="Enable verbose output with detailed logs"
+    ),
+    strategy: str = typer.Option(
+        "all",
+        "--strategy",
+        "-s",
+        help="Strategy to run: nuclear, tecl, klm, or all (default)",
+    ),
 ) -> None:
-    """
-    🎯 [bold cyan]Generate and display strategy signals[/bold cyan] (analysis only, no trading)
+    """🧠 Generate strategy signals without executing trades."""
 
-    Analyzes market conditions and generates trading signals from multiple strategies:
-    • Nuclear strategy (nuclear sector + market conditions)
-    • TECL strategy (tech leverage + volatility hedging)
-    • KLM strategy (ensemble machine learning)
-    • Market regime analysis (bull/bear/overbought conditions)
-
-    Perfect for:
-    • Market analysis without trading
-    • Strategy validation
-    • Understanding current market signals
-    """
-    if not no_header:
-        show_welcome()
-
-    console.print("[bold yellow]Analyzing market conditions...[/bold yellow]")
-
-    # Clean progress indication without spinner interference
-    console.print("[dim]📊 Generating strategy signals...[/dim]")
+    # Initialize error handler
+    error_handler = TradingSystemErrorHandler()
 
     try:
-        # Import and run the main logic with DI
-        from the_alchemiser.main import main
+        # Display welcome header
+        show_welcome()
 
-        # Build argv for main function
-        argv = ["signal"]
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console,
+        ) as progress:
+            task = progress.add_task("[cyan]Analyzing market conditions...", total=None)
+            time.sleep(0.5)  # Brief pause for UX
 
-        success = main(argv=argv)
+            progress.update(task, description="[cyan]📊 Generating strategy signals...")
+
+            # Use the main entry point to ensure proper DI initialization
+            from the_alchemiser.main import main
+
+            # Build argv for main function - signal mode
+            argv = ["signal"]
+
+            success = main(argv=argv)
 
         if success:
             console.print("\n[bold green]Signal analysis completed successfully![/bold green]")
@@ -114,10 +117,7 @@ def signal(
             error=e,
             context="CLI signal command - strategy execution",
             component="cli.signal",
-            additional_data={
-                "verbose": verbose,
-                "error_type": type(e).__name__
-            }
+            additional_data={"verbose": verbose, "error_type": type(e).__name__},
         )
         console.print(f"\n[bold red]Strategy execution error: {e}[/bold red]")
         if verbose:
@@ -126,12 +126,9 @@ def signal(
     except AlchemiserError as e:
         error_handler.handle_error(
             error=e,
-            context="CLI signal command - application error", 
+            context="CLI signal command - application error",
             component="cli.signal",
-            additional_data={
-                "verbose": verbose,
-                "error_type": type(e).__name__
-            }
+            additional_data={"verbose": verbose, "error_type": type(e).__name__},
         )
         console.print(f"\n[bold red]Application error: {e}[/bold red]")
         if verbose:
@@ -141,12 +138,12 @@ def signal(
         error_handler.handle_error(
             error=e,
             context="CLI signal command - unexpected system error",
-            component="cli.signal", 
+            component="cli.signal",
             additional_data={
                 "verbose": verbose,
                 "error_type": "unexpected_error",
-                "original_error": type(e).__name__
-            }
+                "original_error": type(e).__name__,
+            },
         )
         console.print(f"\n[bold red]Unexpected error: {e}[/bold red]")
         if verbose:
@@ -291,6 +288,9 @@ def status(
     """
     show_welcome()
 
+    # Initialize error handler
+    error_handler = TradingSystemErrorHandler()
+
     # Determine mode and add safety warning for live mode
     paper_trading = not live
     mode_display = "[bold red]LIVE[/bold red]" if live else "[bold blue]PAPER[/bold blue]"
@@ -379,12 +379,9 @@ def status(
     except TradingClientError as e:
         error_handler.handle_error(
             error=e,
-            context="CLI status command - trading client operation", 
+            context="CLI status command - trading client operation",
             component="cli.status",
-            additional_data={
-                "live_trading": live,
-                "error_type": type(e).__name__
-            }
+            additional_data={"live_trading": live, "error_type": type(e).__name__},
         )
         console.print(f"[bold red]Trading client error: {e}[/bold red]")
         raise typer.Exit(1)
@@ -393,11 +390,8 @@ def status(
         error_handler.handle_error(
             error=e,
             context="CLI status command - application error",
-            component="cli.status", 
-            additional_data={
-                "live_trading": live,
-                "error_type": type(e).__name__
-            }
+            component="cli.status",
+            additional_data={"live_trading": live, "error_type": type(e).__name__},
         )
         console.print(f"[bold red]Application error: {e}[/bold red]")
         raise typer.Exit(1)
@@ -409,8 +403,8 @@ def status(
             additional_data={
                 "live_trading": live,
                 "error_type": "unexpected_error",
-                "original_error": type(e).__name__
-            }
+                "original_error": type(e).__name__,
+            },
         )
         console.print(f"[bold red]Unexpected error: {e}[/bold red]")
         raise typer.Exit(1)

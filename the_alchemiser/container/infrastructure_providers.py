@@ -3,9 +3,6 @@
 from dependency_injector import containers, providers
 
 from the_alchemiser.services.market_data.market_data_service import MarketDataService
-from the_alchemiser.services.market_data.strategy_market_data_service import (
-    StrategyMarketDataService,
-)
 from the_alchemiser.services.repository.alpaca_manager import AlpacaManager
 
 
@@ -23,18 +20,14 @@ class InfrastructureProviders(containers.DeclarativeContainer):
         paper=config.paper_trading,
     )
 
-    # Data provider for strategies: strategy market data service
-    data_provider = providers.Singleton(
-        StrategyMarketDataService,
-        api_key=config.alpaca_api_key,
-        secret_key=config.alpaca_secret_key,
-    )
-
-    # Typed market data service (new path)
+    # Typed market data service (canonical path)
     market_data_service = providers.Singleton(
         MarketDataService,
         market_data_repo=alpaca_manager,
     )
+
+    # Data provider for strategies: use the same typed service (exposes get_data for compat)
+    data_provider = market_data_service
 
     # Backward compatibility: provide same interface
     trading_repository = alpaca_manager

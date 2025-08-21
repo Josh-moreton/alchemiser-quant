@@ -14,6 +14,7 @@ from the_alchemiser.domain.types import OrderDetails, StrategyPnLSummary
 # Dashboard and Metrics Types
 class DashboardMetrics(TypedDict):
     """Dashboard metrics for real-time display."""
+
     total_portfolio_value: float
     daily_pnl: float
     daily_pnl_percentage: float
@@ -23,6 +24,7 @@ class DashboardMetrics(TypedDict):
 
 class ReportingData(TypedDict):
     """General reporting data structure."""
+
     timestamp: str
     portfolio_summary: dict[str, Any]
     performance_metrics: dict[str, float]
@@ -32,6 +34,7 @@ class ReportingData(TypedDict):
 # Email and Notification Types
 class EmailReportData(TypedDict):
     """Email report data structure."""
+
     subject: str
     html_content: str
     recipient: str
@@ -40,6 +43,7 @@ class EmailReportData(TypedDict):
 
 class EmailCredentials(TypedDict):
     """Email service credentials."""
+
     smtp_server: str
     smtp_port: int
     email_address: str
@@ -49,6 +53,7 @@ class EmailCredentials(TypedDict):
 
 class EmailSummary(TypedDict):
     """Email summary for trading reports."""
+
     total_orders: int
     recent_orders: list[OrderDetails]
     performance_metrics: dict[str, float]
@@ -58,6 +63,7 @@ class EmailSummary(TypedDict):
 # Performance Analysis Types
 class BacktestResult(TypedDict):
     """Backtest execution results."""
+
     strategy_name: str
     start_date: str
     end_date: str
@@ -71,6 +77,7 @@ class BacktestResult(TypedDict):
 
 class PerformanceMetrics(TypedDict):
     """Performance analysis metrics."""
+
     returns: list[float]
     cumulative_return: float
     volatility: float

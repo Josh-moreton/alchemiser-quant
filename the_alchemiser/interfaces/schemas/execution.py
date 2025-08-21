@@ -14,6 +14,7 @@ from the_alchemiser.domain.types import AccountInfo, OrderDetails
 # Trading Execution Types
 class ExecutionResult(TypedDict):
     """Result of trading execution."""
+
     orders_executed: list[OrderDetails]
     account_info_before: AccountInfo
     account_info_after: AccountInfo
@@ -23,6 +24,7 @@ class ExecutionResult(TypedDict):
 
 class TradingPlan(TypedDict):
     """Trading execution plan."""
+
     symbol: str
     action: Literal["BUY", "SELL"]
     quantity: float
@@ -33,12 +35,14 @@ class TradingPlan(TypedDict):
 # Order Processing Types
 class LimitOrderResult(TypedDict):
     """Result of limit order processing."""
+
     order_request: Any | None  # LimitOrderRequest - using Any to avoid import
     error_message: str | None
 
 
 class WebSocketResult(TypedDict):
     """WebSocket operation result."""
+
     status: Literal["completed", "timeout", "error"]
     message: str
     orders_completed: list[str]
@@ -47,6 +51,7 @@ class WebSocketResult(TypedDict):
 # Quote and Market Data Types
 class QuoteData(TypedDict):
     """Real-time quote data."""
+
     bid_price: float
     ask_price: float
     bid_size: float
@@ -57,6 +62,7 @@ class QuoteData(TypedDict):
 # Integration Types
 class LambdaEvent(TypedDict, total=False):
     """AWS Lambda event data."""
+
     mode: str | None
     trading_mode: str | None
     ignore_market_hours: bool | None
@@ -65,5 +71,6 @@ class LambdaEvent(TypedDict, total=False):
 
 class OrderHistoryData(TypedDict):
     """Order history data structure."""
+
     orders: list[OrderDetails]
     metadata: dict[str, Any]

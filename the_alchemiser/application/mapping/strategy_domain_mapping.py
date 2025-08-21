@@ -8,13 +8,13 @@ from __future__ import annotations
 
 from typing import Any
 
+from the_alchemiser.domain.registry import StrategyType
 from the_alchemiser.domain.strategies.models.strategy_position_model import (
     StrategyPositionModel,
 )
 from the_alchemiser.domain.strategies.models.strategy_signal_model import (
     StrategySignalModel,
 )
-from the_alchemiser.domain.strategies.strategy_manager import StrategyType
 from the_alchemiser.domain.types import (
     StrategyPositionData as StrategyPositionDTO,
 )
