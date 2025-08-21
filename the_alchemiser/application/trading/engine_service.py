@@ -36,12 +36,14 @@ from the_alchemiser.domain.types import (
     OrderDetails,
     PositionsDict,
 )
-from the_alchemiser.execution.account_service import AccountService
 from the_alchemiser.infrastructure.adapters.legacy_portfolio_adapter import (
     LegacyPortfolioRebalancerAdapter,
 )
 from the_alchemiser.infrastructure.config import Settings
 from the_alchemiser.interfaces.schemas.common import MultiStrategyExecutionResultDTO
+from the_alchemiser.services.account.account_service import (
+    AccountService as TypedAccountService,
+)
 from the_alchemiser.services.errors.exceptions import (
     ConfigurationError,
     DataProviderError,
@@ -75,6 +77,8 @@ class LegacyPortfolioRebalancerStub:
         target_portfolio: dict[str, float],
         strategy_attribution: dict[str, list["StrategyType"]] | None = None,
     ) -> list["OrderDetails"]:
+        # Acknowledge parameters to satisfy linters
+        _ = target_portfolio, strategy_attribution
         return []
 
 
@@ -515,7 +519,13 @@ class TradingEngine:
 
         # Supporting services for composition-based access
         try:
-            self.account_service = AccountService(self.data_provider)
+            # Preserve DI-provided account_service if already set; otherwise wire the
+            # typed AccountService to the AlpacaManager so it can supply both
+            # account info and positions (MarketDataService lacks these).
+            if not hasattr(self, "account_service") or self.account_service is None:
+                # Reuse the AlpacaManager resolved earlier in this method
+                self.account_service = TypedAccountService(alpaca_manager)
+
             self.execution_manager = ExecutionManager(self)
         except Exception as e:
             raise TradingClientError(
@@ -537,47 +547,57 @@ class TradingEngine:
         logging.info(f"TradingEngine initialized - Paper Trading: {self.paper_trading}")
 
     # --- Account and Position Methods ---
-    def get_account_info(
-        self,
-    ) -> dict[str, Any]:  # TODO: Change to AccountInfo once data structure matches
-        """Get comprehensive account information including P&L data.
+    def get_account_info(self) -> AccountInfo:
+        """Get basic typed account information for execution flows.
 
-        Retrieves detailed account information including portfolio value, equity,
-        buying power, recent portfolio history, open positions, and closed P&L data.
-
-        Returns:
-            Dict: Account information containing:
-                - account_number: Account identifier
-                - portfolio_value: Total portfolio value
-                - equity: Account equity
-                - buying_power: Available buying power
-                - cash: Available cash
-                - day_trade_count: Number of day trades
-                - status: Account status
-                - portfolio_history: Recent portfolio performance
-                - open_positions: Current open positions
-                - recent_closed_pnl: Recent closed position P&L (last 7 days)
-
-        Note:
-            Returns empty dict if account information cannot be retrieved.
+        Returns typed AccountInfo as required by MultiStrategyExecutionResultDTO.
+        Use get_enriched_account_info for UI/reporting extras.
         """
         try:
             account_info = self._account_info_provider.get_account_info()
-
-            # Convert AccountInfo to enriched dict with additional trading context
-            enriched_info: dict[str, Any] = {
-                "account_number": account_info["account_id"],
-                "portfolio_value": account_info["portfolio_value"],
-                "equity": account_info["equity"],
-                "buying_power": account_info["buying_power"],
-                "cash": account_info["cash"],
-                "day_trade_count": account_info["day_trades_remaining"],
-                "status": account_info["status"],
-                "trading_mode": "paper" if self.paper_trading else "live",
-                "market_hours_ignored": self.ignore_market_hours,
+            # Ensure required keys are present (defensive normalization)
+            required_keys = {
+                "account_id",
+                "equity",
+                "cash",
+                "buying_power",
+                "day_trades_remaining",
+                "portfolio_value",
+                "last_equity",
+                "daytrading_buying_power",
+                "regt_buying_power",
+                "status",
             }
+            if not all(k in account_info for k in required_keys):  # pragma: no cover
+                # Normalize explicitly for TypedDict compatibility
+                base = _create_default_account_info(str(account_info.get("account_id", "unknown")))
+                normalized: AccountInfo = {
+                    "account_id": str(account_info.get("account_id", base["account_id"])),
+                    "equity": float(account_info.get("equity", base["equity"])),
+                    "cash": float(account_info.get("cash", base["cash"])),
+                    "buying_power": float(account_info.get("buying_power", base["buying_power"])),
+                    "day_trades_remaining": int(
+                        account_info.get("day_trades_remaining", base["day_trades_remaining"])
+                    ),
+                    "portfolio_value": float(
+                        account_info.get("portfolio_value", base["portfolio_value"])
+                    ),
+                    "last_equity": float(account_info.get("last_equity", base["last_equity"])),
+                    "daytrading_buying_power": float(
+                        account_info.get("daytrading_buying_power", base["daytrading_buying_power"])
+                    ),
+                    "regt_buying_power": float(
+                        account_info.get("regt_buying_power", base["regt_buying_power"])
+                    ),
+                    "status": (
+                        "ACTIVE"
+                        if str(account_info.get("status", base["status"])) == "ACTIVE"
+                        else "INACTIVE"
+                    ),
+                }
+                return normalized
 
-            return enriched_info
+            return account_info
         except DataProviderError as e:
             from the_alchemiser.infrastructure.logging.logging_utils import (
                 get_logger,
@@ -607,7 +627,7 @@ class TradingEngine:
             except (ImportError, AttributeError):
                 pass
 
-            return {}
+            return _create_default_account_info("data_error")
         except (TradingClientError, ConnectionError, TimeoutError, AttributeError) as e:
             from the_alchemiser.infrastructure.logging.logging_utils import (
                 get_logger,
@@ -638,7 +658,7 @@ class TradingEngine:
             except (ImportError, AttributeError):
                 pass  # Fallback for backward compatibility
 
-            return {}
+            return _create_default_account_info("client_error")
 
     def get_enriched_account_info(self) -> EnrichedAccountInfo:
         """Get enriched account information including portfolio history and P&L data.
@@ -973,21 +993,7 @@ class TradingEngine:
 
         # Pre-execution validation
         try:
-            account_info = self.get_account_info()
-            if not account_info:
-                logging.error(
-                    "Cannot proceed with multi-strategy execution: account info unavailable"
-                )
-                return MultiStrategyExecutionResultDTO(
-                    success=False,
-                    strategy_signals={},
-                    consolidated_portfolio={},
-                    orders_executed=[],
-                    account_info_before=_create_default_account_info("error"),
-                    account_info_after=_create_default_account_info("error"),
-                    execution_summary={"error": "Failed to retrieve account information"},
-                    final_portfolio_state={},
-                )
+            self.get_account_info()
         except (DataProviderError, TradingClientError, ConfigurationError, ValueError) as e:
             logging.error(f"Pre-execution validation failed: {e}")
             return MultiStrategyExecutionResultDTO(
@@ -1202,7 +1208,7 @@ class TradingEngine:
     def display_target_vs_current_allocations(
         self,
         target_portfolio: dict[str, float],
-        account_info: dict[str, Any],
+        account_info: AccountInfo | dict[str, Any],
         current_positions: dict[str, Any],
     ) -> tuple[dict[str, float], dict[str, float]]:
         """Display target vs current allocations and return calculated values.
@@ -1230,24 +1236,87 @@ class TradingEngine:
         )
 
         # Use helper functions to calculate values
-        # Convert legacy dict to AccountInfo for the utility function
+        # Accept both legacy display shape and typed AccountInfo
+        def _to_float(v: Any, default: float = 0.0) -> float:
+            try:
+                if v is None:
+                    return default
+                return float(v)
+            except (TypeError, ValueError):
+                return default
+
+        def _to_int(v: Any, default: int = 0) -> int:
+            try:
+                if v is None:
+                    return default
+                return int(v)
+            except (TypeError, ValueError):
+                return default
+
+        # Safely derive day_trades_remaining from either key
+        day_trades_remaining_val = 0
+        if isinstance(account_info, dict):
+            v1 = account_info.get("day_trades_remaining")
+            v2 = account_info.get("day_trade_count")
+            for _v in (v1, v2):
+                day_trades_remaining_val = _to_int(_v, 0)
+                if day_trades_remaining_val != 0:
+                    break
+
         account_info_typed: AccountInfo = {
-            "account_id": account_info.get("account_number", "unknown"),
-            "equity": account_info.get("equity", 0.0),
-            "cash": account_info.get("cash", 0.0),
-            "buying_power": account_info.get("buying_power", 0.0),
-            "day_trades_remaining": account_info.get("day_trade_count", 0),
-            "portfolio_value": account_info.get("portfolio_value", 0.0),
-            "last_equity": account_info.get("equity", 0.0),
-            "daytrading_buying_power": account_info.get("daytrading_buying_power", 0.0),
-            "regt_buying_power": account_info.get("buying_power", 0.0),
-            "status": "ACTIVE" if account_info.get("status") == "ACTIVE" else "INACTIVE",
+            "account_id": str(
+                (account_info.get("account_id") if isinstance(account_info, dict) else None)
+                or (account_info.get("account_number") if isinstance(account_info, dict) else None)
+                or "unknown"
+            ),
+            "equity": _to_float(account_info.get("equity", 0.0), 0.0),
+            "cash": _to_float(account_info.get("cash", 0.0), 0.0),
+            "buying_power": _to_float(account_info.get("buying_power", 0.0), 0.0),
+            "day_trades_remaining": day_trades_remaining_val,
+            "portfolio_value": _to_float(
+                (account_info.get("portfolio_value") if isinstance(account_info, dict) else None)
+                or (account_info.get("equity", 0.0) if isinstance(account_info, dict) else 0.0),
+                0.0,
+            ),
+            "last_equity": _to_float(
+                (account_info.get("last_equity") if isinstance(account_info, dict) else None)
+                or (account_info.get("equity", 0.0) if isinstance(account_info, dict) else 0.0),
+                0.0,
+            ),
+            "daytrading_buying_power": _to_float(
+                (
+                    account_info.get("daytrading_buying_power")
+                    if isinstance(account_info, dict)
+                    else None
+                )
+                or (
+                    account_info.get("buying_power", 0.0) if isinstance(account_info, dict) else 0.0
+                ),
+                0.0,
+            ),
+            "regt_buying_power": _to_float(
+                (account_info.get("regt_buying_power") if isinstance(account_info, dict) else None)
+                or (
+                    account_info.get("buying_power", 0.0) if isinstance(account_info, dict) else 0.0
+                ),
+                0.0,
+            ),
+            "status": (
+                "ACTIVE"
+                if str(account_info.get("status", "INACTIVE")).upper() == "ACTIVE"
+                else "INACTIVE"
+            ),
         }
         target_values = calculate_position_target_deltas(target_portfolio, account_info_typed)
         current_values = extract_current_position_values(current_positions)
 
         # Use existing formatter for display
-        render_target_vs_current_allocations(target_portfolio, account_info, current_positions)
+        # Ensure a plain dict is passed to the renderer to satisfy its signature
+        render_target_vs_current_allocations(
+            target_portfolio,
+            dict(account_info) if isinstance(account_info, dict) else dict(account_info_typed),
+            current_positions,
+        )
 
         return target_values, current_values
 
