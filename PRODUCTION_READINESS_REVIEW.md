@@ -1,32 +1,36 @@
 # Production Readiness Review
 
 ## Critical Issues (Must Fix Before Production)
-- **Dynamic imports and implicit dependencies** – multiple modules rely on run-time imports (e.g., dependency injection in the main entry point and direct `__import__` calls for timestamps) which obscures dependency graphs and complicates packaging. These patterns invite circular import issues and make cold-start behaviour unpredictable.
-- **Excessive blanket exception handling** – many critical paths catch `Exception` and either ignore the error or return generic dictionaries without logging. This masks failures (including trading errors) and removes stack context, risking undetected partial executions.
-- **Unstructured logging** – logging is inconsistent and rarely structured; some modules log only strings or skip logging entirely on failure. Without consistent JSON logging (timestamp, level, component), diagnosing production incidents or correlating trade events will be difficult.
-- **Trade execution safeguards** – order methods accept raw symbol/side/qty and immediately place orders with minimal validation and no idempotency or order-status verification. No safeguards exist to prevent duplicate submissions or runaway loops if upstream signals misbehave.
-- **Secrets management gaps** – secrets manager falls back to environment variables silently and caches secrets indefinitely. In production this could expose credentials to untrusted logs or fail to rotate keys correctly.
+
+- **Monolithic trading engine with runtime dependency wiring.** `TradingEngine` mixes configuration loading, service construction and strategy orchestration in a single ~800‑line file. It performs imports inside methods and catches broad `Exception`, making control flow hard to reason about and increasing the chance of hidden failures【F:the_alchemiser/application/trading/engine_service.py†L309-L359】
+- **Order placement lacks safety guards.** `place_order` forwards parameters directly to the execution engine without validation, duplicate detection or idempotency checks, leaving room for runaway or duplicated trades if upstream signals misbehave【F:the_alchemiser/application/trading/engine_service.py†L777-L803】
+- **Dynamic imports in critical paths.** The CLI executor imports `the_alchemiser.main` at runtime to pull a global container, introducing hidden dependencies and increasing cold‑start time【F:the_alchemiser/interface/cli/trading_executor.py†L63-L69】
+- **Secrets manager silently falls back and caches forever.** Failures in AWS Secrets Manager result in warning logs and a fallback to environment variables with unbounded caching, risking stale credentials and unintentional exposure of secrets【F:the_alchemiser/infrastructure/secrets/secrets_manager.py†L82-L138】
+- **Tests fail during collection.** Running `pytest` immediately errors because the package is not importable, so no automated verification is currently possible【bb34bd†L1-L20】
 
 ## High-Risk Concerns
-- **Large monolithic modules** (e.g., `trading_engine` and `trading_service_manager`) blend configuration, strategy orchestration, execution, and reporting. This increases cognitive load and makes targeted testing or hotfixes risky.
-- **Dependency injection complexity** – DI container creation and overrides are scattered, and failure paths simply log and continue. Any DI misconfiguration in Lambda could disable critical components without obvious symptoms.
-- **Single-threaded blocking behaviour** – all API calls, polling loops, and order placement are synchronous. In live markets, network jitter or slow responses will stall the entire bot, potentially missing execution windows or causing stale decisions.
-- **Minimal market-hours enforcement** – a simple flag bypasses checks; nothing prevents a misconfigured Lambda from trading outside allowed sessions.
-- **Backtest/live drift** – real-time code uses dynamic price services and order managers not mirrored in tests or backtesting. No evidence of consistent fills, latency modelling, or timezone handling across modes.
+
+- Heavy use of broad `except Exception` blocks across initialization and execution paths obscures real error causes and can mask partial trade execution【F:the_alchemiser/application/trading/engine_service.py†L243-L255】
+- Trading logic and orchestration remain single‑threaded with blocking network calls, so any slow API response will stall the entire bot.
+- Market‑hours checks are easily bypassed via the `ignore_market_hours` flag, leaving production deployments vulnerable to trading outside intended sessions【F:the_alchemiser/interface/cli/trading_executor.py†L88-L96】
+- Secrets are loaded once and never refreshed, preventing key rotation and increasing blast radius if credentials leak【F:the_alchemiser/infrastructure/secrets/secrets_manager.py†L82-L105】
 
 ## Performance & Reliability Recommendations
-- Implement asynchronous or multi-threaded data fetching and order placement to avoid blocking the entire system on network I/O.
-- Introduce rate limiting and caching layers for external API calls, especially when fetching prices for multiple symbols.
-- Add health checks and timeouts for Alpaca and TwelveData requests to avoid hanging on network failures.
-- Monitor dependency injection startup and fail fast if any provider is unavailable; do not allow partial container initialization.
-- Replace dynamic `__import__` usage with explicit imports and centralize timestamp generation to reduce overhead.
+
+- Introduce asynchronous or concurrent I/O for market data and order placement to prevent blocking on external services.
+- Add explicit timeouts and retry policies around all HTTP/API calls.
+- Implement health‑checks for the DI container and fail fast if any provider cannot be resolved.
+- Add rate limiting and caching layers for frequently requested data.
 
 ## Refactoring Suggestions for Maintainability
-- Break up mega-modules (`trading_engine`, `trading_service_manager`) into smaller focused components: separate order logic, account handling, and strategy management.
-- Replace blanket `except Exception` with specific exception hierarchies and always log with stack traces.
-- Standardize logging via a shared utility producing structured JSON logs with request IDs and correlation data.
-- Consolidate configuration and DI wiring into a single module; avoid run-time overrides in CLI helpers.
-- Move type definitions into dedicated modules to avoid a single `types.py` that is difficult to navigate.
+
+- Split `TradingEngine` into focused modules: configuration/loading, strategy management, execution, and reporting.
+- Replace dynamic imports with explicit module dependencies at the top of files.
+- Adopt structured JSON logging with request IDs and stack traces; avoid `print` statements and bare `logging.error` without context.
+- Introduce specific exception classes and avoid blanket `except Exception` patterns.
+- Provide typed interfaces or protocol definitions for external services to reduce reliance on `Any`.
 
 ## Final Verdict
-**No-Go for production.** The project demonstrates significant effort and a rich feature set, but critical reliability, safety, and maintainability gaps remain. Trading systems require deterministic behaviour, robust error handling, and strong safety rails; the current codebase risks silent failures and runaway trades. Address the issues above, expand automated tests, and tighten configuration and logging before considering live deployment.
+
+**No-Go for production.** The project demonstrates significant progress but critical reliability, safety and maintainability gaps remain. Trade execution and credential handling lack the controls required for live trading. Address the issues above, ensure tests run cleanly, and tighten configuration and logging before considering deployment.
+
