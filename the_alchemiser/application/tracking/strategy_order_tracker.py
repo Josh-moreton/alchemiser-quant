@@ -29,7 +29,7 @@ from the_alchemiser.application.mapping.tracking_mapping import (
     orders_to_execution_summary_dto,
     strategy_pnl_to_dict,
 )
-from the_alchemiser.domain.strategies.strategy_manager import StrategyType
+from the_alchemiser.domain.registry import StrategyType
 from the_alchemiser.infrastructure.config import load_settings
 from the_alchemiser.infrastructure.s3.s3_utils import get_s3_handler
 from the_alchemiser.interfaces.schemas.tracking import (
@@ -78,7 +78,7 @@ class StrategyOrder:
         )
 
 
-@dataclass  # Note: Pydantic DTOs available in interfaces.schemas.tracking for I/O boundaries  
+@dataclass  # Note: Pydantic DTOs available in interfaces.schemas.tracking for I/O boundaries
 class StrategyPosition:
     """Represents a position held by a specific strategy."""
 
@@ -717,7 +717,9 @@ class StrategyOrderTracker:
         if not success:
             logging.warning("Failed to save realized P&L data to S3")
 
-    def get_summary_for_email(self, current_prices: dict[str, float] | None = None) -> dict[str, Any]:
+    def get_summary_for_email(
+        self, current_prices: dict[str, float] | None = None
+    ) -> dict[str, Any]:
         """Get summary data suitable for email reporting."""
         try:
             all_pnl = self.get_all_strategy_pnl(current_prices)

@@ -18,7 +18,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
-from the_alchemiser.domain.strategies.strategy_manager import StrategyType
+from the_alchemiser.domain.registry import StrategyType
 from the_alchemiser.domain.types import AccountInfo, OrderDetails, StrategySignal
 
 
