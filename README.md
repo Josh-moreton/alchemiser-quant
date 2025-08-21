@@ -74,7 +74,7 @@ export TYPES_V2_ENABLED=0   # or: false / no / off
 
 ### Data Layer
 
-- `the_alchemiser.infrastructure.data_providers.UnifiedDataProvider` unifies Alpaca REST and WebSocket access to provide account details, quotes and historical data.
+- `AlpacaManager` and `StrategyMarketDataService` provide unified Alpaca REST and WebSocket access for account details, quotes and historical data.
 
 ### Strategy Layer
 
@@ -106,7 +106,7 @@ export TYPES_V2_ENABLED=0   # or: false / no / off
 ## Execution Flow
 
 1. `load_settings()` builds a typed `Settings` object.
-2. `UnifiedDataProvider` connects to Alpaca using those settings.
+2. `AlpacaManager` and `TradingServiceManager` connect to Alpaca using those settings.
 3. `MultiStrategyManager` runs each strategy and merges their desired portfolios.
 4. `TradingEngine` uses `PortfolioRebalancer` to derive required trades.
 5. `SmartExecution` submits orders and monitors fills via WebSockets.
@@ -463,14 +463,15 @@ class TradingEngine:
 
 ### Data Provider Architecture
 
-#### Data Provider Facade
+#### Market Data Architecture
 
-All services now import `UnifiedDataProvider` from
-`the_alchemiser.infrastructure.data_providers.unified_data_provider_facade`.
-The facade preserves the legacy interface while delegating to modular
-services. The old `data_provider.py` module is deprecated.
+The system uses modern typed services for market data access:
 
-**Unified Data Access**:
+- `AlpacaManager` provides the core repository implementation
+- `StrategyMarketDataService` implements the MarketDataPort protocol for strategy access
+- `MarketDataService` provides enhanced operations with caching and validation
+
+**Modern Data Access**:
 
 - **Real-time Priority**: WebSocket data preferred over REST
 - **Automatic Fallbacks**: REST API backup for real-time failures

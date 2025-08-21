@@ -128,17 +128,17 @@ class KLMTradingBot:
 
     def __init__(self, data_provider: Any = None) -> None:
         if data_provider is None:
-            # Use typed adapter in ad-hoc runs to avoid legacy facade
+            # Use strategy market data service in ad-hoc runs to avoid legacy facade
             from the_alchemiser.infrastructure.secrets.secrets_manager import SecretsManager
-            from the_alchemiser.services.market_data.typed_data_provider_adapter import (
-                TypedDataProviderAdapter,
+            from the_alchemiser.services.market_data.strategy_market_data_service import (
+                StrategyMarketDataService,
             )
 
             sm = SecretsManager()
             api_key, secret_key = sm.get_alpaca_keys(paper_trading=True)
             if not api_key or not secret_key:
                 raise RuntimeError("Missing Alpaca credentials for KLMTradingBot")
-            data_provider = TypedDataProviderAdapter(api_key, secret_key)
+            data_provider = StrategyMarketDataService(api_key, secret_key)
 
         self.strategy = KLMStrategyEngine(data_provider=data_provider)
 

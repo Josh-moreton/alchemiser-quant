@@ -30,14 +30,14 @@ from the_alchemiser.domain.strategies.tecl_strategy_engine import (
 )
 from the_alchemiser.infrastructure.config.config_utils import load_alert_config
 from the_alchemiser.services.market_data.price_utils import ensure_scalar_price
-from the_alchemiser.services.market_data.typed_data_provider_adapter import TypedDataProviderAdapter
+from the_alchemiser.services.market_data.strategy_market_data_service import StrategyMarketDataService
 
 warnings.filterwarnings("ignore")
 
 
 # Import Alert from alert_service
 
-# Import UnifiedDataProvider from the new module
+# Modern market data service provides clean interface
 
 
 # Import ActionType from common module
@@ -51,16 +51,16 @@ class TECLStrategyEngine:
         
         Args:
             data_provider: Legacy data provider (for backward compatibility)
-            api_key: Alpaca API key (for typed data provider)
-            secret_key: Alpaca secret key (for typed data provider)
+            api_key: Alpaca API key (for strategy market data service)
+            secret_key: Alpaca secret key (for strategy market data service)
         """
         # Support both legacy and typed data providers
         if data_provider is not None:
             # Legacy path - use provided data provider
             self.data_provider = data_provider
         elif api_key and secret_key:
-            # Typed path - create typed adapter
-            self.data_provider = TypedDataProviderAdapter(api_key, secret_key)
+            # Typed path - create strategy market data service
+            self.data_provider = StrategyMarketDataService(api_key, secret_key)
         else:
             raise ValueError("Either data_provider or (api_key, secret_key) must be provided")
             

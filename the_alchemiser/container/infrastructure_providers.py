@@ -3,8 +3,8 @@
 from dependency_injector import containers, providers
 
 from the_alchemiser.services.market_data.market_data_service import MarketDataService
-from the_alchemiser.services.market_data.typed_data_provider_adapter import (
-    TypedDataProviderAdapter,
+from the_alchemiser.services.market_data.strategy_market_data_service import (
+    StrategyMarketDataService,
 )
 from the_alchemiser.services.repository.alpaca_manager import AlpacaManager
 
@@ -23,9 +23,9 @@ class InfrastructureProviders(containers.DeclarativeContainer):
         paper=config.paper_trading,
     )
 
-    # Data provider for strategies: typed adapter returning DataFrames (temporary)
+    # Data provider for strategies: strategy market data service
     data_provider = providers.Singleton(
-        TypedDataProviderAdapter,
+        StrategyMarketDataService,
         api_key=config.alpaca_api_key,
         secret_key=config.alpaca_secret_key,
     )

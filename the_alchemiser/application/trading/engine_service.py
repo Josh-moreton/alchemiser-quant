@@ -48,8 +48,8 @@ from the_alchemiser.services.errors.exceptions import (
     TradingClientError,
 )
 from the_alchemiser.services.market_data.market_data_service import MarketDataService
-from the_alchemiser.services.market_data.typed_data_provider_adapter import (
-    TypedDataProviderAdapter,
+from the_alchemiser.services.market_data.strategy_market_data_service import (
+    StrategyMarketDataService,
 )
 from the_alchemiser.services.repository.alpaca_manager import AlpacaManager
 
@@ -346,8 +346,8 @@ class TradingEngine:
             self._alpaca_manager = AlpacaManager(str(api_key), str(secret_key), paper_trading)
             self.trading_client = self._alpaca_manager.trading_client
 
-            # Temporary pandas adapter for strategy engines
-            self.data_provider = TypedDataProviderAdapter(str(api_key), str(secret_key))
+            # Strategy market data service for strategy engines
+            self.data_provider = StrategyMarketDataService(str(api_key), str(secret_key))
 
             # Typed market data port
             self._market_data_port = MarketDataService(self._alpaca_manager)

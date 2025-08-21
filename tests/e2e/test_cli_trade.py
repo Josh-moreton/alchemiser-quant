@@ -3,8 +3,8 @@ from typing import Any
 from typer.testing import CliRunner
 
 from the_alchemiser.interface.cli.cli import app
-from the_alchemiser.services.market_data.typed_data_provider_adapter import (
-    TypedDataProviderAdapter,
+from the_alchemiser.services.market_data.strategy_market_data_service import (
+    StrategyMarketDataService,
 )
 
 
@@ -27,7 +27,7 @@ def test_trade_paper_uses_adapter(monkeypatch):
     runner = CliRunner()
     result = runner.invoke(app, ["trade"])
     assert result.exit_code == 0
-    assert isinstance(calls[0], TypedDataProviderAdapter)
+    assert isinstance(calls[0], StrategyMarketDataService)
 
 
 def test_trade_live_dry_run(monkeypatch):
@@ -36,4 +36,4 @@ def test_trade_live_dry_run(monkeypatch):
     runner = CliRunner()
     result = runner.invoke(app, ["trade", "--live"])
     assert result.exit_code == 0
-    assert isinstance(calls[0], TypedDataProviderAdapter)
+    assert isinstance(calls[0], StrategyMarketDataService)
