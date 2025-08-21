@@ -18,7 +18,6 @@ from the_alchemiser.services.market_data.market_data_service import MarketDataSe
 from the_alchemiser.services.repository.alpaca_manager import AlpacaManager
 from the_alchemiser.services.trading.order_service import OrderService
 from the_alchemiser.services.trading.position_service import PositionService
-from the_alchemiser.utils.feature_flags import type_system_v2_enabled
 from the_alchemiser.utils.num import floats_equal
 
 
@@ -58,43 +57,32 @@ class TradingServiceManager:
     ) -> dict[str, Any]:
         """Place a market order with validation"""
         try:
-            # Typed path: build MarketOrderRequest and return enriched order details
-            if type_system_v2_enabled():
-                try:
-                    from alpaca.trading.enums import OrderSide, TimeInForce
-                    from alpaca.trading.requests import MarketOrderRequest
-                except Exception as e:
-                    # Fallback to legacy if imports unavailable in test stubs
-                    self.logger.debug(f"Falling back to legacy order path: {e}")
-                    order_id = self.orders.place_market_order(
-                        symbol, side, quantity, validate_price=validate
-                    )
-                    return {"success": True, "order_id": order_id}
+            # Always use typed path (V2 migration complete)
+            try:
+                from alpaca.trading.enums import OrderSide, TimeInForce
+                from alpaca.trading.requests import MarketOrderRequest
+            except Exception as e:
+                # If imports fail, this is a configuration error, not a fallback case
+                raise ImportError(f"Required Alpaca trading modules not available: {e}") from e
 
-                req = MarketOrderRequest(
-                    symbol=symbol.upper(),
-                    qty=quantity,
-                    notional=None,
-                    side=OrderSide.BUY if side.lower() == "buy" else OrderSide.SELL,
-                    time_in_force=TimeInForce.DAY,
-                )
-                placed = self.alpaca_manager.place_order(req)
-                dom = alpaca_order_to_domain(placed)
-                return {
-                    "success": True,
-                    "order_id": str(getattr(placed, "id", getattr(placed, "order_id", ""))),
-                    "order": {
-                        "raw": placed,
-                        "domain": dom,
-                        "summary": summarize_order(dom),
-                    },
-                }
-
-            # Legacy path: use enhanced OrderService
-            order_id = self.orders.place_market_order(
-                symbol, side, quantity, validate_price=validate
+            req = MarketOrderRequest(
+                symbol=symbol.upper(),
+                qty=quantity,
+                notional=None,
+                side=OrderSide.BUY if side.lower() == "buy" else OrderSide.SELL,
+                time_in_force=TimeInForce.DAY,
             )
-            return {"success": True, "order_id": order_id}
+            placed = self.alpaca_manager.place_order(req)
+            dom = alpaca_order_to_domain(placed)
+            return {
+                "success": True,
+                "order_id": str(getattr(placed, "id", getattr(placed, "order_id", ""))),
+                "order": {
+                    "raw": placed,
+                    "domain": dom,
+                    "summary": summarize_order(dom),
+                },
+            }
         except Exception as e:
             return {"success": False, "error": str(e)}
 
@@ -103,42 +91,32 @@ class TradingServiceManager:
     ) -> dict[str, Any]:
         """Place a limit order with validation"""
         try:
-            if type_system_v2_enabled():
-                try:
-                    from alpaca.trading.enums import OrderSide, TimeInForce
-                    from alpaca.trading.requests import LimitOrderRequest
-                except Exception as e:
-                    # Fallback to legacy if imports unavailable in tests
-                    self.logger.debug(f"Falling back to legacy limit path: {e}")
-                    order_id = self.orders.place_limit_order(
-                        symbol, side, quantity, limit_price, validate_price=validate
-                    )
-                    return {"success": True, "order_id": order_id}
+            # Always use typed path (V2 migration complete)
+            try:
+                from alpaca.trading.enums import OrderSide, TimeInForce
+                from alpaca.trading.requests import LimitOrderRequest
+            except Exception as e:
+                # If imports fail, this is a configuration error, not a fallback case
+                raise ImportError(f"Required Alpaca trading modules not available: {e}") from e
 
-                req = LimitOrderRequest(
-                    symbol=symbol.upper(),
-                    qty=quantity,
-                    side=OrderSide.BUY if side.lower() == "buy" else OrderSide.SELL,
-                    time_in_force=TimeInForce.DAY,
-                    limit_price=limit_price,
-                )
-                placed = self.alpaca_manager.place_order(req)
-                dom = alpaca_order_to_domain(placed)
-                return {
-                    "success": True,
-                    "order_id": str(getattr(placed, "id", getattr(placed, "order_id", ""))),
-                    "order": {
-                        "raw": placed,
-                        "domain": dom,
-                        "summary": summarize_order(dom),
-                    },
-                }
-
-            # Legacy path
-            order_id = self.orders.place_limit_order(
-                symbol, side, quantity, limit_price, validate_price=validate
+            req = LimitOrderRequest(
+                symbol=symbol.upper(),
+                qty=quantity,
+                side=OrderSide.BUY if side.lower() == "buy" else OrderSide.SELL,
+                time_in_force=TimeInForce.DAY,
+                limit_price=limit_price,
             )
-            return {"success": True, "order_id": order_id}
+            placed = self.alpaca_manager.place_order(req)
+            dom = alpaca_order_to_domain(placed)
+            return {
+                "success": True,
+                "order_id": str(getattr(placed, "id", getattr(placed, "order_id", ""))),
+                "order": {
+                    "raw": placed,
+                    "domain": dom,
+                    "summary": summarize_order(dom),
+                },
+            }
         except Exception as e:
             return {"success": False, "error": str(e)}
 
@@ -184,37 +162,18 @@ class TradingServiceManager:
                 or (isinstance(o, dict) and o.get("symbol") == symbol)
             ]
 
-        if type_system_v2_enabled():
-            enriched: list[dict[str, Any]] = []
-            for o in orders:
-                dom = alpaca_order_to_domain(o)
-                enriched.append(
-                    {
-                        "raw": o,
-                        "domain": dom,
-                        "summary": summarize_order(dom),
-                    }
-                )
-            return enriched
-
-        # Legacy best-effort mapping to simple dicts
-        legacy: list[dict[str, Any]] = []
+        # Always use enriched typed path (V2 migration complete)
+        enriched: list[dict[str, Any]] = []
         for o in orders:
-            if isinstance(o, dict):
-                legacy.append(o)
-            else:
-                legacy.append(
-                    {
-                        "id": getattr(o, "id", None),
-                        "symbol": getattr(o, "symbol", None),
-                        "qty": getattr(o, "qty", None),
-                        "status": getattr(o, "status", None),
-                        "type": getattr(o, "order_type", getattr(o, "type", None)),
-                        "limit_price": getattr(o, "limit_price", None),
-                        "created_at": getattr(o, "created_at", None),
-                    }
-                )
-        return legacy
+            dom = alpaca_order_to_domain(o)
+            enriched.append(
+                {
+                    "raw": o,
+                    "domain": dom,
+                    "summary": summarize_order(dom),
+                }
+            )
+        return enriched
 
     # Position Management Operations
     def get_position_summary(self, symbol: str | None = None) -> dict[str, Any]:
@@ -365,15 +324,13 @@ class TradingServiceManager:
 
     @translate_trading_errors(default_return={"error": "Failed to get account summary"})
     def get_account_summary_enriched(self) -> dict[str, Any]:
-        """Feature-flagged enriched account summary.
-
-        - Legacy (flag OFF): return the original summary dict unchanged.
-        - Flag ON: return {"raw": legacy_summary, "summary": typed_serializable_dict}
+        """Enriched account summary with typed domain objects.
+        
+        Returns structured data with both legacy format and typed domain objects.
         """
         legacy = self.account.get_account_summary()
-        if not type_system_v2_enabled():
-            return legacy
-
+        
+        # Always return typed path (V2 migration complete)
         typed = account_summary_to_typed(legacy)
         return {"raw": legacy, "summary": account_typed_to_serializable(typed)}
 
@@ -383,15 +340,13 @@ class TradingServiceManager:
 
     @translate_trading_errors(default_return=[])
     def get_positions_enriched(self) -> list[dict[str, Any]]:
-        """Feature-flagged enriched positions list.
-
-        - Legacy: return the raw objects from Alpaca as-is.
-        - Flag ON: return list of {"raw": pos, "summary": PositionSummary-as-dict}
+        """Enriched positions list with typed domain objects.
+        
+        Returns list of {"raw": pos, "summary": PositionSummary-as-dict}
         """
         raw_positions = self.alpaca_manager.get_all_positions()
-        if not type_system_v2_enabled():
-            return list(raw_positions)
-
+        
+        # Always return enriched typed path (V2 migration complete)
         enriched: list[dict[str, Any]] = []
         for p in raw_positions:
             s = alpaca_position_to_summary(p)
@@ -412,12 +367,11 @@ class TradingServiceManager:
         return enriched
 
     def get_portfolio_value(self) -> Any:
-        """Get total portfolio value (feature-flagged typed path)."""
+        """Get total portfolio value with typed domain objects."""
         raw = self.alpaca_manager.get_portfolio_value()
-        if type_system_v2_enabled():
-            money = to_money_usd(raw)
-            return {"value": raw, "money": money}
-        return raw
+        # Always return typed path (V2 migration complete)
+        money = to_money_usd(raw)
+        return {"value": raw, "money": money}
 
     # High-Level Trading Operations
     @translate_trading_errors(default_return={"success": False, "reason": "Order execution failed", "error": "Service error"})

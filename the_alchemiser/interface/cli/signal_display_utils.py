@@ -13,8 +13,6 @@ from the_alchemiser.domain.types import StrategySignal
 from the_alchemiser.infrastructure.alerts.alert_service import Alert
 from the_alchemiser.infrastructure.logging.logging_utils import get_logger, log_trade_event
 
-# from the_alchemiser.utils.feature_flags import type_system_v2_enabled
-
 
 def display_signal_results(
     alerts: list[Alert], strategy_name: str = "Strategy", key_symbols: list[str] | None = None
