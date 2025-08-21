@@ -17,6 +17,8 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 from typing import Any
 
+import pandas as pd
+
 from the_alchemiser.application.mapping.market_data_mappers import bars_to_domain
 from the_alchemiser.domain.interfaces import MarketDataRepository
 from the_alchemiser.domain.market_data.models.bar import BarModel
@@ -284,6 +286,51 @@ class MarketDataService:
             "validation_enabled": self._enable_validation,
         }
 
+    # --- Strategy compatibility helpers (pandas DataFrame API) ---
+    def get_data(
+        self,
+        symbol: str,
+        timeframe: str = "1day",
+        period: str = "1y",
+        **_: Any,
+    ) -> pd.DataFrame:
+        """Compatibility method to provide pandas DataFrame bars.
+
+        This adapts the typed domain get_bars API to the strategies' expected
+        DataFrame shape with columns: Open, High, Low, Close, Volume and a Date index.
+
+        Args:
+            symbol: Ticker symbol
+            timeframe: "1day" | "1hour" | "1min" (case-insensitive)
+            period: Historical window e.g. "1y", "6mo", "3mo", "1mo", "200d"
+
+        Returns:
+            Pandas DataFrame. Empty on failure.
+        """
+        try:
+            # Map to typed domain inputs and fetch bars
+            tf = self._map_timeframe_for_client(timeframe)
+            bars = self.get_bars(Symbol(symbol), period, tf)
+
+            if not bars:
+                return pd.DataFrame()
+
+            # Convert BarModel list to DataFrame
+            data = {
+                "Open": [float(b.open) for b in bars],
+                "High": [float(b.high) for b in bars],
+                "Low": [float(b.low) for b in bars],
+                "Close": [float(b.close) for b in bars],
+                "Volume": [float(b.volume) for b in bars],
+            }
+            idx = [b.ts for b in bars]
+            df = pd.DataFrame(data, index=pd.to_datetime(idx))
+            df.index.name = "Date"
+            return df
+        except Exception as e:  # pragma: no cover - best-effort compatibility
+            logger.warning(f"get_data failed for {symbol}: {e}")
+            return pd.DataFrame()
+
     def _is_valid_price(self, price: float, symbol: str) -> bool:
         """
         Validate a price value.
@@ -361,3 +408,14 @@ class MarketDataService:
             return "5Min"
         # default minute granularity
         return "1Min"
+
+    def _map_timeframe_for_client(self, tf: str) -> str:
+        """Map human timeframe to the get_bars-friendly shorthand."""
+        tf_norm = tf.lower().strip()
+        if tf_norm in {"1d", "1day", "day", "daily", "d"}:
+            return "1d"
+        if tf_norm in {"1h", "1hour", "hour", "hourly", "h"}:
+            return "1h"
+        if tf_norm in {"1m", "1min", "minute", "min", "m"}:
+            return "1m"
+        return "1d"

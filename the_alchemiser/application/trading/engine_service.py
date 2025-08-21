@@ -49,9 +49,6 @@ from the_alchemiser.services.errors.exceptions import (
     TradingClientError,
 )
 from the_alchemiser.services.market_data.market_data_service import MarketDataService
-from the_alchemiser.services.market_data.strategy_market_data_service import (
-    StrategyMarketDataService,
-)
 from the_alchemiser.services.repository.alpaca_manager import AlpacaManager
 
 from ..execution.execution_manager import ExecutionManager
@@ -356,7 +353,15 @@ class TradingEngine:
         """Initialize using injected TradingServiceManager."""
         self._container = None
         self._trading_service_manager = trading_service_manager
-        self.data_provider = trading_service_manager
+        # Use typed MarketDataService for both typed port and pandas-compat provider
+        # so strategies get a consistent implementation exposing get_data (temporary compat).
+        try:
+            alpaca_manager = trading_service_manager.alpaca_manager
+            self.data_provider = MarketDataService(alpaca_manager)
+        except Exception as e:
+            raise ConfigurationError(
+                f"TradingServiceManager missing AlpacaManager for market data: {e}"
+            ) from e
         # Use the actual Alpaca TradingClient for correct market-hours and order queries
         try:
             self.trading_client = trading_service_manager.alpaca_manager.trading_client
@@ -415,11 +420,9 @@ class TradingEngine:
             self._alpaca_manager = AlpacaManager(str(api_key), str(secret_key), paper_trading)
             self.trading_client = self._alpaca_manager.trading_client
 
-            # Strategy market data service for strategy engines
-            self.data_provider = StrategyMarketDataService(str(api_key), str(secret_key))
-
-            # Typed market data port
+            # Use typed market data service for both provider (pandas compat) and typed port
             self._market_data_port = MarketDataService(self._alpaca_manager)
+            self.data_provider = self._market_data_port
 
             # Optional enhanced service manager for downstream ops
             self._trading_service_manager = TradingServiceManager(
