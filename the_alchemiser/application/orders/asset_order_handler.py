@@ -10,7 +10,10 @@ and fallback strategies.
 
 import logging
 from decimal import ROUND_DOWN, Decimal
-from typing import Any
+from typing import Any, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from the_alchemiser.interfaces.schemas.orders import ValidatedOrderDTO
 
 from alpaca.trading.enums import OrderSide, TimeInForce
 from alpaca.trading.requests import MarketOrderRequest
@@ -54,6 +57,27 @@ class AssetOrderHandler:
             return self._prepare_notional_order(symbol, side, notional)
         else:
             return None, "Must provide either qty or notional"
+
+    def prepare_market_order_from_dto(
+        self, validated_order: "ValidatedOrderDTO"
+    ) -> tuple[MarketOrderRequest | None, str | None]:
+        """
+        Prepare a market order request from ValidatedOrderDTO.
+        
+        Args:
+            validated_order: ValidatedOrderDTO instance with validation metadata
+            
+        Returns:
+            Tuple of (MarketOrderRequest, conversion_info) or (None, error_message)
+        """
+        # Convert DTO side to OrderSide enum
+        order_side = OrderSide.BUY if validated_order.side.lower() == "buy" else OrderSide.SELL
+        
+        # Use the normalized quantity from validation
+        quantity = float(validated_order.normalized_quantity or validated_order.quantity)
+        
+        # Prepare the order using existing quantity-based logic
+        return self._prepare_quantity_order(validated_order.symbol, order_side, quantity)
 
     def _prepare_quantity_order(
         self, symbol: str, side: OrderSide, qty: float
