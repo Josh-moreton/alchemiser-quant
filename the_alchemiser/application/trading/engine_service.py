@@ -78,73 +78,6 @@ class LegacyPortfolioRebalancerStub:
         return []
 
 
-class StrategyManagerAdapter:
-    """Typed-backed adapter to provide run_all_strategies for callers.
-
-    This avoids importing legacy modules by wrapping TypedStrategyManager.
-    """
-
-    def __init__(
-        self,
-        market_data_port: Any,
-        strategy_allocations: dict[StrategyType, float],
-    ) -> None:
-        self._typed = TypedStrategyManager(
-            market_data_port=market_data_port,
-            strategy_allocations=strategy_allocations,
-        )
-
-    def run_all_strategies(
-        self,
-    ) -> tuple[dict[StrategyType, dict[str, Any]], dict[str, float], dict[str, list[StrategyType]]]:
-        from datetime import UTC, datetime
-
-        aggregated = self._typed.generate_all_signals(datetime.now(UTC))
-
-        def to_legacy_dict(signal: Any) -> dict[str, Any]:
-            symbol_value = signal.symbol.value
-            symbol_str = "NUCLEAR_PORTFOLIO" if symbol_value == "PORT" else symbol_value
-            return {
-                "symbol": symbol_str,
-                "action": signal.action,
-                "confidence": float(signal.confidence.value),
-                "reasoning": signal.reasoning,
-                "allocation_percentage": float(signal.target_allocation.value),
-            }
-
-        legacy_signals: dict[StrategyType, dict[str, Any]] = {}
-        for st, signals in aggregated.get_signals_by_strategy().items():
-            if not signals:
-                legacy_signals[st] = {
-                    "symbol": "N/A",
-                    "action": "HOLD",
-                    "confidence": 0.0,
-                    "reasoning": "No signal produced",
-                    "allocation_percentage": 0.0,
-                }
-            else:
-                legacy_signals[st] = to_legacy_dict(signals[0])
-
-        return legacy_signals, {}, {}
-
-    # Expose strategy_allocations for reporting usage
-    @property
-    def strategy_allocations(self) -> dict[StrategyType, float]:
-        return self._typed.strategy_allocations
-
-    # Minimal performance summary placeholder for typed manager
-    def get_strategy_performance_summary(self) -> dict[str, Any]:
-        try:
-            # If typed manager exposes a similar method, delegate
-            from typing import cast
-
-            return cast(dict[str, Any], self._typed.get_strategy_performance_summary())  # type: ignore[attr-defined]
-        except Exception:
-            # Provide a basic empty summary structure
-            return {
-                st.name: {"pnl": 0.0, "trades": 0} for st in self._typed.strategy_allocations.keys()
-            }
-
 
 # Protocol definitions for dependency injection
 class AccountInfoProvider(Protocol):
@@ -498,12 +431,14 @@ class TradingEngine:
                 context={"engine_type": type(self).__name__},
             ) from e
 
-        # Strategy manager - pass our data provider to ensure same trading mode
+        # Strategy manager - use TypedStrategyManager directly (V2 migration)
         try:
-            self.strategy_manager = StrategyManagerAdapter(
+            self.typed_strategy_manager = TypedStrategyManager(
                 market_data_port=getattr(self, "_market_data_port", None),
                 strategy_allocations=self.strategy_allocations,
             )
+            # Provide compatibility property for CLI
+            self.strategy_manager = self._create_strategy_manager_bridge()
         except Exception as e:
             raise TradingClientError(
                 f"Failed to initialize strategy manager: {e}",
@@ -535,6 +470,67 @@ class TradingEngine:
 
         # Logging setup
         logging.info(f"TradingEngine initialized - Paper Trading: {self.paper_trading}")
+
+    def _create_strategy_manager_bridge(self) -> Any:
+        """Create a bridge object that provides run_all_strategies() interface for CLI compatibility."""
+        
+        class StrategyManagerBridge:
+            def __init__(self, typed_manager: TypedStrategyManager):
+                self._typed = typed_manager
+                
+            def run_all_strategies(self) -> tuple[dict[StrategyType, dict[str, Any]], dict[str, float], dict[str, list[StrategyType]]]:
+                """Bridge method that converts typed signals to legacy format for CLI compatibility."""
+                from datetime import UTC, datetime
+                
+                aggregated = self._typed.generate_all_signals(datetime.now(UTC))
+                
+                # Convert typed signals to legacy format
+                legacy_signals: dict[StrategyType, dict[str, Any]] = {}
+                consolidated_portfolio: dict[str, float] = {}
+                
+                for strategy_type, signals in aggregated.get_signals_by_strategy().items():
+                    if signals:
+                        # Use first signal as representative
+                        signal = signals[0]
+                        symbol_value = signal.symbol.value
+                        symbol_str = "NUCLEAR_PORTFOLIO" if symbol_value == "PORT" else symbol_value
+                        
+                        legacy_signals[strategy_type] = {
+                            "symbol": symbol_str,
+                            "action": signal.action,
+                            "confidence": float(signal.confidence.value),
+                            "reasoning": signal.reasoning,
+                            "allocation_percentage": float(signal.target_allocation.value) * 100,
+                        }
+                        
+                        # Build portfolio allocation
+                        if signal.action in ["BUY", "LONG"] and symbol_str != "PORT":
+                            strategy_allocation = self._typed.strategy_allocations.get(strategy_type, 0.0)
+                            individual_allocation = float(signal.target_allocation.value) * strategy_allocation
+                            consolidated_portfolio[symbol_str] = individual_allocation
+                    else:
+                        legacy_signals[strategy_type] = {
+                            "symbol": "N/A",
+                            "action": "HOLD",
+                            "confidence": 0.0,
+                            "reasoning": "No signal produced",
+                            "allocation_percentage": 0.0,
+                        }
+                
+                return legacy_signals, consolidated_portfolio, {}
+            
+            @property
+            def strategy_allocations(self) -> dict[StrategyType, float]:
+                return self._typed.strategy_allocations
+            
+            def get_strategy_performance_summary(self) -> dict[str, Any]:
+                # Minimal implementation for compatibility
+                return {
+                    st.name: {"pnl": 0.0, "trades": 0} 
+                    for st in self._typed.strategy_allocations.keys()
+                }
+        
+        return StrategyManagerBridge(self.typed_strategy_manager)
 
     # --- Account and Position Methods ---
     def get_account_info(
