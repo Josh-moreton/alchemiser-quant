@@ -18,12 +18,8 @@ from the_alchemiser.domain.math.indicator_utils import safe_get_indicator
 from the_alchemiser.domain.math.indicators import TechnicalIndicators
 from the_alchemiser.domain.shared_kernel.value_objects.percentage import Percentage
 from the_alchemiser.domain.strategies.engine import StrategyEngine
+from the_alchemiser.domain.strategies.nuclear_logic import evaluate_nuclear_strategy
 from the_alchemiser.domain.strategies.protocols.market_data_port import MarketDataPort
-
-# Import the pure strategy logic
-from the_alchemiser.domain.strategies.strategy_engine import (
-    NuclearStrategyEngine as PureStrategyEngine,
-)
 from the_alchemiser.domain.strategies.value_objects.confidence import Confidence
 from the_alchemiser.domain.strategies.value_objects.strategy_signal import StrategySignal
 from the_alchemiser.domain.trading.value_objects.symbol import Symbol
@@ -36,7 +32,7 @@ class NuclearTypedEngine(StrategyEngine):
     def __init__(self, market_data_port: MarketDataPort) -> None:
         super().__init__("Nuclear", market_data_port)
         self.indicators = TechnicalIndicators()
-        self.pure_strategy = PureStrategyEngine()
+        # pure strategy evaluated via nuclear_logic.evaluate_nuclear_strategy
 
         # Symbol lists from original Nuclear strategy
         self.market_symbols = ["SPY", "IOO", "TQQQ", "VTV", "XLF", "VOX"]
@@ -165,22 +161,13 @@ class NuclearTypedEngine(StrategyEngine):
     def _evaluate_nuclear_strategy(
         self, indicators: dict[str, Any], market_data: dict[str, Any] | None = None
     ) -> tuple[str, str, str]:
-        """
-        Evaluate Nuclear strategy using the shared strategy logic.
-        Returns: (recommended_symbol, action, detailed_reason)
-        """
-        # Import the shared evaluation logic
-        from the_alchemiser.domain.strategies.nuclear_signals import NuclearStrategyEngine
+        """Evaluate Nuclear strategy using the shared strategy logic.
 
-        # Create a mock data provider for the legacy engine
-        class MockDataProvider:
-            def get_data(self, symbol: str) -> pd.DataFrame:
-                # Return empty DataFrame - indicators are already calculated
-                return pd.DataFrame()
-
-        # Use the existing evaluation logic
-        legacy_engine = NuclearStrategyEngine(MockDataProvider())
-        return legacy_engine.evaluate_nuclear_strategy(indicators, market_data)
+        Returns:
+            Tuple of (recommended_symbol, action, detailed_reason)
+        """
+        # Use the new pure evaluation helper
+        return evaluate_nuclear_strategy(indicators, market_data)
 
     def _create_strategy_signal(
         self, symbol: str, action: str, reasoning: str, timestamp: datetime

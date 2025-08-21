@@ -9,7 +9,8 @@ from typing import Any
 from the_alchemiser.application.mapping.strategy_signal_mapping import (
     map_signals_dict as _map_signals_to_typed,
 )
-from the_alchemiser.domain.strategies.strategy_manager import MultiStrategyManager, StrategyType
+from the_alchemiser.domain.registry import StrategyType
+from the_alchemiser.domain.strategies.typed_strategy_manager import TypedStrategyManager
 from the_alchemiser.infrastructure.config import Settings
 from the_alchemiser.infrastructure.logging.logging_utils import get_logger
 from the_alchemiser.interface.cli.cli_formatter import (
@@ -47,17 +48,48 @@ class SignalAnalyzer:
             raise RuntimeError("DI container not available - ensure system is properly initialized")
 
         # Use typed adapter for engines (DataFrame compatibility) and typed port for fetching
-        shared_data_provider = container.infrastructure.data_provider()
         market_data_port = container.infrastructure.market_data_service()
 
         # Create strategy manager with proper allocations
         strategy_allocations = self._get_strategy_allocations()
-        manager = MultiStrategyManager(
-            shared_data_provider=shared_data_provider,
-            market_data_port=market_data_port,
-            config=self.settings,
-            strategy_allocations=strategy_allocations,
-        )
+
+        # Build a minimal adapter around TypedStrategyManager for compatibility
+        class _Adapter:
+            def __init__(self, port: Any, allocs: dict[StrategyType, float]):
+                self._typed = TypedStrategyManager(port, allocs)
+
+            def run_all_strategies(
+                self,
+            ) -> tuple[
+                dict[StrategyType, dict[str, Any]], dict[str, float], dict[str, list[StrategyType]]
+            ]:
+                from datetime import UTC, datetime
+
+                agg = self._typed.generate_all_signals(datetime.now(UTC))
+                legacy: dict[StrategyType, dict[str, Any]] = {}
+                for st, signals in agg.get_signals_by_strategy().items():
+                    if signals:
+                        s = signals[0]
+                        symbol_value = s.symbol.value
+                        symbol_str = "NUCLEAR_PORTFOLIO" if symbol_value == "PORT" else symbol_value
+                        legacy[st] = {
+                            "symbol": symbol_str,
+                            "action": s.action,
+                            "confidence": float(s.confidence.value),
+                            "reasoning": s.reasoning,
+                            "allocation_percentage": float(s.target_allocation.value),
+                        }
+                    else:
+                        legacy[st] = {
+                            "symbol": "N/A",
+                            "action": "HOLD",
+                            "confidence": 0.0,
+                            "reasoning": "No signal produced",
+                            "allocation_percentage": 0.0,
+                        }
+                return legacy, {}, {}
+
+        manager = _Adapter(market_data_port, strategy_allocations)
 
         # Generate signals
         strategy_signals, consolidated_portfolio, _ = manager.run_all_strategies()
@@ -68,7 +100,10 @@ class SignalAnalyzer:
                 self.logger.info(
                     "TYPES_V2_ENABLED detected: using typed StrategySignal mapping for display"
                 )
-                strategy_signals = _map_signals_to_typed(strategy_signals)  # type: ignore[assignment]
+                typed_signals = _map_signals_to_typed(strategy_signals)
+                # For display we keep the legacy shape when returning from this method
+                # but downstream display utilities can accept the TypedDict form as well.
+                _ = typed_signals  # keep for potential future use
             except Exception:
                 pass
         return strategy_signals, consolidated_portfolio
