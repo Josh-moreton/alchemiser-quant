@@ -997,10 +997,14 @@ class TradingEngine:
         """Execute only SELL orders from the rebalancing plan."""
         logging.info("🔄 Phase 1: Executing SELL orders to free buying power")
 
-        # Get the full rebalancing plan (returns list[OrderDetails])
-        all_orders = self._rebalancing_service.rebalance_portfolio(
-            target_portfolio, strategy_attribution
-        )
+        # Execute only SELL phase via facade to avoid BP validation block
+        phase_fn = getattr(self._rebalancing_service, "rebalance_portfolio_phase", None)
+        if callable(phase_fn):
+            all_orders = phase_fn(target_portfolio, phase="sell")
+        else:
+            all_orders = self._rebalancing_service.rebalance_portfolio(
+                target_portfolio, strategy_attribution
+            )
 
         # Filter for SELL orders only
         sell_orders = []
@@ -1030,10 +1034,14 @@ class TradingEngine:
         current_buying_power = float(account_info.get("buying_power", 0))
         logging.info(f"Current buying power: ${current_buying_power:,.2f}")
 
-        # Get the full rebalancing plan with fresh data (returns list[OrderDetails])
-        all_orders = self._rebalancing_service.rebalance_portfolio(
-            target_portfolio, strategy_attribution
-        )
+        # Execute only BUY phase via facade to leverage scaled buys
+        phase_fn = getattr(self._rebalancing_service, "rebalance_portfolio_phase", None)
+        if callable(phase_fn):
+            all_orders = phase_fn(target_portfolio, phase="buy")
+        else:
+            all_orders = self._rebalancing_service.rebalance_portfolio(
+                target_portfolio, strategy_attribution
+            )
 
         # Filter for BUY orders only
         buy_orders = []
