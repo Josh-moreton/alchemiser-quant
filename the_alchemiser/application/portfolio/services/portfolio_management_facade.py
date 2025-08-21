@@ -1,5 +1,6 @@
 """Portfolio management facade - unified interface for all portfolio operations."""
 
+import logging
 from decimal import Decimal
 from typing import Any
 
@@ -113,8 +114,6 @@ class PortfolioManagementFacade:
         self, target_weights: dict[str, Decimal], dry_run: bool = True
     ) -> dict[str, Any]:
         """Execute complete portfolio rebalancing."""
-        import logging
-
         logging.debug(
             "PortfolioManagementFacade.execute_rebalancing called: target_weights=%s dry_run=%s",
             target_weights,
@@ -133,6 +132,11 @@ class PortfolioManagementFacade:
         validation = self.execution_service.validate_rebalancing_plan(rebalance_plan)
         logging.debug("Validation results: %s", validation)
         if not validation["is_valid"]:
+            logging.warning(
+                "Rebalancing validation failed. Issues: %s | Symbols to trade: %s",
+                validation.get("issues", []),
+                validation.get("symbols_to_trade", []),
+            )
             return {
                 "status": "validation_failed",
                 "validation_results": validation,
@@ -143,6 +147,16 @@ class PortfolioManagementFacade:
         execution_results = self.execution_service.execute_rebalancing_plan(rebalance_plan, dry_run)
 
         logging.debug("Execution results: %s", execution_results)
+        try:
+            summary = execution_results.get("execution_summary", {})
+            logging.info(
+                "Rebalancing execution summary: total=%s success=%s failed=%s",
+                summary.get("total_orders", 0),
+                summary.get("successful_orders", 0),
+                summary.get("failed_orders", 0),
+            )
+        except Exception:
+            pass
 
         return {
             "status": "completed",
@@ -242,7 +256,7 @@ class PortfolioManagementFacade:
     def rebalance_portfolio(
         self,
         target_portfolio: dict[str, float],
-        strategy_attribution: dict[str, list[StrategyType]] | None = None,
+        _strategy_attribution: dict[str, list[StrategyType]] | None = None,
     ) -> list[OrderDetails]:
         """
         Main rebalancing interface compatible with RebalancingService protocol.
@@ -271,31 +285,40 @@ class PortfolioManagementFacade:
 
             # Convert to OrderDetails format
             for symbol, order_data in orders_placed.items():
-                if isinstance(order_data, dict) and order_data.get("status") != "failed":
-                    # Determine side and quantity from order data
-                    side = order_data.get("side", "buy")
-                    qty_value = (
-                        order_data.get("shares")
-                        or order_data.get("quantity")
-                        or order_data.get("amount")
-                        or 0
-                    )
-                    qty_float = float(qty_value) if qty_value is not None else 0.0
+                if not isinstance(order_data, dict):
+                    continue
 
-                    order_details: OrderDetails = {
-                        "id": order_data.get("order_id", ""),
-                        "symbol": symbol,
-                        "qty": qty_float,
-                        "side": side,
-                        "order_type": "market",
-                        "time_in_force": "day",
-                        "status": order_data.get("status", "new"),
-                        "filled_qty": 0.0,
-                        "filled_avg_price": None,
-                        "created_at": "",
-                        "updated_at": "",
-                    }
-                    orders_list.append(order_details)
+                # Determine side and quantity from order data
+                side = order_data.get("side", "buy")
+                qty_value = (
+                    order_data.get("shares")
+                    or order_data.get("quantity")
+                    or order_data.get("amount")
+                    or 0
+                )
+                qty_float = float(qty_value) if qty_value is not None else 0.0
+
+                order_details: OrderDetails = {
+                    "id": order_data.get("order_id", "unknown"),
+                    "symbol": symbol,
+                    "qty": qty_float,
+                    "side": side,
+                    "order_type": "market",
+                    "time_in_force": "day",
+                    "status": order_data.get("status", "new"),
+                    "filled_qty": 0.0,
+                    "filled_avg_price": None,
+                    "created_at": "",
+                    "updated_at": "",
+                }
+                orders_list.append(order_details)
+
+        else:
+            # Surface validation failure via a log entry; return empty list per protocol
+            logging.warning(
+                "Rebalancing workflow did not complete (status=%s). No orders mapped.",
+                execution_result.get("status"),
+            )
 
         return orders_list
 
