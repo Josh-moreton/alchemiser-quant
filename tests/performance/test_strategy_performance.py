@@ -27,7 +27,7 @@ class TestNuclearStrategyPerformance:
         for _ in range(5):
             with performance_benchmark("nuclear_signal_generation") as bench:
                 signals = nuclear_engine.generate_signals(
-                    mock_market_data_port, datetime.now(timezone.utc)
+                    datetime.now(timezone.utc)
                 )
             times.append(bench.elapsed_ms)
 
@@ -161,7 +161,7 @@ class TestKLMStrategyPerformance:
         times = []
         for _ in range(3):  # Fewer iterations since KLM is more expensive
             with performance_benchmark("klm_signal_generation") as bench:
-                signals = klm_engine.generate_signals(Mock(), datetime.now(timezone.utc))
+                signals = klm_engine.generate_signals(datetime.now(timezone.utc))
             times.append(bench.elapsed_ms)
 
         avg_time = statistics.mean(times)

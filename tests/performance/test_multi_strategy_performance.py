@@ -163,7 +163,6 @@ class TestStrategyLoopPerformance:
             with performance_benchmark(f"execution_cycle_{cycle}") as bench:
                 # Simulate a trading cycle: generate signals, validate, process
                 signals = nuclear_engine.generate_signals(
-                    mock_market_data_port, 
                     datetime.now(timezone.utc)
                 )
                 
