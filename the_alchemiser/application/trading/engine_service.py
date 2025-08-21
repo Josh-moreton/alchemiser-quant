@@ -22,7 +22,7 @@ Example:
 
 import logging
 from datetime import datetime
-from typing import Any, Protocol
+from typing import Any, Protocol, cast
 
 from alpaca.trading.enums import OrderSide
 
@@ -117,6 +117,8 @@ class StrategyManagerAdapter:
             }
 
         legacy_signals: dict[StrategyType, dict[str, Any]] = {}
+        consolidated_portfolio: dict[str, float] = {}
+
         for st, signals in aggregated.get_signals_by_strategy().items():
             if not signals:
                 legacy_signals[st] = {
@@ -129,7 +131,27 @@ class StrategyManagerAdapter:
             else:
                 legacy_signals[st] = to_legacy_dict(signals[0])
 
-        return legacy_signals, {}, {}
+        # Build consolidated portfolio from all signals
+        for strategy_type, signals in aggregated.get_signals_by_strategy().items():
+            strategy_allocation = self._typed.strategy_allocations.get(strategy_type, 0.0)
+
+            for signal in signals:
+                if signal.action in ["BUY", "LONG"]:
+                    symbol_str = signal.symbol.value
+
+                    # Use the actual signal allocation for individual symbols
+                    if symbol_str != "PORT":
+                        # Calculate individual allocation as signal proportion * strategy allocation
+                        individual_allocation = (
+                            float(signal.target_allocation.value) * strategy_allocation
+                        )
+                        # If symbol already exists, add to allocation (multiple strategies can recommend same symbol)
+                        if symbol_str in consolidated_portfolio:
+                            consolidated_portfolio[symbol_str] += individual_allocation
+                        else:
+                            consolidated_portfolio[symbol_str] = individual_allocation
+
+        return legacy_signals, consolidated_portfolio, {}
 
     # Expose strategy_allocations for reporting usage
     @property
@@ -555,6 +577,16 @@ class TradingEngine:
         """
         try:
             account_info = self._account_info_provider.get_account_info()
+
+            # Always normalize account_id to string since Alpaca returns UUID objects
+            # but Pydantic AccountInfo expects string
+            if "account_id" in account_info:
+                # Create a mutable copy as a regular dict, not TypedDict
+                account_info_dict = dict(account_info)
+                account_info_dict["account_id"] = str(account_info_dict["account_id"])
+                # Type cast back to AccountInfo after modification
+                account_info = cast(AccountInfo, account_info_dict)
+
             # Ensure required keys are present (defensive normalization)
             required_keys = {
                 "account_id",
@@ -928,18 +960,28 @@ class TradingEngine:
             # Convert raw orders to OrderDetails
             orders: list[OrderDetails] = []
             for raw_order in raw_orders:
+                # Ensure all required fields have valid non-None values
+                order_id = raw_order.get("id") or "unknown"
+                symbol = raw_order.get("symbol") or ""
+                side = raw_order.get("side") or "buy"
+                order_type = raw_order.get("order_type") or "market"
+                time_in_force = raw_order.get("time_in_force") or "day"
+                status = raw_order.get("status") or "new"
+                created_at = raw_order.get("created_at") or ""
+                updated_at = raw_order.get("updated_at") or ""
+
                 order_details: OrderDetails = {
-                    "id": raw_order.get("id", "unknown"),
-                    "symbol": raw_order.get("symbol", ""),
+                    "id": order_id,
+                    "symbol": symbol,
                     "qty": raw_order.get("qty", 0.0),
-                    "side": raw_order.get("side", "buy"),
-                    "order_type": raw_order.get("order_type", "market"),
-                    "time_in_force": raw_order.get("time_in_force", "day"),
-                    "status": raw_order.get("status", "new"),
+                    "side": side,
+                    "order_type": order_type,
+                    "time_in_force": time_in_force,
+                    "status": status,
                     "filled_qty": raw_order.get("filled_qty", 0.0),
                     "filled_avg_price": raw_order.get("filled_avg_price", 0.0),
-                    "created_at": raw_order.get("created_at", ""),
-                    "updated_at": raw_order.get("updated_at", ""),
+                    "created_at": created_at,
+                    "updated_at": updated_at,
                 }
                 orders.append(order_details)
 
