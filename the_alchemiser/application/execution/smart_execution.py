@@ -275,11 +275,10 @@ class SmartExecution:
         poll_interval: float = 2.0,
     ) -> bool:
         """
-        Wait for order settlement using polling-based tracking.
+        Wait for order settlement using WebSocket-based tracking.
 
-        This is a temporary implementation using legacy polling logic.
-        TODO: Implement proper OrderSettlementTracker with type-safe tracking
-        and WebSocket-based monitoring for real-time settlement detection.
+        Uses the OrderCompletionMonitor for real-time WebSocket settlement detection.
+        No legacy polling fallbacks - WebSocket streaming only.
 
         Args:
             sell_orders: List of order dictionaries to monitor

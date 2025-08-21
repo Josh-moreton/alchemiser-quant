@@ -153,7 +153,9 @@ class RebalanceExecutionService:
                 "error": str(e),
             }
 
-    def validate_rebalancing_plan(self, rebalance_plan: dict[str, RebalancePlan]) -> dict[str, Any]:
+    def validate_rebalancing_plan(  # noqa: C901 - complex validation retained for clarity
+        self, rebalance_plan: dict[str, RebalancePlan]
+    ) -> dict[str, Any]:
         """
         Validate a rebalancing plan before execution.
 
@@ -221,10 +223,18 @@ class RebalanceExecutionService:
                     str(effective_buying_power),
                 )
                 if buy_amount > effective_buying_power:
-                    validation_results["is_valid"] = False
-                    validation_results["issues"].append(
-                        f"Insufficient buying power: need ${buy_amount}, have ${buying_power}, "
-                        f"sell proceeds considered ${sell_proceeds}"
+                    # Do not fail validation; we will scale buys to available buying power during execution
+                    validation_results["warnings"].append(
+                        {
+                            "type": "INSUFFICIENT_BUYING_POWER",
+                            "message": (
+                                "Insufficient buying power for full rebalance; buys will be scaled "
+                                "to available funds."
+                            ),
+                            "need": str(buy_amount),
+                            "have": str(buying_power),
+                            "sell_proceeds": str(sell_proceeds),
+                        }
                     )
 
             # Validate positions for sell orders
@@ -291,14 +301,55 @@ class RebalanceExecutionService:
     def _execute_buy_orders(
         self, rebalance_plan: dict[str, RebalancePlan], dry_run: bool
     ) -> dict[str, Any]:
-        """Execute all buy orders from the rebalancing plan."""
-        buy_orders = {}
+        """Execute all buy orders from the rebalancing plan, capped to available buying power."""
+        import logging
 
+        buy_orders: dict[str, Any] = {}
+
+        # Determine available buying power now (after sells, if any)
+        try:
+            account_summary = self.trading_manager.account.get_account_summary()
+            remaining_bp = Decimal(str(account_summary.get("buying_power", 0)))
+        except Exception:
+            remaining_bp = Decimal("0")
+
+        # Apply a tiny safety buffer (e.g., 5 bps of remaining bp) to avoid broker-side rounding rejects
+        safety_buffer = (remaining_bp * Decimal("0.0005")).quantize(Decimal("0.01"))
+        if safety_buffer > 0 and remaining_bp > safety_buffer:
+            remaining_bp -= safety_buffer
+
+        logging.debug(
+            "Starting buy execution with available buying power: %s (after buffer %s)",
+            str(remaining_bp),
+            str(safety_buffer),
+        )
+
+        # Execute buys in arbitrary but stable order
         for symbol, plan in rebalance_plan.items():
-            if plan.needs_rebalance and plan.trade_amount > 0:
-                buy_amount = plan.trade_amount
-                result = self._place_buy_order(symbol, buy_amount, dry_run)
-                buy_orders[symbol] = result
+            if not (plan.needs_rebalance and plan.trade_amount > 0):
+                continue
+
+            if remaining_bp <= Decimal("0"):
+                logging.info("No remaining buying power; skipping remaining buy orders")
+                break
+
+            requested_amount = plan.trade_amount
+            amount_to_buy = requested_amount if requested_amount <= remaining_bp else remaining_bp
+
+            # Place scaled order (or full if within limit)
+            result = self._place_buy_order(symbol, amount_to_buy, dry_run)
+
+            # Annotate result if scaled down
+            if amount_to_buy < requested_amount:
+                result["status"] = result.get("status", "placed")
+                result["message"] = (
+                    result.get("message", "") + f" (scaled to ${amount_to_buy} due to buying power)"
+                ).strip()
+
+            buy_orders[symbol] = result
+
+            # Update remaining buying power optimistically by amount used
+            remaining_bp -= amount_to_buy
 
         return buy_orders
 

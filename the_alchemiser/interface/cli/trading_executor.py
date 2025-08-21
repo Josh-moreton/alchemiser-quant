@@ -3,6 +3,8 @@
 Handles trading execution with comprehensive error handling and notifications.
 """
 
+from typing import Any
+
 from the_alchemiser.application.execution.smart_execution import is_market_open
 from the_alchemiser.application.mapping.strategy_signal_mapping import (
     convert_signals_dict_to_domain,
@@ -124,16 +126,14 @@ class TradingExecutor:
         strategy_signals, consolidated_portfolio, strategy_attribution = (
             trader.strategy_manager.run_all_strategies()
         )
-        
-        # Always use typed strategy signal mapping (V2 migration complete)
+
+        # Always use typed StrategySignal mapping (V2 path permanently enabled)
         try:
-            self.logger.info("Processing signals through typed StrategySignal execution path")
-            typed_signals = _map_signals_to_typed(strategy_signals)  # dict -> TypedDict
+            legacy_typed_signals = _map_signals_to_typed(strategy_signals)  # dict -> TypedDict
             typed_domain_signals = convert_signals_dict_to_domain(
-                typed_signals
+                legacy_typed_signals
             )  # TypedDict -> domain
 
-            # Convert typed signals to ValidatedOrders
             validated_orders = self._convert_signals_to_validated_orders(
                 typed_domain_signals, trader
             )
@@ -141,7 +141,6 @@ class TradingExecutor:
                 self.logger.info(
                     f"Generated {len(validated_orders)} validated orders from typed signals"
                 )
-                # Log order details for debugging
                 for order in validated_orders:
                     self.logger.info(
                         f"Order: {order.symbol} {order.side} {order.quantity} @ {order.order_type}"
@@ -210,9 +209,6 @@ class TradingExecutor:
         try:
             # Get portfolio value for quantity calculations
             account_info = trader.get_account_info()
-            if not account_info:
-                self.logger.warning("Cannot convert signals to orders: account info unavailable")
-                return []
 
             # Extract portfolio value (use equity as total portfolio value)
             portfolio_value = float(account_info.get("equity", 0))
@@ -277,21 +273,30 @@ class TradingExecutor:
             from the_alchemiser.interface.email.email_utils import send_email_notification
             from the_alchemiser.interface.email.templates import EmailTemplates
 
-            # Enrich result with fresh position data
+            # Enrich result with fresh position data without mutating the frozen DTO
             try:
-                # This is a bit of a hack, but we need fresh positions for email
                 trader = self._create_trading_engine()
                 fresh_positions = trader.get_positions_dict()
-
-                if hasattr(result, "final_portfolio_state") and result.final_portfolio_state:
-                    result.final_portfolio_state["current_positions"] = fresh_positions
-                else:
-                    result.final_portfolio_state = {"current_positions": fresh_positions}
+                # Safely construct an updated copy for email rendering
+                try:
+                    updated_state = {
+                        **(result.final_portfolio_state or {}),
+                        "current_positions": fresh_positions,
+                    }
+                    email_result: MultiStrategyExecutionResultDTO | Any = result.model_copy(
+                        update={"final_portfolio_state": updated_state}, deep=True
+                    )
+                except Exception:
+                    # If model_copy is unavailable, fall back to passing a tuple of (result, state)
+                    email_result = result
             except Exception as e:
                 self.logger.warning(f"Could not add fresh position data: {e}")
+                email_result = result
 
             # Generate email content
-            html_content = EmailTemplates.build_multi_strategy_report_neutral(result, mode_str)
+            html_content = EmailTemplates.build_multi_strategy_report_neutral(
+                email_result, mode_str
+            )
 
             send_email_notification(
                 subject=f"📈 The Alchemiser - {mode_str.upper()} Multi-Strategy Report",
@@ -342,9 +347,7 @@ class TradingExecutor:
             try:
                 from rich.console import Console
 
-                Console().print(
-                    "[dim]TYPES_V2: fully typed StrategySignal path is ACTIVE[/dim]"
-                )
+                Console().print("[dim]TYPES_V2: fully typed StrategySignal path is ACTIVE[/dim]")
             except Exception:
                 self.logger.info("TYPES_V2: fully typed StrategySignal path is ACTIVE")
 

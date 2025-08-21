@@ -396,8 +396,25 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             if quote:
                 bid = float(getattr(quote, "bid_price", 0))
                 ask = float(getattr(quote, "ask_price", 0))
-                if bid > 0 and ask > 0:
-                    return (bid, ask)
+
+                # Allow quotes where we have at least a valid bid or ask
+                # This handles cases like LEU where bid exists but ask is 0
+                if bid > 0 or ask > 0:
+                    # If only one side is available, use it for both bid and ask
+                    # This allows trading while acknowledging the spread uncertainty
+                    if bid > 0 and ask <= 0:
+                        logger.info(
+                            f"Using bid price for both bid/ask for {symbol} (ask unavailable)"
+                        )
+                        return (bid, bid)
+                    elif ask > 0 and bid <= 0:
+                        logger.info(
+                            f"Using ask price for both bid/ask for {symbol} (bid unavailable)"
+                        )
+                        return (ask, ask)
+                    else:
+                        # Both bid and ask are available and positive
+                        return (bid, ask)
 
             logger.warning(f"No valid quote data available for {symbol}")
             return None

@@ -94,8 +94,8 @@ class MarketDataService:
         if quote is None:
             return None
         bid, ask = quote
-        # Validate basic positivity similar to _is_valid_price
-        if bid <= 0 or ask <= 0 or bid >= ask:
+        # Validate basic positivity, allow bid == ask for cases where only one side is available
+        if bid <= 0 or ask <= 0 or bid > ask:
             logger.warning(f"Invalid latest quote for {symbol}: bid={bid}, ask={ask}")
             return None
         return QuoteModel(ts=None, bid=Decimal(str(bid)), ask=Decimal(str(ask)))
@@ -372,9 +372,9 @@ class MarketDataService:
         if not (self._is_valid_price(bid, symbol) and self._is_valid_price(ask, symbol)):
             return False
 
-        # Bid should be less than ask
-        if bid >= ask:
-            logger.warning(f"Invalid quote for {symbol}: bid=${bid} >= ask=${ask}")
+        # Bid should be less than or equal to ask (allow equal for single-side quotes)
+        if bid > ask:
+            logger.warning(f"Invalid quote for {symbol}: bid=${bid} > ask=${ask}")
             return False
 
         # Spread shouldn't be too wide (more than 10%)
