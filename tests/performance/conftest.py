@@ -1,6 +1,7 @@
 """
 Performance test fixtures and configuration.
 """
+
 import time
 from datetime import datetime
 from typing import Any, Dict, List
@@ -59,9 +60,9 @@ def sample_indicators() -> Dict[str, Dict[str, float]]:
 
 
 @pytest.fixture
-def nuclear_engine():
+def nuclear_engine(mock_market_data_port):
     """Nuclear strategy engine for performance testing."""
-    return NuclearTypedEngine()
+    return NuclearTypedEngine(mock_market_data_port)
 
 
 @pytest.fixture
@@ -71,16 +72,16 @@ def tecl_engine(mock_market_data_port):
 
 
 @pytest.fixture
-def klm_engine():
+def klm_engine(mock_market_data_port):
     """KLM strategy engine for performance testing."""
-    return TypedKLMStrategyEngine()
+    return TypedKLMStrategyEngine(mock_market_data_port)
 
 
 @pytest.fixture
 def strategy_manager(mock_market_data_port):
     """Typed strategy manager for performance testing."""
     from the_alchemiser.domain.registry import StrategyType
-    
+
     allocations = {
         StrategyType.NUCLEAR: 0.4,
         StrategyType.TECL: 0.3,
@@ -91,25 +92,25 @@ def strategy_manager(mock_market_data_port):
 
 class PerformanceBenchmark:
     """Helper class for performance measurements."""
-    
+
     def __init__(self, operation_name: str):
         self.operation_name = operation_name
         self.start_time = 0.0
         self.end_time = 0.0
-        
+
     def __enter__(self):
         self.start_time = time.perf_counter()
         return self
-        
+
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.end_time = time.perf_counter()
-        
+
     @property
     def elapsed_time(self) -> float:
         """Get elapsed time in seconds."""
         return self.end_time - self.start_time
-    
-    @property 
+
+    @property
     def elapsed_ms(self) -> float:
         """Get elapsed time in milliseconds."""
         return self.elapsed_time * 1000
@@ -124,8 +125,8 @@ def performance_benchmark():
 # Performance thresholds in milliseconds
 PERFORMANCE_THRESHOLDS = {
     "nuclear_signal_generation": 100,  # Nuclear should generate signals in <100ms
-    "tecl_signal_generation": 150,     # TECL should generate signals in <150ms  
-    "klm_signal_generation": 500,      # KLM ensemble may take longer due to multiple variants
+    "tecl_signal_generation": 150,  # TECL should generate signals in <150ms
+    "klm_signal_generation": 500,  # KLM ensemble may take longer due to multiple variants
     "multi_strategy_generation": 800,  # All strategies combined should be <800ms
-    "strategy_validation": 50,         # Signal validation should be very fast
+    "strategy_validation": 50,  # Signal validation should be very fast
 }
