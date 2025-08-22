@@ -17,10 +17,12 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import ConfigDict
+
+from the_alchemiser.interfaces.schemas.base import ResultDTO
 
 
-class PriceDTO(BaseModel):
+class PriceDTO(ResultDTO):
     """
     DTO for latest price information.
     """
@@ -31,13 +33,12 @@ class PriceDTO(BaseModel):
         validate_assignment=True,
     )
 
-    success: bool
     symbol: str | None = None
     price: Decimal | None = None
     error: str | None = None
 
 
-class PriceHistoryDTO(BaseModel):
+class PriceHistoryDTO(ResultDTO):
     """
     DTO for price history data.
     """
@@ -48,7 +49,6 @@ class PriceHistoryDTO(BaseModel):
         validate_assignment=True,
     )
 
-    success: bool
     symbol: str | None = None
     timeframe: str | None = None
     limit: int | None = None
@@ -56,7 +56,7 @@ class PriceHistoryDTO(BaseModel):
     error: str | None = None
 
 
-class SpreadAnalysisDTO(BaseModel):
+class SpreadAnalysisDTO(ResultDTO):
     """
     DTO for bid-ask spread analysis.
     """
@@ -67,13 +67,12 @@ class SpreadAnalysisDTO(BaseModel):
         validate_assignment=True,
     )
 
-    success: bool
     symbol: str | None = None
     spread_analysis: dict[str, Any] | None = None
     error: str | None = None
 
 
-class MarketStatusDTO(BaseModel):
+class MarketStatusDTO(ResultDTO):
     """
     DTO for market status information.
     """
@@ -84,12 +83,11 @@ class MarketStatusDTO(BaseModel):
         validate_assignment=True,
     )
 
-    success: bool
     market_open: bool | None = None
     error: str | None = None
 
 
-class MultiSymbolQuotesDTO(BaseModel):
+class MultiSymbolQuotesDTO(ResultDTO):
     """
     DTO for multi-symbol quote data.
     """
@@ -100,7 +98,6 @@ class MultiSymbolQuotesDTO(BaseModel):
         validate_assignment=True,
     )
 
-    success: bool
     quotes: dict[str, Decimal] | None = None
     symbols: list[str] | None = None
     error: str | None = None

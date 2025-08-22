@@ -17,13 +17,15 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict
+
+from the_alchemiser.interfaces.schemas.base import ResultDTO
 
 
 class AccountSummaryDTO(BaseModel):
     """
     DTO for comprehensive account summary.
-    
+
     Used when returning account data from TradingServiceManager methods.
     """
 
@@ -64,7 +66,7 @@ class AccountMetricsDTO(BaseModel):
     available_buying_power_ratio: Decimal
 
 
-class BuyingPowerDTO(BaseModel):
+class BuyingPowerDTO(ResultDTO):
     """
     DTO for buying power check results.
     """
@@ -75,14 +77,12 @@ class BuyingPowerDTO(BaseModel):
         validate_assignment=True,
     )
 
-    success: bool
     available_buying_power: Decimal | None = None
     required_amount: Decimal | None = None
     sufficient_funds: bool | None = None
-    error: str | None = None
 
 
-class RiskMetricsDTO(BaseModel):
+class RiskMetricsDTO(ResultDTO):
     """
     DTO for comprehensive risk metrics.
     """
@@ -93,9 +93,7 @@ class RiskMetricsDTO(BaseModel):
         validate_assignment=True,
     )
 
-    success: bool
     risk_metrics: dict[str, Any] | None = None
-    error: str | None = None
 
 
 class TradeEligibilityDTO(BaseModel):
@@ -118,7 +116,7 @@ class TradeEligibilityDTO(BaseModel):
     estimated_cost: Decimal | None = None
 
 
-class PortfolioAllocationDTO(BaseModel):
+class PortfolioAllocationDTO(ResultDTO):
     """
     DTO for portfolio allocation and diversification metrics.
     """
@@ -129,9 +127,7 @@ class PortfolioAllocationDTO(BaseModel):
         validate_assignment=True,
     )
 
-    success: bool
     allocation_data: dict[str, Any] | None = None
-    error: str | None = None
 
 
 class EnrichedAccountSummaryDTO(BaseModel):

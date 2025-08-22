@@ -19,11 +19,13 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from the_alchemiser.interfaces.schemas.base import ResultDTO
+
 
 class PositionDTO(BaseModel):
     """
     DTO for individual position information.
-    
+
     Used when returning position data from TradingServiceManager methods.
     Provides validation and normalization of position parameters.
     """
@@ -44,10 +46,10 @@ class PositionDTO(BaseModel):
     unrealized_pnl_percent: Decimal = Field(..., description="Unrealized P&L percentage")
 
 
-class PositionSummaryDTO(BaseModel):
+class PositionSummaryDTO(ResultDTO):
     """
     DTO for position summary with additional context.
-    
+
     Contains position data plus metadata about the request/response.
     """
 
@@ -57,16 +59,16 @@ class PositionSummaryDTO(BaseModel):
         validate_assignment=True,
     )
 
-    success: bool
     symbol: str | None = None
     position: PositionDTO | None = None
     error: str | None = None
+    # End of file newline ensured below
 
 
-class PortfolioSummaryDTO(BaseModel):
+class PortfolioSummaryDTO(ResultDTO):
     """
     DTO for overall portfolio summary.
-    
+
     Aggregated view of all positions and portfolio metrics.
     """
 
@@ -76,7 +78,6 @@ class PortfolioSummaryDTO(BaseModel):
         validate_assignment=True,
     )
 
-    success: bool
     portfolio: PortfolioMetricsDTO | None = None
     error: str | None = None
 
@@ -98,7 +99,7 @@ class PortfolioMetricsDTO(BaseModel):
     largest_position_percent: Decimal
 
 
-class PositionAnalyticsDTO(BaseModel):
+class PositionAnalyticsDTO(ResultDTO):
     """
     DTO for position risk analytics.
     """
@@ -109,13 +110,12 @@ class PositionAnalyticsDTO(BaseModel):
         validate_assignment=True,
     )
 
-    success: bool
     symbol: str | None = None
     risk_metrics: dict[str, Any] | None = None
     error: str | None = None
 
 
-class PositionMetricsDTO(BaseModel):
+class PositionMetricsDTO(ResultDTO):
     """
     DTO for portfolio-wide position metrics.
     """
@@ -126,7 +126,6 @@ class PositionMetricsDTO(BaseModel):
         validate_assignment=True,
     )
 
-    success: bool
     diversification_score: Decimal | None = None
     largest_positions: list[LargestPositionDTO] | None = None
     error: str | None = None
@@ -148,7 +147,7 @@ class LargestPositionDTO(BaseModel):
     market_value: Decimal
 
 
-class ClosePositionResultDTO(BaseModel):
+class ClosePositionResultDTO(ResultDTO):
     """
     DTO for position closure results.
     """
@@ -159,6 +158,5 @@ class ClosePositionResultDTO(BaseModel):
         validate_assignment=True,
     )
 
-    success: bool
     order_id: str | None = None
     error: str | None = None

@@ -12,7 +12,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
-from the_alchemiser.interfaces.schemas.orders import OrderExecutionResultDTO
+from the_alchemiser.interfaces.schemas.base import ResultDTO
 
 
 class EnrichedOrderDTO(BaseModel):
@@ -31,7 +31,7 @@ class EnrichedOrderDTO(BaseModel):
     summary: dict[str, Any]  # Order summary
 
 
-class OpenOrdersDTO(BaseModel):
+class OpenOrdersDTO(ResultDTO):
     """
     DTO for open orders list response.
     """
@@ -42,10 +42,8 @@ class OpenOrdersDTO(BaseModel):
         validate_assignment=True,
     )
 
-    success: bool
     orders: list[EnrichedOrderDTO]
     symbol_filter: str | None = None
-    error: str | None = None
 
 
 class EnrichedPositionDTO(BaseModel):
@@ -63,7 +61,7 @@ class EnrichedPositionDTO(BaseModel):
     summary: dict[str, Any]  # Position summary
 
 
-class EnrichedPositionsDTO(BaseModel):
+class EnrichedPositionsDTO(ResultDTO):
     """
     DTO for enriched positions list response.
     """
@@ -74,6 +72,4 @@ class EnrichedPositionsDTO(BaseModel):
         validate_assignment=True,
     )
 
-    success: bool
     positions: list[EnrichedPositionDTO]
-    error: str | None = None

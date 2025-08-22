@@ -21,6 +21,7 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict
 
 from the_alchemiser.interfaces.schemas.accounts import AccountSummaryDTO, TradeEligibilityDTO
+from the_alchemiser.interfaces.schemas.base import ResultDTO
 from the_alchemiser.interfaces.schemas.orders import OrderExecutionResultDTO
 
 
@@ -42,10 +43,10 @@ class OrderValidationMetadataDTO(BaseModel):
     validation_timestamp: datetime
 
 
-class SmartOrderExecutionDTO(BaseModel):
+class SmartOrderExecutionDTO(ResultDTO):
     """
     DTO for smart order execution results with comprehensive metadata.
-    
+
     Contains order execution results plus validation and account impact data.
     """
 
@@ -55,17 +56,17 @@ class SmartOrderExecutionDTO(BaseModel):
         validate_assignment=True,
     )
 
-    success: bool
     order_execution: OrderExecutionResultDTO | None = None
     pre_trade_validation: TradeEligibilityDTO | None = None
     order_validation: OrderValidationMetadataDTO | None = None
     account_impact: AccountSummaryDTO | None = None
     reason: str | None = None
     error: str | None = None
+
     validation_details: dict[str, Any] | None = None
 
 
-class TradingDashboardDTO(BaseModel):
+class TradingDashboardDTO(ResultDTO):
     """
     DTO for comprehensive trading dashboard data.
     """

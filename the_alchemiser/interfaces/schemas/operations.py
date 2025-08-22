@@ -16,10 +16,12 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import ConfigDict
+
+from the_alchemiser.interfaces.schemas.base import ResultDTO
 
 
-class OperationResultDTO(BaseModel):
+class OperationResultDTO(ResultDTO):
     """
     Generic DTO for operation results with success/error handling.
     """
@@ -30,12 +32,10 @@ class OperationResultDTO(BaseModel):
         validate_assignment=True,
     )
 
-    success: bool
-    error: str | None = None
     details: dict[str, Any] | None = None
 
 
-class OrderCancellationDTO(BaseModel):
+class OrderCancellationDTO(ResultDTO):
     """
     DTO for order cancellation results.
     """
@@ -46,12 +46,10 @@ class OrderCancellationDTO(BaseModel):
         validate_assignment=True,
     )
 
-    success: bool
     order_id: str | None = None
-    error: str | None = None
 
 
-class OrderStatusDTO(BaseModel):
+class OrderStatusDTO(ResultDTO):
     """
     DTO for order status query results.
     """
@@ -62,7 +60,5 @@ class OrderStatusDTO(BaseModel):
         validate_assignment=True,
     )
 
-    success: bool
     order_id: str | None = None
     status: str | None = None
-    error: str | None = None
