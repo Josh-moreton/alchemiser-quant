@@ -302,7 +302,14 @@ class TradingEngine:
                 trading_service_manager, strategy_allocations, ignore_market_hours
             )
         else:
-            # Backward compatibility mode
+            # Backward compatibility mode - deprecated
+            import warnings
+            warnings.warn(
+                "Direct TradingEngine() instantiation is deprecated. "
+                "Use TradingEngine.create_with_di() instead.",
+                DeprecationWarning,
+                stacklevel=2
+            )
             self._init_traditional(paper_trading, strategy_allocations, ignore_market_hours, config)
 
     def _init_with_container(
@@ -1800,9 +1807,27 @@ def main() -> None:
     console.print("[bold cyan]Trading Engine Test[/bold cyan]")
     console.print("─" * 50)
 
-    trader = TradingEngine(
-        paper_trading=True, strategy_allocations={StrategyType.NUCLEAR: 0.5, StrategyType.TECL: 0.5}
-    )
+    # Use DI approach instead of deprecated traditional constructor
+    try:
+        from the_alchemiser.container.application_container import ApplicationContainer
+        from the_alchemiser.main import TradingSystem
+
+        # Initialize DI system
+        TradingSystem()
+        container = ApplicationContainer()
+
+        trader = TradingEngine.create_with_di(
+            container=container,
+            strategy_allocations={StrategyType.NUCLEAR: 0.5, StrategyType.TECL: 0.5},
+            ignore_market_hours=True
+        )
+        trader.paper_trading = True
+    except Exception as e:
+        console.print(f"[red]Failed to initialize with DI: {e}[/red]")
+        console.print("[yellow]Falling back to traditional method[/yellow]")
+        trader = TradingEngine(
+            paper_trading=True, strategy_allocations={StrategyType.NUCLEAR: 0.5, StrategyType.TECL: 0.5}
+        )
 
     console.print("[yellow]Executing multi-strategy...[/yellow]")
     result = trader.execute_multi_strategy()
