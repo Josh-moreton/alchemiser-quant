@@ -14,7 +14,7 @@ from typing import Any
 
 from rich.console import Console
 
-from the_alchemiser.interfaces.schemas.execution import WebSocketResult
+from the_alchemiser.interfaces.schemas.execution import WebSocketResultDTO
 
 
 class OrderCompletionMonitor:
@@ -41,7 +41,7 @@ class OrderCompletionMonitor:
         self,
         order_ids: list[str],
         max_wait_seconds: int = 60,
-    ) -> WebSocketResult:
+    ) -> WebSocketResultDTO:
         """Wait for orders to reach a final state using WebSocket streaming only."""
         if not order_ids:
             return {
@@ -83,7 +83,7 @@ class OrderCompletionMonitor:
 
     def _wait_for_order_completion_stream(
         self, order_ids: list[str], max_wait_seconds: int
-    ) -> WebSocketResult:
+    ) -> WebSocketResultDTO:
         """Use Alpaca's TradingStream to monitor order status."""
         logging.info(f"⏳ Waiting for {len(order_ids)} orders to complete via websocket...")
         logging.debug(f"🔍 Order IDs to monitor: {order_ids}")
@@ -180,7 +180,7 @@ class OrderCompletionMonitor:
         remaining: set[str],
         completed: dict[str, str],
         max_wait_seconds: int,
-    ) -> WebSocketResult:
+    ) -> WebSocketResultDTO:
         """Use pre-connected WebSocket stream."""
         logging.info("🎯 Using pre-connected WebSocket stream")
 
@@ -240,7 +240,7 @@ class OrderCompletionMonitor:
         completed: dict[str, str],
         max_wait_seconds: int,
         order_ids: list[str],
-    ) -> WebSocketResult:
+    ) -> WebSocketResultDTO:
         """Create new WebSocket connection."""
         api_key = self.api_key or getattr(self.trading_client, "_api_key", None)
         secret_key = self.secret_key or getattr(self.trading_client, "_secret_key", None)

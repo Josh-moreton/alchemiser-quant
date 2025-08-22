@@ -13,11 +13,11 @@ from typing import Any, cast
 
 from the_alchemiser.domain.types import AccountInfo, EnrichedAccountInfo, PositionInfo
 from the_alchemiser.interfaces.schemas.common import MultiStrategyExecutionResultDTO
-from the_alchemiser.interfaces.schemas.execution import ExecutionResult
+from the_alchemiser.interfaces.schemas.execution import ExecutionResultDTO
 
 from .base import BaseEmailTemplate
 
-ExecutionLike = ExecutionResult | MultiStrategyExecutionResultDTO | Mapping[str, Any] | Any
+ExecutionLike = ExecutionResultDTO | MultiStrategyExecutionResultDTO | Mapping[str, Any] | Any
 
 
 def _normalise_result(result: ExecutionLike) -> dict[str, Any]:  # noqa: D401 - internal helper
