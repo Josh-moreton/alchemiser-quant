@@ -7,13 +7,14 @@ for trading execution DTOs in the_alchemiser.interfaces.schemas.execution.
 
 from decimal import Decimal
 
+from alpaca.trading.enums import OrderSide, TimeInForce
+from alpaca.trading.requests import LimitOrderRequest
 import pytest
 from pydantic import ValidationError
 
 from the_alchemiser.interfaces.schemas.execution import (
     ExecutionResultDTO,
     LambdaEventDTO,
-    LimitOrderResultDTO,
     OrderHistoryDTO,
     QuoteDTO,
     TradingAction,
@@ -21,6 +22,7 @@ from the_alchemiser.interfaces.schemas.execution import (
     WebSocketResultDTO,
     WebSocketStatus,
 )
+from the_alchemiser.interfaces.schemas.orders import LimitOrderResultDTO
 
 
 class TestTradingPlanDTO:
@@ -332,20 +334,66 @@ class TestLimitOrderResultDTO:
     """Test LimitOrderResultDTO functionality."""
 
     def test_successful_limit_order_result(self) -> None:
-        """Test successful limit order result."""
+        """Test successful limit order result with required fields."""
+        order_req = LimitOrderRequest(
+            symbol="AAPL",
+            qty=1,
+            side=OrderSide.BUY,
+            time_in_force=TimeInForce.DAY,
+            limit_price=100.00,
+        )
         result = LimitOrderResultDTO(
-            order_request={"symbol": "AAPL", "quantity": 100}, error_message=None
+            success=True,
+            order_request=order_req,
+            conversion_info="Rounded",
+            error_message=None,
         )
 
+        assert result.is_success is True
         assert result.order_request is not None
         assert result.error_message is None
 
     def test_failed_limit_order_result(self) -> None:
-        """Test failed limit order result."""
-        result = LimitOrderResultDTO(order_request=None, error_message="Insufficient funds")
+        """Test failed limit order result requires error message."""
+        result = LimitOrderResultDTO(success=False, order_request=None, error_message="Failure")
 
+        assert result.success is False
         assert result.order_request is None
-        assert result.error_message == "Insufficient funds"
+        assert result.error_message == "Failure"
+
+    def test_validator_requires_order_request_when_success(self) -> None:
+        with pytest.raises(ValidationError) as exc:
+            LimitOrderResultDTO(success=True, order_request=None, error_message=None)
+        assert "order_request is required" in str(exc.value)
+
+    def test_validator_requires_error_message_when_failure(self) -> None:
+        with pytest.raises(ValidationError) as exc:
+            LimitOrderResultDTO(success=False, order_request=None, error_message=None)
+        assert "error_message is required" in str(exc.value)
+
+    def test_validator_disallows_error_message_on_success(self) -> None:
+        with pytest.raises(ValidationError) as exc:
+            order_req = LimitOrderRequest(
+                symbol="AAPL",
+                qty=1,
+                side=OrderSide.BUY,
+                time_in_force=TimeInForce.DAY,
+                limit_price=100.00,
+            )
+            LimitOrderResultDTO(success=True, order_request=order_req, error_message="x")
+        assert "error_message must be None" in str(exc.value)
+
+    def test_validator_disallows_order_request_on_failure(self) -> None:
+        with pytest.raises(ValidationError) as exc:
+            order_req = LimitOrderRequest(
+                symbol="AAPL",
+                qty=1,
+                side=OrderSide.BUY,
+                time_in_force=TimeInForce.DAY,
+                limit_price=100.00,
+            )
+            LimitOrderResultDTO(success=False, order_request=order_req, error_message="e")
+        assert "order_request must be None" in str(exc.value)
 
 
 class TestEnumsAndTypes:

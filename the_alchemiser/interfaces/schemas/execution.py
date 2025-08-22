@@ -95,23 +95,9 @@ class TradingPlanDTO(BaseModel):
             raise ValueError("Estimated price must be greater than 0")
         return v
 
-
-class LimitOrderResultDTO(BaseModel):
-    """Outcome of limit order processing."""
-
-    model_config = ConfigDict(
-        strict=True,
-        frozen=True,
-        validate_assignment=True,
-        str_strip_whitespace=True,
-    )
-
-    order_request: Any | None = Field(
-        default=None, description="Original limit order request (LimitOrderRequest)"
-    )
-    error_message: str | None = Field(
-        default=None, description="Error message if order processing failed"
-    )
+    # NOTE: LimitOrderResultDTO moved to interfaces/schemas/orders.py to avoid duplicate
+    # definitions and provide richer success/failure semantics. This placeholder comment
+    # preserves historical context for the refactor.
 
 
 class WebSocketResultDTO(BaseModel):

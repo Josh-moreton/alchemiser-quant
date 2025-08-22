@@ -18,6 +18,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Literal
 
+from alpaca.trading.requests import LimitOrderRequest
 from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
 
@@ -157,3 +158,44 @@ class OrderExecutionResultDTO(BaseModel):
         if v is not None and v <= 0:
             raise ValueError("Average fill price must be greater than 0")
         return v
+
+
+class LimitOrderResultDTO(BaseModel):
+    """
+    DTO for limit order preparation results.
+
+    Contains the result of limit order preparation including the order request data,
+    conversion information, and success/failure status. Used to replace tuple returns
+    with strongly typed results.
+    """
+
+    model_config = ConfigDict(
+        strict=True,
+        frozen=True,
+        validate_assignment=True,
+    )
+
+    success: bool
+    order_request: LimitOrderRequest | None = None  # Prepared LimitOrderRequest
+    conversion_info: str | None = None
+    error_message: str | None = None
+
+    @model_validator(mode="after")
+    def validate_result_consistency(self) -> LimitOrderResultDTO:
+        """Validate consistency between success flag and other fields."""
+        if self.success:
+            if self.order_request is None:
+                raise ValueError("order_request is required when success=True")
+            if self.error_message is not None:
+                raise ValueError("error_message must be None when success=True")
+        else:
+            if self.order_request is not None:
+                raise ValueError("order_request must be None when success=False")
+            if not self.error_message:
+                raise ValueError("error_message is required when success=False")
+        return self
+
+    @property
+    def is_success(self) -> bool:
+        """Alias for success to align with other result DTO naming patterns."""
+        return self.success

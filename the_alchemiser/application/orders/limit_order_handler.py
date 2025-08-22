@@ -17,6 +17,7 @@ from alpaca.trading.enums import OrderSide, TimeInForce
 from alpaca.trading.requests import LimitOrderRequest
 
 from the_alchemiser.domain.math.asset_info import fractionability_detector
+from the_alchemiser.interfaces.schemas.orders import LimitOrderResultDTO
 from the_alchemiser.services.errors import get_error_handler
 from the_alchemiser.services.errors.exceptions import DataProviderError, TradingClientError
 
@@ -84,19 +85,22 @@ class LimitOrderHandler:
                 qty = adjusted_qty
 
             # Prepare order with asset-specific handling
-            limit_order_data, conversion_info = self._prepare_limit_order(
-                symbol, qty, side, limit_price
-            )
+            order_result = self._prepare_limit_order(symbol, qty, side, limit_price)
 
-            if limit_order_data is None:
-                logging.warning(f"Failed to prepare limit order for {symbol}")
+            if not order_result.success:
+                logging.warning(
+                    f"Failed to prepare limit order for {symbol}: {order_result.error_message}"
+                )
                 return None
 
-            if conversion_info:
-                logging.info(f"Order conversion: {conversion_info}")
+            if order_result.conversion_info:
+                logging.info(f"Order conversion: {order_result.conversion_info}")
 
-            # Submit order with fractionability error handling
-            return self._submit_with_fallback(symbol, limit_order_data, qty, side, limit_price)
+            # Submit order with fractionability error handling (validator guarantees order_request present)
+            assert order_result.order_request is not None  # guaranteed by validator when success
+            return self._submit_with_fallback(
+                symbol, order_result.order_request, qty, side, limit_price
+            )
 
         except (TradingClientError, DataProviderError) as e:
             self.error_handler.handle_error(
@@ -114,7 +118,7 @@ class LimitOrderHandler:
 
     def _prepare_limit_order(
         self, symbol: str, qty: float, side: OrderSide, limit_price: float
-    ) -> tuple[Any, ...]:  # TODO: Phase 7 - Migrate to LimitOrderResultDTO
+    ) -> LimitOrderResultDTO:
         """Prepare limit order with smart asset handling."""
         original_qty = qty
         conversion_info = None
@@ -128,10 +132,9 @@ class LimitOrderHandler:
             if was_rounded:
                 qty = adjusted_qty
                 if qty <= 0:
-                    logging.warning(
-                        f"❌ {symbol} quantity rounded to zero whole shares (original: {original_qty})"
-                    )
-                    return None, None
+                    error_msg = f"❌ {symbol} quantity rounded to zero whole shares (original: {original_qty})"
+                    logging.warning(error_msg)
+                    return LimitOrderResultDTO(success=False, error_message=error_msg)
 
                 conversion_info = (
                     f"🔄 Rounded {symbol} to {qty} whole shares for non-fractionable asset"
@@ -143,8 +146,9 @@ class LimitOrderHandler:
         limit_price = round(limit_price, 2)
 
         if qty <= 0:
-            logging.warning(f"Quantity rounded to zero for {symbol}")
-            return None, None
+            error_msg = f"Quantity rounded to zero for {symbol}"
+            logging.warning(error_msg)
+            return LimitOrderResultDTO(success=False, error_message=error_msg)
 
         logging.info(
             f"Placing LIMIT {side.value} order for {symbol}: qty={qty}, price=${limit_price}"
@@ -158,7 +162,9 @@ class LimitOrderHandler:
             limit_price=limit_price,
         )
 
-        return limit_order_data, conversion_info
+        return LimitOrderResultDTO(
+            success=True, order_request=limit_order_data, conversion_info=conversion_info
+        )
 
     def _submit_with_fallback(
         self,
