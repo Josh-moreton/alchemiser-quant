@@ -24,6 +24,12 @@ from the_alchemiser.interfaces.schemas.accounts import (
     RiskMetricsDTO,
     TradeEligibilityDTO,
 )
+from the_alchemiser.interfaces.schemas.enriched_data import (
+    EnrichedOrderDTO,
+    EnrichedPositionDTO,
+    EnrichedPositionsDTO,
+    OpenOrdersDTO,
+)
 from the_alchemiser.interfaces.schemas.market_data import (
     MarketStatusDTO,
     MultiSymbolQuotesDTO,
@@ -343,4 +349,37 @@ def dict_to_operation_result_dto(data: dict[str, Any]) -> OperationResultDTO:
         success=data.get("success", False),
         error=data.get("error"),
         details=data.get("details")
+    )
+
+
+# Enriched Data Mapping Functions
+def list_to_open_orders_dto(orders: list[dict[str, Any]], symbol_filter: str | None = None) -> OpenOrdersDTO:
+    """Convert list of enriched order dicts to OpenOrdersDTO."""
+    enriched_orders = []
+    for order in orders:
+        enriched_orders.append(EnrichedOrderDTO(
+            raw=order.get("raw", {}),
+            domain=order.get("domain", {}),
+            summary=order.get("summary", {}),
+        ))
+    
+    return OpenOrdersDTO(
+        success=True,
+        orders=enriched_orders,
+        symbol_filter=symbol_filter
+    )
+
+
+def list_to_enriched_positions_dto(positions: list[dict[str, Any]]) -> EnrichedPositionsDTO:
+    """Convert list of enriched position dicts to EnrichedPositionsDTO."""
+    enriched_positions = []
+    for position in positions:
+        enriched_positions.append(EnrichedPositionDTO(
+            raw=position.get("raw", {}),
+            summary=position.get("summary", {}),
+        ))
+    
+    return EnrichedPositionsDTO(
+        success=True,
+        positions=enriched_positions
     )
