@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from decimal import Decimal, InvalidOperation
-from typing import Any, cast
+from typing import Any, Protocol, cast, runtime_checkable
 
 from the_alchemiser.domain.types import AccountInfo, EnrichedAccountInfo, PositionInfo
 from the_alchemiser.interfaces.schemas.common import MultiStrategyExecutionResultDTO
@@ -17,7 +17,26 @@ from the_alchemiser.interfaces.schemas.execution import ExecutionResultDTO
 
 from .base import BaseEmailTemplate
 
-ExecutionLike = ExecutionResultDTO | MultiStrategyExecutionResultDTO | Mapping[str, Any] | Any
+
+@runtime_checkable
+class ExecutionSummaryLike(Protocol):  # pragma: no cover - structural typing helper
+    """Minimal protocol abstraction for execution summary display.
+
+    Avoids tight coupling to concrete DTO class names; any object supplying the
+    accessed attributes will render. This supports forward evolution (e.g.
+    future domain ExecutionAggregate model) without widespread refactors.
+    """
+
+    execution_summary: dict[str, Any]
+
+
+ExecutionLike = (
+    ExecutionResultDTO
+    | MultiStrategyExecutionResultDTO
+    | Mapping[str, Any]
+    | ExecutionSummaryLike
+    | Any
+)
 
 
 def _normalise_result(result: ExecutionLike) -> dict[str, Any]:  # noqa: D401 - internal helper

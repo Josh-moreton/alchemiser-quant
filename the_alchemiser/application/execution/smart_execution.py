@@ -288,6 +288,12 @@ class SmartExecution:
 
         Returns:
             bool: True if all orders settle successfully, False if any fail or timeout
+
+        Note:
+            Returns False instead of silently succeeding when one or more orders fail
+            to reach a terminal state (filled / canceled / rejected / expired) within
+            the allowed window. This explicit failure propagation prevents masking
+            real settlement issues and aligns with the no-legacy-fallback policy.
         """
         if not sell_orders:
             return True

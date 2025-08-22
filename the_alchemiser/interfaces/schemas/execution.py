@@ -194,23 +194,21 @@ class OrderHistoryDTO(BaseModel):
 #
 # These will be removed after a deprecation window. Do not use in new code.
 
-# Deprecated: use ExecutionResultDTO
-ExecutionResult = ExecutionResultDTO
-# Deprecated: use WebSocketResultDTO
-WebSocketResult = WebSocketResultDTO
-# Deprecated: use QuoteDTO
-QuoteData = QuoteDTO
+# Deprecated compatibility aliases (intentionally NOT exported via __all__).
+# These remain only to avoid immediate breakage for any out-of-tree scripts.
+# They will be removed in a future cleanup release.
+ExecutionResult = ExecutionResultDTO  # Deprecated alias – do not use in new code
+WebSocketResult = WebSocketResultDTO  # Deprecated alias – do not use in new code
+QuoteData = QuoteDTO  # Deprecated alias – do not use in new code
 
 __deprecated__ = ["ExecutionResult", "WebSocketResult", "QuoteData"]
 
 __all__ = [
-    # Primary DTO exports
+    # Primary DTO exports (no deprecated symbols)
     "ExecutionResultDTO",
     "TradingPlanDTO",
     "WebSocketResultDTO",
     "QuoteDTO",
     "LambdaEventDTO",
     "OrderHistoryDTO",
-    # Deprecated legacy aliases
-    *__deprecated__,
 ]
