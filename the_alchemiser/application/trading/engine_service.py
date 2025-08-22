@@ -56,31 +56,6 @@ from the_alchemiser.services.repository.alpaca_manager import AlpacaManager
 from ..execution.execution_manager import ExecutionManager
 from ..reporting.reporting import build_portfolio_state_data
 
-# Conditional import for legacy portfolio rebalancer
-try:
-    # Try to import from the actual location - this will likely fail but is handled gracefully
-    from the_alchemiser.legacy.portfolio_rebalancer.portfolio_rebalancer_legacy import (  # type: ignore[import-untyped]
-        PortfolioRebalancer as _RuntimePortfolioRebalancer,
-    )
-except ImportError:  # pragma: no cover - runtime fallback when legacy module missing
-    _RuntimePortfolioRebalancer = None
-
-
-class LegacyPortfolioRebalancerStub:
-    """Minimal fallback stub used at runtime if legacy module is not available."""
-
-    def __init__(self, *args: Any, **kwargs: Any) -> None:  # noqa: D401
-        pass
-
-    def rebalance_portfolio(
-        self,
-        target_portfolio: dict[str, float],
-        strategy_attribution: dict[str, list["StrategyType"]] | None = None,
-    ) -> list["OrderDetails"]:
-        # Acknowledge parameters to satisfy linters
-        _ = target_portfolio, strategy_attribution
-        return []
-
 
 class StrategyManagerAdapter:
     """Typed-backed adapter to provide run_all_strategies for callers.
@@ -290,7 +265,7 @@ class TradingEngine:
         self.logger = logging.getLogger(__name__)
 
         # Type annotations for attributes that can have multiple types
-        self.portfolio_rebalancer: Any  # Can be PortfolioManagementFacade, _RuntimePortfolioRebalancer, or LegacyPortfolioRebalancerStub
+        self.portfolio_rebalancer: Any  # PortfolioManagementFacade instance
 
         # Determine initialization mode
         if container is not None:
@@ -510,20 +485,19 @@ class TradingEngine:
 
         # Portfolio rebalancer
         try:
-            # Use the trading service manager if available, otherwise use old portfolio rebalancer
+            # Require TradingServiceManager for portfolio operations
             trading_manager = getattr(self, "_trading_service_manager", None)
             if trading_manager and hasattr(trading_manager, "alpaca_manager"):
-                # This is a TradingServiceManager - use modern portfolio management facade directly
+                # Use modern portfolio management facade
                 self.portfolio_rebalancer = PortfolioManagementFacade(
                     trading_manager=trading_manager,
                 )
             else:
-                # Fall back to original portfolio rebalancer for backward compatibility
-                if _RuntimePortfolioRebalancer is not None:
-                    self.portfolio_rebalancer = _RuntimePortfolioRebalancer(self)
-                else:
-                    # Use lightweight stub at runtime when legacy module is missing
-                    self.portfolio_rebalancer = LegacyPortfolioRebalancerStub()
+                # No legacy fallbacks - fail fast and require proper DI setup
+                raise ConfigurationError(
+                    "TradingServiceManager is required for portfolio operations. "
+                    "Please use TradingEngine.create_with_di() or provide trading_service_manager parameter."
+                )
         except Exception as e:
             raise TradingClientError(
                 f"Failed to initialize portfolio rebalancer: {e}",
