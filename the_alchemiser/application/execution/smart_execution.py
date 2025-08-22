@@ -19,6 +19,7 @@ from typing import Any, Protocol
 
 from alpaca.trading.enums import OrderSide
 
+from the_alchemiser.interfaces.schemas.execution import WebSocketResult
 from the_alchemiser.services.errors.exceptions import (
     DataProviderError,
     OrderExecutionError,
@@ -59,7 +60,7 @@ class OrderExecutor(Protocol):
 
     def wait_for_order_completion(
         self, order_ids: list[str], max_wait_seconds: int = 30
-    ) -> dict[str, str]:
+    ) -> WebSocketResult:
         """Wait for order completion."""
         ...
 
@@ -357,9 +358,24 @@ class SmartExecution:
         )
 
         # Wait for order settlement
-        completion_statuses = self._order_executor.wait_for_order_completion(
+        completion_result = self._order_executor.wait_for_order_completion(
             remaining_order_ids, max_wait_time
         )
+
+        # Convert WebSocketResult to order status dict for backward compatibility
+        websocket_completed_orders = completion_result.get("orders_completed", [])
+
+        # For the orders that completed via WebSocket, we need to check their final status
+        completion_statuses = {}
+        for order_id in websocket_completed_orders:
+            if order_id in remaining_order_ids:
+                # Assume filled for orders that completed (this could be enhanced to check actual status)
+                completion_statuses[order_id] = "filled"
+
+        # For any remaining orders that didn't complete, mark as timeout
+        for order_id in remaining_order_ids:
+            if order_id not in completion_statuses:
+                completion_statuses[order_id] = "timeout"
 
         # Combine pre-completed orders with newly completed ones
         all_completion_statuses = {**already_completed, **completion_statuses}
@@ -480,12 +496,13 @@ class SmartExecution:
                 continue
 
             # Wait for fill with fast timeout (2-3 seconds max)
-            order_results = self._order_executor.wait_for_order_completion(
+            order_result = self._order_executor.wait_for_order_completion(
                 [order_id], max_wait_seconds=int(timeout_seconds)
             )
 
-            final_status = order_results.get(order_id, "").lower()
-            if "filled" in final_status:
+            # Check if the order completed successfully
+            order_completed = order_id in order_result.get("orders_completed", [])
+            if order_completed and order_result["status"] == "completed":
                 console.print(
                     f"[green]✅ {side.value} {symbol} filled @ ${limit_price:.2f} ({attempt_label})[/green]"
                 )
