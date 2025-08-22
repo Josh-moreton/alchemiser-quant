@@ -33,9 +33,9 @@ class TestTradingPlanDTO:
             action=TradingAction.BUY,
             quantity=Decimal("100"),
             estimated_price=Decimal("150.25"),
-            reasoning="Strong momentum signal"
+            reasoning="Strong momentum signal",
         )
-        
+
         assert plan.symbol == "AAPL"
         assert plan.action == TradingAction.BUY
         assert plan.quantity == Decimal("100")
@@ -49,9 +49,9 @@ class TestTradingPlanDTO:
             action=TradingAction.BUY,
             quantity=Decimal("100"),
             estimated_price=Decimal("150.25"),
-            reasoning="Test"
+            reasoning="Test",
         )
-        
+
         assert plan.symbol == "AAPL"
 
     def test_symbol_validation_empty(self) -> None:
@@ -62,9 +62,9 @@ class TestTradingPlanDTO:
                 action=TradingAction.BUY,
                 quantity=Decimal("100"),
                 estimated_price=Decimal("150.25"),
-                reasoning="Test"
+                reasoning="Test",
             )
-        
+
         error = exc_info.value.errors()[0]
         assert "Symbol cannot be empty" in error["msg"]
 
@@ -76,9 +76,9 @@ class TestTradingPlanDTO:
                 action=TradingAction.BUY,
                 quantity=Decimal("100"),
                 estimated_price=Decimal("150.25"),
-                reasoning="Test"
+                reasoning="Test",
             )
-        
+
         error = exc_info.value.errors()[0]
         assert "Symbol must be alphanumeric" in error["msg"]
 
@@ -90,9 +90,9 @@ class TestTradingPlanDTO:
                 action=TradingAction.BUY,
                 quantity=Decimal("-100"),
                 estimated_price=Decimal("150.25"),
-                reasoning="Test"
+                reasoning="Test",
             )
-        
+
         error = exc_info.value.errors()[0]
         assert "Quantity must be greater than 0" in error["msg"]
 
@@ -104,9 +104,9 @@ class TestTradingPlanDTO:
                 action=TradingAction.BUY,
                 quantity=Decimal("0"),
                 estimated_price=Decimal("150.25"),
-                reasoning="Test"
+                reasoning="Test",
             )
-        
+
         error = exc_info.value.errors()[0]
         assert "Quantity must be greater than 0" in error["msg"]
 
@@ -118,9 +118,9 @@ class TestTradingPlanDTO:
                 action=TradingAction.BUY,
                 quantity=Decimal("100"),
                 estimated_price=Decimal("-150.25"),
-                reasoning="Test"
+                reasoning="Test",
             )
-        
+
         error = exc_info.value.errors()[0]
         assert "Estimated price must be greater than 0" in error["msg"]
 
@@ -132,9 +132,9 @@ class TestTradingPlanDTO:
                 action=TradingAction.BUY,
                 quantity=Decimal("100"),
                 estimated_price=Decimal("0"),
-                reasoning="Test"
+                reasoning="Test",
             )
-        
+
         error = exc_info.value.errors()[0]
         assert "Estimated price must be greater than 0" in error["msg"]
 
@@ -145,9 +145,9 @@ class TestTradingPlanDTO:
             action=TradingAction.BUY,
             quantity=Decimal("100"),
             estimated_price=Decimal("150.25"),
-            reasoning="Test"
+            reasoning="Test",
         )
-        
+
         with pytest.raises(ValidationError):
             plan.symbol = "TSLA"  # type: ignore[misc]
 
@@ -162,9 +162,9 @@ class TestQuoteDTO:
             ask_price=Decimal("150.25"),
             bid_size=Decimal("100"),
             ask_size=Decimal("200"),
-            timestamp="2024-01-01T10:00:00Z"
+            timestamp="2024-01-01T10:00:00Z",
         )
-        
+
         assert quote.bid_price == Decimal("150.20")
         assert quote.ask_price == Decimal("150.25")
         assert quote.bid_size == Decimal("100")
@@ -179,9 +179,9 @@ class TestQuoteDTO:
                 ask_price=Decimal("150.25"),
                 bid_size=Decimal("100"),
                 ask_size=Decimal("200"),
-                timestamp="2024-01-01T10:00:00Z"
+                timestamp="2024-01-01T10:00:00Z",
             )
-        
+
         error = exc_info.value.errors()[0]
         assert "Price must be greater than 0" in error["msg"]
 
@@ -193,9 +193,9 @@ class TestQuoteDTO:
                 ask_price=Decimal("150.25"),
                 bid_size=Decimal("-100"),
                 ask_size=Decimal("200"),
-                timestamp="2024-01-01T10:00:00Z"
+                timestamp="2024-01-01T10:00:00Z",
             )
-        
+
         error = exc_info.value.errors()[0]
         assert "Size must be greater than 0" in error["msg"]
 
@@ -208,20 +208,17 @@ class TestWebSocketResultDTO:
         result = WebSocketResultDTO(
             status=WebSocketStatus.COMPLETED,
             message="Operation successful",
-            orders_completed=["ORDER_123", "ORDER_456"]
+            orders_completed=["ORDER_123", "ORDER_456"],
         )
-        
+
         assert result.status == WebSocketStatus.COMPLETED
         assert result.message == "Operation successful"
         assert result.orders_completed == ["ORDER_123", "ORDER_456"]
 
     def test_default_orders_completed(self) -> None:
         """Test default empty list for orders_completed."""
-        result = WebSocketResultDTO(
-            status=WebSocketStatus.ERROR,
-            message="Connection failed"
-        )
-        
+        result = WebSocketResultDTO(status=WebSocketStatus.ERROR, message="Connection failed")
+
         assert result.orders_completed == []
 
 
@@ -231,7 +228,7 @@ class TestLambdaEventDTO:
     def test_empty_lambda_event(self) -> None:
         """Test creating an empty Lambda event."""
         event = LambdaEventDTO()
-        
+
         assert event.mode is None
         assert event.trading_mode is None
         assert event.ignore_market_hours is None
@@ -243,9 +240,9 @@ class TestLambdaEventDTO:
             mode="production",
             trading_mode="live",
             ignore_market_hours=True,
-            arguments=["--strategy", "nuclear"]
+            arguments=["--strategy", "nuclear"],
         )
-        
+
         assert event.mode == "production"
         assert event.trading_mode == "live"
         assert event.ignore_market_hours is True
@@ -268,9 +265,9 @@ class TestExecutionResultDTO:
             "last_equity": "9800.00",
             "daytrading_buying_power": "30000.00",
             "regt_buying_power": "15000.00",
-            "status": "ACTIVE"
+            "status": "ACTIVE",
         }
-        
+
         order_details = {
             "id": "ORDER_123",
             "symbol": "AAPL",
@@ -282,17 +279,17 @@ class TestExecutionResultDTO:
             "filled_qty": "100",
             "filled_avg_price": "150.25",
             "created_at": "2024-01-01T10:00:00Z",
-            "updated_at": "2024-01-01T10:01:00Z"
+            "updated_at": "2024-01-01T10:01:00Z",
         }
-        
+
         result = ExecutionResultDTO(
             orders_executed=[order_details],
             account_info_before=account_info,
             account_info_after=account_info,
             execution_summary={"total_orders": 1, "success": True},
-            final_portfolio_state={"AAPL": 100}
+            final_portfolio_state={"AAPL": 100},
         )
-        
+
         assert len(result.orders_executed) == 1
         assert result.execution_summary["total_orders"] == 1
         assert result.final_portfolio_state == {"AAPL": 100}
@@ -314,21 +311,20 @@ class TestOrderHistoryDTO:
             "filled_qty": "100",
             "filled_avg_price": "150.25",
             "created_at": "2024-01-01T10:00:00Z",
-            "updated_at": "2024-01-01T10:01:00Z"
+            "updated_at": "2024-01-01T10:01:00Z",
         }
-        
+
         history = OrderHistoryDTO(
-            orders=[order_details],
-            metadata={"total_count": 1, "date_range": "2024-01-01"}
+            orders=[order_details], metadata={"total_count": 1, "date_range": "2024-01-01"}
         )
-        
+
         assert len(history.orders) == 1
         assert history.metadata["total_count"] == 1
 
     def test_default_metadata(self) -> None:
         """Test default empty metadata."""
         history = OrderHistoryDTO(orders=[])
-        
+
         assert history.metadata == {}
 
 
@@ -338,20 +334,16 @@ class TestLimitOrderResultDTO:
     def test_successful_limit_order_result(self) -> None:
         """Test successful limit order result."""
         result = LimitOrderResultDTO(
-            order_request={"symbol": "AAPL", "quantity": 100},
-            error_message=None
+            order_request={"symbol": "AAPL", "quantity": 100}, error_message=None
         )
-        
+
         assert result.order_request is not None
         assert result.error_message is None
 
     def test_failed_limit_order_result(self) -> None:
         """Test failed limit order result."""
-        result = LimitOrderResultDTO(
-            order_request=None,
-            error_message="Insufficient funds"
-        )
-        
+        result = LimitOrderResultDTO(order_request=None, error_message="Insufficient funds")
+
         assert result.order_request is None
         assert result.error_message == "Insufficient funds"
 
