@@ -336,7 +336,11 @@ class TestLimitOrderResultDTO:
     def test_successful_limit_order_result(self) -> None:
         """Test successful limit order result with required fields."""
         order_req = LimitOrderRequest(
-            symbol="AAPL", qty=1, side=OrderSide.BUY, time_in_force=TimeInForce.DAY, limit_price=100.00
+            symbol="AAPL",
+            qty=1,
+            side=OrderSide.BUY,
+            time_in_force=TimeInForce.DAY,
+            limit_price=100.00,
         )
         result = LimitOrderResultDTO(
             success=True,
@@ -370,7 +374,11 @@ class TestLimitOrderResultDTO:
     def test_validator_disallows_error_message_on_success(self) -> None:
         with pytest.raises(ValidationError) as exc:
             order_req = LimitOrderRequest(
-                symbol="AAPL", qty=1, side=OrderSide.BUY, time_in_force=TimeInForce.DAY, limit_price=100.00
+                symbol="AAPL",
+                qty=1,
+                side=OrderSide.BUY,
+                time_in_force=TimeInForce.DAY,
+                limit_price=100.00,
             )
             LimitOrderResultDTO(success=True, order_request=order_req, error_message="x")
         assert "error_message must be None" in str(exc.value)
@@ -378,7 +386,11 @@ class TestLimitOrderResultDTO:
     def test_validator_disallows_order_request_on_failure(self) -> None:
         with pytest.raises(ValidationError) as exc:
             order_req = LimitOrderRequest(
-                symbol="AAPL", qty=1, side=OrderSide.BUY, time_in_force=TimeInForce.DAY, limit_price=100.00
+                symbol="AAPL",
+                qty=1,
+                side=OrderSide.BUY,
+                time_in_force=TimeInForce.DAY,
+                limit_price=100.00,
             )
             LimitOrderResultDTO(success=False, order_request=order_req, error_message="e")
         assert "order_request must be None" in str(exc.value)
