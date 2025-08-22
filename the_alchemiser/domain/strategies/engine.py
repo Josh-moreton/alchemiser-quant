@@ -13,7 +13,7 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import Any
 
-from the_alchemiser.domain.strategies.protocols.market_data_port import MarketDataPort
+from the_alchemiser.domain.market_data.protocols.market_data_port import MarketDataPort
 from the_alchemiser.domain.strategies.value_objects.strategy_signal import StrategySignal
 from the_alchemiser.services.errors.exceptions import ValidationError
 from the_alchemiser.services.errors.handler import TradingSystemErrorHandler
@@ -184,7 +184,9 @@ class StrategyEngine(ABC):
         unavailable_symbols = []
         for symbol in symbols:
             try:
-                price = self.market_data_port.get_current_price(symbol)
+                from the_alchemiser.domain.shared_kernel.value_objects.symbol import Symbol
+                symbol_obj = Symbol(symbol)
+                price = self.market_data_port.get_mid_price(symbol_obj)
                 if price is None:
                     unavailable_symbols.append(symbol)
             except Exception as e:
