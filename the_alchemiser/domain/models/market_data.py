@@ -5,7 +5,8 @@ from datetime import datetime
 
 import pandas as pd
 
-from the_alchemiser.domain.types import MarketDataPoint, PriceData, QuoteData
+from the_alchemiser.domain.types import MarketDataPoint, PriceData
+from the_alchemiser.interfaces.schemas.execution import QuoteData
 
 
 @dataclass(frozen=True)

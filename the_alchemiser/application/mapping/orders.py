@@ -304,11 +304,15 @@ def domain_order_to_execution_result_dto(order: Order) -> OrderExecutionResultDT
     if order.status in (OrderStatus.FILLED, OrderStatus.CANCELLED, OrderStatus.REJECTED):
         completed_at = order.created_at  # Simplified - would track actual completion time
 
+    status_literal = cast(
+        Literal["accepted", "filled", "partially_filled", "rejected", "canceled"], dto_status
+    )
+    success = status_literal not in {"rejected"}
     return OrderExecutionResultDTO(
+        success=success,
+        error=None if success else "Order rejected",
         order_id=str(order.id.value),
-        status=cast(
-            Literal["accepted", "filled", "partially_filled", "rejected", "canceled"], dto_status
-        ),
+        status=status_literal,
         filled_qty=order.filled_quantity.value,
         avg_fill_price=avg_fill_price,
         submitted_at=order.created_at,

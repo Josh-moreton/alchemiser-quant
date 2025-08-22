@@ -5,7 +5,7 @@ This module handles the primary trading report email template generation.
 
 from typing import Any, cast
 
-from the_alchemiser.domain.types import PositionInfo
+from the_alchemiser.domain.types import AccountInfo, EnrichedAccountInfo, PositionInfo
 
 from .base import BaseEmailTemplate
 from .performance import PerformanceBuilder
@@ -20,8 +20,8 @@ class TradingReportBuilder:
     def build_regular_report(
         mode: str,
         success: bool,
-        account_before: dict[str, Any],
-        account_after: dict[str, Any],
+        account_before: AccountInfo | EnrichedAccountInfo,
+        account_after: AccountInfo | EnrichedAccountInfo,
         positions: dict[str, Any],
         orders: list[dict[str, Any]] | None = None,
         signal: Any = None,
@@ -97,8 +97,8 @@ class TradingReportBuilder:
     def build_neutral_report(
         mode: str,
         success: bool,
-        account_before: dict[str, Any],
-        account_after: dict[str, Any],
+        account_before: AccountInfo | EnrichedAccountInfo,
+        account_after: AccountInfo | EnrichedAccountInfo,
         positions: dict[str, Any],
         orders: list[dict[str, Any]] | None = None,
         signal: Any = None,
