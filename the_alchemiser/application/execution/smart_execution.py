@@ -362,7 +362,7 @@ class SmartExecution:
             remaining_order_ids, max_wait_time
         )
 
-        # Convert WebSocketResult to order status dict for backward compatibility
+        # Convert WebSocketResultDTO to order status mapping (backward compatibility layer)
         websocket_completed_orders = completion_result.orders_completed
 
         # For the orders that completed via WebSocket, we need to check their final status
