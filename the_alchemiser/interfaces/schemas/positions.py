@@ -160,3 +160,21 @@ class ClosePositionResultDTO(ResultDTO):
 
     order_id: str | None = None
     error: str | None = None
+
+
+class PortfolioValueDTO(BaseModel):
+    """
+    DTO for portfolio value information.
+    
+    Provides both raw numeric value and typed Money object for portfolio valuation.
+    """
+
+    model_config = ConfigDict(
+        strict=True,
+        frozen=True,
+        validate_assignment=True,
+        str_strip_whitespace=True,
+    )
+
+    value: Decimal = Field(..., ge=0, description="Raw portfolio value")
+    money: Any = Field(..., description="Typed Money object for portfolio value")
