@@ -6,10 +6,12 @@ Provides deterministic evaluation with structured tracing and strict whitelistin
 """
 
 from the_alchemiser.domain.dsl.parser import DSLParser
+from the_alchemiser.domain.dsl.evaluator import DSLEvaluator
 from the_alchemiser.domain.dsl.errors import DSLError, ParseError, EvaluationError
 
 __all__ = [
-    "DSLParser", 
+    "DSLParser",
+    "DSLEvaluator",
     "DSLError",
     "ParseError",
     "EvaluationError",

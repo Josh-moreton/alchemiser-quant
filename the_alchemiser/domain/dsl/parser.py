@@ -75,9 +75,20 @@ class DSLParser:
     
     def _tokenize(self, source: str) -> list[str]:
         """Tokenize S-expression source."""
+        # Remove Clojure-style comments (;; comment text)
+        lines = source.split('\n')
+        clean_lines = []
+        for line in lines:
+            comment_pos = line.find(';;')
+            if comment_pos >= 0:
+                line = line[:comment_pos]
+            clean_lines.append(line)
+        
+        clean_source = '\n'.join(clean_lines)
+        
         # Enhanced tokenizer - handles parentheses, braces, and quoted strings
         token_pattern = r'\{|\}|\(|\)|"[^"]*"|[^\s(){}"]+' 
-        tokens = re.findall(token_pattern, source)
+        tokens = re.findall(token_pattern, clean_source)
         return [t for t in tokens if t.strip()]
     
     def _parse_tokens(self, tokens: list[str]) -> tuple[SExpr, list[str]]:
