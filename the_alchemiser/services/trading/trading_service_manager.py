@@ -1,5 +1,6 @@
 import datetime
 import logging
+from decimal import Decimal
 from typing import Any
 
 from the_alchemiser.application.mapping.account_mapping import (
@@ -13,10 +14,62 @@ from the_alchemiser.application.mapping.order_mapping import (
 )
 from the_alchemiser.application.mapping.orders import (
     dict_to_order_request_dto,
+    domain_order_to_execution_result_dto,
 )
 from the_alchemiser.application.mapping.position_mapping import alpaca_position_to_summary
+from the_alchemiser.application.mapping.trading_service_dto_mapping import (
+    account_summary_typed_to_dto,
+    dict_to_buying_power_dto,
+    dict_to_enriched_account_summary_dto,
+    dict_to_market_status_dto,
+    dict_to_multi_symbol_quotes_dto,
+    dict_to_portfolio_allocation_dto,
+    dict_to_portfolio_summary_dto,
+    dict_to_position_analytics_dto,
+    dict_to_position_metrics_dto,
+    dict_to_position_summary_dto,
+    dict_to_price_dto,
+    dict_to_risk_metrics_dto,
+    dict_to_spread_analysis_dto,
+    dict_to_trade_eligibility_dto,
+    list_to_enriched_positions_dto,
+    list_to_open_orders_dto,
+)
 from the_alchemiser.application.orders.order_validation import OrderValidator
-from the_alchemiser.interfaces.schemas.orders import OrderRequestDTO
+from the_alchemiser.interfaces.schemas.accounts import (
+    AccountMetricsDTO,
+    AccountSummaryDTO,
+    BuyingPowerDTO,
+    EnrichedAccountSummaryDTO,
+    PortfolioAllocationDTO,
+    RiskMetricsDTO,
+    TradeEligibilityDTO,
+)
+from the_alchemiser.interfaces.schemas.enriched_data import EnrichedPositionsDTO, OpenOrdersDTO
+from the_alchemiser.interfaces.schemas.market_data import (
+    MarketStatusDTO,
+    MultiSymbolQuotesDTO,
+    PriceDTO,
+    PriceHistoryDTO,
+    SpreadAnalysisDTO,
+)
+from the_alchemiser.interfaces.schemas.operations import (
+    OrderCancellationDTO,
+    OrderStatusDTO,
+)
+from the_alchemiser.interfaces.schemas.orders import OrderExecutionResultDTO, OrderRequestDTO
+from the_alchemiser.interfaces.schemas.positions import (
+    ClosePositionResultDTO,
+    PortfolioSummaryDTO,
+    PositionAnalyticsDTO,
+    PositionMetricsDTO,
+    PositionSummaryDTO,
+)
+from the_alchemiser.interfaces.schemas.smart_trading import (
+    OrderValidationMetadataDTO,
+    SmartOrderExecutionDTO,
+    TradingDashboardDTO,
+)
 from the_alchemiser.services.account.account_service import AccountService
 from the_alchemiser.services.errors.decorators import translate_trading_errors
 from the_alchemiser.services.market_data.market_data_service import MarketDataService
@@ -62,7 +115,7 @@ class TradingServiceManager:
     # Order Management Operations
     def place_market_order(
         self, symbol: str, quantity: float, side: str, validate: bool = True
-    ) -> dict[str, Any]:
+    ) -> OrderExecutionResultDTO:
         """Place a market order with validation"""
         try:
             # Always use typed path (V2 migration complete)
@@ -82,21 +135,24 @@ class TradingServiceManager:
             )
             placed = self.alpaca_manager.place_order(req)
             dom = alpaca_order_to_domain(placed)
-            return {
-                "success": True,
-                "order_id": str(getattr(placed, "id", getattr(placed, "order_id", ""))),
-                "order": {
-                    "raw": placed,
-                    "domain": dom,
-                    "summary": summarize_order(dom),
-                },
-            }
-        except Exception as e:
-            return {"success": False, "error": str(e)}
+
+            # Convert domain order to DTO
+            return domain_order_to_execution_result_dto(dom)
+        except Exception as e:  # noqa: BLE001
+            return OrderExecutionResultDTO(
+                success=False,
+                error=str(e),
+                order_id="",
+                status="rejected",
+                filled_qty=Decimal("0"),
+                avg_fill_price=None,
+                submitted_at=datetime.datetime.now(),
+                completed_at=None,
+            )
 
     def place_limit_order(
         self, symbol: str, quantity: float, side: str, limit_price: float, validate: bool = True
-    ) -> dict[str, Any]:
+    ) -> OrderExecutionResultDTO:
         """Place a limit order with validation"""
         try:
             # Always use typed path (V2 migration complete)
@@ -116,75 +172,94 @@ class TradingServiceManager:
             )
             placed = self.alpaca_manager.place_order(req)
             dom = alpaca_order_to_domain(placed)
-            return {
-                "success": True,
-                "order_id": str(getattr(placed, "id", getattr(placed, "order_id", ""))),
-                "order": {
-                    "raw": placed,
-                    "domain": dom,
-                    "summary": summarize_order(dom),
-                },
-            }
-        except Exception as e:
-            return {"success": False, "error": str(e)}
+
+            # Convert domain order to DTO
+            return domain_order_to_execution_result_dto(dom)
+        except Exception as e:  # noqa: BLE001
+            return OrderExecutionResultDTO(
+                success=False,
+                error=str(e),
+                order_id="",
+                status="rejected",
+                filled_qty=Decimal("0"),
+                avg_fill_price=None,
+                submitted_at=datetime.datetime.now(),
+                completed_at=None,
+            )
 
     def place_stop_loss_order(
         self, symbol: str, quantity: float, stop_price: float, validate: bool = True
-    ) -> dict[str, Any]:
+    ) -> OrderExecutionResultDTO:
         """Place a stop-loss order using liquidation (not directly supported)"""
-        return {
-            "success": False,
-            "error": "Stop-loss orders not directly supported. Use liquidate_position for position closure.",
-        }
+        return OrderExecutionResultDTO(
+            success=False,
+            error="Stop-loss orders not directly supported. Use liquidate_position for position closure.",
+            order_id="",
+            status="rejected",
+            filled_qty=Decimal("0"),
+            avg_fill_price=None,
+            submitted_at=datetime.datetime.now(),
+            completed_at=None,
+        )
 
-    def cancel_order(self, order_id: str) -> dict[str, Any]:
+    def cancel_order(self, order_id: str) -> OrderCancellationDTO:
         """Cancel an order with enhanced feedback"""
         try:
             success = self.orders.cancel_order(order_id)
-            return {"success": success, "order_id": order_id}
+            return OrderCancellationDTO(success=success, order_id=order_id)
         except Exception as e:
-            return {"success": False, "error": str(e)}
+            return OrderCancellationDTO(success=False, error=str(e))
 
-    def get_order_status(self, order_id: str) -> dict[str, Any]:
+    def get_order_status(self, order_id: str) -> OrderStatusDTO:
         """Get order status (not directly available - use AlpacaManager directly)"""
-        return {
-            "success": False,
-            "error": "Order status queries not available in enhanced services. Use AlpacaManager directly.",
-        }
+        return OrderStatusDTO(
+            success=False,
+            error="Order status queries not available in enhanced services. Use AlpacaManager directly.",
+        )
 
-    @translate_trading_errors(default_return=[])
-    def get_open_orders(self, symbol: str | None = None) -> list[dict[str, Any]]:
+    @translate_trading_errors(
+        default_return=OpenOrdersDTO(
+            success=False, orders=[], symbol_filter=None, error="open orders unavailable"
+        )
+    )
+    def get_open_orders(self, symbol: str | None = None) -> OpenOrdersDTO:
         """Get open orders.
 
         Legacy path returns raw-ish dicts derived from Alpaca objects.
         When the type system flag is enabled, returns a richer dict with
         a 'domain' key containing the mapped domain Order and a 'summary'.
         """
-        orders = self.alpaca_manager.get_orders(status="open")
-        # Optional symbol filter for safety (Alpaca filter applied earlier best-effort)
-        if symbol:
-            orders = [
-                o
-                for o in orders
-                if getattr(o, "symbol", None) == symbol
-                or (isinstance(o, dict) and o.get("symbol") == symbol)
-            ]
+        try:
+            orders = self.alpaca_manager.get_orders(status="open")
+            # Optional symbol filter for safety (Alpaca filter applied earlier best-effort)
+            if symbol:
+                orders = [
+                    o
+                    for o in orders
+                    if getattr(o, "symbol", None) == symbol
+                    or (isinstance(o, dict) and o.get("symbol") == symbol)
+                ]
 
-        # Always use enriched typed path (V2 migration complete)
-        enriched: list[dict[str, Any]] = []
-        for o in orders:
-            dom = alpaca_order_to_domain(o)
-            enriched.append(
-                {
-                    "raw": o,
-                    "domain": dom,
-                    "summary": summarize_order(dom),
-                }
-            )
-        return enriched
+            # Always use enriched typed path (V2 migration complete)
+            enriched: list[dict[str, Any]] = []
+            for o in orders:
+                dom = alpaca_order_to_domain(o)
+                enriched.append(
+                    {
+                        "raw": o,
+                        "domain": dom,
+                        "summary": summarize_order(dom),
+                    }
+                )
+
+            return list_to_open_orders_dto(enriched, symbol)
+        except Exception as e:
+            return OpenOrdersDTO(success=False, orders=[], symbol_filter=symbol, error=str(e))
 
     # Position Management Operations
-    def get_position_summary(self, symbol: str | None = None) -> dict[str, Any]:
+    def get_position_summary(
+        self, symbol: str | None = None
+    ) -> PositionSummaryDTO | PortfolioSummaryDTO:
         """Get comprehensive position summary"""
         try:
             if symbol:
@@ -192,7 +267,7 @@ class TradingServiceManager:
                 positions = self.positions.get_positions_with_analysis()
                 position = positions.get(symbol)
                 if position:
-                    return {
+                    position_dict = {
                         "success": True,
                         "symbol": symbol,
                         "position": {
@@ -202,12 +277,15 @@ class TradingServiceManager:
                             "weight_percent": position.weight_percent,
                         },
                     }
+                    return dict_to_position_summary_dto(position_dict)
                 else:
-                    return {"success": False, "error": f"No position found for {symbol}"}
+                    return PositionSummaryDTO(
+                        success=False, symbol=symbol, error=f"No position found for {symbol}"
+                    )
             else:
                 # Get portfolio summary
                 portfolio = self.positions.get_portfolio_summary()
-                return {
+                portfolio_dict = {
                     "success": True,
                     "portfolio": {
                         "total_market_value": portfolio.total_market_value,
@@ -216,37 +294,42 @@ class TradingServiceManager:
                         "largest_position_percent": portfolio.largest_position_percent,
                     },
                 }
+                return dict_to_portfolio_summary_dto(portfolio_dict)
         except Exception as e:
-            return {"success": False, "error": str(e)}
+            if symbol:
+                return PositionSummaryDTO(success=False, symbol=symbol, error=str(e))
+            else:
+                return PortfolioSummaryDTO(success=False, error=str(e))
 
-    def close_position(self, symbol: str, percentage: float = 100.0) -> dict[str, Any]:
+    def close_position(self, symbol: str, percentage: float = 100.0) -> ClosePositionResultDTO:
         """Close a position using liquidation"""
         try:
             # Sonar: replace float equality check with tolerance
             if not floats_equal(percentage, 100.0):
-                return {
-                    "success": False,
-                    "error": "Partial position closure not directly supported. Use liquidate_position for full closure.",
-                }
+                return ClosePositionResultDTO(
+                    success=False,
+                    error="Partial position closure not directly supported. Use liquidate_position for full closure.",
+                )
             order_id = self.orders.liquidate_position(symbol)
-            return {"success": True, "order_id": order_id}
+            return ClosePositionResultDTO(success=True, order_id=order_id)
         except Exception as e:
-            return {"success": False, "error": str(e)}
+            return ClosePositionResultDTO(success=False, error=str(e))
 
-    def get_position_analytics(self, symbol: str) -> dict[str, Any]:
+    def get_position_analytics(self, symbol: str) -> PositionAnalyticsDTO:
         """Get detailed position analytics"""
         try:
             risk_metrics = self.positions.get_position_risk_metrics(symbol)
-            return {"success": True, "risk_metrics": risk_metrics}
+            analytics_dict = {"success": True, "symbol": symbol, "risk_metrics": risk_metrics}
+            return dict_to_position_analytics_dto(analytics_dict)
         except Exception as e:
-            return {"success": False, "error": str(e)}
+            return PositionAnalyticsDTO(success=False, symbol=symbol, error=str(e))
 
-    def calculate_position_metrics(self) -> dict[str, Any]:
+    def calculate_position_metrics(self) -> PositionMetricsDTO:
         """Calculate portfolio-wide position metrics"""
         try:
             diversification_score = self.positions.calculate_diversification_score()
             largest_positions = self.positions.get_largest_positions()
-            return {
+            metrics_dict = {
                 "success": True,
                 "diversification_score": diversification_score,
                 "largest_positions": [
@@ -254,84 +337,126 @@ class TradingServiceManager:
                     for pos in largest_positions
                 ],
             }
+            return dict_to_position_metrics_dto(metrics_dict)
         except Exception as e:
-            return {"success": False, "error": str(e)}
+            return PositionMetricsDTO(success=False, error=str(e))
 
     # Market Data Operations
-    def get_latest_price(self, symbol: str, validate: bool = True) -> dict[str, Any]:
+    def get_latest_price(self, symbol: str, validate: bool = True) -> PriceDTO:
         """Get latest price with validation and caching"""
         try:
             price = self.market_data.get_validated_price(symbol)
             if price is not None:
-                return {"success": True, "symbol": symbol, "price": price}
+                price_dict = {"success": True, "symbol": symbol, "price": price}
+                return dict_to_price_dto(price_dict)
             else:
-                return {"success": False, "error": f"Could not get price for {symbol}"}
+                return PriceDTO(
+                    success=False, symbol=symbol, error=f"Could not get price for {symbol}"
+                )
         except Exception as e:
-            return {"success": False, "error": str(e)}
+            return PriceDTO(success=False, symbol=symbol, error=str(e))
 
     def get_price_history(
         self, symbol: str, timeframe: str = "1Day", limit: int = 100, validate: bool = True
-    ) -> dict[str, Any]:
+    ) -> PriceHistoryDTO:
         """Get price history (not directly available - use AlpacaManager directly)"""
-        return {
-            "success": False,
-            "error": "Price history queries not available in enhanced services. Use AlpacaManager directly.",
-        }
+        return PriceHistoryDTO(
+            success=False,
+            symbol=symbol,
+            timeframe=timeframe,
+            limit=limit,
+            error="Price history queries not available in enhanced services. Use AlpacaManager directly.",
+        )
 
-    def analyze_spread(self, symbol: str) -> dict[str, Any]:
+    def analyze_spread(self, symbol: str) -> SpreadAnalysisDTO:
         """Analyze bid-ask spread for a symbol"""
         try:
             spread_data = self.market_data.get_spread_analysis(symbol)
             if spread_data:
-                return {"success": True, "spread_analysis": spread_data}
+                spread_dict = {"success": True, "symbol": symbol, "spread_analysis": spread_data}
+                return dict_to_spread_analysis_dto(spread_dict)
             else:
-                return {"success": False, "error": f"Could not analyze spread for {symbol}"}
+                return SpreadAnalysisDTO(
+                    success=False, symbol=symbol, error=f"Could not analyze spread for {symbol}"
+                )
         except Exception as e:
-            return {"success": False, "error": str(e)}
+            return SpreadAnalysisDTO(success=False, symbol=symbol, error=str(e))
 
-    def get_market_status(self) -> dict[str, Any]:
+    def get_market_status(self) -> MarketStatusDTO:
         """Get current market status"""
         try:
             is_open = self.market_data.is_market_hours()
-            return {"success": True, "market_open": is_open}
+            market_dict = {"success": True, "market_open": is_open}
+            return dict_to_market_status_dto(market_dict)
         except Exception as e:
-            return {"success": False, "error": str(e)}
+            return MarketStatusDTO(success=False, error=str(e))
 
-    def get_multi_symbol_quotes(self, symbols: list[str]) -> dict[str, Any]:
+    def get_multi_symbol_quotes(self, symbols: list[str]) -> MultiSymbolQuotesDTO:
         """Get quotes for multiple symbols efficiently"""
         try:
             prices = self.market_data.get_batch_prices(symbols)
-            return {"success": True, "quotes": prices}
+            quotes_dict = {"success": True, "quotes": prices}
+            return dict_to_multi_symbol_quotes_dto(quotes_dict)
         except Exception as e:
-            return {"success": False, "error": str(e)}
+            return MultiSymbolQuotesDTO(success=False, error=str(e))
 
     # Account Management Operations
-    def get_account_summary(self) -> dict[str, Any]:
+    def get_account_summary(self) -> AccountSummaryDTO:
         """Get comprehensive account summary with metrics"""
-        return self.account.get_account_summary()
+        account_dict = self.account.get_account_summary()
+        # Convert to typed and then to DTO
+        typed = account_summary_to_typed(account_dict)
+        return account_summary_typed_to_dto(typed)
 
-    def check_buying_power(self, required_amount: float) -> dict[str, Any]:
+    def check_buying_power(self, required_amount: float) -> BuyingPowerDTO:
         """Check available buying power"""
-        return self.account.check_buying_power(required_amount)
+        buying_power_dict = self.account.check_buying_power(required_amount)
+        return dict_to_buying_power_dto(buying_power_dict)
 
-    def get_risk_metrics(self) -> dict[str, Any]:
+    def get_risk_metrics(self) -> RiskMetricsDTO:
         """Calculate comprehensive risk metrics"""
-        return self.account.get_risk_metrics()
+        risk_metrics_dict = self.account.get_risk_metrics()
+        return dict_to_risk_metrics_dto(risk_metrics_dict)
 
     def validate_trade_eligibility(
         self, symbol: str, quantity: int, side: str, estimated_cost: float | None = None
-    ) -> dict[str, Any]:
+    ) -> TradeEligibilityDTO:
         """Validate if a trade can be executed"""
-        return self.account.validate_trade_eligibility(
+        eligibility_dict = self.account.validate_trade_eligibility(
             symbol, quantity, side, estimated_cost or 0.0
         )
+        return dict_to_trade_eligibility_dto(eligibility_dict)
 
-    def get_portfolio_allocation(self) -> dict[str, Any]:
+    def get_portfolio_allocation(self) -> PortfolioAllocationDTO:
         """Get portfolio allocation and diversification metrics"""
-        return self.account.get_portfolio_allocation()
+        allocation_dict = self.account.get_portfolio_allocation()
+        return dict_to_portfolio_allocation_dto(allocation_dict)
 
-    @translate_trading_errors(default_return={"error": "Failed to get account summary"})
-    def get_account_summary_enriched(self) -> dict[str, Any]:
+    @translate_trading_errors(
+        default_return=EnrichedAccountSummaryDTO(
+            raw={},
+            summary=AccountSummaryDTO(
+                account_id="error",
+                equity=Decimal("0"),
+                cash=Decimal("0"),
+                market_value=Decimal("0"),
+                buying_power=Decimal("0"),
+                last_equity=Decimal("0"),
+                day_trade_count=0,
+                pattern_day_trader=False,
+                trading_blocked=False,
+                transfers_blocked=False,
+                account_blocked=False,
+                calculated_metrics=AccountMetricsDTO(
+                    cash_ratio=Decimal("0"),
+                    market_exposure=Decimal("0"),
+                    leverage_ratio=None,
+                    available_buying_power_ratio=Decimal("0"),
+                ),
+            ),
+        )
+    )
+    def get_account_summary_enriched(self) -> EnrichedAccountSummaryDTO:
         """Enriched account summary with typed domain objects.
 
         Returns structured data with both legacy format and typed domain objects.
@@ -340,39 +465,48 @@ class TradingServiceManager:
 
         # Always return typed path (V2 migration complete)
         typed = account_summary_to_typed(legacy)
-        return {"raw": legacy, "summary": account_typed_to_serializable(typed)}
+        enriched_dict = {"raw": legacy, "summary": account_typed_to_serializable(typed)}
+        return dict_to_enriched_account_summary_dto(enriched_dict)
 
     def get_all_positions(self) -> list[Any]:
         """Get all positions from the underlying repository"""
         return self.alpaca_manager.get_all_positions()
 
-    @translate_trading_errors(default_return=[])
-    def get_positions_enriched(self) -> list[dict[str, Any]]:
+    @translate_trading_errors(
+        default_return=EnrichedPositionsDTO(
+            success=False, positions=[], error="positions unavailable"
+        )
+    )
+    def get_positions_enriched(self) -> EnrichedPositionsDTO:
         """Enriched positions list with typed domain objects.
 
         Returns list of {"raw": pos, "summary": PositionSummary-as-dict}
         """
-        raw_positions = self.alpaca_manager.get_all_positions()
+        try:
+            raw_positions = self.alpaca_manager.get_all_positions()
 
-        # Always return enriched typed path (V2 migration complete)
-        enriched: list[dict[str, Any]] = []
-        for p in raw_positions:
-            s = alpaca_position_to_summary(p)
-            enriched.append(
-                {
-                    "raw": p,
-                    "summary": {
-                        "symbol": s.symbol,
-                        "qty": float(s.qty),
-                        "avg_entry_price": float(s.avg_entry_price),
-                        "current_price": float(s.current_price),
-                        "market_value": float(s.market_value),
-                        "unrealized_pl": float(s.unrealized_pl),
-                        "unrealized_plpc": float(s.unrealized_plpc),
-                    },
-                }
-            )
-        return enriched
+            # Always return enriched typed path (V2 migration complete)
+            enriched: list[dict[str, Any]] = []
+            for p in raw_positions:
+                s = alpaca_position_to_summary(p)
+                enriched.append(
+                    {
+                        "raw": p,
+                        "summary": {
+                            "symbol": s.symbol,
+                            "qty": float(s.qty),
+                            "avg_entry_price": float(s.avg_entry_price),
+                            "current_price": float(s.current_price),
+                            "market_value": float(s.market_value),
+                            "unrealized_pl": float(s.unrealized_pl),
+                            "unrealized_plpc": float(s.unrealized_plpc),
+                        },
+                    }
+                )
+
+            return list_to_enriched_positions_dto(enriched)
+        except Exception as e:
+            return EnrichedPositionsDTO(success=False, positions=[], error=str(e))
 
     def get_portfolio_value(self) -> Any:
         """Get total portfolio value with typed domain objects."""
@@ -383,15 +517,15 @@ class TradingServiceManager:
 
     # High-Level Trading Operations
     @translate_trading_errors(
-        default_return={
-            "success": False,
-            "reason": "Order execution failed",
-            "error": "Service error",
-        }
+        default_return=SmartOrderExecutionDTO(
+            success=False,
+            reason="Order execution failed",
+            error="Service error",
+        )
     )
     def execute_smart_order(
         self, symbol: str, quantity: int, side: str, order_type: str = "market", **kwargs: Any
-    ) -> dict[str, Any]:
+    ) -> SmartOrderExecutionDTO:
         """
         Execute a smart order with comprehensive validation and risk management
 
@@ -430,74 +564,102 @@ class TradingServiceManager:
                 )
 
             except Exception as validation_error:
-                return {
-                    "success": False,
-                    "reason": "Order validation failed",
-                    "error": str(validation_error),
-                    "validation_details": {
+                return SmartOrderExecutionDTO(
+                    success=False,
+                    reason="Order validation failed",
+                    error=str(validation_error),
+                    validation_details={
                         "symbol": symbol,
                         "quantity": quantity,
                         "side": side,
                         "order_type": order_type,
                     },
-                }
+                )
 
             # Pre-trade validation (legacy compatibility)
             estimated_cost = None
             if side.lower() == "buy" and order_type == "market":
                 price_data = self.get_latest_price(symbol)
-                if price_data.get("success") and price_data.get("price"):
-                    estimated_cost = price_data["price"] * quantity
+                if price_data.success and price_data.price is not None:
+                    # Keep as Decimal
+                    estimated_cost = price_data.price * Decimal(str(quantity))
 
-            eligibility = self.validate_trade_eligibility(symbol, quantity, side, estimated_cost)
-            if not eligibility["eligible"]:
-                return {
-                    "success": False,
-                    "reason": eligibility["reason"],
-                    "details": eligibility["details"],
-                }
+            eligibility = self.validate_trade_eligibility(
+                symbol,
+                quantity,
+                side,
+                float(estimated_cost) if isinstance(estimated_cost, Decimal) else estimated_cost,
+            )
+            if not eligibility.eligible:
+                return SmartOrderExecutionDTO(
+                    success=False,
+                    reason=eligibility.reason or "Trade not eligible",
+                    error=(
+                        f"Trade not eligible: {eligibility.details}"
+                        if eligibility.details
+                        else eligibility.reason
+                    ),
+                    pre_trade_validation=eligibility,
+                )
 
             # Execute the order based on type
+            order_result: OrderExecutionResultDTO
             if order_type.lower() == "market":
-                result = self.place_market_order(symbol, quantity, side, validate=False)
+                order_result = self.place_market_order(symbol, quantity, side, validate=False)
             elif order_type.lower() == "limit":
                 limit_price = kwargs.get("limit_price")
                 if not limit_price:
-                    return {"success": False, "reason": "limit_price required for limit orders"}
-                result = self.place_limit_order(symbol, quantity, side, limit_price, validate=False)
+                    return SmartOrderExecutionDTO(
+                        success=False, reason="limit_price required for limit orders"
+                    )
+                order_result = self.place_limit_order(
+                    symbol, quantity, side, limit_price, validate=False
+                )
             elif order_type.lower() == "stop_loss":
                 stop_price = kwargs.get("stop_price")
                 if not stop_price:
-                    return {"success": False, "reason": "stop_price required for stop_loss orders"}
-                result = self.place_stop_loss_order(symbol, quantity, stop_price, validate=False)
+                    return SmartOrderExecutionDTO(
+                        success=False, reason="stop_price required for stop_loss orders"
+                    )
+                order_result = self.place_stop_loss_order(
+                    symbol, quantity, stop_price, validate=False
+                )
             else:
-                return {"success": False, "reason": f"Unsupported order type: {order_type}"}
+                return SmartOrderExecutionDTO(
+                    success=False, reason=f"Unsupported order type: {order_type}"
+                )
 
-            # Add post-execution analytics including DTO validation metadata
-            if result.get("success"):
-                result["pre_trade_validation"] = eligibility
-                result["order_validation"] = {
-                    "validated_order_id": validated_order.client_order_id,
-                    "estimated_value": (
-                        float(validated_order.estimated_value)
-                        if validated_order.estimated_value
-                        else None
-                    ),
-                    "risk_score": (
-                        float(validated_order.risk_score) if validated_order.risk_score else None
-                    ),
-                    "is_fractional": validated_order.is_fractional,
-                    "validation_timestamp": validated_order.validation_timestamp.isoformat(),
-                }
-                result["account_impact"] = self.get_account_summary()
+            # Create validation metadata
+            order_validation_metadata = OrderValidationMetadataDTO(
+                validated_order_id=validated_order.client_order_id,
+                estimated_value=validated_order.estimated_value,
+                risk_score=validated_order.risk_score,
+                is_fractional=validated_order.is_fractional,
+                validation_timestamp=validated_order.validation_timestamp,
+            )
 
-            return result
+            # Get account impact
+            account_summary = self.get_account_summary_enriched()
+
+            # Check if order was successful (status is not "rejected")
+            success = order_result.success and order_result.status != "rejected"
+
+            return SmartOrderExecutionDTO(
+                success=success,
+                order_execution=order_result,
+                pre_trade_validation=eligibility,
+                order_validation=order_validation_metadata,
+                account_impact=account_summary.summary if success else None,
+                reason=None if success else order_result.error,
+            )
 
         except Exception as e:
             self.logger.error(f"Unexpected error in execute_smart_order: {e}")
-            return {"success": False, "reason": "Unexpected execution error", "error": str(e)}
+            return SmartOrderExecutionDTO(
+                success=False, reason="Unexpected execution error", error=str(e)
+            )
 
-    def execute_order_dto(self, order_request: OrderRequestDTO) -> dict[str, Any]:
+    def execute_order_dto(self, order_request: OrderRequestDTO) -> SmartOrderExecutionDTO:
         """
         Execute an order using OrderRequestDTO directly.
 
@@ -527,30 +689,144 @@ class TradingServiceManager:
             )
         except Exception as e:
             self.logger.error(f"Unexpected error in execute_order_dto: {e}")
-            return {"success": False, "reason": "DTO order execution failed", "error": str(e)}
+            return SmartOrderExecutionDTO(
+                success=False, reason="DTO order execution failed", error=str(e)
+            )
 
     @translate_trading_errors(
-        default_return={
-            "error": "Failed to generate dashboard",
-            "timestamp": datetime.datetime.now().isoformat(),
-        }
+        default_return=TradingDashboardDTO(
+            success=False,
+            account=AccountSummaryDTO(
+                account_id="error",
+                equity=Decimal("0"),
+                cash=Decimal("0"),
+                market_value=Decimal("0"),
+                buying_power=Decimal("0"),
+                last_equity=Decimal("0"),
+                day_trade_count=0,
+                pattern_day_trader=False,
+                trading_blocked=False,
+                transfers_blocked=False,
+                account_blocked=False,
+                calculated_metrics=AccountMetricsDTO(
+                    cash_ratio=Decimal("0"),
+                    market_exposure=Decimal("0"),
+                    leverage_ratio=None,
+                    available_buying_power_ratio=Decimal("0"),
+                ),
+            ),
+            risk_metrics={},
+            portfolio_allocation={},
+            position_summary={},
+            open_orders=[],
+            market_status={},
+            timestamp=datetime.datetime.now(),
+            error="Failed to generate dashboard",
+        )
     )
-    def get_trading_dashboard(self) -> dict[str, Any]:
+    def get_trading_dashboard(self) -> TradingDashboardDTO:
         """
         Get a comprehensive trading dashboard with all key metrics
 
         Returns:
             Complete trading dashboard data
         """
-        return {
-            "account": self.get_account_summary(),
-            "risk_metrics": self.get_risk_metrics(),
-            "portfolio_allocation": self.get_portfolio_allocation(),
-            "position_summary": self.get_position_summary(),
-            "open_orders": self.get_open_orders(),
-            "market_status": self.get_market_status(),
-            "timestamp": __import__("datetime").datetime.now().isoformat(),
-        }
+        try:
+            # Get all required data (some methods now return DTOs)
+            account_summary = self.get_account_summary_enriched()
+            risk_metrics = self.get_risk_metrics()
+            portfolio_allocation = self.get_portfolio_allocation()
+            pos_summary = self.get_position_summary()
+            open_orders = self.get_open_orders()
+            market_status = self.get_market_status()
+
+            # Serialize position summary generically
+            if isinstance(pos_summary, PositionSummaryDTO):
+                position_summary_serialized: dict[str, Any] = {
+                    "success": pos_summary.success,
+                    "symbol": pos_summary.symbol,
+                    "error": pos_summary.error,
+                    "position": (
+                        {
+                            "symbol": pos_summary.position.symbol,
+                            "quantity": float(pos_summary.position.quantity),
+                            "avg_entry_price": float(pos_summary.position.average_entry_price),
+                            "current_price": float(pos_summary.position.current_price),
+                            "market_value": float(pos_summary.position.market_value),
+                            "unrealized_pnl": float(pos_summary.position.unrealized_pnl),
+                            "unrealized_pnl_percent": float(
+                                pos_summary.position.unrealized_pnl_percent
+                            ),
+                        }
+                        if pos_summary.position
+                        else None
+                    ),
+                }
+            else:  # PortfolioSummaryDTO
+                position_summary_serialized = {
+                    "success": pos_summary.success,
+                    "error": pos_summary.error,
+                    "portfolio": (
+                        {
+                            "total_market_value": float(pos_summary.portfolio.total_market_value),
+                            "cash_balance": float(pos_summary.portfolio.cash_balance),
+                            "total_positions": pos_summary.portfolio.total_positions,
+                            "largest_position_percent": float(
+                                pos_summary.portfolio.largest_position_percent
+                            ),
+                        }
+                        if pos_summary.portfolio
+                        else None
+                    ),
+                }
+
+            open_orders_list = (
+                [o.summary for o in open_orders.orders] if open_orders.success else []
+            )
+
+            return TradingDashboardDTO(
+                success=True,
+                account=account_summary.summary,
+                risk_metrics=risk_metrics.risk_metrics or {},
+                portfolio_allocation=portfolio_allocation.allocation_data or {},
+                position_summary=position_summary_serialized,
+                open_orders=open_orders_list,
+                market_status={
+                    "market_open": market_status.market_open,
+                    "success": market_status.success,
+                },
+                timestamp=datetime.datetime.now(),
+            )
+        except Exception as e:
+            return TradingDashboardDTO(
+                success=False,
+                account=AccountSummaryDTO(
+                    account_id="error",
+                    equity=Decimal("0"),
+                    cash=Decimal("0"),
+                    market_value=Decimal("0"),
+                    buying_power=Decimal("0"),
+                    last_equity=Decimal("0"),
+                    day_trade_count=0,
+                    pattern_day_trader=False,
+                    trading_blocked=False,
+                    transfers_blocked=False,
+                    account_blocked=False,
+                    calculated_metrics=AccountMetricsDTO(
+                        cash_ratio=Decimal("0"),
+                        market_exposure=Decimal("0"),
+                        leverage_ratio=None,
+                        available_buying_power_ratio=Decimal("0"),
+                    ),
+                ),
+                risk_metrics={},
+                portfolio_allocation={},
+                position_summary={},
+                open_orders=[],
+                market_status={},
+                timestamp=datetime.datetime.now(),
+                error=str(e),
+            )
 
     def close(self) -> None:
         """Clean up resources"""

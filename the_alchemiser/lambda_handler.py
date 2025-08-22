@@ -14,7 +14,7 @@ import logging
 from typing import Any
 
 from the_alchemiser.infrastructure.logging.logging_utils import generate_request_id, set_request_id
-from the_alchemiser.interfaces.schemas.execution import LambdaEvent
+from the_alchemiser.interfaces.schemas.execution import LambdaEventDTO
 from the_alchemiser.main import main
 from the_alchemiser.services.errors.exceptions import (
     DataProviderError,
@@ -27,7 +27,7 @@ from the_alchemiser.services.errors.exceptions import (
 logger = logging.getLogger(__name__)
 
 
-def parse_event_mode(event: LambdaEvent) -> list[str]:
+def parse_event_mode(event: LambdaEventDTO | dict[str, Any]) -> list[str]:
     """Parse the Lambda event to determine which trading mode to execute.
 
     Args:
@@ -53,15 +53,25 @@ def parse_event_mode(event: LambdaEvent) -> list[str]:
     # Default to paper trading with market hours ignored for safety
     default_args = ["trade", "--ignore-market-hours"]
 
-    # Handle empty, None, or events without mode specified
-    if not event or not event.get("mode"):
+    # Convert dict to DTO if needed
+    if isinstance(event, dict):
+        if not event:
+            logger.info(
+                "Empty event provided, using default paper trading mode with market hours ignored"
+            )
+            return default_args
+        # Convert dict to DTO for consistent handling
+        event = LambdaEventDTO(**event)
+    
+    # Handle None or DTO without mode specified
+    if not event or not event.mode:
         logger.info(
             "No event or mode provided, using default paper trading mode with market hours ignored"
         )
         return default_args
 
     # Extract mode (bot or trade)
-    mode = event.get("mode", "trade")
+    mode = event.mode or "trade"
     if mode not in ["bot", "trade"]:
         logger.warning(f"Invalid mode '{mode}', defaulting to 'trade'")
         mode = "trade"
@@ -72,7 +82,7 @@ def parse_event_mode(event: LambdaEvent) -> list[str]:
     # Only add trading-specific flags for trade mode
     if mode == "trade":
         # Extract trading mode (paper or live)
-        trading_mode = event.get("trading_mode", "live")  # Default to live when event is provided
+        trading_mode = event.trading_mode or "live"  # Default to live when event is provided
         if trading_mode not in ["paper", "live"]:
             logger.warning(f"Invalid trading_mode '{trading_mode}', defaulting to 'live'")
             trading_mode = "live"
@@ -82,14 +92,14 @@ def parse_event_mode(event: LambdaEvent) -> list[str]:
             args.append("--live")
 
         # Add market hours override if specified
-        if event.get("ignore_market_hours", False):
+        if event.ignore_market_hours:
             args.append("--ignore-market-hours")
 
     logger.info(f"Parsed event to command: {' '.join(args)}")
     return args
 
 
-def lambda_handler(event: LambdaEvent | None = None, context: Any = None) -> dict[str, Any]:
+def lambda_handler(event: LambdaEventDTO | None = None, context: Any = None) -> dict[str, Any]:
     """AWS Lambda function handler for The Alchemiser trading system.
 
     This function serves as the entry point when the trading system is deployed

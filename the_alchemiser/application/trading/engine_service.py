@@ -41,6 +41,7 @@ from the_alchemiser.domain.types import (
 )
 from the_alchemiser.infrastructure.config import Settings
 from the_alchemiser.interfaces.schemas.common import MultiStrategyExecutionResultDTO
+from the_alchemiser.interfaces.schemas.execution import ExecutionResultDTO
 from the_alchemiser.services.account.account_service import (
     AccountService as TypedAccountService,
 )
@@ -1178,7 +1179,7 @@ class TradingEngine:
 
     def execute_rebalancing(
         self, target_allocations: dict[str, float], mode: str = "market"
-    ) -> dict[str, Any]:
+    ) -> ExecutionResultDTO:
         """
         Execute portfolio rebalancing with the specified mode.
 
@@ -1187,15 +1188,38 @@ class TradingEngine:
             mode: Rebalancing mode ('market', 'limit', 'paper') - currently unused but kept for compatibility
 
         Returns:
-            Dictionary with trading summary and order details for compatibility
+            ExecutionResultDTO with comprehensive execution details
         """
+        # Get account info before execution
+        account_info_before = self.get_account_info()
+
+        # Execute rebalancing
         orders = self.rebalance_portfolio(target_allocations)
 
-        # Create a summary structure for test compatibility
-        return {
-            "trading_summary": {"total_orders": len(orders), "orders_executed": orders},
-            "orders": orders,
+        # Get account info after execution
+        account_info_after = self.get_account_info()
+
+        # Build execution summary
+        execution_summary = {
+            "total_orders": len(orders),
+            "orders_executed": orders,
+            "success_rate": 1.0 if orders else 0.0,
+            "mode": mode,
         }
+
+        # Build final portfolio state
+        current_positions = self.get_positions()
+        final_portfolio_state = self._build_portfolio_state_data(
+            target_allocations, account_info_after, current_positions
+        )
+
+        return ExecutionResultDTO(
+            orders_executed=orders,
+            account_info_before=account_info_before,
+            account_info_after=account_info_after,
+            execution_summary=execution_summary,
+            final_portfolio_state=final_portfolio_state,
+        )
 
     # --- Multi-Strategy Execution ---
     def execute_multi_strategy(self) -> MultiStrategyExecutionResultDTO:
@@ -1321,9 +1345,9 @@ class TradingEngine:
     def _build_portfolio_state_data(
         self,
         target_portfolio: dict[str, float],
-        account_info: dict[str, Any],  # TODO: Change to AccountInfo once structure matches
-        current_positions: dict[str, Any],  # TODO: Change to PositionsDict once structure matches
-    ) -> dict[str, Any]:  # TODO: Change to ExecutionResult once structure matches
+        account_info: AccountInfo,
+        current_positions: PositionsDict,
+    ) -> dict[str, Any]:
         """Build portfolio state data for reporting purposes."""
         return build_portfolio_state_data(target_portfolio, account_info, current_positions)
 
