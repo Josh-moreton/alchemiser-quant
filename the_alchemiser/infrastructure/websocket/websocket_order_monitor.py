@@ -14,6 +14,8 @@ from typing import Any
 
 from rich.console import Console
 
+from the_alchemiser.interfaces.schemas.execution import WebSocketResult
+
 
 class OrderCompletionMonitor:
     """
@@ -39,10 +41,14 @@ class OrderCompletionMonitor:
         self,
         order_ids: list[str],
         max_wait_seconds: int = 60,
-    ) -> dict[str, str]:
+    ) -> WebSocketResult:
         """Wait for orders to reach a final state using WebSocket streaming only."""
         if not order_ids:
-            return {}
+            return {
+                "status": "completed",
+                "message": "No orders to monitor",
+                "orders_completed": []
+            }
 
         # Check if WebSocket is enabled in config
         try:
@@ -77,7 +83,7 @@ class OrderCompletionMonitor:
 
     def _wait_for_order_completion_stream(
         self, order_ids: list[str], max_wait_seconds: int
-    ) -> dict[str, str]:
+    ) -> WebSocketResult:
         """Use Alpaca's TradingStream to monitor order status."""
         logging.info(f"⏳ Waiting for {len(order_ids)} orders to complete via websocket...")
         logging.debug(f"🔍 Order IDs to monitor: {order_ids}")
@@ -111,7 +117,11 @@ class OrderCompletionMonitor:
             logging.info(
                 f"🎯 All {len(order_ids)} orders already completed, no websocket monitoring needed"
             )
-            return completed
+            return {
+                "status": "completed",
+                "message": f"All {len(order_ids)} orders already completed",
+                "orders_completed": order_ids
+            }
 
         # Set up WebSocket monitoring for remaining orders
         final_states = {"filled", "canceled", "rejected", "expired"}
@@ -157,10 +167,10 @@ class OrderCompletionMonitor:
         if self._websocket_stream is not None and self._websocket_thread is not None:
             return self._use_existing_websocket(
                 on_update, remaining, completed, max_wait_seconds
-            )  # TODO: Phase 7 - Return type updated to WebSocketResult
+            )
 
         # Create new WebSocket connection
-        return self._create_new_websocket(  # TODO: Phase 7 - Return type updated to WebSocketResult
+        return self._create_new_websocket(
             on_update, remaining, completed, max_wait_seconds, order_ids
         )
 
@@ -170,7 +180,7 @@ class OrderCompletionMonitor:
         remaining: set[str],
         completed: dict[str, str],
         max_wait_seconds: int,
-    ) -> dict[str, str]:  # TODO: Phase 7 - Migrate to return WebSocketResult
+    ) -> WebSocketResult:
         """Use pre-connected WebSocket stream."""
         logging.info("🎯 Using pre-connected WebSocket stream")
 
@@ -202,11 +212,21 @@ class OrderCompletionMonitor:
                     except Exception as e:
                         logging.error(f"Could not get final status for {oid}: {e}")
                         completed[oid] = "unknown"
+
+                logging.info(f"🏁 Order settlement complete: {len(completed)} orders processed")
+                return {
+                    "status": "timeout",
+                    "message": f"Order monitoring timed out after {max_wait_seconds} seconds",
+                    "orders_completed": list(completed.keys())
+                }
             else:
                 logging.info("✅ All orders completed before timeout")
-
-            logging.info(f"🏁 Order settlement complete: {len(completed)} orders processed")
-            return completed
+                logging.info(f"🏁 Order settlement complete: {len(completed)} orders processed")
+                return {
+                    "status": "completed",
+                    "message": f"All {len(completed)} orders completed successfully",
+                    "orders_completed": list(completed.keys())
+                }
 
         except Exception as e:
             logging.error(f"❌ Error using pre-connected WebSocket: {e}")
@@ -220,7 +240,7 @@ class OrderCompletionMonitor:
         completed: dict[str, str],
         max_wait_seconds: int,
         order_ids: list[str],
-    ) -> dict[str, str]:  # TODO: Phase 7 - Migrate to return WebSocketResult
+    ) -> WebSocketResult:
         """Create new WebSocket connection."""
         api_key = self.api_key or getattr(self.trading_client, "_api_key", None)
         secret_key = self.secret_key or getattr(self.trading_client, "_secret_key", None)
@@ -262,11 +282,20 @@ class OrderCompletionMonitor:
             thread.join(timeout=2)
             for oid in remaining:
                 completed[oid] = "timeout"
+            logging.info(f"🏁 Order settlement complete: {len(completed)} orders processed")
+            return {
+                "status": "timeout",
+                "message": f"Order monitoring timed out after {max_wait_seconds} seconds",
+                "orders_completed": list(completed.keys())
+            }
         else:
             logging.info("✅ All orders completed before timeout")
-
-        logging.info(f"🏁 Order settlement complete: {len(completed)} orders processed")
-        return completed
+            logging.info(f"🏁 Order settlement complete: {len(completed)} orders processed")
+            return {
+                "status": "completed",
+                "message": f"All {len(completed)} orders completed successfully",
+                "orders_completed": list(completed.keys())
+            }
 
     def prepare_websocket_connection(self) -> bool:
         """Pre-initialize WebSocket connection for faster order monitoring."""

@@ -1147,16 +1147,24 @@ class TradingEngine:
             monitor = OrderCompletionMonitor(self.trading_client, api_key, secret_key)
 
             # Wait for all sell orders to complete (30 second timeout)
-            completion_status = monitor.wait_for_order_completion(
+            completion_result = monitor.wait_for_order_completion(
                 sell_order_ids, max_wait_seconds=30
             )
 
-            completed_orders = [
-                oid for oid, status in completion_status.items() if status == "filled"
-            ]
-            logging.info(
-                f"✅ {len(completed_orders)} sell orders completed, buying power should be refreshed"
-            )
+            # Check if orders completed successfully
+            if completion_result["status"] == "completed":
+                completed_order_ids = completion_result["orders_completed"]
+                logging.info(
+                    f"✅ {len(completed_order_ids)} sell orders completed, buying power should be refreshed"
+                )
+            elif completion_result["status"] == "timeout":
+                completed_order_ids = completion_result["orders_completed"]
+                logging.warning(
+                    f"⏰ WebSocket monitoring timed out. {len(completed_order_ids)} orders completed out of {len(sell_order_ids)}"
+                )
+            else:  # error status
+                logging.error(f"❌ WebSocket monitoring error: {completion_result['message']}")
+                completed_order_ids = completion_result["orders_completed"]
 
             # Brief additional delay to ensure buying power propagation
             import time
@@ -1184,13 +1192,13 @@ class TradingEngine:
         """
         # Get account info before execution
         account_info_before = self.get_account_info()
-        
+
         # Execute rebalancing
         orders = self.rebalance_portfolio(target_allocations)
-        
+
         # Get account info after execution
         account_info_after = self.get_account_info()
-        
+
         # Build execution summary
         execution_summary = {
             "total_orders": len(orders),
@@ -1198,7 +1206,7 @@ class TradingEngine:
             "success_rate": 1.0 if orders else 0.0,
             "mode": mode,
         }
-        
+
         # Build final portfolio state
         current_positions = self.get_positions()
         final_portfolio_state = self._build_portfolio_state_data(
