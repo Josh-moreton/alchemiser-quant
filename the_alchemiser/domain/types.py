@@ -7,7 +7,7 @@ interfaces/schemas modules as part of the Pydantic migration.
 
 from typing import Any, Literal, Protocol, TypedDict
 
-from the_alchemiser.application.mapping.orders import OrderStatusLiteral
+from the_alchemiser.domain.trading.value_objects.order_status_literal import OrderStatusLiteral
 
 
 # Account Information Types

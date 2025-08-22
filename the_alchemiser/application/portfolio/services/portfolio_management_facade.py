@@ -4,10 +4,7 @@ import logging
 from decimal import Decimal
 from typing import Any
 
-from the_alchemiser.application.mapping.orders import (
-    OrderStatusLiteral,
-    _normalize_order_status,
-)
+from the_alchemiser.application.mapping.orders import normalize_order_status
 from the_alchemiser.application.portfolio.services.portfolio_analysis_service import (
     PortfolioAnalysisService,
 )
@@ -303,7 +300,7 @@ class PortfolioManagementFacade:
                 qty_float = float(qty_value) if qty_value is not None else 0.0
 
                 # Normalize status to allowed literal values for DTO
-                status_norm = _normalize_order_status(str(order_data.get("status", "new")))
+                status_norm = normalize_order_status(str(order_data.get("status", "new")))
 
                 order_details: OrderDetails = {
                     "id": order_data.get("order_id", "unknown"),
@@ -387,7 +384,7 @@ class PortfolioManagementFacade:
             )
             qty_float = float(qty_value) if qty_value is not None else 0.0
             # Normalize status to allowed literal values
-            status_norm = _normalize_order_status(str(order_data.get("status", "new")))
+            status_norm = normalize_order_status(str(order_data.get("status", "new")))
             order_details: OrderDetails = {
                 "id": order_data.get("order_id", "unknown"),
                 "symbol": symbol,

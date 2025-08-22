@@ -12,7 +12,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any, TypedDict
 
-from the_alchemiser.application.mapping.orders import _normalize_order_status
+from the_alchemiser.application.mapping.orders import normalize_order_status
 from the_alchemiser.domain.shared_kernel.value_objects.money import Money
 from the_alchemiser.domain.trading.entities.order import Order
 from the_alchemiser.domain.trading.value_objects.order_id import OrderId
@@ -44,16 +44,16 @@ def _coerce_decimal(value: Any) -> Decimal | None:
 
 def _map_status(raw_status: Any) -> OrderStatus:
     """Map Alpaca status strings/enums to domain OrderStatus.
-    
+
     Uses the centralized order status normalizer and then converts to domain enum.
     """
     if raw_status is None:
         return OrderStatus.NEW
-    
+
     # Use the centralized normalizer to get consistent mapping
     raw_str = str(raw_status).lower().replace("orderstatus.", "")
-    normalized = _normalize_order_status(raw_str)
-    
+    normalized = normalize_order_status(raw_str)
+
     # Convert from literal to domain enum
     literal_to_domain = {
         "new": OrderStatus.NEW,
@@ -63,7 +63,7 @@ def _map_status(raw_status: Any) -> OrderStatus:
         "expired": OrderStatus.REJECTED,  # Map expired to REJECTED as domain only has these statuses
         "rejected": OrderStatus.REJECTED,
     }
-    
+
     return literal_to_domain.get(normalized, OrderStatus.NEW)
 
 
