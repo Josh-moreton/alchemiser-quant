@@ -308,9 +308,30 @@ def status(
     console.print(f"[bold yellow]Fetching {mode_display} account status...[/bold yellow]")
 
     try:
+        # Initialize DI container and use modern TradingEngine
+        import the_alchemiser.main as app_main
+        from the_alchemiser.main import TradingSystem
 
-        # Create trader and data provider for the specified mode
-        trader = TradingEngine(paper_trading=paper_trading)
+        # Ensure DI system is initialized
+        TradingSystem()
+        container = app_main._di_container
+        if container is None:
+            raise RuntimeError("DI container not available - ensure system is properly initialized")
+
+        # Override the paper_trading provider so downstream providers pick the right keys/endpoints
+        try:
+            container.config.paper_trading.override(paper_trading)
+        except Exception:
+            # Non-fatal; fallback will still work
+            pass
+
+        # Create trader using DI
+        trader = TradingEngine.create_with_di(
+            container=container,
+            strategy_allocations={},  # Not needed for status display
+            ignore_market_hours=True,  # Status should work anytime
+        )
+        trader.paper_trading = paper_trading
 
         account_info = trader.get_account_info()
 
@@ -341,7 +362,7 @@ def status(
                     if not api_key or not secret_key:
                         raise RuntimeError("Alpaca credentials not available")
                     tsm = TradingServiceManager(api_key, secret_key, paper=not live)
-                
+
                 enriched_positions = tsm.get_positions_enriched()
                 if enriched_positions:
                     table = Table(
