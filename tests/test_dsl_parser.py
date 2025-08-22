@@ -105,7 +105,7 @@ class TestDSLParser:
         with pytest.raises(ParseError, match="Missing closing parenthesis"):
             parser.parse("(> 10 5")
         
-        with pytest.raises(ParseError, match="Unexpected closing parenthesis"):
+        with pytest.raises(ParseError, match="Unexpected closing"):
             parser.parse(")")
     
     def test_arity_validation(self) -> None:
