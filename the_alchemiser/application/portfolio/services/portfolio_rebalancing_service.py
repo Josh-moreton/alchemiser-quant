@@ -11,6 +11,16 @@ from the_alchemiser.domain.portfolio.strategy_attribution.attribution_engine imp
     StrategyAttributionEngine,
 )
 from the_alchemiser.services.trading.trading_service_manager import TradingServiceManager
+from the_alchemiser.interfaces.schemas.portfolio_rebalancing import (
+    RebalancePlanCollectionDTO,
+    RebalancingSummaryDTO,
+    RebalancingImpactDTO,
+)
+from the_alchemiser.application.mapping.portfolio_rebalancing_mapping import (
+    rebalance_plans_dict_to_collection_dto,
+    safe_rebalancing_summary_dict_to_dto,
+    safe_rebalancing_impact_dict_to_dto,
+)
 
 
 class PortfolioRebalancingService:
@@ -44,22 +54,16 @@ class PortfolioRebalancingService:
         self.position_analyzer = position_analyzer or PositionAnalyzer()
         self.attribution_engine = attribution_engine or StrategyAttributionEngine()
 
-    def calculate_rebalancing_plan(
+    def _calculate_rebalancing_plan_domain(
         self,
         target_weights: dict[str, Decimal],
         current_positions: dict[str, Decimal] | None = None,
         portfolio_value: Decimal | None = None,
     ) -> dict[str, RebalancePlan]:
         """
-        Calculate a complete rebalancing plan for the portfolio.
-
-        Args:
-            target_weights: Target allocation weights by symbol
-            current_positions: Current position values (fetched if None)
-            portfolio_value: Total portfolio value (calculated if None)
-
-        Returns:
-            Dictionary mapping symbols to their rebalance plans
+        Internal method to calculate rebalancing plan as domain objects.
+        
+        Used by methods that need to work with domain objects internally.
         """
         # Fetch current data if not provided
         if current_positions is None:
@@ -72,6 +76,41 @@ class PortfolioRebalancingService:
         return self.rebalance_calculator.calculate_rebalance_plan(
             target_weights, current_positions, portfolio_value
         )
+
+    def calculate_rebalancing_plan(
+        self,
+        target_weights: dict[str, Decimal],
+        current_positions: dict[str, Decimal] | None = None,
+        portfolio_value: Decimal | None = None,
+    ) -> RebalancePlanCollectionDTO:
+        """
+        Calculate a complete rebalancing plan for the portfolio.
+
+        Args:
+            target_weights: Target allocation weights by symbol
+            current_positions: Current position values (fetched if None)
+            portfolio_value: Total portfolio value (calculated if None)
+
+        Returns:
+            RebalancePlanCollectionDTO with rebalancing plans for all symbols
+        """
+        try:
+            # Use internal domain method
+            domain_plans = self._calculate_rebalancing_plan_domain(
+                target_weights, current_positions, portfolio_value
+            )
+            
+            # Convert to DTO
+            return rebalance_plans_dict_to_collection_dto(domain_plans)
+        except Exception as e:
+            return RebalancePlanCollectionDTO(
+                success=False,
+                plans={},
+                total_symbols=0,
+                symbols_needing_rebalance=0,
+                total_trade_value=Decimal("0"),
+                error=f"Failed to calculate rebalancing plan: {e}",
+            )
 
     def analyze_position_deltas(
         self,
@@ -105,7 +144,7 @@ class PortfolioRebalancingService:
         # Analyze deltas using domain logic
         return self.position_analyzer.analyze_all_positions(current_positions, target_positions)
 
-    def get_rebalancing_summary(self, target_weights: dict[str, Decimal]) -> dict[str, Any]:
+    def get_rebalancing_summary(self, target_weights: dict[str, Decimal]) -> RebalancingSummaryDTO:
         """
         Get a comprehensive summary of rebalancing requirements.
 
@@ -113,55 +152,71 @@ class PortfolioRebalancingService:
             target_weights: Target allocation weights by symbol
 
         Returns:
-            Summary containing plans, deltas, and analysis
+            RebalancingSummaryDTO with summary analysis
         """
-        current_positions = self._get_current_position_values()
-        portfolio_value = self._get_portfolio_value()
+        try:
+            current_positions = self._get_current_position_values()
+            portfolio_value = self._get_portfolio_value()
 
-        # Calculate rebalancing plan
-        rebalance_plan = self.calculate_rebalancing_plan(
-            target_weights, current_positions, portfolio_value
-        )
+            # Calculate rebalancing plan
+            rebalance_plan_result = self.calculate_rebalancing_plan(
+                target_weights, current_positions, portfolio_value
+            )
+            
+            if not rebalance_plan_result.success:
+                return RebalancingSummaryDTO(
+                    success=False,
+                    total_portfolio_value=portfolio_value,
+                    total_symbols=0,
+                    symbols_needing_rebalance=0,
+                    total_trade_value=Decimal("0"),
+                    largest_trade_symbol=None,
+                    largest_trade_value=Decimal("0"),
+                    rebalance_threshold_pct=self.rebalance_calculator.min_trade_threshold,
+                    execution_feasible=False,
+                    estimated_costs=Decimal("0"),
+                    error=rebalance_plan_result.error,
+                )
 
-        # Calculate position deltas
-        position_deltas = self.analyze_position_deltas(
-            target_weights, current_positions, portfolio_value
-        )
+            # Extract rebalancing metrics from the plan collection
+            plans = rebalance_plan_result.plans
+            largest_trade_value = Decimal("0")
+            largest_trade_symbol = None
+            
+            for symbol, plan in plans.items():
+                if plan.trade_amount_abs > largest_trade_value:
+                    largest_trade_value = plan.trade_amount_abs
+                    largest_trade_symbol = symbol
 
-        # Get symbols needing rebalancing
-        symbols_needing_rebalance = self.rebalance_calculator.get_symbols_needing_rebalance(
-            rebalance_plan
-        )
-        sell_plans = self.rebalance_calculator.get_sell_plans(rebalance_plan)
-        buy_plans = self.rebalance_calculator.get_buy_plans(rebalance_plan)
+            # Estimate basic costs (simplified for this phase)
+            estimated_costs = rebalance_plan_result.total_trade_value * Decimal("0.005")  # 0.5% cost estimate
 
-        # Calculate totals
-        total_trade_value = self.rebalance_calculator.calculate_total_trade_value(rebalance_plan)
-        total_sells, total_buys = self.position_analyzer.calculate_total_adjustments_needed(
-            position_deltas
-        )
-        portfolio_turnover = self.position_analyzer.calculate_portfolio_turnover(
-            position_deltas, portfolio_value
-        )
-
-        # Get strategy attribution
-        strategy_exposures = self.attribution_engine.get_strategy_exposures(
-            current_positions, portfolio_value
-        )
-
-        return {
-            "rebalance_plan": rebalance_plan,
-            "position_deltas": position_deltas,
-            "symbols_needing_rebalance": symbols_needing_rebalance,
-            "sell_plans": sell_plans,
-            "buy_plans": buy_plans,
-            "total_trade_value": total_trade_value,
-            "total_sells": total_sells,
-            "total_buys": total_buys,
-            "portfolio_turnover": portfolio_turnover,
-            "strategy_exposures": strategy_exposures,
-            "portfolio_value": portfolio_value,
-        }
+            return RebalancingSummaryDTO(
+                success=True,
+                total_portfolio_value=portfolio_value,
+                total_symbols=rebalance_plan_result.total_symbols,
+                symbols_needing_rebalance=rebalance_plan_result.symbols_needing_rebalance,
+                total_trade_value=rebalance_plan_result.total_trade_value,
+                largest_trade_symbol=largest_trade_symbol,
+                largest_trade_value=largest_trade_value,
+                rebalance_threshold_pct=self.rebalance_calculator.min_trade_threshold,
+                execution_feasible=rebalance_plan_result.symbols_needing_rebalance > 0,
+                estimated_costs=estimated_costs,
+            )
+        except Exception as e:
+            return RebalancingSummaryDTO(
+                success=False,
+                total_portfolio_value=Decimal("0"),
+                total_symbols=0,
+                symbols_needing_rebalance=0,
+                total_trade_value=Decimal("0"),
+                largest_trade_symbol=None,
+                largest_trade_value=Decimal("0"),
+                rebalance_threshold_pct=Decimal("0"),
+                execution_feasible=False,
+                estimated_costs=Decimal("0"),
+                error=f"Failed to generate rebalancing summary: {e}",
+            )
 
     def get_symbols_requiring_sells(self, target_weights: dict[str, Decimal]) -> list[str]:
         """
@@ -173,7 +228,7 @@ class PortfolioRebalancingService:
         Returns:
             List of symbols requiring sell orders
         """
-        rebalance_plan = self.calculate_rebalancing_plan(target_weights)
+        rebalance_plan = self._calculate_rebalancing_plan_domain(target_weights)
         sell_plans = self.rebalance_calculator.get_sell_plans(rebalance_plan)
         return list(sell_plans.keys())
 
@@ -187,11 +242,11 @@ class PortfolioRebalancingService:
         Returns:
             List of symbols requiring buy orders
         """
-        rebalance_plan = self.calculate_rebalancing_plan(target_weights)
+        rebalance_plan = self._calculate_rebalancing_plan_domain(target_weights)
         buy_plans = self.rebalance_calculator.get_buy_plans(rebalance_plan)
         return list(buy_plans.keys())
 
-    def estimate_rebalancing_impact(self, target_weights: dict[str, Decimal]) -> dict[str, Any]:
+    def estimate_rebalancing_impact(self, target_weights: dict[str, Decimal]) -> RebalancingImpactDTO:
         """
         Estimate the impact of rebalancing on the portfolio.
 
@@ -199,45 +254,88 @@ class PortfolioRebalancingService:
             target_weights: Target allocation weights by symbol
 
         Returns:
-            Impact analysis including turnover, trade counts, and strategy shifts
+            RebalancingImpactDTO with impact analysis
         """
-        current_positions = self._get_current_position_values()
-        portfolio_value = self._get_portfolio_value()
+        try:
+            current_positions = self._get_current_position_values()
+            portfolio_value = self._get_portfolio_value()
 
-        # Calculate position deltas
-        position_deltas = self.analyze_position_deltas(
-            target_weights, current_positions, portfolio_value
-        )
+            # Calculate position deltas
+            position_deltas = self.analyze_position_deltas(
+                target_weights, current_positions, portfolio_value
+            )
 
-        # Calculate current and target strategy exposures
-        current_strategy_exposures = self.attribution_engine.get_strategy_exposures(
-            current_positions, portfolio_value
-        )
+            # Calculate turnover and trade metrics
+            portfolio_turnover = self.position_analyzer.calculate_portfolio_turnover(
+                position_deltas, portfolio_value
+            )
+            positions_to_sell = self.position_analyzer.get_positions_to_sell(position_deltas)
+            positions_to_buy = self.position_analyzer.get_positions_to_buy(position_deltas)
 
-        target_positions = {
-            symbol: portfolio_value * weight for symbol, weight in target_weights.items()
-        }
-        target_strategy_exposures = self.attribution_engine.get_strategy_exposures(
-            target_positions, portfolio_value
-        )
+            # Calculate estimated costs and impact (simplified for this phase)
+            total_trade_value = sum(abs(delta.quantity) for delta in position_deltas.values())
+            estimated_transaction_costs = total_trade_value * Decimal("0.002")  # 0.2% transaction cost
+            estimated_slippage = total_trade_value * Decimal("0.001")  # 0.1% slippage
+            total_estimated_costs = estimated_transaction_costs + estimated_slippage
 
-        # Calculate turnover and trade metrics
-        portfolio_turnover = self.position_analyzer.calculate_portfolio_turnover(
-            position_deltas, portfolio_value
-        )
-        positions_to_sell = self.position_analyzer.get_positions_to_sell(position_deltas)
-        positions_to_buy = self.position_analyzer.get_positions_to_buy(position_deltas)
+            # Risk analysis (simplified)
+            num_trades = len(positions_to_sell) + len(positions_to_buy)
+            portfolio_risk_change = Decimal(str(portfolio_turnover)) * Decimal("0.1")  # Simplified risk calculation
+            concentration_risk_change = Decimal("0")  # Placeholder
 
-        return {
-            "portfolio_turnover": portfolio_turnover,
-            "num_sells_required": len(positions_to_sell),
-            "num_buys_required": len(positions_to_buy),
-            "current_strategy_exposures": current_strategy_exposures,
-            "target_strategy_exposures": target_strategy_exposures,
-            "strategy_allocation_changes": self._calculate_strategy_changes(
-                current_strategy_exposures, target_strategy_exposures
-            ),
-        }
+            # Execution analysis
+            if num_trades <= 3:
+                execution_complexity = "LOW"
+                recommended_time = 15
+                market_impact_risk = "LOW"
+            elif num_trades <= 6:
+                execution_complexity = "MEDIUM"
+                recommended_time = 30
+                market_impact_risk = "MEDIUM"
+            else:
+                execution_complexity = "HIGH"
+                recommended_time = 60
+                market_impact_risk = "HIGH"
+
+            # Net benefit calculation (simplified)
+            net_benefit_estimate = -total_estimated_costs  # Conservative approach
+
+            # Recommendation logic
+            if total_estimated_costs > portfolio_value * Decimal("0.01"):  # > 1% of portfolio
+                recommendation = "DEFER"
+            elif num_trades > 10:
+                recommendation = "DEFER"
+            else:
+                recommendation = "EXECUTE"
+
+            return RebalancingImpactDTO(
+                success=True,
+                portfolio_risk_change=portfolio_risk_change,
+                concentration_risk_change=concentration_risk_change,
+                estimated_transaction_costs=estimated_transaction_costs,
+                estimated_slippage=estimated_slippage,
+                total_estimated_costs=total_estimated_costs,
+                execution_complexity=execution_complexity,
+                recommended_execution_time=recommended_time,
+                market_impact_risk=market_impact_risk,
+                net_benefit_estimate=net_benefit_estimate,
+                recommendation=recommendation,
+            )
+        except Exception as e:
+            return RebalancingImpactDTO(
+                success=False,
+                portfolio_risk_change=Decimal("0"),
+                concentration_risk_change=Decimal("0"),
+                estimated_transaction_costs=Decimal("0"),
+                estimated_slippage=Decimal("0"),
+                total_estimated_costs=Decimal("0"),
+                execution_complexity="UNKNOWN",
+                recommended_execution_time=0,
+                market_impact_risk="UNKNOWN",
+                net_benefit_estimate=Decimal("0"),
+                recommendation="CANCEL",
+                error=f"Failed to estimate rebalancing impact: {e}",
+            )
 
     def _get_current_position_values(self) -> dict[str, Decimal]:
         """Get current position values from trading manager."""
@@ -254,16 +352,8 @@ class PortfolioRebalancingService:
 
     def _get_portfolio_value(self) -> Decimal:
         """Get total portfolio value from trading manager."""
-        raw = self.trading_manager.get_portfolio_value()
-        # Support typed path returning {"value": float, "money": Money}
-        if isinstance(raw, dict) and "value" in raw:
-            raw_value = raw.get("value", 0)
-        else:
-            raw_value = raw
-        try:
-            return Decimal(str(raw_value))
-        except Exception:
-            return Decimal("0")
+        portfolio_dto = self.trading_manager.get_portfolio_value()
+        return portfolio_dto.value
 
     def _calculate_strategy_changes(
         self, current_exposures: dict[str, Any], target_exposures: dict[str, Any]
