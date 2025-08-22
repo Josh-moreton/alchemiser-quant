@@ -8,7 +8,10 @@ validation, and error handling with fallback strategies.
 
 import logging
 from decimal import ROUND_DOWN, Decimal
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from the_alchemiser.interfaces.schemas.orders import ValidatedOrderDTO
 
 from alpaca.trading.enums import OrderSide, TimeInForce
 from alpaca.trading.requests import LimitOrderRequest
@@ -235,3 +238,36 @@ class LimitOrderHandler:
             # We already tried whole shares, this is a different issue
             logging.error(f"❌ {symbol} limit order failed even with whole shares: {error_msg}")
             return None
+
+    def place_limit_order_from_dto(
+        self, validated_order: "ValidatedOrderDTO", cancel_existing: bool = True
+    ) -> str | None:
+        """
+        Place a limit order using ValidatedOrderDTO.
+
+        Args:
+            validated_order: ValidatedOrderDTO instance with validation metadata
+            cancel_existing: Whether to cancel existing orders for this symbol first
+
+        Returns:
+            Order ID if successful, None otherwise
+        """
+        # Convert DTO side to OrderSide enum
+        order_side = OrderSide.BUY if validated_order.side.lower() == "buy" else OrderSide.SELL
+
+        # Use the normalized quantity and validated limit price
+        quantity = float(validated_order.normalized_quantity or validated_order.quantity)
+        limit_price = float(validated_order.limit_price) if validated_order.limit_price else None
+
+        if limit_price is None:
+            logging.error("❌ Limit price is required for limit orders")
+            return None
+
+        # Use existing limit order placement logic
+        return self.place_limit_order(
+            symbol=validated_order.symbol,
+            qty=quantity,
+            side=order_side,
+            limit_price=limit_price,
+            cancel_existing=cancel_existing,
+        )

@@ -158,6 +158,37 @@ def validated_dto_to_dict(validated_order: ValidatedOrderDTO) -> dict[str, Any]:
     }
 
 
+def validated_dto_to_order_handler_params(validated_order: ValidatedOrderDTO) -> dict[str, Any]:
+    """
+    Convert ValidatedOrderDTO to parameters suitable for order handlers.
+
+    Args:
+        validated_order: ValidatedOrderDTO instance
+
+    Returns:
+        Dictionary with parameters for AssetOrderHandler and LimitOrderHandler
+    """
+    # Convert side to Alpaca OrderSide enum value for handler compatibility
+    from alpaca.trading.enums import OrderSide
+
+    order_side = OrderSide.BUY if validated_order.side.lower() == "buy" else OrderSide.SELL
+    quantity = float(validated_order.normalized_quantity or validated_order.quantity)
+
+    params = {
+        "symbol": validated_order.symbol,
+        "side": order_side,
+        "qty": quantity,
+        "order_type": validated_order.order_type,
+        "time_in_force": validated_order.time_in_force,
+    }
+
+    # Add limit price if it's a limit order
+    if validated_order.limit_price is not None:
+        params["limit_price"] = float(validated_order.limit_price)
+
+    return params
+
+
 def order_request_dto_to_domain_order_params(dto: OrderRequestDTO) -> dict[str, Any]:
     """
     Convert OrderRequestDTO to domain Order entity creation parameters.
