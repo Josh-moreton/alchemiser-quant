@@ -1,34 +1,61 @@
 """Portfolio content builder for email templates.
 
-This module handles building HTML content for portfolio tables,
-position summaries, and portfolio allocations.
+Builds HTML content for portfolio tables, position summaries, allocations, and
+neutral-mode representations. This version removes the ad-hoc ExtendedAccountInfo
+in favour of existing domain types and on-the-fly derivations (daily P&L, etc.).
 """
 
-from typing import Any, TypedDict
+from __future__ import annotations
 
-# Import DTOs for type-safe email rendering  
-from the_alchemiser.domain.types import AccountInfo, PositionInfo
+from collections.abc import Mapping
+from decimal import Decimal, InvalidOperation
+from typing import Any, cast
+
+from the_alchemiser.domain.types import AccountInfo, EnrichedAccountInfo, PositionInfo
+from the_alchemiser.interfaces.schemas.common import MultiStrategyExecutionResultDTO
 from the_alchemiser.interfaces.schemas.execution import ExecutionResult
 
 from .base import BaseEmailTemplate
 
+ExecutionLike = ExecutionResult | MultiStrategyExecutionResultDTO | Mapping[str, Any] | Any
 
-# Extended AccountInfo for email templates with optional fields
-class ExtendedAccountInfo(AccountInfo, total=False):
-    """AccountInfo with optional extended fields used in email templates."""
-    daily_pl: float
-    daily_pl_percent: float
-    recent_closed_pnl: list[dict[str, Any]]
-    day_trade_count: int
+
+def _normalise_result(result: ExecutionLike) -> dict[str, Any]:  # noqa: D401 - internal helper
+    """Return a plain dict for an execution result (handles TypedDict/Pydantic/mapping/object)."""
+    # Pydantic DTO
+    if isinstance(result, MultiStrategyExecutionResultDTO):  # pragma: no branch
+        try:
+            return result.model_dump()
+        except Exception:  # pragma: no cover - defensive
+            return {}
+
+    # Any mapping (includes plain dict, TypedDict at runtime, or custom mapping)
+    if isinstance(result, Mapping):  # pragma: no branch
+        return dict(result)
+
+    # Fallback: pull known attributes off an object-like container
+    extracted: dict[str, Any] = {}
+    for attr in (
+        "final_portfolio_state",
+        "execution_summary",
+        "consolidated_portfolio",
+        "account_info_after",
+        "account_info_before",
+        "orders_executed",
+        "positions",
+        "final_positions",
+    ):
+        value = getattr(result, attr, None)
+        if value is not None:
+            extracted[attr] = value
+    return extracted
 
 
 class PortfolioBuilder:
     """Builds portfolio-related HTML content for emails."""
 
     @staticmethod
-    def build_positions_table(
-        open_positions: list[PositionInfo],
-    ) -> str:
+    def build_positions_table(open_positions: list[PositionInfo]) -> str:
         """Build HTML table for open positions."""
         if not open_positions:
             return BaseEmailTemplate.create_alert_box("No open positions", "info")
@@ -92,171 +119,161 @@ class PortfolioBuilder:
         """
 
     @staticmethod
-    def build_account_summary(
-        account_info: ExtendedAccountInfo,
-    ) -> str:
-        """Build HTML summary of account information."""
+    def build_account_summary(account_info: AccountInfo | EnrichedAccountInfo) -> str:
+        """Build HTML summary of account information using Decimal for money.
+
+        Derives daily P&L from equity - last_equity if available.
+        """
         try:
-            equity = float(account_info.get("equity", 0))
-            cash = float(account_info.get("cash", 0))
-        except (ValueError, TypeError):
+            raw_equity = account_info.get("equity", 0)
+            raw_cash = account_info.get("cash", 0)
+            raw_last_equity = account_info.get("last_equity", 0)
+            equity = Decimal(str(raw_equity))
+            cash = Decimal(str(raw_cash))
+            last_equity = Decimal(str(raw_last_equity))
+        except (InvalidOperation, TypeError):
             return BaseEmailTemplate.create_alert_box("Account information unavailable", "warning")
 
-        # Calculate additional metrics if available
+        daily_pl: Decimal | None = None
+        daily_pl_pct: Decimal | None = None
+        if last_equity > Decimal("0"):
+            daily_pl = equity - last_equity
+            if last_equity != 0:
+                daily_pl_pct = daily_pl / last_equity
+
         rows = f"""
         <tr>
-            <td style="padding: 8px 12px; border-bottom: 1px solid #E5E7EB;">
-                <span style="font-weight: 600;">Portfolio Value:</span>
+            <td style=\"padding: 8px 12px; border-bottom: 1px solid #E5E7EB;\">
+                <span style=\"font-weight: 600;\">Portfolio Value:</span>
             </td>
-            <td style="padding: 8px 12px; border-bottom: 1px solid #E5E7EB; text-align: right;">
-                ${equity:,.2f}
+            <td style=\"padding: 8px 12px; border-bottom: 1px solid #E5E7EB; text-align: right;\">
+                ${float(equity):,.2f}
             </td>
         </tr>
         <tr>
-            <td style="padding: 8px 12px; border-bottom: 1px solid #E5E7EB;">
-                <span style="font-weight: 600;">Cash Available:</span>
+            <td style=\"padding: 8px 12px; border-bottom: 1px solid #E5E7EB;\">
+                <span style=\"font-weight: 600;\">Cash Available:</span>
             </td>
-            <td style="padding: 8px 12px; border-bottom: 1px solid #E5E7EB; text-align: right;">
-                ${cash:,.2f}
+            <td style=\"padding: 8px 12px; border-bottom: 1px solid #E5E7EB; text-align: right;\">
+                ${float(cash):,.2f}
             </td>
         </tr>
         """
 
-        # Add daily P&L if available
-        if "daily_pl" in account_info:
-            daily_pl = float(account_info["daily_pl"])
-            daily_pl_pct = float(account_info.get("daily_pl_percent", 0))
+        if daily_pl is not None and daily_pl_pct is not None:
             pl_color = "#10B981" if daily_pl >= 0 else "#EF4444"
             pl_sign = "+" if daily_pl >= 0 else ""
-
             rows += f"""
             <tr>
-                <td style="padding: 8px 12px; border-bottom: 1px solid #E5E7EB;">
-                    <span style="font-weight: 600;">Daily P&L:</span>
+                <td style=\"padding: 8px 12px; border-bottom: 1px solid #E5E7EB;\">
+                    <span style=\"font-weight: 600;\">Daily P&L:</span>
                 </td>
-                <td style="padding: 8px 12px; border-bottom: 1px solid #E5E7EB; text-align: right; color: {pl_color}; font-weight: 600;">
-                    {pl_sign}${daily_pl:.2f} ({pl_sign}{daily_pl_pct:.2%})
+                <td style=\"padding: 8px 12px; border-bottom: 1px solid #E5E7EB; text-align: right; color: {pl_color}; font-weight: 600;\">
+                    {pl_sign}${float(daily_pl):,.2f} ({pl_sign}{float(daily_pl_pct):.2%})
                 </td>
             </tr>
             """
 
-        return f"""
-        <table style="width: 100%; border-collapse: collapse; background-color: #F9FAFB; border-radius: 8px; overflow: hidden;">
-            {rows}
-        </table>
-        """
+        return f"<table style='width: 100%; border-collapse: collapse; background-color: #F9FAFB; border-radius: 8px; overflow: hidden;'>{rows}</table>"
 
     @staticmethod
-    def build_portfolio_allocation(
-        result: ExecutionResult,
-    ) -> str:
-        """Build HTML display of portfolio allocation from execution result."""
+    def build_portfolio_allocation(result: ExecutionLike) -> str:
+        """Build HTML display of portfolio allocation.
+
+        Precedence:
+        1. final_portfolio_state.allocations.current_percent
+        2. top-level consolidated_portfolio (MultiStrategyExecutionResultDTO)
+        3. execution_summary.consolidated_portfolio
+        """
+        data = _normalise_result(result)
         try:
-            # Try to get actual final portfolio state first
-            final_portfolio_state = result.get("final_portfolio_state")
+            final_portfolio_state = data.get("final_portfolio_state") or {}
             if final_portfolio_state:
                 allocations = final_portfolio_state.get("allocations", {})
-                if allocations:
-                    # Show actual current positions
-                    portfolio_lines: list[str] = (
-                        []
-                    )  # Added type annotation for clarity
-                    for symbol, data in allocations.items():
-                        current_percent = data.get("current_percent", 0)
-                        if current_percent > 0.1:  # Only show positions > 0.1%
-                            portfolio_lines.append(
-                                f"<span style='font-weight: 600;'>{symbol}:</span> {current_percent:.1f}%"
-                            )
+                portfolio_lines: list[str] = []
+                for symbol, info in allocations.items():
+                    current_percent = info.get("current_percent", 0)
+                    if current_percent and current_percent > 0.1:
+                        portfolio_lines.append(
+                            f"<span style='font-weight: 600;'>{symbol}:</span> {current_percent:.1f}%"
+                        )
+                if portfolio_lines:
+                    return "<br>".join(portfolio_lines)
 
-                    if portfolio_lines:
-                        return "<br>".join(portfolio_lines)
-
-            # Fallback to execution summary data
-            execution_summary = result.get("execution_summary", {})
-            consolidated_portfolio = execution_summary.get("consolidated_portfolio", {})
-            if consolidated_portfolio:
+            top_consolidated = data.get("consolidated_portfolio", {}) or {}
+            if top_consolidated:
                 return "<br>".join(
                     [
                         f"<span style='font-weight: 600;'>{symbol}:</span> {weight:.1%}"
-                        for symbol, weight in list(consolidated_portfolio.items())[:5]
+                        for symbol, weight in list(top_consolidated.items())[:5]
                     ]
                 )
 
+            exec_summary = data.get("execution_summary", {}) or {}
+            summary_consolidated = exec_summary.get("consolidated_portfolio", {})
+            if summary_consolidated:
+                return "<br>".join(
+                    [
+                        f"<span style='font-weight: 600;'>{symbol}:</span> {weight:.1%}"
+                        for symbol, weight in list(summary_consolidated.items())[:5]
+                    ]
+                )
             return "<span style='color: #6B7280; font-style: italic;'>Portfolio data unavailable</span>"
-        except Exception as e:
-            return f"<span style='color: #EF4444;'>Error loading portfolio: {str(e)}</span>"
+        except Exception as e:  # pragma: no cover - defensive path
+            return f"<span style='color: #EF4444;'>Error loading portfolio: {e}</span>"
 
     @staticmethod
     def build_closed_positions_pnl(
-        account_info: ExtendedAccountInfo,
+        account_info: AccountInfo | EnrichedAccountInfo,
     ) -> str:
         """Build HTML display of closed positions P&L information."""
-        if not account_info or not account_info.get("recent_closed_pnl"):
+        if not account_info or "recent_closed_pnl" not in account_info:
             return ""
-
-        closed_positions = account_info["recent_closed_pnl"]
+        enriched = cast(EnrichedAccountInfo, account_info)
+        closed_positions = enriched["recent_closed_pnl"]
         if not closed_positions:
             return ""
 
-        # Calculate totals
         total_realized_pnl = sum(pos.get("realized_pnl", 0) for pos in closed_positions)
         total_trades = sum(pos.get("trade_count", 0) for pos in closed_positions)
 
-        # Build rows for each position
         rows = ""
-        for position in closed_positions[:10]:  # Show top 10
+        for position in closed_positions[:10]:
             symbol = position.get("symbol", "N/A")
             realized_pnl = float(position.get("realized_pnl", 0))
             realized_pnl_pct = float(position.get("realized_pnl_pct", 0))
             trade_count = position.get("trade_count", 0)
-
             pnl_color = "#10B981" if realized_pnl >= 0 else "#EF4444"
             pnl_sign = "+" if realized_pnl >= 0 else ""
-
             rows += f"""
             <tr>
-                <td style="padding: 8px 12px; border-bottom: 1px solid #E5E7EB; font-weight: 600;">
-                    {symbol}
-                </td>
-                <td style="padding: 8px 12px; border-bottom: 1px solid #E5E7EB; text-align: right; color: {pnl_color}; font-weight: 600;">
-                    {pnl_sign}${realized_pnl:.2f}
-                </td>
-                <td style="padding: 8px 12px; border-bottom: 1px solid #E5E7EB; text-align: right; color: {pnl_color};">
-                    {pnl_sign}{realized_pnl_pct:.2%}
-                </td>
-                <td style="padding: 8px 12px; border-bottom: 1px solid #E5E7EB; text-align: center;">
-                    {trade_count}
-                </td>
+                <td style=\"padding: 8px 12px; border-bottom: 1px solid #E5E7EB; font-weight: 600;\">{symbol}</td>
+                <td style=\"padding: 8px 12px; border-bottom: 1px solid #E5E7EB; text-align: right; color: {pnl_color}; font-weight: 600;\">{pnl_sign}${realized_pnl:.2f}</td>
+                <td style=\"padding: 8px 12px; border-bottom: 1px solid #E5E7EB; text-align: right; color: {pnl_color};\">{pnl_sign}{realized_pnl_pct:.2%}</td>
+                <td style=\"padding: 8px 12px; border-bottom: 1px solid #E5E7EB; text-align: center;\">{trade_count}</td>
             </tr>
             """
 
-        # Summary row
         total_color = "#10B981" if total_realized_pnl >= 0 else "#EF4444"
         total_sign = "+" if total_realized_pnl >= 0 else ""
-
         summary_row = f"""
-        <tr style="background-color: #F9FAFB; font-weight: 600;">
-            <td style="padding: 12px; border-top: 2px solid #E5E7EB;">Total Realized</td>
-            <td style="padding: 12px; text-align: right; color: {total_color}; border-top: 2px solid #E5E7EB;">
-                {total_sign}${total_realized_pnl:.2f}
-            </td>
-            <td style="padding: 12px; border-top: 2px solid #E5E7EB;"></td>
-            <td style="padding: 12px; text-align: center; border-top: 2px solid #E5E7EB;">
-                {total_trades}
-            </td>
+        <tr style=\"background-color: #F9FAFB; font-weight: 600;\">
+            <td style=\"padding: 12px; border-top: 2px solid #E5E7EB;\">Total Realized</td>
+            <td style=\"padding: 12px; text-align: right; color: {total_color}; border-top: 2px solid #E5E7EB;\">{total_sign}${total_realized_pnl:.2f}</td>
+            <td style=\"padding: 12px; border-top: 2px solid #E5E7EB;\"></td>
+            <td style=\"padding: 12px; text-align: center; border-top: 2px solid #E5E7EB;\">{total_trades}</td>
         </tr>
         """
-
         return f"""
-        <div style="margin: 24px 0;">
-            <h3 style="margin: 0 0 16px 0; color: #1F2937; font-size: 18px; font-weight: 600;">💰 Recent Closed Positions P&L (7 days)</h3>
-            <table style="width: 100%; border-collapse: collapse; background-color: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+        <div style=\"margin: 24px 0;\">
+            <h3 style=\"margin: 0 0 16px 0; color: #1F2937; font-size: 18px; font-weight: 600;\">💰 Recent Closed Positions P&L (7 days)</h3>
+            <table style=\"width: 100%; border-collapse: collapse; background-color: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1);\">
                 <thead>
-                    <tr style="background-color: #F9FAFB;">
-                        <th style="padding: 12px; text-align: left; font-weight: 600; color: #374151; border-bottom: 1px solid #E5E7EB;">Symbol</th>
-                        <th style="padding: 12px; text-align: right; font-weight: 600; color: #374151; border-bottom: 1px solid #E5E7EB;">Realized P&L</th>
-                        <th style="padding: 12px; text-align: right; font-weight: 600; color: #374151; border-bottom: 1px solid #E5E7EB;">P&L %</th>
-                        <th style="padding: 12px; text-align: center; font-weight: 600; color: #374151; border-bottom: 1px solid #E5E7EB;">Trades</th>
+                    <tr style=\"background-color: #F9FAFB;\">
+                        <th style=\"padding: 12px; text-align: left; font-weight: 600; color: #374151; border-bottom: 1px solid #E5E7EB;\">Symbol</th>
+                        <th style=\"padding: 12px; text-align: right; font-weight: 600; color: #374151; border-bottom: 1px solid #E5E7EB;\">Realized P&L</th>
+                        <th style=\"padding: 12px; text-align: right; font-weight: 600; color: #374151; border-bottom: 1px solid #E5E7EB;\">P&L %</th>
+                        <th style=\"padding: 12px; text-align: center; font-weight: 600; color: #374151; border-bottom: 1px solid #E5E7EB;\">Trades</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -314,31 +331,38 @@ class PortfolioBuilder:
 
     @staticmethod
     def build_account_summary_neutral(
-        account_info: ExtendedAccountInfo,
+        account_info: AccountInfo | EnrichedAccountInfo,
     ) -> str:
-        """Build neutral HTML summary of account information (no dollar amounts)."""
-        # Get basic account status information
-        account_status = account_info.get("status", "UNKNOWN")
-        daytrade_count = account_info.get("daytrade_count", 0)
+        """Neutral account summary without dollar values; shows status & usage.
 
-        # Calculate portfolio deployment percentage
-        cash = float(account_info.get("cash", 0))
-        equity = float(account_info.get("equity", 0))
-        portfolio_deployed_pct = 0.0
-        if equity > 0:
-            portfolio_deployed_pct = ((equity - cash) / equity) * 100
+        Uses day_trades_remaining from AccountInfo and derives used count.
+        """
+        account_status = account_info.get("status", "UNKNOWN")
+        remaining = account_info.get("day_trades_remaining")
+        used_str = "—"
+        if isinstance(remaining, int) and 0 <= remaining <= 3:
+            used = 3 - remaining
+            used_str = f"{used}/3"
 
         status_color = "#10B981" if account_status == "ACTIVE" else "#EF4444"
 
-        # Color coding for deployment percentage
-        if portfolio_deployed_pct >= 95:
-            deployment_color = "#10B981"  # Green for high deployment
+        try:
+            equity = Decimal(str(account_info.get("equity", 0)))
+            cash = Decimal(str(account_info.get("cash", 0)))
+            deployed_pct = (
+                ((equity - cash) / equity) * Decimal("100") if equity > 0 else Decimal("0")
+            )
+        except (InvalidOperation, TypeError):
+            deployed_pct = Decimal("0")
+
+        if deployed_pct >= 95:
+            deployment_color = "#10B981"
             deployment_emoji = "🟢"
-        elif portfolio_deployed_pct >= 80:
-            deployment_color = "#F59E0B"  # Yellow for moderate deployment
+        elif deployed_pct >= 80:
+            deployment_color = "#F59E0B"
             deployment_emoji = "🟡"
         else:
-            deployment_color = "#EF4444"  # Red for low deployment
+            deployment_color = "#EF4444"
             deployment_emoji = "🔴"
 
         return f"""
@@ -357,7 +381,7 @@ class PortfolioBuilder:
                         <span style="font-weight: 600; font-size: 14px;">Day Trades Used:</span>
                     </td>
                     <td style="padding: 16px 20px; border-bottom: 1px solid #E5E7EB; text-align: right; font-size: 14px;">
-                        {daytrade_count}/3
+                        {used_str}
                     </td>
                 </tr>
                 <tr>
@@ -365,15 +389,7 @@ class PortfolioBuilder:
                         <span style="font-weight: 600; font-size: 14px;">Portfolio Deployed:</span>
                     </td>
                     <td style="padding: 16px 20px; border-bottom: 1px solid #E5E7EB; text-align: right; color: {deployment_color}; font-weight: 600; font-size: 14px;">
-                        {deployment_emoji} {portfolio_deployed_pct:.1f}%
-                    </td>
-                </tr>
-                <tr>
-                    <td style="padding: 16px 20px;">
-                        <span style="font-weight: 600; font-size: 14px;">Portfolio Status:</span>
-                    </td>
-                    <td style="padding: 16px 20px; text-align: right; color: #10B981; font-weight: 600; font-size: 14px;">
-                        ✅ Active
+                        {deployment_emoji} {float(deployed_pct):.1f}%
                     </td>
                 </tr>
             </tbody>
@@ -381,12 +397,16 @@ class PortfolioBuilder:
         """
 
     @staticmethod
-    def build_portfolio_rebalancing_table(result: ExecutionResult) -> str:
-        """Build a portfolio rebalancing summary table for neutral mode (percentages only)."""
+    def build_portfolio_rebalancing_table(result: ExecutionLike) -> str:
+        """Build a portfolio rebalancing summary (percentages only)."""
 
-        # Get target portfolio from execution summary
-        execution_summary = result.get("execution_summary", {})
-        target_portfolio = execution_summary.get("consolidated_portfolio", {})
+        data = _normalise_result(result)
+        execution_summary = data.get("execution_summary", {})
+        target_portfolio = (
+            data.get("consolidated_portfolio")
+            or execution_summary.get("consolidated_portfolio", {})
+            or {}
+        )
 
         if not target_portfolio:
             return "<p>No target portfolio data available</p>"
@@ -398,17 +418,17 @@ class PortfolioBuilder:
             )
 
             # Try multiple sources for positions and account data
-            account_after = result.get("account_info_after", {})
-            final_portfolio_state = result.get("final_portfolio_state")
+            account_after = data.get("account_info_after", {})
+            final_portfolio_state = data.get("final_portfolio_state")
 
             # Try different methods to get current positions data
             current_positions: dict[str, Any] = {}
 
-            # Method 1: Check for fresh positions data
+            # Method 1: Fresh positions data
             if final_portfolio_state and final_portfolio_state.get("current_positions"):
                 current_positions = final_portfolio_state["current_positions"]
 
-            # Method 2: Check account_after open_positions
+            # Method 2: account_after open_positions
             elif isinstance(account_after, dict) and account_after.get("open_positions"):
                 open_positions = account_after.get("open_positions", [])
                 current_positions = {}
@@ -417,15 +437,26 @@ class PortfolioBuilder:
                         if isinstance(pos, dict) and pos.get("symbol"):
                             current_positions[pos["symbol"]] = pos
 
-            # Method 3: Check execution_summary for positions
+            # Method 3: final_positions attribute
+            elif data.get("final_positions"):
+                current_positions = data["final_positions"]
+
+            # Method 4: positions attribute
+            elif data.get("positions"):
+                current_positions = data["positions"]
+
+            # Method 5: execution_summary positions
             elif execution_summary and "positions" in execution_summary:
                 current_positions = execution_summary["positions"]
 
             portfolio_value = 0.0
             if isinstance(account_after, dict):
-                portfolio_value = float(account_after.get("portfolio_value", 0)) or float(
-                    account_after.get("equity", 0)
-                )
+                try:
+                    portfolio_value = float(account_after.get("portfolio_value", 0)) or float(
+                        account_after.get("equity", 0)
+                    )
+                except (TypeError, ValueError):
+                    portfolio_value = 0.0
 
             # If we have positions, extract current values
             current_values: dict[str, float] = {}
@@ -513,20 +544,18 @@ class PortfolioBuilder:
 
         except Exception as e:
             # Enhanced debug information
-            debug_info = f"""
-            <div style="font-size: 12px; color: #666; margin: 10px 0;">
-            <strong>Debug Information:</strong><br/>
-            • Target portfolio: {bool(target_portfolio)}<br/>
-            • account_after: {bool(account_after)}<br/>
-            • execution_summary: {bool(execution_summary)}<br/>
-            • final_portfolio_state: {bool(final_portfolio_state)}<br/>
-            • Error: {str(e)}
-            </div>
-            """
+            debug_info = (
+                f'<div style="font-size: 12px; color: #666; margin: 10px 0;"><strong>Debug Information:</strong><br/>'
+                f"• Target portfolio: {bool(target_portfolio)}<br/>"
+                f"• account_after: {bool(account_after)}<br/>"
+                f"• execution_summary: {bool(execution_summary)}<br/>"
+                f"• final_portfolio_state: {bool(final_portfolio_state)}<br/>"
+                f"• Error: {e}</div>"
+            )
             return f"<p>Error loading portfolio data. Check logs for details.</p>{debug_info}"
 
     @staticmethod
-    def build_neutral_account_summary(account_info: ExtendedAccountInfo) -> str:
+    def build_neutral_account_summary(account_info: AccountInfo | EnrichedAccountInfo) -> str:
         """Build a neutral account summary without financial values."""
 
         # Extract basic status information
@@ -534,7 +563,11 @@ class PortfolioBuilder:
         daytrade_count = account_info.get("day_trade_count", 0)
 
         # For paper trading accounts, override confusing status indicators
-        if account_status == "INACTIVE" and isinstance(daytrade_count, int) and daytrade_count >= 10:
+        if (
+            account_status == "INACTIVE"
+            and isinstance(daytrade_count, int)
+            and daytrade_count >= 10
+        ):
             # This is likely a paper trading account misreporting status
             account_status = "ACTIVE (Paper)"
             daytrade_count = 0  # Paper trading doesn't have day trade limits
@@ -545,7 +578,7 @@ class PortfolioBuilder:
         # Trading status based on day trades
         trading_status = "🟢 Trading Available"
         trading_color = "#10B981"
-        
+
         if isinstance(daytrade_count, int):
             if daytrade_count >= 3:
                 trading_status = "⚠️ Day Trade Limit Reached"

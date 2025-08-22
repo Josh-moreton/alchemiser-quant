@@ -5,11 +5,11 @@ This module handles the primary trading report email template generation.
 
 from typing import Any, cast
 
-from the_alchemiser.domain.types import PositionInfo
+from the_alchemiser.domain.types import AccountInfo, EnrichedAccountInfo, PositionInfo
 
 from .base import BaseEmailTemplate
 from .performance import PerformanceBuilder
-from .portfolio import PortfolioBuilder, ExtendedAccountInfo
+from .portfolio import PortfolioBuilder
 from .signals import SignalsBuilder
 
 
@@ -20,8 +20,8 @@ class TradingReportBuilder:
     def build_regular_report(
         mode: str,
         success: bool,
-        account_before: dict[str, Any],
-        account_after: dict[str, Any],
+        account_before: AccountInfo | EnrichedAccountInfo,
+        account_after: AccountInfo | EnrichedAccountInfo,
         positions: dict[str, Any],
         orders: list[dict[str, Any]] | None = None,
         signal: Any = None,
@@ -43,7 +43,7 @@ class TradingReportBuilder:
 
         # Account summary
         account_summary_html = BaseEmailTemplate.create_section(
-            "💰 Account Summary", PortfolioBuilder.build_account_summary(cast(ExtendedAccountInfo, account_after))
+            "💰 Account Summary", PortfolioBuilder.build_account_summary(account_after)
         )
 
         # Signal information
@@ -63,7 +63,7 @@ class TradingReportBuilder:
         # Closed positions P&L
         closed_pnl_html = ""
         if account_after and account_after.get("recent_closed_pnl"):
-            closed_pnl_html = PortfolioBuilder.build_closed_positions_pnl(cast(ExtendedAccountInfo, account_after))
+            closed_pnl_html = PortfolioBuilder.build_closed_positions_pnl(account_after)
 
         # Error section if needed
         error_html = ""
@@ -97,8 +97,8 @@ class TradingReportBuilder:
     def build_neutral_report(
         mode: str,
         success: bool,
-        account_before: dict[str, Any],
-        account_after: dict[str, Any],
+        account_before: AccountInfo | EnrichedAccountInfo,
+        account_after: AccountInfo | EnrichedAccountInfo,
         positions: dict[str, Any],
         orders: list[dict[str, Any]] | None = None,
         signal: Any = None,
@@ -120,7 +120,7 @@ class TradingReportBuilder:
 
         # Account summary (neutral mode)
         account_summary_html = BaseEmailTemplate.create_section(
-            "⚙️ Account Status", PortfolioBuilder.build_account_summary_neutral(cast(ExtendedAccountInfo, account_after))
+            "⚙️ Account Status", PortfolioBuilder.build_account_summary_neutral(account_after)
         )
 
         # Signal information (same as regular, no dollar values there)
