@@ -473,7 +473,8 @@ class PortfolioBuilder:
                                 current_values[symbol] = 0.0
 
             # Calculate total portfolio value from positions if not available
-            if portfolio_value == 0 and current_values:
+            # Avoid direct float equality; treat very small portfolio_value as zero
+            if portfolio_value <= 1e-9 and current_values:
                 portfolio_value = sum(current_values.values())
 
             # Build the table
