@@ -4,7 +4,7 @@ import logging
 from typing import Any
 
 from the_alchemiser.domain.registry import StrategyType
-from the_alchemiser.domain.types import AccountInfo
+from the_alchemiser.domain.types import AccountInfo, PositionsDict
 from the_alchemiser.services.errors.exceptions import DataProviderError, TradingClientError
 
 
@@ -116,8 +116,8 @@ def save_dashboard_data(
 
 def build_portfolio_state_data(
     target_portfolio: dict[str, float],
-    account_info: dict[str, Any],
-    current_positions: dict[str, Any],
+    account_info: AccountInfo,
+    current_positions: PositionsDict,
 ) -> dict[str, Any]:
     """Build portfolio state data for reporting purposes."""
     from the_alchemiser.domain.math.trading_math import calculate_allocation_discrepancy
@@ -125,7 +125,7 @@ def build_portfolio_state_data(
         extract_current_position_values,
     )
 
-    portfolio_value = account_info.get("portfolio_value", 0.0)
+    portfolio_value = float(account_info.get("portfolio_value", 0.0))
 
     # Calculate target values (simple implementation)
     target_values = {
