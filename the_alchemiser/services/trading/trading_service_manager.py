@@ -325,11 +325,11 @@ class TradingServiceManager:
     @translate_trading_errors(default_return={"error": "Failed to get account summary"})
     def get_account_summary_enriched(self) -> dict[str, Any]:
         """Enriched account summary with typed domain objects.
-        
+
         Returns structured data with both legacy format and typed domain objects.
         """
         legacy = self.account.get_account_summary()
-        
+
         # Always return typed path (V2 migration complete)
         typed = account_summary_to_typed(legacy)
         return {"raw": legacy, "summary": account_typed_to_serializable(typed)}
@@ -341,11 +341,11 @@ class TradingServiceManager:
     @translate_trading_errors(default_return=[])
     def get_positions_enriched(self) -> list[dict[str, Any]]:
         """Enriched positions list with typed domain objects.
-        
+
         Returns list of {"raw": pos, "summary": PositionSummary-as-dict}
         """
         raw_positions = self.alpaca_manager.get_all_positions()
-        
+
         # Always return enriched typed path (V2 migration complete)
         enriched: list[dict[str, Any]] = []
         for p in raw_positions:
@@ -374,7 +374,13 @@ class TradingServiceManager:
         return {"value": raw, "money": money}
 
     # High-Level Trading Operations
-    @translate_trading_errors(default_return={"success": False, "reason": "Order execution failed", "error": "Service error"})
+    @translate_trading_errors(
+        default_return={
+            "success": False,
+            "reason": "Order execution failed",
+            "error": "Service error",
+        }
+    )
     def execute_smart_order(
         self, symbol: str, quantity: int, side: str, order_type: str = "market", **kwargs: Any
     ) -> dict[str, Any]:
@@ -429,7 +435,12 @@ class TradingServiceManager:
 
         return result
 
-    @translate_trading_errors(default_return={"error": "Failed to generate dashboard", "timestamp": datetime.datetime.now().isoformat()})
+    @translate_trading_errors(
+        default_return={
+            "error": "Failed to generate dashboard",
+            "timestamp": datetime.datetime.now().isoformat(),
+        }
+    )
     def get_trading_dashboard(self) -> dict[str, Any]:
         """
         Get a comprehensive trading dashboard with all key metrics
