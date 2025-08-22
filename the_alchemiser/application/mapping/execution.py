@@ -1,15 +1,28 @@
-#!/usr/bin/env python3
-"""Execution mapping utilities for anti-corruption layer.
+"""Execution mapping utilities (anti-corruption layer).
 
-This module provides pure functions for converting between execution DTOs
-and domain types. Part of the anti-corruption layer for clean boundaries
-between Pydantic DTOs and domain models.
+Ordered fixes applied (review issues 1→10):
+1. DDD boundary alignment: introduce internal normalisation for order objects so
+    exported dicts are shape-consistent regardless of source (dict / domain Order).
+2. Removed unused timestamp helper; replaced with `_normalize_timestamp_str` and
+    applied in quote creation & parsing.
+3. Precision policy: split monetary vs quantity/size precision helpers with
+    explicit rounding (ROUND_HALF_UP). Quantities/sizes allow 4 dp; money fixed
+    to 2 dp.
+4. Avoid binary float drift in JSON: monetary & quantity fields serialised as
+    strings; computed spread/mid likewise (still parseable downstream).
+5. Enum conversions wrapped with contextual ValueError messages.
+6. Mixed order shapes eliminated via `_normalize_order_details`.
+7. Tests (added separately) cover round‑trips, precision, invalid enums.
+8. Style: removed shebang, wrapped long lines.
+9. Clarified docstring scope (DTO <-> boundary types & domain entity helpers).
+10. Timestamp normalisation now guarantees timezone awareness & ISO 8601.
 """
 
 from __future__ import annotations
 
+from collections.abc import Iterable, Mapping
 from datetime import UTC, datetime
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
 
 from the_alchemiser.domain.types import AccountInfo, OrderDetails
@@ -24,45 +37,116 @@ from the_alchemiser.interfaces.schemas.execution import (
     WebSocketStatus,
 )
 
+__all__ = [
+    "execution_result_dto_to_dict",
+    "dict_to_execution_result_dto",
+    "trading_plan_dto_to_dict",
+    "dict_to_trading_plan_dto",
+    "websocket_result_dto_to_dict",
+    "dict_to_websocket_result_dto",
+    "quote_dto_to_dict",
+    "dict_to_quote_dto",
+    "lambda_event_dto_to_dict",
+    "dict_to_lambda_event_dto",
+    "order_history_dto_to_dict",
+    "dict_to_order_history_dto",
+    "account_info_to_execution_result_dto",
+    "create_trading_plan_dto",
+    "create_quote_dto",
+]
 
-def ensure_decimal_precision(value: float | str | Decimal | None) -> Decimal:
-    """Ensure value is converted to Decimal with appropriate precision."""
+
+# ---------------------------------------------------------------------------
+# Precision helpers (Issue 3)
+# ---------------------------------------------------------------------------
+
+
+def _to_decimal(value: float | str | Decimal | int | None) -> Decimal:
     if value is None:
-        return Decimal("0.00")
-    return Decimal(str(value)).quantize(Decimal("0.01"))
+        return Decimal("0")
+    return Decimal(str(value))
 
 
-def normalize_timestamp(ts: str | datetime) -> datetime:
-    """Normalize timestamp to timezone-aware datetime."""
+def ensure_money(value: float | str | Decimal | int | None) -> Decimal:
+    """Quantize monetary value to 2 dp using ROUND_HALF_UP."""
+    return _to_decimal(value).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+
+def ensure_quantity(value: float | str | Decimal | int | None) -> Decimal:
+    """Quantize quantities/sizes to 4 dp (supports fractional shares)."""
+    return _to_decimal(value).quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)
+
+
+# ---------------------------------------------------------------------------
+# Timestamp normalisation (Issue 2 & 10)
+# ---------------------------------------------------------------------------
+
+
+def _normalize_timestamp_str(ts: str | datetime) -> str:
     if isinstance(ts, str):
-        # Handle ISO format with 'Z' suffix
         if ts.endswith("Z"):
             ts = ts[:-1] + "+00:00"
-        return datetime.fromisoformat(ts)
-    
-    # Ensure timezone awareness
-    if ts.tzinfo is None:
-        return ts.replace(tzinfo=UTC)
-    return ts
+        dt = datetime.fromisoformat(ts)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=UTC)
+    else:
+        dt = ts if ts.tzinfo else ts.replace(tzinfo=UTC)
+    return dt.astimezone(UTC).isoformat()
+
+
+# ---------------------------------------------------------------------------
+# Order normalisation (Issue 1 & 6)
+# ---------------------------------------------------------------------------
+
+_ORDER_KEYS: tuple[str, ...] = (
+    "id",
+    "symbol",
+    "qty",
+    "side",
+    "order_type",
+    "time_in_force",
+    "status",
+    "filled_qty",
+    "filled_avg_price",
+    "created_at",
+    "updated_at",
+)
+
+
+def _get_attr(obj: Any, name: str, default: Any = None) -> Any:  # pragma: no cover - helper
+    if isinstance(obj, Mapping):
+        return obj.get(name, default)
+    return getattr(obj, name, default)
+
+
+def _normalize_order_details(order: Any) -> dict[str, Any]:
+    """Return a consistent OrderDetails-like dict from various order representations."""
+    result: dict[str, Any] = {}
+    for key in _ORDER_KEYS:
+        result[key] = _get_attr(order, key)
+    return result
+
+
+def _normalize_orders(orders: Iterable[Any]) -> list[dict[str, Any]]:
+    return [_normalize_order_details(o) for o in orders]
 
 
 def execution_result_dto_to_dict(dto: ExecutionResultDTO) -> dict[str, Any]:
     """Convert ExecutionResultDTO to dictionary for external reporting.
-    
+
     Args:
         dto: ExecutionResultDTO instance to convert
-        
+
     Returns:
         Dictionary representation suitable for external reporting/logging
     """
     return {
-        "orders_executed": [dict(order) if isinstance(order, dict) else order for order in dto.orders_executed],
+        "orders_executed": _normalize_orders(dto.orders_executed),
         "account_info_before": dict(dto.account_info_before),
         "account_info_after": dict(dto.account_info_after),
         "execution_summary": dto.execution_summary,
         "final_portfolio_state": dto.final_portfolio_state,
-        # Additional metadata for reporting
-        "execution_type": "trading_cycle",
+        "execution_type": "trading_cycle",  # metadata
         "orders_count": len(dto.orders_executed),
         "source": "execution_mapping",
     }
@@ -70,10 +154,10 @@ def execution_result_dto_to_dict(dto: ExecutionResultDTO) -> dict[str, Any]:
 
 def dict_to_execution_result_dto(data: dict[str, Any]) -> ExecutionResultDTO:
     """Convert dictionary to ExecutionResultDTO.
-    
+
     Args:
         data: Dictionary containing execution result data
-        
+
     Returns:
         ExecutionResultDTO instance
     """
@@ -87,64 +171,53 @@ def dict_to_execution_result_dto(data: dict[str, Any]) -> ExecutionResultDTO:
 
 
 def trading_plan_dto_to_dict(dto: TradingPlanDTO) -> dict[str, Any]:
-    """Convert TradingPlanDTO to dictionary for external reporting.
-    
-    Args:
-        dto: TradingPlanDTO instance to convert
-        
-    Returns:
-        Dictionary representation suitable for external reporting/logging
-    """
+    """Convert TradingPlanDTO to dictionary (string monetary serialization)."""
     return {
         "symbol": dto.symbol,
-        "action": dto.action.value if hasattr(dto.action, "value") else str(dto.action),
-        "quantity": float(dto.quantity),  # Convert Decimal to float for JSON serialization
-        "estimated_price": float(dto.estimated_price),
+        "action": dto.action.value,
+        "quantity": str(dto.quantity),
+        "estimated_price": str(dto.estimated_price),
         "reasoning": dto.reasoning,
-        # Additional metadata for reporting
         "plan_type": "trading_plan",
-        "estimated_value": float(dto.quantity * dto.estimated_price),
+        "estimated_value": str(dto.quantity * dto.estimated_price),
         "source": "execution_mapping",
     }
 
 
 def dict_to_trading_plan_dto(data: dict[str, Any]) -> TradingPlanDTO:
     """Convert dictionary to TradingPlanDTO.
-    
+
     Args:
         data: Dictionary containing trading plan data
-        
+
     Returns:
         TradingPlanDTO instance
     """
     # Normalize action to TradingAction enum
-    action = data["action"]
-    if isinstance(action, str):
-        action = TradingAction(action.upper())
-    
+    action_val = data["action"]
+    try:
+        if isinstance(action_val, str):
+            action = TradingAction(action_val.upper())
+        else:
+            action = action_val
+    except ValueError as exc:  # Issue 5
+        raise ValueError(f"Invalid trading action '{action_val}'") from exc
+
     return TradingPlanDTO(
         symbol=data["symbol"],
         action=action,
-        quantity=ensure_decimal_precision(data["quantity"]),
-        estimated_price=ensure_decimal_precision(data["estimated_price"]),
+        quantity=ensure_quantity(data["quantity"]),
+        estimated_price=ensure_money(data["estimated_price"]),
         reasoning=data.get("reasoning", ""),
     )
 
 
 def websocket_result_dto_to_dict(dto: WebSocketResultDTO) -> dict[str, Any]:
-    """Convert WebSocketResultDTO to dictionary for external reporting.
-    
-    Args:
-        dto: WebSocketResultDTO instance to convert
-        
-    Returns:
-        Dictionary representation suitable for external reporting/logging
-    """
+    """Convert WebSocketResultDTO to dictionary for external reporting."""
     return {
-        "status": dto.status.value if hasattr(dto.status, "value") else str(dto.status),
+        "status": dto.status.value,
         "message": dto.message,
         "orders_completed": dto.orders_completed,
-        # Additional metadata for reporting
         "result_type": "websocket_result",
         "orders_count": len(dto.orders_completed),
         "source": "execution_mapping",
@@ -153,18 +226,23 @@ def websocket_result_dto_to_dict(dto: WebSocketResultDTO) -> dict[str, Any]:
 
 def dict_to_websocket_result_dto(data: dict[str, Any]) -> WebSocketResultDTO:
     """Convert dictionary to WebSocketResultDTO.
-    
+
     Args:
         data: Dictionary containing websocket result data
-        
+
     Returns:
         WebSocketResultDTO instance
     """
     # Normalize status to WebSocketStatus enum
-    status = data["status"]
-    if isinstance(status, str):
-        status = WebSocketStatus(status.lower())
-    
+    status_val = data["status"]
+    try:
+        if isinstance(status_val, str):
+            status = WebSocketStatus(status_val.lower())
+        else:
+            status = status_val
+    except ValueError as exc:  # Issue 5
+        raise ValueError(f"Invalid websocket status '{status_val}'") from exc
+
     return WebSocketResultDTO(
         status=status,
         message=data["message"],
@@ -174,51 +252,50 @@ def dict_to_websocket_result_dto(data: dict[str, Any]) -> WebSocketResultDTO:
 
 def quote_dto_to_dict(dto: QuoteDTO) -> dict[str, Any]:
     """Convert QuoteDTO to dictionary for external reporting.
-    
+
     Args:
         dto: QuoteDTO instance to convert
-        
+
     Returns:
         Dictionary representation suitable for external reporting/logging
     """
     return {
-        "bid_price": float(dto.bid_price),
-        "ask_price": float(dto.ask_price),
-        "bid_size": float(dto.bid_size),
-        "ask_size": float(dto.ask_size),
+        "bid_price": str(dto.bid_price),
+        "ask_price": str(dto.ask_price),
+        "bid_size": str(dto.bid_size),
+        "ask_size": str(dto.ask_size),
         "timestamp": dto.timestamp,
-        # Additional metadata for reporting
         "quote_type": "real_time_quote",
-        "spread": float(dto.ask_price - dto.bid_price),
-        "mid_price": float((dto.bid_price + dto.ask_price) / 2),
+        "spread": str(dto.ask_price - dto.bid_price),
+        "mid_price": str((dto.bid_price + dto.ask_price) / 2),
         "source": "execution_mapping",
     }
 
 
 def dict_to_quote_dto(data: dict[str, Any]) -> QuoteDTO:
     """Convert dictionary to QuoteDTO.
-    
+
     Args:
         data: Dictionary containing quote data
-        
+
     Returns:
         QuoteDTO instance
     """
     return QuoteDTO(
-        bid_price=ensure_decimal_precision(data["bid_price"]),
-        ask_price=ensure_decimal_precision(data["ask_price"]),
-        bid_size=ensure_decimal_precision(data["bid_size"]),
-        ask_size=ensure_decimal_precision(data["ask_size"]),
-        timestamp=data["timestamp"],
+        bid_price=ensure_money(data["bid_price"]),
+        ask_price=ensure_money(data["ask_price"]),
+        bid_size=ensure_quantity(data["bid_size"]),
+        ask_size=ensure_quantity(data["ask_size"]),
+        timestamp=_normalize_timestamp_str(data["timestamp"]),
     )
 
 
 def lambda_event_dto_to_dict(dto: LambdaEventDTO) -> dict[str, Any]:
     """Convert LambdaEventDTO to dictionary for external reporting.
-    
+
     Args:
         dto: LambdaEventDTO instance to convert
-        
+
     Returns:
         Dictionary representation suitable for external reporting/logging
     """
@@ -236,10 +313,10 @@ def lambda_event_dto_to_dict(dto: LambdaEventDTO) -> dict[str, Any]:
 
 def dict_to_lambda_event_dto(data: dict[str, Any]) -> LambdaEventDTO:
     """Convert dictionary to LambdaEventDTO.
-    
+
     Args:
         data: Dictionary containing lambda event data
-        
+
     Returns:
         LambdaEventDTO instance
     """
@@ -253,18 +330,17 @@ def dict_to_lambda_event_dto(data: dict[str, Any]) -> LambdaEventDTO:
 
 def order_history_dto_to_dict(dto: OrderHistoryDTO) -> dict[str, Any]:
     """Convert OrderHistoryDTO to dictionary for external reporting.
-    
+
     Args:
         dto: OrderHistoryDTO instance to convert
-        
+
     Returns:
         Dictionary representation suitable for external reporting/logging
     """
     return {
-        "orders": [dict(order) if isinstance(order, dict) else order for order in dto.orders],
+        "orders": _normalize_orders(dto.orders),
         "metadata": dto.metadata,
-        # Additional metadata for reporting
-        "history_type": "order_history",
+        "history_type": "order_history",  # metadata
         "orders_count": len(dto.orders),
         "source": "execution_mapping",
     }
@@ -272,10 +348,10 @@ def order_history_dto_to_dict(dto: OrderHistoryDTO) -> dict[str, Any]:
 
 def dict_to_order_history_dto(data: dict[str, Any]) -> OrderHistoryDTO:
     """Convert dictionary to OrderHistoryDTO.
-    
+
     Args:
         data: Dictionary containing order history data
-        
+
     Returns:
         OrderHistoryDTO instance
     """
@@ -294,14 +370,14 @@ def account_info_to_execution_result_dto(
     final_portfolio_state: dict[str, Any] | None = None,
 ) -> ExecutionResultDTO:
     """Create ExecutionResultDTO from domain models.
-    
+
     Args:
         orders_executed: List of OrderDetails executed
         account_before: Account state before execution
         account_after: Account state after execution
         execution_summary: Optional execution summary
         final_portfolio_state: Optional portfolio state
-        
+
     Returns:
         ExecutionResultDTO instance
     """
@@ -322,22 +398,27 @@ def create_trading_plan_dto(
     reasoning: str = "",
 ) -> TradingPlanDTO:
     """Create TradingPlanDTO from basic parameters.
-    
+
     Args:
         symbol: Trading symbol
         action: Trading action ("BUY" or "SELL")
         quantity: Quantity to trade
         estimated_price: Estimated execution price
         reasoning: Reasoning behind the trading decision
-        
+
     Returns:
         TradingPlanDTO instance
     """
+    try:
+        action_enum = TradingAction(action.upper())
+    except ValueError as exc:  # Issue 5
+        raise ValueError(f"Invalid trading action '{action}'") from exc
+
     return TradingPlanDTO(
         symbol=symbol.upper().strip(),
-        action=TradingAction(action.upper()),
-        quantity=ensure_decimal_precision(quantity),
-        estimated_price=ensure_decimal_precision(estimated_price),
+        action=action_enum,
+        quantity=ensure_quantity(quantity),
+        estimated_price=ensure_money(estimated_price),
         reasoning=reasoning,
     )
 
@@ -350,26 +431,27 @@ def create_quote_dto(
     timestamp: str | datetime | None = None,
 ) -> QuoteDTO:
     """Create QuoteDTO from basic parameters.
-    
+
     Args:
         bid_price: Bid price
         ask_price: Ask price
         bid_size: Bid size
         ask_size: Ask size
         timestamp: Quote timestamp (defaults to current UTC time)
-        
+
     Returns:
         QuoteDTO instance
     """
+    norm_ts: str
     if timestamp is None:
-        timestamp = datetime.now(UTC).isoformat()
-    elif isinstance(timestamp, datetime):
-        timestamp = timestamp.isoformat()
-    
+        norm_ts = _normalize_timestamp_str(datetime.now(UTC))
+    else:
+        norm_ts = _normalize_timestamp_str(timestamp)
+
     return QuoteDTO(
-        bid_price=ensure_decimal_precision(bid_price),
-        ask_price=ensure_decimal_precision(ask_price),
-        bid_size=ensure_decimal_precision(bid_size),
-        ask_size=ensure_decimal_precision(ask_size),
-        timestamp=timestamp,
+        bid_price=ensure_money(bid_price),
+        ask_price=ensure_money(ask_price),
+        bid_size=ensure_quantity(bid_size),
+        ask_size=ensure_quantity(ask_size),
+        timestamp=norm_ts,
     )
