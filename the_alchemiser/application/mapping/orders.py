@@ -1,13 +1,8 @@
-"""
-Mapping utilities between Order DTOs and domain/infrastructure types.
-
-This module provides mapping functions for the order validation refactor,
-converting between OrderRequestDTO/ValidatedOrderDTO and other order representations.
-Part of the anti-corruption layer for clean DTO boundaries.
-"""
+"""Order mapping utilities and status normalization (application layer)."""
 
 from __future__ import annotations
 
+import logging
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any, Literal, cast
@@ -16,6 +11,9 @@ from the_alchemiser.domain.shared_kernel.value_objects.money import Money
 from the_alchemiser.domain.trading.entities.order import Order
 from the_alchemiser.domain.trading.value_objects.order_id import OrderId
 from the_alchemiser.domain.trading.value_objects.order_status import OrderStatus
+from the_alchemiser.domain.trading.value_objects.order_status_literal import (
+    OrderStatusLiteral,
+)
 from the_alchemiser.domain.trading.value_objects.quantity import Quantity
 from the_alchemiser.domain.trading.value_objects.symbol import Symbol
 from the_alchemiser.interfaces.schemas.orders import (
@@ -23,6 +21,42 @@ from the_alchemiser.interfaces.schemas.orders import (
     OrderRequestDTO,
     ValidatedOrderDTO,
 )
+
+__all__ = ["OrderStatusLiteral", "normalize_order_status"]
+
+_STATUS_SYNONYMS: dict[str, OrderStatusLiteral] = {
+    "placed": "new",
+    "submitted": "new",
+    "simulated": "new",
+    "new": "new",
+    "accepted": "new",
+    "pending_new": "new",
+    "partially_filled": "partially_filled",
+    "partial": "partially_filled",
+    "pending_fill": "partially_filled",
+    "filled": "filled",
+    "done_for_day": "filled",
+    "canceled": "canceled",
+    "cancelled": "canceled",
+    "pending_cancel": "canceled",
+    "expired": "expired",
+    "rejected": "rejected",
+    "failed": "rejected",
+    "stopped": "rejected",
+}
+
+
+def normalize_order_status(raw: str) -> OrderStatusLiteral:
+    token = (raw or "").strip().lower()
+    if not token:
+        return "new"
+    mapped = _STATUS_SYNONYMS.get(token)
+    if mapped:
+        return mapped
+    if token in {"new", "partially_filled", "filled", "canceled", "expired", "rejected"}:
+        return cast(OrderStatusLiteral, token)
+    logging.warning("Unknown order status encountered: %s - defaulting to 'new'", token)
+    return "new"
 
 
 def dict_to_order_request_dto(order_data: dict[str, Any]) -> OrderRequestDTO:

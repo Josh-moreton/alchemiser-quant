@@ -7,6 +7,8 @@ interfaces/schemas modules as part of the Pydantic migration.
 
 from typing import Any, Literal, Protocol, TypedDict
 
+from the_alchemiser.domain.trading.value_objects.order_status_literal import OrderStatusLiteral
+
 
 # Account Information Types
 class AccountInfo(TypedDict):
@@ -74,7 +76,7 @@ class OrderDetails(TypedDict):
     side: Literal["buy", "sell"]
     order_type: Literal["market", "limit", "stop", "stop_limit"]
     time_in_force: Literal["day", "gtc", "ioc", "fok"]
-    status: Literal["new", "partially_filled", "filled", "canceled", "expired", "rejected"]
+    status: OrderStatusLiteral
     filled_qty: str | float
     filled_avg_price: str | float | None
     created_at: str

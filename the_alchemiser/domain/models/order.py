@@ -4,6 +4,10 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Literal
 
+from the_alchemiser.domain.trading.value_objects.order_status import OrderStatus
+from the_alchemiser.domain.trading.value_objects.order_status_literal import (
+    OrderStatusLiteral,
+)
 from the_alchemiser.domain.types import OrderDetails
 
 
@@ -17,7 +21,7 @@ class OrderModel:
     side: Literal["buy", "sell"]
     order_type: Literal["market", "limit", "stop", "stop_limit"]
     time_in_force: Literal["day", "gtc", "ioc", "fok"]
-    status: Literal["new", "partially_filled", "filled", "canceled", "expired", "rejected"]
+    status: OrderStatus  # Domain uses enum, boundary uses lowercase literal
     filled_qty: float
     filled_avg_price: float | None
     created_at: datetime
@@ -36,6 +40,17 @@ class OrderModel:
         if filled_avg_price is not None:
             filled_avg_price = float(filled_avg_price)
 
+        # Map lowercase literal status to domain enum (uppercase member names)
+        status_literal = data["status"]
+        literal_to_enum = {
+            "new": OrderStatus.NEW,
+            "partially_filled": OrderStatus.PARTIALLY_FILLED,
+            "filled": OrderStatus.FILLED,
+            "canceled": OrderStatus.CANCELLED,
+            "expired": OrderStatus.REJECTED,  # Collapsed in domain layer
+            "rejected": OrderStatus.REJECTED,
+        }
+
         return cls(
             id=data["id"],
             symbol=data["symbol"],
@@ -43,7 +58,7 @@ class OrderModel:
             side=data["side"],
             order_type=data["order_type"],
             time_in_force=data["time_in_force"],
-            status=data["status"],
+            status=literal_to_enum.get(status_literal, OrderStatus.NEW),
             filled_qty=float(data["filled_qty"]),
             filled_avg_price=filled_avg_price,
             created_at=created_at_parsed,
@@ -52,6 +67,15 @@ class OrderModel:
 
     def to_dict(self) -> OrderDetails:
         """Convert to OrderDetails TypedDict."""
+        # Convert enum back to lowercase literal for boundary representation
+        enum_to_literal: dict[OrderStatus, OrderStatusLiteral] = {
+            OrderStatus.NEW: "new",
+            OrderStatus.PARTIALLY_FILLED: "partially_filled",
+            OrderStatus.FILLED: "filled",
+            OrderStatus.CANCELLED: "canceled",
+            OrderStatus.REJECTED: "rejected",
+        }
+
         return {
             "id": self.id,
             "symbol": self.symbol,
@@ -59,7 +83,7 @@ class OrderModel:
             "side": self.side,
             "order_type": self.order_type,
             "time_in_force": self.time_in_force,
-            "status": self.status,
+            "status": enum_to_literal.get(self.status, "new"),
             "filled_qty": self.filled_qty,
             "filled_avg_price": self.filled_avg_price,
             "created_at": self.created_at.isoformat(),
@@ -79,17 +103,21 @@ class OrderModel:
     @property
     def is_filled(self) -> bool:
         """Check if order is completely filled."""
-        return self.status == "filled"
+        return self.status == OrderStatus.FILLED
 
     @property
     def is_partially_filled(self) -> bool:
         """Check if order is partially filled."""
-        return self.status == "partially_filled"
+        return self.status == OrderStatus.PARTIALLY_FILLED
 
     @property
     def is_complete(self) -> bool:
         """Check if order is complete (filled or canceled/rejected)."""
-        return self.status in ["filled", "canceled", "expired", "rejected"]
+        return self.status in [
+            OrderStatus.FILLED,
+            OrderStatus.CANCELLED,
+            OrderStatus.REJECTED,
+        ]
 
     @property
     def remaining_qty(self) -> float:

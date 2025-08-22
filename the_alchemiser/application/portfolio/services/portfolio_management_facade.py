@@ -2,8 +2,9 @@
 
 import logging
 from decimal import Decimal
-from typing import Any, Literal, cast
+from typing import Any
 
+from the_alchemiser.application.mapping.orders import normalize_order_status
 from the_alchemiser.application.portfolio.services.portfolio_analysis_service import (
     PortfolioAnalysisService,
 )
@@ -21,29 +22,6 @@ from the_alchemiser.domain.portfolio.strategy_attribution.attribution_engine imp
 from the_alchemiser.domain.registry.strategy_registry import StrategyType
 from the_alchemiser.domain.types import OrderDetails
 from the_alchemiser.services.trading.trading_service_manager import TradingServiceManager
-
-# Typed alias for order status literals required by OrderDetails
-OrderStatusLiteral = Literal["new", "partially_filled", "filled", "canceled", "expired", "rejected"]
-
-
-def _normalize_order_status(raw_status: str) -> OrderStatusLiteral:
-    """Normalize various internal statuses to the allowed OrderStatus literal."""
-    s = (raw_status or "").strip().lower()
-    if s in ("placed", "simulated"):
-        return "new"
-    if s == "failed":
-        return "rejected"
-    allowed: tuple[OrderStatusLiteral, ...] = (
-        "new",
-        "partially_filled",
-        "filled",
-        "canceled",
-        "expired",
-        "rejected",
-    )
-    if s in allowed:
-        return cast(OrderStatusLiteral, s)
-    return "new"
 
 
 class PortfolioManagementFacade:
@@ -322,7 +300,7 @@ class PortfolioManagementFacade:
                 qty_float = float(qty_value) if qty_value is not None else 0.0
 
                 # Normalize status to allowed literal values for DTO
-                status_norm = _normalize_order_status(str(order_data.get("status", "new")))
+                status_norm = normalize_order_status(str(order_data.get("status", "new")))
 
                 order_details: OrderDetails = {
                     "id": order_data.get("order_id", "unknown"),
@@ -406,7 +384,7 @@ class PortfolioManagementFacade:
             )
             qty_float = float(qty_value) if qty_value is not None else 0.0
             # Normalize status to allowed literal values
-            status_norm = _normalize_order_status(str(order_data.get("status", "new")))
+            status_norm = normalize_order_status(str(order_data.get("status", "new")))
             order_details: OrderDetails = {
                 "id": order_data.get("order_id", "unknown"),
                 "symbol": symbol,
