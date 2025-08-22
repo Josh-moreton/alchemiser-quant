@@ -21,6 +21,8 @@ from typing import Literal
 from alpaca.trading.requests import LimitOrderRequest
 from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
+from the_alchemiser.interfaces.schemas.base import ResultDTO
+
 
 class OrderValidationMixin:
     """
@@ -122,12 +124,12 @@ class ValidatedOrderDTO(BaseModel, OrderValidationMixin):
     validation_timestamp: datetime
 
 
-class OrderExecutionResultDTO(BaseModel):
+class OrderExecutionResultDTO(ResultDTO):
     """
     DTO for order execution results.
 
-    Contains the outcome of order submission and execution tracking.
-    Used for reporting execution status and filled quantities.
+    Adds uniform success/error fields to align with prior facade contract
+    (which exposed a 'success' flag) while preserving structured status.
     """
 
     model_config = ConfigDict(
@@ -136,6 +138,7 @@ class OrderExecutionResultDTO(BaseModel):
         validate_assignment=True,
     )
 
+    # Core execution data
     order_id: str
     status: Literal["accepted", "filled", "partially_filled", "rejected", "canceled"]
     filled_qty: Decimal
@@ -146,7 +149,6 @@ class OrderExecutionResultDTO(BaseModel):
     @field_validator("filled_qty")
     @classmethod
     def validate_filled_qty(cls, v: Decimal) -> Decimal:
-        """Validate filled quantity is non-negative."""
         if v < 0:
             raise ValueError("Filled quantity cannot be negative")
         return v
@@ -154,10 +156,11 @@ class OrderExecutionResultDTO(BaseModel):
     @field_validator("avg_fill_price")
     @classmethod
     def validate_avg_fill_price(cls, v: Decimal | None) -> Decimal | None:
-        """Validate average fill price is positive when provided."""
         if v is not None and v <= 0:
             raise ValueError("Average fill price must be greater than 0")
         return v
+
+    # is_success inherited from ResultDTO
 
 
 class LimitOrderResultDTO(BaseModel):
