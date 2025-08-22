@@ -3,6 +3,7 @@
 import pytest
 from unittest.mock import Mock
 import pandas as pd
+from decimal import Decimal
 
 from the_alchemiser.domain.dsl.evaluator import DSLEvaluator
 from the_alchemiser.domain.dsl.ast import (
@@ -35,7 +36,7 @@ class TestDSLEvaluator:
         evaluator = DSLEvaluator(mock_market_data_port)
         
         result = evaluator.evaluate(NumberLiteral(42.5))
-        assert result == 42.5
+        assert result == pytest.approx(42.5)
     
     def test_evaluate_simple_comparison(self, mock_market_data_port: Mock) -> None:
         """Test evaluating simple comparison."""
@@ -88,7 +89,7 @@ class TestDSLEvaluator:
         node = CurrentPrice("SPY")
         result = evaluator.evaluate(node)
         
-        assert result == 109.0
+        assert result == pytest.approx(109.0)
         mock_market_data_port.get_current_price.assert_called_with("SPY")
     
     def test_evaluate_asset_portfolio(self, mock_market_data_port: Mock) -> None:
@@ -99,7 +100,7 @@ class TestDSLEvaluator:
         result = evaluator.evaluate(node)
         
         assert isinstance(result, dict)
-        assert result == {"SPY": 1.0}
+        assert result == {"SPY": pytest.approx(Decimal('1.0'))}
     
     def test_evaluate_weight_equal(self, mock_market_data_port: Mock) -> None:
         """Test evaluating equal weight portfolio."""
@@ -111,8 +112,8 @@ class TestDSLEvaluator:
         
         assert isinstance(result, dict)
         assert len(result) == 2
-        assert result["SPY"] == 0.5
-        assert result["QQQ"] == 0.5
+        assert result["SPY"] == pytest.approx(Decimal('0.5'))
+        assert result["QQQ"] == pytest.approx(Decimal('0.5'))
     
     def test_evaluate_rsi_comparison(self, mock_market_data_port: Mock) -> None:
         """Test evaluating RSI comparison."""

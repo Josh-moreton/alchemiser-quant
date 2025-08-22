@@ -19,7 +19,7 @@ class ASTNode:
 
 
 # Literals and symbols
-@dataclass(frozen=True)  
+@dataclass(frozen=True)
 class NumberLiteral(ASTNode):
     """Numeric literal (int or float)."""
     value: float
@@ -31,7 +31,7 @@ class Symbol(ASTNode):
     name: str
 
 
-# Comparison operators  
+# Comparison operators
 @dataclass(frozen=True)
 class GreaterThan(ASTNode):
     """Greater than comparison (>)."""
@@ -41,7 +41,7 @@ class GreaterThan(ASTNode):
 
 @dataclass(frozen=True)
 class LessThan(ASTNode):
-    """Less than comparison (<).""" 
+    """Less than comparison (<)."""
     left: ASTNode
     right: ASTNode
 
@@ -80,7 +80,7 @@ class MovingAverageReturn(ASTNode):
 @dataclass(frozen=True)
 class CumulativeReturn(ASTNode):
     """Cumulative return over window."""
-    symbol: str 
+    symbol: str
     window: int
 
 
@@ -117,7 +117,7 @@ class WeightSpecified(ASTNode):
     weights_and_expressions: list[tuple[float, ASTNode]]
 
 
-@dataclass(frozen=True)  
+@dataclass(frozen=True)
 class WeightInverseVolatility(ASTNode):
     """Inverse volatility weighted portfolio."""
     lookback: int

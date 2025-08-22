@@ -12,7 +12,7 @@ from typing import Any
 
 class DSLError(Exception):
     """Base exception for all DSL-related errors."""
-    
+
     def __init__(self, message: str, context: dict[str, Any] | None = None) -> None:
         super().__init__(message)
         self.message = message
@@ -21,11 +21,11 @@ class DSLError(Exception):
 
 class ParseError(DSLError):
     """Raised when S-expression parsing fails."""
-    
+
     def __init__(
-        self, 
-        message: str, 
-        expression: str | None = None, 
+        self,
+        message: str,
+        expression: str | None = None,
         position: int | None = None,
         context: dict[str, Any] | None = None
     ) -> None:
@@ -36,10 +36,10 @@ class ParseError(DSLError):
 
 class SchemaError(DSLError):
     """Raised when DSL construct validation fails."""
-    
+
     def __init__(
-        self, 
-        message: str, 
+        self,
+        message: str,
         construct: str | None = None,
         expected_arity: int | None = None,
         actual_arity: int | None = None,
@@ -53,10 +53,10 @@ class SchemaError(DSLError):
 
 class EvaluationError(DSLError):
     """Raised when DSL evaluation fails."""
-    
+
     def __init__(
-        self, 
-        message: str, 
+        self,
+        message: str,
         symbol: str | None = None,
         ast_node: Any = None,
         context: dict[str, Any] | None = None
@@ -68,9 +68,9 @@ class EvaluationError(DSLError):
 
 class SecurityError(DSLError):
     """Raised when DSL security constraints are violated."""
-    
+
     def __init__(
-        self, 
+        self,
         message: str,
         violation_type: str | None = None,
         context: dict[str, Any] | None = None
@@ -81,9 +81,9 @@ class SecurityError(DSLError):
 
 class IndicatorError(DSLError):
     """Raised when indicator calculations fail."""
-    
+
     def __init__(
-        self, 
+        self,
         message: str,
         indicator: str | None = None,
         symbol: str | None = None,
@@ -96,9 +96,9 @@ class IndicatorError(DSLError):
 
 class PortfolioError(DSLError):
     """Raised when portfolio construction or algebra fails."""
-    
+
     def __init__(
-        self, 
+        self,
         message: str,
         operation: str | None = None,
         assets: list[str] | None = None,

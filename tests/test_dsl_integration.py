@@ -3,6 +3,7 @@
 import pytest
 from unittest.mock import Mock
 import pandas as pd
+from decimal import Decimal
 
 from the_alchemiser.domain.dsl.parser import DSLParser
 from the_alchemiser.domain.dsl.evaluator import DSLEvaluator
@@ -60,7 +61,7 @@ class TestDSLIntegration:
         # Should choose UVXY since HIGH_RSI has high RSI
         assert isinstance(result, dict)
         assert "UVXY" in result
-        assert result["UVXY"] == 1.0
+        assert result["UVXY"] == pytest.approx(Decimal('1.0'))
         
         # Check the trace
         trace = evaluator.get_trace()
@@ -97,9 +98,9 @@ class TestDSLIntegration:
         # Should be equal weight across 3 assets
         assert isinstance(result, dict)
         assert len(result) == 3
-        assert abs(result["SPY"] - 1/3) < 1e-9
-        assert abs(result["QQQ"] - 1/3) < 1e-9
-        assert abs(result["IWM"] - 1/3) < 1e-9
+        assert abs(result["SPY"] - Decimal('1')/Decimal('3')) < Decimal('1e-9')
+        assert abs(result["QQQ"] - Decimal('1')/Decimal('3')) < Decimal('1e-9')
+        assert abs(result["IWM"] - Decimal('1')/Decimal('3')) < Decimal('1e-9')
         
         # Check the trace
         trace = evaluator.get_trace()
@@ -133,7 +134,7 @@ class TestDSLIntegration:
         
         # All weights should sum to 1.0
         total_weight = sum(result.values())
-        assert abs(total_weight - 1.0) < 1e-9
+        assert abs(total_weight - Decimal('1.0')) < Decimal('1e-9')
     
     def test_weight_specified_portfolio(self, mock_market_data_port: Mock) -> None:
         """Test explicitly weighted portfolio."""
@@ -152,9 +153,9 @@ class TestDSLIntegration:
         # Should have correct weights
         assert isinstance(result, dict)
         assert len(result) == 2
-        assert abs(result["UVXY"] - 0.75) < 1e-9
-        assert abs(result["BTAL"] - 0.25) < 1e-9
+        assert abs(result["UVXY"] - Decimal('0.75')) < Decimal('1e-9')
+        assert abs(result["BTAL"] - Decimal('0.25')) < Decimal('1e-9')
         
         # Total should sum to 1.0
         total_weight = sum(result.values())
-        assert abs(total_weight - 1.0) < 1e-9
+        assert abs(total_weight - Decimal('1.0')) < Decimal('1e-9')

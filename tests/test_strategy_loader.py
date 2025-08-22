@@ -5,6 +5,7 @@ from unittest.mock import Mock
 import pandas as pd
 import tempfile
 from pathlib import Path
+from decimal import Decimal
 
 from the_alchemiser.domain.dsl.strategy_loader import StrategyLoader, StrategyResult
 from the_alchemiser.domain.dsl.errors import DSLError
@@ -62,7 +63,7 @@ class TestStrategyLoader:
         
         # Should produce single-asset portfolio
         assert isinstance(portfolio, dict)
-        assert portfolio == {"SPY": 1.0}
+        assert portfolio == {"SPY": pytest.approx(Decimal('1.0'))}
         
         # Should have trace entries
         assert isinstance(trace, list)
@@ -90,7 +91,7 @@ class TestStrategyLoader:
         
         # All weights should sum to 1.0
         total_weight = sum(portfolio.values())
-        assert abs(total_weight - 1.0) < 1e-9
+        assert abs(total_weight - Decimal('1.0')) < Decimal('1e-9')
         
         # Should have comprehensive trace
         assert len(trace) > 0
@@ -118,28 +119,28 @@ class TestStrategyLoader:
             
             # All weights should sum to 1.0
             total_weight = sum(portfolio.values())
-            assert abs(total_weight - 1.0) < 1e-9
+            assert abs(total_weight - Decimal('1.0')) < Decimal('1e-9')
             
             # Should have trace
             assert len(trace) > 0
     
     def test_validate_portfolio_valid(self, strategy_loader: StrategyLoader) -> None:
         """Test portfolio validation with valid portfolio."""
-        valid_portfolio = {"SPY": 0.6, "QQQ": 0.4}
+        valid_portfolio = {"SPY": Decimal('0.6'), "QQQ": Decimal('0.4')}
         
         # Should not raise any exception
         strategy_loader.validate_portfolio(valid_portfolio)
     
     def test_validate_portfolio_invalid_sum(self, strategy_loader: StrategyLoader) -> None:
         """Test portfolio validation with invalid weight sum."""
-        invalid_portfolio = {"SPY": 0.6, "QQQ": 0.5}  # Sums to 1.1
+        invalid_portfolio = {"SPY": Decimal('0.6'), "QQQ": Decimal('0.5')}  # Sums to 1.1
         
         with pytest.raises(ValueError, match="Portfolio weights sum"):
             strategy_loader.validate_portfolio(invalid_portfolio)
     
     def test_validate_portfolio_negative_weights(self, strategy_loader: StrategyLoader) -> None:
         """Test portfolio validation with negative weights."""
-        invalid_portfolio = {"SPY": 1.2, "QQQ": -0.2}  # Negative weight
+        invalid_portfolio = {"SPY": Decimal('1.2'), "QQQ": Decimal('-0.2')}  # Negative weight
         
         with pytest.raises(ValueError, match="negative weights"):
             strategy_loader.validate_portfolio(invalid_portfolio)
