@@ -18,6 +18,7 @@ from the_alchemiser.application.mapping.orders import (
 )
 from the_alchemiser.application.mapping.position_mapping import alpaca_position_to_summary
 from the_alchemiser.application.mapping.trading_service_dto_mapping import (
+    account_summary_typed_to_dto,
     dict_to_buying_power_dto,
     dict_to_close_position_dto,
     dict_to_enriched_account_summary_dto,
@@ -397,9 +398,12 @@ class TradingServiceManager:
             return MultiSymbolQuotesDTO(success=False, error=str(e))
 
     # Account Management Operations
-    def get_account_summary(self) -> dict[str, Any]:
+    def get_account_summary(self) -> AccountSummaryDTO:
         """Get comprehensive account summary with metrics"""
-        return self.account.get_account_summary()
+        account_dict = self.account.get_account_summary()
+        # Convert to typed and then to DTO
+        typed = account_summary_to_typed(account_dict)
+        return account_summary_typed_to_dto(typed)
 
     def check_buying_power(self, required_amount: float) -> BuyingPowerDTO:
         """Check available buying power"""
