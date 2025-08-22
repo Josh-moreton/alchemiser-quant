@@ -1152,19 +1152,19 @@ class TradingEngine:
             )
 
             # Check if orders completed successfully
-            if completion_result["status"] == "completed":
-                completed_order_ids = completion_result["orders_completed"]
+            if completion_result.status == "completed":
+                completed_order_ids = completion_result.orders_completed
                 logging.info(
                     f"✅ {len(completed_order_ids)} sell orders completed, buying power should be refreshed"
                 )
-            elif completion_result["status"] == "timeout":
-                completed_order_ids = completion_result["orders_completed"]
+            elif completion_result.status == "timeout":
+                completed_order_ids = completion_result.orders_completed
                 logging.warning(
                     f"⏰ WebSocket monitoring timed out. {len(completed_order_ids)} orders completed out of {len(sell_order_ids)}"
                 )
             else:  # error status
-                logging.error(f"❌ WebSocket monitoring error: {completion_result['message']}")
-                completed_order_ids = completion_result["orders_completed"]
+                logging.error(f"❌ WebSocket monitoring error: {completion_result.message}")
+                completed_order_ids = completion_result.orders_completed
 
             # Brief additional delay to ensure buying power propagation
             import time

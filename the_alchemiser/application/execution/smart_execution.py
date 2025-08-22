@@ -19,7 +19,7 @@ from typing import Any, Protocol
 
 from alpaca.trading.enums import OrderSide
 
-from the_alchemiser.interfaces.schemas.execution import WebSocketResult
+from the_alchemiser.interfaces.schemas.execution import WebSocketResultDTO
 from the_alchemiser.services.errors.exceptions import (
     DataProviderError,
     OrderExecutionError,
@@ -60,7 +60,7 @@ class OrderExecutor(Protocol):
 
     def wait_for_order_completion(
         self, order_ids: list[str], max_wait_seconds: int = 30
-    ) -> WebSocketResult:
+    ) -> WebSocketResultDTO:
         """Wait for order completion."""
         ...
 
@@ -363,7 +363,7 @@ class SmartExecution:
         )
 
         # Convert WebSocketResult to order status dict for backward compatibility
-        websocket_completed_orders = completion_result.get("orders_completed", [])
+        websocket_completed_orders = completion_result.orders_completed
 
         # For the orders that completed via WebSocket, we need to check their final status
         completion_statuses = {}
@@ -501,8 +501,8 @@ class SmartExecution:
             )
 
             # Check if the order completed successfully
-            order_completed = order_id in order_result.get("orders_completed", [])
-            if order_completed and order_result["status"] == "completed":
+            order_completed = order_id in order_result.orders_completed
+            if order_completed and order_result.status == "completed":
                 console.print(
                     f"[green]✅ {side.value} {symbol} filled @ ${limit_price:.2f} ({attempt_label})[/green]"
                 )
