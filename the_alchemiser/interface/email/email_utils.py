@@ -26,7 +26,7 @@ from typing import Any
 # Import DTOs for type-safe email rendering
 from the_alchemiser.domain.types import AccountInfo, EnrichedAccountInfo
 from the_alchemiser.interfaces.schemas.common import MultiStrategyExecutionResultDTO
-from the_alchemiser.interfaces.schemas.execution import ExecutionResult
+from the_alchemiser.interfaces.schemas.execution import ExecutionResultDTO
 
 # Import all functions from the new modular structure
 from .client import EmailClient, send_email_notification
@@ -47,7 +47,7 @@ from .templates.signals import SignalsBuilder
 
 # Backward compatibility aliases for internal functions that might still be referenced
 def _build_portfolio_display(
-    result: ExecutionResult | MultiStrategyExecutionResultDTO | dict[str, Any],
+    result: ExecutionResultDTO | MultiStrategyExecutionResultDTO | dict[str, Any],
 ) -> str:
     """Backward compatibility function supporting both ExecutionResult and MultiStrategy DTO."""
     return PortfolioBuilder.build_portfolio_allocation(result)
@@ -80,7 +80,7 @@ def _build_enhanced_trading_summary_email_html(
 
 
 def _build_enhanced_portfolio_email_html(
-    result: ExecutionResult | MultiStrategyExecutionResultDTO | dict[str, Any],
+    result: ExecutionResultDTO | MultiStrategyExecutionResultDTO | dict[str, Any],
 ) -> str:
     """Backward compatibility function."""
     return PortfolioBuilder.build_portfolio_allocation(result)

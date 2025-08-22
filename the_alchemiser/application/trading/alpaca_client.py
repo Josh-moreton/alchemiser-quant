@@ -66,7 +66,7 @@ from the_alchemiser.infrastructure.websocket.websocket_connection_manager import
     WebSocketConnectionManager,
 )
 from the_alchemiser.infrastructure.websocket.websocket_order_monitor import OrderCompletionMonitor
-from the_alchemiser.interfaces.schemas.execution import WebSocketResult
+from the_alchemiser.interfaces.schemas.execution import WebSocketResultDTO
 from the_alchemiser.services.errors.exceptions import TradingClientError
 from the_alchemiser.services.repository.alpaca_manager import AlpacaManager
 from the_alchemiser.services.trading.position_manager import PositionManager
@@ -442,7 +442,7 @@ class AlpacaClient:
         self,
         order_ids: list[str],
         max_wait_seconds: int = 60,
-    ) -> WebSocketResult:
+    ) -> WebSocketResultDTO:
         """Wait for orders to reach a final state."""
         return self.order_monitor.wait_for_order_completion(order_ids, max_wait_seconds)
 

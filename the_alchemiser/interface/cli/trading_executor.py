@@ -184,8 +184,10 @@ class TradingExecutor:
 
                 tsm = TradingServiceManager(api_key, secret_key, paper=paper)
                 open_orders = tsm.get_open_orders()
-                if open_orders:
-                    render_enriched_order_summaries(open_orders)
+                if open_orders and open_orders.orders:
+                    # Convert DTO to expected format
+                    orders_list = [order.summary for order in open_orders.orders]
+                    render_enriched_order_summaries(orders_list)
         except Exception:
             # Non-fatal UI enhancement; ignore errors here
             pass
