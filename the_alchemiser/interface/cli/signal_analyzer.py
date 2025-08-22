@@ -51,7 +51,7 @@ class SignalAnalyzer:
 
         # Generate typed signals directly - no more legacy adapter
         from datetime import UTC, datetime
-        
+
         typed_manager = TypedStrategyManager(market_data_port, strategy_allocations)
         aggregated_signals = typed_manager.generate_all_signals(datetime.now(UTC))
 
@@ -59,7 +59,7 @@ class SignalAnalyzer:
         strategy_signals = self._convert_typed_signals_to_display_format(
             aggregated_signals, strategy_allocations
         )
-        
+
         # Build portfolio allocation from signals
         consolidated_portfolio = self._build_portfolio_allocation(
             aggregated_signals, strategy_allocations
@@ -68,13 +68,13 @@ class SignalAnalyzer:
         return strategy_signals, consolidated_portfolio
 
     def _convert_typed_signals_to_display_format(
-        self, 
+        self,
         aggregated_signals: Any,  # TypedStrategyManager.AggregatedSignals
-        strategy_allocations: dict[StrategyType, float]
+        strategy_allocations: dict[StrategyType, float],
     ) -> dict[StrategyType, dict[str, Any]]:
         """Convert typed signals to display format."""
         strategy_signals: dict[StrategyType, dict[str, Any]] = {}
-        
+
         for strategy_type, signals in aggregated_signals.get_signals_by_strategy().items():
             if signals:
                 # Use the strategy's actual allocation percentage
@@ -84,9 +84,7 @@ class SignalAnalyzer:
                     # Single signal strategy
                     signal = signals[0]
                     symbol_value = signal.symbol.value
-                    symbol_str = (
-                        "NUCLEAR_PORTFOLIO" if symbol_value == "PORT" else symbol_value
-                    )
+                    symbol_str = "NUCLEAR_PORTFOLIO" if symbol_value == "PORT" else symbol_value
 
                     strategy_signals[strategy_type] = {
                         "symbol": symbol_str,
@@ -134,17 +132,17 @@ class SignalAnalyzer:
                     "reasoning": "No signal produced",
                     "allocation_percentage": 0.0,
                 }
-        
+
         return strategy_signals
 
     def _build_portfolio_allocation(
         self,
         aggregated_signals: Any,  # TypedStrategyManager.AggregatedSignals
-        strategy_allocations: dict[StrategyType, float]
+        strategy_allocations: dict[StrategyType, float],
     ) -> dict[str, float]:
         """Build portfolio allocation from typed signals."""
         consolidated_portfolio: dict[str, float] = {}
-        
+
         # Build consolidated portfolio from all signals
         for strategy_type, signals in aggregated_signals.get_signals_by_strategy().items():
             strategy_allocation = strategy_allocations.get(strategy_type, 0.0)
@@ -160,7 +158,7 @@ class SignalAnalyzer:
                             float(signal.target_allocation.value) * strategy_allocation
                         )
                         consolidated_portfolio[symbol_str] = individual_allocation
-        
+
         return consolidated_portfolio
 
     def _display_results(
@@ -275,9 +273,7 @@ class SignalAnalyzer:
             try:
                 from rich.console import Console
 
-                Console().print(
-                    "[dim]TYPES_V2: fully typed StrategySignal path is ACTIVE[/dim]"
-                )
+                Console().print("[dim]TYPES_V2: fully typed StrategySignal path is ACTIVE[/dim]")
             except Exception:
                 self.logger.info("TYPES_V2: fully typed StrategySignal path is ACTIVE")
 
