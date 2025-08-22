@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Literal
 
+from the_alchemiser.application.mapping.orders import OrderStatusLiteral
 from the_alchemiser.domain.types import OrderDetails
 
 
@@ -17,7 +18,7 @@ class OrderModel:
     side: Literal["buy", "sell"]
     order_type: Literal["market", "limit", "stop", "stop_limit"]
     time_in_force: Literal["day", "gtc", "ioc", "fok"]
-    status: Literal["new", "partially_filled", "filled", "canceled", "expired", "rejected"]
+    status: OrderStatusLiteral
     filled_qty: float
     filled_avg_price: float | None
     created_at: datetime
