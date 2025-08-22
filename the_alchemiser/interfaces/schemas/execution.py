@@ -8,6 +8,8 @@ and system integration, moved from domain/types.py as part of the Pydantic migra
 
 from typing import Any, Literal, TypedDict
 
+from pydantic import BaseModel, ConfigDict
+
 from the_alchemiser.domain.types import AccountInfo, OrderDetails
 
 
@@ -20,6 +22,28 @@ class ExecutionResult(TypedDict):
     account_info_after: AccountInfo
     execution_summary: dict[str, Any]
     final_portfolio_state: dict[str, Any] | None
+
+
+class ExecutionResultDTO(BaseModel):
+    """
+    DTO for trading execution results.
+
+    Provides an immutable, validated container for trading execution
+    outcomes, replacing dict usage with enhanced type safety
+    and validation capabilities.
+    """
+
+    model_config = ConfigDict(
+        strict=True,
+        frozen=True,
+        validate_assignment=True,
+    )
+
+    orders_executed: list[OrderDetails]
+    account_info_before: AccountInfo
+    account_info_after: AccountInfo
+    execution_summary: dict[str, Any]
+    final_portfolio_state: dict[str, Any] | None = None
 
 
 class TradingPlan(TypedDict):
