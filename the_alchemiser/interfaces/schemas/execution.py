@@ -15,6 +15,10 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from the_alchemiser.domain.types import AccountInfo, OrderDetails
+from the_alchemiser.interfaces.schemas.execution_summary import (
+    ExecutionSummaryDTO,
+    PortfolioStateDTO,
+)
 
 
 class TradingAction(str, Enum):
@@ -47,10 +51,10 @@ class ExecutionResultDTO(BaseModel):
     )
     account_info_before: AccountInfo = Field(description="Account state before execution")
     account_info_after: AccountInfo = Field(description="Account state after execution")
-    execution_summary: dict[str, Any] = Field(
-        description="Summary of execution results and metrics"
+    execution_summary: ExecutionSummaryDTO = Field(
+        description="Structured summary of execution results and metrics"
     )
-    final_portfolio_state: dict[str, Any] | None = Field(
+    final_portfolio_state: PortfolioStateDTO | None = Field(
         default=None, description="Final portfolio state after execution"
     )
 

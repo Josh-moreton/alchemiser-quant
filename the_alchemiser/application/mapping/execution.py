@@ -28,13 +28,18 @@ from typing import Any
 from the_alchemiser.domain.types import AccountInfo, OrderDetails
 from the_alchemiser.interfaces.schemas.execution import (
     ExecutionResultDTO,
+    TradingPlanDTO,
+    QuoteDTO,
+    WebSocketResultDTO,
     LambdaEventDTO,
     OrderHistoryDTO,
-    QuoteDTO,
     TradingAction,
-    TradingPlanDTO,
-    WebSocketResultDTO,
     WebSocketStatus,
+)
+from the_alchemiser.interfaces.schemas.orders import LimitOrderResultDTO
+from the_alchemiser.application.mapping.execution_summary_mapping import (
+    safe_dict_to_execution_summary_dto,
+    safe_dict_to_portfolio_state_dto,
 )
 
 __all__ = [
@@ -165,8 +170,8 @@ def dict_to_execution_result_dto(data: dict[str, Any]) -> ExecutionResultDTO:
         orders_executed=data.get("orders_executed", []),
         account_info_before=data["account_info_before"],
         account_info_after=data["account_info_after"],
-        execution_summary=data.get("execution_summary", {}),
-        final_portfolio_state=data.get("final_portfolio_state"),
+        execution_summary=safe_dict_to_execution_summary_dto(data.get("execution_summary", {})),
+        final_portfolio_state=safe_dict_to_portfolio_state_dto(data.get("final_portfolio_state")),
     )
 
 
@@ -385,8 +390,8 @@ def account_info_to_execution_result_dto(
         orders_executed=orders_executed,
         account_info_before=account_before,
         account_info_after=account_after,
-        execution_summary=execution_summary or {},
-        final_portfolio_state=final_portfolio_state,
+        execution_summary=safe_dict_to_execution_summary_dto(execution_summary or {}),
+        final_portfolio_state=safe_dict_to_portfolio_state_dto(final_portfolio_state),
     )
 
 

@@ -14,12 +14,14 @@ Key Features:
 
 from __future__ import annotations
 
-from typing import Any
-
 from pydantic import BaseModel, ConfigDict
 
 from the_alchemiser.domain.registry import StrategyType
 from the_alchemiser.domain.types import AccountInfo, OrderDetails, StrategySignal
+from the_alchemiser.interfaces.schemas.execution_summary import (
+    ExecutionSummaryDTO,
+    PortfolioStateDTO,
+)
 
 
 class MultiStrategyExecutionResultDTO(BaseModel):
@@ -52,7 +54,6 @@ class MultiStrategyExecutionResultDTO(BaseModel):
     account_info_before: AccountInfo
     account_info_after: AccountInfo
 
-    # Summary and state (keeping as Any for now to maintain compatibility)
-    # TODO: Define specific structured types for these fields
-    execution_summary: dict[str, Any]
-    final_portfolio_state: dict[str, Any] | None = None
+    # Structured execution summary and portfolio state
+    execution_summary: ExecutionSummaryDTO
+    final_portfolio_state: PortfolioStateDTO | None = None

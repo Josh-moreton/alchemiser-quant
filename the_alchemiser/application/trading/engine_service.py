@@ -42,6 +42,10 @@ from the_alchemiser.domain.types import (
 from the_alchemiser.infrastructure.config import Settings
 from the_alchemiser.interfaces.schemas.common import MultiStrategyExecutionResultDTO
 from the_alchemiser.interfaces.schemas.execution import ExecutionResultDTO
+from the_alchemiser.application.mapping.execution_summary_mapping import (
+    safe_dict_to_execution_summary_dto,
+    safe_dict_to_portfolio_state_dto,
+)
 from the_alchemiser.services.account.account_service import (
     AccountService as TypedAccountService,
 )
@@ -1217,8 +1221,8 @@ class TradingEngine:
             orders_executed=orders,
             account_info_before=account_info_before,
             account_info_after=account_info_after,
-            execution_summary=execution_summary,
-            final_portfolio_state=final_portfolio_state,
+            execution_summary=safe_dict_to_execution_summary_dto(execution_summary),
+            final_portfolio_state=safe_dict_to_portfolio_state_dto(final_portfolio_state),
         )
 
     # --- Multi-Strategy Execution ---
@@ -1242,8 +1246,13 @@ class TradingEngine:
                 orders_executed=[],
                 account_info_before=_create_default_account_info("pre_validation_error"),
                 account_info_after=_create_default_account_info("pre_validation_error"),
-                execution_summary={"error": f"Pre-execution validation failed: {e}"},
-                final_portfolio_state={},
+                execution_summary=safe_dict_to_execution_summary_dto({
+                    "error": f"Pre-execution validation failed: {e}",
+                    "mode": "error",
+                    "account_info_before": _create_default_account_info("pre_validation_error"),
+                    "account_info_after": _create_default_account_info("pre_validation_error"),
+                }),
+                final_portfolio_state=safe_dict_to_portfolio_state_dto({}),
             )
 
         try:
@@ -1297,8 +1306,13 @@ class TradingEngine:
                 orders_executed=[],
                 account_info_before=_create_default_account_info("execution_error"),
                 account_info_after=_create_default_account_info("execution_error"),
-                execution_summary={"error": f"Execution failed: {e}"},
-                final_portfolio_state={},
+                execution_summary=safe_dict_to_execution_summary_dto({
+                    "error": f"Execution failed: {e}",
+                    "mode": "error",
+                    "account_info_before": _create_default_account_info("execution_error"),
+                    "account_info_after": _create_default_account_info("execution_error"),
+                }),
+                final_portfolio_state=safe_dict_to_portfolio_state_dto({}),
             )
 
     # --- Reporting and Dashboard Methods ---
