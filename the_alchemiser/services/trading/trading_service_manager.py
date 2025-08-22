@@ -1,6 +1,5 @@
 import datetime
 import logging
-from decimal import Decimal
 from typing import Any
 
 from the_alchemiser.application.mapping.account_mapping import (
@@ -14,7 +13,6 @@ from the_alchemiser.application.mapping.order_mapping import (
 )
 from the_alchemiser.application.mapping.orders import (
     dict_to_order_request_dto,
-    validated_dto_to_dict,
 )
 from the_alchemiser.application.mapping.position_mapping import alpaca_position_to_summary
 from the_alchemiser.application.orders.order_validation import OrderValidator
@@ -423,17 +421,14 @@ class TradingServiceManager:
             try:
                 order_request = dict_to_order_request_dto(order_data)
                 validated_order = self.order_validator.validate_order_request(order_request)
-                
-                # Convert back to dict for internal processing
-                validated_dict = validated_dto_to_dict(validated_order)
-                
+
                 self.logger.info(
                     f"Order validation successful for {symbol}: "
                     f"estimated_value=${validated_order.estimated_value}, "
                     f"risk_score={validated_order.risk_score}, "
                     f"is_fractional={validated_order.is_fractional}"
                 )
-                
+
             except Exception as validation_error:
                 return {
                     "success": False,
@@ -444,7 +439,7 @@ class TradingServiceManager:
                         "quantity": quantity,
                         "side": side,
                         "order_type": order_type,
-                    }
+                    },
                 }
 
             # Pre-trade validation (legacy compatibility)
@@ -483,8 +478,14 @@ class TradingServiceManager:
                 result["pre_trade_validation"] = eligibility
                 result["order_validation"] = {
                     "validated_order_id": validated_order.client_order_id,
-                    "estimated_value": float(validated_order.estimated_value) if validated_order.estimated_value else None,
-                    "risk_score": float(validated_order.risk_score) if validated_order.risk_score else None,
+                    "estimated_value": (
+                        float(validated_order.estimated_value)
+                        if validated_order.estimated_value
+                        else None
+                    ),
+                    "risk_score": (
+                        float(validated_order.risk_score) if validated_order.risk_score else None
+                    ),
                     "is_fractional": validated_order.is_fractional,
                     "validation_timestamp": validated_order.validation_timestamp.isoformat(),
                 }
@@ -494,52 +495,39 @@ class TradingServiceManager:
 
         except Exception as e:
             self.logger.error(f"Unexpected error in execute_smart_order: {e}")
-            return {
-                "success": False, 
-                "reason": "Unexpected execution error", 
-                "error": str(e)
-            }
+            return {"success": False, "reason": "Unexpected execution error", "error": str(e)}
 
     def execute_order_dto(self, order_request: OrderRequestDTO) -> dict[str, Any]:
         """
         Execute an order using OrderRequestDTO directly.
-        
+
         This method provides a type-safe interface for order execution using DTOs.
-        
+
         Args:
             order_request: Validated OrderRequestDTO instance
-            
+
         Returns:
             Comprehensive order execution result
         """
         try:
             # Validate the order using the DTO validator
             validated_order = self.order_validator.validate_order_request(order_request)
-            
+
             # Convert to parameters for execution
             return self.execute_smart_order(
                 symbol=validated_order.symbol,
                 quantity=int(validated_order.quantity),
                 side=validated_order.side,
                 order_type=validated_order.order_type,
-                limit_price=float(validated_order.limit_price) if validated_order.limit_price else None,
+                limit_price=(
+                    float(validated_order.limit_price) if validated_order.limit_price else None
+                ),
                 time_in_force=validated_order.time_in_force,
                 client_order_id=validated_order.client_order_id,
             )
         except Exception as e:
-            return {
-                "success": False,
-                "reason": "DTO order execution failed",
-                "error": str(e)
-            }
-
-        except Exception as e:
-            self.logger.error(f"Unexpected error in execute_smart_order: {e}")
-            return {
-                "success": False, 
-                "reason": "Unexpected execution error", 
-                "error": str(e)
-            }
+            self.logger.error(f"Unexpected error in execute_order_dto: {e}")
+            return {"success": False, "reason": "DTO order execution failed", "error": str(e)}
 
     @translate_trading_errors(
         default_return={
