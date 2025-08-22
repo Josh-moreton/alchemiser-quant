@@ -49,7 +49,7 @@ from .templates.signals import SignalsBuilder
 def _build_portfolio_display(
     result: ExecutionResultDTO | MultiStrategyExecutionResultDTO | dict[str, Any],
 ) -> str:
-    """Backward compatibility function supporting both ExecutionResult and MultiStrategy DTO."""
+    """Backward compatibility function supporting both ExecutionResultDTO and MultiStrategy DTO."""
     return PortfolioBuilder.build_portfolio_allocation(result)
 
 

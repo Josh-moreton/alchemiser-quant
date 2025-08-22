@@ -71,7 +71,7 @@ class QuoteModel:
 
     @classmethod
     def from_dict(cls, data: QuoteData, symbol: str) -> "QuoteModel":
-        """Create from QuoteData TypedDict."""
+        """Create from QuoteData TypedDict (domain-pure)."""
         timestamp_raw = data["timestamp"]
         timestamp_parsed = datetime.fromisoformat(timestamp_raw.replace("Z", "+00:00"))
 

@@ -289,8 +289,11 @@ class SmartExecution:
         Returns:
             bool: True if all orders settle successfully, False if any fail or timeout
 
-        Note: This method can return False when settlement fails, preventing
-        masking of real settlement failures.
+        Note:
+            Returns False instead of silently succeeding when one or more orders fail
+            to reach a terminal state (filled / canceled / rejected / expired) within
+            the allowed window. This explicit failure propagation prevents masking
+            real settlement issues and aligns with the no-legacy-fallback policy.
         """
         if not sell_orders:
             return True
@@ -362,7 +365,7 @@ class SmartExecution:
             remaining_order_ids, max_wait_time
         )
 
-        # Convert WebSocketResultDTO to order status mapping (backward compatibility layer)
+        # Extract completed order IDs from typed WebSocketResultDTO
         websocket_completed_orders = completion_result.orders_completed
 
         # For the orders that completed via WebSocket, we need to check their final status
