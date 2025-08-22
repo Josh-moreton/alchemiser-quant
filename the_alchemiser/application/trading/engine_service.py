@@ -279,11 +279,12 @@ class TradingEngine:
         else:
             # Backward compatibility mode - deprecated
             import warnings
+
             warnings.warn(
                 "Direct TradingEngine() instantiation is deprecated. "
                 "Use TradingEngine.create_with_di() instead.",
                 DeprecationWarning,
-                stacklevel=2
+                stacklevel=2,
             )
             self._init_traditional(paper_trading, strategy_allocations, ignore_market_hours, config)
 
@@ -314,11 +315,10 @@ class TradingEngine:
             self._market_data_port = container.infrastructure.market_data_service()
 
             self.logger.info("Successfully initialized services from DI container")
-        except Exception as e:
+        except (AttributeError, ImportError, ConfigurationError) as e:
             self.logger.error(
                 f"Failed to initialize services from DI container: {e}", exc_info=True
             )
-            # Don't fallback to Mock - let the error propagate
             raise ConfigurationError(
                 f"DI container failed to provide required services: {e}"
             ) from e
@@ -328,9 +328,9 @@ class TradingEngine:
             # Acquire TradingServiceManager for enhanced portfolio operations
             try:
                 self._trading_service_manager = container.services.trading_service_manager()
-            except Exception:
-                # Optional; portfolio rebalancer will fall back if not available
-                self._trading_service_manager = None
+            except (AttributeError, ConfigurationError, ImportError):
+                # Optional; portfolio rebalancer will fail fast later if required
+                self._trading_service_manager = None  # pragma: no cover
 
             self.paper_trading = container.config.paper_trading()
             config_dict = {
@@ -343,7 +343,7 @@ class TradingEngine:
             self.logger.info(
                 f"Successfully loaded config from DI container: paper_trading={self.paper_trading}"
             )
-        except Exception as e:
+        except (AttributeError, ValueError, ConfigurationError) as e:
             self.logger.error(f"Failed to load config from DI container: {e}", exc_info=True)
             raise ConfigurationError(f"DI container failed to provide configuration: {e}") from e
 
@@ -1085,10 +1085,10 @@ class TradingEngine:
     ) -> list[OrderDetails]:
         """Execute only BUY orders with refreshed buying power."""
         logging.info("🔄 Phase 3: Executing BUY orders with refreshed buying power")
-
         # Get fresh account info to update buying power
         account_info = self.get_account_info()
-        current_buying_power = float(account_info.buying_power)
+        # AccountInfo is a TypedDict; use key access for mypy compatibility
+        current_buying_power = float(account_info["buying_power"])  # key access on TypedDict
         logging.info(f"Current buying power: ${current_buying_power:,.2f}")
 
         # Execute only BUY phase via facade to leverage scaled buys
@@ -1101,7 +1101,7 @@ class TradingEngine:
             )
 
         # Filter for BUY orders only
-        buy_orders = []
+        buy_orders: list[OrderDetails] = []
         for order_details in all_orders:
             if order_details["side"] == "buy":
                 buy_orders.append(order_details)
@@ -1793,14 +1793,15 @@ def main() -> None:
         trader = TradingEngine.create_with_di(
             container=container,
             strategy_allocations={StrategyType.NUCLEAR: 0.5, StrategyType.TECL: 0.5},
-            ignore_market_hours=True
+            ignore_market_hours=True,
         )
         trader.paper_trading = True
-    except Exception as e:
+    except (ImportError, ConfigurationError, TradingClientError) as e:
         console.print(f"[red]Failed to initialize with DI: {e}[/red]")
         console.print("[yellow]Falling back to traditional method[/yellow]")
         trader = TradingEngine(
-            paper_trading=True, strategy_allocations={StrategyType.NUCLEAR: 0.5, StrategyType.TECL: 0.5}
+            paper_trading=True,
+            strategy_allocations={StrategyType.NUCLEAR: 0.5, StrategyType.TECL: 0.5},
         )
 
     console.print("[yellow]Executing multi-strategy...[/yellow]")
