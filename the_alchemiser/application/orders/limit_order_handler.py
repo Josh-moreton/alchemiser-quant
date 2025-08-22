@@ -85,21 +85,22 @@ class LimitOrderHandler:
                 qty = adjusted_qty
 
             # Prepare order with asset-specific handling
-            order_result = self._prepare_limit_order(
-                symbol, qty, side, limit_price
-            )
+            order_result = self._prepare_limit_order(symbol, qty, side, limit_price)
 
             if not order_result.success:
-                logging.warning(f"Failed to prepare limit order for {symbol}: {order_result.error_message}")
+                logging.warning(
+                    f"Failed to prepare limit order for {symbol}: {order_result.error_message}"
+                )
                 return None
 
             if order_result.conversion_info:
                 logging.info(f"Order conversion: {order_result.conversion_info}")
 
-            # Submit order with fractionability error handling
-            # At this point, order_request is guaranteed to be a LimitOrderRequest due to success=True
-            assert order_result.order_request is not None  # Type narrowing for mypy
-            return self._submit_with_fallback(symbol, order_result.order_request, qty, side, limit_price)
+            # Submit order with fractionability error handling (validator guarantees order_request present)
+            assert order_result.order_request is not None  # guaranteed by validator when success
+            return self._submit_with_fallback(
+                symbol, order_result.order_request, qty, side, limit_price
+            )
 
         except (TradingClientError, DataProviderError) as e:
             self.error_handler.handle_error(
@@ -133,10 +134,7 @@ class LimitOrderHandler:
                 if qty <= 0:
                     error_msg = f"❌ {symbol} quantity rounded to zero whole shares (original: {original_qty})"
                     logging.warning(error_msg)
-                    return LimitOrderResultDTO(
-                        success=False,
-                        error_message=error_msg
-                    )
+                    return LimitOrderResultDTO(success=False, error_message=error_msg)
 
                 conversion_info = (
                     f"🔄 Rounded {symbol} to {qty} whole shares for non-fractionable asset"
@@ -150,10 +148,7 @@ class LimitOrderHandler:
         if qty <= 0:
             error_msg = f"Quantity rounded to zero for {symbol}"
             logging.warning(error_msg)
-            return LimitOrderResultDTO(
-                success=False,
-                error_message=error_msg
-            )
+            return LimitOrderResultDTO(success=False, error_message=error_msg)
 
         logging.info(
             f"Placing LIMIT {side.value} order for {symbol}: qty={qty}, price=${limit_price}"
@@ -168,9 +163,7 @@ class LimitOrderHandler:
         )
 
         return LimitOrderResultDTO(
-            success=True,
-            order_request=limit_order_data,
-            conversion_info=conversion_info
+            success=True, order_request=limit_order_data, conversion_info=conversion_info
         )
 
     def _submit_with_fallback(

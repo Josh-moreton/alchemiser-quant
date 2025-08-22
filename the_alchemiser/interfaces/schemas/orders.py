@@ -16,8 +16,9 @@ from __future__ import annotations
 
 from datetime import datetime
 from decimal import Decimal
-from typing import Any, Literal
+from typing import Literal
 
+from alpaca.trading.requests import LimitOrderRequest
 from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
 
@@ -172,16 +173,15 @@ class LimitOrderResultDTO(BaseModel):
         strict=True,
         frozen=True,
         validate_assignment=True,
-        arbitrary_types_allowed=True,  # Allow LimitOrderRequest
     )
 
     success: bool
-    order_request: Any | None = None  # LimitOrderRequest from alpaca.trading.requests
+    order_request: LimitOrderRequest | None = None  # Prepared LimitOrderRequest
     conversion_info: str | None = None
     error_message: str | None = None
 
     @model_validator(mode="after")
-    def validate_result_consistency(self) -> "LimitOrderResultDTO":
+    def validate_result_consistency(self) -> LimitOrderResultDTO:
         """Validate consistency between success flag and other fields."""
         if self.success:
             if self.order_request is None:
@@ -194,3 +194,8 @@ class LimitOrderResultDTO(BaseModel):
             if not self.error_message:
                 raise ValueError("error_message is required when success=False")
         return self
+
+    @property
+    def is_success(self) -> bool:
+        """Alias for success to align with other result DTO naming patterns."""
+        return self.success
