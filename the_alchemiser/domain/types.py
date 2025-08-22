@@ -173,6 +173,14 @@ class PriceData(TypedDict):
     volume: int | None
 
 
+class QuoteData(TypedDict):
+    bid_price: float
+    ask_price: float
+    bid_size: float
+    ask_size: float
+    timestamp: str
+
+
 class DataProviderResult(TypedDict):
     success: bool
     data: dict[str, Any] | None

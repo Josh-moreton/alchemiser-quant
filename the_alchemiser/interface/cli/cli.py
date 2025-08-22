@@ -10,6 +10,7 @@ import logging
 import subprocess
 import time
 from datetime import datetime
+from typing import Any
 
 import typer
 from rich.console import Console
@@ -333,7 +334,7 @@ def status(
         )
         trader.paper_trading = paper_trading
 
-        account_info = trader.get_account_info()
+        account_info: dict[str, Any] = dict(trader.get_account_info())
 
         # Always use enriched typed account summary (V2 migration complete)
         tsm: TradingServiceManager | None = None
@@ -343,9 +344,9 @@ def status(
                 raise RuntimeError("Alpaca credentials not available")
             tsm = TradingServiceManager(api_key, secret_key, paper=not live)
             enriched = tsm.get_account_summary_enriched()
-            # If enriched path returned a wrapped structure, use the summary for display
-            if isinstance(enriched, dict) and "summary" in enriched:
-                account_info = enriched["summary"]
+            # Extract the summary from the DTO
+            if enriched and enriched.summary:
+                account_info = enriched.summary.model_dump()
         except Exception as e:
             console.print(f"[dim yellow]Enriched account summary unavailable: {e}[/dim yellow]")
 
@@ -372,8 +373,8 @@ def status(
                 table.add_column("Mkt Value", justify="right")
                 table.add_column("Unrlzd P&L", justify="right")
 
-                for item in enriched_positions[:50]:  # Cap display to avoid huge tables
-                    summary = item.get("summary", {})
+                for item in enriched_positions.positions[:50]:  # Cap display to avoid huge tables
+                    summary = item.summary
                     table.add_row(
                         str(summary.get("symbol", "")),
                         f"{float(summary.get('qty', 0.0)):.4f}",

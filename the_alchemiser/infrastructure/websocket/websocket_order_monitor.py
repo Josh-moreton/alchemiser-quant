@@ -14,7 +14,7 @@ from typing import Any
 
 from rich.console import Console
 
-from the_alchemiser.interfaces.schemas.execution import WebSocketResultDTO
+from the_alchemiser.interfaces.schemas.execution import WebSocketResultDTO, WebSocketStatus
 
 
 class OrderCompletionMonitor:
@@ -44,11 +44,11 @@ class OrderCompletionMonitor:
     ) -> WebSocketResultDTO:
         """Wait for orders to reach a final state using WebSocket streaming only."""
         if not order_ids:
-            return {
-                "status": "completed",
-                "message": "No orders to monitor",
-                "orders_completed": []
-            }
+            return WebSocketResultDTO(
+                status=WebSocketStatus.COMPLETED,
+                message="No orders to monitor",
+                orders_completed=[],
+            )
 
         # Check if WebSocket is enabled in config
         try:
@@ -117,11 +117,11 @@ class OrderCompletionMonitor:
             logging.info(
                 f"🎯 All {len(order_ids)} orders already completed, no websocket monitoring needed"
             )
-            return {
-                "status": "completed",
-                "message": f"All {len(order_ids)} orders already completed",
-                "orders_completed": order_ids
-            }
+            return WebSocketResultDTO(
+                status=WebSocketStatus.COMPLETED,
+                message=f"All {len(order_ids)} orders already completed",
+                orders_completed=order_ids,
+            )
 
         # Set up WebSocket monitoring for remaining orders
         final_states = {"filled", "canceled", "rejected", "expired"}
@@ -165,9 +165,7 @@ class OrderCompletionMonitor:
 
         # Try to use existing WebSocket connection first
         if self._websocket_stream is not None and self._websocket_thread is not None:
-            return self._use_existing_websocket(
-                on_update, remaining, completed, max_wait_seconds
-            )
+            return self._use_existing_websocket(on_update, remaining, completed, max_wait_seconds)
 
         # Create new WebSocket connection
         return self._create_new_websocket(
@@ -214,19 +212,19 @@ class OrderCompletionMonitor:
                         completed[oid] = "unknown"
 
                 logging.info(f"🏁 Order settlement complete: {len(completed)} orders processed")
-                return {
-                    "status": "timeout",
-                    "message": f"Order monitoring timed out after {max_wait_seconds} seconds",
-                    "orders_completed": list(completed.keys())
-                }
+                return WebSocketResultDTO(
+                    status=WebSocketStatus.TIMEOUT,
+                    message=f"Order monitoring timed out after {max_wait_seconds} seconds",
+                    orders_completed=list(completed.keys()),
+                )
             else:
                 logging.info("✅ All orders completed before timeout")
                 logging.info(f"🏁 Order settlement complete: {len(completed)} orders processed")
-                return {
-                    "status": "completed",
-                    "message": f"All {len(completed)} orders completed successfully",
-                    "orders_completed": list(completed.keys())
-                }
+                return WebSocketResultDTO(
+                    status=WebSocketStatus.COMPLETED,
+                    message=f"All {len(completed)} orders completed successfully",
+                    orders_completed=list(completed.keys()),
+                )
 
         except Exception as e:
             logging.error(f"❌ Error using pre-connected WebSocket: {e}")
@@ -283,19 +281,19 @@ class OrderCompletionMonitor:
             for oid in remaining:
                 completed[oid] = "timeout"
             logging.info(f"🏁 Order settlement complete: {len(completed)} orders processed")
-            return {
-                "status": "timeout",
-                "message": f"Order monitoring timed out after {max_wait_seconds} seconds",
-                "orders_completed": list(completed.keys())
-            }
+            return WebSocketResultDTO(
+                status=WebSocketStatus.TIMEOUT,
+                message=f"Order monitoring timed out after {max_wait_seconds} seconds",
+                orders_completed=list(completed.keys()),
+            )
         else:
             logging.info("✅ All orders completed before timeout")
             logging.info(f"🏁 Order settlement complete: {len(completed)} orders processed")
-            return {
-                "status": "completed",
-                "message": f"All {len(completed)} orders completed successfully",
-                "orders_completed": list(completed.keys())
-            }
+            return WebSocketResultDTO(
+                status=WebSocketStatus.COMPLETED,
+                message=f"All {len(completed)} orders completed successfully",
+                orders_completed=list(completed.keys()),
+            )
 
     def prepare_websocket_connection(self) -> bool:
         """Pre-initialize WebSocket connection for faster order monitoring."""

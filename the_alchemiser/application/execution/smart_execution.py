@@ -288,9 +288,6 @@ class SmartExecution:
 
         Returns:
             bool: True if all orders settle successfully, False if any fail or timeout
-
-        Note: This method can return False when settlement fails, preventing
-        masking of real settlement failures.
         """
         if not sell_orders:
             return True
@@ -362,8 +359,8 @@ class SmartExecution:
             remaining_order_ids, max_wait_time
         )
 
-        # Convert WebSocketResultDTO to order status dict for backward compatibility
-        websocket_completed_orders = completion_result.get("orders_completed", [])
+        # Extract completed order IDs from typed WebSocketResultDTO
+        websocket_completed_orders = completion_result.orders_completed
 
         # For the orders that completed via WebSocket, we need to check their final status
         completion_statuses = {}
@@ -501,8 +498,8 @@ class SmartExecution:
             )
 
             # Check if the order completed successfully
-            order_completed = order_id in order_result.get("orders_completed", [])
-            if order_completed and order_result["status"] == "completed":
+            order_completed = order_id in order_result.orders_completed
+            if order_completed and order_result.status == "completed":
                 console.print(
                     f"[green]✅ {side.value} {symbol} filled @ ${limit_price:.2f} ({attempt_label})[/green]"
                 )

@@ -2,12 +2,10 @@
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any
 
 import pandas as pd
 
-from the_alchemiser.domain.types import MarketDataPoint, PriceData
-from the_alchemiser.interfaces.schemas.execution import QuoteDTO
+from the_alchemiser.domain.types import MarketDataPoint, PriceData, QuoteData
 
 
 @dataclass(frozen=True)
@@ -72,8 +70,8 @@ class QuoteModel:
     timestamp: datetime
 
     @classmethod
-    def from_dict(cls, data: QuoteDTO, symbol: str) -> "QuoteModel":
-        """Create from QuoteDTO Pydantic model."""
+    def from_dict(cls, data: QuoteData, symbol: str) -> "QuoteModel":
+        """Create from QuoteData TypedDict (domain-pure)."""
         timestamp_raw = data["timestamp"]
         timestamp_parsed = datetime.fromisoformat(timestamp_raw.replace("Z", "+00:00"))
 
@@ -86,8 +84,8 @@ class QuoteModel:
             timestamp=timestamp_parsed,
         )
 
-    def to_dict(self) -> dict[str, Any]:
-        """Convert to dictionary format compatible with QuoteDTO."""
+    def to_dict(self) -> QuoteData:
+        """Convert to QuoteData TypedDict."""
         return {
             "bid_price": self.bid_price,
             "ask_price": self.ask_price,

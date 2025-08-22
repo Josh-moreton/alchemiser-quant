@@ -221,7 +221,7 @@ class LegacyPortfolioRebalancerAdapter:
                                 "status": "placed",
                                 "side": "buy",
                                 "amount": trade_amount,
-                                "order_id": result.get("order_id"),
+                                "order_id": result.order_id,
                             }
                         else:
                             # Sell order
@@ -232,7 +232,7 @@ class LegacyPortfolioRebalancerAdapter:
                                 "status": "placed",
                                 "side": "sell",
                                 "amount": abs(trade_amount),
-                                "order_id": result.get("order_id"),
+                                "order_id": result.order_id,
                             }
                     except Exception as e:
                         orders_placed[symbol] = {

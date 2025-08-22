@@ -182,3 +182,35 @@ class OrderHistoryDTO(BaseModel):
     metadata: dict[str, Any] = Field(
         default_factory=dict, description="Additional metadata about the order history"
     )
+
+
+# ---------------------------------------------------------------------------
+# Backward Compatibility Aliases (Deprecated)
+# ---------------------------------------------------------------------------
+# The legacy TypedDict-style names (ExecutionResult, WebSocketResult, QuoteData)
+# were referenced across the codebase prior to migration to Pydantic DTOs with
+# the *DTO suffix. Provide lightweight aliases to avoid immediate breakage for
+# any external scripts/tests while contributors update imports.
+#
+# These will be removed after a deprecation window. Do not use in new code.
+
+# Deprecated: use ExecutionResultDTO
+ExecutionResult = ExecutionResultDTO
+# Deprecated: use WebSocketResultDTO
+WebSocketResult = WebSocketResultDTO
+# Deprecated: use QuoteDTO
+QuoteData = QuoteDTO
+
+__deprecated__ = ["ExecutionResult", "WebSocketResult", "QuoteData"]
+
+__all__ = [
+    # Primary DTO exports
+    "ExecutionResultDTO",
+    "TradingPlanDTO",
+    "WebSocketResultDTO",
+    "QuoteDTO",
+    "LambdaEventDTO",
+    "OrderHistoryDTO",
+    # Deprecated legacy aliases
+    *__deprecated__,
+]
