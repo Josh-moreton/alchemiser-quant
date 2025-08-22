@@ -3,9 +3,10 @@
 This module handles the multi-strategy email template generation.
 """
 
-from typing import Any
+from typing import Any, cast
 
 from the_alchemiser.interfaces.schemas.common import MultiStrategyExecutionResultDTO
+from the_alchemiser.interfaces.schemas.execution import ExecutionResult
 
 from .base import BaseEmailTemplate
 from .performance import PerformanceBuilder
@@ -84,7 +85,7 @@ class MultiStrategyReportBuilder:
 
         # Portfolio allocation
         portfolio_allocation_html = BaseEmailTemplate.create_section(
-            "📈 Portfolio Allocation", PortfolioBuilder.build_portfolio_allocation(result)
+            "📈 Portfolio Allocation", PortfolioBuilder.build_portfolio_allocation(cast(ExecutionResult, result))
         )
         content_sections.append(portfolio_allocation_html)
 
@@ -148,7 +149,7 @@ class MultiStrategyReportBuilder:
 
         # Portfolio rebalancing table (percentages only)
         rebalancing_html = BaseEmailTemplate.create_section(
-            "🔄 Portfolio Rebalancing", PortfolioBuilder.build_portfolio_rebalancing_table(result)
+            "🔄 Portfolio Rebalancing", PortfolioBuilder.build_portfolio_rebalancing_table(cast(ExecutionResult, result))
         )
         content_sections.append(rebalancing_html)
 

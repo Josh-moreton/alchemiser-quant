@@ -9,7 +9,7 @@ from the_alchemiser.domain.types import PositionInfo
 
 from .base import BaseEmailTemplate
 from .performance import PerformanceBuilder
-from .portfolio import PortfolioBuilder
+from .portfolio import PortfolioBuilder, ExtendedAccountInfo
 from .signals import SignalsBuilder
 
 
@@ -43,7 +43,7 @@ class TradingReportBuilder:
 
         # Account summary
         account_summary_html = BaseEmailTemplate.create_section(
-            "💰 Account Summary", PortfolioBuilder.build_account_summary(account_after)
+            "💰 Account Summary", PortfolioBuilder.build_account_summary(cast(ExtendedAccountInfo, account_after))
         )
 
         # Signal information
@@ -63,7 +63,7 @@ class TradingReportBuilder:
         # Closed positions P&L
         closed_pnl_html = ""
         if account_after and account_after.get("recent_closed_pnl"):
-            closed_pnl_html = PortfolioBuilder.build_closed_positions_pnl(account_after)
+            closed_pnl_html = PortfolioBuilder.build_closed_positions_pnl(cast(ExtendedAccountInfo, account_after))
 
         # Error section if needed
         error_html = ""
@@ -120,7 +120,7 @@ class TradingReportBuilder:
 
         # Account summary (neutral mode)
         account_summary_html = BaseEmailTemplate.create_section(
-            "⚙️ Account Status", PortfolioBuilder.build_account_summary_neutral(account_after)
+            "⚙️ Account Status", PortfolioBuilder.build_account_summary_neutral(cast(ExtendedAccountInfo, account_after))
         )
 
         # Signal information (same as regular, no dollar values there)

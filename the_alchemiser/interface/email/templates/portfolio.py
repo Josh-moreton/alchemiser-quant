@@ -4,14 +4,22 @@ This module handles building HTML content for portfolio tables,
 position summaries, and portfolio allocations.
 """
 
-from typing import Any
+from typing import Any, TypedDict
 
-# TODO: Phase 8/10 - Types available for future migration to structured types
-from the_alchemiser.domain.types import PositionInfo
+# Import DTOs for type-safe email rendering  
+from the_alchemiser.domain.types import AccountInfo, PositionInfo
+from the_alchemiser.interfaces.schemas.execution import ExecutionResult
 
 from .base import BaseEmailTemplate
 
-# from the_alchemiser.domain.types import ExecutionResult
+
+# Extended AccountInfo for email templates with optional fields
+class ExtendedAccountInfo(AccountInfo, total=False):
+    """AccountInfo with optional extended fields used in email templates."""
+    daily_pl: float
+    daily_pl_percent: float
+    recent_closed_pnl: list[dict[str, Any]]
+    day_trade_count: int
 
 
 class PortfolioBuilder:
@@ -85,14 +93,14 @@ class PortfolioBuilder:
 
     @staticmethod
     def build_account_summary(
-        account_info: dict[str, Any],
-    ) -> str:  # TODO: Phase 8 - Migrate to AccountInfo (needs extended type for daily_pl)
+        account_info: ExtendedAccountInfo,
+    ) -> str:
         """Build HTML summary of account information."""
-        if not account_info:
+        try:
+            equity = float(account_info.get("equity", 0))
+            cash = float(account_info.get("cash", 0))
+        except (ValueError, TypeError):
             return BaseEmailTemplate.create_alert_box("Account information unavailable", "warning")
-
-        equity = float(account_info.get("equity", 0))
-        cash = float(account_info.get("cash", 0))
 
         # Calculate additional metrics if available
         rows = f"""
@@ -140,18 +148,19 @@ class PortfolioBuilder:
 
     @staticmethod
     def build_portfolio_allocation(
-        result: Any,
-    ) -> str:  # TODO: Phase 8 - Migrate to ExecutionResult (needs object access pattern)
+        result: ExecutionResult,
+    ) -> str:
         """Build HTML display of portfolio allocation from execution result."""
         try:
             # Try to get actual final portfolio state first
-            if hasattr(result, "final_portfolio_state") and result.final_portfolio_state:
-                allocations = result.final_portfolio_state.get("allocations", {})
+            final_portfolio_state = result.get("final_portfolio_state")
+            if final_portfolio_state:
+                allocations = final_portfolio_state.get("allocations", {})
                 if allocations:
                     # Show actual current positions
                     portfolio_lines: list[str] = (
                         []
-                    )  # TODO: Phase 10 - Added type annotation for clarity
+                    )  # Added type annotation for clarity
                     for symbol, data in allocations.items():
                         current_percent = data.get("current_percent", 0)
                         if current_percent > 0.1:  # Only show positions > 0.1%
@@ -162,12 +171,14 @@ class PortfolioBuilder:
                     if portfolio_lines:
                         return "<br>".join(portfolio_lines)
 
-            # Fallback to target allocations from consolidated portfolio
-            if hasattr(result, "consolidated_portfolio") and result.consolidated_portfolio:
+            # Fallback to execution summary data
+            execution_summary = result.get("execution_summary", {})
+            consolidated_portfolio = execution_summary.get("consolidated_portfolio", {})
+            if consolidated_portfolio:
                 return "<br>".join(
                     [
                         f"<span style='font-weight: 600;'>{symbol}:</span> {weight:.1%}"
-                        for symbol, weight in list(result.consolidated_portfolio.items())[:5]
+                        for symbol, weight in list(consolidated_portfolio.items())[:5]
                     ]
                 )
 
@@ -177,8 +188,8 @@ class PortfolioBuilder:
 
     @staticmethod
     def build_closed_positions_pnl(
-        account_info: dict[str, Any],
-    ) -> str:  # TODO: Phase 8 - Migrate to AccountInfo
+        account_info: ExtendedAccountInfo,
+    ) -> str:
         """Build HTML display of closed positions P&L information."""
         if not account_info or not account_info.get("recent_closed_pnl"):
             return ""
@@ -303,12 +314,9 @@ class PortfolioBuilder:
 
     @staticmethod
     def build_account_summary_neutral(
-        account_info: dict[str, Any],
-    ) -> str:  # TODO: Phase 8 - Migrate to AccountInfo
+        account_info: ExtendedAccountInfo,
+    ) -> str:
         """Build neutral HTML summary of account information (no dollar amounts)."""
-        if not account_info:
-            return BaseEmailTemplate.create_alert_box("Account information unavailable", "warning")
-
         # Get basic account status information
         account_status = account_info.get("status", "UNKNOWN")
         daytrade_count = account_info.get("daytrade_count", 0)
@@ -373,11 +381,12 @@ class PortfolioBuilder:
         """
 
     @staticmethod
-    def build_portfolio_rebalancing_table(result: Any) -> str:
+    def build_portfolio_rebalancing_table(result: ExecutionResult) -> str:
         """Build a portfolio rebalancing summary table for neutral mode (percentages only)."""
 
-        # Get target portfolio from consolidated_portfolio
-        target_portfolio = getattr(result, "consolidated_portfolio", {})
+        # Get target portfolio from execution summary
+        execution_summary = result.get("execution_summary", {})
+        target_portfolio = execution_summary.get("consolidated_portfolio", {})
 
         if not target_portfolio:
             return "<p>No target portfolio data available</p>"
@@ -389,45 +398,31 @@ class PortfolioBuilder:
             )
 
             # Try multiple sources for positions and account data
-            final_positions = getattr(result, "final_positions", {})
-            execution_summary = getattr(result, "execution_summary", {})
-            account_after = execution_summary.get("account_info_after", {}) or getattr(
-                result, "account_info_after", {}
-            )
-
-            # Debug: log what we have - keeping available_attrs for error handling
-            _available_attrs = [attr for attr in dir(result) if not attr.startswith("_")]
+            account_after = result.get("account_info_after", {})
+            final_portfolio_state = result.get("final_portfolio_state")
 
             # Try different methods to get current positions data
             current_positions: dict[str, Any] = {}
 
-            # Method 1: Check for fresh positions data added in main.py
-            final_portfolio_state = getattr(result, "final_portfolio_state", {})
+            # Method 1: Check for fresh positions data
             if final_portfolio_state and final_portfolio_state.get("current_positions"):
                 current_positions = final_portfolio_state["current_positions"]
 
-            # Method 2: Check final_positions
-            elif final_positions:
-                current_positions = final_positions
-
-            # Method 3: Check account_after open_positions
-            elif account_after and account_after.get("open_positions"):
+            # Method 2: Check account_after open_positions
+            elif isinstance(account_after, dict) and account_after.get("open_positions"):
                 open_positions = account_after.get("open_positions", [])
                 current_positions = {}
-                for pos in open_positions:
-                    if isinstance(pos, dict) and pos.get("symbol"):
-                        current_positions[pos["symbol"]] = pos
+                if isinstance(open_positions, list):
+                    for pos in open_positions:
+                        if isinstance(pos, dict) and pos.get("symbol"):
+                            current_positions[pos["symbol"]] = pos
 
-            # Method 4: Check if result has positions attribute
-            elif hasattr(result, "positions") and result.positions:
-                current_positions = result.positions
-
-            # Method 5: Check execution_summary for positions
+            # Method 3: Check execution_summary for positions
             elif execution_summary and "positions" in execution_summary:
                 current_positions = execution_summary["positions"]
 
             portfolio_value = 0.0
-            if account_after:
+            if isinstance(account_after, dict):
                 portfolio_value = float(account_after.get("portfolio_value", 0)) or float(
                     account_after.get("equity", 0)
                 )
@@ -522,45 +517,45 @@ class PortfolioBuilder:
             <div style="font-size: 12px; color: #666; margin: 10px 0;">
             <strong>Debug Information:</strong><br/>
             • Target portfolio: {bool(target_portfolio)}<br/>
-            • final_positions: {bool(getattr(result, 'final_positions', {}))}<br/>
-            • account_after: {bool(getattr(result, 'account_info_after', {}))}<br/>
-            • execution_summary: {bool(getattr(result, 'execution_summary', {}))}<br/>
-            • Available result attributes: {', '.join([attr for attr in dir(result) if not attr.startswith('_')][:10])}...<br/>
+            • account_after: {bool(account_after)}<br/>
+            • execution_summary: {bool(execution_summary)}<br/>
+            • final_portfolio_state: {bool(final_portfolio_state)}<br/>
             • Error: {str(e)}
             </div>
             """
             return f"<p>Error loading portfolio data. Check logs for details.</p>{debug_info}"
 
     @staticmethod
-    def build_neutral_account_summary(account_info: dict[str, Any]) -> str:
+    def build_neutral_account_summary(account_info: ExtendedAccountInfo) -> str:
         """Build a neutral account summary without financial values."""
 
         # Extract basic status information
-        account_status = account_info.get("status", "UNKNOWN")
+        account_status: str = account_info.get("status", "UNKNOWN")
         daytrade_count = account_info.get("day_trade_count", 0)
 
         # For paper trading accounts, override confusing status indicators
-        if account_status == "INACTIVE" and daytrade_count >= 10:
+        if account_status == "INACTIVE" and isinstance(daytrade_count, int) and daytrade_count >= 10:
             # This is likely a paper trading account misreporting status
             account_status = "ACTIVE (Paper)"
             daytrade_count = 0  # Paper trading doesn't have day trade limits
 
         # Status color
-        status_color = "#10B981" if "ACTIVE" in account_status else "#EF4444"
+        status_color = "#10B981" if "ACTIVE" in str(account_status) else "#EF4444"
 
         # Trading status based on day trades
-        if daytrade_count >= 3:
-            trading_status = "⚠️ Day Trade Limit Reached"
-            trading_color = "#EF4444"
-        elif daytrade_count >= 2:
-            trading_status = "🟡 Approaching Day Trade Limit"
-            trading_color = "#F59E0B"
-        else:
-            trading_status = "🟢 Trading Available"
-            trading_color = "#10B981"
+        trading_status = "🟢 Trading Available"
+        trading_color = "#10B981"
+        
+        if isinstance(daytrade_count, int):
+            if daytrade_count >= 3:
+                trading_status = "⚠️ Day Trade Limit Reached"
+                trading_color = "#EF4444"
+            elif daytrade_count >= 2:
+                trading_status = "🟡 Approaching Day Trade Limit"
+                trading_color = "#F59E0B"
 
         # Override for paper trading
-        if "Paper" in account_status:
+        if "Paper" in str(account_status):
             trading_status = "🟢 Paper Trading (No Limits)"
             trading_color = "#10B981"
 
@@ -580,7 +575,7 @@ class PortfolioBuilder:
                         <span style="font-weight: 600; font-size: 14px;">Day Trades Used:</span>
                     </td>
                     <td style="padding: 16px 20px; border-bottom: 1px solid #E5E7EB; text-align: right; font-size: 14px;">
-                        {"N/A (Paper)" if "Paper" in account_status else f"{daytrade_count}/3"}
+                        {"N/A (Paper)" if "Paper" in str(account_status) else f"{daytrade_count}/3"}
                     </td>
                 </tr>
                 <tr>

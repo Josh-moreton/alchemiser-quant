@@ -23,8 +23,11 @@ This file maintains backward compatibility for existing imports.
 
 from typing import Any
 
-# TODO: Phase 10 - Types available for future migration to structured types
-# from the_alchemiser.domain.types import EmailReportData, AccountInfo
+# Import DTOs for type-safe email rendering
+from the_alchemiser.domain.types import AccountInfo
+from the_alchemiser.interfaces.schemas.execution import ExecutionResult
+# Import extended account info for templates
+from .templates.portfolio import ExtendedAccountInfo
 # Import all functions from the new modular structure
 from .client import EmailClient, send_email_notification
 from .config import get_email_config, is_neutral_mode_enabled
@@ -44,15 +47,15 @@ from .templates.signals import SignalsBuilder
 
 # Backward compatibility aliases for internal functions that might still be referenced
 def _build_portfolio_display(
-    result: Any,
-) -> str:  # TODO: Phase 10 - Migrate to ExecutionResult type
+    result: ExecutionResult,
+) -> str:
     """Backward compatibility function."""
     return PortfolioBuilder.build_portfolio_allocation(result)
 
 
 def _build_closed_positions_pnl_email_html(
-    account_info: Any,
-) -> str:  # TODO: Phase 10 - Migrate to AccountInfo type
+    account_info: ExtendedAccountInfo,
+) -> str:
     """Backward compatibility function."""
     return PortfolioBuilder.build_closed_positions_pnl(account_info)
 
@@ -78,7 +81,7 @@ def _build_enhanced_trading_summary_email_html(
     return PerformanceBuilder.build_trading_summary(trading_summary)
 
 
-def _build_enhanced_portfolio_email_html(result: Any) -> str:
+def _build_enhanced_portfolio_email_html(result: ExecutionResult) -> str:
     """Backward compatibility function."""
     return PortfolioBuilder.build_portfolio_allocation(result)
 
