@@ -116,8 +116,39 @@ class TradingServiceManager:
     def place_market_order(
         self, symbol: str, quantity: float, side: str, validate: bool = True
     ) -> OrderExecutionResultDTO:
-        """Place a market order with validation"""
+        """Place a market order with DTO validation"""
         try:
+            if validate:
+                # Create OrderRequestDTO and validate through DTO pipeline
+                order_data = {
+                    "symbol": symbol,
+                    "side": side,
+                    "quantity": quantity,
+                    "order_type": "market",
+                    "time_in_force": "day",
+                }
+                
+                try:
+                    order_request = dict_to_order_request_dto(order_data)
+                    validated_order = self.order_validator.validate_order_request(order_request)
+                    
+                    self.logger.info(
+                        f"Market order validation successful for {symbol}: "
+                        f"estimated_value=${validated_order.estimated_value}, "
+                        f"risk_score={validated_order.risk_score}"
+                    )
+                except Exception as validation_error:
+                    return OrderExecutionResultDTO(
+                        success=False,
+                        error=f"Order validation failed: {validation_error}",
+                        order_id="",
+                        status="rejected",
+                        filled_qty=Decimal("0"),
+                        avg_fill_price=None,
+                        submitted_at=datetime.datetime.now(),
+                        completed_at=None,
+                    )
+
             # Always use typed path (V2 migration complete)
             try:
                 from alpaca.trading.enums import OrderSide, TimeInForce
@@ -153,8 +184,40 @@ class TradingServiceManager:
     def place_limit_order(
         self, symbol: str, quantity: float, side: str, limit_price: float, validate: bool = True
     ) -> OrderExecutionResultDTO:
-        """Place a limit order with validation"""
+        """Place a limit order with DTO validation"""
         try:
+            if validate:
+                # Create OrderRequestDTO and validate through DTO pipeline
+                order_data = {
+                    "symbol": symbol,
+                    "side": side,
+                    "quantity": quantity,
+                    "order_type": "limit",
+                    "limit_price": limit_price,
+                    "time_in_force": "day",
+                }
+                
+                try:
+                    order_request = dict_to_order_request_dto(order_data)
+                    validated_order = self.order_validator.validate_order_request(order_request)
+                    
+                    self.logger.info(
+                        f"Limit order validation successful for {symbol}: "
+                        f"estimated_value=${validated_order.estimated_value}, "
+                        f"risk_score={validated_order.risk_score}"
+                    )
+                except Exception as validation_error:
+                    return OrderExecutionResultDTO(
+                        success=False,
+                        error=f"Order validation failed: {validation_error}",
+                        order_id="",
+                        status="rejected",
+                        filled_qty=Decimal("0"),
+                        avg_fill_price=None,
+                        submitted_at=datetime.datetime.now(),
+                        completed_at=None,
+                    )
+
             # Always use typed path (V2 migration complete)
             try:
                 from alpaca.trading.enums import OrderSide, TimeInForce
