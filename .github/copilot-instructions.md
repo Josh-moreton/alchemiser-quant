@@ -57,8 +57,8 @@ The Alchemiser is a sophisticated multi-strategy quantitative trading system bui
 ### TypedDict vs Dataclass/Pydantic
 - **TypedDict**: Use for data exchanged at system boundaries or for record-style containers that are serialized to
   JSON/dicts. Keep it for external API payloads (e.g. `AccountInfo`, `PositionInfo`, `OrderDetails`), transient
-    integration results (`ExecutionResultDTO` (deprecated alias: `ExecutionResult`), `TradingPlanDTO`,
-    `WebSocketResultDTO` (deprecated alias: `WebSocketResult`), `LimitOrderResultDTO`), strategy summaries
+    integration results (`ExecutionResultDTO`, `TradingPlanDTO`,
+    `WebSocketResultDTO`, `LimitOrderResultDTO`), strategy summaries
   (`StrategySignal`, `StrategyPnLSummary`, `KLMVariantResult`), CLI/config output (`CLIOptions`, `CLIAccountDisplay`,
   `CLIOrderDisplay`, `EmailReportData`, `LambdaEvent`, `EmailCredentials`) and structured error data
   (`ErrorDetailInfo`, `ErrorReportSummary`, etc.).

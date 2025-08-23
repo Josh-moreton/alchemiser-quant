@@ -32,13 +32,13 @@ class OrderDetails:
 **Serialisation**: `dict()` matches broker API.  
 **Migration**: replaces ad‑hoc dict in smart execution.
 
-## ExecutionResult
+## ExecutionResultDTO
 ```python
 from dataclasses import dataclass
 from typing import List
 
 @dataclass(frozen=True)
-class ExecutionResult:
+class ExecutionResultDTO:
     orders: List[OrderDetails]
     success: bool
     message: str | None = None
@@ -115,7 +115,7 @@ class CacheEntry(Generic[T]):
 
 # Worked Examples
 
-## 1. Order placement with `OrderDetails` and `ExecutionResult`
+## 1. Order placement with `OrderDetails` and `ExecutionResultDTO`
 ```python
 # adapter
 class LegacyOrderAdapter:
@@ -132,7 +132,7 @@ class LegacyOrderAdapter:
 # usage
 order = LegacyOrderAdapter.from_dict(payload)
 result = broker.place_order(order)
-assert isinstance(result, ExecutionResult)
+assert isinstance(result, ExecutionResultDTO)
 ```
 _Test_: `tests/execution/test_smart_execution.py` updated with model assertions.
 
@@ -150,7 +150,7 @@ _Test_: `tests/providers/test_quote_cache.py` ensures serialisation/deserialisat
 
 ## 3. Email template using typed context
 ```python
-context = TradingReportContext(account=AccountInfo(...), results=[ExecutionResult(...)] )
+context = TradingReportContext(account=AccountInfo(...), results=[ExecutionResultDTO(...)] )
 html = render_template('trading_report.html', context)
 ```
 _Snapshot_: `tests/email/test_trading_report_snapshot.py` captures HTML before/after.
