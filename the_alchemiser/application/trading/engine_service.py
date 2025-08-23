@@ -55,6 +55,8 @@ from the_alchemiser.services.errors.exceptions import (
     StrategyExecutionError,
     TradingClientError,
 )
+from the_alchemiser.services.errors.handler import TradingSystemErrorHandler
+from the_alchemiser.services.errors.context import create_error_context
 from the_alchemiser.services.market_data.market_data_service import MarketDataService
 from the_alchemiser.services.repository.alpaca_manager import AlpacaManager
 
@@ -145,11 +147,27 @@ class StrategyManagerAdapter:
             from typing import cast
 
             return cast(dict[str, Any], self._typed.get_strategy_performance_summary())  # type: ignore[attr-defined]
-        except Exception:
-            # Provide a basic empty summary structure
+        except AttributeError as e:
+            # Strategy manager doesn't have performance summary method - return default structure
             return {
                 st.name: {"pnl": 0.0, "trades": 0} for st in self._typed.strategy_allocations.keys()
             }
+        except Exception as e:
+            error_handler = TradingSystemErrorHandler()
+            context = create_error_context(
+                operation="get_strategy_performance_summary",
+                component="StrategyManagerAdapter.get_strategy_performance_summary",
+                function_name="get_strategy_performance_summary"
+            )
+            error_handler.handle_error_with_context(
+                error=e,
+                context=context,
+                should_continue=False
+            )
+            raise StrategyExecutionError(
+                f"Failed to retrieve strategy performance summary: {e}",
+                strategy_name="TypedStrategyManager"
+            ) from e
 
 
 # Protocol definitions for dependency injection
@@ -371,21 +389,57 @@ class TradingEngine:
         try:
             alpaca_manager = trading_service_manager.alpaca_manager
             self.data_provider = MarketDataService(alpaca_manager)
-        except Exception as e:
+        except (AttributeError, TypeError) as e:
+            error_handler = TradingSystemErrorHandler()
+            context = create_error_context(
+                operation="initialize_data_provider",
+                component="TradingEngine._init_with_service_manager",
+                function_name="_init_with_service_manager",
+                additional_data={"trading_service_manager_type": type(trading_service_manager).__name__}
+            )
+            error_handler.handle_error_with_context(
+                error=e,
+                context=context,
+                should_continue=False
+            )
             raise ConfigurationError(
                 f"TradingServiceManager missing AlpacaManager for market data: {e}"
             ) from e
         # Use the actual Alpaca TradingClient for correct market-hours and order queries
         try:
             self.trading_client = trading_service_manager.alpaca_manager.trading_client
-        except Exception as e:
+        except (AttributeError, TypeError) as e:
+            error_handler = TradingSystemErrorHandler()
+            context = create_error_context(
+                operation="initialize_trading_client",
+                component="TradingEngine._init_with_service_manager",
+                function_name="_init_with_service_manager",
+                additional_data={"trading_service_manager_type": type(trading_service_manager).__name__}
+            )
+            error_handler.handle_error_with_context(
+                error=e,
+                context=context,
+                should_continue=False
+            )
             raise ConfigurationError(f"TradingServiceManager missing trading client: {e}") from e
         self.paper_trading = trading_service_manager.alpaca_manager.is_paper_trading
         # Provide typed market data port in this mode
         try:
             self._market_data_port = MarketDataService(trading_service_manager.alpaca_manager)
-        except Exception:
-            self._market_data_port = None
+        except Exception as e:
+            error_handler = TradingSystemErrorHandler()
+            context = create_error_context(
+                operation="initialize_market_data_port",
+                component="TradingEngine._init_with_service_manager",
+                function_name="_init_with_service_manager",
+                additional_data={"trading_service_manager_type": type(trading_service_manager).__name__}
+            )
+            error_handler.handle_error_with_context(
+                error=e,
+                context=context,
+                should_continue=False
+            )
+            raise ConfigurationError(f"Failed to initialize market data port: {e}") from e
         self.ignore_market_hours = ignore_market_hours
 
         # Create minimal config for components
@@ -1263,12 +1317,9 @@ class TradingEngine:
             if result.success:
                 logging.info("Multi-strategy execution completed successfully")
 
-                # Add engine context to result
-                if result.execution_summary:
-                    result.execution_summary["engine_mode"] = (
-                        "paper" if self.paper_trading else "live"
-                    )
-                    result.execution_summary["market_hours_ignored"] = self.ignore_market_hours
+                # Engine execution completed successfully
+                logging.info("Multi-strategy execution completed successfully")
+                # Note: ExecutionSummaryDTO is immutable, so we can't add engine metadata here
 
             else:
                 logging.warning("Multi-strategy execution completed with issues")
@@ -1335,7 +1386,20 @@ class TradingEngine:
             logging.info("Successfully archived daily strategy P&L snapshot")
 
         except (ImportError, AttributeError, ConnectionError, OSError) as e:
+            error_handler = TradingSystemErrorHandler()
+            context = create_error_context(
+                operation="archive_daily_strategy_pnl",
+                component="TradingEngine._archive_daily_strategy_pnl",
+                function_name="_archive_daily_strategy_pnl",
+                additional_data={"paper_trading": self.paper_trading}
+            )
+            error_handler.handle_error_with_context(
+                error=e,
+                context=context,
+                should_continue=True  # Non-critical archival failure
+            )
             logging.error(f"Failed to archive daily strategy P&L: {e}")
+            # This is not critical to trading execution, so we don't re-raise
 
     def get_multi_strategy_performance_report(
         self,
@@ -1352,9 +1416,19 @@ class TradingEngine:
                 "performance_summary": self.strategy_manager.get_strategy_performance_summary(),
             }
             return report
-        except (StrategyExecutionError, DataProviderError, AttributeError, ValueError) as e:
-            logging.error(f"Error generating performance report: {e}")
-            return {"error": str(e)}
+        except (StrategyExecutionError, DataProviderError, AttributeError, ValueError, RuntimeError) as e:
+            error_handler = TradingSystemErrorHandler()
+            context = create_error_context(
+                operation="generate_multi_strategy_performance_report",
+                component="TradingEngine.get_multi_strategy_performance_report",
+                function_name="get_multi_strategy_performance_report"
+            )
+            error_handler.handle_error_with_context(
+                error=e,
+                context=context,
+                should_continue=False
+            )
+            raise StrategyExecutionError(f"Failed to generate performance report: {e}") from e
 
     def _build_portfolio_state_data(
         self,
@@ -1456,7 +1530,23 @@ class TradingEngine:
             else:
                 logging.info("🔍 No symbols to validate in post-trade validation")
         except (ValueError, AttributeError, KeyError, TypeError) as e:
+            error_handler = TradingSystemErrorHandler()
+            context = create_error_context(
+                operation="post_trade_validation",
+                component="TradingEngine._trigger_post_trade_validation",
+                function_name="_trigger_post_trade_validation",
+                additional_data={
+                    "strategy_signals": {str(k): v for k, v in strategy_signals.items()},
+                    "orders_executed_count": len(orders_executed)
+                }
+            )
+            error_handler.handle_error_with_context(
+                error=e,
+                context=context,
+                should_continue=True  # Non-critical validation failure
+            )
             logging.error(f"❌ Post-trade validation failed: {e}")
+            # This is not critical to trading execution, so we don't re-raise
 
     def display_target_vs_current_allocations(
         self,
@@ -1594,7 +1684,7 @@ class TradingEngine:
         if not execution_result.success:
             console.print(
                 Panel(
-                    f"[bold red]Execution failed: {execution_result.execution_summary.get('error', 'Unknown error')}[/bold red]",
+                    f"[bold red]Execution failed: {execution_result.execution_summary.pnl_summary if execution_result.execution_summary else 'Unknown error'}[/bold red]",
                     title="Execution Result",
                     style="red",
                 )
