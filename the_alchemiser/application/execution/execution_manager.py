@@ -6,6 +6,10 @@ from typing import Any
 from the_alchemiser.application.mapping.strategy_signal_mapping import (
     map_signals_dict as _map_signals_to_typed,
 )
+from the_alchemiser.application.mapping.execution_summary_mapping import (
+    safe_dict_to_execution_summary_dto,
+    safe_dict_to_portfolio_state_dto,
+)
 from the_alchemiser.domain.types import AccountInfo
 from the_alchemiser.interfaces.schemas.common import MultiStrategyExecutionResultDTO
 from the_alchemiser.services.errors import handle_errors_with_retry
@@ -83,8 +87,8 @@ class ExecutionManager:
                 orders_executed=orders_executed,
                 account_info_before=account_info_before,
                 account_info_after=account_info_after,
-                execution_summary=execution_summary,
-                final_portfolio_state=final_portfolio_state,
+                execution_summary=safe_dict_to_execution_summary_dto(execution_summary),
+                final_portfolio_state=safe_dict_to_portfolio_state_dto(final_portfolio_state),
             )
             save_dashboard_data(self.engine, result)
             self.engine._archive_daily_strategy_pnl(execution_summary.get("pnl_summary", {}))
@@ -140,8 +144,13 @@ class ExecutionManager:
                 orders_executed=[],
                 account_info_before=empty_account_info,
                 account_info_after=empty_account_info,
-                execution_summary={"error": str(e)},
-                final_portfolio_state={},
+                execution_summary=safe_dict_to_execution_summary_dto({
+                    "error": str(e),
+                    "mode": "error",
+                    "account_info_before": empty_account_info,
+                    "account_info_after": empty_account_info,
+                }),
+                final_portfolio_state=safe_dict_to_portfolio_state_dto({}),
             )
         except (ConfigurationError, StrategyExecutionError, ValueError, AttributeError) as e:
             from the_alchemiser.infrastructure.logging.logging_utils import (

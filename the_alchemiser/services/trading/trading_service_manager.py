@@ -61,6 +61,7 @@ from the_alchemiser.interfaces.schemas.orders import OrderExecutionResultDTO, Or
 from the_alchemiser.interfaces.schemas.positions import (
     ClosePositionResultDTO,
     PortfolioSummaryDTO,
+    PortfolioValueDTO,
     PositionAnalyticsDTO,
     PositionMetricsDTO,
     PositionSummaryDTO,
@@ -531,9 +532,21 @@ class TradingServiceManager:
         enriched_dict = {"raw": legacy, "summary": account_typed_to_serializable(typed)}
         return dict_to_enriched_account_summary_dto(enriched_dict)
 
-    def get_all_positions(self) -> list[Any]:
+    def get_all_positions(self) -> EnrichedPositionsDTO:
         """Get all positions from the underlying repository"""
-        return self.alpaca_manager.get_all_positions()
+        try:
+            raw_positions = self.alpaca_manager.get_all_positions()
+            # Convert to enriched format
+            enriched = []
+            for position in raw_positions:
+                summary = alpaca_position_to_summary(position)
+                enriched.append({
+                    "raw": position,
+                    "summary": summary.model_dump() if hasattr(summary, 'model_dump') else summary
+                })
+            return list_to_enriched_positions_dto(enriched)
+        except Exception as e:
+            return EnrichedPositionsDTO(success=False, positions=[], error=str(e))
 
     @translate_trading_errors(
         default_return=EnrichedPositionsDTO(
@@ -571,12 +584,11 @@ class TradingServiceManager:
         except Exception as e:
             return EnrichedPositionsDTO(success=False, positions=[], error=str(e))
 
-    def get_portfolio_value(self) -> Any:
+    def get_portfolio_value(self) -> PortfolioValueDTO:
         """Get total portfolio value with typed domain objects."""
         raw = self.alpaca_manager.get_portfolio_value()
-        # Always return typed path (V2 migration complete)
         money = to_money_usd(raw)
-        return {"value": raw, "money": money}
+        return PortfolioValueDTO(value=Decimal(str(raw)), money=money)
 
     # High-Level Trading Operations
     @translate_trading_errors(
