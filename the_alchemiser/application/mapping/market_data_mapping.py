@@ -30,11 +30,11 @@ def bars_to_dataframe(bars: list[BarModel]) -> pd.DataFrame:
     data = []
     for bar in bars:
         data.append({
-            'open': float(bar.open),
-            'high': float(bar.high),
-            'low': float(bar.low),
-            'close': float(bar.close),
-            'volume': float(bar.volume),
+            'Open': float(bar.open),
+            'High': float(bar.high),
+            'Low': float(bar.low),
+            'Close': float(bar.close),
+            'Volume': float(bar.volume),
         })
 
     df = pd.DataFrame(data, index=[bar.ts for bar in bars])
@@ -101,11 +101,11 @@ def dataframe_to_bars(df: pd.DataFrame, symbol: Symbol) -> list[BarModel]:
     for timestamp, row in df.iterrows():
         bar = BarModel(
             ts=pd.to_datetime(timestamp),
-            open=Decimal(str(row['open'])),
-            high=Decimal(str(row['high'])),
-            low=Decimal(str(row['low'])),
-            close=Decimal(str(row['close'])),
-            volume=Decimal(str(row['volume'])),
+            open=Decimal(str(row['Open'])),
+            high=Decimal(str(row['High'])),
+            low=Decimal(str(row['Low'])),
+            close=Decimal(str(row['Close'])),
+            volume=Decimal(str(row['Volume'])),
         )
         bars.append(bar)
 
