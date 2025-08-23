@@ -8,13 +8,8 @@ from the_alchemiser.application.mapping.account_mapping import (
     account_typed_to_serializable,
     to_money_usd,
 )
-from the_alchemiser.application.mapping.order_mapping import (
-    alpaca_order_to_domain,
-    summarize_order,
-)
 from the_alchemiser.application.mapping.orders import (
     dict_to_order_request_dto,
-    domain_order_to_execution_result_dto,
 )
 from the_alchemiser.application.mapping.position_mapping import alpaca_position_to_summary
 from the_alchemiser.application.mapping.trading_service_dto_mapping import (
@@ -165,11 +160,8 @@ class TradingServiceManager:
                 side=OrderSide.BUY if side.lower() == "buy" else OrderSide.SELL,
                 time_in_force=TimeInForce.DAY,
             )
-            placed = self.alpaca_manager.place_order(req)
-            dom = alpaca_order_to_domain(placed)
-
-            # Convert domain order to DTO
-            return domain_order_to_execution_result_dto(dom)
+            # AlpacaManager now returns OrderExecutionResultDTO directly
+            return self.alpaca_manager.place_order(req)
         except Exception as e:  # noqa: BLE001
             return OrderExecutionResultDTO(
                 success=False,
@@ -234,11 +226,8 @@ class TradingServiceManager:
                 time_in_force=TimeInForce.DAY,
                 limit_price=limit_price,
             )
-            placed = self.alpaca_manager.place_order(req)
-            dom = alpaca_order_to_domain(placed)
-
-            # Convert domain order to DTO
-            return domain_order_to_execution_result_dto(dom)
+            # AlpacaManager now returns OrderExecutionResultDTO directly
+            return self.alpaca_manager.place_order(req)
         except Exception as e:  # noqa: BLE001
             return OrderExecutionResultDTO(
                 success=False,
