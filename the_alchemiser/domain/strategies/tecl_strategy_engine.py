@@ -32,6 +32,7 @@ from typing import Any
 from the_alchemiser.domain.math.indicator_utils import safe_get_indicator
 from the_alchemiser.domain.math.indicators import TechnicalIndicators
 from the_alchemiser.domain.shared_kernel.value_objects.percentage import Percentage
+from the_alchemiser.domain.strategies.config import load_confidence_config, TECLConfidenceConfig
 from the_alchemiser.domain.strategies.engine import StrategyEngine
 from the_alchemiser.domain.strategies.protocols.market_data_port import MarketDataPort
 from the_alchemiser.domain.strategies.value_objects.alert import Alert
@@ -381,7 +382,7 @@ class TECLStrategyEngine(StrategyEngine):
                 signal = StrategySignal(
                     symbol=Symbol(primary_symbol),
                     action=action,  # type: ignore  # action comes from ActionType.value
-                    confidence=Confidence(Decimal("0.8")),  # High confidence for TECL strategy
+                    confidence=self._calculate_confidence(symbol_or_allocation, action, indicators, reasoning),
                     target_allocation=Percentage(Decimal(str(total_allocation))),
                     reasoning=reasoning,
                 )
@@ -391,7 +392,7 @@ class TECLStrategyEngine(StrategyEngine):
                 signal = StrategySignal(
                     symbol=Symbol(symbol_or_allocation),
                     action=action,  # type: ignore  # action comes from ActionType.value
-                    confidence=Confidence(Decimal("0.8")),  # High confidence for TECL strategy
+                    confidence=self._calculate_confidence(symbol_or_allocation, action, indicators, reasoning),
                     target_allocation=Percentage(Decimal("1.0")),  # 100% allocation
                     reasoning=reasoning,
                 )
@@ -445,6 +446,158 @@ class TECLStrategyEngine(StrategyEngine):
 
         except Exception:
             return False
+
+    def _calculate_confidence(
+        self,
+        symbol_or_allocation: str | dict[str, float],
+        action: str,
+        indicators: dict[str, Any],
+        reasoning: str
+    ) -> Confidence:
+        """
+        Calculate confidence based on technical indicators and market conditions.
+        
+        Replaces the hardcoded 0.8 confidence with a dynamic calculation based on:
+        - RSI distance from thresholds
+        - Moving average confirmation
+        - Volatility regime
+        - Market regime (bull/bear)
+        - Position type (growth vs defensive)
+        """
+        config = load_confidence_config().tecl
+
+        # Start with base confidence
+        confidence = config.base_confidence
+
+        # Determine primary symbol for indicator analysis
+        if isinstance(symbol_or_allocation, dict):
+            # For portfolio allocations, use the symbol with highest weight
+            primary_symbol = max(symbol_or_allocation.keys(), key=lambda s: symbol_or_allocation[s])
+        else:
+            primary_symbol = symbol_or_allocation
+
+        # Get key market indicators
+        spy_indicators = indicators.get("SPY", {})
+        symbol_indicators = indicators.get(primary_symbol, {})
+
+        # RSI-based confidence adjustment
+        confidence = self._adjust_confidence_for_rsi(confidence, symbol_indicators, action, config)
+
+        # Moving average confirmation
+        confidence = self._adjust_confidence_for_ma_distance(confidence, spy_indicators, config)
+
+        # Market regime adjustment
+        confidence = self._adjust_confidence_for_market_regime(confidence, spy_indicators, config)
+
+        # Position type penalty for defensive positions
+        if primary_symbol in ["BIL", "UVXY"] or "BIL" in reasoning:
+            confidence -= config.defensive_position_penalty
+
+        # Volatility regime adjustment
+        if "UVXY" in primary_symbol or "volatility" in reasoning.lower():
+            confidence = self._adjust_confidence_for_volatility(confidence, indicators, config)
+
+        # Clamp to valid range
+        confidence = max(config.min_confidence, min(config.max_confidence, confidence))
+
+        return Confidence(confidence)
+
+    def _adjust_confidence_for_rsi(
+        self,
+        base_confidence: Decimal,
+        symbol_indicators: dict[str, Any],
+        action: str,
+        config: 'TECLConfidenceConfig'
+    ) -> Decimal:
+        """Adjust confidence based on RSI distance from thresholds."""
+        rsi = symbol_indicators.get("rsi_9")
+        if rsi is None:
+            return base_confidence
+
+        rsi_decimal = Decimal(str(rsi))
+
+        if action == "BUY":
+            # For BUY signals, higher confidence when RSI is oversold
+            if rsi_decimal <= config.rsi_oversold_threshold:
+                # More oversold = higher confidence
+                oversold_factor = (config.rsi_oversold_threshold - rsi_decimal) / config.rsi_oversold_threshold
+                adjustment = oversold_factor * config.rsi_confidence_weight
+                return base_confidence + adjustment
+        elif action == "SELL":
+            # For SELL signals, higher confidence when RSI is overbought
+            if rsi_decimal >= config.rsi_overbought_threshold:
+                # More overbought = higher confidence
+                overbought_factor = (rsi_decimal - config.rsi_overbought_threshold) / (Decimal("100") - config.rsi_overbought_threshold)
+                adjustment = overbought_factor * config.rsi_confidence_weight
+                return base_confidence + adjustment
+
+        return base_confidence
+
+    def _adjust_confidence_for_ma_distance(
+        self,
+        base_confidence: Decimal,
+        spy_indicators: dict[str, Any],
+        config: 'TECLConfidenceConfig'
+    ) -> Decimal:
+        """Adjust confidence based on distance from moving average."""
+        current_price = spy_indicators.get("current_price")
+        ma_200 = spy_indicators.get("ma_200")
+
+        if current_price is None or ma_200 is None:
+            return base_confidence
+
+        price_decimal = Decimal(str(current_price))
+        ma_decimal = Decimal(str(ma_200))
+
+        # Calculate percentage distance from MA
+        distance = abs(price_decimal - ma_decimal) / ma_decimal
+
+        if distance <= config.ma_distance_threshold:
+            # Close to MA = higher confidence in trend continuation
+            proximity_factor = (config.ma_distance_threshold - distance) / config.ma_distance_threshold
+            adjustment = proximity_factor * config.ma_distance_confidence_weight
+            return base_confidence + adjustment
+
+        return base_confidence
+
+    def _adjust_confidence_for_market_regime(
+        self,
+        base_confidence: Decimal,
+        spy_indicators: dict[str, Any],
+        config: 'TECLConfidenceConfig'
+    ) -> Decimal:
+        """Adjust confidence based on bull/bear market regime."""
+        current_price = spy_indicators.get("current_price")
+        ma_200 = spy_indicators.get("ma_200")
+
+        if current_price is None or ma_200 is None:
+            return base_confidence
+
+        if current_price > ma_200:
+            # Bull market - slight confidence bonus
+            return base_confidence + config.bull_market_bonus
+        else:
+            # Bear market - slight confidence penalty
+            return base_confidence - config.bear_market_penalty
+
+    def _adjust_confidence_for_volatility(
+        self,
+        base_confidence: Decimal,
+        indicators: dict[str, Any],
+        config: 'TECLConfidenceConfig'
+    ) -> Decimal:
+        """Adjust confidence based on volatility conditions."""
+        uvxy_indicators = indicators.get("UVXY", {})
+        uvxy_rsi = uvxy_indicators.get("rsi_9")
+
+        if uvxy_rsi is None:
+            return base_confidence
+
+        if uvxy_rsi >= float(config.high_volatility_threshold) * 100:
+            # High volatility environment - bonus for volatility plays
+            return base_confidence + config.volatility_confidence_weight
+
+        return base_confidence
 
     def get_strategy_summary(self) -> str:
         """Get a summary description of the TECL strategy"""

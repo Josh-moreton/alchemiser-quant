@@ -498,16 +498,40 @@ class TypedKLMStrategyEngine(StrategyEngine):
         return signals if signals else self._create_hold_signal("No valid signals generated", now)
 
     def _calculate_confidence(self, action: str, weight: float) -> Confidence:
-        """Calculate confidence based on action and allocation weight."""
+        """Calculate confidence based on action and allocation weight using configurable parameters."""
+        from the_alchemiser.domain.strategies.config import load_confidence_config
+
+        config = load_confidence_config().klm
+
         if action == "BUY":
-            # Higher weight = higher confidence
-            confidence_value = min(0.9, 0.5 + (weight * 0.4))
+            # Configurable weight-based confidence calculation
+            if config.weight_confidence_curve == "logistic":
+                # Logistic curve: more gradual confidence increase
+                import math
+                weight_factor = 1 / (1 + math.exp(-float(config.logistic_steepness) * (weight - 0.5)))
+                confidence_value = float(config.buy_base_confidence) + weight_factor * float(config.buy_weight_multiplier)
+            else:
+                # Linear weight influence (default)
+                confidence_value = float(config.buy_base_confidence) + (weight * float(config.buy_weight_multiplier))
+
+            # Apply weight threshold bonus
+            if weight >= float(config.weight_threshold):
+                confidence_value = min(confidence_value, float(config.buy_max_confidence))
+            else:
+                # Reduce confidence for very low weights
+                confidence_value *= (weight / float(config.weight_threshold))
+
+            confidence_value = min(float(config.max_confidence), confidence_value)
+
         elif action == "SELL":
-            # Sell signals have moderate confidence
-            confidence_value = 0.7
+            # Configurable sell confidence
+            confidence_value = float(config.sell_confidence)
         else:  # HOLD
-            # Hold signals have lower confidence
-            confidence_value = 0.3
+            # Configurable hold confidence
+            confidence_value = float(config.hold_confidence)
+
+        # Ensure within bounds
+        confidence_value = max(float(config.min_confidence), min(float(config.max_confidence), confidence_value))
 
         return Confidence(Decimal(str(confidence_value)))
 

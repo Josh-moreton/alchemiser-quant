@@ -219,22 +219,89 @@ class NuclearTypedEngine(StrategyEngine):
         )
 
     def _calculate_confidence(self, symbol: str, action: str, reasoning: str) -> float:
-        """Calculate confidence based on signal characteristics."""
-        base_confidence = 0.5
+        """Calculate confidence based on indicator-driven rules instead of string parsing."""
+        from the_alchemiser.domain.strategies.config import load_confidence_config
 
-        # High confidence conditions
-        if "extremely overbought" in reasoning.lower():
-            return 0.9
-        elif "oversold" in reasoning.lower() and action == "BUY":
-            return 0.85
-        elif "volatility hedge" in reasoning.lower():
-            return 0.8
-        elif "bull market" in reasoning.lower() or "bear market" in reasoning.lower():
-            return 0.7
+        config = load_confidence_config().nuclear
+
+        # Get current market data and indicators for the symbol if available
+        try:
+            market_data = self.data_provider.get_market_data([symbol], timespan="day", period="6M")
+            if not market_data or symbol not in market_data:
+                return float(config.base_confidence)
+
+            symbol_data = market_data[symbol]
+            if symbol_data.empty:
+                return float(config.base_confidence)
+
+            # Calculate current RSI for indicator-driven confidence
+            from the_alchemiser.domain.technical.indicators import TechnicalIndicators
+            indicators = TechnicalIndicators()
+            close_prices = symbol_data["Close"]
+            current_rsi = indicators.rsi(close_prices, 14).iloc[-1] if len(close_prices) >= 14 else 50
+
+            # Calculate MA distances for confirmation
+            ma_20 = indicators.moving_average(close_prices, 20).iloc[-1] if len(close_prices) >= 20 else close_prices.iloc[-1]
+            current_price = close_prices.iloc[-1]
+            ma_distance = abs(current_price - ma_20) / ma_20
+
+            confidence = self._calculate_confidence_from_indicators(
+                current_rsi, ma_distance, action, symbol, config
+            )
+
+            return float(confidence)
+
+        except Exception:
+            # Fallback to base confidence if indicators can't be calculated
+            return float(config.base_confidence)
+
+    def _calculate_confidence_from_indicators(
+        self,
+        rsi: float,
+        ma_distance: float,
+        action: str,
+        symbol: str,
+        config
+    ) -> Decimal:
+        """Calculate confidence based on RSI and MA indicators."""
+
+        # Start with base confidence
+        confidence = config.base_confidence
+
+        # RSI-based confidence calculation
+        if action == "BUY":
+            if rsi <= float(config.extremely_oversold_rsi):
+                confidence = config.extremely_oversold_confidence
+            elif rsi <= float(config.oversold_rsi):
+                confidence = config.oversold_buy_confidence
+            else:
+                confidence = config.base_confidence
+        elif action == "SELL":
+            if rsi >= float(config.extremely_overbought_rsi):
+                confidence = config.extremely_overbought_confidence
+            elif rsi >= float(config.overbought_rsi):
+                confidence = config.overbought_sell_confidence
+            else:
+                confidence = config.base_confidence
         elif action == "HOLD":
-            return 0.6
+            confidence = config.hold_confidence
 
-        return base_confidence
+        # Moving average confirmation bonus/penalty
+        if ma_distance < 0.02:  # Within 2% of MA
+            if action in ["BUY", "SELL"]:  # Trend continuation signals
+                confidence += config.ma_confirmation_bonus
+        else:
+            if action in ["BUY", "SELL"]:  # Diverging from MA
+                confidence -= config.ma_divergence_penalty
+
+        # Symbol-specific adjustments for volatility hedges
+        if symbol in ["UVXY", "SQQQ", "PSQ"]:
+            confidence = min(confidence + Decimal("0.1"), config.max_confidence)
+
+        # Clamp to valid range
+        confidence = max(config.min_confidence, min(config.max_confidence, confidence))
+
+        return confidence
 
     def _calculate_target_allocation(self, symbol: str, action: str) -> float:
         """Calculate target allocation percentage based on signal."""
