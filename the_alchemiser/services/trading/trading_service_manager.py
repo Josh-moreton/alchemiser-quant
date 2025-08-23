@@ -128,11 +128,11 @@ class TradingServiceManager:
                     "order_type": "market",
                     "time_in_force": "day",
                 }
-                
+
                 try:
                     order_request = dict_to_order_request_dto(order_data)
                     validated_order = self.order_validator.validate_order_request(order_request)
-                    
+
                     self.logger.info(
                         f"Market order validation successful for {symbol}: "
                         f"estimated_value=${validated_order.estimated_value}, "
@@ -150,7 +150,7 @@ class TradingServiceManager:
                         completed_at=None,
                     )
 
-            # Always use typed path (V2 migration complete)
+            # Always use typed path (using typed domain)
             try:
                 from alpaca.trading.enums import OrderSide, TimeInForce
                 from alpaca.trading.requests import MarketOrderRequest
@@ -197,11 +197,11 @@ class TradingServiceManager:
                     "limit_price": limit_price,
                     "time_in_force": "day",
                 }
-                
+
                 try:
                     order_request = dict_to_order_request_dto(order_data)
                     validated_order = self.order_validator.validate_order_request(order_request)
-                    
+
                     self.logger.info(
                         f"Limit order validation successful for {symbol}: "
                         f"estimated_value=${validated_order.estimated_value}, "
@@ -219,7 +219,7 @@ class TradingServiceManager:
                         completed_at=None,
                     )
 
-            # Always use typed path (V2 migration complete)
+            # Always use typed path (using typed domain)
             try:
                 from alpaca.trading.enums import OrderSide, TimeInForce
                 from alpaca.trading.requests import LimitOrderRequest
@@ -304,7 +304,7 @@ class TradingServiceManager:
                     or (isinstance(o, dict) and o.get("symbol") == symbol)
                 ]
 
-            # Always use enriched typed path (V2 migration complete)
+            # Always use enriched typed path (using typed domain)
             enriched: list[dict[str, Any]] = []
             for o in orders:
                 dom = alpaca_order_to_domain(o)
@@ -527,7 +527,7 @@ class TradingServiceManager:
         """
         legacy = self.account.get_account_summary()
 
-        # Always return typed path (V2 migration complete)
+        # Always return typed path (using typed domain)
         typed = account_summary_to_typed(legacy)
         enriched_dict = {"raw": legacy, "summary": account_typed_to_serializable(typed)}
         return dict_to_enriched_account_summary_dto(enriched_dict)
@@ -561,7 +561,7 @@ class TradingServiceManager:
         try:
             raw_positions = self.alpaca_manager.get_all_positions()
 
-            # Always return enriched typed path (V2 migration complete)
+            # Always return enriched typed path (using typed domain)
             enriched: list[dict[str, Any]] = []
             for p in raw_positions:
                 s = alpaca_position_to_summary(p)

@@ -32,8 +32,8 @@ This document summarizes the wiki documentation updates for the Typed Strategy m
   - Validation checklist for completed migrations
 
 ### 3. reference/Feature-Flags.md (Updated - 162 lines)
-- **Before**: Basic TYPES_V2_ENABLED information
-- **After**: Detailed feature flag documentation including:
+- **Before**: Basic typed domain information
+- **After**: Detailed typed domain documentation including:
   - Configuration options and default behavior
   - Comprehensive effects across all system layers
   - Complete migration status for all components

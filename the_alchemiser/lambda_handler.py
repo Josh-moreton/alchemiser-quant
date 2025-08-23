@@ -62,7 +62,7 @@ def parse_event_mode(event: LambdaEventDTO | dict[str, Any]) -> list[str]:
             return default_args
         # Convert dict to DTO for consistent handling
         event = LambdaEventDTO(**event)
-    
+
     # Handle None or DTO without mode specified
     if not event or not event.mode:
         logger.info(

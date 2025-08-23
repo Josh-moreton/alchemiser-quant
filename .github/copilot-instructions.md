@@ -80,19 +80,15 @@ The project is migrating to a strongly-typed Domain-Driven Design model behind a
 - **Anti-corruption layer**: Pure mapping functions in `application/mapping/` (DTO ↔ Domain ↔ Infra)
 - **Infra adapters**: Alpaca response/requests mapped in `infrastructure/` only; domain remains framework-free
 
-### Feature flag
-- `TYPES_V2_ENABLED` (truthy: `1`, `true`, `yes`, `on`)
-- When ON, selected slices run through typed domain + mappers. Legacy is DEPRECATED and MUST NOT be used as a runtime fallback. If typed path errors, fail fast with explicit errors and fix the typed path.
-
-### Migrated slices (flagged)
-- Portfolio value parity via `TradingServiceManager`
+### Implemented Features
+- Portfolio value calculation via `TradingServiceManager`
 - Enriched positions summary and CLI rendering
 - Enriched account summary and CLI status integration
 - Order placement (market/limit): build typed requests, map responses to `domain.trading.entities.Order`
 - Open orders retrieval mapped to typed domain structures
 - StrategySignal mapping and usage in execution + CLI
 
-Legacy deprecation stance: do not add new call sites to any legacy module. Any remaining legacy code exists only for historical tests and will be removed.
+The system uses a strongly-typed domain model throughout.
 
 ### Contributor rules for Typed Domain V2
 - Domain purity: no framework or network imports in `the_alchemiser/domain/**` (no Pydantic, requests, logging)
@@ -372,9 +368,6 @@ paper_trading = settings.alpaca.paper_trading
 cash_reserve = settings.alpaca.cash_reserve_pct
 ```
 
-### Enabling the typed domain path (locally and CI)
-- Set `TYPES_V2_ENABLED=1` in your environment to exercise the V2 code paths for the migrated slices.
-- Keep legacy paths intact for any features not yet migrated; submit PRs with parity tests before expanding the flag’s surface area.
 
 ## Testing & Quality Requirements
 
@@ -425,7 +418,6 @@ EMAIL_RECIPIENT=your@email.com
 ALPACA__CASH_RESERVE_PCT=0.05    # 5% cash reserve
 ALPACA__SLIPPAGE_BPS=5           # 5 basis points slippage allowance
 LOGGING__LEVEL=INFO              # Logging verbosity
-TYPES_V2_ENABLED=true            # Enable typed domain v2 slices (truthy: 1/true/yes/on)
 ```
 
 ### Trading Mode Safety & Production Readiness

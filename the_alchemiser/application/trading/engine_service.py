@@ -27,6 +27,10 @@ from typing import Any, Protocol, cast
 from alpaca.trading.enums import OrderSide
 
 from the_alchemiser.application.execution.smart_execution import SmartExecution
+from the_alchemiser.application.mapping.execution_summary_mapping import (
+    safe_dict_to_execution_summary_dto,
+    safe_dict_to_portfolio_state_dto,
+)
 from the_alchemiser.application.portfolio.services.portfolio_management_facade import (
     PortfolioManagementFacade,
 )
@@ -42,10 +46,6 @@ from the_alchemiser.domain.types import (
 from the_alchemiser.infrastructure.config import Settings
 from the_alchemiser.interfaces.schemas.common import MultiStrategyExecutionResultDTO
 from the_alchemiser.interfaces.schemas.execution import ExecutionResultDTO
-from the_alchemiser.application.mapping.execution_summary_mapping import (
-    safe_dict_to_execution_summary_dto,
-    safe_dict_to_portfolio_state_dto,
-)
 from the_alchemiser.services.account.account_service import (
     AccountService as TypedAccountService,
 )
