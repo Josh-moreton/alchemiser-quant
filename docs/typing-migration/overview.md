@@ -37,7 +37,7 @@ break without explicit versioning.
 | Boundary | Old shape | New type |
 |----------|-----------|----------|
 |Broker order placement|`dict`|`OrderDetails`|
-|Execution result|`dict`|`ExecutionResult`|
+|Execution result|`dict`|`ExecutionResultDTO`|
 |Strategy signal|`dict`|`SignalPayload`|
 |Portfolio snapshot|`dict`|`PositionSnapshot`|
 |Account info|`dict`|`AccountInfo`|

@@ -188,24 +188,7 @@ class OrderHistoryDTO(BaseModel):
     )
 
 
-# ---------------------------------------------------------------------------
-# Backward Compatibility Aliases (Deprecated)
-# ---------------------------------------------------------------------------
-# The legacy TypedDict-style names (ExecutionResult, WebSocketResult, QuoteData)
-# were referenced across the codebase prior to migration to Pydantic DTOs with
-# the *DTO suffix. Provide lightweight aliases to avoid immediate breakage for
-# any external scripts/tests while contributors update imports.
-#
-# These will be removed after a deprecation window. Do not use in new code.
 
-# Deprecated compatibility aliases (intentionally NOT exported via __all__).
-# These remain only to avoid immediate breakage for any out-of-tree scripts.
-# They will be removed in a future cleanup release.
-ExecutionResult = ExecutionResultDTO  # Deprecated alias – do not use in new code
-WebSocketResult = WebSocketResultDTO  # Deprecated alias – do not use in new code
-QuoteData = QuoteDTO  # Deprecated alias – do not use in new code
-
-__deprecated__ = ["ExecutionResult", "WebSocketResult", "QuoteData"]
 
 __all__ = [
     # Primary DTO exports (no deprecated symbols)

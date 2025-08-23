@@ -85,7 +85,7 @@ Note: Prefer compiled models (default in v2) and from_attributes for easy mappin
 This adds a DDD‑alignment track and concrete deliverables per phase.
 
 - Phase 5 (Baseline models) — existing plan
-  - Deliver dataclass models for OrderDetails and ExecutionResult (align with domain Order/OrderAck naming)
+  - Deliver dataclass models for OrderDetails and ExecutionResultDTO (align with domain Order/OrderAck naming)
   - Keep TypedDict adapters for compatibility
 
 - Phase 6 (Service return typing) — existing plan
