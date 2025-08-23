@@ -91,3 +91,13 @@ def test_deprecated_aliases_not_in_all():
     assert "ExecutionResult" not in exec_mod.__all__
     assert "WebSocketResult" not in exec_mod.__all__
     assert "QuoteData" not in exec_mod.__all__
+
+
+def test_deprecated_aliases_removed():
+    # ExecutionResult, WebSocketResult, QuoteData should be completely removed from execution module
+    import the_alchemiser.interfaces.schemas.execution as exec_mod
+
+    assert not hasattr(exec_mod, "ExecutionResult")
+    assert not hasattr(exec_mod, "WebSocketResult")
+    assert not hasattr(exec_mod, "QuoteData")
+    assert not hasattr(exec_mod, "__deprecated__")
