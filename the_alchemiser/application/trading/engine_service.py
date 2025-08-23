@@ -58,6 +58,15 @@ from the_alchemiser.services.errors.exceptions import (
 from the_alchemiser.services.market_data.market_data_service import MarketDataService
 from the_alchemiser.services.repository.alpaca_manager import AlpacaManager
 
+# Import application-layer ports for dependency injection
+from the_alchemiser.application.trading.ports import (
+    MarketDataPort,
+    AccountReadPort,
+    OrderExecutionPort,
+    StrategyAdapterPort,
+    RebalancingOrchestratorPort,
+)
+
 from ..execution.execution_manager import ExecutionManager
 from ..reporting.reporting import build_portfolio_state_data
 

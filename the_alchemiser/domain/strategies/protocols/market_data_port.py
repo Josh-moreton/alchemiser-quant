@@ -1,5 +1,15 @@
 """Market Data Port Protocol for Strategy Layer.
 
+DEPRECATED: This protocol is deprecated in favor of the canonical MarketDataPort
+from the_alchemiser.domain.market_data.protocols.market_data_port.
+
+The canonical version uses Symbol value objects and domain models (BarModel, QuoteModel)
+rather than raw strings and pandas DataFrames.
+
+For backward compatibility, use StrategyMarketDataAdapter from 
+the_alchemiser.application.mapping.strategy_market_data_adapter to bridge
+DataFrame-expecting strategies to the canonical port.
+
 This protocol defines the minimal contract that strategies need for market data access.
 It provides a clean abstraction that strategies can depend on without coupling to
 specific infrastructure implementations.
