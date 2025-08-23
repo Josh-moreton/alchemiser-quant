@@ -14,12 +14,12 @@ from typing import Any
 
 import pandas as pd
 
+from the_alchemiser.domain.market_data.protocols.market_data_port import MarketDataPort
 from the_alchemiser.domain.math.indicator_utils import safe_get_indicator
 from the_alchemiser.domain.math.indicators import TechnicalIndicators
 from the_alchemiser.domain.shared_kernel.value_objects.percentage import Percentage
 from the_alchemiser.domain.strategies.engine import StrategyEngine
 from the_alchemiser.domain.strategies.nuclear_logic import evaluate_nuclear_strategy
-from the_alchemiser.domain.strategies.protocols.market_data_port import MarketDataPort
 from the_alchemiser.domain.strategies.value_objects.confidence import Confidence
 from the_alchemiser.domain.strategies.value_objects.strategy_signal import StrategySignal
 from the_alchemiser.domain.trading.value_objects.symbol import Symbol
@@ -125,11 +125,18 @@ class NuclearTypedEngine(StrategyEngine):
 
         Allows a one-off MarketDataPort override for this call.
         """
+        from the_alchemiser.application.mapping.market_data_mapping import (
+            bars_to_dataframe,
+            symbol_str_to_symbol,
+        )
+
         market_data = {}
         port = market_data_port or self.market_data_port
         for symbol in self._all_symbols:
             try:
-                data = port.get_data(symbol, timeframe="1day", period="1y")
+                symbol_obj = symbol_str_to_symbol(symbol)
+                bars = port.get_bars(symbol_obj, period="1y", timeframe="1day")
+                data = bars_to_dataframe(bars)
                 if not data.empty:
                     market_data[symbol] = data
                 else:

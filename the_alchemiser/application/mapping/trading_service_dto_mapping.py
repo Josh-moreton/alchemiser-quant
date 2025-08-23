@@ -13,7 +13,9 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Any
 
-from the_alchemiser.application.mapping.account_mapping import AccountSummaryTyped, account_typed_to_serializable
+from the_alchemiser.application.mapping.account_mapping import (
+    AccountSummaryTyped,
+)
 from the_alchemiser.application.mapping.position_mapping import PositionSummary
 from the_alchemiser.interfaces.schemas.accounts import (
     AccountMetricsDTO,
@@ -42,7 +44,6 @@ from the_alchemiser.interfaces.schemas.operations import (
     OrderCancellationDTO,
     OrderStatusDTO,
 )
-from the_alchemiser.interfaces.schemas.orders import OrderExecutionResultDTO
 from the_alchemiser.interfaces.schemas.positions import (
     ClosePositionResultDTO,
     LargestPositionDTO,
@@ -76,7 +77,7 @@ def dict_to_position_summary_dto(data: dict[str, Any]) -> PositionSummaryDTO:
             success=False,
             error=data.get("error", "Unknown error")
         )
-    
+
     position_data = data.get("position")
     if position_data:
         position_dto = PositionDTO(
@@ -90,7 +91,7 @@ def dict_to_position_summary_dto(data: dict[str, Any]) -> PositionSummaryDTO:
         )
     else:
         position_dto = None
-    
+
     return PositionSummaryDTO(
         success=True,
         symbol=data.get("symbol"),
@@ -105,7 +106,7 @@ def dict_to_portfolio_summary_dto(data: dict[str, Any]) -> PortfolioSummaryDTO:
             success=False,
             error=data.get("error", "Unknown error")
         )
-    
+
     portfolio_data = data.get("portfolio")
     if portfolio_data:
         portfolio_metrics = PortfolioMetricsDTO(
@@ -116,7 +117,7 @@ def dict_to_portfolio_summary_dto(data: dict[str, Any]) -> PortfolioSummaryDTO:
         )
     else:
         portfolio_metrics = None
-    
+
     return PortfolioSummaryDTO(
         success=True,
         portfolio=portfolio_metrics
@@ -149,7 +150,7 @@ def dict_to_position_metrics_dto(data: dict[str, Any]) -> PositionMetricsDTO:
             success=False,
             error=data.get("error", "Unknown error")
         )
-    
+
     largest_positions = []
     if data.get("largest_positions"):
         for pos in data["largest_positions"]:
@@ -158,7 +159,7 @@ def dict_to_position_metrics_dto(data: dict[str, Any]) -> PositionMetricsDTO:
                 weight_percent=Decimal(str(pos.get("weight", 0))),
                 market_value=Decimal(str(pos.get("value", 0))),
             ))
-    
+
     return PositionMetricsDTO(
         success=True,
         diversification_score=Decimal(str(data.get("diversification_score", 0))),
@@ -175,7 +176,7 @@ def account_summary_typed_to_dto(account_summary: AccountSummaryTyped) -> Accoun
         leverage_ratio=account_summary.calculated_metrics.leverage_ratio,
         available_buying_power_ratio=account_summary.calculated_metrics.available_buying_power_ratio,
     )
-    
+
     return AccountSummaryDTO(
         account_id=account_summary.account_id,
         equity=account_summary.equity.amount,
@@ -195,7 +196,7 @@ def account_summary_typed_to_dto(account_summary: AccountSummaryTyped) -> Accoun
 def dict_to_enriched_account_summary_dto(data: dict[str, Any]) -> EnrichedAccountSummaryDTO:
     """Convert enriched account summary dict to EnrichedAccountSummaryDTO."""
     summary_data = data.get("summary", {})
-    
+
     metrics_data = summary_data.get("calculated_metrics", {})
     metrics_dto = AccountMetricsDTO(
         cash_ratio=Decimal(str(metrics_data.get("cash_ratio", 0))),
@@ -203,7 +204,7 @@ def dict_to_enriched_account_summary_dto(data: dict[str, Any]) -> EnrichedAccoun
         leverage_ratio=Decimal(str(metrics_data.get("leverage_ratio"))) if metrics_data.get("leverage_ratio") is not None else None,
         available_buying_power_ratio=Decimal(str(metrics_data.get("available_buying_power_ratio", 0))),
     )
-    
+
     summary_dto = AccountSummaryDTO(
         account_id=summary_data.get("account_id", ""),
         equity=Decimal(str(summary_data.get("equity", 0))),
@@ -218,7 +219,7 @@ def dict_to_enriched_account_summary_dto(data: dict[str, Any]) -> EnrichedAccoun
         account_blocked=bool(summary_data.get("account_blocked", False)),
         calculated_metrics=metrics_dto,
     )
-    
+
     return EnrichedAccountSummaryDTO(
         raw=data.get("raw", {}),
         summary=summary_dto
@@ -314,7 +315,7 @@ def dict_to_multi_symbol_quotes_dto(data: dict[str, Any]) -> MultiSymbolQuotesDT
     quotes = None
     if data.get("quotes"):
         quotes = {symbol: Decimal(str(price)) for symbol, price in data["quotes"].items()}
-    
+
     return MultiSymbolQuotesDTO(
         success=data.get("success", False),
         quotes=quotes,
@@ -362,7 +363,7 @@ def list_to_open_orders_dto(orders: list[dict[str, Any]], symbol_filter: str | N
             domain=order.get("domain", {}),
             summary=order.get("summary", {}),
         ))
-    
+
     return OpenOrdersDTO(
         success=True,
         orders=enriched_orders,
@@ -378,7 +379,7 @@ def list_to_enriched_positions_dto(positions: list[dict[str, Any]]) -> EnrichedP
             raw=position.get("raw", {}),
             summary=position.get("summary", {}),
         ))
-    
+
     return EnrichedPositionsDTO(
         success=True,
         positions=enriched_positions
