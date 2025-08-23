@@ -3,6 +3,9 @@
 from decimal import Decimal
 from typing import Any
 
+from the_alchemiser.application.mapping.portfolio_rebalancing_mapping import (
+    rebalance_plans_dict_to_collection_dto,
+)
 from the_alchemiser.domain.portfolio.position.position_analyzer import PositionAnalyzer
 from the_alchemiser.domain.portfolio.position.position_delta import PositionDelta
 from the_alchemiser.domain.portfolio.rebalancing.rebalance_calculator import RebalanceCalculator
@@ -10,17 +13,12 @@ from the_alchemiser.domain.portfolio.rebalancing.rebalance_plan import Rebalance
 from the_alchemiser.domain.portfolio.strategy_attribution.attribution_engine import (
     StrategyAttributionEngine,
 )
-from the_alchemiser.services.trading.trading_service_manager import TradingServiceManager
 from the_alchemiser.interfaces.schemas.portfolio_rebalancing import (
     RebalancePlanCollectionDTO,
-    RebalancingSummaryDTO,
     RebalancingImpactDTO,
+    RebalancingSummaryDTO,
 )
-from the_alchemiser.application.mapping.portfolio_rebalancing_mapping import (
-    rebalance_plans_dict_to_collection_dto,
-    safe_rebalancing_summary_dict_to_dto,
-    safe_rebalancing_impact_dict_to_dto,
-)
+from the_alchemiser.services.trading.trading_service_manager import TradingServiceManager
 
 
 class PortfolioRebalancingService:
@@ -99,7 +97,7 @@ class PortfolioRebalancingService:
             domain_plans = self._calculate_rebalancing_plan_domain(
                 target_weights, current_positions, portfolio_value
             )
-            
+
             # Convert to DTO
             return rebalance_plans_dict_to_collection_dto(domain_plans)
         except Exception as e:
@@ -162,7 +160,7 @@ class PortfolioRebalancingService:
             rebalance_plan_result = self.calculate_rebalancing_plan(
                 target_weights, current_positions, portfolio_value
             )
-            
+
             if not rebalance_plan_result.success:
                 return RebalancingSummaryDTO(
                     success=False,
@@ -182,7 +180,7 @@ class PortfolioRebalancingService:
             plans = rebalance_plan_result.plans
             largest_trade_value = Decimal("0")
             largest_trade_symbol = None
-            
+
             for symbol, plan in plans.items():
                 if plan.trade_amount_abs > largest_trade_value:
                     largest_trade_value = plan.trade_amount_abs

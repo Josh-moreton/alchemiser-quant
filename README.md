@@ -32,15 +32,8 @@ We’re migrating to a strongly-typed, framework-free domain model with incremen
 - Anti‑corruption Mappers: `the_alchemiser/application/mapping/` handles DTO ↔ Domain ↔ Infra translations
 - Infra Adapters: Alpaca requests/responses mapped in `the_alchemiser/infrastructure/`; domain stays pure
 
-### Enable/Disable the Typed Path
 
-Typed Domain V2 is ON by default. To opt out (legacy behavior), set:
-
-```bash
-export TYPES_V2_ENABLED=0   # or: false / no / off
-```
-
-### What’s Migrated (behind the flag)
+### What's Implemented
 - Portfolio value parity via `TradingServiceManager`
 - Enriched positions summary and CLI rendering (status)
 - Enriched account summary and CLI status integration
@@ -590,13 +583,6 @@ alchemiser trade --live            # live trading (DI mode)
 alchemiser trade --ignore-market-hours  # override market hours
 alchemiser status                  # account status and positions
 alchemiser deploy                  # deploy to AWS Lambda
-```
-
-Tip: typed behavior is default. To force legacy behavior for comparison, export `TYPES_V2_ENABLED=0` and run:
-
-```bash
-poetry run alchemiser status -v
-poetry run alchemiser trade --ignore-market-hours -v  # paper mode by default
 ```
 
 ## Development Workflow for AI Agents

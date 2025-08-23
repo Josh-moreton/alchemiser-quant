@@ -25,21 +25,20 @@ from datetime import UTC, datetime
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
 
-from the_alchemiser.domain.types import AccountInfo, OrderDetails
-from the_alchemiser.interfaces.schemas.execution import (
-    ExecutionResultDTO,
-    TradingPlanDTO,
-    QuoteDTO,
-    WebSocketResultDTO,
-    LambdaEventDTO,
-    OrderHistoryDTO,
-    TradingAction,
-    WebSocketStatus,
-)
-from the_alchemiser.interfaces.schemas.orders import LimitOrderResultDTO
 from the_alchemiser.application.mapping.execution_summary_mapping import (
     safe_dict_to_execution_summary_dto,
     safe_dict_to_portfolio_state_dto,
+)
+from the_alchemiser.domain.types import AccountInfo, OrderDetails
+from the_alchemiser.interfaces.schemas.execution import (
+    ExecutionResultDTO,
+    LambdaEventDTO,
+    OrderHistoryDTO,
+    QuoteDTO,
+    TradingAction,
+    TradingPlanDTO,
+    WebSocketResultDTO,
+    WebSocketStatus,
 )
 
 __all__ = [

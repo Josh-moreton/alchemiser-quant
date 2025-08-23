@@ -49,7 +49,7 @@ class SignalAnalyzer:
         # Create strategy manager with proper allocations
         strategy_allocations = self._get_strategy_allocations()
 
-        # Generate typed signals directly - no more legacy adapter
+        # Generate typed signals directly
         from datetime import UTC, datetime
 
         typed_manager = TypedStrategyManager(market_data_port, strategy_allocations)
@@ -269,13 +269,13 @@ class SignalAnalyzer:
         render_header("MULTI-STRATEGY SIGNAL ANALYSIS", f"Analysis at {datetime.now()}")
 
         try:
-            # Indicate typed mode is always active (V2 migration complete)
+            # System now uses fully typed domain model
             try:
                 from rich.console import Console
 
-                Console().print("[dim]TYPES_V2: fully typed StrategySignal path is ACTIVE[/dim]")
+                Console().print("[dim]Using typed StrategySignal domain model[/dim]")
             except Exception:
-                self.logger.info("TYPES_V2: fully typed StrategySignal path is ACTIVE")
+                self.logger.info("Using typed StrategySignal domain model")
 
             # Generate signals
             strategy_signals, consolidated_portfolio = self._generate_signals()

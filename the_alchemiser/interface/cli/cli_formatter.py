@@ -333,7 +333,7 @@ def render_account_info(account_info: dict[str, Any], console: Console | None = 
     cash = account_data.get("cash", 0)
     buying_power = account_data.get("buying_power", 0)
 
-    # Always use typed domain Money display (V2 migration complete)
+    # Always use typed domain Money display (using typed domain)
     # If account_data contains nested money fields, honor them; otherwise fallback
     pv_display = _format_money(account_data.get("portfolio_value_money", portfolio_value))
     cash_display = _format_money(account_data.get("cash_money", cash))
