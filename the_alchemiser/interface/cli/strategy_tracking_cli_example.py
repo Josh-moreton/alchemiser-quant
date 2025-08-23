@@ -6,33 +6,28 @@ This module demonstrates how to use the new DTO-based methods
 in CLI reporting and display utilities.
 """
 
-from typing import Dict, List
 from decimal import Decimal
+
 from rich.console import Console
-from rich.table import Table
 from rich.panel import Panel
+from rich.table import Table
 
 from the_alchemiser.application.tracking.strategy_order_tracker import get_strategy_tracker
-from the_alchemiser.interfaces.schemas.tracking import (
-    StrategyOrderDTO,
-    StrategyPositionDTO,
-    StrategyPnLDTO,
-)
 
 
 def display_strategy_orders_dto(strategy_name: str, paper_trading: bool = True) -> None:
     """Display strategy orders using DTO interface."""
     console = Console()
-    
+
     try:
         # Get tracker and fetch orders using DTO method
         tracker = get_strategy_tracker(paper_trading=paper_trading)
         orders = tracker.get_orders_for_strategy(strategy_name)
-        
+
         if not orders:
             console.print(f"[yellow]No orders found for strategy {strategy_name}[/yellow]")
             return
-        
+
         # Create rich table
         table = Table(title=f"{strategy_name} Strategy Orders")
         table.add_column("Order ID", style="cyan")
@@ -41,7 +36,7 @@ def display_strategy_orders_dto(strategy_name: str, paper_trading: bool = True) 
         table.add_column("Quantity", justify="right", style="blue")
         table.add_column("Price", justify="right", style="yellow")
         table.add_column("Timestamp", style="dim")
-        
+
         for order in orders:
             table.add_row(
                 order.order_id,
@@ -51,9 +46,9 @@ def display_strategy_orders_dto(strategy_name: str, paper_trading: bool = True) 
                 f"${order.price:,.2f}",
                 order.timestamp.strftime("%Y-%m-%d %H:%M:%S")
             )
-        
+
         console.print(table)
-        
+
     except Exception as e:
         console.print(f"[red]Error displaying strategy orders: {e}[/red]")
 
@@ -61,16 +56,16 @@ def display_strategy_orders_dto(strategy_name: str, paper_trading: bool = True) 
 def display_positions_summary_dto(paper_trading: bool = True) -> None:
     """Display positions summary using DTO interface."""
     console = Console()
-    
+
     try:
         # Get tracker and fetch positions using DTO method
         tracker = get_strategy_tracker(paper_trading=paper_trading)
         positions = tracker.get_positions_summary()
-        
+
         if not positions:
             console.print("[yellow]No active positions found[/yellow]")
             return
-        
+
         # Create rich table
         table = Table(title="Strategy Positions Summary")
         table.add_column("Strategy", style="cyan")
@@ -79,7 +74,7 @@ def display_positions_summary_dto(paper_trading: bool = True) -> None:
         table.add_column("Avg Cost", justify="right", style="yellow")
         table.add_column("Total Cost", justify="right", style="green")
         table.add_column("Last Updated", style="dim")
-        
+
         for position in positions:
             table.add_row(
                 position.strategy,
@@ -89,25 +84,25 @@ def display_positions_summary_dto(paper_trading: bool = True) -> None:
                 f"${position.total_cost:,.2f}",
                 position.last_updated.strftime("%Y-%m-%d %H:%M:%S")
             )
-        
+
         console.print(table)
-        
+
     except Exception as e:
         console.print(f"[red]Error displaying positions summary: {e}[/red]")
 
 
-def display_strategy_pnl_dto(strategy_name: str, current_prices: Dict[str, float] | None = None, paper_trading: bool = True) -> None:
+def display_strategy_pnl_dto(strategy_name: str, current_prices: dict[str, float] | None = None, paper_trading: bool = True) -> None:
     """Display strategy P&L using DTO interface."""
     console = Console()
-    
+
     try:
         # Get tracker and fetch P&L using DTO method
         tracker = get_strategy_tracker(paper_trading=paper_trading)
         pnl = tracker.get_pnl_summary(strategy_name, current_prices)
-        
+
         # Calculate additional metrics
         total_return_pct = pnl.total_return_pct if pnl.allocation_value > 0 else Decimal("0")
-        
+
         # Create rich panel with P&L info
         pnl_content = f"""
 [bold cyan]{strategy_name} Strategy P&L[/bold cyan]
@@ -121,35 +116,35 @@ def display_strategy_pnl_dto(strategy_name: str, current_prices: Dict[str, float
 
 [dim]Positions:[/dim] {pnl.position_count} active positions
         """.strip()
-        
+
         panel = Panel(pnl_content, title=f"{strategy_name} Performance", border_style="blue")
         console.print(panel)
-        
+
         # Show positions if any
         if pnl.positions:
             table = Table(title="Current Positions")
             table.add_column("Symbol", style="magenta")
             table.add_column("Quantity", justify="right", style="blue")
-            
+
             for symbol, quantity in pnl.positions.items():
                 table.add_row(symbol, f"{quantity:,.2f}")
-            
+
             console.print(table)
-        
+
     except Exception as e:
         console.print(f"[red]Error displaying strategy P&L: {e}[/red]")
 
 
-def display_all_strategies_pnl_dto(current_prices: Dict[str, float] | None = None, paper_trading: bool = True) -> None:
+def display_all_strategies_pnl_dto(current_prices: dict[str, float] | None = None, paper_trading: bool = True) -> None:
     """Display P&L for all strategies using DTO interface."""
     console = Console()
-    
+
     try:
         from the_alchemiser.domain.registry import StrategyType
-        
+
         # Get tracker
         tracker = get_strategy_tracker(paper_trading=paper_trading)
-        
+
         # Create summary table
         table = Table(title="All Strategies P&L Summary")
         table.add_column("Strategy", style="cyan")
@@ -159,24 +154,24 @@ def display_all_strategies_pnl_dto(current_prices: Dict[str, float] | None = Non
         table.add_column("Allocation", justify="right", style="magenta")
         table.add_column("Return %", justify="right", style="cyan")
         table.add_column("Positions", justify="right", style="dim")
-        
+
         total_realized = Decimal("0")
         total_unrealized = Decimal("0")
         total_allocation = Decimal("0")
-        
+
         for strategy in StrategyType:
             try:
                 pnl = tracker.get_pnl_summary(strategy.value, current_prices)
-                
+
                 total_realized += pnl.realized_pnl
                 total_unrealized += pnl.unrealized_pnl
                 total_allocation += pnl.allocation_value
-                
+
                 return_pct = pnl.total_return_pct if pnl.allocation_value > 0 else Decimal("0")
-                
+
                 # Color code P&L
                 total_color = "green" if pnl.total_pnl >= 0 else "red"
-                
+
                 table.add_row(
                     strategy.value,
                     f"${pnl.realized_pnl:,.2f}",
@@ -186,17 +181,17 @@ def display_all_strategies_pnl_dto(current_prices: Dict[str, float] | None = Non
                     f"{return_pct:.2f}%",
                     str(pnl.position_count)
                 )
-                
+
             except Exception as e:
                 console.print(f"[red]Error getting P&L for {strategy.value}: {e}[/red]")
-        
+
         console.print(table)
-        
+
         # Show totals
         total_pnl = total_realized + total_unrealized
         total_return = (total_pnl / total_allocation * 100) if total_allocation > 0 else Decimal("0")
         total_color = "green" if total_pnl >= 0 else "red"
-        
+
         totals_content = f"""
 [bold]Portfolio Totals[/bold]
 
@@ -207,9 +202,9 @@ def display_all_strategies_pnl_dto(current_prices: Dict[str, float] | None = Non
 [magenta]Total Allocation:[/magenta] ${total_allocation:,.2f}
 [cyan]Portfolio Return:[/cyan] {total_return:.2f}%
         """.strip()
-        
+
         console.print(Panel(totals_content, title="Portfolio Summary", border_style="blue"))
-        
+
     except Exception as e:
         console.print(f"[red]Error displaying all strategies P&L: {e}[/red]")
 
@@ -218,10 +213,10 @@ def display_all_strategies_pnl_dto(current_prices: Dict[str, float] | None = Non
 def strategy_tracking_report(strategy: str | None = None, paper_trading: bool = True) -> None:
     """Generate comprehensive strategy tracking report using DTOs."""
     console = Console()
-    
+
     console.print("[bold blue]Strategy Tracking Report[/bold blue]")
     console.print("=" * 50)
-    
+
     if strategy:
         # Single strategy report
         display_strategy_pnl_dto(strategy, paper_trading=paper_trading)

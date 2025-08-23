@@ -444,18 +444,18 @@ class StrategyOrderTracker:
         try:
             # Validate DTO (Pydantic will validate on creation)
             validated_order = order_dto.model_validate(order_dto.model_dump())
-            
+
             # Convert DTO to internal dataclass
             order_data = strategy_order_dto_to_dataclass_dict(validated_order)
             order = StrategyOrder(**order_data)
-            
+
             # Process the order using existing logic
             self._process_order(order)
-            
+
             logging.info(
                 f"Added {order_dto.strategy} order via DTO: {order_dto.side} {order_dto.quantity} {order_dto.symbol} @ ${order_dto.price:.2f}"
             )
-            
+
         except Exception as e:
             self.error_handler.handle_error(
                 error=e,
@@ -474,16 +474,16 @@ class StrategyOrderTracker:
         try:
             # Filter orders for this strategy
             strategy_orders = [
-                order for order in self._orders_cache 
+                order for order in self._orders_cache
                 if order.strategy == strategy_name
             ]
-            
+
             # Convert to DTOs
             return [
                 strategy_order_dataclass_to_dto(order)
                 for order in strategy_orders
             ]
-            
+
         except Exception as e:
             self.error_handler.handle_error(
                 error=e,
@@ -501,7 +501,7 @@ class StrategyOrderTracker:
                 for position in self._positions_cache.values()
                 if position.quantity > 0  # Only active positions
             ]
-            
+
         except Exception as e:
             self.error_handler.handle_error(
                 error=e,
@@ -520,16 +520,16 @@ class StrategyOrderTracker:
                 if strategy.value == strategy_name:
                     strategy_enum = strategy
                     break
-            
+
             if not strategy_enum:
                 raise ValueError(f"Unknown strategy: {strategy_name}")
-            
+
             # Get P&L using existing method
             pnl = self.get_strategy_pnl(strategy_enum, current_prices)
-            
+
             # Convert to DTO
             return strategy_pnl_dataclass_to_dto(pnl)
-            
+
         except Exception as e:
             self.error_handler.handle_error(
                 error=e,
@@ -552,21 +552,21 @@ class StrategyOrderTracker:
         """Migrate existing tracking data to DTO format."""
         try:
             orders_path = f"{self.orders_s3_path}recent_orders.json"
-            
+
             # Check if migration is needed
             if not self.s3_handler.file_exists(orders_path):
                 logging.info("No existing tracking data found - migration not needed")
                 return
-            
+
             # Load existing data
             existing_data = self.s3_handler.read_json(orders_path)
             if not existing_data or "orders" not in existing_data:
                 logging.info("No orders data found - migration not needed")
                 return
-            
+
             migrated_orders = []
             migration_errors = 0
-            
+
             for order_data in existing_data["orders"]:
                 try:
                     # Try to create DTO from existing data
@@ -581,16 +581,16 @@ class StrategyOrderTracker:
                         additional_data={"order_data": order_data},
                     )
                     logging.warning(f"Failed to migrate order data: {order_data}, error: {e}")
-            
+
             # Save migrated data
             migrated_data = {"orders": migrated_orders}
             success = self.s3_handler.write_json(orders_path, migrated_data)
-            
+
             if success:
                 logging.info(f"Migration completed: {len(migrated_orders)} orders migrated, {migration_errors} errors")
             else:
                 logging.error("Failed to save migrated data")
-                
+
         except Exception as e:
             self.error_handler.handle_error(
                 error=e,
@@ -746,7 +746,7 @@ class StrategyOrderTracker:
                     except Exception as e:
                         logging.warning(f"Failed to load order data: {order_data}, error: {e}")
                         continue
-                
+
                 self._orders_cache.append(order)
 
             # Filter to last N days

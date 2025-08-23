@@ -5,23 +5,21 @@ Integration tests for StrategyOrderTracker DTO CLI integration.
 Tests the CLI integration examples with the new DTO-based methods.
 """
 
-import pytest
+from datetime import UTC, datetime
 from decimal import Decimal
-from datetime import datetime, UTC
-from unittest.mock import Mock, patch, MagicMock
-from io import StringIO
+from unittest.mock import Mock, patch
 
 from the_alchemiser.application.tracking.strategy_order_tracker import StrategyOrderTracker
+from the_alchemiser.interface.cli.strategy_tracking_cli_example import (
+    display_all_strategies_pnl_dto,
+    display_positions_summary_dto,
+    display_strategy_orders_dto,
+    display_strategy_pnl_dto,
+)
 from the_alchemiser.interfaces.schemas.tracking import (
     StrategyOrderDTO,
-    StrategyPositionDTO,
     StrategyPnLDTO,
-)
-from the_alchemiser.interface.cli.strategy_tracking_cli_example import (
-    display_strategy_orders_dto,
-    display_positions_summary_dto,
-    display_strategy_pnl_dto,
-    display_all_strategies_pnl_dto,
+    StrategyPositionDTO,
 )
 
 
@@ -32,7 +30,7 @@ class TestStrategyTrackingCLIIntegration:
         """Set up test fixtures."""
         # Mock the global tracker function
         self.mock_tracker = Mock(spec=StrategyOrderTracker)
-        
+
     @patch('the_alchemiser.interface.cli.strategy_tracking_cli_example.get_strategy_tracker')
     @patch('the_alchemiser.interface.cli.strategy_tracking_cli_example.Console')
     def test_display_strategy_orders_dto(self, mock_console_class, mock_get_tracker):
@@ -41,7 +39,7 @@ class TestStrategyTrackingCLIIntegration:
         mock_console = Mock()
         mock_console_class.return_value = mock_console
         mock_get_tracker.return_value = self.mock_tracker
-        
+
         # Create test orders
         test_orders = [
             StrategyOrderDTO(
@@ -63,12 +61,12 @@ class TestStrategyTrackingCLIIntegration:
                 timestamp=datetime.now(UTC)
             )
         ]
-        
+
         self.mock_tracker.get_orders_for_strategy.return_value = test_orders
-        
+
         # Call the function
         display_strategy_orders_dto("NUCLEAR", paper_trading=True)
-        
+
         # Verify calls
         mock_get_tracker.assert_called_once_with(paper_trading=True)
         self.mock_tracker.get_orders_for_strategy.assert_called_once_with("NUCLEAR")
@@ -82,7 +80,7 @@ class TestStrategyTrackingCLIIntegration:
         mock_console = Mock()
         mock_console_class.return_value = mock_console
         mock_get_tracker.return_value = self.mock_tracker
-        
+
         # Create test positions
         test_positions = [
             StrategyPositionDTO(
@@ -102,12 +100,12 @@ class TestStrategyTrackingCLIIntegration:
                 last_updated=datetime.now(UTC)
             )
         ]
-        
+
         self.mock_tracker.get_positions_summary.return_value = test_positions
-        
+
         # Call the function
         display_positions_summary_dto(paper_trading=True)
-        
+
         # Verify calls
         mock_get_tracker.assert_called_once_with(paper_trading=True)
         self.mock_tracker.get_positions_summary.assert_called_once()
@@ -121,7 +119,7 @@ class TestStrategyTrackingCLIIntegration:
         mock_console = Mock()
         mock_console_class.return_value = mock_console
         mock_get_tracker.return_value = self.mock_tracker
-        
+
         # Create test P&L
         test_pnl = StrategyPnLDTO(
             strategy="NUCLEAR",
@@ -131,13 +129,13 @@ class TestStrategyTrackingCLIIntegration:
             positions={"AAPL": Decimal("100"), "MSFT": Decimal("50")},
             allocation_value=Decimal("30000.00")
         )
-        
+
         self.mock_tracker.get_pnl_summary.return_value = test_pnl
-        
+
         # Call the function
         current_prices = {"AAPL": 155.0, "MSFT": 305.0}
         display_strategy_pnl_dto("NUCLEAR", current_prices, paper_trading=True)
-        
+
         # Verify calls
         mock_get_tracker.assert_called_once_with(paper_trading=True)
         self.mock_tracker.get_pnl_summary.assert_called_once_with("NUCLEAR", current_prices)
@@ -151,7 +149,7 @@ class TestStrategyTrackingCLIIntegration:
         mock_console = Mock()
         mock_console_class.return_value = mock_console
         mock_get_tracker.return_value = self.mock_tracker
-        
+
         # Create test P&L for different strategies
         def mock_get_pnl_summary(strategy_name, current_prices=None):
             pnl_data = {
@@ -174,7 +172,7 @@ class TestStrategyTrackingCLIIntegration:
                     "positions": {}
                 }
             }
-            
+
             data = pnl_data.get(strategy_name, pnl_data["KLM"])
             return StrategyPnLDTO(
                 strategy=strategy_name,
@@ -184,13 +182,13 @@ class TestStrategyTrackingCLIIntegration:
                 positions=data["positions"],
                 allocation_value=data["allocation_value"]
             )
-        
+
         self.mock_tracker.get_pnl_summary.side_effect = mock_get_pnl_summary
-        
+
         # Call the function
         current_prices = {"AAPL": 155.0, "MSFT": 305.0}
         display_all_strategies_pnl_dto(current_prices, paper_trading=True)
-        
+
         # Verify calls
         mock_get_tracker.assert_called_once_with(paper_trading=True)
         # Should be called once for each strategy
@@ -205,13 +203,13 @@ class TestStrategyTrackingCLIIntegration:
         mock_console = Mock()
         mock_console_class.return_value = mock_console
         mock_get_tracker.return_value = self.mock_tracker
-        
+
         # Return empty list
         self.mock_tracker.get_orders_for_strategy.return_value = []
-        
+
         # Call the function
         display_strategy_orders_dto("NUCLEAR", paper_trading=True)
-        
+
         # Verify warning message
         mock_console.print.assert_called_with("[yellow]No orders found for strategy NUCLEAR[/yellow]")
 
@@ -223,13 +221,13 @@ class TestStrategyTrackingCLIIntegration:
         mock_console = Mock()
         mock_console_class.return_value = mock_console
         mock_get_tracker.return_value = self.mock_tracker
-        
+
         # Return empty list
         self.mock_tracker.get_positions_summary.return_value = []
-        
+
         # Call the function
         display_positions_summary_dto(paper_trading=True)
-        
+
         # Verify warning message
         mock_console.print.assert_called_with("[yellow]No active positions found[/yellow]")
 
@@ -241,9 +239,9 @@ class TestStrategyTrackingCLIIntegration:
         mock_console = Mock()
         mock_console_class.return_value = mock_console
         mock_get_tracker.side_effect = Exception("Test error")
-        
+
         # Call the function
         display_strategy_orders_dto("NUCLEAR", paper_trading=True)
-        
+
         # Verify error message
         mock_console.print.assert_called_with("[red]Error displaying strategy orders: Test error[/red]")

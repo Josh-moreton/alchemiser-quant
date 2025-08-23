@@ -9,23 +9,23 @@ Tests the new DTO-based methods added for Pydantic v2 migration:
 - get_pnl_summary() returning StrategyPnLDTO
 """
 
-import pytest
+from datetime import UTC, datetime
 from decimal import Decimal
-from datetime import datetime, UTC
-from unittest.mock import Mock, patch
+from unittest.mock import patch
+
+import pytest
 
 from the_alchemiser.application.tracking.strategy_order_tracker import (
-    StrategyOrderTracker,
     StrategyOrder,
-    StrategyPosition,
+    StrategyOrderTracker,
     StrategyPnL,
+    StrategyPosition,
 )
 from the_alchemiser.interfaces.schemas.tracking import (
     StrategyOrderDTO,
-    StrategyPositionDTO,
     StrategyPnLDTO,
+    StrategyPositionDTO,
 )
-from the_alchemiser.domain.registry import StrategyType
 
 
 class TestStrategyOrderTrackerDTO:
@@ -53,12 +53,12 @@ class TestStrategyOrderTrackerDTO:
             price=Decimal("150.25"),
             timestamp=datetime.now(UTC)
         )
-        
+
         # Mock the persistence method to avoid S3 calls
         with patch.object(self.tracker, '_persist_order'):
             # Add order via DTO
             self.tracker.add_order(order_dto)
-        
+
         # Verify order was added to cache
         assert len(self.tracker._orders_cache) == 1
         cached_order = self.tracker._orders_cache[0]
@@ -91,10 +91,10 @@ class TestStrategyOrderTrackerDTO:
             timestamp=datetime.now(UTC).isoformat()
         )
         self.tracker._orders_cache = [order1, order2]
-        
+
         # Get orders for NUCLEAR strategy
         nuclear_orders = self.tracker.get_orders_for_strategy("NUCLEAR")
-        
+
         # Verify results
         assert len(nuclear_orders) == 1
         assert isinstance(nuclear_orders[0], StrategyOrderDTO)
@@ -126,10 +126,10 @@ class TestStrategyOrderTrackerDTO:
             ("NUCLEAR", "AAPL"): position1,
             ("TECL", "MSFT"): position2,
         }
-        
+
         # Get positions summary
         positions = self.tracker.get_positions_summary()
-        
+
         # Verify results (only active positions)
         assert len(positions) == 1
         assert isinstance(positions[0], StrategyPositionDTO)
@@ -149,11 +149,11 @@ class TestStrategyOrderTrackerDTO:
             positions={"AAPL": 100.0},
             allocation_value=15000.0
         )
-        
+
         with patch.object(self.tracker, 'get_strategy_pnl', return_value=test_pnl):
             # Get P&L summary
             pnl_dto = self.tracker.get_pnl_summary("NUCLEAR")
-        
+
         # Verify results
         assert isinstance(pnl_dto, StrategyPnLDTO)
         assert pnl_dto.strategy == "NUCLEAR"
@@ -174,10 +174,10 @@ class TestStrategyOrderTrackerDTO:
             price=Decimal("150.25"),
             timestamp=datetime.now(UTC)
         )
-        
+
         # Convert to storage format
         storage_data = self.tracker._dto_to_storage(order_dto)
-        
+
         # Verify format
         assert isinstance(storage_data, dict)
         assert storage_data["order_id"] == "test_001"
@@ -198,10 +198,10 @@ class TestStrategyOrderTrackerDTO:
             "price": "150.25",
             "timestamp": datetime.now(UTC).isoformat()
         }
-        
+
         # Convert from storage format
         order_dto = self.tracker._storage_to_dto(storage_data)
-        
+
         # Verify DTO
         assert isinstance(order_dto, StrategyOrderDTO)
         assert order_dto.order_id == "test_001"
@@ -221,7 +221,7 @@ class TestStrategyOrderTrackerDTO:
             price=Decimal("150.25"),
             timestamp=datetime.now(UTC)
         )
-        
+
         # Mock process_order to raise an exception
         with patch.object(self.tracker, '_process_order', side_effect=Exception("Test error")):
             with pytest.raises(Exception):
@@ -231,7 +231,7 @@ class TestStrategyOrderTrackerDTO:
         """Test P&L summary with unknown strategy."""
         # Get P&L for non-existent strategy
         pnl_dto = self.tracker.get_pnl_summary("UNKNOWN_STRATEGY")
-        
+
         # Should return zero P&L DTO with default strategy
         assert isinstance(pnl_dto, StrategyPnLDTO)
         assert pnl_dto.strategy == "NUCLEAR"  # Should use default valid strategy
