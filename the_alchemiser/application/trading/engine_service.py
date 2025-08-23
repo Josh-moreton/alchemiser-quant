@@ -430,8 +430,8 @@ class TradingEngine:
             error_handler = TradingSystemErrorHandler()
             context = create_error_context(
                 operation="initialize_market_data_port",
-                component="TradingEngine._init_with_di",
-                function_name="_init_with_di",
+                component="TradingEngine._init_with_service_manager",
+                function_name="_init_with_service_manager",
                 additional_data={"trading_service_manager_type": type(trading_service_manager).__name__}
             )
             error_handler.handle_error_with_context(
