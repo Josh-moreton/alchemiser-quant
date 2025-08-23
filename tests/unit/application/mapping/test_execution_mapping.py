@@ -1,23 +1,24 @@
 from datetime import UTC, datetime
 from decimal import Decimal
+
 import pytest
 
+from the_alchemiser.application.mapping.execution import (
+    account_info_to_execution_result_dto,
+    create_quote_dto,
+    create_trading_plan_dto,
+    dict_to_execution_result_dto,
+    dict_to_quote_dto,
+    dict_to_trading_plan_dto,
+    dict_to_websocket_result_dto,
+    execution_result_dto_to_dict,
+    quote_dto_to_dict,
+    trading_plan_dto_to_dict,
+    websocket_result_dto_to_dict,
+)
 from the_alchemiser.interfaces.schemas.execution import (
     TradingAction,
     WebSocketStatus,
-)
-from the_alchemiser.application.mapping.execution import (
-    create_trading_plan_dto,
-    trading_plan_dto_to_dict,
-    dict_to_trading_plan_dto,
-    create_quote_dto,
-    quote_dto_to_dict,
-    dict_to_quote_dto,
-    websocket_result_dto_to_dict,
-    dict_to_websocket_result_dto,
-    account_info_to_execution_result_dto,
-    execution_result_dto_to_dict,
-    dict_to_execution_result_dto,
 )
 
 

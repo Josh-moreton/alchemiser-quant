@@ -17,7 +17,6 @@ Part of the Pydantic v2 migration to eliminate dict/Any boundaries.
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -135,7 +134,7 @@ class PortfolioStateDTO(BaseModel):
 
     # Portfolio value metrics
     total_portfolio_value: Decimal = Field(..., ge=0, description="Total portfolio value")
-    
+
     # Allocation data per symbol
     target_allocations: dict[str, Decimal] = Field(
         ..., description="Target allocation percentages by symbol"
@@ -149,7 +148,7 @@ class PortfolioStateDTO(BaseModel):
     current_values: dict[str, Decimal] = Field(
         ..., description="Current dollar values by symbol"
     )
-    
+
     # Allocation discrepancy analysis
     allocation_discrepancies: dict[str, Decimal] = Field(
         ..., description="Allocation discrepancies by symbol (current - target)"
@@ -157,7 +156,7 @@ class PortfolioStateDTO(BaseModel):
     largest_discrepancy: Decimal | None = Field(
         None, description="Largest allocation discrepancy"
     )
-    
+
     # Summary metrics
     total_symbols: int = Field(..., ge=0, description="Total number of symbols in portfolio")
     rebalance_needed: bool = Field(..., description="Whether rebalancing is needed")

@@ -6,23 +6,22 @@ Tests the complete integration of OrderRequestDTO and ValidatedOrderDTO
 into the order validation pipeline, ensuring type safety and validation.
 """
 
+from datetime import UTC, datetime
 from decimal import Decimal
-from datetime import datetime
-import pytest
-from unittest.mock import Mock
 
+import pytest
+
+from the_alchemiser.application.mapping.orders import (
+    dict_to_order_request_dto,
+)
 from the_alchemiser.application.orders.order_validation import (
-    OrderValidator,
     OrderValidationError,
+    OrderValidator,
     ValidationResult,
 )
 from the_alchemiser.interfaces.schemas.orders import (
     OrderRequestDTO,
     ValidatedOrderDTO,
-)
-from the_alchemiser.application.mapping.orders import (
-    dict_to_order_request_dto,
-    order_request_to_validated_dto,
 )
 
 
@@ -286,8 +285,7 @@ class TestOrderValidationDTOIntegration:
 
     def test_validation_timestamp_set(self):
         """Test that validation timestamp is set during validation."""
-        from datetime import timezone
-        
+
         order_request = OrderRequestDTO(
             symbol="AAPL",
             side="buy",
@@ -295,9 +293,9 @@ class TestOrderValidationDTOIntegration:
             order_type="market"
         )
 
-        before_validation = datetime.now(timezone.utc)
+        before_validation = datetime.now(UTC)
         validated_order = self.validator.validate_order_request(order_request)
-        after_validation = datetime.now(timezone.utc)
+        after_validation = datetime.now(UTC)
 
         # Validation timestamp should be between before and after
         assert before_validation <= validated_order.validation_timestamp <= after_validation

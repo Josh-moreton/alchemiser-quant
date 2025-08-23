@@ -9,15 +9,9 @@ in TradingServiceManager to ensure consistent validation throughout the pipeline
 import datetime
 from decimal import Decimal
 from unittest.mock import Mock, patch
-import pytest
 
-from the_alchemiser.services.trading.trading_service_manager import TradingServiceManager
 from the_alchemiser.interfaces.schemas.orders import OrderExecutionResultDTO
-from the_alchemiser.domain.trading.entities.order import Order
-from the_alchemiser.domain.trading.value_objects.order_id import OrderId
-from the_alchemiser.domain.trading.value_objects.symbol import Symbol
-from the_alchemiser.domain.trading.value_objects.quantity import Quantity
-from the_alchemiser.domain.trading.value_objects.order_status import OrderStatus
+from the_alchemiser.services.trading.trading_service_manager import TradingServiceManager
 
 
 class TestTradingServiceManagerDTOIntegration:
@@ -29,7 +23,7 @@ class TestTradingServiceManagerDTOIntegration:
         with patch('the_alchemiser.services.trading.trading_service_manager.AlpacaManager') as mock_alpaca_class:
             self.mock_alpaca_manager = Mock()
             mock_alpaca_class.return_value = self.mock_alpaca_manager
-            
+
             # Initialize TradingServiceManager with mocked dependencies
             self.trading_manager = TradingServiceManager("test_key", "test_secret", paper=True)
             self.trading_manager.alpaca_manager = self.mock_alpaca_manager
@@ -37,7 +31,7 @@ class TestTradingServiceManagerDTOIntegration:
     def create_mock_alpaca_order(self, symbol: str = "AAPL", qty: float = 100.0):
         """Create a mock Alpaca order object for testing."""
         import uuid
-        
+
         mock_order = Mock()
         mock_order.id = str(uuid.uuid4())  # Use valid UUID
         mock_order.symbol = symbol
@@ -70,7 +64,7 @@ class TestTradingServiceManagerDTOIntegration:
         assert result.order_id is not None
         assert result.status in ["accepted", "filled"]
         assert result.filled_qty == Decimal("0")
-        
+
         # Verify Alpaca manager was called
         self.mock_alpaca_manager.place_order.assert_called_once()
 
@@ -89,7 +83,7 @@ class TestTradingServiceManagerDTOIntegration:
         assert result.success is False
         assert "validation failed" in result.error.lower()
         assert result.status == "rejected"
-        
+
         # Verify Alpaca manager was NOT called due to validation failure
         self.mock_alpaca_manager.place_order.assert_not_called()
 
@@ -110,7 +104,7 @@ class TestTradingServiceManagerDTOIntegration:
         # Verify result (should succeed even without validation)
         assert isinstance(result, OrderExecutionResultDTO)
         assert result.success is True
-        
+
         # Verify Alpaca manager was called
         self.mock_alpaca_manager.place_order.assert_called_once()
 
@@ -133,7 +127,7 @@ class TestTradingServiceManagerDTOIntegration:
         assert isinstance(result, OrderExecutionResultDTO)
         assert result.success is True
         assert result.order_id is not None
-        
+
         # Verify Alpaca manager was called
         self.mock_alpaca_manager.place_order.assert_called_once()
 
@@ -153,7 +147,7 @@ class TestTradingServiceManagerDTOIntegration:
         assert result.success is False
         assert "validation failed" in result.error.lower()
         assert result.status == "rejected"
-        
+
         # Verify Alpaca manager was NOT called due to validation failure
         self.mock_alpaca_manager.place_order.assert_not_called()
 
@@ -206,7 +200,7 @@ class TestTradingServiceManagerDTOIntegration:
     def test_place_limit_order_fractional_quantity(self):
         """Test limit order with fractional quantity - should fail at domain level."""
         # Don't mock any order placement since we expect validation to fail
-        
+
         result = self.trading_manager.place_limit_order(
             symbol="AAPL",
             quantity=10.5,  # Fractional quantity
@@ -273,7 +267,7 @@ class TestTradingServiceManagerDTOIntegration:
         # Should succeed with symbol normalized
         assert isinstance(result, OrderExecutionResultDTO)
         assert result.success is True
-        
+
         # Verify the order request had uppercase symbol
         call_args = self.mock_alpaca_manager.place_order.call_args[0][0]
         assert call_args.symbol == "AAPL"
@@ -296,7 +290,7 @@ class TestTradingServiceManagerDTOIntegration:
         # Should succeed with symbol normalized
         assert isinstance(result, OrderExecutionResultDTO)
         assert result.success is True
-        
+
         # Verify the order request had uppercase symbol
         call_args = self.mock_alpaca_manager.place_order.call_args[0][0]
         assert call_args.symbol == "TSLA"
