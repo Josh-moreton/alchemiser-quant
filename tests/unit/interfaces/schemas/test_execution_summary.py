@@ -3,22 +3,16 @@
 Test execution summary DTOs and mapping functions.
 """
 
-import pytest
 from decimal import Decimal
 
-from the_alchemiser.interfaces.schemas.execution_summary import (
-    ExecutionSummaryDTO,
-    PortfolioStateDTO,
-    AllocationSummaryDTO,
-    StrategySummaryDTO,
-    TradingSummaryDTO,
-    StrategyPnLSummaryDTO,
-)
 from the_alchemiser.application.mapping.execution_summary_mapping import (
     dict_to_execution_summary_dto,
     dict_to_portfolio_state_dto,
     safe_dict_to_execution_summary_dto,
     safe_dict_to_portfolio_state_dto,
+)
+from the_alchemiser.interfaces.schemas.execution_summary import (
+    AllocationSummaryDTO,
 )
 
 
@@ -49,7 +43,7 @@ def test_execution_summary_dto_mapping():
         "regt_buying_power": 100000.0,
         "status": "ACTIVE",
     }
-    
+
     account_after = {
         "account_id": "test_account",
         "equity": 101250.25,
@@ -100,7 +94,7 @@ def test_execution_summary_dto_mapping():
     }
 
     dto = dict_to_execution_summary_dto(data)
-    
+
     assert dto.mode == "paper"
     assert dto.engine_mode == "test"
     assert dto.allocations.total_allocation == Decimal("98.5")
@@ -130,7 +124,7 @@ def test_portfolio_state_dto_mapping():
     }
 
     dto = dict_to_portfolio_state_dto(data)
-    
+
     assert dto.total_portfolio_value == Decimal("100000.0")
     assert dto.target_allocations["AAPL"] == Decimal("0.4")
     assert dto.current_allocations["TSLA"] == Decimal("0.65")
@@ -142,9 +136,9 @@ def test_portfolio_state_dto_mapping():
 def test_safe_execution_summary_dto_with_invalid_data():
     """Test safe mapping with invalid data."""
     invalid_data = {"invalid": "data"}
-    
+
     dto = safe_dict_to_execution_summary_dto(invalid_data)
-    
+
     assert dto.mode == "error"
     assert dto.error is not None
     assert "Failed to parse execution summary" in dto.error
@@ -161,9 +155,9 @@ def test_safe_portfolio_state_dto_with_none():
 def test_safe_portfolio_state_dto_with_invalid_data():
     """Test safe mapping with invalid portfolio data."""
     invalid_data = {"bad": "data"}
-    
+
     dto = safe_dict_to_portfolio_state_dto(invalid_data)
-    
+
     assert dto is not None
     assert dto.total_portfolio_value == Decimal("0")
     assert dto.total_symbols == 0

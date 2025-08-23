@@ -128,11 +128,11 @@ class TradingServiceManager:
                     "order_type": "market",
                     "time_in_force": "day",
                 }
-                
+
                 try:
                     order_request = dict_to_order_request_dto(order_data)
                     validated_order = self.order_validator.validate_order_request(order_request)
-                    
+
                     self.logger.info(
                         f"Market order validation successful for {symbol}: "
                         f"estimated_value=${validated_order.estimated_value}, "
@@ -197,11 +197,11 @@ class TradingServiceManager:
                     "limit_price": limit_price,
                     "time_in_force": "day",
                 }
-                
+
                 try:
                     order_request = dict_to_order_request_dto(order_data)
                     validated_order = self.order_validator.validate_order_request(order_request)
-                    
+
                     self.logger.info(
                         f"Limit order validation successful for {symbol}: "
                         f"estimated_value=${validated_order.estimated_value}, "

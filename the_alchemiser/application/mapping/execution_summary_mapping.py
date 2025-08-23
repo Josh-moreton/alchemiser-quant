@@ -14,7 +14,6 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Any
 
-from the_alchemiser.domain.types import AccountInfo
 from the_alchemiser.interfaces.schemas.execution_summary import (
     AllocationSummaryDTO,
     ExecutionSummaryDTO,
@@ -70,7 +69,7 @@ def dict_to_execution_summary_dto(data: dict[str, Any]) -> ExecutionSummaryDTO:
     allocations_data = data.get("allocations", {})
     allocations = dict_to_allocation_summary_dto(allocations_data)
 
-    # Handle strategy summaries  
+    # Handle strategy summaries
     strategy_summary_data = data.get("strategy_summary", {})
     strategy_summary = {}
     for strategy_name, strategy_data in strategy_summary_data.items():
@@ -155,7 +154,7 @@ def safe_dict_to_execution_summary_dto(data: dict[str, Any]) -> ExecutionSummary
             "regt_buying_power": 0.0,
             "status": "INACTIVE",
         }
-        
+
         # Create minimal fallback DTO for error cases
         return ExecutionSummaryDTO(
             allocations=AllocationSummaryDTO(
@@ -192,7 +191,7 @@ def safe_dict_to_portfolio_state_dto(data: dict[str, Any] | None) -> PortfolioSt
     """
     if data is None:
         return None
-        
+
     try:
         return dict_to_portfolio_state_dto(data)
     except (KeyError, ValueError, TypeError):

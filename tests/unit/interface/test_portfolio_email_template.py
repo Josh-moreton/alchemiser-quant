@@ -1,12 +1,12 @@
 from decimal import Decimal
 
-from the_alchemiser.interface.email import email_utils as email_utils
-from the_alchemiser.interfaces.schemas.common import MultiStrategyExecutionResultDTO
-from the_alchemiser.interfaces.schemas.execution import ExecutionResultDTO
 from the_alchemiser.application.mapping.execution_summary_mapping import (
     safe_dict_to_execution_summary_dto,
     safe_dict_to_portfolio_state_dto,
 )
+from the_alchemiser.interface.email import email_utils as email_utils
+from the_alchemiser.interfaces.schemas.common import MultiStrategyExecutionResultDTO
+from the_alchemiser.interfaces.schemas.execution import ExecutionResultDTO
 
 
 def _account() -> dict:
@@ -42,14 +42,14 @@ def _order(order_id: str) -> dict:
 
 def test_build_portfolio_display_execution_result_dto():
     execution_summary_data = {
-        "orders_count": 1, 
+        "orders_count": 1,
         "consolidated_portfolio": {"AAPL": 0.25},
         "account_info_before": _account(),
         "account_info_after": _account(),
         "mode": "paper",
     }
     portfolio_state_data = {"cash": Decimal("5000")}
-    
+
     dto = ExecutionResultDTO(
         orders_executed=[_order("o1")],
         account_info_before=_account(),
@@ -69,7 +69,7 @@ def test_build_portfolio_display_multistrategy_result_dto():
         "mode": "paper",
     }
     portfolio_state_data = {"cash": Decimal("5000")}
-    
+
     ms = MultiStrategyExecutionResultDTO(
         success=True,
         strategy_signals={},

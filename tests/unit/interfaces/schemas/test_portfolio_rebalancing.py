@@ -3,20 +3,17 @@
 Test portfolio rebalancing DTOs and mapping functions.
 """
 
-import pytest
 from decimal import Decimal
 
-from the_alchemiser.interfaces.schemas.portfolio_rebalancing import (
-    RebalancePlanDTO,
-    RebalancePlanCollectionDTO,
-    RebalancingSummaryDTO,
-    RebalancingImpactDTO,
-)
 from the_alchemiser.application.mapping.portfolio_rebalancing_mapping import (
-    rebalancing_summary_dict_to_dto,
     rebalancing_impact_dict_to_dto,
-    safe_rebalancing_summary_dict_to_dto,
+    rebalancing_summary_dict_to_dto,
     safe_rebalancing_impact_dict_to_dto,
+    safe_rebalancing_summary_dict_to_dto,
+)
+from the_alchemiser.interfaces.schemas.portfolio_rebalancing import (
+    RebalancePlanCollectionDTO,
+    RebalancePlanDTO,
 )
 
 
@@ -57,7 +54,7 @@ def test_rebalancing_summary_dto_mapping():
     }
 
     dto = rebalancing_summary_dict_to_dto(data)
-    
+
     assert dto.success is True
     assert dto.total_portfolio_value == Decimal("100000.0")
     assert dto.total_symbols == 5
@@ -83,7 +80,7 @@ def test_rebalancing_impact_dto_mapping():
     }
 
     dto = rebalancing_impact_dict_to_dto(data)
-    
+
     assert dto.success is True
     assert dto.portfolio_risk_change == Decimal("0.02")
     assert dto.concentration_risk_change == Decimal("-0.01")
@@ -96,9 +93,9 @@ def test_safe_rebalancing_summary_dto_with_invalid_data():
     """Test safe mapping with invalid data."""
     # Create data that will actually cause a TypeError in conversion
     invalid_data = {"total_portfolio_value": "not_a_number", "success": "invalid"}
-    
+
     dto = safe_rebalancing_summary_dict_to_dto(invalid_data)
-    
+
     assert dto.success is False
     assert dto.error is not None
     assert "Failed to parse rebalancing summary" in dto.error
@@ -108,11 +105,11 @@ def test_safe_rebalancing_summary_dto_with_invalid_data():
 
 def test_safe_rebalancing_impact_dto_with_invalid_data():
     """Test safe mapping with invalid data."""
-    # Create data that will actually cause a TypeError in conversion  
+    # Create data that will actually cause a TypeError in conversion
     invalid_data = {"portfolio_risk_change": "not_a_number", "success": "invalid"}
-    
+
     dto = safe_rebalancing_impact_dict_to_dto(invalid_data)
-    
+
     assert dto.success is False
     assert dto.error is not None
     assert "Failed to parse rebalancing impact" in dto.error
@@ -137,7 +134,7 @@ def test_rebalance_plan_collection_dto():
             weight_change_bps=1000,
         )
     }
-    
+
     dto = RebalancePlanCollectionDTO(
         success=True,
         plans=plans,
@@ -145,7 +142,7 @@ def test_rebalance_plan_collection_dto():
         symbols_needing_rebalance=1,
         total_trade_value=Decimal("10000"),
     )
-    
+
     assert dto.success is True
     assert len(dto.plans) == 1
     assert "AAPL" in dto.plans
