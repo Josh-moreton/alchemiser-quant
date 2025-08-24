@@ -90,6 +90,13 @@ class CurrentPrice(ASTNode):
     symbol: str
 
 
+@dataclass(frozen=True)
+class StdevReturn(ASTNode):
+    """Standard deviation of returns over window."""
+    symbol: str
+    window: int
+
+
 # Portfolio construction
 @dataclass(frozen=True)
 class Asset(ASTNode):
@@ -127,10 +134,22 @@ class WeightInverseVolatility(ASTNode):
 # Selectors
 @dataclass(frozen=True)
 class Filter(ASTNode):
-    """Filter assets by metric with top-N selection."""
+    """Filter assets by metric with selection criteria."""
     metric_fn: ASTNode
-    select_top: int
+    selector: ASTNode  # select-top, select-bottom, etc.
     assets: list[ASTNode]
+
+
+@dataclass(frozen=True)
+class SelectTop(ASTNode):
+    """Select top N assets by metric."""
+    count: int
+
+
+@dataclass(frozen=True)
+class SelectBottom(ASTNode):
+    """Select bottom N assets by metric."""
+    count: int
 
 
 # Function calls (for extensibility)
@@ -153,7 +172,7 @@ class Strategy(ASTNode):
 # Type alias for any AST node
 ASTNodeType = Union[
     NumberLiteral, Symbol, GreaterThan, LessThan, If,
-    RSI, MovingAveragePrice, MovingAverageReturn, CumulativeReturn, CurrentPrice,
+    RSI, MovingAveragePrice, MovingAverageReturn, CumulativeReturn, CurrentPrice, StdevReturn,
     Asset, Group, WeightEqual, WeightSpecified, WeightInverseVolatility,
-    Filter, FunctionCall, Strategy
+    Filter, SelectTop, SelectBottom, FunctionCall, Strategy
 ]

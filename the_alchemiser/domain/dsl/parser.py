@@ -25,6 +25,9 @@ from the_alchemiser.domain.dsl.ast import (
     MovingAveragePrice,
     MovingAverageReturn,
     NumberLiteral,
+    SelectBottom,
+    SelectTop,
+    StdevReturn,
     Strategy,
     Symbol,
     WeightEqual,
@@ -223,6 +226,8 @@ class DSLParser:
             return self._parse_cumulative_return(args, depth)
         elif operator == "current-price":
             return self._parse_current_price(args, depth)
+        elif operator == "stdev-return":
+            return self._parse_stdev_return(args, depth)
 
         # Portfolio construction
         elif operator == "asset":
@@ -239,6 +244,10 @@ class DSLParser:
         # Selectors
         elif operator == "filter":
             return self._parse_filter(args, depth)
+        elif operator == "select-top":
+            return self._parse_select_top(args, depth)
+        elif operator == "select-bottom":
+            return self._parse_select_bottom(args, depth)
 
         # Strategy root
         elif operator == "defsymphony":
@@ -283,71 +292,95 @@ class DSLParser:
 
     def _parse_rsi(self, args: list[SExpr], depth: int) -> RSI:
         """Parse RSI indicator."""
-        if len(args) != 2:
+        # For filter context, RSI might have only window parameter
+        if len(args) == 1:
+            # Only window parameter - symbol will be substituted later
+            window = self._extract_window(args[0])
+            return RSI("", window)  # Empty symbol to be filled later
+        elif len(args) == 2:
+            # Standard format: symbol and window
+            symbol = args[0]
+            if not isinstance(symbol, str):
+                raise SchemaError("rsi symbol must be a string")
+            
+            window = self._extract_window(args[1])
+            return RSI(symbol, window)
+        else:
             raise SchemaError(
-                "rsi requires 2 arguments: symbol, window_spec",
+                "rsi requires 1 argument (window) for filters or 2 arguments (symbol, window) for direct use",
                 construct="rsi",
-                expected_arity=2,
+                expected_arity="1 or 2",
                 actual_arity=len(args)
             )
-
-        symbol = args[0]
-        if not isinstance(symbol, str):
-            raise SchemaError("rsi symbol must be a string")
-
-        window = self._extract_window(args[1])
-        return RSI(symbol, window)
 
     def _parse_moving_average_price(self, args: list[SExpr], depth: int) -> MovingAveragePrice:
         """Parse moving average price indicator."""
-        if len(args) != 2:
+        # For filter context, might have only window parameter
+        if len(args) == 1:
+            # Only window parameter - symbol will be substituted later
+            window = self._extract_window(args[0])
+            return MovingAveragePrice("", window)  # Empty symbol to be filled later
+        elif len(args) == 2:
+            # Standard format: symbol and window
+            symbol = args[0]
+            if not isinstance(symbol, str):
+                raise SchemaError("moving-average-price symbol must be a string")
+            
+            window = self._extract_window(args[1])
+            return MovingAveragePrice(symbol, window)
+        else:
             raise SchemaError(
-                "moving-average-price requires 2 arguments: symbol, window",
+                "moving-average-price requires 1 argument (window) for filters or 2 arguments (symbol, window) for direct use",
                 construct="moving-average-price",
-                expected_arity=2,
+                expected_arity="1 or 2",
                 actual_arity=len(args)
             )
-
-        symbol = args[0]
-        if not isinstance(symbol, str):
-            raise SchemaError("moving-average-price symbol must be a string")
-
-        window = self._extract_window(args[1])
-        return MovingAveragePrice(symbol, window)
 
     def _parse_moving_average_return(self, args: list[SExpr], depth: int) -> MovingAverageReturn:
         """Parse moving average return indicator."""
-        if len(args) != 2:
+        # For filter context, might have only window parameter
+        if len(args) == 1:
+            # Only window parameter - symbol will be substituted later
+            window = self._extract_window(args[0])
+            return MovingAverageReturn("", window)  # Empty symbol to be filled later
+        elif len(args) == 2:
+            # Standard format: symbol and window
+            symbol = args[0]
+            if not isinstance(symbol, str):
+                raise SchemaError("moving-average-return symbol must be a string")
+            
+            window = self._extract_window(args[1])
+            return MovingAverageReturn(symbol, window)
+        else:
             raise SchemaError(
-                "moving-average-return requires 2 arguments: symbol, window",
+                "moving-average-return requires 1 argument (window) for filters or 2 arguments (symbol, window) for direct use",
                 construct="moving-average-return",
-                expected_arity=2,
+                expected_arity="1 or 2",
                 actual_arity=len(args)
             )
-
-        symbol = args[0]
-        if not isinstance(symbol, str):
-            raise SchemaError("moving-average-return symbol must be a string")
-
-        window = self._extract_window(args[1])
-        return MovingAverageReturn(symbol, window)
 
     def _parse_cumulative_return(self, args: list[SExpr], depth: int) -> CumulativeReturn:
         """Parse cumulative return indicator."""
-        if len(args) != 2:
+        # For filter context, might have only window parameter
+        if len(args) == 1:
+            # Only window parameter - symbol will be substituted later
+            window = self._extract_window(args[0])
+            return CumulativeReturn("", window)  # Empty symbol to be filled later
+        elif len(args) == 2:
+            # Standard format: symbol and window
+            symbol = args[0]
+            if not isinstance(symbol, str):
+                raise SchemaError("cumulative-return symbol must be a string")
+            
+            window = self._extract_window(args[1])
+            return CumulativeReturn(symbol, window)
+        else:
             raise SchemaError(
-                "cumulative-return requires 2 arguments: symbol, window",
+                "cumulative-return requires 1 argument (window) for filters or 2 arguments (symbol, window) for direct use",
                 construct="cumulative-return",
-                expected_arity=2,
+                expected_arity="1 or 2",
                 actual_arity=len(args)
             )
-
-        symbol = args[0]
-        if not isinstance(symbol, str):
-            raise SchemaError("cumulative-return symbol must be a string")
-
-        window = self._extract_window(args[1])
-        return CumulativeReturn(symbol, window)
 
     def _parse_current_price(self, args: list[SExpr], depth: int) -> CurrentPrice:
         """Parse current price indicator."""
@@ -364,6 +397,29 @@ class DSLParser:
             raise SchemaError("current-price symbol must be a string")
 
         return CurrentPrice(symbol)
+
+    def _parse_stdev_return(self, args: list[SExpr], depth: int) -> StdevReturn:
+        """Parse standard deviation of returns indicator."""
+        # For filter context, stdev-return might have only window parameter
+        if len(args) == 1:
+            # Only window parameter - symbol will be substituted later
+            window = self._extract_window(args[0])
+            return StdevReturn("", window)  # Empty symbol to be filled later
+        elif len(args) == 2:
+            # Standard format: symbol and window
+            symbol = args[0]
+            if not isinstance(symbol, str):
+                raise SchemaError("stdev-return symbol must be a string")
+            
+            window = self._extract_window(args[1])
+            return StdevReturn(symbol, window)
+        else:
+            raise SchemaError(
+                "stdev-return requires 1 argument (window) for filters or 2 arguments (symbol, window) for direct use",
+                construct="stdev-return",
+                expected_arity="1 or 2",
+                actual_arity=len(args)
+            )
 
     def _parse_asset(self, args: list[SExpr], depth: int) -> Asset:
         """Parse asset definition."""
@@ -460,7 +516,7 @@ class DSLParser:
         """Parse filter selector."""
         if len(args) < 3:
             raise SchemaError(
-                "filter requires at least 3 arguments: metric_fn, select-top n, assets...",
+                "filter requires at least 3 arguments: metric_fn, selector, assets...",
                 construct="filter",
                 expected_arity="3+",
                 actual_arity=len(args)
@@ -468,20 +524,45 @@ class DSLParser:
 
         metric_fn = self._sexpr_to_ast(args[0], depth + 1)
 
-        # Parse "select-top n" - expect list ["select-top", n]
-        select_clause = args[1]
-        if not isinstance(select_clause, list) or len(select_clause) != 2:
-            raise SchemaError("filter requires [select-top n] as second argument")
-
-        if select_clause[0] != "select-top":
-            raise SchemaError("filter requires select-top clause")
-
-        select_n = select_clause[1]
-        if not isinstance(select_n, int) or select_n <= 0:
-            raise SchemaError("select-top n must be a positive integer")
+        # Parse selector (select-top n or select-bottom n)
+        selector = self._sexpr_to_ast(args[1], depth + 1)
+        if not isinstance(selector, (SelectTop, SelectBottom)):
+            raise SchemaError("filter requires select-top or select-bottom as second argument")
 
         assets = [self._sexpr_to_ast(asset, depth + 1) for asset in args[2:]]
-        return Filter(metric_fn, select_n, assets)
+        return Filter(metric_fn, selector, assets)
+
+    def _parse_select_top(self, args: list[SExpr], depth: int) -> SelectTop:
+        """Parse select-top selector."""
+        if len(args) != 1:
+            raise SchemaError(
+                "select-top requires 1 argument: count",
+                construct="select-top",
+                expected_arity=1,
+                actual_arity=len(args)
+            )
+
+        count = args[0]
+        if not isinstance(count, int) or count <= 0:
+            raise SchemaError("select-top count must be a positive integer")
+
+        return SelectTop(count)
+
+    def _parse_select_bottom(self, args: list[SExpr], depth: int) -> SelectBottom:
+        """Parse select-bottom selector."""
+        if len(args) != 1:
+            raise SchemaError(
+                "select-bottom requires 1 argument: count",
+                construct="select-bottom",
+                expected_arity=1,
+                actual_arity=len(args)
+            )
+
+        count = args[0]
+        if not isinstance(count, int) or count <= 0:
+            raise SchemaError("select-bottom count must be a positive integer")
+
+        return SelectBottom(count)
 
     def _parse_strategy(self, args: list[SExpr], depth: int) -> Strategy:
         """Parse strategy root node."""

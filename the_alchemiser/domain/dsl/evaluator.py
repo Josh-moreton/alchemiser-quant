@@ -25,6 +25,9 @@ from the_alchemiser.domain.dsl.ast import (
     MovingAveragePrice,
     MovingAverageReturn,
     NumberLiteral,
+    SelectBottom,
+    SelectTop,
+    StdevReturn,
     Strategy,
     Symbol,
     WeightEqual,
@@ -110,6 +113,8 @@ class DSLEvaluator:
             return self._evaluate_cumulative_return(node)
         elif isinstance(node, CurrentPrice):
             return self._evaluate_current_price(node)
+        elif isinstance(node, StdevReturn):
+            return self._evaluate_stdev_return(node)
 
         # Portfolio construction
         elif isinstance(node, Asset):
@@ -394,6 +399,51 @@ class DSLEvaluator:
 
         return result
 
+    def _evaluate_stdev_return(self, node: StdevReturn) -> float:
+        """Evaluate standard deviation of returns indicator."""
+        cache_key = f"stdev_return_{node.symbol}_{node.window}"
+
+        if cache_key in self._indicator_cache:
+            result = self._indicator_cache[cache_key]
+        else:
+            try:
+                # Get market data
+                data = self.market_data_port.get_data(node.symbol, timeframe="1day", period="1y")
+                if data.empty:
+                    raise IndicatorError(f"No data available for {node.symbol}", indicator="stdev_return", symbol=node.symbol)
+
+                # Calculate returns first
+                returns = data['close'].pct_change().dropna()
+                
+                # Calculate rolling standard deviation of returns
+                stdev_series = returns.rolling(window=node.window).std()
+                if stdev_series.empty:
+                    raise IndicatorError(f"Standard deviation calculation failed for {node.symbol}", indicator="stdev_return", symbol=node.symbol)
+
+                # Get latest value
+                latest_stdev = stdev_series.dropna().iloc[-1] if not stdev_series.dropna().empty else None
+                if latest_stdev is None:
+                    raise IndicatorError(f"No valid standard deviation value for {node.symbol}", indicator="stdev_return", symbol=node.symbol)
+
+                result = float(latest_stdev)
+                self._indicator_cache[cache_key] = result
+
+            except Exception as e:
+                if isinstance(e, IndicatorError):
+                    raise
+                raise IndicatorError(f"Standard deviation calculation error for {node.symbol}: {e}", indicator="stdev_return", symbol=node.symbol) from e
+
+        # Trace indicator calculation
+        self._trace_entries.append({
+            "type": "indicator",
+            "indicator": "stdev_return",
+            "symbol": node.symbol,
+            "window": node.window,
+            "value": result
+        })
+
+        return result
+
     def _evaluate_asset(self, node: Asset) -> Portfolio:
         """Evaluate asset to single-asset portfolio."""
         portfolio = {node.symbol: Decimal('1.0')}
@@ -513,13 +563,104 @@ class DSLEvaluator:
         return equal_weighted
 
     def _evaluate_filter(self, node: Filter) -> Portfolio:
-        """Evaluate filter selector."""
-        # This feature is not yet implemented - raise clear error
-        raise EvaluationError(
-            "Filter selector is not yet implemented. "
-            "Consider using weight-equal or weight-specified as alternatives.",
-            ast_node=node
-        )
+        """Evaluate filter selector with metric-based asset selection."""
+        # Evaluate the selector to get type and count
+        if isinstance(node.selector, SelectTop):
+            select_count = node.selector.count
+            select_type = "top"
+        elif isinstance(node.selector, SelectBottom):
+            select_count = node.selector.count
+            select_type = "bottom"
+        else:
+            raise EvaluationError(f"Unknown selector type: {type(node.selector)}", ast_node=node.selector)
+
+        # Evaluate metric for each asset
+        asset_metrics = []
+        for asset_node in node.assets:
+            # Get asset symbol
+            if isinstance(asset_node, Asset):
+                symbol = asset_node.symbol
+            else:
+                raise EvaluationError("Filter can only be applied to asset nodes", ast_node=asset_node)
+
+            # Create a modified metric function with the asset symbol
+            metric_value = self._evaluate_metric_for_symbol(node.metric_fn, symbol)
+            asset_metrics.append((symbol, metric_value, asset_node))
+
+        # Sort by metric value
+        if select_type == "top":
+            # For top selection, we want highest values first
+            sorted_assets = sorted(asset_metrics, key=lambda x: x[1], reverse=True)
+        else:
+            # For bottom selection, we want lowest values first
+            sorted_assets = sorted(asset_metrics, key=lambda x: x[1])
+
+        # Select the requested number of assets
+        selected_assets = sorted_assets[:select_count]
+
+        # Create portfolios for selected assets
+        selected_portfolios = []
+        for symbol, metric_value, asset_node in selected_assets:
+            portfolio = self._evaluate_node(asset_node)
+            if isinstance(portfolio, dict):
+                selected_portfolios.append(portfolio)
+            else:
+                raise PortfolioError(f"Asset must evaluate to portfolio, got {type(portfolio)}", operation="filter")
+
+        # Equal weight the selected assets
+        if selected_portfolios:
+            flattened = self._flatten_portfolios(selected_portfolios)
+            result = self._equal_weight_portfolio(flattened)
+        else:
+            result = {}
+
+        # Trace filter operation
+        self._trace_entries.append({
+            "type": "portfolio",
+            "operation": "filter",
+            "selector_type": select_type,
+            "selector_count": select_count,
+            "total_assets": len(node.assets),
+            "selected_assets": [asset[0] for asset in selected_assets],
+            "metric_values": {asset[0]: asset[1] for asset in selected_assets},
+            "weights": result
+        })
+
+        return result
+
+    def _evaluate_metric_for_symbol(self, metric_fn: ASTNode, symbol: str) -> float:
+        """Evaluate metric function for a specific symbol."""
+        # Replace any symbol references in the metric function with the current symbol
+        modified_metric = self._substitute_symbol_in_metric(metric_fn, symbol)
+        
+        # Evaluate the modified metric
+        result = self._evaluate_node(modified_metric)
+        
+        if not isinstance(result, (int, float)):
+            raise EvaluationError(f"Metric function must return numeric value, got {type(result)}")
+        
+        return float(result)
+
+    def _substitute_symbol_in_metric(self, metric_fn: ASTNode, symbol: str) -> ASTNode:
+        """Substitute symbol parameter in metric function for filter evaluation."""
+        # For metrics that take symbol as first parameter, we need to create a new instance
+        # with the provided symbol
+        
+        if isinstance(metric_fn, RSI):
+            # Use the metric's window but substitute the symbol
+            return RSI(symbol=symbol, window=metric_fn.window)
+        elif isinstance(metric_fn, StdevReturn):
+            return StdevReturn(symbol=symbol, window=metric_fn.window)
+        elif isinstance(metric_fn, MovingAverageReturn):
+            return MovingAverageReturn(symbol=symbol, window=metric_fn.window)
+        elif isinstance(metric_fn, MovingAveragePrice):
+            return MovingAveragePrice(symbol=symbol, window=metric_fn.window)
+        elif isinstance(metric_fn, CumulativeReturn):
+            return CumulativeReturn(symbol=symbol, window=metric_fn.window)
+        elif isinstance(metric_fn, CurrentPrice):
+            return CurrentPrice(symbol=symbol)
+        else:
+            raise EvaluationError(f"Unsupported metric function for filter: {type(metric_fn)}", ast_node=metric_fn)
 
     def _evaluate_strategy(self, node: Strategy) -> Portfolio:
         """Evaluate strategy root node."""
