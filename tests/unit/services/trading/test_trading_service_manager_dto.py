@@ -344,8 +344,7 @@ class TestTradingServiceManagerDTOIntegration:
                 return_type_str = str(return_type)
                 
                 # Methods should return DTOs or None (for close method)
-                if method_name == 'close':
-                    assert return_type is type(None) or 'None' in return_type_str
+                    assert return_type == type(None) or 'None' in return_type_str
                     dto_coverage += 1
                 elif 'DTO' in return_type_str:
                     dto_coverage += 1
