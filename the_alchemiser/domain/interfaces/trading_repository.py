@@ -4,11 +4,13 @@ Trading Repository Interface
 This interface defines the contract for all trading operations including order
 placement, position management, and portfolio operations.
 
-This interface is designed to match our current AlpacaManager usage patterns
-while providing the abstraction needed for the eventual architecture.
+This interface is designed to support typed DTO returns while maintaining
+compatibility with current AlpacaManager usage patterns.
 """
 
 from typing import Any, Protocol
+
+from the_alchemiser.interfaces.schemas.orders import OrderExecutionResultDTO
 
 
 class TradingRepository(Protocol):
@@ -59,7 +61,7 @@ class TradingRepository(Protocol):
         """
         ...
 
-    def place_order(self, order_request: Any) -> str | None:
+    def place_order(self, order_request: Any) -> OrderExecutionResultDTO:
         """
         Place an order.
 
@@ -67,7 +69,7 @@ class TradingRepository(Protocol):
             order_request: Order request object (currently Alpaca order request)
 
         Returns:
-            Order ID if successful, None if failed.
+            OrderExecutionResultDTO with execution details and status.
         """
         ...
 
@@ -77,7 +79,7 @@ class TradingRepository(Protocol):
         side: str,
         qty: float | None = None,
         notional: float | None = None,
-    ) -> str | None:
+    ) -> OrderExecutionResultDTO:
         """
         Place a market order.
 
@@ -88,7 +90,7 @@ class TradingRepository(Protocol):
             notional: Dollar amount to trade (use either qty OR notional)
 
         Returns:
-            Order ID if successful, None if failed.
+            OrderExecutionResultDTO with execution details and status.
         """
         ...
 
