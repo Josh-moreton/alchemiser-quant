@@ -49,9 +49,9 @@ We’re migrating to a strongly-typed, framework-free domain model with incremen
 - Use `Decimal` for all financial/quantity values; normalize in mappers
 - Prefer `Protocol` for repository/service interfaces under `domain/**/protocols/`; implemented in `infrastructure/` or `services/`
 
-### Testing the Typed Path
-- Add parity tests for flag ON vs OFF where behavior should be identical
-- Unit test mappers with realistic fixtures; mock external APIs (pytest‑mock)
+### Development and Validation
+- Manual verification with development environments for behavior validation
+- Type safety validation with mypy across the codebase; value objects and entities must be fully typed
 - CI runs mypy across the codebase; value objects and entities must be fully typed
 
 ### Entry Point and CLI Architecture
@@ -178,8 +178,8 @@ Automatic email alerts include:
 - Strict typing checked by `mypy` with `disallow_untyped_defs`.
     - Typed Domain V2 gate: keep domain free of frameworks; all financial values are `Decimal`.
 - Configuration and domain models defined with Pydantic.
-- Code style enforced by `black` (line length 100) and linted by `flake8`.
-- Tests run with `pytest`; `make test` executes the suite.
+- Code style enforced by `black` (line length 100) and linted by `ruff`.
+- Type checking enforced by `mypy`; manual verification for functionality validation.
 - Protocols and dataclasses enable clean dependency injection.
 - Rich and Typer keep command‑line interfaces concise and user friendly.
 
@@ -294,10 +294,10 @@ the_alchemiser/interfaces/schemas/   # Pydantic DTOs for I/O
 **Development Dependencies**:
 
 - `mypy`: Static type checking
-- `black`: Code formatting
+- `black`: Code formatting  
 - `ruff`: Fast Python linter
-- `pytest`: Testing framework
-- `pytest-cov`: Coverage reporting
+- `bandit`: Security analysis
+- `vulture`: Dead code detection
 
 ### Error Handling Patterns for AI Agents
 
@@ -343,32 +343,6 @@ def risky_operation():
             # Log and continue with fallback
             logging.warning(f"Non-critical error: {e}")
             return safe_fallback_value
-```
-
-### Testing Patterns
-
-**Test Structure**:
-
-```python
-import pytest
-from unittest.mock import Mock, patch
-from the_alchemiser.core.trading.strategy_engine import NuclearStrategyEngine
-
-class TestNuclearStrategy:
-    def setup_method(self):
-        """Setup for each test method"""
-        self.engine = NuclearStrategyEngine()
-
-    def test_volatility_calculation_with_valid_data(self):
-        """Test normal volatility calculation"""
-        indicators = {"AAPL": {"price_history": [100, 101, 99, 102]}}
-        result = self.engine._get_14_day_volatility("AAPL", indicators)
-        assert result > 0
-
-    def test_volatility_calculation_raises_on_invalid_data(self):
-        """Test that invalid data raises proper exception"""
-        with pytest.raises(IndicatorCalculationError):
-            self.engine._get_14_day_volatility("INVALID", {})
 ```
 
 ### Configuration Management
@@ -572,8 +546,7 @@ def lambda_handler(event, context):
 ```bash
 make dev                            # install with dev dependencies
 make format                         # run black + ruff formatting
-make lint                          # run flake8, mypy, security checks
-make test                          # run pytest with coverage
+make lint                          # run ruff + mypy + security checks
 
 # Modern CLI (DI-first architecture)
 alchemiser signal                  # strategy analysis (DI mode, default)
@@ -604,8 +577,8 @@ poetry run mypy the_alchemiser/
 poetry run black the_alchemiser/
 poetry run ruff the_alchemiser/
 
-# 5. Run tests
-poetry run pytest
+# 5. Verify project
+poetry run python -c "import the_alchemiser; print('Import successful')"
 
 # 6. Test strategies locally
 poetry run alchemiser bot --paper
@@ -619,7 +592,7 @@ poetry run alchemiser bot --paper
 2. Implement required methods: `get_signal()`, `get_reasoning()`
 3. Add to `StrategyType` enum
 4. Register in `MultiStrategyManager`
-5. Add tests and type hints
+5. Add type hints and validation
 
 **Debugging Order Execution**:
 
@@ -643,10 +616,10 @@ from the_alchemiser.core.exceptions import StrategyExecutionError
 
 try:
     # Simulate error condition
-    raise StrategyExecutionError("Test error", strategy_name="test")
+    raise StrategyExecutionError("Development error", strategy_name="dev")
 except Exception as e:
     handler = TradingSystemErrorHandler()
-    handler.handle_error(e, "test_component", "test_context")
+    handler.handle_error(e, "dev_component", "dev_context")
 ```
 
 ### Code Review Checklist for AI Agents
@@ -672,12 +645,12 @@ except Exception as e:
 - ✅ Comprehensive docstrings for public methods
 - ✅ Logging at appropriate levels (DEBUG, INFO, WARNING, ERROR)
 
-**Testing Requirements**:
+**Development Requirements**:
 
-- ✅ Unit tests for business logic
-- ✅ Error condition testing
-- ✅ Mock external dependencies (Alpaca API)
-- ✅ Integration tests for critical paths
+- ✅ Type safety with mypy compliance
+- ✅ Manual verification for business logic
+- ✅ Error handling for edge conditions
+- ✅ Validation through development environments
 
 ### Operational Knowledge
 
@@ -686,7 +659,7 @@ except Exception as e:
 - Paper trading uses separate Alpaca account and API keys
 - All order execution is simulated but follows real market data
 - Switch via `PAPER_TRADING` environment variable
-- Live trading requires careful validation and testing
+- Live trading requires careful validation and manual verification
 
 **Market Hours and Timing**:
 
@@ -776,7 +749,7 @@ except IndicatorCalculationError as e:
 
 - **`main.py`**: Entry point for strategy execution with comprehensive error handling
 - **`lambda_handler.py`**: AWS Lambda wrapper with enhanced error reporting
-- **`cli.py`**: Command-line interface for local testing and debugging
+- **`cli.py`**: Command-line interface for local development and debugging
 
 ### Configuration and Settings
 
@@ -813,7 +786,7 @@ except IndicatorCalculationError as e:
 
 - **`pyproject.toml`**: Poetry dependencies, mypy, black, and ruff configuration
 - **`template.yaml`**: AWS CloudFormation infrastructure with retry policies
-- **`Makefile`**: Development workflow automation (format, lint, test)
+- **`Makefile`**: Development workflow automation (format, lint)
 
 ### Important Constants and Enums
 
