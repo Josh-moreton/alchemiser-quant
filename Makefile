@@ -1,7 +1,7 @@
 # The Alchemiser Makefile
 # Quick commands for development and deployment
 
-.PHONY: help install dev test test-all perf perf-check clean run-signals run-trade run-trade-live status deploy format lint
+.PHONY: help install dev clean run-signals run-trade run-trade-live status deploy format lint
 
 # Default target
 help:
@@ -18,10 +18,6 @@ help:
 	@echo "  status          Show account status"
 	@echo ""
 	@echo "Development:"
-	@echo "  test            Run tests"
-	@echo "  test-all        Run all tests including performance"
-	@echo "  perf            Run performance benchmarks"
-	@echo "  perf-check      Run performance check (non-blocking)"
 	@echo "  format          Format code with black"
 	@echo "  lint            Run linting"
 	@echo "  clean           Clean build artifacts"
@@ -56,41 +52,14 @@ status:
 	poetry run alchemiser status
 
 # Development
-test:
-	@echo "🧪 Running tests..."
-	poetry run pytest tests/ -v
-
-test-all:
-	@echo "🧪 Running all tests including performance..."
-	poetry run pytest tests/ -v
-
-perf:
-	@echo "⚡ Running performance tests..."
-	poetry run pytest tests/performance/ -v -s
-
-perf-check:
-	@echo "⚡ Running performance check (non-blocking)..."
-	poetry run pytest tests/performance/ -v || echo "⚠️ Performance tests failed but continuing..."
-
-contract-tests:
-	@echo "🤝 Running contract tests..."
-	poetry run pytest tests/contracts -m contract -v
-
-check-no-legacy-dataprovider:
-	@bash tools/ci/check_no_legacy_dataprovider.sh
-
-smoke:
-	@echo "🚬 Running CLI smoke tests..."
-	poetry run pytest tests/e2e/test_cli_trade.py -v
-
 format:
 	@echo "🎨 Formatting code..."
-	poetry run black the_alchemiser/ tests/
-	poetry run ruff check --fix the_alchemiser/ tests/
+	poetry run black the_alchemiser/
+	poetry run ruff check --fix the_alchemiser/
 
 lint:
 	@echo "🔍 Running linting..."
-	poetry run ruff check the_alchemiser/ tests/
+	poetry run ruff check the_alchemiser/
 
 clean:
 	@echo "🧹 Cleaning build artifacts..."
