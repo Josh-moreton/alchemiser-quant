@@ -2,7 +2,7 @@
 """
 Execution Summary DTOs for The Alchemiser Trading System.
 
-This module provides structured DTOs for execution summaries, replacing 
+This module provides structured DTOs for execution summaries, replacing
 dict[str, Any] usage in MultiStrategyExecutionResultDTO and other execution contexts.
 
 Key Features:
@@ -89,7 +89,7 @@ class TradingSummaryDTO(BaseModel):
 class ExecutionSummaryDTO(BaseModel):
     """
     DTO for comprehensive execution summary.
-    
+
     Replaces the dict[str, Any] execution_summary field in MultiStrategyExecutionResultDTO.
     """
 
@@ -121,7 +121,7 @@ class ExecutionSummaryDTO(BaseModel):
 class PortfolioStateDTO(BaseModel):
     """
     DTO for final portfolio state.
-    
+
     Replaces the dict[str, Any] final_portfolio_state field in MultiStrategyExecutionResultDTO.
     """
 
@@ -142,20 +142,14 @@ class PortfolioStateDTO(BaseModel):
     current_allocations: dict[str, Decimal] = Field(
         ..., description="Current allocation percentages by symbol"
     )
-    target_values: dict[str, Decimal] = Field(
-        ..., description="Target dollar values by symbol"
-    )
-    current_values: dict[str, Decimal] = Field(
-        ..., description="Current dollar values by symbol"
-    )
+    target_values: dict[str, Decimal] = Field(..., description="Target dollar values by symbol")
+    current_values: dict[str, Decimal] = Field(..., description="Current dollar values by symbol")
 
     # Allocation discrepancy analysis
     allocation_discrepancies: dict[str, Decimal] = Field(
         ..., description="Allocation discrepancies by symbol (current - target)"
     )
-    largest_discrepancy: Decimal | None = Field(
-        None, description="Largest allocation discrepancy"
-    )
+    largest_discrepancy: Decimal | None = Field(None, description="Largest allocation discrepancy")
 
     # Summary metrics
     total_symbols: int = Field(..., ge=0, description="Total number of symbols in portfolio")

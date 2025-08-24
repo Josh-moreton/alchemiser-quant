@@ -15,7 +15,7 @@ The plan aligns with existing docs/typing-migration/phase-plan.md and extends it
 - Application: `MultiStrategyExecutionResult` is a dataclass; TODO references Pydantic at edges.
 - Strategy layer: `StrategyRegistry` defines `StrategyType` and maps to engines. `StrategyManager` orchestrates runs using dict-shaped payloads. `KLMStrategyEnsemble` consumes a typed data provider adapter.
 - Services: `TypedDataProviderAdapter` is an explicit edge shim over `MarketDataClient`.
-- Tooling: Pydantic >= 2, mypy, ruff, pytest, coverage are in pyproject.
+- Tooling: Pydantic >= 2, mypy, ruff for development
 
 Implication: We have the right tools and some domain VOs, but most inter‑module contracts are dictionary‑shaped. The migration should formalize boundaries, replace internals with dataclasses/VOs, and validate at edges with Pydantic.
 

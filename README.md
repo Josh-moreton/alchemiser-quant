@@ -49,9 +49,9 @@ We’re migrating to a strongly-typed, framework-free domain model with incremen
 - Use `Decimal` for all financial/quantity values; normalize in mappers
 - Prefer `Protocol` for repository/service interfaces under `domain/**/protocols/`; implemented in `infrastructure/` or `services/`
 
-### Testing the Typed Path
-- Add parity tests for flag ON vs OFF where behavior should be identical
-- Unit test mappers with realistic fixtures; mock external APIs (pytest‑mock)
+### Validation for the Typed Path
+- Validate behavior consistency between flag ON vs OFF where applicable  
+- Use runtime validation with Pydantic at system boundaries; mock external APIs for development
 - CI runs mypy across the codebase; value objects and entities must be fully typed
 
 ### Entry Point and CLI Architecture
@@ -178,8 +178,8 @@ Automatic email alerts include:
 - Strict typing checked by `mypy` with `disallow_untyped_defs`.
     - Typed Domain V2 gate: keep domain free of frameworks; all financial values are `Decimal`.
 - Configuration and domain models defined with Pydantic.
-- Code style enforced by `black` (line length 100) and linted by `flake8`.
-- Tests run with `pytest`; `make test` executes the suite.
+- Code style enforced by `black` (line length 100) and linted by `ruff`.
+- Development workflow includes `make format` and `make lint` for code quality.
 - Protocols and dataclasses enable clean dependency injection.
 - Rich and Typer keep command‑line interfaces concise and user friendly.
 
@@ -295,9 +295,7 @@ the_alchemiser/interfaces/schemas/   # Pydantic DTOs for I/O
 
 - `mypy`: Static type checking
 - `black`: Code formatting
-- `ruff`: Fast Python linter
-- `pytest`: Testing framework
-- `pytest-cov`: Coverage reporting
+- `ruff`: Fast Python linter and code quality enforcement
 
 ### Error Handling Patterns for AI Agents
 

@@ -130,7 +130,7 @@
 - **Breaking**: output format stable; flags unchanged
 - **Risks**: stdout formatting differences → snapshot tests
 - **Roll-back**: restore dict adapters
-- **Tests**: CLI snapshot tests via `pytest --snapshot`
+- **Tests**: CLI output validation and strategy contract validation
 - **Static analysis**: `mypy --warn-redundant-casts`
 - **Timebox**: S
 - **Dependencies**: Phase 11

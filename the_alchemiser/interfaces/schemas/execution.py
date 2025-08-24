@@ -188,8 +188,6 @@ class OrderHistoryDTO(BaseModel):
     )
 
 
-
-
 __all__ = [
     # Primary DTO exports (no deprecated symbols)
     "ExecutionResultDTO",

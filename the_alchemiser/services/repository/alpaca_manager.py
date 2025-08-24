@@ -195,7 +195,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             order_id = getattr(order, "id", None)
             order_symbol = getattr(order, "symbol", None)
             logger.info(f"Successfully placed order: {order_id} for {order_symbol}")
-            
+
             # Convert raw Alpaca order to OrderExecutionResultDTO
             return alpaca_order_to_execution_result(order)
         except Exception as e:
@@ -217,7 +217,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             side: 'buy' or 'sell'
             qty: Quantity to trade (use either qty OR notional)
             notional: Dollar amount to trade (use either qty OR notional)
-            
+
         Returns:
             OrderExecutionResultDTO with execution details
         """
@@ -278,7 +278,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             quantity: Number of shares
             limit_price: Limit price for the order
             time_in_force: Order time in force (default: 'day')
-            
+
         Returns:
             OrderExecutionResultDTO with execution details
         """

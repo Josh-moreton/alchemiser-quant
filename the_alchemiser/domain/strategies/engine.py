@@ -185,6 +185,7 @@ class StrategyEngine(ABC):
         for symbol in symbols:
             try:
                 from the_alchemiser.domain.shared_kernel.value_objects.symbol import Symbol
+
                 symbol_obj = Symbol(symbol)
                 price = self.market_data_port.get_mid_price(symbol_obj)
                 if price is None:

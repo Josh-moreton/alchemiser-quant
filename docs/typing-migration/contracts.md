@@ -134,7 +134,7 @@ order = LegacyOrderAdapter.from_dict(payload)
 result = broker.place_order(order)
 assert isinstance(result, ExecutionResultDTO)
 ```
-_Test_: `tests/execution/test_smart_execution.py` updated with model assertions.
+_Validation_: Model assertions and runtime checks ensure data integrity.
 
 ## 2. Provider cache with `CacheEntry[Quote]`
 ```python
@@ -146,7 +146,7 @@ if not entry:
     cache.set(entry)
 return entry.value
 ```
-_Test_: `tests/providers/test_quote_cache.py` ensures serialisation/deserialisation.
+_Validation_: Serialization/deserialization checks ensure cache integrity.
 
 ## 3. Email template using typed context
 ```python
