@@ -60,7 +60,7 @@ class PortfolioRebalancingService:
     ) -> dict[str, RebalancePlan]:
         """
         Internal method to calculate rebalancing plan as domain objects.
-        
+
         Used by methods that need to work with domain objects internally.
         """
         # Fetch current data if not provided
@@ -187,7 +187,9 @@ class PortfolioRebalancingService:
                     largest_trade_symbol = symbol
 
             # Estimate basic costs (simplified for this phase)
-            estimated_costs = rebalance_plan_result.total_trade_value * Decimal("0.005")  # 0.5% cost estimate
+            estimated_costs = rebalance_plan_result.total_trade_value * Decimal(
+                "0.005"
+            )  # 0.5% cost estimate
 
             return RebalancingSummaryDTO(
                 success=True,
@@ -244,7 +246,9 @@ class PortfolioRebalancingService:
         buy_plans = self.rebalance_calculator.get_buy_plans(rebalance_plan)
         return list(buy_plans.keys())
 
-    def estimate_rebalancing_impact(self, target_weights: dict[str, Decimal]) -> RebalancingImpactDTO:
+    def estimate_rebalancing_impact(
+        self, target_weights: dict[str, Decimal]
+    ) -> RebalancingImpactDTO:
         """
         Estimate the impact of rebalancing on the portfolio.
 
@@ -272,13 +276,17 @@ class PortfolioRebalancingService:
 
             # Calculate estimated costs and impact (simplified for this phase)
             total_trade_value = sum(abs(delta.quantity) for delta in position_deltas.values())
-            estimated_transaction_costs = total_trade_value * Decimal("0.002")  # 0.2% transaction cost
+            estimated_transaction_costs = total_trade_value * Decimal(
+                "0.002"
+            )  # 0.2% transaction cost
             estimated_slippage = total_trade_value * Decimal("0.001")  # 0.1% slippage
             total_estimated_costs = estimated_transaction_costs + estimated_slippage
 
             # Risk analysis (simplified)
             num_trades = len(positions_to_sell) + len(positions_to_buy)
-            portfolio_risk_change = Decimal(str(portfolio_turnover)) * Decimal("0.1")  # Simplified risk calculation
+            portfolio_risk_change = Decimal(str(portfolio_turnover)) * Decimal(
+                "0.1"
+            )  # Simplified risk calculation
             concentration_risk_change = Decimal("0")  # Placeholder
 
             # Execution analysis

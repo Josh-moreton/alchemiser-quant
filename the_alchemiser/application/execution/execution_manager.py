@@ -144,12 +144,14 @@ class ExecutionManager:
                 orders_executed=[],
                 account_info_before=empty_account_info,
                 account_info_after=empty_account_info,
-                execution_summary=safe_dict_to_execution_summary_dto({
-                    "error": str(e),
-                    "mode": "error",
-                    "account_info_before": empty_account_info,
-                    "account_info_after": empty_account_info,
-                }),
+                execution_summary=safe_dict_to_execution_summary_dto(
+                    {
+                        "error": str(e),
+                        "mode": "error",
+                        "account_info_before": empty_account_info,
+                        "account_info_after": empty_account_info,
+                    }
+                ),
                 final_portfolio_state=safe_dict_to_portfolio_state_dto({}),
             )
         except (ConfigurationError, StrategyExecutionError, ValueError, AttributeError) as e:

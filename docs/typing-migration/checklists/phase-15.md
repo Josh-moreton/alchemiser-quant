@@ -2,7 +2,7 @@
 
 - [ ] Refactor `pyproject.toml`
 - [ ] Refactor `the_alchemiser/application/tracking/integration.py`
-- [ ] Update tests
+- [ ] Update validation and verification steps
 - [ ] Run mypy
 
 Owner: __________

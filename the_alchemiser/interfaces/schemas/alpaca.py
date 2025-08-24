@@ -25,7 +25,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 class AlpacaOrderDTO(BaseModel):
     """
     DTO for Alpaca order responses.
-    
+
     Maps directly to Alpaca order API response structure with proper
     validation and type conversion for financial values.
     """
@@ -41,24 +41,24 @@ class AlpacaOrderDTO(BaseModel):
     id: str = Field(description="Alpaca order ID")
     symbol: str = Field(description="Trading symbol")
     asset_class: str = Field(description="Asset class (equity, etc.)")
-    
-    # Order amounts and quantities  
+
+    # Order amounts and quantities
     notional: Decimal | None = Field(default=None, description="Notional dollar amount")
     qty: Decimal | None = Field(default=None, description="Quantity of shares")
     filled_qty: Decimal | None = Field(default=None, description="Filled quantity")
     filled_avg_price: Decimal | None = Field(default=None, description="Average fill price")
-    
+
     # Order classification
     order_class: str = Field(description="Order class (simple, bracket, etc.)")
     order_type: str = Field(description="Order type (market, limit, etc.)")
     type: str = Field(description="Alias for order_type")
     side: Literal["buy", "sell"] = Field(description="Order side")
     time_in_force: str = Field(description="Time in force (day, gtc, etc.)")
-    
+
     # Order status and timing
     status: str = Field(description="Order status")
     created_at: datetime = Field(description="Order creation timestamp")
-    updated_at: datetime = Field(description="Order last update timestamp") 
+    updated_at: datetime = Field(description="Order last update timestamp")
     submitted_at: datetime | None = Field(default=None, description="Order submission timestamp")
     filled_at: datetime | None = Field(default=None, description="Order fill timestamp")
     expired_at: datetime | None = Field(default=None, description="Order expiration timestamp")
@@ -73,7 +73,7 @@ class AlpacaOrderDTO(BaseModel):
         return v
 
     @field_validator("symbol")
-    @classmethod  
+    @classmethod
     def validate_symbol(cls, v: str) -> str:
         """Validate and normalize symbol."""
         if not v or not v.strip():
@@ -84,7 +84,7 @@ class AlpacaOrderDTO(BaseModel):
 class AlpacaErrorDTO(BaseModel):
     """
     DTO for Alpaca API error responses.
-    
+
     Provides structured error information with consistent format
     for error handling and debugging.
     """

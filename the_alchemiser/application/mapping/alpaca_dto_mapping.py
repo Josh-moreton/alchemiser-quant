@@ -26,18 +26,19 @@ logger = logging.getLogger(__name__)
 def alpaca_order_to_dto(order: Any) -> AlpacaOrderDTO:
     """
     Convert raw Alpaca order object to AlpacaOrderDTO.
-    
+
     Handles both attribute-based objects and dict responses from Alpaca API.
-    
+
     Args:
         order: Raw Alpaca order object or dict
-        
+
     Returns:
         AlpacaOrderDTO with validated and converted fields
-        
+
     Raises:
         ValueError: If required fields are missing or invalid
     """
+
     # Extract helper function to handle both attribute access and dict access
     def get_attr(name: str, default: Any = None) -> Any:
         if isinstance(order, dict):
@@ -103,30 +104,30 @@ def alpaca_order_to_dto(order: Any) -> AlpacaOrderDTO:
 def alpaca_dto_to_execution_result(alpaca_dto: AlpacaOrderDTO) -> OrderExecutionResultDTO:
     """
     Convert AlpacaOrderDTO to OrderExecutionResultDTO.
-    
+
     Maps Alpaca-specific fields to standardized execution result format
     with proper status normalization and success determination.
-    
+
     Args:
         alpaca_dto: Validated Alpaca order DTO
-        
+
     Returns:
         OrderExecutionResultDTO with standardized fields
     """
     # Normalize status using existing logic
     normalized_status = normalize_order_status(alpaca_dto.status)
-    
+
     # Map to execution result status literals with proper handling
     # OrderExecutionResultDTO expects: "accepted", "filled", "partially_filled", "rejected", "canceled"
     status_mapping = {
         "new": "accepted",  # Map 'new' status to 'accepted' for OrderExecutionResultDTO
         "partially_filled": "partially_filled",
-        "filled": "filled", 
+        "filled": "filled",
         "canceled": "canceled",
         "expired": "rejected",  # Map expired to rejected
         "rejected": "rejected",
     }
-    
+
     mapped_status = status_mapping.get(normalized_status, "unknown")
     if mapped_status == "unknown":
         logger.warning(
@@ -134,20 +135,20 @@ def alpaca_dto_to_execution_result(alpaca_dto: AlpacaOrderDTO) -> OrderExecution
         )
     status_literal = cast(
         Literal["accepted", "filled", "partially_filled", "rejected", "canceled", "unknown"],
-        mapped_status
+        mapped_status,
     )
-    
+
     # Determine success based on status
     success = status_literal not in {"rejected", "canceled", "unknown"}
-    
+
     # Determine error message for failed orders
     error_message = None
     if not success:
         error_message = f"Order {status_literal}"
-    
+
     # Use filled quantity or default to 0
     filled_qty = alpaca_dto.filled_qty or Decimal("0")
-    
+
     # Determine completion time based on status
     completed_at = None
     if status_literal in {"filled", "canceled", "rejected"}:
@@ -175,16 +176,16 @@ def alpaca_dto_to_execution_result(alpaca_dto: AlpacaOrderDTO) -> OrderExecution
 def alpaca_order_to_execution_result(order: Any) -> OrderExecutionResultDTO:
     """
     Direct conversion from raw Alpaca order to OrderExecutionResultDTO.
-    
-    Convenience function that combines alpaca_order_to_dto and 
+
+    Convenience function that combines alpaca_order_to_dto and
     alpaca_dto_to_execution_result in a single step.
-    
+
     Args:
         order: Raw Alpaca order object or dict
-        
+
     Returns:
         OrderExecutionResultDTO with validated and converted fields
-        
+
     Raises:
         ValueError: If order conversion fails
     """
@@ -207,20 +208,20 @@ def alpaca_order_to_execution_result(order: Any) -> OrderExecutionResultDTO:
 
 
 def create_error_execution_result(
-    error: Exception, 
+    error: Exception,
     context: str = "Order execution",
     order_id: str = "",
 ) -> OrderExecutionResultDTO:
     """
     Create an OrderExecutionResultDTO for error scenarios.
-    
+
     Provides consistent error handling across AlpacaManager methods.
-    
+
     Args:
         error: The exception that occurred
         context: Context description for the error
         order_id: Order ID if available
-        
+
     Returns:
         OrderExecutionResultDTO with error details
     """
@@ -243,42 +244,42 @@ def alpaca_exception_to_error_dto(
 ) -> AlpacaErrorDTO:
     """
     Convert Alpaca API exception to AlpacaErrorDTO.
-    
+
     Extracts error information from Alpaca API exceptions and formats
     them into structured error DTOs.
-    
+
     Args:
         exception: The Alpaca API exception
         default_code: Default HTTP code if not extractable
         request_id: Request ID for tracking
-        
+
     Returns:
         AlpacaErrorDTO with structured error information
     """
     # Try to extract error code from exception
     error_code = default_code
     if hasattr(exception, "status_code"):
-        error_code = getattr(exception, "status_code")
+        error_code = exception.status_code
     elif hasattr(exception, "code"):
-        error_code = getattr(exception, "code")
-    
+        error_code = exception.code
+
     # Extract error message
     error_message = str(exception)
     if hasattr(exception, "message"):
-        error_message = getattr(exception, "message")
-    
+        error_message = exception.message
+
     # Extract additional details if available
     details = None
     if hasattr(exception, "details"):
-        details = getattr(exception, "details")
+        details = exception.details
     elif hasattr(exception, "response"):
-        response = getattr(exception, "response")
+        response = exception.response
         if hasattr(response, "json"):
             try:
                 details = response.json()
             except Exception:
                 pass
-    
+
     return AlpacaErrorDTO(
         code=error_code,
         message=error_message,

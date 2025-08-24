@@ -73,10 +73,7 @@ def position_summary_to_dto(position_summary: PositionSummary) -> PositionDTO:
 def dict_to_position_summary_dto(data: dict[str, Any]) -> PositionSummaryDTO:
     """Convert position summary dict to PositionSummaryDTO."""
     if not data.get("success", False):
-        return PositionSummaryDTO(
-            success=False,
-            error=data.get("error", "Unknown error")
-        )
+        return PositionSummaryDTO(success=False, error=data.get("error", "Unknown error"))
 
     position_data = data.get("position")
     if position_data:
@@ -92,20 +89,13 @@ def dict_to_position_summary_dto(data: dict[str, Any]) -> PositionSummaryDTO:
     else:
         position_dto = None
 
-    return PositionSummaryDTO(
-        success=True,
-        symbol=data.get("symbol"),
-        position=position_dto
-    )
+    return PositionSummaryDTO(success=True, symbol=data.get("symbol"), position=position_dto)
 
 
 def dict_to_portfolio_summary_dto(data: dict[str, Any]) -> PortfolioSummaryDTO:
     """Convert portfolio summary dict to PortfolioSummaryDTO."""
     if not data.get("success", False):
-        return PortfolioSummaryDTO(
-            success=False,
-            error=data.get("error", "Unknown error")
-        )
+        return PortfolioSummaryDTO(success=False, error=data.get("error", "Unknown error"))
 
     portfolio_data = data.get("portfolio")
     if portfolio_data:
@@ -113,23 +103,20 @@ def dict_to_portfolio_summary_dto(data: dict[str, Any]) -> PortfolioSummaryDTO:
             total_market_value=Decimal(str(portfolio_data.get("total_market_value", 0))),
             cash_balance=Decimal(str(portfolio_data.get("cash_balance", 0))),
             total_positions=int(portfolio_data.get("total_positions", 0)),
-            largest_position_percent=Decimal(str(portfolio_data.get("largest_position_percent", 0))),
+            largest_position_percent=Decimal(
+                str(portfolio_data.get("largest_position_percent", 0))
+            ),
         )
     else:
         portfolio_metrics = None
 
-    return PortfolioSummaryDTO(
-        success=True,
-        portfolio=portfolio_metrics
-    )
+    return PortfolioSummaryDTO(success=True, portfolio=portfolio_metrics)
 
 
 def dict_to_close_position_dto(data: dict[str, Any]) -> ClosePositionResultDTO:
     """Convert close position result dict to ClosePositionResultDTO."""
     return ClosePositionResultDTO(
-        success=data.get("success", False),
-        order_id=data.get("order_id"),
-        error=data.get("error")
+        success=data.get("success", False), order_id=data.get("order_id"), error=data.get("error")
     )
 
 
@@ -139,31 +126,30 @@ def dict_to_position_analytics_dto(data: dict[str, Any]) -> PositionAnalyticsDTO
         success=data.get("success", False),
         symbol=data.get("symbol"),
         risk_metrics=data.get("risk_metrics"),
-        error=data.get("error")
+        error=data.get("error"),
     )
 
 
 def dict_to_position_metrics_dto(data: dict[str, Any]) -> PositionMetricsDTO:
     """Convert position metrics dict to PositionMetricsDTO."""
     if not data.get("success", False):
-        return PositionMetricsDTO(
-            success=False,
-            error=data.get("error", "Unknown error")
-        )
+        return PositionMetricsDTO(success=False, error=data.get("error", "Unknown error"))
 
     largest_positions = []
     if data.get("largest_positions"):
         for pos in data["largest_positions"]:
-            largest_positions.append(LargestPositionDTO(
-                symbol=pos.get("symbol", ""),
-                weight_percent=Decimal(str(pos.get("weight", 0))),
-                market_value=Decimal(str(pos.get("value", 0))),
-            ))
+            largest_positions.append(
+                LargestPositionDTO(
+                    symbol=pos.get("symbol", ""),
+                    weight_percent=Decimal(str(pos.get("weight", 0))),
+                    market_value=Decimal(str(pos.get("value", 0))),
+                )
+            )
 
     return PositionMetricsDTO(
         success=True,
         diversification_score=Decimal(str(data.get("diversification_score", 0))),
-        largest_positions=largest_positions
+        largest_positions=largest_positions,
     )
 
 
@@ -201,8 +187,14 @@ def dict_to_enriched_account_summary_dto(data: dict[str, Any]) -> EnrichedAccoun
     metrics_dto = AccountMetricsDTO(
         cash_ratio=Decimal(str(metrics_data.get("cash_ratio", 0))),
         market_exposure=Decimal(str(metrics_data.get("market_exposure", 0))),
-        leverage_ratio=Decimal(str(metrics_data.get("leverage_ratio"))) if metrics_data.get("leverage_ratio") is not None else None,
-        available_buying_power_ratio=Decimal(str(metrics_data.get("available_buying_power_ratio", 0))),
+        leverage_ratio=(
+            Decimal(str(metrics_data.get("leverage_ratio")))
+            if metrics_data.get("leverage_ratio") is not None
+            else None
+        ),
+        available_buying_power_ratio=Decimal(
+            str(metrics_data.get("available_buying_power_ratio", 0))
+        ),
     )
 
     summary_dto = AccountSummaryDTO(
@@ -220,20 +212,25 @@ def dict_to_enriched_account_summary_dto(data: dict[str, Any]) -> EnrichedAccoun
         calculated_metrics=metrics_dto,
     )
 
-    return EnrichedAccountSummaryDTO(
-        raw=data.get("raw", {}),
-        summary=summary_dto
-    )
+    return EnrichedAccountSummaryDTO(raw=data.get("raw", {}), summary=summary_dto)
 
 
 def dict_to_buying_power_dto(data: dict[str, Any]) -> BuyingPowerDTO:
     """Convert buying power check dict to BuyingPowerDTO."""
     return BuyingPowerDTO(
         success=data.get("success", False),
-        available_buying_power=Decimal(str(data.get("available_buying_power"))) if data.get("available_buying_power") is not None else None,
-        required_amount=Decimal(str(data.get("required_amount"))) if data.get("required_amount") is not None else None,
+        available_buying_power=(
+            Decimal(str(data.get("available_buying_power")))
+            if data.get("available_buying_power") is not None
+            else None
+        ),
+        required_amount=(
+            Decimal(str(data.get("required_amount")))
+            if data.get("required_amount") is not None
+            else None
+        ),
         sufficient_funds=data.get("sufficient_funds"),
-        error=data.get("error")
+        error=data.get("error"),
     )
 
 
@@ -242,7 +239,7 @@ def dict_to_risk_metrics_dto(data: dict[str, Any]) -> RiskMetricsDTO:
     return RiskMetricsDTO(
         success=data.get("success", False),
         risk_metrics=data.get("risk_metrics"),
-        error=data.get("error")
+        error=data.get("error"),
     )
 
 
@@ -255,7 +252,11 @@ def dict_to_trade_eligibility_dto(data: dict[str, Any]) -> TradeEligibilityDTO:
         symbol=data.get("symbol"),
         quantity=data.get("quantity"),
         side=data.get("side"),
-        estimated_cost=Decimal(str(data.get("estimated_cost"))) if data.get("estimated_cost") is not None else None,
+        estimated_cost=(
+            Decimal(str(data.get("estimated_cost")))
+            if data.get("estimated_cost") is not None
+            else None
+        ),
     )
 
 
@@ -264,7 +265,7 @@ def dict_to_portfolio_allocation_dto(data: dict[str, Any]) -> PortfolioAllocatio
     return PortfolioAllocationDTO(
         success=data.get("success", False),
         allocation_data=data.get("allocation_data"),
-        error=data.get("error")
+        error=data.get("error"),
     )
 
 
@@ -275,7 +276,7 @@ def dict_to_price_dto(data: dict[str, Any]) -> PriceDTO:
         success=data.get("success", False),
         symbol=data.get("symbol"),
         price=Decimal(str(data.get("price"))) if data.get("price") is not None else None,
-        error=data.get("error")
+        error=data.get("error"),
     )
 
 
@@ -287,7 +288,7 @@ def dict_to_price_history_dto(data: dict[str, Any]) -> PriceHistoryDTO:
         timeframe=data.get("timeframe"),
         limit=data.get("limit"),
         data=data.get("data"),
-        error=data.get("error")
+        error=data.get("error"),
     )
 
 
@@ -297,7 +298,7 @@ def dict_to_spread_analysis_dto(data: dict[str, Any]) -> SpreadAnalysisDTO:
         success=data.get("success", False),
         symbol=data.get("symbol"),
         spread_analysis=data.get("spread_analysis"),
-        error=data.get("error")
+        error=data.get("error"),
     )
 
 
@@ -306,7 +307,7 @@ def dict_to_market_status_dto(data: dict[str, Any]) -> MarketStatusDTO:
     return MarketStatusDTO(
         success=data.get("success", False),
         market_open=data.get("market_open"),
-        error=data.get("error")
+        error=data.get("error"),
     )
 
 
@@ -320,7 +321,7 @@ def dict_to_multi_symbol_quotes_dto(data: dict[str, Any]) -> MultiSymbolQuotesDT
         success=data.get("success", False),
         quotes=quotes,
         symbols=list(data.get("quotes", {}).keys()) if data.get("quotes") else None,
-        error=data.get("error")
+        error=data.get("error"),
     )
 
 
@@ -328,9 +329,7 @@ def dict_to_multi_symbol_quotes_dto(data: dict[str, Any]) -> MultiSymbolQuotesDT
 def dict_to_order_cancellation_dto(data: dict[str, Any]) -> OrderCancellationDTO:
     """Convert order cancellation dict to OrderCancellationDTO."""
     return OrderCancellationDTO(
-        success=data.get("success", False),
-        order_id=data.get("order_id"),
-        error=data.get("error")
+        success=data.get("success", False), order_id=data.get("order_id"), error=data.get("error")
     )
 
 
@@ -340,47 +339,44 @@ def dict_to_order_status_dto(data: dict[str, Any]) -> OrderStatusDTO:
         success=data.get("success", False),
         order_id=data.get("order_id"),
         status=data.get("status"),
-        error=data.get("error")
+        error=data.get("error"),
     )
 
 
 def dict_to_operation_result_dto(data: dict[str, Any]) -> OperationResultDTO:
     """Convert generic operation result dict to OperationResultDTO."""
     return OperationResultDTO(
-        success=data.get("success", False),
-        error=data.get("error"),
-        details=data.get("details")
+        success=data.get("success", False), error=data.get("error"), details=data.get("details")
     )
 
 
 # Enriched Data Mapping Functions
-def list_to_open_orders_dto(orders: list[dict[str, Any]], symbol_filter: str | None = None) -> OpenOrdersDTO:
+def list_to_open_orders_dto(
+    orders: list[dict[str, Any]], symbol_filter: str | None = None
+) -> OpenOrdersDTO:
     """Convert list of enriched order dicts to OpenOrdersDTO."""
     enriched_orders = []
     for order in orders:
-        enriched_orders.append(EnrichedOrderDTO(
-            raw=order.get("raw", {}),
-            domain=order.get("domain", {}),
-            summary=order.get("summary", {}),
-        ))
+        enriched_orders.append(
+            EnrichedOrderDTO(
+                raw=order.get("raw", {}),
+                domain=order.get("domain", {}),
+                summary=order.get("summary", {}),
+            )
+        )
 
-    return OpenOrdersDTO(
-        success=True,
-        orders=enriched_orders,
-        symbol_filter=symbol_filter
-    )
+    return OpenOrdersDTO(success=True, orders=enriched_orders, symbol_filter=symbol_filter)
 
 
 def list_to_enriched_positions_dto(positions: list[dict[str, Any]]) -> EnrichedPositionsDTO:
     """Convert list of enriched position dicts to EnrichedPositionsDTO."""
     enriched_positions = []
     for position in positions:
-        enriched_positions.append(EnrichedPositionDTO(
-            raw=position.get("raw", {}),
-            summary=position.get("summary", {}),
-        ))
+        enriched_positions.append(
+            EnrichedPositionDTO(
+                raw=position.get("raw", {}),
+                summary=position.get("summary", {}),
+            )
+        )
 
-    return EnrichedPositionsDTO(
-        success=True,
-        positions=enriched_positions
-    )
+    return EnrichedPositionsDTO(success=True, positions=enriched_positions)

@@ -21,7 +21,6 @@ from alpaca.trading.enums import OrderSide, TimeInForce
 from alpaca.trading.requests import LimitOrderRequest
 
 from the_alchemiser.domain.interfaces import MarketDataRepository, TradingRepository
-from the_alchemiser.interfaces.schemas.orders import OrderExecutionResultDTO
 from the_alchemiser.services.errors.decorators import translate_trading_errors
 
 logger = logging.getLogger(__name__)
@@ -123,8 +122,7 @@ class OrderService:
 
         # Place the order through repository
         logger.info(
-            f"Placing market {side} order for {symbol}: "
-            f"qty={quantity}, notional=${notional}"
+            f"Placing market {side} order for {symbol}: " f"qty={quantity}, notional=${notional}"
         )
 
         order_result = self._trading.place_market_order(
