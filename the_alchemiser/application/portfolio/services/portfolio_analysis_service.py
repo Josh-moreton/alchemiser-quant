@@ -291,15 +291,9 @@ class PortfolioAnalysisService:
 
     def _get_portfolio_value(self) -> Decimal:
         """Get total portfolio value from trading manager."""
-        raw = self.trading_manager.get_portfolio_value()
-        if isinstance(raw, dict) and "value" in raw:
-            raw_value = raw.get("value", 0)
-        else:
-            raw_value = raw
-        try:
-            return Decimal(str(raw_value))
-        except Exception:
-            return Decimal("0")
+        portfolio_dto = self.trading_manager.get_portfolio_value()
+        # PortfolioValueDTO has a 'value' field that contains the Decimal
+        return portfolio_dto.value
 
     def _get_account_information(self) -> dict[str, Any]:
         """Get account information from trading manager."""

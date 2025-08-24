@@ -281,8 +281,14 @@ class TradingExecutor:
                 fresh_positions = trader.get_positions_dict()
                 # Safely construct an updated copy for email rendering
                 try:
+                    # Handle DTO case for final_portfolio_state
+                    state_dict: dict[str, Any] = {}
+                    if result.final_portfolio_state and hasattr(result.final_portfolio_state, 'model_dump'):
+                        # Convert DTO to dict
+                        state_dict = result.final_portfolio_state.model_dump()
+
                     updated_state = {
-                        **(result.final_portfolio_state or {}),
+                        **state_dict,
                         "current_positions": fresh_positions,
                     }
                     email_result: MultiStrategyExecutionResultDTO | Any = result.model_copy(
