@@ -81,7 +81,9 @@ class PortfolioManagementFacade:
             needs_rebalance=dto.needs_rebalance,
         )
 
-    def _convert_dto_plans_to_domain(self, dto_plans: dict[str, "RebalancePlanDTO"]) -> dict[str, RebalancePlan]:
+    def _convert_dto_plans_to_domain(
+        self, dto_plans: dict[str, "RebalancePlanDTO"]
+    ) -> dict[str, RebalancePlan]:
         """Convert dict of RebalancePlanDTO to dict of domain RebalancePlan objects."""
         return {symbol: self._dto_to_domain_plan(plan) for symbol, plan in dto_plans.items()}
 
@@ -118,7 +120,9 @@ class PortfolioManagementFacade:
         """Get comprehensive rebalancing summary."""
         return self.rebalancing_service.get_rebalancing_summary(target_weights)
 
-    def estimate_rebalancing_impact(self, target_weights: dict[str, Decimal]) -> RebalancingImpactDTO:
+    def estimate_rebalancing_impact(
+        self, target_weights: dict[str, Decimal]
+    ) -> RebalancingImpactDTO:
         """Estimate the impact of rebalancing."""
         return self.rebalancing_service.estimate_rebalancing_impact(target_weights)
 
@@ -224,8 +228,12 @@ class PortfolioManagementFacade:
             overview.update(
                 {
                     "drift_analysis": self.analyze_portfolio_drift(target_weights),
-                    "rebalancing_summary": self.get_rebalancing_summary(target_weights).model_dump(),
-                    "rebalancing_impact": self.estimate_rebalancing_impact(target_weights).model_dump(),
+                    "rebalancing_summary": self.get_rebalancing_summary(
+                        target_weights
+                    ).model_dump(),
+                    "rebalancing_impact": self.estimate_rebalancing_impact(
+                        target_weights
+                    ).model_dump(),
                     "strategy_comparison": self.compare_strategy_allocations(target_weights),
                 }
             )

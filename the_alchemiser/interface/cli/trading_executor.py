@@ -283,7 +283,9 @@ class TradingExecutor:
                 try:
                     # Handle DTO case for final_portfolio_state
                     state_dict: dict[str, Any] = {}
-                    if result.final_portfolio_state and hasattr(result.final_portfolio_state, 'model_dump'):
+                    if result.final_portfolio_state and hasattr(
+                        result.final_portfolio_state, "model_dump"
+                    ):
                         # Convert DTO to dict
                         state_dict = result.final_portfolio_state.model_dump()
 
