@@ -60,8 +60,8 @@ def alpaca_order_to_dto(order: Any) -> AlpacaOrderDTO:
         try:
             return Decimal(str(value))
         except (ValueError, TypeError) as e:
-            logger.warning(f"Failed to convert {value} to Decimal: {e}")
-            return None
+            logger.error(f"Failed to convert {value} to Decimal: {e}")
+            raise
 
     # Extract timestamps with proper datetime handling
     def to_datetime(value: Any) -> datetime | None:
