@@ -540,10 +540,14 @@ class TradingServiceManager:
             enriched = []
             for position in raw_positions:
                 summary = alpaca_position_to_summary(position)
-                enriched.append({
-                    "raw": position,
-                    "summary": summary.model_dump() if hasattr(summary, 'model_dump') else summary
-                })
+                enriched.append(
+                    {
+                        "raw": position,
+                        "summary": (
+                            summary.model_dump() if hasattr(summary, "model_dump") else summary
+                        ),
+                    }
+                )
             return list_to_enriched_positions_dto(enriched)
         except Exception as e:
             return EnrichedPositionsDTO(success=False, positions=[], error=str(e))

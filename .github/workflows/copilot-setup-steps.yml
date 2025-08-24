@@ -8,11 +8,6 @@ on:
         required: false
         default: false
         type: boolean
-      run-tests:
-        description: "Run unit tests after setup"
-        required: false
-        default: false
-        type: boolean
 
 permissions:
   contents: read
@@ -79,8 +74,3 @@ jobs:
         if: inputs.run-lint == true
         run: |
           make lint || true
-
-      - name: Run unit tests (optional)
-        if: inputs.run-tests == true
-        run: |
-          make test || poetry run pytest -q

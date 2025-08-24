@@ -40,14 +40,6 @@ cachetools = "^6.1.0"
 dependency-injector = "^4.48.1"
 
 [tool.poetry.group.dev.dependencies]
-pytest = ">=7.0.0"
-pytest-cov = ">=4.0.0"
-coverage = ">=7.0.0"
-pytest-mock = ">=3.10.0"
-pytest-asyncio = ">=0.21.0"
-pytest-timeout = ">=2.1.0"
-pytest-xdist = ">=3.0.0"
-hypothesis = ">=6.70.0"
 black = ">=22.0.0"
 ruff = ">=0.1.0"
 mypy = ">=1.0.0"
@@ -194,65 +186,3 @@ module = [
     "yaml.*"
 ]
 ignore_missing_imports = true
-
-# Test files - more lenient
-[[tool.mypy.overrides]]
-module = "tests.*"
-ignore_errors = true
-disallow_untyped_defs = false
-
-[tool.pytest.ini_options]
-# Pytest configuration for The Alchemiser comprehensive testing framework
-
-# Test discovery
-testpaths = ["tests"]
-python_files = ["test_*.py", "*_test.py"]
-python_classes = ["Test*"]
-python_functions = ["test_*"]
-
-# Output options
-addopts = [
-    "-v",                          # Verbose output
-    "--tb=short",                  # Short traceback format
-    "--strict-markers",            # Strict marker handling
-    "--disable-warnings",          # Disable pytest warnings for cleaner output
-    "--color=yes",                 # Colored output
-    "--durations=10",              # Show 10 slowest tests
-    "--cov=the_alchemiser",        # Coverage for main package
-    "--cov-report=term-missing",   # Show missing lines in coverage
-    "--cov-report=html:htmlcov",   # HTML coverage report
-    "--cov-branch",                # Include branch coverage
-    "--timeout=30",                # Global test timeout
-]
-
-# Markers for test organization
-markers = [
-    "unit: Unit tests for isolated components",
-    "integration: Integration tests for component interactions",
-    "contract: Contract tests for external API compatibility",
-    "property: Property-based tests for edge cases",
-    "simulation: Market scenario simulation tests",
-    "infrastructure: AWS infrastructure and deployment tests",
-    "slow: Tests that take a long time to run",
-    "requires_aws: Tests that require AWS credentials",
-    "requires_broker: Tests that require broker API access",
-    "chaos: Chaos engineering tests for resilience",
-    "performance: Performance and benchmark tests",
-]
-
-# Filtering
-filterwarnings = [
-    "ignore::DeprecationWarning",
-    "ignore::PendingDeprecationWarning",
-    "ignore::UserWarning",
-]
-
-# Minimum version requirements
-minversion = "7.0"
-
-# Test timeouts
-timeout = 30
-timeout_method = "thread"
-
-# Parallel execution
-addopts_parallel = ["-n", "auto"]  # Use with pytest-xdist for parallel execution

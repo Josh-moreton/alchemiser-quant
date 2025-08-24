@@ -383,7 +383,9 @@ class StrategyPnLDTO(BaseModel):
 
             # Validate quantity is non-negative
             if quantity < 0:
-                raise ValueError(f"Position quantity must be non-negative, got {quantity} for {normalized_symbol}")
+                raise ValueError(
+                    f"Position quantity must be non-negative, got {quantity} for {normalized_symbol}"
+                )
 
             validated_positions[normalized_symbol] = quantity
 
@@ -394,7 +396,9 @@ class StrategyPnLDTO(BaseModel):
         """Validate P&L calculation consistency."""
         # Total P&L should equal realized + unrealized
         expected_total = self.realized_pnl + self.unrealized_pnl
-        if abs(self.total_pnl - expected_total) > Decimal("0.01"):  # Allow small rounding differences
+        if abs(self.total_pnl - expected_total) > Decimal(
+            "0.01"
+        ):  # Allow small rounding differences
             raise ValueError(
                 f"Total P&L {self.total_pnl} inconsistent with realized {self.realized_pnl} + unrealized {self.unrealized_pnl}"
             )

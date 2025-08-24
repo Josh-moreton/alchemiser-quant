@@ -165,7 +165,7 @@ class ClosePositionResultDTO(ResultDTO):
 class PortfolioValueDTO(BaseModel):
     """
     DTO for portfolio value information.
-    
+
     Provides both raw numeric value and typed Money object for portfolio valuation.
     """
 

@@ -72,6 +72,7 @@ class StrategyMarketDataService:
 
             # Convert DataFrame to BarModel list
             from the_alchemiser.application.mapping.market_data_mapping import dataframe_to_bars
+
             return dataframe_to_bars(df, symbol)
 
         except Exception as e:
@@ -95,10 +96,11 @@ class StrategyMarketDataService:
             bid, ask = self._client.get_latest_quote(symbol.as_str())
 
             from decimal import Decimal
+
             return QuoteModel(
                 ts=None,  # MarketDataClient doesn't provide timestamp
                 bid=Decimal(str(bid)),
-                ask=Decimal(str(ask))
+                ask=Decimal(str(ask)),
             )
 
         except Exception as e:
@@ -162,7 +164,9 @@ class StrategyMarketDataService:
             logger.error(f"Failed to get current price for {symbol}: {e}")
             return None
 
-    def get_latest_quote_tuple(self, symbol: str, **kwargs: Any) -> tuple[float | None, float | None]:
+    def get_latest_quote_tuple(
+        self, symbol: str, **kwargs: Any
+    ) -> tuple[float | None, float | None]:
         """Get latest quote as tuple (adapter method).
 
         Args:

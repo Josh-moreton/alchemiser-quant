@@ -49,6 +49,7 @@ from the_alchemiser.interfaces.schemas.execution import ExecutionResultDTO
 from the_alchemiser.services.account.account_service import (
     AccountService as TypedAccountService,
 )
+from the_alchemiser.services.errors.context import create_error_context
 from the_alchemiser.services.errors.exceptions import (
     ConfigurationError,
     DataProviderError,
@@ -56,7 +57,6 @@ from the_alchemiser.services.errors.exceptions import (
     TradingClientError,
 )
 from the_alchemiser.services.errors.handler import TradingSystemErrorHandler
-from the_alchemiser.services.errors.context import create_error_context
 from the_alchemiser.services.market_data.market_data_service import MarketDataService
 from the_alchemiser.services.repository.alpaca_manager import AlpacaManager
 
@@ -147,7 +147,7 @@ class StrategyManagerAdapter:
             from typing import cast
 
             return cast(dict[str, Any], self._typed.get_strategy_performance_summary())  # type: ignore[attr-defined]
-        except AttributeError as e:
+        except AttributeError:
             # Strategy manager doesn't have performance summary method - return default structure
             return {
                 st.name: {"pnl": 0.0, "trades": 0} for st in self._typed.strategy_allocations.keys()
@@ -157,16 +157,12 @@ class StrategyManagerAdapter:
             context = create_error_context(
                 operation="get_strategy_performance_summary",
                 component="StrategyManagerAdapter.get_strategy_performance_summary",
-                function_name="get_strategy_performance_summary"
+                function_name="get_strategy_performance_summary",
             )
-            error_handler.handle_error_with_context(
-                error=e,
-                context=context,
-                should_continue=False
-            )
+            error_handler.handle_error_with_context(error=e, context=context, should_continue=False)
             raise StrategyExecutionError(
                 f"Failed to retrieve strategy performance summary: {e}",
-                strategy_name="TypedStrategyManager"
+                strategy_name="TypedStrategyManager",
             ) from e
 
 
@@ -395,13 +391,11 @@ class TradingEngine:
                 operation="initialize_data_provider",
                 component="TradingEngine._init_with_service_manager",
                 function_name="_init_with_service_manager",
-                additional_data={"trading_service_manager_type": type(trading_service_manager).__name__}
+                additional_data={
+                    "trading_service_manager_type": type(trading_service_manager).__name__
+                },
             )
-            error_handler.handle_error_with_context(
-                error=e,
-                context=context,
-                should_continue=False
-            )
+            error_handler.handle_error_with_context(error=e, context=context, should_continue=False)
             raise ConfigurationError(
                 f"TradingServiceManager missing AlpacaManager for market data: {e}"
             ) from e
@@ -414,13 +408,11 @@ class TradingEngine:
                 operation="initialize_trading_client",
                 component="TradingEngine._init_with_service_manager",
                 function_name="_init_with_service_manager",
-                additional_data={"trading_service_manager_type": type(trading_service_manager).__name__}
+                additional_data={
+                    "trading_service_manager_type": type(trading_service_manager).__name__
+                },
             )
-            error_handler.handle_error_with_context(
-                error=e,
-                context=context,
-                should_continue=False
-            )
+            error_handler.handle_error_with_context(error=e, context=context, should_continue=False)
             raise ConfigurationError(f"TradingServiceManager missing trading client: {e}") from e
         self.paper_trading = trading_service_manager.alpaca_manager.is_paper_trading
         # Provide typed market data port in this mode
@@ -432,13 +424,11 @@ class TradingEngine:
                 operation="initialize_market_data_port",
                 component="TradingEngine._init_with_service_manager",
                 function_name="_init_with_service_manager",
-                additional_data={"trading_service_manager_type": type(trading_service_manager).__name__}
+                additional_data={
+                    "trading_service_manager_type": type(trading_service_manager).__name__
+                },
             )
-            error_handler.handle_error_with_context(
-                error=e,
-                context=context,
-                should_continue=False
-            )
+            error_handler.handle_error_with_context(error=e, context=context, should_continue=False)
             raise ConfigurationError(f"Failed to initialize market data port: {e}") from e
         self.ignore_market_hours = ignore_market_hours
 
@@ -1300,12 +1290,14 @@ class TradingEngine:
                 orders_executed=[],
                 account_info_before=_create_default_account_info("pre_validation_error"),
                 account_info_after=_create_default_account_info("pre_validation_error"),
-                execution_summary=safe_dict_to_execution_summary_dto({
-                    "error": f"Pre-execution validation failed: {e}",
-                    "mode": "error",
-                    "account_info_before": _create_default_account_info("pre_validation_error"),
-                    "account_info_after": _create_default_account_info("pre_validation_error"),
-                }),
+                execution_summary=safe_dict_to_execution_summary_dto(
+                    {
+                        "error": f"Pre-execution validation failed: {e}",
+                        "mode": "error",
+                        "account_info_before": _create_default_account_info("pre_validation_error"),
+                        "account_info_after": _create_default_account_info("pre_validation_error"),
+                    }
+                ),
                 final_portfolio_state=safe_dict_to_portfolio_state_dto({}),
             )
 
@@ -1357,12 +1349,14 @@ class TradingEngine:
                 orders_executed=[],
                 account_info_before=_create_default_account_info("execution_error"),
                 account_info_after=_create_default_account_info("execution_error"),
-                execution_summary=safe_dict_to_execution_summary_dto({
-                    "error": f"Execution failed: {e}",
-                    "mode": "error",
-                    "account_info_before": _create_default_account_info("execution_error"),
-                    "account_info_after": _create_default_account_info("execution_error"),
-                }),
+                execution_summary=safe_dict_to_execution_summary_dto(
+                    {
+                        "error": f"Execution failed: {e}",
+                        "mode": "error",
+                        "account_info_before": _create_default_account_info("execution_error"),
+                        "account_info_after": _create_default_account_info("execution_error"),
+                    }
+                ),
                 final_portfolio_state=safe_dict_to_portfolio_state_dto({}),
             )
 
@@ -1391,12 +1385,10 @@ class TradingEngine:
                 operation="archive_daily_strategy_pnl",
                 component="TradingEngine._archive_daily_strategy_pnl",
                 function_name="_archive_daily_strategy_pnl",
-                additional_data={"paper_trading": self.paper_trading}
+                additional_data={"paper_trading": self.paper_trading},
             )
             error_handler.handle_error_with_context(
-                error=e,
-                context=context,
-                should_continue=True  # Non-critical archival failure
+                error=e, context=context, should_continue=True  # Non-critical archival failure
             )
             logging.error(f"Failed to archive daily strategy P&L: {e}")
             # This is not critical to trading execution, so we don't re-raise
@@ -1416,18 +1408,20 @@ class TradingEngine:
                 "performance_summary": self.strategy_manager.get_strategy_performance_summary(),
             }
             return report
-        except (StrategyExecutionError, DataProviderError, AttributeError, ValueError, RuntimeError) as e:
+        except (
+            StrategyExecutionError,
+            DataProviderError,
+            AttributeError,
+            ValueError,
+            RuntimeError,
+        ) as e:
             error_handler = TradingSystemErrorHandler()
             context = create_error_context(
                 operation="generate_multi_strategy_performance_report",
                 component="TradingEngine.get_multi_strategy_performance_report",
-                function_name="get_multi_strategy_performance_report"
+                function_name="get_multi_strategy_performance_report",
             )
-            error_handler.handle_error_with_context(
-                error=e,
-                context=context,
-                should_continue=False
-            )
+            error_handler.handle_error_with_context(error=e, context=context, should_continue=False)
             raise StrategyExecutionError(f"Failed to generate performance report: {e}") from e
 
     def _build_portfolio_state_data(
@@ -1537,13 +1531,11 @@ class TradingEngine:
                 function_name="_trigger_post_trade_validation",
                 additional_data={
                     "strategy_signals": {str(k): v for k, v in strategy_signals.items()},
-                    "orders_executed_count": len(orders_executed)
-                }
+                    "orders_executed_count": len(orders_executed),
+                },
             )
             error_handler.handle_error_with_context(
-                error=e,
-                context=context,
-                should_continue=True  # Non-critical validation failure
+                error=e, context=context, should_continue=True  # Non-critical validation failure
             )
             logging.error(f"❌ Post-trade validation failed: {e}")
             # This is not critical to trading execution, so we don't re-raise

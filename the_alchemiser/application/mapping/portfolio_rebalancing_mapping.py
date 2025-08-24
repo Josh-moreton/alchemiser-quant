@@ -27,7 +27,7 @@ from the_alchemiser.interfaces.schemas.portfolio_rebalancing import (
 
 
 def rebalance_plans_dict_to_collection_dto(
-    plans: dict[str, RebalancePlan]
+    plans: dict[str, RebalancePlan],
 ) -> RebalancePlanCollectionDTO:
     """Convert dict of RebalancePlan domain objects to RebalancePlanCollectionDTO."""
     plan_dtos = {}
@@ -132,7 +132,7 @@ def rebalance_execution_result_dict_to_dto(data: dict[str, Any]) -> RebalanceExe
 def safe_rebalancing_summary_dict_to_dto(data: dict[str, Any]) -> RebalancingSummaryDTO:
     """
     Safely convert rebalancing summary dict to DTO with fallbacks.
-    
+
     Provides backward compatibility for incomplete dict structures.
     """
     try:
@@ -157,7 +157,7 @@ def safe_rebalancing_summary_dict_to_dto(data: dict[str, Any]) -> RebalancingSum
 def safe_rebalancing_impact_dict_to_dto(data: dict[str, Any]) -> RebalancingImpactDTO:
     """
     Safely convert rebalancing impact dict to DTO with fallbacks.
-    
+
     Provides backward compatibility for incomplete dict structures.
     """
     try:

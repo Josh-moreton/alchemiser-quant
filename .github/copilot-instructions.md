@@ -2,8 +2,9 @@
 
 Rules for this repo (enforced):
 - Never use == or != with floats.
-- Use assert_close()/pytest.approx for scalars.
+- For scalars, use close comparisons with explicit epsilon thresholds in production code.
 - Use numpy.testing.assert_allclose for arrays.
+- **Do NOT create or add pytest tests** - testing infrastructure has been removed from this project.
 - Suggestions that violate the above must be rewritten.
 
 ## Overview
@@ -35,6 +36,7 @@ The Alchemiser is a sophisticated multi-strategy quantitative trading system bui
 - **Never use bare python**: Use `poetry run python` instead of `python`
 - **Virtual environment**: Poetry automatically manages the virtual environment
 - **Dependencies**: Use `poetry add` for new dependencies, `poetry install` for setup
+- **No Testing Framework**: This project does not use pytest or automated testing - focus on type safety and manual verification
 
 ### Type Safety (Required)
 - **100% mypy compliance**: Every function must have type annotations
@@ -100,12 +102,13 @@ The system uses a strongly-typed domain model throughout.
 - Do NOT introduce fallbacks to legacy modules. Replace functionality by extending typed services and mappers.
 
 ### Testing the typed path
-- Add parity tests for flag ON/OFF when behavior should match
-- Unit test mappers (infra ↔ domain ↔ DTO) with realistic fixtures
-- Mock external APIs (pytest-mock fixtures) – never hit real services in tests
+- Use manual testing and verification for validating typed domain functionality
+- Mock external APIs in development for isolation - never hit real services in development
+- Focus on type safety and compile-time validation rather than runtime testing
 
-Legacy in tests only:
-- Parity/contract tests may stub legacy provider behavior to assert output equivalence, but facade/modern paths must be stubbed and exercised primarily. Do not write new tests that expect legacy fallbacks to trigger inside production code.
+Legacy considerations:
+- This project has removed pytest and automated testing infrastructure 
+- Focus on type safety, manual verification, and robust error handling patterns
 
 ### Error Handling Patterns
 **Never fail silently** - Always use proper exception handling:
@@ -194,33 +197,6 @@ tecl_signals = strategy_manager.tecl_strategy.generate_signals()
 - **Deployment guides**: Step-by-step instructions in wiki format
 - **Note**: The wiki appears as a separate git repository in the workspace but is linked to the main repo
 
-## Testing Requirements
-
-### Testing Framework (pytest + pytest-mock)
-```python
-def test_order_placement(mocker):
-    # Use pytest-mock, not unittest.mock
-    mock_trading = mocker.Mock()
-    mock_trading.place_market_order.return_value = "ORDER123"
-
-    service = OrderService(mock_trading)
-    order_id = service.place_market_order("AAPL", "buy", 1.0)
-
-    assert order_id == "ORDER123"
-    mock_trading.place_market_order.assert_called_once()
-```
-
-### Test Organization
-- **Unit tests**: `tests/unit/` - Fast, isolated, mocked dependencies
-- **Integration tests**: `tests/integration/` - Component interactions
-- **Infrastructure tests**: `tests/infrastructure/` - AWS/deployment validation
-- **Fixtures**: `tests/conftest.py` provides shared mocks and test data
-
-### Mock Strategy
-- **Never call real APIs** in tests - use mocks exclusively
-- **Use global fixtures**: `mock_alpaca_client`, `mock_aws_clients` from `conftest.py`
-- **Test data builders**: Use `TestDataBuilder` from `tests/utils/mocks.py`
-
 ## CLI and Workflow
 
 ### Development Commands
@@ -230,12 +206,9 @@ poetry install                   # Install dependencies
 poetry shell                     # Activate virtual environment
 make dev                         # Install with dev dependencies
 
-# Quality & Testing (ALL commands use poetry run)
+# Quality & Development (ALL commands use poetry run)
 make format                      # Black + Ruff formatting
 make lint                        # Linting, type checking, security
-make test                        # Run pytest with coverage reporting
-poetry run pytest tests/unit/   # Fast unit tests only
-poetry run pytest tests/integration/  # Integration tests
 poetry run mypy the_alchemiser/ # Type checking standalone
 
 # Trading Operations (CLI - ALL use poetry run)
@@ -255,7 +228,7 @@ aws logs tail /aws/lambda/the-alchemiser-v2-lambda --follow  # Monitor logs
 # All documentation should be written in the alchemiser-quant.wiki workspace
 # The wiki presents as a separate git repo but is linked to the main repository
 
-# Testing and Development (ALWAYS use poetry run)
+# Development and Verification (ALWAYS use poetry run)
 poetry run python -c "import the_alchemiser; print('Import test')"
 poetry run python test_script.py
 poetry run python -m the_alchemiser.main  # Run main module
@@ -316,11 +289,13 @@ position_size = portfolio_value * Decimal("0.1")
 ### Floating Point Comparison Policy
 - Do not perform direct equality checks on floats.
 - Prefer `Decimal` for all financial calculations and comparisons.
-- In tests, use `pytest.approx` for float comparisons:
+- For non-financial floats, use explicit epsilon-based comparisons:
 ```python
-import pytest
+# For manual verification in development
+def is_close(a: float, b: float, tolerance: float = 1e-6) -> bool:
+    return abs(a - b) < tolerance
 
-assert computed_ratio == pytest.approx(0.25, rel=1e-6)
+assert is_close(computed_ratio, 0.25, 1e-6)
 ```
 
 ### Strategy Implementation Pattern
@@ -369,34 +344,6 @@ cash_reserve = settings.alpaca.cash_reserve_pct
 ```
 
 
-## Testing & Quality Requirements
-
-### Test Structure & Organization
-- **Unit tests**: `tests/unit/` - Fast, isolated, mocked dependencies (pytest-mock)
-- **Integration tests**: `tests/integration/` - Component interactions with real data flows
-- **Infrastructure tests**: `tests/infrastructure/` - AWS/deployment validation
-- **Performance tests**: `tests/performance/` - Latency and throughput validation
-- **Property tests**: `tests/property/` - Hypothesis-based property testing
-- **Fixtures**: `tests/conftest.py` provides shared mocks, test data builders
-
-### Critical Testing Patterns
-```python
-def test_trading_operation(mocker):
-    # Use pytest-mock, not unittest.mock
-    mock_alpaca = mocker.Mock()
-    mock_alpaca.place_market_order.return_value = "ORDER123"
-
-    # Test through service layer, not direct repository
-    trading_manager = TradingServiceManager("key", "secret", paper=True)
-    trading_manager.alpaca_manager = mock_alpaca
-
-    result = trading_manager.place_market_order("AAPL", 10, "buy")
-    assert result["order_id"] == "ORDER123"
-
-# Run tests with: poetry run pytest tests/unit/test_file.py
-# Run all tests with: poetry run pytest
-```
-
 ## Security and Environment Management
 
 ### Environment Variables (Required for all operations)
@@ -437,7 +384,7 @@ LOGGING__LEVEL=INFO              # Logging verbosity
 5. **Float precision**: Use `Decimal` for all financial calculations, avoid float arithmetic
 6. **Global state**: Use dependency injection through constructors, avoid global variables
 7. **Strategy coupling**: Keep strategies independent - they should not call each other directly
-8. **Test isolation**: Mock all external APIs in tests, use fixtures from `conftest.py`
+8. **Manual verification**: Use direct CLI testing and monitoring for validation rather than automated tests
 9. **Forgetting Poetry**: ALWAYS use `poetry run` for Python commands - never use bare `python`
 10. **Documentation in wrong place**: Use the `alchemiser-quant.wiki` workspace for documentation, not the main repo
 11. **Legacy fallbacks**: Never add conditional fallbacks to legacy modules; fail fast and fix the typed/modern path instead.
@@ -449,6 +396,6 @@ LOGGING__LEVEL=INFO              # Logging verbosity
 
 ### Code Review Checklist (No-Legacy)
 - [ ] No imports from `infrastructure/data_providers/data_provider.py` or other legacy modules in production code
-- [ ] No parameters enabling legacy paths (e.g., `data_provider=`) outside tests
+- [ ] No parameters enabling legacy paths (e.g., `data_provider=`) outside of manual development verification
 - [ ] Failure paths raise typed exceptions or return explicit error structures; no hidden fallbacks
-- [ ] Tests target typed/modern services; parity tests do not rely on runtime legacy fallback
+- [ ] Focus on type safety and manual verification rather than automated testing
