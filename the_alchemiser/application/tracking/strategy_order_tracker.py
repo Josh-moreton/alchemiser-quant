@@ -442,11 +442,10 @@ class StrategyOrderTracker:
     def add_order(self, order_dto: StrategyOrderDTO) -> None:
         """Add strategy order using DTO."""
         try:
-            # Validate DTO (Pydantic will validate on creation)
-            validated_order = order_dto.model_validate(order_dto.model_dump())
+            # DTO is already validated on creation; no need to re-validate
 
             # Convert DTO to internal dataclass
-            order_data = strategy_order_dto_to_dataclass_dict(validated_order)
+            order_data = strategy_order_dto_to_dataclass_dict(order_dto)
             order = StrategyOrder(**order_data)
 
             # Process the order using existing logic
