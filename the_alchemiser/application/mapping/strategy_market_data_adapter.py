@@ -9,7 +9,7 @@ access patterns.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any  # noqa: F401 (retained for forward compatibility comment references)
 
 import pandas as pd
 
@@ -32,7 +32,7 @@ class StrategyMarketDataAdapter:
         symbol: str,
         timeframe: str = "1day",
         period: str = "1y",
-        **kwargs: Any,
+        # kwargs retained for forward compatibility; intentionally unused
     ) -> pd.DataFrame:
         """Convert canonical port bars to DataFrame for legacy strategy compatibility."""
         symbol_obj = Symbol(symbol)
@@ -44,40 +44,40 @@ class StrategyMarketDataAdapter:
 
         data = []
         for bar in bars:
-            data.append({
-                'open': float(bar.open),
-                'high': float(bar.high),
-                'low': float(bar.low),
-                'close': float(bar.close),
-                'volume': float(bar.volume),
-                'timestamp': bar.ts
-            })
+            data.append(
+                {
+                    "open": float(bar.open),
+                    "high": float(bar.high),
+                    "low": float(bar.low),
+                    "close": float(bar.close),
+                    "volume": float(bar.volume),
+                    "timestamp": bar.ts,
+                }
+            )
 
         df = pd.DataFrame(data)
         if not df.empty:
-            df.set_index('timestamp', inplace=True)
+            df.set_index("timestamp", inplace=True)
 
         return df
 
-    def get_current_price(self, symbol: str, **kwargs: Any) -> float | None:
+    def get_current_price(self, symbol: str) -> float | None:
         """Get current price using canonical port's mid_price method."""
         symbol_obj = Symbol(symbol)
         return self._canonical_port.get_mid_price(symbol_obj)
 
-    def get_latest_quote(self, symbol: str, **kwargs: Any) -> tuple[float, float] | None:
-        """Get latest quote using canonical port and extract bid/ask."""
+    def get_latest_quote(self, symbol: str) -> tuple[float, float] | None:
+        """Get latest quote returning (bid, ask) or None.
+
+        Matches DataProvider protocol: either both floats (bid, ask) or None if
+        quote unavailable or incomplete.
+        """
         symbol_obj = Symbol(symbol)
         quote = self._canonical_port.get_latest_quote(symbol_obj)
-
         if quote is None:
             return None
-
-        # QuoteModel has bid and ask attributes - return None if either is missing
-        bid = float(quote.bid) if quote.bid is not None else None
-        ask = float(quote.ask) if quote.ask is not None else None
-        
-        # Return None if either bid or ask is missing to match protocol
-        if bid is None or ask is None:
+        # QuoteModel fields appear non-optional by type; retain defensive try/except
+        try:
+            return (float(quote.bid), float(quote.ask))
+        except (AttributeError, TypeError, ValueError):  # Defensive fallback
             return None
-            
-        return (bid, ask)

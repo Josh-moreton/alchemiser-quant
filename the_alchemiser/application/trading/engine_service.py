@@ -298,28 +298,31 @@ class TradingEngine:
         elif container is not None:
             # Legacy Full DI mode - deprecated
             import warnings
+
             warnings.warn(
                 "Direct container parameter is deprecated. "
                 "Use bootstrap_from_container() and pass result as bootstrap_context.",
                 DeprecationWarning,
                 stacklevel=2,
             )
-            context = bootstrap_from_container(container, ignore_market_hours)
+            context = bootstrap_from_container(container)
             self._init_from_context(context, strategy_allocations, ignore_market_hours)
         elif trading_service_manager is not None:
             # Legacy Partial DI mode - deprecated
             import warnings
+
             warnings.warn(
                 "Direct trading_service_manager parameter is deprecated. "
                 "Use bootstrap_from_service_manager() and pass result as bootstrap_context.",
                 DeprecationWarning,
                 stacklevel=2,
             )
-            context = bootstrap_from_service_manager(trading_service_manager, ignore_market_hours)
+            context = bootstrap_from_service_manager(trading_service_manager)
             self._init_from_context(context, strategy_allocations, ignore_market_hours)
         else:
             # Legacy Traditional mode - deprecated
             import warnings
+
             warnings.warn(
                 "Direct TradingEngine() instantiation is deprecated. "
                 "Use bootstrap_traditional() and pass result as bootstrap_context.",
@@ -372,9 +375,11 @@ class TradingEngine:
         try:
             # Build an AlpacaClient once using the same authenticated trading client
             alpaca_manager: AlpacaManager
-            if (hasattr(self, "_trading_service_manager")
+            if (
+                hasattr(self, "_trading_service_manager")
                 and self._trading_service_manager is not None
-                and hasattr(self._trading_service_manager, "alpaca_manager")):
+                and hasattr(self._trading_service_manager, "alpaca_manager")
+            ):
                 alpaca_manager = self._trading_service_manager.alpaca_manager
             elif hasattr(self, "_alpaca_manager"):
                 alpaca_manager = self._alpaca_manager
@@ -1761,6 +1766,7 @@ class TradingEngine:
             This method is deprecated. Use create_from_container() instead.
         """
         import warnings
+
         warnings.warn(
             "create_with_di() is deprecated. Use create_from_container() instead.",
             DeprecationWarning,
@@ -1789,7 +1795,7 @@ class TradingEngine:
         Returns:
             TradingEngine instance with all dependencies injected
         """
-        context = bootstrap_from_container(container, ignore_market_hours)
+        context = bootstrap_from_container(container)
         return cls(
             bootstrap_context=context,
             strategy_allocations=strategy_allocations,
@@ -1813,7 +1819,7 @@ class TradingEngine:
         Returns:
             TradingEngine instance with all dependencies injected
         """
-        context = bootstrap_from_service_manager(trading_service_manager, ignore_market_hours)
+        context = bootstrap_from_service_manager(trading_service_manager)
         return cls(
             bootstrap_context=context,
             strategy_allocations=strategy_allocations,

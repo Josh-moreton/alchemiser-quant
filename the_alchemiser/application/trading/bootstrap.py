@@ -33,6 +33,7 @@ class TradingBootstrapContext(TypedDict):
     eliminating the need for complex initialization branching logic
     in the engine constructor.
     """
+
     account_service: TypedAccountService
     market_data_port: MarketDataService
     data_provider: StrategyMarketDataAdapter  # DataFrame-compatible adapter
@@ -45,13 +46,11 @@ class TradingBootstrapContext(TypedDict):
 
 def bootstrap_from_container(
     container: Any,
-    ignore_market_hours: bool = False,
 ) -> TradingBootstrapContext:
     """Bootstrap TradingEngine dependencies from full DI container.
 
     Args:
         container: DI container providing all services
-        ignore_market_hours: Whether to ignore market hours
 
     Returns:
         TradingBootstrapContext with all dependencies
@@ -105,13 +104,11 @@ def bootstrap_from_container(
 
 def bootstrap_from_service_manager(
     trading_service_manager: TradingServiceManager,
-    ignore_market_hours: bool = False,
 ) -> TradingBootstrapContext:
     """Bootstrap TradingEngine dependencies from TradingServiceManager.
 
     Args:
         trading_service_manager: Injected TradingServiceManager
-        ignore_market_hours: Whether to ignore market hours
 
     Returns:
         TradingBootstrapContext with all dependencies
@@ -157,7 +154,7 @@ def bootstrap_from_service_manager(
             config_dict=config_dict,
         )
 
-    except (AttributeError, TypeError) as e:
+    except (AttributeError, TypeError, ConfigurationError) as e:
         context = create_error_context(
             operation="bootstrap_from_service_manager",
             component="TradingBootstrap",
@@ -167,9 +164,7 @@ def bootstrap_from_service_manager(
             },
         )
         error_handler.handle_error_with_context(error=e, context=context, should_continue=False)
-        raise ConfigurationError(
-            f"TradingServiceManager bootstrap failed: {e}"
-        ) from e
+        raise ConfigurationError(f"TradingServiceManager bootstrap failed: {e}") from e
 
 
 def bootstrap_traditional(
@@ -196,6 +191,7 @@ def bootstrap_traditional(
     # Load configuration
     try:
         from the_alchemiser.infrastructure.config import load_settings
+
         resolved_config = config or load_settings()
     except Exception as e:
         logger.error(f"Failed to load configuration: {e}")
@@ -209,9 +205,7 @@ def bootstrap_traditional(
         api_key, secret_key = secrets_manager.get_alpaca_keys(paper_trading=paper_trading)
 
         if not api_key or not secret_key:
-            raise ConfigurationError(
-                "Missing Alpaca credentials for traditional initialization"
-            )
+            raise ConfigurationError("Missing Alpaca credentials for traditional initialization")
 
     except Exception as e:
         logger.error(f"Failed to load credentials: {e}")
