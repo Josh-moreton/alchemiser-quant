@@ -68,17 +68,30 @@ Note: Prefer compiled models (default in v2) and from_attributes for easy mappin
 
 
 ## 5. Ports (Protocols) and adapters
-- MarketDataPort:
-  - get_historical_bars(symbol: str, period: str, interval: str) -> list[Bar]
-  - get_latest_quote(symbol: str) -> Quote | None
-  - get_current_price(symbol: str) -> float | None
-- ExecutionPort:
+- **MarketDataPort** (Canonical):
+  - get_bars(symbol: Symbol, period: str, timeframe: str) -> list[BarModel]
+  - get_latest_quote(symbol: Symbol) -> QuoteModel | None
+  - get_mid_price(symbol: Symbol) -> float | None
+  - **Location**: `the_alchemiser.domain.market_data.protocols.market_data_port`
+- **ExecutionPort**:
   - place_order(req: OrderRequest) -> OrderAck
   - get_order(id: OrderId) -> OrderAck | None
-- PortfolioRepository (if persistence introduced later):
+- **PortfolioRepository** (if persistence introduced later):
   - load_account(account_id) -> Account
   - save_portfolio(portfolio) -> None
 - Adapters implement ports using provider SDKs; edge validation occurs using Pydantic models at adapter boundary.
+
+### Application-Layer Ports (Aggregated Interface)
+**Location**: `the_alchemiser.application.trading.ports`
+
+- **MarketDataPort**: Re-exported canonical port from domain/market_data
+- **AccountReadPort**: Read-only account information (cash, positions, equity, buying power)
+- **OrderExecutionPort**: Batch order submission and cancellation by symbols
+- **StrategyAdapterPort**: Unified strategy signal generation from all active strategies
+- **RebalancingOrchestratorPort**: High-level SELL → settle → BUY orchestration
+- **ReportingPort**: Optional rendering/notification abstraction
+
+**Compatibility Adapter**: `StrategyMarketDataAdapter` in `application.mapping` bridges DataFrame-expecting strategies to canonical domain MarketDataPort without modifying the canonical interface.
 
 
 ## 6. Migration strategy — synchronized with existing Phases 5–15
@@ -215,7 +228,7 @@ E. Remove temporary shims and TypedDicts (endgame)
 
 
 ## 12. Concrete next steps (actionable)
-1) Create domain dataclasses: StrategySignal, Order, Position (minimal fields) and integrate into StrategyManager return types behind a feature flag (no behavior change) 
+1) Create domain dataclasses: StrategySignal, Order, Position (minimal fields) and integrate into StrategyManager return types behind a feature flag (no behavior change)
 2) Define Pydantic edge models: Quote, Bar; wrap MarketDataClient in an adapter implementing MarketDataPort using these models
 3) Add a mapping module for StrategySignalView and PortfolioSnapshotView for CLI rendering; update one CLI command to use it and snapshot‑test
 4) Open tracking issues for each module per this plan and link to phases 5–15

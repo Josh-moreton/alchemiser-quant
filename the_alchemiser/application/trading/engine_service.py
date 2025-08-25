@@ -35,6 +35,8 @@ from the_alchemiser.application.portfolio.services.portfolio_management_facade i
     PortfolioManagementFacade,
 )
 from the_alchemiser.application.trading.alpaca_client import AlpacaClient
+
+# Import application-layer ports for dependency injection
 from the_alchemiser.domain.registry import StrategyType
 from the_alchemiser.domain.strategies.typed_strategy_manager import TypedStrategyManager
 from the_alchemiser.domain.types import (
