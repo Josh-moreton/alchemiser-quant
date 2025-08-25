@@ -139,7 +139,7 @@ def signal(
                         path_candidate = candidate
                         break
 
-            console.print(f"[bold cyan]🔍 Evaluating DSL strategy:[/bold cyan] {path_candidate}")
+            console.print(f"[bold cyan]🔍 Evaluating CLJ strategy:[/bold cyan] {path_candidate}")
 
             if not path_candidate.is_file():
                 console.print(f"[bold red]Strategy file not found:[/bold red] {path_candidate}")
@@ -537,8 +537,10 @@ def status(
             pass  # pragma: no cover
 
         # Create trader using modern bootstrap approach
-        from the_alchemiser.application.trading.bootstrap import bootstrap_from_container
-        
+        from the_alchemiser.application.trading.bootstrap import (
+            bootstrap_from_container,
+        )
+
         bootstrap_context = bootstrap_from_container(container)
         trader = TradingEngine(
             bootstrap_context=bootstrap_context,
