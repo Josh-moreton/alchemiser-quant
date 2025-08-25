@@ -158,7 +158,7 @@ class PreTradeValidator:
                     risk_score=risk_score,
                 )
             
-            notional = Money(quantity.amount * Decimal(str(current_price)), "USD")
+            notional = Money(quantity.value * Decimal(str(current_price)), "USD")
 
         # Buying power validation
         buying_power_errors, bp_risk = self._validate_buying_power(
@@ -243,12 +243,12 @@ class PreTradeValidator:
                     {"quantity": quantity, "notional": notional},
                 )
             )
-        elif quantity is not None and quantity.amount <= 0:
+        elif quantity is not None and quantity.value <= 0:
             errors.append(
                 OrderError.create(
                     OrderErrorCode.INVALID_QUANTITY,
-                    f"Quantity must be positive: {quantity.amount}",
-                    {"quantity": str(quantity.amount)},
+                    f"Quantity must be positive: {quantity.value}",
+                    {"quantity": str(quantity.value)},
                 )
             )
         elif notional is not None and notional.amount <= 0:
