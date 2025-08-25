@@ -7,21 +7,17 @@ strategy execution, reporting, and dashboard integration.
 This is the main orchestrator that coordinates signal generation, execution, and reporting
 across multiple trading strategies with comprehensive position management.
 
-Example (modern bootstrap):
-    Initialize and run multi-strategy trading using the DI container:
+Example:
+    Initialize and run multi-strategy trading:
 
-    >>> from the_alchemiser.application.trading.bootstrap import bootstrap_from_container
-    >>> from the_alchemiser.container.application_container import ApplicationContainer
-    >>> container = ApplicationContainer()
-    >>> ctx = bootstrap_from_container(container)
-    >>> engine = TradingEngine(bootstrap_context=ctx, strategy_allocations={})
+    >>> engine = TradingEngine(paper_trading=True)
     >>> result = engine.execute_multi_strategy()
-    >>> # Rendering handled by CLI layer
+    >>> # Display handled by CLI layer
 
-Deprecated:
-    The old constructor signature (paper_trading=..., config=...) and create_with_di()
-    factory have been deprecated. A temporary wrapper create_with_di() remains for one
-    release and will emit a DeprecationWarning. Migrate to the bootstrap pattern above.
+    DI Example:
+    >>> container = ApplicationContainer.create_for_testing()
+    >>> engine = TradingEngine.create_with_di(container=container)
+    >>> result = engine.execute_multi_strategy()
 """
 
 import logging
@@ -228,7 +224,9 @@ class TradingEngine:
         self._init_common_components(strategy_allocations, context["config_dict"])
 
     def _init_common_components(
-        self, strategy_allocations: dict[StrategyType, float] | None, config_dict: dict[str, Any]
+        self,
+        strategy_allocations: dict[StrategyType, float] | None,
+        config_dict: dict[str, Any],
     ) -> None:
         """Initialize components common to all initialization modes."""
         # Strategy allocations
@@ -378,7 +376,9 @@ class TradingEngine:
                 """Bridge method that converts typed signals to CLI-compatible format for CLI compatibility."""
                 from datetime import UTC, datetime
 
-                from the_alchemiser.application.mapping.strategies import run_all_strategies_mapping
+                from the_alchemiser.application.mapping.strategies import (
+                    run_all_strategies_mapping,
+                )
 
                 # Generate typed signals
                 aggregated = self._typed.generate_all_signals(datetime.now(UTC))
@@ -404,8 +404,12 @@ class TradingEngine:
                         for st in self._typed.strategy_allocations.keys()
                     }
                 except Exception as e:
-                    from the_alchemiser.services.errors.context import create_error_context
-                    from the_alchemiser.services.errors.handler import TradingSystemErrorHandler
+                    from the_alchemiser.services.errors.context import (
+                        create_error_context,
+                    )
+                    from the_alchemiser.services.errors.handler import (
+                        TradingSystemErrorHandler,
+                    )
 
                     error_handler = TradingSystemErrorHandler()
                     context = create_error_context(
@@ -496,7 +500,10 @@ class TradingEngine:
 
     # --- Order and Rebalancing Methods ---
     def wait_for_settlement(
-        self, sell_orders: list[OrderDetails], max_wait_time: int = 60, poll_interval: float = 2.0
+        self,
+        sell_orders: list[OrderDetails],
+        max_wait_time: int = 60,
+        poll_interval: float = 2.0,
     ) -> bool:
         """Wait for sell orders to settle by polling their status.
 
@@ -626,7 +633,12 @@ class TradingEngine:
         # Pre-execution validation
         try:
             self.get_account_info()
-        except (DataProviderError, TradingClientError, ConfigurationError, ValueError) as e:
+        except (
+            DataProviderError,
+            TradingClientError,
+            ConfigurationError,
+            ValueError,
+        ) as e:
             error_handler = TradingSystemErrorHandler()
             context = create_error_context(
                 operation="pre_execution_validation",
@@ -800,7 +812,9 @@ class TradingEngine:
             raise StrategyExecutionError(f"Failed to generate performance report: {e}") from e
 
     def _trigger_post_trade_validation(
-        self, strategy_signals: dict[StrategyType, Any], orders_executed: list[dict[str, Any]]
+        self,
+        strategy_signals: dict[StrategyType, Any],
+        orders_executed: list[dict[str, Any]],
     ) -> None:
         """
         Trigger post-trade technical indicator validation for live trading.
@@ -875,7 +889,16 @@ class TradingEngine:
                 "NLR",
                 "OKLO",
             ]
-            tecl_strategy_symbols = ["XLK", "KMLM", "SPXL", "TECL", "BIL", "BSV", "UVXY", "SQQQ"]
+            tecl_strategy_symbols = [
+                "XLK",
+                "KMLM",
+                "SPXL",
+                "TECL",
+                "BIL",
+                "BSV",
+                "UVXY",
+                "SQQQ",
+            ]
             for symbol in order_symbols:
                 if symbol in nuclear_strategy_symbols and symbol not in nuclear_symbols:
                     nuclear_symbols.append(symbol)
