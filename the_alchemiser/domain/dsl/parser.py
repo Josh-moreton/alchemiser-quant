@@ -82,19 +82,19 @@ class DSLParser:
 
     def parse(self, source: str, enable_interning: bool | None = None) -> ASTNode:
         """Parse source code into an AST.
-        
+
         Args:
             source: S-expression source code
             enable_interning: Whether to apply AST interning for structural sharing
-                           (overrides constructor setting if provided)
-            
+                (overrides constructor setting if provided)
+
         Returns:
             Parsed AST root node (potentially with structural sharing applied)
         """
         # Allow override of instance setting
         if enable_interning is not None:
             self._enable_interning = enable_interning
-            
+
         self._node_count = 0
         try:
             sexpr = self._parse_sexpr(source.strip())
@@ -193,7 +193,7 @@ class DSLParser:
         # Enforce depth limit if configured
         if self._configured_max_depth is not None and depth > self._configured_max_depth:
             raise ParseError(f"Maximum AST depth exceeded: {self._configured_max_depth}")
-            
+
         # Create the node first
         node: ASTNode
         if isinstance(sexpr, int | float):
@@ -215,10 +215,11 @@ class DSLParser:
             node = Symbol("__map__")
         else:
             raise ParseError(f"Unexpected S-expression type: {type(sexpr)}")
-        
+
         # Apply interning if enabled, which may return an existing instance
         if self._enable_interning:
             from the_alchemiser.domain.dsl.interning import intern_node
+
             interned_node = intern_node(node)
             # Only count as a new node if this is actually a new unique structure
             if interned_node is node:  # New node created
@@ -229,7 +230,7 @@ class DSLParser:
             # No interning - count every node
             self._increment_node_count()
             return node
-            
+
     def _increment_node_count(self) -> None:
         """Increment node count and enforce limits."""
         self._node_count += 1

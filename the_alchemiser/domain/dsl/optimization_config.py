@@ -13,42 +13,42 @@ from typing import Any
 @dataclass
 class DSLOptimizationConfig:
     """Configuration for DSL optimization features."""
-    
+
     # AST Interning (Structural Sharing)
     enable_interning: bool = False
-    
+
     # Evaluator Memoisation
     enable_memoisation: bool = False
     memo_cache_maxsize: int = 100_000
-    
+
     # Parallel Evaluation
     enable_parallel: bool = False
     parallel_mode: str = "threads"  # "threads" or "processes"
     parallel_max_workers: int | None = None
-    
+
     @classmethod
     def from_environment(cls) -> "DSLOptimizationConfig":
         """Create configuration from environment variables.
-        
+
         Environment variables:
         - ALCH_DSL_CSE: Enable AST interning/canonical shared expressions
         - ALCH_DSL_MEMO: Enable evaluator memoisation
         - ALCH_DSL_CACHE_MAXSIZE: Maximum cache size for memoisation
         - ALCH_DSL_PARALLEL: Parallel execution mode ("threads", "processes", "off")
         - ALCH_DSL_WORKERS: Maximum number of parallel workers
-        
+
         Returns:
             Configuration instance with environment settings
         """
         return cls(
             enable_interning=_env_bool("ALCH_DSL_CSE", False),
             enable_memoisation=_env_bool("ALCH_DSL_MEMO", False),
-            memo_cache_maxsize=_env_int("ALCH_DSL_CACHE_MAXSIZE", 100_000),
+            memo_cache_maxsize=int(_env_int("ALCH_DSL_CACHE_MAXSIZE", 100_000) or 100_000),
             enable_parallel=_env_parallel_enabled("ALCH_DSL_PARALLEL", "off"),
             parallel_mode=_env_parallel_mode("ALCH_DSL_PARALLEL", "threads"),
             parallel_max_workers=_env_int("ALCH_DSL_WORKERS", None),
         )
-    
+
     def to_dict(self) -> dict[str, Any]:
         """Convert configuration to dictionary for logging/telemetry."""
         return {
@@ -114,7 +114,7 @@ def set_default_config(config: DSLOptimizationConfig) -> None:
 
 def configure_from_environment() -> DSLOptimizationConfig:
     """Configure optimization from environment variables and set as default.
-    
+
     Returns:
         The configured instance (also set as default)
     """
@@ -125,27 +125,29 @@ def configure_from_environment() -> DSLOptimizationConfig:
 
 def get_optimization_stats() -> dict[str, Any]:
     """Get comprehensive optimization statistics.
-    
+
     Combines statistics from interning, memoisation, and parallel execution
     to provide a complete picture of optimization effectiveness.
-    
+
     Returns:
         Dictionary with all optimization metrics
     """
     stats = {"config": get_default_config().to_dict()}
-    
+
     # Add interning stats if available
     try:
         from the_alchemiser.domain.dsl.interning import get_intern_stats
+
         stats["interning"] = get_intern_stats()
     except ImportError:
         pass
-    
+
     # Add memoisation stats if available
     try:
         from the_alchemiser.domain.dsl.evaluator_cache import get_memo_stats
+
         stats["memoisation"] = get_memo_stats()
     except ImportError:
         pass
-    
+
     return stats

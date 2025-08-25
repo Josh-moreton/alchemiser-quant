@@ -15,7 +15,7 @@ from typing import Any
 @dataclass(frozen=True)
 class ASTNode:
     """Base class for all AST nodes."""
-    
+
     # Node ID for caching and interning (set by interning system)
     node_id: str | None = field(default=None, init=False, compare=False)
 
