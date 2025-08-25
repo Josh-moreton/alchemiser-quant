@@ -52,24 +52,42 @@ BUY_ACTIONS: set[str] = {"BUY", "LONG"}  # Support historical LONG alias
 SELL_ACTIONS: set[str] = {"SELL"}  # Extend here if SHORT/EXIT introduced later
 
 
-class StrategySignalDisplayDTO(TypedDict):
+class StrategySignalDisplayDTO(TypedDict, total=False):
     """Display-oriented strategy signal dictionary (fractional allocation).
+
+    Semantics (RESTORED):
+        allocation_weight / allocation_percentage now represent the STRATEGY-LEVEL
+        portfolio weight fraction (0–1) allocated to the strategy, matching legacy
+        CLI behaviour prior to centralisation. This restores parity so that
+        previously displayed values are unchanged.
+
+    Additional Fields (new):
+        intra_strategy_weight: Fraction (0–1) weight of this symbol *within* the strategy
+            (i.e. the original signal.target_allocation.value). Provided for richer
+            reasoning / debugging but not required by existing renderers.
+        constituents_breakdown: Optional multi-line text block detailing constituent
+            weights (only for multi‑signal/portfolio strategies like Nuclear). Used to
+            preserve the richer reasoning that was removed in PR #277 initial draft.
 
     Fields:
         symbol: Display symbol or portfolio label
-        action: BUY | SELL | HOLD (string literal from domain Action)
+        action: BUY | SELL | HOLD
         confidence: Float in [0,1]
-        reasoning: Human-readable explanation
-        allocation_weight: Fractional target weight (0–1) of portfolio
-        allocation_percentage: Backward-compatible alias (same value as allocation_weight)
+        reasoning: Human-readable explanation (may include appended breakdown)
+        allocation_weight: Strategy-level portfolio weight fraction (0–1)
+        allocation_percentage: Alias of allocation_weight (fraction, not 0–100)
+        intra_strategy_weight: (Optional) Symbol's share within its strategy (0–1)
+        constituents_breakdown: (Optional) Textual breakdown of multi-signal portfolio
     """
 
     symbol: str
     action: str
     confidence: float
     reasoning: str
-    allocation_weight: float
-    allocation_percentage: float  # backward-compatible alias (fraction, not 0-100)
+    allocation_weight: float  # strategy-level allocation fraction (legacy semantics)
+    allocation_percentage: float  # alias (fraction, not 0–100)
+    intra_strategy_weight: float  # symbol share within strategy (0–1)
+    constituents_breakdown: str
 
 
 def handle_portfolio_symbol_alias(symbol_value: str) -> str:
@@ -84,27 +102,51 @@ def handle_portfolio_symbol_alias(symbol_value: str) -> str:
     return "NUCLEAR_PORTFOLIO" if symbol_value == "PORT" else symbol_value
 
 
-def format_strategy_signal_for_display(signal: TypedStrategySignal) -> StrategySignalDisplayDTO:
+def format_strategy_signal_for_display(
+    signal: TypedStrategySignal,
+    strategy_allocation_fraction: float,
+    multi_signal_context: dict[str, float] | None = None,
+) -> StrategySignalDisplayDTO:
     """Format a typed strategy signal for display.
 
     Args:
         signal: Typed domain strategy signal
+        strategy_allocation_fraction: Strategy-level allocation fraction (0–1)
+        multi_signal_context: Optional mapping of constituent symbol -> fraction of total
+            strategy allocation (already multiplied by *intra* weight) used to build a
+            breakdown for portfolio strategies.
 
     Returns:
-        Display dict format for compatibility
+        Display dict with restored legacy allocation semantics.
     """
     symbol_value = signal.symbol.value
     symbol_str = handle_portfolio_symbol_alias(symbol_value)
 
-    allocation_fraction = float(signal.target_allocation.value)
-    return StrategySignalDisplayDTO(
+    intra_fraction = float(signal.target_allocation.value)
+
+    reasoning = signal.reasoning
+    breakdown_text = ""
+    if multi_signal_context and len(multi_signal_context) > 1:
+        # Build breakdown similar to legacy implementation: weights as % of total portfolio
+        lines: list[str] = ["Nuclear Portfolio Breakdown:"]
+        for sym, weight in sorted(multi_signal_context.items()):
+            lines.append(f"• {sym}: {weight * 100:.1f}%")
+        breakdown_text = "\n\n" + "\n".join(lines)
+        reasoning = reasoning.split(" | Nuclear portfolio constituent")[0] + breakdown_text
+        symbol_str = f"NUCLEAR_PORTFOLIO ({', '.join(sorted(multi_signal_context.keys()))})"
+
+    display: StrategySignalDisplayDTO = StrategySignalDisplayDTO(
         symbol=symbol_str,
         action=signal.action,
         confidence=float(signal.confidence.value),
-        reasoning=signal.reasoning,
-        allocation_weight=allocation_fraction,
-        allocation_percentage=allocation_fraction,  # backward-compatible alias
+        reasoning=reasoning,
+        allocation_weight=strategy_allocation_fraction,
+        allocation_percentage=strategy_allocation_fraction,  # alias
+        intra_strategy_weight=intra_fraction,
     )
+    if breakdown_text:
+        display["constituents_breakdown"] = breakdown_text.strip()
+    return display
 
 
 def create_empty_signal_dict() -> StrategySignalDisplayDTO:
@@ -125,24 +167,44 @@ def create_empty_signal_dict() -> StrategySignalDisplayDTO:
 
 def typed_signals_to_display_signals_dict(
     aggregated: AggregatedSignals,
+    strategy_allocations: dict[StrategyType, float],
 ) -> dict[StrategyType, StrategySignalDisplayDTO]:
     """Convert AggregatedSignals to display signals dict format.
 
+    Restores legacy semantics for allocation_weight while enriching multi-signal strategies.
+
     Args:
         aggregated: Aggregated signals from TypedStrategyManager
+        strategy_allocations: Strategy -> allocation fraction
 
     Returns:
-        Display signals dict keyed by StrategyType for CLI compatibility
+        Display signals dict keyed by StrategyType.
     """
     display_signals: dict[StrategyType, StrategySignalDisplayDTO] = {}
 
     for strategy_type, signals in aggregated.get_signals_by_strategy().items():
         if not signals:
-            # Handle empty strategies case
             display_signals[strategy_type] = create_empty_signal_dict()
+            continue
+
+        strategy_alloc_fraction = float(strategy_allocations.get(strategy_type, 0.0))
+
+        if len(signals) == 1:
+            display_signals[strategy_type] = format_strategy_signal_for_display(
+                signals[0], strategy_alloc_fraction
+            )
         else:
-            # Use first signal as representative (existing behavior)
-            display_signals[strategy_type] = format_strategy_signal_for_display(signals[0])
+            # Build multi-signal constituent mapping: symbol -> total portfolio fraction
+            constituents: dict[str, float] = {}
+            for sig in signals:
+                sym = sig.symbol.value
+                if sym == "PORT":
+                    continue
+                constituents[sym] = float(sig.target_allocation.value) * strategy_alloc_fraction
+            # Use first signal for base reasoning/action
+            display_signals[strategy_type] = format_strategy_signal_for_display(
+                signals[0], strategy_alloc_fraction, constituents
+            )
 
     return display_signals
 
@@ -220,8 +282,8 @@ def run_all_strategies_mapping(
         - Consolidated portfolio allocation dict
         - Strategy attribution dict (empty for now, preserved for interface compatibility)
     """
-    # Convert typed signals to display format
-    display_signals = typed_signals_to_display_signals_dict(aggregated)
+    # Convert typed signals to display format (with restored semantics)
+    display_signals = typed_signals_to_display_signals_dict(aggregated, strategy_allocations)
 
     # Compute consolidated portfolio allocations + attribution
     consolidated_portfolio, strategy_attribution = compute_consolidated_portfolio(
