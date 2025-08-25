@@ -516,7 +516,9 @@ class TradingServiceManager:
     def get_account_summary_enriched(self) -> EnrichedAccountSummaryDTO:
         """Enriched account summary with typed domain objects.
 
-        Returns structured data with both legacy format and typed domain objects.
+        Returns structured data including both the raw provider dictionary and typed domain
+        objects. The raw dict is preserved for backward-compatible display layers; the typed
+        structure should be preferred for all business logic.
         """
         legacy = self.account.get_account_summary()
 
