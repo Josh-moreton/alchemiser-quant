@@ -261,6 +261,9 @@ class DSLParser:
             return [self._ast_to_sexpr_placeholder(e) for e in node.expressions]
         if isinstance(node, Symbol):
             return node.name
+        if isinstance(node, Asset):
+            # Reconstruct asset S-expression to preserve Asset node semantics
+            return ["asset", node.symbol, node.name]
         return getattr(node, "symbol", "__expr__")
 
     def _parse_comparison(

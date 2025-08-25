@@ -190,8 +190,11 @@ def signal(
                         bars: list[Any] = []
                         if hasattr(df, "iterrows"):
                             for _idx, row in df.iterrows():
-                                # Minimal structure; evaluator only needs close prices.
-                                bars.append(type("BarStub", (), {"close": row.get("close")})())
+                                # Get close price - handle both 'Close' and 'close' column names
+                                close_price = row.get("Close") or row.get("close")
+                                if close_price is not None:
+                                    # Minimal structure; evaluator only needs close prices.
+                                    bars.append(type("BarStub", (), {"close": close_price})())
                         return bars
 
                     def get_latest_quote(self, symbol: Any) -> Any:
