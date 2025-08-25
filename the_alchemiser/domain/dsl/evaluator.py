@@ -414,7 +414,7 @@ class DSLEvaluator:
 
                 # Calculate returns first
                 returns = data['close'].pct_change().dropna()
-                
+
                 # Calculate rolling standard deviation of returns
                 stdev_series = returns.rolling(window=node.window).std()
                 if stdev_series.empty:
@@ -632,20 +632,20 @@ class DSLEvaluator:
         """Evaluate metric function for a specific symbol."""
         # Replace any symbol references in the metric function with the current symbol
         modified_metric = self._substitute_symbol_in_metric(metric_fn, symbol)
-        
+
         # Evaluate the modified metric
         result = self._evaluate_node(modified_metric)
-        
+
         if not isinstance(result, (int, float)):
             raise EvaluationError(f"Metric function must return numeric value, got {type(result)}")
-        
+
         return float(result)
 
     def _substitute_symbol_in_metric(self, metric_fn: ASTNode, symbol: str) -> ASTNode:
         """Substitute symbol parameter in metric function for filter evaluation."""
         # For metrics that take symbol as first parameter, we need to create a new instance
         # with the provided symbol
-        
+
         if isinstance(metric_fn, RSI):
             # Use the metric's window but substitute the symbol
             return RSI(symbol=symbol, window=metric_fn.window)

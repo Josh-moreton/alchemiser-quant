@@ -176,7 +176,7 @@ class SignalAnalyzer:
 
         # Display strategy summary
         self._display_strategy_summary(strategy_signals, consolidated_portfolio)
-        
+
         # Display strategy tracking information
         self._display_strategy_tracking()
 
@@ -186,16 +186,19 @@ class SignalAnalyzer:
             from rich.console import Console
             from rich.panel import Panel
             from rich.table import Table
-            from the_alchemiser.application.tracking.strategy_order_tracker import StrategyOrderTracker
-            
+
+            from the_alchemiser.application.tracking.strategy_order_tracker import (
+                StrategyOrderTracker,
+            )
+
             console = Console()
-            
+
             # Use paper trading mode for signal analysis
             tracker = StrategyOrderTracker(paper_trading=True)
-            
+
             # Get all positions
             positions = tracker.get_positions_summary()
-            
+
             if not positions:
                 console.print(Panel(
                     "[dim yellow]No strategy tracking data available[/dim yellow]",
@@ -203,7 +206,7 @@ class SignalAnalyzer:
                     border_style="yellow"
                 ))
                 return
-            
+
             # Create tracking table
             tracking_table = Table(title="Strategy Performance Tracking", show_lines=True, expand=True)
             tracking_table.add_column("Strategy", style="bold magenta")
@@ -211,27 +214,27 @@ class SignalAnalyzer:
             tracking_table.add_column("Total P&L", justify="right")
             tracking_table.add_column("Return %", justify="right")
             tracking_table.add_column("Recent Orders", justify="center")
-            
+
             # Group positions by strategy
             strategies_with_data = set(pos.strategy for pos in positions)
-            
+
             for strategy_name in sorted(strategies_with_data):
                 try:
                     # Get P&L summary
                     pnl_summary = tracker.get_pnl_summary(strategy_name)
-                    
+
                     # Get recent orders count
                     recent_orders = tracker.get_orders_for_strategy(strategy_name)
-                    
+
                     # Color code P&L
                     total_pnl = float(pnl_summary.total_pnl)
                     pnl_color = "green" if total_pnl >= 0 else "red"
                     pnl_sign = "+" if total_pnl >= 0 else ""
-                    
+
                     return_pct = float(pnl_summary.total_return_pct)
                     return_color = "green" if return_pct >= 0 else "red"
                     return_sign = "+" if return_pct >= 0 else ""
-                    
+
                     tracking_table.add_row(
                         strategy_name,
                         str(pnl_summary.position_count),
@@ -239,7 +242,7 @@ class SignalAnalyzer:
                         f"[{return_color}]{return_sign}{return_pct:.2f}%[/{return_color}]",
                         f"{len(recent_orders)} orders"
                     )
-                    
+
                 except Exception as e:
                     self.logger.warning(f"Error getting tracking data for {strategy_name}: {e}")
                     tracking_table.add_row(
@@ -249,24 +252,24 @@ class SignalAnalyzer:
                         "[red]Error[/red]",
                         "Error"
                     )
-            
+
             console.print()
             console.print(tracking_table)
-            
+
             # Add summary insight
             total_strategies = len(strategies_with_data)
             profitable_strategies = sum(
                 1 for strategy_name in strategies_with_data
                 if float(tracker.get_pnl_summary(strategy_name).total_pnl) > 0
             )
-            
+
             insight = f"📊 {profitable_strategies}/{total_strategies} strategies profitable"
             console.print(Panel(
                 insight,
-                title="Performance Insight", 
+                title="Performance Insight",
                 border_style="blue"
             ))
-            
+
         except Exception as e:
             # Non-fatal - tracking is enhancement, not critical
             self.logger.warning(f"Strategy tracking display unavailable: {e}")
