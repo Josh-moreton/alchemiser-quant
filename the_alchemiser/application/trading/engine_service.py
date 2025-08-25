@@ -414,6 +414,7 @@ class TradingEngine:
                 from the_alchemiser.application.portfolio.rebalancing_orchestrator import (
                     RebalancingOrchestrator,
                 )
+
                 self._rebalancing_orchestrator = RebalancingOrchestrator(
                     portfolio_facade=self.portfolio_rebalancer,
                     trading_client=self.trading_client,
