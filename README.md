@@ -50,7 +50,7 @@ We’re migrating to a strongly-typed, framework-free domain model with incremen
 - Prefer `Protocol` for repository/service interfaces under `domain/**/protocols/`; implemented in `infrastructure/` or `services/`
 
 ### Validation for the Typed Path
-- Validate behavior consistency between flag ON vs OFF where applicable  
+- Validate behavior consistency between flag ON vs OFF where applicable
 - Use runtime validation with Pydantic at system boundaries; mock external APIs for development
 - CI runs mypy across the codebase; value objects and entities must be fully typed
 
@@ -178,7 +178,7 @@ Automatic email alerts include:
 - Strict typing checked by `mypy` with `disallow_untyped_defs`.
     - Typed Domain V2 gate: keep domain free of frameworks; all financial values are `Decimal`.
 - Configuration and domain models defined with Pydantic.
-- Code style enforced by `black` (line length 100) and linted by `ruff`.
+- Code style enforced by Ruff (formatter + lint, line length 100).
 - Development workflow includes `make format` and `make lint` for code quality.
 - Protocols and dataclasses enable clean dependency injection.
 - Rich and Typer keep command‑line interfaces concise and user friendly.
@@ -209,11 +209,11 @@ warn_unused_ignores = true
 
 ### Code Formatting and Linting
 
-**Black Configuration**:
+**Formatting & Linting (Ruff)**:
 
-- Line length: 100 characters
-- Automatic formatting: `make format` or `black .`
-- Pre-commit hooks recommended
+- Line length: 100 characters (Ruff formatter)
+- Automatic formatting: `make format` (runs `ruff format` + `ruff check --fix`)
+- Pre-commit hooks enforce formatting, lint, and mypy
 
 **Ruff Configuration** (replaces flake8):
 
@@ -294,7 +294,7 @@ the_alchemiser/interfaces/schemas/   # Pydantic DTOs for I/O
 **Development Dependencies**:
 
 - `mypy`: Static type checking
-- `black`: Code formatting
+<!-- Removed: black (replaced by Ruff formatter) -->
 - `ruff`: Fast Python linter and code quality enforcement
 
 ### Error Handling Patterns for AI Agents
@@ -569,7 +569,7 @@ def lambda_handler(event, context):
 
 ```bash
 make dev                            # install with dev dependencies
-make format                         # run black + ruff formatting
+make format                         # run Ruff formatter + lint fixes
 make lint                          # run flake8, mypy, security checks
 make test                          # run pytest with coverage
 
@@ -599,7 +599,7 @@ cp .env.example .env
 poetry run mypy the_alchemiser/
 
 # 4. Format code
-poetry run black the_alchemiser/
+poetry run ruff format the_alchemiser/
 poetry run ruff the_alchemiser/
 
 # 5. Run tests
@@ -809,7 +809,7 @@ except IndicatorCalculationError as e:
 
 ### Development and Documentation
 
-- **`pyproject.toml`**: Poetry dependencies, mypy, black, and ruff configuration
+- **`pyproject.toml`**: Poetry dependencies, mypy, and ruff configuration (Ruff replaces Black)
 - **`template.yaml`**: AWS CloudFormation infrastructure with retry policies
 - **`Makefile`**: Development workflow automation (format, lint, test)
 
