@@ -7,7 +7,7 @@ and clear semantics for evaluation.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 
@@ -16,7 +16,8 @@ from typing import Any
 class ASTNode:
     """Base class for all AST nodes."""
 
-    pass
+    # Node ID for caching and interning (set by interning system)
+    node_id: str | None = field(default=None, init=False, compare=False)
 
 
 # Literals and symbols
