@@ -48,21 +48,59 @@ EvalResult = float | bool | Portfolio
 class DSLEvaluator:
     """Pure evaluator for DSL AST nodes with market data access."""
 
-    def __init__(self, market_data_port: MarketDataPort) -> None:
+    def __init__(
+        self, 
+        market_data_port: MarketDataPort,
+        enable_memoisation: bool = False,
+        cache_maxsize: int = 100_000,
+        enable_parallel: bool = False,
+        parallel_mode: str = "threads",  # "threads" or "processes"
+        max_workers: int | None = None,
+    ) -> None:
         """Initialize evaluator with market data access.
 
         Args:
             market_data_port: Market data access interface
+            enable_memoisation: Whether to enable node-level result memoisation
+            cache_maxsize: Maximum number of cached evaluation results
+            enable_parallel: Whether to enable parallel evaluation of independent branches
+            parallel_mode: Parallel execution mode ("threads" or "processes")
+            max_workers: Maximum number of parallel workers (None for CPU count)
         """
         self.market_data_port = market_data_port
         self._indicator_cache: dict[str, Any] = {}
         self._trace_entries: list[dict[str, Any]] = []
+        
+        # Memoisation support
+        self._enable_memoisation = enable_memoisation
+        if enable_memoisation:
+            from the_alchemiser.domain.dsl.evaluator_cache import NodeEvaluationCache
+            self._node_cache = NodeEvaluationCache(maxsize=cache_maxsize)
+        else:
+            self._node_cache = None
+        
+        # Parallel evaluation support
+        self._enable_parallel = enable_parallel
+        self._parallel_mode = parallel_mode
+        self._max_workers = max_workers
+        
+        # Default evaluation context (will be updated per evaluation)
+        self._eval_context = None
 
-    def evaluate(self, ast_node: ASTNode) -> EvalResult:
+    def evaluate(
+        self, 
+        ast_node: ASTNode,
+        timestamp: str | None = None,
+        symbols: list[str] | None = None,
+        env_params: dict[str, Any] | None = None,
+    ) -> EvalResult:
         """Evaluate AST node to produce result.
 
         Args:
             ast_node: AST node to evaluate
+            timestamp: Evaluation timestamp for context
+            symbols: Available symbols for context
+            env_params: Environment parameters for context
 
         Returns:
             Evaluation result (float, bool, or portfolio dict)
@@ -72,6 +110,11 @@ class DSLEvaluator:
         """
         self._trace_entries.clear()
         self._indicator_cache.clear()
+        
+        # Set up evaluation context for memoisation
+        if self._enable_memoisation:
+            from the_alchemiser.domain.dsl.evaluator_cache import create_eval_context
+            self._eval_context = create_eval_context(timestamp, symbols, env_params)
 
         try:
             result = self._evaluate_node(ast_node)
@@ -84,9 +127,117 @@ class DSLEvaluator:
     def get_trace(self) -> list[dict[str, Any]]:
         """Get structured trace of evaluation decisions."""
         return self._trace_entries.copy()
+        
+    def get_memo_stats(self) -> dict[str, Any]:
+        """Get memoisation statistics for telemetry."""
+        if not self._enable_memoisation or self._node_cache is None:
+            return {"memoisation_enabled": False}
+            
+        from the_alchemiser.domain.dsl.evaluator_cache import get_memo_stats
+        stats = get_memo_stats()
+        stats["memoisation_enabled"] = True
+        stats["cache_info"] = self._node_cache.get_info()
+        return stats
+        
+    def clear_cache(self) -> None:
+        """Clear all cached results."""
+        if self._node_cache is not None:
+            self._node_cache.clear()
+        self._indicator_cache.clear()
+    
+    def _evaluate_children_parallel(self, children: list[ASTNode]) -> list[EvalResult]:
+        """Evaluate child nodes in parallel if enabled, otherwise sequentially.
+        
+        Args:
+            children: List of child AST nodes to evaluate
+            
+        Returns:
+            List of evaluation results in the same order as children
+        """
+        # For small numbers of children or if parallel is disabled, use sequential evaluation
+        if not self._enable_parallel or len(children) < 2:
+            return [self._evaluate_node(child) for child in children]
+        
+        # Use parallel evaluation for larger workloads
+        import os
+        from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor, as_completed
+        
+        max_workers = self._max_workers or os.cpu_count()
+        executor_class = ProcessPoolExecutor if self._parallel_mode == "processes" else ThreadPoolExecutor
+        
+        try:
+            with executor_class(max_workers=max_workers) as executor:
+                # Submit all evaluation tasks
+                future_to_index = {}
+                for i, child in enumerate(children):
+                    future = executor.submit(self._evaluate_single_node, child)
+                    future_to_index[future] = i
+                
+                # Collect results in original order
+                results = [None] * len(children)
+                for future in as_completed(future_to_index):
+                    index = future_to_index[future]
+                    try:
+                        results[index] = future.result()
+                    except Exception as e:
+                        # Re-raise evaluation errors with context
+                        from the_alchemiser.domain.dsl.errors import EvaluationError
+                        raise EvaluationError(f"Parallel evaluation failed for child {index}: {e}") from e
+                
+                return results
+                
+        except Exception as e:
+            # Fall back to sequential evaluation on any parallel execution failure
+            # This ensures robustness while still providing performance benefits when possible
+            return [self._evaluate_node(child) for child in children]
+    
+    def _evaluate_single_node(self, node: ASTNode) -> EvalResult:
+        """Evaluate a single node - used for parallel execution.
+        
+        This method is designed to be called from parallel workers and includes
+        all necessary context for evaluation.
+        """
+        # For now, this is just a wrapper around _evaluate_node
+        # In a more sophisticated implementation, this might need to handle
+        # serialization of evaluation context for process-based parallelism
+        return self._evaluate_node(node)
 
     def _evaluate_node(self, node: ASTNode) -> EvalResult:
-        """Evaluate a single AST node."""
+        """Evaluate a single AST node with optional memoisation."""
+        
+        # Check cache first if memoisation is enabled
+        if (self._enable_memoisation and 
+            self._node_cache is not None and 
+            self._eval_context is not None and 
+            hasattr(node, 'node_id') and 
+            node.node_id is not None):
+            
+            from the_alchemiser.domain.dsl.evaluator_cache import is_pure_node
+            
+            if is_pure_node(node):
+                found, cached_result = self._node_cache.get(node.node_id, self._eval_context)
+                if found:
+                    return cached_result
+        
+        # Evaluate the node
+        result = self._evaluate_node_impl(node)
+        
+        # Cache the result if memoisation is enabled
+        if (self._enable_memoisation and 
+            self._node_cache is not None and 
+            self._eval_context is not None and 
+            hasattr(node, 'node_id') and 
+            node.node_id is not None):
+            
+            from the_alchemiser.domain.dsl.evaluator_cache import is_pure_node
+            
+            if is_pure_node(node):
+                self._node_cache.set(node.node_id, self._eval_context, result)
+        
+        return result
+    
+    def _evaluate_node_impl(self, node: ASTNode) -> EvalResult:
+        """Actual node evaluation implementation."""
 
         # Literals
         if isinstance(node, NumberLiteral):
@@ -620,16 +771,19 @@ class DSLEvaluator:
         return result
 
     def _evaluate_weight_equal(self, node: WeightEqual) -> Portfolio:
-        """Evaluate equal weight portfolio."""
+        """Evaluate equal weight portfolio with optional parallel evaluation."""
+        
+        # Evaluate all child expressions (potentially in parallel)
+        results = self._evaluate_children_parallel(node.expressions)
+        
+        # Validate results and collect portfolios
         portfolios = []
-
-        for expr in node.expressions:
-            result = self._evaluate_node(expr)
+        for i, result in enumerate(results):
             if isinstance(result, dict):
                 portfolios.append(result)
             else:
                 raise PortfolioError(
-                    f"weight-equal expression must evaluate to portfolio, got {type(result)}",
+                    f"weight-equal expression {i} must evaluate to portfolio, got {type(result)}",
                     operation="weight_equal",
                 )
 
