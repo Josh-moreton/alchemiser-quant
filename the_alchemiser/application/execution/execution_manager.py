@@ -43,7 +43,10 @@ class ExecutionManager:
             if not account_info_before:
                 raise TradingClientError(
                     "Unable to get account information",
-                    context={"operation": "get_account_info", "engine": type(self.engine).__name__},
+                    context={
+                        "operation": "get_account_info",
+                        "engine": type(self.engine).__name__,
+                    },
                 )
             strategy_signals, consolidated_portfolio, strategy_attribution = (
                 self.engine.strategy_manager.run_all_strategies()
@@ -171,7 +174,12 @@ class ExecutionManager:
                 ),
                 final_portfolio_state=safe_dict_to_portfolio_state_dto({}),
             )
-        except (ConfigurationError, StrategyExecutionError, ValueError, AttributeError) as e:
+        except (
+            ConfigurationError,
+            StrategyExecutionError,
+            ValueError,
+            AttributeError,
+        ) as e:
             from the_alchemiser.infrastructure.logging.logging_utils import (
                 get_logger,
                 log_error_with_context,
