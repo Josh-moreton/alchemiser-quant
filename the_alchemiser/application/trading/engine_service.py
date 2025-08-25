@@ -761,9 +761,18 @@ class TradingEngine:
         ) as e:
             logging.error(f"Multi-strategy execution failed: {e}")
 
-            # Enhanced error handling - use modern error handler directly
+            # Enhanced error handling (fail-fast; no legacy import fallback)
             from the_alchemiser.services.errors import handle_trading_error
 
+            handle_trading_error(
+                error=e,
+                context="multi-strategy execution",
+                component="TradingEngine.execute_multi_strategy",
+                additional_data={
+                    "paper_trading": self.paper_trading,
+                    "ignore_market_hours": self.ignore_market_hours,
+                },
+            )
             handle_trading_error(
                 error=e,
                 context="multi-strategy execution",
@@ -1101,19 +1110,18 @@ class TradingEngine:
 
 
 def main() -> None:
-    """Test TradingEngine multi-strategy execution"""
+    """Test TradingEngine multi-strategy execution (fail-fast DI only)."""
     import logging
 
     logging.basicConfig(level=logging.WARNING)  # Reduced verbosity
     print("Trading Engine Test")
     print("─" * 50)
 
-    # Use modern DI approach - no legacy fallbacks
+    # Modern DI initialization (no legacy fallback). Any failure should surface immediately.
     from the_alchemiser.container.application_container import ApplicationContainer
     from the_alchemiser.main import TradingSystem
 
-    # Initialize DI system
-    TradingSystem()
+    TradingSystem()  # Initialize DI system side-effects
     container = ApplicationContainer()
 
     trader = TradingEngine.create_from_container(
