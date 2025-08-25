@@ -62,11 +62,12 @@ class TradingExecutor:
         }
 
     def _create_trading_engine(self) -> TradingEngine:
-        """Create and configure the trading engine using DI."""
+        """Create and configure the trading engine using modern bootstrap approach."""
         strategy_allocations = self._get_strategy_allocations()
 
-        # Use DI mode - import module to allow MyPy to narrow attribute types
+        # Use modern bootstrap approach via DI container
         import the_alchemiser.main as app_main
+        from the_alchemiser.application.trading.bootstrap import bootstrap_from_container
 
         # Check and use container in one step to avoid MyPy unreachable code issues
         container = app_main._di_container
@@ -82,8 +83,10 @@ class TradingExecutor:
             # Non-fatal; fallback will still set trader.paper_trading later for UI, but endpoints may remain default
             pass
 
-        trader = TradingEngine.create_with_di(
-            container=container,
+        # Use modern bootstrap approach instead of deprecated create_with_di
+        bootstrap_context = bootstrap_from_container(container)
+        trader = TradingEngine(
+            bootstrap_context=bootstrap_context,
             strategy_allocations=strategy_allocations,
             ignore_market_hours=self.ignore_market_hours,
         )

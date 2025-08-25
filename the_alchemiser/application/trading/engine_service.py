@@ -22,7 +22,6 @@ Example:
 
 import logging
 from datetime import datetime
-from decimal import Decimal
 from typing import TYPE_CHECKING, Any, Protocol
 
 if TYPE_CHECKING:  # Import for type checking only to avoid runtime dependency
@@ -78,116 +77,21 @@ from the_alchemiser.services.repository.alpaca_manager import AlpacaManager
 from ..execution.execution_manager import ExecutionManager
 from ..reporting.reporting import build_portfolio_state_data
 
-
-class StrategyManagerAdapter:
-    """Typed-backed adapter to provide run_all_strategies for callers.
-
-    This adapter now uses pure mapping functions from application/mapping/strategies.py
-    to convert typed signals to CLI-compatible format, removing ad-hoc dict transformations
-    from the runtime path.
-    """
-
-    def __init__(
-        self,
-        market_data_port: Any,
-        strategy_allocations: dict[StrategyType, float],
-    ) -> None:
-        self._typed = TypedStrategyManager(
-            market_data_port=market_data_port,
-            strategy_allocations=strategy_allocations,
-        )
-
-    def run_all_strategies(
-        self,
-    ) -> tuple[
-        dict[StrategyType, "StrategySignalDisplayDTO"],
-        dict[str, float],
-        dict[str, list[StrategyType]],
-    ]:
-        """Execute all strategies and return results in display-compatible format.
-
-        This method delegates to pure mapping functions to convert typed domain signals to
-        CLI-compatible display structures, ensuring no ad-hoc dict transformations in the
-        runtime path.
-
-        Returns:
-            Tuple containing: (strategy signals display dict, consolidated portfolio allocation,
-            strategy attribution mapping)
-        """
-        from datetime import UTC, datetime
-
-        from the_alchemiser.application.mapping.strategies import run_all_strategies_mapping
-
-        # Generate typed signals from strategy manager
-        aggregated = self._typed.generate_all_signals(datetime.now(UTC))
-
-        # Use pure mapping function to convert to CLI-compatible format
-        return run_all_strategies_mapping(aggregated, self._typed.strategy_allocations)
-
-    # Expose strategy_allocations for reporting usage
-    @property
-    def strategy_allocations(self) -> dict[StrategyType, float]:
-        return self._typed.strategy_allocations
-
-    # Minimal performance summary placeholder for typed manager
-    def get_strategy_performance_summary(self) -> dict[str, Any]:
-        try:
-            # If typed manager exposes a similar method, delegate
-            from typing import cast
-
-            return cast(dict[str, Any], self._typed.get_strategy_performance_summary())  # type: ignore[attr-defined]
-        except AttributeError:
-            # Strategy manager doesn't have performance summary method - return default structure
-            return {
-                st.name: {"pnl": 0.0, "trades": 0} for st in self._typed.strategy_allocations.keys()
-            }
-        except Exception as e:
-            error_handler = TradingSystemErrorHandler()
-            context = create_error_context(
-                operation="get_strategy_performance_summary",
-                component="StrategyManagerAdapter.get_strategy_performance_summary",
-                function_name="get_strategy_performance_summary",
-            )
-            error_handler.handle_error_with_context(error=e, context=context, should_continue=False)
-            raise StrategyExecutionError(
-                f"Failed to retrieve strategy performance summary: {e}",
-                strategy_name="TypedStrategyManager",
-            ) from e
+# --- Internal Application Protocols ---
 
 
-# Protocol definitions for dependency injection
 class AccountInfoProvider(Protocol):
     """Protocol for account information retrieval."""
 
-    def get_account_info(
-        self,
-    ) -> AccountInfo:  # Phase 17: Migrated from dict[str, Any] to AccountInfo
+    def get_account_info(self) -> AccountInfo:
         """Get comprehensive account information."""
         ...
-
-
-def _create_default_account_info(account_id: str = "unknown") -> AccountInfo:
-    """Create a default AccountInfo structure for error cases."""
-    return {
-        "account_id": account_id,
-        "equity": 0.0,
-        "cash": 0.0,
-        "buying_power": 0.0,
-        "day_trades_remaining": 0,
-        "portfolio_value": 0.0,
-        "last_equity": 0.0,
-        "daytrading_buying_power": 0.0,
-        "regt_buying_power": 0.0,
-        "status": "INACTIVE",
-    }
 
 
 class PositionProvider(Protocol):
     """Protocol for position data retrieval."""
 
-    def get_positions_dict(
-        self,
-    ) -> PositionsDict:  # Phase 18: Migrated from dict[str, dict[str, Any]] to PositionsDict
+    def get_positions_dict(self) -> PositionsDict:
         """Get current positions keyed by symbol."""
         ...
 
@@ -211,7 +115,7 @@ class RebalancingService(Protocol):
         self,
         target_portfolio: dict[str, float],
         strategy_attribution: dict[str, list[StrategyType]] | None = None,
-    ) -> list[OrderDetails]:  # Phase 18: Migrated from list[dict[str, Any]] to list[OrderDetails]
+    ) -> list[OrderDetails]:
         """Rebalance portfolio to target allocation."""
         ...
 
@@ -222,6 +126,28 @@ class MultiStrategyExecutor(Protocol):
     def execute_multi_strategy(self) -> MultiStrategyExecutionResultDTO:
         """Execute all strategies and rebalance portfolio."""
         ...
+
+
+# --- Utility Functions ---
+
+
+def _create_default_account_info(account_id: str = "unknown") -> AccountInfo:
+    """Create a default AccountInfo structure for error cases."""
+    return {
+        "account_id": account_id,
+        "equity": 0.0,
+        "cash": 0.0,
+        "buying_power": 0.0,
+        "day_trades_remaining": 0,
+        "portfolio_value": 0.0,
+        "last_equity": 0.0,
+        "daytrading_buying_power": 0.0,
+        "regt_buying_power": 0.0,
+        "status": "INACTIVE",
+    }
+
+
+# --- Main Trading Engine Class ---
 
 
 class TradingEngine:
@@ -244,75 +170,31 @@ class TradingEngine:
 
     def __init__(
         self,
-        bootstrap_context: TradingBootstrapContext | None = None,
+        bootstrap_context: TradingBootstrapContext,
         strategy_allocations: dict[StrategyType, float] | None = None,
         ignore_market_hours: bool = False,
-        # Backward compatibility parameters (deprecated)
-        paper_trading: bool = True,
-        config: Settings | None = None,
-        trading_service_manager: Any = None,
-        container: Any = None,
     ) -> None:
-        """Initialize the TradingEngine with bootstrap context or legacy parameters.
+        """Initialize the TradingEngine with bootstrap context.
 
         Args:
-            bootstrap_context: Pre-configured dependency context (preferred)
+            bootstrap_context: Pre-configured dependency context (required)
             strategy_allocations: Portfolio allocation between strategies
             ignore_market_hours: Whether to ignore market hours when placing orders
-            paper_trading: (Deprecated) Whether to use paper trading
-            config: (Deprecated) Configuration object
-            trading_service_manager: (Deprecated) Injected TradingServiceManager
-            container: (Deprecated) DI container
 
         Note:
-            New code should use bootstrap_context. Legacy parameters maintained
-            for backward compatibility but emit deprecation warnings.
+            This constructor now requires bootstrap_context. Use bootstrap functions
+            to create the context:
+            - bootstrap_from_container()
+            - bootstrap_from_service_manager()
+            - bootstrap_traditional()
         """
         self.logger = logging.getLogger(__name__)
 
         # Type annotations for attributes that can have multiple types
         self.portfolio_rebalancer: Any  # PortfolioManagementFacade instance
 
-        # Determine initialization mode
-        if bootstrap_context is not None:
-            # Modern bootstrap mode - preferred
-            self._init_from_context(bootstrap_context, strategy_allocations, ignore_market_hours)
-        elif container is not None:
-            # Legacy Full DI mode - deprecated
-            import warnings
-
-            warnings.warn(
-                "Direct container parameter is deprecated. "
-                "Use bootstrap_from_container() and pass result as bootstrap_context.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            context = bootstrap_from_container(container)
-            self._init_from_context(context, strategy_allocations, ignore_market_hours)
-        elif trading_service_manager is not None:
-            # Legacy Partial DI mode - deprecated
-            import warnings
-
-            warnings.warn(
-                "Direct trading_service_manager parameter is deprecated. "
-                "Use bootstrap_from_service_manager() and pass result as bootstrap_context.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            context = bootstrap_from_service_manager(trading_service_manager)
-            self._init_from_context(context, strategy_allocations, ignore_market_hours)
-        else:
-            # Legacy Traditional mode - deprecated
-            import warnings
-
-            warnings.warn(
-                "Direct TradingEngine() instantiation is deprecated. "
-                "Use bootstrap_traditional() and pass result as bootstrap_context.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            context = bootstrap_traditional(paper_trading, config)
-            self._init_from_context(context, strategy_allocations, ignore_market_hours)
+        # Initialize from bootstrap context
+        self._init_from_context(bootstrap_context, strategy_allocations, ignore_market_hours)
 
     def _init_from_context(
         self,
@@ -342,7 +224,9 @@ class TradingEngine:
         self._init_common_components(strategy_allocations, context["config_dict"])
 
     def _init_common_components(
-        self, strategy_allocations: dict[StrategyType, float] | None, config_dict: dict[str, Any]
+        self,
+        strategy_allocations: dict[StrategyType, float] | None,
+        config_dict: dict[str, Any],
     ) -> None:
         """Initialize components common to all initialization modes."""
         # Strategy allocations
@@ -392,12 +276,12 @@ class TradingEngine:
                 self.portfolio_rebalancer = PortfolioManagementFacade(
                     trading_manager=trading_manager,
                 )
-                # Initialize rebalancing orchestrator for sequential SELL→settle→BUY execution
-                from the_alchemiser.application.portfolio.rebalancing_orchestrator import (
-                    RebalancingOrchestrator,
+                # Initialize rebalancing orchestrator facade for sequential SELL→settle→BUY execution
+                from the_alchemiser.application.portfolio.rebalancing_orchestrator_facade import (
+                    RebalancingOrchestratorFacade,
                 )
 
-                self._rebalancing_orchestrator = RebalancingOrchestrator(
+                self._rebalancing_orchestrator = RebalancingOrchestratorFacade(
                     portfolio_facade=self.portfolio_rebalancer,
                     trading_client=self.trading_client,
                     paper_trading=self.paper_trading,
@@ -492,7 +376,9 @@ class TradingEngine:
                 """Bridge method that converts typed signals to CLI-compatible format for CLI compatibility."""
                 from datetime import UTC, datetime
 
-                from the_alchemiser.application.mapping.strategies import run_all_strategies_mapping
+                from the_alchemiser.application.mapping.strategies import (
+                    run_all_strategies_mapping,
+                )
 
                 # Generate typed signals
                 aggregated = self._typed.generate_all_signals(datetime.now(UTC))
@@ -505,11 +391,39 @@ class TradingEngine:
                 return self._typed.strategy_allocations
 
             def get_strategy_performance_summary(self) -> dict[str, Any]:
-                # Minimal implementation for compatibility
-                return {
-                    st.name: {"pnl": 0.0, "trades": 0}
-                    for st in self._typed.strategy_allocations.keys()
-                }
+                """Get strategy performance summary with consistent error handling."""
+                try:
+                    # If typed manager exposes a similar method, delegate
+                    from typing import cast
+
+                    return cast(dict[str, Any], self._typed.get_strategy_performance_summary())  # type: ignore[attr-defined]
+                except AttributeError:
+                    # Strategy manager doesn't have performance summary method - return default structure
+                    return {
+                        st.name: {"pnl": 0.0, "trades": 0}
+                        for st in self._typed.strategy_allocations.keys()
+                    }
+                except Exception as e:
+                    from the_alchemiser.services.errors.context import (
+                        create_error_context,
+                    )
+                    from the_alchemiser.services.errors.handler import (
+                        TradingSystemErrorHandler,
+                    )
+
+                    error_handler = TradingSystemErrorHandler()
+                    context = create_error_context(
+                        operation="get_strategy_performance_summary",
+                        component="TradingEngine.StrategyManagerBridge.get_strategy_performance_summary",
+                        function_name="get_strategy_performance_summary",
+                    )
+                    error_handler.handle_error_with_context(
+                        error=e, context=context, should_continue=False
+                    )
+                    raise StrategyExecutionError(
+                        f"Failed to retrieve strategy performance summary: {e}",
+                        strategy_name="TypedStrategyManager",
+                    ) from e
 
         return StrategyManagerBridge(self.typed_strategy_manager)
 
@@ -586,7 +500,10 @@ class TradingEngine:
 
     # --- Order and Rebalancing Methods ---
     def wait_for_settlement(
-        self, sell_orders: list[OrderDetails], max_wait_time: int = 60, poll_interval: float = 2.0
+        self,
+        sell_orders: list[OrderDetails],
+        max_wait_time: int = 60,
+        poll_interval: float = 2.0,
     ) -> bool:
         """Wait for sell orders to settle by polling their status.
 
@@ -692,7 +609,7 @@ class TradingEngine:
 
         # Build final portfolio state
         current_positions = self.get_positions()
-        final_portfolio_state = self._build_portfolio_state_data(
+        final_portfolio_state = build_portfolio_state_data(
             target_allocations, account_info_after, current_positions
         )
 
@@ -716,7 +633,23 @@ class TradingEngine:
         # Pre-execution validation
         try:
             self.get_account_info()
-        except (DataProviderError, TradingClientError, ConfigurationError, ValueError) as e:
+        except (
+            DataProviderError,
+            TradingClientError,
+            ConfigurationError,
+            ValueError,
+        ) as e:
+            error_handler = TradingSystemErrorHandler()
+            context = create_error_context(
+                operation="pre_execution_validation",
+                component="TradingEngine.execute_multi_strategy",
+                function_name="execute_multi_strategy",
+                additional_data={
+                    "paper_trading": self.paper_trading,
+                    "ignore_market_hours": self.ignore_market_hours,
+                },
+            )
+            error_handler.handle_error_with_context(error=e, context=context, should_continue=False)
             logging.error(f"Pre-execution validation failed: {e}")
             return MultiStrategyExecutionResultDTO(
                 success=False,
@@ -759,6 +692,17 @@ class TradingEngine:
             DataProviderError,
             ConfigurationError,
         ) as e:
+            error_handler = TradingSystemErrorHandler()
+            context = create_error_context(
+                operation="multi_strategy_execution",
+                component="TradingEngine.execute_multi_strategy",
+                function_name="execute_multi_strategy",
+                additional_data={
+                    "paper_trading": self.paper_trading,
+                    "ignore_market_hours": self.ignore_market_hours,
+                },
+            )
+            error_handler.handle_error_with_context(error=e, context=context, should_continue=False)
             logging.error(f"Multi-strategy execution failed: {e}")
 
             # Enhanced error handling (fail-fast; no legacy import fallback)
@@ -867,17 +811,10 @@ class TradingEngine:
             error_handler.handle_error_with_context(error=e, context=context, should_continue=False)
             raise StrategyExecutionError(f"Failed to generate performance report: {e}") from e
 
-    def _build_portfolio_state_data(
-        self,
-        target_portfolio: dict[str, float],
-        account_info: AccountInfo,
-        current_positions: PositionsDict,
-    ) -> dict[str, Any]:
-        """Build portfolio state data for reporting purposes."""
-        return build_portfolio_state_data(target_portfolio, account_info, current_positions)
-
     def _trigger_post_trade_validation(
-        self, strategy_signals: dict[StrategyType, Any], orders_executed: list[dict[str, Any]]
+        self,
+        strategy_signals: dict[StrategyType, Any],
+        orders_executed: list[dict[str, Any]],
     ) -> None:
         """
         Trigger post-trade technical indicator validation for live trading.
@@ -952,7 +889,16 @@ class TradingEngine:
                 "NLR",
                 "OKLO",
             ]
-            tecl_strategy_symbols = ["XLK", "KMLM", "SPXL", "TECL", "BIL", "BSV", "UVXY", "SQQQ"]
+            tecl_strategy_symbols = [
+                "XLK",
+                "KMLM",
+                "SPXL",
+                "TECL",
+                "BIL",
+                "BSV",
+                "UVXY",
+                "SQQQ",
+            ]
             for symbol in order_symbols:
                 if symbol in nuclear_strategy_symbols and symbol not in nuclear_symbols:
                     nuclear_symbols.append(symbol)
@@ -984,55 +930,6 @@ class TradingEngine:
             )
             logging.error(f"❌ Post-trade validation failed: {e}")
             # This is not critical to trading execution, so we don't re-raise
-
-    def calculate_target_vs_current_allocations(
-        self,
-        target_portfolio: dict[str, float],
-        account_info: AccountInfo | dict[str, Any],
-        current_positions: dict[str, Any],
-    ) -> tuple[dict[str, "Decimal"], dict[str, "Decimal"]]:  # Uses Decimal values
-        """Pure calculation of target vs current allocations.
-
-        Layering: remains in application layer; no interface/cli imports.
-        """
-        from the_alchemiser.application.trading.portfolio_calculations import (
-            calculate_target_vs_current_allocations as _calc,
-        )
-
-        return _calc(target_portfolio, account_info, current_positions)
-
-    @classmethod
-    def create_with_di(
-        cls,
-        container: Any = None,
-        strategy_allocations: dict[StrategyType, float] | None = None,
-        ignore_market_hours: bool = False,
-    ) -> "TradingEngine":
-        """Factory method for creating TradingEngine with full DI (deprecated).
-
-        Args:
-            container: DI container for dependency injection
-            strategy_allocations: Strategy allocation weights
-            ignore_market_hours: Whether to ignore market hours
-
-        Returns:
-            TradingEngine instance with all dependencies injected
-
-        Note:
-            This method is deprecated. Use create_from_container() instead.
-        """
-        import warnings
-
-        warnings.warn(
-            "create_with_di() is deprecated. Use create_from_container() instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return cls.create_from_container(
-            container=container,
-            strategy_allocations=strategy_allocations,
-            ignore_market_hours=ignore_market_hours,
-        )
 
     @classmethod
     def create_from_container(
