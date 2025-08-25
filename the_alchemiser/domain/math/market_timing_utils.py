@@ -6,7 +6,6 @@ Implements the timing logic from better orders spec for optimal execution
 during market open hours (9:30-9:35 ET).
 """
 
-
 from datetime import datetime, time
 from enum import Enum
 

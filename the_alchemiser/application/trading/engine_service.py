@@ -761,21 +761,27 @@ class TradingEngine:
         ) as e:
             logging.error(f"Multi-strategy execution failed: {e}")
 
-            # Enhanced error handling
-            try:
-                from the_alchemiser.services.errors import handle_trading_error
+            # Enhanced error handling (fail-fast; no legacy import fallback)
+            from the_alchemiser.services.errors import handle_trading_error
 
-                handle_trading_error(
-                    error=e,
-                    context="multi-strategy execution",
-                    component="TradingEngine.execute_multi_strategy",
-                    additional_data={
-                        "paper_trading": self.paper_trading,
-                        "ignore_market_hours": self.ignore_market_hours,
-                    },
-                )
-            except (ImportError, AttributeError):
-                pass  # Fallback for backward compatibility
+            handle_trading_error(
+                error=e,
+                context="multi-strategy execution",
+                component="TradingEngine.execute_multi_strategy",
+                additional_data={
+                    "paper_trading": self.paper_trading,
+                    "ignore_market_hours": self.ignore_market_hours,
+                },
+            )
+            handle_trading_error(
+                error=e,
+                context="multi-strategy execution",
+                component="TradingEngine.execute_multi_strategy",
+                additional_data={
+                    "paper_trading": self.paper_trading,
+                    "ignore_market_hours": self.ignore_market_hours,
+                },
+            )
 
             return MultiStrategyExecutionResultDTO(
                 success=False,
@@ -1104,35 +1110,26 @@ class TradingEngine:
 
 
 def main() -> None:
-    """Test TradingEngine multi-strategy execution"""
+    """Test TradingEngine multi-strategy execution (fail-fast DI only)."""
     import logging
 
     logging.basicConfig(level=logging.WARNING)  # Reduced verbosity
     print("Trading Engine Test")
     print("─" * 50)
 
-    # Use DI approach instead of deprecated traditional constructor
-    try:
-        from the_alchemiser.container.application_container import ApplicationContainer
-        from the_alchemiser.main import TradingSystem
+    # Modern DI initialization (no legacy fallback). Any failure should surface immediately.
+    from the_alchemiser.container.application_container import ApplicationContainer
+    from the_alchemiser.main import TradingSystem
 
-        # Initialize DI system
-        TradingSystem()
-        container = ApplicationContainer()
+    TradingSystem()  # Initialize DI system side-effects
+    container = ApplicationContainer()
 
-        trader = TradingEngine.create_from_container(
-            container=container,
-            strategy_allocations={StrategyType.NUCLEAR: 0.5, StrategyType.TECL: 0.5},
-            ignore_market_hours=True,
-        )
-        trader.paper_trading = True
-    except (ImportError, ConfigurationError, TradingClientError) as e:
-        print(f"Failed to initialize with DI: {e}")
-        print("Falling back to traditional method")
-        trader = TradingEngine(
-            paper_trading=True,
-            strategy_allocations={StrategyType.NUCLEAR: 0.5, StrategyType.TECL: 0.5},
-        )
+    trader = TradingEngine.create_from_container(
+        container=container,
+        strategy_allocations={StrategyType.NUCLEAR: 0.5, StrategyType.TECL: 0.5},
+        ignore_market_hours=True,
+    )
+    trader.paper_trading = True
 
     print("Executing multi-strategy...")
     result = trader.execute_multi_strategy()

@@ -174,7 +174,7 @@ class SignalsBuilder:
                         <div style="margin-top: 4px;">
                             <span style="color: #6B7280; font-size: 14px;">Target: </span>
                             <span style="font-weight: 600; color: #1F2937;">{symbol}</span>
-                            {f'<span style="color: #6B7280; font-size: 14px; margin-left: 16px;">Allocation: </span><span style="font-weight: 600; color: #1F2937;">{allocation:.1%}</span>' if allocation > 0 else ''}
+                            {f'<span style="color: #6B7280; font-size: 14px; margin-left: 16px;">Allocation: </span><span style="font-weight: 600; color: #1F2937;">{allocation:.1%}</span>' if allocation > 0 else ""}
                         </div>
                     </div>
                     <div style="background-color: {action_bg}; color: {action_color}; padding: 8px 16px; border-radius: 20px; font-size: 16px; font-weight: 600;">
@@ -187,7 +187,7 @@ class SignalsBuilder:
                         {formatted_reason}
                     </div>
                 </div>
-                {f'<div style="color: #9CA3AF; font-size: 12px; text-align: right;">Generated: {timestamp}</div>' if timestamp else ''}
+                {f'<div style="color: #9CA3AF; font-size: 12px; text-align: right;">Generated: {timestamp}</div>' if timestamp else ""}
             </div>
             """
 

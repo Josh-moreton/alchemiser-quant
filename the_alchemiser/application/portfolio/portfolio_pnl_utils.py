@@ -71,12 +71,12 @@ def extract_trading_summary(orders_executed: list[dict[str, Any]]) -> dict[str, 
         Dict containing trading summary statistics
     """
     total_trades = len(orders_executed)
-    buy_orders: list[dict[str, Any]] = (
-        []
-    )  # TODO: Phase 12 - Consider migrating to OrderDetails type
-    sell_orders: list[dict[str, Any]] = (
-        []
-    )  # TODO: Phase 12 - Consider migrating to OrderDetails type
+    buy_orders: list[
+        dict[str, Any]
+    ] = []  # TODO: Phase 12 - Consider migrating to OrderDetails type
+    sell_orders: list[
+        dict[str, Any]
+    ] = []  # TODO: Phase 12 - Consider migrating to OrderDetails type
 
     for order in orders_executed:
         side = order.get("side")
