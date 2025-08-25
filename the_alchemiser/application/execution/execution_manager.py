@@ -65,6 +65,23 @@ class ExecutionManager:
             orders_executed = self.engine.rebalance_portfolio(
                 consolidated_portfolio, strategy_attribution
             )
+
+            # Filter out failed orders (those with None IDs) to prevent DTO validation errors
+            valid_orders = []
+            failed_orders_count = 0
+            for order in orders_executed:
+                if order and hasattr(order, "id") and order.id is not None:
+                    valid_orders.append(order)
+                else:
+                    failed_orders_count += 1
+                    logging.warning(f"Filtered out failed order: {order}")
+
+            if failed_orders_count > 0:
+                logging.warning(
+                    f"Filtered out {failed_orders_count} failed orders due to execution errors"
+                )
+
+            orders_executed = valid_orders
             account_info_after = self.engine.get_account_info()
             execution_summary = create_execution_summary(
                 self.engine,

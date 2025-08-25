@@ -50,6 +50,7 @@ STYLE_BOLD_BLUE = "bold blue"
 STYLE_BOLD_GREEN = "bold green"
 STYLE_BOLD_RED = "bold red"
 STYLE_BOLD_YELLOW = "bold yellow"
+PROGRESS_DESCRIPTION_FORMAT = "[progress.description]{task.description}"
 
 # Initialize Typer app and Rich console
 app = typer.Typer(
@@ -147,7 +148,9 @@ def signal(
                         path_candidate = candidate
                         break
 
-            console.print(f"[bold cyan]🔍 Evaluating CLJ strategy:[/bold cyan] {path_candidate}")
+            console.print(
+                f"[{STYLE_BOLD_CYAN}]🔍 Evaluating CLJ strategy:[/{STYLE_BOLD_CYAN}] {path_candidate}"
+            )
 
             if not path_candidate.is_file():
                 console.print(f"[bold red]Strategy file not found:[/bold red] {path_candidate}")
@@ -155,7 +158,7 @@ def signal(
 
             with Progress(
                 SpinnerColumn(),
-                TextColumn("[progress.description]{task.description}"),
+                TextColumn(PROGRESS_DESCRIPTION_FORMAT),
                 console=console,
             ) as progress:
                 task = progress.add_task("[cyan]Initializing market data...", total=None)
@@ -266,7 +269,7 @@ def signal(
                     show_lines=True,
                     expand=True,
                 )
-                table.add_column("Symbol", style="bold cyan")
+                table.add_column("Symbol", style=STYLE_BOLD_CYAN)
                 table.add_column("Weight", justify="right")
                 for symbol, weight in sorted(portfolio.items(), key=lambda x: x[1], reverse=True):
                     table.add_row(symbol, f"{float(weight):.6f}")
@@ -307,7 +310,7 @@ def signal(
 
         with Progress(
             SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
+            TextColumn(PROGRESS_DESCRIPTION_FORMAT),
             console=console,
         ) as progress:
             task = progress.add_task("[cyan]Analyzing market conditions...", total=None)
@@ -589,7 +592,7 @@ def status(
             enriched_positions = tsm.get_positions_enriched()
             if enriched_positions:
                 table = Table(title="Open Positions (Enriched)", show_lines=True, expand=True)
-                table.add_column("Symbol", style="bold cyan")
+                table.add_column("Symbol", style=STYLE_BOLD_CYAN)
                 table.add_column("Qty", justify="right")
                 table.add_column("Avg Price", justify="right")
                 table.add_column("Current", justify="right")
@@ -628,7 +631,7 @@ def status(
                     title="Strategy Positions (Tracked)", show_lines=True, expand=True
                 )
                 strategy_table.add_column("Strategy", style="bold magenta")
-                strategy_table.add_column("Symbol", style="bold cyan")
+                strategy_table.add_column("Symbol", style=STYLE_BOLD_CYAN)
                 strategy_table.add_column("Qty", justify="right")
                 strategy_table.add_column("Avg Cost", justify="right")
                 strategy_table.add_column("Total Cost", justify="right")
@@ -816,7 +819,7 @@ def dsl_count(
 @app.command()
 def deploy() -> None:
     """
-    🚀 [bold cyan]Deploy to AWS Lambda[/bold cyan]
+    🚀 Deploy to AWS Lambda
 
     Builds and deploys to AWS Lambda using SAM (Serverless Application Model).
     """
@@ -828,7 +831,7 @@ def deploy() -> None:
 
     with Progress(
         SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
+        TextColumn(PROGRESS_DESCRIPTION_FORMAT),
         console=console,
     ) as progress:
         _task = progress.add_task("Running deployment script...", total=None)
@@ -873,7 +876,7 @@ def version() -> None:
     ℹ️  [bold]Show version information[/bold]
     """
     version_info = Text()
-    version_info.append(" The Alchemiser Quantitative Trading System\n", style="bold cyan")
+    version_info.append(" The Alchemiser Quantitative Trading System\n", style=STYLE_BOLD_CYAN)
     version_info.append("Version: 2.0.0\n", style="bold")
     version_info.append(f"Built: {datetime.now().strftime('%Y-%m-%d')}\n", style="dim")
     version_info.append("Strategies: Nuclear, TECL, KLM, Multi-Strategy\n", style="green")

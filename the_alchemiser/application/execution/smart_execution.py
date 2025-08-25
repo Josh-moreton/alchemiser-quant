@@ -114,12 +114,14 @@ class SmartExecution:
         data_provider: "DataProvider",
         ignore_market_hours: bool = False,
         config: Any = None,
+        account_info_provider: Any = None,
     ) -> None:
         """Initialize with dependency injection for execution and data access."""
         self.config = config or {}
         self._order_executor = order_executor
         self._data_provider = data_provider
         self._trading_client = getattr(order_executor, "trading_client", None)
+        self._account_info_provider = account_info_provider
         self.ignore_market_hours = ignore_market_hours
         self.logger = logging.getLogger(__name__)
 
@@ -187,6 +189,30 @@ class SmartExecution:
                     # Calculate max quantity we can afford, round down, scale to 99%
                     raw_qty = notional / current_price
                     rounded_qty = int(raw_qty * 1e6) / 1e6  # Round down to 6 decimals
+
+                    # Check buying power if we have account info provider
+                    if self._account_info_provider and side.lower() == "buy":
+                        try:
+                            account_info = self._account_info_provider.get_account_info()
+                            available_cash = float(account_info.get("cash", 0))
+                            order_value = rounded_qty * current_price
+
+                            if order_value > available_cash:
+                                # Scale down to available cash with safety margin
+                                max_affordable_qty = (available_cash * 0.95) / current_price
+                                if max_affordable_qty > 0:
+                                    rounded_qty = max_affordable_qty
+                                    console.print(
+                                        f"[yellow]Scaled {symbol} order down to available cash: {rounded_qty:.6f} shares[/yellow]"
+                                    )
+                                else:
+                                    console.print(
+                                        f"[red]Insufficient buying power for {symbol} order, skipping[/red]"
+                                    )
+                                    return None
+                        except Exception as e:
+                            self.logger.warning(f"Could not check buying power: {e}")
+
                     qty = rounded_qty * 0.99  # Scale to 99% to avoid buying power issues
                 else:
                     console.print(

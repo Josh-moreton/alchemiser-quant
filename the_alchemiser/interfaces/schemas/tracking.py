@@ -54,6 +54,10 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 
 from the_alchemiser.domain.registry.strategy_registry import StrategyType
 
+# Constants to avoid duplication
+STRATEGY_FIELD_DESCRIPTION = "Strategy name from registered strategies"
+SYMBOL_FIELD_DESCRIPTION = "Stock symbol (normalized to uppercase)"
+
 
 class OrderEventStatus(str, Enum):
     """Order event status enumeration."""
@@ -127,12 +131,12 @@ class StrategyOrderEventDTO(BaseModel, StrategyValidationMixin):
     event_id: str = Field(..., min_length=1, description="Unique event identifier")
 
     # Strategy and symbol information
-    strategy: StrategyLiteral = Field(..., description="Strategy name from registered strategies")
+    strategy: StrategyLiteral = Field(..., description=STRATEGY_FIELD_DESCRIPTION)
     symbol: str = Field(
         ...,
         min_length=1,
         max_length=10,
-        description="Stock symbol (normalized to uppercase)",
+        description=SYMBOL_FIELD_DESCRIPTION,
     )
 
     # Order details
@@ -194,12 +198,12 @@ class StrategyOrderDTO(BaseModel, StrategyValidationMixin):
     """
 
     order_id: str = Field(..., min_length=1, description="Unique order identifier")
-    strategy: StrategyLiteral = Field(..., description="Strategy name from registered strategies")
+    strategy: StrategyLiteral = Field(..., description=STRATEGY_FIELD_DESCRIPTION)
     symbol: str = Field(
         ...,
         min_length=1,
         max_length=10,
-        description="Stock symbol (normalized to uppercase)",
+        description=SYMBOL_FIELD_DESCRIPTION,
     )
     side: Literal["buy", "sell"] = Field(..., description="Order side (normalized to lowercase)")
     quantity: Decimal = Field(..., gt=0, description="Order quantity (positive decimal)")
@@ -289,7 +293,7 @@ class StrategyPositionDTO(BaseModel, StrategyValidationMixin):
         ...,
         min_length=1,
         max_length=10,
-        description="Stock symbol (normalized to uppercase)",
+        description=SYMBOL_FIELD_DESCRIPTION,
     )
     quantity: Decimal = Field(..., ge=0, description="Position quantity (non-negative)")
     average_cost: Decimal = Field(..., ge=0, description="Average cost per share")
@@ -478,7 +482,7 @@ class StrategyExecutionSummaryDTO(BaseModel, StrategyValidationMixin):
         ...,
         min_length=1,
         max_length=10,
-        description="Stock symbol (normalized to uppercase)",
+        description=SYMBOL_FIELD_DESCRIPTION,
     )
 
     # Aggregate metrics

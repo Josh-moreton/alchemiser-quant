@@ -23,9 +23,6 @@ if TYPE_CHECKING:
         StrategyOrderTracker,
     )
 
-# TODO: Add these imports once data structures match:
-# from the_alchemiser.domain.types import StrategyPnLSummary, OrderDetails, AlpacaOrderProtocol
-
 
 class StrategyExecutionContext:
     """Context manager to track which strategy is currently executing orders."""
@@ -164,16 +161,27 @@ class StrategyTrackingMixin:
 
     def get_strategy_pnl_summary(
         self, current_prices: dict[str, float] | None = None
-    ) -> dict[str, Any]:  # TODO: Change to StrategyPnLSummary once data structure matches
-        """Get P&L summary for all strategies."""
+    ) -> dict[str, Any]:
+        """Get P&L summary for all strategies.
+
+        Returns:
+            Dictionary containing strategy P&L summary data for email reporting.
+        """
         return self._strategy_tracker.get_summary_for_email(current_prices)
 
 
 # Helper function to extract order details from Alpaca order objects
 def extract_order_details_from_alpaca_order(
-    order: Any,  # TODO: Phase 15 - Use AlpacaOrderProtocol when ready
-) -> dict[str, Any]:  # TODO: Phase 15 - Return OrderDetails when structure matches
-    """Extract order details from Alpaca order object for tracking."""
+    order: Any,  # Alpaca order object with dynamic attributes
+) -> dict[str, Any]:
+    """Extract order details from Alpaca order object for tracking.
+
+    Args:
+        order: Alpaca order object with id, symbol, side, qty, price attributes
+
+    Returns:
+        Dictionary with standardized order details for tracking system
+    """
     try:
         # Handle both order response objects and order status objects
         order_id = str(getattr(order, "id", "unknown"))
@@ -208,9 +216,13 @@ def extract_order_details_from_alpaca_order(
 
 
 def track_alpaca_order_if_filled(
-    order: Any,
-) -> None:  # TODO: Phase 15 - Use AlpacaOrderProtocol when ready
-    """Track an Alpaca order if it's filled and we have strategy context."""
+    order: Any,  # Alpaca order object
+) -> None:
+    """Track an Alpaca order if it's filled and we have strategy context.
+
+    Args:
+        order: Alpaca order object to potentially track
+    """
     try:
         # Check if order is filled
         status = str(getattr(order, "status", "")).lower()
@@ -242,9 +254,13 @@ def track_alpaca_order_if_filled(
 
 # Configuration helper
 def configure_strategy_tracking_integration(
-    trading_engine: Any,
-) -> None:  # TODO: Phase 15 - Use TradingEngine type when ready
-    """Configure strategy tracking integration with existing trading engine."""
+    trading_engine: Any,  # TradingEngine instance
+) -> None:
+    """Configure strategy tracking integration with existing trading engine.
+
+    Args:
+        trading_engine: Trading engine instance to configure with tracking
+    """
     try:
         # Add tracking mixin to trading engine if it doesn't already have it
         if not hasattr(trading_engine, "_strategy_tracker"):
