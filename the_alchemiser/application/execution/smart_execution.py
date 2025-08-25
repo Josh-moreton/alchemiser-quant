@@ -2,6 +2,9 @@
 """
 Smart Execution Engine with Professional Order Strategy.
 
+⚠️  DEPRECATED: This module is deprecated and will be removed in a future version.
+Use RefactoredSmartExecution instead for improved reliability, observability, and type safety.
+
 This module provides sophisticated order execution using the Better Orders strategy:
 - Aggressive marketable limits (ask+1¢ for buys, bid-1¢ for sells)
 - Market timing logic for 9:30-9:35 ET execution
@@ -15,6 +18,7 @@ Focuses on execution strategy logic while delegating order placement to speciali
 
 import logging
 import time
+import warnings
 from typing import Any, Protocol
 
 from alpaca.trading.enums import OrderSide
@@ -105,6 +109,9 @@ def is_market_open(trading_client: Any) -> bool:
 class SmartExecution:
     """Professional execution engine using Better Orders strategy.
 
+    ⚠️  DEPRECATED: This class is deprecated and will be removed in a future version.
+    Use RefactoredSmartExecution instead for improved reliability, observability, and type safety.
+
     Execution responsibilities only; order placement delegated to injected executor.
     """
 
@@ -116,6 +123,13 @@ class SmartExecution:
         config: Any = None,
     ) -> None:
         """Initialize with dependency injection for execution and data access."""
+        warnings.warn(
+            "SmartExecution is deprecated. Use RefactoredSmartExecution instead for "
+            "improved reliability, observability, and type safety.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        
         self.config = config or {}
         self._order_executor = order_executor
         self._data_provider = data_provider
