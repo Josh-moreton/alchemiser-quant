@@ -5,6 +5,9 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.rule import Rule
 from rich.table import Table
+from rich.text import Text
+
+from the_alchemiser.interfaces.schemas.common import MultiStrategyExecutionResultDTO
 
 """Console formatting utilities for quantitative trading system output using rich."""
 
@@ -566,6 +569,7 @@ __all__ = [
     "render_footer",
     "render_target_vs_current_allocations",
     "render_execution_plan",
+    "render_multi_strategy_summary",
 ]
 
 
@@ -639,3 +643,133 @@ def render_enriched_order_summaries(
         )
 
     c.print(table)
+
+
+def render_multi_strategy_summary(
+    execution_result: MultiStrategyExecutionResultDTO,
+    console: Console | None = None,
+) -> None:
+    """
+    Render a summary of multi-strategy execution results using Rich.
+
+    This function was moved from TradingEngine.display_multi_strategy_summary()
+    to separate presentation logic from business logic.
+
+    Args:
+        execution_result: The execution result to display
+        console: Optional console for output (creates new one if None)
+    """
+    c = console or Console()
+
+    if not execution_result.success:
+        c.print(
+            Panel(
+                f"[bold red]Execution failed: {execution_result.execution_summary.pnl_summary if execution_result.execution_summary else 'Unknown error'}[/bold red]",
+                title="Execution Result",
+                style="red",
+            )
+        )
+        return
+
+    # Portfolio allocation display
+    portfolio_table = Table(title="Consolidated Portfolio", show_lines=False)
+    portfolio_table.add_column("Symbol", style="bold cyan", justify="center")
+    portfolio_table.add_column("Allocation", style="bold green", justify="right")
+    portfolio_table.add_column("Visual", style="white", justify="left")
+
+    sorted_portfolio = sorted(
+        execution_result.consolidated_portfolio.items(), key=lambda x: x[1], reverse=True
+    )
+
+    for symbol, weight in sorted_portfolio:
+        # Create visual bar
+        bar_length = int(weight * 20)  # Scale to 20 chars max
+        bar = "█" * bar_length + "░" * (20 - bar_length)
+
+        portfolio_table.add_row(symbol, f"{weight:.1%}", f"[green]{bar}[/green]")
+
+    # Orders executed table
+    orders_table: Table | Panel
+    if execution_result.orders_executed:
+        orders_table = Table(
+            title=f"Orders Executed ({len(execution_result.orders_executed)})", show_lines=False
+        )
+        orders_table.add_column("Type", style="bold", justify="center")
+        orders_table.add_column("Symbol", style="cyan", justify="center")
+        orders_table.add_column("Quantity", style="white", justify="right")
+        orders_table.add_column("Actual Value", style="green", justify="right")
+
+        for order in execution_result.orders_executed:
+            side = order.get("side", "")
+            side_value = str(side).upper()  # Convert to uppercase for display
+
+            side_color = "green" if side_value == "BUY" else "red"
+
+            # Calculate actual filled value
+            filled_qty = float(order.get("filled_qty", 0))
+            filled_avg_price = float(order.get("filled_avg_price", 0) or 0)
+            actual_value = filled_qty * filled_avg_price
+
+            # Fall back to estimated value if no filled data available
+            if actual_value == 0:
+                estimated_value = order.get("estimated_value", 0)
+                try:
+                    # Handle various types that estimated_value might be
+                    if isinstance(estimated_value, int | float):
+                        actual_value = float(estimated_value)
+                    elif isinstance(estimated_value, str):
+                        actual_value = float(estimated_value)
+                    else:
+                        actual_value = 0.0
+                except (ValueError, TypeError):
+                    actual_value = 0.0
+
+            orders_table.add_row(
+                f"[{side_color}]{side_value}[/{side_color}]",
+                order.get("symbol", ""),
+                f"{order.get('qty', 0):.6f}",
+                f"${actual_value:.2f}",
+            )
+    else:
+        orders_table = Panel(
+            "[green]Portfolio already balanced - no trades needed[/green]",
+            title="Orders Executed",
+            style="green",
+        )
+
+    # Account summary
+    account_panel = None
+    if execution_result.account_info_after:
+        # Use the account info directly from the execution result
+        base_account = execution_result.account_info_after
+
+        account_content = Text()
+        account_content.append(
+            f"Portfolio Value: ${float(base_account.get('portfolio_value', 0)):,.2f}\n",
+            style="bold green",
+        )
+        account_content.append(
+            f"Cash Balance: ${float(base_account.get('cash', 0)):,.2f}\n", style="bold blue"
+        )
+
+        account_panel = Panel(account_content, title="Account Summary", style="bold white")
+
+    # Display everything
+    c.print()
+    c.print(portfolio_table)
+    c.print()
+
+    c.print(orders_table)
+    c.print()
+
+    if account_panel:
+        c.print(account_panel)
+        c.print()
+
+    c.print(
+        Panel(
+            "[bold green]Multi-strategy execution completed successfully[/bold green]",
+            title="Execution Complete",
+            style="green",
+        )
+    )

@@ -24,7 +24,9 @@ from the_alchemiser.interface.cli.cli_formatter import (
     render_enriched_order_summaries,
     render_footer,
     render_header,
+    render_multi_strategy_summary,
     render_strategy_signals,
+    render_target_vs_current_allocations,
 )
 from the_alchemiser.interfaces.schemas.common import MultiStrategyExecutionResultDTO
 from the_alchemiser.interfaces.schemas.orders import ValidatedOrderDTO
@@ -155,8 +157,15 @@ class TradingExecutor:
             account_info = trader.get_account_info()
             current_positions = trader.get_positions_dict()
             if account_info and consolidated_portfolio:
-                trader.display_target_vs_current_allocations(
+                # Get calculation results from engine (no rendering)
+                target_values, current_values = trader.get_target_vs_current_allocations(
                     consolidated_portfolio, account_info, current_positions
+                )
+                # Render using CLI formatter
+                render_target_vs_current_allocations(
+                    consolidated_portfolio,
+                    dict(account_info) if isinstance(account_info, dict) else dict(account_info),
+                    current_positions,
                 )
         except Exception as e:
             self.logger.warning(f"Could not display portfolio summary: {e}")
@@ -165,8 +174,8 @@ class TradingExecutor:
         self._show_execution_progress()
         result: MultiStrategyExecutionResultDTO = trader.execute_multi_strategy()
 
-        # Display results
-        trader.display_multi_strategy_summary(result)
+        # Display results using CLI renderer
+        render_multi_strategy_summary(result)
 
         # Show enriched open orders using typed domain model
         try:

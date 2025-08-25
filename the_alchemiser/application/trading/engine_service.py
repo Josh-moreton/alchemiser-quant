@@ -12,7 +12,7 @@ Example:
 
     >>> engine = TradingEngine(paper_trading=True)
     >>> result = engine.execute_multi_strategy()
-    >>> engine.display_multi_strategy_summary(result)
+    >>> # Rendering is handled by CLI layer via render_multi_strategy_summary()
 
     DI Example:
     >>> container = ApplicationContainer.create_for_testing()
@@ -1246,16 +1246,16 @@ class TradingEngine:
             logging.error(f"❌ Post-trade validation failed: {e}")
             # This is not critical to trading execution, so we don't re-raise
 
-    def display_target_vs_current_allocations(
+    def get_target_vs_current_allocations(
         self,
         target_portfolio: dict[str, float],
         account_info: AccountInfo | dict[str, Any],
         current_positions: dict[str, Any],
     ) -> tuple[dict[str, float], dict[str, float]]:
-        """Display target vs current allocations and return calculated values.
+        """Calculate target vs current allocations and return calculated values.
 
-        Shows a comparison between target portfolio weights and current position values,
-        helping to visualize rebalancing needs.
+        Calculates the comparison between target portfolio weights and current position values,
+        helping to determine rebalancing needs.
 
         Args:
             target_portfolio (Dict[str, float]): Target allocation weights by symbol.
@@ -1268,9 +1268,8 @@ class TradingEngine:
                 - current_values: Current market values by symbol
 
         Note:
-            Uses Rich table formatting via cli_formatter for beautiful display.
+            This method only performs calculations - rendering is handled by the CLI layer.
         """
-        from the_alchemiser.interface.cli.cli_formatter import render_target_vs_current_allocations
         from the_alchemiser.services.account.account_utils import (
             calculate_position_target_deltas,
             extract_current_position_values,
@@ -1351,235 +1350,9 @@ class TradingEngine:
         target_values = calculate_position_target_deltas(target_portfolio, account_info_typed)
         current_values = extract_current_position_values(current_positions)
 
-        # Use existing formatter for display
-        # Ensure a plain dict is passed to the renderer to satisfy its signature
-        render_target_vs_current_allocations(
-            target_portfolio,
-            dict(account_info) if isinstance(account_info, dict) else dict(account_info_typed),
-            current_positions,
-        )
-
         return target_values, current_values
 
-    def display_multi_strategy_summary(
-        self, execution_result: MultiStrategyExecutionResultDTO
-    ) -> None:
-        """
-        Display a summary of multi-strategy execution results using Rich
-        Args:
-            execution_result: The execution result to display
-        """
-        from rich.console import Console
-        from rich.panel import Panel
-        from rich.table import Table
-        from rich.text import Text
 
-        # Type annotation for orders_table that can be either Table or Panel
-        orders_table: Table | Panel
-
-        console = Console()
-
-        if not execution_result.success:
-            console.print(
-                Panel(
-                    f"[bold red]Execution failed: {execution_result.execution_summary.pnl_summary if execution_result.execution_summary else 'Unknown error'}[/bold red]",
-                    title="Execution Result",
-                    style="red",
-                )
-            )
-            return
-
-        # Portfolio allocation display
-        portfolio_table = Table(title="Consolidated Portfolio", show_lines=False)
-        portfolio_table.add_column("Symbol", style="bold cyan", justify="center")
-        portfolio_table.add_column("Allocation", style="bold green", justify="right")
-        portfolio_table.add_column("Visual", style="white", justify="left")
-
-        sorted_portfolio = sorted(
-            execution_result.consolidated_portfolio.items(), key=lambda x: x[1], reverse=True
-        )
-
-        for symbol, weight in sorted_portfolio:
-            # Create visual bar
-            bar_length = int(weight * 20)  # Scale to 20 chars max
-            bar = "█" * bar_length + "░" * (20 - bar_length)
-
-            portfolio_table.add_row(symbol, f"{weight:.1%}", f"[green]{bar}[/green]")
-
-        # Orders executed table
-        if execution_result.orders_executed:
-            orders_table = Table(
-                title=f"Orders Executed ({len(execution_result.orders_executed)})", show_lines=False
-            )
-            orders_table.add_column("Type", style="bold", justify="center")
-            orders_table.add_column("Symbol", style="cyan", justify="center")
-            orders_table.add_column("Quantity", style="white", justify="right")
-            orders_table.add_column("Actual Value", style="green", justify="right")
-
-            for order in execution_result.orders_executed:
-                side = order.get("side", "")
-                side_value = str(side).upper()  # Convert to uppercase for display
-
-                side_color = "green" if side_value == "BUY" else "red"
-
-                # Calculate actual filled value
-                filled_qty = float(order.get("filled_qty", 0))
-                filled_avg_price = float(order.get("filled_avg_price", 0) or 0)
-                actual_value = filled_qty * filled_avg_price
-
-                # Fall back to estimated value if no filled data available
-                if actual_value == 0:
-                    estimated_value = order.get("estimated_value", 0)
-                    try:
-                        # Handle various types that estimated_value might be
-                        if isinstance(estimated_value, int | float):
-                            actual_value = float(estimated_value)
-                        elif isinstance(estimated_value, str):
-                            actual_value = float(estimated_value)
-                        else:
-                            actual_value = 0.0
-                    except (ValueError, TypeError):
-                        actual_value = 0.0
-
-                orders_table.add_row(
-                    f"[{side_color}]{side_value}[/{side_color}]",
-                    order.get("symbol", ""),
-                    f"{order.get('qty', 0):.6f}",
-                    f"${actual_value:.2f}",
-                )
-        else:
-            orders_table = Panel(
-                "[green]Portfolio already balanced - no trades needed[/green]",
-                title="Orders Executed",
-                style="green",
-            )
-
-        # Account summary
-        if execution_result.account_info_after:
-            # Try to get enriched account info for better display
-            try:
-                enriched_account = self.get_enriched_account_info()
-                account = enriched_account
-            except (DataProviderError, AttributeError, ValueError):
-                # Convert AccountInfo to EnrichedAccountInfo format
-                base_account = execution_result.account_info_after
-                account = {
-                    "account_id": base_account["account_id"],
-                    "equity": base_account["equity"],
-                    "cash": base_account["cash"],
-                    "buying_power": base_account["buying_power"],
-                    "day_trades_remaining": base_account["day_trades_remaining"],
-                    "portfolio_value": base_account.get("portfolio_value", 0.0),
-                    "last_equity": base_account.get("last_equity", 0.0),
-                    "daytrading_buying_power": base_account.get("daytrading_buying_power", 0.0),
-                    "regt_buying_power": base_account.get("regt_buying_power", 0.0),
-                    "status": base_account.get("status", "INACTIVE"),  # Use valid literal
-                    "trading_mode": "paper" if self.paper_trading else "live",
-                    "market_hours_ignored": self.ignore_market_hours,
-                }
-
-            account_content = Text()
-            account_content.append(
-                f"Portfolio Value: ${float(account.get('portfolio_value', 0)):,.2f}\n",
-                style="bold green",
-            )
-            account_content.append(
-                f"Cash Balance: ${float(account.get('cash', 0)):,.2f}\n", style="bold blue"
-            )
-
-            # Add portfolio history P&L if available
-            portfolio_history = account.get("portfolio_history", {})
-            if portfolio_history and "profit_loss" in portfolio_history:
-                profit_loss = portfolio_history.get("profit_loss", [])
-                profit_loss_pct = portfolio_history.get("profit_loss_pct", [])
-                if profit_loss:
-                    recent_pl = profit_loss[-1]
-                    recent_pl_pct = profit_loss_pct[-1] if profit_loss_pct else 0
-                    pl_color = "green" if recent_pl >= 0 else "red"
-                    pl_sign = "+" if recent_pl >= 0 else ""
-                    account_content.append(
-                        f"Recent P&L: {pl_sign}${recent_pl:,.2f} ({pl_sign}{recent_pl_pct * 100:.2f}%)\n",
-                        style=f"bold {pl_color}",
-                    )
-
-            account_panel = Panel(account_content, title="Account Summary", style="bold white")
-
-        # Recent closed positions P&L table
-        closed_pnl_table = None
-        if execution_result.account_info_after:
-            # Try to get enriched account info for recent closed P&L
-            try:
-                enriched_account = self.get_enriched_account_info()
-                closed_pnl = enriched_account.get("recent_closed_pnl", [])
-            except (DataProviderError, AttributeError, ValueError):
-                # AccountInfo doesn't have recent_closed_pnl, so use empty list
-                closed_pnl = []
-
-            if closed_pnl:
-                closed_pnl_table = Table(
-                    title="Recent Closed Positions P&L (Last 7 Days)", show_lines=False
-                )
-                closed_pnl_table.add_column("Symbol", style="bold cyan", justify="center")
-                closed_pnl_table.add_column("Realized P&L", style="bold", justify="right")
-                closed_pnl_table.add_column("P&L %", style="bold", justify="right")
-                closed_pnl_table.add_column("Trades", style="white", justify="center")
-
-                total_realized_pnl = 0.0  # Initialize as float to handle float | int addition
-
-                for position in closed_pnl[:8]:  # Show top 8 in CLI summary
-                    symbol = position.get("symbol", "N/A")
-                    realized_pnl = position.get("realized_pnl", 0)
-                    realized_pnl_pct = position.get("realized_pnl_pct", 0)
-                    trade_count = position.get("trade_count", 0)
-
-                    total_realized_pnl += realized_pnl
-
-                    # Color coding for P&L
-                    pnl_color = "green" if realized_pnl >= 0 else "red"
-                    pnl_sign = "+" if realized_pnl >= 0 else ""
-
-                    closed_pnl_table.add_row(
-                        symbol,
-                        f"[{pnl_color}]{pnl_sign}${realized_pnl:,.2f}[/{pnl_color}]",
-                        f"[{pnl_color}]{pnl_sign}{realized_pnl_pct:.2f}%[/{pnl_color}]",
-                        str(trade_count),
-                    )
-
-                # Add total row
-                if len(closed_pnl) > 0:
-                    total_pnl_color = "green" if total_realized_pnl >= 0 else "red"
-                    total_pnl_sign = "+" if total_realized_pnl >= 0 else ""
-                    closed_pnl_table.add_row(
-                        "[bold]TOTAL[/bold]",
-                        f"[bold {total_pnl_color}]{total_pnl_sign}${total_realized_pnl:,.2f}[/bold {total_pnl_color}]",
-                        "-",
-                        "-",
-                    )
-
-        # Display everything
-        console.print()
-        console.print(portfolio_table)
-        console.print()
-
-        # Sonar: collapse redundant type check
-        console.print(orders_table)
-        console.print()
-
-        # Display closed P&L table if available
-        if closed_pnl_table:
-            console.print(closed_pnl_table)
-            console.print()
-
-        console.print(account_panel)
-        console.print()
-
-        console.print(
-            Panel(
-                "[bold green]Multi-strategy execution completed successfully[/bold green]",
-                title="Execution Complete",
-                style="green",
-            )
-        )
 
     @classmethod
     def create_with_di(
@@ -1724,7 +1497,9 @@ def main() -> None:
 
     console.print("[yellow]Executing multi-strategy...[/yellow]")
     result = trader.execute_multi_strategy()
-    trader.display_multi_strategy_summary(result)
+    # Import and use CLI renderer for display
+    from the_alchemiser.interface.cli.cli_formatter import render_multi_strategy_summary
+    render_multi_strategy_summary(result)
 
     console.print("[yellow]Getting performance report...[/yellow]")
     report = trader.get_multi_strategy_performance_report()
