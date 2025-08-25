@@ -1,6 +1,6 @@
 """Application-layer ports module for trading engine.
 
-This module aggregates stable Protocol interfaces that the decomposed trading 
+This module aggregates stable Protocol interfaces that the decomposed trading
 engine depends upon. It reuses existing domain protocols and introduces minimal
 new abstractions only where no suitable existing protocol covers the seam.
 
@@ -13,9 +13,10 @@ Design decisions:
 
 from __future__ import annotations
 
+from collections.abc import Iterable, Sequence
 from datetime import datetime
 from decimal import Decimal
-from typing import Iterable, Protocol, Sequence, runtime_checkable
+from typing import Protocol, runtime_checkable
 
 # Re-export canonical MarketDataPort (reuse; no duplication)
 from the_alchemiser.domain.market_data.protocols.market_data_port import MarketDataPort
@@ -27,7 +28,7 @@ from the_alchemiser.domain.trading.entities.order import Order
 @runtime_checkable
 class AccountReadPort(Protocol):
     """Read-only account information access.
-    
+
     No existing narrow read-only abstraction exposed in domain layer.
     This protocol provides essential account data without broad service interface.
     """
@@ -52,7 +53,7 @@ class AccountReadPort(Protocol):
 @runtime_checkable
 class OrderExecutionPort(Protocol):
     """Order submission and management operations.
-    
+
     No existing ExecutionPort found in domain layer covering batch operations
     and cancellation by symbols. This protocol provides essential order execution
     operations for the application layer.
@@ -70,7 +71,7 @@ class OrderExecutionPort(Protocol):
 @runtime_checkable
 class StrategyAdapterPort(Protocol):
     """Strategy signal generation adapter.
-    
+
     No existing protocol aggregates all active strategies into typed StrategySignal
     objects. This protocol provides unified strategy signal generation for the
     application orchestrator.
@@ -84,7 +85,7 @@ class StrategyAdapterPort(Protocol):
 @runtime_checkable
 class RebalancingOrchestratorPort(Protocol):
     """High-level portfolio rebalancing orchestration.
-    
+
     No existing protocol covers the sequential SELL → settle → BUY orchestration
     pattern. This protocol provides the high-level rebalancing workflow that
     the application layer requires.
@@ -101,7 +102,7 @@ class RebalancingOrchestratorPort(Protocol):
 
 class ReportingPort(Protocol):
     """Optional reporting abstraction for rendering/notification.
-    
+
     This protocol is optional and may be moved to interface layer if rendering
     is kept concrete rather than abstract.
     """
@@ -115,7 +116,7 @@ class ReportingPort(Protocol):
 __all__ = [
     "MarketDataPort",  # Re-exported from domain/market_data
     "AccountReadPort",
-    "OrderExecutionPort", 
+    "OrderExecutionPort",
     "StrategyAdapterPort",
     "RebalancingOrchestratorPort",
     "ReportingPort",
