@@ -195,6 +195,7 @@ class DSLParser:
             raise ParseError(f"Maximum AST depth exceeded: {self._configured_max_depth}")
             
         # Create the node first
+        node: ASTNode
         if isinstance(sexpr, int | float):
             node = NumberLiteral(float(sexpr))
         elif isinstance(sexpr, str):

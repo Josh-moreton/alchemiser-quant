@@ -40,6 +40,11 @@ from the_alchemiser.domain.dsl.errors import EvaluationError, IndicatorError, Po
 from the_alchemiser.domain.market_data.protocols.market_data_port import MarketDataPort
 from the_alchemiser.domain.math.indicators import TechnicalIndicators
 
+# Type imports for annotations
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from the_alchemiser.domain.dsl.evaluator_cache import EvalContext
+
 # Type for evaluation results
 Portfolio = dict[str, Decimal]
 EvalResult = float | bool | Portfolio
@@ -73,11 +78,10 @@ class DSLEvaluator:
         
         # Memoisation support
         self._enable_memoisation = enable_memoisation
+        self._node_cache: NodeEvaluationCache | None = None
         if enable_memoisation:
             from the_alchemiser.domain.dsl.evaluator_cache import NodeEvaluationCache
             self._node_cache = NodeEvaluationCache(maxsize=cache_maxsize)
-        else:
-            self._node_cache = None
         
         # Parallel evaluation support
         self._enable_parallel = enable_parallel
@@ -85,7 +89,7 @@ class DSLEvaluator:
         self._max_workers = max_workers
         
         # Default evaluation context (will be updated per evaluation)
-        self._eval_context = None
+        self._eval_context: EvalContext | None = None
 
     def evaluate(
         self, 
@@ -113,7 +117,7 @@ class DSLEvaluator:
         
         # Set up evaluation context for memoisation
         if self._enable_memoisation:
-            from the_alchemiser.domain.dsl.evaluator_cache import create_eval_context
+            from the_alchemiser.domain.dsl.evaluator_cache import create_eval_context, EvalContext
             self._eval_context = create_eval_context(timestamp, symbols, env_params)
 
         try:
@@ -174,7 +178,7 @@ class DSLEvaluator:
                     future_to_index[future] = i
                 
                 # Collect results in original order
-                results = [None] * len(children)
+                results: list[EvalResult] = [None] * len(children)  # type: ignore
                 for future in as_completed(future_to_index):
                     index = future_to_index[future]
                     try:

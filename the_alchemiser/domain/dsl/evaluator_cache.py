@@ -158,7 +158,7 @@ class NodeEvaluationCache:
         cache_key = (node_id, context.cache_key())
         
         if not hasattr(self, '_results'):
-            self._results = {}
+            self._results: dict[tuple[str, tuple[str, str, str]], Any] = {}
             
         # Store the result
         self._results[cache_key] = result
