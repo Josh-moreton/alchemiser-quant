@@ -39,6 +39,7 @@ Design Principles:
 
 from __future__ import annotations
 
+from collections import defaultdict
 from typing import TypedDict
 
 from the_alchemiser.domain.registry import StrategyType
@@ -46,6 +47,9 @@ from the_alchemiser.domain.strategies.typed_strategy_manager import AggregatedSi
 from the_alchemiser.domain.strategies.value_objects.strategy_signal import (
     StrategySignal as TypedStrategySignal,
 )
+
+BUY_ACTIONS: set[str] = {"BUY", "LONG"}  # Support historical LONG alias
+SELL_ACTIONS: set[str] = {"SELL"}  # Extend here if SHORT/EXIT introduced later
 
 
 class StrategySignalDisplayDTO(TypedDict):
@@ -146,43 +150,51 @@ def typed_signals_to_legacy_signals_dict(
 def compute_consolidated_portfolio(
     aggregated: AggregatedSignals,
     strategy_allocations: dict[StrategyType, float],
-) -> dict[str, float]:
-    """Build consolidated portfolio from all strategy signals.
+) -> tuple[dict[str, float], dict[str, list[StrategyType]]]:
+    """Build consolidated portfolio and symbol strategy attribution.
 
-    This function consolidates portfolio allocation computation that was previously
-    scattered in StrategyManagerAdapter. It reuses existing allocation logic from
-    domain value objects.
+    Business Rules:
+    * Only BUY/LONG signals contribute positive weight.
+    * SELL signals imply zero desired allocation (they do NOT add weight). If a symbol
+      receives only SELL signals it is omitted (target = 0). Mixed BUY/SELL across
+      strategies results in the net positive BUY contributions (no subtraction logic yet).
+    * Portfolio (aggregate) placeholder symbol 'PORT' is ignored for direct allocation.
 
     Args:
         aggregated: Aggregated signals from TypedStrategyManager
-        strategy_allocations: Portfolio allocation between strategies
+        strategy_allocations: Portfolio allocation between strategies (fractions 0–1)
 
     Returns:
-        Consolidated portfolio dict mapping symbols to allocation weights
+        (consolidated_portfolio, strategy_attribution)
+        * consolidated_portfolio: symbol -> fractional target weight (0–1)
+        * strategy_attribution: symbol -> list of strategies contributing a BUY/LONG weight
     """
     consolidated_portfolio: dict[str, float] = {}
+    attribution: dict[str, list[StrategyType]] = defaultdict(list)
 
-    # Build consolidated portfolio from all signals
     for strategy_type, signals in aggregated.get_signals_by_strategy().items():
         strategy_allocation = strategy_allocations.get(strategy_type, 0.0)
-
+        if strategy_allocation <= 0:
+            continue
         for signal in signals:
-            if signal.action in ["BUY", "LONG"]:
-                symbol_str = signal.symbol.value
+            action = str(signal.action)
+            symbol_str = signal.symbol.value
+            if symbol_str == "PORT":  # Skip synthetic portfolio container symbol
+                continue
+            if action in BUY_ACTIONS:
+                individual_allocation = float(signal.target_allocation.value) * strategy_allocation
+                if individual_allocation <= 0:
+                    continue
+                if symbol_str in consolidated_portfolio:
+                    consolidated_portfolio[symbol_str] += individual_allocation
+                else:
+                    consolidated_portfolio[symbol_str] = individual_allocation
+                if strategy_type not in attribution[symbol_str]:  # Avoid duplicates
+                    attribution[symbol_str].append(strategy_type)
+            # SELL actions intentionally ignored for now (no netting). Future enhancement:
+            # subtract SELL contributions or mark symbol for full exit.
 
-                # Use the actual signal allocation for individual symbols
-                if symbol_str != "PORT":
-                    # Calculate individual allocation as signal proportion * strategy allocation
-                    individual_allocation = (
-                        float(signal.target_allocation.value) * strategy_allocation
-                    )
-                    # If symbol already exists, add to allocation (multiple strategies can recommend same symbol)
-                    if symbol_str in consolidated_portfolio:
-                        consolidated_portfolio[symbol_str] += individual_allocation
-                    else:
-                        consolidated_portfolio[symbol_str] = individual_allocation
-
-    return consolidated_portfolio
+    return consolidated_portfolio, dict(attribution)
 
 
 def run_all_strategies_mapping(
@@ -208,13 +220,12 @@ def run_all_strategies_mapping(
         - Consolidated portfolio allocation dict
         - Strategy attribution dict (empty for now, preserved for interface compatibility)
     """
-    # Convert typed signals to legacy format
+    # Convert typed signals to legacy/display format
     legacy_signals = typed_signals_to_legacy_signals_dict(aggregated)
 
-    # Compute consolidated portfolio allocations
-    consolidated_portfolio = compute_consolidated_portfolio(aggregated, strategy_allocations)
-
-    # Strategy attribution placeholder (preserved for interface compatibility)
-    strategy_attribution: dict[str, list[StrategyType]] = {}
+    # Compute consolidated portfolio allocations + attribution
+    consolidated_portfolio, strategy_attribution = compute_consolidated_portfolio(
+        aggregated, strategy_allocations
+    )
 
     return legacy_signals, consolidated_portfolio, strategy_attribution
