@@ -15,7 +15,7 @@ from the_alchemiser.domain.registry import StrategyType
 from the_alchemiser.domain.types import OrderDetails
 from the_alchemiser.infrastructure.secrets.secrets_manager import SecretsManager
 from the_alchemiser.infrastructure.websocket.websocket_order_monitor import OrderCompletionMonitor
-from the_alchemiser.interfaces.schemas.execution import WebSocketResultDTO
+from the_alchemiser.interfaces.schemas.execution import WebSocketResultDTO, WebSocketStatus
 
 if TYPE_CHECKING:
     from the_alchemiser.application.portfolio.services.portfolio_management_facade import (
@@ -25,12 +25,12 @@ if TYPE_CHECKING:
 
 class RebalancingOrchestrator:
     """Orchestrates sequential portfolio rebalancing with proper settlement timing.
-    
+
     Handles the SELL→settle→BUY sequence to prevent buying power issues by:
     1. Executing SELL orders first to free up capital
-    2. Waiting for order settlement via WebSocket monitoring  
+    2. Waiting for order settlement via WebSocket monitoring
     3. Executing BUY orders with refreshed buying power
-    
+
     Delegates to PortfolioManagementFacade for phase-specific execution while
     handling the orchestration and settlement timing concerns.
     """
@@ -43,7 +43,7 @@ class RebalancingOrchestrator:
         account_info_provider: object | None = None,  # Object with get_account_info method
     ) -> None:
         """Initialize orchestrator with required dependencies.
-        
+
         Args:
             portfolio_facade: Facade for portfolio management operations
             trading_client: Alpaca trading client for WebSocket monitoring
@@ -61,33 +61,33 @@ class RebalancingOrchestrator:
         strategy_attribution: dict[str, list[StrategyType]] | None = None,
     ) -> list[OrderDetails]:
         """Execute SELL orders to free buying power.
-        
+
         Args:
             target_portfolio: Dictionary mapping symbols to target weight percentages
             strategy_attribution: Dictionary mapping symbols to contributing strategies
-            
+
         Returns:
             List of executed SELL orders as OrderDetails
         """
         logging.info("🔄 Phase 1: Executing SELL orders to free buying power")
-        
+
         # Delegate to facade for SELL phase execution
         sell_orders = self.portfolio_facade.rebalance_portfolio_phase(
             target_portfolio, phase="sell"
         )
-        
+
         if sell_orders:
             logging.info(f"Executed {len(sell_orders)} SELL orders")
             for order in sell_orders:
                 logging.info(f"SELL {order['symbol']}: {order['qty']} shares")
         else:
             logging.info("No SELL orders needed")
-            
+
         return sell_orders
 
     def wait_for_settlement_and_bp_refresh(self, sell_orders: list[OrderDetails]) -> None:
         """Wait for sell order settlement and buying power refresh via WebSocket monitoring.
-        
+
         Args:
             sell_orders: List of SELL orders to monitor for completion
         """
@@ -118,20 +118,22 @@ class RebalancingOrchestrator:
                 sell_order_ids, max_wait_seconds=30
             )
 
-            # Handle completion results
-            if completion_result.status == "completed":
+            # Handle completion results using enum comparisons (fix for previous string comparison bug)
+            if completion_result.status == WebSocketStatus.COMPLETED:
                 completed_order_ids = completion_result.orders_completed
                 logging.info(
                     f"✅ {len(completed_order_ids)} sell orders completed, buying power should be refreshed"
                 )
-            elif completion_result.status == "timeout":
+            elif completion_result.status == WebSocketStatus.TIMEOUT:
                 completed_order_ids = completion_result.orders_completed
                 logging.warning(
                     f"⏰ WebSocket monitoring timed out. {len(completed_order_ids)} orders completed out of {len(sell_order_ids)}"
                 )
-            else:  # error status
-                logging.error(f"❌ WebSocket monitoring error: {completion_result.message}")
+            else:  # WebSocketStatus.ERROR
                 completed_order_ids = completion_result.orders_completed
+                logging.error(
+                    f"❌ WebSocket monitoring error: {completion_result.message} (completed={len(completed_order_ids)})"
+                )
 
             # Brief additional delay to ensure buying power propagation
             time.sleep(2)
@@ -146,16 +148,16 @@ class RebalancingOrchestrator:
         strategy_attribution: dict[str, list[StrategyType]] | None = None,
     ) -> list[OrderDetails]:
         """Execute BUY orders with refreshed buying power.
-        
+
         Args:
             target_portfolio: Dictionary mapping symbols to target weight percentages
             strategy_attribution: Dictionary mapping symbols to contributing strategies
-            
+
         Returns:
             List of executed BUY orders as OrderDetails
         """
         logging.info("🔄 Phase 3: Executing BUY orders with refreshed buying power")
-        
+
         # Get fresh account info to update buying power if provider is available
         if self.account_info_provider and hasattr(self.account_info_provider, "get_account_info"):
             account_info = self.account_info_provider.get_account_info()
@@ -163,9 +165,7 @@ class RebalancingOrchestrator:
             logging.info(f"Current buying power: ${current_buying_power:,.2f}")
 
         # Delegate to facade for BUY phase execution with scaled sizing
-        buy_orders = self.portfolio_facade.rebalance_portfolio_phase(
-            target_portfolio, phase="buy"
-        )
+        buy_orders = self.portfolio_facade.rebalance_portfolio_phase(target_portfolio, phase="buy")
 
         if buy_orders:
             logging.info(f"Executed {len(buy_orders)} BUY orders")
@@ -182,18 +182,17 @@ class RebalancingOrchestrator:
         strategy_attribution: dict[str, list[StrategyType]] | None = None,
     ) -> list[OrderDetails]:
         """Execute complete sequential rebalancing: SELL→settle→BUY.
-        
+
         Args:
             target_portfolio: Dictionary mapping symbols to target weight percentages
             strategy_attribution: Dictionary mapping symbols to contributing strategies
-            
+
         Returns:
             List of all executed orders (SELLs and BUYs) as OrderDetails
         """
         if not target_portfolio:
             logging.warning("Empty target portfolio provided to rebalance_portfolio")
             return []
-
         # Validate portfolio allocations
         total_allocation = sum(target_portfolio.values())
         if abs(total_allocation - 1.0) > 0.05:
