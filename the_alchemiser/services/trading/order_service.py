@@ -122,7 +122,7 @@ class OrderService:
 
         # Place the order through repository
         logger.info(
-            f"Placing market {side} order for {symbol}: " f"qty={quantity}, notional=${notional}"
+            f"Placing market {side} order for {symbol}: qty={quantity}, notional=${notional}"
         )
 
         order_result = self._trading.place_market_order(

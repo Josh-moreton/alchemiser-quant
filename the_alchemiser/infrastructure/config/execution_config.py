@@ -6,7 +6,6 @@ Configuration settings for the professional execution system.
 Loads settings from the global application configuration.
 """
 
-
 import logging
 from dataclasses import dataclass
 

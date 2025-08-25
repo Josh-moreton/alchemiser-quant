@@ -6,7 +6,6 @@ This module provides intelligent pricing strategies based on market conditions,
 bid/ask spreads, and order aggressiveness settings.
 """
 
-
 import logging
 from typing import Any
 

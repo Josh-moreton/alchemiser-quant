@@ -7,7 +7,6 @@ fractionable vs non-fractionable asset handling, order type conversion,
 and fallback strategies.
 """
 
-
 import logging
 from decimal import ROUND_DOWN, Decimal
 from typing import TYPE_CHECKING, Any
