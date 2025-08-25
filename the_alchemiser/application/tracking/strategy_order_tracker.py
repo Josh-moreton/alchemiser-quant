@@ -23,7 +23,7 @@ import logging
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
-from typing import Any
+from typing import Any, cast
 
 from the_alchemiser.application.mapping.tracking_mapping import (
     orders_to_execution_summary_dto,
@@ -35,6 +35,10 @@ from the_alchemiser.infrastructure.s3.s3_utils import get_s3_handler
 from the_alchemiser.interfaces.schemas.tracking import (
     ExecutionStatus,
     StrategyExecutionSummaryDTO,
+    StrategyOrderDTO,
+    StrategyPositionDTO,
+    StrategyPnLDTO,
+    StrategyLiteral,
 )
 from the_alchemiser.services.errors import TradingSystemErrorHandler
 from the_alchemiser.services.errors.exceptions import DataProviderError, StrategyExecutionError
@@ -468,6 +472,293 @@ class StrategyOrderTracker:
             )
             logging.error(f"Error archiving daily P&L: {e}")
 
+    # ==================== DTO-based Methods ====================
+
+    def add_order(self, order_dto: StrategyOrderDTO) -> None:
+        """Add strategy order using DTO (new DTO-based interface)."""
+        try:
+            # Validate DTO (Pydantic validation happens automatically)
+            validated_order = StrategyOrderDTO.model_validate(order_dto.model_dump())
+            
+            # Convert DTO to internal dataclass for existing processing logic
+            strategy_order = self._dto_to_strategy_order(validated_order)
+            
+            # Process using existing logic
+            self._process_order(strategy_order)
+            
+            logging.info(
+                f"Added DTO order: {validated_order.strategy} {validated_order.side} "
+                f"{validated_order.quantity} {validated_order.symbol} @ ${validated_order.price}"
+            )
+        except Exception as e:
+            self.error_handler.handle_error(
+                error=e,
+                context="dto_order_addition",
+                component="StrategyOrderTracker.add_order",
+                additional_data={
+                    "order_id": order_dto.order_id,
+                    "strategy": order_dto.strategy,
+                    "symbol": order_dto.symbol,
+                },
+            )
+            raise
+
+    def get_orders_for_strategy(self, strategy_name: str) -> list[StrategyOrderDTO]:
+        """Get strategy orders as DTOs (new DTO-based interface)."""
+        try:
+            # Validate strategy name
+            strategy_type = StrategyType(strategy_name)
+            
+            # Get orders using existing logic
+            raw_orders = self.get_order_history(strategy=strategy_type)
+            
+            # Convert to DTOs
+            return [self._strategy_order_to_dto(order) for order in raw_orders]
+        except ValueError as e:
+            valid_strategies = [s.value for s in StrategyType]
+            raise ValueError(f"Invalid strategy '{strategy_name}'. Valid strategies: {valid_strategies}") from e
+        except Exception as e:
+            self.error_handler.handle_error(
+                error=e,
+                context="dto_orders_retrieval",
+                component="StrategyOrderTracker.get_orders_for_strategy",
+                additional_data={"strategy_name": strategy_name},
+            )
+            return []
+
+    def get_positions_summary(self) -> list[StrategyPositionDTO]:
+        """Get all strategy positions as DTOs (new DTO-based interface)."""
+        try:
+            position_dtos = []
+            
+            for (strategy, symbol), position in self._positions_cache.items():
+                # Only include positions with non-zero quantity
+                if position.quantity > 0:
+                    dto = self._strategy_position_to_dto(position)
+                    position_dtos.append(dto)
+            
+            # Sort by strategy, then by symbol for consistent ordering
+            position_dtos.sort(key=lambda p: (p.strategy, p.symbol))
+            return position_dtos
+        except Exception as e:
+            self.error_handler.handle_error(
+                error=e,
+                context="dto_positions_summary",
+                component="StrategyOrderTracker.get_positions_summary",
+            )
+            return []
+
+    def get_pnl_summary(self, strategy_name: str, current_prices: dict[str, float] | None = None) -> StrategyPnLDTO:
+        """Get strategy P&L as DTO (new DTO-based interface)."""
+        try:
+            # Validate strategy name
+            strategy_type = StrategyType(strategy_name)
+            
+            # Get P&L using existing logic
+            strategy_pnl = self.get_strategy_pnl(strategy_type, current_prices)
+            
+            # Convert to DTO
+            return self._strategy_pnl_to_dto(strategy_pnl)
+        except ValueError as e:
+            valid_strategies = [s.value for s in StrategyType]
+            raise ValueError(f"Invalid strategy '{strategy_name}'. Valid strategies: {valid_strategies}") from e
+        except Exception as e:
+            self.error_handler.handle_error(
+                error=e,
+                context="dto_pnl_summary",
+                component="StrategyOrderTracker.get_pnl_summary",
+                additional_data={"strategy_name": strategy_name},
+            )
+            # Return empty P&L on error
+            return StrategyPnLDTO(
+                strategy=cast(StrategyLiteral, strategy_name),
+                realized_pnl=Decimal("0"),
+                unrealized_pnl=Decimal("0"),
+                total_pnl=Decimal("0"),
+                positions={},
+                allocation_value=Decimal("0"),
+            )
+
+    # ==================== DTO Conversion Methods ====================
+
+    def _dto_to_strategy_order(self, dto: StrategyOrderDTO) -> StrategyOrder:
+        """Convert StrategyOrderDTO to internal StrategyOrder dataclass."""
+        return StrategyOrder(
+            order_id=dto.order_id,
+            strategy=dto.strategy,
+            symbol=dto.symbol,
+            side=dto.side.upper(),  # Convert to uppercase for internal consistency
+            quantity=float(dto.quantity),
+            price=float(dto.price),
+            timestamp=dto.timestamp.isoformat(),
+        )
+
+    def _strategy_order_to_dto(self, order: StrategyOrder) -> StrategyOrderDTO:
+        """Convert internal StrategyOrder dataclass to StrategyOrderDTO."""
+        return StrategyOrderDTO.from_strategy_order_data(
+            order_id=order.order_id,
+            strategy=order.strategy,
+            symbol=order.symbol,
+            side=order.side.lower(),  # Convert to lowercase for DTO
+            quantity=order.quantity,
+            price=order.price,
+            timestamp=order.timestamp,
+        )
+
+    def _strategy_position_to_dto(self, position: StrategyPosition) -> StrategyPositionDTO:
+        """Convert internal StrategyPosition dataclass to StrategyPositionDTO."""
+        return StrategyPositionDTO.from_position_data(
+            strategy=position.strategy,
+            symbol=position.symbol,
+            quantity=position.quantity,
+            average_cost=position.average_cost,
+            total_cost=position.total_cost,
+            last_updated=position.last_updated,
+        )
+
+    def _strategy_pnl_to_dto(self, pnl: StrategyPnL) -> StrategyPnLDTO:
+        """Convert internal StrategyPnL dataclass to StrategyPnLDTO."""
+        return StrategyPnLDTO.from_pnl_data(
+            strategy=pnl.strategy,
+            realized_pnl=pnl.realized_pnl,
+            unrealized_pnl=pnl.unrealized_pnl,
+            total_pnl=pnl.total_pnl,
+            positions=pnl.positions,
+            allocation_value=pnl.allocation_value,
+        )
+
+    # ==================== Enhanced Persistence Methods ====================
+
+    def _dto_to_storage(self, dto: StrategyOrderDTO) -> dict[str, Any]:
+        """Convert DTO to storage format."""
+        return dto.model_dump(
+            mode='json',  # Ensures Decimal serialization
+            exclude_none=True
+        )
+
+    def _storage_to_dto(self, data: dict[str, Any]) -> StrategyOrderDTO:
+        """Convert storage data to DTO."""
+        return StrategyOrderDTO.model_validate(data)
+
+    def migrate_existing_tracking_data(self) -> None:
+        """Migrate existing tracking data to DTO format."""
+        try:
+            logging.info("Starting migration of existing tracking data to DTO format...")
+            
+            # Load existing raw data
+            existing_data = self._load_all_tracking_data()
+            
+            migrated_count = 0
+            error_count = 0
+            
+            for strategy_name, orders in existing_data.items():
+                migrated_orders = []
+                
+                for order_data in orders:
+                    try:
+                        # Try to create DTO from existing data
+                        if self._is_dto_format(order_data):
+                            # Already in DTO format
+                            order_dto = StrategyOrderDTO.model_validate(order_data)
+                        else:
+                            # Legacy format - upgrade it
+                            upgraded_data = self._upgrade_legacy_order(order_data)
+                            order_dto = StrategyOrderDTO.model_validate(upgraded_data)
+                        
+                        migrated_orders.append(order_dto)
+                        migrated_count += 1
+                        
+                    except Exception as e:
+                        # Handle malformed data
+                        self._handle_migration_error(strategy_name, order_data, e)
+                        error_count += 1
+                
+                # Save migrated data back (optional - for now just validate)
+                # self._save_migrated_orders(strategy_name, migrated_orders)
+            
+            logging.info(f"Migration completed: {migrated_count} orders migrated, {error_count} errors")
+            
+        except Exception as e:
+            self.error_handler.handle_error(
+                error=e,
+                context="tracking_data_migration",
+                component="StrategyOrderTracker.migrate_existing_tracking_data",
+            )
+            logging.error(f"Error during tracking data migration: {e}")
+
+    def _load_all_tracking_data(self) -> dict[str, list[dict[str, Any]]]:
+        """Load all existing tracking data for migration."""
+        all_data: dict[str, list[dict[str, Any]]] = {}
+        
+        try:
+            orders_path = f"{self.orders_s3_path}recent_orders.json"
+            
+            if self.s3_handler.file_exists(orders_path):
+                data = self.s3_handler.read_json(orders_path)
+                if data and "orders" in data:
+                    # Group orders by strategy
+                    for order in data["orders"]:
+                        strategy = order.get("strategy", "UNKNOWN")
+                        if strategy not in all_data:
+                            all_data[strategy] = []
+                        all_data[strategy].append(order)
+            
+        except Exception as e:
+            logging.error(f"Error loading tracking data for migration: {e}")
+        
+        return all_data
+
+    def _is_dto_format(self, order_data: dict[str, Any]) -> bool:
+        """Check if order data is already in DTO format."""
+        # Simple check - DTO format should have specific fields and types
+        required_fields = {"order_id", "strategy", "symbol", "side", "quantity", "price", "timestamp"}
+        return all(field in order_data for field in required_fields)
+
+    def _upgrade_legacy_order(self, legacy_data: dict[str, Any]) -> dict[str, Any]:
+        """Upgrade legacy order format to DTO format."""
+        # Create a copy to avoid modifying original
+        upgraded = legacy_data.copy()
+        
+        # Ensure all required fields are present with defaults
+        upgraded.setdefault("order_id", f"legacy_{legacy_data.get('symbol', 'unknown')}_{legacy_data.get('timestamp', 'unknown')}")
+        upgraded.setdefault("strategy", "UNKNOWN")
+        upgraded.setdefault("symbol", "UNKNOWN")
+        upgraded.setdefault("side", "buy")
+        upgraded.setdefault("quantity", 0.0)
+        upgraded.setdefault("price", 0.0)
+        upgraded.setdefault("timestamp", datetime.now(UTC).isoformat())
+        
+        # Normalize side to lowercase for DTO
+        if "side" in upgraded:
+            upgraded["side"] = upgraded["side"].lower()
+        
+        return upgraded
+
+    def _handle_migration_error(self, strategy_name: str, order_data: dict[str, Any], error: Exception) -> None:
+        """Handle errors during data migration."""
+        self.error_handler.handle_error(
+            error=error,
+            context="tracking_data_migration_item",
+            component="StrategyOrderTracker._handle_migration_error",
+            additional_data={
+                "strategy_name": strategy_name,
+                "order_data_keys": list(order_data.keys()),
+                "error_type": type(error).__name__,
+            }
+        )
+        logging.warning(f"Failed to migrate order for {strategy_name}: {error}")
+
+    def _load_order_as_dto(self, order_data: dict[str, Any]) -> StrategyOrderDTO:
+        """Load order with fallback for legacy format."""
+        try:
+            return StrategyOrderDTO.model_validate(order_data)
+        except Exception:
+            # Try to upgrade legacy format
+            upgraded_data = self._upgrade_legacy_order(order_data)
+            return StrategyOrderDTO.model_validate(upgraded_data)
+
+    # ==================== Private Methods ====================
+
     def _update_position(self, order: StrategyOrder) -> None:
         """Update position cache with new order."""
         key = (order.strategy, order.symbol)
@@ -546,7 +837,7 @@ class StrategyOrderTracker:
             logging.error(f"Error loading tracker data: {e}")
 
     def _load_recent_orders(self, days: int = 90) -> None:
-        """Load recent orders from S3."""
+        """Load recent orders from S3 with support for both legacy and DTO formats."""
         try:
             # For now, load from a consolidated orders file
             # In production, you might want to partition by date
@@ -561,10 +852,16 @@ class StrategyOrderTracker:
                 logging.info("No orders data found in file")
                 return
 
-            # Process orders
+            # Process orders with backward compatibility
             for order_data in data["orders"]:
-                order = StrategyOrder(**order_data)
-                self._orders_cache.append(order)
+                try:
+                    # Try to load as DTO first for validation, then convert to internal format
+                    order_dto = self._load_order_as_dto(order_data)
+                    order = self._dto_to_strategy_order(order_dto)
+                    self._orders_cache.append(order)
+                except Exception as e:
+                    logging.warning(f"Failed to load order {order_data.get('order_id', 'unknown')}: {e}")
+                    # Continue with other orders
 
             # Filter to last N days
             self._filter_orders_by_date(days)
