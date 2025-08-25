@@ -172,6 +172,7 @@ class SignalAnalyzer:
         self,
         strategy_signals: dict[StrategyType, dict[str, Any]],
         consolidated_portfolio: dict[str, float],
+        show_tracking: bool,
     ) -> None:
         """Display signal analysis results."""
         # Display strategy signals
@@ -184,8 +185,9 @@ class SignalAnalyzer:
         # Display strategy summary
         self._display_strategy_summary(strategy_signals, consolidated_portfolio)
 
-        # Display strategy tracking information
-        self._display_strategy_tracking()
+        # Optionally display strategy tracking information (gated behind flag to preserve legacy minimal output)
+        if show_tracking:
+            self._display_strategy_tracking()
 
     def _display_strategy_tracking(self) -> None:
         """Display strategy tracking information from StrategyOrderTracker."""
@@ -365,8 +367,13 @@ class SignalAnalyzer:
 
         return set()
 
-    def run(self) -> bool:
-        """Run signal analysis."""
+    def run(self, show_tracking: bool = False) -> bool:
+        """Run signal analysis.
+
+        Args:
+            show_tracking: When True, include strategy performance tracking table (opt-in to keep
+                default output closer to original minimal signal view).
+        """
         render_header("MULTI-STRATEGY SIGNAL ANALYSIS", f"Analysis at {datetime.now()}")
 
         try:
@@ -385,8 +392,8 @@ class SignalAnalyzer:
                 self.logger.error("Failed to generate strategy signals")
                 return False
 
-            # Display results
-            self._display_results(strategy_signals, consolidated_portfolio)
+            # Display results (tracking gated by flag)
+            self._display_results(strategy_signals, consolidated_portfolio, show_tracking)
 
             render_footer("Signal analysis completed successfully!")
             return True

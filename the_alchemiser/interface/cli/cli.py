@@ -10,6 +10,8 @@ import logging
 import subprocess
 import time
 from datetime import datetime
+from decimal import Decimal
+from pathlib import Path
 from typing import Any
 
 import typer
@@ -20,6 +22,9 @@ from rich.table import Table
 from rich.text import Text
 
 from the_alchemiser.application.trading.engine_service import TradingEngine
+from the_alchemiser.domain.dsl.errors import DSLError
+from the_alchemiser.domain.dsl.strategy_loader import StrategyLoader
+from the_alchemiser.domain.market_data.protocols.market_data_port import MarketDataPort
 from the_alchemiser.infrastructure.logging.logging_utils import (
     get_logger,
     log_error_with_context,
@@ -32,6 +37,7 @@ from the_alchemiser.services.errors.exceptions import (
     TradingClientError,
 )
 from the_alchemiser.services.errors.handler import TradingSystemErrorHandler
+from the_alchemiser.services.market_data.market_data_service import MarketDataService
 from the_alchemiser.services.trading.trading_service_manager import TradingServiceManager
 
 # Initialize Typer app and Rich console
@@ -78,14 +84,206 @@ def signal(
         "-s",
         help="Strategy to run: nuclear, tecl, klm, or all (default)",
     ),
+    dsl_strategy: str | None = typer.Option(
+        None,
+        "--DSL",
+        "--dsl",
+        help="Path (or name) of DSL .clj strategy file to evaluate (uses new DSL engine)",
+    ),
+    show_trace: bool = typer.Option(
+        False,
+        "--trace",
+        help="Display evaluation trace when using --DSL",
+    ),
+    save_trace: str | None = typer.Option(
+        None,
+        "--save-trace",
+        help="Save evaluation trace JSON to file when using --DSL",
+    ),
+    tracking: bool = typer.Option(
+        False,
+        "--tracking",
+        help="Include strategy performance tracking table (opt-in; default off)",
+    ),
 ) -> None:
-    """🧠 Generate strategy signals without executing trades."""
+    """🧠 Generate strategy signals.
+
+    Default: legacy multi-strategy signal analysis via main engine.
+    With --DSL: evaluate a standalone DSL (.clj) strategy file and display portfolio weights.
+    """
 
     # Initialize error handler
     error_handler = TradingSystemErrorHandler()
 
     try:
-        # Display welcome header
+        # DSL mode path -----------------------------------------------------
+        if dsl_strategy:
+            show_welcome()
+
+            # Resolve strategy file path (allow bare name referencing clj-strategies dir)
+            raw_path = dsl_strategy.strip()
+            path_candidate = Path(raw_path)
+            if not path_candidate.suffix:
+                # Add .clj extension if missing
+                path_candidate = path_candidate.with_suffix(".clj")
+            if not path_candidate.is_file():
+                # Try relative to repository clj-strategies root
+                repo_root = Path(__file__).resolve().parents[3]
+                alt1 = repo_root / "clj-strategies" / path_candidate.name
+                alt2 = repo_root / "clj-strategies" / "trading_strategies" / path_candidate.name
+                for candidate in (alt1, alt2):
+                    if candidate.is_file():
+                        path_candidate = candidate
+                        break
+
+            console.print(f"[bold cyan]🔍 Evaluating DSL strategy:[/bold cyan] {path_candidate}")
+
+            if not path_candidate.is_file():
+                console.print(f"[bold red]Strategy file not found:[/bold red] {path_candidate}")
+                raise typer.Exit(1)
+
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                console=console,
+            ) as progress:
+                task = progress.add_task("[cyan]Initializing market data...", total=None)
+                time.sleep(0.25)
+
+                # Acquire API keys (paper mode for safety)
+                api_key, secret_key = secrets_manager.get_alpaca_keys(paper_trading=True)
+                if not api_key or not secret_key:
+                    console.print(
+                        "[bold red]Alpaca API credentials not available (paper).[/bold red]"
+                    )
+                    raise typer.Exit(1)
+
+                tsm = TradingServiceManager(api_key, secret_key, paper=True)
+
+                # Adapter implementing MarketDataPort
+                class _MarketDataPortAdapter(MarketDataPort):
+                    """Adapter bridging MarketDataService to Domain MarketDataPort for DSL.
+
+                    Only implements methods required by the DSL evaluator using the
+                    current typed port contract (get_bars / get_latest_quote / get_mid_price).
+                    """
+
+                    def __init__(self, md: MarketDataService) -> None:
+                        self._md = md
+
+                    def get_bars(
+                        self,
+                        symbol: Any,
+                        period: str | None = None,
+                        timeframe: str | None = None,
+                        **kwargs: Any,
+                    ) -> list[Any]:
+                        # Handle both positional and keyword arguments for flexibility
+                        period_val = period or kwargs.get("period", "1y")
+                        timeframe_val = timeframe or kwargs.get("timeframe", "1day")
+
+                        # Reuse existing service method that returns DataFrame-like structure, then
+                        # map into list of BarModel-compatible dicts (lightweight) if needed.
+                        df = self._md.get_data(
+                            str(symbol), timeframe=timeframe_val, period=period_val
+                        )
+                        bars: list[Any] = []
+                        if hasattr(df, "iterrows"):
+                            for _idx, row in df.iterrows():
+                                # Get close price - handle both 'Close' and 'close' column names
+                                close_price = row.get("Close") or row.get("close")
+                                if close_price is not None:
+                                    # Minimal structure; evaluator only needs close prices.
+                                    bars.append(type("BarStub", (), {"close": close_price})())
+                        return bars
+
+                    def get_latest_quote(self, symbol: Any) -> Any:
+                        q = self._md.get_validated_quote(str(symbol))
+                        if q is None:
+                            return None
+                        # Return simple object with bid/ask for mid price fallback
+                        return type("QuoteStub", (), {"bid": q[0], "ask": q[1]})()
+
+                    def get_mid_price(self, symbol: Any) -> float | None:
+                        quote = self.get_latest_quote(symbol)
+                        if not quote or quote.bid is None or quote.ask is None:
+                            # Fallback to last trade/price if available
+                            return self._md.get_validated_price(str(symbol))
+                        return (
+                            (quote.bid + quote.ask) / 2
+                            if quote.bid is not None and quote.ask is not None
+                            else None
+                        )
+
+                adapter = _MarketDataPortAdapter(tsm.market_data)
+
+                progress.update(task, description="[cyan]Parsing & evaluating DSL strategy...")
+
+                loader = StrategyLoader(adapter)
+                try:
+                    portfolio, trace = loader.evaluate_strategy_file(path_candidate)
+                except (DSLError, ValueError, OSError) as e:
+                    error_handler.handle_error(
+                        error=e,
+                        context="CLI DSL strategy evaluation",
+                        component="cli.signal.dsl",
+                        additional_data={
+                            "file": str(path_candidate),
+                            "error_type": type(e).__name__,
+                        },
+                    )
+                    console.print(f"\n[bold red]DSL evaluation error: {e}[/bold red]")
+                    if verbose:
+                        console.print_exception()
+                    raise typer.Exit(1)
+                finally:
+                    progress.update(task, completed=1)
+
+            # Display results ------------------------------------------------
+            if portfolio:
+                total_weight: Decimal = Decimal(str(sum(portfolio.values())))
+                table = Table(
+                    title=f"DSL Portfolio Weights (Σ={float(total_weight):.6f})",
+                    show_lines=True,
+                    expand=True,
+                )
+                table.add_column("Symbol", style="bold cyan")
+                table.add_column("Weight", justify="right")
+                for symbol, weight in sorted(portfolio.items(), key=lambda x: x[1], reverse=True):
+                    table.add_row(symbol, f"{float(weight):.6f}")
+                console.print()
+                console.print(table)
+                console.print(
+                    f"[bold green]✅ DSL strategy evaluated successfully with {len(portfolio)} positions[/bold green]"
+                )
+            else:
+                console.print(
+                    "[bold yellow]Strategy evaluated to an empty portfolio (no positions).[/bold yellow]"
+                )
+
+            # Optional trace handling
+            if show_trace and "trace" in locals():
+                console.print("\n[bold blue]Evaluation Trace (first 50 entries):[/bold blue]")
+                for entry in trace[:50]:
+                    console.print(f"[dim]- {entry}")
+                if len(trace) > 50:
+                    console.print(
+                        f"[dim]{len(trace) - 50} more entries not shown (use --save-trace).[/dim]"
+                    )
+
+            if save_trace and "trace" in locals():
+                out_path = Path(save_trace)
+                try:
+                    loader.save_trace(trace, out_path)
+                    console.print(
+                        f"[dim]Trace saved to {out_path.resolve()} ({len(trace)} entries)[/dim]"
+                    )
+                except Exception as e:  # pragma: no cover - non-critical
+                    console.print(f"[dim yellow]Failed to save trace: {e}[/dim yellow]")
+
+            return  # Exit early after DSL mode
+
+        # Legacy multi-strategy signal path ----------------------------------
         show_welcome()
 
         with Progress(
@@ -103,6 +301,8 @@ def signal(
 
             # Build argv for main function - signal mode
             argv = ["signal"]
+            if tracking:
+                argv.append("--tracking")
 
             success = main(argv=argv)
 
@@ -111,7 +311,6 @@ def signal(
         else:
             console.print("\n[bold red]Signal analysis failed![/bold red]")
             raise typer.Exit(1)
-
     except StrategyExecutionError as e:
         error_handler.handle_error(
             error=e,
@@ -391,16 +590,19 @@ def status(
 
         # Display strategy tracking information
         try:
-            from the_alchemiser.application.tracking.strategy_order_tracker import StrategyOrderTracker
-            from the_alchemiser.domain.registry import StrategyType
-            
+            from the_alchemiser.application.tracking.strategy_order_tracker import (
+                StrategyOrderTracker,
+            )
+
             tracker = StrategyOrderTracker(paper_trading=paper_trading)
-            
+
             # Get positions summary using new DTO methods
             positions_summary = tracker.get_positions_summary()
-            
+
             if positions_summary:
-                strategy_table = Table(title="Strategy Positions (Tracked)", show_lines=True, expand=True)
+                strategy_table = Table(
+                    title="Strategy Positions (Tracked)", show_lines=True, expand=True
+                )
                 strategy_table.add_column("Strategy", style="bold magenta")
                 strategy_table.add_column("Symbol", style="bold cyan")
                 strategy_table.add_column("Qty", justify="right")
@@ -411,58 +613,64 @@ def status(
                 for position in positions_summary:
                     # Format timestamp for display
                     last_updated = position.last_updated.strftime("%m/%d %H:%M")
-                    
+
                     strategy_table.add_row(
                         position.strategy,
                         position.symbol,
                         f"{float(position.quantity):.4f}",
                         f"${float(position.average_cost):.2f}",
                         f"${float(position.total_cost):.2f}",
-                        last_updated
+                        last_updated,
                     )
 
                 console.print()
                 console.print(strategy_table)
-                
+
                 # Show P&L summary for each strategy with positions
-                strategy_pnl_table = Table(title="Strategy P&L Summary", show_lines=True, expand=True)
+                strategy_pnl_table = Table(
+                    title="Strategy P&L Summary", show_lines=True, expand=True
+                )
                 strategy_pnl_table.add_column("Strategy", style="bold magenta")
                 strategy_pnl_table.add_column("Realized P&L", justify="right")
                 strategy_pnl_table.add_column("Unrealized P&L", justify="right")
                 strategy_pnl_table.add_column("Total P&L", justify="right")
                 strategy_pnl_table.add_column("Return %", justify="right")
-                
-                strategies_with_data = set(pos.strategy for pos in positions_summary)
+
+                strategies_with_data = {pos.strategy for pos in positions_summary}
                 for strategy_name in strategies_with_data:
                     try:
                         pnl_summary = tracker.get_pnl_summary(strategy_name)
-                        
+
                         # Color code P&L
                         total_pnl = float(pnl_summary.total_pnl)
                         pnl_color = "green" if total_pnl >= 0 else "red"
                         pnl_sign = "+" if total_pnl >= 0 else ""
-                        
+
                         return_pct = float(pnl_summary.total_return_pct)
                         return_color = "green" if return_pct >= 0 else "red"
                         return_sign = "+" if return_pct >= 0 else ""
-                        
+
                         strategy_pnl_table.add_row(
                             strategy_name,
                             f"${float(pnl_summary.realized_pnl):.2f}",
                             f"${float(pnl_summary.unrealized_pnl):.2f}",
                             f"[{pnl_color}]{pnl_sign}${total_pnl:.2f}[/{pnl_color}]",
-                            f"[{return_color}]{return_sign}{return_pct:.2f}%[/{return_color}]"
+                            f"[{return_color}]{return_sign}{return_pct:.2f}%[/{return_color}]",
                         )
                     except Exception as e:
-                        console.print(f"[dim yellow]Error getting P&L for {strategy_name}: {e}[/dim yellow]")
-                
+                        console.print(
+                            f"[dim yellow]Error getting P&L for {strategy_name}: {e}[/dim yellow]"
+                        )
+
                 if strategy_pnl_table.rows:
                     console.print()
                     console.print(strategy_pnl_table)
             else:
                 console.print()
-                console.print("[dim yellow]No strategy positions found in tracking system[/dim yellow]")
-                
+                console.print(
+                    "[dim yellow]No strategy positions found in tracking system[/dim yellow]"
+                )
+
         except Exception as e:  # Non-fatal UI enhancement
             console.print(f"[dim yellow]Strategy tracking unavailable: {e}[/dim yellow]")
 
