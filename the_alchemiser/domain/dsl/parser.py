@@ -48,22 +48,25 @@ SExprType = Any
 
 
 class DSLParser:
-    MAX_DEPTH = 500000  # Default very high for extremely nested strategies
-    MAX_NODES = 200000000  # Default very high for massive complex strategies
+    MAX_DEPTH = 5000000  # Default very high for extremely nested strategies
+    MAX_NODES = 2000000000  # Default very high for massive complex strategies
 
     def __init__(
         self,
         max_nodes: int | None = MAX_NODES,
         max_depth: int | None = MAX_DEPTH,
+        enable_interning: bool = False,
     ) -> None:
         """Create a DSL parser.
 
         Args:
             max_nodes: Maximum AST nodes allowed (None disables cap).
             max_depth: Maximum recursion depth (None disables cap).
+            enable_interning: Enable AST interning during parsing for structural sharing.
         """
         self._configured_max_nodes = max_nodes
         self._configured_max_depth = max_depth
+        self._enable_interning = enable_interning
         self._node_count: int = 0
         self._max_depth_seen: int = 0
 
@@ -77,11 +80,26 @@ class DSLParser:
         """Return maximum depth observed during last parse."""
         return self._max_depth_seen
 
-    def parse(self, source: str) -> ASTNode:
+    def parse(self, source: str, enable_interning: bool | None = None) -> ASTNode:
+        """Parse source code into an AST.
+
+        Args:
+            source: S-expression source code
+            enable_interning: Whether to apply AST interning for structural sharing
+                (overrides constructor setting if provided)
+
+        Returns:
+            Parsed AST root node (potentially with structural sharing applied)
+        """
+        # Allow override of instance setting
+        if enable_interning is not None:
+            self._enable_interning = enable_interning
+
         self._node_count = 0
         try:
             sexpr = self._parse_sexpr(source.strip())
-            return self._sexpr_to_ast(sexpr, 0)
+            ast = self._sexpr_to_ast(sexpr, 0)
+            return ast
         except (ParseError, SchemaError):  # re-raise cleanly
             raise
         except Exception as e:  # pragma: no cover
@@ -175,28 +193,49 @@ class DSLParser:
         # Enforce depth limit if configured
         if self._configured_max_depth is not None and depth > self._configured_max_depth:
             raise ParseError(f"Maximum AST depth exceeded: {self._configured_max_depth}")
-        # Increment node count and enforce node cap if configured
+
+        # Create the node first
+        node: ASTNode
+        if isinstance(sexpr, int | float):
+            node = NumberLiteral(float(sexpr))
+        elif isinstance(sexpr, str):
+            node = Symbol(sexpr)
+        elif isinstance(sexpr, Vector):
+            inner = [self._sexpr_to_ast(e, depth + 1) for e in sexpr.elements]
+            node = Group("__vector__", inner)
+        elif isinstance(sexpr, list):
+            if not sexpr:
+                raise ParseError("Empty list expression")
+            op = sexpr[0]
+            if not isinstance(op, str):
+                raise ParseError(f"Operator must be symbol, got {type(op)}")
+            raw_args = sexpr[1:]
+            node = self._parse_construct(op, raw_args, depth)
+        elif isinstance(sexpr, dict):  # metadata map placeholder
+            node = Symbol("__map__")
+        else:
+            raise ParseError(f"Unexpected S-expression type: {type(sexpr)}")
+
+        # Apply interning if enabled, which may return an existing instance
+        if self._enable_interning:
+            from the_alchemiser.domain.dsl.interning import intern_node
+
+            interned_node = intern_node(node)
+            # Only count as a new node if this is actually a new unique structure
+            if interned_node is node:  # New node created
+                self._increment_node_count()
+            # else: reused existing node, don't count it
+            return interned_node
+        else:
+            # No interning - count every node
+            self._increment_node_count()
+            return node
+
+    def _increment_node_count(self) -> None:
+        """Increment node count and enforce limits."""
         self._node_count += 1
         if self._configured_max_nodes is not None and self._node_count > self._configured_max_nodes:
             raise ParseError(f"Maximum node count exceeded: {self._configured_max_nodes}")
-        if isinstance(sexpr, int | float):
-            return NumberLiteral(float(sexpr))
-        if isinstance(sexpr, str):
-            return Symbol(sexpr)
-        if isinstance(sexpr, Vector):
-            inner = [self._sexpr_to_ast(e, depth + 1) for e in sexpr.elements]
-            return Group("__vector__", inner)
-        if not isinstance(sexpr, list):
-            if isinstance(sexpr, dict):  # metadata map placeholder
-                return Symbol("__map__")
-            raise ParseError(f"Unexpected S-expression type: {type(sexpr)}")
-        if not sexpr:
-            raise ParseError("Empty list expression")
-        op = sexpr[0]
-        if not isinstance(op, str):
-            raise ParseError(f"Operator must be symbol, got {type(op)}")
-        raw_args = sexpr[1:]
-        return self._parse_construct(op, raw_args, depth)
 
     def _unwrap_vector_group(self, node: ASTNode) -> list[ASTNode]:
         if isinstance(node, Group) and node.name == "__vector__":
@@ -214,14 +253,23 @@ class DSLParser:
 
     def _parse_construct(self, operator: str, args: list[SExprType], depth: int) -> ASTNode:
         ast_args = [self._sexpr_to_ast(a, depth + 1) for a in args]
-        if operator in {"weight-equal", "group", "weight-inverse-volatility", "weight-specified"}:
+        if operator in {
+            "weight-equal",
+            "group",
+            "weight-inverse-volatility",
+            "weight-specified",
+        }:
             ast_args = self._flatten_vector_nodes(ast_args)
         elif operator == "filter" and len(ast_args) >= 3:
             _metric_ast, _selector_ast, *assets = ast_args
             if len(assets) == 1 and isinstance(assets[0], Group) and assets[0].name == "__vector__":
                 assets = assets[0].expressions
             # Rebuild raw args for downstream parse method using original SExpr for indicator semantics
-            args = [args[0], args[1], *[self._ast_to_sexpr_placeholder(a) for a in assets]]
+            args = [
+                args[0],
+                args[1],
+                *[self._ast_to_sexpr_placeholder(a) for a in assets],
+            ]
         elif operator == "if":
             if len(ast_args) >= 2:
                 then_nodes = self._unwrap_vector_group(ast_args[1])
@@ -295,7 +343,10 @@ class DSLParser:
         return getattr(node, "symbol", "__expr__")
 
     def _parse_comparison(
-        self, node_type: type[GreaterThan] | type[LessThan], args: list[SExprType], depth: int
+        self,
+        node_type: type[GreaterThan] | type[LessThan],
+        args: list[SExprType],
+        depth: int,
     ) -> GreaterThan | LessThan:
         """Parse comparison operator."""
         if len(args) != 2:

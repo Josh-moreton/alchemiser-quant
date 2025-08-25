@@ -39,7 +39,9 @@ from the_alchemiser.services.errors.exceptions import (
 )
 from the_alchemiser.services.errors.handler import TradingSystemErrorHandler
 from the_alchemiser.services.market_data.market_data_service import MarketDataService
-from the_alchemiser.services.trading.trading_service_manager import TradingServiceManager
+from the_alchemiser.services.trading.trading_service_manager import (
+    TradingServiceManager,
+)
 
 # Initialize Typer app and Rich console
 app = typer.Typer(
@@ -220,7 +222,15 @@ def signal(
 
                 progress.update(task, description="[cyan]Parsing & evaluating DSL strategy...")
 
-                loader = StrategyLoader(adapter)
+                # Load optimization config from environment so .env flags apply
+                from the_alchemiser.domain.dsl.optimization_config import (
+                    configure_from_environment,
+                )
+
+                _opt_cfg = configure_from_environment()
+                loader = StrategyLoader(
+                    adapter, optimization_config=_opt_cfg, use_environment=False
+                )
                 try:
                     portfolio, trace = loader.evaluate_strategy_file(path_candidate)
                 except (DSLError, ValueError, OSError) as e:
@@ -804,7 +814,9 @@ def deploy() -> None:
     deploy_script = "scripts/deploy.sh"
 
     with Progress(
-        SpinnerColumn(), TextColumn("[progress.description]{task.description}"), console=console
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        console=console,
     ) as progress:
         _task = progress.add_task("Running deployment script...", total=None)
 
@@ -888,7 +900,9 @@ def validate_indicators(
 
     try:
         # Get API key from secrets manager
-        from the_alchemiser.infrastructure.secrets.secrets_manager import secrets_manager
+        from the_alchemiser.infrastructure.secrets.secrets_manager import (
+            secrets_manager,
+        )
 
         api_key = secrets_manager.get_twelvedata_api_key()
 
