@@ -34,7 +34,7 @@ class SignalAnalyzer:
             StrategyType.KLM: self.settings.strategy.default_strategy_allocations["klm"],
         }
 
-    def _generate_signals(self) -> tuple[dict[StrategyType, dict[str, Any]], dict[str, float]]:
+    def _generate_signals(self) -> tuple[dict[StrategyType, Any], dict[str, float]]:
         """Generate strategy signals."""
         # Acquire DI container initialized by main entry point
         import the_alchemiser.main as app_main
@@ -55,122 +55,18 @@ class SignalAnalyzer:
         typed_manager = TypedStrategyManager(market_data_port, strategy_allocations)
         aggregated_signals = typed_manager.generate_all_signals(datetime.now(UTC))
 
-        # Convert typed signals to display format
-        strategy_signals = self._convert_typed_signals_to_display_format(
-            aggregated_signals, strategy_allocations
-        )
+        # Use centralized mapping function (reuse requirement)
+        from the_alchemiser.application.mapping.strategies import run_all_strategies_mapping
 
-        # Build portfolio allocation from signals
-        consolidated_portfolio = self._build_portfolio_allocation(
+        strategy_signals, consolidated_portfolio, _strategy_attribution = run_all_strategies_mapping(
             aggregated_signals, strategy_allocations
         )
 
         return strategy_signals, consolidated_portfolio
 
-    def _convert_typed_signals_to_display_format(
-        self,
-        aggregated_signals: Any,  # TypedStrategyManager.AggregatedSignals
-        strategy_allocations: dict[StrategyType, float],
-    ) -> dict[StrategyType, dict[str, Any]]:
-        """Convert typed signals to display format."""
-        strategy_signals: dict[StrategyType, dict[str, Any]] = {}
-
-        for strategy_type, signals in aggregated_signals.get_signals_by_strategy().items():
-            if signals:
-                # Use the strategy's actual allocation percentage
-                # Strategy allocation is already a fraction (0-1). Keep as fraction; renderer formats %.
-                actual_allocation_fraction = strategy_allocations.get(strategy_type, 0.0)
-
-                if len(signals) == 1:
-                    # Single signal strategy
-                    signal = signals[0]
-                    symbol_value = signal.symbol.value
-                    symbol_str = "NUCLEAR_PORTFOLIO" if symbol_value == "PORT" else symbol_value
-
-                    strategy_signals[strategy_type] = {
-                        "symbol": symbol_str,
-                        "action": signal.action,
-                        "confidence": float(signal.confidence.value),
-                        "reasoning": signal.reasoning,
-                        # New canonical fractional field; legacy alias maintained for backward compatibility
-                        "allocation_weight": actual_allocation_fraction,
-                        "allocation_percentage": actual_allocation_fraction,
-                    }
-                else:
-                    # Multi-signal strategy (like nuclear portfolio)
-                    # Create a consolidated display showing all symbols
-                    first_signal = signals[0]
-                    symbol_names = [s.symbol.value for s in signals]
-                    symbol_display = f"NUCLEAR_PORTFOLIO ({', '.join(symbol_names)})"
-
-                    # Combine reasoning with portfolio breakdown
-                    base_reasoning = first_signal.reasoning.split(
-                        " | Nuclear portfolio constituent"
-                    )[0]
-                    portfolio_breakdown = "\n\nNuclear Portfolio Breakdown:\n"
-                    for signal in signals:
-                        # signal.target_allocation.value is the proportion within the strategy
-                        # actual_allocation is the strategy's total allocation as percentage
-                        individual_weight_pct = (
-                            float(signal.target_allocation.value)
-                            * actual_allocation_fraction
-                            * 100.0  # convert to percent of total portfolio for display inside reasoning
-                        )
-                        portfolio_breakdown += (
-                            f"• {signal.symbol.value}: {individual_weight_pct:.1f}%\n"
-                        )
-
-                    combined_reasoning = base_reasoning + portfolio_breakdown.rstrip()
-
-                    strategy_signals[strategy_type] = {
-                        "symbol": symbol_display,
-                        "action": first_signal.action,
-                        "confidence": float(first_signal.confidence.value),
-                        "reasoning": combined_reasoning,
-                        "allocation_weight": actual_allocation_fraction,
-                        "allocation_percentage": actual_allocation_fraction,
-                    }
-            else:
-                strategy_signals[strategy_type] = {
-                    "symbol": "N/A",
-                    "action": "HOLD",
-                    "confidence": 0.0,
-                    "reasoning": "No signal produced",
-                    "allocation_weight": 0.0,
-                    "allocation_percentage": 0.0,
-                }
-
-        return strategy_signals
-
-    def _build_portfolio_allocation(
-        self,
-        aggregated_signals: Any,  # TypedStrategyManager.AggregatedSignals
-        strategy_allocations: dict[StrategyType, float],
-    ) -> dict[str, float]:
-        """Build portfolio allocation from typed signals."""
-        consolidated_portfolio: dict[str, float] = {}
-
-        # Build consolidated portfolio from all signals
-        for strategy_type, signals in aggregated_signals.get_signals_by_strategy().items():
-            strategy_allocation = strategy_allocations.get(strategy_type, 0.0)
-
-            for signal in signals:
-                if signal.action in ["BUY", "LONG"]:
-                    symbol_str = signal.symbol.value
-
-                    # Use the actual signal allocation for individual symbols
-                    if symbol_str != "PORT":
-                        # Calculate individual allocation as signal proportion * strategy allocation
-                        individual_allocation = (
-                            float(signal.target_allocation.value) * strategy_allocation
-                        )
-                        consolidated_portfolio[symbol_str] = individual_allocation
-
-        return consolidated_portfolio
-
     def _display_results(
         self,
-        strategy_signals: dict[StrategyType, dict[str, Any]],
+        strategy_signals: dict[StrategyType, Any],
         consolidated_portfolio: dict[str, float],
         show_tracking: bool,
     ) -> None:
@@ -282,7 +178,7 @@ class SignalAnalyzer:
 
     def _display_strategy_summary(
         self,
-        strategy_signals: dict[StrategyType, dict[str, Any]],
+        strategy_signals: dict[StrategyType, Any],
         consolidated_portfolio: dict[str, float],
     ) -> None:
         """Display strategy allocation summary."""
@@ -320,7 +216,7 @@ class SignalAnalyzer:
     def _count_positions_for_strategy(
         self,
         strategy_name: str,
-        strategy_signals: dict[StrategyType, dict[str, Any]],
+        strategy_signals: dict[StrategyType, Any],
         consolidated_portfolio: dict[str, float],
     ) -> int:
         """Count positions for a specific strategy."""
@@ -350,7 +246,7 @@ class SignalAnalyzer:
             return len([s for s in strategy_symbols if s in consolidated_portfolio])
 
     def _get_symbols_for_strategy(
-        self, strategy_name: str, strategy_signals: dict[StrategyType, dict[str, Any]]
+        self, strategy_name: str, strategy_signals: dict[StrategyType, Any]
     ) -> set[str]:
         """Get symbols associated with a strategy."""
         strategy_type = getattr(StrategyType, strategy_name.upper(), None)
