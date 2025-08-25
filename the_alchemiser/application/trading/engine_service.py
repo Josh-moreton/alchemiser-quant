@@ -12,7 +12,7 @@ Example:
 
     >>> engine = TradingEngine(paper_trading=True)
     >>> result = engine.execute_multi_strategy()
-    >>> engine.display_multi_strategy_summary(result)
+    >>> # Display handled by CLI layer
 
     DI Example:
     >>> container = ApplicationContainer.create_for_testing()
@@ -22,7 +22,11 @@ Example:
 
 import logging
 from datetime import datetime
-from typing import Any, Protocol
+from decimal import Decimal
+from typing import TYPE_CHECKING, Any, Protocol
+
+if TYPE_CHECKING:  # Import for type checking only to avoid runtime dependency
+    from the_alchemiser.application.mapping.strategies import StrategySignalDisplayDTO
 
 from alpaca.trading.enums import OrderSide
 
@@ -96,7 +100,7 @@ class StrategyManagerAdapter:
     def run_all_strategies(
         self,
     ) -> tuple[
-        dict[StrategyType, StrategySignalDisplayDTO],
+        dict[StrategyType, "StrategySignalDisplayDTO"],
         dict[str, float],
         dict[str, list[StrategyType]],
     ]:
@@ -479,7 +483,7 @@ class TradingEngine:
             def run_all_strategies(
                 self,
             ) -> tuple[
-                dict[StrategyType, StrategySignalDisplayDTO],
+                dict[StrategyType, "StrategySignalDisplayDTO"],
                 dict[str, float],
                 dict[str, list[StrategyType]],
             ]:
@@ -971,340 +975,21 @@ class TradingEngine:
             logging.error(f"❌ Post-trade validation failed: {e}")
             # This is not critical to trading execution, so we don't re-raise
 
-    def display_target_vs_current_allocations(
+    def calculate_target_vs_current_allocations(
         self,
         target_portfolio: dict[str, float],
         account_info: AccountInfo | dict[str, Any],
         current_positions: dict[str, Any],
-    ) -> tuple[dict[str, float], dict[str, float]]:
-        """Display target vs current allocations and return calculated values.
+    ) -> tuple[dict[str, "Decimal"], dict[str, "Decimal"]]:  # Uses Decimal values
+        """Pure calculation of target vs current allocations.
 
-        Shows a comparison between target portfolio weights and current position values,
-        helping to visualize rebalancing needs.
-
-        Args:
-            target_portfolio (Dict[str, float]): Target allocation weights by symbol.
-            account_info (Dict): Account information including portfolio value.
-            current_positions (Dict): Current position data by symbol.
-
-        Returns:
-            Tuple[Dict[str, float], Dict[str, float]]: A tuple containing:
-                - target_values: Target dollar values by symbol
-                - current_values: Current market values by symbol
-
-        Note:
-            Uses Rich table formatting via cli_formatter for beautiful display.
+        Layering: remains in application layer; no interface/cli imports.
         """
-        from the_alchemiser.interface.cli.cli_formatter import render_target_vs_current_allocations
-        from the_alchemiser.services.account.account_utils import (
-            calculate_position_target_deltas,
-            extract_current_position_values,
+        from the_alchemiser.application.trading.portfolio_calculations import (
+            calculate_target_vs_current_allocations as _calc,
         )
 
-        # Use helper functions to calculate values
-        # Accept both legacy display shape and typed AccountInfo
-        def _to_float(v: Any, default: float = 0.0) -> float:
-            try:
-                if v is None:
-                    return default
-                return float(v)
-            except (TypeError, ValueError):
-                return default
-
-        def _to_int(v: Any, default: int = 0) -> int:
-            try:
-                if v is None:
-                    return default
-                return int(v)
-            except (TypeError, ValueError):
-                return default
-
-        # Safely derive day_trades_remaining from either key
-        day_trades_remaining_val = 0
-        if isinstance(account_info, dict):
-            v1 = account_info.get("day_trades_remaining")
-            v2 = account_info.get("day_trade_count")
-            for _v in (v1, v2):
-                day_trades_remaining_val = _to_int(_v, 0)
-                if day_trades_remaining_val != 0:
-                    break
-
-        account_info_typed: AccountInfo = {
-            "account_id": str(
-                (account_info.get("account_id") if isinstance(account_info, dict) else None)
-                or (account_info.get("account_number") if isinstance(account_info, dict) else None)
-                or "unknown"
-            ),
-            "equity": _to_float(account_info.get("equity", 0.0), 0.0),
-            "cash": _to_float(account_info.get("cash", 0.0), 0.0),
-            "buying_power": _to_float(account_info.get("buying_power", 0.0), 0.0),
-            "day_trades_remaining": day_trades_remaining_val,
-            "portfolio_value": _to_float(
-                (account_info.get("portfolio_value") if isinstance(account_info, dict) else None)
-                or (account_info.get("equity", 0.0) if isinstance(account_info, dict) else 0.0),
-                0.0,
-            ),
-            "last_equity": _to_float(
-                (account_info.get("last_equity") if isinstance(account_info, dict) else None)
-                or (account_info.get("equity", 0.0) if isinstance(account_info, dict) else 0.0),
-                0.0,
-            ),
-            "daytrading_buying_power": _to_float(
-                (
-                    account_info.get("daytrading_buying_power")
-                    if isinstance(account_info, dict)
-                    else None
-                )
-                or (
-                    account_info.get("buying_power", 0.0) if isinstance(account_info, dict) else 0.0
-                ),
-                0.0,
-            ),
-            "regt_buying_power": _to_float(
-                (account_info.get("regt_buying_power") if isinstance(account_info, dict) else None)
-                or (
-                    account_info.get("buying_power", 0.0) if isinstance(account_info, dict) else 0.0
-                ),
-                0.0,
-            ),
-            "status": (
-                "ACTIVE"
-                if str(account_info.get("status", "INACTIVE")).upper() == "ACTIVE"
-                else "INACTIVE"
-            ),
-        }
-        target_values = calculate_position_target_deltas(target_portfolio, account_info_typed)
-        current_values = extract_current_position_values(current_positions)
-
-        # Use existing formatter for display
-        # Ensure a plain dict is passed to the renderer to satisfy its signature
-        render_target_vs_current_allocations(
-            target_portfolio,
-            dict(account_info) if isinstance(account_info, dict) else dict(account_info_typed),
-            current_positions,
-        )
-
-        return target_values, current_values
-
-    def display_multi_strategy_summary(
-        self, execution_result: MultiStrategyExecutionResultDTO
-    ) -> None:
-        """
-        Display a summary of multi-strategy execution results using Rich
-        Args:
-            execution_result: The execution result to display
-        """
-        from rich.console import Console
-        from rich.panel import Panel
-        from rich.table import Table
-        from rich.text import Text
-
-        # Type annotation for orders_table that can be either Table or Panel
-        orders_table: Table | Panel
-
-        console = Console()
-
-        if not execution_result.success:
-            console.print(
-                Panel(
-                    f"[bold red]Execution failed: {execution_result.execution_summary.pnl_summary if execution_result.execution_summary else 'Unknown error'}[/bold red]",
-                    title="Execution Result",
-                    style="red",
-                )
-            )
-            return
-
-        # Portfolio allocation display
-        portfolio_table = Table(title="Consolidated Portfolio", show_lines=False)
-        portfolio_table.add_column("Symbol", style="bold cyan", justify="center")
-        portfolio_table.add_column("Allocation", style="bold green", justify="right")
-        portfolio_table.add_column("Visual", style="white", justify="left")
-
-        sorted_portfolio = sorted(
-            execution_result.consolidated_portfolio.items(), key=lambda x: x[1], reverse=True
-        )
-
-        for symbol, weight in sorted_portfolio:
-            # Create visual bar
-            bar_length = int(weight * 20)  # Scale to 20 chars max
-            bar = "█" * bar_length + "░" * (20 - bar_length)
-
-            portfolio_table.add_row(symbol, f"{weight:.1%}", f"[green]{bar}[/green]")
-
-        # Orders executed table
-        if execution_result.orders_executed:
-            orders_table = Table(
-                title=f"Orders Executed ({len(execution_result.orders_executed)})", show_lines=False
-            )
-            orders_table.add_column("Type", style="bold", justify="center")
-            orders_table.add_column("Symbol", style="cyan", justify="center")
-            orders_table.add_column("Quantity", style="white", justify="right")
-            orders_table.add_column("Actual Value", style="green", justify="right")
-
-            for order in execution_result.orders_executed:
-                side = order.get("side", "")
-                side_value = str(side).upper()  # Convert to uppercase for display
-
-                side_color = "green" if side_value == "BUY" else "red"
-
-                # Calculate actual filled value
-                filled_qty = float(order.get("filled_qty", 0))
-                filled_avg_price = float(order.get("filled_avg_price", 0) or 0)
-                actual_value = filled_qty * filled_avg_price
-
-                # Fall back to estimated value if no filled data available
-                if actual_value == 0:
-                    estimated_value = order.get("estimated_value", 0)
-                    try:
-                        # Handle various types that estimated_value might be
-                        if isinstance(estimated_value, int | float):
-                            actual_value = float(estimated_value)
-                        elif isinstance(estimated_value, str):
-                            actual_value = float(estimated_value)
-                        else:
-                            actual_value = 0.0
-                    except (ValueError, TypeError):
-                        actual_value = 0.0
-
-                orders_table.add_row(
-                    f"[{side_color}]{side_value}[/{side_color}]",
-                    order.get("symbol", ""),
-                    f"{order.get('qty', 0):.6f}",
-                    f"${actual_value:.2f}",
-                )
-        else:
-            orders_table = Panel(
-                "[green]Portfolio already balanced - no trades needed[/green]",
-                title="Orders Executed",
-                style="green",
-            )
-
-        # Account summary
-        if execution_result.account_info_after:
-            # Try to get enriched account info for better display
-            try:
-                enriched_account = self.get_enriched_account_info()
-                account = enriched_account
-            except (DataProviderError, AttributeError, ValueError):
-                # Convert AccountInfo to EnrichedAccountInfo format
-                base_account = execution_result.account_info_after
-                account = {
-                    "account_id": base_account["account_id"],
-                    "equity": base_account["equity"],
-                    "cash": base_account["cash"],
-                    "buying_power": base_account["buying_power"],
-                    "day_trades_remaining": base_account["day_trades_remaining"],
-                    "portfolio_value": base_account.get("portfolio_value", 0.0),
-                    "last_equity": base_account.get("last_equity", 0.0),
-                    "daytrading_buying_power": base_account.get("daytrading_buying_power", 0.0),
-                    "regt_buying_power": base_account.get("regt_buying_power", 0.0),
-                    "status": base_account.get("status", "INACTIVE"),  # Use valid literal
-                    "trading_mode": "paper" if self.paper_trading else "live",
-                    "market_hours_ignored": self.ignore_market_hours,
-                }
-
-            account_content = Text()
-            account_content.append(
-                f"Portfolio Value: ${float(account.get('portfolio_value', 0)):,.2f}\n",
-                style="bold green",
-            )
-            account_content.append(
-                f"Cash Balance: ${float(account.get('cash', 0)):,.2f}\n", style="bold blue"
-            )
-
-            # Add portfolio history P&L if available
-            portfolio_history = account.get("portfolio_history", {})
-            if portfolio_history and "profit_loss" in portfolio_history:
-                profit_loss = portfolio_history.get("profit_loss", [])
-                profit_loss_pct = portfolio_history.get("profit_loss_pct", [])
-                if profit_loss:
-                    recent_pl = profit_loss[-1]
-                    recent_pl_pct = profit_loss_pct[-1] if profit_loss_pct else 0
-                    pl_color = "green" if recent_pl >= 0 else "red"
-                    pl_sign = "+" if recent_pl >= 0 else ""
-                    account_content.append(
-                        f"Recent P&L: {pl_sign}${recent_pl:,.2f} ({pl_sign}{recent_pl_pct * 100:.2f}%)\n",
-                        style=f"bold {pl_color}",
-                    )
-
-            account_panel = Panel(account_content, title="Account Summary", style="bold white")
-
-        # Recent closed positions P&L table
-        closed_pnl_table = None
-        if execution_result.account_info_after:
-            # Try to get enriched account info for recent closed P&L
-            try:
-                enriched_account = self.get_enriched_account_info()
-                closed_pnl = enriched_account.get("recent_closed_pnl", [])
-            except (DataProviderError, AttributeError, ValueError):
-                # AccountInfo doesn't have recent_closed_pnl, so use empty list
-                closed_pnl = []
-
-            if closed_pnl:
-                closed_pnl_table = Table(
-                    title="Recent Closed Positions P&L (Last 7 Days)", show_lines=False
-                )
-                closed_pnl_table.add_column("Symbol", style="bold cyan", justify="center")
-                closed_pnl_table.add_column("Realized P&L", style="bold", justify="right")
-                closed_pnl_table.add_column("P&L %", style="bold", justify="right")
-                closed_pnl_table.add_column("Trades", style="white", justify="center")
-
-                total_realized_pnl = 0.0  # Initialize as float to handle float | int addition
-
-                for position in closed_pnl[:8]:  # Show top 8 in CLI summary
-                    symbol = position.get("symbol", "N/A")
-                    realized_pnl = position.get("realized_pnl", 0)
-                    realized_pnl_pct = position.get("realized_pnl_pct", 0)
-                    trade_count = position.get("trade_count", 0)
-
-                    total_realized_pnl += realized_pnl
-
-                    # Color coding for P&L
-                    pnl_color = "green" if realized_pnl >= 0 else "red"
-                    pnl_sign = "+" if realized_pnl >= 0 else ""
-
-                    closed_pnl_table.add_row(
-                        symbol,
-                        f"[{pnl_color}]{pnl_sign}${realized_pnl:,.2f}[/{pnl_color}]",
-                        f"[{pnl_color}]{pnl_sign}{realized_pnl_pct:.2f}%[/{pnl_color}]",
-                        str(trade_count),
-                    )
-
-                # Add total row
-                if len(closed_pnl) > 0:
-                    total_pnl_color = "green" if total_realized_pnl >= 0 else "red"
-                    total_pnl_sign = "+" if total_realized_pnl >= 0 else ""
-                    closed_pnl_table.add_row(
-                        "[bold]TOTAL[/bold]",
-                        f"[bold {total_pnl_color}]{total_pnl_sign}${total_realized_pnl:,.2f}[/bold {total_pnl_color}]",
-                        "-",
-                        "-",
-                    )
-
-        # Display everything
-        console.print()
-        console.print(portfolio_table)
-        console.print()
-
-        # Sonar: collapse redundant type check
-        console.print(orders_table)
-        console.print()
-
-        # Display closed P&L table if available
-        if closed_pnl_table:
-            console.print(closed_pnl_table)
-            console.print()
-
-        console.print(account_panel)
-        console.print()
-
-        console.print(
-            Panel(
-                "[bold green]Multi-strategy execution completed successfully[/bold green]",
-                title="Execution Complete",
-                style="green",
-            )
-        )
+        return _calc(target_portfolio, account_info, current_positions)
 
     @classmethod
     def create_with_di(
@@ -1416,13 +1101,11 @@ class TradingEngine:
 
 def main() -> None:
     """Test TradingEngine multi-strategy execution"""
-    from rich.console import Console
-
-    console = Console()
+    import logging
 
     logging.basicConfig(level=logging.WARNING)  # Reduced verbosity
-    console.print("[bold cyan]Trading Engine Test[/bold cyan]")
-    console.print("─" * 50)
+    print("Trading Engine Test")
+    print("─" * 50)
 
     # Use DI approach instead of deprecated traditional constructor
     try:
@@ -1440,25 +1123,25 @@ def main() -> None:
         )
         trader.paper_trading = True
     except (ImportError, ConfigurationError, TradingClientError) as e:
-        console.print(f"[red]Failed to initialize with DI: {e}[/red]")
-        console.print("[yellow]Falling back to traditional method[/yellow]")
+        print(f"Failed to initialize with DI: {e}")
+        print("Falling back to traditional method")
         trader = TradingEngine(
             paper_trading=True,
             strategy_allocations={StrategyType.NUCLEAR: 0.5, StrategyType.TECL: 0.5},
         )
 
-    console.print("[yellow]Executing multi-strategy...[/yellow]")
+    print("Executing multi-strategy...")
     result = trader.execute_multi_strategy()
-    trader.display_multi_strategy_summary(result)
+    print(f"Execution result: success={result.success}")
 
-    console.print("[yellow]Getting performance report...[/yellow]")
+    print("Getting performance report...")
     report = trader.get_multi_strategy_performance_report()
     if "error" not in report:
-        console.print("[green]Performance report generated successfully[/green]")
-        console.print(f"   Current positions: {len(report['current_positions'])}")
-        console.print(f"   Strategy tracking: {len(report['performance_summary'])}")
+        print("Performance report generated successfully")
+        print(f"   Current positions: {len(report['current_positions'])}")
+        print(f"   Strategy tracking: {len(report['performance_summary'])}")
     else:
-        console.print(f"[red]Error generating report: {report['error']}[/red]")
+        print(f"Error generating report: {report['error']}")
 
 
 if __name__ == "__main__":
