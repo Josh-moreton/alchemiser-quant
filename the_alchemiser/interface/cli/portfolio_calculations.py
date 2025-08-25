@@ -35,6 +35,7 @@ def calculate_target_vs_current_allocations(
             - target_values: Target dollar values by symbol
             - current_values: Current market values by symbol
     """
+
     # Use helper functions to calculate values
     # Accept both legacy display shape and typed AccountInfo
     def _to_float(v: Any, default: float = 0.0) -> float:
@@ -75,9 +76,7 @@ def calculate_target_vs_current_allocations(
         "day_trades_remaining": day_trades_remaining_val,
         "portfolio_value": _to_float(account_info.get("portfolio_value", 0.0), 0.0),
         "last_equity": _to_float(account_info.get("last_equity", 0.0), 0.0),
-        "daytrading_buying_power": _to_float(
-            account_info.get("daytrading_buying_power", 0.0), 0.0
-        ),
+        "daytrading_buying_power": _to_float(account_info.get("daytrading_buying_power", 0.0), 0.0),
         "regt_buying_power": _to_float(account_info.get("regt_buying_power", 0.0), 0.0),
         "status": (
             "ACTIVE"

@@ -1189,13 +1189,13 @@ class TradingEngine:
         current_positions: dict[str, Any],
     ) -> tuple[dict[str, float], dict[str, float]]:
         """Calculate target vs current allocations and return calculated values.
-        
+
         Note: Display logic moved to interface/cli layer.
         """
         from the_alchemiser.interface.cli.portfolio_calculations import (
             calculate_target_vs_current_allocations,
         )
-        
+
         return calculate_target_vs_current_allocations(
             target_portfolio, account_info, current_positions
         )
@@ -1311,7 +1311,7 @@ class TradingEngine:
 def main() -> None:
     """Test TradingEngine multi-strategy execution"""
     import logging
-    
+
     logging.basicConfig(level=logging.WARNING)  # Reduced verbosity
     print("Trading Engine Test")
     print("─" * 50)

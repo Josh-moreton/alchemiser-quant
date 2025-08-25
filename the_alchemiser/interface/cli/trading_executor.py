@@ -24,13 +24,9 @@ from the_alchemiser.interface.cli.cli_formatter import (
     render_enriched_order_summaries,
     render_footer,
     render_header,
-    render_strategy_signals,
     render_multi_strategy_summary,
+    render_strategy_signals,
     render_target_vs_current_allocations,
-)
-from the_alchemiser.services.account.account_utils import (
-    calculate_position_target_deltas,
-    extract_current_position_values,
 )
 from the_alchemiser.interfaces.schemas.common import MultiStrategyExecutionResultDTO
 from the_alchemiser.interfaces.schemas.orders import ValidatedOrderDTO
@@ -163,6 +159,7 @@ class TradingExecutor:
             if account_info and consolidated_portfolio:
                 # Convert TypedDict to regular dict for the renderer
                 from typing import cast
+
                 account_dict = cast(dict[str, Any], account_info)
                 render_target_vs_current_allocations(
                     consolidated_portfolio, account_dict, current_positions
@@ -180,7 +177,7 @@ class TradingExecutor:
             enriched_account_dict = dict(enriched_account) if enriched_account else None
         except Exception:
             enriched_account_dict = None
-        
+
         render_multi_strategy_summary(result, enriched_account_dict)
 
         # Show enriched open orders using typed domain model

@@ -651,7 +651,7 @@ def render_multi_strategy_summary(
 ) -> None:
     """
     Render a summary of multi-strategy execution results using Rich.
-    
+
     Args:
         execution_result: The execution result DTO to display
         enriched_account: Optional enriched account info for enhanced display
@@ -720,7 +720,7 @@ def render_multi_strategy_summary(
                 f"{order.get('qty', 0):.6f}",
                 f"${actual_value:.2f}",
             )
-        
+
         c.print(orders_table)
         c.print()
     else:
@@ -735,7 +735,7 @@ def render_multi_strategy_summary(
     # Account summary
     if execution_result.account_info_after:
         account = enriched_account or execution_result.account_info_after
-        
+
         account_content = Text()
         account_content.append(
             f"Portfolio Value: ${float(account.get('portfolio_value', 0)):,.2f}\n",
@@ -807,7 +807,7 @@ def render_multi_strategy_summary(
                     "-",
                     "-",
                 )
-            
+
             c.print(closed_pnl_table)
             c.print()
 
