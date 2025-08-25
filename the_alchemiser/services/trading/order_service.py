@@ -122,19 +122,18 @@ class OrderService:
 
         # Place the order through repository
         logger.info(
-            f"Placing market {side} order for {symbol}: "
-            f"qty={quantity}, notional=${notional}"
+            f"Placing market {side} order for {symbol}: " f"qty={quantity}, notional=${notional}"
         )
 
-        order_id = self._trading.place_market_order(
+        order_result = self._trading.place_market_order(
             symbol=symbol, side=side, qty=quantity, notional=notional
         )
 
-        if not order_id:
-            raise Exception("Order placement returned None - failed")
+        if not order_result.success:
+            raise Exception(f"Order placement failed: {order_result.error}")
 
-        logger.info(f"✅ Market order placed successfully: {order_id}")
-        return order_id
+        logger.info(f"✅ Market order placed successfully: {order_result.order_id}")
+        return order_result.order_id
 
     @translate_trading_errors()
     def place_limit_order(

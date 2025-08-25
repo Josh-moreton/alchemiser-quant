@@ -2,10 +2,10 @@
 
 ## Phase 5 – Baseline models
 - **Entry**: project builds, tests pass, `mypy --strict-optional` no new errors
-- **Exit/DoD**: `OrderDetails` and `ExecutionResult` defined; smart execution flow uses them; TODOs for phase 5 resolved
+- **Exit/DoD**: `OrderDetails` and `ExecutionResultDTO` defined; smart execution flow uses them; TODOs for phase 5 resolved
 - **Deliverables**: `the_alchemiser/domain/types.py` additions, adapters, unit tests
 - **Tasks**:
-  1. Create `OrderDetails` and `ExecutionResult` dataclasses
+  1. Create `OrderDetails` and `ExecutionResultDTO` dataclasses
   2. Add adapter converting legacy dict payloads
   3. Refactor `application/execution/smart_execution.py`
   4. Snapshot tests for order CLI output
@@ -37,7 +37,7 @@
 
 ## Phase 7 – Domain model uplift
 - **Entry**: Phase 6 merged
-- **Exit**: `OrderDetails`, `ExecutionResult` used in domain and application; TODOs Phase 7 cleared
+- **Exit**: `OrderDetails`, `ExecutionResultDTO` used in domain and application; TODOs Phase 7 cleared
 - **Deliverables**: domain adapters, updated mapping layer
 - **Tasks**:
   1. Replace residual `Any` with domain models
@@ -130,7 +130,7 @@
 - **Breaking**: output format stable; flags unchanged
 - **Risks**: stdout formatting differences → snapshot tests
 - **Roll-back**: restore dict adapters
-- **Tests**: CLI snapshot tests via `pytest --snapshot`
+- **Tests**: CLI output validation and strategy contract validation
 - **Static analysis**: `mypy --warn-redundant-casts`
 - **Timebox**: S
 - **Dependencies**: Phase 11

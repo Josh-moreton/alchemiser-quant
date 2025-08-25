@@ -336,7 +336,7 @@ def status(
 
         account_info: dict[str, Any] = dict(trader.get_account_info())
 
-        # Always use enriched typed account summary (V2 migration complete)
+        # Always use enriched typed account summary (using typed domain)
         tsm: TradingServiceManager | None = None
         try:
             api_key, secret_key = secrets_manager.get_alpaca_keys(paper_trading=not live)

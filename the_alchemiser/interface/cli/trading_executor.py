@@ -127,11 +127,11 @@ class TradingExecutor:
             trader.strategy_manager.run_all_strategies()
         )
 
-        # Always use typed StrategySignal mapping (V2 path permanently enabled)
+        # Use typed StrategySignal mapping
         try:
-            legacy_typed_signals = _map_signals_to_typed(strategy_signals)  # dict -> TypedDict
+            typed_signals = _map_signals_to_typed(strategy_signals)  # dict -> TypedDict
             typed_domain_signals = convert_signals_dict_to_domain(
-                legacy_typed_signals
+                typed_signals
             )  # TypedDict -> domain
 
             validated_orders = self._convert_signals_to_validated_orders(
@@ -168,7 +168,7 @@ class TradingExecutor:
         # Display results
         trader.display_multi_strategy_summary(result)
 
-        # Show enriched open orders using typed path (V2 migration complete)
+        # Show enriched open orders using typed domain model
         try:
             # Acquire TradingServiceManager from DI container credentials
             import the_alchemiser.main as app_main
@@ -281,8 +281,16 @@ class TradingExecutor:
                 fresh_positions = trader.get_positions_dict()
                 # Safely construct an updated copy for email rendering
                 try:
+                    # Handle DTO case for final_portfolio_state
+                    state_dict: dict[str, Any] = {}
+                    if result.final_portfolio_state and hasattr(
+                        result.final_portfolio_state, "model_dump"
+                    ):
+                        # Convert DTO to dict
+                        state_dict = result.final_portfolio_state.model_dump()
+
                     updated_state = {
-                        **(result.final_portfolio_state or {}),
+                        **state_dict,
                         "current_positions": fresh_positions,
                     }
                     email_result: MultiStrategyExecutionResultDTO | Any = result.model_copy(
@@ -347,13 +355,13 @@ class TradingExecutor:
             # Create trading engine
             trader = self._create_trading_engine()
 
-            # Indicate typed mode is always active (V2 migration complete)
+            # System now uses fully typed domain model
             try:
                 from rich.console import Console
 
-                Console().print("[dim]TYPES_V2: fully typed StrategySignal path is ACTIVE[/dim]")
+                Console().print("[dim]Using typed StrategySignal domain model[/dim]")
             except Exception:
-                self.logger.info("TYPES_V2: fully typed StrategySignal path is ACTIVE")
+                self.logger.info("Using typed StrategySignal domain model")
 
             # Check market hours
             if not self._check_market_hours(trader):

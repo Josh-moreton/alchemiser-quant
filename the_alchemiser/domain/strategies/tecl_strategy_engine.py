@@ -29,11 +29,11 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
+from the_alchemiser.domain.market_data.protocols.market_data_port import MarketDataPort
 from the_alchemiser.domain.math.indicator_utils import safe_get_indicator
 from the_alchemiser.domain.math.indicators import TechnicalIndicators
 from the_alchemiser.domain.shared_kernel.value_objects.percentage import Percentage
 from the_alchemiser.domain.strategies.engine import StrategyEngine
-from the_alchemiser.domain.strategies.protocols.market_data_port import MarketDataPort
 from the_alchemiser.domain.strategies.value_objects.alert import Alert
 from the_alchemiser.domain.strategies.value_objects.confidence import Confidence
 from the_alchemiser.domain.strategies.value_objects.strategy_signal import StrategySignal
@@ -80,13 +80,23 @@ class TECLStrategyEngine(StrategyEngine):
 
     def get_market_data(self) -> dict[str, Any]:
         """Fetch data for all symbols"""
+        from the_alchemiser.application.mapping.market_data_mapping import (
+            bars_to_dataframe,
+            symbol_str_to_symbol,
+        )
+
         market_data = {}
         for symbol in self.all_symbols:
-            data = self.data_provider.get_data(symbol)
-            if not data.empty:
-                market_data[symbol] = data
-            else:
-                logging.warning(f"Could not fetch data for {symbol}")
+            try:
+                symbol_obj = symbol_str_to_symbol(symbol)
+                bars = self.data_provider.get_bars(symbol_obj, period="1y", timeframe="1day")
+                data = bars_to_dataframe(bars)
+                if not data.empty:
+                    market_data[symbol] = data
+                else:
+                    logging.warning(f"Could not fetch data for {symbol}")
+            except Exception as e:
+                logging.warning(f"Failed to fetch data for {symbol}: {e}")
         return market_data
 
     def calculate_indicators(self, market_data: dict[str, Any]) -> dict[str, Any]:

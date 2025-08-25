@@ -21,11 +21,16 @@ from alpaca.trading.client import TradingClient
 from alpaca.trading.enums import OrderSide, TimeInForce
 from alpaca.trading.requests import LimitOrderRequest, MarketOrderRequest
 
+from the_alchemiser.application.mapping.alpaca_dto_mapping import (
+    alpaca_order_to_execution_result,
+    create_error_execution_result,
+)
 from the_alchemiser.domain.interfaces import (
     AccountRepository,
     MarketDataRepository,
     TradingRepository,
 )
+from the_alchemiser.interfaces.schemas.orders import OrderExecutionResultDTO
 
 logger = logging.getLogger(__name__)
 
@@ -182,18 +187,20 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             logger.error(f"Failed to get position for {symbol}: {e}")
             raise
 
-    def place_order(self, order_request: Any) -> Any:
-        """Place an order with error handling."""
+    def place_order(self, order_request: Any) -> OrderExecutionResultDTO:
+        """Place an order with error handling and DTO conversion."""
         try:
             order = self._trading_client.submit_order(order_request)
             # Avoid attribute assumptions for mypy
             order_id = getattr(order, "id", None)
             order_symbol = getattr(order, "symbol", None)
             logger.info(f"Successfully placed order: {order_id} for {order_symbol}")
-            return order
+
+            # Convert raw Alpaca order to OrderExecutionResultDTO
+            return alpaca_order_to_execution_result(order)
         except Exception as e:
             logger.error(f"Failed to place order: {e}")
-            raise
+            return create_error_execution_result(e, "Order placement")
 
     def place_market_order(
         self,
@@ -201,15 +208,18 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         side: str,
         qty: float | None = None,
         notional: float | None = None,
-    ) -> str | None:
+    ) -> OrderExecutionResultDTO:
         """
-        Place a market order with validation.
+        Place a market order with validation and DTO conversion.
 
         Args:
             symbol: Stock symbol (e.g., 'AAPL')
             side: 'buy' or 'sell'
             qty: Quantity to trade (use either qty OR notional)
             notional: Dollar amount to trade (use either qty OR notional)
+
+        Returns:
+            OrderExecutionResultDTO with execution details
         """
         try:
             # Validation
@@ -241,21 +251,15 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
                 time_in_force=TimeInForce.DAY,
             )
 
-            result = self.place_order(order_request)
-
-            # Return order ID as string or None
-            if result and hasattr(result, "id"):
-                return str(result.id)
-            elif isinstance(result, dict) and "id" in result:
-                return str(result["id"])
-            return None
+            # Use the updated place_order method that returns DTO
+            return self.place_order(order_request)
 
         except ValueError as e:
             logger.error(f"Invalid order parameters: {e}")
-            raise
+            return create_error_execution_result(e, "Market order validation")
         except Exception as e:
             logger.error(f"Failed to place market order for {symbol}: {e}")
-            raise
+            return create_error_execution_result(e, f"Market order for {symbol}")
 
     def place_limit_order(
         self,
@@ -264,9 +268,9 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         quantity: float,
         limit_price: float,
         time_in_force: str = "day",
-    ) -> Any:
+    ) -> OrderExecutionResultDTO:
         """
-        Place a limit order with validation.
+        Place a limit order with validation and DTO conversion.
 
         Args:
             symbol: Stock symbol (e.g., 'AAPL')
@@ -274,6 +278,9 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             quantity: Number of shares
             limit_price: Limit price for the order
             time_in_force: Order time in force (default: 'day')
+
+        Returns:
+            OrderExecutionResultDTO with execution details
         """
         try:
             # Validation
@@ -301,14 +308,15 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
                 ),
             )
 
+            # Use the updated place_order method that returns DTO
             return self.place_order(order_request)
 
         except ValueError as e:
             logger.error(f"Invalid limit order parameters: {e}")
-            raise
+            return create_error_execution_result(e, "Limit order validation")
         except Exception as e:
             logger.error(f"Failed to place limit order for {symbol}: {e}")
-            raise
+            return create_error_execution_result(e, f"Limit order for {symbol}")
 
     def cancel_order(self, order_id: str) -> bool:
         """Cancel an order by ID."""

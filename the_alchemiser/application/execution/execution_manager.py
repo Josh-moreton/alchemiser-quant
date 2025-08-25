@@ -3,12 +3,12 @@
 import logging
 from typing import Any
 
-from the_alchemiser.application.mapping.strategy_signal_mapping import (
-    map_signals_dict as _map_signals_to_typed,
-)
 from the_alchemiser.application.mapping.execution_summary_mapping import (
     safe_dict_to_execution_summary_dto,
     safe_dict_to_portfolio_state_dto,
+)
+from the_alchemiser.application.mapping.strategy_signal_mapping import (
+    map_signals_dict as _map_signals_to_typed,
 )
 from the_alchemiser.domain.types import AccountInfo
 from the_alchemiser.interfaces.schemas.common import MultiStrategyExecutionResultDTO
@@ -48,7 +48,7 @@ class ExecutionManager:
             strategy_signals, consolidated_portfolio, strategy_attribution = (
                 self.engine.strategy_manager.run_all_strategies()
             )
-            # Always migrate strategy signals to typed (V2 migration complete)
+            # Always migrate strategy signals to typed (using typed domain)
             try:
                 strategy_signals = _map_signals_to_typed(strategy_signals)
             except Exception as e:  # pragma: no cover - defensive
@@ -144,12 +144,14 @@ class ExecutionManager:
                 orders_executed=[],
                 account_info_before=empty_account_info,
                 account_info_after=empty_account_info,
-                execution_summary=safe_dict_to_execution_summary_dto({
-                    "error": str(e),
-                    "mode": "error",
-                    "account_info_before": empty_account_info,
-                    "account_info_after": empty_account_info,
-                }),
+                execution_summary=safe_dict_to_execution_summary_dto(
+                    {
+                        "error": str(e),
+                        "mode": "error",
+                        "account_info_before": empty_account_info,
+                        "account_info_after": empty_account_info,
+                    }
+                ),
                 final_portfolio_state=safe_dict_to_portfolio_state_dto({}),
             )
         except (ConfigurationError, StrategyExecutionError, ValueError, AttributeError) as e:

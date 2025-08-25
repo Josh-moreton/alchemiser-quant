@@ -7,7 +7,7 @@
 - [ ] Refactor `the_alchemiser/application/types.py`
 - [ ] Refactor `the_alchemiser/execution/account_service.py`
 - [ ] Refactor `the_alchemiser/interface/email/templates/portfolio.py`
-- [ ] Update tests
+- [ ] Update validation and verification steps
 - [ ] Run mypy
 
 Owner: __________

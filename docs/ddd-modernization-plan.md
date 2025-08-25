@@ -15,7 +15,7 @@ The plan aligns with existing docs/typing-migration/phase-plan.md and extends it
 - Application: `MultiStrategyExecutionResult` is a dataclass; TODO references Pydantic at edges.
 - Strategy layer: `StrategyRegistry` defines `StrategyType` and maps to engines. `StrategyManager` orchestrates runs using dict-shaped payloads. `KLMStrategyEnsemble` consumes a typed data provider adapter.
 - Services: `TypedDataProviderAdapter` is an explicit edge shim over `MarketDataClient`.
-- Tooling: Pydantic >= 2, mypy, ruff, pytest, coverage are in pyproject.
+- Tooling: Pydantic >= 2, mypy, ruff for development
 
 Implication: We have the right tools and some domain VOs, but most inter‑module contracts are dictionary‑shaped. The migration should formalize boundaries, replace internals with dataclasses/VOs, and validate at edges with Pydantic.
 
@@ -98,7 +98,7 @@ Note: Prefer compiled models (default in v2) and from_attributes for easy mappin
 This adds a DDD‑alignment track and concrete deliverables per phase.
 
 - Phase 5 (Baseline models) — existing plan
-  - Deliver dataclass models for OrderDetails and ExecutionResult (align with domain Order/OrderAck naming)
+  - Deliver dataclass models for OrderDetails and ExecutionResultDTO (align with domain Order/OrderAck naming)
   - Keep TypedDict adapters for compatibility
 
 - Phase 6 (Service return typing) — existing plan
@@ -228,7 +228,7 @@ E. Remove temporary shims and TypedDicts (endgame)
 
 
 ## 12. Concrete next steps (actionable)
-1) Create domain dataclasses: StrategySignal, Order, Position (minimal fields) and integrate into StrategyManager return types behind a feature flag (no behavior change) 
+1) Create domain dataclasses: StrategySignal, Order, Position (minimal fields) and integrate into StrategyManager return types behind a feature flag (no behavior change)
 2) Define Pydantic edge models: Quote, Bar; wrap MarketDataClient in an adapter implementing MarketDataPort using these models
 3) Add a mapping module for StrategySignalView and PortfolioSnapshotView for CLI rendering; update one CLI command to use it and snapshot‑test
 4) Open tracking issues for each module per this plan and link to phases 5–15

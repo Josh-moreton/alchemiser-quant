@@ -32,6 +32,6 @@ the canonical path `application/trading/engine_service.py`.
 $ poetry run mypy the_alchemiser
 Success: no issues found in 188 source files
 
-$ poetry run pytest -q --maxfail=1 --disable-warnings
-24 passed in 13.42s
+$ poetry run alchemiser --help
+# Verify CLI functionality
 ```

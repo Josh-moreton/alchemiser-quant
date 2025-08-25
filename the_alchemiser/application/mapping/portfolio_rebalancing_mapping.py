@@ -27,21 +27,21 @@ from the_alchemiser.interfaces.schemas.portfolio_rebalancing import (
 
 
 def rebalance_plans_dict_to_collection_dto(
-    plans: dict[str, RebalancePlan]
+    plans: dict[str, RebalancePlan],
 ) -> RebalancePlanCollectionDTO:
     """Convert dict of RebalancePlan domain objects to RebalancePlanCollectionDTO."""
     plan_dtos = {}
     symbols_needing_rebalance = 0
     total_trade_value = Decimal("0")
-    
+
     for symbol, plan in plans.items():
         plan_dto = RebalancePlanDTO.from_domain(plan)
         plan_dtos[symbol] = plan_dto
-        
+
         if plan.needs_rebalance:
             symbols_needing_rebalance += 1
             total_trade_value += plan.trade_amount_abs
-    
+
     return RebalancePlanCollectionDTO(
         success=True,
         plans=plan_dtos,
@@ -104,11 +104,11 @@ def rebalance_execution_result_dict_to_dto(data: dict[str, Any]) -> RebalanceExe
     executed_instructions = []
     for instr_data in data.get("executed_instructions", []):
         executed_instructions.append(rebalance_instruction_dict_to_dto(instr_data))
-    
+
     failed_instructions = []
     for instr_data in data.get("failed_instructions", []):
         failed_instructions.append(rebalance_instruction_dict_to_dto(instr_data))
-    
+
     return RebalanceExecutionResultDTO(
         success=data.get("success", True),
         execution_id=data.get("execution_id", "unknown"),
@@ -132,7 +132,7 @@ def rebalance_execution_result_dict_to_dto(data: dict[str, Any]) -> RebalanceExe
 def safe_rebalancing_summary_dict_to_dto(data: dict[str, Any]) -> RebalancingSummaryDTO:
     """
     Safely convert rebalancing summary dict to DTO with fallbacks.
-    
+
     Provides backward compatibility for incomplete dict structures.
     """
     try:
@@ -157,7 +157,7 @@ def safe_rebalancing_summary_dict_to_dto(data: dict[str, Any]) -> RebalancingSum
 def safe_rebalancing_impact_dict_to_dto(data: dict[str, Any]) -> RebalancingImpactDTO:
     """
     Safely convert rebalancing impact dict to DTO with fallbacks.
-    
+
     Provides backward compatibility for incomplete dict structures.
     """
     try:
