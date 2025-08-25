@@ -7,17 +7,21 @@ strategy execution, reporting, and dashboard integration.
 This is the main orchestrator that coordinates signal generation, execution, and reporting
 across multiple trading strategies with comprehensive position management.
 
-Example:
-    Initialize and run multi-strategy trading:
+Example (modern bootstrap):
+    Initialize and run multi-strategy trading using the DI container:
 
-    >>> engine = TradingEngine(paper_trading=True)
+    >>> from the_alchemiser.application.trading.bootstrap import bootstrap_from_container
+    >>> from the_alchemiser.container.application_container import ApplicationContainer
+    >>> container = ApplicationContainer()
+    >>> ctx = bootstrap_from_container(container)
+    >>> engine = TradingEngine(bootstrap_context=ctx, strategy_allocations={})
     >>> result = engine.execute_multi_strategy()
-    >>> # Display handled by CLI layer
+    >>> # Rendering handled by CLI layer
 
-    DI Example:
-    >>> container = ApplicationContainer.create_for_testing()
-    >>> engine = TradingEngine.create_with_di(container=container)
-    >>> result = engine.execute_multi_strategy()
+Deprecated:
+    The old constructor signature (paper_trading=..., config=...) and create_with_di()
+    factory have been deprecated. A temporary wrapper create_with_di() remains for one
+    release and will emit a DeprecationWarning. Migrate to the bootstrap pattern above.
 """
 
 import logging
