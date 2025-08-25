@@ -6,6 +6,8 @@ from rich.panel import Panel
 from rich.rule import Rule
 from rich.table import Table
 
+from the_alchemiser.interfaces.schemas.common import MultiStrategyExecutionResultDTO
+
 """Console formatting utilities for quantitative trading system output using rich."""
 
 
@@ -454,27 +456,45 @@ def render_target_vs_current_allocations(
     account_info: dict[str, Any],
     current_positions: dict[str, Any],
     console: Console | None = None,
+    allocation_comparison: dict[str, Any] | None = None,
 ) -> None:
-    """Pretty-print target vs current allocations comparison with enhanced Rich table."""
+    """Pretty-print target vs current allocations using optional precomputed Decimal comparison.
+
+    If allocation_comparison provided, expects keys: target_values, current_values, deltas
+    with Decimal values. Falls back to on-the-fly float computation otherwise.
+    """
+    from decimal import Decimal
+
     c = console or Console()
 
-    portfolio_value = account_info.get("portfolio_value", 0.0)
+    if allocation_comparison:
+        target_values = allocation_comparison.get("target_values", {})
+        current_values = allocation_comparison.get("current_values", {})
+        deltas = allocation_comparison.get("deltas", {})
+        # Derive portfolio_value from sum of target values if not present
+        try:
+            portfolio_value = sum(target_values.values()) or account_info.get(
+                "portfolio_value", 0.0
+            )
+        except Exception:
+            portfolio_value = account_info.get("portfolio_value", 0.0)
+    else:
+        portfolio_value = account_info.get("portfolio_value", 0.0)
+        target_values = {
+            symbol: portfolio_value * weight for symbol, weight in target_portfolio.items()
+        }
+        current_values = {}
+        for symbol, pos in current_positions.items():
+            if isinstance(pos, dict):
+                market_value = float(pos.get("market_value", 0.0))
+            else:
+                market_value = float(getattr(pos, "market_value", 0.0))
+            current_values[symbol] = market_value
+        deltas = {
+            s: (Decimal(str(target_values.get(s, 0))) - Decimal(str(current_values.get(s, 0))))
+            for s in set(target_values) | set(current_values)
+        }
 
-    # Calculate target and current values
-    target_values = {
-        symbol: portfolio_value * weight for symbol, weight in target_portfolio.items()
-    }
-
-    current_values = {}
-    for symbol, pos in current_positions.items():
-        # Handle both dict and object position formats
-        if isinstance(pos, dict):
-            market_value = float(pos.get("market_value", 0.0))
-        else:
-            market_value = float(getattr(pos, "market_value", 0.0))
-        current_values[symbol] = market_value
-
-    # Create enhanced comparison table
     table = Table(title="Portfolio Rebalancing Summary", show_lines=True, expand=True, box=None)
     table.add_column("Symbol", style="bold cyan", justify="center", width=8)
     table.add_column("Target", style="green", justify="right", width=14)
@@ -483,31 +503,39 @@ def render_target_vs_current_allocations(
     table.add_column("Action", style="bold", justify="center", width=10)
 
     all_symbols = set(target_portfolio.keys()) | set(current_positions.keys())
-
     for symbol in sorted(all_symbols):
         target_weight = target_portfolio.get(symbol, 0.0)
-        target_value = target_values.get(symbol, 0.0)
-        current_value = current_values.get(symbol, 0.0)
-        current_weight = current_value / portfolio_value if portfolio_value > 0 else 0.0
+        target_value = target_values.get(symbol, 0)
+        current_value = current_values.get(symbol, 0)
+        # Normalize to floats for percentage weight calculation
+        try:
+            tv_float = float(target_value)
+            cv_float = float(current_value)
+        except Exception:
+            tv_float = 0.0
+            cv_float = 0.0
+        current_weight = cv_float / float(portfolio_value) if float(portfolio_value) > 0 else 0.0
         percent_diff = abs(target_weight - current_weight)
-        dollar_diff = target_value - current_value
+        dollar_diff = deltas.get(symbol, 0)
+        try:
+            dollar_diff_float = float(dollar_diff)
+        except Exception:
+            dollar_diff_float = 0.0
 
-        # Determine action based on difference
-        if percent_diff > 0.01:  # 1% threshold
-            if dollar_diff > 50:
+        if percent_diff > 0.01:
+            if dollar_diff_float > 50:
                 action = "[green]BUY[/green]"
-            elif dollar_diff < -50:
+            elif dollar_diff_float < -50:
                 action = "[red]SELL[/red]"
             else:
                 action = "[yellow]REBAL[/yellow]"
         else:
             action = "[dim]HOLD[/dim]"
 
-        # Color coding for dollar difference
-        if dollar_diff > 0:
+        if dollar_diff_float > 0:
             dollar_color = "green"
             dollar_sign = "+"
-        elif dollar_diff < 0:
+        elif dollar_diff_float < 0:
             dollar_color = "red"
             dollar_sign = ""
         else:
@@ -516,9 +544,9 @@ def render_target_vs_current_allocations(
 
         table.add_row(
             symbol,
-            f"{target_weight:.1%}\n[dim]${target_value:,.0f}[/dim]",
-            f"{current_weight:.1%}\n[dim]${current_value:,.0f}[/dim]",
-            f"[{dollar_color}]{dollar_sign}${abs(dollar_diff):,.0f}[/{dollar_color}]",
+            f"{target_weight:.1%}\n[dim]${tv_float:,.0f}[/dim]",
+            f"{current_weight:.1%}\n[dim]${cv_float:,.0f}[/dim]",
+            f"[{dollar_color}]{dollar_sign}${abs(dollar_diff_float):,.0f}[/{dollar_color}]",
             action,
         )
 
@@ -545,11 +573,11 @@ def render_execution_plan(
 
     sell_details = ", ".join([f"{o['symbol']} ({o['qty']:.2f})" for o in sell_orders[:3]])
     if len(sell_orders) > 3:
-        sell_details += f" +{len(sell_orders)-3} more"
+        sell_details += f" +{len(sell_orders) - 3} more"
 
     buy_details = ", ".join([f"{o['symbol']} ({o['qty']:.2f})" for o in buy_orders[:3]])
     if len(buy_orders) > 3:
-        buy_details += f" +{len(buy_orders)-3} more"
+        buy_details += f" +{len(buy_orders) - 3} more"
 
     table.add_row("Sells", str(len(sell_orders)), f"${total_sell_proceeds:,.2f}", sell_details)
     table.add_row("Buys", str(len(buy_orders)), f"${total_buy_cost:,.2f}", buy_details)
@@ -645,7 +673,7 @@ def render_enriched_order_summaries(
 
 
 def render_multi_strategy_summary(
-    execution_result: Any,  # MultiStrategyExecutionResultDTO
+    execution_result: MultiStrategyExecutionResultDTO,
     enriched_account: dict[str, Any] | None = None,
     console: Console | None = None,
 ) -> None:
@@ -734,22 +762,36 @@ def render_multi_strategy_summary(
 
     # Account summary
     if execution_result.account_info_after:
-        account = enriched_account or execution_result.account_info_after
+        from typing import cast
+
+        from the_alchemiser.domain.types import EnrichedAccountInfo, PortfolioHistoryData
+
+        # Build enriched account dict for display
+        base_account: EnrichedAccountInfo = cast(
+            EnrichedAccountInfo, dict(execution_result.account_info_after)
+        )
+        if enriched_account:
+            base_account.update(cast(EnrichedAccountInfo, enriched_account))
 
         account_content = Text()
-        account_content.append(
-            f"Portfolio Value: ${float(account.get('portfolio_value', 0)):,.2f}\n",
-            style="bold green",
-        )
-        account_content.append(
-            f"Cash Balance: ${float(account.get('cash', 0)):,.2f}\n", style="bold blue"
-        )
+        pv_raw = base_account.get("portfolio_value", base_account.get("equity", 0))
+        cash_raw = base_account.get("cash", 0)
+        try:
+            pv = float(pv_raw)
+        except Exception:
+            pv = 0.0
+        try:
+            cash = float(cash_raw)
+        except Exception:
+            cash = 0.0
+        account_content.append(f"Portfolio Value: ${pv:,.2f}\n", style="bold green")
+        account_content.append(f"Cash Balance: ${cash:,.2f}\n", style="bold blue")
 
-        # Add portfolio history P&L if available
-        portfolio_history = account.get("portfolio_history", {})
-        if portfolio_history and "profit_loss" in portfolio_history:
-            profit_loss = portfolio_history.get("profit_loss", [])
-            profit_loss_pct = portfolio_history.get("profit_loss_pct", [])
+        portfolio_history = base_account.get("portfolio_history")
+        if isinstance(portfolio_history, dict):  # runtime safety
+            ph: PortfolioHistoryData = portfolio_history  # mypy: treat as PortfolioHistoryData
+            profit_loss = ph.get("profit_loss", []) or []
+            profit_loss_pct = ph.get("profit_loss_pct", []) or []
             if profit_loss:
                 recent_pl = profit_loss[-1]
                 recent_pl_pct = profit_loss_pct[-1] if profit_loss_pct else 0

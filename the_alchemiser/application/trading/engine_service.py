@@ -22,7 +22,11 @@ Example:
 
 import logging
 from datetime import datetime
-from typing import Any, Protocol, cast
+from decimal import Decimal
+from typing import TYPE_CHECKING, Any, Protocol, cast
+
+if TYPE_CHECKING:  # Import for type checking only to avoid runtime dependency
+    from the_alchemiser.application.mapping.strategies import StrategySignalDisplayDTO
 
 from alpaca.trading.enums import OrderSide
 
@@ -91,7 +95,11 @@ class StrategyManagerAdapter:
 
     def run_all_strategies(
         self,
-    ) -> tuple[dict[StrategyType, dict[str, Any]], dict[str, float], dict[str, list[StrategyType]]]:
+    ) -> tuple[
+        dict[StrategyType, "StrategySignalDisplayDTO"],
+        dict[str, float],
+        dict[str, list[StrategyType]],
+    ]:
         """Execute all strategies and return results in legacy format.
 
         This method now delegates to pure mapping functions to convert typed signals
@@ -462,7 +470,9 @@ class TradingEngine:
             def run_all_strategies(
                 self,
             ) -> tuple[
-                dict[StrategyType, dict[str, Any]], dict[str, float], dict[str, list[StrategyType]]
+                dict[StrategyType, "StrategySignalDisplayDTO"],
+                dict[str, float],
+                dict[str, list[StrategyType]],
             ]:
                 """Bridge method that converts typed signals to legacy format for CLI compatibility."""
                 from datetime import UTC, datetime
@@ -1030,7 +1040,9 @@ class TradingEngine:
                 additional_data={"paper_trading": self.paper_trading},
             )
             error_handler.handle_error_with_context(
-                error=e, context=context, should_continue=True  # Non-critical archival failure
+                error=e,
+                context=context,
+                should_continue=True,  # Non-critical archival failure
             )
             logging.error(f"Failed to archive daily strategy P&L: {e}")
             # This is not critical to trading execution, so we don't re-raise
@@ -1177,28 +1189,28 @@ class TradingEngine:
                 },
             )
             error_handler.handle_error_with_context(
-                error=e, context=context, should_continue=True  # Non-critical validation failure
+                error=e,
+                context=context,
+                should_continue=True,  # Non-critical validation failure
             )
             logging.error(f"❌ Post-trade validation failed: {e}")
             # This is not critical to trading execution, so we don't re-raise
 
-    def display_target_vs_current_allocations(
+    def calculate_target_vs_current_allocations(
         self,
         target_portfolio: dict[str, float],
         account_info: AccountInfo | dict[str, Any],
         current_positions: dict[str, Any],
-    ) -> tuple[dict[str, float], dict[str, float]]:
-        """Calculate target vs current allocations and return calculated values.
+    ) -> tuple[dict[str, "Decimal"], dict[str, "Decimal"]]:  # Uses Decimal values
+        """Pure calculation of target vs current allocations.
 
-        Note: Display logic moved to interface/cli layer.
+        Layering: remains in application layer; no interface/cli imports.
         """
-        from the_alchemiser.interface.cli.portfolio_calculations import (
-            calculate_target_vs_current_allocations,
+        from the_alchemiser.application.trading.portfolio_calculations import (
+            calculate_target_vs_current_allocations as _calc,
         )
 
-        return calculate_target_vs_current_allocations(
-            target_portfolio, account_info, current_positions
-        )
+        return _calc(target_portfolio, account_info, current_positions)
 
     @classmethod
     def create_with_di(
