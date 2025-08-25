@@ -32,7 +32,8 @@ class StrategySignalModel:
 
     @classmethod
     def from_domain_signal(
-        cls, signal: Any  # Use Any to avoid forward reference issues
+        cls,
+        signal: Any,  # Use Any to avoid forward reference issues
     ) -> StrategySignalModel:
         """Create from domain StrategySignal value object."""
         # Import here to avoid circular dependency

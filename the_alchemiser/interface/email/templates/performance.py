@@ -207,7 +207,7 @@ class PerformanceBuilder:
                     <span style="color: #6B7280; font-size: 14px; margin-left: 16px;">Allocation: </span>
                     <span style="font-weight: 600; color: #1F2937;">{allocation:.1%}</span>
                 </div>
-                {f'<div style="color: #6B7280; font-size: 14px; font-style: italic;">{reason[:100]}...</div>' if reason else ''}
+                {f'<div style="color: #6B7280; font-size: 14px; font-style: italic;">{reason[:100]}...</div>' if reason else ""}
             </div>
             """
 

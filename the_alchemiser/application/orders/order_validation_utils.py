@@ -6,7 +6,6 @@ This module provides helper functions for validating order parameters,
 including quantity validation, price validation, and parameter normalization.
 """
 
-
 import logging
 import math
 from decimal import ROUND_DOWN, Decimal

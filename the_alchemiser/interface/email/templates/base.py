@@ -69,7 +69,7 @@ class BaseEmailTemplate:
                         {title}
                     </h2>
                     <p style="margin: 2px 0 0 0; color: rgba(255,255,255,0.9); font-size: 12px;">
-                        Status: {status} • {timestamp.strftime('%Y-%m-%d %H:%M:%S')}
+                        Status: {status} • {timestamp.strftime("%Y-%m-%d %H:%M:%S")}
                     </p>
                 </div>
             </td>
@@ -94,7 +94,7 @@ class BaseEmailTemplate:
                     {status_emoji} {title}
                 </h2>
                 <p style="margin: 8px 0 0 0; color: rgba(255,255,255,0.9); font-size: 16px;">
-                    Status: {status} • {timestamp.strftime('%Y-%m-%d %H:%M:%S')}
+                    Status: {status} • {timestamp.strftime("%Y-%m-%d %H:%M:%S")}
                 </p>
             </td>
         </tr>
@@ -183,8 +183,8 @@ class BaseEmailTemplate:
         color_scheme = colors.get(alert_type, colors["info"])
 
         return f"""
-        <div style="margin: 24px 0; padding: 16px; background-color: {color_scheme['bg']}; border-left: 4px solid {color_scheme['border']}; border-radius: 8px;">
-            <p style="margin: 0; color: {color_scheme['text']};">{content}</p>
+        <div style="margin: 24px 0; padding: 16px; background-color: {color_scheme["bg"]}; border-left: 4px solid {color_scheme["border"]}; border-radius: 8px;">
+            <p style="margin: 0; color: {color_scheme["text"]};">{content}</p>
         </div>
         """
 
