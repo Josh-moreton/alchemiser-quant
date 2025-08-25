@@ -80,39 +80,20 @@ from ..reporting.reporting import build_portfolio_state_data
 
 
 
-# Protocol definitions for dependency injection
+# --- Internal Application Protocols ---
+
 class AccountInfoProvider(Protocol):
     """Protocol for account information retrieval."""
 
-    def get_account_info(
-        self,
-    ) -> AccountInfo:  # Phase 17: Migrated from dict[str, Any] to AccountInfo
+    def get_account_info(self) -> AccountInfo:
         """Get comprehensive account information."""
         ...
-
-
-def _create_default_account_info(account_id: str = "unknown") -> AccountInfo:
-    """Create a default AccountInfo structure for error cases."""
-    return {
-        "account_id": account_id,
-        "equity": 0.0,
-        "cash": 0.0,
-        "buying_power": 0.0,
-        "day_trades_remaining": 0,
-        "portfolio_value": 0.0,
-        "last_equity": 0.0,
-        "daytrading_buying_power": 0.0,
-        "regt_buying_power": 0.0,
-        "status": "INACTIVE",
-    }
 
 
 class PositionProvider(Protocol):
     """Protocol for position data retrieval."""
 
-    def get_positions_dict(
-        self,
-    ) -> PositionsDict:  # Phase 18: Migrated from dict[str, dict[str, Any]] to PositionsDict
+    def get_positions_dict(self) -> PositionsDict:
         """Get current positions keyed by symbol."""
         ...
 
@@ -136,7 +117,7 @@ class RebalancingService(Protocol):
         self,
         target_portfolio: dict[str, float],
         strategy_attribution: dict[str, list[StrategyType]] | None = None,
-    ) -> list[OrderDetails]:  # Phase 18: Migrated from list[dict[str, Any]] to list[OrderDetails]
+    ) -> list[OrderDetails]:
         """Rebalance portfolio to target allocation."""
         ...
 
@@ -147,6 +128,27 @@ class MultiStrategyExecutor(Protocol):
     def execute_multi_strategy(self) -> MultiStrategyExecutionResultDTO:
         """Execute all strategies and rebalance portfolio."""
         ...
+
+
+# --- Utility Functions ---
+
+def _create_default_account_info(account_id: str = "unknown") -> AccountInfo:
+    """Create a default AccountInfo structure for error cases."""
+    return {
+        "account_id": account_id,
+        "equity": 0.0,
+        "cash": 0.0,
+        "buying_power": 0.0,
+        "day_trades_remaining": 0,
+        "portfolio_value": 0.0,
+        "last_equity": 0.0,
+        "daytrading_buying_power": 0.0,
+        "regt_buying_power": 0.0,
+        "status": "INACTIVE",
+    }
+
+
+# --- Main Trading Engine Class ---
 
 
 class TradingEngine:
@@ -597,7 +599,7 @@ class TradingEngine:
 
         # Build final portfolio state
         current_positions = self.get_positions()
-        final_portfolio_state = self._build_portfolio_state_data(
+        final_portfolio_state = build_portfolio_state_data(
             target_allocations, account_info_after, current_positions
         )
 
@@ -622,6 +624,19 @@ class TradingEngine:
         try:
             self.get_account_info()
         except (DataProviderError, TradingClientError, ConfigurationError, ValueError) as e:
+            error_handler = TradingSystemErrorHandler()
+            context = create_error_context(
+                operation="pre_execution_validation",
+                component="TradingEngine.execute_multi_strategy",
+                function_name="execute_multi_strategy",
+                additional_data={
+                    "paper_trading": self.paper_trading,
+                    "ignore_market_hours": self.ignore_market_hours,
+                },
+            )
+            error_handler.handle_error_with_context(
+                error=e, context=context, should_continue=False
+            )
             logging.error(f"Pre-execution validation failed: {e}")
             return MultiStrategyExecutionResultDTO(
                 success=False,
@@ -664,6 +679,19 @@ class TradingEngine:
             DataProviderError,
             ConfigurationError,
         ) as e:
+            error_handler = TradingSystemErrorHandler()
+            context = create_error_context(
+                operation="multi_strategy_execution", 
+                component="TradingEngine.execute_multi_strategy",
+                function_name="execute_multi_strategy",
+                additional_data={
+                    "paper_trading": self.paper_trading,
+                    "ignore_market_hours": self.ignore_market_hours,
+                },
+            )
+            error_handler.handle_error_with_context(
+                error=e, context=context, should_continue=False
+            )
             logging.error(f"Multi-strategy execution failed: {e}")
 
             # Enhanced error handling (fail-fast; no legacy import fallback)
@@ -772,14 +800,7 @@ class TradingEngine:
             error_handler.handle_error_with_context(error=e, context=context, should_continue=False)
             raise StrategyExecutionError(f"Failed to generate performance report: {e}") from e
 
-    def _build_portfolio_state_data(
-        self,
-        target_portfolio: dict[str, float],
-        account_info: AccountInfo,
-        current_positions: PositionsDict,
-    ) -> dict[str, Any]:
-        """Build portfolio state data for reporting purposes."""
-        return build_portfolio_state_data(target_portfolio, account_info, current_positions)
+
 
     def _trigger_post_trade_validation(
         self, strategy_signals: dict[StrategyType, Any], orders_executed: list[dict[str, Any]]
@@ -890,21 +911,7 @@ class TradingEngine:
             logging.error(f"❌ Post-trade validation failed: {e}")
             # This is not critical to trading execution, so we don't re-raise
 
-    def calculate_target_vs_current_allocations(
-        self,
-        target_portfolio: dict[str, float],
-        account_info: AccountInfo | dict[str, Any],
-        current_positions: dict[str, Any],
-    ) -> tuple[dict[str, "Decimal"], dict[str, "Decimal"]]:  # Uses Decimal values
-        """Pure calculation of target vs current allocations.
 
-        Layering: remains in application layer; no interface/cli imports.
-        """
-        from the_alchemiser.application.trading.portfolio_calculations import (
-            calculate_target_vs_current_allocations as _calc,
-        )
-
-        return _calc(target_portfolio, account_info, current_positions)
 
 
     @classmethod
