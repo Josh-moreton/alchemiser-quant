@@ -22,7 +22,7 @@ Example:
 
 import logging
 from datetime import datetime
-from typing import Any, Protocol, cast
+from typing import Any, Protocol
 
 from alpaca.trading.enums import OrderSide
 
@@ -30,6 +30,9 @@ from the_alchemiser.application.execution.smart_execution import SmartExecution
 from the_alchemiser.application.mapping.execution_summary_mapping import (
     safe_dict_to_execution_summary_dto,
     safe_dict_to_portfolio_state_dto,
+)
+from the_alchemiser.application.mapping.strategies import (
+    StrategySignalDisplayDTO,
 )
 from the_alchemiser.application.portfolio.services.portfolio_management_facade import (
     PortfolioManagementFacade,
@@ -92,7 +95,11 @@ class StrategyManagerAdapter:
 
     def run_all_strategies(
         self,
-    ) -> tuple[dict[StrategyType, dict[str, Any]], dict[str, float], dict[str, list[StrategyType]]]:
+    ) -> tuple[
+        dict[StrategyType, StrategySignalDisplayDTO],
+        dict[str, float],
+        dict[str, list[StrategyType]],
+    ]:
         """Execute all strategies and return results in legacy format.
 
         This method now delegates to pure mapping functions to convert typed signals
@@ -472,7 +479,9 @@ class TradingEngine:
             def run_all_strategies(
                 self,
             ) -> tuple[
-                dict[StrategyType, dict[str, Any]], dict[str, float], dict[str, list[StrategyType]]
+                dict[StrategyType, StrategySignalDisplayDTO],
+                dict[str, float],
+                dict[str, list[StrategyType]],
             ]:
                 """Bridge method that converts typed signals to legacy format for CLI compatibility."""
                 from datetime import UTC, datetime
@@ -504,7 +513,7 @@ class TradingEngine:
 
         Returns typed AccountInfo as required by MultiStrategyExecutionResultDTO.
         Use get_enriched_account_info for UI/reporting extras.
-        
+
         Delegates to AccountFacade for normalized account information.
         """
         return self._account_facade.get_account_info()
@@ -514,7 +523,7 @@ class TradingEngine:
 
         This extends the basic AccountInfo with portfolio performance data suitable for
         display and reporting purposes.
-        
+
         Delegates to AccountFacade for coordinated enriched account information.
 
         Returns:
@@ -806,7 +815,9 @@ class TradingEngine:
                 additional_data={"paper_trading": self.paper_trading},
             )
             error_handler.handle_error_with_context(
-                error=e, context=context, should_continue=True  # Non-critical archival failure
+                error=e,
+                context=context,
+                should_continue=True,  # Non-critical archival failure
             )
             logging.error(f"Failed to archive daily strategy P&L: {e}")
             # This is not critical to trading execution, so we don't re-raise
@@ -953,7 +964,9 @@ class TradingEngine:
                 },
             )
             error_handler.handle_error_with_context(
-                error=e, context=context, should_continue=True  # Non-critical validation failure
+                error=e,
+                context=context,
+                should_continue=True,  # Non-critical validation failure
             )
             logging.error(f"❌ Post-trade validation failed: {e}")
             # This is not critical to trading execution, so we don't re-raise
