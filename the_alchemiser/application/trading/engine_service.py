@@ -104,13 +104,15 @@ class StrategyManagerAdapter:
         dict[str, float],
         dict[str, list[StrategyType]],
     ]:
-        """Execute all strategies and return results in legacy format.
+        """Execute all strategies and return results in display-compatible format.
 
-        This method now delegates to pure mapping functions to convert typed signals
-        to CLI-compatible format, ensuring no ad-hoc dict transformations in the runtime path.
+        This method delegates to pure mapping functions to convert typed domain signals to
+        CLI-compatible display structures, ensuring no ad-hoc dict transformations in the
+        runtime path.
 
         Returns:
-            Tuple containing strategy signals dict, consolidated portfolio, and strategy attribution
+            Tuple containing: (strategy signals display dict, consolidated portfolio allocation,
+            strategy attribution mapping)
         """
         from datetime import UTC, datetime
 
