@@ -34,6 +34,7 @@ from the_alchemiser.application.mapping.account_mapping import (
 from the_alchemiser.domain.types import AccountInfo, EnrichedAccountInfo, PositionsDict
 from the_alchemiser.interfaces.schemas.accounts import (
     AccountSummaryDTO,
+    AccountMetricsDTO,
     EnrichedAccountSummaryDTO,
 )
 from the_alchemiser.services.account.account_service import AccountService
@@ -430,11 +431,26 @@ class AccountFacade:
             # Convert to typed domain objects using existing mappers
             typed_summary = account_summary_to_typed(raw_summary)
             
-            # Convert typed back to DTO format for consistent interface
-            summary_dto_data = account_typed_to_serializable(typed_summary)
-            
-            # Create AccountSummaryDTO from the serialized data
-            summary_dto = AccountSummaryDTO(**summary_dto_data)
+            # Create AccountSummaryDTO directly with proper types
+            summary_dto = AccountSummaryDTO(
+                account_id=typed_summary.account_id,
+                equity=typed_summary.equity.amount,
+                cash=typed_summary.cash.amount,
+                market_value=typed_summary.market_value.amount,
+                buying_power=typed_summary.buying_power.amount,
+                last_equity=typed_summary.last_equity.amount,
+                day_trade_count=typed_summary.day_trade_count,
+                pattern_day_trader=typed_summary.pattern_day_trader,
+                trading_blocked=typed_summary.trading_blocked,
+                transfers_blocked=typed_summary.transfers_blocked,
+                account_blocked=typed_summary.account_blocked,
+                calculated_metrics=AccountMetricsDTO(
+                    cash_ratio=typed_summary.calculated_metrics.cash_ratio,
+                    market_exposure=typed_summary.calculated_metrics.market_exposure,
+                    leverage_ratio=typed_summary.calculated_metrics.leverage_ratio,
+                    available_buying_power_ratio=typed_summary.calculated_metrics.available_buying_power_ratio,
+                )
+            )
             
             return EnrichedAccountSummaryDTO(
                 raw=raw_summary,
@@ -445,8 +461,6 @@ class AccountFacade:
             self.logger.error(f"Failed to get enriched account summary: {e}")
             # Return minimal fallback structure
             default_account = _create_default_account_info("error")
-            from decimal import Decimal
-            from the_alchemiser.interfaces.schemas.accounts import AccountMetricsDTO
             
             minimal_metrics = AccountMetricsDTO(
                 cash_ratio=Decimal("0.0"),
