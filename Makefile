@@ -18,7 +18,7 @@ help:
 	@echo "  status          Show account status"
 	@echo ""
 	@echo "Development:"
-	@echo "  format          Format code with black"
+	@echo "  format          Format code with Ruff (formatter + fixes)"
 	@echo "  lint            Run linting"
 	@echo "  clean           Clean build artifacts"
 	@echo ""
@@ -53,8 +53,8 @@ status:
 
 # Development
 format:
-	@echo "🎨 Formatting code..."
-	poetry run black the_alchemiser/
+	@echo "🎨 Formatting code (Ruff formatter + auto-fix lint)..."
+	poetry run ruff format the_alchemiser/
 	poetry run ruff check --fix the_alchemiser/
 
 lint:
@@ -73,5 +73,3 @@ clean:
 deploy:
 	@echo "🚀 Deploying to AWS Lambda..."
 	poetry run alchemiser deploy
-
-
