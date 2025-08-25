@@ -14,11 +14,14 @@ from typing import Optional
 from the_alchemiser.domain.registry import StrategyType
 from the_alchemiser.infrastructure.config import Settings, load_settings
 from the_alchemiser.infrastructure.logging.logging_utils import (
+    configure_production_logging,
     generate_request_id,
     get_logger,
     set_request_id,
     setup_logging,
 )
+from the_alchemiser.interface.cli.signal_analyzer import SignalAnalyzer
+from the_alchemiser.interface.cli.trading_executor import TradingExecutor
 from the_alchemiser.services.errors.exceptions import (
     ConfigurationError,
     DataProviderError,
@@ -77,8 +80,6 @@ class TradingSystem:
             show_tracking: When True include performance tracking table (opt-in to preserve
                 legacy minimal output by default).
         """
-        from the_alchemiser.interface.cli.signal_analyzer import SignalAnalyzer
-
         try:
             analyzer = SignalAnalyzer(self.settings)
             return analyzer.run(show_tracking=show_tracking)
@@ -95,8 +96,6 @@ class TradingSystem:
         self, live_trading: bool = False, ignore_market_hours: bool = False
     ) -> bool:
         """Execute multi-strategy trading."""
-        from the_alchemiser.interface.cli.trading_executor import TradingExecutor
-
         try:
             executor = TradingExecutor(
                 settings=self.settings,
@@ -117,68 +116,56 @@ class TradingSystem:
             return False
 
 
+def _resolve_log_level(is_production: bool) -> int:
+    """Resolve the desired log level from environment or settings."""
+    # Environment override first
+    level_str = os.getenv("LOGGING__LEVEL")
+    if level_str:
+        try:
+            return int(getattr(logging, level_str.upper()))
+        except Exception:
+            pass
+
+    # Then settings
+    try:
+        settings = load_settings()
+        configured = getattr(logging, settings.logging.level.upper(), None)
+        if isinstance(configured, int):
+            return configured
+    except Exception:
+        pass
+
+    # Fallback
+    return logging.INFO if is_production else logging.WARNING
+
+
 def configure_application_logging() -> None:
-    """Configure application logging.
-
-    Honors any logging already configured by the CLI (root handlers present),
-    and supports environment/config-driven log level via Settings.logging.level
-    or LOGGING__LEVEL env var. Avoids overriding CLI --verbose behavior.
-
-    In production (Lambda), defaults to CloudWatch-only logging with explicit S3 opt-in.
-    """
+    """Configure application logging with reduced complexity."""
     is_production = os.getenv("AWS_LAMBDA_FUNCTION_NAME") is not None
-
-    # If logging already configured (e.g., by Typer CLI callback), don't override it
     root_logger = logging.getLogger()
     if root_logger.hasHandlers() and not is_production:
         return
 
-    # Resolve desired level from env or settings; fallback to WARNING in dev, INFO in prod
-    level_str = os.getenv("LOGGING__LEVEL")
-    resolved_level = None
-    if level_str:
-        try:
-            resolved_level = getattr(logging, level_str.upper())
-        except Exception:
-            resolved_level = None
-
-    if resolved_level is None:
-        try:
-            # Load settings lazily to avoid circular imports
-            from the_alchemiser.infrastructure.config import load_settings  # local import
-
-            settings = load_settings()
-            resolved_level = getattr(logging, settings.logging.level.upper(), None)
-        except Exception:
-            resolved_level = None
-
-    if resolved_level is None:
-        resolved_level = logging.INFO if is_production else logging.WARNING
+    resolved_level = _resolve_log_level(is_production)
 
     if is_production:
-        from the_alchemiser.infrastructure.logging.logging_utils import configure_production_logging
-
-        # In production, determine if S3 logging should be used based on settings
         log_file = None
         try:
-            from the_alchemiser.infrastructure.config import load_settings
-
             settings = load_settings()
             if settings.logging.enable_s3_logging and settings.logging.s3_log_uri:
                 log_file = settings.logging.s3_log_uri
         except Exception:
-            # If settings can't be loaded, default to CloudWatch-only
             pass
-
         configure_production_logging(log_level=resolved_level, log_file=log_file)
-    else:
-        setup_logging(
-            log_level=resolved_level,
-            console_level=resolved_level,
-            suppress_third_party=True,
-            structured_format=False,
-            respect_existing_handlers=True,  # Respect CLI-configured handlers in dev
-        )
+        return
+
+    setup_logging(
+        log_level=resolved_level,
+        console_level=resolved_level,
+        suppress_third_party=True,
+        structured_format=False,
+        respect_existing_handlers=True,
+    )
 
 
 def create_argument_parser() -> argparse.ArgumentParser:
@@ -201,7 +188,9 @@ Examples:
     )
 
     parser.add_argument(
-        "--live", action="store_true", help="Execute live trading (default: paper trading)"
+        "--live",
+        action="store_true",
+        help="Execute live trading (default: paper trading)",
     )
 
     parser.add_argument(

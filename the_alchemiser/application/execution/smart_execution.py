@@ -103,12 +103,9 @@ def is_market_open(trading_client: Any) -> bool:
 
 
 class SmartExecution:
-    """
-    Professional execution engine using Better Orders strategy.
+    """Professional execution engine using Better Orders strategy.
 
-    Focuses on sophisticated execution logic while delegating actual order placement
-    to injected order executor. Uses composition over inheritance for better testability
-    and separation of concerns.
+    Execution responsibilities only; order placement delegated to injected executor.
     """
 
     def __init__(
@@ -119,14 +116,12 @@ class SmartExecution:
         config: Any = None,
     ) -> None:
         """Initialize with dependency injection for execution and data access."""
-
         self.config = config or {}
-        # Store dependencies for composition
         self._order_executor = order_executor
         self._data_provider = data_provider
-        # Backward compatibility accessor used by is_market_open()
         self._trading_client = getattr(order_executor, "trading_client", None)
         self.ignore_market_hours = ignore_market_hours
+        self.logger = logging.getLogger(__name__)
 
     def execute_safe_sell(self, symbol: str, target_qty: float) -> str | None:
         """
@@ -173,8 +168,12 @@ class SmartExecution:
         """
         from rich.console import Console
 
-        from the_alchemiser.application.execution.spread_assessment import SpreadAssessment
-        from the_alchemiser.domain.math.market_timing_utils import MarketOpenTimingEngine
+        from the_alchemiser.application.execution.spread_assessment import (
+            SpreadAssessment,
+        )
+        from the_alchemiser.domain.math.market_timing_utils import (
+            MarketOpenTimingEngine,
+        )
 
         console = Console()
         timing_engine = MarketOpenTimingEngine()
@@ -210,6 +209,13 @@ class SmartExecution:
         # Step 1: Market timing and spread assessment
         strategy = timing_engine.get_execution_strategy()
         console.print(f"[cyan]Execution strategy: {strategy.value}[/cyan]")
+        self.logger.info(
+            "execution_strategy_selected",
+            extra={
+                "strategy": getattr(strategy, "value", str(strategy)),
+                "symbol": symbol,
+            },
+        )
 
         # Get current bid/ask
         try:
@@ -228,6 +234,14 @@ class SmartExecution:
             console.print(
                 f"[dim]Current spread: {spread_analysis.spread_cents:.1f}¢ ({spread_analysis.spread_quality.value})[/dim]"
             )
+            self.logger.debug(
+                "spread_assessed",
+                extra={
+                    "symbol": symbol,
+                    "spread_cents": spread_analysis.spread_cents,
+                    "spread_quality": spread_analysis.spread_quality.value,
+                },
+            )
 
             # Check if we should wait for spreads to normalize
             if not timing_engine.should_execute_immediately(spread_analysis.spread_cents, strategy):
@@ -236,6 +250,14 @@ class SmartExecution:
                 )
                 console.print(
                     f"[yellow]Wide spread detected, waiting {wait_time}s for normalization[/yellow]"
+                )
+                self.logger.info(
+                    "waiting_for_spread_normalization",
+                    extra={
+                        "symbol": symbol,
+                        "wait_seconds": wait_time,
+                        "spread_cents": spread_analysis.spread_cents,
+                    },
                 )
                 time.sleep(wait_time)
 
@@ -247,6 +269,13 @@ class SmartExecution:
                 bid, ask = float(quote[0]), float(quote[1])
                 spread_analysis = spread_assessor.analyze_current_spread(symbol, bid, ask)
                 console.print(f"[dim]Updated spread: {spread_analysis.spread_cents:.1f}¢[/dim]")
+                self.logger.debug(
+                    "spread_reassessed",
+                    extra={
+                        "symbol": symbol,
+                        "updated_spread_cents": spread_analysis.spread_cents,
+                    },
+                )
 
             # Step 2 & 3: Aggressive Marketable Limit with Re-pegging
             return self._execute_aggressive_limit_sequence(
@@ -254,17 +283,38 @@ class SmartExecution:
             )
 
         except OrderExecutionError as e:
-            logging.error(f"Order execution error in Better Orders execution for {symbol}: {e}")
+            self.logger.error(
+                "order_execution_error",
+                extra={
+                    "symbol": symbol,
+                    "error": str(e),
+                    "phase": "better_orders_main",
+                },
+            )
             # Step 4: Market order fallback
             console.print("[yellow]Order execution failed, falling back to market order[/yellow]")
             return self._order_executor.place_market_order(symbol, side, qty=qty)
         except DataProviderError as e:
-            logging.error(f"Data provider error in Better Orders execution for {symbol}: {e}")
+            self.logger.error(
+                "data_provider_error",
+                extra={
+                    "symbol": symbol,
+                    "error": str(e),
+                    "phase": "better_orders_main",
+                },
+            )
             # Step 4: Market order fallback
             console.print("[yellow]Data provider error, falling back to market order[/yellow]")
             return self._order_executor.place_market_order(symbol, side, qty=qty)
         except Exception as e:
-            logging.error(f"Unexpected error in Better Orders execution for {symbol}: {e}")
+            self.logger.error(
+                "unexpected_execution_error",
+                extra={
+                    "symbol": symbol,
+                    "error": str(e),
+                    "phase": "better_orders_main",
+                },
+            )
             # Step 4: Market order fallback
             console.print("[yellow]Unexpected error, falling back to market order[/yellow]")
             return self._order_executor.place_market_order(symbol, side, qty=qty)

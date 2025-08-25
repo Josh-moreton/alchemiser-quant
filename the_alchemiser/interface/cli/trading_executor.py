@@ -13,6 +13,7 @@ from the_alchemiser.application.mapping.strategy_signal_mapping import (
 from the_alchemiser.application.mapping.strategy_signal_mapping import (
     map_signals_dict as _map_signals_to_typed,
 )
+from the_alchemiser.application.trading.bootstrap import bootstrap_from_container
 from the_alchemiser.application.trading.engine_service import TradingEngine
 from the_alchemiser.domain.registry import StrategyType
 from the_alchemiser.domain.strategies.value_objects.strategy_signal import (
@@ -64,13 +65,10 @@ class TradingExecutor:
     def _create_trading_engine(self) -> TradingEngine:
         """Create and configure the trading engine using modern bootstrap approach."""
         strategy_allocations = self._get_strategy_allocations()
-
-        # Use modern bootstrap approach via DI container
-        import the_alchemiser.main as app_main
-        from the_alchemiser.application.trading.bootstrap import bootstrap_from_container
-
         # Check and use container in one step to avoid MyPy unreachable code issues
-        container = app_main._di_container
+        from the_alchemiser.main import _di_container as app_di_container
+
+        container = app_di_container
         if container is None:
             raise RuntimeError("DI container not available - ensure system is properly initialized")
 
@@ -114,7 +112,8 @@ class TradingExecutor:
             )
 
             html_content = build_error_email_html(
-                "Market Closed Alert", "Market is currently closed. No trades will be placed."
+                "Market Closed Alert",
+                "Market is currently closed. No trades will be placed.",
             )
             send_email_notification(
                 subject="📈 The Alchemiser - Market Closed Alert",
@@ -128,9 +127,7 @@ class TradingExecutor:
         """Execute the trading strategy."""
         # Generate and display strategy signals
         render_header("Analyzing market conditions...", "Multi-Strategy Trading")
-        strategy_signals, consolidated_portfolio, strategy_attribution = (
-            trader.strategy_manager.run_all_strategies()
-        )
+        strategy_signals, consolidated_portfolio, _ = trader.strategy_manager.run_all_strategies()
 
         # Use typed StrategySignal mapping
         try:
@@ -210,7 +207,9 @@ class TradingExecutor:
         return result
 
     def _convert_signals_to_validated_orders(
-        self, strategy_signals: dict[StrategyType, TypedStrategySignal], trader: TradingEngine
+        self,
+        strategy_signals: dict[StrategyType, TypedStrategySignal],
+        trader: TradingEngine,
     ) -> list[ValidatedOrderDTO]:
         """Convert typed strategy signals to validated orders.
 
@@ -287,7 +286,9 @@ class TradingExecutor:
     ) -> None:
         """Send trading completion notification."""
         try:
-            from the_alchemiser.interface.email.email_utils import send_email_notification
+            from the_alchemiser.interface.email.email_utils import (
+                send_email_notification,
+            )
             from the_alchemiser.interface.email.templates import EmailTemplates
 
             # Enrich result with fresh position data without mutating the frozen DTO
