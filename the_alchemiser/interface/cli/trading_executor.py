@@ -3,6 +3,7 @@
 Handles trading execution with comprehensive error handling and notifications.
 """
 
+from datetime import datetime
 from typing import Any
 
 from the_alchemiser.application.execution.smart_execution import is_market_open
@@ -46,10 +47,14 @@ class TradingExecutor:
         settings: Settings,
         live_trading: bool = False,
         ignore_market_hours: bool = False,
+        show_tracking: bool = False,
+        export_tracking_json: str | None = None,
     ):
         self.settings = settings
         self.live_trading = live_trading
         self.ignore_market_hours = ignore_market_hours
+        self.show_tracking = show_tracking
+        self.export_tracking_json = export_tracking_json
         self.logger = get_logger(__name__)
 
     def _get_strategy_allocations(self) -> dict[StrategyType, float]:
@@ -404,6 +409,14 @@ class TradingExecutor:
             # Execute strategy
             result = self._execute_strategy(trader)
 
+            # Display tracking if requested
+            if self.show_tracking:
+                self._display_post_execution_tracking()
+
+            # Export tracking summary if requested
+            if self.export_tracking_json:
+                self._export_tracking_summary()
+
             # Send notification
             self._send_trading_notification(result, mode_str)
 
@@ -416,3 +429,134 @@ class TradingExecutor:
         except Exception as e:
             self._handle_trading_error(e, mode_str)
             return False
+
+    def _display_post_execution_tracking(self) -> None:
+        """Display strategy performance tracking after execution."""
+        try:
+            from rich.console import Console
+            from rich.panel import Panel
+
+            from the_alchemiser.interface.cli.signal_analyzer import SignalAnalyzer
+
+            console = Console()
+            console.print("\n")
+
+            # Create a signal analyzer instance to reuse the tracking display logic
+            analyzer = SignalAnalyzer(self.settings)
+            analyzer._display_strategy_tracking()
+
+        except Exception as e:
+            self.logger.warning(f"Failed to display post-execution tracking: {e}")
+            try:
+                from rich.console import Console
+
+                Console().print(
+                    Panel(
+                        f"[dim yellow]Strategy tracking display unavailable: {e}[/dim yellow]",
+                        title="Strategy Performance Tracking",
+                        border_style="yellow",
+                    )
+                )
+            except ImportError:
+                self.logger.warning("Strategy tracking display unavailable (rich not available)")
+
+    def _export_tracking_summary(self) -> None:
+        """Export tracking summary to JSON file."""
+        try:
+            import json
+            from pathlib import Path
+
+            from the_alchemiser.application.tracking.strategy_order_tracker import (
+                StrategyOrderTracker,
+            )
+
+            # Create tracker using same mode as execution
+            tracker = StrategyOrderTracker(paper_trading=not self.live_trading)
+
+            # Get summary data for all strategies
+            summary_data = []
+            strategies = ["nuclear", "tecl", "klm"]
+
+            for strategy_name in strategies:
+                try:
+                    positions = tracker.get_positions_summary()
+                    if strategy_name.lower() in [pos.strategy.lower() for pos in positions]:
+                        pnl_summary = tracker.get_pnl_summary(strategy_name)
+                        recent_orders = tracker.get_orders_for_strategy(strategy_name)
+
+                        # Calculate position count
+                        strategy_positions = [
+                            pos for pos in positions if pos.strategy.lower() == strategy_name.lower()
+                        ]
+                        position_count = len(strategy_positions)
+
+                        # Calculate return percentage
+                        total_pnl = float(pnl_summary.total_pnl)
+                        if hasattr(pnl_summary, "cost_basis") and float(pnl_summary.cost_basis) > 0:
+                            return_pct = (total_pnl / float(pnl_summary.cost_basis)) * 100
+                        else:
+                            return_pct = 0.0
+
+                        summary_data.append(
+                            {
+                                "strategy": strategy_name,
+                                "position_count": position_count,
+                                "total_pnl": total_pnl,
+                                "return_pct": return_pct,
+                                "recent_orders_count": len(recent_orders[-10:]),  # Last 10 orders
+                                "updated_at": pnl_summary.last_updated.isoformat()
+                                if hasattr(pnl_summary, "last_updated") and pnl_summary.last_updated
+                                else None,
+                            }
+                        )
+                except Exception as e:
+                    self.logger.warning(f"Error gathering tracking data for {strategy_name}: {e}")
+                    summary_data.append(
+                        {
+                            "strategy": strategy_name,
+                            "position_count": 0,
+                            "total_pnl": 0.0,
+                            "return_pct": 0.0,
+                            "recent_orders_count": 0,
+                            "updated_at": None,
+                            "error": str(e),
+                        }
+                    )
+
+            # Write to file
+            if self.export_tracking_json is None:
+                raise ValueError("Export path is None")
+
+            output_path = Path(self.export_tracking_json)
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+
+            with output_path.open("w") as f:
+                json.dump(
+                    {
+                        "summary": summary_data,
+                        "export_timestamp": datetime.now().isoformat(),
+                        "trading_mode": "live" if self.live_trading else "paper",
+                    },
+                    f,
+                    indent=2,
+                )
+
+            self.logger.info(f"Tracking summary exported to {output_path}")
+
+            try:
+                from rich.console import Console
+
+                Console().print(f"[dim]📄 Tracking summary exported to {output_path}[/dim]")
+            except ImportError:
+                pass
+
+        except Exception as e:
+            self.logger.error(f"Failed to export tracking summary: {e}")
+            try:
+                from rich.console import Console
+
+                Console().print(
+                    f"[bold red]Failed to export tracking summary to {self.export_tracking_json}: {e}[/bold red]"
+                )
+            except ImportError:
+                pass

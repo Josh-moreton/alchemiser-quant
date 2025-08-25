@@ -25,7 +25,12 @@ from the_alchemiser.application.trading.engine_service import TradingEngine
 from the_alchemiser.domain.dsl.errors import DSLError
 from the_alchemiser.domain.dsl.parser import DSLParser
 from the_alchemiser.domain.dsl.strategy_loader import StrategyLoader
+
+# Import domain models for type annotations
+from the_alchemiser.domain.market_data.models.bar import BarModel
+from the_alchemiser.domain.market_data.models.quote import QuoteModel
 from the_alchemiser.domain.market_data.protocols.market_data_port import MarketDataPort
+from the_alchemiser.domain.shared_kernel.value_objects.symbol import Symbol
 from the_alchemiser.infrastructure.logging.logging_utils import (
     get_logger,
     log_error_with_context,
@@ -178,8 +183,8 @@ def signal(
                 class _MarketDataPortAdapter(MarketDataPort):
                     """Adapter bridging MarketDataService to Domain MarketDataPort for DSL.
 
-                    Only implements methods required by the DSL evaluator using the
-                    current typed port contract (get_bars / get_latest_quote / get_mid_price).
+                    Implements required methods of MarketDataPort protocol using the current
+                    typed port contract. Returns lightweight objects that satisfy DSL evaluator needs.
                     """
 
                     def __init__(self, md: MarketDataService) -> None:
@@ -187,47 +192,82 @@ def signal(
 
                     def get_bars(
                         self,
-                        symbol: Any,
-                        period: str | None = None,
-                        timeframe: str | None = None,
-                        **kwargs: Any,
-                    ) -> list[Any]:
-                        # Handle both positional and keyword arguments for flexibility
-                        period_val = period or kwargs.get("period", "1y")
-                        timeframe_val = timeframe or kwargs.get("timeframe", "1day")
+                        symbol: Symbol,
+                        period: str,
+                        timeframe: str,
+                    ) -> list[BarModel]:
+                        """Get historical bars for a symbol."""
+                        from datetime import datetime
+                        from decimal import Decimal
 
-                        # Reuse existing service method that returns DataFrame-like structure, then
-                        # map into list of BarModel-compatible dicts (lightweight) if needed.
-                        df = self._md.get_data(
-                            str(symbol), timeframe=timeframe_val, period=period_val
-                        )
-                        bars: list[Any] = []
+                        from the_alchemiser.domain.market_data.models.bar import BarModel
+
+                        # Handle both Symbol objects and strings
+                        symbol_str = str(symbol.value) if hasattr(symbol, 'value') else str(symbol)
+
+                        # Reuse existing service method that returns DataFrame-like structure
+                        df = self._md.get_data(symbol_str, timeframe=timeframe, period=period)
+                        bars: list[BarModel] = []
+
                         if hasattr(df, "iterrows"):
                             for _idx, row in df.iterrows():
                                 # Get close price - handle both 'Close' and 'close' column names
                                 close_price = row.get("Close") or row.get("close")
                                 if close_price is not None:
-                                    # Minimal structure; evaluator only needs close prices.
-                                    bars.append(type("BarStub", (), {"close": close_price})())
+                                    # Create minimal BarModel compatible object
+                                    # DSL evaluator typically only needs close prices
+                                    close_decimal = Decimal(str(close_price))
+                                    timestamp = getattr(row, "name", None) or datetime.now()
+                                    if not isinstance(timestamp, datetime):
+                                        timestamp = datetime.now()
+
+                                    bars.append(
+                                        BarModel(
+                                            ts=timestamp,
+                                            open=close_decimal,  # Simplified for DSL
+                                            high=close_decimal,
+                                            low=close_decimal,
+                                            close=close_decimal,
+                                            volume=Decimal("0"),
+                                        )
+                                    )
                         return bars
 
-                    def get_latest_quote(self, symbol: Any) -> Any:
-                        q = self._md.get_validated_quote(str(symbol))
+                    def get_latest_quote(self, symbol: Symbol) -> QuoteModel | None:
+                        """Get latest quote for a symbol."""
+                        from datetime import datetime
+                        from decimal import Decimal
+
+                        from the_alchemiser.domain.market_data.models.quote import QuoteModel
+
+                        # Handle both Symbol objects and strings
+                        symbol_str = str(symbol.value) if hasattr(symbol, 'value') else str(symbol)
+
+                        q = self._md.get_validated_quote(symbol_str)
                         if q is None:
                             return None
-                        # Return simple object with bid/ask for mid price fallback
-                        return type("QuoteStub", (), {"bid": q[0], "ask": q[1]})()
 
-                    def get_mid_price(self, symbol: Any) -> float | None:
+                        # Return QuoteModel with bid/ask
+                        bid_val = Decimal(str(q[0])) if len(q) > 0 and q[0] is not None else Decimal("0")
+                        ask_val = Decimal(str(q[1])) if len(q) > 1 and q[1] is not None else Decimal("0")
+
+                        return QuoteModel(
+                            ts=datetime.now(),
+                            bid=bid_val,
+                            ask=ask_val,
+                        )
+
+                    def get_mid_price(self, symbol: Symbol) -> float | None:
+                        """Get mid price for a symbol."""
+                        # Handle both Symbol objects and strings
+                        symbol_str = str(symbol.value) if hasattr(symbol, 'value') else str(symbol)
+
                         quote = self.get_latest_quote(symbol)
                         if not quote or quote.bid is None or quote.ask is None:
                             # Fallback to last trade/price if available
-                            return self._md.get_validated_price(str(symbol))
-                        return (
-                            (quote.bid + quote.ask) / 2
-                            if quote.bid is not None and quote.ask is not None
-                            else None
-                        )
+                            return self._md.get_validated_price(symbol_str)
+                        # Convert Decimal result to float for compatibility
+                        return float(quote.mid)
 
                 adapter = _MarketDataPortAdapter(tsm.market_data)
 
@@ -308,6 +348,13 @@ def signal(
         # Legacy multi-strategy signal path ----------------------------------
         show_welcome()
 
+        # Show deprecation warning for --tracking in signal mode
+        if tracking:
+            console.print(
+                "[dim yellow]⚠️  --tracking flag in signal mode is deprecated. "
+                "Use 'alchemiser trade --show-tracking' to see performance data after trade execution.[/dim yellow]"
+            )
+
         with Progress(
             SpinnerColumn(),
             TextColumn(PROGRESS_DESCRIPTION_FORMAT),
@@ -381,6 +428,12 @@ def trade(
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable verbose output"),
     no_header: bool = typer.Option(False, "--no-header", help="Skip welcome header"),
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompts"),
+    show_tracking: bool = typer.Option(
+        False, "--show-tracking", help="Display strategy performance tracking after execution"
+    ),
+    export_tracking_json: str | None = typer.Option(
+        None, "--export-tracking-json", help="Export tracking summary to JSON file"
+    ),
 ) -> None:
     """
     💰 [bold green]Execute multi-strategy trading[/bold green]
@@ -417,6 +470,10 @@ def trade(
             argv.append("--live")
         if ignore_market_hours:
             argv.append("--ignore-market-hours")
+        if show_tracking:
+            argv.append("--show-tracking")
+        if export_tracking_json:
+            argv.extend(["--export-tracking-json", export_tracking_json])
 
         result = main(argv=argv)
 

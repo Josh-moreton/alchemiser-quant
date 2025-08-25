@@ -93,7 +93,11 @@ class TradingSystem:
             return False
 
     def execute_trading(
-        self, live_trading: bool = False, ignore_market_hours: bool = False
+        self,
+        live_trading: bool = False,
+        ignore_market_hours: bool = False,
+        show_tracking: bool = False,
+        export_tracking_json: str | None = None,
     ) -> bool:
         """Execute multi-strategy trading."""
         try:
@@ -101,6 +105,8 @@ class TradingSystem:
                 settings=self.settings,
                 live_trading=live_trading,
                 ignore_market_hours=ignore_market_hours,
+                show_tracking=show_tracking,
+                export_tracking_json=export_tracking_json,
             )
             return executor.run()
         except (TradingClientError, StrategyExecutionError) as e:
@@ -111,6 +117,8 @@ class TradingSystem:
                 additional_data={
                     "live_trading": live_trading,
                     "ignore_market_hours": ignore_market_hours,
+                    "show_tracking": show_tracking,
+                    "export_tracking_json": export_tracking_json,
                 },
             )
             return False
@@ -200,7 +208,19 @@ Examples:
     parser.add_argument(
         "--tracking",
         action="store_true",
-        help="Include strategy performance tracking table (default off)",
+        help="Include strategy performance tracking table (signal mode - deprecated)",
+    )
+
+    parser.add_argument(
+        "--show-tracking",
+        action="store_true",
+        help="Display strategy performance tracking after trade execution",
+    )
+
+    parser.add_argument(
+        "--export-tracking-json",
+        type=str,
+        help="Export tracking summary to JSON file after trade execution",
     )
 
     return parser
@@ -240,7 +260,10 @@ def main(argv: list[str] | None = None) -> bool:
             success = system.analyze_signals(show_tracking=getattr(args, "tracking", False))
         elif args.mode == "trade":
             success = system.execute_trading(
-                live_trading=args.live, ignore_market_hours=args.ignore_market_hours
+                live_trading=args.live,
+                ignore_market_hours=args.ignore_market_hours,
+                show_tracking=getattr(args, "show_tracking", False),
+                export_tracking_json=getattr(args, "export_tracking_json", None),
             )
         else:
             success = False
