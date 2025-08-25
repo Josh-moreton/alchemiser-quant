@@ -48,8 +48,8 @@ SExprType = Any
 
 
 class DSLParser:
-    MAX_DEPTH = 50
-    MAX_NODES = 10000
+    MAX_DEPTH = 500000  # Very high for extremely nested strategies
+    MAX_NODES = 200000000  # Very high for massive complex strategies
 
     def __init__(self) -> None:
         self._node_count = 0
@@ -74,7 +74,17 @@ class DSLParser:
             cleaned.append(line)
         joined = "\n".join(cleaned)
         pattern = r'\{|\}|\(|\)|\[|\]|"[^"]*"|[^\s(){}\[\]"]+'
-        return [t for t in re.findall(pattern, joined) if t.strip()]
+        raw_tokens = [t for t in re.findall(pattern, joined) if t.strip()]
+        processed: list[str] = []
+        for tok in raw_tokens:
+            # Clojure treats commas as whitespace; strip trailing commas from tokens.
+            if tok.endswith(","):
+                tok = tok[:-1]
+            # Drop standalone commas or empty tokens if they ever appear (defensive)
+            if tok == "," or not tok.strip():
+                continue
+            processed.append(tok)
+        return processed
 
     def _parse_sexpr(self, source: str) -> SExprType:
         if not source:
@@ -179,7 +189,7 @@ class DSLParser:
         if operator in {"weight-equal", "group", "weight-inverse-volatility", "weight-specified"}:
             ast_args = self._flatten_vector_nodes(ast_args)
         elif operator == "filter" and len(ast_args) >= 3:
-            metric_ast, selector_ast, *assets = ast_args
+            _metric_ast, _selector_ast, *assets = ast_args
             if len(assets) == 1 and isinstance(assets[0], Group) and assets[0].name == "__vector__":
                 assets = assets[0].expressions
             # Rebuild raw args for downstream parse method using original SExpr for indicator semantics
@@ -271,7 +281,7 @@ class DSLParser:
 
         return node_type(left, right)
 
-    def _parse_rsi(self, args: list[SExprType], depth: int) -> RSI:
+    def _parse_rsi(self, args: list[SExprType], depth: int) -> RSI:  # depth kept for symmetry
         """Parse RSI indicator."""
         # For filter context, RSI might have only window parameter
         if len(args) == 1:
@@ -293,7 +303,9 @@ class DSLParser:
                 actual_arity=len(args),
             )
 
-    def _parse_moving_average_price(self, args: list[SExprType], depth: int) -> MovingAveragePrice:
+    def _parse_moving_average_price(
+        self, args: list[SExprType], depth: int
+    ) -> MovingAveragePrice:  # depth kept
         """Parse moving average price indicator."""
         # For filter context, might have only window parameter
         if len(args) == 1:
@@ -316,7 +328,7 @@ class DSLParser:
             )
 
     def _parse_moving_average_return(
-        self, args: list[SExprType], depth: int
+        self, args: list[SExprType], depth: int  # depth kept
     ) -> MovingAverageReturn:
         """Parse moving average return indicator."""
         # For filter context, might have only window parameter
@@ -339,7 +351,9 @@ class DSLParser:
                 actual_arity=len(args),
             )
 
-    def _parse_cumulative_return(self, args: list[SExprType], depth: int) -> CumulativeReturn:
+    def _parse_cumulative_return(
+        self, args: list[SExprType], depth: int
+    ) -> CumulativeReturn:  # depth kept
         """Parse cumulative return indicator."""
         # For filter context, might have only window parameter
         if len(args) == 1:
@@ -361,7 +375,7 @@ class DSLParser:
                 actual_arity=len(args),
             )
 
-    def _parse_current_price(self, args: list[SExprType], depth: int) -> CurrentPrice:
+    def _parse_current_price(self, args: list[SExprType], depth: int) -> CurrentPrice:  # depth kept
         """Parse current price indicator."""
         if len(args) != 1:
             raise SchemaError(
@@ -377,7 +391,7 @@ class DSLParser:
 
         return CurrentPrice(symbol)
 
-    def _parse_stdev_return(self, args: list[SExprType], depth: int) -> StdevReturn:
+    def _parse_stdev_return(self, args: list[SExprType], depth: int) -> StdevReturn:  # depth kept
         """Parse standard deviation of returns indicator."""
         # For filter context, stdev-return might have only window parameter
         if len(args) == 1:
@@ -399,7 +413,7 @@ class DSLParser:
                 actual_arity=len(args),
             )
 
-    def _parse_asset(self, args: list[SExprType], depth: int) -> Asset:
+    def _parse_asset(self, args: list[SExprType], depth: int) -> Asset:  # depth kept
         """Parse asset definition."""
         if len(args) < 1 or len(args) > 2:
             raise SchemaError(
@@ -506,7 +520,7 @@ class DSLParser:
         assets = [self._sexpr_to_ast(asset, depth + 1) for asset in args[2:]]
         return Filter(metric_fn, selector, assets)
 
-    def _parse_select_top(self, args: list[SExprType], depth: int) -> SelectTop:
+    def _parse_select_top(self, args: list[SExprType], depth: int) -> SelectTop:  # depth kept
         """Parse select-top selector."""
         if len(args) != 1:
             raise SchemaError(
@@ -522,7 +536,7 @@ class DSLParser:
 
         return SelectTop(count)
 
-    def _parse_select_bottom(self, args: list[SExprType], depth: int) -> SelectBottom:
+    def _parse_select_bottom(self, args: list[SExprType], depth: int) -> SelectBottom:  # depth kept
         """Parse select-bottom selector."""
         if len(args) != 1:
             raise SchemaError(

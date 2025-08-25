@@ -8,7 +8,9 @@ and market data access. Provides deterministic evaluation with structured tracin
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import Any, Union
+from typing import Any
+
+import pandas as pd
 
 from the_alchemiser.domain.dsl.ast import (
     RSI,
@@ -35,12 +37,12 @@ from the_alchemiser.domain.dsl.ast import (
     WeightSpecified,
 )
 from the_alchemiser.domain.dsl.errors import EvaluationError, IndicatorError, PortfolioError
+from the_alchemiser.domain.market_data.protocols.market_data_port import MarketDataPort
 from the_alchemiser.domain.math.indicators import TechnicalIndicators
-from the_alchemiser.domain.strategies.protocols.market_data_port import MarketDataPort
 
 # Type for evaluation results
 Portfolio = dict[str, Decimal]
-EvalResult = Union[float, bool, Portfolio]
+EvalResult = float | bool | Portfolio
 
 
 class DSLEvaluator:
@@ -48,7 +50,7 @@ class DSLEvaluator:
 
     def __init__(self, market_data_port: MarketDataPort) -> None:
         """Initialize evaluator with market data access.
-        
+
         Args:
             market_data_port: Market data access interface
         """
@@ -58,13 +60,13 @@ class DSLEvaluator:
 
     def evaluate(self, ast_node: ASTNode) -> EvalResult:
         """Evaluate AST node to produce result.
-        
+
         Args:
             ast_node: AST node to evaluate
-            
+
         Returns:
             Evaluation result (float, bool, or portfolio dict)
-            
+
         Raises:
             EvaluationError: If evaluation fails
         """
@@ -149,10 +151,14 @@ class DSLEvaluator:
         right_result = self._evaluate_node(node.right)
 
         # Ensure numeric values
-        if not isinstance(left_result, (int, float)):
-            raise EvaluationError(f"Left side of {operator} must be numeric, got {type(left_result)}")
-        if not isinstance(right_result, (int, float)):
-            raise EvaluationError(f"Right side of {operator} must be numeric, got {type(right_result)}")
+        if not isinstance(left_result, int | float):
+            raise EvaluationError(
+                f"Left side of {operator} must be numeric, got {type(left_result)}"
+            )
+        if not isinstance(right_result, int | float):
+            raise EvaluationError(
+                f"Right side of {operator} must be numeric, got {type(right_result)}"
+            )
 
         if operator == ">":
             result = left_result > right_result
@@ -162,13 +168,15 @@ class DSLEvaluator:
             raise EvaluationError(f"Unknown comparison operator: {operator}")
 
         # Trace the comparison
-        self._trace_entries.append({
-            "type": "comparison",
-            "operator": operator,
-            "left_value": left_result,
-            "right_value": right_result,
-            "result": result
-        })
+        self._trace_entries.append(
+            {
+                "type": "comparison",
+                "operator": operator,
+                "left_value": left_result,
+                "right_value": right_result,
+                "result": result,
+            }
+        )
 
         return result
 
@@ -191,37 +199,67 @@ class DSLEvaluator:
             raise EvaluationError("If condition false but no else clause provided")
 
         # Trace the branch decision
-        self._trace_entries.append({
-            "type": "conditional",
-            "condition": condition_result,
-            "branch_taken": branch,
-            "result_type": type(result).__name__
-        })
+        self._trace_entries.append(
+            {
+                "type": "conditional",
+                "condition": condition_result,
+                "branch_taken": branch,
+                "result_type": type(result).__name__,
+            }
+        )
 
         return result
+
+    def _load_price_series(
+        self, symbol: str, timeframe: str = "1day", period: str = "1y"
+    ) -> pd.Series:
+        """Load close price series for a symbol using port bars.
+
+        Converts list[BarModel]-like objects to a pandas Series of Decimal -> float.
+        """
+        bars = self.market_data_port.get_bars(symbol, period=period, timeframe=timeframe)  # type: ignore[arg-type]
+        if not bars:
+            raise IndicatorError(
+                f"No data available for {symbol}", indicator="price_series", symbol=symbol
+            )
+        closes = [getattr(b, "close", None) for b in bars]
+        cleaned = [float(c) for c in closes if c is not None]
+        if not cleaned:
+            raise IndicatorError(
+                f"No close prices for {symbol}", indicator="price_series", symbol=symbol
+            )
+        return pd.Series(cleaned)
 
     def _evaluate_rsi(self, node: RSI) -> float:
         """Evaluate RSI indicator."""
         cache_key = f"rsi_{node.symbol}_{node.window}"
 
         if cache_key in self._indicator_cache:
-            result = self._indicator_cache[cache_key]
+            result = float(self._indicator_cache[cache_key])
         else:
             try:
                 # Get market data
-                data = self.market_data_port.get_data(node.symbol, timeframe="1day", period="1y")
-                if data.empty:
-                    raise IndicatorError(f"No data available for {node.symbol}", indicator="rsi", symbol=node.symbol)
+                price_series = self._load_price_series(node.symbol)
+                if price_series.empty:
+                    raise IndicatorError(
+                        f"No data available for {node.symbol}", indicator="rsi", symbol=node.symbol
+                    )
 
                 # Calculate RSI using existing indicator
-                rsi_series = TechnicalIndicators.rsi(data['close'], node.window)
+                rsi_series = TechnicalIndicators.rsi(price_series, node.window)
                 if rsi_series.empty:
-                    raise IndicatorError(f"RSI calculation failed for {node.symbol}", indicator="rsi", symbol=node.symbol)
+                    raise IndicatorError(
+                        f"RSI calculation failed for {node.symbol}",
+                        indicator="rsi",
+                        symbol=node.symbol,
+                    )
 
                 # Get latest value
                 latest_rsi = rsi_series.dropna().iloc[-1] if not rsi_series.dropna().empty else None
                 if latest_rsi is None:
-                    raise IndicatorError(f"No valid RSI value for {node.symbol}", indicator="rsi", symbol=node.symbol)
+                    raise IndicatorError(
+                        f"No valid RSI value for {node.symbol}", indicator="rsi", symbol=node.symbol
+                    )
 
                 result = float(latest_rsi)
                 self._indicator_cache[cache_key] = result
@@ -229,16 +267,22 @@ class DSLEvaluator:
             except Exception as e:
                 if isinstance(e, IndicatorError):
                     raise
-                raise IndicatorError(f"RSI calculation error for {node.symbol}: {e}", indicator="rsi", symbol=node.symbol) from e
+                raise IndicatorError(
+                    f"RSI calculation error for {node.symbol}: {e}",
+                    indicator="rsi",
+                    symbol=node.symbol,
+                ) from e
 
         # Trace indicator calculation
-        self._trace_entries.append({
-            "type": "indicator",
-            "indicator": "rsi",
-            "symbol": node.symbol,
-            "window": node.window,
-            "value": result
-        })
+        self._trace_entries.append(
+            {
+                "type": "indicator",
+                "indicator": "rsi",
+                "symbol": node.symbol,
+                "window": node.window,
+                "value": result,
+            }
+        )
 
         return result
 
@@ -247,23 +291,35 @@ class DSLEvaluator:
         cache_key = f"ma_price_{node.symbol}_{node.window}"
 
         if cache_key in self._indicator_cache:
-            result = self._indicator_cache[cache_key]
+            result = float(self._indicator_cache[cache_key])
         else:
             try:
                 # Get market data
-                data = self.market_data_port.get_data(node.symbol, timeframe="1day", period="1y")
-                if data.empty:
-                    raise IndicatorError(f"No data available for {node.symbol}", indicator="moving_average_price", symbol=node.symbol)
+                price_series = self._load_price_series(node.symbol)
+                if price_series.empty:
+                    raise IndicatorError(
+                        f"No data available for {node.symbol}",
+                        indicator="moving_average_price",
+                        symbol=node.symbol,
+                    )
 
                 # Calculate moving average using existing indicator
-                ma_series = TechnicalIndicators.moving_average(data['close'], node.window)
+                ma_series = TechnicalIndicators.moving_average(price_series, node.window)
                 if ma_series.empty:
-                    raise IndicatorError(f"Moving average calculation failed for {node.symbol}", indicator="moving_average_price", symbol=node.symbol)
+                    raise IndicatorError(
+                        f"Moving average calculation failed for {node.symbol}",
+                        indicator="moving_average_price",
+                        symbol=node.symbol,
+                    )
 
                 # Get latest value
                 latest_ma = ma_series.dropna().iloc[-1] if not ma_series.dropna().empty else None
                 if latest_ma is None:
-                    raise IndicatorError(f"No valid moving average value for {node.symbol}", indicator="moving_average_price", symbol=node.symbol)
+                    raise IndicatorError(
+                        f"No valid moving average value for {node.symbol}",
+                        indicator="moving_average_price",
+                        symbol=node.symbol,
+                    )
 
                 result = float(latest_ma)
                 self._indicator_cache[cache_key] = result
@@ -271,16 +327,22 @@ class DSLEvaluator:
             except Exception as e:
                 if isinstance(e, IndicatorError):
                     raise
-                raise IndicatorError(f"Moving average calculation error for {node.symbol}: {e}", indicator="moving_average_price", symbol=node.symbol) from e
+                raise IndicatorError(
+                    f"Moving average calculation error for {node.symbol}: {e}",
+                    indicator="moving_average_price",
+                    symbol=node.symbol,
+                ) from e
 
         # Trace indicator calculation
-        self._trace_entries.append({
-            "type": "indicator",
-            "indicator": "moving_average_price",
-            "symbol": node.symbol,
-            "window": node.window,
-            "value": result
-        })
+        self._trace_entries.append(
+            {
+                "type": "indicator",
+                "indicator": "moving_average_price",
+                "symbol": node.symbol,
+                "window": node.window,
+                "value": result,
+            }
+        )
 
         return result
 
@@ -289,23 +351,41 @@ class DSLEvaluator:
         cache_key = f"ma_return_{node.symbol}_{node.window}"
 
         if cache_key in self._indicator_cache:
-            result = self._indicator_cache[cache_key]
+            result = float(self._indicator_cache[cache_key])
         else:
             try:
                 # Get market data
-                data = self.market_data_port.get_data(node.symbol, timeframe="1day", period="1y")
-                if data.empty:
-                    raise IndicatorError(f"No data available for {node.symbol}", indicator="moving_average_return", symbol=node.symbol)
+                price_series = self._load_price_series(node.symbol)
+                if price_series.empty:
+                    raise IndicatorError(
+                        f"No data available for {node.symbol}",
+                        indicator="moving_average_return",
+                        symbol=node.symbol,
+                    )
 
                 # Calculate moving average return using existing indicator
-                ma_return_series = TechnicalIndicators.moving_average_return(data['close'], node.window)
+                ma_return_series = TechnicalIndicators.moving_average_return(
+                    price_series, node.window
+                )
                 if ma_return_series.empty:
-                    raise IndicatorError(f"Moving average return calculation failed for {node.symbol}", indicator="moving_average_return", symbol=node.symbol)
+                    raise IndicatorError(
+                        f"Moving average return calculation failed for {node.symbol}",
+                        indicator="moving_average_return",
+                        symbol=node.symbol,
+                    )
 
                 # Get latest value
-                latest_ma_return = ma_return_series.dropna().iloc[-1] if not ma_return_series.dropna().empty else None
+                latest_ma_return = (
+                    ma_return_series.dropna().iloc[-1]
+                    if not ma_return_series.dropna().empty
+                    else None
+                )
                 if latest_ma_return is None:
-                    raise IndicatorError(f"No valid moving average return value for {node.symbol}", indicator="moving_average_return", symbol=node.symbol)
+                    raise IndicatorError(
+                        f"No valid moving average return value for {node.symbol}",
+                        indicator="moving_average_return",
+                        symbol=node.symbol,
+                    )
 
                 result = float(latest_ma_return)
                 self._indicator_cache[cache_key] = result
@@ -313,16 +393,22 @@ class DSLEvaluator:
             except Exception as e:
                 if isinstance(e, IndicatorError):
                     raise
-                raise IndicatorError(f"Moving average return calculation error for {node.symbol}: {e}", indicator="moving_average_return", symbol=node.symbol) from e
+                raise IndicatorError(
+                    f"Moving average return calculation error for {node.symbol}: {e}",
+                    indicator="moving_average_return",
+                    symbol=node.symbol,
+                ) from e
 
         # Trace indicator calculation
-        self._trace_entries.append({
-            "type": "indicator",
-            "indicator": "moving_average_return",
-            "symbol": node.symbol,
-            "window": node.window,
-            "value": result
-        })
+        self._trace_entries.append(
+            {
+                "type": "indicator",
+                "indicator": "moving_average_return",
+                "symbol": node.symbol,
+                "window": node.window,
+                "value": result,
+            }
+        )
 
         return result
 
@@ -331,23 +417,39 @@ class DSLEvaluator:
         cache_key = f"cum_return_{node.symbol}_{node.window}"
 
         if cache_key in self._indicator_cache:
-            result = self._indicator_cache[cache_key]
+            result = float(self._indicator_cache[cache_key])
         else:
             try:
                 # Get market data
-                data = self.market_data_port.get_data(node.symbol, timeframe="1day", period="1y")
-                if data.empty:
-                    raise IndicatorError(f"No data available for {node.symbol}", indicator="cumulative_return", symbol=node.symbol)
+                price_series = self._load_price_series(node.symbol)
+                if price_series.empty:
+                    raise IndicatorError(
+                        f"No data available for {node.symbol}",
+                        indicator="cumulative_return",
+                        symbol=node.symbol,
+                    )
 
                 # Calculate cumulative return using existing indicator
-                cum_return_series = TechnicalIndicators.cumulative_return(data['close'], node.window)
+                cum_return_series = TechnicalIndicators.cumulative_return(price_series, node.window)
                 if cum_return_series.empty:
-                    raise IndicatorError(f"Cumulative return calculation failed for {node.symbol}", indicator="cumulative_return", symbol=node.symbol)
+                    raise IndicatorError(
+                        f"Cumulative return calculation failed for {node.symbol}",
+                        indicator="cumulative_return",
+                        symbol=node.symbol,
+                    )
 
                 # Get latest value
-                latest_cum_return = cum_return_series.dropna().iloc[-1] if not cum_return_series.dropna().empty else None
+                latest_cum_return = (
+                    cum_return_series.dropna().iloc[-1]
+                    if not cum_return_series.dropna().empty
+                    else None
+                )
                 if latest_cum_return is None:
-                    raise IndicatorError(f"No valid cumulative return value for {node.symbol}", indicator="cumulative_return", symbol=node.symbol)
+                    raise IndicatorError(
+                        f"No valid cumulative return value for {node.symbol}",
+                        indicator="cumulative_return",
+                        symbol=node.symbol,
+                    )
 
                 result = float(latest_cum_return)
                 self._indicator_cache[cache_key] = result
@@ -355,16 +457,22 @@ class DSLEvaluator:
             except Exception as e:
                 if isinstance(e, IndicatorError):
                     raise
-                raise IndicatorError(f"Cumulative return calculation error for {node.symbol}: {e}", indicator="cumulative_return", symbol=node.symbol) from e
+                raise IndicatorError(
+                    f"Cumulative return calculation error for {node.symbol}: {e}",
+                    indicator="cumulative_return",
+                    symbol=node.symbol,
+                ) from e
 
         # Trace indicator calculation
-        self._trace_entries.append({
-            "type": "indicator",
-            "indicator": "cumulative_return",
-            "symbol": node.symbol,
-            "window": node.window,
-            "value": result
-        })
+        self._trace_entries.append(
+            {
+                "type": "indicator",
+                "indicator": "cumulative_return",
+                "symbol": node.symbol,
+                "window": node.window,
+                "value": result,
+            }
+        )
 
         return result
 
@@ -373,13 +481,17 @@ class DSLEvaluator:
         cache_key = f"current_price_{node.symbol}"
 
         if cache_key in self._indicator_cache:
-            result = self._indicator_cache[cache_key]
+            result = float(self._indicator_cache[cache_key])
         else:
             try:
                 # Get current price from market data port
-                current_price = self.market_data_port.get_current_price(node.symbol)
+                current_price = self.market_data_port.get_mid_price(node.symbol)  # type: ignore[arg-type]
                 if current_price is None:
-                    raise IndicatorError(f"No current price available for {node.symbol}", indicator="current_price", symbol=node.symbol)
+                    raise IndicatorError(
+                        f"No current price available for {node.symbol}",
+                        indicator="current_price",
+                        symbol=node.symbol,
+                    )
 
                 result = float(current_price)
                 self._indicator_cache[cache_key] = result
@@ -387,15 +499,21 @@ class DSLEvaluator:
             except Exception as e:
                 if isinstance(e, IndicatorError):
                     raise
-                raise IndicatorError(f"Current price error for {node.symbol}: {e}", indicator="current_price", symbol=node.symbol) from e
+                raise IndicatorError(
+                    f"Current price error for {node.symbol}: {e}",
+                    indicator="current_price",
+                    symbol=node.symbol,
+                ) from e
 
         # Trace indicator calculation
-        self._trace_entries.append({
-            "type": "indicator",
-            "indicator": "current_price",
-            "symbol": node.symbol,
-            "value": result
-        })
+        self._trace_entries.append(
+            {
+                "type": "indicator",
+                "indicator": "current_price",
+                "symbol": node.symbol,
+                "value": result,
+            }
+        )
 
         return result
 
@@ -404,26 +522,40 @@ class DSLEvaluator:
         cache_key = f"stdev_return_{node.symbol}_{node.window}"
 
         if cache_key in self._indicator_cache:
-            result = self._indicator_cache[cache_key]
+            result = float(self._indicator_cache[cache_key])
         else:
             try:
                 # Get market data
-                data = self.market_data_port.get_data(node.symbol, timeframe="1day", period="1y")
-                if data.empty:
-                    raise IndicatorError(f"No data available for {node.symbol}", indicator="stdev_return", symbol=node.symbol)
+                price_series = self._load_price_series(node.symbol)
+                if price_series.empty:
+                    raise IndicatorError(
+                        f"No data available for {node.symbol}",
+                        indicator="stdev_return",
+                        symbol=node.symbol,
+                    )
 
                 # Calculate returns first
-                returns = data['close'].pct_change().dropna()
-                
+                returns = price_series.pct_change().dropna()
+
                 # Calculate rolling standard deviation of returns
                 stdev_series = returns.rolling(window=node.window).std()
                 if stdev_series.empty:
-                    raise IndicatorError(f"Standard deviation calculation failed for {node.symbol}", indicator="stdev_return", symbol=node.symbol)
+                    raise IndicatorError(
+                        f"Standard deviation calculation failed for {node.symbol}",
+                        indicator="stdev_return",
+                        symbol=node.symbol,
+                    )
 
                 # Get latest value
-                latest_stdev = stdev_series.dropna().iloc[-1] if not stdev_series.dropna().empty else None
+                latest_stdev = (
+                    stdev_series.dropna().iloc[-1] if not stdev_series.dropna().empty else None
+                )
                 if latest_stdev is None:
-                    raise IndicatorError(f"No valid standard deviation value for {node.symbol}", indicator="stdev_return", symbol=node.symbol)
+                    raise IndicatorError(
+                        f"No valid standard deviation value for {node.symbol}",
+                        indicator="stdev_return",
+                        symbol=node.symbol,
+                    )
 
                 result = float(latest_stdev)
                 self._indicator_cache[cache_key] = result
@@ -431,31 +563,39 @@ class DSLEvaluator:
             except Exception as e:
                 if isinstance(e, IndicatorError):
                     raise
-                raise IndicatorError(f"Standard deviation calculation error for {node.symbol}: {e}", indicator="stdev_return", symbol=node.symbol) from e
+                raise IndicatorError(
+                    f"Standard deviation calculation error for {node.symbol}: {e}",
+                    indicator="stdev_return",
+                    symbol=node.symbol,
+                ) from e
 
         # Trace indicator calculation
-        self._trace_entries.append({
-            "type": "indicator",
-            "indicator": "stdev_return",
-            "symbol": node.symbol,
-            "window": node.window,
-            "value": result
-        })
+        self._trace_entries.append(
+            {
+                "type": "indicator",
+                "indicator": "stdev_return",
+                "symbol": node.symbol,
+                "window": node.window,
+                "value": result,
+            }
+        )
 
         return result
 
     def _evaluate_asset(self, node: Asset) -> Portfolio:
         """Evaluate asset to single-asset portfolio."""
-        portfolio = {node.symbol: Decimal('1.0')}
+        portfolio = {node.symbol: Decimal("1.0")}
 
         # Trace portfolio construction
-        self._trace_entries.append({
-            "type": "portfolio",
-            "operation": "asset",
-            "symbol": node.symbol,
-            "name": node.name,
-            "weights": portfolio
-        })
+        self._trace_entries.append(
+            {
+                "type": "portfolio",
+                "operation": "asset",
+                "symbol": node.symbol,
+                "name": node.name,
+                "weights": portfolio,
+            }
+        )
 
         return portfolio
 
@@ -464,19 +604,18 @@ class DSLEvaluator:
         if len(node.expressions) != 1:
             # For simplicity, assume group contains one expression
             # Real implementation might handle multiple expressions differently
-            raise PortfolioError(f"Group {node.name} should contain exactly one expression", operation="group")
+            raise PortfolioError(
+                f"Group {node.name} should contain exactly one expression", operation="group"
+            )
 
         result = self._evaluate_node(node.expressions[0])
         if not isinstance(result, dict):
             raise PortfolioError("Group expression must evaluate to portfolio", operation="group")
 
         # Trace group evaluation
-        self._trace_entries.append({
-            "type": "portfolio",
-            "operation": "group",
-            "name": node.name,
-            "weights": result
-        })
+        self._trace_entries.append(
+            {"type": "portfolio", "operation": "group", "name": node.name, "weights": result}
+        )
 
         return result
 
@@ -489,19 +628,24 @@ class DSLEvaluator:
             if isinstance(result, dict):
                 portfolios.append(result)
             else:
-                raise PortfolioError(f"weight-equal expression must evaluate to portfolio, got {type(result)}", operation="weight_equal")
+                raise PortfolioError(
+                    f"weight-equal expression must evaluate to portfolio, got {type(result)}",
+                    operation="weight_equal",
+                )
 
         # Flatten and equal-weight
         flattened = self._flatten_portfolios(portfolios)
         equal_weighted = self._equal_weight_portfolio(flattened)
 
         # Trace portfolio construction
-        self._trace_entries.append({
-            "type": "portfolio",
-            "operation": "weight_equal",
-            "input_portfolios": len(portfolios),
-            "weights": equal_weighted
-        })
+        self._trace_entries.append(
+            {
+                "type": "portfolio",
+                "operation": "weight_equal",
+                "input_portfolios": len(portfolios),
+                "weights": equal_weighted,
+            }
+        )
 
         return equal_weighted
 
@@ -517,19 +661,24 @@ class DSLEvaluator:
                 scaled = {symbol: w * weight_decimal for symbol, w in result.items()}
                 weighted_portfolios.append(scaled)
             else:
-                raise PortfolioError(f"weight-specified expression must evaluate to portfolio, got {type(result)}", operation="weight_specified")
+                raise PortfolioError(
+                    f"weight-specified expression must evaluate to portfolio, got {type(result)}",
+                    operation="weight_specified",
+                )
 
         # Combine weighted portfolios
         combined = self._combine_portfolios(weighted_portfolios)
         normalized = self._normalize_portfolio(combined)
 
         # Trace portfolio construction
-        self._trace_entries.append({
-            "type": "portfolio",
-            "operation": "weight_specified",
-            "input_weights": [w for w, _ in node.weights_and_expressions],
-            "weights": normalized
-        })
+        self._trace_entries.append(
+            {
+                "type": "portfolio",
+                "operation": "weight_specified",
+                "input_weights": [w for w, _ in node.weights_and_expressions],
+                "weights": normalized,
+            }
+        )
 
         return normalized
 
@@ -544,21 +693,26 @@ class DSLEvaluator:
             if isinstance(result, dict):
                 portfolios.append(result)
             else:
-                raise PortfolioError(f"weight-inverse-volatility expression must evaluate to portfolio, got {type(result)}", operation="weight_inverse_volatility")
+                raise PortfolioError(
+                    f"weight-inverse-volatility expression must evaluate to portfolio, got {type(result)}",
+                    operation="weight_inverse_volatility",
+                )
 
         # For now, just equal weight (TODO: implement proper inverse vol weighting)
         flattened = self._flatten_portfolios(portfolios)
         equal_weighted = self._equal_weight_portfolio(flattened)
 
         # Trace portfolio construction
-        self._trace_entries.append({
-            "type": "portfolio",
-            "operation": "weight_inverse_volatility",
-            "lookback": node.lookback,
-            "input_portfolios": len(portfolios),
-            "weights": equal_weighted,
-            "warning": "Using simplified equal weighting. Proper inverse volatility weighting not yet implemented."
-        })
+        self._trace_entries.append(
+            {
+                "type": "portfolio",
+                "operation": "weight_inverse_volatility",
+                "lookback": node.lookback,
+                "input_portfolios": len(portfolios),
+                "weights": equal_weighted,
+                "warning": "Using simplified equal weighting. Proper inverse volatility weighting not yet implemented.",
+            }
+        )
 
         return equal_weighted
 
@@ -572,7 +726,9 @@ class DSLEvaluator:
             select_count = node.selector.count
             select_type = "bottom"
         else:
-            raise EvaluationError(f"Unknown selector type: {type(node.selector)}", ast_node=node.selector)
+            raise EvaluationError(
+                f"Unknown selector type: {type(node.selector)}", ast_node=node.selector
+            )
 
         # Evaluate metric for each asset
         asset_metrics = []
@@ -581,7 +737,9 @@ class DSLEvaluator:
             if isinstance(asset_node, Asset):
                 symbol = asset_node.symbol
             else:
-                raise EvaluationError("Filter can only be applied to asset nodes", ast_node=asset_node)
+                raise EvaluationError(
+                    "Filter can only be applied to asset nodes", ast_node=asset_node
+                )
 
             # Create a modified metric function with the asset symbol
             metric_value = self._evaluate_metric_for_symbol(node.metric_fn, symbol)
@@ -599,13 +757,16 @@ class DSLEvaluator:
         selected_assets = sorted_assets[:select_count]
 
         # Create portfolios for selected assets
-        selected_portfolios = []
-        for symbol, metric_value, asset_node in selected_assets:
+        selected_portfolios: list[Portfolio] = []
+        for _symbol, _metric_value, asset_node in selected_assets:
             portfolio = self._evaluate_node(asset_node)
-            if isinstance(portfolio, dict):
+            if isinstance(portfolio, dict):  # defensive
                 selected_portfolios.append(portfolio)
-            else:
-                raise PortfolioError(f"Asset must evaluate to portfolio, got {type(portfolio)}", operation="filter")
+            else:  # pragma: no cover - unexpected type
+                raise PortfolioError(
+                    f"Asset must evaluate to portfolio, got {type(portfolio)}",
+                    operation="filter",
+                )
 
         # Equal weight the selected assets
         if selected_portfolios:
@@ -615,16 +776,18 @@ class DSLEvaluator:
             result = {}
 
         # Trace filter operation
-        self._trace_entries.append({
-            "type": "portfolio",
-            "operation": "filter",
-            "selector_type": select_type,
-            "selector_count": select_count,
-            "total_assets": len(node.assets),
-            "selected_assets": [asset[0] for asset in selected_assets],
-            "metric_values": {asset[0]: asset[1] for asset in selected_assets},
-            "weights": result
-        })
+        self._trace_entries.append(
+            {
+                "type": "portfolio",
+                "operation": "filter",
+                "selector_type": select_type,
+                "selector_count": select_count,
+                "total_assets": len(node.assets),
+                "selected_assets": [asset[0] for asset in selected_assets],
+                "metric_values": {asset[0]: asset[1] for asset in selected_assets},
+                "weights": result,
+            }
+        )
 
         return result
 
@@ -632,20 +795,18 @@ class DSLEvaluator:
         """Evaluate metric function for a specific symbol."""
         # Replace any symbol references in the metric function with the current symbol
         modified_metric = self._substitute_symbol_in_metric(metric_fn, symbol)
-        
+
         # Evaluate the modified metric
         result = self._evaluate_node(modified_metric)
-        
-        if not isinstance(result, (int, float)):
+        if not isinstance(result, int | float):
             raise EvaluationError(f"Metric function must return numeric value, got {type(result)}")
-        
         return float(result)
 
     def _substitute_symbol_in_metric(self, metric_fn: ASTNode, symbol: str) -> ASTNode:
         """Substitute symbol parameter in metric function for filter evaluation."""
         # For metrics that take symbol as first parameter, we need to create a new instance
         # with the provided symbol
-        
+
         if isinstance(metric_fn, RSI):
             # Use the metric's window but substitute the symbol
             return RSI(symbol=symbol, window=metric_fn.window)
@@ -660,21 +821,27 @@ class DSLEvaluator:
         elif isinstance(metric_fn, CurrentPrice):
             return CurrentPrice(symbol=symbol)
         else:
-            raise EvaluationError(f"Unsupported metric function for filter: {type(metric_fn)}", ast_node=metric_fn)
+            raise EvaluationError(
+                f"Unsupported metric function for filter: {type(metric_fn)}", ast_node=metric_fn
+            )
 
     def _evaluate_strategy(self, node: Strategy) -> Portfolio:
         """Evaluate strategy root node."""
         result = self._evaluate_node(node.expression)
         if not isinstance(result, dict):
-            raise PortfolioError(f"Strategy must evaluate to portfolio, got {type(result)}", operation="strategy")
+            raise PortfolioError(
+                f"Strategy must evaluate to portfolio, got {type(result)}", operation="strategy"
+            )
 
         # Trace strategy evaluation
-        self._trace_entries.append({
-            "type": "strategy",
-            "name": node.name,
-            "metadata": node.metadata,
-            "final_weights": result
-        })
+        self._trace_entries.append(
+            {
+                "type": "strategy",
+                "name": node.name,
+                "metadata": node.metadata,
+                "final_weights": result,
+            }
+        )
 
         return result
 
@@ -690,7 +857,7 @@ class DSLEvaluator:
         if not symbols:
             return {}
 
-        weight = Decimal('1.0') / Decimal(str(len(symbols)))
+        weight = Decimal("1.0") / Decimal(str(len(symbols)))
         return dict.fromkeys(symbols, weight)
 
     def _combine_portfolios(self, portfolios: list[Portfolio]) -> Portfolio:
@@ -698,7 +865,7 @@ class DSLEvaluator:
         combined: dict[str, Decimal] = {}
         for portfolio in portfolios:
             for symbol, weight in portfolio.items():
-                combined[symbol] = combined.get(symbol, Decimal('0.0')) + weight
+                combined[symbol] = combined.get(symbol, Decimal("0.0")) + weight
         return combined
 
     def _normalize_portfolio(self, portfolio: Portfolio) -> Portfolio:
@@ -707,7 +874,9 @@ class DSLEvaluator:
             return {}
 
         total_weight = sum(portfolio.values())
-        if total_weight == Decimal('0.0'):
-            raise PortfolioError("Cannot normalize portfolio with zero total weight", operation="normalize")
+        if total_weight == Decimal("0.0"):
+            raise PortfolioError(
+                "Cannot normalize portfolio with zero total weight", operation="normalize"
+            )
 
         return {symbol: weight / total_weight for symbol, weight in portfolio.items()}

@@ -70,13 +70,18 @@ class TradingSystem:
             StrategyType.KLM: self.settings.strategy.default_strategy_allocations["klm"],
         }
 
-    def analyze_signals(self) -> bool:
-        """Generate and display strategy signals without trading."""
+    def analyze_signals(self, show_tracking: bool = False) -> bool:
+        """Generate and display strategy signals without trading.
+
+        Args:
+            show_tracking: When True include performance tracking table (opt-in to preserve
+                legacy minimal output by default).
+        """
         from the_alchemiser.interface.cli.signal_analyzer import SignalAnalyzer
 
         try:
             analyzer = SignalAnalyzer(self.settings)
-            return analyzer.run()
+            return analyzer.run(show_tracking=show_tracking)
         except (DataProviderError, StrategyExecutionError) as e:
             self.error_handler.handle_error(
                 error=e,
@@ -203,6 +208,12 @@ Examples:
         "--ignore-market-hours", action="store_true", help="Override market hours check"
     )
 
+    parser.add_argument(
+        "--tracking",
+        action="store_true",
+        help="Include strategy performance tracking table (default off)",
+    )
+
     return parser
 
 
@@ -237,7 +248,7 @@ def main(argv: list[str] | None = None) -> bool:
         render_header("The Alchemiser Trading System", f"{args.mode.upper()} | {mode_label}")
 
         if args.mode == "signal":
-            success = system.analyze_signals()
+            success = system.analyze_signals(show_tracking=getattr(args, "tracking", False))
         elif args.mode == "trade":
             success = system.execute_trading(
                 live_trading=args.live, ignore_market_hours=args.ignore_market_hours
