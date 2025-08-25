@@ -526,9 +526,12 @@ def status(
             # Non-fatal; container may not expose override in some DI test contexts
             pass  # pragma: no cover
 
-        # Create trader using DI
-        trader = TradingEngine.create_with_di(
-            container=container,
+        # Create trader using modern bootstrap approach
+        from the_alchemiser.application.trading.bootstrap import bootstrap_from_container
+        
+        bootstrap_context = bootstrap_from_container(container)
+        trader = TradingEngine(
+            bootstrap_context=bootstrap_context,
             strategy_allocations={},  # Not needed for status display
             ignore_market_hours=True,  # Status should work anytime
         )

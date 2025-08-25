@@ -25,13 +25,13 @@ from the_alchemiser.services.errors.handler import TradingSystemErrorHandler
 
 class RebalancingOrchestratorFacade:
     """Application-layer facade for portfolio rebalancing orchestration.
-    
+
     Provides a clean, typed interface for rebalancing operations while delegating
     to existing domain and infrastructure components. This facade encapsulates
     the complexity of sequential SELL→settle→BUY execution patterns.
-    
+
     Reuses:
-    - RebalancingOrchestrator for settlement timing and WebSocket monitoring  
+    - RebalancingOrchestrator for settlement timing and WebSocket monitoring
     - PortfolioManagementFacade for phase-specific execution
     - TradingSystemErrorHandler for consistent error handling
     """
@@ -44,7 +44,7 @@ class RebalancingOrchestratorFacade:
         account_info_provider: Any = None,
     ) -> None:
         """Initialize the rebalancing orchestrator facade.
-        
+
         Args:
             portfolio_facade: Existing PortfolioManagementFacade for operations
             trading_client: Alpaca trading client for WebSocket monitoring
@@ -53,7 +53,7 @@ class RebalancingOrchestratorFacade:
         """
         self.logger = logging.getLogger(__name__)
         self.error_handler = TradingSystemErrorHandler()
-        
+
         # Reuse existing RebalancingOrchestrator
         self._orchestrator = RebalancingOrchestrator(
             portfolio_facade=portfolio_facade,
@@ -61,7 +61,7 @@ class RebalancingOrchestratorFacade:
             paper_trading=paper_trading,
             account_info_provider=account_info_provider,
         )
-        
+
         # Store facade for direct access to phase operations
         self._portfolio_facade = portfolio_facade
 
@@ -71,37 +71,35 @@ class RebalancingOrchestratorFacade:
         strategy_attribution: dict[str, list[StrategyType]] | None = None,
     ) -> list[OrderDetails]:
         """Execute complete rebalancing cycle with sequential SELL→settle→BUY.
-        
+
         This method delegates to the existing RebalancingOrchestrator while providing
         consistent error handling and logging at the application layer.
-        
+
         Args:
             target_portfolio: Target allocation weights (0.0-1.0) by symbol
             strategy_attribution: Mapping of symbols to contributing strategies
-            
+
         Returns:
             List of all executed orders from both SELL and BUY phases
-            
+
         Raises:
             StrategyExecutionError: If rebalancing fails
         """
         try:
-            self.logger.info(
-                f"Starting full rebalancing cycle for {len(target_portfolio)} symbols"
-            )
-            
+            self.logger.info(f"Starting full rebalancing cycle for {len(target_portfolio)} symbols")
+
             # Delegate to existing orchestrator
             orders = self._orchestrator.execute_full_rebalance_cycle(
                 target_portfolio, strategy_attribution
             )
-            
+
             self.logger.info(f"Rebalancing cycle completed with {len(orders)} total orders")
             return orders
-            
+
         except Exception as e:
             context = create_error_context(
                 operation="execute_full_rebalance_cycle",
-                component="RebalancingOrchestratorFacade.execute_full_rebalance_cycle", 
+                component="RebalancingOrchestratorFacade.execute_full_rebalance_cycle",
                 function_name="execute_full_rebalance_cycle",
                 additional_data={
                     "target_symbols": list(target_portfolio.keys()),
@@ -116,41 +114,41 @@ class RebalancingOrchestratorFacade:
 
     def execute_rebalance_phase(
         self,
-        target_portfolio: dict[str, float], 
+        target_portfolio: dict[str, float],
         phase: str,
     ) -> list[OrderDetails]:
         """Execute a single phase of rebalancing (SELL or BUY).
-        
+
         This method delegates to the existing PortfolioManagementFacade.rebalance_portfolio_phase
         while providing consistent error handling and logging.
-        
+
         Args:
             target_portfolio: Target allocation weights by symbol
             phase: Either "sell" or "buy"
-            
+
         Returns:
             List of executed orders for the specified phase
-            
+
         Raises:
             StrategyExecutionError: If phase execution fails
         """
         try:
             phase_normalized = phase.lower().strip()
             self.logger.info(f"Executing {phase_normalized} phase for rebalancing")
-            
+
             # Delegate to existing facade method
             orders = self._portfolio_facade.rebalance_portfolio_phase(
                 target_portfolio, phase_normalized
             )
-            
+
             self.logger.info(f"Phase {phase_normalized} completed with {len(orders)} orders")
             return orders
-            
+
         except Exception as e:
             context = create_error_context(
                 operation="execute_rebalance_phase",
                 component="RebalancingOrchestratorFacade.execute_rebalance_phase",
-                function_name="execute_rebalance_phase", 
+                function_name="execute_rebalance_phase",
                 additional_data={
                     "phase": phase,
                     "target_symbols": list(target_portfolio.keys()),

@@ -22,7 +22,6 @@ Example:
 
 import logging
 from datetime import datetime
-from decimal import Decimal
 from typing import TYPE_CHECKING, Any, Protocol
 
 if TYPE_CHECKING:  # Import for type checking only to avoid runtime dependency
@@ -78,9 +77,8 @@ from the_alchemiser.services.repository.alpaca_manager import AlpacaManager
 from ..execution.execution_manager import ExecutionManager
 from ..reporting.reporting import build_portfolio_state_data
 
-
-
 # --- Internal Application Protocols ---
+
 
 class AccountInfoProvider(Protocol):
     """Protocol for account information retrieval."""
@@ -131,6 +129,7 @@ class MultiStrategyExecutor(Protocol):
 
 
 # --- Utility Functions ---
+
 
 def _create_default_account_info(account_id: str = "unknown") -> AccountInfo:
     """Create a default AccountInfo structure for error cases."""
@@ -186,7 +185,7 @@ class TradingEngine:
             This constructor now requires bootstrap_context. Use bootstrap functions
             to create the context:
             - bootstrap_from_container()
-            - bootstrap_from_service_manager()  
+            - bootstrap_from_service_manager()
             - bootstrap_traditional()
         """
         self.logger = logging.getLogger(__name__)
@@ -403,7 +402,7 @@ class TradingEngine:
                 except Exception as e:
                     from the_alchemiser.services.errors.context import create_error_context
                     from the_alchemiser.services.errors.handler import TradingSystemErrorHandler
-                    
+
                     error_handler = TradingSystemErrorHandler()
                     context = create_error_context(
                         operation="get_strategy_performance_summary",
@@ -634,9 +633,7 @@ class TradingEngine:
                     "ignore_market_hours": self.ignore_market_hours,
                 },
             )
-            error_handler.handle_error_with_context(
-                error=e, context=context, should_continue=False
-            )
+            error_handler.handle_error_with_context(error=e, context=context, should_continue=False)
             logging.error(f"Pre-execution validation failed: {e}")
             return MultiStrategyExecutionResultDTO(
                 success=False,
@@ -681,7 +678,7 @@ class TradingEngine:
         ) as e:
             error_handler = TradingSystemErrorHandler()
             context = create_error_context(
-                operation="multi_strategy_execution", 
+                operation="multi_strategy_execution",
                 component="TradingEngine.execute_multi_strategy",
                 function_name="execute_multi_strategy",
                 additional_data={
@@ -689,9 +686,7 @@ class TradingEngine:
                     "ignore_market_hours": self.ignore_market_hours,
                 },
             )
-            error_handler.handle_error_with_context(
-                error=e, context=context, should_continue=False
-            )
+            error_handler.handle_error_with_context(error=e, context=context, should_continue=False)
             logging.error(f"Multi-strategy execution failed: {e}")
 
             # Enhanced error handling (fail-fast; no legacy import fallback)
@@ -799,8 +794,6 @@ class TradingEngine:
             )
             error_handler.handle_error_with_context(error=e, context=context, should_continue=False)
             raise StrategyExecutionError(f"Failed to generate performance report: {e}") from e
-
-
 
     def _trigger_post_trade_validation(
         self, strategy_signals: dict[StrategyType, Any], orders_executed: list[dict[str, Any]]
@@ -910,9 +903,6 @@ class TradingEngine:
             )
             logging.error(f"❌ Post-trade validation failed: {e}")
             # This is not critical to trading execution, so we don't re-raise
-
-
-
 
     @classmethod
     def create_from_container(

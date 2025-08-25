@@ -67,7 +67,6 @@ class TradingExecutor:
 
         # Use modern bootstrap approach via DI container
         import the_alchemiser.main as app_main
-        
         from the_alchemiser.application.trading.bootstrap import bootstrap_from_container
 
         # Check and use container in one step to avoid MyPy unreachable code issues
