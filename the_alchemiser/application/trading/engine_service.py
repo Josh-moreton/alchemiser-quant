@@ -12,7 +12,7 @@ Example:
 
     >>> engine = TradingEngine(paper_trading=True)
     >>> result = engine.execute_multi_strategy()
-    >>> engine.display_multi_strategy_summary(result)
+    >>> # Display handled by CLI layer
 
     DI Example:
     >>> container = ApplicationContainer.create_for_testing()
@@ -22,7 +22,11 @@ Example:
 
 import logging
 from datetime import datetime
-from typing import Any, Protocol, cast
+from decimal import Decimal
+from typing import TYPE_CHECKING, Any, Protocol
+
+if TYPE_CHECKING:  # Import for type checking only to avoid runtime dependency
+    from the_alchemiser.application.mapping.strategies import StrategySignalDisplayDTO
 
 from alpaca.trading.enums import OrderSide
 
@@ -31,9 +35,13 @@ from the_alchemiser.application.mapping.execution_summary_mapping import (
     safe_dict_to_execution_summary_dto,
     safe_dict_to_portfolio_state_dto,
 )
+from the_alchemiser.application.mapping.strategies import (
+    StrategySignalDisplayDTO,
+)
 from the_alchemiser.application.portfolio.services.portfolio_management_facade import (
     PortfolioManagementFacade,
 )
+from the_alchemiser.application.trading.account_facade import AccountFacade
 from the_alchemiser.application.trading.alpaca_client import AlpacaClient
 from the_alchemiser.application.trading.bootstrap import (
     TradingBootstrapContext,
@@ -75,7 +83,7 @@ class StrategyManagerAdapter:
     """Typed-backed adapter to provide run_all_strategies for callers.
 
     This adapter now uses pure mapping functions from application/mapping/strategies.py
-    to convert typed signals to legacy format, removing ad-hoc dict transformations
+    to convert typed signals to CLI-compatible format, removing ad-hoc dict transformations
     from the runtime path.
     """
 
@@ -91,14 +99,20 @@ class StrategyManagerAdapter:
 
     def run_all_strategies(
         self,
-    ) -> tuple[dict[StrategyType, dict[str, Any]], dict[str, float], dict[str, list[StrategyType]]]:
-        """Execute all strategies and return results in legacy format.
+    ) -> tuple[
+        dict[StrategyType, "StrategySignalDisplayDTO"],
+        dict[str, float],
+        dict[str, list[StrategyType]],
+    ]:
+        """Execute all strategies and return results in display-compatible format.
 
-        This method now delegates to pure mapping functions to convert typed signals
-        to legacy format, ensuring no ad-hoc dict transformations in the runtime path.
+        This method delegates to pure mapping functions to convert typed domain signals to
+        CLI-compatible display structures, ensuring no ad-hoc dict transformations in the
+        runtime path.
 
         Returns:
-            Tuple containing legacy signals dict, consolidated portfolio, and strategy attribution
+            Tuple containing: (strategy signals display dict, consolidated portfolio allocation,
+            strategy attribution mapping)
         """
         from datetime import UTC, datetime
 
@@ -107,7 +121,7 @@ class StrategyManagerAdapter:
         # Generate typed signals from strategy manager
         aggregated = self._typed.generate_all_signals(datetime.now(UTC))
 
-        # Use pure mapping function to convert to legacy format
+        # Use pure mapping function to convert to CLI-compatible format
         return run_all_strategies_mapping(aggregated, self._typed.strategy_allocations)
 
     # Expose strategy_allocations for reporting usage
@@ -432,6 +446,15 @@ class TradingEngine:
                 # Reuse the AlpacaManager resolved earlier in this method
                 self.account_service = TypedAccountService(alpaca_manager)
 
+            # Initialize AccountFacade to coordinate account operations
+            market_data_service = getattr(self, "_market_data_port", None)
+            position_service = None  # Could be added later if needed
+            self._account_facade = AccountFacade(
+                account_service=self.account_service,
+                market_data_service=market_data_service,
+                position_service=position_service,
+            )
+
             self.execution_manager = ExecutionManager(self)
         except Exception as e:
             raise TradingClientError(
@@ -443,9 +466,9 @@ class TradingEngine:
             ) from e
 
         # Compose dependencies for type-safe delegation
-        self._account_info_provider: AccountInfoProvider = self.account_service
-        self._position_provider: PositionProvider = self.account_service
-        self._price_provider: PriceProvider = self.account_service
+        self._account_info_provider: AccountInfoProvider = self._account_facade
+        self._position_provider: PositionProvider = self._account_facade
+        self._price_provider: PriceProvider = self._account_facade
         self._rebalancing_service: RebalancingService = self.portfolio_rebalancer
         self._multi_strategy_executor: MultiStrategyExecutor = self.execution_manager
 
@@ -462,9 +485,11 @@ class TradingEngine:
             def run_all_strategies(
                 self,
             ) -> tuple[
-                dict[StrategyType, dict[str, Any]], dict[str, float], dict[str, list[StrategyType]]
+                dict[StrategyType, "StrategySignalDisplayDTO"],
+                dict[str, float],
+                dict[str, list[StrategyType]],
             ]:
-                """Bridge method that converts typed signals to legacy format for CLI compatibility."""
+                """Bridge method that converts typed signals to CLI-compatible format for CLI compatibility."""
                 from datetime import UTC, datetime
 
                 from the_alchemiser.application.mapping.strategies import run_all_strategies_mapping
@@ -472,7 +497,7 @@ class TradingEngine:
                 # Generate typed signals
                 aggregated = self._typed.generate_all_signals(datetime.now(UTC))
 
-                # Use pure mapping function to convert to legacy format
+                # Use pure mapping function to convert to CLI-compatible format
                 return run_all_strategies_mapping(aggregated, self._typed.strategy_allocations)
 
             @property
@@ -494,123 +519,10 @@ class TradingEngine:
 
         Returns typed AccountInfo as required by MultiStrategyExecutionResultDTO.
         Use get_enriched_account_info for UI/reporting extras.
+
+        Delegates to AccountFacade for normalized account information.
         """
-        try:
-            account_info = self._account_info_provider.get_account_info()
-
-            # Always normalize account_id to string since Alpaca returns UUID objects
-            # but Pydantic AccountInfo expects string
-            if "account_id" in account_info:
-                # Create a mutable copy as a regular dict, not TypedDict
-                account_info_dict = dict(account_info)
-                account_info_dict["account_id"] = str(account_info_dict["account_id"])
-                # Type cast back to AccountInfo after modification
-                account_info = cast(AccountInfo, account_info_dict)
-
-            # Ensure required keys are present (defensive normalization)
-            required_keys = {
-                "account_id",
-                "equity",
-                "cash",
-                "buying_power",
-                "day_trades_remaining",
-                "portfolio_value",
-                "last_equity",
-                "daytrading_buying_power",
-                "regt_buying_power",
-                "status",
-            }
-            if not all(k in account_info for k in required_keys):  # pragma: no cover
-                # Normalize explicitly for TypedDict compatibility
-                base = _create_default_account_info(str(account_info.get("account_id", "unknown")))
-                normalized: AccountInfo = {
-                    "account_id": str(account_info.get("account_id", base["account_id"])),
-                    "equity": float(account_info.get("equity", base["equity"])),
-                    "cash": float(account_info.get("cash", base["cash"])),
-                    "buying_power": float(account_info.get("buying_power", base["buying_power"])),
-                    "day_trades_remaining": int(
-                        account_info.get("day_trades_remaining", base["day_trades_remaining"])
-                    ),
-                    "portfolio_value": float(
-                        account_info.get("portfolio_value", base["portfolio_value"])
-                    ),
-                    "last_equity": float(account_info.get("last_equity", base["last_equity"])),
-                    "daytrading_buying_power": float(
-                        account_info.get("daytrading_buying_power", base["daytrading_buying_power"])
-                    ),
-                    "regt_buying_power": float(
-                        account_info.get("regt_buying_power", base["regt_buying_power"])
-                    ),
-                    "status": (
-                        "ACTIVE"
-                        if str(account_info.get("status", base["status"])) == "ACTIVE"
-                        else "INACTIVE"
-                    ),
-                }
-                return normalized
-
-            return account_info
-        except DataProviderError as e:
-            from the_alchemiser.infrastructure.logging.logging_utils import (
-                get_logger,
-                log_error_with_context,
-            )
-
-            logger = get_logger(__name__)
-            log_error_with_context(
-                logger,
-                e,
-                "account_info_retrieval",
-                function="get_account_info",
-                trading_mode="paper" if self.paper_trading else "live",
-                error_type=type(e).__name__,
-            )
-            logging.error(f"Data provider error retrieving account information: {e}")
-
-            # Enhanced error handling
-            try:
-                from the_alchemiser.services.errors import handle_trading_error
-
-                handle_trading_error(
-                    error=e,
-                    context="account information retrieval",
-                    component="trading_engine",
-                )
-            except (ImportError, AttributeError):
-                pass
-
-            return _create_default_account_info("data_error")
-        except (TradingClientError, ConnectionError, TimeoutError, AttributeError) as e:
-            from the_alchemiser.infrastructure.logging.logging_utils import (
-                get_logger,
-                log_error_with_context,
-            )
-
-            logger = get_logger(__name__)
-            log_error_with_context(
-                logger,
-                e,
-                "account_info_client_error",
-                function="get_account_info",
-                trading_mode="paper" if self.paper_trading else "live",
-                error_type=type(e).__name__,
-            )
-            logging.error(f"Client error retrieving account information: {e}")
-
-            # Enhanced error handling
-            try:
-                from the_alchemiser.services.errors import handle_trading_error
-
-                handle_trading_error(
-                    error=e,
-                    context="account information retrieval",
-                    component="TradingEngine.get_account_info",
-                    additional_data={"paper_trading": self.paper_trading},
-                )
-            except (ImportError, AttributeError):
-                pass  # Fallback for backward compatibility
-
-            return _create_default_account_info("client_error")
+        return self._account_facade.get_account_info()
 
     def get_enriched_account_info(self) -> EnrichedAccountInfo:
         """Get enriched account information including portfolio history and P&L data.
@@ -618,100 +530,25 @@ class TradingEngine:
         This extends the basic AccountInfo with portfolio performance data suitable for
         display and reporting purposes.
 
+        Delegates to AccountFacade for coordinated enriched account information.
+
         Returns:
             EnrichedAccountInfo with portfolio history and closed P&L data.
         """
-        try:
-            # Get base account info
-            base_account = self._account_info_provider.get_account_info()
-
-            # Create enriched account info starting with base data
-            enriched: EnrichedAccountInfo = {
-                "account_id": base_account["account_id"],
-                "equity": base_account["equity"],
-                "cash": base_account["cash"],
-                "buying_power": base_account["buying_power"],
-                "day_trades_remaining": base_account["day_trades_remaining"],
-                "portfolio_value": base_account["portfolio_value"],
-                "last_equity": base_account["last_equity"],
-                "daytrading_buying_power": base_account["daytrading_buying_power"],
-                "regt_buying_power": base_account["regt_buying_power"],
-                "status": base_account["status"],
-                "trading_mode": "paper" if self.paper_trading else "live",
-                "market_hours_ignored": self.ignore_market_hours,
-            }
-
-            # Add portfolio history if available
-            try:
-                # Use AlpacaManager for portfolio history since adapter doesn't have this method
-                portfolio_history = self._alpaca_manager.get_portfolio_history()
-                if portfolio_history:
-                    enriched["portfolio_history"] = {
-                        "profit_loss": portfolio_history.get("profit_loss", []),
-                        "profit_loss_pct": portfolio_history.get("profit_loss_pct", []),
-                        "equity": portfolio_history.get("equity", []),
-                        "timestamp": portfolio_history.get("timestamp", []),
-                    }
-            except (
-                DataProviderError,
-                ConnectionError,
-                TimeoutError,
-                KeyError,
-                AttributeError,
-            ) as e:
-                logging.debug(f"Could not retrieve portfolio history: {e}")
-
-            # Add recent closed P&L if available
-            try:
-                # Note: This would need to be implemented in data_provider
-                # closed_pnl = self.data_provider.get_recent_closed_positions()
-                # if closed_pnl:
-                #     enriched["recent_closed_pnl"] = closed_pnl
-                pass
-            except (
-                DataProviderError,
-                ConnectionError,
-                TimeoutError,
-                KeyError,
-                AttributeError,
-            ) as e:
-                logging.debug(f"Could not retrieve recent closed P&L: {e}")
-
-            return enriched
-
-        except (DataProviderError, TradingClientError, ConfigurationError, AttributeError) as e:
-            logging.error(f"Failed to retrieve enriched account information: {e}")
-            # Return minimal enriched account info
-            default_account = _create_default_account_info("error")
-            return {
-                "account_id": default_account["account_id"],
-                "equity": default_account["equity"],
-                "cash": default_account["cash"],
-                "buying_power": default_account["buying_power"],
-                "day_trades_remaining": default_account["day_trades_remaining"],
-                "portfolio_value": default_account["portfolio_value"],
-                "last_equity": default_account["last_equity"],
-                "daytrading_buying_power": default_account["daytrading_buying_power"],
-                "regt_buying_power": default_account["regt_buying_power"],
-                "status": default_account["status"],
-                "trading_mode": "paper" if self.paper_trading else "live",
-                "market_hours_ignored": self.ignore_market_hours,
-            }
+        enriched = self._account_facade.get_enriched_account_info(paper_trading=self.paper_trading)
+        # Update market_hours_ignored flag based on engine setting
+        enriched["market_hours_ignored"] = self.ignore_market_hours
+        return enriched
 
     def get_positions(
         self,
     ) -> PositionsDict:  # Phase 18: Migrated from dict[str, Any] to PositionsDict
-        """Get current positions via account service.
+        """Get current positions via account facade delegation.
 
         Returns:
             Dict of current positions keyed by symbol with validated PositionInfo structure.
         """
-        try:
-            positions = self._position_provider.get_positions_dict()
-            return positions
-        except (DataProviderError, TradingClientError, ConnectionError, TimeoutError) as e:
-            logging.error(f"Failed to retrieve positions: {e}")
-            return {}
+        return self._account_facade.get_positions()
 
     def get_positions_dict(
         self,
@@ -723,10 +560,10 @@ class TradingEngine:
         Returns:
             Dict of current positions keyed by symbol with validated PositionInfo structure.
         """
-        return self.get_positions()
+        return self._account_facade.get_positions_dict()
 
     def get_current_price(self, symbol: str) -> float:
-        """Get current price for a symbol with engine-level validation.
+        """Get current price for a symbol via account facade delegation.
 
         Args:
             symbol: Stock symbol to get price for.
@@ -734,27 +571,10 @@ class TradingEngine:
         Returns:
             Current price as float, or 0.0 if price unavailable.
         """
-        if not symbol or not isinstance(symbol, str):
-            logging.warning(f"Invalid symbol provided to get_current_price: {symbol}")
-            return 0.0
-
-        try:
-            price = self._price_provider.get_current_price(symbol.upper())
-
-            # Engine-level validation
-            if price and price > 0:
-                logging.debug(f"Retrieved price for {symbol}: ${price:.2f}")
-                return price
-            else:
-                logging.warning(f"Invalid price received for {symbol}: {price}")
-                return 0.0
-
-        except (DataProviderError, ConnectionError, TimeoutError, ValueError, AttributeError) as e:
-            logging.error(f"Failed to get current price for {symbol}: {e}")
-            return 0.0
+        return self._account_facade.get_current_price(symbol)
 
     def get_current_prices(self, symbols: list[str]) -> dict[str, float]:
-        """Get current prices for multiple symbols with engine-level validation.
+        """Get current prices for multiple symbols via account facade delegation.
 
         Args:
             symbols: List of stock symbols to get prices for.
@@ -762,36 +582,7 @@ class TradingEngine:
         Returns:
             Dict mapping symbols to current prices, excluding symbols with invalid prices.
         """
-        if not symbols or not isinstance(symbols, list):
-            logging.warning(f"Invalid symbols list provided: {symbols}")
-            return {}
-
-        # Clean and validate symbols
-        valid_symbols = [s.upper() for s in symbols if isinstance(s, str) and s.strip()]
-
-        if not valid_symbols:
-            logging.warning("No valid symbols provided to get_current_prices")
-            return {}
-
-        try:
-            prices = self._price_provider.get_current_prices(valid_symbols)
-
-            # Engine-level validation and logging
-            valid_prices = {}
-            for symbol, price in prices.items():
-                if price and price > 0:
-                    valid_prices[symbol] = price
-                else:
-                    logging.warning(f"Invalid price for {symbol}: {price}")
-
-            logging.debug(
-                f"Retrieved {len(valid_prices)} valid prices out of {len(valid_symbols)} requested"
-            )
-            return valid_prices
-
-        except (DataProviderError, ConnectionError, TimeoutError, ValueError, AttributeError) as e:
-            logging.error(f"Failed to get current prices: {e}")
-            return {}
+        return self._account_facade.get_current_prices(symbols)
 
     # --- Order and Rebalancing Methods ---
     def wait_for_settlement(
@@ -807,15 +598,17 @@ class TradingEngine:
         Returns:
             True if all orders settled successfully, False otherwise.
         """
-        # Temporary conversion for legacy order_manager compatibility
-        legacy_orders = []
+        # Convert OrderDetails to dict format for order_manager compatibility
+        compatible_orders = []
         for order in sell_orders:
-            legacy_order = dict(order)
+            compatible_order = dict(order)
             # Ensure compatibility by including both id and order_id keys
-            if "id" in legacy_order and "order_id" not in legacy_order:
-                legacy_order["order_id"] = legacy_order["id"]
-            legacy_orders.append(legacy_order)
-        return self.order_manager.wait_for_settlement(legacy_orders, max_wait_time, poll_interval)
+            if "id" in compatible_order and "order_id" not in compatible_order:
+                compatible_order["order_id"] = compatible_order["id"]
+            compatible_orders.append(compatible_order)
+        return self.order_manager.wait_for_settlement(
+            compatible_orders, max_wait_time, poll_interval
+        )
 
     def place_order(
         self,
@@ -968,21 +761,27 @@ class TradingEngine:
         ) as e:
             logging.error(f"Multi-strategy execution failed: {e}")
 
-            # Enhanced error handling
-            try:
-                from the_alchemiser.services.errors import handle_trading_error
+            # Enhanced error handling (fail-fast; no legacy import fallback)
+            from the_alchemiser.services.errors import handle_trading_error
 
-                handle_trading_error(
-                    error=e,
-                    context="multi-strategy execution",
-                    component="TradingEngine.execute_multi_strategy",
-                    additional_data={
-                        "paper_trading": self.paper_trading,
-                        "ignore_market_hours": self.ignore_market_hours,
-                    },
-                )
-            except (ImportError, AttributeError):
-                pass  # Fallback for backward compatibility
+            handle_trading_error(
+                error=e,
+                context="multi-strategy execution",
+                component="TradingEngine.execute_multi_strategy",
+                additional_data={
+                    "paper_trading": self.paper_trading,
+                    "ignore_market_hours": self.ignore_market_hours,
+                },
+            )
+            handle_trading_error(
+                error=e,
+                context="multi-strategy execution",
+                component="TradingEngine.execute_multi_strategy",
+                additional_data={
+                    "paper_trading": self.paper_trading,
+                    "ignore_market_hours": self.ignore_market_hours,
+                },
+            )
 
             return MultiStrategyExecutionResultDTO(
                 success=False,
@@ -1030,7 +829,9 @@ class TradingEngine:
                 additional_data={"paper_trading": self.paper_trading},
             )
             error_handler.handle_error_with_context(
-                error=e, context=context, should_continue=True  # Non-critical archival failure
+                error=e,
+                context=context,
+                should_continue=True,  # Non-critical archival failure
             )
             logging.error(f"Failed to archive daily strategy P&L: {e}")
             # This is not critical to trading execution, so we don't re-raise
@@ -1177,345 +978,28 @@ class TradingEngine:
                 },
             )
             error_handler.handle_error_with_context(
-                error=e, context=context, should_continue=True  # Non-critical validation failure
+                error=e,
+                context=context,
+                should_continue=True,  # Non-critical validation failure
             )
             logging.error(f"❌ Post-trade validation failed: {e}")
             # This is not critical to trading execution, so we don't re-raise
 
-    def display_target_vs_current_allocations(
+    def calculate_target_vs_current_allocations(
         self,
         target_portfolio: dict[str, float],
         account_info: AccountInfo | dict[str, Any],
         current_positions: dict[str, Any],
-    ) -> tuple[dict[str, float], dict[str, float]]:
-        """Display target vs current allocations and return calculated values.
+    ) -> tuple[dict[str, "Decimal"], dict[str, "Decimal"]]:  # Uses Decimal values
+        """Pure calculation of target vs current allocations.
 
-        Shows a comparison between target portfolio weights and current position values,
-        helping to visualize rebalancing needs.
-
-        Args:
-            target_portfolio (Dict[str, float]): Target allocation weights by symbol.
-            account_info (Dict): Account information including portfolio value.
-            current_positions (Dict): Current position data by symbol.
-
-        Returns:
-            Tuple[Dict[str, float], Dict[str, float]]: A tuple containing:
-                - target_values: Target dollar values by symbol
-                - current_values: Current market values by symbol
-
-        Note:
-            Uses Rich table formatting via cli_formatter for beautiful display.
+        Layering: remains in application layer; no interface/cli imports.
         """
-        from the_alchemiser.interface.cli.cli_formatter import render_target_vs_current_allocations
-        from the_alchemiser.services.account.account_utils import (
-            calculate_position_target_deltas,
-            extract_current_position_values,
+        from the_alchemiser.application.trading.portfolio_calculations import (
+            calculate_target_vs_current_allocations as _calc,
         )
 
-        # Use helper functions to calculate values
-        # Accept both legacy display shape and typed AccountInfo
-        def _to_float(v: Any, default: float = 0.0) -> float:
-            try:
-                if v is None:
-                    return default
-                return float(v)
-            except (TypeError, ValueError):
-                return default
-
-        def _to_int(v: Any, default: int = 0) -> int:
-            try:
-                if v is None:
-                    return default
-                return int(v)
-            except (TypeError, ValueError):
-                return default
-
-        # Safely derive day_trades_remaining from either key
-        day_trades_remaining_val = 0
-        if isinstance(account_info, dict):
-            v1 = account_info.get("day_trades_remaining")
-            v2 = account_info.get("day_trade_count")
-            for _v in (v1, v2):
-                day_trades_remaining_val = _to_int(_v, 0)
-                if day_trades_remaining_val != 0:
-                    break
-
-        account_info_typed: AccountInfo = {
-            "account_id": str(
-                (account_info.get("account_id") if isinstance(account_info, dict) else None)
-                or (account_info.get("account_number") if isinstance(account_info, dict) else None)
-                or "unknown"
-            ),
-            "equity": _to_float(account_info.get("equity", 0.0), 0.0),
-            "cash": _to_float(account_info.get("cash", 0.0), 0.0),
-            "buying_power": _to_float(account_info.get("buying_power", 0.0), 0.0),
-            "day_trades_remaining": day_trades_remaining_val,
-            "portfolio_value": _to_float(
-                (account_info.get("portfolio_value") if isinstance(account_info, dict) else None)
-                or (account_info.get("equity", 0.0) if isinstance(account_info, dict) else 0.0),
-                0.0,
-            ),
-            "last_equity": _to_float(
-                (account_info.get("last_equity") if isinstance(account_info, dict) else None)
-                or (account_info.get("equity", 0.0) if isinstance(account_info, dict) else 0.0),
-                0.0,
-            ),
-            "daytrading_buying_power": _to_float(
-                (
-                    account_info.get("daytrading_buying_power")
-                    if isinstance(account_info, dict)
-                    else None
-                )
-                or (
-                    account_info.get("buying_power", 0.0) if isinstance(account_info, dict) else 0.0
-                ),
-                0.0,
-            ),
-            "regt_buying_power": _to_float(
-                (account_info.get("regt_buying_power") if isinstance(account_info, dict) else None)
-                or (
-                    account_info.get("buying_power", 0.0) if isinstance(account_info, dict) else 0.0
-                ),
-                0.0,
-            ),
-            "status": (
-                "ACTIVE"
-                if str(account_info.get("status", "INACTIVE")).upper() == "ACTIVE"
-                else "INACTIVE"
-            ),
-        }
-        target_values = calculate_position_target_deltas(target_portfolio, account_info_typed)
-        current_values = extract_current_position_values(current_positions)
-
-        # Use existing formatter for display
-        # Ensure a plain dict is passed to the renderer to satisfy its signature
-        render_target_vs_current_allocations(
-            target_portfolio,
-            dict(account_info) if isinstance(account_info, dict) else dict(account_info_typed),
-            current_positions,
-        )
-
-        return target_values, current_values
-
-    def display_multi_strategy_summary(
-        self, execution_result: MultiStrategyExecutionResultDTO
-    ) -> None:
-        """
-        Display a summary of multi-strategy execution results using Rich
-        Args:
-            execution_result: The execution result to display
-        """
-        from rich.console import Console
-        from rich.panel import Panel
-        from rich.table import Table
-        from rich.text import Text
-
-        # Type annotation for orders_table that can be either Table or Panel
-        orders_table: Table | Panel
-
-        console = Console()
-
-        if not execution_result.success:
-            console.print(
-                Panel(
-                    f"[bold red]Execution failed: {execution_result.execution_summary.pnl_summary if execution_result.execution_summary else 'Unknown error'}[/bold red]",
-                    title="Execution Result",
-                    style="red",
-                )
-            )
-            return
-
-        # Portfolio allocation display
-        portfolio_table = Table(title="Consolidated Portfolio", show_lines=False)
-        portfolio_table.add_column("Symbol", style="bold cyan", justify="center")
-        portfolio_table.add_column("Allocation", style="bold green", justify="right")
-        portfolio_table.add_column("Visual", style="white", justify="left")
-
-        sorted_portfolio = sorted(
-            execution_result.consolidated_portfolio.items(), key=lambda x: x[1], reverse=True
-        )
-
-        for symbol, weight in sorted_portfolio:
-            # Create visual bar
-            bar_length = int(weight * 20)  # Scale to 20 chars max
-            bar = "█" * bar_length + "░" * (20 - bar_length)
-
-            portfolio_table.add_row(symbol, f"{weight:.1%}", f"[green]{bar}[/green]")
-
-        # Orders executed table
-        if execution_result.orders_executed:
-            orders_table = Table(
-                title=f"Orders Executed ({len(execution_result.orders_executed)})", show_lines=False
-            )
-            orders_table.add_column("Type", style="bold", justify="center")
-            orders_table.add_column("Symbol", style="cyan", justify="center")
-            orders_table.add_column("Quantity", style="white", justify="right")
-            orders_table.add_column("Actual Value", style="green", justify="right")
-
-            for order in execution_result.orders_executed:
-                side = order.get("side", "")
-                side_value = str(side).upper()  # Convert to uppercase for display
-
-                side_color = "green" if side_value == "BUY" else "red"
-
-                # Calculate actual filled value
-                filled_qty = float(order.get("filled_qty", 0))
-                filled_avg_price = float(order.get("filled_avg_price", 0) or 0)
-                actual_value = filled_qty * filled_avg_price
-
-                # Fall back to estimated value if no filled data available
-                if actual_value == 0:
-                    estimated_value = order.get("estimated_value", 0)
-                    try:
-                        # Handle various types that estimated_value might be
-                        if isinstance(estimated_value, int | float):
-                            actual_value = float(estimated_value)
-                        elif isinstance(estimated_value, str):
-                            actual_value = float(estimated_value)
-                        else:
-                            actual_value = 0.0
-                    except (ValueError, TypeError):
-                        actual_value = 0.0
-
-                orders_table.add_row(
-                    f"[{side_color}]{side_value}[/{side_color}]",
-                    order.get("symbol", ""),
-                    f"{order.get('qty', 0):.6f}",
-                    f"${actual_value:.2f}",
-                )
-        else:
-            orders_table = Panel(
-                "[green]Portfolio already balanced - no trades needed[/green]",
-                title="Orders Executed",
-                style="green",
-            )
-
-        # Account summary
-        if execution_result.account_info_after:
-            # Try to get enriched account info for better display
-            try:
-                enriched_account = self.get_enriched_account_info()
-                account = enriched_account
-            except (DataProviderError, AttributeError, ValueError):
-                # Convert AccountInfo to EnrichedAccountInfo format
-                base_account = execution_result.account_info_after
-                account = {
-                    "account_id": base_account["account_id"],
-                    "equity": base_account["equity"],
-                    "cash": base_account["cash"],
-                    "buying_power": base_account["buying_power"],
-                    "day_trades_remaining": base_account["day_trades_remaining"],
-                    "portfolio_value": base_account.get("portfolio_value", 0.0),
-                    "last_equity": base_account.get("last_equity", 0.0),
-                    "daytrading_buying_power": base_account.get("daytrading_buying_power", 0.0),
-                    "regt_buying_power": base_account.get("regt_buying_power", 0.0),
-                    "status": base_account.get("status", "INACTIVE"),  # Use valid literal
-                    "trading_mode": "paper" if self.paper_trading else "live",
-                    "market_hours_ignored": self.ignore_market_hours,
-                }
-
-            account_content = Text()
-            account_content.append(
-                f"Portfolio Value: ${float(account.get('portfolio_value', 0)):,.2f}\n",
-                style="bold green",
-            )
-            account_content.append(
-                f"Cash Balance: ${float(account.get('cash', 0)):,.2f}\n", style="bold blue"
-            )
-
-            # Add portfolio history P&L if available
-            portfolio_history = account.get("portfolio_history", {})
-            if portfolio_history and "profit_loss" in portfolio_history:
-                profit_loss = portfolio_history.get("profit_loss", [])
-                profit_loss_pct = portfolio_history.get("profit_loss_pct", [])
-                if profit_loss:
-                    recent_pl = profit_loss[-1]
-                    recent_pl_pct = profit_loss_pct[-1] if profit_loss_pct else 0
-                    pl_color = "green" if recent_pl >= 0 else "red"
-                    pl_sign = "+" if recent_pl >= 0 else ""
-                    account_content.append(
-                        f"Recent P&L: {pl_sign}${recent_pl:,.2f} ({pl_sign}{recent_pl_pct * 100:.2f}%)\n",
-                        style=f"bold {pl_color}",
-                    )
-
-            account_panel = Panel(account_content, title="Account Summary", style="bold white")
-
-        # Recent closed positions P&L table
-        closed_pnl_table = None
-        if execution_result.account_info_after:
-            # Try to get enriched account info for recent closed P&L
-            try:
-                enriched_account = self.get_enriched_account_info()
-                closed_pnl = enriched_account.get("recent_closed_pnl", [])
-            except (DataProviderError, AttributeError, ValueError):
-                # AccountInfo doesn't have recent_closed_pnl, so use empty list
-                closed_pnl = []
-
-            if closed_pnl:
-                closed_pnl_table = Table(
-                    title="Recent Closed Positions P&L (Last 7 Days)", show_lines=False
-                )
-                closed_pnl_table.add_column("Symbol", style="bold cyan", justify="center")
-                closed_pnl_table.add_column("Realized P&L", style="bold", justify="right")
-                closed_pnl_table.add_column("P&L %", style="bold", justify="right")
-                closed_pnl_table.add_column("Trades", style="white", justify="center")
-
-                total_realized_pnl = 0.0  # Initialize as float to handle float | int addition
-
-                for position in closed_pnl[:8]:  # Show top 8 in CLI summary
-                    symbol = position.get("symbol", "N/A")
-                    realized_pnl = position.get("realized_pnl", 0)
-                    realized_pnl_pct = position.get("realized_pnl_pct", 0)
-                    trade_count = position.get("trade_count", 0)
-
-                    total_realized_pnl += realized_pnl
-
-                    # Color coding for P&L
-                    pnl_color = "green" if realized_pnl >= 0 else "red"
-                    pnl_sign = "+" if realized_pnl >= 0 else ""
-
-                    closed_pnl_table.add_row(
-                        symbol,
-                        f"[{pnl_color}]{pnl_sign}${realized_pnl:,.2f}[/{pnl_color}]",
-                        f"[{pnl_color}]{pnl_sign}{realized_pnl_pct:.2f}%[/{pnl_color}]",
-                        str(trade_count),
-                    )
-
-                # Add total row
-                if len(closed_pnl) > 0:
-                    total_pnl_color = "green" if total_realized_pnl >= 0 else "red"
-                    total_pnl_sign = "+" if total_realized_pnl >= 0 else ""
-                    closed_pnl_table.add_row(
-                        "[bold]TOTAL[/bold]",
-                        f"[bold {total_pnl_color}]{total_pnl_sign}${total_realized_pnl:,.2f}[/bold {total_pnl_color}]",
-                        "-",
-                        "-",
-                    )
-
-        # Display everything
-        console.print()
-        console.print(portfolio_table)
-        console.print()
-
-        # Sonar: collapse redundant type check
-        console.print(orders_table)
-        console.print()
-
-        # Display closed P&L table if available
-        if closed_pnl_table:
-            console.print(closed_pnl_table)
-            console.print()
-
-        console.print(account_panel)
-        console.print()
-
-        console.print(
-            Panel(
-                "[bold green]Multi-strategy execution completed successfully[/bold green]",
-                title="Execution Complete",
-                style="green",
-            )
-        )
+        return _calc(target_portfolio, account_info, current_positions)
 
     @classmethod
     def create_with_di(
@@ -1626,50 +1110,39 @@ class TradingEngine:
 
 
 def main() -> None:
-    """Test TradingEngine multi-strategy execution"""
-    from rich.console import Console
-
-    console = Console()
+    """Test TradingEngine multi-strategy execution (fail-fast DI only)."""
+    import logging
 
     logging.basicConfig(level=logging.WARNING)  # Reduced verbosity
-    console.print("[bold cyan]Trading Engine Test[/bold cyan]")
-    console.print("─" * 50)
+    print("Trading Engine Test")
+    print("─" * 50)
 
-    # Use DI approach instead of deprecated traditional constructor
-    try:
-        from the_alchemiser.container.application_container import ApplicationContainer
-        from the_alchemiser.main import TradingSystem
+    # Modern DI initialization (no legacy fallback). Any failure should surface immediately.
+    from the_alchemiser.container.application_container import ApplicationContainer
+    from the_alchemiser.main import TradingSystem
 
-        # Initialize DI system
-        TradingSystem()
-        container = ApplicationContainer()
+    TradingSystem()  # Initialize DI system side-effects
+    container = ApplicationContainer()
 
-        trader = TradingEngine.create_from_container(
-            container=container,
-            strategy_allocations={StrategyType.NUCLEAR: 0.5, StrategyType.TECL: 0.5},
-            ignore_market_hours=True,
-        )
-        trader.paper_trading = True
-    except (ImportError, ConfigurationError, TradingClientError) as e:
-        console.print(f"[red]Failed to initialize with DI: {e}[/red]")
-        console.print("[yellow]Falling back to traditional method[/yellow]")
-        trader = TradingEngine(
-            paper_trading=True,
-            strategy_allocations={StrategyType.NUCLEAR: 0.5, StrategyType.TECL: 0.5},
-        )
+    trader = TradingEngine.create_from_container(
+        container=container,
+        strategy_allocations={StrategyType.NUCLEAR: 0.5, StrategyType.TECL: 0.5},
+        ignore_market_hours=True,
+    )
+    trader.paper_trading = True
 
-    console.print("[yellow]Executing multi-strategy...[/yellow]")
+    print("Executing multi-strategy...")
     result = trader.execute_multi_strategy()
-    trader.display_multi_strategy_summary(result)
+    print(f"Execution result: success={result.success}")
 
-    console.print("[yellow]Getting performance report...[/yellow]")
+    print("Getting performance report...")
     report = trader.get_multi_strategy_performance_report()
     if "error" not in report:
-        console.print("[green]Performance report generated successfully[/green]")
-        console.print(f"   Current positions: {len(report['current_positions'])}")
-        console.print(f"   Strategy tracking: {len(report['performance_summary'])}")
+        print("Performance report generated successfully")
+        print(f"   Current positions: {len(report['current_positions'])}")
+        print(f"   Strategy tracking: {len(report['performance_summary'])}")
     else:
-        console.print(f"[red]Error generating report: {report['error']}[/red]")
+        print(f"Error generating report: {report['error']}")
 
 
 if __name__ == "__main__":

@@ -60,7 +60,8 @@ def create_execution_summary(
 
 
 def save_dashboard_data(
-    engine: Any, execution_result: Any  # TODO: Phase 10 - Add proper types when available
+    engine: Any,
+    execution_result: Any,  # TODO: Phase 10 - Add proper types when available
 ) -> None:
     """Save structured data for dashboard consumption to S3."""
     try:

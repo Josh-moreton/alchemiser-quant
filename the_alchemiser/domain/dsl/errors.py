@@ -27,7 +27,7 @@ class ParseError(DSLError):
         message: str,
         expression: str | None = None,
         position: int | None = None,
-        context: dict[str, Any] | None = None
+        context: dict[str, Any] | None = None,
     ) -> None:
         super().__init__(message, context)
         self.expression = expression
@@ -43,7 +43,7 @@ class SchemaError(DSLError):
         construct: str | None = None,
         expected_arity: int | None = None,
         actual_arity: int | None = None,
-        context: dict[str, Any] | None = None
+        context: dict[str, Any] | None = None,
     ) -> None:
         super().__init__(message, context)
         self.construct = construct
@@ -59,7 +59,7 @@ class EvaluationError(DSLError):
         message: str,
         symbol: str | None = None,
         ast_node: Any = None,
-        context: dict[str, Any] | None = None
+        context: dict[str, Any] | None = None,
     ) -> None:
         super().__init__(message, context)
         self.symbol = symbol
@@ -70,10 +70,7 @@ class SecurityError(DSLError):
     """Raised when DSL security constraints are violated."""
 
     def __init__(
-        self,
-        message: str,
-        violation_type: str | None = None,
-        context: dict[str, Any] | None = None
+        self, message: str, violation_type: str | None = None, context: dict[str, Any] | None = None
     ) -> None:
         super().__init__(message, context)
         self.violation_type = violation_type
@@ -87,7 +84,7 @@ class IndicatorError(DSLError):
         message: str,
         indicator: str | None = None,
         symbol: str | None = None,
-        context: dict[str, Any] | None = None
+        context: dict[str, Any] | None = None,
     ) -> None:
         super().__init__(message, context)
         self.indicator = indicator
@@ -102,7 +99,7 @@ class PortfolioError(DSLError):
         message: str,
         operation: str | None = None,
         assets: list[str] | None = None,
-        context: dict[str, Any] | None = None
+        context: dict[str, Any] | None = None,
     ) -> None:
         super().__init__(message, context)
         self.operation = operation

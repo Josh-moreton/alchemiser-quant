@@ -22,22 +22,13 @@ repos:
         # Runs first to apply formatting/import sorting so subsequent lint is clean
       - id: ruff-check
         name: Ruff Lint & Format Imports
-        entry: poetry run ruff check
+        entry: poetry run ruff check --fix
         language: system
         types: [python]
         files: ^the_alchemiser/.*\.py$
         pass_filenames: true
         stages: [pre-commit]
         # Fails only on remaining (non auto-fixable) issues; no in-hook modifications to avoid commit rejection
-
-      - id: black-format
-        name: Black Code Formatter
-        entry: poetry run black
-        language: system
-        types: [python]
-        files: ^the_alchemiser/.*\.py$
-        pass_filenames: true
-        stages: [pre-commit]
 
       - id: mypy-typecheck
         name: MyPy Type Checking
@@ -48,12 +39,4 @@ repos:
         pass_filenames: true
         stages: [pre-commit]
 
-      # Optional: Basic formatting for scripts and legacy files (no mypy)
-      - id: black-format-scripts
-        name: Black Format (Scripts & Legacy)
-        entry: poetry run black
-        language: system
-        types: [python]
-        files: ^(?!the_alchemiser/).*\.py$
-        pass_filenames: true
-        stages: [manual]  # Only run when explicitly requested
+  # (Former Black hooks removed) If needed later, re-add after ruff-format and before ruff-check.

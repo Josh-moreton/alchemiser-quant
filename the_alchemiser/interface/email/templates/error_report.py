@@ -5,7 +5,6 @@ This module handles error notification email template generation.
 
 # ✅ Phase 14 - Error handler types enabled
 
-
 from .base import BaseEmailTemplate
 
 

@@ -8,7 +8,6 @@ Environment-Aware Behavior:
 - Development: Falls back to environment variables (including .env files) if AWS Secrets Manager fails
 """
 
-
 import json
 import logging
 import os

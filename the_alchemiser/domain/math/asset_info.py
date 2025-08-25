@@ -6,7 +6,6 @@ Handles asset-specific information like fractionability, ETF types, and trading 
 This helps optimize order placement strategies for different asset types.
 """
 
-
 import logging
 from enum import Enum
 

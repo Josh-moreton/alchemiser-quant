@@ -164,9 +164,9 @@ class StrategyOrderTracker:
 
         # Initialize in-memory caches
         self._orders_cache: list[StrategyOrder] = []
-        self._positions_cache: dict[tuple[str, str], StrategyPosition] = (
-            {}
-        )  # (strategy, symbol) -> position
+        self._positions_cache: dict[
+            tuple[str, str], StrategyPosition
+        ] = {}  # (strategy, symbol) -> position
         self._realized_pnl_cache: dict[str, float] = {}  # strategy -> realized P&L
 
         # Load existing data from S3
@@ -670,7 +670,7 @@ class StrategyOrderTracker:
                             # Already in DTO format
                             order_dto = StrategyOrderDTO.model_validate(order_data)
                         else:
-                            # Legacy format - upgrade it
+                            # Older persisted schema - normalize/upgrade to DTO
                             upgraded_data = self._upgrade_legacy_order(order_data)
                             order_dto = StrategyOrderDTO.model_validate(upgraded_data)
 
@@ -773,11 +773,11 @@ class StrategyOrderTracker:
         logging.warning(f"Failed to migrate order for {strategy_name}: {error}")
 
     def _load_order_as_dto(self, order_data: dict[str, Any]) -> StrategyOrderDTO:
-        """Load order with fallback for legacy format."""
+        """Load order; if not in current DTO schema attempt structured normalization."""
         try:
             return StrategyOrderDTO.model_validate(order_data)
         except Exception:
-            # Try to upgrade legacy format
+            # Attempt normalization/upgrade of older schema
             upgraded_data = self._upgrade_legacy_order(order_data)
             return StrategyOrderDTO.model_validate(upgraded_data)
 

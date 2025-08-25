@@ -405,12 +405,12 @@ class AlpacaClient:
         # If selling 99%+ of position, use liquidation API
         if qty >= available * 0.99:
             logging.info(
-                f"Selling {qty}/{available} shares ({qty/available:.1%}) - using liquidation API"
+                f"Selling {qty}/{available} shares ({qty / available:.1%}) - using liquidation API"
             )
             return self.liquidate_position(symbol)
         else:
             logging.info(
-                f"Selling {qty}/{available} shares ({qty/available:.1%}) - using market order"
+                f"Selling {qty}/{available} shares ({qty / available:.1%}) - using market order"
             )
             return self.place_market_order(symbol, OrderSide.SELL, qty=qty)
 
