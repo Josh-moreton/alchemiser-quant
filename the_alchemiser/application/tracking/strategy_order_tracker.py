@@ -850,15 +850,19 @@ class StrategyOrderTracker:
             self._load_positions()
             self._load_realized_pnl()
         except Exception as e:
-            self.error_handler.handle_error(
-                error=e,
-                context="tracker_data_loading",
-                component="StrategyOrderTracker._load_data",
-                additional_data={
-                    "load_operations": ["orders", "positions", "realized_pnl"],
-                },
-            )
-            logging.error(f"Error loading tracker data: {e}")
+            # Graceful degradation for S3 connectivity issues
+            if "s3" in str(e).lower() or "aws" in str(e).lower() or "credential" in str(e).lower():
+                logging.warning(f"S3 tracking data unavailable, continuing with empty state: {e}")
+            else:
+                self.error_handler.handle_error(
+                    error=e,
+                    context="tracker_data_loading",
+                    component="StrategyOrderTracker._load_data",
+                    additional_data={
+                        "load_operations": ["orders", "positions", "realized_pnl"],
+                    },
+                )
+                logging.error(f"Error loading tracker data: {e}")
 
     def _load_recent_orders(self, days: int = 90) -> None:
         """Load recent orders from S3 with support for both legacy and DTO formats."""
