@@ -161,6 +161,8 @@ class StrategyOrderTracker:
         self.s3_handler = get_s3_handler()
         self.paper_trading = paper_trading
         self.error_handler = TradingSystemErrorHandler()
+        # Dedicated logger for consistency instead of module-level logging in new code paths
+        self.logger = logging.getLogger(__name__)
 
         # Initialize S3 paths for data persistence
         self._setup_s3_paths()
@@ -176,7 +178,7 @@ class StrategyOrderTracker:
         self._load_data()
 
         mode_str = "paper" if paper_trading else "live"
-        logging.info(
+        self.logger.info(
             f"StrategyOrderTracker initialized with S3 persistence ({mode_str} trading mode)"
         )
 
@@ -451,7 +453,7 @@ class StrategyOrderTracker:
             # Process the order using existing logic
             self._process_order(order)
 
-            logging.info(
+            self.logger.info(
                 f"Added {order_dto.strategy} order via DTO: {order_dto.side} {order_dto.quantity} {order_dto.symbol} @ ${order_dto.price:.2f}"
             )
 
@@ -473,15 +475,11 @@ class StrategyOrderTracker:
         try:
             # Filter orders for this strategy
             strategy_orders = [
-                order for order in self._orders_cache
-                if order.strategy == strategy_name
+                order for order in self._orders_cache if order.strategy == strategy_name
             ]
 
             # Convert to DTOs
-            return [
-                strategy_order_dataclass_to_dto(order)
-                for order in strategy_orders
-            ]
+            return [strategy_order_dataclass_to_dto(order) for order in strategy_orders]
 
         except Exception as e:
             self.error_handler.handle_error(
@@ -498,7 +496,7 @@ class StrategyOrderTracker:
             return [
                 strategy_position_dataclass_to_dto(position)
                 for position in self._positions_cache.values()
-                if position.quantity > 0  # Only active positions
+                if position.quantity != 0  # Include short positions when implemented
             ]
 
         except Exception as e:
@@ -510,7 +508,9 @@ class StrategyOrderTracker:
             )
             return []
 
-    def get_pnl_summary(self, strategy_name: str, current_prices: dict[str, float] | None = None) -> StrategyPnLDTO:
+    def get_pnl_summary(
+        self, strategy_name: str, current_prices: dict[str, float] | None = None
+    ) -> StrategyPnLDTO:
         """Get strategy P&L as DTO."""
         try:
             # Find the strategy enum
@@ -536,16 +536,17 @@ class StrategyOrderTracker:
                 component="StrategyOrderTracker.get_pnl_summary",
                 additional_data={"strategy_name": strategy_name},
             )
-            # Return empty P&L DTO on error - use valid strategy for DTO validation
-            # Use NUCLEAR as default valid strategy for error case
-            return StrategyPnLDTO(
-                strategy="NUCLEAR",
-                realized_pnl=Decimal("0"),
-                unrealized_pnl=Decimal("0"),
-                total_pnl=Decimal("0"),
-                positions={},
-                allocation_value=Decimal("0"),
-            )
+            # Fail fast if strategy invalid (cannot build DTO). Otherwise return zeroed DTO for that strategy.
+            if strategy_name in [s.value for s in StrategyType]:
+                return StrategyPnLDTO(
+                    strategy=strategy_name,  # type: ignore[arg-type]
+                    realized_pnl=Decimal("0"),
+                    unrealized_pnl=Decimal("0"),
+                    total_pnl=Decimal("0"),
+                    positions={},
+                    allocation_value=Decimal("0"),
+                )
+            raise
 
     def migrate_existing_tracking_data(self) -> None:
         """Migrate existing tracking data to DTO format."""
@@ -565,6 +566,7 @@ class StrategyOrderTracker:
 
             migrated_orders = []
             migration_errors = 0
+            distinct_error_types: dict[str, int] = {}
 
             for order_data in existing_data["orders"]:
                 try:
@@ -573,22 +575,37 @@ class StrategyOrderTracker:
                     migrated_orders.append(self._dto_to_storage(order_dto))
                 except Exception as e:
                     migration_errors += 1
+                    err_name = e.__class__.__name__
+                    distinct_error_types[err_name] = distinct_error_types.get(err_name, 0) + 1
                     self.error_handler.handle_error(
                         error=e,
                         context="data_migration",
                         component="StrategyOrderTracker.migrate_existing_tracking_data",
                         additional_data={"order_data": order_data},
                     )
-                    logging.warning(f"Failed to migrate order data: {order_data}, error: {e}")
+                    self.logger.warning(
+                        f"Failed to migrate order data (#{migration_errors}): {order_data}, error: {e}"
+                    )
 
             # Save migrated data
-            migrated_data = {"orders": migrated_orders}
+            migrated_data = {
+                "schema_version": 2,
+                "orders": migrated_orders,
+                "migration_summary": {
+                    "migrated_count": len(migrated_orders),
+                    "error_count": migration_errors,
+                    "error_types": distinct_error_types,
+                    "timestamp": datetime.now(UTC).isoformat(),
+                },
+            }
             success = self.s3_handler.write_json(orders_path, migrated_data)
 
             if success:
-                logging.info(f"Migration completed: {len(migrated_orders)} orders migrated, {migration_errors} errors")
+                self.logger.info(
+                    f"Migration completed: {len(migrated_orders)} orders migrated, {migration_errors} errors; types={distinct_error_types}"
+                )
             else:
-                logging.error("Failed to save migrated data")
+                self.logger.error("Failed to save migrated data")
 
         except Exception as e:
             self.error_handler.handle_error(
@@ -597,7 +614,7 @@ class StrategyOrderTracker:
                 component="StrategyOrderTracker.migrate_existing_tracking_data",
                 additional_data={},
             )
-            logging.error(f"Migration failed: {e}")
+            self.logger.error(f"Migration failed: {e}")
 
     def archive_daily_pnl(self, current_prices: dict[str, float] | None = None) -> None:
         """Archive daily P&L snapshot for historical tracking."""
@@ -621,9 +638,9 @@ class StrategyOrderTracker:
             success = self.s3_handler.write_json(archive_path, archive_data)
 
             if success:
-                logging.info(f"Archived daily P&L snapshot for {today}")
+                self.logger.info(f"Archived daily P&L snapshot for {today}")
             else:
-                logging.error(f"Failed to archive daily P&L for {today}")
+                self.logger.error(f"Failed to archive daily P&L for {today}")
 
         except Exception as e:
             self.error_handler.handle_error(
@@ -635,7 +652,7 @@ class StrategyOrderTracker:
                     "strategies_count": len(all_pnl) if "all_pnl" in locals() else 0,
                 },
             )
-            logging.error(f"Error archiving daily P&L: {e}")
+            self.logger.error(f"Error archiving daily P&L: {e}")
 
     def _update_position(self, order: StrategyOrder) -> None:
         """Update position cache with new order."""
@@ -751,7 +768,7 @@ class StrategyOrderTracker:
             # Filter to last N days
             self._filter_orders_by_date(days)
 
-            logging.info(f"Loaded {len(self._orders_cache)} recent orders")
+            self.logger.info(f"Loaded {len(self._orders_cache)} recent orders")
         except Exception as e:
             self.error_handler.handle_error(
                 error=e,
@@ -759,7 +776,7 @@ class StrategyOrderTracker:
                 component="StrategyOrderTracker._load_recent_orders",
                 additional_data={"days": days},
             )
-            logging.error(f"Error loading orders: {e}")
+            self.logger.error(f"Error loading orders: {e}")
 
     def _filter_orders_by_date(self, days: int) -> None:
         """Filter orders cache to only include orders from the last N days."""
@@ -790,14 +807,14 @@ class StrategyOrderTracker:
                 key = (pos.strategy, pos.symbol)
                 self._positions_cache[key] = pos
 
-            logging.info(f"Loaded {len(self._positions_cache)} positions")
+            self.logger.info(f"Loaded {len(self._positions_cache)} positions")
         except Exception as e:
             self.error_handler.handle_error(
                 error=e,
                 context="positions_loading",
                 component="StrategyOrderTracker._load_positions",
             )
-            logging.error(f"Error loading positions: {e}")
+            self.logger.error(f"Error loading positions: {e}")
 
     def _load_realized_pnl(self) -> None:
         """Load realized P&L from S3."""
@@ -814,14 +831,14 @@ class StrategyOrderTracker:
                 return
 
             self._realized_pnl_cache = data
-            logging.info(f"Loaded realized P&L for {len(data)} strategies")
+            self.logger.info(f"Loaded realized P&L for {len(data)} strategies")
         except Exception as e:
             self.error_handler.handle_error(
                 error=e,
                 context="realized_pnl_loading",
                 component="StrategyOrderTracker._load_realized_pnl",
             )
-            logging.error(f"Error loading realized P&L: {e}")
+            self.logger.error(f"Error loading realized P&L: {e}")
 
     def _persist_order(self, order: StrategyOrder) -> None:
         """Persist single order to S3."""
@@ -830,6 +847,7 @@ class StrategyOrderTracker:
 
             # Load existing data or create new data structure
             existing_data = self.s3_handler.read_json(orders_path) or {"orders": []}
+            existing_data["schema_version"] = 2  # annotate storage format for forward compatibility
 
             # Convert order to storage format (use DTO for type safety)
             order_dto = strategy_order_dataclass_to_dto(order)
@@ -844,7 +862,7 @@ class StrategyOrderTracker:
             # Save back to S3
             success = self.s3_handler.write_json(orders_path, existing_data)
             if not success:
-                logging.warning(f"Failed to save order {order.order_id} to S3")
+                self.logger.warning(f"Failed to save order {order.order_id} to S3")
 
         except Exception as e:
             self.error_handler.handle_error(
@@ -857,14 +875,11 @@ class StrategyOrderTracker:
                     "symbol": order.symbol,
                 },
             )
-            logging.error(f"Error persisting order: {e}")
+            self.logger.error(f"Error persisting order: {e}")
 
     def _dto_to_storage(self, dto: StrategyOrderDTO) -> dict[str, Any]:
         """Convert DTO to storage format."""
-        return dto.model_dump(
-            mode='json',  # Ensures Decimal serialization
-            exclude_none=True
-        )
+        return dto.model_dump(mode="json", exclude_none=True)  # Ensures Decimal serialization
 
     def _storage_to_dto(self, data: dict[str, Any]) -> StrategyOrderDTO:
         """Convert storage data to DTO."""
