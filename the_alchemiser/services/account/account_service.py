@@ -389,6 +389,41 @@ class AccountService:
             self.logger.error(f"Failed to calculate portfolio allocation: {e}")
             raise
 
+    # ---- Extended enrichment accessors (encapsulate repository capabilities) ----
+    def get_portfolio_history(self) -> dict[str, Any] | None:
+        """Return portfolio history if repository supports it.
+
+        This prevents consumers (e.g., AccountFacade) from reaching directly into the
+        underlying repository attribute, maintaining the AccountService abstraction.
+        """
+        try:
+            repo = self.account_repository
+            if hasattr(repo, "get_portfolio_history"):
+                history = cast(Any, repo).get_portfolio_history()
+                if history:
+                    return cast(dict[str, Any], history)
+            return None
+        except Exception as e:  # pragma: no cover - defensive
+            self.logger.debug(f"Portfolio history retrieval failed: {e}")
+            return None
+
+    def get_recent_closed_positions(self) -> list[dict[str, Any]] | None:
+        """Return recent closed position P&L data if repository supports it.
+
+        Encapsulates optional repository capability and prevents callers from
+        accessing the repository attribute directly.
+        """
+        try:
+            repo = self.account_repository
+            if hasattr(repo, "get_recent_closed_positions"):
+                closed = cast(Any, repo).get_recent_closed_positions()
+                if closed:
+                    return cast(list[dict[str, Any]], closed)
+            return None
+        except Exception as e:  # pragma: no cover - defensive
+            self.logger.debug(f"Recent closed positions retrieval failed: {e}")
+            return None
+
     # Protocol method implementations for DI compatibility
     def get_account_info(self) -> AccountInfo:
         """

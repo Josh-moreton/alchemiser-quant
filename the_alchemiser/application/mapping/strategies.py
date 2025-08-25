@@ -40,7 +40,7 @@ Design Principles:
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import Any, TypedDict, cast
+from typing import TypedDict
 
 from the_alchemiser.domain.registry import StrategyType
 from the_alchemiser.domain.strategies.typed_strategy_manager import AggregatedSignals
@@ -201,7 +201,7 @@ def run_all_strategies_mapping(
     aggregated: AggregatedSignals,
     strategy_allocations: dict[StrategyType, float],
 ) -> tuple[
-    dict[StrategyType, dict[str, Any]],
+    dict[StrategyType, StrategySignalDisplayDTO],
     dict[str, float],
     dict[str, list[StrategyType]],
 ]:
@@ -228,7 +228,5 @@ def run_all_strategies_mapping(
         aggregated, strategy_allocations
     )
 
-    # Cast to dict[str, Any] for backward compatibility with existing consumers
-    compatible_signals = cast(dict[StrategyType, dict[str, Any]], display_signals)
-
-    return compatible_signals, consolidated_portfolio, strategy_attribution
+    # Return strongly-typed display signals; callers expecting loose dicts should adapt upstream.
+    return display_signals, consolidated_portfolio, strategy_attribution
