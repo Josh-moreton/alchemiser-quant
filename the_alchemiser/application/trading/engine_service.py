@@ -34,6 +34,7 @@ from the_alchemiser.application.mapping.execution_summary_mapping import (
 from the_alchemiser.application.portfolio.services.portfolio_management_facade import (
     PortfolioManagementFacade,
 )
+from the_alchemiser.application.trading.account_facade import AccountFacade
 from the_alchemiser.application.trading.alpaca_client import AlpacaClient
 from the_alchemiser.application.trading.bootstrap import (
     TradingBootstrapContext,
@@ -432,6 +433,15 @@ class TradingEngine:
                 # Reuse the AlpacaManager resolved earlier in this method
                 self.account_service = TypedAccountService(alpaca_manager)
 
+            # Initialize AccountFacade to coordinate account operations
+            market_data_service = getattr(self, "_market_data_port", None)
+            position_service = None  # Could be added later if needed
+            self._account_facade = AccountFacade(
+                account_service=self.account_service,
+                market_data_service=market_data_service,
+                position_service=position_service,
+            )
+
             self.execution_manager = ExecutionManager(self)
         except Exception as e:
             raise TradingClientError(
@@ -443,9 +453,9 @@ class TradingEngine:
             ) from e
 
         # Compose dependencies for type-safe delegation
-        self._account_info_provider: AccountInfoProvider = self.account_service
-        self._position_provider: PositionProvider = self.account_service
-        self._price_provider: PriceProvider = self.account_service
+        self._account_info_provider: AccountInfoProvider = self._account_facade
+        self._position_provider: PositionProvider = self._account_facade
+        self._price_provider: PriceProvider = self._account_facade
         self._rebalancing_service: RebalancingService = self.portfolio_rebalancer
         self._multi_strategy_executor: MultiStrategyExecutor = self.execution_manager
 
@@ -494,224 +504,36 @@ class TradingEngine:
 
         Returns typed AccountInfo as required by MultiStrategyExecutionResultDTO.
         Use get_enriched_account_info for UI/reporting extras.
+        
+        Delegates to AccountFacade for normalized account information.
         """
-        try:
-            account_info = self._account_info_provider.get_account_info()
-
-            # Always normalize account_id to string since Alpaca returns UUID objects
-            # but Pydantic AccountInfo expects string
-            if "account_id" in account_info:
-                # Create a mutable copy as a regular dict, not TypedDict
-                account_info_dict = dict(account_info)
-                account_info_dict["account_id"] = str(account_info_dict["account_id"])
-                # Type cast back to AccountInfo after modification
-                account_info = cast(AccountInfo, account_info_dict)
-
-            # Ensure required keys are present (defensive normalization)
-            required_keys = {
-                "account_id",
-                "equity",
-                "cash",
-                "buying_power",
-                "day_trades_remaining",
-                "portfolio_value",
-                "last_equity",
-                "daytrading_buying_power",
-                "regt_buying_power",
-                "status",
-            }
-            if not all(k in account_info for k in required_keys):  # pragma: no cover
-                # Normalize explicitly for TypedDict compatibility
-                base = _create_default_account_info(str(account_info.get("account_id", "unknown")))
-                normalized: AccountInfo = {
-                    "account_id": str(account_info.get("account_id", base["account_id"])),
-                    "equity": float(account_info.get("equity", base["equity"])),
-                    "cash": float(account_info.get("cash", base["cash"])),
-                    "buying_power": float(account_info.get("buying_power", base["buying_power"])),
-                    "day_trades_remaining": int(
-                        account_info.get("day_trades_remaining", base["day_trades_remaining"])
-                    ),
-                    "portfolio_value": float(
-                        account_info.get("portfolio_value", base["portfolio_value"])
-                    ),
-                    "last_equity": float(account_info.get("last_equity", base["last_equity"])),
-                    "daytrading_buying_power": float(
-                        account_info.get("daytrading_buying_power", base["daytrading_buying_power"])
-                    ),
-                    "regt_buying_power": float(
-                        account_info.get("regt_buying_power", base["regt_buying_power"])
-                    ),
-                    "status": (
-                        "ACTIVE"
-                        if str(account_info.get("status", base["status"])) == "ACTIVE"
-                        else "INACTIVE"
-                    ),
-                }
-                return normalized
-
-            return account_info
-        except DataProviderError as e:
-            from the_alchemiser.infrastructure.logging.logging_utils import (
-                get_logger,
-                log_error_with_context,
-            )
-
-            logger = get_logger(__name__)
-            log_error_with_context(
-                logger,
-                e,
-                "account_info_retrieval",
-                function="get_account_info",
-                trading_mode="paper" if self.paper_trading else "live",
-                error_type=type(e).__name__,
-            )
-            logging.error(f"Data provider error retrieving account information: {e}")
-
-            # Enhanced error handling
-            try:
-                from the_alchemiser.services.errors import handle_trading_error
-
-                handle_trading_error(
-                    error=e,
-                    context="account information retrieval",
-                    component="trading_engine",
-                )
-            except (ImportError, AttributeError):
-                pass
-
-            return _create_default_account_info("data_error")
-        except (TradingClientError, ConnectionError, TimeoutError, AttributeError) as e:
-            from the_alchemiser.infrastructure.logging.logging_utils import (
-                get_logger,
-                log_error_with_context,
-            )
-
-            logger = get_logger(__name__)
-            log_error_with_context(
-                logger,
-                e,
-                "account_info_client_error",
-                function="get_account_info",
-                trading_mode="paper" if self.paper_trading else "live",
-                error_type=type(e).__name__,
-            )
-            logging.error(f"Client error retrieving account information: {e}")
-
-            # Enhanced error handling
-            try:
-                from the_alchemiser.services.errors import handle_trading_error
-
-                handle_trading_error(
-                    error=e,
-                    context="account information retrieval",
-                    component="TradingEngine.get_account_info",
-                    additional_data={"paper_trading": self.paper_trading},
-                )
-            except (ImportError, AttributeError):
-                pass  # Fallback for backward compatibility
-
-            return _create_default_account_info("client_error")
+        return self._account_facade.get_account_info()
 
     def get_enriched_account_info(self) -> EnrichedAccountInfo:
         """Get enriched account information including portfolio history and P&L data.
 
         This extends the basic AccountInfo with portfolio performance data suitable for
         display and reporting purposes.
+        
+        Delegates to AccountFacade for coordinated enriched account information.
 
         Returns:
             EnrichedAccountInfo with portfolio history and closed P&L data.
         """
-        try:
-            # Get base account info
-            base_account = self._account_info_provider.get_account_info()
-
-            # Create enriched account info starting with base data
-            enriched: EnrichedAccountInfo = {
-                "account_id": base_account["account_id"],
-                "equity": base_account["equity"],
-                "cash": base_account["cash"],
-                "buying_power": base_account["buying_power"],
-                "day_trades_remaining": base_account["day_trades_remaining"],
-                "portfolio_value": base_account["portfolio_value"],
-                "last_equity": base_account["last_equity"],
-                "daytrading_buying_power": base_account["daytrading_buying_power"],
-                "regt_buying_power": base_account["regt_buying_power"],
-                "status": base_account["status"],
-                "trading_mode": "paper" if self.paper_trading else "live",
-                "market_hours_ignored": self.ignore_market_hours,
-            }
-
-            # Add portfolio history if available
-            try:
-                # Use AlpacaManager for portfolio history since adapter doesn't have this method
-                portfolio_history = self._alpaca_manager.get_portfolio_history()
-                if portfolio_history:
-                    enriched["portfolio_history"] = {
-                        "profit_loss": portfolio_history.get("profit_loss", []),
-                        "profit_loss_pct": portfolio_history.get("profit_loss_pct", []),
-                        "equity": portfolio_history.get("equity", []),
-                        "timestamp": portfolio_history.get("timestamp", []),
-                    }
-            except (
-                DataProviderError,
-                ConnectionError,
-                TimeoutError,
-                KeyError,
-                AttributeError,
-            ) as e:
-                logging.debug(f"Could not retrieve portfolio history: {e}")
-
-            # Add recent closed P&L if available
-            try:
-                # Note: This would need to be implemented in data_provider
-                # closed_pnl = self.data_provider.get_recent_closed_positions()
-                # if closed_pnl:
-                #     enriched["recent_closed_pnl"] = closed_pnl
-                pass
-            except (
-                DataProviderError,
-                ConnectionError,
-                TimeoutError,
-                KeyError,
-                AttributeError,
-            ) as e:
-                logging.debug(f"Could not retrieve recent closed P&L: {e}")
-
-            return enriched
-
-        except (DataProviderError, TradingClientError, ConfigurationError, AttributeError) as e:
-            logging.error(f"Failed to retrieve enriched account information: {e}")
-            # Return minimal enriched account info
-            default_account = _create_default_account_info("error")
-            return {
-                "account_id": default_account["account_id"],
-                "equity": default_account["equity"],
-                "cash": default_account["cash"],
-                "buying_power": default_account["buying_power"],
-                "day_trades_remaining": default_account["day_trades_remaining"],
-                "portfolio_value": default_account["portfolio_value"],
-                "last_equity": default_account["last_equity"],
-                "daytrading_buying_power": default_account["daytrading_buying_power"],
-                "regt_buying_power": default_account["regt_buying_power"],
-                "status": default_account["status"],
-                "trading_mode": "paper" if self.paper_trading else "live",
-                "market_hours_ignored": self.ignore_market_hours,
-            }
+        enriched = self._account_facade.get_enriched_account_info(paper_trading=self.paper_trading)
+        # Update market_hours_ignored flag based on engine setting
+        enriched["market_hours_ignored"] = self.ignore_market_hours
+        return enriched
 
     def get_positions(
         self,
     ) -> PositionsDict:  # Phase 18: Migrated from dict[str, Any] to PositionsDict
-        """Get current positions via account service.
+        """Get current positions via account facade delegation.
 
         Returns:
             Dict of current positions keyed by symbol with validated PositionInfo structure.
         """
-        try:
-            positions = self._position_provider.get_positions_dict()
-            return positions
-        except (DataProviderError, TradingClientError, ConnectionError, TimeoutError) as e:
-            logging.error(f"Failed to retrieve positions: {e}")
-            return {}
+        return self._account_facade.get_positions()
 
     def get_positions_dict(
         self,
@@ -723,10 +545,10 @@ class TradingEngine:
         Returns:
             Dict of current positions keyed by symbol with validated PositionInfo structure.
         """
-        return self.get_positions()
+        return self._account_facade.get_positions_dict()
 
     def get_current_price(self, symbol: str) -> float:
-        """Get current price for a symbol with engine-level validation.
+        """Get current price for a symbol via account facade delegation.
 
         Args:
             symbol: Stock symbol to get price for.
@@ -734,27 +556,10 @@ class TradingEngine:
         Returns:
             Current price as float, or 0.0 if price unavailable.
         """
-        if not symbol or not isinstance(symbol, str):
-            logging.warning(f"Invalid symbol provided to get_current_price: {symbol}")
-            return 0.0
-
-        try:
-            price = self._price_provider.get_current_price(symbol.upper())
-
-            # Engine-level validation
-            if price and price > 0:
-                logging.debug(f"Retrieved price for {symbol}: ${price:.2f}")
-                return price
-            else:
-                logging.warning(f"Invalid price received for {symbol}: {price}")
-                return 0.0
-
-        except (DataProviderError, ConnectionError, TimeoutError, ValueError, AttributeError) as e:
-            logging.error(f"Failed to get current price for {symbol}: {e}")
-            return 0.0
+        return self._account_facade.get_current_price(symbol)
 
     def get_current_prices(self, symbols: list[str]) -> dict[str, float]:
-        """Get current prices for multiple symbols with engine-level validation.
+        """Get current prices for multiple symbols via account facade delegation.
 
         Args:
             symbols: List of stock symbols to get prices for.
@@ -762,36 +567,7 @@ class TradingEngine:
         Returns:
             Dict mapping symbols to current prices, excluding symbols with invalid prices.
         """
-        if not symbols or not isinstance(symbols, list):
-            logging.warning(f"Invalid symbols list provided: {symbols}")
-            return {}
-
-        # Clean and validate symbols
-        valid_symbols = [s.upper() for s in symbols if isinstance(s, str) and s.strip()]
-
-        if not valid_symbols:
-            logging.warning("No valid symbols provided to get_current_prices")
-            return {}
-
-        try:
-            prices = self._price_provider.get_current_prices(valid_symbols)
-
-            # Engine-level validation and logging
-            valid_prices = {}
-            for symbol, price in prices.items():
-                if price and price > 0:
-                    valid_prices[symbol] = price
-                else:
-                    logging.warning(f"Invalid price for {symbol}: {price}")
-
-            logging.debug(
-                f"Retrieved {len(valid_prices)} valid prices out of {len(valid_symbols)} requested"
-            )
-            return valid_prices
-
-        except (DataProviderError, ConnectionError, TimeoutError, ValueError, AttributeError) as e:
-            logging.error(f"Failed to get current prices: {e}")
-            return {}
+        return self._account_facade.get_current_prices(symbols)
 
     # --- Order and Rebalancing Methods ---
     def wait_for_settlement(
