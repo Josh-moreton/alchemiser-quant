@@ -392,12 +392,12 @@ class TradingEngine:
                 self.portfolio_rebalancer = PortfolioManagementFacade(
                     trading_manager=trading_manager,
                 )
-                # Initialize rebalancing orchestrator for sequential SELL→settle→BUY execution
-                from the_alchemiser.application.portfolio.rebalancing_orchestrator import (
-                    RebalancingOrchestrator,
+                # Initialize rebalancing orchestrator facade for sequential SELL→settle→BUY execution
+                from the_alchemiser.application.portfolio.rebalancing_orchestrator_facade import (
+                    RebalancingOrchestratorFacade,
                 )
 
-                self._rebalancing_orchestrator = RebalancingOrchestrator(
+                self._rebalancing_orchestrator = RebalancingOrchestratorFacade(
                     portfolio_facade=self.portfolio_rebalancer,
                     trading_client=self.trading_client,
                     paper_trading=self.paper_trading,
