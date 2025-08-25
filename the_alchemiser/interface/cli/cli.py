@@ -23,6 +23,7 @@ from rich.text import Text
 
 from the_alchemiser.application.trading.engine_service import TradingEngine
 from the_alchemiser.domain.dsl.errors import DSLError
+from the_alchemiser.domain.dsl.parser import DSLParser
 from the_alchemiser.domain.dsl.strategy_loader import StrategyLoader
 from the_alchemiser.domain.market_data.protocols.market_data_port import MarketDataPort
 from the_alchemiser.infrastructure.logging.logging_utils import (
@@ -685,29 +686,108 @@ def status(
         )
         console.print(f"[bold red]Trading client error: {e}[/bold red]")
         raise typer.Exit(1)
-    except AlchemiserError as e:
-        error_handler = TradingSystemErrorHandler()
-        error_handler.handle_error(
-            error=e,
-            context="CLI status command - application error",
-            component="cli.status",
-            additional_data={"live_trading": live, "error_type": type(e).__name__},
-        )
-        console.print(f"[bold red]Application error: {e}[/bold red]")
+
+
+@app.command("dsl-count")
+def dsl_count(
+    dsl_strategy: str = typer.Argument(..., help="Path (or name) of DSL .clj strategy file"),
+    max_nodes: int | None = typer.Option(
+        None,
+        "--max-nodes",
+        help="Override max node cap for counting (None disables cap)",
+    ),
+    max_depth: int | None = typer.Option(
+        None,
+        "--max-depth",
+        help="Override max depth cap for counting (None disables cap)",
+    ),
+) -> None:
+    """🔍 Dry-run parse a DSL strategy and report AST size (node count & depth).
+
+    This does NOT evaluate indicators or fetch market data; it only parses the file
+    and reports structural complexity so large strategies can be optimized before
+    full evaluation.
+    """
+    show_welcome()
+
+    raw_path = dsl_strategy.strip()
+    path_candidate = Path(raw_path)
+    if not path_candidate.suffix:
+        path_candidate = path_candidate.with_suffix(".clj")
+    if not path_candidate.is_file():
+        repo_root = Path(__file__).resolve().parents[3]
+        alt1 = repo_root / "clj-strategies" / path_candidate.name
+        alt2 = repo_root / "clj-strategies" / "trading_strategies" / path_candidate.name
+        for c in (alt1, alt2):
+            if c.is_file():
+                path_candidate = c
+                break
+
+    if not path_candidate.is_file():
+        console.print(f"[bold red]Strategy file not found:[/bold red] {path_candidate}")
         raise typer.Exit(1)
-    except (ImportError, AttributeError, ValueError, KeyError, TypeError, OSError) as e:
-        error_handler.handle_error(
-            error=e,
-            context="CLI status command - unexpected system error",
-            component="cli.status",
-            additional_data={
-                "live_trading": live,
-                "error_type": "unexpected_error",
-                "original_error": type(e).__name__,
-            },
-        )
-        console.print(f"[bold red]Unexpected error: {e}[/bold red]")
+
+    # Wording: explicitly reference CLJ file (user-facing clarification)
+    console.print(f"[cyan]Parsing CLJ file:[/cyan] {path_candidate}")
+
+    try:
+        source = path_candidate.read_text(encoding="utf-8")
+    except OSError as e:  # pragma: no cover - filesystem error
+        console.print(f"[bold red]Failed to read file: {e}[/bold red]")
         raise typer.Exit(1)
+
+    # Instantiate parser with overrides
+    parser = DSLParser(max_nodes=max_nodes, max_depth=max_depth)
+    start_time = time.perf_counter()
+    try:
+        ast_root = parser.parse(source)
+    except Exception as e:  # DSLError subclasses already formatted upstream
+        console.print(f"[bold red]Parse error:[/bold red] {e}")
+        raise typer.Exit(1)
+    elapsed = (time.perf_counter() - start_time) * 1000.0
+
+    # Produce summary table
+    table = Table(title="DSL Structural Complexity", show_header=True, header_style="bold magenta")
+    table.add_column("Metric", style="cyan")
+    table.add_column("Value", justify="right")
+    table.add_row("Nodes", f"{parser.node_count:,}")
+    table.add_row("Max Depth", f"{parser.max_depth_seen:,}")
+    table.add_row("Parse Time (ms)", f"{elapsed:.2f}")
+    table.add_row("Node Cap", str(max_nodes) if max_nodes is not None else "None")
+    table.add_row("Depth Cap", str(max_depth) if max_depth is not None else "None")
+    table.add_row("Root Type", type(ast_root).__name__)
+    console.print()
+    console.print(table)
+
+    # Heuristic warnings
+    warnings: list[str] = []
+    if max_nodes is not None and parser.node_count > 0:
+        warn_threshold = max_nodes * 0.8
+        if parser.node_count >= warn_threshold:
+            warnings.append(
+                f"Node count {parser.node_count:,} is ≥ 80% of cap {max_nodes:,}. Consider refactoring repeated blocks."
+            )
+    if parser.node_count > 1_000_000 and (
+        max_nodes is None or parser.node_count / (max_nodes or 1) < 0.8
+    ):
+        warnings.append(
+            "Node count exceeds 1M; evaluation latency and memory use may become significant."
+        )
+    if parser.max_depth_seen > 2000:
+        warnings.append(
+            f"Maximum depth {parser.max_depth_seen} is very high; deeply nested conditionals may hurt readability/performance."
+        )
+
+    if warnings:
+        console.print("\n[bold yellow]Warnings:[/bold yellow]")
+        for w in warnings:
+            console.print(f"[yellow]- {w}")
+    else:
+        console.print("\n[green]No structural warnings detected.[/green]")
+
+    console.print(
+        "\n[dim]Tip: Use macros/definitions (upcoming) or consolidate repeated RSI ladders to shrink node count.[/dim]"
+    )
 
 
 @app.command()
