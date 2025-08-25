@@ -567,6 +567,8 @@ __all__ = [
     "render_footer",
     "render_target_vs_current_allocations",
     "render_execution_plan",
+    "render_enriched_order_summaries",
+    "render_multi_strategy_summary",
 ]
 
 
@@ -640,3 +642,180 @@ def render_enriched_order_summaries(
         )
 
     c.print(table)
+
+
+def render_multi_strategy_summary(
+    execution_result: Any,  # MultiStrategyExecutionResultDTO
+    enriched_account: dict[str, Any] | None = None,
+    console: Console | None = None,
+) -> None:
+    """
+    Render a summary of multi-strategy execution results using Rich.
+    
+    Args:
+        execution_result: The execution result DTO to display
+        enriched_account: Optional enriched account info for enhanced display
+        console: Optional console for rendering
+    """
+    from rich.panel import Panel
+    from rich.table import Table
+    from rich.text import Text
+
+    c = console or Console()
+
+    if not execution_result.success:
+        c.print(
+            Panel(
+                f"[bold red]Execution failed: {execution_result.execution_summary.pnl_summary if execution_result.execution_summary else 'Unknown error'}[/bold red]",
+                title="Execution Result",
+                style="red",
+            )
+        )
+        return
+
+    # Portfolio allocation display using existing function
+    render_portfolio_allocation(
+        execution_result.consolidated_portfolio,
+        title="Consolidated Portfolio",
+        console=c,
+    )
+    c.print()
+
+    # Orders executed table
+    if execution_result.orders_executed:
+        orders_table = Table(
+            title=f"Orders Executed ({len(execution_result.orders_executed)})", show_lines=False
+        )
+        orders_table.add_column("Type", style="bold", justify="center")
+        orders_table.add_column("Symbol", style="cyan", justify="center")
+        orders_table.add_column("Quantity", style="white", justify="right")
+        orders_table.add_column("Actual Value", style="green", justify="right")
+
+        for order in execution_result.orders_executed:
+            side = order.get("side", "")
+            side_value = str(side).upper()
+            side_color = "green" if side_value == "BUY" else "red"
+
+            # Calculate actual filled value
+            filled_qty = float(order.get("filled_qty", 0))
+            filled_avg_price = float(order.get("filled_avg_price", 0) or 0)
+            actual_value = filled_qty * filled_avg_price
+
+            # Fall back to estimated value if no filled data available
+            if actual_value == 0:
+                estimated_value = order.get("estimated_value", 0)
+                try:
+                    if isinstance(estimated_value, int | float):
+                        actual_value = float(estimated_value)
+                    elif isinstance(estimated_value, str):
+                        actual_value = float(estimated_value)
+                    else:
+                        actual_value = 0.0
+                except (ValueError, TypeError):
+                    actual_value = 0.0
+
+            orders_table.add_row(
+                f"[{side_color}]{side_value}[/{side_color}]",
+                order.get("symbol", ""),
+                f"{order.get('qty', 0):.6f}",
+                f"${actual_value:.2f}",
+            )
+        
+        c.print(orders_table)
+        c.print()
+    else:
+        no_orders_panel = Panel(
+            "[green]Portfolio already balanced - no trades needed[/green]",
+            title="Orders Executed",
+            style="green",
+        )
+        c.print(no_orders_panel)
+        c.print()
+
+    # Account summary
+    if execution_result.account_info_after:
+        account = enriched_account or execution_result.account_info_after
+        
+        account_content = Text()
+        account_content.append(
+            f"Portfolio Value: ${float(account.get('portfolio_value', 0)):,.2f}\n",
+            style="bold green",
+        )
+        account_content.append(
+            f"Cash Balance: ${float(account.get('cash', 0)):,.2f}\n", style="bold blue"
+        )
+
+        # Add portfolio history P&L if available
+        portfolio_history = account.get("portfolio_history", {})
+        if portfolio_history and "profit_loss" in portfolio_history:
+            profit_loss = portfolio_history.get("profit_loss", [])
+            profit_loss_pct = portfolio_history.get("profit_loss_pct", [])
+            if profit_loss:
+                recent_pl = profit_loss[-1]
+                recent_pl_pct = profit_loss_pct[-1] if profit_loss_pct else 0
+                pl_color = "green" if recent_pl >= 0 else "red"
+                pl_sign = "+" if recent_pl >= 0 else ""
+                account_content.append(
+                    f"Recent P&L: {pl_sign}${recent_pl:,.2f} ({pl_sign}{recent_pl_pct * 100:.2f}%)\n",
+                    style=f"bold {pl_color}",
+                )
+
+        account_panel = Panel(account_content, title="Account Summary", style="bold white")
+        c.print(account_panel)
+        c.print()
+
+    # Recent closed positions P&L table
+    if enriched_account:
+        closed_pnl = enriched_account.get("recent_closed_pnl", [])
+        if closed_pnl:
+            closed_pnl_table = Table(
+                title="Recent Closed Positions P&L (Last 7 Days)", show_lines=False
+            )
+            closed_pnl_table.add_column("Symbol", style="bold cyan", justify="center")
+            closed_pnl_table.add_column("Realized P&L", style="bold", justify="right")
+            closed_pnl_table.add_column("P&L %", style="bold", justify="right")
+            closed_pnl_table.add_column("Trades", style="white", justify="center")
+
+            total_realized_pnl = 0.0
+
+            for position in closed_pnl[:8]:  # Show top 8 in CLI summary
+                symbol = position.get("symbol", "N/A")
+                realized_pnl = position.get("realized_pnl", 0)
+                realized_pnl_pct = position.get("realized_pnl_pct", 0)
+                trade_count = position.get("trade_count", 0)
+
+                total_realized_pnl += realized_pnl
+
+                # Color coding for P&L
+                pnl_color = "green" if realized_pnl >= 0 else "red"
+                pnl_sign = "+" if realized_pnl >= 0 else ""
+
+                closed_pnl_table.add_row(
+                    symbol,
+                    f"[{pnl_color}]{pnl_sign}${realized_pnl:,.2f}[/{pnl_color}]",
+                    f"[{pnl_color}]{pnl_sign}{realized_pnl_pct:.2f}%[/{pnl_color}]",
+                    str(trade_count),
+                )
+
+            # Add total row
+            if len(closed_pnl) > 0:
+                total_pnl_color = "green" if total_realized_pnl >= 0 else "red"
+                total_pnl_sign = "+" if total_realized_pnl >= 0 else ""
+                closed_pnl_table.add_row(
+                    "[bold]TOTAL[/bold]",
+                    f"[bold {total_pnl_color}]{total_pnl_sign}${total_realized_pnl:,.2f}[/bold {total_pnl_color}]",
+                    "-",
+                    "-",
+                )
+            
+            c.print(closed_pnl_table)
+            c.print()
+
+    # Success message
+    c.print(
+        Panel(
+            "[bold green]Multi-strategy execution completed successfully[/bold green]",
+            title="Execution Complete",
+            style="green",
+        )
+    )
