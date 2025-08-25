@@ -128,18 +128,18 @@ def alpaca_dto_to_execution_result(alpaca_dto: AlpacaOrderDTO) -> OrderExecution
         "rejected": "rejected",
     }
 
-    mapped_status = status_mapping.get(normalized_status, "unknown")
-    if mapped_status == "unknown":
+    mapped_status = status_mapping.get(normalized_status, "rejected")
+    if normalized_status not in status_mapping:
         logger.warning(
-            f"Unmapped Alpaca order status '{normalized_status}' encountered for order ID '{alpaca_dto.id}'."
+            f"Unmapped Alpaca order status '{normalized_status}' encountered for order ID '{alpaca_dto.id}', defaulting to 'rejected'."
         )
     status_literal = cast(
-        Literal["accepted", "filled", "partially_filled", "rejected", "canceled", "unknown"],
+        Literal["accepted", "filled", "partially_filled", "rejected", "canceled"],
         mapped_status,
     )
 
     # Determine success based on status
-    success = status_literal not in {"rejected", "canceled", "unknown"}
+    success = status_literal not in {"rejected", "canceled"}
 
     # Determine error message for failed orders
     error_message = None

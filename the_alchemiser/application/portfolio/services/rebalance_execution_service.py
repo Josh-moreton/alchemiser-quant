@@ -251,15 +251,11 @@ class RebalanceExecutionService:
             for symbol, plan in rebalance_plan.items():
                 if plan.needs_rebalance and plan.trade_amount < 0:
                     position = position_dict.get(symbol)
-                    # Extract quantity robustly (handles str, float, Decimal, or dict)
-                    qty_raw = None
+                    # Extract quantity robustly from position object
                     if position is None:
                         qty = Decimal("0")
                     else:
-                        if isinstance(position, dict):
-                            qty_raw = position.get("qty")
-                        else:
-                            qty_raw = getattr(position, "qty", None)
+                        qty_raw = getattr(position, "qty", None)
                         try:
                             qty = Decimal(str(qty_raw or 0))
                         except Exception:

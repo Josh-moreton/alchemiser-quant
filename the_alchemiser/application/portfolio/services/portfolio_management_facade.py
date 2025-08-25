@@ -16,11 +16,18 @@ from the_alchemiser.application.portfolio.services.rebalance_execution_service i
 )
 from the_alchemiser.domain.portfolio.position.position_analyzer import PositionAnalyzer
 from the_alchemiser.domain.portfolio.rebalancing.rebalance_calculator import RebalanceCalculator
+from the_alchemiser.domain.portfolio.rebalancing.rebalance_plan import RebalancePlan
 from the_alchemiser.domain.portfolio.strategy_attribution.attribution_engine import (
     StrategyAttributionEngine,
 )
 from the_alchemiser.domain.registry.strategy_registry import StrategyType
 from the_alchemiser.domain.types import OrderDetails
+from the_alchemiser.interfaces.schemas.portfolio_rebalancing import (
+    RebalancePlanCollectionDTO,
+    RebalancePlanDTO,
+    RebalancingImpactDTO,
+    RebalancingSummaryDTO,
+)
 from the_alchemiser.services.trading.trading_service_manager import TradingServiceManager
 
 
@@ -61,6 +68,25 @@ class PortfolioManagementFacade:
         )
         self.execution_service = RebalanceExecutionService(trading_manager)
 
+    def _dto_to_domain_plan(self, dto: "RebalancePlanDTO") -> RebalancePlan:
+        """Convert RebalancePlanDTO to domain RebalancePlan object."""
+        return RebalancePlan(
+            symbol=dto.symbol,
+            current_weight=dto.current_weight,
+            target_weight=dto.target_weight,
+            weight_diff=dto.weight_diff,
+            target_value=dto.target_value,
+            current_value=dto.current_value,
+            trade_amount=dto.trade_amount,
+            needs_rebalance=dto.needs_rebalance,
+        )
+
+    def _convert_dto_plans_to_domain(
+        self, dto_plans: dict[str, "RebalancePlanDTO"]
+    ) -> dict[str, RebalancePlan]:
+        """Convert dict of RebalancePlanDTO to dict of domain RebalancePlan objects."""
+        return {symbol: self._dto_to_domain_plan(plan) for symbol, plan in dto_plans.items()}
+
     # Portfolio Analysis Operations
     def get_portfolio_analysis(self) -> dict[str, Any]:
         """Get comprehensive portfolio analysis."""
@@ -84,17 +110,19 @@ class PortfolioManagementFacade:
         target_weights: dict[str, Decimal],
         current_positions: dict[str, Decimal] | None = None,
         portfolio_value: Decimal | None = None,
-    ) -> dict[str, Any]:
+    ) -> RebalancePlanCollectionDTO:
         """Calculate complete rebalancing plan."""
         return self.rebalancing_service.calculate_rebalancing_plan(
             target_weights, current_positions, portfolio_value
         )
 
-    def get_rebalancing_summary(self, target_weights: dict[str, Decimal]) -> dict[str, Any]:
+    def get_rebalancing_summary(self, target_weights: dict[str, Decimal]) -> RebalancingSummaryDTO:
         """Get comprehensive rebalancing summary."""
         return self.rebalancing_service.get_rebalancing_summary(target_weights)
 
-    def estimate_rebalancing_impact(self, target_weights: dict[str, Decimal]) -> dict[str, Any]:
+    def estimate_rebalancing_impact(
+        self, target_weights: dict[str, Decimal]
+    ) -> RebalancingImpactDTO:
         """Estimate the impact of rebalancing."""
         return self.rebalancing_service.estimate_rebalancing_impact(target_weights)
 
@@ -126,11 +154,13 @@ class PortfolioManagementFacade:
 
         logging.debug(
             "Rebalancing plan computed for symbols=%s",
-            list(rebalance_plan.keys()),
+            list(rebalance_plan.plans.keys()),
         )
 
         # Validate plan
-        validation = self.execution_service.validate_rebalancing_plan(rebalance_plan)
+        validation = self.execution_service.validate_rebalancing_plan(
+            self._convert_dto_plans_to_domain(rebalance_plan.plans)
+        )
         logging.debug("Validation results: %s", validation)
         if not validation["is_valid"]:
             logging.warning(
@@ -145,7 +175,9 @@ class PortfolioManagementFacade:
             }
 
         # Execute plan
-        execution_results = self.execution_service.execute_rebalancing_plan(rebalance_plan, dry_run)
+        execution_results = self.execution_service.execute_rebalancing_plan(
+            self._convert_dto_plans_to_domain(rebalance_plan.plans), dry_run
+        )
 
         logging.debug("Execution results: %s", execution_results)
         try:
@@ -174,12 +206,12 @@ class PortfolioManagementFacade:
         target_weights = {symbol: target_weight}
         rebalance_plan = self.rebalancing_service.calculate_rebalancing_plan(target_weights)
 
-        if symbol not in rebalance_plan:
+        if symbol not in rebalance_plan.plans:
             return {"status": "error", "message": f"No rebalancing plan generated for {symbol}"}
 
         # Execute single symbol rebalance
         return self.execution_service.execute_single_rebalance(
-            symbol, rebalance_plan[symbol], dry_run
+            symbol, self._dto_to_domain_plan(rebalance_plan.plans[symbol]), dry_run
         )
 
     # Comprehensive Operations
@@ -196,8 +228,12 @@ class PortfolioManagementFacade:
             overview.update(
                 {
                     "drift_analysis": self.analyze_portfolio_drift(target_weights),
-                    "rebalancing_summary": self.get_rebalancing_summary(target_weights),
-                    "rebalancing_impact": self.estimate_rebalancing_impact(target_weights),
+                    "rebalancing_summary": self.get_rebalancing_summary(
+                        target_weights
+                    ).model_dump(),
+                    "rebalancing_impact": self.estimate_rebalancing_impact(
+                        target_weights
+                    ).model_dump(),
                     "strategy_comparison": self.compare_strategy_allocations(target_weights),
                 }
             )
@@ -223,7 +259,9 @@ class PortfolioManagementFacade:
 
         # Step 2: Calculate and validate rebalancing plan
         rebalance_plan = self.rebalancing_service.calculate_rebalancing_plan(target_weights)
-        validation = self.execution_service.validate_rebalancing_plan(rebalance_plan)
+        validation = self.execution_service.validate_rebalancing_plan(
+            self._convert_dto_plans_to_domain(rebalance_plan.plans)
+        )
 
         workflow_results["rebalancing_plan"] = {
             "plan": rebalance_plan,
@@ -234,7 +272,7 @@ class PortfolioManagementFacade:
         # Step 3: Execute if validation passes
         if validation["is_valid"]:
             execution_results = self.execution_service.execute_rebalancing_plan(
-                rebalance_plan, dry_run
+                self._convert_dto_plans_to_domain(rebalance_plan.plans), dry_run
             )
             workflow_results["execution"] = execution_results
         else:
@@ -349,7 +387,7 @@ class PortfolioManagementFacade:
         full_plan = self.rebalancing_service.calculate_rebalancing_plan(target_weights_decimal)
         filtered_plan: dict[str, Any] = {
             symbol: plan
-            for symbol, plan in full_plan.items()
+            for symbol, plan in full_plan.plans.items()
             if plan.needs_rebalance
             and (
                 (phase_normalized == "sell" and plan.trade_amount < 0)
@@ -405,15 +443,8 @@ class PortfolioManagementFacade:
     # Utility methods
     def get_current_portfolio_value(self) -> Decimal:
         """Get current total portfolio value."""
-        raw = self.trading_manager.get_portfolio_value()
-        if isinstance(raw, dict) and "value" in raw:
-            raw_value = raw.get("value", 0)
-        else:
-            raw_value = raw
-        try:
-            return Decimal(str(raw_value))
-        except Exception:
-            return Decimal("0")
+        portfolio_dto = self.trading_manager.get_portfolio_value()
+        return portfolio_dto.value
 
     def get_current_positions(self) -> dict[str, Decimal]:
         """Get current position values."""
