@@ -58,8 +58,8 @@ class SignalAnalyzer:
         # Use centralized mapping function (reuse requirement)
         from the_alchemiser.application.mapping.strategies import run_all_strategies_mapping
 
-        strategy_signals, consolidated_portfolio, _strategy_attribution = run_all_strategies_mapping(
-            aggregated_signals, strategy_allocations
+        strategy_signals, consolidated_portfolio, _strategy_attribution = (
+            run_all_strategies_mapping(aggregated_signals, strategy_allocations)
         )
 
         return strategy_signals, consolidated_portfolio
