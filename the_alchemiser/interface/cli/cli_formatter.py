@@ -143,7 +143,8 @@ def render_strategy_signals(
         symbol = signal.get("symbol", "N/A")
         # Support both legacy 'reason' and typed 'reasoning'
         reason = signal.get("reason", signal.get("reasoning", "No reason provided"))
-        allocation = signal.get("allocation_percentage")
+        # Prefer new canonical fractional field; fallback to legacy alias
+        allocation = signal.get("allocation_weight", signal.get("allocation_percentage"))
         confidence = signal.get("confidence")
 
         # Color code by action

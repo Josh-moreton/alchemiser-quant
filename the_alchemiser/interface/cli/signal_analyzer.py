@@ -78,7 +78,8 @@ class SignalAnalyzer:
         for strategy_type, signals in aggregated_signals.get_signals_by_strategy().items():
             if signals:
                 # Use the strategy's actual allocation percentage
-                actual_allocation = strategy_allocations.get(strategy_type, 0.0) * 100
+                # Strategy allocation is already a fraction (0-1). Keep as fraction; renderer formats %.
+                actual_allocation_fraction = strategy_allocations.get(strategy_type, 0.0)
 
                 if len(signals) == 1:
                     # Single signal strategy
@@ -91,7 +92,9 @@ class SignalAnalyzer:
                         "action": signal.action,
                         "confidence": float(signal.confidence.value),
                         "reasoning": signal.reasoning,
-                        "allocation_percentage": actual_allocation,
+                        # New canonical fractional field; legacy alias maintained for backward compatibility
+                        "allocation_weight": actual_allocation_fraction,
+                        "allocation_percentage": actual_allocation_fraction,
                     }
                 else:
                     # Multi-signal strategy (like nuclear portfolio)
@@ -109,7 +112,9 @@ class SignalAnalyzer:
                         # signal.target_allocation.value is the proportion within the strategy
                         # actual_allocation is the strategy's total allocation as percentage
                         individual_weight_pct = (
-                            float(signal.target_allocation.value) * actual_allocation
+                            float(signal.target_allocation.value)
+                            * actual_allocation_fraction
+                            * 100.0  # convert to percent of total portfolio for display inside reasoning
                         )
                         portfolio_breakdown += (
                             f"• {signal.symbol.value}: {individual_weight_pct:.1f}%\n"
@@ -122,7 +127,8 @@ class SignalAnalyzer:
                         "action": first_signal.action,
                         "confidence": float(first_signal.confidence.value),
                         "reasoning": combined_reasoning,
-                        "allocation_percentage": actual_allocation,
+                        "allocation_weight": actual_allocation_fraction,
+                        "allocation_percentage": actual_allocation_fraction,
                     }
             else:
                 strategy_signals[strategy_type] = {
@@ -130,6 +136,7 @@ class SignalAnalyzer:
                     "action": "HOLD",
                     "confidence": 0.0,
                     "reasoning": "No signal produced",
+                    "allocation_weight": 0.0,
                     "allocation_percentage": 0.0,
                 }
 

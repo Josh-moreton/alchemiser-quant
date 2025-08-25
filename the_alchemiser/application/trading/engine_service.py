@@ -74,7 +74,9 @@ from ..reporting.reporting import build_portfolio_state_data
 class StrategyManagerAdapter:
     """Typed-backed adapter to provide run_all_strategies for callers.
 
-    This avoids importing legacy modules by wrapping TypedStrategyManager.
+    This adapter now uses pure mapping functions from application/mapping/strategies.py
+    to convert typed signals to legacy format, removing ad-hoc dict transformations
+    from the runtime path.
     """
 
     def __init__(
@@ -90,57 +92,23 @@ class StrategyManagerAdapter:
     def run_all_strategies(
         self,
     ) -> tuple[dict[StrategyType, dict[str, Any]], dict[str, float], dict[str, list[StrategyType]]]:
+        """Execute all strategies and return results in legacy format.
+
+        This method now delegates to pure mapping functions to convert typed signals
+        to legacy format, ensuring no ad-hoc dict transformations in the runtime path.
+
+        Returns:
+            Tuple containing legacy signals dict, consolidated portfolio, and strategy attribution
+        """
         from datetime import UTC, datetime
 
+        from the_alchemiser.application.mapping.strategies import run_all_strategies_mapping
+
+        # Generate typed signals from strategy manager
         aggregated = self._typed.generate_all_signals(datetime.now(UTC))
 
-        def to_legacy_dict(signal: Any) -> dict[str, Any]:
-            symbol_value = signal.symbol.value
-            symbol_str = "NUCLEAR_PORTFOLIO" if symbol_value == "PORT" else symbol_value
-            return {
-                "symbol": symbol_str,
-                "action": signal.action,
-                "confidence": float(signal.confidence.value),
-                "reasoning": signal.reasoning,
-                "allocation_percentage": float(signal.target_allocation.value),
-            }
-
-        legacy_signals: dict[StrategyType, dict[str, Any]] = {}
-        consolidated_portfolio: dict[str, float] = {}
-
-        for st, signals in aggregated.get_signals_by_strategy().items():
-            if not signals:
-                legacy_signals[st] = {
-                    "symbol": "N/A",
-                    "action": "HOLD",
-                    "confidence": 0.0,
-                    "reasoning": "No signal produced",
-                    "allocation_percentage": 0.0,
-                }
-            else:
-                legacy_signals[st] = to_legacy_dict(signals[0])
-
-        # Build consolidated portfolio from all signals
-        for strategy_type, signals in aggregated.get_signals_by_strategy().items():
-            strategy_allocation = self._typed.strategy_allocations.get(strategy_type, 0.0)
-
-            for signal in signals:
-                if signal.action in ["BUY", "LONG"]:
-                    symbol_str = signal.symbol.value
-
-                    # Use the actual signal allocation for individual symbols
-                    if symbol_str != "PORT":
-                        # Calculate individual allocation as signal proportion * strategy allocation
-                        individual_allocation = (
-                            float(signal.target_allocation.value) * strategy_allocation
-                        )
-                        # If symbol already exists, add to allocation (multiple strategies can recommend same symbol)
-                        if symbol_str in consolidated_portfolio:
-                            consolidated_portfolio[symbol_str] += individual_allocation
-                        else:
-                            consolidated_portfolio[symbol_str] = individual_allocation
-
-        return legacy_signals, consolidated_portfolio, {}
+        # Use pure mapping function to convert to legacy format
+        return run_all_strategies_mapping(aggregated, self._typed.strategy_allocations)
 
     # Expose strategy_allocations for reporting usage
     @property
@@ -414,6 +382,7 @@ class TradingEngine:
                 from the_alchemiser.application.portfolio.rebalancing_orchestrator import (
                     RebalancingOrchestrator,
                 )
+
                 self._rebalancing_orchestrator = RebalancingOrchestrator(
                     portfolio_facade=self.portfolio_rebalancer,
                     trading_client=self.trading_client,
@@ -498,46 +467,13 @@ class TradingEngine:
                 """Bridge method that converts typed signals to legacy format for CLI compatibility."""
                 from datetime import UTC, datetime
 
+                from the_alchemiser.application.mapping.strategies import run_all_strategies_mapping
+
+                # Generate typed signals
                 aggregated = self._typed.generate_all_signals(datetime.now(UTC))
 
-                # Convert typed signals to legacy format
-                legacy_signals: dict[StrategyType, dict[str, Any]] = {}
-                consolidated_portfolio: dict[str, float] = {}
-
-                for strategy_type, signals in aggregated.get_signals_by_strategy().items():
-                    if signals:
-                        # Use first signal as representative
-                        signal = signals[0]
-                        symbol_value = signal.symbol.value
-                        symbol_str = "NUCLEAR_PORTFOLIO" if symbol_value == "PORT" else symbol_value
-
-                        legacy_signals[strategy_type] = {
-                            "symbol": symbol_str,
-                            "action": signal.action,
-                            "confidence": float(signal.confidence.value),
-                            "reasoning": signal.reasoning,
-                            "allocation_percentage": float(signal.target_allocation.value) * 100,
-                        }
-
-                        # Build portfolio allocation
-                        if signal.action in ["BUY", "LONG"] and symbol_str != "PORT":
-                            strategy_allocation = self._typed.strategy_allocations.get(
-                                strategy_type, 0.0
-                            )
-                            individual_allocation = (
-                                float(signal.target_allocation.value) * strategy_allocation
-                            )
-                            consolidated_portfolio[symbol_str] = individual_allocation
-                    else:
-                        legacy_signals[strategy_type] = {
-                            "symbol": "N/A",
-                            "action": "HOLD",
-                            "confidence": 0.0,
-                            "reasoning": "No signal produced",
-                            "allocation_percentage": 0.0,
-                        }
-
-                return legacy_signals, consolidated_portfolio, {}
+                # Use pure mapping function to convert to legacy format
+                return run_all_strategies_mapping(aggregated, self._typed.strategy_allocations)
 
             @property
             def strategy_allocations(self) -> dict[StrategyType, float]:
