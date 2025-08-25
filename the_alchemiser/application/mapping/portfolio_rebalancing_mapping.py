@@ -25,9 +25,26 @@ from the_alchemiser.interfaces.schemas.portfolio_rebalancing import (
     RebalancingSummaryDTO,
 )
 
+__all__ = [
+    "dto_to_domain_rebalance_plan",
+    "dto_plans_to_domain",
+    "rebalance_plans_dict_to_collection_dto",
+    "rebalancing_summary_dict_to_dto",
+    "rebalancing_impact_dict_to_dto",
+    "rebalance_instruction_dict_to_dto",
+    "rebalance_execution_result_dict_to_dto",
+    "safe_rebalancing_summary_dict_to_dto",
+    "safe_rebalancing_impact_dict_to_dto",
+]
+
 
 def dto_to_domain_rebalance_plan(dto: RebalancePlanDTO) -> RebalancePlan:
-    """Convert RebalancePlanDTO to domain RebalancePlan object."""
+    """Convert RebalancePlanDTO to domain RebalancePlan object.
+
+    Derived attributes (trade_direction, trade_amount_abs, weight_change_bps) are not
+    copied; they are computed lazily via RebalancePlan properties to ensure domain
+    invariants remain the single source of truth.
+    """
     return RebalancePlan(
         symbol=dto.symbol,
         current_weight=dto.current_weight,

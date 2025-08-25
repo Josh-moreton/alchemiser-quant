@@ -27,6 +27,7 @@ from the_alchemiser.domain.registry.strategy_registry import StrategyType
 from the_alchemiser.domain.types import OrderDetails
 from the_alchemiser.interfaces.schemas.portfolio_rebalancing import (
     RebalancePlanCollectionDTO,
+    RebalancePlanDTO,
     RebalancingImpactDTO,
     RebalancingSummaryDTO,
 )
@@ -131,8 +132,7 @@ class PortfolioManagementFacade:
             target_weights,
             dry_run,
         )
-
-        # Calculate rebalancing plan
+        # Calculate rebalancing plan (DTO collection)
         rebalance_plan = self.rebalancing_service.calculate_rebalancing_plan(target_weights)
 
         logging.debug(
@@ -140,10 +140,11 @@ class PortfolioManagementFacade:
             list(rebalance_plan.plans.keys()),
         )
 
-        # Validate plan
-        validation = self.execution_service.validate_rebalancing_plan(
-            dto_plans_to_domain(rebalance_plan.plans)
-        )
+        # Convert DTO plans once for validation & potential execution
+        domain_plans = dto_plans_to_domain(rebalance_plan.plans)
+
+        # Validate plan (uses domain objects)
+        validation = self.execution_service.validate_rebalancing_plan(domain_plans)
         logging.debug("Validation results: %s", validation)
         if not validation["is_valid"]:
             logging.warning(
@@ -157,10 +158,8 @@ class PortfolioManagementFacade:
                 "execution_results": None,
             }
 
-        # Execute plan
-        execution_results = self.execution_service.execute_rebalancing_plan(
-            dto_plans_to_domain(rebalance_plan.plans), dry_run
-        )
+        # Execute plan with already converted domain plans
+        execution_results = self.execution_service.execute_rebalancing_plan(domain_plans, dry_run)
 
         logging.debug("Execution results: %s", execution_results)
         try:
@@ -242,10 +241,8 @@ class PortfolioManagementFacade:
 
         # Step 2: Calculate and validate rebalancing plan
         rebalance_plan = self.rebalancing_service.calculate_rebalancing_plan(target_weights)
-        validation = self.execution_service.validate_rebalancing_plan(
-            dto_plans_to_domain(rebalance_plan.plans)
-        )
-
+        domain_plans = dto_plans_to_domain(rebalance_plan.plans)
+        validation = self.execution_service.validate_rebalancing_plan(domain_plans)
         workflow_results["rebalancing_plan"] = {
             "plan": rebalance_plan,
             "validation": validation,
@@ -255,7 +252,7 @@ class PortfolioManagementFacade:
         # Step 3: Execute if validation passes
         if validation["is_valid"]:
             execution_results = self.execution_service.execute_rebalancing_plan(
-                dto_plans_to_domain(rebalance_plan.plans), dry_run
+                domain_plans, dry_run
             )
             workflow_results["execution"] = execution_results
         else:
@@ -368,7 +365,7 @@ class PortfolioManagementFacade:
 
         # Calculate and filter plan to the requested phase
         full_plan = self.rebalancing_service.calculate_rebalancing_plan(target_weights_decimal)
-        filtered_plan: dict[str, Any] = {
+        filtered_plan: dict[str, RebalancePlanDTO] = {
             symbol: plan
             for symbol, plan in full_plan.plans.items()
             if plan.needs_rebalance
@@ -381,9 +378,11 @@ class PortfolioManagementFacade:
         if not filtered_plan:
             return []
 
+        # Convert filtered DTO plans to domain objects before execution
+        domain_filtered_plan = dto_plans_to_domain(filtered_plan)
         # Execute only the filtered plan; execution service caps buys to BP
         execution_results = self.execution_service.execute_rebalancing_plan(
-            filtered_plan, dry_run=False
+            domain_filtered_plan, dry_run=False
         )
 
         # Map to OrderDetails
