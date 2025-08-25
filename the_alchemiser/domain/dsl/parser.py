@@ -1,14 +1,15 @@
-"""
-S-expression parser for the Strategy DSL.
+"""S-expression parser with Clojure vector [] support for trading strategy DSL.
 
-Provides a minimal, secure S-expression reader with schema validation.
-Converts S-expressions into typed AST nodes without using eval().
+Vectors act as grouping constructs. For portfolio / selector constructs they
+are flattened into the surrounding argument list. For conditional branches a
+vector containing multiple expressions becomes an implicit block.
 """
 
 from __future__ import annotations
 
 import re
-from typing import Any, Union
+from dataclasses import dataclass
+from typing import Any
 
 from the_alchemiser.domain.dsl.ast import (
     RSI,
@@ -36,245 +37,225 @@ from the_alchemiser.domain.dsl.ast import (
 )
 from the_alchemiser.domain.dsl.errors import ParseError, SchemaError
 
-# Type for raw S-expression elements
-SExpr = Union[str, int, float, list['SExpr']]
+
+@dataclass(frozen=True)
+class Vector:
+    elements: list[Any]
+
+
+# Simplified for linter compatibility (recursive union replaced by Any)
+SExprType = Any
 
 
 class DSLParser:
-    """S-expression parser with schema validation for trading strategy DSL."""
-
-    # Maximum AST depth to prevent stack overflow attacks
     MAX_DEPTH = 50
-    # Maximum number of nodes to prevent memory exhaustion
     MAX_NODES = 10000
 
     def __init__(self) -> None:
         self._node_count = 0
 
     def parse(self, source: str) -> ASTNode:
-        """Parse S-expression source into an AST.
-        
-        Args:
-            source: S-expression source code
-            
-        Returns:
-            Parsed AST node
-            
-        Raises:
-            ParseError: If parsing fails
-            SchemaError: If schema validation fails
-        """
         self._node_count = 0
-
         try:
             sexpr = self._parse_sexpr(source.strip())
-            return self._sexpr_to_ast(sexpr, depth=0)
-        except (ParseError, SchemaError):
+            return self._sexpr_to_ast(sexpr, 0)
+        except (ParseError, SchemaError):  # re-raise cleanly
             raise
-        except Exception as e:
+        except Exception as e:  # pragma: no cover
             raise ParseError(f"Unexpected parsing error: {e}", expression=source) from e
 
-    def _parse_sexpr(self, source: str) -> SExpr:
-        """Parse source string into nested lists and atoms."""
-        source = source.strip()
+    # ---------------- Tokenization -----------------
+    def _tokenize(self, source: str) -> list[str]:
+        cleaned: list[str] = []
+        for line in source.split("\n"):
+            comment = line.find(";;")
+            if comment >= 0:
+                line = line[:comment]
+            cleaned.append(line)
+        joined = "\n".join(cleaned)
+        pattern = r'\{|\}|\(|\)|\[|\]|"[^"]*"|[^\s(){}\[\]"]+'
+        return [t for t in re.findall(pattern, joined) if t.strip()]
+
+    def _parse_sexpr(self, source: str) -> SExprType:
         if not source:
             raise ParseError("Empty expression")
-
         tokens = self._tokenize(source)
         if not tokens:
             raise ParseError("No tokens found")
-
-        result, remaining = self._parse_tokens(tokens)
+        expr, remaining = self._parse_tokens(tokens)
         if remaining:
             raise ParseError(f"Unexpected tokens remaining: {remaining}")
+        return expr
 
-        return result
-
-    def _tokenize(self, source: str) -> list[str]:
-        """Tokenize S-expression source."""
-        # Remove Clojure-style comments (;; comment text)
-        lines = source.split('\n')
-        clean_lines = []
-        for line in lines:
-            comment_pos = line.find(';;')
-            if comment_pos >= 0:
-                line = line[:comment_pos]
-            clean_lines.append(line)
-
-        clean_source = '\n'.join(clean_lines)
-
-        # Enhanced tokenizer - handles parentheses, braces, and quoted strings
-        token_pattern = r'\{|\}|\(|\)|"[^"]*"|[^\s(){}"]+'
-        tokens = re.findall(token_pattern, clean_source)
-        return [t for t in tokens if t.strip()]
-
-    def _parse_tokens(self, tokens: list[str]) -> tuple[SExpr, list[str]]:
-        """Parse tokens into S-expression."""
+    def _parse_tokens(self, tokens: list[str]) -> tuple[SExprType, list[str]]:
         if not tokens:
             raise ParseError("Unexpected end of input")
-
-        token = tokens[0]
-        remaining = tokens[1:]
-
-        if token == '(':
-            # Parse list
-            elements = []
-            while remaining and remaining[0] != ')':
-                element, remaining = self._parse_tokens(remaining)
-                elements.append(element)
-
-            if not remaining or remaining[0] != ')':
+        head, rest = tokens[0], tokens[1:]
+        if head == "(":
+            items: list[SExprType] = []
+            while rest and rest[0] != ")":
+                sub, rest = self._parse_tokens(rest)
+                items.append(sub)
+            if not rest or rest[0] != ")":
                 raise ParseError("Missing closing parenthesis")
-
-            return elements, remaining[1:]  # Skip closing ')'
-
-        elif token == '{':
-            # Parse Clojure map {:key value ...}
-            map_dict = {}
-            while remaining and remaining[0] != '}':
-                # Parse key
-                key, remaining = self._parse_tokens(remaining)
-                if not remaining:
+            return items, rest[1:]
+        if head == "[":
+            items_v: list[SExprType] = []
+            while rest and rest[0] != "]":
+                sub, rest = self._parse_tokens(rest)
+                items_v.append(sub)
+            if not rest or rest[0] != "]":
+                raise ParseError("Missing closing bracket")
+            return Vector(items_v), rest[1:]
+        if head == "{":
+            mp: dict[str, SExprType] = {}
+            while rest and rest[0] != "}":
+                k, rest = self._parse_tokens(rest)
+                if not rest:
                     raise ParseError("Missing value in map")
-                # Parse value
-                value, remaining = self._parse_tokens(remaining)
-                map_dict[str(key)] = value
-
-            if not remaining or remaining[0] != '}':
+                v, rest = self._parse_tokens(rest)
+                mp[str(k)] = v
+            if not rest or rest[0] != "}":
                 raise ParseError("Missing closing brace")
-
-            return map_dict, remaining[1:]  # Skip closing '}'
-
-        elif token in (')', '}'):
-            raise ParseError(f"Unexpected closing {token}")
-
-        else:
-            # Parse atom
-            return self._parse_atom(token), remaining
+            return mp, rest[1:]
+        if head in (")", "]", "}"):
+            raise ParseError(f"Unexpected closing {head}")
+        return self._parse_atom(head), rest
 
     def _parse_atom(self, token: str) -> str | int | float:
-        """Parse atomic token (number, string, symbol)."""
-        # Handle quoted strings
         if token.startswith('"') and token.endswith('"'):
-            return token[1:-1]  # Remove quotes
-
-        # Handle keywords (Clojure style)
-        if token.startswith(':'):
-            return token  # Keep the colon for keywords
-
-        # Try to parse as number
+            return token[1:-1]
+        if token.startswith(":"):
+            return token
         try:
-            if '.' in token:
+            if "." in token:
                 return float(token)
-            else:
-                return int(token)
+            return int(token)
         except ValueError:
-            pass
+            return token
 
-        # Return as string/symbol
-        return token
-
-    def _sexpr_to_ast(self, sexpr: SExpr, depth: int) -> ASTNode:
-        """Convert S-expression to AST node."""
+    # ---------------- AST Conversion -----------------
+    def _sexpr_to_ast(self, sexpr: SExprType, depth: int) -> ASTNode:
         if depth > self.MAX_DEPTH:
             raise ParseError(f"Maximum AST depth exceeded: {self.MAX_DEPTH}")
-
         self._node_count += 1
         if self._node_count > self.MAX_NODES:
             raise ParseError(f"Maximum node count exceeded: {self.MAX_NODES}")
-
-        # Atomic values
-        if isinstance(sexpr, (int, float)):
+        if isinstance(sexpr, int | float):
             return NumberLiteral(float(sexpr))
-        elif isinstance(sexpr, str):
+        if isinstance(sexpr, str):
             return Symbol(sexpr)
-        elif not isinstance(sexpr, list):
+        if isinstance(sexpr, Vector):
+            inner = [self._sexpr_to_ast(e, depth + 1) for e in sexpr.elements]
+            return Group("__vector__", inner)
+        if not isinstance(sexpr, list):
+            if isinstance(sexpr, dict):  # metadata map placeholder
+                return Symbol("__map__")
             raise ParseError(f"Unexpected S-expression type: {type(sexpr)}")
-
-        # Empty list
         if not sexpr:
             raise ParseError("Empty list expression")
+        op = sexpr[0]
+        if not isinstance(op, str):
+            raise ParseError(f"Operator must be symbol, got {type(op)}")
+        raw_args = sexpr[1:]
+        return self._parse_construct(op, raw_args, depth)
 
-        # List expressions - first element is the operator/function
-        operator = sexpr[0]
-        args = sexpr[1:]
+    def _unwrap_vector_group(self, node: ASTNode) -> list[ASTNode]:
+        if isinstance(node, Group) and node.name == "__vector__":
+            return node.expressions
+        return [node]
 
-        if isinstance(operator, str):
-            return self._parse_construct(operator, args, depth)
-        else:
-            raise ParseError(f"Operator must be a symbol, got: {type(operator)}")
+    def _flatten_vector_nodes(self, nodes: list[ASTNode]) -> list[ASTNode]:
+        flat: list[ASTNode] = []
+        for n in nodes:
+            if isinstance(n, Group) and n.name == "__vector__":
+                flat.extend(n.expressions)
+            else:
+                flat.append(n)
+        return flat
 
-    def _parse_construct(self, operator: str, args: list[SExpr], depth: int) -> ASTNode:
-        """Parse a specific DSL construct."""
+    def _parse_construct(self, operator: str, args: list[SExprType], depth: int) -> ASTNode:
+        ast_args = [self._sexpr_to_ast(a, depth + 1) for a in args]
+        if operator in {"weight-equal", "group", "weight-inverse-volatility", "weight-specified"}:
+            ast_args = self._flatten_vector_nodes(ast_args)
+        elif operator == "filter" and len(ast_args) >= 3:
+            metric_ast, selector_ast, *assets = ast_args
+            if len(assets) == 1 and isinstance(assets[0], Group) and assets[0].name == "__vector__":
+                assets = assets[0].expressions
+            # Rebuild raw args for downstream parse method using original SExpr for indicator semantics
+            args = [args[0], args[1], *[self._ast_to_sexpr_placeholder(a) for a in assets]]
+        elif operator == "if":
+            if len(ast_args) >= 2:
+                then_nodes = self._unwrap_vector_group(ast_args[1])
+                ast_args[1] = (
+                    then_nodes[0]
+                    if len(then_nodes) == 1
+                    else Group("__implicit_block__", then_nodes)
+                )
+            if len(ast_args) >= 3:
+                else_nodes = self._unwrap_vector_group(ast_args[2])
+                ast_args[2] = (
+                    else_nodes[0]
+                    if len(else_nodes) == 1
+                    else Group("__implicit_block__", else_nodes)
+                )
+            if len(ast_args) < 2 or len(ast_args) > 3:
+                raise SchemaError(
+                    "if requires 2-3 arguments: condition, then_expr, [else_expr]",
+                    construct="if",
+                    actual_arity=len(ast_args),
+                )
+            return If(ast_args[0], ast_args[1], ast_args[2] if len(ast_args) == 3 else None)
 
-        # Control flow
-        if operator == "if":
-            return self._parse_if(args, depth)
-        elif operator == ">":
+        # Dispatch using original raw args for indicator/construct parse helpers
+        if operator == ">":
             return self._parse_comparison(GreaterThan, args, depth)
-        elif operator == "<":
+        if operator == "<":
             return self._parse_comparison(LessThan, args, depth)
-
-        # Indicators
-        elif operator == "rsi":
+        if operator == "rsi":
             return self._parse_rsi(args, depth)
-        elif operator == "moving-average-price":
+        if operator == "moving-average-price":
             return self._parse_moving_average_price(args, depth)
-        elif operator == "moving-average-return":
+        if operator == "moving-average-return":
             return self._parse_moving_average_return(args, depth)
-        elif operator == "cumulative-return":
+        if operator == "cumulative-return":
             return self._parse_cumulative_return(args, depth)
-        elif operator == "current-price":
+        if operator == "current-price":
             return self._parse_current_price(args, depth)
-        elif operator == "stdev-return":
+        if operator == "stdev-return":
             return self._parse_stdev_return(args, depth)
-
-        # Portfolio construction
-        elif operator == "asset":
+        if operator == "asset":
             return self._parse_asset(args, depth)
-        elif operator == "group":
+        if operator == "group":
             return self._parse_group(args, depth)
-        elif operator == "weight-equal":
+        if operator == "weight-equal":
             return self._parse_weight_equal(args, depth)
-        elif operator == "weight-specified":
+        if operator == "weight-specified":
             return self._parse_weight_specified(args, depth)
-        elif operator == "weight-inverse-volatility":
+        if operator == "weight-inverse-volatility":
             return self._parse_weight_inverse_volatility(args, depth)
-
-        # Selectors
-        elif operator == "filter":
+        if operator == "filter":
             return self._parse_filter(args, depth)
-        elif operator == "select-top":
+        if operator == "select-top":
             return self._parse_select_top(args, depth)
-        elif operator == "select-bottom":
+        if operator == "select-bottom":
             return self._parse_select_bottom(args, depth)
-
-        # Strategy root
-        elif operator == "defsymphony":
+        if operator == "defsymphony":
             return self._parse_strategy(args, depth)
+        return FunctionCall(operator, [self._sexpr_to_ast(a, depth + 1) for a in args])
 
-        else:
-            # Generic function call for extensibility
-            parsed_args = [self._sexpr_to_ast(arg, depth + 1) for arg in args]
-            return FunctionCall(operator, parsed_args)
+    def _ast_to_sexpr_placeholder(self, node: ASTNode) -> SExprType:
+        # This helper is minimal; currently only needed for filter asset reconstruction.
+        if isinstance(node, Group) and node.name == "__vector__":
+            # Represent nested vector as list of placeholder symbols
+            return [self._ast_to_sexpr_placeholder(e) for e in node.expressions]
+        if isinstance(node, Symbol):
+            return node.name
+        return getattr(node, "symbol", "__expr__")
 
-    def _parse_if(self, args: list[SExpr], depth: int) -> If:
-        """Parse if conditional."""
-        if len(args) < 2 or len(args) > 3:
-            raise SchemaError(
-                "if requires 2-3 arguments: condition, then_expr, [else_expr]",
-                construct="if",
-                expected_arity="2-3",
-                actual_arity=len(args)
-            )
-
-        condition = self._sexpr_to_ast(args[0], depth + 1)
-        then_expr = self._sexpr_to_ast(args[1], depth + 1)
-        else_expr = self._sexpr_to_ast(args[2], depth + 1) if len(args) > 2 else None
-
-        return If(condition, then_expr, else_expr)
-
-    def _parse_comparison(self, node_type: type[GreaterThan] | type[LessThan], args: list[SExpr], depth: int) -> GreaterThan | LessThan:
+    def _parse_comparison(
+        self, node_type: type[GreaterThan] | type[LessThan], args: list[SExprType], depth: int
+    ) -> GreaterThan | LessThan:
         """Parse comparison operator."""
         if len(args) != 2:
             op_name = ">" if node_type == GreaterThan else "<"
@@ -282,7 +263,7 @@ class DSLParser:
                 f"{op_name} requires exactly 2 arguments",
                 construct=op_name,
                 expected_arity=2,
-                actual_arity=len(args)
+                actual_arity=len(args),
             )
 
         left = self._sexpr_to_ast(args[0], depth + 1)
@@ -290,7 +271,7 @@ class DSLParser:
 
         return node_type(left, right)
 
-    def _parse_rsi(self, args: list[SExpr], depth: int) -> RSI:
+    def _parse_rsi(self, args: list[SExprType], depth: int) -> RSI:
         """Parse RSI indicator."""
         # For filter context, RSI might have only window parameter
         if len(args) == 1:
@@ -302,18 +283,17 @@ class DSLParser:
             symbol = args[0]
             if not isinstance(symbol, str):
                 raise SchemaError("rsi symbol must be a string")
-            
+
             window = self._extract_window(args[1])
             return RSI(symbol, window)
         else:
             raise SchemaError(
                 "rsi requires 1 argument (window) for filters or 2 arguments (symbol, window) for direct use",
                 construct="rsi",
-                expected_arity="1 or 2",
-                actual_arity=len(args)
+                actual_arity=len(args),
             )
 
-    def _parse_moving_average_price(self, args: list[SExpr], depth: int) -> MovingAveragePrice:
+    def _parse_moving_average_price(self, args: list[SExprType], depth: int) -> MovingAveragePrice:
         """Parse moving average price indicator."""
         # For filter context, might have only window parameter
         if len(args) == 1:
@@ -325,18 +305,19 @@ class DSLParser:
             symbol = args[0]
             if not isinstance(symbol, str):
                 raise SchemaError("moving-average-price symbol must be a string")
-            
+
             window = self._extract_window(args[1])
             return MovingAveragePrice(symbol, window)
         else:
             raise SchemaError(
                 "moving-average-price requires 1 argument (window) for filters or 2 arguments (symbol, window) for direct use",
                 construct="moving-average-price",
-                expected_arity="1 or 2",
-                actual_arity=len(args)
+                actual_arity=len(args),
             )
 
-    def _parse_moving_average_return(self, args: list[SExpr], depth: int) -> MovingAverageReturn:
+    def _parse_moving_average_return(
+        self, args: list[SExprType], depth: int
+    ) -> MovingAverageReturn:
         """Parse moving average return indicator."""
         # For filter context, might have only window parameter
         if len(args) == 1:
@@ -348,18 +329,17 @@ class DSLParser:
             symbol = args[0]
             if not isinstance(symbol, str):
                 raise SchemaError("moving-average-return symbol must be a string")
-            
+
             window = self._extract_window(args[1])
             return MovingAverageReturn(symbol, window)
         else:
             raise SchemaError(
                 "moving-average-return requires 1 argument (window) for filters or 2 arguments (symbol, window) for direct use",
                 construct="moving-average-return",
-                expected_arity="1 or 2",
-                actual_arity=len(args)
+                actual_arity=len(args),
             )
 
-    def _parse_cumulative_return(self, args: list[SExpr], depth: int) -> CumulativeReturn:
+    def _parse_cumulative_return(self, args: list[SExprType], depth: int) -> CumulativeReturn:
         """Parse cumulative return indicator."""
         # For filter context, might have only window parameter
         if len(args) == 1:
@@ -371,25 +351,24 @@ class DSLParser:
             symbol = args[0]
             if not isinstance(symbol, str):
                 raise SchemaError("cumulative-return symbol must be a string")
-            
+
             window = self._extract_window(args[1])
             return CumulativeReturn(symbol, window)
         else:
             raise SchemaError(
                 "cumulative-return requires 1 argument (window) for filters or 2 arguments (symbol, window) for direct use",
                 construct="cumulative-return",
-                expected_arity="1 or 2",
-                actual_arity=len(args)
+                actual_arity=len(args),
             )
 
-    def _parse_current_price(self, args: list[SExpr], depth: int) -> CurrentPrice:
+    def _parse_current_price(self, args: list[SExprType], depth: int) -> CurrentPrice:
         """Parse current price indicator."""
         if len(args) != 1:
             raise SchemaError(
                 "current-price requires 1 argument: symbol",
                 construct="current-price",
                 expected_arity=1,
-                actual_arity=len(args)
+                actual_arity=len(args),
             )
 
         symbol = args[0]
@@ -398,7 +377,7 @@ class DSLParser:
 
         return CurrentPrice(symbol)
 
-    def _parse_stdev_return(self, args: list[SExpr], depth: int) -> StdevReturn:
+    def _parse_stdev_return(self, args: list[SExprType], depth: int) -> StdevReturn:
         """Parse standard deviation of returns indicator."""
         # For filter context, stdev-return might have only window parameter
         if len(args) == 1:
@@ -410,25 +389,23 @@ class DSLParser:
             symbol = args[0]
             if not isinstance(symbol, str):
                 raise SchemaError("stdev-return symbol must be a string")
-            
+
             window = self._extract_window(args[1])
             return StdevReturn(symbol, window)
         else:
             raise SchemaError(
                 "stdev-return requires 1 argument (window) for filters or 2 arguments (symbol, window) for direct use",
                 construct="stdev-return",
-                expected_arity="1 or 2",
-                actual_arity=len(args)
+                actual_arity=len(args),
             )
 
-    def _parse_asset(self, args: list[SExpr], depth: int) -> Asset:
+    def _parse_asset(self, args: list[SExprType], depth: int) -> Asset:
         """Parse asset definition."""
         if len(args) < 1 or len(args) > 2:
             raise SchemaError(
                 "asset requires 1-2 arguments: symbol, [name]",
                 construct="asset",
-                expected_arity="1-2",
-                actual_arity=len(args)
+                actual_arity=len(args),
             )
 
         symbol = args[0]
@@ -438,14 +415,13 @@ class DSLParser:
         name = args[1] if len(args) > 1 and isinstance(args[1], str) else None
         return Asset(symbol, name)
 
-    def _parse_group(self, args: list[SExpr], depth: int) -> Group:
+    def _parse_group(self, args: list[SExprType], depth: int) -> Group:
         """Parse group wrapper."""
         if len(args) < 2:
             raise SchemaError(
                 "group requires at least 2 arguments: name, expressions...",
                 construct="group",
-                expected_arity="2+",
-                actual_arity=len(args)
+                actual_arity=len(args),
             )
 
         name = args[0]
@@ -455,31 +431,30 @@ class DSLParser:
         expressions = [self._sexpr_to_ast(expr, depth + 1) for expr in args[1:]]
         return Group(name, expressions)
 
-    def _parse_weight_equal(self, args: list[SExpr], depth: int) -> WeightEqual:
+    def _parse_weight_equal(self, args: list[SExprType], depth: int) -> WeightEqual:
         """Parse equal weight portfolio."""
         if not args:
             raise SchemaError(
                 "weight-equal requires at least 1 argument",
                 construct="weight-equal",
-                expected_arity="1+",
-                actual_arity=0
+                actual_arity=0,
             )
 
         expressions = [self._sexpr_to_ast(expr, depth + 1) for expr in args]
         return WeightEqual(expressions)
 
-    def _parse_weight_specified(self, args: list[SExpr], depth: int) -> WeightSpecified:
+    def _parse_weight_specified(self, args: list[SExprType], depth: int) -> WeightSpecified:
         """Parse explicitly weighted portfolio."""
         if len(args) % 2 != 0:
             raise SchemaError(
                 "weight-specified requires pairs of weight, expression arguments",
-                construct="weight-specified"
+                construct="weight-specified",
             )
 
         if len(args) < 2:
             raise SchemaError(
                 "weight-specified requires at least one weight, expression pair",
-                construct="weight-specified"
+                construct="weight-specified",
             )
 
         weights_and_expressions = []
@@ -487,7 +462,7 @@ class DSLParser:
             weight = args[i]
             expression = args[i + 1]
 
-            if not isinstance(weight, (int, float)):
+            if not isinstance(weight, int | float):
                 raise SchemaError("weight-specified weights must be numeric")
 
             expr_ast = self._sexpr_to_ast(expression, depth + 1)
@@ -495,14 +470,15 @@ class DSLParser:
 
         return WeightSpecified(weights_and_expressions)
 
-    def _parse_weight_inverse_volatility(self, args: list[SExpr], depth: int) -> WeightInverseVolatility:
+    def _parse_weight_inverse_volatility(
+        self, args: list[SExprType], depth: int
+    ) -> WeightInverseVolatility:
         """Parse inverse volatility weighted portfolio."""
         if len(args) < 2:
             raise SchemaError(
                 "weight-inverse-volatility requires at least 2 arguments: lookback, expressions...",
                 construct="weight-inverse-volatility",
-                expected_arity="2+",
-                actual_arity=len(args)
+                actual_arity=len(args),
             )
 
         lookback = args[0]
@@ -512,34 +488,32 @@ class DSLParser:
         expressions = [self._sexpr_to_ast(expr, depth + 1) for expr in args[1:]]
         return WeightInverseVolatility(lookback, expressions)
 
-    def _parse_filter(self, args: list[SExpr], depth: int) -> Filter:
+    def _parse_filter(self, args: list[SExprType], depth: int) -> Filter:
         """Parse filter selector."""
         if len(args) < 3:
             raise SchemaError(
                 "filter requires at least 3 arguments: metric_fn, selector, assets...",
                 construct="filter",
-                expected_arity="3+",
-                actual_arity=len(args)
+                actual_arity=len(args),
             )
 
         metric_fn = self._sexpr_to_ast(args[0], depth + 1)
 
         # Parse selector (select-top n or select-bottom n)
         selector = self._sexpr_to_ast(args[1], depth + 1)
-        if not isinstance(selector, (SelectTop, SelectBottom)):
+        if not isinstance(selector, SelectTop | SelectBottom):
             raise SchemaError("filter requires select-top or select-bottom as second argument")
-
         assets = [self._sexpr_to_ast(asset, depth + 1) for asset in args[2:]]
         return Filter(metric_fn, selector, assets)
 
-    def _parse_select_top(self, args: list[SExpr], depth: int) -> SelectTop:
+    def _parse_select_top(self, args: list[SExprType], depth: int) -> SelectTop:
         """Parse select-top selector."""
         if len(args) != 1:
             raise SchemaError(
                 "select-top requires 1 argument: count",
                 construct="select-top",
                 expected_arity=1,
-                actual_arity=len(args)
+                actual_arity=len(args),
             )
 
         count = args[0]
@@ -548,14 +522,14 @@ class DSLParser:
 
         return SelectTop(count)
 
-    def _parse_select_bottom(self, args: list[SExpr], depth: int) -> SelectBottom:
+    def _parse_select_bottom(self, args: list[SExprType], depth: int) -> SelectBottom:
         """Parse select-bottom selector."""
         if len(args) != 1:
             raise SchemaError(
                 "select-bottom requires 1 argument: count",
                 construct="select-bottom",
                 expected_arity=1,
-                actual_arity=len(args)
+                actual_arity=len(args),
             )
 
         count = args[0]
@@ -564,14 +538,14 @@ class DSLParser:
 
         return SelectBottom(count)
 
-    def _parse_strategy(self, args: list[SExpr], depth: int) -> Strategy:
+    def _parse_strategy(self, args: list[SExprType], depth: int) -> Strategy:
         """Parse strategy root node."""
         if len(args) < 3:
             raise SchemaError(
                 "defsymphony requires 3 arguments: name, metadata, expression",
                 construct="defsymphony",
                 expected_arity=3,
-                actual_arity=len(args)
+                actual_arity=len(args),
             )
 
         name = args[0]
@@ -586,7 +560,7 @@ class DSLParser:
 
         return Strategy(name, metadata, expression)
 
-    def _parse_metadata_map(self, metadata_raw: SExpr) -> dict[str, Any]:
+    def _parse_metadata_map(self, metadata_raw: SExprType) -> dict[str, Any]:
         """Parse Clojure-style metadata map {:key value ...}."""
         if not isinstance(metadata_raw, dict):
             # For now, return empty metadata if not properly structured
@@ -594,7 +568,7 @@ class DSLParser:
             return {}
         return dict(metadata_raw)
 
-    def _extract_window(self, window_spec: SExpr) -> int:
+    def _extract_window(self, window_spec: SExprType) -> int:
         """Extract window parameter from various formats."""
         # Handle direct integer
         if isinstance(window_spec, int):
