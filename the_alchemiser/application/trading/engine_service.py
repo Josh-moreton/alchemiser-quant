@@ -75,7 +75,7 @@ class StrategyManagerAdapter:
     """Typed-backed adapter to provide run_all_strategies for callers.
 
     This adapter now uses pure mapping functions from application/mapping/strategies.py
-    to convert typed signals to legacy format, removing ad-hoc dict transformations
+    to convert typed signals to CLI-compatible format, removing ad-hoc dict transformations
     from the runtime path.
     """
 
@@ -92,13 +92,13 @@ class StrategyManagerAdapter:
     def run_all_strategies(
         self,
     ) -> tuple[dict[StrategyType, dict[str, Any]], dict[str, float], dict[str, list[StrategyType]]]:
-        """Execute all strategies and return results in legacy format.
+        """Execute all strategies and return results in CLI-compatible format.
 
         This method now delegates to pure mapping functions to convert typed signals
-        to legacy format, ensuring no ad-hoc dict transformations in the runtime path.
+        to CLI-compatible format, ensuring no ad-hoc dict transformations in the runtime path.
 
         Returns:
-            Tuple containing legacy signals dict, consolidated portfolio, and strategy attribution
+            Tuple containing strategy signals dict, consolidated portfolio, and strategy attribution
         """
         from datetime import UTC, datetime
 
@@ -107,7 +107,7 @@ class StrategyManagerAdapter:
         # Generate typed signals from strategy manager
         aggregated = self._typed.generate_all_signals(datetime.now(UTC))
 
-        # Use pure mapping function to convert to legacy format
+        # Use pure mapping function to convert to CLI-compatible format
         return run_all_strategies_mapping(aggregated, self._typed.strategy_allocations)
 
     # Expose strategy_allocations for reporting usage
@@ -464,7 +464,7 @@ class TradingEngine:
             ) -> tuple[
                 dict[StrategyType, dict[str, Any]], dict[str, float], dict[str, list[StrategyType]]
             ]:
-                """Bridge method that converts typed signals to legacy format for CLI compatibility."""
+                """Bridge method that converts typed signals to CLI-compatible format for CLI compatibility."""
                 from datetime import UTC, datetime
 
                 from the_alchemiser.application.mapping.strategies import run_all_strategies_mapping
@@ -472,7 +472,7 @@ class TradingEngine:
                 # Generate typed signals
                 aggregated = self._typed.generate_all_signals(datetime.now(UTC))
 
-                # Use pure mapping function to convert to legacy format
+                # Use pure mapping function to convert to CLI-compatible format
                 return run_all_strategies_mapping(aggregated, self._typed.strategy_allocations)
 
             @property
@@ -807,15 +807,17 @@ class TradingEngine:
         Returns:
             True if all orders settled successfully, False otherwise.
         """
-        # Temporary conversion for legacy order_manager compatibility
-        legacy_orders = []
+        # Convert OrderDetails to dict format for order_manager compatibility
+        compatible_orders = []
         for order in sell_orders:
-            legacy_order = dict(order)
+            compatible_order = dict(order)
             # Ensure compatibility by including both id and order_id keys
-            if "id" in legacy_order and "order_id" not in legacy_order:
-                legacy_order["order_id"] = legacy_order["id"]
-            legacy_orders.append(legacy_order)
-        return self.order_manager.wait_for_settlement(legacy_orders, max_wait_time, poll_interval)
+            if "id" in compatible_order and "order_id" not in compatible_order:
+                compatible_order["order_id"] = compatible_order["id"]
+            compatible_orders.append(compatible_order)
+        return self.order_manager.wait_for_settlement(
+            compatible_orders, max_wait_time, poll_interval
+        )
 
     def place_order(
         self,
