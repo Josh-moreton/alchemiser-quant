@@ -48,8 +48,8 @@ SExprType = Any
 
 
 class DSLParser:
-    MAX_DEPTH = 500000  # Default very high for extremely nested strategies
-    MAX_NODES = 200000000  # Default very high for massive complex strategies
+    MAX_DEPTH = 5000000  # Default very high for extremely nested strategies
+    MAX_NODES = 2000000000  # Default very high for massive complex strategies
 
     def __init__(
         self,
@@ -253,14 +253,23 @@ class DSLParser:
 
     def _parse_construct(self, operator: str, args: list[SExprType], depth: int) -> ASTNode:
         ast_args = [self._sexpr_to_ast(a, depth + 1) for a in args]
-        if operator in {"weight-equal", "group", "weight-inverse-volatility", "weight-specified"}:
+        if operator in {
+            "weight-equal",
+            "group",
+            "weight-inverse-volatility",
+            "weight-specified",
+        }:
             ast_args = self._flatten_vector_nodes(ast_args)
         elif operator == "filter" and len(ast_args) >= 3:
             _metric_ast, _selector_ast, *assets = ast_args
             if len(assets) == 1 and isinstance(assets[0], Group) and assets[0].name == "__vector__":
                 assets = assets[0].expressions
             # Rebuild raw args for downstream parse method using original SExpr for indicator semantics
-            args = [args[0], args[1], *[self._ast_to_sexpr_placeholder(a) for a in assets]]
+            args = [
+                args[0],
+                args[1],
+                *[self._ast_to_sexpr_placeholder(a) for a in assets],
+            ]
         elif operator == "if":
             if len(ast_args) >= 2:
                 then_nodes = self._unwrap_vector_group(ast_args[1])
@@ -334,7 +343,10 @@ class DSLParser:
         return getattr(node, "symbol", "__expr__")
 
     def _parse_comparison(
-        self, node_type: type[GreaterThan] | type[LessThan], args: list[SExprType], depth: int
+        self,
+        node_type: type[GreaterThan] | type[LessThan],
+        args: list[SExprType],
+        depth: int,
     ) -> GreaterThan | LessThan:
         """Parse comparison operator."""
         if len(args) != 2:
