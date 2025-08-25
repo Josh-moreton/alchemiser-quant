@@ -35,6 +35,12 @@ from the_alchemiser.application.portfolio.services.portfolio_management_facade i
     PortfolioManagementFacade,
 )
 from the_alchemiser.application.trading.alpaca_client import AlpacaClient
+from the_alchemiser.application.trading.bootstrap import (
+    TradingBootstrapContext,
+    bootstrap_from_container,
+    bootstrap_from_service_manager,
+    bootstrap_traditional,
+)
 
 # Import application-layer ports for dependency injection
 from the_alchemiser.domain.registry import StrategyType
@@ -59,7 +65,6 @@ from the_alchemiser.services.errors.exceptions import (
     TradingClientError,
 )
 from the_alchemiser.services.errors.handler import TradingSystemErrorHandler
-from the_alchemiser.services.market_data.market_data_service import MarketDataService
 from the_alchemiser.services.repository.alpaca_manager import AlpacaManager
 
 from ..execution.execution_manager import ExecutionManager
@@ -257,31 +262,29 @@ class TradingEngine:
 
     def __init__(
         self,
-        paper_trading: bool = True,
+        bootstrap_context: TradingBootstrapContext | None = None,
         strategy_allocations: dict[StrategyType, float] | None = None,
         ignore_market_hours: bool = False,
+        # Backward compatibility parameters (deprecated)
+        paper_trading: bool = True,
         config: Settings | None = None,
-        # NEW: DI-aware parameters
         trading_service_manager: Any = None,
         container: Any = None,
     ) -> None:
-        """Initialize the TradingEngine with optional dependency injection.
+        """Initialize the TradingEngine with bootstrap context or legacy parameters.
 
         Args:
-            paper_trading (bool): Whether to use paper trading account. Defaults to True.
-            strategy_allocations (Dict[StrategyType, float], optional): Portfolio allocation
-                between strategies. If None, uses equal allocation.
-            ignore_market_hours (bool): Whether to ignore market hours when placing orders.
-                Defaults to False.
-            config: Configuration object. If None, loads from global config.
-            trading_service_manager: Injected TradingServiceManager (DI mode)
-            container: DI container for full DI mode
+            bootstrap_context: Pre-configured dependency context (preferred)
+            strategy_allocations: Portfolio allocation between strategies
+            ignore_market_hours: Whether to ignore market hours when placing orders
+            paper_trading: (Deprecated) Whether to use paper trading
+            config: (Deprecated) Configuration object
+            trading_service_manager: (Deprecated) Injected TradingServiceManager
+            container: (Deprecated) DI container
 
         Note:
-            The engine supports three initialization modes:
-            1. Traditional: paper_trading, config parameters (backward compatibility)
-            2. Partial DI: injected trading_service_manager
-            3. Full DI: container provides all dependencies
+            New code should use bootstrap_context. Legacy parameters maintained
+            for backward compatibility but emit deprecation warnings.
         """
         self.logger = logging.getLogger(__name__)
 
@@ -289,210 +292,69 @@ class TradingEngine:
         self.portfolio_rebalancer: Any  # PortfolioManagementFacade instance
 
         # Determine initialization mode
-        if container is not None:
-            # Full DI mode
-            self._init_with_container(container, strategy_allocations, ignore_market_hours)
-        elif trading_service_manager is not None:
-            # Partial DI mode
-            self._init_with_service_manager(
-                trading_service_manager, strategy_allocations, ignore_market_hours
-            )
-        else:
-            # Backward compatibility mode - deprecated
+        if bootstrap_context is not None:
+            # Modern bootstrap mode - preferred
+            self._init_from_context(bootstrap_context, strategy_allocations, ignore_market_hours)
+        elif container is not None:
+            # Legacy Full DI mode - deprecated
             import warnings
-
             warnings.warn(
-                "Direct TradingEngine() instantiation is deprecated. "
-                "Use TradingEngine.create_with_di() instead.",
+                "Direct container parameter is deprecated. "
+                "Use bootstrap_from_container() and pass result as bootstrap_context.",
                 DeprecationWarning,
                 stacklevel=2,
             )
-            self._init_traditional(paper_trading, strategy_allocations, ignore_market_hours, config)
+            context = bootstrap_from_container(container, ignore_market_hours)
+            self._init_from_context(context, strategy_allocations, ignore_market_hours)
+        elif trading_service_manager is not None:
+            # Legacy Partial DI mode - deprecated
+            import warnings
+            warnings.warn(
+                "Direct trading_service_manager parameter is deprecated. "
+                "Use bootstrap_from_service_manager() and pass result as bootstrap_context.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            context = bootstrap_from_service_manager(trading_service_manager, ignore_market_hours)
+            self._init_from_context(context, strategy_allocations, ignore_market_hours)
+        else:
+            # Legacy Traditional mode - deprecated
+            import warnings
+            warnings.warn(
+                "Direct TradingEngine() instantiation is deprecated. "
+                "Use bootstrap_traditional() and pass result as bootstrap_context.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            context = bootstrap_traditional(paper_trading, config)
+            self._init_from_context(context, strategy_allocations, ignore_market_hours)
 
-    def _init_with_container(
+    def _init_from_context(
         self,
-        container: Any,
+        context: TradingBootstrapContext,
         strategy_allocations: dict[StrategyType, float] | None,
         ignore_market_hours: bool,
     ) -> None:
-        """Initialize using full DI container."""
-        self._container = container
+        """Initialize TradingEngine from bootstrap context.
 
-        # Use correct services from container - provide correct objects to correct consumers
-        try:
-            self.logger.info("Initializing services from DI container")
-
-            # AccountService implements the required protocols for TradingEngine
-            self.account_service = container.services.account_service()
-
-            # Data provider shim (pandas DataFrame) for current strategy engines
-            self.data_provider = container.infrastructure.data_provider()
-
-            # AlpacaManager for trading operations - use its trading_client property
-            alpaca_manager = container.infrastructure.alpaca_manager()
-            self.trading_client = alpaca_manager.trading_client
-
-            # Typed market data port for migrated codepaths
-            self._market_data_port = container.infrastructure.market_data_service()
-
-            self.logger.info("Successfully initialized services from DI container")
-        except (AttributeError, ImportError, ConfigurationError) as e:
-            self.logger.error(
-                f"Failed to initialize services from DI container: {e}", exc_info=True
-            )
-            raise ConfigurationError(
-                f"DI container failed to provide required services: {e}"
-            ) from e
-
-        # Get configuration from container with proper error handling
-        try:
-            # Acquire TradingServiceManager for enhanced portfolio operations
-            try:
-                self._trading_service_manager = container.services.trading_service_manager()
-            except (AttributeError, ConfigurationError, ImportError):
-                # Optional; portfolio rebalancer will fail fast later if required
-                self._trading_service_manager = None  # pragma: no cover
-
-            self.paper_trading = container.config.paper_trading()
-            config_dict = {
-                "alpaca": {
-                    "api_key": container.config.alpaca_api_key(),
-                    "secret_key": container.config.alpaca_secret_key(),
-                    "paper_trading": container.config.paper_trading(),
-                }
-            }
-            self.logger.info(
-                f"Successfully loaded config from DI container: paper_trading={self.paper_trading}"
-            )
-        except (AttributeError, ValueError, ConfigurationError) as e:
-            self.logger.error(f"Failed to load config from DI container: {e}", exc_info=True)
-            raise ConfigurationError(f"DI container failed to provide configuration: {e}") from e
-
+        This is the main initialization path that uses a pre-configured
+        dependency context from the bootstrap module.
+        """
+        # Extract dependencies from context
+        self.account_service = context["account_service"]
+        self._market_data_port = context["market_data_port"]
+        self.data_provider = context["data_provider"]  # DataFrame-compatible adapter
+        self._alpaca_manager = context["alpaca_manager"]
+        self.trading_client = context["trading_client"]
+        self._trading_service_manager = context["trading_service_manager"]
+        self.paper_trading = context["paper_trading"]
         self.ignore_market_hours = ignore_market_hours
 
-        # Initialize other components using DI
-        self._init_common_components(strategy_allocations, config_dict)
-
-    def _init_with_service_manager(
-        self,
-        trading_service_manager: Any,
-        strategy_allocations: dict[StrategyType, float] | None,
-        ignore_market_hours: bool,
-    ) -> None:
-        """Initialize using injected TradingServiceManager."""
+        # Set container to None since we're not using DI container directly
         self._container = None
-        self._trading_service_manager = trading_service_manager
-        # Use typed MarketDataService for both typed port and pandas-compat provider
-        # so strategies get a consistent implementation exposing get_data (temporary compat).
-        try:
-            alpaca_manager = trading_service_manager.alpaca_manager
-            self.data_provider = MarketDataService(alpaca_manager)
-        except (AttributeError, TypeError) as e:
-            error_handler = TradingSystemErrorHandler()
-            context = create_error_context(
-                operation="initialize_data_provider",
-                component="TradingEngine._init_with_service_manager",
-                function_name="_init_with_service_manager",
-                additional_data={
-                    "trading_service_manager_type": type(trading_service_manager).__name__
-                },
-            )
-            error_handler.handle_error_with_context(error=e, context=context, should_continue=False)
-            raise ConfigurationError(
-                f"TradingServiceManager missing AlpacaManager for market data: {e}"
-            ) from e
-        # Use the actual Alpaca TradingClient for correct market-hours and order queries
-        try:
-            self.trading_client = trading_service_manager.alpaca_manager.trading_client
-        except (AttributeError, TypeError) as e:
-            error_handler = TradingSystemErrorHandler()
-            context = create_error_context(
-                operation="initialize_trading_client",
-                component="TradingEngine._init_with_service_manager",
-                function_name="_init_with_service_manager",
-                additional_data={
-                    "trading_service_manager_type": type(trading_service_manager).__name__
-                },
-            )
-            error_handler.handle_error_with_context(error=e, context=context, should_continue=False)
-            raise ConfigurationError(f"TradingServiceManager missing trading client: {e}") from e
-        self.paper_trading = trading_service_manager.alpaca_manager.is_paper_trading
-        # Provide typed market data port in this mode
-        try:
-            self._market_data_port = MarketDataService(trading_service_manager.alpaca_manager)
-        except Exception as e:
-            error_handler = TradingSystemErrorHandler()
-            context = create_error_context(
-                operation="initialize_market_data_port",
-                component="TradingEngine._init_with_service_manager",
-                function_name="_init_with_service_manager",
-                additional_data={
-                    "trading_service_manager_type": type(trading_service_manager).__name__
-                },
-            )
-            error_handler.handle_error_with_context(error=e, context=context, should_continue=False)
-            raise ConfigurationError(f"Failed to initialize market data port: {e}") from e
-        self.ignore_market_hours = ignore_market_hours
 
-        # Create minimal config for components
-        config_dict: dict[str, Any] = {}
-
-        self._init_common_components(strategy_allocations, config_dict)
-
-    def _init_traditional(
-        self,
-        paper_trading: bool,
-        strategy_allocations: dict[StrategyType, float] | None,
-        ignore_market_hours: bool,
-        config: Settings | None,
-    ) -> None:
-        """Initialize using traditional method (backward compatibility)."""
-        self._container = None
-        self.paper_trading = paper_trading
-        self.ignore_market_hours = ignore_market_hours
-
-        # Load configuration
-        try:
-            from the_alchemiser.infrastructure.config import load_settings
-
-            self.config = config or load_settings()
-        except Exception as e:
-            self.logger.error(f"Failed to load configuration: {e}")
-            raise ConfigurationError(f"Configuration error: {e}")
-
-        # Initialize repositories/services without legacy facade
-        try:
-            # Load credentials via SecretsManager to avoid legacy provider
-            from the_alchemiser.infrastructure.secrets.secrets_manager import SecretsManager
-            from the_alchemiser.services.trading.trading_service_manager import (
-                TradingServiceManager,
-            )
-
-            sm = SecretsManager()
-            api_key, secret_key = sm.get_alpaca_keys(paper_trading=paper_trading)
-            if not api_key or not secret_key:
-                raise ConfigurationError(
-                    "Missing Alpaca credentials for traditional initialization"
-                )
-
-            # Core repositories/services
-            self._alpaca_manager = AlpacaManager(str(api_key), str(secret_key), paper_trading)
-            self.trading_client = self._alpaca_manager.trading_client
-
-            # Use typed market data service for both provider (pandas compat) and typed port
-            self._market_data_port = MarketDataService(self._alpaca_manager)
-            self.data_provider = self._market_data_port
-
-            # Optional enhanced service manager for downstream ops
-            self._trading_service_manager = TradingServiceManager(
-                str(api_key), str(secret_key), paper=paper_trading
-            )
-        except Exception as e:
-            self.logger.error(f"Failed to initialize services: {e}")
-            raise
-
-        config_dict = self.config.model_dump() if self.config else {}
-        self._init_common_components(strategy_allocations, config_dict)
+        # Initialize common components
+        self._init_common_components(strategy_allocations, context["config_dict"])
 
     def _init_common_components(
         self, strategy_allocations: dict[StrategyType, float] | None, config_dict: dict[str, Any]
@@ -510,9 +372,9 @@ class TradingEngine:
         try:
             # Build an AlpacaClient once using the same authenticated trading client
             alpaca_manager: AlpacaManager
-            if hasattr(self, "_trading_service_manager") and hasattr(
-                self._trading_service_manager, "alpaca_manager"
-            ):
+            if (hasattr(self, "_trading_service_manager")
+                and self._trading_service_manager is not None
+                and hasattr(self._trading_service_manager, "alpaca_manager")):
                 alpaca_manager = self._trading_service_manager.alpaca_manager
             elif hasattr(self, "_alpaca_manager"):
                 alpaca_manager = self._alpaca_manager
@@ -538,7 +400,7 @@ class TradingEngine:
         try:
             # Require TradingServiceManager for portfolio operations
             trading_manager = getattr(self, "_trading_service_manager", None)
-            if trading_manager and hasattr(trading_manager, "alpaca_manager"):
+            if trading_manager is not None and hasattr(trading_manager, "alpaca_manager"):
                 # Use modern portfolio management facade
                 self.portfolio_rebalancer = PortfolioManagementFacade(
                     trading_manager=trading_manager,
@@ -547,7 +409,7 @@ class TradingEngine:
                 # No legacy fallbacks - fail fast and require proper DI setup
                 raise ConfigurationError(
                     "TradingServiceManager is required for portfolio operations. "
-                    "Please use TradingEngine.create_with_di() or provide trading_service_manager parameter."
+                    "Please use TradingEngine factory methods or provide trading_service_manager parameter."
                 )
         except Exception as e:
             raise TradingClientError(
@@ -830,7 +692,8 @@ class TradingEngine:
 
             # Add portfolio history if available
             try:
-                portfolio_history = self.data_provider.get_portfolio_history()
+                # Use AlpacaManager for portfolio history since adapter doesn't have this method
+                portfolio_history = self._alpaca_manager.get_portfolio_history()
                 if portfolio_history:
                     enriched["portfolio_history"] = {
                         "profit_loss": portfolio_history.get("profit_loss", []),
@@ -1884,7 +1747,39 @@ class TradingEngine:
         strategy_allocations: dict[StrategyType, float] | None = None,
         ignore_market_hours: bool = False,
     ) -> "TradingEngine":
-        """Factory method for creating TradingEngine with full DI.
+        """Factory method for creating TradingEngine with full DI (deprecated).
+
+        Args:
+            container: DI container for dependency injection
+            strategy_allocations: Strategy allocation weights
+            ignore_market_hours: Whether to ignore market hours
+
+        Returns:
+            TradingEngine instance with all dependencies injected
+
+        Note:
+            This method is deprecated. Use create_from_container() instead.
+        """
+        import warnings
+        warnings.warn(
+            "create_with_di() is deprecated. Use create_from_container() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return cls.create_from_container(
+            container=container,
+            strategy_allocations=strategy_allocations,
+            ignore_market_hours=ignore_market_hours,
+        )
+
+    @classmethod
+    def create_from_container(
+        cls,
+        container: Any,
+        strategy_allocations: dict[StrategyType, float] | None = None,
+        ignore_market_hours: bool = False,
+    ) -> "TradingEngine":
+        """Factory method for creating TradingEngine from DI container.
 
         Args:
             container: DI container for dependency injection
@@ -1894,8 +1789,59 @@ class TradingEngine:
         Returns:
             TradingEngine instance with all dependencies injected
         """
+        context = bootstrap_from_container(container, ignore_market_hours)
         return cls(
-            container=container,
+            bootstrap_context=context,
+            strategy_allocations=strategy_allocations,
+            ignore_market_hours=ignore_market_hours,
+        )
+
+    @classmethod
+    def create_from_service_manager(
+        cls,
+        trading_service_manager: Any,
+        strategy_allocations: dict[StrategyType, float] | None = None,
+        ignore_market_hours: bool = False,
+    ) -> "TradingEngine":
+        """Factory method for creating TradingEngine from TradingServiceManager.
+
+        Args:
+            trading_service_manager: TradingServiceManager instance
+            strategy_allocations: Strategy allocation weights
+            ignore_market_hours: Whether to ignore market hours
+
+        Returns:
+            TradingEngine instance with all dependencies injected
+        """
+        context = bootstrap_from_service_manager(trading_service_manager, ignore_market_hours)
+        return cls(
+            bootstrap_context=context,
+            strategy_allocations=strategy_allocations,
+            ignore_market_hours=ignore_market_hours,
+        )
+
+    @classmethod
+    def create_traditional(
+        cls,
+        paper_trading: bool = True,
+        config: Settings | None = None,
+        strategy_allocations: dict[StrategyType, float] | None = None,
+        ignore_market_hours: bool = False,
+    ) -> "TradingEngine":
+        """Factory method for creating TradingEngine using traditional approach.
+
+        Args:
+            paper_trading: Whether to use paper trading
+            config: Configuration settings
+            strategy_allocations: Strategy allocation weights
+            ignore_market_hours: Whether to ignore market hours
+
+        Returns:
+            TradingEngine instance with all dependencies initialized
+        """
+        context = bootstrap_traditional(paper_trading, config)
+        return cls(
+            bootstrap_context=context,
             strategy_allocations=strategy_allocations,
             ignore_market_hours=ignore_market_hours,
         )
@@ -1920,7 +1866,7 @@ def main() -> None:
         TradingSystem()
         container = ApplicationContainer()
 
-        trader = TradingEngine.create_with_di(
+        trader = TradingEngine.create_from_container(
             container=container,
             strategy_allocations={StrategyType.NUCLEAR: 0.5, StrategyType.TECL: 0.5},
             ignore_market_hours=True,

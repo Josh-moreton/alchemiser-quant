@@ -64,15 +64,20 @@ class StrategyMarketDataAdapter:
         symbol_obj = Symbol(symbol)
         return self._canonical_port.get_mid_price(symbol_obj)
 
-    def get_latest_quote(self, symbol: str, **kwargs: Any) -> tuple[float | None, float | None]:
+    def get_latest_quote(self, symbol: str, **kwargs: Any) -> tuple[float, float] | None:
         """Get latest quote using canonical port and extract bid/ask."""
         symbol_obj = Symbol(symbol)
         quote = self._canonical_port.get_latest_quote(symbol_obj)
 
         if quote is None:
-            return (None, None)
+            return None
 
-        # QuoteModel has bid and ask attributes
+        # QuoteModel has bid and ask attributes - return None if either is missing
         bid = float(quote.bid) if quote.bid is not None else None
         ask = float(quote.ask) if quote.ask is not None else None
+        
+        # Return None if either bid or ask is missing to match protocol
+        if bid is None or ask is None:
+            return None
+            
         return (bid, ask)
