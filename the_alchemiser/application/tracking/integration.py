@@ -14,10 +14,14 @@ Key Features:
 
 import logging
 from contextlib import contextmanager
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from the_alchemiser.application.tracking.strategy_order_tracker import get_strategy_tracker
 from the_alchemiser.domain.registry import StrategyType
+
+if TYPE_CHECKING:
+    from the_alchemiser.application.tracking.strategy_order_tracker import (
+        StrategyOrderTracker,
+    )
 
 # TODO: Add these imports once data structures match:
 # from the_alchemiser.domain.types import StrategyPnLSummary, OrderDetails, AlpacaOrderProtocol
@@ -27,13 +31,18 @@ class StrategyExecutionContext:
     """Context manager to track which strategy is currently executing orders."""
 
     _current_strategy: StrategyType | None = None
-    _order_tracker = None
+    _order_tracker: "StrategyOrderTracker | None" = None
 
     @classmethod
     def set_current_strategy(cls, strategy: StrategyType) -> None:
         """Set the currently executing strategy."""
         cls._current_strategy = strategy
         if cls._order_tracker is None:
+            # Import here to avoid circular imports
+            from the_alchemiser.application.tracking.strategy_order_tracker import (
+                get_strategy_tracker,
+            )
+
             cls._order_tracker = get_strategy_tracker()
 
     @classmethod
@@ -131,6 +140,11 @@ class StrategyTrackingMixin:
         """Initialize tracking mixin and attach tracker instance."""
 
         super().__init__(*args, **kwargs)
+        # Import here to avoid circular imports
+        from the_alchemiser.application.tracking.strategy_order_tracker import (
+            get_strategy_tracker,
+        )
+
         self._strategy_tracker = get_strategy_tracker()
 
     def track_filled_order(
@@ -234,6 +248,11 @@ def configure_strategy_tracking_integration(
     try:
         # Add tracking mixin to trading engine if it doesn't already have it
         if not hasattr(trading_engine, "_strategy_tracker"):
+            # Import here to avoid circular imports
+            from the_alchemiser.application.tracking.strategy_order_tracker import (
+                get_strategy_tracker,
+            )
+
             trading_engine._strategy_tracker = get_strategy_tracker()
             trading_engine.get_strategy_pnl_summary = (
                 lambda prices=None: trading_engine._strategy_tracker.get_summary_for_email(prices)

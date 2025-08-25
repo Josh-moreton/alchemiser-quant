@@ -25,6 +25,10 @@ from the_alchemiser.interfaces.schemas.tracking import (
     StrategyPositionDTO,
 )
 
+# Constants to avoid duplication
+UTC_OFFSET_STRING = "+00:00"
+DECIMAL_QUANTIZE_PRECISION = "0.000001"
+
 
 def strategy_order_to_event_dto(
     order: Any,  # StrategyOrder - avoid import to prevent circular dependency
@@ -42,7 +46,7 @@ def strategy_order_to_event_dto(
         status=status,
         price=Decimal(str(order.price)) if order.price > 0 else None,
         ts=(
-            datetime.fromisoformat(order.timestamp.replace("Z", "+00:00"))
+            datetime.fromisoformat(order.timestamp.replace("Z", UTC_OFFSET_STRING))
             if isinstance(order.timestamp, str)
             else order.timestamp
         ),
@@ -59,7 +63,7 @@ def event_dto_to_strategy_order_dict(event: StrategyOrderEventDTO, order_id: str
         "side": event.side.upper(),  # Internal uses uppercase
         "quantity": float(event.quantity),
         "price": float(event.price) if event.price else 0.0,
-        "timestamp": event.ts.isoformat() if isinstance(event.ts, datetime) else event.ts,
+        "timestamp": (event.ts.isoformat() if isinstance(event.ts, datetime) else event.ts),
     }
 
 
@@ -154,7 +158,7 @@ def normalize_timestamp(ts: str | datetime) -> datetime:
     if isinstance(ts, str):
         # Handle ISO format strings
         try:
-            dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+            dt = datetime.fromisoformat(ts.replace("Z", UTC_OFFSET_STRING))
             if dt.tzinfo is None:
                 dt = dt.replace(tzinfo=UTC)
             return dt
@@ -179,15 +183,25 @@ def ensure_decimal_precision(value: float | str | Decimal) -> Decimal:
 
 def strategy_order_dataclass_to_dto(order: Any) -> StrategyOrderDTO:
     """Convert StrategyOrder dataclass to StrategyOrderDTO."""
+    # Convert to Decimal and quantize to 6 decimal places to avoid precision errors
+    from decimal import ROUND_HALF_UP
+
+    quantized_quantity = Decimal(str(order.quantity)).quantize(
+        Decimal(DECIMAL_QUANTIZE_PRECISION), rounding=ROUND_HALF_UP
+    )
+    quantized_price = Decimal(str(order.price)).quantize(
+        Decimal(DECIMAL_QUANTIZE_PRECISION), rounding=ROUND_HALF_UP
+    )
+
     return StrategyOrderDTO(
         order_id=order.order_id,
         strategy=cast(StrategyLiteral, order.strategy),
         symbol=order.symbol,
         side=order.side.lower(),  # DTO expects lowercase
-        quantity=Decimal(str(order.quantity)),
-        price=Decimal(str(order.price)),
+        quantity=quantized_quantity,
+        price=quantized_price,
         timestamp=(
-            datetime.fromisoformat(order.timestamp.replace("Z", "+00:00"))
+            datetime.fromisoformat(order.timestamp.replace("Z", UTC_OFFSET_STRING))
             if isinstance(order.timestamp, str)
             else order.timestamp
         ),
@@ -216,7 +230,7 @@ def strategy_position_dataclass_to_dto(position: Any) -> StrategyPositionDTO:
         average_cost=Decimal(str(position.average_cost)),
         total_cost=Decimal(str(position.total_cost)),
         last_updated=(
-            datetime.fromisoformat(position.last_updated.replace("Z", "+00:00"))
+            datetime.fromisoformat(position.last_updated.replace("Z", UTC_OFFSET_STRING))
             if isinstance(position.last_updated, str)
             else position.last_updated
         ),

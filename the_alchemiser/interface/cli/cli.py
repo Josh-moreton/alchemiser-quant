@@ -43,6 +43,14 @@ from the_alchemiser.services.trading.trading_service_manager import (
     TradingServiceManager,
 )
 
+# Constants to avoid duplication
+STYLE_BOLD_CYAN = "bold cyan"
+STYLE_ITALIC = "italic"
+STYLE_BOLD_BLUE = "bold blue"
+STYLE_BOLD_GREEN = "bold green"
+STYLE_BOLD_RED = "bold red"
+STYLE_BOLD_YELLOW = "bold yellow"
+
 # Initialize Typer app and Rich console
 app = typer.Typer(
     name="alchemiser",
@@ -62,13 +70,13 @@ def show_welcome() -> None:
         None
     """
     welcome_text = Text()
-    welcome_text.append(" The Alchemiser Quantitative Trading System\n", style="bold cyan")
-    welcome_text.append("Advanced Multi-Strategy Trading System", style="italic")
+    welcome_text.append(" The Alchemiser Quantitative Trading System\n", style=STYLE_BOLD_CYAN)
+    welcome_text.append("Advanced Multi-Strategy Trading System", style=STYLE_ITALIC)
 
     panel = Panel(
         welcome_text,
-        title="[bold blue]Welcome[/bold blue]",
-        subtitle="[italic]Nuclear • TECL • KLM • Multi-Strategy[/italic]",
+        title=f"[{STYLE_BOLD_BLUE}]Welcome[/{STYLE_BOLD_BLUE}]",
+        subtitle=f"[{STYLE_ITALIC}]Nuclear • TECL • KLM • Multi-Strategy[/{STYLE_ITALIC}]",
         border_style="blue",
         padding=(1, 2),
     )

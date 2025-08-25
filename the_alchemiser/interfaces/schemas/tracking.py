@@ -129,7 +129,10 @@ class StrategyOrderEventDTO(BaseModel, StrategyValidationMixin):
     # Strategy and symbol information
     strategy: StrategyLiteral = Field(..., description="Strategy name from registered strategies")
     symbol: str = Field(
-        ..., min_length=1, max_length=10, description="Stock symbol (normalized to uppercase)"
+        ...,
+        min_length=1,
+        max_length=10,
+        description="Stock symbol (normalized to uppercase)",
     )
 
     # Order details
@@ -193,7 +196,10 @@ class StrategyOrderDTO(BaseModel, StrategyValidationMixin):
     order_id: str = Field(..., min_length=1, description="Unique order identifier")
     strategy: StrategyLiteral = Field(..., description="Strategy name from registered strategies")
     symbol: str = Field(
-        ..., min_length=1, max_length=10, description="Stock symbol (normalized to uppercase)"
+        ...,
+        min_length=1,
+        max_length=10,
+        description="Stock symbol (normalized to uppercase)",
     )
     side: Literal["buy", "sell"] = Field(..., description="Order side (normalized to lowercase)")
     quantity: Decimal = Field(..., gt=0, description="Order quantity (positive decimal)")
@@ -220,12 +226,17 @@ class StrategyOrderDTO(BaseModel, StrategyValidationMixin):
         if not v.is_finite():
             raise ValueError("Financial values must be finite")
 
-        # Check precision for quantity (max 6 decimal places for fractional shares)
-        exponent = v.as_tuple().exponent
+        # Auto-quantize to 6 decimal places to handle floating point precision issues
+        from decimal import ROUND_HALF_UP
+
+        quantized_value = v.quantize(Decimal("0.000001"), rounding=ROUND_HALF_UP)
+
+        # Check precision after quantization
+        exponent = quantized_value.as_tuple().exponent
         if isinstance(exponent, int) and exponent < -6:
             raise ValueError("Precision too high (max 6 decimal places)")
 
-        return v
+        return quantized_value
 
     @classmethod
     def from_strategy_order_data(
@@ -246,13 +257,21 @@ class StrategyOrderDTO(BaseModel, StrategyValidationMixin):
         else:
             ts = timestamp
 
+        # Convert to Decimal and quantize to 6 decimal places to avoid precision errors
+        from decimal import ROUND_HALF_UP
+
+        quantized_quantity = Decimal(str(quantity)).quantize(
+            Decimal("0.000001"), rounding=ROUND_HALF_UP
+        )
+        quantized_price = Decimal(str(price)).quantize(Decimal("0.000001"), rounding=ROUND_HALF_UP)
+
         return cls(
             order_id=order_id,
             strategy=cast(StrategyLiteral, strategy),
             symbol=symbol,
             side=cast(Literal["buy", "sell"], side),
-            quantity=Decimal(str(quantity)),
-            price=Decimal(str(price)),
+            quantity=quantized_quantity,
+            price=quantized_price,
             timestamp=ts,
         )
 
@@ -267,7 +286,10 @@ class StrategyPositionDTO(BaseModel, StrategyValidationMixin):
 
     strategy: StrategyLiteral = Field(..., description="Strategy name from registered strategies")
     symbol: str = Field(
-        ..., min_length=1, max_length=10, description="Stock symbol (normalized to uppercase)"
+        ...,
+        min_length=1,
+        max_length=10,
+        description="Stock symbol (normalized to uppercase)",
     )
     quantity: Decimal = Field(..., ge=0, description="Position quantity (non-negative)")
     average_cost: Decimal = Field(..., ge=0, description="Average cost per share")
@@ -345,7 +367,8 @@ class StrategyPnLDTO(BaseModel):
     unrealized_pnl: Decimal = Field(..., description="Unrealized profit/loss")
     total_pnl: Decimal = Field(..., description="Total profit/loss")
     positions: dict[str, Decimal] = Field(
-        default_factory=dict, description="Current positions by symbol (symbol -> quantity)"
+        default_factory=dict,
+        description="Current positions by symbol (symbol -> quantity)",
     )
     allocation_value: Decimal = Field(..., ge=0, description="Total allocation value")
 
@@ -452,7 +475,10 @@ class StrategyExecutionSummaryDTO(BaseModel, StrategyValidationMixin):
     # Strategy and symbol identification
     strategy: StrategyLiteral = Field(..., description="Strategy name from registered strategies")
     symbol: str = Field(
-        ..., min_length=1, max_length=10, description="Stock symbol (normalized to uppercase)"
+        ...,
+        min_length=1,
+        max_length=10,
+        description="Stock symbol (normalized to uppercase)",
     )
 
     # Aggregate metrics

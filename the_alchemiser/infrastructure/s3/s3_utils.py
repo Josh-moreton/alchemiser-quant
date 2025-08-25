@@ -45,7 +45,10 @@ class S3Handler:
             bucket, key = self.parse_s3_uri(s3_uri)
 
             self.s3_client.put_object(
-                Bucket=bucket, Key=key, Body=content.encode("utf-8"), ContentType="text/plain"
+                Bucket=bucket,
+                Key=key,
+                Body=content.encode("utf-8"),
+                ContentType="text/plain",
             )
 
             logging.debug(f"Successfully wrote to {s3_uri}")
@@ -168,7 +171,7 @@ class S3Handler:
 
 
 # Global S3 handler instance
-_s3_handler = None
+_s3_handler: "S3Handler | None" = None
 
 
 def get_s3_handler() -> S3Handler:

@@ -136,6 +136,12 @@ class TradingExecutor:
                 typed_signals
             )  # TypedDict -> domain
 
+            # Debug: Log all signals being processed
+            for strategy_type, signal in typed_domain_signals.items():
+                self.logger.info(
+                    f"Processing signal: {strategy_type} -> {signal.symbol.value} {signal.action}"
+                )
+
             validated_orders = self._convert_signals_to_validated_orders(
                 typed_domain_signals, trader
             )
@@ -242,6 +248,17 @@ class TradingExecutor:
                     # Skip HOLD signals
                     if signal.action == "HOLD":
                         self.logger.info(f"Skipping HOLD signal from {strategy_type}")
+                        continue
+
+                    # Skip portfolio symbols that need expansion (handled by main execution engine)
+                    if signal.symbol.value in [
+                        "NUCLEAR_PORTFOLIO",
+                        "BEAR_PORTFOLIO",
+                        "UVXY_BTAL_PORTFOLIO",
+                    ]:
+                        self.logger.info(
+                            f"Skipping portfolio signal {signal.symbol.value} - handled by execution engine"
+                        )
                         continue
 
                     # Convert signal to validated order

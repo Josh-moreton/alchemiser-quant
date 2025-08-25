@@ -84,7 +84,9 @@ def map_signals_dict(
     return {k: legacy_signal_to_typed(v) for k, v in legacy_signals.items()}
 
 
-def typed_dict_to_domain_signal(typed_dict_signal: StrategySignal) -> TypedStrategySignal:
+def typed_dict_to_domain_signal(
+    typed_dict_signal: StrategySignal,
+) -> TypedStrategySignal:
     """Convert legacy TypedDict StrategySignal to new typed domain StrategySignal.
 
     Args:
@@ -102,6 +104,11 @@ def typed_dict_to_domain_signal(typed_dict_signal: StrategySignal) -> TypedStrat
     if isinstance(symbol_value, dict):
         # Portfolio case - use a shorter symbol that fits Symbol validation
         symbol_str = "PORT"  # 4 characters, within Symbol limit
+    elif isinstance(symbol_value, str) and (
+        "_PORTFOLIO" in symbol_value or "PORTFOLIO" in symbol_value
+    ):
+        # Handle portfolio string symbols (e.g., "NUCLEAR_PORTFOLIO", "BEAR_PORTFOLIO")
+        symbol_str = "PORT"  # Use "PORT" as a placeholder for portfolio symbols
     else:
         symbol_str = str(symbol_value)
 

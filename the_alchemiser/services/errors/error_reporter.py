@@ -107,7 +107,7 @@ class ErrorReporter:
 
 
 # Singleton instance for global use
-_global_error_reporter = None
+_global_error_reporter: "ErrorReporter | None" = None
 
 
 def get_error_reporter(notification_manager: Any = None) -> ErrorReporter:

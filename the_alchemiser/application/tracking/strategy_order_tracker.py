@@ -41,7 +41,10 @@ from the_alchemiser.interfaces.schemas.tracking import (
     StrategyPositionDTO,
 )
 from the_alchemiser.services.errors import TradingSystemErrorHandler
-from the_alchemiser.services.errors.exceptions import DataProviderError, StrategyExecutionError
+from the_alchemiser.services.errors.exceptions import (
+    DataProviderError,
+    StrategyExecutionError,
+)
 
 # TODO: Import order history and email summary types once implementation aligns
 # from the_alchemiser.interfaces.schemas.execution import OrderHistoryDTO
@@ -411,7 +414,10 @@ class StrategyOrderTracker:
         return result
 
     def get_order_history(
-        self, strategy: StrategyType | None = None, symbol: str | None = None, days: int = 30
+        self,
+        strategy: StrategyType | None = None,
+        symbol: str | None = None,
+        days: int = 30,
     ) -> list[StrategyOrder]:
         """Get filtered order history."""
         # Filter by strategy
@@ -1077,8 +1083,8 @@ class StrategyOrderTracker:
 
 
 # Global instances for easy access - separate by trading mode
-_strategy_tracker_paper = None
-_strategy_tracker_live = None
+_strategy_tracker_paper: "StrategyOrderTracker | None" = None
+_strategy_tracker_live: "StrategyOrderTracker | None" = None
 
 
 def get_strategy_tracker(
