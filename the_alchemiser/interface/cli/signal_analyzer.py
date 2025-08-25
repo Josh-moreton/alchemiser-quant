@@ -220,7 +220,7 @@ class SignalAnalyzer:
             tracking_table.add_column("Recent Orders", justify="center")
 
             # Group positions by strategy
-            strategies_with_data = set(pos.strategy for pos in positions)
+            strategies_with_data = {pos.strategy for pos in positions}
 
             for strategy_name in sorted(strategies_with_data):
                 try:

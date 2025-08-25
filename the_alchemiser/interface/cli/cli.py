@@ -394,7 +394,6 @@ def status(
             from the_alchemiser.application.tracking.strategy_order_tracker import (
                 StrategyOrderTracker,
             )
-            from the_alchemiser.domain.registry import StrategyType
 
             tracker = StrategyOrderTracker(paper_trading=paper_trading)
 
@@ -438,7 +437,7 @@ def status(
                 strategy_pnl_table.add_column("Total P&L", justify="right")
                 strategy_pnl_table.add_column("Return %", justify="right")
 
-                strategies_with_data = set(pos.strategy for pos in positions_summary)
+                strategies_with_data = {pos.strategy for pos in positions_summary}
                 for strategy_name in strategies_with_data:
                     try:
                         pnl_summary = tracker.get_pnl_summary(strategy_name)

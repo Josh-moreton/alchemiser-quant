@@ -15,6 +15,5 @@
   awaiting further decomposition.
 
 ## Candidates for Deletion / Consolidation
-- `LegacyPortfolioRebalancerStub` once new rebalancing service is implemented.
 - Redundant error handling paths inside `engine_service.py` after extraction of
   domain services.

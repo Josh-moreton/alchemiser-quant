@@ -533,7 +533,7 @@ class StrategyOrderTracker:
         try:
             position_dtos = []
 
-            for (strategy, symbol), position in self._positions_cache.items():
+            for (_strategy, _symbol), position in self._positions_cache.items():
                 # Only include positions with non-zero quantity
                 if position.quantity > 0:
                     dto = self._strategy_position_to_dto(position)

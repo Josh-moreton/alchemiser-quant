@@ -738,7 +738,7 @@ class DSLEvaluator:
 
         # Create portfolios for selected assets
         selected_portfolios = []
-        for symbol, metric_value, asset_node in selected_assets:
+        for _symbol, _metric_value, asset_node in selected_assets:
             portfolio = self._evaluate_node(asset_node)
             if isinstance(portfolio, dict):
                 selected_portfolios.append(portfolio)
