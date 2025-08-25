@@ -150,8 +150,8 @@ class ProgressiveOrderCalculator:
         spread_bps, spread_pct = self.calculate_spread_metric(bid, ask)
 
         logging.info(
-            f"📊 Market conditions for {symbol}: volatility={volatility:.3f} ({volatility*100:.1f}%), "
-            f"spread={spread_bps:.1f}bps ({spread_pct*100:.2f}%)"
+            f"📊 Market conditions for {symbol}: volatility={volatility:.3f} ({volatility * 100:.1f}%), "
+            f"spread={spread_bps:.1f}bps ({spread_pct * 100:.2f}%)"
         )
 
         # Determine urgency multiplier

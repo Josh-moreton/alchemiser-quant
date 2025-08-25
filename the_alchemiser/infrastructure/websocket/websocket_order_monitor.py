@@ -6,7 +6,6 @@ This module provides WebSocket-based order completion monitoring for real-time
 order settlement detection. No legacy polling fallbacks - WebSocket only.
 """
 
-
 import logging
 import threading
 import time

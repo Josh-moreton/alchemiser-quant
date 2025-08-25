@@ -538,8 +538,8 @@ def send_error_notification_if_needed() -> ErrorNotificationData | None:
         return None
 
     try:
-        from .ui.email.client import send_email_notification  # type: ignore[import-untyped]
-        from .ui.email.templates import EmailTemplates  # type: ignore[import-untyped]
+        from .ui.email.client import send_email_notification
+        from .ui.email.templates import EmailTemplates
 
         # Generate error report
         error_report = _error_handler.generate_error_report()
