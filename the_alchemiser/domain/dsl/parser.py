@@ -48,11 +48,34 @@ SExprType = Any
 
 
 class DSLParser:
-    MAX_DEPTH = 500000  # Very high for extremely nested strategies
-    MAX_NODES = 200000000  # Very high for massive complex strategies
+    MAX_DEPTH = 500000  # Default very high for extremely nested strategies
+    MAX_NODES = 200000000  # Default very high for massive complex strategies
 
-    def __init__(self) -> None:
-        self._node_count = 0
+    def __init__(
+        self,
+        max_nodes: int | None = MAX_NODES,
+        max_depth: int | None = MAX_DEPTH,
+    ) -> None:
+        """Create a DSL parser.
+
+        Args:
+            max_nodes: Maximum AST nodes allowed (None disables cap).
+            max_depth: Maximum recursion depth (None disables cap).
+        """
+        self._configured_max_nodes = max_nodes
+        self._configured_max_depth = max_depth
+        self._node_count: int = 0
+        self._max_depth_seen: int = 0
+
+    @property
+    def node_count(self) -> int:
+        """Return node count from the last parse operation."""
+        return self._node_count
+
+    @property
+    def max_depth_seen(self) -> int:
+        """Return maximum depth observed during last parse."""
+        return self._max_depth_seen
 
     def parse(self, source: str) -> ASTNode:
         self._node_count = 0
@@ -146,11 +169,16 @@ class DSLParser:
 
     # ---------------- AST Conversion -----------------
     def _sexpr_to_ast(self, sexpr: SExprType, depth: int) -> ASTNode:
-        if depth > self.MAX_DEPTH:
-            raise ParseError(f"Maximum AST depth exceeded: {self.MAX_DEPTH}")
+        # Track depth first
+        if depth > self._max_depth_seen:
+            self._max_depth_seen = depth
+        # Enforce depth limit if configured
+        if self._configured_max_depth is not None and depth > self._configured_max_depth:
+            raise ParseError(f"Maximum AST depth exceeded: {self._configured_max_depth}")
+        # Increment node count and enforce node cap if configured
         self._node_count += 1
-        if self._node_count > self.MAX_NODES:
-            raise ParseError(f"Maximum node count exceeded: {self.MAX_NODES}")
+        if self._configured_max_nodes is not None and self._node_count > self._configured_max_nodes:
+            raise ParseError(f"Maximum node count exceeded: {self._configured_max_nodes}")
         if isinstance(sexpr, int | float):
             return NumberLiteral(float(sexpr))
         if isinstance(sexpr, str):
@@ -331,7 +359,9 @@ class DSLParser:
             )
 
     def _parse_moving_average_return(
-        self, args: list[SExprType], depth: int  # depth kept
+        self,
+        args: list[SExprType],
+        depth: int,  # depth kept
     ) -> MovingAverageReturn:
         """Parse moving average return indicator."""
         # For filter context, might have only window parameter
