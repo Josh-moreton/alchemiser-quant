@@ -37,6 +37,7 @@ class PolicyOrchestrator:
 
     Coordinates all policy validations and aggregates results into a final
     order decision with comprehensive logging and structured warnings.
+    Uses pure domain objects internally with DTO mapping at boundaries.
     """
 
     def __init__(
@@ -68,6 +69,10 @@ class PolicyOrchestrator:
         """
         Run all policies on an order request and return aggregated result.
 
+        This method serves as the boundary between DTOs (interface layer) and
+        domain objects. It converts DTOs to domain objects, runs domain validation,
+        and converts back to DTOs for return.
+
         Policies are run in order:
         1. FractionabilityPolicy - adjusts quantities for asset types
         2. PositionPolicy - validates against current positions
@@ -75,27 +80,51 @@ class PolicyOrchestrator:
         4. RiskPolicy - assesses overall risk
 
         Args:
-            order_request: The original order request to validate
+            order_request: The original order request DTO to validate
 
         Returns:
             AdjustedOrderRequestDTO with final validation results
         """
+        # Convert DTO to domain object
+        domain_order_request = dto_to_domain_order_request(order_request)
+        
+        # Run domain validation
+        domain_result = self._validate_and_adjust_domain(domain_order_request)
+        
+        # Convert back to DTO for boundary
+        return domain_result_to_dto(domain_result)
+
+    def _validate_and_adjust_domain(
+        self,
+        order_request: OrderRequest
+    ) -> PolicyResult:
+        """
+        Internal method that runs policy validation using pure domain objects.
+
+        This method maintains immutability by creating new PolicyResult instances
+        instead of mutating existing ones.
+
+        Args:
+            order_request: The domain order request to validate
+
+        Returns:
+            PolicyResult with final validation results
+        """
         log_with_context(
             logger,
             logging.INFO,
-            f"Starting policy validation for {order_request.symbol}",
+            f"Starting policy validation for {order_request.symbol.value}",
             orchestrator=self._orchestrator_name,
-            symbol=order_request.symbol,
-            side=order_request.side,
-            quantity=str(order_request.quantity),
-            order_type=order_request.order_type,
+            symbol=order_request.symbol.value,
+            side=order_request.side.value,
+            quantity=str(order_request.quantity.value),
+            order_type=order_request.order_type.value,
         )
 
-        # Track aggregated results
-        all_warnings: list[PolicyWarningDTO] = []
-        all_metadata: dict[str, str] = {}
-        total_risk_score = Decimal("0")
+        # Track aggregated state immutably
         current_request = order_request
+        all_warnings: list[PolicyWarning] = []
+        all_metadata: dict[str, str] = {}
 
         # 1. Fractionability Policy
         try:
@@ -108,26 +137,18 @@ class PolicyOrchestrator:
                     "Order rejected by fractionability policy",
                     orchestrator=self._orchestrator_name,
                     policy="FractionabilityPolicy",
-                    symbol=order_request.symbol,
+                    symbol=order_request.symbol.value,
                     reason=fractionability_result.rejection_reason,
                 )
                 return fractionability_result
 
-            # Update current request with adjustments
-            if fractionability_result.quantity != current_request.quantity:
-                current_request = OrderRequestDTO(
-                    symbol=fractionability_result.symbol,
-                    side=fractionability_result.side,
-                    quantity=fractionability_result.quantity,
-                    order_type=fractionability_result.order_type,
-                    time_in_force=fractionability_result.time_in_force,
-                    limit_price=fractionability_result.limit_price,
-                    client_order_id=fractionability_result.client_order_id,
-                )
-
+            # Update current request if adjustments were made
+            current_request = fractionability_result.order_request
+            
+            # Collect warnings and metadata immutably
             all_warnings.extend(fractionability_result.warnings)
-            all_metadata.update(fractionability_result.policy_metadata)
-            total_risk_score += fractionability_result.total_risk_score
+            if fractionability_result.policy_metadata:
+                all_metadata.update(fractionability_result.policy_metadata)
 
         except Exception as e:
             log_with_context(
@@ -136,21 +157,14 @@ class PolicyOrchestrator:
                 f"Fractionability policy failed: {e}",
                 orchestrator=self._orchestrator_name,
                 policy="FractionabilityPolicy",
-                symbol=order_request.symbol,
+                symbol=order_request.symbol.value,
                 error=str(e),
             )
 
-            return AdjustedOrderRequestDTO(
-                symbol=order_request.symbol,
-                side=order_request.side,
-                quantity=order_request.quantity,
-                order_type=order_request.order_type,
-                time_in_force=order_request.time_in_force,
-                limit_price=order_request.limit_price,
-                client_order_id=order_request.client_order_id,
-                is_approved=False,
+            from the_alchemiser.domain.policies.policy_result import create_rejected_result
+            return create_rejected_result(
+                order_request=order_request,
                 rejection_reason=f"Fractionability policy error: {e}",
-                total_risk_score=total_risk_score,
             )
 
         # 2. Position Policy
@@ -164,29 +178,19 @@ class PolicyOrchestrator:
                     "Order rejected by position policy",
                     orchestrator=self._orchestrator_name,
                     policy="PositionPolicy",
-                    symbol=order_request.symbol,
+                    symbol=order_request.symbol.value,
                     reason=position_result.rejection_reason,
                 )
 
-                # Include previous warnings in the rejection
-                position_result.warnings.extend(all_warnings)
-                return position_result
+                # Include previous warnings in the rejection (immutable)
+                combined_warnings = tuple(all_warnings) + position_result.warnings
+                return position_result.with_warnings(combined_warnings)
 
-            # Update current request with adjustments
-            if position_result.quantity != current_request.quantity:
-                current_request = OrderRequestDTO(
-                    symbol=position_result.symbol,
-                    side=position_result.side,
-                    quantity=position_result.quantity,
-                    order_type=position_result.order_type,
-                    time_in_force=position_result.time_in_force,
-                    limit_price=position_result.limit_price,
-                    client_order_id=position_result.client_order_id,
-                )
-
+            # Update current request and collect state
+            current_request = position_result.order_request
             all_warnings.extend(position_result.warnings)
-            all_metadata.update(position_result.policy_metadata)
-            total_risk_score += position_result.total_risk_score
+            if position_result.policy_metadata:
+                all_metadata.update(position_result.policy_metadata)
 
         except Exception as e:
             log_with_context(
@@ -195,23 +199,16 @@ class PolicyOrchestrator:
                 f"Position policy failed: {e}",
                 orchestrator=self._orchestrator_name,
                 policy="PositionPolicy",
-                symbol=order_request.symbol,
+                symbol=order_request.symbol.value,
                 error=str(e),
             )
 
-            return AdjustedOrderRequestDTO(
-                symbol=current_request.symbol,
-                side=current_request.side,
-                quantity=current_request.quantity,
-                order_type=current_request.order_type,
-                time_in_force=current_request.time_in_force,
-                limit_price=current_request.limit_price,
-                client_order_id=current_request.client_order_id,
-                is_approved=False,
+            from the_alchemiser.domain.policies.policy_result import create_rejected_result
+            result = create_rejected_result(
+                order_request=current_request,
                 rejection_reason=f"Position policy error: {e}",
-                warnings=all_warnings,
-                total_risk_score=total_risk_score,
             )
+            return result.with_warnings(tuple(all_warnings))
 
         # 3. Buying Power Policy
         try:
@@ -224,17 +221,18 @@ class PolicyOrchestrator:
                     "Order rejected by buying power policy",
                     orchestrator=self._orchestrator_name,
                     policy="BuyingPowerPolicy",
-                    symbol=order_request.symbol,
+                    symbol=order_request.symbol.value,
                     reason=buying_power_result.rejection_reason,
                 )
 
-                # Include previous warnings in the rejection
-                buying_power_result.warnings.extend(all_warnings)
-                return buying_power_result
+                # Include previous warnings (immutable)
+                combined_warnings = tuple(all_warnings) + buying_power_result.warnings
+                return buying_power_result.with_warnings(combined_warnings)
 
+            # Collect state
             all_warnings.extend(buying_power_result.warnings)
-            all_metadata.update(buying_power_result.policy_metadata)
-            total_risk_score += buying_power_result.total_risk_score
+            if buying_power_result.policy_metadata:
+                all_metadata.update(buying_power_result.policy_metadata)
 
         except Exception as e:
             log_with_context(
@@ -243,23 +241,16 @@ class PolicyOrchestrator:
                 f"Buying power policy failed: {e}",
                 orchestrator=self._orchestrator_name,
                 policy="BuyingPowerPolicy",
-                symbol=order_request.symbol,
+                symbol=order_request.symbol.value,
                 error=str(e),
             )
 
-            return AdjustedOrderRequestDTO(
-                symbol=current_request.symbol,
-                side=current_request.side,
-                quantity=current_request.quantity,
-                order_type=current_request.order_type,
-                time_in_force=current_request.time_in_force,
-                limit_price=current_request.limit_price,
-                client_order_id=current_request.client_order_id,
-                is_approved=False,
+            from the_alchemiser.domain.policies.policy_result import create_rejected_result
+            result = create_rejected_result(
+                order_request=current_request,
                 rejection_reason=f"Buying power policy error: {e}",
-                warnings=all_warnings,
-                total_risk_score=total_risk_score,
             )
+            return result.with_warnings(tuple(all_warnings))
 
         # 4. Risk Policy
         try:
@@ -272,17 +263,18 @@ class PolicyOrchestrator:
                     "Order rejected by risk policy",
                     orchestrator=self._orchestrator_name,
                     policy="RiskPolicy",
-                    symbol=order_request.symbol,
+                    symbol=order_request.symbol.value,
                     reason=risk_result.rejection_reason,
                 )
 
-                # Include previous warnings in the rejection
-                risk_result.warnings.extend(all_warnings)
-                return risk_result
+                # Include previous warnings (immutable)
+                combined_warnings = tuple(all_warnings) + risk_result.warnings
+                return risk_result.with_warnings(combined_warnings)
 
+            # Collect final state
             all_warnings.extend(risk_result.warnings)
-            all_metadata.update(risk_result.policy_metadata)
-            total_risk_score += risk_result.total_risk_score
+            if risk_result.policy_metadata:
+                all_metadata.update(risk_result.policy_metadata)
 
         except Exception as e:
             log_with_context(
@@ -291,56 +283,47 @@ class PolicyOrchestrator:
                 f"Risk policy failed: {e}",
                 orchestrator=self._orchestrator_name,
                 policy="RiskPolicy",
-                symbol=order_request.symbol,
+                symbol=order_request.symbol.value,
                 error=str(e),
             )
 
-            return AdjustedOrderRequestDTO(
-                symbol=current_request.symbol,
-                side=current_request.side,
-                quantity=current_request.quantity,
-                order_type=current_request.order_type,
-                time_in_force=current_request.time_in_force,
-                limit_price=current_request.limit_price,
-                client_order_id=current_request.client_order_id,
-                is_approved=False,
+            from the_alchemiser.domain.policies.policy_result import create_rejected_result
+            result = create_rejected_result(
+                order_request=current_request,
                 rejection_reason=f"Risk policy error: {e}",
-                warnings=all_warnings,
-                total_risk_score=total_risk_score,
             )
+            return result.with_warnings(tuple(all_warnings))
 
         # All policies passed - create final approved result
-        final_quantity = current_request.quantity
-        has_adjustments = final_quantity != order_request.quantity
+        final_quantity = current_request.quantity.value
+        has_adjustments = final_quantity != order_request.quantity.value
 
         log_with_context(
             logger,
             logging.INFO,
             "All policies approved order",
             orchestrator=self._orchestrator_name,
-            symbol=order_request.symbol,
+            symbol=order_request.symbol.value,
             final_quantity=str(final_quantity),
-            original_quantity=str(order_request.quantity),
+            original_quantity=str(order_request.quantity.value),
             has_adjustments=str(has_adjustments),
             total_warnings=str(len(all_warnings)),
-            total_risk_score=str(total_risk_score),
         )
 
-        return AdjustedOrderRequestDTO(
-            symbol=current_request.symbol,
-            side=current_request.side,
-            quantity=final_quantity,
-            order_type=current_request.order_type,
-            time_in_force=current_request.time_in_force,
-            limit_price=current_request.limit_price,
-            client_order_id=current_request.client_order_id,
-            is_approved=True,
-            original_quantity=order_request.quantity if has_adjustments else None,
+        from the_alchemiser.domain.policies.policy_result import create_approved_result
+        result = create_approved_result(
+            order_request=current_request,
+            original_quantity=order_request.quantity.value if has_adjustments else None,
             adjustment_reason="Policy adjustments applied" if has_adjustments else None,
-            warnings=all_warnings,
-            policy_metadata=all_metadata,
-            total_risk_score=total_risk_score,
         )
+        
+        # Add accumulated warnings and metadata immutably
+        if all_warnings:
+            result = result.with_warnings(tuple(all_warnings))
+        if all_metadata:
+            result = result.with_metadata(all_metadata)
+        
+        return result
 
     @property
     def orchestrator_name(self) -> str:

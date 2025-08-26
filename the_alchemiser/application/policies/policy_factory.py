@@ -90,7 +90,7 @@ class PolicyFactory:
         Returns:
             PolicyOrchestrator with only fractionability policy
         """
-        from the_alchemiser.domain.policies.policy_result import create_approved_result
+        from the_alchemiser.domain.policies.policy_result import create_approved_result, PolicyResult
         from the_alchemiser.domain.trading.value_objects.order_request import OrderRequest
 
         fractionability_policy = FractionabilityPolicyImpl()
@@ -101,7 +101,7 @@ class PolicyFactory:
             def policy_name(self) -> str:
                 return "NoOpPositionPolicy"
 
-            def validate_and_adjust(self, order_request: OrderRequest):
+            def validate_and_adjust(self, order_request: OrderRequest) -> PolicyResult:
                 return create_approved_result(order_request=order_request)
 
         class NoOpBuyingPowerPolicy:
@@ -109,7 +109,7 @@ class PolicyFactory:
             def policy_name(self) -> str:
                 return "NoOpBuyingPowerPolicy"
 
-            def validate_and_adjust(self, order_request: OrderRequest):
+            def validate_and_adjust(self, order_request: OrderRequest) -> PolicyResult:
                 return create_approved_result(order_request=order_request)
 
         class NoOpRiskPolicy:
@@ -117,7 +117,7 @@ class PolicyFactory:
             def policy_name(self) -> str:
                 return "NoOpRiskPolicy"
 
-            def validate_and_adjust(self, order_request: OrderRequest):
+            def validate_and_adjust(self, order_request: OrderRequest) -> PolicyResult:
                 return create_approved_result(order_request=order_request)
 
         return PolicyOrchestrator(

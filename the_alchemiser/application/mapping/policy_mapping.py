@@ -53,10 +53,10 @@ def domain_order_request_to_dto(order_request: OrderRequest) -> OrderRequestDTO:
     
     return OrderRequestDTO(
         symbol=order_request.symbol.value,
-        side=order_request.side.value,  # type: ignore  # Literal match
+        side=order_request.side.value,
         quantity=order_request.quantity.value,
-        order_type=order_request.order_type.value,  # type: ignore  # Literal match
-        time_in_force=order_request.time_in_force.value,  # type: ignore  # Literal match
+        order_type=order_request.order_type.value,
+        time_in_force=order_request.time_in_force.value,
         limit_price=limit_price,
         client_order_id=order_request.client_order_id,
     )
