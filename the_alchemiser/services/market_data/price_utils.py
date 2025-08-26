@@ -3,12 +3,13 @@
 This module provides helper functions for price handling and conversion operations.
 """
 
-from typing import Any
+from typing import Union
 
 import pandas as pd
+import numpy as np
 
 
-def ensure_scalar_price(price: Any) -> float | None:
+def ensure_scalar_price(price: Union[float, int, pd.Series, np.ndarray, None]) -> float | None:
     """Ensure price is a scalar value for JSON serialization and string formatting.
 
     This function converts pandas Series, numpy arrays, or other array-like price

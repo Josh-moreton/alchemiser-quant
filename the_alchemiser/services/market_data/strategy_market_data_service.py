@@ -7,7 +7,6 @@ models while providing backward-compatible DataFrame adapters for strategies.
 from __future__ import annotations
 
 import logging
-from typing import Any
 
 import pandas as pd
 
@@ -130,7 +129,7 @@ class StrategyMarketDataService:
         symbol: str,
         timeframe: str = "1day",
         period: str = "1y",
-        **kwargs: Any,
+        **kwargs: object,
     ) -> pd.DataFrame:
         """Retrieve historical market data as DataFrame (adapter method).
 
@@ -152,7 +151,7 @@ class StrategyMarketDataService:
             logger.error(f"Failed to get data for {symbol}: {e}")
             return pd.DataFrame()
 
-    def get_current_price(self, symbol: str, **kwargs: Any) -> float | None:
+    def get_current_price(self, symbol: str, **kwargs: object) -> float | None:
         """Get current price from quote (adapter method).
 
         Args:
@@ -171,7 +170,7 @@ class StrategyMarketDataService:
             return None
 
     def get_latest_quote_tuple(
-        self, symbol: str, **kwargs: Any
+        self, symbol: str, **kwargs: object
     ) -> tuple[float | None, float | None]:
         """Get latest quote as tuple (adapter method).
 

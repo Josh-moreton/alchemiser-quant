@@ -8,18 +8,43 @@ breaking down verbose price fetching logic into reusable components.
 import logging
 import time
 from collections.abc import Callable
-from typing import Any
+from typing import Protocol
 
 import pandas as pd
 from alpaca.data.requests import StockLatestQuoteRequest
 
+from the_alchemiser.domain.policies.protocols import DataProviderProtocol
 from the_alchemiser.infrastructure.logging.logging_utils import get_logger, log_error_with_context
 from the_alchemiser.services.errors.exceptions import DataProviderError
+
+
+class RealTimePricingProtocol(Protocol):
+    """Protocol for real-time pricing services."""
+    
+    def is_connected(self) -> bool:
+        """Check if connected to real-time data."""
+        ...
+    
+    def subscribe_for_trading(self, symbol: str) -> None:
+        """Subscribe to real-time trading data for symbol."""
+        ...
+    
+    def unsubscribe(self, symbol: str) -> None:
+        """Unsubscribe from real-time data for symbol."""
+        ...
+
+
+class DataClientProtocol(Protocol):
+    """Protocol for data client services."""
+    
+    def get_stock_latest_quote(self, request: StockLatestQuoteRequest) -> object:
+        """Get latest stock quote."""
+        ...
 
 logger = get_logger(__name__)
 
 
-def subscribe_for_real_time(real_time_pricing: Any, symbol: str) -> bool:
+def subscribe_for_real_time(real_time_pricing: RealTimePricingProtocol, symbol: str) -> bool:
     """Subscribe to real-time data for a symbol with just-in-time subscription.
 
     Args:
@@ -66,7 +91,7 @@ def subscribe_for_real_time(real_time_pricing: Any, symbol: str) -> bool:
         return False
 
 
-def extract_bid_ask(quote: Any) -> tuple[float | None, float | None]:
+def extract_bid_ask(quote: object) -> tuple[float | None, float | None]:
     """Extract bid and ask prices safely from a quote object.
 
     Args:
@@ -110,7 +135,7 @@ def calculate_price_from_bid_ask(bid: float | None, ask: float | None) -> float 
     return None
 
 
-def get_price_from_quote_api(data_client: Any, symbol: str) -> float | None:
+def get_price_from_quote_api(data_client: DataClientProtocol, symbol: str) -> float | None:
     """Get current price from quote API.
 
     Args:
@@ -155,7 +180,7 @@ def get_price_from_quote_api(data_client: Any, symbol: str) -> float | None:
     return None
 
 
-def get_price_from_historical_fallback(data_provider: Any, symbol: str) -> float | None:
+def get_price_from_historical_fallback(data_provider: DataProviderProtocol, symbol: str) -> float | None:
     """Fallback to recent historical data for price.
 
     Args:
@@ -205,7 +230,7 @@ def get_price_from_historical_fallback(data_provider: Any, symbol: str) -> float
     return None
 
 
-def create_cleanup_function(real_time_pricing: Any, symbol: str) -> Callable[[], None]:
+def create_cleanup_function(real_time_pricing: RealTimePricingProtocol, symbol: str) -> Callable[[], None]:
     """Create a cleanup function to unsubscribe from real-time data.
 
     Args:
