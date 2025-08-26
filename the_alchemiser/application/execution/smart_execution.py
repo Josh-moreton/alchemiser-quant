@@ -21,8 +21,12 @@ from alpaca.trading.enums import OrderSide
 
 from the_alchemiser.interfaces.schemas.execution import WebSocketResultDTO
 from the_alchemiser.services.errors.exceptions import (
+    BuyingPowerError,
     DataProviderError,
     OrderExecutionError,
+    OrderPlacementError,
+    OrderTimeoutError,
+    SpreadAnalysisError,
     TradingClientError,
 )
 
@@ -115,6 +119,7 @@ class SmartExecution:
         ignore_market_hours: bool = False,
         config: Any = None,
         account_info_provider: Any = None,
+        enable_market_order_fallback: bool = False,  # Feature flag for market order fallback
     ) -> None:
         """Initialize with dependency injection for execution and data access."""
         self.config = config or {}
@@ -123,6 +128,7 @@ class SmartExecution:
         self._trading_client = getattr(order_executor, "trading_client", None)
         self._account_info_provider = account_info_provider
         self.ignore_market_hours = ignore_market_hours
+        self.enable_market_order_fallback = enable_market_order_fallback
         self.logger = logging.getLogger(__name__)
 
     def execute_safe_sell(self, symbol: str, target_qty: float) -> str | None:
@@ -314,12 +320,40 @@ class SmartExecution:
                 extra={
                     "symbol": symbol,
                     "error": str(e),
+                    "error_type": type(e).__name__,
                     "phase": "better_orders_main",
                 },
             )
-            # Step 4: Market order fallback
-            console.print("[yellow]Order execution failed, falling back to market order[/yellow]")
-            return self._order_executor.place_market_order(symbol, side, qty=qty)
+            # Feature flag controlled market order fallback
+            if self.enable_market_order_fallback:
+                console.print("[yellow]Order execution failed, falling back to market order[/yellow]")
+                self.logger.info(
+                    "market_order_fallback_triggered",
+                    extra={
+                        "symbol": symbol,
+                        "reason": "order_execution_error",
+                        "original_error": str(e),
+                    },
+                )
+                return self._order_executor.place_market_order(symbol, side, qty=qty)
+            else:
+                console.print("[red]Order execution failed, market fallback disabled[/red]")
+                raise e
+        except SpreadAnalysisError as e:
+            self.logger.error(
+                "spread_analysis_error",
+                extra={
+                    "symbol": symbol,
+                    "error": str(e),
+                    "phase": "better_orders_main",
+                    "bid": getattr(e, "bid", None),
+                    "ask": getattr(e, "ask", None),
+                    "spread_cents": getattr(e, "spread_cents", None),
+                },
+            )
+            # Spread analysis failure - no fallback as pricing data is unreliable
+            console.print("[red]Spread analysis failed, cannot determine safe pricing[/red]")
+            raise e
         except DataProviderError as e:
             self.logger.error(
                 "data_provider_error",
@@ -329,21 +363,103 @@ class SmartExecution:
                     "phase": "better_orders_main",
                 },
             )
-            # Step 4: Market order fallback
-            console.print("[yellow]Data provider error, falling back to market order[/yellow]")
-            return self._order_executor.place_market_order(symbol, side, qty=qty)
-        except Exception as e:
+            # Feature flag controlled market order fallback
+            if self.enable_market_order_fallback:
+                console.print("[yellow]Data provider error, falling back to market order[/yellow]")
+                self.logger.info(
+                    "market_order_fallback_triggered",
+                    extra={
+                        "symbol": symbol,
+                        "reason": "data_provider_error",
+                        "original_error": str(e),
+                    },
+                )
+                return self._order_executor.place_market_order(symbol, side, qty=qty)
+            else:
+                console.print("[red]Data provider error, market fallback disabled[/red]")
+                raise e
+        except BuyingPowerError as e:
             self.logger.error(
-                "unexpected_execution_error",
+                "buying_power_error",
                 extra={
                     "symbol": symbol,
                     "error": str(e),
                     "phase": "better_orders_main",
+                    "required_amount": getattr(e, "required_amount", None),
+                    "available_amount": getattr(e, "available_amount", None),
+                    "shortfall": getattr(e, "shortfall", None),
                 },
             )
-            # Step 4: Market order fallback
-            console.print("[yellow]Unexpected error, falling back to market order[/yellow]")
-            return self._order_executor.place_market_order(symbol, side, qty=qty)
+            # Buying power errors should never fallback to market orders
+            console.print("[red]Insufficient buying power, cannot execute order[/red]")
+            raise e
+        except Exception as e:
+            # Classify unknown errors more specifically
+            error_message = str(e).lower()
+
+            if "buying power" in error_message or "insufficient funds" in error_message:
+                buying_power_error = BuyingPowerError(
+                    f"Classified buying power error: {str(e)}",
+                    symbol=symbol,
+                )
+                self.logger.error(
+                    "classified_buying_power_error",
+                    extra={
+                        "symbol": symbol,
+                        "original_error": str(e),
+                        "phase": "better_orders_main",
+                    },
+                )
+                console.print("[red]Insufficient buying power detected[/red]")
+                raise buying_power_error
+            elif "order" in error_message and ("failed" in error_message or "reject" in error_message):
+                placement_error = OrderPlacementError(
+                    f"Order placement failed: {str(e)}",
+                    symbol=symbol,
+                    reason="unknown_placement_failure",
+                )
+                self.logger.error(
+                    "classified_order_placement_error",
+                    extra={
+                        "symbol": symbol,
+                        "original_error": str(e),
+                        "phase": "better_orders_main",
+                    },
+                )
+                if self.enable_market_order_fallback:
+                    console.print("[yellow]Order placement failed, falling back to market order[/yellow]")
+                    return self._order_executor.place_market_order(symbol, side, qty=qty)
+                else:
+                    console.print("[red]Order placement failed, market fallback disabled[/red]")
+                    raise placement_error
+            else:
+                # Unknown error - log and decide based on feature flag
+                self.logger.error(
+                    "unclassified_execution_error",
+                    extra={
+                        "symbol": symbol,
+                        "error": str(e),
+                        "error_type": type(e).__name__,
+                        "phase": "better_orders_main",
+                    },
+                )
+                if self.enable_market_order_fallback:
+                    console.print("[yellow]Unexpected error, falling back to market order[/yellow]")
+                    self.logger.warning(
+                        "market_order_fallback_triggered",
+                        extra={
+                            "symbol": symbol,
+                            "reason": "unclassified_error",
+                            "original_error": str(e),
+                        },
+                    )
+                    return self._order_executor.place_market_order(symbol, side, qty=qty)
+                else:
+                    console.print("[red]Unexpected error, market fallback disabled[/red]")
+                    raise OrderExecutionError(
+                        f"Unclassified execution error: {str(e)}",
+                        symbol=symbol,
+                    )
 
     def wait_for_settlement(
         self,
@@ -571,13 +687,50 @@ class SmartExecution:
             # Place aggressive marketable limit
             order_id = self._order_executor.place_limit_order(symbol, qty, side, limit_price)
             if not order_id:
-                console.print("[red]Failed to place limit order[/red]")
-                continue
+                error_msg = f"Limit order placement returned None ID: {symbol} {side.value} {qty}@{limit_price}"
+                self.logger.error(
+                    "order_placement_none_id",
+                    extra={
+                        "symbol": symbol,
+                        "side": side.value,
+                        "quantity": qty,
+                        "limit_price": limit_price,
+                        "attempt": attempt,
+                    },
+                )
+                console.print("[red]Failed to place limit order - no order ID returned[/red]")
+                # Don't continue the loop - this is a serious placement failure
+                raise OrderPlacementError(
+                    error_msg,
+                    symbol=symbol,
+                    order_type="limit",
+                    quantity=qty,
+                    price=limit_price,
+                    reason="none_order_id_returned",
+                )
 
             # Wait for fill with fast timeout (2-3 seconds max)
-            order_result = self._order_executor.wait_for_order_completion(
-                [order_id], max_wait_seconds=int(timeout_seconds)
-            )
+            try:
+                order_result = self._order_executor.wait_for_order_completion(
+                    [order_id], max_wait_seconds=int(timeout_seconds)
+                )
+            except Exception as e:
+                self.logger.error(
+                    "order_completion_wait_error",
+                    extra={
+                        "symbol": symbol,
+                        "order_id": order_id,
+                        "timeout_seconds": timeout_seconds,
+                        "error": str(e),
+                    },
+                )
+                raise OrderTimeoutError(
+                    f"Failed to wait for order completion: {str(e)}",
+                    symbol=symbol,
+                    order_id=order_id,
+                    timeout_seconds=timeout_seconds,
+                    attempt_number=attempt + 1,
+                )
 
             # Check if the order completed successfully
             order_completed = order_id in order_result.orders_completed
@@ -592,22 +745,70 @@ class SmartExecution:
                 console.print(f"[yellow]{attempt_label} not filled, re-pegging...[/yellow]")
 
                 # Get fresh quote for re-peg pricing
-                fresh_quote = self._order_executor.data_provider.get_latest_quote(symbol)
-                if not fresh_quote or len(fresh_quote) < 2:
-                    console.print("[yellow]Invalid fresh quote, using market order[/yellow]")
-                    break
-                bid, ask = float(fresh_quote[0]), float(fresh_quote[1])
+                try:
+                    fresh_quote = self._order_executor.data_provider.get_latest_quote(symbol)
+                    if not fresh_quote or len(fresh_quote) < 2:
+                        raise SpreadAnalysisError(
+                            f"Invalid fresh quote for re-peg: {fresh_quote}",
+                            symbol=symbol,
+                        )
+                    bid, ask = float(fresh_quote[0]), float(fresh_quote[1])
 
-                # Check if fresh quote is invalid (fallback zeros)
-                if bid <= 0 or ask <= 0:
-                    console.print("[yellow]Invalid fresh quote, using market order[/yellow]")
-                    break
+                    # Check if fresh quote is invalid (fallback zeros)
+                    if bid <= 0 or ask <= 0:
+                        raise SpreadAnalysisError(
+                            f"Invalid bid/ask prices for re-peg: bid={bid}, ask={ask}",
+                            symbol=symbol,
+                            bid=bid,
+                            ask=ask,
+                        )
+                except SpreadAnalysisError:
+                    raise  # Re-raise the specific error
+                except Exception as e:
+                    raise SpreadAnalysisError(
+                        f"Failed to get fresh quote for re-peg: {str(e)}",
+                        symbol=symbol,
+                    )
             else:
+                self.logger.warning(
+                    "max_repegs_reached",
+                    extra={
+                        "symbol": symbol,
+                        "max_repegs": max_repegs,
+                        "final_order_id": order_id,
+                    },
+                )
                 console.print(f"[yellow]Maximum re-pegs ({max_repegs}) reached[/yellow]")
 
-        # Step 4: Market order fallback
-        console.print("[yellow]All limit attempts failed, using market order[/yellow]")
-        return self._order_executor.place_market_order(symbol, side, qty=qty)
+        # All limit attempts exhausted - check feature flag for market order fallback
+        if self.enable_market_order_fallback:
+            console.print("[yellow]All limit attempts failed, using market order fallback[/yellow]")
+            self.logger.info(
+                "market_order_fallback_triggered",
+                extra={
+                    "symbol": symbol,
+                    "reason": "limit_attempts_exhausted",
+                    "max_repegs": max_repegs,
+                },
+            )
+            fallback_order_id = self._order_executor.place_market_order(symbol, side, qty=qty)
+            if not fallback_order_id:
+                raise OrderPlacementError(
+                    f"Market order fallback also failed: {symbol} {side.value} {qty}",
+                    symbol=symbol,
+                    order_type="market",
+                    quantity=qty,
+                    reason="market_fallback_none_id",
+                )
+            return fallback_order_id
+        else:
+            # Feature flag disabled - raise timeout error instead of fallback
+            raise OrderTimeoutError(
+                f"All limit order attempts failed and market fallback disabled: {symbol} {side.value} {qty}",
+                symbol=symbol,
+                timeout_seconds=timeout_seconds * (max_repegs + 1),
+                attempt_number=max_repegs + 1,
+            )
 
     def get_order_by_id(self, order_id: str) -> Any:
         """Get order details by order ID from the trading client."""
