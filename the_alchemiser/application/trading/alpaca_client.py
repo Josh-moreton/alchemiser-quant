@@ -219,6 +219,9 @@ class AlpacaClient:
         """
         Place a simple market order using helper modules for validation and asset handling.
 
+        TODO: Phase 1 consolidation - merge duplicated order placement logic
+        across SmartExecution, AlpacaClient, and EngineService into unified interface
+
         Args:
             symbol: Stock symbol
             side: OrderSide.BUY or OrderSide.SELL
