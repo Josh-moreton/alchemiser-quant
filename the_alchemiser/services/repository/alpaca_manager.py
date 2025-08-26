@@ -12,7 +12,9 @@ Phase 2 Update: Now implements domain interfaces for type safety and future migr
 """
 
 import logging
-from typing import Any
+
+# Type checking imports to avoid circular dependencies
+from typing import TYPE_CHECKING, Any
 
 from alpaca.data.historical import StockHistoricalDataClient
 from alpaca.data.requests import StockBarsRequest, StockLatestQuoteRequest
@@ -31,6 +33,9 @@ from the_alchemiser.domain.interfaces import (
     TradingRepository,
 )
 from the_alchemiser.interfaces.schemas.orders import OrderExecutionResultDTO
+
+if TYPE_CHECKING:
+    from the_alchemiser.interfaces.schemas.orders import RawOrderEnvelope
 
 logger = logging.getLogger(__name__)
 
@@ -191,20 +196,44 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             logger.error(f"Failed to get position for {symbol}: {e}")
             raise
 
-    def place_order(self, order_request: Any) -> OrderExecutionResultDTO:
-        """Place an order with error handling and DTO conversion."""
+    def place_order(self, order_request: Any) -> "RawOrderEnvelope":
+        """Place an order and return raw envelope with metadata."""
+        from datetime import UTC, datetime
+
+        from the_alchemiser.interfaces.schemas.orders import RawOrderEnvelope
+
+        request_timestamp = datetime.now(UTC)
+
         try:
             order = self._trading_client.submit_order(order_request)
+            response_timestamp = datetime.now(UTC)
+
             # Avoid attribute assumptions for mypy
             order_id = getattr(order, "id", None)
             order_symbol = getattr(order, "symbol", None)
             logger.info(f"Successfully placed order: {order_id} for {order_symbol}")
 
-            # Convert raw Alpaca order to OrderExecutionResultDTO
-            return alpaca_order_to_execution_result(order)
+            # Return raw envelope instead of mapped DTO
+            return RawOrderEnvelope(
+                raw_order=order,
+                original_request=order_request,
+                request_timestamp=request_timestamp,
+                response_timestamp=response_timestamp,
+                success=True,
+                error_message=None,
+            )
         except Exception as e:
             logger.error(f"Failed to place order: {e}")
-            return create_error_execution_result(e, "Order placement")
+            response_timestamp = datetime.now(UTC)
+
+            return RawOrderEnvelope(
+                raw_order=None,
+                original_request=order_request,
+                request_timestamp=request_timestamp,
+                response_timestamp=response_timestamp,
+                success=False,
+                error_message=str(e),
+            )
 
     def get_order_execution_result(self, order_id: str) -> OrderExecutionResultDTO:
         """Fetch latest order state and map to execution result DTO.
@@ -271,8 +300,15 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
                 time_in_force=TimeInForce.DAY,
             )
 
-            # Use the updated place_order method that returns DTO
-            return self.place_order(order_request)
+            # Use the updated place_order method that returns RawOrderEnvelope
+            envelope = self.place_order(order_request)
+
+            # Convert envelope to OrderExecutionResultDTO for backward compatibility
+            from the_alchemiser.application.mapping.order_mapping import (
+                raw_order_envelope_to_execution_result_dto,
+            )
+
+            return raw_order_envelope_to_execution_result_dto(envelope)
 
         except ValueError as e:
             logger.error(f"Invalid order parameters: {e}")
@@ -328,8 +364,15 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
                 ),
             )
 
-            # Use the updated place_order method that returns DTO
-            return self.place_order(order_request)
+            # Use the updated place_order method that returns RawOrderEnvelope
+            envelope = self.place_order(order_request)
+
+            # Convert envelope to OrderExecutionResultDTO for backward compatibility
+            from the_alchemiser.application.mapping.order_mapping import (
+                raw_order_envelope_to_execution_result_dto,
+            )
+
+            return raw_order_envelope_to_execution_result_dto(envelope)
 
         except ValueError as e:
             logger.error(f"Invalid limit order parameters: {e}")

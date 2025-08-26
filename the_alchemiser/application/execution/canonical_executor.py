@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import logging
 from decimal import Decimal
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from the_alchemiser.domain.trading.value_objects.order_request import OrderRequest
 from the_alchemiser.interfaces.schemas.orders import OrderExecutionResultDTO
@@ -73,7 +73,37 @@ class CanonicalOrderExecutor:
             )
 
         try:
-            alpaca_order_request = self._convert_to_alpaca_request(order_request)
+            # Use centralized order request builder
+
+            from alpaca.trading.requests import LimitOrderRequest, MarketOrderRequest
+
+            from the_alchemiser.application.execution.order_request_builder import (
+                OrderRequestBuilder,
+            )
+
+            alpaca_order_request: MarketOrderRequest | LimitOrderRequest
+
+            if order_request.order_type.value == "market":
+                alpaca_order_request = OrderRequestBuilder.build_market_order_request(
+                    symbol=order_request.symbol.value,
+                    side=order_request.side.value,
+                    qty=order_request.quantity.value,
+                    time_in_force=order_request.time_in_force.value,
+                    client_order_id=order_request.client_order_id,
+                )
+            else:  # limit order
+                if order_request.limit_price is None:
+                    raise ValueError("Limit price required for limit orders")
+
+                alpaca_order_request = OrderRequestBuilder.build_limit_order_request(
+                    symbol=order_request.symbol.value,
+                    side=order_request.side.value,
+                    quantity=order_request.quantity.value,
+                    limit_price=order_request.limit_price.amount,
+                    time_in_force=order_request.time_in_force.value,
+                    client_order_id=order_request.client_order_id,
+                )
+
             logger.info(
                 "Submitting canonical order",
                 extra={
@@ -84,7 +114,15 @@ class CanonicalOrderExecutor:
                     "order_type": order_request.order_type.value,
                 },
             )
-            execution_result = self.repository.place_order(alpaca_order_request)
+            # Repository now returns RawOrderEnvelope, need to convert to DTO
+            raw_envelope = self.repository.place_order(alpaca_order_request)
+
+            # Convert envelope to OrderExecutionResultDTO
+            from the_alchemiser.application.mapping.order_mapping import (
+                raw_order_envelope_to_execution_result_dto,
+            )
+
+            execution_result = raw_order_envelope_to_execution_result_dto(raw_envelope)
         except Exception as e:  # infra failure
             self.error_handler.handle_error(
                 error=e,
@@ -186,52 +224,5 @@ class CanonicalOrderExecutor:
 
         # Additional business rule validation can be added here
         logger.debug(f"Order request validation passed for {order_request.symbol.value}")
-
-    def _convert_to_alpaca_request(self, order_request: OrderRequest) -> Any:
-        """Convert domain OrderRequest to Alpaca API format.
-
-        Args:
-            order_request: Domain order request value object
-
-        Returns:
-            MarketOrderRequest or LimitOrderRequest: Alpaca API compatible order request
-        """
-        from alpaca.trading.enums import OrderSide
-        from alpaca.trading.enums import TimeInForce as AlpacaTimeInForce
-        from alpaca.trading.requests import LimitOrderRequest, MarketOrderRequest
-
-        # Convert domain values to Alpaca enums
-        alpaca_side = OrderSide.BUY if order_request.side.value == "buy" else OrderSide.SELL
-
-        # Map time in force
-        tif_mapping = {
-            "day": AlpacaTimeInForce.DAY,
-            "gtc": AlpacaTimeInForce.GTC,
-            "ioc": AlpacaTimeInForce.IOC,
-            "fok": AlpacaTimeInForce.FOK,
-        }
-        alpaca_tif = tif_mapping[order_request.time_in_force.value]
-
-        # Create appropriate request based on order type
-        if order_request.order_type.value == "market":
-            return MarketOrderRequest(
-                symbol=order_request.symbol.value,
-                qty=str(order_request.quantity.value),
-                side=alpaca_side,
-                time_in_force=alpaca_tif,
-                client_order_id=order_request.client_order_id,
-            )
-        else:  # limit order
-            if order_request.limit_price is None:
-                raise ValueError("Limit price required for limit orders")
-
-            return LimitOrderRequest(
-                symbol=order_request.symbol.value,
-                qty=str(order_request.quantity.value),
-                side=alpaca_side,
-                time_in_force=alpaca_tif,
-                limit_price=str(order_request.limit_price.amount),
-                client_order_id=order_request.client_order_id,
-            )
 
     # NOTE: Lifecycle monitoring handled externally via injected lifecycle_monitor.

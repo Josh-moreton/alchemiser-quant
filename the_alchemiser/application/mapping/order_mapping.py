@@ -10,7 +10,7 @@ from __future__ import annotations
 from dataclasses import asdict
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import Any, TypedDict
+from typing import TYPE_CHECKING, Any, TypedDict
 
 from the_alchemiser.application.mapping.orders import normalize_order_status
 from the_alchemiser.domain.shared_kernel.value_objects.money import Money
@@ -19,6 +19,9 @@ from the_alchemiser.domain.trading.value_objects.order_id import OrderId
 from the_alchemiser.domain.trading.value_objects.order_status import OrderStatus
 from the_alchemiser.domain.trading.value_objects.quantity import Quantity
 from the_alchemiser.domain.trading.value_objects.symbol import Symbol
+
+if TYPE_CHECKING:
+    from the_alchemiser.interfaces.schemas.orders import OrderExecutionResultDTO, RawOrderEnvelope
 
 
 class OrderSummary(TypedDict, total=False):
@@ -162,3 +165,50 @@ def order_to_dict(order: Order) -> dict[str, Any]:
     d["limit_price"] = None if order.limit_price is None else float(order.limit_price.amount)
     d["created_at"] = order.created_at.isoformat()
     return d
+
+
+def raw_order_envelope_to_domain_order(envelope: RawOrderEnvelope) -> Order:
+    """Convert RawOrderEnvelope to domain Order entity.
+
+    Args:
+        envelope: RawOrderEnvelope containing raw Alpaca order and metadata
+
+    Returns:
+        Domain Order entity
+
+    Raises:
+        ValueError: If envelope data cannot be converted to domain Order
+    """
+    if not envelope.success or envelope.raw_order is None:
+        raise ValueError("Cannot convert failed order envelope to domain order")
+
+    # Delegate to existing alpaca_order_to_domain function
+    return alpaca_order_to_domain(envelope.raw_order)
+
+
+def raw_order_envelope_to_execution_result_dto(
+    envelope: RawOrderEnvelope,
+) -> OrderExecutionResultDTO:
+    """Convert RawOrderEnvelope to OrderExecutionResultDTO.
+
+    Args:
+        envelope: RawOrderEnvelope containing raw Alpaca order and metadata
+
+    Returns:
+        OrderExecutionResultDTO with execution details
+    """
+    from the_alchemiser.application.mapping.alpaca_dto_mapping import (
+        alpaca_order_to_execution_result,
+        create_error_execution_result,
+    )
+
+    if not envelope.success:
+        # Create error result from envelope metadata
+        error_msg = envelope.error_message or "Order execution failed"
+        return create_error_execution_result(
+            Exception(error_msg),
+            context="Order execution",
+        )
+
+    # For successful orders, delegate to existing function
+    return alpaca_order_to_execution_result(envelope.raw_order)

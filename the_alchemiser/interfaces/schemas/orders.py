@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from decimal import Decimal
-from typing import Literal
+from typing import Any, Literal
 
 from alpaca.trading.requests import LimitOrderRequest
 from pydantic import BaseModel, ConfigDict, field_validator, model_validator
@@ -202,3 +202,33 @@ class LimitOrderResultDTO(BaseModel):
     def is_success(self) -> bool:
         """Alias for success to align with other result DTO naming patterns."""
         return self.success
+
+
+class RawOrderEnvelope(BaseModel):
+    """
+    DTO that captures raw Alpaca order response plus metadata.
+
+    This envelope contains the raw order object from Alpaca along with
+    timestamps and request metadata, serving as the normalized output
+    from AlpacaManager.place_order before domain mapping.
+    """
+
+    model_config = ConfigDict(
+        strict=True,
+        frozen=True,
+        validate_assignment=True,
+    )
+
+    # Raw Alpaca order object
+    raw_order: Any  # The actual Alpaca order object
+
+    # Request metadata
+    original_request: Any  # Original OrderRequest (MarketOrderRequest/LimitOrderRequest)
+    request_timestamp: datetime
+
+    # Response metadata
+    response_timestamp: datetime
+
+    # Execution context
+    success: bool
+    error_message: str | None = None

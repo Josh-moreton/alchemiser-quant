@@ -17,8 +17,7 @@ import logging
 from decimal import Decimal
 from enum import Enum
 
-from alpaca.trading.enums import OrderSide, TimeInForce
-from alpaca.trading.requests import LimitOrderRequest
+from alpaca.trading.enums import TimeInForce
 
 from the_alchemiser.domain.interfaces import MarketDataRepository, TradingRepository
 from the_alchemiser.services.errors.decorators import translate_trading_errors
@@ -148,6 +147,9 @@ class OrderService:
         """
         Place a validated limit order.
 
+        DEPRECATED: This method uses legacy service patterns. Consider using
+        CanonicalOrderExecutor for new code to leverage centralized order building.
+
         Args:
             symbol: Stock symbol (will be normalized)
             side: "buy" or "sell" (case insensitive)
@@ -178,31 +180,41 @@ class OrderService:
         if side == "sell":
             self._validate_sell_position(symbol, quantity, None)
 
-        # Create and place limit order
+        # Create and place limit order using centralized builder
         logger.info(
             f"Placing limit {side} order for {symbol}: "
             f"qty={quantity}, price=${limit_price:.2f}, tif={tif}"
         )
 
-        # Create Alpaca limit order request
-        order_request = LimitOrderRequest(
-            symbol=symbol,
-            qty=quantity,
-            side=OrderSide.BUY if side == "buy" else OrderSide.SELL,
-            time_in_force=tif,
-            limit_price=limit_price,
+        # Use centralized order request builder
+        from the_alchemiser.application.execution.order_request_builder import (
+            OrderRequestBuilder,
         )
 
-        order_result = self._trading.place_order(order_request)
+        order_request = OrderRequestBuilder.build_limit_order_request(
+            symbol=symbol,
+            side=side,
+            quantity=quantity,
+            limit_price=limit_price,
+            time_in_force=time_in_force,
+        )
 
-        if not order_result:
-            raise Exception("Limit order placement returned None - failed")
+        # Repository now returns RawOrderEnvelope, need to handle differently
+        envelope = self._trading.place_order(order_request)
 
-        # Extract order ID
-        order_id = str(getattr(order_result, "id", order_result))
+        if not envelope.success:
+            raise Exception(f"Limit order placement failed: {envelope.error_message}")
+
+        # Extract order ID from envelope
+        order_id = None
+        if envelope.raw_order:
+            order_id = getattr(envelope.raw_order, "id", None)
+
+        if not order_id:
+            raise Exception("Limit order placement succeeded but no order ID returned")
 
         logger.info(f"✅ Limit order placed successfully: {order_id}")
-        return order_id
+        return str(order_id)
 
     @translate_trading_errors()
     def cancel_order(self, order_id: str) -> bool:

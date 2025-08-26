@@ -192,56 +192,64 @@ class TradingServiceManager:
     def place_market_order(
         self, symbol: str, quantity: float, side: str, validate: bool = True
     ) -> OrderExecutionResultDTO:
-        """Place a market order with DTO validation"""
-        try:
-            if validate:
-                # Create OrderRequestDTO and validate through DTO pipeline
-                order_data = {
-                    "symbol": symbol,
-                    "side": side,
-                    "quantity": quantity,
-                    "order_type": "market",
-                    "time_in_force": "day",
-                }
+        """Place a market order with DTO validation.
 
-                try:
-                    order_request = dict_to_order_request_dto(order_data)
-                    validated_order = self.order_validator.validate_order_request(order_request)
+        DEPRECATED: This method uses legacy service patterns. Consider using
+        CanonicalOrderExecutor for new code to leverage centralized order building.
+        """
+        if validate:
+            # Create OrderRequestDTO and validate through DTO pipeline
+            order_data = {
+                "symbol": symbol,
+                "side": side,
+                "quantity": quantity,
+                "order_type": "market",
+                "time_in_force": "day",
+            }
 
-                    self.logger.info(
-                        f"Market order validation successful for {symbol}: "
-                        f"estimated_value=${validated_order.estimated_value}, "
-                        f"risk_score={validated_order.risk_score}"
-                    )
-                except Exception as validation_error:
-                    return OrderExecutionResultDTO(
-                        success=False,
-                        error=f"Order validation failed: {validation_error}",
-                        order_id="",
-                        status="rejected",
-                        filled_qty=Decimal("0"),
-                        avg_fill_price=None,
-                        submitted_at=datetime.datetime.now(),
-                        completed_at=None,
-                    )
-
-            # Always use typed path (using typed domain)
             try:
-                from alpaca.trading.enums import OrderSide, TimeInForce
-                from alpaca.trading.requests import MarketOrderRequest
-            except Exception as e:
-                # If imports fail, this is a configuration error, not a fallback case
-                raise ImportError(f"Required Alpaca trading modules not available: {e}") from e
+                order_request = dict_to_order_request_dto(order_data)
+                validated_order = self.order_validator.validate_order_request(order_request)
 
-            req = MarketOrderRequest(
-                symbol=symbol.upper(),
+                self.logger.info(
+                    f"Market order validation successful for {symbol}: "
+                    f"estimated_value=${validated_order.estimated_value}, "
+                    f"risk_score={validated_order.risk_score}"
+                )
+            except Exception as validation_error:
+                return OrderExecutionResultDTO(
+                    success=False,
+                    error=f"Order validation failed: {validation_error}",
+                    order_id="",
+                    status="rejected",
+                    filled_qty=Decimal("0"),
+                    avg_fill_price=None,
+                    submitted_at=datetime.datetime.now(),
+                    completed_at=None,
+                )
+
+        # Always use typed path (using typed domain)
+        # Use centralized order request builder
+        from the_alchemiser.application.execution.order_request_builder import (
+            OrderRequestBuilder,
+        )
+
+        try:
+            req = OrderRequestBuilder.build_market_order_request(
+                symbol=symbol,
+                side=side,
                 qty=quantity,
-                notional=None,
-                side=OrderSide.BUY if side.lower() == "buy" else OrderSide.SELL,
-                time_in_force=TimeInForce.DAY,
+                time_in_force="day",
             )
-            # AlpacaManager now returns OrderExecutionResultDTO directly
-            return self.alpaca_manager.place_order(req)
+            # AlpacaManager now returns RawOrderEnvelope, need to convert
+            envelope = self.alpaca_manager.place_order(req)
+
+            # Convert envelope to OrderExecutionResultDTO
+            from the_alchemiser.application.mapping.order_mapping import (
+                raw_order_envelope_to_execution_result_dto,
+            )
+
+            return raw_order_envelope_to_execution_result_dto(envelope)
         except Exception as e:  # noqa: BLE001
             return OrderExecutionResultDTO(
                 success=False,
@@ -262,57 +270,66 @@ class TradingServiceManager:
         limit_price: float,
         validate: bool = True,
     ) -> OrderExecutionResultDTO:
-        """Place a limit order with DTO validation"""
-        try:
-            if validate:
-                # Create OrderRequestDTO and validate through DTO pipeline
-                order_data = {
-                    "symbol": symbol,
-                    "side": side,
-                    "quantity": quantity,
-                    "order_type": "limit",
-                    "limit_price": limit_price,
-                    "time_in_force": "day",
-                }
+        """Place a limit order with DTO validation.
 
-                try:
-                    order_request = dict_to_order_request_dto(order_data)
-                    validated_order = self.order_validator.validate_order_request(order_request)
+        DEPRECATED: This method uses legacy service patterns. Consider using
+        CanonicalOrderExecutor for new code to leverage centralized order building.
+        """
+        if validate:
+            # Create OrderRequestDTO and validate through DTO pipeline
+            order_data = {
+                "symbol": symbol,
+                "side": side,
+                "quantity": quantity,
+                "order_type": "limit",
+                "limit_price": limit_price,
+                "time_in_force": "day",
+            }
 
-                    self.logger.info(
-                        f"Limit order validation successful for {symbol}: "
-                        f"estimated_value=${validated_order.estimated_value}, "
-                        f"risk_score={validated_order.risk_score}"
-                    )
-                except Exception as validation_error:
-                    return OrderExecutionResultDTO(
-                        success=False,
-                        error=f"Order validation failed: {validation_error}",
-                        order_id="",
-                        status="rejected",
-                        filled_qty=Decimal("0"),
-                        avg_fill_price=None,
-                        submitted_at=datetime.datetime.now(),
-                        completed_at=None,
-                    )
-
-            # Always use typed path (using typed domain)
             try:
-                from alpaca.trading.enums import OrderSide, TimeInForce
-                from alpaca.trading.requests import LimitOrderRequest
-            except Exception as e:
-                # If imports fail, this is a configuration error, not a fallback case
-                raise ImportError(f"Required Alpaca trading modules not available: {e}") from e
+                order_request = dict_to_order_request_dto(order_data)
+                validated_order = self.order_validator.validate_order_request(order_request)
 
-            req = LimitOrderRequest(
-                symbol=symbol.upper(),
-                qty=quantity,
-                side=OrderSide.BUY if side.lower() == "buy" else OrderSide.SELL,
-                time_in_force=TimeInForce.DAY,
+                self.logger.info(
+                    f"Limit order validation successful for {symbol}: "
+                    f"estimated_value=${validated_order.estimated_value}, "
+                    f"risk_score={validated_order.risk_score}"
+                )
+            except Exception as validation_error:
+                return OrderExecutionResultDTO(
+                    success=False,
+                    error=f"Order validation failed: {validation_error}",
+                    order_id="",
+                    status="rejected",
+                    filled_qty=Decimal("0"),
+                    avg_fill_price=None,
+                    submitted_at=datetime.datetime.now(),
+                    completed_at=None,
+                )
+
+        # Always use typed path (using typed domain)
+        # Use centralized order request builder
+        from the_alchemiser.application.execution.order_request_builder import (
+            OrderRequestBuilder,
+        )
+
+        try:
+            req = OrderRequestBuilder.build_limit_order_request(
+                symbol=symbol,
+                side=side,
+                quantity=quantity,
                 limit_price=limit_price,
+                time_in_force="day",
             )
-            # AlpacaManager now returns OrderExecutionResultDTO directly
-            return self.alpaca_manager.place_order(req)
+            # AlpacaManager now returns RawOrderEnvelope, need to convert
+            envelope = self.alpaca_manager.place_order(req)
+
+            # Convert envelope to OrderExecutionResultDTO
+            from the_alchemiser.application.mapping.order_mapping import (
+                raw_order_envelope_to_execution_result_dto,
+            )
+
+            return raw_order_envelope_to_execution_result_dto(envelope)
         except Exception as e:  # noqa: BLE001
             return OrderExecutionResultDTO(
                 success=False,
