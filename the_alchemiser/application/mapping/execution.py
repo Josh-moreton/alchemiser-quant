@@ -117,13 +117,13 @@ _ORDER_KEYS: tuple[str, ...] = (
 )
 
 
-def _get_attr(obj: Any, name: str, default: Any = None) -> Any:  # pragma: no cover - helper
+def _get_attr(obj: object, name: str, default: object = None) -> object:  # pragma: no cover - helper
     if isinstance(obj, Mapping):
         return obj.get(name, default)
     return getattr(obj, name, default)
 
 
-def _normalize_order_details(order: Any) -> dict[str, Any]:
+def _normalize_order_details(order: object) -> dict[str, Any]:
     """Return a consistent OrderDetails-like dict from various order representations."""
     result: dict[str, Any] = {}
     for key in _ORDER_KEYS:

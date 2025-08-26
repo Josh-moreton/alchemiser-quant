@@ -464,7 +464,7 @@ class AlpacaClient:
         """Clean up any existing WebSocket connection."""
         self.websocket_manager.cleanup_websocket_connection()
 
-    def get_order_by_id(self, order_id: str) -> Any:
+    def get_order_by_id(self, order_id: str) -> object:
         """Get order details by order ID from the trading client.
 
         Args:

@@ -250,7 +250,7 @@ class CircuitBreaker:
         self.state = CircuitState.CLOSED
         self.logger = logging.getLogger(__name__)
 
-    def call(self, func: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
+    def call(self, func: Callable[..., Any], *args: object, **kwargs: object) -> object:
         """Execute function with circuit breaker protection."""
         if self.state == CircuitState.OPEN:
             if self._should_attempt_reset():
@@ -394,7 +394,7 @@ class SmartRetryManager:
         exceptions: tuple[type[Exception], ...] = (Exception,),
         jitter: bool = True,
         recovery_strategies: list[ErrorRecoveryStrategy] | None = None,
-    ) -> Any:
+    ) -> object:
         """Execute function with smart retry strategy."""
         if strategy not in self.strategies:
             raise ValueError(f"Unknown retry strategy: {strategy}")
@@ -503,10 +503,10 @@ class ErrorRecoveryManager:
         retry_strategy: str = "exponential",
         max_retries: int = 3,
         exceptions: tuple[type[Exception], ...] = (Exception,),
-    ) -> Any:
+    ) -> object:
         """Execute function with full resilience features."""
 
-        def protected_func() -> Any:
+        def protected_func() -> object:
             if circuit_breaker_name:
                 circuit_breaker = self.get_circuit_breaker(circuit_breaker_name)
                 return circuit_breaker.call(func)
@@ -553,7 +553,7 @@ def with_circuit_breaker(
     """Decorator to add circuit breaker protection to a function."""
 
     def decorator(func: F) -> F:
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
+        def wrapper(*args: object, **kwargs: object) -> object:
             circuit_breaker = _recovery_manager.get_circuit_breaker(
                 name, failure_threshold, recovery_timeout
             )
@@ -572,7 +572,7 @@ def with_retry(
     """Decorator to add retry capability to a function."""
 
     def decorator(func: F) -> F:
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
+        def wrapper(*args: object, **kwargs: object) -> object:
             return _recovery_manager.retry_manager.retry_with_strategy(
                 lambda: func(*args, **kwargs),
                 strategy=strategy,
@@ -595,7 +595,7 @@ def with_resilience(
     """Decorator to add full resilience features to a function."""
 
     def decorator(func: F) -> F:
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
+        def wrapper(*args: object, **kwargs: object) -> object:
             return _recovery_manager.execute_with_resilience(
                 lambda: func(*args, **kwargs),
                 circuit_breaker_name=circuit_breaker_name,

@@ -23,7 +23,7 @@ class OrderCompletionMonitor:
     """
 
     def __init__(
-        self, trading_client: Any, api_key: str | None = None, secret_key: str | None = None
+        self, trading_client: object, api_key: str | None = None, secret_key: str | None = None
     ) -> None:
         """Initialize with trading client and optional API credentials."""
         self.trading_client = trading_client
@@ -122,7 +122,7 @@ class OrderCompletionMonitor:
         final_states = {"filled", "canceled", "rejected", "expired"}
         stream_stopped = False
 
-        async def on_update(data: Any) -> None:
+        async def on_update(data: object) -> None:
             """Handle incoming trade updates and track completed orders."""
             nonlocal stream_stopped
             if stream_stopped:
@@ -168,7 +168,7 @@ class OrderCompletionMonitor:
 
     def _use_existing_websocket(
         self,
-        on_update: Any,
+        on_update: object,
         remaining: set[str],
         completed: dict[str, str],
         max_wait_seconds: int,
@@ -226,7 +226,7 @@ class OrderCompletionMonitor:
 
     def _create_new_websocket(
         self,
-        on_update: Any,
+        on_update: object,
         remaining: set[str],
         completed: dict[str, str],
         max_wait_seconds: int,
@@ -311,7 +311,7 @@ class OrderCompletionMonitor:
             stream = TradingStream(str(api_key), str(secret_key), paper=paper)
 
             # Dummy handler for trade updates
-            async def dummy_handler(data: Any) -> None:
+            async def dummy_handler(data: object) -> None:
                 """Log WebSocket messages during initial connection setup."""
                 if logging.getLogger().level <= logging.DEBUG:
                     self.console.print(f"[dim]📡 Pre-connection WebSocket message: {data}[/dim]")

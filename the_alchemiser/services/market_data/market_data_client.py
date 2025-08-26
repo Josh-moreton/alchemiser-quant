@@ -197,7 +197,7 @@ class MarketDataClient:
             logging.error(f"Failed to get current price from quote for {symbol}: {e}")
             return None
 
-    def _extract_bar_data(self, bars: Any, symbol: str) -> Any:
+    def _extract_bar_data(self, bars: object, symbol: str) -> object:
         """Extract bar data from API response."""
         try:
             # Try direct symbol access first (most common)
@@ -215,7 +215,7 @@ class MarketDataClient:
 
         return None
 
-    def _convert_to_dataframe(self, bar_data: Any) -> pd.DataFrame:
+    def _convert_to_dataframe(self, bar_data: object) -> pd.DataFrame:
         """Convert bar data to pandas DataFrame."""
         data_rows = []
         timestamps = []

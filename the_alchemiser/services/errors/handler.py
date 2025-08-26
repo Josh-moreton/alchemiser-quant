@@ -517,7 +517,7 @@ class EnhancedTradingError(EnhancedAlchemiserError):
         order_id: str | None = None,
         quantity: float | None = None,
         price: float | None = None,
-        **kwargs: Any,
+        **kwargs: object,
     ) -> None:
         super().__init__(message, **kwargs)
         self.symbol = symbol
@@ -548,7 +548,7 @@ class EnhancedDataError(EnhancedAlchemiserError):
         data_source: str | None = None,
         data_type: str | None = None,
         symbol: str | None = None,
-        **kwargs: Any,
+        **kwargs: object,
     ) -> None:
         super().__init__(message, **kwargs)
         self.data_source = data_source
@@ -670,7 +670,7 @@ def retry_with_backoff(
 
     def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         @wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
+        def wrapper(*args: object, **kwargs: object) -> object:
             last_exception = None
 
             for attempt in range(max_retries + 1):
@@ -742,7 +742,7 @@ class CircuitBreaker:
 
     def __call__(self, func: Callable[..., Any]) -> Callable[..., Any]:
         @wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
+        def wrapper(*args: object, **kwargs: object) -> object:
             if self.state == "OPEN":
                 if self.last_failure_time and time.time() - self.last_failure_time < self.timeout:
                     raise CircuitBreakerOpenError(
@@ -795,7 +795,7 @@ def create_enhanced_error(
     message: str,
     context: ErrorContextData | None = None,
     severity: str | None = None,
-    **kwargs: Any,
+    **kwargs: object,
 ) -> EnhancedAlchemiserError:
     """Factory function to create enhanced errors with proper context."""
     if severity is None:
@@ -938,7 +938,7 @@ def handle_errors_with_retry(
 
     def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         @wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
+        def wrapper(*args: object, **kwargs: object) -> object:
             if max_retries > 0:
                 # Apply retry logic
                 retry_decorator = retry_with_backoff(

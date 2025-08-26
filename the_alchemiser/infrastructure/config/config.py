@@ -133,11 +133,11 @@ class Settings(BaseSettings):
     @classmethod
     def settings_customise_sources(
         cls,
-        settings_cls: Any,
-        init_settings: Any,
-        env_settings: Any,
-        dotenv_settings: Any,
-        file_secret_settings: Any,
+        settings_cls: object,
+        init_settings: object,
+        env_settings: object,
+        dotenv_settings: object,
+        file_secret_settings: object,
     ) -> tuple[Any, ...]:
         """Order the precedence of configuration sources."""
         return (

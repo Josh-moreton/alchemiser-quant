@@ -36,7 +36,7 @@ class OrderSummary(TypedDict, total=False):
     created_at: str | None
 
 
-def _coerce_decimal(value: Any) -> Decimal | None:
+def _coerce_decimal(value: object) -> Decimal | None:
     try:
         if value is None:
             return None
@@ -45,7 +45,7 @@ def _coerce_decimal(value: Any) -> Decimal | None:
         return None
 
 
-def _map_status(raw_status: Any) -> OrderStatus:
+def _map_status(raw_status: object) -> OrderStatus:
     """Map Alpaca status strings/enums to domain OrderStatus.
 
     Uses the centralized order status normalizer and then converts to domain enum.
@@ -70,14 +70,14 @@ def _map_status(raw_status: Any) -> OrderStatus:
     return literal_to_domain.get(normalized, OrderStatus.NEW)
 
 
-def alpaca_order_to_domain(order: Any) -> Order:
+def alpaca_order_to_domain(order: object) -> Order:
     """Convert an Alpaca order object/dict to a domain Order entity.
 
     Supports both attribute-based objects and dicts.
     """
 
     # Extract helpers handling attr/dict
-    def get_attr(name: str, default: Any = None) -> Any:
+    def get_attr(name: str, default: object = None) -> object:
         if isinstance(order, dict):
             return order.get(name, default)
         return getattr(order, name, default)

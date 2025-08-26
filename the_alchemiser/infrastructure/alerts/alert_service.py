@@ -80,8 +80,8 @@ def create_alerts_from_signal(
     reason: str,
     indicators: dict[str, Any],
     market_data: dict[str, Any],
-    data_provider: Any,
-    ensure_scalar_price: Any,
+    data_provider: object,
+    ensure_scalar_price: object,
     strategy_engine: Any = None,
 ) -> list[Alert]:
     """Create Alert objects based on the signal type and portfolio logic.

@@ -22,7 +22,7 @@ warnings.warn(
 )
 
 
-def create_service_logger(*args: Any, **kwargs: Any) -> Any:
+def create_service_logger(*args: object, **kwargs: object) -> object:
     """[DEPRECATED] Create a standardized logger for a service.
 
     This function is deprecated. Use get_service_logger from
@@ -44,7 +44,7 @@ def create_service_logger(*args: Any, **kwargs: Any) -> Any:
 def _deprecated_decorator_stub(name: str) -> Callable[..., Any]:
     """Create a stub that raises deprecation error."""
 
-    def stub(*args: Any, **kwargs: Any) -> Any:
+    def stub(*args: object, **kwargs: object) -> object:
         raise DeprecationWarning(
             f"{name} is deprecated. Use translation decorators from "
             "the_alchemiser.services.errors.decorators instead."
@@ -65,7 +65,7 @@ handle_config_errors = _deprecated_decorator_stub("handle_config_errors")
 class ErrorHandler:
     """[DEPRECATED] Use TradingSystemErrorHandler instead."""
 
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
+    def __init__(self, *args: object, **kwargs: object) -> None:
         raise DeprecationWarning(
             "ErrorHandler is deprecated. Use TradingSystemErrorHandler instead."
         )
@@ -74,7 +74,7 @@ class ErrorHandler:
 class ServiceMetrics:
     """[DEPRECATED] Service metrics functionality removed."""
 
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
+    def __init__(self, *args: object, **kwargs: object) -> None:
         raise DeprecationWarning(
             "ServiceMetrics is deprecated and has been removed. "
             "Use modern monitoring solutions instead."
@@ -84,16 +84,16 @@ class ServiceMetrics:
 class ErrorContext:
     """[DEPRECATED] Use ErrorScope instead."""
 
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
+    def __init__(self, *args: object, **kwargs: object) -> None:
         raise DeprecationWarning("ErrorContext is deprecated. Use ErrorScope instead.")
 
 
 # Deprecated instances
-def _deprecated_instance_stub(name: str) -> Any:
+def _deprecated_instance_stub(name: str) -> object:
     """Create a stub that raises error when accessed."""
 
     class DeprecatedStub:
-        def __getattr__(self, item: str) -> Any:
+        def __getattr__(self, item: str) -> object:
             raise DeprecationWarning(f"{name} is deprecated and has been removed.")
 
     return DeprecatedStub()
@@ -102,7 +102,7 @@ def _deprecated_instance_stub(name: str) -> Any:
 service_metrics = _deprecated_instance_stub("service_metrics")
 
 
-def with_metrics(*args: Any, **kwargs: Any) -> Any:
+def with_metrics(*args: object, **kwargs: object) -> object:
     """[DEPRECATED] Metrics decorator removed."""
     raise DeprecationWarning(
         "with_metrics decorator is deprecated and has been removed. "

@@ -55,7 +55,7 @@ def alpaca_order_to_dto(order: object) -> AlpacaOrderDTO:
         raise ValueError("Symbol is required")
 
     # Extract financial values with proper Decimal conversion
-    def to_decimal(value: Any) -> Decimal | None:
+    def to_decimal(value: object) -> Decimal | None:
         if value is None:
             return None
         try:
@@ -65,7 +65,7 @@ def alpaca_order_to_dto(order: object) -> AlpacaOrderDTO:
             raise
 
     # Extract timestamps with proper datetime handling
-    def to_datetime(value: Any) -> datetime | None:
+    def to_datetime(value: object) -> datetime | None:
         if value is None:
             return None
         if isinstance(value, datetime):
@@ -173,7 +173,7 @@ def alpaca_dto_to_execution_result(alpaca_dto: AlpacaOrderDTO) -> OrderExecution
     )
 
 
-def alpaca_order_to_execution_result(order: Any) -> OrderExecutionResultDTO:
+def alpaca_order_to_execution_result(order: object) -> OrderExecutionResultDTO:
     """Direct conversion from raw Alpaca order to OrderExecutionResultDTO.
 
     Convenience function that combines alpaca_order_to_dto and

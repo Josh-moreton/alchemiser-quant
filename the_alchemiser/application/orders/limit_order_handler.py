@@ -24,7 +24,7 @@ from the_alchemiser.services.errors.exceptions import DataProviderError, Trading
 class LimitOrderHandler:
     """Handles limit order placement with smart asset-specific logic."""
 
-    def __init__(self, trading_client: Any, position_manager: Any, asset_handler: Any) -> None:
+    def __init__(self, trading_client: Any, position_manager: Any, asset_handler: object) -> None:
         """Initialize with required dependencies."""
         self.trading_client = trading_client
         self.position_manager = position_manager

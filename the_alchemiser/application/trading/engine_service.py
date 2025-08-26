@@ -362,7 +362,7 @@ class TradingEngine:
         # Logging setup
         logging.info(f"TradingEngine initialized - Paper Trading: {self.paper_trading}")
 
-    def _create_strategy_manager_bridge(self) -> Any:
+    def _create_strategy_manager_bridge(self) -> object:
         """Create a bridge object that provides run_all_strategies() interface for CLI compatibility."""
 
         class StrategyManagerBridge:

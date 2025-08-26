@@ -47,7 +47,7 @@ def translate_service_errors(
 
     def decorator(func: F) -> F:
         @functools.wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
+        def wrapper(*args: object, **kwargs: object) -> object:
             try:
                 return func(*args, **kwargs)
             except tuple(error_types.keys()) as e:

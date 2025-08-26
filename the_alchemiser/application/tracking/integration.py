@@ -82,7 +82,7 @@ class StrategyExecutionContext:
 @contextmanager
 def strategy_execution_context(
     strategy: StrategyType,
-) -> Any:
+) -> object:
     """Context manager for strategy execution tracking."""
     StrategyExecutionContext.set_current_strategy(strategy)
     try:
@@ -106,10 +106,10 @@ def get_current_strategy_context() -> StrategyType | None:
 # Integration helper functions for existing code
 
 
-def create_strategy_aware_order_callback(original_order_function: Any) -> Any:
+def create_strategy_aware_order_callback(original_order_function: object) -> object:
     """Decorator to make order functions strategy-aware."""
 
-    def wrapper(*args: Any, **kwargs: Any) -> Any:
+    def wrapper(*args: object, **kwargs: object) -> object:
         """Call the wrapped function and log the order in the active context."""
         # Execute original order function
         result = original_order_function(*args, **kwargs)
@@ -131,7 +131,7 @@ def create_strategy_aware_order_callback(original_order_function: Any) -> Any:
 class StrategyTrackingMixin:
     """Mixin class to add strategy tracking to trading components."""
 
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
+    def __init__(self, *args: object, **kwargs: object) -> None:
         """Initialize tracking mixin and attach tracker instance."""
         super().__init__(*args, **kwargs)
         # Import here to avoid circular imports
@@ -170,7 +170,7 @@ class StrategyTrackingMixin:
 
 # Helper function to extract order details from Alpaca order objects
 def extract_order_details_from_alpaca_order(
-    order: Any,  # Alpaca order object with dynamic attributes
+    order: object,  # Alpaca order object with dynamic attributes
 ) -> dict[str, Any]:
     """Extract order details from Alpaca order object for tracking.
 
@@ -215,7 +215,7 @@ def extract_order_details_from_alpaca_order(
 
 
 def track_alpaca_order_if_filled(
-    order: Any,  # Alpaca order object
+    order: object,  # Alpaca order object
 ) -> None:
     """Track an Alpaca order if it's filled and we have strategy context.
 
@@ -254,7 +254,7 @@ def track_alpaca_order_if_filled(
 
 # Configuration helper
 def configure_strategy_tracking_integration(
-    trading_engine: Any,  # TradingEngine instance
+    trading_engine: object,  # TradingEngine instance
 ) -> None:
     """Configure strategy tracking integration with existing trading engine.
 

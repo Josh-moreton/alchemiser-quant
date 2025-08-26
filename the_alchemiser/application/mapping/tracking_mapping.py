@@ -30,7 +30,7 @@ DECIMAL_QUANTIZE_PRECISION = "0.000001"
 
 
 def strategy_order_to_event_dto(
-    order: Any,  # StrategyOrder - avoid import to prevent circular dependency
+    order: object,  # StrategyOrder - avoid import to prevent circular dependency
     event_id: str | None = None,
     status: OrderEventStatus = OrderEventStatus.FILLED,
     error: str | None = None,
@@ -125,7 +125,7 @@ def orders_to_execution_summary_dto(
     )
 
 
-def strategy_pnl_to_dict(pnl: Any) -> dict[str, Any]:  # StrategyPnL - avoid import
+def strategy_pnl_to_dict(pnl: object) -> dict[str, Any]:  # StrategyPnL - avoid import
     """Convert StrategyPnL to dict with Decimal precision."""
     return {
         "strategy": pnl.strategy,
@@ -180,7 +180,7 @@ def ensure_decimal_precision(value: float | str | Decimal) -> Decimal:
 # New DTO mapping functions
 
 
-def strategy_order_dataclass_to_dto(order: Any) -> StrategyOrderDTO:
+def strategy_order_dataclass_to_dto(order: object) -> StrategyOrderDTO:
     """Convert StrategyOrder dataclass to StrategyOrderDTO."""
     # Convert to Decimal and quantize to 6 decimal places to avoid precision errors
     from decimal import ROUND_HALF_UP
@@ -220,7 +220,7 @@ def strategy_order_dto_to_dataclass_dict(dto: StrategyOrderDTO) -> dict[str, Any
     }
 
 
-def strategy_position_dataclass_to_dto(position: Any) -> StrategyPositionDTO:
+def strategy_position_dataclass_to_dto(position: object) -> StrategyPositionDTO:
     """Convert StrategyPosition dataclass to StrategyPositionDTO."""
     return StrategyPositionDTO(
         strategy=cast(StrategyLiteral, position.strategy),
@@ -248,7 +248,7 @@ def strategy_position_dto_to_dataclass_dict(dto: StrategyPositionDTO) -> dict[st
     }
 
 
-def strategy_pnl_dataclass_to_dto(pnl: Any) -> StrategyPnLDTO:
+def strategy_pnl_dataclass_to_dto(pnl: object) -> StrategyPnLDTO:
     """Convert StrategyPnL dataclass to StrategyPnLDTO."""
     return StrategyPnLDTO(
         strategy=cast(StrategyLiteral, pnl.strategy),

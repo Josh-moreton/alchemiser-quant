@@ -22,7 +22,7 @@ class WebSocketConnectionManager:
     """
 
     def __init__(
-        self, trading_client: Any, api_key: str | None = None, secret_key: str | None = None
+        self, trading_client: object, api_key: str | None = None, secret_key: str | None = None
     ) -> None:
         """Initialize with trading client and optional API credentials."""
         self.trading_client = trading_client
@@ -63,7 +63,7 @@ class WebSocketConnectionManager:
             stream = TradingStream(str(api_key), str(secret_key), paper=paper)
 
             # Dummy handler for trade updates (we'll replace this later)
-            async def dummy_handler(data: Any) -> None:
+            async def dummy_handler(data: object) -> None:
                 """Log trade update messages during initial connection testing."""
                 if logging.getLogger().level <= logging.DEBUG:
                     self.console.print(f"[dim]📡 Pre-connection WebSocket message: {data}[/dim]")
@@ -115,11 +115,11 @@ class WebSocketConnectionManager:
                 pass
             self._websocket_thread = None
 
-    def get_websocket_stream(self) -> Any:
+    def get_websocket_stream(self) -> object:
         """Get current WebSocket stream if available."""
         return getattr(self, "_websocket_stream", None)
 
-    def get_websocket_thread(self) -> Any:
+    def get_websocket_thread(self) -> object:
         """Get current WebSocket thread if available."""
         return getattr(self, "_websocket_thread", None)
 

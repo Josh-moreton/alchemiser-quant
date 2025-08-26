@@ -16,7 +16,7 @@ class PositionSummary:
     unrealized_plpc: Decimal
 
 
-def _to_decimal(val: Any) -> Decimal:
+def _to_decimal(val: object) -> Decimal:
     try:
         if val is None:
             return Decimal("0")
@@ -25,7 +25,7 @@ def _to_decimal(val: Any) -> Decimal:
         return Decimal("0")
 
 
-def alpaca_position_to_summary(pos: Any) -> PositionSummary:
+def alpaca_position_to_summary(pos: object) -> PositionSummary:
     """Map an Alpaca Position (object or dict) to a normalized PositionSummary."""
     if isinstance(pos, dict):
         symbol = str(pos.get("symbol", ""))

@@ -294,7 +294,7 @@ class MarketDataService:
         symbol: str,
         timeframe: str = "1day",
         period: str = "1y",
-        **_: Any,
+        **_: object,
     ) -> pd.DataFrame:
         """Compatibility method to provide pandas DataFrame bars.
 

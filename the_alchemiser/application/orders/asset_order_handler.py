@@ -24,7 +24,7 @@ from the_alchemiser.services.errors.exceptions import DataProviderError
 class AssetOrderHandler:
     """Handles asset-specific order logic including fractionability and conversions."""
 
-    def __init__(self, data_provider: Any) -> None:
+    def __init__(self, data_provider: object) -> None:
         """Initialize with data provider for price fetching."""
         self.data_provider = data_provider
 

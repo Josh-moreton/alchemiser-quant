@@ -21,7 +21,7 @@ class AlchemiserLoggerAdapter(logging.LoggerAdapter[logging.Logger]):
     """Custom logger adapter for the Alchemiser quantitative trading system."""
 
     def process(
-        self, msg: Any, kwargs: MutableMapping[str, Any]
+        self, msg: object, kwargs: MutableMapping[str, Any]
     ) -> tuple[str, MutableMapping[str, Any]]:
         """Prefix log messages with system identifier and add context IDs."""
         # Get context variables
@@ -143,7 +143,7 @@ def generate_request_id() -> str:
     return str(uuid.uuid4())
 
 
-def log_with_context(logger: logging.Logger, level: int, message: str, **context: Any) -> None:
+def log_with_context(logger: logging.Logger, level: int, message: str, **context: object) -> None:
     """Log a message with additional context fields.
 
     Args:
@@ -361,7 +361,7 @@ def get_trading_logger(
     return logger
 
 
-def log_trade_event(logger: logging.Logger, event_type: str, symbol: str, **details: Any) -> None:
+def log_trade_event(logger: logging.Logger, event_type: str, symbol: str, **details: object) -> None:
     """Log a trading event with standardized structure.
 
     Args:

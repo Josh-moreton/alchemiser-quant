@@ -23,7 +23,7 @@ from the_alchemiser.interfaces.schemas.orders import ValidatedOrderDTO
 ActionLiteral = Literal["BUY", "SELL", "HOLD"]
 
 
-def _normalize_action(value: Any) -> ActionLiteral:
+def _normalize_action(value: object) -> ActionLiteral:
     try:
         s = str(value).upper()
         if s in {"BUY", "SELL", "HOLD"}:
