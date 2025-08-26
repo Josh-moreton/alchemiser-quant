@@ -28,7 +28,7 @@ Usage:
         quantity=Decimal("100"),
         status="filled",
         price=Decimal("150.25"),
-        ts=datetime.now(),
+        ts=datetime.now(UTC),
         error=None
     )
 

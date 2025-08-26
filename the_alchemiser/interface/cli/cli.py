@@ -8,7 +8,7 @@ and reporting. Handles user commands and displays formatted output.
 import logging
 import subprocess
 import time
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -216,9 +216,9 @@ def signal(
                                     # Create minimal BarModel compatible object
                                     # DSL evaluator typically only needs close prices
                                     close_decimal = Decimal(str(close_price))
-                                    timestamp = getattr(row, "name", None) or datetime.now()
+                                    timestamp = getattr(row, "name", None) or datetime.now(UTC)
                                     if not isinstance(timestamp, datetime):
-                                        timestamp = datetime.now()
+                                        timestamp = datetime.now(UTC)
 
                                     bars.append(
                                         BarModel(
@@ -255,7 +255,7 @@ def signal(
                         )
 
                         return QuoteModel(
-                            ts=datetime.now(),
+                            ts=datetime.now(UTC),
                             bid=bid_val,
                             ask=ask_val,
                         )
@@ -994,11 +994,11 @@ def deploy() -> None:
 
 @app.command()
 def version() -> None:
-    """ℹ️  [bold]Show version information[/bold]."""
+    """i  [bold]Show version information[/bold]."""
     version_info = Text()
     version_info.append(" The Alchemiser Quantitative Trading System\n", style=STYLE_BOLD_CYAN)
     version_info.append("Version: 2.0.0\n", style="bold")
-    version_info.append(f"Built: {datetime.now().strftime('%Y-%m-%d')}\n", style="dim")
+    version_info.append(f"Built: {datetime.now(UTC).strftime('%Y-%m-%d')}\n", style="dim")
     version_info.append("Strategies: Nuclear, TECL, KLM, Multi-Strategy\n", style="green")
     version_info.append("Platform: Alpaca Markets", style="blue")
 

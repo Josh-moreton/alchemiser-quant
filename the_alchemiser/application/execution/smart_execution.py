@@ -293,8 +293,6 @@ class SmartExecution:
             Order ID if successful, None otherwise
 
         """
-        from rich.console import Console
-
         from the_alchemiser.application.execution.spread_assessment import (
             SpreadAssessment,
         )
@@ -302,7 +300,6 @@ class SmartExecution:
             MarketOpenTimingEngine,
         )
 
-        console = Console()
         timing_engine = MarketOpenTimingEngine()
         spread_assessor = SpreadAssessment(self._data_provider)
 
@@ -485,7 +482,7 @@ class SmartExecution:
 
             # Step 2 & 3: Aggressive Marketable Limit with Re-pegging
             return self._execute_aggressive_limit_sequence(
-                symbol, qty, side, bid, ask, strategy, console
+                symbol, qty, side, bid, ask, strategy
             )
 
         except OrderExecutionError as e:
@@ -875,7 +872,6 @@ class SmartExecution:
         bid: float,
         ask: float,
         strategy: Any,
-        console: Any,
     ) -> str | None:
         """Execute the aggressive marketable limit sequence with adaptive re-pegging.
 

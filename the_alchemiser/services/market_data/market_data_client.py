@@ -9,7 +9,7 @@ This provides better error handling, logging, and testing capabilities.
 """
 
 import logging
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any, cast
 
 import pandas as pd
@@ -54,7 +54,7 @@ class MarketDataClient:
         """
         try:
             # Convert period to start/end dates
-            end_date = datetime.now()
+            end_date = datetime.now(UTC)
             period_mapping = {"1y": 365, "6mo": 180, "3mo": 90, "1mo": 30, "200d": 200}
             days = period_mapping.get(period, 365)
             start_date = end_date - timedelta(days=days)

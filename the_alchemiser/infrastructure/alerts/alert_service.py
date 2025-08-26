@@ -70,7 +70,7 @@ def create_alert(
 
     """
     if timestamp is None:
-        timestamp = dt.datetime.now()
+        timestamp = dt.datetime.now(dt.timezone.utc)
     return Alert(symbol, action, reason, timestamp, price)
 
 
@@ -107,7 +107,7 @@ def create_alerts_from_signal(
                     symbol=stock_symbol,
                     action=action,
                     reason=portfolio_reason,
-                    timestamp=dt.datetime.now(),
+                    timestamp=dt.datetime.now(dt.timezone.utc),
                     price=current_price,
                 )
             )
@@ -121,7 +121,7 @@ def create_alerts_from_signal(
                 symbol="UVXY",
                 action=action,
                 reason=f"Volatility hedge allocation: 75% ({reason})",
-                timestamp=dt.datetime.now(),
+                timestamp=dt.datetime.now(dt.timezone.utc),
                 price=uvxy_price,
             )
         )
@@ -133,7 +133,7 @@ def create_alerts_from_signal(
                 symbol="BTAL",
                 action=action,
                 reason=f"Anti-beta hedge allocation: 25% ({reason})",
-                timestamp=dt.datetime.now(),
+                timestamp=dt.datetime.now(dt.timezone.utc),
                 price=btal_price,
             )
         )
@@ -152,7 +152,7 @@ def create_alerts_from_signal(
                         symbol=stock_symbol,
                         action=action,
                         reason=bear_reason,
-                        timestamp=dt.datetime.now(),
+                        timestamp=dt.datetime.now(dt.timezone.utc),
                         price=current_price,
                     )
                 )
@@ -164,7 +164,7 @@ def create_alerts_from_signal(
                 symbol=symbol,
                 action=action,
                 reason=reason,
-                timestamp=dt.datetime.now(),
+                timestamp=dt.datetime.now(dt.timezone.utc),
                 price=current_price,
             )
         )
@@ -176,7 +176,7 @@ def create_alerts_from_signal(
             symbol=symbol,
             action=action,
             reason=reason,
-            timestamp=dt.datetime.now(),
+            timestamp=dt.datetime.now(dt.timezone.utc),
             price=current_price,
         )
     )
