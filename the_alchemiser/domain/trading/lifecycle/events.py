@@ -14,8 +14,7 @@ from .states import OrderLifecycleState
 
 
 class LifecycleEventType(str, Enum):
-    """
-    Semantic event types that provide business meaning to lifecycle transitions.
+    """Semantic event types that provide business meaning to lifecycle transitions.
 
     These event types capture the business reason for a state transition,
     enabling richer observability and event-driven workflows.
@@ -34,8 +33,7 @@ class LifecycleEventType(str, Enum):
 
 @dataclass(frozen=True)
 class OrderLifecycleEvent:
-    """
-    Immutable event representing an order lifecycle transition.
+    """Immutable event representing an order lifecycle transition.
 
     This event captures all relevant information about a state transition,
     including contextual metadata that can be used for debugging, auditing,
@@ -48,6 +46,7 @@ class OrderLifecycleEvent:
         timestamp: When the transition occurred (UTC)
         event_type: Semantic type of the event
         metadata: Additional contextual information (immutable)
+
     """
 
     order_id: OrderId
@@ -84,8 +83,7 @@ class OrderLifecycleEvent:
         metadata: Mapping[str, Any] | None = None,
         timestamp: datetime | None = None,
     ) -> OrderLifecycleEvent:
-        """
-        Convenience factory method for creating state change events.
+        """Convenience factory method for creating state change events.
 
         Args:
             order_id: Unique identifier for the order
@@ -97,6 +95,7 @@ class OrderLifecycleEvent:
 
         Returns:
             New OrderLifecycleEvent instance
+
         """
         if timestamp is None:
             timestamp = datetime.now(UTC)

@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Progressive Order Execution Utilities.
+"""Progressive Order Execution Utilities.
 
 This module provides intelligent order execution parameters based on market conditions:
 - Volatility-aware timeout adjustments
@@ -26,7 +25,6 @@ class OrderExecutionParams:
 
     def __str__(self) -> str:
         """Human readable representation used in logs."""
-
         return (
             f"OrderExecutionParams(wait={self.max_wait_seconds}s, "
             f"steps={self.step_count}, aggressiveness={self.tick_aggressiveness:.2f})"
@@ -34,8 +32,7 @@ class OrderExecutionParams:
 
 
 class ProgressiveOrderCalculator:
-    """
-    Calculate optimal order execution parameters based on market conditions.
+    """Calculate optimal order execution parameters based on market conditions.
 
     This class analyzes volatility, spreads, and urgency to determine:
     - How long to wait at each price level
@@ -68,8 +65,7 @@ class ProgressiveOrderCalculator:
         recent_high: float | None = None,
         recent_low: float | None = None,
     ) -> float:
-        """
-        Calculate a simple volatility metric.
+        """Calculate a simple volatility metric.
 
         Args:
             symbol: Stock symbol
@@ -79,6 +75,7 @@ class ProgressiveOrderCalculator:
 
         Returns:
             Volatility as percentage of current price (0.0 to 1.0+)
+
         """
         if recent_high is None or recent_low is None:
             # Default to medium volatility if we don't have range data
@@ -94,8 +91,7 @@ class ProgressiveOrderCalculator:
         return max(0.001, volatility)  # Minimum 0.1% volatility
 
     def calculate_spread_metric(self, bid: float, ask: float) -> tuple[float, float]:
-        """
-        Calculate spread metrics.
+        """Calculate spread metrics.
 
         Args:
             bid: Bid price
@@ -105,6 +101,7 @@ class ProgressiveOrderCalculator:
             Tuple of (spread_bps, spread_pct) where:
             - spread_bps: Spread in basis points
             - spread_pct: Spread as percentage of midpoint
+
         """
         if bid <= 0 or ask <= 0 or ask <= bid:
             return 50.0, 0.005  # Default to 50bps, 0.5%
@@ -126,8 +123,7 @@ class ProgressiveOrderCalculator:
         recent_high: float | None = None,
         recent_low: float | None = None,
     ) -> OrderExecutionParams:
-        """
-        Calculate optimal execution parameters based on market conditions.
+        """Calculate optimal execution parameters based on market conditions.
 
         Args:
             symbol: Stock symbol
@@ -140,6 +136,7 @@ class ProgressiveOrderCalculator:
 
         Returns:
             OrderExecutionParams with optimized settings
+
         """
         current_price = (bid + ask) / 2.0
 
@@ -241,8 +238,7 @@ class ProgressiveOrderCalculator:
         step_percentage: float,
         tick_aggressiveness: float = 1.0,
     ) -> float:
-        """
-        Calculate the limit price for a specific step.
+        """Calculate the limit price for a specific step.
 
         Args:
             bid: Current bid price
@@ -253,6 +249,7 @@ class ProgressiveOrderCalculator:
 
         Returns:
             Calculated limit price
+
         """
         midpoint = (bid + ask) / 2.0
         spread = ask - bid
@@ -278,8 +275,7 @@ class ProgressiveOrderCalculator:
     def get_execution_strategy_description(
         self, params: OrderExecutionParams, symbol: str, side: OrderSide
     ) -> str:
-        """
-        Generate a human-readable description of the execution strategy.
+        """Generate a human-readable description of the execution strategy.
 
         Args:
             params: Execution parameters
@@ -288,6 +284,7 @@ class ProgressiveOrderCalculator:
 
         Returns:
             Description string
+
         """
         strategy_desc = f"{side.value} {symbol} with {params.step_count} steps, "
         strategy_desc += f"{params.max_wait_seconds}s wait per step"
@@ -301,19 +298,19 @@ class ProgressiveOrderCalculator:
 
 
 def get_market_urgency_level(hour: int | None = None) -> str:
-    """
-    Determine market urgency based on time of day.
+    """Determine market urgency based on time of day.
 
     Args:
         hour: Hour of day (0-23), if None uses current time
 
     Returns:
         Urgency level: "low", "normal", "high", or "urgent"
+
     """
     if hour is None:
-        from datetime import datetime
+        from datetime import UTC, datetime
 
-        hour = datetime.now().hour
+        hour = datetime.now(UTC).hour
 
     # Market hours are roughly 9:30 AM - 4:00 PM ET (14:30 - 21:00 UTC)
     # Adjust based on your timezone
@@ -321,9 +318,8 @@ def get_market_urgency_level(hour: int | None = None) -> str:
     if hour < 10 or hour > 15:
         # Pre-market or after-hours = low urgency
         return "low"
-    elif hour in [9, 10, 15, 16]:
+    if hour in [9, 10, 15, 16]:
         # Market open/close = high urgency
         return "high"
-    else:
-        # Regular trading hours = normal urgency
-        return "normal"
+    # Regular trading hours = normal urgency
+    return "normal"

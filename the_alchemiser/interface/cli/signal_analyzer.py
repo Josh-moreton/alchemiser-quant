@@ -3,7 +3,7 @@
 Handles signal generation and display without trading execution.
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:  # Avoid runtime import cost / circulars
@@ -25,7 +25,7 @@ from the_alchemiser.services.errors.exceptions import DataProviderError, Strateg
 class SignalAnalyzer:
     """Handles signal analysis and display."""
 
-    def __init__(self, settings: Settings):
+    def __init__(self, settings: Settings) -> None:
         self.settings = settings
         self.logger = get_logger(__name__)
 
@@ -237,18 +237,16 @@ class SignalAnalyzer:
             if signal.get("action") == "BUY":
                 if symbol == "UVXY_BTAL_PORTFOLIO":
                     return 2  # UVXY and BTAL
-                elif symbol == "UVXY":
+                if symbol == "UVXY":
                     return 1  # Just UVXY
-                else:
-                    return 3  # Default nuclear portfolio
+                return 3  # Default nuclear portfolio
             return 0
-        elif strategy_name.upper() in ["TECL", "KLM"]:
+        if strategy_name.upper() in ["TECL", "KLM"]:
             # Single position strategies
             return 1 if signal.get("action") == "BUY" else 0
-        else:
-            # Count from consolidated portfolio if possible
-            strategy_symbols = self._get_symbols_for_strategy(strategy_name, strategy_signals)
-            return len([s for s in strategy_symbols if s in consolidated_portfolio])
+        # Count from consolidated portfolio if possible
+        strategy_symbols = self._get_symbols_for_strategy(strategy_name, strategy_signals)
+        return len([s for s in strategy_symbols if s in consolidated_portfolio])
 
     def _get_symbols_for_strategy(
         self,
@@ -265,7 +263,7 @@ class SignalAnalyzer:
 
         if isinstance(symbol, str):
             return {symbol}
-        elif isinstance(symbol, dict):
+        if isinstance(symbol, dict):
             return set(symbol.keys())
 
         return set()
@@ -276,8 +274,9 @@ class SignalAnalyzer:
         Args:
             show_tracking: When True, include strategy performance tracking table (opt-in to keep
                 default output closer to original minimal signal view).
+
         """
-        render_header("MULTI-STRATEGY SIGNAL ANALYSIS", f"Analysis at {datetime.now()}")
+        render_header("MULTI-STRATEGY SIGNAL ANALYSIS", f"Analysis at {datetime.now(UTC)}")
 
         try:
             # System now uses fully typed domain model

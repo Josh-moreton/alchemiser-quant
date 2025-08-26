@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Alpaca Infrastructure DTOs for The Alchemiser Trading System.
+"""Alpaca Infrastructure DTOs for The Alchemiser Trading System.
 
 This module provides Pydantic v2 DTOs for Alpaca API responses, ensuring
 typed boundaries at the infrastructure layer. These DTOs map directly
@@ -23,8 +22,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class AlpacaOrderDTO(BaseModel):
-    """
-    DTO for Alpaca order responses.
+    """DTO for Alpaca order responses.
 
     Maps directly to Alpaca order API response structure with proper
     validation and type conversion for financial values.
@@ -82,8 +80,7 @@ class AlpacaOrderDTO(BaseModel):
 
 
 class AlpacaErrorDTO(BaseModel):
-    """
-    DTO for Alpaca API error responses.
+    """DTO for Alpaca API error responses.
 
     Provides structured error information with consistent format
     for error handling and debugging.

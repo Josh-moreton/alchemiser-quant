@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Error Recovery and Resilience Framework for The Alchemiser Trading System.
+"""Error Recovery and Resilience Framework for The Alchemiser Trading System.
 
 This module implements Phase 2 of the error handling enhancement plan:
 - Automatic Error Recovery strategies
@@ -14,7 +13,7 @@ import time
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from collections.abc import Callable
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any, TypeVar
 
@@ -39,13 +38,13 @@ class RecoveryResult:
         recovered_data: Any = None,
         retry_recommended: bool = False,
         retry_delay: float = 0.0,
-    ):
+    ) -> None:
         self.success = success
         self.message = message
         self.recovered_data = recovered_data
         self.retry_recommended = retry_recommended
         self.retry_delay = retry_delay
-        self.timestamp = datetime.now()
+        self.timestamp = datetime.now(UTC)
 
     def to_dict(self) -> dict[str, Any]:
         """Convert recovery result to dictionary."""
@@ -65,12 +64,10 @@ class ErrorRecoveryStrategy(ABC):
     @abstractmethod
     def can_recover(self, error: EnhancedAlchemiserError) -> bool:
         """Check if this strategy can recover from the given error."""
-        pass
 
     @abstractmethod
     def recover(self, error: EnhancedAlchemiserError) -> RecoveryResult:
         """Attempt to recover from the error."""
-        pass
 
     def get_strategy_name(self) -> str:
         """Get the name of this recovery strategy."""
@@ -103,9 +100,9 @@ class TradingErrorRecovery(ErrorRecoveryStrategy):
 
         if isinstance(error, RateLimitError) or "rate limit" in error_message:
             return self._handle_rate_limit(error)
-        elif isinstance(error, OrderExecutionError) or error_type == "EnhancedTradingError":
+        if isinstance(error, OrderExecutionError) or error_type == "EnhancedTradingError":
             return self._handle_order_failure(error)
-        elif isinstance(error, TradingClientError) or hasattr(error, "symbol"):
+        if isinstance(error, TradingClientError) or hasattr(error, "symbol"):
             return self._handle_client_error(error)
 
         return RecoveryResult(
@@ -229,7 +226,7 @@ class CircuitState(Enum):
 class CircuitBreakerOpenError(EnhancedAlchemiserError):
     """Raised when circuit breaker is open."""
 
-    def __init__(self, message: str, circuit_name: str):
+    def __init__(self, message: str, circuit_name: str) -> None:
         super().__init__(message, severity=ErrorSeverity.HIGH)
         self.circuit_name = circuit_name
 
@@ -243,7 +240,7 @@ class CircuitBreaker:
         failure_threshold: int = 5,
         recovery_timeout: float = 60.0,
         expected_exception: type[Exception] = Exception,
-    ):
+    ) -> None:
         self.name = name
         self.failure_threshold = failure_threshold
         self.recovery_timeout = recovery_timeout
@@ -312,13 +309,14 @@ class RetryStrategy(ABC):
     @abstractmethod
     def get_delay(self, attempt: int) -> float:
         """Get delay for given attempt number."""
-        pass
 
 
 class ExponentialBackoffStrategy(RetryStrategy):
     """Exponential backoff retry strategy."""
 
-    def __init__(self, base_delay: float = 1.0, max_delay: float = 60.0, factor: float = 2.0):
+    def __init__(
+        self, base_delay: float = 1.0, max_delay: float = 60.0, factor: float = 2.0
+    ) -> None:
         self.base_delay = base_delay
         self.max_delay = max_delay
         self.factor = factor
@@ -332,7 +330,7 @@ class ExponentialBackoffStrategy(RetryStrategy):
 class LinearBackoffStrategy(RetryStrategy):
     """Linear backoff retry strategy."""
 
-    def __init__(self, base_delay: float = 1.0, max_delay: float = 60.0):
+    def __init__(self, base_delay: float = 1.0, max_delay: float = 60.0) -> None:
         self.base_delay = base_delay
         self.max_delay = max_delay
 
@@ -345,7 +343,7 @@ class LinearBackoffStrategy(RetryStrategy):
 class FixedIntervalStrategy(RetryStrategy):
     """Fixed interval retry strategy."""
 
-    def __init__(self, delay: float = 5.0):
+    def __init__(self, delay: float = 5.0) -> None:
         self.delay = delay
 
     def get_delay(self, attempt: int) -> float:
@@ -356,7 +354,7 @@ class FixedIntervalStrategy(RetryStrategy):
 class FibonacciBackoffStrategy(RetryStrategy):
     """Fibonacci backoff retry strategy."""
 
-    def __init__(self, base_delay: float = 1.0, max_delay: float = 60.0):
+    def __init__(self, base_delay: float = 1.0, max_delay: float = 60.0) -> None:
         self.base_delay = base_delay
         self.max_delay = max_delay
 
@@ -431,6 +429,7 @@ class SmartRetryManager:
 
                 self.logger.warning(f"Attempt {attempt + 1} failed, retrying in {delay:.2f}s: {e}")
                 time.sleep(delay)
+        return None
 
     def add_strategy(self, name: str, strategy: RetryStrategy) -> None:
         """Add a custom retry strategy."""
@@ -511,8 +510,7 @@ class ErrorRecoveryManager:
             if circuit_breaker_name:
                 circuit_breaker = self.get_circuit_breaker(circuit_breaker_name)
                 return circuit_breaker.call(func)
-            else:
-                return func()
+            return func()
 
         return self.retry_manager.retry_with_strategy(
             func=protected_func,

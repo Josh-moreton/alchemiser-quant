@@ -1,5 +1,4 @@
-"""
-Domain Layer Interfaces
+"""Domain Layer Interfaces.
 
 This module defines the core interfaces for our trading system, following the
 eventual architecture vision while being compatible with current implementations.
@@ -13,7 +12,7 @@ from .market_data_repository import MarketDataRepository
 from .trading_repository import TradingRepository
 
 __all__ = [
-    "TradingRepository",
-    "MarketDataRepository",
     "AccountRepository",
+    "MarketDataRepository",
+    "TradingRepository",
 ]

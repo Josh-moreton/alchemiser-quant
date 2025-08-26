@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Main error handler for The Alchemiser Trading System.
+"""Main error handler for The Alchemiser Trading System.
 
 This module provides the single facade TradingSystemErrorHandler for all error handling,
 categorization, and detailed error reporting via email notifications.
@@ -13,7 +12,7 @@ import traceback
 import uuid
 from collections import defaultdict
 from collections.abc import Callable
-from datetime import datetime
+from datetime import UTC, datetime
 from functools import wraps
 from typing import Any
 
@@ -78,16 +77,15 @@ class ErrorDetails:
         component: str,
         additional_data: dict[str, Any] | None = None,
         suggested_action: str | None = None,
-    ):
+    ) -> None:
         """Store detailed error information."""
-
         self.error = error
         self.category = category
         self.context = context
         self.component = component
         self.additional_data = additional_data or {}
         self.suggested_action = suggested_action
-        self.timestamp = datetime.now()
+        self.timestamp = datetime.now(UTC)
         self.traceback = traceback.format_exc()
 
     def to_dict(self) -> ErrorDetailInfo:
@@ -116,7 +114,7 @@ class EnhancedAlchemiserError(AlchemiserError):
         recoverable: bool = True,
         retry_count: int = 0,
         max_retries: int = 3,
-    ):
+    ) -> None:
         super().__init__(message)
         if context is not None:
             if isinstance(context, ErrorContextData):
@@ -182,7 +180,6 @@ class TradingSystemErrorHandler:
 
     def __init__(self) -> None:
         """Create a new error handler with empty history."""
-
         self.errors: list[ErrorDetails] = []
         self.logger = logging.getLogger(__name__)
 
@@ -192,57 +189,53 @@ class TradingSystemErrorHandler:
             error, InsufficientFundsError | OrderExecutionError | PositionValidationError
         ):
             return ErrorCategory.TRADING
-        elif isinstance(error, MarketDataError | DataProviderError):
+        if isinstance(error, MarketDataError | DataProviderError):
             return ErrorCategory.DATA
-        elif isinstance(error, StrategyExecutionError):
+        if isinstance(error, StrategyExecutionError):
             return ErrorCategory.STRATEGY
-        elif isinstance(error, ConfigurationError):
+        if isinstance(error, ConfigurationError):
             return ErrorCategory.CONFIGURATION
-        elif isinstance(error, NotificationError):
+        if isinstance(error, NotificationError):
             return ErrorCategory.NOTIFICATION
-        elif isinstance(error, TradingClientError):
+        if isinstance(error, TradingClientError):
             # Could be trading or data depending on context
             if "order" in context.lower() or "position" in context.lower():
                 return ErrorCategory.TRADING
-            else:
-                return ErrorCategory.DATA
-        elif isinstance(error, AlchemiserError):
+            return ErrorCategory.DATA
+        if isinstance(error, AlchemiserError):
             return ErrorCategory.CRITICAL
-        else:
-            # Non-Alchemiser exceptions - categorize by context
-            if "trading" in context.lower() or "order" in context.lower():
-                return ErrorCategory.TRADING
-            elif "data" in context.lower() or "price" in context.lower():
-                return ErrorCategory.DATA
-            elif "strategy" in context.lower() or "signal" in context.lower():
-                return ErrorCategory.STRATEGY
-            elif "config" in context.lower() or "auth" in context.lower():
-                return ErrorCategory.CONFIGURATION
-            else:
-                return ErrorCategory.CRITICAL
+        # Non-Alchemiser exceptions - categorize by context
+        if "trading" in context.lower() or "order" in context.lower():
+            return ErrorCategory.TRADING
+        if "data" in context.lower() or "price" in context.lower():
+            return ErrorCategory.DATA
+        if "strategy" in context.lower() or "signal" in context.lower():
+            return ErrorCategory.STRATEGY
+        if "config" in context.lower() or "auth" in context.lower():
+            return ErrorCategory.CONFIGURATION
+        return ErrorCategory.CRITICAL
 
     def get_suggested_action(self, error: Exception, category: str) -> str:
         """Get suggested action based on error type and category."""
         if isinstance(error, InsufficientFundsError):
             return "Check account balance and reduce position sizes or add funds"
-        elif isinstance(error, OrderExecutionError):
+        if isinstance(error, OrderExecutionError):
             return "Verify market hours, check symbol validity, and ensure order parameters are correct"
-        elif isinstance(error, PositionValidationError):
+        if isinstance(error, PositionValidationError):
             return "Check current positions and ensure selling quantities don't exceed holdings"
-        elif isinstance(error, MarketDataError):
+        if isinstance(error, MarketDataError):
             return "Check API connectivity and data provider status"
-        elif isinstance(error, ConfigurationError):
+        if isinstance(error, ConfigurationError):
             return "Verify configuration settings and API credentials"
-        elif isinstance(error, StrategyExecutionError):
+        if isinstance(error, StrategyExecutionError):
             return "Review strategy logic and input data for calculation errors"
-        elif category == ErrorCategory.DATA:
+        if category == ErrorCategory.DATA:
             return "Check market data sources, API limits, and network connectivity"
-        elif category == ErrorCategory.TRADING:
+        if category == ErrorCategory.TRADING:
             return "Verify trading permissions, account status, and market hours"
-        elif category == ErrorCategory.CRITICAL:
+        if category == ErrorCategory.CRITICAL:
             return "Review system logs, check AWS permissions, and verify deployment configuration"
-        else:
-            return "Review logs for detailed error information and contact support if needed"
+        return "Review logs for detailed error information and contact support if needed"
 
     def handle_error(
         self,
@@ -250,7 +243,7 @@ class TradingSystemErrorHandler:
         context: str,
         component: str,
         additional_data: dict[str, Any] | None = None,
-        should_continue: bool = True,  # noqa: ARG002
+        should_continue: bool = True,
     ) -> ErrorDetails:
         """Handle an error with detailed logging and categorization."""
         category = self.categorize_error(error, context)
@@ -384,7 +377,7 @@ class TradingSystemErrorHandler:
 
         # Build report
         report = "# Trading System Error Report\n\n"
-        report += f"**Execution Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}\n"
+        report += f"**Execution Time:** {datetime.now(UTC).strftime('%Y-%m-%d %H:%M:%S UTC')}\n"
         report += f"**Total Errors:** {len(self.errors)}\n\n"
 
         # Critical errors first
@@ -464,6 +457,7 @@ class TradingSystemErrorHandler:
 
         Returns:
             Structured OrderError instance with category, code, and remediation info
+
         """
         from the_alchemiser.domain.shared_kernel.value_objects.identifier import Identifier
 
@@ -640,9 +634,8 @@ def send_error_notification_if_needed() -> ErrorNotificationData | None:
         if success:
             logging.info("Error notification email sent successfully")
             return notification_data
-        else:
-            logging.error("Failed to send error notification email")
-            return notification_data
+        logging.error("Failed to send error notification email")
+        return notification_data
 
     except Exception as e:
         logging.error(f"Failed to send error notification: {e}")
@@ -660,8 +653,7 @@ def retry_with_backoff(
     backoff_factor: float = 2.0,
     jitter: bool = True,
 ) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
-    """
-    Retry decorator with exponential backoff and jitter.
+    """Retry decorator with exponential backoff and jitter.
 
     Args:
         exceptions: Tuple of exception types to catch and retry
@@ -673,6 +665,7 @@ def retry_with_backoff(
 
     Returns:
         Decorated function with retry logic
+
     """
 
     def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
@@ -709,6 +702,7 @@ def retry_with_backoff(
             # This should never be reached, but just in case
             if last_exception:
                 raise last_exception
+            return None
 
         return wrapper
 
@@ -718,12 +712,9 @@ def retry_with_backoff(
 class CircuitBreakerOpenError(AlchemiserError):
     """Raised when circuit breaker is open."""
 
-    pass
-
 
 class CircuitBreaker:
-    """
-    Circuit breaker pattern for external service calls.
+    """Circuit breaker pattern for external service calls.
 
     Prevents cascading failures by temporarily stopping calls to failing services.
     """
@@ -733,14 +724,14 @@ class CircuitBreaker:
         failure_threshold: int = 5,
         timeout: float = 60.0,
         expected_exception: type[Exception] = Exception,
-    ):
-        """
-        Initialize circuit breaker.
+    ) -> None:
+        """Initialize circuit breaker.
 
         Args:
             failure_threshold: Number of failures before opening circuit
             timeout: Time in seconds before trying to close circuit
             expected_exception: Exception type that counts as failure
+
         """
         self.failure_threshold = failure_threshold
         self.timeout = timeout
@@ -758,9 +749,8 @@ class CircuitBreaker:
                         f"Circuit breaker is OPEN for {func.__name__}. "
                         f"Retry after {self.timeout}s timeout."
                     )
-                else:
-                    self.state = "HALF_OPEN"
-                    logging.info(f"Circuit breaker moving to HALF_OPEN for {func.__name__}")
+                self.state = "HALF_OPEN"
+                logging.info(f"Circuit breaker moving to HALF_OPEN for {func.__name__}")
 
             try:
                 result = func(*args, **kwargs)
@@ -787,22 +777,17 @@ class CircuitBreaker:
 
 def categorize_error_severity(error: Exception) -> str:
     """Categorize error severity for monitoring."""
-    if isinstance(error, InsufficientFundsError):
+    if isinstance(error, InsufficientFundsError | (OrderExecutionError | PositionValidationError)):
         return ErrorSeverity.HIGH
-    elif isinstance(error, OrderExecutionError | PositionValidationError):
-        return ErrorSeverity.HIGH
-    elif isinstance(error, MarketDataError | DataProviderError):
+    if isinstance(error, MarketDataError | DataProviderError | StrategyExecutionError):
         return ErrorSeverity.MEDIUM
-    elif isinstance(error, StrategyExecutionError):
-        return ErrorSeverity.MEDIUM
-    elif isinstance(error, ConfigurationError):
+    if isinstance(error, ConfigurationError):
         return ErrorSeverity.HIGH
-    elif isinstance(error, NotificationError):
+    if isinstance(error, NotificationError):
         return ErrorSeverity.LOW
-    elif isinstance(error, AlchemiserError):
+    if isinstance(error, AlchemiserError):
         return ErrorSeverity.CRITICAL
-    else:
-        return ErrorSeverity.MEDIUM
+    return ErrorSeverity.MEDIUM
 
 
 def create_enhanced_error(
@@ -827,8 +812,7 @@ def create_enhanced_error(
 
 
 class EnhancedErrorReporter:
-    """
-    Enhanced error reporting with rate monitoring and aggregation.
+    """Enhanced error reporting with rate monitoring and aggregation.
 
     Extends the existing error handler with production-ready features.
     """
@@ -847,18 +831,17 @@ class EnhancedErrorReporter:
         is_critical: bool = False,
         operation: str | None = None,
     ) -> None:
-        """
-        Report an error with enhanced context tracking.
+        """Report an error with enhanced context tracking.
 
         Args:
             error: The exception that occurred
             context: Additional context about the error
             is_critical: Whether this is a critical error
             operation: Name of the operation that failed
-        """
 
+        """
         error_data = {
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "error_type": error.__class__.__name__,
             "message": str(error),
             "context": context or {},
@@ -889,7 +872,7 @@ class EnhancedErrorReporter:
 
     def _cleanup_old_errors(self) -> None:
         """Remove errors older than the monitoring window."""
-        current_time = datetime.now()
+        current_time = datetime.now(UTC)
         cutoff_time = current_time.timestamp() - self.error_rate_window
 
         self.recent_errors = [
@@ -940,8 +923,7 @@ def get_global_error_reporter() -> EnhancedErrorReporter:
 def handle_errors_with_retry(
     operation: str, critical: bool = False, reraise: bool = True, max_retries: int = 0
 ) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
-    """
-    Decorator combining error handling with optional retry logic.
+    """Decorator combining error handling with optional retry logic.
 
     Args:
         operation: Name of the operation for error context
@@ -951,6 +933,7 @@ def handle_errors_with_retry(
 
     Returns:
         Decorated function with error handling and retry
+
     """
 
     def decorator(func: Callable[..., Any]) -> Callable[..., Any]:

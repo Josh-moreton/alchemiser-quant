@@ -31,12 +31,12 @@ from the_alchemiser.interfaces.schemas.portfolio_rebalancing import RebalancePla
 from the_alchemiser.services.trading.trading_service_manager import (
     TradingServiceManager,
 )
+from the_alchemiser.utils.num import floats_equal
 from the_alchemiser.utils.serialization import ensure_serialized_dict
 
 
 class PortfolioManagementFacade:
-    """
-    Unified facade for all portfolio management operations.
+    """Unified facade for all portfolio management operations.
 
     Provides a single entry point for portfolio rebalancing, analysis,
     and execution while maintaining clean separation of concerns.
@@ -46,13 +46,13 @@ class PortfolioManagementFacade:
         self,
         trading_manager: TradingServiceManager,
         min_trade_threshold: Decimal = Decimal("0.01"),
-    ):
-        """
-        Initialize the portfolio management facade.
+    ) -> None:
+        """Initialize the portfolio management facade.
 
         Args:
             trading_manager: Service for trading operations and market data
             min_trade_threshold: Minimum threshold for trade execution
+
         """
         self.trading_manager = trading_manager
 
@@ -101,6 +101,7 @@ class PortfolioManagementFacade:
 
         Returns:
             Serialized dictionary containing rebalancing plan data.
+
         """
         plan_dto = self.rebalancing_service.calculate_rebalancing_plan(
             target_weights, current_positions, portfolio_value
@@ -112,6 +113,7 @@ class PortfolioManagementFacade:
 
         Returns:
             Serialized dictionary containing rebalancing summary data.
+
         """
         summary_dto = self.rebalancing_service.get_rebalancing_summary(target_weights)
         return summary_dto.model_dump()
@@ -121,6 +123,7 @@ class PortfolioManagementFacade:
 
         Returns:
             Serialized dictionary containing rebalancing impact analysis.
+
         """
         impact_dto = self.rebalancing_service.estimate_rebalancing_impact(target_weights)
         return impact_dto.model_dump()
@@ -223,6 +226,7 @@ class PortfolioManagementFacade:
 
         Returns:
             Serialized dictionary containing comprehensive portfolio overview.
+
         """
         overview = {
             "portfolio_analysis": self.get_portfolio_analysis(),
@@ -298,8 +302,7 @@ class PortfolioManagementFacade:
         target_portfolio: dict[str, float],
         _strategy_attribution: dict[str, list[StrategyType]] | None = None,
     ) -> list[OrderDetails]:
-        """
-        Main rebalancing interface compatible with RebalancingService protocol.
+        """Main rebalancing interface compatible with RebalancingService protocol.
 
         Args:
             target_portfolio: Target allocation weights by symbol
@@ -307,6 +310,7 @@ class PortfolioManagementFacade:
 
         Returns:
             List of order details from execution
+
         """
         # Convert to Decimal for internal processing
         target_weights_decimal = {
@@ -467,7 +471,7 @@ class PortfolioManagementFacade:
         positions = self.get_current_positions()
         portfolio_value = self.get_current_portfolio_value()
 
-        if portfolio_value == 0:
+        if floats_equal(portfolio_value, 0.0):
             return {}
 
         return {symbol: value / portfolio_value for symbol, value in positions.items()}

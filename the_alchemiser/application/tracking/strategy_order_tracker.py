@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Strategy Order Tracker for Per-Strategy P&L Management
+"""Strategy Order Tracker for Per-Strategy P&L Management.
 
 This module provides dedicated tracking of orders and positions per strategy for accurate P&L calculations.
 It persists order data and calculates realized/unrealized P&L per strategy.
@@ -156,6 +155,7 @@ class StrategyOrderTracker:
         Args:
             config: Configuration object
             paper_trading: Whether this is for paper trading (separates data storage)
+
         """
         self.config = config or load_settings()
         self.s3_handler = get_s3_handler()
@@ -532,6 +532,7 @@ class StrategyOrderTracker:
             quantity: Order quantity
             error: The exception that caused the error
             order_price: Order price if available
+
         """
         try:
             # Classify the error using the order error classification system
@@ -1239,6 +1240,7 @@ def get_strategy_tracker(
 
     Returns:
         StrategyOrderTracker: The appropriate tracker instance
+
     """
     global _strategy_tracker_paper, _strategy_tracker_live
 
@@ -1246,7 +1248,6 @@ def get_strategy_tracker(
         if _strategy_tracker_paper is None:
             _strategy_tracker_paper = StrategyOrderTracker(paper_trading=True)
         return _strategy_tracker_paper
-    else:
-        if _strategy_tracker_live is None:
-            _strategy_tracker_live = StrategyOrderTracker(paper_trading=False)
-        return _strategy_tracker_live
+    if _strategy_tracker_live is None:
+        _strategy_tracker_live = StrategyOrderTracker(paper_trading=False)
+    return _strategy_tracker_live

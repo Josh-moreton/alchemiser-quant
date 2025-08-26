@@ -3,7 +3,9 @@
 from decimal import Decimal
 from typing import Any
 
-from the_alchemiser.domain.portfolio.strategy_attribution.symbol_classifier import SymbolClassifier
+from the_alchemiser.domain.portfolio.strategy_attribution.symbol_classifier import (
+    SymbolClassifier,
+)
 from the_alchemiser.domain.registry import StrategyType
 
 
@@ -14,11 +16,12 @@ class StrategyAttributionEngine:
     classification rules to determine the primary strategy for each symbol.
     """
 
-    def __init__(self, symbol_classifier: SymbolClassifier | None = None):
+    def __init__(self, symbol_classifier: SymbolClassifier | None = None) -> None:
         """Initialize the attribution engine.
 
         Args:
             symbol_classifier: Optional classifier, creates default if not provided
+
         """
         self.classifier = symbol_classifier or SymbolClassifier()
 
@@ -30,11 +33,14 @@ class StrategyAttributionEngine:
 
         Returns:
             String identifier for the symbol's primary strategy
+
         """
         return self.classifier.classify_symbol(symbol)
 
     def get_primary_strategy(
-        self, symbol: str, strategy_attribution: dict[str, list[StrategyType]] | None = None
+        self,
+        symbol: str,
+        strategy_attribution: dict[str, list[StrategyType]] | None = None,
     ) -> StrategyType:
         """Determine the primary strategy responsible for a symbol.
 
@@ -44,6 +50,7 @@ class StrategyAttributionEngine:
 
         Returns:
             StrategyType for the primary strategy
+
         """
         if strategy_attribution and symbol in strategy_attribution:
             strategies = strategy_attribution[symbol]
@@ -54,13 +61,14 @@ class StrategyAttributionEngine:
         classification = self.classifier.classify_symbol(symbol)
         if classification == "nuclear":
             return StrategyType.NUCLEAR
-        elif classification == "tecl":
+        if classification == "tecl":
             return StrategyType.TECL
-        else:
-            return StrategyType.NUCLEAR  # Default fallback
+        return StrategyType.NUCLEAR  # Default fallback
 
     def get_all_strategies_for_symbol(
-        self, symbol: str, strategy_attribution: dict[str, list[StrategyType]] | None = None
+        self,
+        symbol: str,
+        strategy_attribution: dict[str, list[StrategyType]] | None = None,
     ) -> list[StrategyType]:
         """Get all strategies that have an interest in a symbol.
 
@@ -70,6 +78,7 @@ class StrategyAttributionEngine:
 
         Returns:
             List of StrategyType objects interested in the symbol
+
         """
         if strategy_attribution and symbol in strategy_attribution:
             return strategy_attribution[symbol]
@@ -78,7 +87,9 @@ class StrategyAttributionEngine:
         return [self.get_primary_strategy(symbol, strategy_attribution)]
 
     def group_symbols_by_strategy(
-        self, symbols: list[str], strategy_attribution: dict[str, list[StrategyType]] | None = None
+        self,
+        symbols: list[str],
+        strategy_attribution: dict[str, list[StrategyType]] | None = None,
     ) -> dict[StrategyType, list[str]]:
         """Group symbols by their primary strategy.
 
@@ -88,6 +99,7 @@ class StrategyAttributionEngine:
 
         Returns:
             Dictionary mapping StrategyType to list of symbols
+
         """
         strategy_groups: dict[StrategyType, list[str]] = {}
 
@@ -109,6 +121,7 @@ class StrategyAttributionEngine:
 
         Returns:
             Dictionary mapping strategy names to symbol-value dictionaries
+
         """
         strategy_groups: dict[str, dict[str, Decimal]] = {}
 
@@ -135,6 +148,7 @@ class StrategyAttributionEngine:
 
         Returns:
             List of symbols belonging to the strategy
+
         """
         return [
             symbol
@@ -153,8 +167,10 @@ class StrategyAttributionEngine:
 
         Returns:
             Dictionary mapping strategy names to exposure information
+
         """
-        if portfolio_value == 0:
+        # portfolio_value is Decimal; direct comparison acceptable
+        if portfolio_value == Decimal("0"):
             return {}
 
         strategy_groups = self.group_positions_by_strategy(positions)
@@ -184,8 +200,9 @@ class StrategyAttributionEngine:
 
         Returns:
             Dictionary mapping strategy names to allocation percentages
+
         """
-        if portfolio_value == 0:
+        if portfolio_value == Decimal("0"):
             return {}
 
         strategy_groups = self.group_positions_by_strategy(positions)

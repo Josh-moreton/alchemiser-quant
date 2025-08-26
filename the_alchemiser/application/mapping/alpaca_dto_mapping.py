@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Alpaca DTO mapping utilities for infrastructure boundary.
+"""Alpaca DTO mapping utilities for infrastructure boundary.
 
 This module provides mapping functions to convert between Alpaca API responses
 and OrderExecutionResultDTO, ensuring proper type conversion and validation
@@ -11,6 +10,7 @@ Part of the anti-corruption layer for clean DTO boundaries.
 
 from __future__ import annotations
 
+import contextlib
 import logging
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -24,8 +24,7 @@ logger = logging.getLogger(__name__)
 
 
 def alpaca_order_to_dto(order: Any) -> AlpacaOrderDTO:
-    """
-    Convert raw Alpaca order object to AlpacaOrderDTO.
+    """Convert raw Alpaca order object to AlpacaOrderDTO.
 
     Handles both attribute-based objects and dict responses from Alpaca API.
 
@@ -37,6 +36,7 @@ def alpaca_order_to_dto(order: Any) -> AlpacaOrderDTO:
 
     Raises:
         ValueError: If required fields are missing or invalid
+
     """
 
     # Extract helper function to handle both attribute access and dict access
@@ -102,8 +102,7 @@ def alpaca_order_to_dto(order: Any) -> AlpacaOrderDTO:
 
 
 def alpaca_dto_to_execution_result(alpaca_dto: AlpacaOrderDTO) -> OrderExecutionResultDTO:
-    """
-    Convert AlpacaOrderDTO to OrderExecutionResultDTO.
+    """Convert AlpacaOrderDTO to OrderExecutionResultDTO.
 
     Maps Alpaca-specific fields to standardized execution result format
     with proper status normalization and success determination.
@@ -113,6 +112,7 @@ def alpaca_dto_to_execution_result(alpaca_dto: AlpacaOrderDTO) -> OrderExecution
 
     Returns:
         OrderExecutionResultDTO with standardized fields
+
     """
     # Normalize status using existing logic
     normalized_status = normalize_order_status(alpaca_dto.status)
@@ -174,8 +174,7 @@ def alpaca_dto_to_execution_result(alpaca_dto: AlpacaOrderDTO) -> OrderExecution
 
 
 def alpaca_order_to_execution_result(order: Any) -> OrderExecutionResultDTO:
-    """
-    Direct conversion from raw Alpaca order to OrderExecutionResultDTO.
+    """Direct conversion from raw Alpaca order to OrderExecutionResultDTO.
 
     Convenience function that combines alpaca_order_to_dto and
     alpaca_dto_to_execution_result in a single step.
@@ -188,6 +187,7 @@ def alpaca_order_to_execution_result(order: Any) -> OrderExecutionResultDTO:
 
     Raises:
         ValueError: If order conversion fails
+
     """
     try:
         alpaca_dto = alpaca_order_to_dto(order)
@@ -212,8 +212,7 @@ def create_error_execution_result(
     context: str = "Order execution",
     order_id: str = "",
 ) -> OrderExecutionResultDTO:
-    """
-    Create an OrderExecutionResultDTO for error scenarios.
+    """Create an OrderExecutionResultDTO for error scenarios.
 
     Provides consistent error handling across AlpacaManager methods.
 
@@ -224,6 +223,7 @@ def create_error_execution_result(
 
     Returns:
         OrderExecutionResultDTO with error details
+
     """
     return OrderExecutionResultDTO(
         success=False,
@@ -242,8 +242,7 @@ def alpaca_exception_to_error_dto(
     default_code: int = 500,
     request_id: str | None = None,
 ) -> AlpacaErrorDTO:
-    """
-    Convert Alpaca API exception to AlpacaErrorDTO.
+    """Convert Alpaca API exception to AlpacaErrorDTO.
 
     Extracts error information from Alpaca API exceptions and formats
     them into structured error DTOs.
@@ -255,6 +254,7 @@ def alpaca_exception_to_error_dto(
 
     Returns:
         AlpacaErrorDTO with structured error information
+
     """
     # Try to extract error code from exception
     error_code = default_code
@@ -275,10 +275,8 @@ def alpaca_exception_to_error_dto(
     elif hasattr(exception, "response"):
         response = exception.response
         if hasattr(response, "json"):
-            try:
+            with contextlib.suppress(Exception):
                 details = response.json()
-            except Exception:
-                pass
 
     return AlpacaErrorDTO(
         code=error_code,

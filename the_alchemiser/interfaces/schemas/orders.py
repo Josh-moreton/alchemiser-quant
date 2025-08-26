@@ -1,5 +1,4 @@
-"""
-Order DTOs for application layer and interface boundaries.
+"""Order DTOs for application layer and interface boundaries.
 
 This module provides Pydantic v2 DTOs for order handling, replacing loose dicts
 and Any usages with strongly typed, validated structures. These DTOs are used
@@ -19,14 +18,13 @@ from decimal import Decimal
 from typing import Any, Literal
 
 from alpaca.trading.requests import LimitOrderRequest
-from pydantic import BaseModel, ConfigDict, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from the_alchemiser.interfaces.schemas.base import ResultDTO
 
 
 class OrderValidationMixin:
-    """
-    Mixin providing common validation methods for order DTOs.
+    """Mixin providing common validation methods for order DTOs.
 
     Centralizes validation logic to eliminate code duplication while
     maintaining type safety and reusability across order DTO classes.
@@ -69,8 +67,7 @@ class OrderValidationMixin:
 
 
 class OrderRequestDTO(BaseModel, OrderValidationMixin):
-    """
-    DTO for incoming order requests.
+    """DTO for incoming order requests.
 
     Used when creating new orders from user input or API requests.
     Provides validation and normalization of order parameters.
@@ -93,8 +90,7 @@ class OrderRequestDTO(BaseModel, OrderValidationMixin):
 
 
 class ValidatedOrderDTO(BaseModel, OrderValidationMixin):
-    """
-    DTO for validated orders with derived and normalized fields.
+    """DTO for validated orders with derived and normalized fields.
 
     Contains all OrderRequest fields plus additional metadata
     from validation and normalization processes.
@@ -125,8 +121,7 @@ class ValidatedOrderDTO(BaseModel, OrderValidationMixin):
 
 
 class OrderExecutionResultDTO(ResultDTO):
-    """
-    DTO for order execution results.
+    """DTO for order execution results.
 
     Adds uniform success/error fields to align with prior facade contract
     (which exposed a 'success' flag) while preserving structured status.
@@ -164,8 +159,7 @@ class OrderExecutionResultDTO(ResultDTO):
 
 
 class LimitOrderResultDTO(BaseModel):
-    """
-    DTO for limit order preparation results.
+    """DTO for limit order preparation results.
 
     Contains the result of limit order preparation including the order request data,
     conversion information, and success/failure status. Used to replace tuple returns
@@ -205,13 +199,7 @@ class LimitOrderResultDTO(BaseModel):
 
 
 class RawOrderEnvelope(BaseModel):
-    """
-    DTO that captures raw Alpaca order response plus metadata.
-
-    This envelope contains the raw order object from Alpaca along with
-    timestamps and request metadata, serving as the normalized output
-    from AlpacaManager.place_order before domain mapping.
-    """
+    """Raw order envelope containing both the original order and execution result."""
 
     model_config = ConfigDict(
         strict=True,
@@ -219,16 +207,39 @@ class RawOrderEnvelope(BaseModel):
         validate_assignment=True,
     )
 
-    # Raw Alpaca order object
-    raw_order: Any  # The actual Alpaca order object
-
-    # Request metadata
-    original_request: Any  # Original OrderRequest (MarketOrderRequest/LimitOrderRequest)
+    raw_order: Any | None = None
+    original_request: Any | None = None
     request_timestamp: datetime
-
-    # Response metadata
     response_timestamp: datetime
-
-    # Execution context
     success: bool
     error_message: str | None = None
+
+
+class AdjustedOrderRequestDTO(OrderRequestDTO):
+    """DTO for order requests that have been adjusted by policies."""
+
+    adjustment_reason: str | None = None
+    original_quantity: Decimal | None = None
+    warnings: list[PolicyWarningDTO] = Field(default_factory=list)
+    is_approved: bool = True
+    rejection_reason: str | None = None
+    policy_metadata: dict[str, Any] | None = None
+    total_risk_score: Decimal | None = None
+
+
+class PolicyWarningDTO(BaseModel):
+    """DTO for policy warnings during order validation."""
+
+    model_config = ConfigDict(
+        strict=True,
+        frozen=True,
+        validate_assignment=True,
+    )
+
+    message: str
+    policy_name: str
+    severity: Literal["low", "medium", "high"] = "medium"
+    action: str | None = None
+    original_value: Any | None = None
+    adjusted_value: Any | None = None
+    risk_level: str | None = None

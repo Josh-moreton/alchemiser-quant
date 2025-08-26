@@ -1,5 +1,4 @@
-"""
-Configuration system for DSL optimization features.
+"""Configuration system for DSL optimization features.
 
 Provides environment variable and programmatic configuration for
 enabling/disabling AST interning, evaluator memoisation, and parallel execution.
@@ -39,6 +38,7 @@ class DSLOptimizationConfig:
 
         Returns:
             Configuration instance with environment settings
+
         """
         return cls(
             enable_interning=_env_bool("ALCH_DSL_CSE", False),
@@ -66,10 +66,9 @@ def _env_bool(var_name: str, default: bool) -> bool:
     value = os.environ.get(var_name, "").lower()
     if value in ("1", "true", "yes", "on", "enabled"):
         return True
-    elif value in ("0", "false", "no", "off", "disabled"):
+    if value in ("0", "false", "no", "off", "disabled"):
         return False
-    else:
-        return default
+    return default
 
 
 def _env_int(var_name: str, default: int | None) -> int | None:
@@ -117,6 +116,7 @@ def configure_from_environment() -> DSLOptimizationConfig:
 
     Returns:
         The configured instance (also set as default)
+
     """
     config = DSLOptimizationConfig.from_environment()
     set_default_config(config)
@@ -131,6 +131,7 @@ def get_optimization_stats() -> dict[str, Any]:
 
     Returns:
         Dictionary with all optimization metrics
+
     """
     stats = {"config": get_default_config().to_dict()}
 

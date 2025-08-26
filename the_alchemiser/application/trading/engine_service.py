@@ -18,10 +18,11 @@ Example:
     >>> container = ApplicationContainer.create_for_testing()
     >>> engine = TradingEngine.create_with_di(container=container)
     >>> result = engine.execute_multi_strategy()
+
 """
 
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, Protocol
 
 if TYPE_CHECKING:  # Import for type checking only to avoid runtime dependency
@@ -166,6 +167,7 @@ class TradingEngine:
         order_manager: Smart execution engine for order placement.
         portfolio_rebalancer: Portfolio rebalancing workflow manager.
         strategy_manager: Multi-strategy signal generation manager.
+
     """
 
     def __init__(
@@ -187,6 +189,7 @@ class TradingEngine:
             - bootstrap_from_container()
             - bootstrap_from_service_manager()
             - bootstrap_traditional()
+
         """
         self.logger = logging.getLogger(__name__)
 
@@ -363,7 +366,7 @@ class TradingEngine:
         """Create a bridge object that provides run_all_strategies() interface for CLI compatibility."""
 
         class StrategyManagerBridge:
-            def __init__(self, typed_manager: TypedStrategyManager):
+            def __init__(self, typed_manager: TypedStrategyManager) -> None:
                 self._typed = typed_manager
 
             def run_all_strategies(
@@ -401,7 +404,7 @@ class TradingEngine:
                     # Strategy manager doesn't have performance summary method - return default structure
                     return {
                         st.name: {"pnl": 0.0, "trades": 0}
-                        for st in self._typed.strategy_allocations.keys()
+                        for st in self._typed.strategy_allocations
                     }
                 except Exception as e:
                     from the_alchemiser.services.errors.context import (
@@ -448,6 +451,7 @@ class TradingEngine:
 
         Returns:
             EnrichedAccountInfo with portfolio history and closed P&L data.
+
         """
         enriched = self._account_facade.get_enriched_account_info(paper_trading=self.paper_trading)
         # Update market_hours_ignored flag based on engine setting
@@ -461,6 +465,7 @@ class TradingEngine:
 
         Returns:
             Dict of current positions keyed by symbol with validated PositionInfo structure.
+
         """
         return self._account_facade.get_positions()
 
@@ -473,6 +478,7 @@ class TradingEngine:
 
         Returns:
             Dict of current positions keyed by symbol with validated PositionInfo structure.
+
         """
         return self._account_facade.get_positions_dict()
 
@@ -484,6 +490,7 @@ class TradingEngine:
 
         Returns:
             Current price as float, or 0.0 if price unavailable.
+
         """
         return self._account_facade.get_current_price(symbol)
 
@@ -495,6 +502,7 @@ class TradingEngine:
 
         Returns:
             Dict mapping symbols to current prices, excluding symbols with invalid prices.
+
         """
         return self._account_facade.get_current_prices(symbols)
 
@@ -514,6 +522,7 @@ class TradingEngine:
 
         Returns:
             True if all orders settled successfully, False otherwise.
+
         """
         # Convert OrderDetails to dict format for order_manager compatibility
         compatible_orders = []
@@ -553,6 +562,7 @@ class TradingEngine:
 
         Returns:
             Order ID if successful, None if failed.
+
         """
         return self.order_manager.place_order(
             symbol, qty, side, max_retries, poll_timeout, poll_interval, slippage_bps
@@ -574,6 +584,7 @@ class TradingEngine:
 
         Returns:
             List of executed orders during rebalancing as OrderDetails.
+
         """
         # Delegate to the rebalancing orchestrator for sequential execution
         return self._rebalancing_orchestrator.execute_full_rebalance_cycle(
@@ -583,8 +594,7 @@ class TradingEngine:
     def execute_rebalancing(
         self, target_allocations: dict[str, float], mode: str = "market"
     ) -> ExecutionResultDTO:
-        """
-        Execute portfolio rebalancing with the specified mode.
+        """Execute portfolio rebalancing with the specified mode.
 
         Args:
             target_allocations: Target allocation percentages by symbol
@@ -592,6 +602,7 @@ class TradingEngine:
 
         Returns:
             ExecutionResultDTO with comprehensive execution details
+
         """
         # Get account info before execution
         account_info_before = self.get_account_info()
@@ -630,6 +641,7 @@ class TradingEngine:
 
         Returns:
             MultiStrategyExecutionResultDTO with comprehensive execution details.
+
         """
         logging.info("Initiating multi-strategy execution")
 
@@ -749,7 +761,7 @@ class TradingEngine:
             )
 
     # --- Reporting and Dashboard Methods ---
-    def _archive_daily_strategy_pnl(self, pnl_summary: dict[str, Any]) -> None:  # noqa: ARG002
+    def _archive_daily_strategy_pnl(self, pnl_summary: dict[str, Any]) -> None:
         """Archive daily strategy P&L for historical tracking."""
         try:
             from the_alchemiser.application.tracking.strategy_order_tracker import (
@@ -786,18 +798,17 @@ class TradingEngine:
     def get_multi_strategy_performance_report(
         self,
     ) -> dict[str, Any]:  # TODO: Change to StrategyPnLSummary once implementation updated
-        """Generate comprehensive performance report for all strategies"""
+        """Generate comprehensive performance report for all strategies."""
         try:
             current_positions = self.get_positions()
-            report = {
-                "timestamp": datetime.now().isoformat(),
+            return {
+                "timestamp": datetime.now(UTC).isoformat(),
                 "strategy_allocations": {
                     k.value: v for k, v in self.strategy_manager.strategy_allocations.items()
                 },
                 "current_positions": current_positions,
                 "performance_summary": self.strategy_manager.get_strategy_performance_summary(),
             }
-            return report
         except (
             StrategyExecutionError,
             DataProviderError,
@@ -819,14 +830,14 @@ class TradingEngine:
         strategy_signals: dict[StrategyType, Any],
         orders_executed: list[dict[str, Any]],
     ) -> None:
-        """
-        Trigger post-trade technical indicator validation for live trading.
+        """Trigger post-trade technical indicator validation for live trading.
 
         Enhanced with type safety validation for orders_executed.
 
         Args:
             strategy_signals: Strategy signals that led to trades
             orders_executed: List of executed orders (being migrated to typed structure)
+
         """
         try:
             # Enhanced order validation
@@ -950,6 +961,7 @@ class TradingEngine:
 
         Returns:
             TradingEngine instance with all dependencies injected
+
         """
         context = bootstrap_from_container(container)
         return cls(
@@ -974,6 +986,7 @@ class TradingEngine:
 
         Returns:
             TradingEngine instance with all dependencies injected
+
         """
         context = bootstrap_from_service_manager(trading_service_manager)
         return cls(
@@ -1000,6 +1013,7 @@ class TradingEngine:
 
         Returns:
             TradingEngine instance with all dependencies initialized
+
         """
         context = bootstrap_traditional(paper_trading, config)
         return cls(
@@ -1013,9 +1027,18 @@ def main() -> None:
     """Test TradingEngine multi-strategy execution (fail-fast DI only)."""
     import logging
 
+    from the_alchemiser.infrastructure.logging.logging_utils import (
+        get_logger,
+        log_with_context,
+    )
+
     logging.basicConfig(level=logging.WARNING)  # Reduced verbosity
-    print("Trading Engine Test")
-    print("─" * 50)
+    logger = get_logger(__name__)
+
+    logger.info(
+        "trading_engine_test_started",
+        extra={"component": "TradingEngine.main", "operation": "test_initialization"},
+    )
 
     # Modern DI initialization (no legacy fallback). Any failure should surface immediately.
     from the_alchemiser.container.application_container import ApplicationContainer
@@ -1031,18 +1054,53 @@ def main() -> None:
     )
     trader.paper_trading = True
 
-    print("Executing multi-strategy...")
+    logger.info(
+        "executing_multi_strategy",
+        extra={
+            "component": "TradingEngine.main",
+            "operation": "strategy_execution",
+            "paper_trading": True,
+            "strategy_allocations": {"NUCLEAR": 0.5, "TECL": 0.5},
+        },
+    )
     result = trader.execute_multi_strategy()
-    print(f"Execution result: success={result.success}")
 
-    print("Getting performance report...")
+    log_with_context(
+        logger,
+        logging.INFO,
+        "multi_strategy_execution_completed",
+        component="TradingEngine.main",
+        operation="execution_result",
+        success=result.success,
+    )
+
+    logger.info(
+        "generating_performance_report",
+        extra={
+            "component": "TradingEngine.main",
+            "operation": "performance_report_generation",
+        },
+    )
     report = trader.get_multi_strategy_performance_report()
     if "error" not in report:
-        print("Performance report generated successfully")
-        print(f"   Current positions: {len(report['current_positions'])}")
-        print(f"   Strategy tracking: {len(report['performance_summary'])}")
+        log_with_context(
+            logger,
+            logging.INFO,
+            "performance_report_generated_successfully",
+            component="TradingEngine.main",
+            operation="performance_report_result",
+            current_positions_count=len(report["current_positions"]),
+            strategy_tracking_count=len(report["performance_summary"]),
+        )
     else:
-        print(f"Error generating report: {report['error']}")
+        log_with_context(
+            logger,
+            logging.ERROR,
+            "performance_report_generation_failed",
+            component="TradingEngine.main",
+            operation="performance_report_error",
+            error=str(report["error"]),
+        )
 
 
 if __name__ == "__main__":

@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Execution Configuration
+"""Execution Configuration.
 
 Configuration settings for the professional execution system.
 Loads settings from the global application configuration.
@@ -8,8 +7,12 @@ Loads settings from the global application configuration.
 
 import logging
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from .config import load_settings
+
+if TYPE_CHECKING:  # pragma: no cover - hint for type checkers only
+    from the_alchemiser.application.execution.strategies.config import StrategyConfig
 
 
 @dataclass
@@ -71,14 +74,14 @@ class ExecutionConfig:
             return cls()
 
     def get_slippage_tolerance(self, symbol: str) -> float:
-        """
-        Get slippage tolerance for a symbol.
+        """Get slippage tolerance for a symbol.
 
         Args:
             symbol: The symbol to check
 
         Returns:
             float: Slippage tolerance in basis points
+
         """
         # Use standard slippage for all symbols
         return self.max_slippage_bps
@@ -92,8 +95,7 @@ class ExecutionConfig:
         return bool(self.high_volume_etfs and symbol in self.high_volume_etfs)
 
     def get_adaptive_timeout(self, attempt: int, base_timeout: float) -> float:
-        """
-        Calculate adaptive timeout for re-pegging attempts.
+        """Calculate adaptive timeout for re-pegging attempts.
 
         Args:
             attempt: Current attempt number (0-based)
@@ -101,6 +103,7 @@ class ExecutionConfig:
 
         Returns:
             Adjusted timeout with exponential backoff
+
         """
         if not self.enable_adaptive_repegging:
             return base_timeout
@@ -111,8 +114,7 @@ class ExecutionConfig:
     def should_pause_for_volatility(
         self, original_spread_cents: float, current_spread_cents: float
     ) -> bool:
-        """
-        Check if re-pegging should be paused due to spread volatility.
+        """Check if re-pegging should be paused due to spread volatility.
 
         Args:
             original_spread_cents: Original spread in cents
@@ -120,6 +122,7 @@ class ExecutionConfig:
 
         Returns:
             True if volatility is too high to continue re-pegging
+
         """
         if not self.enable_adaptive_repegging or original_spread_cents <= 0:
             return False
@@ -135,8 +138,7 @@ class ExecutionConfig:
     def calculate_adaptive_limit_price(
         self, side: str, bid: float, ask: float, attempt: int, tick_size: float = 0.01
     ) -> float:
-        """
-        Calculate adaptive limit price that improves with each re-peg attempt.
+        """Calculate adaptive limit price that improves with each re-peg attempt.
 
         Args:
             side: "buy" or "sell"
@@ -147,13 +149,13 @@ class ExecutionConfig:
 
         Returns:
             Adaptive limit price
+
         """
         if not self.enable_adaptive_repegging:
             # Use original aggressive pricing
             if side.lower() == "buy":
                 return ask + tick_size
-            else:
-                return bid - tick_size
+            return bid - tick_size
 
         # Calculate price improvement based on attempt number
         price_improvement = self.repeg_price_improvement_ticks * tick_size * attempt
@@ -161,9 +163,8 @@ class ExecutionConfig:
         if side.lower() == "buy":
             # Buy orders: start at ask + 1 tick, improve (increase) each attempt
             return ask + tick_size + price_improvement
-        else:
-            # Sell orders: start at bid - 1 tick, improve (decrease) each attempt
-            return bid - tick_size - price_improvement
+        # Sell orders: start at bid - 1 tick, improve (decrease) each attempt
+        return bid - tick_size - price_improvement
 
 
 # Global config instance
@@ -182,3 +183,23 @@ def reload_execution_config() -> None:
     """Reload the execution configuration from settings."""
     global _config_instance
     _config_instance = ExecutionConfig.from_settings()
+
+
+def create_strategy_config() -> "StrategyConfig":  # forward ref for static typing
+    """Create a StrategyConfig from current ExecutionConfig."""
+    from decimal import Decimal
+
+    from the_alchemiser.application.execution.strategies.config import StrategyConfig
+
+    config = get_execution_config()
+    return StrategyConfig(
+        max_attempts=config.max_repegs + 1,
+        base_timeout_seconds=config.aggressive_timeout_seconds,
+        tick_size=Decimal("0.01"),
+        timeout_multiplier=config.repeg_timeout_multiplier,
+        price_improvement_ticks=config.repeg_price_improvement_ticks,
+        min_repeg_interval_seconds=config.min_repeg_interval_seconds,
+        volatility_pause_threshold_bps=Decimal(str(config.volatility_pause_threshold_bps)),
+        enable_adaptive_pricing=config.enable_adaptive_repegging,
+        enable_volatility_pause=config.enable_adaptive_repegging,
+    )

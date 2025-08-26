@@ -1,5 +1,4 @@
-"""
-Enhanced Order Service
+"""Enhanced Order Service.
 
 This service provides type-safe, validated order placement operations.
 It builds on top of the TradingRepository interface, adding:
@@ -21,6 +20,7 @@ from alpaca.trading.enums import TimeInForce
 
 from the_alchemiser.domain.interfaces import MarketDataRepository, TradingRepository
 from the_alchemiser.services.errors.decorators import translate_trading_errors
+from the_alchemiser.utils.num import floats_equal
 
 logger = logging.getLogger(__name__)
 
@@ -35,12 +35,9 @@ class OrderType(Enum):
 class OrderValidationError(Exception):
     """Exception raised when order validation fails."""
 
-    pass
-
 
 class OrderService:
-    """
-    Enhanced order service with validation and business logic.
+    """Enhanced order service with validation and business logic.
 
     This service provides a higher-level interface for order operations,
     adding validation, error handling, and business rules on top of the
@@ -53,15 +50,15 @@ class OrderService:
         market_data_repo: MarketDataRepository | None = None,
         max_order_value: float = 100000.0,
         min_order_value: float = 1.0,
-    ):
-        """
-        Initialize the order service.
+    ) -> None:
+        """Initialize the order service.
 
         Args:
             trading_repo: Trading repository for order operations
             market_data_repo: Optional market data repository for price validation
             max_order_value: Maximum allowed order value in dollars
             min_order_value: Minimum allowed order value in dollars
+
         """
         self._trading = trading_repo
         self._market_data = market_data_repo
@@ -77,8 +74,7 @@ class OrderService:
         notional: float | None = None,
         validate_price: bool = True,
     ) -> str:
-        """
-        Place a validated market order.
+        """Place a validated market order.
 
         Args:
             symbol: Stock symbol (will be normalized)
@@ -93,6 +89,7 @@ class OrderService:
         Raises:
             OrderValidationError: If validation fails
             Exception: If order placement fails
+
         """
         # Input validation and normalization
         symbol = self._validate_and_normalize_symbol(symbol)
@@ -129,10 +126,20 @@ class OrderService:
         )
 
         if not order_result.success:
-            raise Exception(f"Order placement failed: {order_result.error}")
+            error_msg = getattr(order_result, "error_message", None) or "Unknown error"
+            raise Exception(f"Order placement failed: {error_msg}")
 
-        logger.info(f"✅ Market order placed successfully: {order_result.order_id}")
-        return order_result.order_id
+        # Extract order ID from envelope
+        order_id = None
+        raw_order = getattr(order_result, "raw_order", None)
+        if raw_order:
+            order_id = getattr(raw_order, "id", None)
+
+        if not order_id:
+            raise Exception("Order placement succeeded but no order ID returned")
+
+        logger.info(f"✅ Market order placed successfully: {order_id}")
+        return str(order_id)
 
     @translate_trading_errors()
     def place_limit_order(
@@ -144,8 +151,7 @@ class OrderService:
         time_in_force: str = "day",
         validate_price: bool = True,
     ) -> str:
-        """
-        Place a validated limit order.
+        """Place a validated limit order.
 
         DEPRECATED: This method uses legacy service patterns. Consider using
         CanonicalOrderExecutor for new code to leverage centralized order building.
@@ -164,6 +170,7 @@ class OrderService:
         Raises:
             OrderValidationError: If validation fails
             Exception: If order placement fails
+
         """
         # Input validation and normalization
         symbol = self._validate_and_normalize_symbol(symbol)
@@ -203,12 +210,14 @@ class OrderService:
         envelope = self._trading.place_order(order_request)
 
         if not envelope.success:
-            raise Exception(f"Limit order placement failed: {envelope.error_message}")
+            error_msg = getattr(envelope, "error_message", None) or "Unknown error"
+            raise Exception(f"Limit order placement failed: {error_msg}")
 
         # Extract order ID from envelope
         order_id = None
-        if envelope.raw_order:
-            order_id = getattr(envelope.raw_order, "id", None)
+        raw_order = getattr(envelope, "raw_order", None)
+        if raw_order:
+            order_id = getattr(raw_order, "id", None)
 
         if not order_id:
             raise Exception("Limit order placement succeeded but no order ID returned")
@@ -218,8 +227,7 @@ class OrderService:
 
     @translate_trading_errors()
     def cancel_order(self, order_id: str) -> bool:
-        """
-        Cancel an order with enhanced error handling.
+        """Cancel an order with enhanced error handling.
 
         Args:
             order_id: Order ID to cancel
@@ -230,6 +238,7 @@ class OrderService:
         Raises:
             OrderValidationError: If order_id is invalid
             Exception: If cancellation fails
+
         """
         if not order_id or not isinstance(order_id, str):
             raise OrderValidationError("Invalid order ID")
@@ -246,8 +255,7 @@ class OrderService:
 
     @translate_trading_errors()
     def liquidate_position(self, symbol: str) -> str:
-        """
-        Liquidate entire position with validation.
+        """Liquidate entire position with validation.
 
         Args:
             symbol: Symbol to liquidate
@@ -258,12 +266,13 @@ class OrderService:
         Raises:
             OrderValidationError: If symbol invalid or no position
             Exception: If liquidation fails
+
         """
         symbol = self._validate_and_normalize_symbol(symbol)
 
         # Verify position exists
         positions = self._trading.get_positions_dict()
-        if symbol not in positions or positions[symbol] == 0:
+        if symbol not in positions or floats_equal(positions[symbol], 0.0):
             raise OrderValidationError(f"No position to liquidate for {symbol}")
 
         position_size = positions[symbol]

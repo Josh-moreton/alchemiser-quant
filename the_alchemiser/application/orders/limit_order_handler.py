@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Limit Order Handling Utilities
+"""Limit Order Handling Utilities.
 
 This module handles limit order placement with smart fractionability logic,
 validation, and error handling with fallback strategies.
@@ -23,9 +22,7 @@ from the_alchemiser.services.errors.exceptions import DataProviderError, Trading
 
 
 class LimitOrderHandler:
-    """
-    Handles limit order placement with smart asset-specific logic.
-    """
+    """Handles limit order placement with smart asset-specific logic."""
 
     def __init__(self, trading_client: Any, position_manager: Any, asset_handler: Any) -> None:
         """Initialize with required dependencies."""
@@ -42,8 +39,7 @@ class LimitOrderHandler:
         limit_price: float,
         cancel_existing: bool = True,
     ) -> str | None:
-        """
-        Place a limit order with smart fractionability handling.
+        """Place a limit order with smart fractionability handling.
 
         Args:
             symbol: Stock symbol
@@ -54,6 +50,7 @@ class LimitOrderHandler:
 
         Returns:
             Order ID if successful, None if failed
+
         """
         # Basic validation
         if qty <= 0:
@@ -119,7 +116,20 @@ class LimitOrderHandler:
     def _prepare_limit_order(
         self, symbol: str, qty: float, side: OrderSide, limit_price: float
     ) -> LimitOrderResultDTO:
-        """Prepare limit order with smart asset handling."""
+        """Prepare limit order with smart asset handling.
+
+        DEPRECATED: This fractionability logic has been moved to FractionabilityPolicy.
+        Use PolicyOrchestrator with CanonicalOrderExecutor for new implementations.
+        This method remains for backward compatibility only.
+        """
+        import warnings
+        warnings.warn(
+            "LimitOrderHandler._prepare_limit_order fractionability logic is deprecated. "
+            "Use PolicyOrchestrator with FractionabilityPolicy instead.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+
         original_qty = qty
         conversion_info = None
 
@@ -190,14 +200,26 @@ class LimitOrderHandler:
                 return self._handle_fractionable_fallback(
                     symbol, original_qty, side, limit_price, error_msg
                 )
-            else:
-                # Re-raise the original error if it's not a fractionability issue
-                raise order_error
+            # Re-raise the original error if it's not a fractionability issue
+            raise order_error
 
     def _handle_fractionable_fallback(
         self, symbol: str, original_qty: float, side: OrderSide, limit_price: float, error_msg: str
     ) -> str | None:
-        """Handle fractionability errors with whole share fallback."""
+        """Handle fractionability errors with whole share fallback.
+
+        DEPRECATED: This fractionability fallback logic has been moved to FractionabilityPolicy.
+        Use PolicyOrchestrator with CanonicalOrderExecutor for new implementations.
+        This method remains for backward compatibility only.
+        """
+        import warnings
+        warnings.warn(
+            "LimitOrderHandler._handle_fractionable_fallback is deprecated. "
+            "Use PolicyOrchestrator with FractionabilityPolicy instead.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+
         logging.warning(
             f"🔄 {symbol} limit order failed (not fractionable), trying whole shares..."
         )
@@ -248,8 +270,7 @@ class LimitOrderHandler:
     def place_limit_order_from_dto(
         self, validated_order: "ValidatedOrderDTO", cancel_existing: bool = True
     ) -> str | None:
-        """
-        Place a limit order using ValidatedOrderDTO.
+        """Place a limit order using ValidatedOrderDTO.
 
         Args:
             validated_order: ValidatedOrderDTO instance with validation metadata
@@ -257,6 +278,7 @@ class LimitOrderHandler:
 
         Returns:
             Order ID if successful, None otherwise
+
         """
         # Convert DTO side to OrderSide enum
         order_side = OrderSide.BUY if validated_order.side.lower() == "buy" else OrderSide.SELL

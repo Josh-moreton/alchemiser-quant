@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""
-WebSocket Connection Manager
+"""WebSocket Connection Manager.
 
 This module manages WebSocket connections for order monitoring and real-time data,
 providing connection lifecycle management and cleanup utilities.
 """
 
+import contextlib
 import logging
 import threading
 import time
@@ -15,8 +15,7 @@ from rich.console import Console
 
 
 class WebSocketConnectionManager:
-    """
-    Manages WebSocket connections for the AlpacaClient.
+    """Manages WebSocket connections for the AlpacaClient.
 
     Provides connection setup, cleanup, and lifecycle management for both
     trading streams and data streams.
@@ -36,11 +35,11 @@ class WebSocketConnectionManager:
         self._websocket_thread: threading.Thread | None = None
 
     def prepare_websocket_connection(self) -> bool:
-        """
-        Pre-initialize WebSocket connection and wait for it to be ready.
+        """Pre-initialize WebSocket connection and wait for it to be ready.
 
         Returns:
             True if WebSocket is ready, False if it failed to connect
+
         """
         api_key = self.api_key or getattr(self.trading_client, "_api_key", None)
         secret_key = self.secret_key or getattr(self.trading_client, "_secret_key", None)
@@ -66,7 +65,6 @@ class WebSocketConnectionManager:
             # Dummy handler for trade updates (we'll replace this later)
             async def dummy_handler(data: Any) -> None:
                 """Log trade update messages during initial connection testing."""
-
                 if logging.getLogger().level <= logging.DEBUG:
                     self.console.print(f"[dim]📡 Pre-connection WebSocket message: {data}[/dim]")
 
@@ -105,10 +103,8 @@ class WebSocketConnectionManager:
     def cleanup_websocket_connection(self) -> None:
         """Clean up any existing WebSocket connection."""
         if hasattr(self, "_websocket_stream") and self._websocket_stream:
-            try:
+            with contextlib.suppress(Exception):
                 self._websocket_stream.stop()
-            except Exception:
-                pass
             self._websocket_stream = None
 
         if hasattr(self, "_websocket_thread") and self._websocket_thread:

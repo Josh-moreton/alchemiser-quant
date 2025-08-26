@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Market Open Timing Utilities
+"""Market Open Timing Utilities.
 
 Implements the timing logic from better orders spec for optimal execution
 during market open hours (9:30-9:35 ET).
@@ -25,7 +24,6 @@ class MarketOpenTimingEngine:
 
     def __init__(self) -> None:
         """Create the engine with the appropriate time zone configured."""
-
         self.et_tz = pytz.timezone("US/Eastern")
 
     def get_execution_strategy(self, current_time: datetime | None = None) -> ExecutionStrategy:
@@ -42,10 +40,9 @@ class MarketOpenTimingEngine:
 
         if market_open <= et_time < spreads_normalize:
             return ExecutionStrategy.WAIT_FOR_SPREADS
-        elif spreads_normalize <= et_time < market_stable:
+        if spreads_normalize <= et_time < market_stable:
             return ExecutionStrategy.NORMAL_EXECUTION
-        else:
-            return ExecutionStrategy.STANDARD_EXECUTION
+        return ExecutionStrategy.STANDARD_EXECUTION
 
     def should_execute_immediately(self, spread_cents: float, strategy: ExecutionStrategy) -> bool:
         """Apply spread-based execution decisions."""
@@ -55,10 +52,10 @@ class MarketOpenTimingEngine:
         # Market open logic
         if spread_cents <= 3.0:  # Tight spread
             return True
-        elif spread_cents > 5.0:  # Wide spread
+        if spread_cents > 5.0:  # Wide spread
             return strategy != ExecutionStrategy.WAIT_FOR_SPREADS
-        else:  # Normal spread
-            return True
+        # Normal spread
+        return True
 
     def get_wait_time_seconds(self, strategy: ExecutionStrategy, spread_cents: float) -> int:
         """Get recommended wait time before execution."""

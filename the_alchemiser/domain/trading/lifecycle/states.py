@@ -6,8 +6,7 @@ from enum import Enum
 
 
 class OrderLifecycleState(str, Enum):
-    """
-    Comprehensive order lifecycle states covering the complete order progression.
+    """Comprehensive order lifecycle states covering the complete order progression.
 
     This enum defines the 12 possible states an order can be in during its lifecycle,
     from initial creation through final resolution. States are designed to enable

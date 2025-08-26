@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Portfolio P&L Utilities
+"""Portfolio P&L Utilities.
 
 This module provides helper functions for calculating and extracting
 profit and loss data from strategy tracking and portfolio positions.
@@ -18,8 +17,7 @@ from the_alchemiser.application.tracking.strategy_order_tracker import get_strat
 def calculate_strategy_pnl_summary(
     paper_trading: bool, current_prices: dict[str, float]
 ) -> dict[str, Any]:
-    """
-    Calculate P&L summary for all strategies.
+    """Calculate P&L summary for all strategies.
 
     Args:
         paper_trading: Whether using paper trading
@@ -27,6 +25,7 @@ def calculate_strategy_pnl_summary(
 
     Returns:
         Dict containing P&L summary with totals and per-strategy data
+
     """
     try:
         tracker = get_strategy_tracker(paper_trading=paper_trading)
@@ -61,14 +60,14 @@ def calculate_strategy_pnl_summary(
 
 
 def extract_trading_summary(orders_executed: list[dict[str, Any]]) -> dict[str, Any]:
-    """
-    Extract trading summary from executed orders.
+    """Extract trading summary from executed orders.
 
     Args:
         orders_executed: List of executed order dictionaries
 
     Returns:
         Dict containing trading summary statistics
+
     """
     total_trades = len(orders_executed)
     buy_orders: list[
@@ -81,10 +80,7 @@ def extract_trading_summary(orders_executed: list[dict[str, Any]]) -> dict[str, 
     for order in orders_executed:
         side = order.get("side")
         if side:
-            if hasattr(side, "value"):
-                side_value = side.value.upper()
-            else:
-                side_value = str(side).upper()
+            side_value = side.value.upper() if hasattr(side, "value") else str(side).upper()
             if side_value == "BUY":
                 buy_orders.append(order)
             elif side_value == "SELL":
@@ -107,8 +103,7 @@ def build_strategy_summary(
     strategy_allocations: dict[str, Any],
     all_strategy_pnl: dict[str, Any],
 ) -> dict[str, Any]:
-    """
-    Build strategy summary with P&L data.
+    """Build strategy summary with P&L data.
 
     Args:
         strategy_signals: Strategy signals from execution
@@ -117,6 +112,7 @@ def build_strategy_summary(
 
     Returns:
         Dict mapping strategy names to summary data
+
     """
     strategy_summary = {}
 
@@ -150,14 +146,14 @@ def build_strategy_summary(
 def build_allocation_summary(
     consolidated_portfolio: dict[str, float],
 ) -> dict[str, dict[str, float]]:
-    """
-    Build allocation summary from consolidated portfolio.
+    """Build allocation summary from consolidated portfolio.
 
     Args:
         consolidated_portfolio: Dict mapping symbols to weights
 
     Returns:
         Dict mapping symbols to allocation data
+
     """
     return {
         symbol: {"target_percent": weight * 100}

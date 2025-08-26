@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Streaming Service
+"""Streaming Service.
 
 Handles real-time price subscriptions via WebSocket.
 Provides callback-based API for current price requests.
@@ -26,15 +25,14 @@ class StreamingService:
     """Service for real-time price streaming via WebSocket."""
 
     def __init__(self, api_key: str, secret_key: str, paper_trading: bool = True) -> None:
-        """
-        Initialize streaming service.
+        """Initialize streaming service.
 
         Args:
             api_key: Alpaca API key
             secret_key: Alpaca secret key
             paper_trading: Whether to use paper trading
-        """
 
+        """
         self.api_key = api_key
         self.secret_key = secret_key
         self.paper_trading = paper_trading
@@ -74,11 +72,11 @@ class StreamingService:
                 self._real_time_pricing = None
 
     def set_fallback_provider(self, provider: Callable[[str], float | None]) -> None:
-        """
-        Set fallback provider for when streaming is unavailable.
+        """Set fallback provider for when streaming is unavailable.
 
         Args:
             provider: Function that takes symbol and returns price
+
         """
         self._fallback_provider = provider
         if self._real_time_pricing:
@@ -89,14 +87,14 @@ class StreamingService:
         return self._real_time_pricing is not None and self._real_time_pricing.is_connected()
 
     def get_current_price(self, symbol: str) -> float | None:
-        """
-        Get current market price for a symbol.
+        """Get current market price for a symbol.
 
         Args:
             symbol: Stock symbol
 
         Returns:
             Current price or None if unavailable
+
         """
         if self._real_time_pricing and self.is_connected():
             # Just-in-time subscription: subscribe only when we need pricing
@@ -120,14 +118,14 @@ class StreamingService:
         return None
 
     def get_current_price_for_order(self, symbol: str) -> tuple[float | None, Callable[[], None]]:
-        """
-        Get current price specifically for order placement with optimized subscription management.
+        """Get current price specifically for order placement with optimized subscription management.
 
         Args:
             symbol: Stock symbol
 
         Returns:
             Tuple of (price, cleanup_function)
+
         """
         from the_alchemiser.services.market_data.price_fetching_utils import (
             create_cleanup_function,

@@ -1,5 +1,4 @@
-"""
-Enhanced Position Service
+"""Enhanced Position Service.
 
 This service provides type-safe position monitoring and management operations.
 It builds on top of the TradingRepository and MarketDataRepository interfaces, adding:
@@ -22,6 +21,7 @@ from the_alchemiser.domain.interfaces import (
     TradingRepository,
 )
 from the_alchemiser.services.errors.decorators import translate_trading_errors
+from the_alchemiser.utils.num import floats_equal
 
 logger = logging.getLogger(__name__)
 
@@ -55,12 +55,9 @@ class PortfolioSummary:
 class PositionValidationError(Exception):
     """Exception raised when position validation fails."""
 
-    pass
-
 
 class PositionService:
-    """
-    Enhanced position service with analysis and portfolio management.
+    """Enhanced position service with analysis and portfolio management.
 
     This service provides a higher-level interface for position operations,
     adding analysis, risk calculations, and portfolio management on top of
@@ -73,15 +70,15 @@ class PositionService:
         market_data_repo: MarketDataRepository | None = None,
         account_repo: AccountRepository | None = None,
         max_position_weight: float = 0.10,  # 10% max position weight
-    ):
-        """
-        Initialize the position service.
+    ) -> None:
+        """Initialize the position service.
 
         Args:
             trading_repo: Trading repository for position operations
             market_data_repo: Optional market data repository for price data
             account_repo: Optional account repository for balance data
             max_position_weight: Maximum allowed position weight (0.10 = 10%)
+
         """
         self._trading = trading_repo
         self._market_data = market_data_repo
@@ -90,14 +87,14 @@ class PositionService:
 
     @translate_trading_errors()
     def get_positions_with_analysis(self) -> dict[str, PositionInfo]:
-        """
-        Get all positions with detailed analysis.
+        """Get all positions with detailed analysis.
 
         Returns:
             Dictionary mapping symbols to detailed position information
 
         Raises:
             Exception: If position data cannot be retrieved
+
         """
         logger.info("Retrieving positions with analysis")
 
@@ -115,7 +112,7 @@ class PositionService:
         enhanced_positions = {}
 
         for symbol, quantity in positions.items():
-            if quantity == 0:
+            if floats_equal(quantity, 0.0):
                 continue  # Skip zero positions
 
             try:
@@ -141,14 +138,14 @@ class PositionService:
 
     @translate_trading_errors()
     def get_portfolio_summary(self) -> PortfolioSummary:
-        """
-        Get portfolio-level summary and analysis.
+        """Get portfolio-level summary and analysis.
 
         Returns:
             Portfolio summary with key metrics
 
         Raises:
             Exception: If portfolio data cannot be retrieved
+
         """
         logger.info("Calculating portfolio summary")
 
@@ -176,9 +173,8 @@ class PositionService:
                 if position.market_value > largest_position_value:
                     largest_position_value = position.market_value
 
-            if position.weight_percent:
-                if position.weight_percent > largest_position_percent:
-                    largest_position_percent = position.weight_percent
+            if position.weight_percent and position.weight_percent > largest_position_percent:
+                largest_position_percent = position.weight_percent
 
         cash_balance = self._get_cash_balance()
         total_equity = total_market_value + (cash_balance or 0.0)
@@ -199,8 +195,7 @@ class PositionService:
         return summary
 
     def check_position_limits(self, symbol: str, proposed_quantity: float) -> bool:
-        """
-        Check if a proposed position would violate position limits.
+        """Check if a proposed position would violate position limits.
 
         Args:
             symbol: Symbol to check
@@ -211,6 +206,7 @@ class PositionService:
 
         Raises:
             PositionValidationError: If position violates limits
+
         """
         if proposed_quantity <= 0:
             return True  # No position, no limit violation
@@ -247,8 +243,7 @@ class PositionService:
 
     @translate_trading_errors()
     def get_position_risk_metrics(self, symbol: str) -> dict[str, float | None]:
-        """
-        Get risk metrics for a specific position.
+        """Get risk metrics for a specific position.
 
         Args:
             symbol: Symbol to analyze
@@ -258,11 +253,12 @@ class PositionService:
 
         Raises:
             Exception: If position data cannot be retrieved
+
         """
         positions = self._trading.get_positions_dict()
         quantity = positions.get(symbol, 0.0)
 
-        if quantity == 0:
+        if floats_equal(quantity, 0.0):
             return {
                 "position_value": 0.0,
                 "portfolio_weight": 0.0,
@@ -289,8 +285,7 @@ class PositionService:
 
     @translate_trading_errors()
     def get_largest_positions(self, limit: int = 5) -> list[PositionInfo]:
-        """
-        Get the largest positions by market value.
+        """Get the largest positions by market value.
 
         Args:
             limit: Number of positions to return
@@ -300,6 +295,7 @@ class PositionService:
 
         Raises:
             Exception: If position data cannot be retrieved
+
         """
         positions = self.get_positions_with_analysis()
 
@@ -316,14 +312,14 @@ class PositionService:
 
     @translate_trading_errors(default_return=0.0)
     def calculate_diversification_score(self) -> float:
-        """
-        Calculate a simple diversification score (0-1, higher is more diversified).
+        """Calculate a simple diversification score (0-1, higher is more diversified).
 
         Returns:
             Diversification score between 0 and 1
 
         Raises:
             Exception: If position data cannot be retrieved
+
         """
         positions = self.get_positions_with_analysis()
 
@@ -340,6 +336,7 @@ class PositionService:
                 total_squared_weights += weight**2
                 valid_weights += 1
 
+        # valid_weights is an int counter; safe direct equality
         if valid_weights == 0:
             return 0.0
 
@@ -389,10 +386,9 @@ class PositionService:
 
                 # Find the position data for the symbol
                 for position in account_positions:
-                    if hasattr(position, "symbol") and position.symbol == symbol:
-                        position_data = position
-                        break
-                    elif isinstance(position, dict) and position.get("symbol") == symbol:
+                    if (hasattr(position, "symbol") and position.symbol == symbol) or (
+                        isinstance(position, dict) and position.get("symbol") == symbol
+                    ):
                         position_data = position
                         break
 
@@ -405,7 +401,11 @@ class PositionService:
                         unrealized_pnl = position_data.get("unrealized_pnl")
 
                     # Calculate PnL percentage
-                    if unrealized_pnl is not None and cost_basis and cost_basis != 0:
+                    if (
+                        unrealized_pnl is not None
+                        and cost_basis
+                        and not floats_equal(cost_basis, 0.0)
+                    ):
                         unrealized_pnl_percent = (
                             float(unrealized_pnl) / abs(float(cost_basis))
                         ) * 100
@@ -432,7 +432,7 @@ class PositionService:
         total = 0.0
 
         for symbol, quantity in positions.items():
-            if quantity != 0:
+            if not floats_equal(quantity, 0.0):
                 try:
                     price = self._market_data.get_current_price(symbol)
                     if price:
@@ -452,7 +452,7 @@ class PositionService:
             if account_info:
                 if hasattr(account_info, "cash"):
                     return float(account_info.cash)
-                elif isinstance(account_info, dict):
+                if isinstance(account_info, dict):
                     cash = account_info.get("cash") or account_info.get("cash_balance")
                     return float(cash) if cash is not None else None
             return None

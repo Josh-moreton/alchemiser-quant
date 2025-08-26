@@ -28,8 +28,8 @@ class Alert:
             reason: Human readable explanation for the alert.
             timestamp: Time the alert was generated.
             price: Price associated with the alert.
-        """
 
+        """
         self.symbol = symbol
         self.action = action
         self.reason = reason
@@ -38,7 +38,6 @@ class Alert:
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize the alert to a dictionary for storage or logging."""
-
         return {
             "symbol": self.symbol,
             "action": self.action,
@@ -68,10 +67,10 @@ def create_alert(
 
     Returns:
         Alert: Newly constructed alert object.
-    """
 
+    """
     if timestamp is None:
-        timestamp = dt.datetime.now()
+        timestamp = dt.datetime.now(dt.UTC)
     return Alert(symbol, action, reason, timestamp, price)
 
 
@@ -85,11 +84,10 @@ def create_alerts_from_signal(
     ensure_scalar_price: Any,
     strategy_engine: Any = None,
 ) -> list[Alert]:
-    """
-    Create Alert objects based on the signal type and portfolio logic.
+    """Create Alert objects based on the signal type and portfolio logic.
     data_provider: must have get_current_price(symbol)
     ensure_scalar_price: function to convert price to scalar
-    strategy_engine: NuclearStrategyEngine instance to avoid circular imports
+    strategy_engine: NuclearStrategyEngine instance to avoid circular imports.
     """
     alerts = []
 
@@ -109,12 +107,12 @@ def create_alerts_from_signal(
                     symbol=stock_symbol,
                     action=action,
                     reason=portfolio_reason,
-                    timestamp=dt.datetime.now(),
+                    timestamp=dt.datetime.now(dt.UTC),
                     price=current_price,
                 )
             )
         return alerts
-    elif symbol == "UVXY_BTAL_PORTFOLIO" and action == "BUY":
+    if symbol == "UVXY_BTAL_PORTFOLIO" and action == "BUY":
         # UVXY 75%
         uvxy_price = data_provider.get_current_price("UVXY")
         uvxy_price = ensure_scalar_price(uvxy_price)
@@ -123,7 +121,7 @@ def create_alerts_from_signal(
                 symbol="UVXY",
                 action=action,
                 reason=f"Volatility hedge allocation: 75% ({reason})",
-                timestamp=dt.datetime.now(),
+                timestamp=dt.datetime.now(dt.UTC),
                 price=uvxy_price,
             )
         )
@@ -135,12 +133,12 @@ def create_alerts_from_signal(
                 symbol="BTAL",
                 action=action,
                 reason=f"Anti-beta hedge allocation: 25% ({reason})",
-                timestamp=dt.datetime.now(),
+                timestamp=dt.datetime.now(dt.UTC),
                 price=btal_price,
             )
         )
         return alerts
-    elif symbol == "BEAR_PORTFOLIO" and action == "BUY":
+    if symbol == "BEAR_PORTFOLIO" and action == "BUY":
         portfolio_match = re.findall(r"(\w+) \((\d+(?:\.\d+)?)%\)", reason)
         if portfolio_match:
             for stock_symbol, allocation_str in portfolio_match:
@@ -154,25 +152,11 @@ def create_alerts_from_signal(
                         symbol=stock_symbol,
                         action=action,
                         reason=bear_reason,
-                        timestamp=dt.datetime.now(),
+                        timestamp=dt.datetime.now(dt.UTC),
                         price=current_price,
                     )
                 )
             return alerts
-        else:
-            current_price = data_provider.get_current_price(symbol)
-            current_price = ensure_scalar_price(current_price)
-            alerts.append(
-                Alert(
-                    symbol=symbol,
-                    action=action,
-                    reason=reason,
-                    timestamp=dt.datetime.now(),
-                    price=current_price,
-                )
-            )
-            return alerts
-    else:
         current_price = data_provider.get_current_price(symbol)
         current_price = ensure_scalar_price(current_price)
         alerts.append(
@@ -180,17 +164,29 @@ def create_alerts_from_signal(
                 symbol=symbol,
                 action=action,
                 reason=reason,
-                timestamp=dt.datetime.now(),
+                timestamp=dt.datetime.now(dt.UTC),
                 price=current_price,
             )
         )
         return alerts
+    current_price = data_provider.get_current_price(symbol)
+    current_price = ensure_scalar_price(current_price)
+    alerts.append(
+        Alert(
+            symbol=symbol,
+            action=action,
+            reason=reason,
+            timestamp=dt.datetime.now(dt.UTC),
+            price=current_price,
+        )
+    )
+    return alerts
 
 
 def log_alert_to_file(
     alert: Alert, log_file_path: str | None = None, paper_trading: bool | None = None
 ) -> None:
-    """Log alert to file - centralized logging logic"""
+    """Log alert to file - centralized logging logic."""
     if log_file_path is None:
         _config = load_settings()  # Configuration loaded but not used directly
         # Determine trading mode for appropriate JSON file
@@ -233,7 +229,7 @@ def log_alert_to_file(
 def log_alerts_to_file(
     alerts: list[Alert], log_file_path: str | None = None, paper_trading: bool | None = None
 ) -> None:
-    """Log multiple alerts to file"""
+    """Log multiple alerts to file."""
     if log_file_path is None:
         _config = load_settings()  # Configuration loaded but not used directly
         # Determine trading mode for appropriate JSON file

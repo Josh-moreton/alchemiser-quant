@@ -35,6 +35,7 @@ class TechnicalIndicators:
         >>> prices = pd.Series([100, 101, 99, 102, 105, 103, 104])
         >>> rsi_values = TechnicalIndicators.rsi(prices, window=14)
         >>> ma_values = TechnicalIndicators.moving_average(prices, window=5)
+
     """
 
     @staticmethod
@@ -70,6 +71,7 @@ class TechnicalIndicators:
             Wilder's smoothing uses an exponential moving average with
             alpha = 1/window, which gives more weight to recent observations
             while still incorporating historical data.
+
         """
         delta = data.diff()
         gain = delta.where(delta > 0, 0)
@@ -82,8 +84,7 @@ class TechnicalIndicators:
 
         rs = avg_gain / avg_loss
         rsi = 100 - (100 / (1 + rs))
-        rsi = rsi.fillna(50)
-        return rsi
+        return rsi.fillna(50)
 
     @staticmethod
     def moving_average(data: pd.Series, window: int) -> pd.Series:
@@ -112,6 +113,7 @@ class TechnicalIndicators:
             This function requires at least 'window' periods of data to
             produce non-NaN results. The min_periods parameter ensures
             that partial averages are not calculated.
+
         """
         return data.rolling(window=window, min_periods=window).mean()
 
@@ -141,11 +143,11 @@ class TechnicalIndicators:
             The function multiplies returns by 100 to express them as
             percentages. Exception handling ensures the function returns
             a valid Series even with problematic data.
+
         """
         try:
             returns = data.pct_change()
-            ma_return = returns.rolling(window=window).mean() * 100
-            return ma_return
+            return returns.rolling(window=window).mean() * 100
         except Exception:
             return pd.Series([0] * len(data), index=data.index)
 
@@ -176,9 +178,9 @@ class TechnicalIndicators:
             The calculation compares current price to price 'window' periods
             ago: (current_price / past_price - 1) * 100. The first 'window'
             values will be NaN due to insufficient historical data.
+
         """
         try:
-            cum_return = ((data / data.shift(window)) - 1) * 100
-            return cum_return
+            return ((data / data.shift(window)) - 1) * 100
         except Exception:
             return pd.Series([0] * len(data), index=data.index)

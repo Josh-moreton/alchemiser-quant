@@ -20,9 +20,9 @@ from the relevant subpackage, for example:
 
 __all__ = [
     "account",
+    "errors",
     "market_data",
-    "trading",
     "repository",
     "shared",
-    "errors",
+    "trading",
 ]

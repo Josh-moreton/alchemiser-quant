@@ -1,5 +1,4 @@
-"""
-Mapping utilities between Strategy Tracking DTOs and external reporting formats.
+"""Mapping utilities between Strategy Tracking DTOs and external reporting formats.
 
 This module provides mapping functions for strategy tracking DTOs, converting
 between StrategyOrderEventDTO/StrategyExecutionSummaryDTO and external reporting
@@ -19,14 +18,14 @@ from the_alchemiser.interfaces.schemas.tracking import (
 
 
 def strategy_order_event_dto_to_dict(event: StrategyOrderEventDTO) -> dict[str, Any]:
-    """
-    Convert StrategyOrderEventDTO to dictionary for external reporting.
+    """Convert StrategyOrderEventDTO to dictionary for external reporting.
 
     Args:
         event: StrategyOrderEventDTO instance to convert
 
     Returns:
         Dictionary representation suitable for external reporting/logging
+
     """
     return {
         "event_id": event.event_id,
@@ -45,14 +44,14 @@ def strategy_order_event_dto_to_dict(event: StrategyOrderEventDTO) -> dict[str, 
 
 
 def strategy_execution_summary_dto_to_dict(summary: StrategyExecutionSummaryDTO) -> dict[str, Any]:
-    """
-    Convert StrategyExecutionSummaryDTO to dictionary for external reporting.
+    """Convert StrategyExecutionSummaryDTO to dictionary for external reporting.
 
     Args:
         summary: StrategyExecutionSummaryDTO instance to convert
 
     Returns:
         Dictionary representation suitable for external reporting/dashboards
+
     """
     # Convert event details to dictionaries
     event_details = [strategy_order_event_dto_to_dict(event) for event in summary.details]
@@ -73,8 +72,7 @@ def strategy_execution_summary_dto_to_dict(summary: StrategyExecutionSummaryDTO)
 
 
 def dict_to_strategy_order_event_dto(data: dict[str, Any]) -> StrategyOrderEventDTO:
-    """
-    Convert dictionary data to StrategyOrderEventDTO.
+    """Convert dictionary data to StrategyOrderEventDTO.
 
     Args:
         data: Raw event data dictionary
@@ -84,6 +82,7 @@ def dict_to_strategy_order_event_dto(data: dict[str, Any]) -> StrategyOrderEvent
 
     Raises:
         ValueError: If required fields are missing or invalid
+
     """
     # Extract and validate required fields
     required_fields = ["event_id", "strategy", "symbol", "side", "quantity", "status", "ts"]
@@ -112,8 +111,7 @@ def dict_to_strategy_order_event_dto(data: dict[str, Any]) -> StrategyOrderEvent
 
 
 def dict_to_strategy_execution_summary_dto(data: dict[str, Any]) -> StrategyExecutionSummaryDTO:
-    """
-    Convert dictionary data to StrategyExecutionSummaryDTO.
+    """Convert dictionary data to StrategyExecutionSummaryDTO.
 
     Args:
         data: Raw summary data dictionary
@@ -123,6 +121,7 @@ def dict_to_strategy_execution_summary_dto(data: dict[str, Any]) -> StrategyExec
 
     Raises:
         ValueError: If required fields are missing or invalid
+
     """
     # Extract and validate required fields
     required_fields = ["strategy", "symbol", "total_qty", "status"]
@@ -132,7 +131,7 @@ def dict_to_strategy_execution_summary_dto(data: dict[str, Any]) -> StrategyExec
 
     # Convert event details if present
     event_details = []
-    if "event_details" in data and data["event_details"]:
+    if data.get("event_details"):
         event_details = [
             dict_to_strategy_order_event_dto(event_data) for event_data in data["event_details"]
         ]

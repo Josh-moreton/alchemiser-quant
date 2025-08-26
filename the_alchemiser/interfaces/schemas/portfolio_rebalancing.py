@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Portfolio Rebalancing DTOs for The Alchemiser Trading System.
+"""Portfolio Rebalancing DTOs for The Alchemiser Trading System.
 
 This module provides Pydantic v2 DTOs for portfolio rebalancing operations,
 replacing dict/Any usage in portfolio services with strongly typed boundaries.
@@ -25,8 +24,7 @@ from the_alchemiser.interfaces.schemas.base import ResultDTO
 
 
 class RebalancePlanDTO(BaseModel):
-    """
-    DTO for individual symbol rebalance plan.
+    """DTO for individual symbol rebalance plan.
 
     Wraps the domain RebalancePlan object for service layer boundaries.
     """
@@ -71,8 +69,7 @@ class RebalancePlanDTO(BaseModel):
 
 
 class RebalancePlanCollectionDTO(ResultDTO):
-    """
-    DTO for collection of rebalance plans by symbol.
+    """DTO for collection of rebalance plans by symbol.
 
     Replaces dict[str, RebalancePlan] returns from portfolio services.
     """
@@ -92,8 +89,7 @@ class RebalancePlanCollectionDTO(ResultDTO):
 
 
 class RebalancingSummaryDTO(ResultDTO):
-    """
-    DTO for rebalancing summary analysis.
+    """DTO for rebalancing summary analysis.
 
     Replaces dict[str, Any] returns from get_rebalancing_summary.
     """
@@ -120,8 +116,7 @@ class RebalancingSummaryDTO(ResultDTO):
 
 
 class RebalancingImpactDTO(ResultDTO):
-    """
-    DTO for rebalancing impact estimation.
+    """DTO for rebalancing impact estimation.
 
     Replaces dict[str, Any] returns from estimate_rebalancing_impact.
     """
@@ -156,8 +151,7 @@ class RebalancingImpactDTO(ResultDTO):
 
 
 class RebalanceInstructionDTO(BaseModel):
-    """
-    DTO for individual rebalancing instruction.
+    """DTO for individual rebalancing instruction.
 
     Used in rebalancing execution workflows.
     """
@@ -179,8 +173,7 @@ class RebalanceInstructionDTO(BaseModel):
 
 
 class RebalanceExecutionResultDTO(ResultDTO):
-    """
-    DTO for rebalancing execution results.
+    """DTO for rebalancing execution results.
 
     Provides comprehensive execution tracking and results.
     """

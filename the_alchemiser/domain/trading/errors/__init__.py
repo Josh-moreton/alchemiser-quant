@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Order Error Classification System for The Alchemiser Trading System.
+"""Order Error Classification System for The Alchemiser Trading System.
 
 This module provides structured error classification for order lifecycle and execution paths,
 enabling deterministic branching, richer analytics, and improved user-facing messaging.
@@ -17,11 +16,11 @@ from .error_codes import OrderErrorCode
 from .order_error import OrderError
 
 __all__ = [
-    "OrderErrorCategory",
-    "OrderErrorCode",
     "OrderError",
+    "OrderErrorCategory",
     "OrderErrorClassifier",
-    "classify_exception",
+    "OrderErrorCode",
     "classify_alpaca_error",
+    "classify_exception",
     "classify_validation_failure",
 ]

@@ -46,11 +46,14 @@ pre-commit = "^3.7.0"
 types-PyYAML = ">=6.0.0"
 types-requests = ">=2.31.0"
 types-pytz = ">=2023.3.0"
-bandit = ">=1.7.0"
-vulture = "^2.14"
+bandit = ">=1.7.0"  # Legacy direct usage; Ruff "S" rules supplement
+vulture = "^2.14"   # Dead code detection
 psutil = "^7.0.0"
-pydocstyle = ">=6.0.0"
+pydocstyle = ">=6.0.0"  # Docstring style (Ruff D rules)
 pytest = "^8.4.1"
+pip-audit = "^2.7.3"  # Dependency vulnerability scanning
+detect-secrets = "^1.5.0"  # Secret scanning (baseline optional)
+pyright = "^1.1.380"  # Supplemental static type analysis (optional CI/nightly)
 
 [tool.poetry.scripts]
 alchemiser = "the_alchemiser.interface.cli.cli:app"
@@ -61,7 +64,7 @@ Repository = "https://github.com/Josh-moreton/The-Alchemiser"
 Issues = "https://github.com/Josh-moreton/The-Alchemiser/issues"
 
 [tool.ruff]
-target-version = "py311"
+target-version = "py312"
 line-length = 100
 extend-exclude = [
     ".git",
@@ -75,19 +78,23 @@ extend-exclude = [
 
 [tool.ruff.lint]
 select = [
-    "E",  # pycodestyle errors
-    "W",  # pycodestyle warnings
-    "F",  # pyflakes
-    "I",  # isort
-    "B",  # flake8-bugbear
-    "C4", # flake8-comprehensions
-    "UP", # pyupgrade
-    "N",  # pep8-naming
+    "E","F","I",
+    "UP",
+    "B","C4","SIM",
+    "PTH","DTZ","Q",
+    "PIE","RET","FBT",
+    "ANN",
+    "D",
+    "S",
+    "RUF"
 ]
 ignore = [
-    "E501", # line length enforced by Ruff formatter
-    "B008", # do not perform function calls in argument defaults
-    "B904", # Within an `except` clause, raise exceptions with `raise ... from err`
+    "E501",
+    "B008",
+    "B904",
+    # Docstring rule conflicts (prefer D211, D212)
+    "D203",
+    "D213",
 ]
 fixable = ["ALL"]
 unfixable = []
@@ -96,62 +103,16 @@ unfixable = []
 known-first-party = ["the_alchemiser"]
 
 [tool.mypy]
-# Phase 15: Enhanced mypy configuration for strict typing
 python_version = "3.12"
-warn_return_any = true
-ignore_missing_imports = false
-namespace_packages = true
-explicit_package_bases = true
-warn_unused_configs = true
-warn_redundant_casts = true
-warn_unused_ignores = true
-warn_no_return = true
-warn_unreachable = true
-strict_equality = true
-extra_checks = true  # Updated from strict_concatenate
-
-# Only check specific directories
+strict = true
+plugins = ["pydantic.mypy"]
 files = ["the_alchemiser"]
-
-# Type checking strictness - Phase 16c: Progressive enablement
-disallow_any_generics = true
-disallow_subclassing_any = true
-disallow_untyped_calls = true   # Phase 16c Step 2 - ENABLED: Calls to untyped functions
-disallow_untyped_defs = true    # Phase 16c Step 1 - ENABLED: Function definitions must have types
-disallow_incomplete_defs = true
-check_untyped_defs = true
-disallow_untyped_decorators = true   # Phase 16c Step 4 - ENABLED: Decorators must have types
-no_implicit_optional = true
-no_implicit_reexport = true
-
-# Error output
 show_error_codes = true
-show_column_numbers = true
 pretty = true
 color_output = true
-
-# Performance
-incremental = true
 cache_dir = ".mypy_cache"
 
-# Per-module options for gradual migration
-[[tool.mypy.overrides]]
-module = "the_alchemiser.core.types"
-disallow_untyped_defs = true
-disallow_any_generics = true
-warn_return_any = true
-
-[[tool.mypy.overrides]]
-module = "the_alchemiser.execution.trading_engine"
-disallow_incomplete_defs = true
-check_untyped_defs = true
-
-[[tool.mypy.overrides]]
-module = "the_alchemiser.main"
-disallow_incomplete_defs = true
-check_untyped_defs = true
-
-# Third-party library ignores - TODO: Phase 15 - Add proper type stubs
+# Retain targeted ignores for third-party libs lacking type hints
 [[tool.mypy.overrides]]
 module = [
     "alpaca.*",

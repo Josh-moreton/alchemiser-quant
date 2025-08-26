@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""
-WebSocket Order Monitoring Utilities
+"""WebSocket Order Monitoring Utilities.
 
 This module provides WebSocket-based order completion monitoring for real-time
 order settlement detection. No legacy polling fallbacks - WebSocket only.
 """
 
+import contextlib
 import logging
 import threading
 import time
@@ -17,8 +17,7 @@ from the_alchemiser.interfaces.schemas.execution import WebSocketResultDTO, WebS
 
 
 class OrderCompletionMonitor:
-    """
-    Monitor order completion using WebSocket streams for real-time detection.
+    """Monitor order completion using WebSocket streams for real-time detection.
 
     WebSocket-only implementation with no legacy polling fallbacks.
     """
@@ -96,10 +95,7 @@ class OrderCompletionMonitor:
             try:
                 order = self.trading_client.get_order_by_id(order_id)
                 status = str(getattr(order, "status", "")).lower()
-                if "orderstatus." in status:
-                    actual_status = status.split(".")[-1]
-                else:
-                    actual_status = status
+                actual_status = status.split(".")[-1] if "orderstatus." in status else status
 
                 final_states = {"filled", "canceled", "rejected", "expired"}
                 if actual_status in final_states:
@@ -128,7 +124,6 @@ class OrderCompletionMonitor:
 
         async def on_update(data: Any) -> None:
             """Handle incoming trade updates and track completed orders."""
-
             nonlocal stream_stopped
             if stream_stopped:
                 return
@@ -216,14 +211,13 @@ class OrderCompletionMonitor:
                     message=f"Order monitoring timed out after {max_wait_seconds} seconds",
                     orders_completed=list(completed.keys()),
                 )
-            else:
-                logging.info("✅ All orders completed before timeout")
-                logging.info(f"🏁 Order settlement complete: {len(completed)} orders processed")
-                return WebSocketResultDTO(
-                    status=WebSocketStatus.COMPLETED,
-                    message=f"All {len(completed)} orders completed successfully",
-                    orders_completed=list(completed.keys()),
-                )
+            logging.info("✅ All orders completed before timeout")
+            logging.info(f"🏁 Order settlement complete: {len(completed)} orders processed")
+            return WebSocketResultDTO(
+                status=WebSocketStatus.COMPLETED,
+                message=f"All {len(completed)} orders completed successfully",
+                orders_completed=list(completed.keys()),
+            )
 
         except Exception as e:
             logging.error(f"❌ Error using pre-connected WebSocket: {e}")
@@ -285,14 +279,13 @@ class OrderCompletionMonitor:
                 message=f"Order monitoring timed out after {max_wait_seconds} seconds",
                 orders_completed=list(completed.keys()),
             )
-        else:
-            logging.info("✅ All orders completed before timeout")
-            logging.info(f"🏁 Order settlement complete: {len(completed)} orders processed")
-            return WebSocketResultDTO(
-                status=WebSocketStatus.COMPLETED,
-                message=f"All {len(completed)} orders completed successfully",
-                orders_completed=list(completed.keys()),
-            )
+        logging.info("✅ All orders completed before timeout")
+        logging.info(f"🏁 Order settlement complete: {len(completed)} orders processed")
+        return WebSocketResultDTO(
+            status=WebSocketStatus.COMPLETED,
+            message=f"All {len(completed)} orders completed successfully",
+            orders_completed=list(completed.keys()),
+        )
 
     def prepare_websocket_connection(self) -> bool:
         """Pre-initialize WebSocket connection for faster order monitoring."""
@@ -320,7 +313,6 @@ class OrderCompletionMonitor:
             # Dummy handler for trade updates
             async def dummy_handler(data: Any) -> None:
                 """Log WebSocket messages during initial connection setup."""
-
                 if logging.getLogger().level <= logging.DEBUG:
                     self.console.print(f"[dim]📡 Pre-connection WebSocket message: {data}[/dim]")
 
@@ -347,10 +339,8 @@ class OrderCompletionMonitor:
     def cleanup_websocket_connection(self) -> None:
         """Clean up any existing WebSocket connection."""
         if self._websocket_stream is not None:
-            try:
+            with contextlib.suppress(Exception):
                 self._websocket_stream.stop()
-            except Exception:
-                pass
             self._websocket_stream = None
 
         if self._websocket_thread is not None:

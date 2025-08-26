@@ -14,8 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 class LoggingObserver:
-    """
-    Observer that logs order lifecycle events with structured information.
+    """Observer that logs order lifecycle events with structured information.
 
     This observer provides rich logging of order lifecycle transitions,
     including contextual metadata and formatted output for debugging
@@ -23,22 +22,22 @@ class LoggingObserver:
     """
 
     def __init__(self, use_rich_logging: bool = True) -> None:
-        """
-        Initialize the logging observer.
+        """Initialize the logging observer.
 
         Args:
             use_rich_logging: Whether to use Rich console for formatted output
+
         """
         self.use_rich_logging = use_rich_logging
         self.console = Console() if use_rich_logging else None
         self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
 
     def on_lifecycle_event(self, event: OrderLifecycleEvent) -> None:
-        """
-        Handle a lifecycle event by logging it with appropriate detail.
+        """Handle a lifecycle event by logging it with appropriate detail.
 
         Args:
             event: The lifecycle event to log
+
         """
         # Build structured log data
         log_data = {
@@ -77,11 +76,11 @@ class LoggingObserver:
             self._render_rich_event(event)
 
     def _render_rich_event(self, event: OrderLifecycleEvent) -> None:
-        """
-        Render a lifecycle event using Rich console formatting.
+        """Render a lifecycle event using Rich console formatting.
 
         Args:
             event: Event to render
+
         """
         if not self.console:
             return
@@ -95,7 +94,7 @@ class LoggingObserver:
             icon = "❌"
         else:
             color = "blue"
-            icon = "ℹ️"
+            icon = "i"
 
         # Create summary table
         table = Table(show_header=False, padding=(0, 1))
@@ -124,8 +123,7 @@ class LoggingObserver:
 
 
 class MetricsObserver:
-    """
-    Observer that collects metrics and statistics on order lifecycle events.
+    """Observer that collects metrics and statistics on order lifecycle events.
 
     This is a placeholder implementation that can be extended to integrate
     with metrics collection systems like Prometheus, CloudWatch, etc.
@@ -139,11 +137,11 @@ class MetricsObserver:
         self._transition_counts: dict[tuple[str, str], int] = {}
 
     def on_lifecycle_event(self, event: OrderLifecycleEvent) -> None:
-        """
-        Handle a lifecycle event by updating metrics.
+        """Handle a lifecycle event by updating metrics.
 
         Args:
             event: The lifecycle event to process
+
         """
         # Count events by type
         event_type = event.event_type.value
@@ -172,20 +170,20 @@ class MetricsObserver:
         # - Database storage for historical analysis
 
     def get_event_counts(self) -> dict[str, int]:
-        """
-        Get current event type counts.
+        """Get current event type counts.
 
         Returns:
             Dictionary mapping event types to occurrence counts
+
         """
         return dict(self._event_counts)
 
     def get_transition_counts(self) -> dict[tuple[str, str], int]:
-        """
-        Get current state transition counts.
+        """Get current state transition counts.
 
         Returns:
             Dictionary mapping (from_state, to_state) tuples to counts
+
         """
         return dict(self._transition_counts)
 

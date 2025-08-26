@@ -1,5 +1,4 @@
-"""
-KLM Strategy Workers Package
+"""KLM Strategy Workers Package.
 
 This package contains all individual strategy variants for the KLM ensemble system.
 Each variant is implemented as a separate module for better maintainability.
@@ -17,12 +16,12 @@ from .variant_nova import KLMVariantNova
 
 __all__ = [
     "BaseKLMVariant",
+    "KLMVariantNova",
+    "KlmVariant41038",
     "KlmVariant50638",
-    "KlmVariant128026",
-    "KlmVariant120028",
     "KlmVariant52022",
     "KlmVariant53018",
-    "KlmVariant41038",
-    "KLMVariantNova",
     "KlmVariant83021",
+    "KlmVariant120028",
+    "KlmVariant128026",
 ]

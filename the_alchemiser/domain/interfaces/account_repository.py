@@ -1,5 +1,4 @@
-"""
-Account Repository Interface
+"""Account Repository Interface.
 
 This interface defines the contract for all account-related operations including
 account information, portfolio data, and balance management.
@@ -12,8 +11,7 @@ from typing import Any, Protocol
 
 
 class AccountRepository(Protocol):
-    """
-    Protocol defining account operations interface.
+    """Protocol defining account operations interface.
 
     This interface abstracts all account-related operations, allowing us to
     swap implementations (Alpaca, other brokers, mocks for testing) without
@@ -24,47 +22,47 @@ class AccountRepository(Protocol):
     """
 
     def get_account(self) -> dict[str, Any] | None:
-        """
-        Get account information.
+        """Get account information.
 
         Returns:
             Account information as dictionary, or None if failed.
+
         """
         ...
 
     def get_buying_power(self) -> float | None:
-        """
-        Get current buying power.
+        """Get current buying power.
 
         Returns:
             Available buying power in dollars, or None if failed.
+
         """
         ...
 
     def get_portfolio_value(self) -> float | None:
-        """
-        Get total portfolio value.
+        """Get total portfolio value.
 
         Returns:
             Total portfolio value in dollars, or None if failed.
+
         """
         ...
 
     def get_positions(self) -> list[Any]:
-        """
-        Get all current positions.
+        """Get all current positions.
 
         Returns:
             List of position objects with attributes like symbol, qty, market_value, etc.
+
         """
         ...
 
     def get_positions_dict(self) -> dict[str, float]:
-        """
-        Get all current positions as simple dict.
+        """Get all current positions as simple dict.
 
         Returns:
             Dictionary mapping symbol to quantity owned. Only includes non-zero positions.
+
         """
         ...
 
@@ -74,8 +72,7 @@ class AccountRepository(Protocol):
         end_date: str | None = None,
         timeframe: str = "1Day",
     ) -> dict[str, Any] | None:
-        """
-        Get portfolio performance history.
+        """Get portfolio performance history.
 
         Args:
             start_date: Start date (ISO format), defaults to 1 month ago
@@ -84,6 +81,7 @@ class AccountRepository(Protocol):
 
         Returns:
             Portfolio history data, or None if failed.
+
         """
         ...
 
@@ -93,8 +91,7 @@ class AccountRepository(Protocol):
         start_date: str | None = None,
         end_date: str | None = None,
     ) -> list[dict[str, Any]]:
-        """
-        Get account activities (trades, dividends, etc.).
+        """Get account activities (trades, dividends, etc.).
 
         Args:
             activity_type: Filter by activity type (optional)
@@ -103,24 +100,25 @@ class AccountRepository(Protocol):
 
         Returns:
             List of activity records.
+
         """
         ...
 
     def validate_connection(self) -> bool:
-        """
-        Validate connection to account service.
+        """Validate connection to account service.
 
         Returns:
             True if connection is valid, False otherwise.
+
         """
         ...
 
     @property
     def is_paper_trading(self) -> bool:
-        """
-        Check if this is paper trading.
+        """Check if this is paper trading.
 
         Returns:
             True if paper trading, False if live trading.
+
         """
         ...

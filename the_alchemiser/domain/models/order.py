@@ -9,6 +9,7 @@ from the_alchemiser.domain.trading.value_objects.order_status_literal import (
     OrderStatusLiteral,
 )
 from the_alchemiser.domain.types import OrderDetails
+from the_alchemiser.utils.num import floats_equal
 
 
 @dataclass(frozen=True)
@@ -127,13 +128,13 @@ class OrderModel:
     @property
     def fill_percentage(self) -> float:
         """Calculate percentage of order that has been filled."""
-        if self.qty == 0:
+        if floats_equal(self.qty, 0.0):
             return 0.0
         return (self.filled_qty / self.qty) * 100
 
     @property
     def total_value(self) -> float | None:
         """Calculate total value of filled portion."""
-        if self.filled_avg_price is None or self.filled_qty == 0:
+        if self.filled_avg_price is None or floats_equal(self.filled_qty, 0.0):
             return None
         return self.filled_qty * self.filled_avg_price

@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Price Fetching Utilities
+"""Price Fetching Utilities.
 
 This module provides helper functions for price fetching operations,
 breaking down verbose price fetching logic into reusable components.
@@ -21,8 +20,7 @@ logger = get_logger(__name__)
 
 
 def subscribe_for_real_time(real_time_pricing: Any, symbol: str) -> bool:
-    """
-    Subscribe to real-time data for a symbol with just-in-time subscription.
+    """Subscribe to real-time data for a symbol with just-in-time subscription.
 
     Args:
         real_time_pricing: Real-time pricing instance
@@ -30,6 +28,7 @@ def subscribe_for_real_time(real_time_pricing: Any, symbol: str) -> bool:
 
     Returns:
         bool: True if subscription was successful, False otherwise
+
     """
     if not real_time_pricing or not real_time_pricing.is_connected():
         return False
@@ -68,14 +67,14 @@ def subscribe_for_real_time(real_time_pricing: Any, symbol: str) -> bool:
 
 
 def extract_bid_ask(quote: Any) -> tuple[float | None, float | None]:
-    """
-    Extract bid and ask prices safely from a quote object.
+    """Extract bid and ask prices safely from a quote object.
 
     Args:
         quote: Quote object with bid_price and ask_price attributes
 
     Returns:
         tuple: (bid, ask) as floats, (0.0, 0.0) if extraction fails
+
     """
     bid = 0.0
     ask = 0.0
@@ -92,8 +91,7 @@ def extract_bid_ask(quote: Any) -> tuple[float | None, float | None]:
 
 
 def calculate_price_from_bid_ask(bid: float | None, ask: float | None) -> float | None:
-    """
-    Calculate the best price from bid and ask values.
+    """Calculate the best price from bid and ask values.
 
     Args:
         bid: Bid price
@@ -101,20 +99,19 @@ def calculate_price_from_bid_ask(bid: float | None, ask: float | None) -> float 
 
     Returns:
         float: Best available price (midpoint preferred, then bid, then ask)
+
     """
     if bid is not None and ask is not None and bid > 0 and ask > 0:
         return (bid + ask) / 2  # Return midpoint if both available
-    elif bid is not None and bid > 0:
+    if bid is not None and bid > 0:
         return bid
-    elif ask is not None and ask > 0:
+    if ask is not None and ask > 0:
         return ask
-    else:
-        return None
+    return None
 
 
 def get_price_from_quote_api(data_client: Any, symbol: str) -> float | None:
-    """
-    Get current price from quote API.
+    """Get current price from quote API.
 
     Args:
         data_client: Alpaca data client
@@ -122,6 +119,7 @@ def get_price_from_quote_api(data_client: Any, symbol: str) -> float | None:
 
     Returns:
         float: Current price or None if unavailable
+
     """
     try:
         request = StockLatestQuoteRequest(symbol_or_symbols=symbol)
@@ -158,8 +156,7 @@ def get_price_from_quote_api(data_client: Any, symbol: str) -> float | None:
 
 
 def get_price_from_historical_fallback(data_provider: Any, symbol: str) -> float | None:
-    """
-    Fallback to recent historical data for price.
+    """Fallback to recent historical data for price.
 
     Args:
         data_provider: Data provider instance
@@ -167,6 +164,7 @@ def get_price_from_historical_fallback(data_provider: Any, symbol: str) -> float
 
     Returns:
         float: Price from recent historical data or None if unavailable
+
     """
     try:
         logging.debug(f"No current quote for {symbol}, falling back to historical data")
@@ -208,8 +206,7 @@ def get_price_from_historical_fallback(data_provider: Any, symbol: str) -> float
 
 
 def create_cleanup_function(real_time_pricing: Any, symbol: str) -> Callable[[], None]:
-    """
-    Create a cleanup function to unsubscribe from real-time data.
+    """Create a cleanup function to unsubscribe from real-time data.
 
     Args:
         real_time_pricing: Real-time pricing instance
@@ -217,6 +214,7 @@ def create_cleanup_function(real_time_pricing: Any, symbol: str) -> Callable[[],
 
     Returns:
         function: Cleanup function that unsubscribes from the symbol
+
     """
 
     def cleanup() -> None:

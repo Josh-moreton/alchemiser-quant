@@ -3,7 +3,7 @@
 Handles trading execution with comprehensive error handling and notifications.
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from the_alchemiser.application.execution.smart_execution import is_market_open
@@ -49,7 +49,7 @@ class TradingExecutor:
         ignore_market_hours: bool = False,
         show_tracking: bool = False,
         export_tracking_json: str | None = None,
-    ):
+    ) -> None:
         self.settings = settings
         self.live_trading = live_trading
         self.ignore_market_hours = ignore_market_hours
@@ -230,6 +230,7 @@ class TradingExecutor:
 
         Returns:
             List of ValidatedOrderDTO instances ready for execution
+
         """
         validated_orders = []
 
@@ -536,7 +537,7 @@ class TradingExecutor:
                 json.dump(
                     {
                         "summary": summary_data,
-                        "export_timestamp": datetime.now().isoformat(),
+                        "export_timestamp": datetime.now(UTC).isoformat(),
                         "trading_mode": "live" if self.live_trading else "paper",
                     },
                     f,

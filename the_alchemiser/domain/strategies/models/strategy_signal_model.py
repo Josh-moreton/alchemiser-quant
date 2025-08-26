@@ -129,10 +129,9 @@ class StrategySignalModel:
         """Get confidence level as string."""
         if self.confidence.value >= Decimal("0.8"):
             return "HIGH"
-        elif self.confidence.value >= Decimal("0.6"):
+        if self.confidence.value >= Decimal("0.6"):
             return "MEDIUM"
-        else:
-            return "LOW"
+        return "LOW"
 
     @property
     def allocation_percentage(self) -> Decimal:

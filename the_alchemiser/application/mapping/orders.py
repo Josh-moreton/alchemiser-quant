@@ -60,8 +60,7 @@ def normalize_order_status(raw: str) -> OrderStatusLiteral:
 
 
 def dict_to_order_request_dto(order_data: dict[str, Any]) -> OrderRequestDTO:
-    """
-    Convert dictionary order data to OrderRequestDTO.
+    """Convert dictionary order data to OrderRequestDTO.
 
     Args:
         order_data: Raw order data dictionary
@@ -71,6 +70,7 @@ def dict_to_order_request_dto(order_data: dict[str, Any]) -> OrderRequestDTO:
 
     Raises:
         ValueError: If required fields are missing or invalid
+
     """
     # Extract required fields
     symbol = order_data.get("symbol")
@@ -129,8 +129,7 @@ def order_request_to_validated_dto(
     normalized_quantity: Decimal | None = None,
     risk_score: Decimal | None = None,
 ) -> ValidatedOrderDTO:
-    """
-    Convert OrderRequestDTO to ValidatedOrderDTO with validation metadata.
+    """Convert OrderRequestDTO to ValidatedOrderDTO with validation metadata.
 
     Args:
         request: The original order request
@@ -141,6 +140,7 @@ def order_request_to_validated_dto(
 
     Returns:
         ValidatedOrderDTO instance
+
     """
     return ValidatedOrderDTO(
         # Core order fields from request
@@ -161,14 +161,14 @@ def order_request_to_validated_dto(
 
 
 def validated_dto_to_dict(validated_order: ValidatedOrderDTO) -> dict[str, Any]:
-    """
-    Convert ValidatedOrderDTO back to dictionary for backward compatibility.
+    """Convert ValidatedOrderDTO back to dictionary for backward compatibility.
 
     Args:
         validated_order: ValidatedOrderDTO instance
 
     Returns:
         Dictionary representation for legacy systems
+
     """
     return {
         "symbol": validated_order.symbol,
@@ -193,14 +193,14 @@ def validated_dto_to_dict(validated_order: ValidatedOrderDTO) -> dict[str, Any]:
 
 
 def validated_dto_to_order_handler_params(validated_order: ValidatedOrderDTO) -> dict[str, Any]:
-    """
-    Convert ValidatedOrderDTO to parameters suitable for order handlers.
+    """Convert ValidatedOrderDTO to parameters suitable for order handlers.
 
     Args:
         validated_order: ValidatedOrderDTO instance
 
     Returns:
         Dictionary with parameters for AssetOrderHandler and LimitOrderHandler
+
     """
     # Convert side to Alpaca OrderSide enum value for handler compatibility
     from alpaca.trading.enums import OrderSide
@@ -224,8 +224,7 @@ def validated_dto_to_order_handler_params(validated_order: ValidatedOrderDTO) ->
 
 
 def order_request_dto_to_domain_order_params(dto: OrderRequestDTO) -> dict[str, Any]:
-    """
-    Convert OrderRequestDTO to domain Order entity creation parameters.
+    """Convert OrderRequestDTO to domain Order entity creation parameters.
 
     Args:
         dto: OrderRequestDTO instance to convert
@@ -235,6 +234,7 @@ def order_request_dto_to_domain_order_params(dto: OrderRequestDTO) -> dict[str, 
 
     Raises:
         ValueError: If required domain conversions fail
+
     """
     # Convert DTO fields to domain value objects
     symbol = Symbol(dto.symbol)
@@ -267,8 +267,7 @@ def order_request_dto_to_domain_order_params(dto: OrderRequestDTO) -> dict[str, 
 
 
 def domain_order_to_execution_result_dto(order: Order) -> OrderExecutionResultDTO:
-    """
-    Convert domain Order entity to OrderExecutionResultDTO.
+    """Convert domain Order entity to OrderExecutionResultDTO.
 
     Args:
         order: Domain Order entity to convert
@@ -278,6 +277,7 @@ def domain_order_to_execution_result_dto(order: Order) -> OrderExecutionResultDT
 
     Raises:
         ValueError: If order data cannot be converted to DTO format
+
     """
     # Map domain OrderStatus to DTO status literals
     status_mapping = {

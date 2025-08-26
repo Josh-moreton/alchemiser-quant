@@ -49,6 +49,7 @@ class RebalancingOrchestrator:
             trading_client: Alpaca trading client for WebSocket monitoring
             paper_trading: Whether using paper trading (affects API credentials)
             account_info_provider: Provider for account information (e.g., TradingEngine)
+
         """
         self.portfolio_facade = portfolio_facade
         self.trading_client = trading_client
@@ -68,6 +69,7 @@ class RebalancingOrchestrator:
 
         Returns:
             List of executed SELL orders as OrderDetails
+
         """
         logging.info("🔄 Phase 1: Executing SELL orders to free buying power")
 
@@ -90,6 +92,7 @@ class RebalancingOrchestrator:
 
         Args:
             sell_orders: List of SELL orders to monitor for completion
+
         """
         if not sell_orders:
             logging.info("No SELL orders to monitor for settlement")
@@ -155,6 +158,7 @@ class RebalancingOrchestrator:
 
         Returns:
             List of executed BUY orders as OrderDetails
+
         """
         logging.info("🔄 Phase 3: Executing BUY orders with refreshed buying power")
 
@@ -189,6 +193,7 @@ class RebalancingOrchestrator:
 
         Returns:
             List of all executed orders (SELLs and BUYs) as OrderDetails
+
         """
         if not target_portfolio:
             logging.warning("Empty target portfolio provided to rebalance_portfolio")

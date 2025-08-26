@@ -1,4 +1,4 @@
-"""Email utilities module - REFACTORED
+"""Email utilities module - REFACTORED.
 
 This module now imports from the new modular email system for backward compatibility.
 The email functionality has been split into separate modules:
@@ -88,16 +88,16 @@ def _build_enhanced_portfolio_email_html(
 
 # Export the main public API
 __all__ = [
+    "BaseEmailTemplate",
+    "EmailClient",
+    "EmailTemplates",
+    "PerformanceBuilder",
+    "PortfolioBuilder",
+    "SignalsBuilder",
+    "build_error_email_html",
+    "build_multi_strategy_email_html",
+    "build_trading_report_html",
     "get_email_config",
     "is_neutral_mode_enabled",
     "send_email_notification",
-    "build_trading_report_html",
-    "build_multi_strategy_email_html",
-    "build_error_email_html",
-    "EmailClient",
-    "EmailTemplates",
-    "PortfolioBuilder",
-    "PerformanceBuilder",
-    "SignalsBuilder",
-    "BaseEmailTemplate",
 ]

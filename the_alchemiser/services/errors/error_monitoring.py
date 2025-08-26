@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Error Monitoring and Alerting Framework for The Alchemiser Trading System.
+"""Error Monitoring and Alerting Framework for The Alchemiser Trading System.
 
 This module implements Phase 3 of the error handling enhancement plan:
 - Error Metrics and Monitoring for real-time tracking
@@ -11,9 +10,11 @@ This module implements Phase 3 of the error handling enhancement plan:
 import logging
 import statistics
 from collections import defaultdict, deque
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from enum import Enum
 from typing import Any
+
+from the_alchemiser.utils.num import floats_equal
 
 from .context import ErrorContextData
 from .handler import ErrorSeverity
@@ -31,7 +32,7 @@ class HealthStatus(Enum):
 class ErrorEvent:
     """Represents an error event for monitoring."""
 
-    def __init__(self, error: Exception, context: ErrorContextData, timestamp: datetime):
+    def __init__(self, error: Exception, context: ErrorContextData, timestamp: datetime) -> None:
         self.error = error
         self.context = context
         self.timestamp = timestamp
@@ -83,7 +84,7 @@ class RecoveryStats:
 class ErrorMetricsCollector:
     """Collect and track error metrics for monitoring."""
 
-    def __init__(self, max_history_hours: int = 24):
+    def __init__(self, max_history_hours: int = 24) -> None:
         self.max_history_hours = max_history_hours
         self.error_counts: dict[str, int] = defaultdict(int)
         self.error_rates: dict[str, deque[float]] = defaultdict(lambda: deque(maxlen=1000))
@@ -94,7 +95,7 @@ class ErrorMetricsCollector:
 
     def record_error(self, error: Exception, context: ErrorContextData | None = None) -> None:
         """Record error occurrence for metrics."""
-        now = datetime.now()
+        now = datetime.now(UTC)
         error_key = f"{error.__class__.__name__}:{context.component if context else 'unknown'}"
 
         # Update counts
@@ -121,7 +122,7 @@ class ErrorMetricsCollector:
         """Record error recovery attempt."""
         stats = self.recovery_stats[error_type]
         stats.total_attempts += 1
-        stats.last_recovery_attempt = datetime.now()
+        stats.last_recovery_attempt = datetime.now(UTC)
 
         if success:
             stats.successful_recoveries += 1
@@ -130,7 +131,7 @@ class ErrorMetricsCollector:
 
         # Update average recovery time (exponential moving average)
         if recovery_time > 0:
-            if stats.average_recovery_time == 0:
+            if floats_equal(stats.average_recovery_time, 0.0):
                 stats.average_recovery_time = recovery_time
             else:
                 # Exponential moving average with alpha = 0.3
@@ -140,13 +141,13 @@ class ErrorMetricsCollector:
 
     def get_error_rate(self, error_type: str, window_minutes: int = 5) -> float:
         """Get error rate for specific error type."""
-        cutoff = (datetime.now() - timedelta(minutes=window_minutes)).timestamp()
+        cutoff = (datetime.now(UTC) - timedelta(minutes=window_minutes)).timestamp()
         recent_errors = [ts for ts in self.error_rates.get(error_type, []) if ts > cutoff]
         return len(recent_errors) / window_minutes  # errors per minute
 
     def get_total_error_rate(self, window_minutes: int = 5) -> float:
         """Get total error rate across all error types."""
-        cutoff = (datetime.now() - timedelta(minutes=window_minutes)).timestamp()
+        cutoff = (datetime.now(UTC) - timedelta(minutes=window_minutes)).timestamp()
         total_errors = 0
 
         for error_timestamps in self.error_rates.values():
@@ -156,12 +157,12 @@ class ErrorMetricsCollector:
 
     def get_critical_errors_count(self, window_minutes: int = 5) -> int:
         """Get count of critical errors in time window."""
-        cutoff = datetime.now() - timedelta(minutes=window_minutes)
+        cutoff = datetime.now(UTC) - timedelta(minutes=window_minutes)
         return len([e for e in self.critical_errors if e.timestamp > cutoff])
 
     def get_error_summary(self) -> dict[str, Any]:
         """Get comprehensive error summary."""
-        now = datetime.now()
+        now = datetime.now(UTC)
 
         return {
             "total_error_types": len(self.error_counts),
@@ -181,7 +182,7 @@ class ErrorMetricsCollector:
 
     def get_hourly_trend(self, hours: int = 24) -> dict[str, int]:
         """Get hourly error counts for trend analysis."""
-        cutoff = datetime.now() - timedelta(hours=hours)
+        cutoff = datetime.now(UTC) - timedelta(hours=hours)
         return {
             hour.isoformat(): count
             for hour, count in self.hourly_error_counts.items()
@@ -190,7 +191,7 @@ class ErrorMetricsCollector:
 
     def _cleanup_old_data(self) -> None:
         """Remove old data beyond retention period."""
-        cutoff = datetime.now() - timedelta(hours=self.max_history_hours)
+        cutoff = datetime.now(UTC) - timedelta(hours=self.max_history_hours)
 
         # Clean hourly counts
         self.hourly_error_counts = {
@@ -265,7 +266,7 @@ class AlertThresholdManager:
     def get_threshold_summary(self) -> dict[str, dict[str, float]]:
         """Get summary of current thresholds."""
         summary = {}
-        for metric_name in self.static_thresholds.keys():
+        for metric_name in self.static_thresholds:
             summary[metric_name] = {
                 "static_threshold": self.static_thresholds[metric_name],
                 "dynamic_threshold": self.get_dynamic_threshold(metric_name),
@@ -285,7 +286,7 @@ class HealthReport:
         active_alerts: list[dict[str, Any]],
         recovery_stats: dict[str, RecoveryStats],
         recommendations: list[str],
-    ):
+    ) -> None:
         self.status = status
         self.timestamp = timestamp
         self.error_summary = error_summary
@@ -308,7 +309,7 @@ class HealthReport:
 class ErrorHealthDashboard:
     """Real-time error health monitoring dashboard."""
 
-    def __init__(self, metrics_collector: ErrorMetricsCollector):
+    def __init__(self, metrics_collector: ErrorMetricsCollector) -> None:
         self.metrics = metrics_collector
         self.alerts = AlertThresholdManager()
         self.logger = logging.getLogger(__name__)
@@ -351,7 +352,7 @@ class ErrorHealthDashboard:
                     "type": "high_error_rate",
                     "message": f"High error rate: {current_error_rate:.2f} errors/min",
                     "severity": "warning",
-                    "timestamp": datetime.now().isoformat(),
+                    "timestamp": datetime.now(UTC).isoformat(),
                 }
             )
 
@@ -363,7 +364,7 @@ class ErrorHealthDashboard:
                     "type": "critical_errors",
                     "message": f"{critical_count} critical errors in last 5 minutes",
                     "severity": "critical",
-                    "timestamp": datetime.now().isoformat(),
+                    "timestamp": datetime.now(UTC).isoformat(),
                 }
             )
 
@@ -411,7 +412,7 @@ class ErrorHealthDashboard:
         """Generate comprehensive health report."""
         return HealthReport(
             status=self.get_health_status(),
-            timestamp=datetime.now(),
+            timestamp=datetime.now(UTC),
             error_summary=self.metrics.get_error_summary(),
             active_alerts=self.get_active_alerts(),
             recovery_stats=self.metrics.recovery_stats,
@@ -481,7 +482,7 @@ class ProductionMonitor:
             return {
                 "error": str(e),
                 "status": HealthStatus.UNKNOWN.value,
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
             }
 
     def update_baselines(self) -> None:

@@ -1,5 +1,7 @@
-import datetime
+"""Trading service facade aggregating order, position, market data, and account operations."""
+
 import logging
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
@@ -99,21 +101,20 @@ from the_alchemiser.utils.num import floats_equal
 
 
 class TradingServiceManager:
-    """
-    Centralized service manager providing high-level access to all trading services
+    """Centralized service manager providing high-level access to all trading services.
 
     This class acts as a facade, providing a single entry point for all trading operations
     while maintaining clean separation of concerns through the service layer architecture.
     """
 
-    def __init__(self, api_key: str, secret_key: str, paper: bool = True):
-        """
-        Initialize the trading service manager
+    def __init__(self, api_key: str, secret_key: str, paper: bool = True) -> None:
+        """Initialize the trading service manager.
 
         Args:
             api_key: Alpaca API key
             secret_key: Alpaca secret key
             paper: Whether to use paper trading environment
+
         """
         self.logger = logging.getLogger(__name__)
 
@@ -139,14 +140,14 @@ class TradingServiceManager:
         self.logger.info(f"TradingServiceManager initialized with paper={paper}")
 
     def _create_order_id(self, client_order_id: str | None = None) -> OrderId:
-        """
-        Create an OrderId for lifecycle tracking.
+        """Create an OrderId for lifecycle tracking.
 
         Args:
             client_order_id: Optional client-specified order ID
 
         Returns:
             OrderId for lifecycle tracking
+
         """
         if client_order_id:
             try:
@@ -163,14 +164,14 @@ class TradingServiceManager:
         event_type: LifecycleEventType = LifecycleEventType.STATE_CHANGED,
         metadata: dict[str, Any] | None = None,
     ) -> None:
-        """
-        Emit a lifecycle event for an order.
+        """Emit a lifecycle event for an order.
 
         Args:
             order_id: Order identifier
             target_state: Target lifecycle state
             event_type: Type of lifecycle event
             metadata: Additional event metadata
+
         """
         try:
             self.lifecycle_manager.advance(
@@ -192,11 +193,7 @@ class TradingServiceManager:
     def place_market_order(
         self, symbol: str, quantity: float, side: str, validate: bool = True
     ) -> OrderExecutionResultDTO:
-        """Place a market order with DTO validation.
-
-        DEPRECATED: This method uses legacy service patterns. Consider using
-        CanonicalOrderExecutor for new code to leverage centralized order building.
-        """
+        """Place a market order with DTO validation."""
         if validate:
             # Create OrderRequestDTO and validate through DTO pipeline
             order_data = {
@@ -206,15 +203,14 @@ class TradingServiceManager:
                 "order_type": "market",
                 "time_in_force": "day",
             }
-
             try:
                 order_request = dict_to_order_request_dto(order_data)
                 validated_order = self.order_validator.validate_order_request(order_request)
-
                 self.logger.info(
-                    f"Market order validation successful for {symbol}: "
-                    f"estimated_value=${validated_order.estimated_value}, "
-                    f"risk_score={validated_order.risk_score}"
+                    "Market order validation successful for %s: estimated_value=$%s, risk_score=%s",
+                    symbol,
+                    validated_order.estimated_value,
+                    validated_order.risk_score,
                 )
             except Exception as validation_error:
                 return OrderExecutionResultDTO(
@@ -224,12 +220,11 @@ class TradingServiceManager:
                     status="rejected",
                     filled_qty=Decimal("0"),
                     avg_fill_price=None,
-                    submitted_at=datetime.datetime.now(),
+                    submitted_at=datetime.now(UTC),
                     completed_at=None,
                 )
 
-        # Always use typed path (using typed domain)
-        # Use centralized order request builder
+        # Use centralized order request builder (typed path)
         from the_alchemiser.application.execution.order_request_builder import (
             OrderRequestBuilder,
         )
@@ -241,16 +236,15 @@ class TradingServiceManager:
                 qty=quantity,
                 time_in_force="day",
             )
-            # AlpacaManager now returns RawOrderEnvelope, need to convert
-            envelope = self.alpaca_manager.place_order(req)
+            raw_envelope = self.alpaca_manager.place_order(req)
 
             # Convert envelope to OrderExecutionResultDTO
             from the_alchemiser.application.mapping.order_mapping import (
                 raw_order_envelope_to_execution_result_dto,
             )
 
-            return raw_order_envelope_to_execution_result_dto(envelope)
-        except Exception as e:  # noqa: BLE001
+            return raw_order_envelope_to_execution_result_dto(raw_envelope)
+        except Exception as e:
             return OrderExecutionResultDTO(
                 success=False,
                 error=str(e),
@@ -258,7 +252,7 @@ class TradingServiceManager:
                 status="rejected",
                 filled_qty=Decimal("0"),
                 avg_fill_price=None,
-                submitted_at=datetime.datetime.now(),
+                submitted_at=datetime.now(UTC),
                 completed_at=None,
             )
 
@@ -270,11 +264,7 @@ class TradingServiceManager:
         limit_price: float,
         validate: bool = True,
     ) -> OrderExecutionResultDTO:
-        """Place a limit order with DTO validation.
-
-        DEPRECATED: This method uses legacy service patterns. Consider using
-        CanonicalOrderExecutor for new code to leverage centralized order building.
-        """
+        """Place a limit order with DTO validation."""
         if validate:
             # Create OrderRequestDTO and validate through DTO pipeline
             order_data = {
@@ -285,15 +275,14 @@ class TradingServiceManager:
                 "limit_price": limit_price,
                 "time_in_force": "day",
             }
-
             try:
                 order_request = dict_to_order_request_dto(order_data)
                 validated_order = self.order_validator.validate_order_request(order_request)
-
                 self.logger.info(
-                    f"Limit order validation successful for {symbol}: "
-                    f"estimated_value=${validated_order.estimated_value}, "
-                    f"risk_score={validated_order.risk_score}"
+                    "Limit order validation successful for %s: estimated_value=$%s, risk_score=%s",
+                    symbol,
+                    validated_order.estimated_value,
+                    validated_order.risk_score,
                 )
             except Exception as validation_error:
                 return OrderExecutionResultDTO(
@@ -303,12 +292,10 @@ class TradingServiceManager:
                     status="rejected",
                     filled_qty=Decimal("0"),
                     avg_fill_price=None,
-                    submitted_at=datetime.datetime.now(),
+                    submitted_at=datetime.now(UTC),
                     completed_at=None,
                 )
 
-        # Always use typed path (using typed domain)
-        # Use centralized order request builder
         from the_alchemiser.application.execution.order_request_builder import (
             OrderRequestBuilder,
         )
@@ -321,16 +308,15 @@ class TradingServiceManager:
                 limit_price=limit_price,
                 time_in_force="day",
             )
-            # AlpacaManager now returns RawOrderEnvelope, need to convert
-            envelope = self.alpaca_manager.place_order(req)
+            raw_envelope = self.alpaca_manager.place_order(req)
 
             # Convert envelope to OrderExecutionResultDTO
             from the_alchemiser.application.mapping.order_mapping import (
                 raw_order_envelope_to_execution_result_dto,
             )
 
-            return raw_order_envelope_to_execution_result_dto(envelope)
-        except Exception as e:  # noqa: BLE001
+            return raw_order_envelope_to_execution_result_dto(raw_envelope)
+        except Exception as e:
             return OrderExecutionResultDTO(
                 success=False,
                 error=str(e),
@@ -338,14 +324,14 @@ class TradingServiceManager:
                 status="rejected",
                 filled_qty=Decimal("0"),
                 avg_fill_price=None,
-                submitted_at=datetime.datetime.now(),
+                submitted_at=datetime.now(UTC),
                 completed_at=None,
             )
 
     def place_stop_loss_order(
         self, symbol: str, quantity: float, stop_price: float, validate: bool = True
     ) -> OrderExecutionResultDTO:
-        """Place a stop-loss order using liquidation (not directly supported)"""
+        """Place a stop-loss order using liquidation (not directly supported)."""
         return OrderExecutionResultDTO(
             success=False,
             error="Stop-loss orders not directly supported. Use liquidate_position for position closure.",
@@ -353,12 +339,12 @@ class TradingServiceManager:
             status="rejected",
             filled_qty=Decimal("0"),
             avg_fill_price=None,
-            submitted_at=datetime.datetime.now(),
+            submitted_at=datetime.now(UTC),
             completed_at=None,
         )
 
     def cancel_order(self, order_id: str) -> OrderCancellationDTO:
-        """Cancel an order with enhanced feedback"""
+        """Cancel an order with enhanced feedback."""
         try:
             success = self.orders.cancel_order(order_id)
             return OrderCancellationDTO(success=success, order_id=order_id)
@@ -366,7 +352,7 @@ class TradingServiceManager:
             return OrderCancellationDTO(success=False, error=str(e))
 
     def get_order_status(self, order_id: str) -> OrderStatusDTO:
-        """Get order status (not directly available - use AlpacaManager directly)"""
+        """Get order status (not directly available - use AlpacaManager directly)."""
         return OrderStatusDTO(
             success=False,
             error="Order status queries not available in enhanced services. Use AlpacaManager directly.",
@@ -418,7 +404,7 @@ class TradingServiceManager:
     def get_position_summary(
         self, symbol: str | None = None
     ) -> PositionSummaryDTO | PortfolioSummaryDTO:
-        """Get comprehensive position summary"""
+        """Get comprehensive position summary."""
         try:
             if symbol:
                 # Get specific position info
@@ -436,33 +422,30 @@ class TradingServiceManager:
                         },
                     }
                     return dict_to_position_summary_dto(position_dict)
-                else:
-                    return PositionSummaryDTO(
-                        success=False,
-                        symbol=symbol,
-                        error=f"No position found for {symbol}",
-                    )
-            else:
-                # Get portfolio summary
-                portfolio = self.positions.get_portfolio_summary()
-                portfolio_dict = {
-                    "success": True,
-                    "portfolio": {
-                        "total_market_value": portfolio.total_market_value,
-                        "cash_balance": portfolio.cash_balance,
-                        "total_positions": portfolio.total_positions,
-                        "largest_position_percent": portfolio.largest_position_percent,
-                    },
-                }
-                return dict_to_portfolio_summary_dto(portfolio_dict)
+                return PositionSummaryDTO(
+                    success=False,
+                    symbol=symbol,
+                    error=f"No position found for {symbol}",
+                )
+            # Get portfolio summary
+            portfolio = self.positions.get_portfolio_summary()
+            portfolio_dict = {
+                "success": True,
+                "portfolio": {
+                    "total_market_value": portfolio.total_market_value,
+                    "cash_balance": portfolio.cash_balance,
+                    "total_positions": portfolio.total_positions,
+                    "largest_position_percent": portfolio.largest_position_percent,
+                },
+            }
+            return dict_to_portfolio_summary_dto(portfolio_dict)
         except Exception as e:
             if symbol:
                 return PositionSummaryDTO(success=False, symbol=symbol, error=str(e))
-            else:
-                return PortfolioSummaryDTO(success=False, error=str(e))
+            return PortfolioSummaryDTO(success=False, error=str(e))
 
     def close_position(self, symbol: str, percentage: float = 100.0) -> ClosePositionResultDTO:
-        """Close a position using liquidation"""
+        """Close a position using liquidation."""
         try:
             # Sonar: replace float equality check with tolerance
             if not floats_equal(percentage, 100.0):
@@ -476,7 +459,7 @@ class TradingServiceManager:
             return ClosePositionResultDTO(success=False, error=str(e))
 
     def get_position_analytics(self, symbol: str) -> PositionAnalyticsDTO:
-        """Get detailed position analytics"""
+        """Get detailed position analytics."""
         try:
             risk_metrics = self.positions.get_position_risk_metrics(symbol)
             analytics_dict = {
@@ -489,7 +472,7 @@ class TradingServiceManager:
             return PositionAnalyticsDTO(success=False, symbol=symbol, error=str(e))
 
     def calculate_position_metrics(self) -> PositionMetricsDTO:
-        """Calculate portfolio-wide position metrics"""
+        """Calculate portfolio-wide position metrics."""
         try:
             diversification_score = self.positions.calculate_diversification_score()
             largest_positions = self.positions.get_largest_positions()
@@ -511,18 +494,17 @@ class TradingServiceManager:
 
     # Market Data Operations
     def get_latest_price(self, symbol: str, validate: bool = True) -> PriceDTO:
-        """Get latest price with validation and caching"""
+        """Get latest price with validation and caching."""
         try:
             price = self.market_data.get_validated_price(symbol)
             if price is not None:
                 price_dict = {"success": True, "symbol": symbol, "price": price}
                 return dict_to_price_dto(price_dict)
-            else:
-                return PriceDTO(
-                    success=False,
-                    symbol=symbol,
-                    error=f"Could not get price for {symbol}",
-                )
+            return PriceDTO(
+                success=False,
+                symbol=symbol,
+                error=f"Could not get price for {symbol}",
+            )
         except Exception as e:
             return PriceDTO(success=False, symbol=symbol, error=str(e))
 
@@ -533,7 +515,7 @@ class TradingServiceManager:
         limit: int = 100,
         validate: bool = True,
     ) -> PriceHistoryDTO:
-        """Get price history (not directly available - use AlpacaManager directly)"""
+        """Get price history (not directly available - use AlpacaManager directly)."""
         return PriceHistoryDTO(
             success=False,
             symbol=symbol,
@@ -543,7 +525,7 @@ class TradingServiceManager:
         )
 
     def analyze_spread(self, symbol: str) -> SpreadAnalysisDTO:
-        """Analyze bid-ask spread for a symbol"""
+        """Analyze bid-ask spread for a symbol."""
         try:
             spread_data = self.market_data.get_spread_analysis(symbol)
             if spread_data:
@@ -553,17 +535,16 @@ class TradingServiceManager:
                     "spread_analysis": spread_data,
                 }
                 return dict_to_spread_analysis_dto(spread_dict)
-            else:
-                return SpreadAnalysisDTO(
-                    success=False,
-                    symbol=symbol,
-                    error=f"Could not analyze spread for {symbol}",
-                )
+            return SpreadAnalysisDTO(
+                success=False,
+                symbol=symbol,
+                error=f"Could not analyze spread for {symbol}",
+            )
         except Exception as e:
             return SpreadAnalysisDTO(success=False, symbol=symbol, error=str(e))
 
     def get_market_status(self) -> MarketStatusDTO:
-        """Get current market status"""
+        """Get current market status."""
         try:
             is_open = self.market_data.is_market_hours()
             market_dict = {"success": True, "market_open": is_open}
@@ -572,7 +553,7 @@ class TradingServiceManager:
             return MarketStatusDTO(success=False, error=str(e))
 
     def get_multi_symbol_quotes(self, symbols: list[str]) -> MultiSymbolQuotesDTO:
-        """Get quotes for multiple symbols efficiently"""
+        """Get quotes for multiple symbols efficiently."""
         try:
             prices = self.market_data.get_batch_prices(symbols)
             quotes_dict = {"success": True, "quotes": prices}
@@ -582,33 +563,33 @@ class TradingServiceManager:
 
     # Account Management Operations
     def get_account_summary(self) -> AccountSummaryDTO:
-        """Get comprehensive account summary with metrics"""
+        """Get comprehensive account summary with metrics."""
         account_dict = self.account.get_account_summary()
         # Convert to typed and then to DTO
         typed = account_summary_to_typed(account_dict)
         return account_summary_typed_to_dto(typed)
 
     def check_buying_power(self, required_amount: float) -> BuyingPowerDTO:
-        """Check available buying power"""
+        """Check available buying power."""
         buying_power_dict = self.account.check_buying_power(required_amount)
         return dict_to_buying_power_dto(buying_power_dict)
 
     def get_risk_metrics(self) -> RiskMetricsDTO:
-        """Calculate comprehensive risk metrics"""
+        """Calculate comprehensive risk metrics."""
         risk_metrics_dict = self.account.get_risk_metrics()
         return dict_to_risk_metrics_dto(risk_metrics_dict)
 
     def validate_trade_eligibility(
         self, symbol: str, quantity: int, side: str, estimated_cost: float | None = None
     ) -> TradeEligibilityDTO:
-        """Validate if a trade can be executed"""
+        """Validate if a trade can be executed."""
         eligibility_dict = self.account.validate_trade_eligibility(
             symbol, quantity, side, estimated_cost or 0.0
         )
         return dict_to_trade_eligibility_dto(eligibility_dict)
 
     def get_portfolio_allocation(self) -> PortfolioAllocationDTO:
-        """Get portfolio allocation and diversification metrics"""
+        """Get portfolio allocation and diversification metrics."""
         allocation_dict = self.account.get_portfolio_allocation()
         return dict_to_portfolio_allocation_dto(allocation_dict)
 
@@ -651,7 +632,7 @@ class TradingServiceManager:
         return dict_to_enriched_account_summary_dto(enriched_dict)
 
     def get_all_positions(self) -> EnrichedPositionsDTO:
-        """Get all positions from the underlying repository"""
+        """Get all positions from the underlying repository."""
         try:
             raw_positions = self.alpaca_manager.get_all_positions()
             # Convert to enriched format
@@ -726,10 +707,9 @@ class TradingServiceManager:
         quantity: int,
         side: str,
         order_type: str = "market",
-        **kwargs: Any,
+        **kwargs: object,
     ) -> SmartOrderExecutionDTO:
-        """
-        Execute a smart order with comprehensive validation and risk management
+        """Execute a smart order with comprehensive validation and risk management.
 
         Args:
             symbol: Symbol to trade
@@ -739,11 +719,15 @@ class TradingServiceManager:
             **kwargs: Additional order parameters (limit_price, stop_price, etc.)
 
         Returns:
-            Comprehensive order execution result
+            Comprehensive order execution result.
+
         """
         try:
             # Create order ID for lifecycle tracking
-            order_id = self._create_order_id(kwargs.get("client_order_id"))
+            client_order_id = kwargs.get("client_order_id")
+            order_id = self._create_order_id(
+                client_order_id if isinstance(client_order_id, str) else None
+            )
             # Emit initial lifecycle event
             self._emit_lifecycle_event(
                 order_id=order_id,
@@ -870,7 +854,7 @@ class TradingServiceManager:
                 order_result = self.place_market_order(symbol, quantity, side, validate=False)
             elif order_type.lower() == "limit":
                 limit_price = kwargs.get("limit_price")
-                if not limit_price:
+                if not limit_price or not isinstance(limit_price, int | float):
                     # Emit error event for missing limit price
                     self._emit_lifecycle_event(
                         order_id=order_id,
@@ -884,11 +868,11 @@ class TradingServiceManager:
                         success=False, reason="limit_price required for limit orders"
                     )
                 order_result = self.place_limit_order(
-                    symbol, quantity, side, limit_price, validate=False
+                    symbol, quantity, side, float(limit_price), validate=False
                 )
             elif order_type.lower() == "stop_loss":
                 stop_price = kwargs.get("stop_price")
-                if not stop_price:
+                if not stop_price or not isinstance(stop_price, int | float):
                     # Emit error event for missing stop price
                     self._emit_lifecycle_event(
                         order_id=order_id,
@@ -902,7 +886,7 @@ class TradingServiceManager:
                         success=False, reason="stop_price required for stop_loss orders"
                     )
                 order_result = self.place_stop_loss_order(
-                    symbol, quantity, stop_price, validate=False
+                    symbol, quantity, float(stop_price), validate=False
                 )
             else:
                 # Emit error event for unsupported order type
@@ -1018,32 +1002,32 @@ class TradingServiceManager:
 
     # Order Lifecycle Management Operations
     def get_order_lifecycle_state(self, order_id: OrderId) -> OrderLifecycleState | None:
-        """
-        Get the current lifecycle state of an order.
+        """Get the current lifecycle state of an order.
 
         Args:
             order_id: Order identifier
 
         Returns:
             Current lifecycle state, or None if order not tracked
+
         """
         return self.lifecycle_manager.get_state(order_id)
 
     def get_all_tracked_orders(self) -> dict[OrderId, OrderLifecycleState]:
-        """
-        Get all tracked orders and their current lifecycle states.
+        """Get all tracked orders and their current lifecycle states.
 
         Returns:
             Dictionary mapping order IDs to their current states
+
         """
         return self.lifecycle_manager.get_all_orders()
 
     def get_lifecycle_metrics(self) -> dict[str, Any]:
-        """
-        Get lifecycle metrics from the metrics observer.
+        """Get lifecycle metrics from the metrics observer.
 
         Returns:
             Dictionary containing lifecycle event and transition metrics
+
         """
         # Find the metrics observer
         for observer in self.lifecycle_dispatcher.iter_observers():
@@ -1063,8 +1047,7 @@ class TradingServiceManager:
         }
 
     def execute_order_dto(self, order_request: OrderRequestDTO) -> SmartOrderExecutionDTO:
-        """
-        Execute an order using OrderRequestDTO directly.
+        """Execute an order using OrderRequestDTO directly.
 
         This method provides a type-safe interface for order execution using DTOs.
 
@@ -1073,6 +1056,7 @@ class TradingServiceManager:
 
         Returns:
             Comprehensive order execution result
+
         """
         try:
             # Validate the order using the DTO validator
@@ -1123,16 +1107,16 @@ class TradingServiceManager:
             position_summary={},
             open_orders=[],
             market_status={},
-            timestamp=datetime.datetime.now(),
+            timestamp=datetime.now(UTC),
             error="Failed to generate dashboard",
         )
     )
     def get_trading_dashboard(self) -> TradingDashboardDTO:
-        """
-        Get a comprehensive trading dashboard with all key metrics
+        """Get a comprehensive trading dashboard with all key metrics.
 
         Returns:
             Complete trading dashboard data
+
         """
         try:
             # Get all required data (some methods now return DTOs)
@@ -1198,7 +1182,7 @@ class TradingServiceManager:
                     "market_open": market_status.market_open,
                     "success": market_status.success,
                 },
-                timestamp=datetime.datetime.now(),
+                timestamp=datetime.now(UTC),
             )
         except Exception as e:
             return TradingDashboardDTO(
@@ -1227,12 +1211,12 @@ class TradingServiceManager:
                 position_summary={},
                 open_orders=[],
                 market_status={},
-                timestamp=datetime.datetime.now(),
+                timestamp=datetime.now(UTC),
                 error=str(e),
             )
 
     def close(self) -> None:
-        """Clean up resources"""
+        """Clean up resources."""
         try:
             if hasattr(self.alpaca_manager, "close"):
                 self.alpaca_manager.close()

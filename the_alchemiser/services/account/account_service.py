@@ -3,24 +3,24 @@ from typing import Any, Literal, cast
 
 from the_alchemiser.domain.interfaces import AccountRepository
 from the_alchemiser.domain.types import AccountInfo, PositionsDict
+from the_alchemiser.utils.num import floats_equal
 
 
 class AccountService:
-    """Enhanced account service providing business logic and validation for account operations"""
+    """Enhanced account service providing business logic and validation for account operations."""
 
-    def __init__(self, account_repository: AccountRepository):
-        """
-        Initialize AccountService
+    def __init__(self, account_repository: AccountRepository) -> None:
+        """Initialize AccountService.
 
         Args:
             account_repository: Repository for account operations
+
         """
         self.account_repository = account_repository
         self.logger = logging.getLogger(__name__)
 
     def _get_attr(self, obj: Any, attr: str, default: Any = 0) -> Any:
-        """
-        Helper method to safely get attributes from objects or dicts
+        """Helper method to safely get attributes from objects or dicts.
 
         Args:
             obj: Object or dict to get attribute from
@@ -29,19 +29,20 @@ class AccountService:
 
         Returns:
             Attribute value or default
+
         """
         if hasattr(obj, attr):
             return getattr(obj, attr)
-        elif isinstance(obj, dict):
+        if isinstance(obj, dict):
             return obj.get(attr, default)
         return default
 
     def get_account_summary(self) -> dict[str, Any]:
-        """
-        Get comprehensive account summary with calculated metrics
+        """Get comprehensive account summary with calculated metrics.
 
         Returns:
             Dictionary containing account details with enhanced metrics
+
         """
         try:
             account = self.account_repository.get_account()
@@ -90,14 +91,14 @@ class AccountService:
             raise
 
     def check_buying_power(self, required_amount: float) -> dict[str, Any]:
-        """
-        Check if account has sufficient buying power for a trade
+        """Check if account has sufficient buying power for a trade.
 
         Args:
             required_amount: Amount needed for the trade
 
         Returns:
             Dictionary with buying power check results
+
         """
         try:
             account = self.account_repository.get_account()
@@ -129,11 +130,11 @@ class AccountService:
             raise
 
     def get_risk_metrics(self) -> dict[str, Any]:
-        """
-        Calculate comprehensive risk metrics for the account
+        """Calculate comprehensive risk metrics for the account.
 
         Returns:
             Dictionary containing various risk metrics
+
         """
         try:
             account = self.account_repository.get_account()
@@ -159,7 +160,7 @@ class AccountService:
                     if hasattr(position, "qty") or isinstance(position, dict)
                     else 0
                 )
-                if qty != 0:
+                if not floats_equal(qty, 0.0):
                     market_value = (
                         self._get_attr(position, "market_value", 0)
                         if hasattr(position, "market_value") or isinstance(position, dict)
@@ -213,8 +214,7 @@ class AccountService:
     def validate_trade_eligibility(
         self, symbol: str, quantity: int, side: str, estimated_cost: float | None = None
     ) -> dict[str, Any]:
-        """
-        Validate if a trade can be executed based on account status and buying power
+        """Validate if a trade can be executed based on account status and buying power.
 
         Args:
             symbol: Symbol to trade
@@ -224,6 +224,7 @@ class AccountService:
 
         Returns:
             Dictionary with trade eligibility results
+
         """
         try:
             account = self.account_repository.get_account()
@@ -320,11 +321,11 @@ class AccountService:
             raise
 
     def get_portfolio_allocation(self) -> dict[str, Any]:
-        """
-        Calculate portfolio allocation and diversification metrics
+        """Calculate portfolio allocation and diversification metrics.
 
         Returns:
             Dictionary containing allocation breakdown
+
         """
         try:
             account = self.account_repository.get_account()
@@ -341,7 +342,7 @@ class AccountService:
 
             for position in positions:
                 qty = self._get_attr(position, "qty", 0)
-                if qty != 0:
+                if not floats_equal(qty, 0.0):
                     market_value = self._get_attr(position, "market_value", 0)
                     symbol = self._get_attr(position, "symbol", "")
                     if symbol:
@@ -426,8 +427,7 @@ class AccountService:
 
     # Protocol method implementations for DI compatibility
     def get_account_info(self) -> AccountInfo:
-        """
-        Protocol-compliant account info method for TradingEngine DI mode.
+        """Protocol-compliant account info method for TradingEngine DI mode.
 
         Returns AccountInfo-compatible dict as expected by AccountInfoProvider protocol.
         """
@@ -455,8 +455,7 @@ class AccountService:
             raise
 
     def get_positions_dict(self) -> PositionsDict:
-        """
-        Protocol-compliant positions method for TradingEngine DI mode.
+        """Protocol-compliant positions method for TradingEngine DI mode.
 
         Returns PositionsDict as expected by PositionProvider protocol.
         """
@@ -469,7 +468,7 @@ class AccountService:
                 qty = self._get_attr(position, "qty", 0)
 
                 # Only include positions with non-zero quantity
-                if symbol and float(qty) != 0:
+                if symbol and not floats_equal(float(qty), 0.0):
                     positions_dict[symbol] = {
                         "symbol": symbol,
                         "qty": float(qty),
@@ -487,8 +486,7 @@ class AccountService:
             raise
 
     def get_current_price(self, symbol: str) -> float:
-        """
-        Protocol-compliant price method for TradingEngine DI mode.
+        """Protocol-compliant price method for TradingEngine DI mode.
 
         Returns current price as expected by PriceProvider protocol.
         """
@@ -504,8 +502,7 @@ class AccountService:
             raise
 
     def get_current_prices(self, symbols: list[str]) -> dict[str, float]:
-        """
-        Protocol-compliant prices method for TradingEngine DI mode.
+        """Protocol-compliant prices method for TradingEngine DI mode.
 
         Returns price dict as expected by PriceProvider protocol.
         """

@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Order listing DTOs for The Alchemiser Trading System.
+"""Order listing DTOs for The Alchemiser Trading System.
 
 This module contains DTOs for order listing operations, including
 open orders retrieval and order history.
@@ -16,9 +15,7 @@ from the_alchemiser.interfaces.schemas.base import ResultDTO
 
 
 class EnrichedOrderDTO(BaseModel):
-    """
-    DTO for enriched order data with domain mapping.
-    """
+    """DTO for enriched order data with domain mapping."""
 
     model_config = ConfigDict(
         strict=True,
@@ -32,9 +29,7 @@ class EnrichedOrderDTO(BaseModel):
 
 
 class OpenOrdersDTO(ResultDTO):
-    """
-    DTO for open orders list response.
-    """
+    """DTO for open orders list response."""
 
     model_config = ConfigDict(
         strict=True,
@@ -47,9 +42,7 @@ class OpenOrdersDTO(ResultDTO):
 
 
 class EnrichedPositionDTO(BaseModel):
-    """
-    DTO for enriched position data with domain mapping.
-    """
+    """DTO for enriched position data with domain mapping."""
 
     model_config = ConfigDict(
         strict=True,
@@ -62,9 +55,7 @@ class EnrichedPositionDTO(BaseModel):
 
 
 class EnrichedPositionsDTO(ResultDTO):
-    """
-    DTO for enriched positions list response.
-    """
+    """DTO for enriched positions list response."""
 
     model_config = ConfigDict(
         strict=True,

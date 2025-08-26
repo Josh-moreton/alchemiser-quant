@@ -7,6 +7,7 @@ from rich.rule import Rule
 from rich.table import Table
 
 from the_alchemiser.interfaces.schemas.common import MultiStrategyExecutionResultDTO
+from the_alchemiser.utils.num import floats_equal
 
 """Console formatting utilities for quantitative trading system output using rich."""
 
@@ -23,10 +24,11 @@ def render_technical_indicators(
 
     Returns:
         None
+
     """
     all_indicators: dict[str, dict[str, Any]] = {}
     for _, data in strategy_signals.items():
-        if "indicators" in data and data["indicators"]:
+        if data.get("indicators"):
             all_indicators.update(data["indicators"])
 
     if not all_indicators:
@@ -82,10 +84,7 @@ def render_technical_indicators(
         ma_200 = ind.get("ma_200")
         trend_indicator = ""
         if ma_200 and price > 0:
-            if price > ma_200:
-                trend_indicator = "↗"
-            else:
-                trend_indicator = "↘"
+            trend_indicator = "↗" if price > ma_200 else "↘"
 
         table.add_row(
             symbol,
@@ -132,6 +131,7 @@ def render_strategy_signals(
 
     Returns:
         None
+
     """
     c = console or Console()
 
@@ -252,10 +252,7 @@ def render_orders_executed(
         side = order.get("side")
         if side:
             # Handle both string and enum values
-            if hasattr(side, "value"):
-                side_value = side.value.upper()
-            else:
-                side_value = str(side).upper()
+            side_value = side.value.upper() if hasattr(side, "value") else str(side).upper()
 
             if side_value == "BUY":
                 buy_orders.append(order)
@@ -320,7 +317,7 @@ def _format_money(value: Any) -> str:
 
 
 def render_account_info(account_info: dict[str, Any], console: Console | None = None) -> None:
-    """Render account information including P&L data"""
+    """Render account information including P&L data."""
     c = console or Console()
 
     if not account_info:
@@ -586,17 +583,17 @@ def render_execution_plan(
 
 
 __all__ = [
-    "render_technical_indicators",
-    "render_strategy_signals",
-    "render_portfolio_allocation",
-    "render_orders_executed",
     "render_account_info",
-    "render_header",
-    "render_footer",
-    "render_target_vs_current_allocations",
-    "render_execution_plan",
     "render_enriched_order_summaries",
+    "render_execution_plan",
+    "render_footer",
+    "render_header",
     "render_multi_strategy_summary",
+    "render_orders_executed",
+    "render_portfolio_allocation",
+    "render_strategy_signals",
+    "render_target_vs_current_allocations",
+    "render_technical_indicators",
 ]
 
 
@@ -677,13 +674,13 @@ def render_multi_strategy_summary(
     enriched_account: dict[str, Any] | None = None,
     console: Console | None = None,
 ) -> None:
-    """
-    Render a summary of multi-strategy execution results using Rich.
+    """Render a summary of multi-strategy execution results using Rich.
 
     Args:
         execution_result: The execution result DTO to display
         enriched_account: Optional enriched account info for enhanced display
         console: Optional console for rendering
+
     """
     from rich.panel import Panel
     from rich.table import Table
@@ -730,12 +727,10 @@ def render_multi_strategy_summary(
             actual_value = filled_qty * filled_avg_price
 
             # Fall back to estimated value if no filled data available
-            if actual_value == 0:
+            if floats_equal(actual_value, 0.0):
                 estimated_value = order.get("estimated_value", 0)
                 try:
-                    if isinstance(estimated_value, int | float):
-                        actual_value = float(estimated_value)
-                    elif isinstance(estimated_value, str):
+                    if isinstance(estimated_value, int | float | str):
                         actual_value = float(estimated_value)
                     else:
                         actual_value = 0.0

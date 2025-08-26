@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-CLI error display utilities for order error classification.
+"""CLI error display utilities for order error classification.
 
 This module extends the existing CLI formatting to display classified order errors
 with proper categorization, remediation hints, and visual styling.
@@ -29,6 +28,7 @@ def render_order_error(
         console: Console instance for output
         show_details: Whether to show error details
         show_remediation: Whether to show remediation hints
+
     """
     c = console or Console()
 
@@ -99,6 +99,7 @@ def render_order_errors_table(
         errors: List of OrderErrors to display
         console: Console instance for output
         title: Table title
+
     """
     c = console or Console()
 
@@ -156,6 +157,7 @@ def render_error_summary(
     Args:
         errors: List of OrderErrors to summarize
         console: Console instance for output
+
     """
     c = console or Console()
 
@@ -220,6 +222,7 @@ def format_error_for_notification(error: OrderError) -> dict[str, Any]:
 
     Returns:
         Dictionary suitable for notification templates
+
     """
     from the_alchemiser.domain.trading.errors.order_error import get_remediation_hint
 
@@ -240,9 +243,8 @@ def _get_error_severity(error: OrderError) -> str:
     """Get severity level for an error."""
     if error.category in [OrderErrorCategory.SYSTEM, OrderErrorCategory.AUTHORIZATION]:
         return "HIGH"
-    elif error.category == OrderErrorCategory.RISK_MANAGEMENT:
+    if error.category == OrderErrorCategory.RISK_MANAGEMENT:
         return "MEDIUM"
-    elif error.category in [OrderErrorCategory.CONNECTIVITY, OrderErrorCategory.MARKET_CONDITIONS]:
+    if error.category in [OrderErrorCategory.CONNECTIVITY, OrderErrorCategory.MARKET_CONDITIONS]:
         return "LOW" if error.is_transient else "MEDIUM"
-    else:
-        return "LOW"
+    return "LOW"

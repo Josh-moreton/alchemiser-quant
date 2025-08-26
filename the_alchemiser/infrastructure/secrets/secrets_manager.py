@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
-"""
-AWS Secrets Manager Integration
-Handles retrieving secrets from AWS Secrets Manager for the Quantitative Trading System
+"""AWS Secrets Manager Integration
+Handles retrieving secrets from AWS Secrets Manager for the Quantitative Trading System.
 
 Environment-Aware Behavior:
 - Production (AWS Lambda): Only uses AWS Secrets Manager, fails hard if not available
@@ -23,14 +22,14 @@ except ImportError:
 
 
 class SecretsManager:
-    """Handles retrieving secrets from AWS Secrets Manager"""
+    """Handles retrieving secrets from AWS Secrets Manager."""
 
     def __init__(self, region_name: str | None = None) -> None:
-        """
-        Initialize the Secrets Manager client
+        """Initialize the Secrets Manager client.
 
         Args:
             region_name: AWS region where secrets are stored (if None, loads from config)
+
         """
         if region_name is None:
             from the_alchemiser.infrastructure.config import load_settings
@@ -57,26 +56,24 @@ class SecretsManager:
                     raise RuntimeError(
                         "AWS Secrets Manager is required in production environment"
                     ) from e
-                else:
-                    logging.warning(f"Failed to initialize AWS Secrets Manager client: {e}")
-                    self.client = None
+                logging.warning(f"Failed to initialize AWS Secrets Manager client: {e}")
+                self.client = None
         else:
             if self.is_production:
                 # In production, boto3 must be available
                 logging.error("CRITICAL: boto3 not available in production environment")
                 raise RuntimeError("boto3 is required in production environment")
-            else:
-                logging.info("boto3 not available - will use environment variables")
+            logging.info("boto3 not available - will use environment variables")
 
     def get_secret(self, secret_name: str) -> dict[str, str] | None:
-        """
-        Retrieve a secret from AWS Secrets Manager
+        """Retrieve a secret from AWS Secrets Manager.
 
         Args:
             secret_name: Name of the secret to retrieve
 
         Returns:
             Dictionary containing the secret values, or None if failed
+
         """
         # Use cache if available
         if self._secrets_cache is not None:
@@ -87,12 +84,11 @@ class SecretsManager:
                 # In production, we must have AWS Secrets Manager
                 logging.error("CRITICAL: AWS Secrets Manager client not available in production")
                 raise RuntimeError("AWS Secrets Manager is required in production environment")
-            else:
-                logging.warning(
-                    "AWS Secrets Manager client not available - falling back to environment variables"
-                )
-                self._secrets_cache = self._get_secret_from_env()
-                return self._secrets_cache
+            logging.warning(
+                "AWS Secrets Manager client not available - falling back to environment variables"
+            )
+            self._secrets_cache = self._get_secret_from_env()
+            return self._secrets_cache
 
         try:
             logging.debug(f"Retrieving secret: {secret_name}")
@@ -122,30 +118,28 @@ class SecretsManager:
                     "CRITICAL: AWS Secrets Manager failed in production - not falling back"
                 )
                 raise RuntimeError(f"AWS Secrets Manager failed in production: {error_code}") from e
-            else:
-                logging.warning("Falling back to environment variables")
-                self._secrets_cache = self._get_secret_from_env()
-                return self._secrets_cache
+            logging.warning("Falling back to environment variables")
+            self._secrets_cache = self._get_secret_from_env()
+            return self._secrets_cache
         except Exception as e:
             logging.error(f"Unexpected error retrieving secret '{secret_name}': {e}")
             if self.is_production:
                 # In production, any failure is fatal
                 logging.error("CRITICAL: Unexpected error in AWS Secrets Manager in production")
                 raise RuntimeError(f"AWS Secrets Manager failed in production: {e}") from e
-            else:
-                logging.warning("Falling back to environment variables")
-                self._secrets_cache = self._get_secret_from_env()
-                return self._secrets_cache
+            logging.warning("Falling back to environment variables")
+            self._secrets_cache = self._get_secret_from_env()
+            return self._secrets_cache
 
     def _get_secret_from_env(self) -> dict[str, str] | None:
-        """
-        Fallback method to get secrets from environment variables (development only)
+        """Fallback method to get secrets from environment variables (development only).
 
         In production (Lambda), environment variables are set directly on the Lambda function.
         In development, environment variables can come from .env files loaded by pydantic.
 
         Returns:
             Dictionary containing the secret values from environment variables
+
         """
         if self.is_production:
             logging.warning(
@@ -179,14 +173,14 @@ class SecretsManager:
         return secrets if secrets else None
 
     def get_alpaca_keys(self, paper_trading: bool = True) -> tuple[str, str] | tuple[None, None]:
-        """
-        Get Alpaca API keys for trading
+        """Get Alpaca API keys for trading.
 
         Args:
             paper_trading: Whether to get paper trading keys or live keys
 
         Returns:
             Tuple of (api_key, secret_key) or (None, None) if not found
+
         """
         try:
             from the_alchemiser.infrastructure.config import load_settings
@@ -219,11 +213,11 @@ class SecretsManager:
             return None, None
 
     def get_twelvedata_api_key(self) -> str | None:
-        """
-        Get TwelveData API key from secrets
+        """Get TwelveData API key from secrets.
 
         Returns:
             API key string or None if not found
+
         """
         try:
             from the_alchemiser.infrastructure.config import load_settings

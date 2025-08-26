@@ -7,12 +7,13 @@ from the_alchemiser.domain.portfolio.position.position_analyzer import PositionA
 from the_alchemiser.domain.portfolio.strategy_attribution.attribution_engine import (
     StrategyAttributionEngine,
 )
-from the_alchemiser.services.trading.trading_service_manager import TradingServiceManager
+from the_alchemiser.services.trading.trading_service_manager import (
+    TradingServiceManager,
+)
 
 
 class PortfolioAnalysisService:
-    """
-    Service for comprehensive portfolio analysis and reporting.
+    """Service for comprehensive portfolio analysis and reporting.
 
     Provides detailed analysis of portfolio composition, performance,
     and strategic allocation across different investment strategies.
@@ -23,32 +24,33 @@ class PortfolioAnalysisService:
         trading_manager: TradingServiceManager,
         position_analyzer: PositionAnalyzer | None = None,
         attribution_engine: StrategyAttributionEngine | None = None,
-    ):
-        """
-        Initialize the portfolio analysis service.
+    ) -> None:
+        """Initialize the portfolio analysis service.
 
         Args:
             trading_manager: Service for trading operations and market data
             position_analyzer: Analyzer for position analysis (optional)
             attribution_engine: Engine for strategy attribution (optional)
+
         """
         self.trading_manager = trading_manager
         self.position_analyzer = position_analyzer or PositionAnalyzer()
         self.attribution_engine = attribution_engine or StrategyAttributionEngine()
 
     def get_comprehensive_portfolio_analysis(self) -> dict[str, Any]:
-        """
-        Get comprehensive analysis of the current portfolio.
+        """Get comprehensive analysis of the current portfolio.
 
         Returns:
             Complete portfolio analysis including composition, strategy allocation,
             and performance metrics
+
         """
         # Get current portfolio data
         positions = self._get_current_position_values()
         portfolio_value = self._get_portfolio_value()
 
-        if portfolio_value == 0:
+        # portfolio_value is Decimal (financial); direct Decimal comparison is allowed per policy
+        if portfolio_value == Decimal("0"):
             return self._get_empty_portfolio_analysis()
 
         # Calculate strategy exposures
@@ -93,19 +95,19 @@ class PortfolioAnalysisService:
         }
 
     def analyze_portfolio_drift(self, target_weights: dict[str, Decimal]) -> dict[str, Any]:
-        """
-        Analyze how far the current portfolio has drifted from target allocations.
+        """Analyze how far the current portfolio has drifted from target allocations.
 
         Args:
             target_weights: Target allocation weights by symbol
 
         Returns:
             Drift analysis showing deviations from target
+
         """
         current_positions = self._get_current_position_values()
         portfolio_value = self._get_portfolio_value()
 
-        if portfolio_value == 0:
+        if portfolio_value == Decimal("0"):
             return {"error": "Portfolio value is zero"}
 
         # Calculate current weights
@@ -148,16 +150,16 @@ class PortfolioAnalysisService:
         }
 
     def get_strategy_performance_analysis(self) -> dict[str, Any]:
-        """
-        Analyze performance by investment strategy.
+        """Analyze performance by investment strategy.
 
         Returns:
             Performance analysis broken down by strategy
+
         """
         positions = self._get_current_position_values()
         portfolio_value = self._get_portfolio_value()
 
-        if portfolio_value == 0:
+        if portfolio_value == Decimal("0"):
             return {"error": "Portfolio value is zero"}
 
         # Group positions by strategy
@@ -215,14 +217,14 @@ class PortfolioAnalysisService:
     def compare_target_vs_current_strategy_allocation(
         self, target_weights: dict[str, Decimal]
     ) -> dict[str, Any]:
-        """
-        Compare current vs target strategy allocations.
+        """Compare current vs target strategy allocations.
 
         Args:
             target_weights: Target allocation weights by symbol
 
         Returns:
             Comparison of current vs target strategy allocations
+
         """
         current_positions = self._get_current_position_values()
         portfolio_value = self._get_portfolio_value()
@@ -317,9 +319,17 @@ class PortfolioAnalysisService:
                     "equity": Decimal(str(getattr(acct_obj, "equity", 0))),
                 }
         except Exception:
-            return {"cash": Decimal("0"), "buying_power": Decimal("0"), "equity": Decimal("0")}
+            return {
+                "cash": Decimal("0"),
+                "buying_power": Decimal("0"),
+                "equity": Decimal("0"),
+            }
         # Default if neither branch returned
-        return {"cash": Decimal("0"), "buying_power": Decimal("0"), "equity": Decimal("0")}
+        return {
+            "cash": Decimal("0"),
+            "buying_power": Decimal("0"),
+            "equity": Decimal("0"),
+        }
 
     def _get_largest_positions(
         self, positions: dict[str, Decimal], portfolio_value: Decimal
@@ -341,7 +351,7 @@ class PortfolioAnalysisService:
         self, positions: dict[str, Decimal], portfolio_value: Decimal
     ) -> dict[str, Any]:
         """Calculate portfolio concentration metrics."""
-        if portfolio_value == 0:
+        if portfolio_value == Decimal("0"):
             return {}
 
         sorted_positions = sorted(positions.values(), reverse=True)
@@ -404,12 +414,11 @@ class PortfolioAnalysisService:
         """Categorize the severity of portfolio drift."""
         if total_drift < Decimal("0.05"):
             return "low"
-        elif total_drift < Decimal("0.15"):
+        if total_drift < Decimal("0.15"):
             return "moderate"
-        elif total_drift < Decimal("0.30"):
+        if total_drift < Decimal("0.30"):
             return "high"
-        else:
-            return "severe"
+        return "severe"
 
     def _get_empty_portfolio_analysis(self) -> dict[str, Any]:
         """Return analysis structure for empty portfolio."""

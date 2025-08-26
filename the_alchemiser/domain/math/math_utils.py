@@ -1,5 +1,4 @@
-"""
-Mathematical Utilities for Trading Strategies
+"""Mathematical Utilities for Trading Strategies.
 
 This module provides statistical and mathematical functions commonly used
 across different trading strategies, particularly for return calculations,
@@ -16,10 +15,11 @@ import logging
 
 import pandas as pd
 
+from the_alchemiser.utils.num import floats_equal
+
 
 def calculate_stdev_returns(close_prices: pd.Series, window: int) -> float:
-    """
-    Calculate standard deviation of returns over a specified window.
+    """Calculate standard deviation of returns over a specified window.
 
     This function computes the rolling standard deviation of percentage returns,
     which is commonly used for volatility measurement and risk assessment in
@@ -36,6 +36,7 @@ def calculate_stdev_returns(close_prices: pd.Series, window: int) -> float:
         >>> prices = pd.Series([100, 102, 101, 103, 105])
         >>> volatility = calculate_stdev_returns(prices, 3)
         >>> print(f"Volatility: {volatility:.4f}")
+
     """
     if len(close_prices) < window + 1:
         return 0.1  # Default volatility fallback
@@ -50,8 +51,7 @@ def calculate_stdev_returns(close_prices: pd.Series, window: int) -> float:
 
 
 def calculate_moving_average(close_prices: pd.Series, window: int) -> float:
-    """
-    Calculate simple moving average with robust error handling.
+    """Calculate simple moving average with robust error handling.
 
     Computes the simple moving average over the specified window period.
     Handles insufficient data gracefully by returning the current price.
@@ -67,6 +67,7 @@ def calculate_moving_average(close_prices: pd.Series, window: int) -> float:
         >>> prices = pd.Series([100, 102, 101, 103, 105])
         >>> ma = calculate_moving_average(prices, 3)
         >>> print(f"3-period MA: {ma:.2f}")
+
     """
     try:
         if len(close_prices) < window:
@@ -76,17 +77,15 @@ def calculate_moving_average(close_prices: pd.Series, window: int) -> float:
         ma = close_prices.rolling(window=window).mean()
         if len(ma) > 0 and not pd.isna(ma.iloc[-1]):
             return float(ma.iloc[-1])
-        else:
-            # Fallback to current price if MA calculation fails
-            return float(close_prices.iloc[-1])
+        # Fallback to current price if MA calculation fails
+        return float(close_prices.iloc[-1])
     except Exception as e:
         logging.warning(f"Error calculating MA({window}): {e}, using current price")
         return float(close_prices.iloc[-1]) if len(close_prices) > 0 else 0.0
 
 
 def calculate_moving_average_return(close_prices: pd.Series, window: int = 20) -> float:
-    """
-    Calculate moving average return with robust error handling.
+    """Calculate moving average return with robust error handling.
 
     Computes the percentage change in the moving average value from the previous
     period, which is useful for trend analysis and momentum calculations.
@@ -102,6 +101,7 @@ def calculate_moving_average_return(close_prices: pd.Series, window: int = 20) -
         >>> prices = pd.Series([100, 102, 101, 103, 105, 107])
         >>> ma_return = calculate_moving_average_return(prices, 3)
         >>> print(f"MA Return: {ma_return:.2f}%")
+
     """
     try:
         if len(close_prices) < window + 1:
@@ -111,7 +111,7 @@ def calculate_moving_average_return(close_prices: pd.Series, window: int = 20) -
         if len(ma) >= 2 and not pd.isna(ma.iloc[-1]) and not pd.isna(ma.iloc[-2]):
             current_ma = ma.iloc[-1]
             prev_ma = ma.iloc[-2]
-            if prev_ma != 0:
+            if not floats_equal(prev_ma, 0.0):
                 return float(((current_ma - prev_ma) / prev_ma) * 100)
         return 0.0
     except Exception as e:
@@ -120,8 +120,7 @@ def calculate_moving_average_return(close_prices: pd.Series, window: int = 20) -
 
 
 def calculate_percentage_change(current_value: float, previous_value: float) -> float:
-    """
-    Calculate percentage change between two values.
+    """Calculate percentage change between two values.
 
     Args:
         current_value (float): Current value
@@ -129,15 +128,15 @@ def calculate_percentage_change(current_value: float, previous_value: float) -> 
 
     Returns:
         float: Percentage change, or 0.0 if previous value is zero
+
     """
-    if previous_value == 0:
+    if floats_equal(previous_value, 0.0):
         return 0.0
     return ((current_value - previous_value) / previous_value) * 100
 
 
 def calculate_rolling_metric(data: pd.Series, window: int, metric: str = "mean") -> float:
-    """
-    Calculate a rolling statistical metric with error handling.
+    """Calculate a rolling statistical metric with error handling.
 
     Args:
         data (pd.Series): Input data series
@@ -146,18 +145,18 @@ def calculate_rolling_metric(data: pd.Series, window: int, metric: str = "mean")
 
     Returns:
         float: Calculated metric value, or appropriate fallback
+
     """
     if len(data) < window:
         if metric == "mean":
             return float(data.mean()) if len(data) > 0 else 0.0
-        elif metric == "std":
+        if metric == "std":
             return 0.1  # Default volatility
-        elif metric == "min":
+        if metric == "min":
             return float(data.min()) if len(data) > 0 else 0.0
-        elif metric == "max":
+        if metric == "max":
             return float(data.max()) if len(data) > 0 else 0.0
-        else:
-            return 0.0
+        return 0.0
 
     try:
         rolling_result = getattr(data.rolling(window=window), metric)()
@@ -169,8 +168,7 @@ def calculate_rolling_metric(data: pd.Series, window: int, metric: str = "mean")
 
 
 def safe_division(numerator: float, denominator: float, fallback: float = 0.0) -> float:
-    """
-    Perform safe division with fallback for zero or invalid denominators.
+    """Perform safe division with fallback for zero or invalid denominators.
 
     Args:
         numerator (float): Numerator value
@@ -179,9 +177,10 @@ def safe_division(numerator: float, denominator: float, fallback: float = 0.0) -
 
     Returns:
         float: Division result or fallback value
+
     """
     try:
-        if denominator == 0 or pd.isna(denominator) or pd.isna(numerator):
+        if floats_equal(denominator, 0.0) or pd.isna(denominator) or pd.isna(numerator):
             return fallback
         return numerator / denominator
     except (ZeroDivisionError, TypeError):
@@ -191,8 +190,7 @@ def safe_division(numerator: float, denominator: float, fallback: float = 0.0) -
 def normalize_to_range(
     value: float, min_val: float, max_val: float, target_min: float = 0.0, target_max: float = 1.0
 ) -> float:
-    """
-    Normalize a value from one range to another.
+    """Normalize a value from one range to another.
 
     Args:
         value (float): Value to normalize
@@ -203,8 +201,9 @@ def normalize_to_range(
 
     Returns:
         float: Normalized value in the target range
+
     """
-    if max_val == min_val:
+    if floats_equal(max_val, min_val):
         return target_min
 
     normalized = (value - min_val) / (max_val - min_val)
@@ -214,8 +213,7 @@ def normalize_to_range(
 def calculate_ensemble_score(
     performance_metrics: list[float], weights: list[float] | None = None
 ) -> float:
-    """
-    Calculate a weighted ensemble score from multiple performance metrics.
+    """Calculate a weighted ensemble score from multiple performance metrics.
 
     Args:
         performance_metrics (list): List of performance values
@@ -223,6 +221,7 @@ def calculate_ensemble_score(
 
     Returns:
         float: Weighted ensemble score
+
     """
     if not performance_metrics:
         return 0.0

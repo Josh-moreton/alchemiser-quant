@@ -1,5 +1,4 @@
-"""
-S-expression Strategy DSL Engine
+"""S-expression Strategy DSL Engine.
 
 A minimal, secure DSL for evaluating trading strategies written as S-expressions.
 Provides deterministic evaluation with structured tracing and strict whitelisting.
@@ -10,9 +9,9 @@ from the_alchemiser.domain.dsl.evaluator import DSLEvaluator
 from the_alchemiser.domain.dsl.parser import DSLParser
 
 __all__ = [
-    "DSLParser",
-    "DSLEvaluator",
     "DSLError",
-    "ParseError",
+    "DSLEvaluator",
+    "DSLParser",
     "EvaluationError",
+    "ParseError",
 ]

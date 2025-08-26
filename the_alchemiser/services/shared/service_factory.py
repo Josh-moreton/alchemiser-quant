@@ -26,16 +26,14 @@ class ServiceFactory:
         paper: bool | None = None,
     ) -> TradingServiceManager:
         """Create TradingServiceManager using DI or traditional method."""
-
         if cls._container is not None and all(x is None for x in [api_key, secret_key, paper]):
             # Use DI container
             return cast(TradingServiceManager, cls._container.services.trading_service_manager())
-        else:
-            # Backward compatibility: direct instantiation
-            api_key = api_key or "default_key"
-            secret_key = secret_key or "default_secret"
-            paper = paper if paper is not None else True
-            return TradingServiceManager(api_key, secret_key, paper)
+        # Backward compatibility: direct instantiation
+        api_key = api_key or "default_key"
+        secret_key = secret_key or "default_secret"
+        paper = paper if paper is not None else True
+        return TradingServiceManager(api_key, secret_key, paper)
 
     @classmethod
     def get_container(cls) -> ApplicationContainer | None:

@@ -8,8 +8,7 @@ from .states import OrderLifecycleState
 
 
 class InvalidOrderStateTransitionError(Exception):
-    """
-    Exception raised when an invalid order state transition is attempted.
+    """Exception raised when an invalid order state transition is attempted.
 
     This exception is raised when code attempts to transition an order from
     one lifecycle state to another when that transition is not allowed by
@@ -24,8 +23,7 @@ class InvalidOrderStateTransitionError(Exception):
         reason: str | None = None,
         context: dict[str, Any] | None = None,
     ) -> None:
-        """
-        Initialize the invalid transition exception.
+        """Initialize the invalid transition exception.
 
         Args:
             from_state: The state being transitioned from
@@ -33,6 +31,7 @@ class InvalidOrderStateTransitionError(Exception):
             order_id: Optional order identifier for context
             reason: Optional human-readable reason for the failure
             context: Optional additional context data
+
         """
         self.from_state = from_state
         self.to_state = to_state
@@ -55,11 +54,11 @@ class InvalidOrderStateTransitionError(Exception):
         super().__init__(message)
 
     def to_dict(self) -> dict[str, Any]:
-        """
-        Convert exception to structured data for logging/reporting.
+        """Convert exception to structured data for logging/reporting.
 
         Returns:
             Dictionary representation of the exception
+
         """
         return {
             "error_type": self.__class__.__name__,

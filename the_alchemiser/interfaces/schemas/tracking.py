@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Strategy Tracking DTOs for The Alchemiser Trading System.
+"""Strategy Tracking DTOs for The Alchemiser Trading System.
 
 This module defines Pydantic v2 DTOs for strategy order tracking and execution
 telemetry, consumed by application/tracking/strategy_order_tracker.py.
@@ -29,7 +28,7 @@ Usage:
         quantity=Decimal("100"),
         status="filled",
         price=Decimal("150.25"),
-        ts=datetime.now(),
+        ts=datetime.now(UTC),
         error=None
     )
 
@@ -84,8 +83,7 @@ StrategyLiteral = Literal["NUCLEAR", "TECL", "KLM"]
 
 
 class StrategyValidationMixin:
-    """
-    Mixin providing common validation methods for strategy tracking DTOs.
+    """Mixin providing common validation methods for strategy tracking DTOs.
 
     Centralizes validation logic to eliminate code duplication while
     maintaining type safety and reusability across strategy DTO classes.
@@ -120,8 +118,7 @@ class StrategyValidationMixin:
 
 
 class StrategyOrderEventDTO(BaseModel, StrategyValidationMixin):
-    """
-    Strategy order event DTO with comprehensive validation.
+    """Strategy order event DTO with comprehensive validation.
 
     Represents a single order event tagged with strategy information,
     providing immutable tracking of order lifecycle events.
@@ -190,8 +187,7 @@ class StrategyOrderEventDTO(BaseModel, StrategyValidationMixin):
 
 
 class StrategyOrderDTO(BaseModel, StrategyValidationMixin):
-    """
-    Strategy order DTO representing a completed order with strategy information.
+    """Strategy order DTO representing a completed order with strategy information.
 
     This replaces the StrategyOrder dataclass with comprehensive validation,
     timestamp handling, and side normalization for consistent data representation.
@@ -281,8 +277,7 @@ class StrategyOrderDTO(BaseModel, StrategyValidationMixin):
 
 
 class StrategyPositionDTO(BaseModel, StrategyValidationMixin):
-    """
-    Strategy position DTO with validation invariants and computed fields.
+    """Strategy position DTO with validation invariants and computed fields.
 
     Replaces StrategyPosition dataclass with strict validation for position
     invariants (e.g., non-negative quantities when position is closed).
@@ -359,8 +354,7 @@ class StrategyPositionDTO(BaseModel, StrategyValidationMixin):
 
 
 class StrategyPnLDTO(BaseModel):
-    """
-    Strategy P&L DTO for serialization consistency and computed metrics.
+    """Strategy P&L DTO for serialization consistency and computed metrics.
 
     Replaces StrategyPnL dataclass with validation and computed fields
     for consistent P&L reporting across the system.
@@ -469,8 +463,7 @@ class StrategyPnLDTO(BaseModel):
 
 
 class StrategyExecutionSummaryDTO(BaseModel, StrategyValidationMixin):
-    """
-    Strategy execution summary DTO with aggregated metrics.
+    """Strategy execution summary DTO with aggregated metrics.
 
     Provides an immutable summary of strategy execution with computed
     fields and validation of aggregate data consistency.
