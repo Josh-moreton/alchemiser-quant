@@ -48,6 +48,8 @@ class OrderLifecycleManager:
         
         # From SUBMITTED
         (OrderLifecycleState.SUBMITTED, OrderLifecycleState.ACKNOWLEDGED): "broker_acknowledged",
+        (OrderLifecycleState.SUBMITTED, OrderLifecycleState.FILLED): "direct_fill",  # Allow direct fill for fast execution
+        (OrderLifecycleState.SUBMITTED, OrderLifecycleState.PARTIALLY_FILLED): "direct_partial_fill",  # Allow direct partial fill
         (OrderLifecycleState.SUBMITTED, OrderLifecycleState.REJECTED): "broker_rejected",
         (OrderLifecycleState.SUBMITTED, OrderLifecycleState.CANCEL_PENDING): "cancel_requested",
         (OrderLifecycleState.SUBMITTED, OrderLifecycleState.ERROR): "submission_error",
