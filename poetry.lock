@@ -1211,6 +1211,27 @@ files = [
 diagrams = ["jinja2", "railroad-diagrams"]
 
 [[package]]
+name = "pyright"
+version = "1.1.404"
+description = "Command line wrapper for pyright"
+optional = false
+python-versions = ">=3.7"
+groups = ["dev"]
+files = [
+    {file = "pyright-1.1.404-py3-none-any.whl", hash = "sha256:c7b7ff1fdb7219c643079e4c3e7d4125f0dafcc19d253b47e898d130ea426419"},
+    {file = "pyright-1.1.404.tar.gz", hash = "sha256:455e881a558ca6be9ecca0b30ce08aa78343ecc031d37a198ffa9a7a1abeb63e"},
+]
+
+[package.dependencies]
+nodeenv = ">=1.6.0"
+typing-extensions = ">=4.1"
+
+[package.extras]
+all = ["nodejs-wheel-binaries", "twine (>=3.4.1)"]
+dev = ["twine (>=3.4.1)"]
+nodejs = ["nodejs-wheel-binaries"]
+
+[[package]]
 name = "pytest"
 version = "8.4.1"
 description = "pytest: simple powerful testing with Python"
@@ -1781,4 +1802,4 @@ files = [
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11,<4.0.0"
-content-hash = "58867830165b1c2859fde4e87cdb97393b294459d9abb3f852b7213db4f30772"
+content-hash = "2684af883f449ec7eec87b57cd5410157cce1c6900d8a71f8ee9c0f6831b46ca"

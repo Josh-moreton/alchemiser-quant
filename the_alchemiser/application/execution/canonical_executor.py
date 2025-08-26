@@ -26,6 +26,10 @@ if TYPE_CHECKING:  # typing-only imports
     from the_alchemiser.application.policies.policy_orchestrator import (
         PolicyOrchestrator,
     )
+    from the_alchemiser.application.trading.lifecycle import (
+        LifecycleEventDispatcher,
+        OrderLifecycleManager,
+    )
     from the_alchemiser.domain.trading.protocols.order_lifecycle import (
         OrderLifecycleMonitor,
     )
@@ -45,11 +49,15 @@ class CanonicalOrderExecutor:
         policy_orchestrator: PolicyOrchestrator | None = None,
         shadow_mode: bool = False,
         lifecycle_monitor: OrderLifecycleMonitor | None = None,
+        lifecycle_dispatcher: LifecycleEventDispatcher | None = None,
+        lifecycle_manager: OrderLifecycleManager | None = None,
     ) -> None:
         self.repository = repository
         self.policy_orchestrator = policy_orchestrator
         self.shadow_mode = shadow_mode
         self.lifecycle_monitor = lifecycle_monitor
+        self.lifecycle_dispatcher = lifecycle_dispatcher
+        self.lifecycle_manager = lifecycle_manager
         self.error_handler = TradingSystemErrorHandler()
 
     def execute(self, order_request: OrderRequest) -> OrderExecutionResultDTO:
@@ -217,6 +225,9 @@ class CanonicalOrderExecutor:
             )
 
             execution_result = raw_order_envelope_to_execution_result_dto(raw_envelope)
+            
+            # Emit lifecycle events if dispatcher available (Phase 5)
+            self._emit_submission_lifecycle_events(execution_result, raw_envelope)
         except Exception as e:  # infra failure
             self.error_handler.handle_error(
                 error=e,
@@ -276,6 +287,10 @@ class CanonicalOrderExecutor:
                             "final_status": updated.status,
                         },
                     )
+                    
+                    # Emit completion lifecycle events (Phase 5)
+                    self._emit_completion_lifecycle_events(updated)
+                    
                     return updated
                 except Exception as e:  # fetch failure - keep original result
                     self.error_handler.handle_error(
@@ -370,4 +385,193 @@ class CanonicalOrderExecutor:
             client_order_id=order_request.client_order_id,
         )
 
-    # NOTE: Lifecycle monitoring handled externally via injected lifecycle_monitor.
+    def _emit_submission_lifecycle_events(
+        self, execution_result: OrderExecutionResultDTO, raw_envelope: Any
+    ) -> None:
+        """Emit lifecycle events for order submission from repository responses.
+        
+        Phase 5: Uniform lifecycle event emission from canonical executor path.
+        
+        Args:
+            execution_result: Processed execution result DTO
+            raw_envelope: Raw repository response envelope with metadata
+        """
+        if not self.lifecycle_dispatcher or not self.lifecycle_manager:
+            return
+
+        try:
+            from the_alchemiser.domain.trading.lifecycle import (
+                LifecycleEventType,
+                OrderLifecycleState,
+            )
+            from the_alchemiser.domain.trading.value_objects.order_id import OrderId
+
+            order_id = OrderId.from_string(execution_result.order_id)
+            
+            # Build metadata from execution result and envelope
+            submission_metadata = {
+                "component": "CanonicalOrderExecutor",
+                "submission_time": execution_result.submitted_at.isoformat() if execution_result.submitted_at else None,
+                "success": execution_result.success,
+                "order_type": getattr(raw_envelope.original_request, "order_type", "unknown"),
+                "symbol": getattr(raw_envelope.original_request, "symbol", "unknown"),
+                "side": getattr(raw_envelope.original_request, "side", "unknown"),
+                "qty": getattr(raw_envelope.original_request, "qty", "unknown"),
+                "request_timestamp": raw_envelope.request_timestamp.isoformat() if hasattr(raw_envelope, "request_timestamp") else None,
+                "response_timestamp": raw_envelope.response_timestamp.isoformat() if hasattr(raw_envelope, "response_timestamp") else None,
+            }
+
+            if execution_result.success:
+                # Successful submission - emit SUBMITTED event
+                event = self.lifecycle_manager.advance(
+                    order_id,
+                    OrderLifecycleState.SUBMITTED,
+                    event_type=LifecycleEventType.STATE_CHANGED,
+                    metadata=submission_metadata,
+                    dispatcher=self.lifecycle_dispatcher,
+                )
+                self.lifecycle_dispatcher.dispatch(event)
+                
+                logger.debug(
+                    "Emitted SUBMITTED lifecycle event",
+                    extra={
+                        "component": "CanonicalOrderExecutor._emit_submission_lifecycle_events",
+                        "order_id": str(order_id),
+                        "status": execution_result.status,
+                    },
+                )
+            else:
+                # Failed submission - emit REJECTED event
+                rejection_metadata = {
+                    **submission_metadata,
+                    "error": execution_result.error,
+                    "rejection_reason": execution_result.error,
+                }
+                
+                event = self.lifecycle_manager.advance(
+                    order_id,
+                    OrderLifecycleState.REJECTED,
+                    event_type=LifecycleEventType.REJECTED,
+                    metadata=rejection_metadata,
+                    dispatcher=self.lifecycle_dispatcher,
+                )
+                self.lifecycle_dispatcher.dispatch(event)
+                
+                logger.debug(
+                    "Emitted REJECTED lifecycle event",
+                    extra={
+                        "component": "CanonicalOrderExecutor._emit_submission_lifecycle_events",
+                        "order_id": str(order_id),
+                        "error": execution_result.error,
+                    },
+                )
+
+        except Exception as e:
+            # Don't let lifecycle emission failures break order execution
+            logger.warning(
+                "Failed to emit submission lifecycle events",
+                extra={
+                    "component": "CanonicalOrderExecutor._emit_submission_lifecycle_events",
+                    "order_id": execution_result.order_id,
+                    "error": str(e),
+                },
+            )
+
+    def _emit_completion_lifecycle_events(
+        self, execution_result: OrderExecutionResultDTO
+    ) -> None:
+        """Emit lifecycle events for order completion monitoring.
+        
+        Phase 5: Emit FILLED/TIMEOUT/REJECTED events based on final order state.
+        
+        Args:
+            execution_result: Final execution result after monitoring
+        """
+        if not self.lifecycle_dispatcher or not self.lifecycle_manager:
+            return
+
+        try:
+            from the_alchemiser.domain.trading.lifecycle import (
+                LifecycleEventType,
+                OrderLifecycleState,
+            )
+            from the_alchemiser.domain.trading.value_objects.order_id import OrderId
+
+            order_id = OrderId.from_string(execution_result.order_id)
+            
+            # Build completion metadata
+            completion_metadata = {
+                "component": "CanonicalOrderExecutor",
+                "final_status": execution_result.status,
+                "filled_qty": str(execution_result.filled_qty) if execution_result.filled_qty else "0",
+                "avg_fill_price": str(execution_result.avg_fill_price) if execution_result.avg_fill_price else None,
+                "completed_at": execution_result.completed_at.isoformat() if execution_result.completed_at else None,
+                "submission_time": execution_result.submitted_at.isoformat() if execution_result.submitted_at else None,
+            }
+            
+            # Calculate time to fill if available
+            if execution_result.submitted_at and execution_result.completed_at:
+                time_diff = execution_result.completed_at - execution_result.submitted_at
+                completion_metadata["time_to_fill_ms"] = str(time_diff.total_seconds() * 1000)
+
+            # Map status to lifecycle state and event type
+            status_lower = execution_result.status.lower()
+            if status_lower in ["filled", "completely_filled"]:
+                target_state = OrderLifecycleState.FILLED
+                event_type = LifecycleEventType.STATE_CHANGED
+            elif status_lower in ["partially_filled"]:
+                target_state = OrderLifecycleState.PARTIALLY_FILLED
+                event_type = LifecycleEventType.PARTIAL_FILL
+            elif status_lower in ["rejected"]:
+                target_state = OrderLifecycleState.REJECTED
+                event_type = LifecycleEventType.REJECTED
+            elif status_lower in ["cancelled"]:
+                target_state = OrderLifecycleState.CANCELLED
+                event_type = LifecycleEventType.CANCEL_CONFIRMED
+            elif status_lower in ["expired"]:
+                target_state = OrderLifecycleState.EXPIRED
+                event_type = LifecycleEventType.EXPIRED
+            else:
+                # Unknown status - log and skip
+                logger.warning(
+                    "Unknown order status for lifecycle event emission",
+                    extra={
+                        "component": "CanonicalOrderExecutor._emit_completion_lifecycle_events",
+                        "order_id": str(order_id),
+                        "status": execution_result.status,
+                    },
+                )
+                return
+
+            # Emit completion event
+            event = self.lifecycle_manager.advance(
+                order_id,
+                target_state,
+                event_type=event_type,
+                metadata=completion_metadata,
+                dispatcher=self.lifecycle_dispatcher,
+            )
+            self.lifecycle_dispatcher.dispatch(event)
+            
+            logger.debug(
+                "Emitted completion lifecycle event",
+                extra={
+                    "component": "CanonicalOrderExecutor._emit_completion_lifecycle_events",
+                    "order_id": str(order_id),
+                    "final_state": target_state.value,
+                    "event_type": event_type.value,
+                },
+            )
+
+        except Exception as e:
+            # Don't let lifecycle emission failures break order execution
+            logger.warning(
+                "Failed to emit completion lifecycle events",
+                extra={
+                    "component": "CanonicalOrderExecutor._emit_completion_lifecycle_events",
+                    "order_id": execution_result.order_id,
+                    "error": str(e),
+                },
+            )
+
+    # NOTE: Lifecycle monitoring and event emission handled via injected components.
