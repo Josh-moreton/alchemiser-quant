@@ -133,8 +133,7 @@ class SmartExecution:
         account_info_provider: Any = None,
         enable_market_order_fallback: bool = False,  # Feature flag for market order fallback
         execution_config: (ExecutionConfig | None) = None,  # Phase 2: Adaptive configuration
-        lifecycle_manager: "OrderLifecycleManager | None" = None,  # Phase 3: Lifecycle tracking
-        lifecycle_dispatcher: "LifecycleEventDispatcher | None" = None,  # Phase 3: Event dispatch
+        # Phase 5: Lifecycle tracking removed - delegated to canonical executor
     ) -> None:
         """Initialize with dependency injection for execution and data access."""
         self.config = config or {}
@@ -148,106 +147,7 @@ class SmartExecution:
             execution_config or get_execution_config()
         )  # Phase 2: Use global config if not provided
 
-        # Phase 3: Lifecycle management integration
-        from the_alchemiser.application.trading.lifecycle import (
-            LifecycleEventDispatcher,
-            LoggingObserver,
-            MetricsObserver,
-            OrderLifecycleManager,
-        )
-
-        self.lifecycle_manager = lifecycle_manager or OrderLifecycleManager()
-
-        # Initialize dispatcher with observers if not provided
-        if lifecycle_dispatcher is None:
-            self.lifecycle_dispatcher = LifecycleEventDispatcher()
-            # Add standard observers for logging and metrics
-            self.lifecycle_dispatcher.register(LoggingObserver())
-            self.lifecycle_dispatcher.register(MetricsObserver())
-        else:
-            self.lifecycle_dispatcher = lifecycle_dispatcher
-
         self.logger = logging.getLogger(__name__)
-
-    def _track_order_lifecycle(
-        self,
-        order_id: str,
-        target_state: "OrderLifecycleState",
-        event_type: "LifecycleEventType | None" = None,
-        metadata: dict[str, Any] | None = None,
-    ) -> None:
-        """Track order lifecycle state transitions and dispatch events.
-
-        Phase 3: Integration helper to update lifecycle state and emit events
-        for comprehensive order tracking throughout the execution pipeline.
-        """
-        try:
-            from the_alchemiser.domain.trading.lifecycle import (
-                LifecycleEventType,
-                OrderLifecycleState,
-            )
-            from the_alchemiser.domain.trading.value_objects.order_id import OrderId
-
-            # Default event type based on target state
-            if event_type is None:
-                if (
-                    target_state == OrderLifecycleState.SUBMITTED
-                    or target_state == OrderLifecycleState.FILLED
-                ):
-                    event_type = LifecycleEventType.STATE_CHANGED
-                elif target_state == OrderLifecycleState.PARTIALLY_FILLED:
-                    event_type = LifecycleEventType.PARTIAL_FILL
-                elif target_state == OrderLifecycleState.CANCELLED:
-                    event_type = LifecycleEventType.CANCEL_CONFIRMED
-                elif target_state == OrderLifecycleState.REJECTED:
-                    event_type = LifecycleEventType.REJECTED
-                elif target_state == OrderLifecycleState.EXPIRED:
-                    event_type = LifecycleEventType.EXPIRED
-                elif target_state == OrderLifecycleState.ERROR:
-                    event_type = LifecycleEventType.ERROR
-                else:
-                    event_type = LifecycleEventType.STATE_CHANGED
-
-            # Advance lifecycle state and get event
-            typed_order_id = OrderId.from_string(order_id)
-            lifecycle_event = self.lifecycle_manager.advance(
-                typed_order_id,
-                target_state,
-                event_type=event_type,
-                metadata=metadata,
-                dispatcher=self.lifecycle_dispatcher,
-            )
-
-            # Dispatch event to observers
-            self.lifecycle_dispatcher.dispatch(lifecycle_event)
-
-        except Exception as e:
-            # Don't let lifecycle tracking failures break order execution
-            self.logger.warning(
-                "lifecycle_tracking_error",
-                extra={
-                    "order_id": order_id,
-                    "target_state": str(target_state),
-                    "error": str(e),
-                },
-            )
-
-    def _get_order_lifecycle_state(self, order_id: str) -> "OrderLifecycleState | None":
-        """Get current lifecycle state for an order."""
-        try:
-            from the_alchemiser.domain.trading.value_objects.order_id import OrderId
-
-            typed_order_id = OrderId.from_string(order_id)
-            return self.lifecycle_manager.get_state(typed_order_id)
-        except Exception as e:
-            self.logger.warning(
-                "lifecycle_state_query_error",
-                extra={
-                    "order_id": order_id,
-                    "error": str(e),
-                },
-            )
-            return None
 
     def execute_safe_sell(self, symbol: str, target_qty: float) -> str | None:
         """Execute a safe sell using the configured order executor.

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 from rich.console import Console
 from rich.panel import Panel
@@ -125,16 +126,28 @@ class LoggingObserver:
 class MetricsObserver:
     """Observer that collects metrics and statistics on order lifecycle events.
 
-    This is a placeholder implementation that can be extended to integrate
-    with metrics collection systems like Prometheus, CloudWatch, etc.
+    Enhanced implementation tracking specific execution metrics:
+    - attempt_count: Number of order placement attempts
+    - time_to_fill_ms: Time from submission to fill completion
+    - spread_initial/final: Initial and final spread values
+    - fallback_used: Whether fallback execution strategies were used
+    - volatility_pauses: Number of volatility-induced execution pauses
     """
 
     def __init__(self) -> None:
         """Initialize the metrics observer."""
         self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
-        # Placeholder for metrics collection
+        # Existing metrics collection
         self._event_counts: dict[str, int] = {}
         self._transition_counts: dict[tuple[str, str], int] = {}
+        
+        # Enhanced metrics for Phase 5 requirements
+        self._order_metrics: dict[str, dict[str, Any]] = {}  # order_id -> metrics
+        self._attempt_counts: dict[str, int] = {}  # order_id -> attempt count
+        self._submission_times: dict[str, float] = {}  # order_id -> timestamp
+        self._spread_data: dict[str, dict[str, float]] = {}  # order_id -> spread info
+        self._fallback_usage: dict[str, bool] = {}  # order_id -> fallback used
+        self._volatility_pauses: dict[str, int] = {}  # order_id -> pause count
 
     def on_lifecycle_event(self, event: OrderLifecycleEvent) -> None:
         """Handle a lifecycle event by updating metrics.
@@ -143,6 +156,10 @@ class MetricsObserver:
             event: The lifecycle event to process
 
         """
+        import time
+        
+        order_id_str = str(event.order_id.value)  # Use UUID value for consistent string keys
+        
         # Count events by type
         event_type = event.event_type.value
         self._event_counts[event_type] = self._event_counts.get(event_type, 0) + 1
@@ -154,7 +171,92 @@ class MetricsObserver:
         )
         self._transition_counts[transition_key] = self._transition_counts.get(transition_key, 0) + 1
 
-        # Log metrics update (placeholder)
+        # Initialize order metrics if new order
+        if order_id_str not in self._order_metrics:
+            self._order_metrics[order_id_str] = {
+                "order_id": order_id_str,
+                "first_seen": event.timestamp.timestamp(),
+                "last_updated": event.timestamp.timestamp(),
+                "states_visited": [],
+                "events": []
+            }
+            self._attempt_counts[order_id_str] = 0
+            self._volatility_pauses[order_id_str] = 0
+            self._fallback_usage[order_id_str] = False
+
+        # Update order metrics
+        order_metrics = self._order_metrics[order_id_str]
+        order_metrics["last_updated"] = event.timestamp.timestamp()
+        order_metrics["states_visited"].append(event.new_state.value)
+        order_metrics["events"].append({
+            "event_type": event_type,
+            "timestamp": event.timestamp.timestamp(),
+            "metadata": dict(event.metadata) if event.metadata else {}
+        })
+
+        # Track specific metrics from metadata
+        metadata = event.metadata or {}
+        
+        # Track attempt counts
+        if event.new_state.value == "SUBMITTED":
+            self._attempt_counts[order_id_str] += 1
+            self._submission_times[order_id_str] = event.timestamp.timestamp()
+            
+            # Track initial spread if available
+            if "spread_initial" in metadata:
+                if order_id_str not in self._spread_data:
+                    self._spread_data[order_id_str] = {}
+                self._spread_data[order_id_str]["initial"] = float(metadata["spread_initial"])
+        
+        # Track time to fill
+        if event.new_state.value == "FILLED" and order_id_str in self._submission_times:
+            fill_time = event.timestamp.timestamp()
+            submission_time = self._submission_times[order_id_str]
+            time_to_fill_ms = (fill_time - submission_time) * 1000
+            order_metrics["time_to_fill_ms"] = time_to_fill_ms
+            
+            # Track final spread if available
+            if "spread_final" in metadata:
+                if order_id_str not in self._spread_data:
+                    self._spread_data[order_id_str] = {}
+                self._spread_data[order_id_str]["final"] = float(metadata["spread_final"])
+
+        # Track fallback usage
+        if "fallback_used" in metadata and metadata["fallback_used"]:
+            self._fallback_usage[order_id_str] = True
+
+        # Track volatility pauses
+        if "volatility_pause" in metadata and metadata["volatility_pause"]:
+            self._volatility_pauses[order_id_str] += 1
+
+        # Structured metrics logging
+        metrics_log_data = {
+            "order_id": order_id_str,
+            "event_type": event_type,
+            "state_transition": f"{event.previous_state} -> {event.new_state}",
+            "attempt_count": self._attempt_counts.get(order_id_str, 0),
+            "fallback_used": self._fallback_usage.get(order_id_str, False),
+            "volatility_pauses": self._volatility_pauses.get(order_id_str, 0),
+        }
+        
+        # Add time to fill for completed orders
+        if "time_to_fill_ms" in order_metrics:
+            metrics_log_data["time_to_fill_ms"] = order_metrics["time_to_fill_ms"]
+            
+        # Add spread data if available
+        spread_data = self._spread_data.get(order_id_str, {})
+        if "initial" in spread_data:
+            metrics_log_data["spread_initial"] = spread_data["initial"]
+        if "final" in spread_data:
+            metrics_log_data["spread_final"] = spread_data["final"]
+
+        # Log structured metrics
+        self.logger.info(
+            "Order lifecycle metrics update",
+            extra={"metrics": metrics_log_data}
+        )
+
+        # Debug log for development
         self.logger.debug(
             "Updated metrics for order lifecycle event: %s (%s -> %s)",
             event_type,
@@ -187,8 +289,70 @@ class MetricsObserver:
         """
         return dict(self._transition_counts)
 
+    def get_order_metrics(self, order_id: str) -> dict[str, Any]:
+        """Get detailed metrics for a specific order.
+
+        Args:
+            order_id: The order ID to get metrics for
+
+        Returns:
+            Dictionary containing detailed order metrics
+
+        """
+        order_metrics = self._order_metrics.get(order_id, {})
+        if not order_metrics:
+            return {}
+
+        # Combine all metrics for this order
+        return {
+            **order_metrics,
+            "attempt_count": self._attempt_counts.get(order_id, 0),
+            "fallback_used": self._fallback_usage.get(order_id, False),
+            "volatility_pauses": self._volatility_pauses.get(order_id, 0),
+            "spread_data": self._spread_data.get(order_id, {}),
+        }
+
+    def get_execution_metrics_summary(self) -> dict[str, Any]:
+        """Get summary of execution metrics across all orders.
+
+        Returns:
+            Dictionary containing aggregated execution metrics
+
+        """
+        total_orders = len(self._order_metrics)
+        total_attempts = sum(self._attempt_counts.values())
+        orders_with_fallback = sum(1 for used in self._fallback_usage.values() if used)
+        total_volatility_pauses = sum(self._volatility_pauses.values())
+        
+        # Calculate average time to fill for completed orders
+        fill_times: list[float] = []
+        for metrics in self._order_metrics.values():
+            time_to_fill = metrics.get("time_to_fill_ms")
+            if time_to_fill is not None and isinstance(time_to_fill, (int, float)):
+                fill_times.append(float(time_to_fill))
+        
+        avg_time_to_fill = sum(fill_times) / len(fill_times) if fill_times else 0.0
+
+        return {
+            "total_orders_tracked": total_orders,
+            "total_submission_attempts": total_attempts,
+            "average_attempts_per_order": total_attempts / total_orders if total_orders > 0 else 0,
+            "orders_using_fallback": orders_with_fallback,
+            "fallback_usage_rate": orders_with_fallback / total_orders if total_orders > 0 else 0,
+            "total_volatility_pauses": total_volatility_pauses,
+            "average_volatility_pauses_per_order": total_volatility_pauses / total_orders if total_orders > 0 else 0,
+            "completed_orders": len(fill_times),
+            "average_time_to_fill_ms": avg_time_to_fill,
+        }
+
     def reset_metrics(self) -> None:
         """Reset all collected metrics."""
         self._event_counts.clear()
         self._transition_counts.clear()
-        self.logger.info("Metrics observer counters reset")
+        self._order_metrics.clear()
+        self._attempt_counts.clear()
+        self._submission_times.clear()
+        self._spread_data.clear()
+        self._fallback_usage.clear()
+        self._volatility_pauses.clear()
+        self.logger.info("All metrics observer data reset")

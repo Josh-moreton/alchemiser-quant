@@ -191,21 +191,8 @@ class AggressiveLimitStrategy:
                     price=float(attempt_result.price),
                     reason="none_order_id_returned",
                 )
-            self._track_order_lifecycle(
-                order_id,
-                "SUBMITTED",
-                {
-                    "strategy_name": self.strategy_name,
-                    "symbol": symbol,
-                    "side": side.value,
-                    "quantity": qty,
-                    "limit_price": attempt_result.price,
-                    "attempt_index": attempt_index,
-                    "timeout_seconds": attempt_result.timeout_seconds,
-                    "execution_strategy": "aggressive_limit",
-                    "reason": attempt_result.reason,
-                },
-            )
+            # Phase 5: Lifecycle tracking removed - handled by canonical executor path
+            # Order lifecycle events are now emitted uniformly from CanonicalOrderExecutor
             try:
                 order_result = context.wait_for_order_completion(
                     [order_id], max_wait_seconds=int(attempt_result.timeout_seconds)
@@ -232,18 +219,7 @@ class AggressiveLimitStrategy:
                 )
             order_completed = order_id in order_result.orders_completed
             if order_completed and order_result.status == "completed":
-                self._track_order_lifecycle(
-                    order_id,
-                    "FILLED",
-                    {
-                        "strategy_name": self.strategy_name,
-                        "symbol": symbol,
-                        "execution_price": attempt_result.price,
-                        "attempt_index": attempt_index,
-                        "timeout_used": attempt_result.timeout_seconds,
-                        "completion_method": "aggressive_limit",
-                    },
-                )
+                # Phase 5: Lifecycle tracking removed - handled by canonical executor path
                 self.logger.info(
                     "strategy_order_filled",
                     extra={
@@ -256,18 +232,7 @@ class AggressiveLimitStrategy:
                     },
                 )
                 return order_id
-            self._track_order_lifecycle(
-                order_id,
-                "SUBMITTED",
-                {
-                    "strategy_name": self.strategy_name,
-                    "symbol": symbol,
-                    "timeout_seconds": attempt_result.timeout_seconds,
-                    "attempt_index": attempt_index,
-                    "reason": "order_completion_timeout",
-                },
-                event_type="TIMEOUT",
-            )
+            # Phase 5: Lifecycle tracking removed - handled by canonical executor path
             if attempt_index < self.config.max_attempts - 1:
                 self.logger.info(
                     "strategy_preparing_next_attempt",
@@ -347,19 +312,7 @@ class AggressiveLimitStrategy:
                     quantity=qty,
                     reason="market_fallback_none_id",
                 )
-            self._track_order_lifecycle(
-                fallback_order_id,
-                "SUBMITTED",
-                {
-                    "strategy_name": self.strategy_name,
-                    "symbol": symbol,
-                    "side": side.value,
-                    "quantity": qty,
-                    "order_type": "market",
-                    "execution_strategy": "market_fallback",
-                    "limit_attempts_failed": self.config.max_attempts,
-                },
-            )
+            # Phase 5: Lifecycle tracking removed - handled by canonical executor path
             return fallback_order_id
         raise OrderTimeoutError(
             f"All limit order attempts failed and market fallback disabled: {symbol} {side.value} {qty}",
@@ -368,57 +321,5 @@ class AggressiveLimitStrategy:
             attempt_number=self.config.max_attempts,
         )
 
-    def _track_order_lifecycle(
-        self,
-        order_id: str,
-        target_state: str,
-        metadata: dict[str, Any],
-        event_type: str | None = None,
-    ) -> None:
-        """Track order lifecycle state transitions."""
-        if not self.lifecycle_manager or not self.lifecycle_dispatcher:
-            return
-
-        try:
-            from the_alchemiser.domain.trading.lifecycle import (
-                LifecycleEventType,
-                OrderLifecycleState,
-            )
-            from the_alchemiser.domain.trading.value_objects.order_id import OrderId
-
-            # Convert string state to enum
-            lifecycle_state = getattr(OrderLifecycleState, target_state)
-
-            # Default event type based on target state
-            if event_type is None:
-                if target_state == "SUBMITTED" or target_state == "FILLED":
-                    lifecycle_event_type = LifecycleEventType.STATE_CHANGED
-                else:
-                    lifecycle_event_type = LifecycleEventType.STATE_CHANGED
-            else:
-                lifecycle_event_type = getattr(LifecycleEventType, event_type)
-
-            # Advance lifecycle state
-            typed_order_id = OrderId.from_string(order_id)
-            lifecycle_event = self.lifecycle_manager.advance(
-                typed_order_id,
-                lifecycle_state,
-                event_type=lifecycle_event_type,
-                metadata=metadata,
-                dispatcher=self.lifecycle_dispatcher,
-            )
-
-            # Dispatch event
-            self.lifecycle_dispatcher.dispatch(lifecycle_event)
-
-        except Exception as e:
-            # Don't let lifecycle tracking failures break order execution
-            self.logger.warning(
-                "strategy_lifecycle_tracking_error",
-                extra={
-                    "strategy_name": self.strategy_name,
-                    "order_id": order_id,
-                    "target_state": target_state,
-                    "error": str(e),
-                },
-            )
+    # Phase 5: Lifecycle tracking method removed - all lifecycle events
+    # are now emitted uniformly from CanonicalOrderExecutor path
