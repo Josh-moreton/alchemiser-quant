@@ -38,7 +38,6 @@ from the_alchemiser.services.errors.exceptions import (
     DataProviderError,
     OrderExecutionError,
     OrderPlacementError,
-    OrderTimeoutError,
     SpreadAnalysisError,
     TradingClientError,
 )
@@ -133,7 +132,7 @@ class SmartExecution:
         config: Any = None,
         account_info_provider: Any = None,
         enable_market_order_fallback: bool = False,  # Feature flag for market order fallback
-        execution_config: ExecutionConfig | None = None,  # Phase 2: Adaptive configuration
+        execution_config: (ExecutionConfig | None) = None,  # Phase 2: Adaptive configuration
         lifecycle_manager: "OrderLifecycleManager | None" = None,  # Phase 3: Lifecycle tracking
         lifecycle_dispatcher: "LifecycleEventDispatcher | None" = None,  # Phase 3: Event dispatch
     ) -> None:
@@ -881,352 +880,53 @@ class SmartExecution:
         """Execute the aggressive marketable limit sequence with adaptive re-pegging.
 
         Phase 2 Enhancement:
-        - Uses ExecutionConfig for adaptive timeout and price calculation
-        - Monitors spread volatility to pause re-pegging if needed
-        - Applies exponential backoff and progressive price improvement
-        - Respects minimum re-peg intervals to avoid excessive API calls
+        - Delegates to AggressiveLimitStrategy for all pricing and timing logic
+        - Maintains orchestration shell only
+        - Preserves existing error handling and lifecycle management
         """
-        from the_alchemiser.domain.math.market_timing_utils import ExecutionStrategy
+        from decimal import Decimal
 
-        # Determine base timeout based on strategy and ETF speed
-        if strategy == ExecutionStrategy.WAIT_FOR_SPREADS:
-            base_timeout_seconds = 2.0  # Fast execution at market open
-        else:
-            base_timeout_seconds = self.execution_config.aggressive_timeout_seconds
-
-        max_repegs = self.execution_config.max_repegs
-        original_spread_cents = (ask - bid) * 100  # Convert to cents
-        last_attempt_time = 0.0
-
-        self.logger.info(
-            "aggressive_limit_sequence_started",
-            extra={
-                "symbol": symbol,
-                "side": side.value,
-                "quantity": qty,
-                "initial_bid": bid,
-                "initial_ask": ask,
-                "original_spread_cents": original_spread_cents,
-                "max_repegs": max_repegs,
-                "adaptive_enabled": self.execution_config.enable_adaptive_repegging,
-            },
+        from the_alchemiser.application.execution.strategies import (
+            AggressiveLimitStrategy,
+            ExecutionContextAdapter,
+        )
+        from the_alchemiser.infrastructure.config.execution_config import (
+            create_strategy_config,
         )
 
-        for attempt in range(max_repegs + 1):
-            # Phase 2: Adaptive timeout with exponential backoff
-            timeout_seconds = self.execution_config.get_adaptive_timeout(
-                attempt, base_timeout_seconds
+        strategy_config = create_strategy_config()
+        aggressive_strategy = AggressiveLimitStrategy(
+            config=strategy_config,
+            enable_market_order_fallback=self.enable_market_order_fallback,
+            lifecycle_manager=self.lifecycle_manager,
+            lifecycle_dispatcher=self.lifecycle_dispatcher,
+            strategy_name="AggressiveLimitStrategy",
+        )
+        context = ExecutionContextAdapter(self._order_executor)
+        bid_decimal = Decimal(str(bid))
+        ask_decimal = Decimal(str(ask))
+        try:
+            return aggressive_strategy.execute(
+                context=context,
+                symbol=symbol,
+                qty=qty,
+                side=side,
+                bid=bid_decimal,
+                ask=ask_decimal,
             )
-
-            # Phase 2: Adaptive limit price calculation
-            if self.execution_config.enable_adaptive_repegging:
-                limit_price = self.execution_config.calculate_adaptive_limit_price(
-                    side.value, bid, ask, attempt
-                )
-            else:
-                # Legacy pricing logic
-                limit_price = ask + 0.01 if side == OrderSide.BUY else bid - 0.01
-
-            # Determine direction for display
-            if side == OrderSide.BUY:
-                direction = f"${limit_price - ask:.3f} above ask" if limit_price > ask else "at ask"
-            else:
-                direction = f"${bid - limit_price:.3f} below bid" if limit_price < bid else "at bid"
-
-            attempt_label = "Initial order" if attempt == 0 else f"Re-peg #{attempt}"
-            self.logger.info(
-                "limit_order_attempt",
+        except Exception as e:
+            self.logger.error(
+                "aggressive_limit_strategy_execution_failed",
                 extra={
                     "symbol": symbol,
                     "side": side.value,
-                    "limit_price": limit_price,
-                    "attempt": attempt,
-                    "attempt_label": attempt_label,
-                    "direction": direction,
-                },
-            )
-
-            # Phase 2: Respect minimum re-peg interval
-            if attempt > 0 and self.execution_config.enable_adaptive_repegging:
-                current_time = time.time()
-                time_since_last = current_time - last_attempt_time
-                min_interval = self.execution_config.min_repeg_interval_seconds
-
-                if time_since_last < min_interval:
-                    sleep_time = min_interval - time_since_last
-                    self.logger.debug(
-                        "repeg_interval_throttle",
-                        extra={
-                            "symbol": symbol,
-                            "sleep_time": sleep_time,
-                            "attempt": attempt,
-                        },
-                    )
-                    time.sleep(sleep_time)
-
-            last_attempt_time = time.time()
-
-            # Place aggressive marketable limit
-            order_id = self._order_executor.place_limit_order(symbol, qty, side, limit_price)
-            if not order_id:
-                error_msg = f"Limit order placement returned None ID: {symbol} {side.value} {qty}@{limit_price}"
-                self.logger.error(
-                    "order_placement_none_id",
-                    extra={
-                        "symbol": symbol,
-                        "side": side.value,
-                        "quantity": qty,
-                        "limit_price": limit_price,
-                        "attempt": attempt,
-                    },
-                )
-                self.logger.error(
-                    "limit_order_placement_failed_no_id",
-                    extra={
-                        "symbol": symbol,
-                        "side": side.value,
-                        "limit_price": limit_price,
-                        "attempt": attempt,
-                    },
-                )
-                # Don't continue the loop - this is a serious placement failure
-                raise OrderPlacementError(
-                    error_msg,
-                    symbol=symbol,
-                    order_type="limit",
-                    quantity=qty,
-                    price=limit_price,
-                    reason="none_order_id_returned",
-                )
-
-            # Phase 3: Track order submission in lifecycle
-            from the_alchemiser.domain.trading.lifecycle import OrderLifecycleState
-
-            self._track_order_lifecycle(
-                order_id,
-                OrderLifecycleState.SUBMITTED,
-                metadata={
-                    "symbol": symbol,
-                    "side": side.value,
                     "quantity": qty,
-                    "limit_price": limit_price,
-                    "attempt": attempt,
-                    "timeout_seconds": timeout_seconds,
-                    "execution_strategy": "aggressive_limit",
+                    "strategy_name": "AggressiveLimitStrategy",
+                    "error": str(e),
+                    "error_type": type(e).__name__,
                 },
             )
-
-            # Wait for fill with adaptive timeout
-            try:
-                order_result = self._order_executor.wait_for_order_completion(
-                    [order_id], max_wait_seconds=int(timeout_seconds)
-                )
-            except Exception as e:
-                self.logger.error(
-                    "order_completion_wait_error",
-                    extra={
-                        "symbol": symbol,
-                        "order_id": order_id,
-                        "timeout_seconds": timeout_seconds,
-                        "attempt": attempt,
-                        "error": str(e),
-                    },
-                )
-                # Continue to next attempt rather than immediately failing
-                if attempt < max_repegs:
-                    self.logger.warning(
-                        "order_completion_wait_failed_retrying",
-                        extra={
-                            "symbol": symbol,
-                            "attempt": attempt,
-                            "max_repegs": max_repegs,
-                            "error": str(e),
-                        },
-                    )
-                    continue
-                raise OrderTimeoutError(
-                    f"Failed to wait for order completion on final attempt: {e!s}",
-                    symbol=symbol,
-                    order_id=order_id,
-                    timeout_seconds=timeout_seconds,
-                    attempt_number=attempt + 1,
-                )
-
-            # Check if the order completed successfully
-            order_completed = order_id in order_result.orders_completed
-            if order_completed and order_result.status == "completed":
-                # Phase 3: Track successful order completion in lifecycle
-                self._track_order_lifecycle(
-                    order_id,
-                    OrderLifecycleState.FILLED,
-                    metadata={
-                        "symbol": symbol,
-                        "execution_price": limit_price,
-                        "attempt": attempt,
-                        "timeout_used": timeout_seconds,
-                        "completion_method": "aggressive_limit",
-                    },
-                )
-
-                self.logger.info(
-                    "aggressive_limit_filled",
-                    extra={
-                        "symbol": symbol,
-                        "order_id": order_id,
-                        "limit_price": limit_price,
-                        "attempt": attempt,
-                        "timeout_used": timeout_seconds,
-                    },
-                )
-                return order_id
-            # Phase 3: Track timeout/partial state if applicable
-            # Note: In a real system, we'd need to query order status to determine if it's partial, cancelled, etc.
-            current_lifecycle_state = self._get_order_lifecycle_state(order_id)
-            if current_lifecycle_state == OrderLifecycleState.SUBMITTED:
-                # Order still in submitted state - this is a timeout
-                from the_alchemiser.domain.trading.lifecycle import LifecycleEventType
-
-                self._track_order_lifecycle(
-                    order_id,
-                    OrderLifecycleState.SUBMITTED,  # Stay in same state but emit timeout event
-                    event_type=LifecycleEventType.TIMEOUT,
-                    metadata={
-                        "symbol": symbol,
-                        "timeout_seconds": timeout_seconds,
-                        "attempt": attempt,
-                        "reason": "order_completion_timeout",
-                    },
-                )
-
-            # Order not filled - prepare for re-peg if attempts remain
-            if attempt < max_repegs:
-                self.logger.info(
-                    "order_not_filled_analyzing_repeg",
-                    extra={
-                        "symbol": symbol,
-                        "attempt": attempt,
-                        "max_repegs": max_repegs,
-                        "attempt_label": attempt_label,
-                    },
-                )
-
-                # Get fresh quote for re-peg pricing and volatility analysis
-                try:
-                    fresh_quote = self._order_executor.data_provider.get_latest_quote(symbol)
-                    if not fresh_quote or len(fresh_quote) < 2:
-                        raise SpreadAnalysisError(
-                            f"Invalid fresh quote for re-peg: {fresh_quote}",
-                            symbol=symbol,
-                        )
-                    bid, ask = float(fresh_quote[0]), float(fresh_quote[1])
-
-                    # Check if fresh quote is invalid (fallback zeros)
-                    if bid <= 0 or ask <= 0:
-                        raise SpreadAnalysisError(
-                            f"Invalid bid/ask prices for re-peg: bid={bid}, ask={ask}",
-                            symbol=symbol,
-                            bid=bid,
-                            ask=ask,
-                        )
-
-                    # Phase 2: Check for spread volatility - pause re-pegging if spreads widened too much
-                    current_spread_cents = (ask - bid) * 100
-                    if self.execution_config.should_pause_for_volatility(
-                        original_spread_cents, current_spread_cents
-                    ):
-                        self.logger.warning(
-                            "repeg_paused_for_volatility",
-                            extra={
-                                "symbol": symbol,
-                                "original_spread_cents": original_spread_cents,
-                                "current_spread_cents": current_spread_cents,
-                                "spread_change_pct": (current_spread_cents - original_spread_cents)
-                                / original_spread_cents
-                                * 100,
-                                "attempt": attempt,
-                            },
-                        )
-                        break
-
-                    self.logger.debug(
-                        "repeg_quote_analysis",
-                        extra={
-                            "symbol": symbol,
-                            "fresh_bid": bid,
-                            "fresh_ask": ask,
-                            "current_spread_cents": current_spread_cents,
-                            "spread_change_cents": current_spread_cents - original_spread_cents,
-                            "attempt": attempt,
-                        },
-                    )
-
-                except SpreadAnalysisError:
-                    raise  # Re-raise the specific error
-                except Exception as e:
-                    raise SpreadAnalysisError(
-                        f"Failed to get fresh quote for re-peg: {e!s}",
-                        symbol=symbol,
-                    )
-            else:
-                self.logger.warning(
-                    "max_repegs_reached",
-                    extra={
-                        "symbol": symbol,
-                        "max_repegs": max_repegs,
-                        "final_order_id": order_id,
-                    },
-                )
-                self.logger.warning(
-                    "maximum_repegs_reached_fallback_attempted",
-                    extra={
-                        "symbol": symbol,
-                        "max_repegs": max_repegs,
-                    },
-                )
-
-        # All limit attempts exhausted - check feature flag for market order fallback
-        if self.enable_market_order_fallback:
-            self.logger.info(
-                "market_order_fallback_triggered",
-                extra={
-                    "symbol": symbol,
-                    "reason": "limit_attempts_exhausted",
-                    "max_repegs": max_repegs,
-                    "adaptive_enabled": self.execution_config.enable_adaptive_repegging,
-                },
-            )
-            fallback_order_id = self._order_executor.place_market_order(symbol, side, qty=qty)
-            if not fallback_order_id:
-                raise OrderPlacementError(
-                    f"Market order fallback also failed: {symbol} {side.value} {qty}",
-                    symbol=symbol,
-                    order_type="market",
-                    quantity=qty,
-                    reason="market_fallback_none_id",
-                )
-
-            # Phase 3: Track market order fallback in lifecycle
-            self._track_order_lifecycle(
-                fallback_order_id,
-                OrderLifecycleState.SUBMITTED,
-                metadata={
-                    "symbol": symbol,
-                    "side": side.value,
-                    "quantity": qty,
-                    "order_type": "market",
-                    "execution_strategy": "market_fallback",
-                    "limit_attempts_failed": max_repegs + 1,
-                },
-            )
-
-            return fallback_order_id
-        # Feature flag disabled - raise timeout error instead of fallback
-        raise OrderTimeoutError(
-            f"All limit order attempts failed and market fallback disabled: {symbol} {side.value} {qty}",
-            symbol=symbol,
-            timeout_seconds=base_timeout_seconds * (max_repegs + 1),
-            attempt_number=max_repegs + 1,
-        )
+            raise
 
     def get_order_by_id(self, order_id: str) -> Any:
         """Get order details by order ID from the trading client."""

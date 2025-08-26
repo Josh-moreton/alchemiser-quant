@@ -7,8 +7,12 @@ Loads settings from the global application configuration.
 
 import logging
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from .config import load_settings
+
+if TYPE_CHECKING:  # pragma: no cover - hint for type checkers only
+    from the_alchemiser.application.execution.strategies.config import StrategyConfig
 
 
 @dataclass
@@ -179,3 +183,23 @@ def reload_execution_config() -> None:
     """Reload the execution configuration from settings."""
     global _config_instance
     _config_instance = ExecutionConfig.from_settings()
+
+
+def create_strategy_config() -> "StrategyConfig":  # forward ref for static typing
+    """Create a StrategyConfig from current ExecutionConfig."""
+    from decimal import Decimal
+
+    from the_alchemiser.application.execution.strategies.config import StrategyConfig
+
+    config = get_execution_config()
+    return StrategyConfig(
+        max_attempts=config.max_repegs + 1,
+        base_timeout_seconds=config.aggressive_timeout_seconds,
+        tick_size=Decimal("0.01"),
+        timeout_multiplier=config.repeg_timeout_multiplier,
+        price_improvement_ticks=config.repeg_price_improvement_ticks,
+        min_repeg_interval_seconds=config.min_repeg_interval_seconds,
+        volatility_pause_threshold_bps=Decimal(str(config.volatility_pause_threshold_bps)),
+        enable_adaptive_pricing=config.enable_adaptive_repegging,
+        enable_volatility_pause=config.enable_adaptive_repegging,
+    )
