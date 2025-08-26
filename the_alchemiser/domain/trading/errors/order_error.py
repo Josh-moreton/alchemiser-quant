@@ -104,18 +104,20 @@ class OrderError:
             "category": self.category.value,
             "code": self.code.value,
             "message": self.message,
-            "order_id": str(self.order_id.value)
-            if self.order_id and hasattr(self.order_id, "value")
-            else None,
+            "order_id": (
+                str(self.order_id.value)
+                if self.order_id and hasattr(self.order_id, "value")
+                else None
+            ),
             "details": dict(self.details) if self.details else None,
             "is_transient": self.is_transient,
             "timestamp": self.timestamp.isoformat() if self.timestamp else None,
-            "original_exception_type": type(self.original_exception).__name__
-            if self.original_exception
-            else None,
-            "original_exception_message": str(self.original_exception)[:500]
-            if self.original_exception
-            else None,
+            "original_exception_type": (
+                type(self.original_exception).__name__ if self.original_exception else None
+            ),
+            "original_exception_message": (
+                str(self.original_exception)[:500] if self.original_exception else None
+            ),
         }
 
     def format_for_cli(self, include_remediation: bool = True) -> str:
