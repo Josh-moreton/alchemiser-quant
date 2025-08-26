@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from decimal import Decimal
-from typing import Literal
+from typing import Any, Literal
 
 from alpaca.trading.requests import LimitOrderRequest
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -198,12 +198,8 @@ class LimitOrderResultDTO(BaseModel):
         return self.success
 
 
-class PolicyWarningDTO(BaseModel):
-    """DTO for policy warnings generated during order validation.
-
-    Contains structured information about policy decisions that
-    adjusted the order but allowed it to proceed.
-    """
+class RawOrderEnvelope(BaseModel):
+    """Raw order envelope containing both the original order and execution result."""
 
     model_config = ConfigDict(
         strict=True,
@@ -211,65 +207,39 @@ class PolicyWarningDTO(BaseModel):
         validate_assignment=True,
     )
 
-    policy_name: str  # e.g., "FractionabilityPolicy", "PositionPolicy"
-    action: Literal["adjust", "allow", "reject"]
-    message: str
-    original_value: str | None = None
-    adjusted_value: str | None = None
-    risk_level: Literal["low", "medium", "high"] = "low"
+    raw_order: Any | None = None
+    original_request: Any | None = None
+    request_timestamp: datetime
+    response_timestamp: datetime
+    success: bool
+    error_message: str | None = None
 
 
-class AdjustedOrderRequestDTO(BaseModel, OrderValidationMixin):
-    """DTO for order requests after policy processing.
+class AdjustedOrderRequestDTO(OrderRequestDTO):
+    """DTO for order requests that have been adjusted by policies."""
 
-    Contains the original order request plus any adjustments made by policies
-    and associated warnings. This is the output of PolicyOrchestrator.
-    """
-
-    model_config = ConfigDict(
-        strict=True,
-        frozen=True,
-        validate_assignment=True,
-        str_strip_whitespace=True,
-    )
-
-    # Original order fields
-    symbol: str
-    side: Literal["buy", "sell"]
-    quantity: Decimal
-    order_type: Literal["market", "limit"]
-    time_in_force: Literal["day", "gtc", "ioc", "fok"] = "day"
-    limit_price: Decimal | None = None
-    client_order_id: str | None = None
-
-    # Policy processing results
-    is_approved: bool
-    original_quantity: Decimal | None = None
     adjustment_reason: str | None = None
+    original_quantity: Decimal | None = None
     warnings: list[PolicyWarningDTO] = Field(default_factory=list)
-    policy_metadata: dict[str, str] = Field(default_factory=dict)
-
-    # Risk assessment
-    total_risk_score: Decimal = Decimal("0")
+    is_approved: bool = True
     rejection_reason: str | None = None
+    policy_metadata: dict[str, Any] | None = None
+    total_risk_score: Decimal | None = None
 
-    @model_validator(mode="after")
-    def validate_approval_consistency(self) -> AdjustedOrderRequestDTO:
-        """Validate consistency between approval status and other fields."""
-        if not self.is_approved and not self.rejection_reason:
-            raise ValueError("Rejected orders must have a rejection reason")
 
-        if self.is_approved and self.rejection_reason:
-            raise ValueError("Approved orders cannot have a rejection reason")
+class PolicyWarningDTO(BaseModel):
+    """DTO for policy warnings during order validation."""
 
-        return self
+    model_config = ConfigDict(
+        strict=True,
+        frozen=True,
+        validate_assignment=True,
+    )
 
-    @property
-    def has_adjustments(self) -> bool:
-        """Check if the order was adjusted by policies."""
-        return self.original_quantity is not None and self.original_quantity != self.quantity
-
-    @property
-    def has_warnings(self) -> bool:
-        """Check if policies generated warnings."""
-        return len(self.warnings) > 0
+    message: str
+    policy_name: str
+    severity: Literal["low", "medium", "high"] = "medium"
+    action: str | None = None
+    original_value: Any | None = None
+    adjusted_value: Any | None = None
+    risk_level: str | None = None

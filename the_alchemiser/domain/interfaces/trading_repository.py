@@ -7,9 +7,10 @@ This interface is designed to support typed DTO returns while maintaining
 compatibility with current AlpacaManager usage patterns.
 """
 
-from typing import Any, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
-from the_alchemiser.interfaces.schemas.orders import OrderExecutionResultDTO
+if TYPE_CHECKING:
+    from the_alchemiser.interfaces.schemas.orders import RawOrderEnvelope
 
 
 class TradingRepository(Protocol):
@@ -59,14 +60,14 @@ class TradingRepository(Protocol):
         """
         ...
 
-    def place_order(self, order_request: Any) -> OrderExecutionResultDTO:
+    def place_order(self, order_request: Any) -> "RawOrderEnvelope":
         """Place an order.
 
         Args:
             order_request: Order request object (currently Alpaca order request)
 
         Returns:
-            OrderExecutionResultDTO with execution details and status.
+            RawOrderEnvelope with execution details and status.
 
         """
         ...
@@ -77,7 +78,7 @@ class TradingRepository(Protocol):
         side: str,
         qty: float | None = None,
         notional: float | None = None,
-    ) -> OrderExecutionResultDTO:
+    ) -> "RawOrderEnvelope":
         """Place a market order.
 
         Args:
@@ -87,7 +88,7 @@ class TradingRepository(Protocol):
             notional: Dollar amount to trade (use either qty OR notional)
 
         Returns:
-            OrderExecutionResultDTO with execution details and status.
+            RawOrderEnvelope with execution details and status.
 
         """
         ...

@@ -11,7 +11,9 @@ from collections.abc import Callable
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from the_alchemiser.application.execution.canonical_executor import CanonicalOrderExecutor
+from the_alchemiser.application.execution.canonical_executor import (
+    CanonicalOrderExecutor,
+)
 from the_alchemiser.domain.shared_kernel.value_objects.money import Money
 from the_alchemiser.domain.trading.value_objects.order_request import OrderRequest
 from the_alchemiser.domain.trading.value_objects.order_type import OrderType
@@ -20,7 +22,10 @@ from the_alchemiser.domain.trading.value_objects.side import Side
 from the_alchemiser.domain.trading.value_objects.symbol import Symbol
 from the_alchemiser.domain.trading.value_objects.time_in_force import TimeInForce
 from the_alchemiser.infrastructure.config import load_settings
-from the_alchemiser.interfaces.schemas.orders import OrderExecutionResultDTO, OrderRequestDTO
+from the_alchemiser.interfaces.schemas.orders import (
+    OrderExecutionResultDTO,
+    OrderRequestDTO,
+)
 
 if TYPE_CHECKING:
     from the_alchemiser.services.repository.alpaca_manager import AlpacaManager
@@ -56,7 +61,7 @@ def dto_to_domain_order_request(dto: OrderRequestDTO) -> OrderRequest:
 def execute_order_with_canonical_path(
     order_dto: OrderRequestDTO,
     repository: AlpacaManager,
-    legacy_execute_fn: Callable[[OrderRequestDTO], OrderExecutionResultDTO] | None = None,
+    legacy_execute_fn: (Callable[[OrderRequestDTO], OrderExecutionResultDTO] | None) = None,
 ) -> OrderExecutionResultDTO:
     """Execute order using canonical executor with feature flag and shadow mode.
 
@@ -104,7 +109,14 @@ def execute_order_with_canonical_path(
     # Fallback to direct repository call
     # This would be replaced with actual legacy execution logic
     logger.warning("No legacy execution function provided, using repository directly")
-    return repository.place_order(order_dto)
+    raw_envelope = repository.place_order(order_dto)
+
+    # Convert RawOrderEnvelope to OrderExecutionResultDTO
+    from the_alchemiser.application.mapping.order_mapping import (
+        raw_order_envelope_to_execution_result_dto,
+    )
+
+    return raw_order_envelope_to_execution_result_dto(raw_envelope)
 
 
 # Example usage function
@@ -112,7 +124,11 @@ def example_integration() -> OrderExecutionResultDTO:
     """Example of how to integrate canonical executor."""
     # This would normally come from your trading workflow
     order_dto = OrderRequestDTO(
-        symbol="AAPL", side="buy", quantity=Decimal("100"), order_type="market", time_in_force="day"
+        symbol="AAPL",
+        side="buy",
+        quantity=Decimal("100"),
+        order_type="market",
+        time_in_force="day",
     )
 
     # Mock repository (in real usage, this would be your actual AlpacaManager)

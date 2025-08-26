@@ -7,6 +7,8 @@ maintains domain layer purity while providing type-safe boundaries.
 
 from __future__ import annotations
 
+from decimal import Decimal
+
 from the_alchemiser.domain.policies.policy_result import PolicyResult, PolicyWarning
 from the_alchemiser.domain.shared_kernel.value_objects.money import Money
 from the_alchemiser.domain.trading.value_objects.order_request import OrderRequest
@@ -73,13 +75,17 @@ def domain_warning_to_dto(warning: PolicyWarning) -> PolicyWarningDTO:
 
 def dto_warning_to_domain(dto: PolicyWarningDTO) -> PolicyWarning:
     """Convert PolicyWarningDTO to domain PolicyWarning."""
+    # Handle None values by providing defaults that match the domain constraints
+    action = dto.action if dto.action in ["adjust", "allow", "reject"] else "allow"
+    risk_level = dto.risk_level if dto.risk_level in ["low", "medium", "high"] else "low"
+
     return PolicyWarning(
         policy_name=dto.policy_name,
-        action=dto.action,
+        action=action,  # type: ignore[arg-type]
         message=dto.message,
         original_value=dto.original_value,
         adjusted_value=dto.adjusted_value,
-        risk_level=dto.risk_level,
+        risk_level=risk_level,  # type: ignore[arg-type]
     )
 
 
@@ -134,5 +140,5 @@ def dto_to_domain_result(dto: AdjustedOrderRequestDTO) -> PolicyResult:
         rejection_reason=dto.rejection_reason,
         warnings=warnings,
         policy_metadata=dto.policy_metadata if dto.policy_metadata else None,
-        total_risk_score=dto.total_risk_score,
+        total_risk_score=dto.total_risk_score or Decimal("0"),
     )

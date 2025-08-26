@@ -167,7 +167,37 @@ class CanonicalOrderExecutor:
             )
 
         try:
-            alpaca_order_request = self._convert_to_alpaca_request(order_request)
+            # Use centralized order request builder
+
+            from alpaca.trading.requests import LimitOrderRequest, MarketOrderRequest
+
+            from the_alchemiser.application.execution.order_request_builder import (
+                OrderRequestBuilder,
+            )
+
+            alpaca_order_request: MarketOrderRequest | LimitOrderRequest
+
+            if order_request.order_type.value == "market":
+                alpaca_order_request = OrderRequestBuilder.build_market_order_request(
+                    symbol=order_request.symbol.value,
+                    side=order_request.side.value,
+                    qty=order_request.quantity.value,
+                    time_in_force=order_request.time_in_force.value,
+                    client_order_id=order_request.client_order_id,
+                )
+            else:  # limit order
+                if order_request.limit_price is None:
+                    raise ValueError("Limit price required for limit orders")
+
+                alpaca_order_request = OrderRequestBuilder.build_limit_order_request(
+                    symbol=order_request.symbol.value,
+                    side=order_request.side.value,
+                    quantity=order_request.quantity.value,
+                    limit_price=order_request.limit_price.amount,
+                    time_in_force=order_request.time_in_force.value,
+                    client_order_id=order_request.client_order_id,
+                )
+
             logger.info(
                 "Submitting canonical order",
                 extra={
@@ -178,7 +208,15 @@ class CanonicalOrderExecutor:
                     "order_type": order_request.order_type.value,
                 },
             )
-            execution_result = self.repository.place_order(alpaca_order_request)
+            # Repository now returns RawOrderEnvelope, need to convert to DTO
+            raw_envelope = self.repository.place_order(alpaca_order_request)
+
+            # Convert envelope to OrderExecutionResultDTO
+            from the_alchemiser.application.mapping.order_mapping import (
+                raw_order_envelope_to_execution_result_dto,
+            )
+
+            execution_result = raw_order_envelope_to_execution_result_dto(raw_envelope)
         except Exception as e:  # infra failure
             self.error_handler.handle_error(
                 error=e,
