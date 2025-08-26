@@ -15,12 +15,16 @@ providing business logic while depending on domain interfaces.
 import logging
 from decimal import Decimal
 from enum import Enum
+from typing import TYPE_CHECKING
 
 from alpaca.trading.enums import TimeInForce
 
 from the_alchemiser.domain.interfaces import MarketDataRepository, TradingRepository
 from the_alchemiser.services.errors.decorators import translate_trading_errors
 from the_alchemiser.utils.num import floats_equal
+
+if TYPE_CHECKING:
+    from the_alchemiser.interfaces.schemas.orders import OrderExecutionResultDTO
 
 logger = logging.getLogger(__name__)
 
@@ -518,7 +522,16 @@ class OrderService:
             # Convert to domain objects
             domain_side = Side(side.lower())
             domain_symbol = Symbol(symbol)
-            domain_order_type = OrderType(order_type)
+            # Ensure order_type is valid literal
+            if order_type not in ("market", "limit"):
+                logger.error(f"Invalid order_type: {order_type}")
+                return OrderExecutionResultDTO(
+                    success=False,
+                    error=f"Invalid order_type: {order_type}",
+                    order_id="",
+                    status="rejected"
+                )
+            domain_order_type = OrderType(order_type)  # type: ignore
             domain_tif = TimeInForce(time_in_force)
             
             # Handle quantity/notional logic
@@ -545,7 +558,7 @@ class OrderService:
             # Handle limit price
             domain_limit_price = None
             if limit_price is not None:
-                domain_limit_price = Money(Decimal(str(limit_price)))
+                domain_limit_price = Money(amount=Decimal(str(limit_price)), currency="USD")
             
             # Create order request
             order_request = OrderRequest(

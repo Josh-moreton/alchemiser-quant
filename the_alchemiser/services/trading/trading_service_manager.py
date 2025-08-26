@@ -1302,14 +1302,29 @@ class TradingServiceManager:
             # Convert to domain objects
             domain_side = Side(side.lower())
             domain_symbol = Symbol(symbol)
-            domain_order_type = OrderType(order_type)
+            # Ensure order_type is valid literal
+            if order_type not in ("market", "limit"):
+                self.logger.error(f"Invalid order_type: {order_type}")
+                from the_alchemiser.interfaces.schemas.orders import OrderExecutionResultDTO
+                from datetime import UTC, datetime
+                return OrderExecutionResultDTO(
+                    success=False,
+                    error=f"Invalid order_type: {order_type}",
+                    order_id="",
+                    status="rejected",
+                    filled_qty=Decimal("0"),
+                    avg_fill_price=None,
+                    submitted_at=datetime.now(UTC),
+                    completed_at=None,
+                )
+            domain_order_type = OrderType(order_type)  # type: ignore
             domain_tif = TimeInForce(time_in_force)
             domain_qty = Quantity(Decimal(str(quantity)))
             
             # Handle limit price
             domain_limit_price = None
             if limit_price is not None:
-                domain_limit_price = Money(Decimal(str(limit_price)))
+                domain_limit_price = Money(amount=Decimal(str(limit_price)), currency="USD")
             
             # Create order request
             order_request = OrderRequest(

@@ -574,7 +574,11 @@ class AlpacaClient:
             # Convert to domain objects
             domain_side = Side("buy" if side == OrderSide.BUY else "sell")
             domain_symbol = Symbol(symbol)
-            domain_order_type = OrderType(order_type)
+            # Ensure order_type is valid literal
+            if order_type not in ("market", "limit"):
+                logging.error(f"Invalid order_type: {order_type}")
+                return None
+            domain_order_type = OrderType(order_type)  # type: ignore
             domain_tif = TimeInForce("day")
             
             # Handle quantity/notional logic
@@ -592,7 +596,7 @@ class AlpacaClient:
             # Handle limit price
             domain_limit_price = None
             if limit_price is not None:
-                domain_limit_price = Money(Decimal(str(limit_price)))
+                domain_limit_price = Money(amount=Decimal(str(limit_price)), currency="USD")
             
             # Create order request
             order_request = OrderRequest(

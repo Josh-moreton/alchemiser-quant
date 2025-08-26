@@ -102,7 +102,7 @@ class LimitOrderHandler:
                 domain_order_type = OrderType("limit")
                 domain_tif = TimeInForce("day")
                 domain_qty = Quantity(Decimal(str(qty)))
-                domain_limit_price = Money(Decimal(str(limit_price)))
+                domain_limit_price = Money(amount=Decimal(str(limit_price)), currency="USD")
                 
                 # Create order request
                 order_request = OrderRequest(
