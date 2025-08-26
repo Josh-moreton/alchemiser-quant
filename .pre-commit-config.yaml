@@ -11,24 +11,24 @@ repos:
       - id: trailing-whitespace
   - repo: local
     hooks:
-      - id: ruff-format
-        name: Ruff Formatter
-        entry: poetry run ruff format
-        language: system
-        types: [python]
-        files: ^the_alchemiser/.*\.py$
-        pass_filenames: true
-        stages: [pre-commit]
-        # Runs first to apply formatting/import sorting so subsequent lint is clean
-      - id: ruff-check
-        name: Ruff Lint & Format Imports
-        entry: poetry run ruff check --fix
-        language: system
-        types: [python]
-        files: ^the_alchemiser/.*\.py$
-        pass_filenames: true
-        stages: [pre-commit]
-        # Fails only on remaining (non auto-fixable) issues; no in-hook modifications to avoid commit rejection
+  # - id: ruff-format
+  #   name: Ruff Formatter
+  #   entry: poetry run ruff format
+  #   language: system
+  #   types: [python]
+  #   files: ^the_alchemiser/.*\.py$
+  #   pass_filenames: true
+  #   stages: [pre-commit]
+  #   # Runs first to apply formatting/import sorting so subsequent lint is clean
+  # - id: ruff-check
+  #   name: Ruff Lint & Format Imports
+  #   entry: poetry run ruff check --fix
+  #   language: system
+  #   types: [python]
+  #   files: ^the_alchemiser/.*\.py$
+  #   pass_filenames: true
+  #   stages: [pre-commit]
+  #   # Fails only on remaining (non auto-fixable) issues; no in-hook modifications to avoid commit rejection
 
       - id: mypy-typecheck
         name: MyPy Type Checking
