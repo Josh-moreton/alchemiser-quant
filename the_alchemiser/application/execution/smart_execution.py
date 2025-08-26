@@ -792,8 +792,9 @@ class SmartExecution:
         aggressive_strategy = AggressiveLimitStrategy(
             config=strategy_config,
             enable_market_order_fallback=self.enable_market_order_fallback,
-            lifecycle_manager=self.lifecycle_manager,
-            lifecycle_dispatcher=self.lifecycle_dispatcher,
+            # Phase 5: Lifecycle tracking removed - handled by canonical executor path
+            lifecycle_manager=None,
+            lifecycle_dispatcher=None,
             strategy_name="AggressiveLimitStrategy",
         )
         context = ExecutionContextAdapter(self._order_executor)

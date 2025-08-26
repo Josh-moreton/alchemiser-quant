@@ -203,7 +203,7 @@ class MetricsObserver:
             self._submission_times[order_id_str] = event.timestamp.timestamp()
             
             # Track initial spread if available
-            if "spread_initial" in metadata:
+            if "spread_initial" in metadata and metadata["spread_initial"] is not None:
                 if order_id_str not in self._spread_data:
                     self._spread_data[order_id_str] = {}
                 self._spread_data[order_id_str]["initial"] = float(metadata["spread_initial"])
@@ -216,7 +216,7 @@ class MetricsObserver:
             order_metrics["time_to_fill_ms"] = time_to_fill_ms
             
             # Track final spread if available
-            if "spread_final" in metadata:
+            if "spread_final" in metadata and metadata["spread_final"] is not None:
                 if order_id_str not in self._spread_data:
                     self._spread_data[order_id_str] = {}
                 self._spread_data[order_id_str]["final"] = float(metadata["spread_final"])
