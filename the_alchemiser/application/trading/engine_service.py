@@ -22,7 +22,7 @@ Example:
 """
 
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, Protocol
 
 if TYPE_CHECKING:  # Import for type checking only to avoid runtime dependency
@@ -802,7 +802,7 @@ class TradingEngine:
         try:
             current_positions = self.get_positions()
             return {
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
                 "strategy_allocations": {
                     k.value: v for k, v in self.strategy_manager.strategy_allocations.items()
                 },
@@ -1027,9 +1027,18 @@ def main() -> None:
     """Test TradingEngine multi-strategy execution (fail-fast DI only)."""
     import logging
 
+    from the_alchemiser.infrastructure.logging.logging_utils import (
+        get_logger,
+        log_with_context,
+    )
+
     logging.basicConfig(level=logging.WARNING)  # Reduced verbosity
-    print("Trading Engine Test")
-    print("─" * 50)
+    logger = get_logger(__name__)
+
+    logger.info(
+        "trading_engine_test_started",
+        extra={"component": "TradingEngine.main", "operation": "test_initialization"},
+    )
 
     # Modern DI initialization (no legacy fallback). Any failure should surface immediately.
     from the_alchemiser.container.application_container import ApplicationContainer
@@ -1045,18 +1054,53 @@ def main() -> None:
     )
     trader.paper_trading = True
 
-    print("Executing multi-strategy...")
+    logger.info(
+        "executing_multi_strategy",
+        extra={
+            "component": "TradingEngine.main",
+            "operation": "strategy_execution",
+            "paper_trading": True,
+            "strategy_allocations": {"NUCLEAR": 0.5, "TECL": 0.5},
+        },
+    )
     result = trader.execute_multi_strategy()
-    print(f"Execution result: success={result.success}")
 
-    print("Getting performance report...")
+    log_with_context(
+        logger,
+        logging.INFO,
+        "multi_strategy_execution_completed",
+        component="TradingEngine.main",
+        operation="execution_result",
+        success=result.success,
+    )
+
+    logger.info(
+        "generating_performance_report",
+        extra={
+            "component": "TradingEngine.main",
+            "operation": "performance_report_generation",
+        },
+    )
     report = trader.get_multi_strategy_performance_report()
     if "error" not in report:
-        print("Performance report generated successfully")
-        print(f"   Current positions: {len(report['current_positions'])}")
-        print(f"   Strategy tracking: {len(report['performance_summary'])}")
+        log_with_context(
+            logger,
+            logging.INFO,
+            "performance_report_generated_successfully",
+            component="TradingEngine.main",
+            operation="performance_report_result",
+            current_positions_count=len(report["current_positions"]),
+            strategy_tracking_count=len(report["performance_summary"]),
+        )
     else:
-        print(f"Error generating report: {report['error']}")
+        log_with_context(
+            logger,
+            logging.ERROR,
+            "performance_report_generation_failed",
+            component="TradingEngine.main",
+            operation="performance_report_error",
+            error=str(report["error"]),
+        )
 
 
 if __name__ == "__main__":

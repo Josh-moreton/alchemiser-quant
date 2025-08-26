@@ -4,7 +4,7 @@ This module provides the core HTML template structure and common styling
 used across all email types.
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 
 
 class BaseEmailTemplate:
@@ -52,7 +52,7 @@ class BaseEmailTemplate:
         timestamp: datetime | None = None,
     ) -> str:
         """Get combined header and status in one section."""
-        timestamp = timestamp or datetime.now()
+        timestamp = timestamp or datetime.now(UTC)
 
         return f"""
         <tr>
@@ -85,7 +85,7 @@ class BaseEmailTemplate:
         timestamp: datetime | None = None,
     ) -> str:
         """Get HTML status banner section."""
-        timestamp = timestamp or datetime.now()
+        timestamp = timestamp or datetime.now(UTC)
 
         return f"""
         <tr>

@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Execution strategies package.
+"""Execution strategies package.
 
 Contains strategy classes for order execution patterns including
 repeg strategies and aggressive limit strategies.
@@ -12,8 +11,8 @@ from .execution_context_adapter import ExecutionContextAdapter
 from .repeg_strategy import RepegStrategy
 
 __all__ = [
-    "StrategyConfig",
-    "RepegStrategy",
     "AggressiveLimitStrategy",
     "ExecutionContextAdapter",
+    "RepegStrategy",
+    "StrategyConfig",
 ]

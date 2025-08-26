@@ -75,10 +75,14 @@ def display_signal_results(
                 alert.reason,
             )
         else:
-            print(
-                f"📊 {strategy_name} Analysis: {alert.action} {alert.symbol} at ${alert.price:.2f}"
+            logger.info(
+                "📊 %s Analysis: %s %s at $%.2f",
+                strategy_name,
+                alert.action,
+                alert.symbol,
+                alert.price,
             )
-            print(f"   Reason: {alert.reason}")
+            logger.info("   Reason: %s", alert.reason)
 
     return alerts[0]  # Return first alert for compatibility
 
@@ -161,8 +165,8 @@ def display_typed_signal_results(
                 reason,
             )
         else:
-            print(f"📊 {strategy_name} Analysis: {signal['action']} {symbol_display}")
-            print(f"   Reason: {reason}")
+            logger.info("📊 %s Analysis: %s %s", strategy_name, signal["action"], symbol_display)
+            logger.info("   Reason: %s", reason)
 
     return next(iter(signals.values()))  # Return first signal for compatibility
 

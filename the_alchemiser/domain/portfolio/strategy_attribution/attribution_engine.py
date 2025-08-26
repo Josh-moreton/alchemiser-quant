@@ -3,7 +3,9 @@
 from decimal import Decimal
 from typing import Any
 
-from the_alchemiser.domain.portfolio.strategy_attribution.symbol_classifier import SymbolClassifier
+from the_alchemiser.domain.portfolio.strategy_attribution.symbol_classifier import (
+    SymbolClassifier,
+)
 from the_alchemiser.domain.registry import StrategyType
 
 
@@ -36,7 +38,9 @@ class StrategyAttributionEngine:
         return self.classifier.classify_symbol(symbol)
 
     def get_primary_strategy(
-        self, symbol: str, strategy_attribution: dict[str, list[StrategyType]] | None = None
+        self,
+        symbol: str,
+        strategy_attribution: dict[str, list[StrategyType]] | None = None,
     ) -> StrategyType:
         """Determine the primary strategy responsible for a symbol.
 
@@ -62,7 +66,9 @@ class StrategyAttributionEngine:
         return StrategyType.NUCLEAR  # Default fallback
 
     def get_all_strategies_for_symbol(
-        self, symbol: str, strategy_attribution: dict[str, list[StrategyType]] | None = None
+        self,
+        symbol: str,
+        strategy_attribution: dict[str, list[StrategyType]] | None = None,
     ) -> list[StrategyType]:
         """Get all strategies that have an interest in a symbol.
 
@@ -81,7 +87,9 @@ class StrategyAttributionEngine:
         return [self.get_primary_strategy(symbol, strategy_attribution)]
 
     def group_symbols_by_strategy(
-        self, symbols: list[str], strategy_attribution: dict[str, list[StrategyType]] | None = None
+        self,
+        symbols: list[str],
+        strategy_attribution: dict[str, list[StrategyType]] | None = None,
     ) -> dict[StrategyType, list[str]]:
         """Group symbols by their primary strategy.
 
@@ -161,7 +169,8 @@ class StrategyAttributionEngine:
             Dictionary mapping strategy names to exposure information
 
         """
-        if portfolio_value == 0:
+        # portfolio_value is Decimal; direct comparison acceptable
+        if portfolio_value == Decimal("0"):
             return {}
 
         strategy_groups = self.group_positions_by_strategy(positions)
@@ -193,7 +202,7 @@ class StrategyAttributionEngine:
             Dictionary mapping strategy names to allocation percentages
 
         """
-        if portfolio_value == 0:
+        if portfolio_value == Decimal("0"):
             return {}
 
         strategy_groups = self.group_positions_by_strategy(positions)

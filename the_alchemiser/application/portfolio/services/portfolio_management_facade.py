@@ -31,6 +31,7 @@ from the_alchemiser.interfaces.schemas.portfolio_rebalancing import RebalancePla
 from the_alchemiser.services.trading.trading_service_manager import (
     TradingServiceManager,
 )
+from the_alchemiser.utils.num import floats_equal
 from the_alchemiser.utils.serialization import ensure_serialized_dict
 
 
@@ -470,7 +471,7 @@ class PortfolioManagementFacade:
         positions = self.get_current_positions()
         portfolio_value = self.get_current_portfolio_value()
 
-        if portfolio_value == 0:
+        if floats_equal(portfolio_value, 0.0):
             return {}
 
         return {symbol: value / portfolio_value for symbol, value in positions.items()}

@@ -3,7 +3,7 @@
 Handles signal generation and display without trading execution.
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:  # Avoid runtime import cost / circulars
@@ -276,7 +276,7 @@ class SignalAnalyzer:
                 default output closer to original minimal signal view).
 
         """
-        render_header("MULTI-STRATEGY SIGNAL ANALYSIS", f"Analysis at {datetime.now()}")
+        render_header("MULTI-STRATEGY SIGNAL ANALYSIS", f"Analysis at {datetime.now(UTC)}")
 
         try:
             # System now uses fully typed domain model

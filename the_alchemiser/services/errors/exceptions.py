@@ -5,7 +5,7 @@ This module defines specific exception types for different failure scenarios
 to enable better error handling and debugging throughout the application.
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 
@@ -17,7 +17,7 @@ class AlchemiserError(Exception):
         super().__init__(message)
         self.message = message
         self.context = context or {}
-        self.timestamp = datetime.now()
+        self.timestamp = datetime.now(UTC)
 
     def to_dict(self) -> dict[str, Any]:
         """Convert exception to structured data for logging/reporting."""

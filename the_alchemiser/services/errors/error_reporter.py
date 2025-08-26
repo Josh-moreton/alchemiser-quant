@@ -7,7 +7,7 @@ according to the error handling improvement plan.
 
 import logging
 from collections import defaultdict
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from the_alchemiser.services.errors.exceptions import (
@@ -42,7 +42,7 @@ class ErrorReporter:
     ) -> None:
         """Report an error with context for monitoring."""
         error_data = {
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "error_type": error.__class__.__name__,
             "message": str(error),
             "context": context or {},

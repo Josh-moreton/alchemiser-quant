@@ -28,7 +28,7 @@ import threading
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from alpaca.data.enums import DataFeed
@@ -194,7 +194,7 @@ class RealTimePricingService:
                 if self._stream:
                     logging.info("📡 Starting real-time data stream...")
                     self._connected = True
-                    self._stats["last_heartbeat"] = datetime.now()
+                    self._stats["last_heartbeat"] = datetime.now(UTC)
                     self._stream.run()
 
             except Exception as e:
@@ -214,7 +214,7 @@ class RealTimePricingService:
                 symbol = quote.get("symbol")
                 bid_price = quote.get("bid_price", 0)
                 ask_price = quote.get("ask_price", 0)
-                timestamp = quote.get("timestamp", datetime.now())
+                timestamp = quote.get("timestamp", datetime.now(UTC))
             else:
                 symbol = quote.symbol
                 bid_price = quote.bid_price
@@ -233,14 +233,14 @@ class RealTimePricingService:
                     bid=float(bid_price or 0),
                     ask=float(ask_price or 0),
                     last_price=last_price,  # Keep existing last price from trades
-                    timestamp=timestamp or datetime.now(),
+                    timestamp=timestamp or datetime.now(UTC),
                 )
 
-                self._last_update[symbol] = datetime.now()
+                self._last_update[symbol] = datetime.now(UTC)
                 self._stats["quotes_received"] += 1
 
             # Update heartbeat
-            self._stats["last_heartbeat"] = datetime.now()
+            self._stats["last_heartbeat"] = datetime.now(UTC)
 
             logging.debug(
                 f"📊 Quote: {symbol} ${float(bid_price or 0):.2f}/${float(ask_price or 0):.2f}"
@@ -262,7 +262,7 @@ class RealTimePricingService:
                 symbol = trade.get("symbol")
                 price = trade.get("price", 0)
                 size = trade.get("size", 0)
-                timestamp = trade.get("timestamp", datetime.now())
+                timestamp = trade.get("timestamp", datetime.now(UTC))
             else:
                 symbol = trade.symbol
                 price = trade.price
@@ -281,7 +281,7 @@ class RealTimePricingService:
                         bid=current_quote.bid,
                         ask=current_quote.ask,
                         last_price=float(price or 0),
-                        timestamp=timestamp or datetime.now(),
+                        timestamp=timestamp or datetime.now(UTC),
                     )
                 else:
                     # Create new quote with trade price only
@@ -289,14 +289,14 @@ class RealTimePricingService:
                         bid=0.0,
                         ask=0.0,
                         last_price=float(price or 0),
-                        timestamp=timestamp or datetime.now(),
+                        timestamp=timestamp or datetime.now(UTC),
                     )
 
-                self._last_update[symbol] = datetime.now()
+                self._last_update[symbol] = datetime.now(UTC)
                 self._stats["trades_received"] += 1
 
             # Update heartbeat
-            self._stats["last_heartbeat"] = datetime.now()
+            self._stats["last_heartbeat"] = datetime.now(UTC)
 
             logging.debug(f"💰 Trade: {symbol} ${float(price or 0):.2f} x {size}")
 
@@ -317,7 +317,7 @@ class RealTimePricingService:
                 if not self._connected:
                     continue
 
-                cutoff_time = datetime.now() - timedelta(seconds=self._max_quote_age)
+                cutoff_time = datetime.now(UTC) - timedelta(seconds=self._max_quote_age)
 
                 with self._quotes_lock:
                     symbols_to_remove = [
@@ -413,7 +413,7 @@ class RealTimePricingService:
             "connected": self._connected,
             "symbols_tracked": len(self._quotes),
             "uptime_seconds": (
-                (datetime.now() - self._stats["last_heartbeat"]).total_seconds()
+                (datetime.now(UTC) - self._stats["last_heartbeat"]).total_seconds()
                 if self._stats["last_heartbeat"]
                 else 0
             ),

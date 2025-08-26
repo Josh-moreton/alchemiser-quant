@@ -3,6 +3,7 @@
 Enhanced implementation with policy orchestrator integration:
 * Integrates PolicyOrchestrator for unified pre-placement validation
 * Accepts an injected lifecycle monitor (Protocol) instead of instantiating infra class directly
+* Removes mock fill fabrication - optionally fetches updated order execution result
 * Shadow mode now returns a synthetic, clearly non-executed result (success=False)
 * No private attribute access on repository
 * Structured logging via contextual `extra` data
@@ -24,7 +25,9 @@ from the_alchemiser.interfaces.schemas.orders import (
 from the_alchemiser.services.errors.handler import TradingSystemErrorHandler
 
 if TYPE_CHECKING:  # typing-only imports
-    from the_alchemiser.application.policies.policy_orchestrator import PolicyOrchestrator
+    from the_alchemiser.application.policies.policy_orchestrator import (
+        PolicyOrchestrator,
+    )
     from the_alchemiser.domain.trading.protocols.order_lifecycle import (
         OrderLifecycleMonitor,
     )
@@ -122,7 +125,9 @@ class CanonicalOrderExecutor:
                         },
                     )
                     # Create new order request with adjusted values
-                    order_request = self._update_order_request_from_dto(order_request, adjusted_order)
+                    order_request = self._update_order_request_from_dto(
+                        order_request, adjusted_order
+                    )
 
             except Exception as e:
                 self.error_handler.handle_error(
@@ -217,7 +222,7 @@ class CanonicalOrderExecutor:
 
         if self.lifecycle_monitor is None:
             logger.info(
-                "No lifecycle monitor injected – returning immediate placement result",
+                "No lifecycle monitor injected - returning immediate placement result",
                 extra={
                     "component": "CanonicalOrderExecutor.execute",
                     "order_id": execution_result.order_id,
@@ -241,7 +246,7 @@ class CanonicalOrderExecutor:
                         },
                     )
                     return updated
-                except Exception as e:  # fetch failure – keep original result
+                except Exception as e:  # fetch failure - keep original result
                     self.error_handler.handle_error(
                         error=e,
                         component="CanonicalOrderExecutor.execute",
@@ -299,14 +304,12 @@ class CanonicalOrderExecutor:
             quantity=order_request.quantity.value,
             order_type=order_request.order_type.value,
             time_in_force=order_request.time_in_force.value,
-            limit_price=order_request.limit_price.amount if order_request.limit_price else None,
+            limit_price=(order_request.limit_price.amount if order_request.limit_price else None),
             client_order_id=order_request.client_order_id,
         )
 
     def _update_order_request_from_dto(
-        self,
-        original_request: OrderRequest,
-        adjusted_dto: AdjustedOrderRequestDTO
+        self, original_request: OrderRequest, adjusted_dto: AdjustedOrderRequestDTO
     ) -> OrderRequest:
         """Update domain OrderRequest with policy adjustments.
 
@@ -325,7 +328,9 @@ class CanonicalOrderExecutor:
         from the_alchemiser.domain.trading.value_objects.quantity import Quantity
         from the_alchemiser.domain.trading.value_objects.side import Side
         from the_alchemiser.domain.trading.value_objects.symbol import Symbol
-        from the_alchemiser.domain.trading.value_objects.time_in_force import TimeInForce
+        from the_alchemiser.domain.trading.value_objects.time_in_force import (
+            TimeInForce,
+        )
 
         # Create new value objects with adjusted values
         return NewOrderRequest(
@@ -334,7 +339,9 @@ class CanonicalOrderExecutor:
             quantity=Quantity(adjusted_dto.quantity),
             order_type=OrderType(adjusted_dto.order_type),
             time_in_force=TimeInForce(adjusted_dto.time_in_force),
-            limit_price=Money(adjusted_dto.limit_price, "USD") if adjusted_dto.limit_price else None,
+            limit_price=(
+                Money(adjusted_dto.limit_price, "USD") if adjusted_dto.limit_price else None
+            ),
             client_order_id=adjusted_dto.client_order_id,
         )
 
