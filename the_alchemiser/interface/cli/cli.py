@@ -760,6 +760,68 @@ def status(
 
         console.print("[bold green]Account status retrieved successfully![/bold green]")
 
+        # Display order lifecycle information if available
+        try:
+            # Access TradingServiceManager through the bootstrap context
+            tsm = bootstrap_context.get("trading_service_manager")
+            if tsm:
+                # Get lifecycle metrics and tracked orders
+                lifecycle_metrics = tsm.get_lifecycle_metrics()
+                tracked_orders = tsm.get_all_tracked_orders()
+                
+                if tracked_orders or lifecycle_metrics.get("event_counts"):
+                    lifecycle_table = Table(
+                        title="Order Lifecycle Status", show_lines=True, expand=True
+                    )
+                    lifecycle_table.add_column("Metric", style="bold cyan")
+                    lifecycle_table.add_column("Value", justify="right")
+                    
+                    # Add general metrics
+                    event_counts = lifecycle_metrics.get("event_counts", {})
+                    lifecycle_table.add_row("Total Tracked Orders", str(len(tracked_orders)))
+                    lifecycle_table.add_row("Active Observers", str(lifecycle_metrics.get("total_observers", 0)))
+                    
+                    if event_counts:
+                        lifecycle_table.add_row("", "")  # Separator
+                        lifecycle_table.add_row("[bold]Event Counts[/bold]", "")
+                        for event_type, count in event_counts.items():
+                            lifecycle_table.add_row(f"  {event_type}", str(count))
+                    
+                    console.print()
+                    console.print(lifecycle_table)
+                    
+                    # If there are recent tracked orders, show them
+                    if tracked_orders:
+                        orders_table = Table(
+                            title="Recent Tracked Orders", show_lines=True, expand=True
+                        )
+                        orders_table.add_column("Order ID", style="cyan")
+                        orders_table.add_column("Lifecycle State", justify="center")
+                        
+                        # Show last 10 orders
+                        for order_id, state in list(tracked_orders.items())[-10:]:
+                            # Color code based on state
+                            if state.value in ["FILLED"]:
+                                state_display = f"[green]{state.value}[/green]"
+                            elif state.value in ["CANCELLED", "REJECTED", "ERROR", "EXPIRED"]:
+                                state_display = f"[red]{state.value}[/red]"
+                            elif state.value in ["PARTIALLY_FILLED"]:
+                                state_display = f"[yellow]{state.value}[/yellow]"
+                            else:
+                                state_display = f"[blue]{state.value}[/blue]"
+                                
+                            orders_table.add_row(
+                                str(order_id).split('(')[1].rstrip(')').split("'")[1][:8] + "...",  # Show short ID
+                                state_display
+                            )
+                        
+                        console.print()
+                        console.print(orders_table)
+                        
+        except Exception as e:
+            # Non-fatal: lifecycle display is optional enhancement
+            console.print(f"[dim yellow]Order lifecycle info unavailable: {e}[/dim yellow]")
+
     except TradingClientError as e:
         error_handler.handle_error(
             error=e,

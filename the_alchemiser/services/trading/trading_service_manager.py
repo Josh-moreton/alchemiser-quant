@@ -976,7 +976,7 @@ class TradingServiceManager:
         """
         # Find the metrics observer
         for observer in self.lifecycle_dispatcher._observers:
-            if hasattr(observer, 'get_event_counts'):
+            if hasattr(observer, 'get_event_counts') and hasattr(observer, 'get_transition_counts'):
                 return {
                     "event_counts": observer.get_event_counts(),
                     "transition_counts": observer.get_transition_counts(),
