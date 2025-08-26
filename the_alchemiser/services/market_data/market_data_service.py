@@ -71,7 +71,7 @@ class MarketDataService:
 
         """
         # Map period to start/end ISO strings
-        end_dt = datetime.now()
+        end_dt = datetime.now(UTC)
         start_dt = end_dt - timedelta(days=self._map_period_to_days(period))
         start_iso = start_dt.date().isoformat()
         end_iso = end_dt.date().isoformat()
@@ -129,7 +129,7 @@ class MarketDataService:
         # Check cache first
         if symbol in self._price_cache:
             cached_price, cached_time = self._price_cache[symbol]
-            age = (datetime.now() - cached_time).total_seconds()
+            age = (datetime.now(UTC) - cached_time).total_seconds()
 
             if age <= max_age:
                 logger.debug(f"Cache hit for {symbol} price: ${cached_price:.2f} (age: {age:.1f}s)")
@@ -148,7 +148,7 @@ class MarketDataService:
             return None
 
         # Cache the result
-        self._price_cache[symbol] = (price, datetime.now())
+        self._price_cache[symbol] = (price, datetime.now(UTC))
         logger.debug(f"Fresh price for {symbol}: ${price:.2f}")
 
         return price
@@ -172,7 +172,7 @@ class MarketDataService:
         # Check cache first
         if symbol in self._quote_cache:
             cached_quote, cached_time = self._quote_cache[symbol]
-            age = (datetime.now() - cached_time).total_seconds()
+            age = (datetime.now(UTC) - cached_time).total_seconds()
 
             if age <= max_age:
                 logger.debug(f"Cache hit for {symbol} quote (age: {age:.1f}s)")
@@ -193,7 +193,7 @@ class MarketDataService:
             return None
 
         # Cache the result
-        self._quote_cache[symbol] = (quote, datetime.now())
+        self._quote_cache[symbol] = (quote, datetime.now(UTC))
         logger.debug(f"Fresh quote for {symbol}: bid=${bid:.2f}, ask=${ask:.2f}")
 
         return quote
@@ -245,7 +245,7 @@ class MarketDataService:
             "spread": spread,
             "spread_pct": spread_pct,
             "mid_price": mid_price,
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
 
     @translate_market_data_errors(default_return=False)

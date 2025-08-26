@@ -7,7 +7,7 @@ and performance data.
 """
 
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from the_alchemiser.domain.types import AccountInfo, PositionInfo
@@ -24,7 +24,7 @@ def build_basic_dashboard_structure(paper_trading: bool) -> dict[str, Any]:
 
     """
     return {
-        "timestamp": datetime.now().isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "execution_mode": "PAPER" if paper_trading else "LIVE",
         "success": False,
         "strategies": {},
@@ -139,7 +139,7 @@ def extract_strategies_data(
             "signal": signal_data.get("action", "HOLD"),
             "symbol": signal_data.get("symbol", ""),
             "reason": signal_data.get("reason", ""),
-            "timestamp": signal_data.get("timestamp", datetime.now().isoformat()),
+            "timestamp": signal_data.get("timestamp", datetime.now(UTC).isoformat()),
             "allocation": strategy_allocations.get(strategy_type, 0),
         }
 
@@ -169,7 +169,7 @@ def extract_recent_trades_data(
                     "quantity": float(order.get("qty", 0)),
                     "price": float(order.get("price", 0)),
                     "value": float(order.get("estimated_value", 0)),
-                    "timestamp": order.get("timestamp", datetime.now().isoformat()),
+                    "timestamp": order.get("timestamp", datetime.now(UTC).isoformat()),
                     "status": order.get("status", "executed"),
                 }
             )
@@ -199,7 +199,7 @@ def build_s3_paths(paper_trading: bool) -> tuple[str, str]:
 
     historical_path = (
         f"s3://the-alchemiser-s3/dashboard/executions/{mode_str}/"
-        f"{datetime.now().strftime('%Y/%m/%d')}/execution_{datetime.now().strftime('%H%M%S')}.json"
+        f"{datetime.now(UTC).strftime('%Y/%m/%d')}/execution_{datetime.now(UTC).strftime('%H%M%S')}.json"
     )
 
     return latest_path, historical_path

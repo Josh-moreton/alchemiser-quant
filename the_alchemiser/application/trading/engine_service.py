@@ -22,7 +22,7 @@ Example:
 """
 
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, Protocol
 
 if TYPE_CHECKING:  # Import for type checking only to avoid runtime dependency
@@ -802,7 +802,7 @@ class TradingEngine:
         try:
             current_positions = self.get_positions()
             return {
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
                 "strategy_allocations": {
                     k.value: v for k, v in self.strategy_manager.strategy_allocations.items()
                 },

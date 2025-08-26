@@ -8,7 +8,7 @@ indicators used by our trading strategies against TwelveData API values.
 import json
 import logging
 import time
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 import numpy as np
@@ -69,12 +69,15 @@ class IndicatorValidationSuite:
                 "apikey": self.api_key,
             }
 
-            self.logger.info("fetching_market_data", extra={
-                "component": "IndicatorValidationSuite.fetch_market_data",
-                "operation": "data_fetch",
-                "symbol": symbol,
-                "days": days
-            })
+            self.logger.info(
+                "fetching_market_data",
+                extra={
+                    "component": "IndicatorValidationSuite.fetch_market_data",
+                    "operation": "data_fetch",
+                    "symbol": symbol,
+                    "days": days,
+                },
+            )
             time.sleep(self.rate_limit_delay)
 
             response = requests.get(url, params=params, timeout=30)
@@ -291,21 +294,28 @@ class IndicatorValidationSuite:
 
     def validate_symbol(self, symbol: str) -> list[dict[str, Any]]:
         """Validate all indicators for a single symbol."""
-        self.logger.info("validating_symbol_indicators", extra={
-            "component": "IndicatorValidationSuite.validate_symbol",
-            "operation": "symbol_validation_start",
-            "symbol": symbol
-        })
+        self.logger.info(
+            "validating_symbol_indicators",
+            extra={
+                "component": "IndicatorValidationSuite.validate_symbol",
+                "operation": "symbol_validation_start",
+                "symbol": symbol,
+            },
+        )
 
         # Fetch price data
         price_data = self.fetch_market_data(symbol)
         if price_data is None or len(price_data) < 200:
-            log_with_context(self.logger, logging.ERROR, "insufficient_data_for_validation",
-                           component="IndicatorValidationSuite.validate_symbol",
-                           operation="data_validation_error",
-                           symbol=symbol,
-                           data_points=len(price_data) if price_data is not None else 0,
-                           required_points=200)
+            log_with_context(
+                self.logger,
+                logging.ERROR,
+                "insufficient_data_for_validation",
+                component="IndicatorValidationSuite.validate_symbol",
+                operation="data_validation_error",
+                symbol=symbol,
+                data_points=len(price_data) if price_data is not None else 0,
+                required_points=200,
+            )
             return []
 
         results = []
@@ -315,53 +325,69 @@ class IndicatorValidationSuite:
             result = self.validate_rsi(symbol, price_data, period)
             results.append(result)
 
-            log_with_context(self.logger, logging.INFO, "rsi_validation_completed",
-                           component="IndicatorValidationSuite.validate_symbol",
-                           operation="rsi_validation",
-                           symbol=symbol,
-                           period=period,
-                           passed=result["passed"],
-                           our_value=result["our_value"],
-                           reference_value=result["twelvedata_value"])
+            log_with_context(
+                self.logger,
+                logging.INFO,
+                "rsi_validation_completed",
+                component="IndicatorValidationSuite.validate_symbol",
+                operation="rsi_validation",
+                symbol=symbol,
+                period=period,
+                passed=result["passed"],
+                our_value=result["our_value"],
+                reference_value=result["twelvedata_value"],
+            )
 
         # Validate SMA indicators
         for period in self.indicator_definitions["sma"]:
             result = self.validate_sma(symbol, price_data, period)
             results.append(result)
 
-            log_with_context(self.logger, logging.INFO, "sma_validation_completed",
-                           component="IndicatorValidationSuite.validate_symbol",
-                           operation="sma_validation",
-                           symbol=symbol,
-                           period=period,
-                           passed=result["passed"],
-                           our_value=result["our_value"],
-                           reference_value=result["twelvedata_value"])
+            log_with_context(
+                self.logger,
+                logging.INFO,
+                "sma_validation_completed",
+                component="IndicatorValidationSuite.validate_symbol",
+                operation="sma_validation",
+                symbol=symbol,
+                period=period,
+                passed=result["passed"],
+                our_value=result["our_value"],
+                reference_value=result["twelvedata_value"],
+            )
 
         # Validate custom indicators
         custom_results = self.validate_custom_indicators(symbol, price_data)
         results.extend(custom_results)
 
         for result in custom_results:
-            log_with_context(self.logger, logging.INFO, "custom_indicator_validation_completed",
-                           component="IndicatorValidationSuite.validate_symbol",
-                           operation="custom_validation",
-                           symbol=symbol,
-                           indicator=result["indicator"],
-                           passed=result["passed"],
-                           our_value=result["our_value"])
+            log_with_context(
+                self.logger,
+                logging.INFO,
+                "custom_indicator_validation_completed",
+                component="IndicatorValidationSuite.validate_symbol",
+                operation="custom_validation",
+                symbol=symbol,
+                indicator=result["indicator"],
+                passed=result["passed"],
+                our_value=result["our_value"],
+            )
 
         return results
 
     def run_validation_suite(self, symbols: list[str], mode: str = "full") -> dict[str, Any]:
         """Run the complete validation suite."""
-        log_with_context(self.logger, logging.INFO, "indicator_validation_suite_started",
-                        component="IndicatorValidationSuite.run_validation_suite",
-                        operation="validation_suite_start",
-                        mode=mode.upper(),
-                        symbols=symbols,
-                        symbol_count=len(symbols),
-                        rate_limit_delay=self.rate_limit_delay)
+        log_with_context(
+            self.logger,
+            logging.INFO,
+            "indicator_validation_suite_started",
+            component="IndicatorValidationSuite.run_validation_suite",
+            operation="validation_suite_start",
+            mode=mode.upper(),
+            symbols=symbols,
+            symbol_count=len(symbols),
+            rate_limit_delay=self.rate_limit_delay,
+        )
 
         start_time = time.time()
         all_results = []
@@ -414,15 +440,19 @@ class IndicatorValidationSuite:
     def generate_report(self, summary: dict[str, Any]) -> None:
         """Generate a comprehensive validation report."""
         # Log validation summary with structured logging
-        log_with_context(self.logger, logging.INFO, "validation_summary_generated",
-                        component="IndicatorValidationSuite.generate_report",
-                        operation="validation_summary",
-                        total_tests=summary['total_tests'],
-                        passed_tests=summary['passed_tests'],
-                        failed_tests=summary['failed_tests'],
-                        success_rate=summary['success_rate'],
-                        total_time=summary['total_time'],
-                        avg_calculation_time=summary['avg_calculation_time'])
+        log_with_context(
+            self.logger,
+            logging.INFO,
+            "validation_summary_generated",
+            component="IndicatorValidationSuite.generate_report",
+            operation="validation_summary",
+            total_tests=summary["total_tests"],
+            passed_tests=summary["passed_tests"],
+            failed_tests=summary["failed_tests"],
+            success_rate=summary["success_rate"],
+            total_time=summary["total_time"],
+            avg_calculation_time=summary["avg_calculation_time"],
+        )
 
         # Summary Panel
         summary_text = Text()
@@ -469,15 +499,19 @@ class IndicatorValidationSuite:
         if failed_results:
             # Log failed tests with structured logging
             for result in failed_results:
-                log_with_context(self.logger, logging.ERROR, "validation_test_failed",
-                               component="IndicatorValidationSuite.generate_report",
-                               operation="failed_test_detail",
-                               symbol=result['symbol'],
-                               indicator=result['indicator'],
-                               error=result['error'],
-                               our_value=result['our_value'],
-                               reference_value=result['twelvedata_value'])
-            
+                log_with_context(
+                    self.logger,
+                    logging.ERROR,
+                    "validation_test_failed",
+                    component="IndicatorValidationSuite.generate_report",
+                    operation="failed_test_detail",
+                    symbol=result["symbol"],
+                    indicator=result["indicator"],
+                    error=result["error"],
+                    our_value=result["our_value"],
+                    reference_value=result["twelvedata_value"],
+                )
+
             self.console.print("\n[bold red]Failed Tests Details:[/bold red]")
             for result in failed_results:
                 self.console.print(
@@ -487,11 +521,11 @@ class IndicatorValidationSuite:
     def save_results(self, filename: str | None = None) -> str:
         """Save validation results to JSON file."""
         if filename is None:
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
             filename = f"indicator_validation_{timestamp}.json"
 
         output = {
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "summary": self.performance_stats,
             "detailed_results": self.results,
         }
@@ -499,12 +533,16 @@ class IndicatorValidationSuite:
         with open(filename, "w") as f:
             json.dump(output, f, indent=2, default=str)
 
-        log_with_context(self.logger, logging.INFO, "validation_results_saved",
-                        component="IndicatorValidationSuite.save_results",
-                        operation="results_file_saved",
-                        filename=filename,
-                        total_tests=len(self.results),
-                        total_time=self.performance_stats.get('total_time', 0))
-        
+        log_with_context(
+            self.logger,
+            logging.INFO,
+            "validation_results_saved",
+            component="IndicatorValidationSuite.save_results",
+            operation="results_file_saved",
+            filename=filename,
+            total_tests=len(self.results),
+            total_time=self.performance_stats.get("total_time", 0),
+        )
+
         self.console.print(f"\n[green]Results saved to {filename}[/green]")
         return filename

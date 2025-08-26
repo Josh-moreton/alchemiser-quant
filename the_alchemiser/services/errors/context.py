@@ -6,7 +6,7 @@ for consistent error reporting and tracking.
 """
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 
@@ -42,7 +42,7 @@ class ErrorContextData:
             "user_id": self.user_id,
             "session_id": self.session_id,
             "additional_data": self.additional_data or {},
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
 
 

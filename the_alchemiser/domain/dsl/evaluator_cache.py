@@ -88,9 +88,9 @@ def create_eval_context(
     if timestamp is None:
         # Use current date as time bucket for now
         # In production, this should be the actual market time
-        from datetime import datetime
+        from datetime import UTC, datetime
 
-        timestamp = datetime.now().strftime("%Y-%m-%d")
+        timestamp = datetime.now(UTC).strftime("%Y-%m-%d")
 
     # Create universe fingerprint from sorted symbols
     if symbols is None:

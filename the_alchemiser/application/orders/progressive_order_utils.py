@@ -308,9 +308,9 @@ def get_market_urgency_level(hour: int | None = None) -> str:
 
     """
     if hour is None:
-        from datetime import datetime
+        from datetime import UTC, datetime
 
-        hour = datetime.now().hour
+        hour = datetime.now(UTC).hour
 
     # Market hours are roughly 9:30 AM - 4:00 PM ET (14:30 - 21:00 UTC)
     # Adjust based on your timezone
