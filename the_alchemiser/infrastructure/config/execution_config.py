@@ -33,6 +33,14 @@ class ExecutionConfig:
     leveraged_etf_symbols: list[str] | None = None
     high_volume_etfs: list[str] | None = None
 
+    # Adaptive re-pegging configuration (Phase 2 enhancement)
+    enable_adaptive_repegging: bool = True
+    repeg_timeout_multiplier: float = 1.5  # Multiply timeout by this factor each re-peg
+    max_spread_degradation_bps: float = 50.0  # Max spread widening allowed in bps
+    repeg_price_improvement_ticks: int = 1  # Ticks to improve price each re-peg
+    min_repeg_interval_seconds: float = 0.5  # Minimum time between re-pegs
+    volatility_pause_threshold_bps: float = 100.0  # Pause re-pegging if volatility spikes
+
     @classmethod
     def from_settings(cls) -> "ExecutionConfig":
         """Load configuration from application settings."""
@@ -48,6 +56,13 @@ class ExecutionConfig:
                 wide_spread_threshold=execution.wide_spread_threshold,
                 leveraged_etf_symbols=execution.leveraged_etf_symbols,
                 high_volume_etfs=execution.high_volume_etfs,
+                # Adaptive re-pegging settings with safe fallbacks
+                enable_adaptive_repegging=getattr(execution, "enable_adaptive_repegging", True),
+                repeg_timeout_multiplier=getattr(execution, "repeg_timeout_multiplier", 1.5),
+                max_spread_degradation_bps=getattr(execution, "max_spread_degradation_bps", 50.0),
+                repeg_price_improvement_ticks=getattr(execution, "repeg_price_improvement_ticks", 1),
+                min_repeg_interval_seconds=getattr(execution, "min_repeg_interval_seconds", 0.5),
+                volatility_pause_threshold_bps=getattr(execution, "volatility_pause_threshold_bps", 100.0),
             )
         except Exception as e:
             logging.error(f"Error loading execution config: {e}")
@@ -73,6 +88,85 @@ class ExecutionConfig:
     def is_high_volume_etf(self, symbol: str) -> bool:
         """Check if symbol is a high-volume ETF."""
         return bool(self.high_volume_etfs and symbol in self.high_volume_etfs)
+
+    def get_adaptive_timeout(self, attempt: int, base_timeout: float) -> float:
+        """
+        Calculate adaptive timeout for re-pegging attempts.
+
+        Args:
+            attempt: Current attempt number (0-based)
+            base_timeout: Base timeout in seconds
+
+        Returns:
+            Adjusted timeout with exponential backoff
+        """
+        if not self.enable_adaptive_repegging:
+            return base_timeout
+
+        # Apply exponential backoff: base_timeout * multiplier^attempt
+        return base_timeout * (self.repeg_timeout_multiplier ** attempt)
+
+    def should_pause_for_volatility(
+        self,
+        original_spread_cents: float,
+        current_spread_cents: float
+    ) -> bool:
+        """
+        Check if re-pegging should be paused due to spread volatility.
+
+        Args:
+            original_spread_cents: Original spread in cents
+            current_spread_cents: Current spread in cents
+
+        Returns:
+            True if volatility is too high to continue re-pegging
+        """
+        if not self.enable_adaptive_repegging or original_spread_cents <= 0:
+            return False
+
+        # Calculate spread degradation in basis points
+        spread_degradation_pct = (current_spread_cents - original_spread_cents) / original_spread_cents
+        spread_degradation_bps = spread_degradation_pct * 10000  # Convert to basis points
+
+        return spread_degradation_bps > self.volatility_pause_threshold_bps
+
+    def calculate_adaptive_limit_price(
+        self,
+        side: str,
+        bid: float,
+        ask: float,
+        attempt: int,
+        tick_size: float = 0.01
+    ) -> float:
+        """
+        Calculate adaptive limit price that improves with each re-peg attempt.
+
+        Args:
+            side: "buy" or "sell"
+            bid: Current bid price
+            ask: Current ask price
+            attempt: Current attempt number (0-based)
+            tick_size: Minimum price increment
+
+        Returns:
+            Adaptive limit price
+        """
+        if not self.enable_adaptive_repegging:
+            # Use original aggressive pricing
+            if side.lower() == "buy":
+                return ask + tick_size
+            else:
+                return bid - tick_size
+
+        # Calculate price improvement based on attempt number
+        price_improvement = self.repeg_price_improvement_ticks * tick_size * attempt
+
+        if side.lower() == "buy":
+            # Buy orders: start at ask + 1 tick, improve (increase) each attempt
+            return ask + tick_size + price_improvement
+        else:
+            # Sell orders: start at bid - 1 tick, improve (decrease) each attempt
+            return bid - tick_size - price_improvement
 
 
 # Global config instance

@@ -19,6 +19,10 @@ from typing import Any, Protocol
 
 from alpaca.trading.enums import OrderSide
 
+from the_alchemiser.infrastructure.config.execution_config import (
+    ExecutionConfig,
+    get_execution_config,
+)
 from the_alchemiser.interfaces.schemas.execution import WebSocketResultDTO
 from the_alchemiser.services.errors.exceptions import (
     BuyingPowerError,
@@ -120,6 +124,7 @@ class SmartExecution:
         config: Any = None,
         account_info_provider: Any = None,
         enable_market_order_fallback: bool = False,  # Feature flag for market order fallback
+        execution_config: ExecutionConfig | None = None,  # Phase 2: Adaptive configuration
     ) -> None:
         """Initialize with dependency injection for execution and data access."""
         self.config = config or {}
@@ -129,6 +134,7 @@ class SmartExecution:
         self._account_info_provider = account_info_provider
         self.ignore_market_hours = ignore_market_hours
         self.enable_market_order_fallback = enable_market_order_fallback
+        self.execution_config = execution_config or get_execution_config()  # Phase 2: Use global config if not provided
         self.logger = logging.getLogger(__name__)
 
     def execute_safe_sell(self, symbol: str, target_qty: float) -> str | None:
@@ -652,37 +658,86 @@ class SmartExecution:
         console: Any,
     ) -> str | None:
         """
-        Execute the aggressive marketable limit sequence with re-pegging.
+        Execute the aggressive marketable limit sequence with adaptive re-pegging.
 
-        Step 2: Aggressive marketable limit (ask+1 tick / bid-1 tick)
-        Step 3: Re-peg 1-2 times (2-3 second timeouts)
-        Step 4: Market order fallback
+        Phase 2 Enhancement:
+        - Uses ExecutionConfig for adaptive timeout and price calculation
+        - Monitors spread volatility to pause re-pegging if needed
+        - Applies exponential backoff and progressive price improvement
+        - Respects minimum re-peg intervals to avoid excessive API calls
         """
         from the_alchemiser.domain.math.market_timing_utils import ExecutionStrategy
 
-        # Determine timeout based on strategy and ETF speed
+        # Determine base timeout based on strategy and ETF speed
         if strategy == ExecutionStrategy.WAIT_FOR_SPREADS:
-            timeout_seconds = 2.0  # Fast execution at market open
+            base_timeout_seconds = 2.0  # Fast execution at market open
         else:
-            timeout_seconds = 3.0  # Slightly longer for normal times
+            base_timeout_seconds = self.execution_config.aggressive_timeout_seconds
 
-        max_repegs = 2  # Maximum 2 re-peg attempts
+        max_repegs = self.execution_config.max_repegs
+        original_spread_cents = (ask - bid) * 100  # Convert to cents
+        last_attempt_time = 0.0
+
+        self.logger.info(
+            "aggressive_limit_sequence_started",
+            extra={
+                "symbol": symbol,
+                "side": side.value,
+                "quantity": qty,
+                "initial_bid": bid,
+                "initial_ask": ask,
+                "original_spread_cents": original_spread_cents,
+                "max_repegs": max_repegs,
+                "adaptive_enabled": self.execution_config.enable_adaptive_repegging,
+            },
+        )
 
         for attempt in range(max_repegs + 1):
-            # Calculate aggressive marketable limit price
-            if side == OrderSide.BUY:
-                # Buy: ask + 1 tick (ask + 1¢)
-                limit_price = ask + 0.01
-                direction = "above ask"
+            # Phase 2: Adaptive timeout with exponential backoff
+            timeout_seconds = self.execution_config.get_adaptive_timeout(attempt, base_timeout_seconds)
+
+            # Phase 2: Adaptive limit price calculation
+            if self.execution_config.enable_adaptive_repegging:
+                limit_price = self.execution_config.calculate_adaptive_limit_price(
+                    side.value, bid, ask, attempt
+                )
             else:
-                # Sell: bid - 1 tick (bid - 1¢)
-                limit_price = bid - 0.01
-                direction = "below bid"
+                # Legacy pricing logic
+                if side == OrderSide.BUY:
+                    limit_price = ask + 0.01
+                else:
+                    limit_price = bid - 0.01
+
+            # Determine direction for display
+            if side == OrderSide.BUY:
+                direction = f"${limit_price - ask:.3f} above ask" if limit_price > ask else "at ask"
+            else:
+                direction = f"${bid - limit_price:.3f} below bid" if limit_price < bid else "at bid"
 
             attempt_label = "Initial order" if attempt == 0 else f"Re-peg #{attempt}"
             console.print(
                 f"[cyan]{attempt_label}: {side.value} {symbol} @ ${limit_price:.2f} ({direction})[/cyan]"
             )
+
+            # Phase 2: Respect minimum re-peg interval
+            if attempt > 0 and self.execution_config.enable_adaptive_repegging:
+                current_time = time.time()
+                time_since_last = current_time - last_attempt_time
+                min_interval = self.execution_config.min_repeg_interval_seconds
+
+                if time_since_last < min_interval:
+                    sleep_time = min_interval - time_since_last
+                    self.logger.debug(
+                        "repeg_interval_throttle",
+                        extra={
+                            "symbol": symbol,
+                            "sleep_time": sleep_time,
+                            "attempt": attempt,
+                        },
+                    )
+                    time.sleep(sleep_time)
+
+            last_attempt_time = time.time()
 
             # Place aggressive marketable limit
             order_id = self._order_executor.place_limit_order(symbol, qty, side, limit_price)
@@ -709,7 +764,7 @@ class SmartExecution:
                     reason="none_order_id_returned",
                 )
 
-            # Wait for fill with fast timeout (2-3 seconds max)
+            # Wait for fill with adaptive timeout
             try:
                 order_result = self._order_executor.wait_for_order_completion(
                     [order_id], max_wait_seconds=int(timeout_seconds)
@@ -721,16 +776,22 @@ class SmartExecution:
                         "symbol": symbol,
                         "order_id": order_id,
                         "timeout_seconds": timeout_seconds,
+                        "attempt": attempt,
                         "error": str(e),
                     },
                 )
-                raise OrderTimeoutError(
-                    f"Failed to wait for order completion: {str(e)}",
-                    symbol=symbol,
-                    order_id=order_id,
-                    timeout_seconds=timeout_seconds,
-                    attempt_number=attempt + 1,
-                )
+                # Continue to next attempt rather than immediately failing
+                if attempt < max_repegs:
+                    console.print("[yellow]Order completion wait failed, will retry[/yellow]")
+                    continue
+                else:
+                    raise OrderTimeoutError(
+                        f"Failed to wait for order completion on final attempt: {str(e)}",
+                        symbol=symbol,
+                        order_id=order_id,
+                        timeout_seconds=timeout_seconds,
+                        attempt_number=attempt + 1,
+                    )
 
             # Check if the order completed successfully
             order_completed = order_id in order_result.orders_completed
@@ -738,13 +799,23 @@ class SmartExecution:
                 console.print(
                     f"[green]✅ {side.value} {symbol} filled @ ${limit_price:.2f} ({attempt_label})[/green]"
                 )
+                self.logger.info(
+                    "aggressive_limit_filled",
+                    extra={
+                        "symbol": symbol,
+                        "order_id": order_id,
+                        "limit_price": limit_price,
+                        "attempt": attempt,
+                        "timeout_used": timeout_seconds,
+                    },
+                )
                 return order_id
 
             # Order not filled - prepare for re-peg if attempts remain
             if attempt < max_repegs:
-                console.print(f"[yellow]{attempt_label} not filled, re-pegging...[/yellow]")
+                console.print(f"[yellow]{attempt_label} not filled, analyzing for re-peg...[/yellow]")
 
-                # Get fresh quote for re-peg pricing
+                # Get fresh quote for re-peg pricing and volatility analysis
                 try:
                     fresh_quote = self._order_executor.data_provider.get_latest_quote(symbol)
                     if not fresh_quote or len(fresh_quote) < 2:
@@ -762,6 +833,39 @@ class SmartExecution:
                             bid=bid,
                             ask=ask,
                         )
+
+                    # Phase 2: Check for spread volatility - pause re-pegging if spreads widened too much
+                    current_spread_cents = (ask - bid) * 100
+                    if self.execution_config.should_pause_for_volatility(
+                        original_spread_cents, current_spread_cents
+                    ):
+                        self.logger.warning(
+                            "repeg_paused_for_volatility",
+                            extra={
+                                "symbol": symbol,
+                                "original_spread_cents": original_spread_cents,
+                                "current_spread_cents": current_spread_cents,
+                                "spread_change_pct": (current_spread_cents - original_spread_cents) / original_spread_cents * 100,
+                                "attempt": attempt,
+                            },
+                        )
+                        console.print(
+                            f"[yellow]Spread volatility too high ({current_spread_cents:.1f}¢ vs {original_spread_cents:.1f}¢), pausing re-pegging[/yellow]"
+                        )
+                        break
+
+                    self.logger.debug(
+                        "repeg_quote_analysis",
+                        extra={
+                            "symbol": symbol,
+                            "fresh_bid": bid,
+                            "fresh_ask": ask,
+                            "current_spread_cents": current_spread_cents,
+                            "spread_change_cents": current_spread_cents - original_spread_cents,
+                            "attempt": attempt,
+                        },
+                    )
+
                 except SpreadAnalysisError:
                     raise  # Re-raise the specific error
                 except Exception as e:
@@ -789,6 +893,7 @@ class SmartExecution:
                     "symbol": symbol,
                     "reason": "limit_attempts_exhausted",
                     "max_repegs": max_repegs,
+                    "adaptive_enabled": self.execution_config.enable_adaptive_repegging,
                 },
             )
             fallback_order_id = self._order_executor.place_market_order(symbol, side, qty=qty)
@@ -806,7 +911,7 @@ class SmartExecution:
             raise OrderTimeoutError(
                 f"All limit order attempts failed and market fallback disabled: {symbol} {side.value} {qty}",
                 symbol=symbol,
-                timeout_seconds=timeout_seconds * (max_repegs + 1),
+                timeout_seconds=base_timeout_seconds * (max_repegs + 1),
                 attempt_number=max_repegs + 1,
             )
 
