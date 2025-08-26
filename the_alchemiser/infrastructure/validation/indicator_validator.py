@@ -8,7 +8,7 @@ indicators used by our trading strategies against TwelveData API values.
 import json
 import logging
 import time
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 import numpy as np
@@ -437,11 +437,11 @@ class IndicatorValidationSuite:
     def save_results(self, filename: str | None = None) -> str:
         """Save validation results to JSON file."""
         if filename is None:
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
             filename = f"indicator_validation_{timestamp}.json"
 
         output = {
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "summary": self.performance_stats,
             "detailed_results": self.results,
         }
