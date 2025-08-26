@@ -14,7 +14,7 @@ def safe_get_indicator(
     data: pd.Series | pd.DataFrame,
     indicator_func: Callable[..., pd.Series],
     *args: Any,
-    **kwargs: Any,
+    **kwargs: object,
 ) -> float:
     """Safely get an indicator value, logging exceptions and handling NaN values.
 

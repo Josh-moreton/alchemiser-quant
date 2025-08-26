@@ -100,7 +100,7 @@ def parse_event_mode(event: LambdaEventDTO | dict[str, Any]) -> list[str]:
     return args
 
 
-def lambda_handler(event: LambdaEventDTO | None = None, context: Any = None) -> dict[str, Any]:
+def lambda_handler(event: LambdaEventDTO | None = None, context: object = None) -> dict[str, Any]:
     """AWS Lambda function handler for The Alchemiser trading system.
 
     This function serves as the entry point when the trading system is deployed

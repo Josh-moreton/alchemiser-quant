@@ -259,7 +259,7 @@ class SignalAnalyzer:
             return set()
 
         signal = strategy_signals[strategy_type]
-        symbol: Any = signal.get("symbol")
+        symbol: object = signal.get("symbol")
 
         if isinstance(symbol, str):
             return {symbol}

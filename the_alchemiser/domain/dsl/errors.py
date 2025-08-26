@@ -57,7 +57,7 @@ class EvaluationError(DSLError):
         self,
         message: str,
         symbol: str | None = None,
-        ast_node: Any = None,
+        ast_node: object = None,
         context: dict[str, Any] | None = None,
     ) -> None:
         super().__init__(message, context)

@@ -22,7 +22,7 @@ F = TypeVar("F", bound=Callable[..., Any])
 
 def translate_service_errors(
     error_types: dict[type[Exception], type[Exception]] | None = None,
-    default_return: Any = None,
+    default_return: object = None,
 ) -> Callable[[F], F]:
     """Decorator to translate service errors without logging.
 
@@ -73,7 +73,7 @@ def translate_service_errors(
     return decorator
 
 
-def translate_market_data_errors(default_return: Any = None) -> Callable[[F], F]:
+def translate_market_data_errors(default_return: object = None) -> Callable[[F], F]:
     """Decorator specifically for market data service error translation."""
     return translate_service_errors(
         error_types={
@@ -86,7 +86,7 @@ def translate_market_data_errors(default_return: Any = None) -> Callable[[F], F]
     )
 
 
-def translate_trading_errors(default_return: Any = None) -> Callable[[F], F]:
+def translate_trading_errors(default_return: object = None) -> Callable[[F], F]:
     """Decorator specifically for trading service error translation."""
     return translate_service_errors(
         error_types={
@@ -99,7 +99,7 @@ def translate_trading_errors(default_return: Any = None) -> Callable[[F], F]:
     )
 
 
-def translate_streaming_errors(default_return: Any = None) -> Callable[[F], F]:
+def translate_streaming_errors(default_return: object = None) -> Callable[[F], F]:
     """Decorator specifically for streaming service error translation."""
     return translate_service_errors(
         error_types={
@@ -111,7 +111,7 @@ def translate_streaming_errors(default_return: Any = None) -> Callable[[F], F]:
     )
 
 
-def translate_config_errors(default_return: Any = None) -> Callable[[F], F]:
+def translate_config_errors(default_return: object = None) -> Callable[[F], F]:
     """Decorator specifically for configuration error translation."""
     return translate_service_errors(
         error_types={

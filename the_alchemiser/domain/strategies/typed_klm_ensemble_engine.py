@@ -298,7 +298,7 @@ class TypedKLMStrategyEngine(StrategyEngine):
                         and hasattr(result, "__len__")
                         and len(result) > 0
                     ):
-                        first_element: Any = result[0]  # type: ignore[literal-required]
+                        first_element: object = result[0]  # type: ignore[literal-required]
                         if isinstance(first_element, dict):
                             symbol_str = f"allocation:{len(first_element)} symbols"
                         else:

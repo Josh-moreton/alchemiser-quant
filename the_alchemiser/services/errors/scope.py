@@ -21,7 +21,7 @@ class _ScopeErrorHandler:
         self,
         error: Exception,
         context: dict[str, Any] | None = None,
-        default_return: Any = None,
+        default_return: object = None,
     ) -> object:
         """Log error and return default value instead of raising.
 

@@ -41,7 +41,7 @@ class RebalancingOrchestratorFacade:
         portfolio_facade: PortfolioManagementFacade,
         trading_client: Any,
         paper_trading: bool = True,
-        account_info_provider: Any = None,
+        account_info_provider: object = None,
     ) -> None:
         """Initialize the rebalancing orchestrator facade.
 

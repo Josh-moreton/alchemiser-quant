@@ -162,4 +162,4 @@ class PortfolioValueDTO(BaseModel):
     )
 
     value: Decimal = Field(..., ge=0, description="Raw portfolio value")
-    money: Any = Field(..., description="Typed Money object for portfolio value")
+    money: object = Field(..., description="Typed Money object for portfolio value")

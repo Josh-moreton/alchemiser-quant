@@ -60,7 +60,7 @@ class AccountService:
             symbol = self._extract_symbol(position)
             if symbol:
                 # Handle both dict and object types for position data
-                def safe_get_pos(obj: Any, key: str, default: Any = 0.0) -> Any:
+                def safe_get_pos(obj: Any, key: str, default: object = 0.0) -> Any:
                     if isinstance(obj, dict):
                         return obj.get(key, default)
                     return getattr(obj, key, default)

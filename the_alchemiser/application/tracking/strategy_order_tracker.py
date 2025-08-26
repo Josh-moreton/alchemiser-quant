@@ -149,7 +149,7 @@ class StrategyPnL:
 class StrategyOrderTracker:
     """Dedicated component for tracking orders and P&L by strategy."""
 
-    def __init__(self, config: Any = None, paper_trading: bool = True) -> None:
+    def __init__(self, config: object = None, paper_trading: bool = True) -> None:
         """Initialize tracker with S3 configuration.
 
         Args:

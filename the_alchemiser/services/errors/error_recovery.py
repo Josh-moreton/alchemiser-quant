@@ -35,7 +35,7 @@ class RecoveryResult:
         self,
         success: bool,
         message: str,
-        recovered_data: Any = None,
+        recovered_data: object = None,
         retry_recommended: bool = False,
         retry_delay: float = 0.0,
     ) -> None:

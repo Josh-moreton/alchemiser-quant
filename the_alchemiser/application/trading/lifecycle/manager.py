@@ -77,7 +77,7 @@ class OrderLifecycleManager:
         *,
         event_type: LifecycleEventType = LifecycleEventType.STATE_CHANGED,
         metadata: Mapping[str, Any] | None = None,
-        dispatcher: Any = None,  # LifecycleEventDispatcher (avoid circular import)
+        dispatcher: object = None,  # LifecycleEventDispatcher (avoid circular import)
     ) -> OrderLifecycleEvent:
         """Advance an order to a new lifecycle state.
 

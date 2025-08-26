@@ -24,7 +24,7 @@ class TradingReportBuilder:
         account_after: AccountInfo | EnrichedAccountInfo,
         positions: dict[str, Any],
         orders: list[dict[str, Any]] | None = None,
-        signal: Any = None,
+        signal: object = None,
         portfolio_history: dict[str, Any] | None = None,
         open_positions: list[dict[str, Any]] | None = None,
     ) -> str:
@@ -100,7 +100,7 @@ class TradingReportBuilder:
         account_after: AccountInfo | EnrichedAccountInfo,
         positions: dict[str, Any],
         orders: list[dict[str, Any]] | None = None,
-        signal: Any = None,
+        signal: object = None,
         portfolio_history: dict[str, Any] | None = None,
         open_positions: list[dict[str, Any]] | None = None,
     ) -> str:

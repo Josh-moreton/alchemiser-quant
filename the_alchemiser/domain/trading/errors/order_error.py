@@ -62,7 +62,7 @@ class OrderError:
             details_dict = dict(self.details.items())
             object.__setattr__(self, "details", details_dict)
 
-    def get_detail(self, key: str, default: Any = None) -> Any:
+    def get_detail(self, key: str, default: object = None) -> Any:
         """Get a specific detail value safely."""
         if self.details is None:
             return default

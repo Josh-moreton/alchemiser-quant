@@ -640,7 +640,7 @@ class SmartExecution:
 
         for order_id in order_ids:
             try:
-                order_obj: Any = self._order_executor.trading_client.get_order_by_id(
+                order_obj: object = self._order_executor.trading_client.get_order_by_id(
                     order_id
                 )  # TODO: Phase 5 - Migrate to AlpacaOrderObject
                 status = str(getattr(order_obj, "status", "unknown")).lower()

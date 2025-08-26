@@ -49,27 +49,27 @@ class EmailTemplates:
 
     # Error reports
     @staticmethod
-    def build_error_report(*args: Any, **kwargs: Any) -> str:
+    def build_error_report(*args: Any, **kwargs: object) -> str:
         """Build an error notification email."""
         return ErrorReportBuilder.build_error_report(*args, **kwargs)
 
 
 # Backward compatibility functions
-def build_trading_report_html(*args: Any, **kwargs: Any) -> str:
+def build_trading_report_html(*args: Any, **kwargs: object) -> str:
     """Backward compatibility function for build_trading_report_html."""
     return str(EmailTemplates.build_multi_strategy_report_neutral(*args, **kwargs))
 
 
-def build_multi_strategy_email_html(*args: Any, **kwargs: Any) -> str:
+def build_multi_strategy_email_html(*args: Any, **kwargs: object) -> str:
     """Backward compatibility function for build_multi_strategy_email_html."""
     return str(EmailTemplates.build_multi_strategy_report_neutral(*args, **kwargs))
 
 
-def build_multi_strategy_email_html_neutral(*args: Any, **kwargs: Any) -> str:
+def build_multi_strategy_email_html_neutral(*args: Any, **kwargs: object) -> str:
     """Backward compatibility function for build_multi_strategy_email_html_neutral."""
     return str(EmailTemplates.build_multi_strategy_report_neutral(*args, **kwargs))
 
 
-def build_error_email_html(*args: Any, **kwargs: Any) -> str:
+def build_error_email_html(*args: Any, **kwargs: object) -> str:
     """Backward compatibility function for build_error_email_html."""
     return str(EmailTemplates.build_error_report(*args, **kwargs))

@@ -7,13 +7,16 @@ validation, and error handling with fallback strategies.
 
 import logging
 from decimal import ROUND_DOWN, Decimal
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from the_alchemiser.interfaces.schemas.orders import ValidatedOrderDTO
 
 from alpaca.trading.enums import OrderSide, TimeInForce
 from alpaca.trading.requests import LimitOrderRequest
+
+from the_alchemiser.domain.policies.protocols import TradingClientProtocol
+from the_alchemiser.services.trading.position_manager import PositionManager
 
 from the_alchemiser.domain.math.asset_info import fractionability_detector
 from the_alchemiser.interfaces.schemas.orders import LimitOrderResultDTO
@@ -24,7 +27,7 @@ from the_alchemiser.services.errors.exceptions import DataProviderError, Trading
 class LimitOrderHandler:
     """Handles limit order placement with smart asset-specific logic."""
 
-    def __init__(self, trading_client: Any, position_manager: Any, asset_handler: object) -> None:
+    def __init__(self, trading_client: TradingClientProtocol, position_manager: PositionManager, asset_handler: object) -> None:
         """Initialize with required dependencies."""
         self.trading_client = trading_client
         self.position_manager = position_manager

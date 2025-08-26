@@ -33,7 +33,7 @@ class ConfigurationError(AlchemiserError):
     """Raised when there are configuration-related issues."""
 
     def __init__(
-        self, message: str, config_key: str | None = None, config_value: Any = None
+        self, message: str, config_key: str | None = None, config_value: object = None
     ) -> None:
         """Raise when configuration values are missing or invalid."""
         context = {}
