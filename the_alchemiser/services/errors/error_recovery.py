@@ -13,7 +13,7 @@ import time
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from collections.abc import Callable
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any, TypeVar
 
@@ -44,7 +44,7 @@ class RecoveryResult:
         self.recovered_data = recovered_data
         self.retry_recommended = retry_recommended
         self.retry_delay = retry_delay
-        self.timestamp = datetime.now()
+        self.timestamp = datetime.now(UTC)
 
     def to_dict(self) -> dict[str, Any]:
         """Convert recovery result to dictionary."""

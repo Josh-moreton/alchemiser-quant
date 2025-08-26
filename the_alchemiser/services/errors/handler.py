@@ -12,7 +12,7 @@ import traceback
 import uuid
 from collections import defaultdict
 from collections.abc import Callable
-from datetime import datetime
+from datetime import UTC, datetime
 from functools import wraps
 from typing import Any
 
@@ -85,7 +85,7 @@ class ErrorDetails:
         self.component = component
         self.additional_data = additional_data or {}
         self.suggested_action = suggested_action
-        self.timestamp = datetime.now()
+        self.timestamp = datetime.now(UTC)
         self.traceback = traceback.format_exc()
 
     def to_dict(self) -> ErrorDetailInfo:
@@ -377,7 +377,7 @@ class TradingSystemErrorHandler:
 
         # Build report
         report = "# Trading System Error Report\n\n"
-        report += f"**Execution Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}\n"
+        report += f"**Execution Time:** {datetime.now(UTC).strftime('%Y-%m-%d %H:%M:%S UTC')}\n"
         report += f"**Total Errors:** {len(self.errors)}\n\n"
 
         # Critical errors first
@@ -841,7 +841,7 @@ class EnhancedErrorReporter:
 
         """
         error_data = {
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "error_type": error.__class__.__name__,
             "message": str(error),
             "context": context or {},
@@ -872,7 +872,7 @@ class EnhancedErrorReporter:
 
     def _cleanup_old_errors(self) -> None:
         """Remove errors older than the monitoring window."""
-        current_time = datetime.now()
+        current_time = datetime.now(UTC)
         cutoff_time = current_time.timestamp() - self.error_rate_window
 
         self.recent_errors = [
