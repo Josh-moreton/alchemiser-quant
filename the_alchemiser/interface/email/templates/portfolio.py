@@ -706,7 +706,7 @@ class PortfolioBuilder:
                 status_display = f"❌ {status}"
             else:
                 status_color = "#6B7280"  # Gray
-                status_display = f"ℹ️ {status}"
+                status_display = f"i {status}"
 
             # Format quantity display
             if isinstance(qty, int | float) and qty != 0:

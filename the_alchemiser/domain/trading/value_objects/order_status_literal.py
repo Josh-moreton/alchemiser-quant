@@ -6,7 +6,7 @@ These literals are the *interface contract* for order status values that move
 across serialization boundaries (DTOs, TypedDicts, CLI / API responses). They
 are intentionally lowercase and minimal. The domain core uses the
 `OrderStatus` enum (uppercase) for internal logic; conversion between the two
-is performed in the application mapping layer (anti‑corruption layer).
+is performed in the application mapping layer (anti-corruption layer).
 
 Why keep ``expired`` separate here?
 ----------------------------------

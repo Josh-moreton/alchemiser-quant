@@ -63,7 +63,7 @@ def evaluate_nuclear_strategy(
         return (
             "SPY",
             "HOLD",
-            "Missing SPY data for RSI(10) – missing SPY data prevents evaluation",
+            "Missing SPY data for RSI(10) - missing SPY data prevents evaluation",
         )
 
     try:
@@ -72,7 +72,7 @@ def evaluate_nuclear_strategy(
         return (
             "SPY",
             "HOLD",
-            "Invalid SPY RSI(10) – missing spy data prevents evaluation",
+            "Invalid SPY RSI(10) - missing spy data prevents evaluation",
         )
 
     # Branch A: SPY overbought path
@@ -81,7 +81,7 @@ def evaluate_nuclear_strategy(
             return (
                 "UVXY",
                 "BUY",
-                f"SPY extremely overbought: RSI(10) {spy_rsi_10:.1f} > 81 – volatility hedge recommended",
+                f"SPY extremely overbought: RSI(10) {spy_rsi_10:.1f} > 81 - volatility hedge recommended",
             )
         # Nested checks for other symbols > 81
         for sym in ["IOO", "TQQQ", "VTV", "XLF"]:
@@ -90,12 +90,12 @@ def evaluate_nuclear_strategy(
                 return (
                     "UVXY",
                     "BUY",
-                    f"{sym} extremely overbought: RSI(10) {r:.1f} > 81 – hedge with UVXY",
+                    f"{sym} extremely overbought: RSI(10) {r:.1f} > 81 - hedge with UVXY",
                 )
         return (
             "UVXY_BTAL_PORTFOLIO",
             "BUY",
-            f"SPY moderately overbought: RSI(10) {spy_rsi_10:.1f} in 79–81 band → UVXY 75% + BTAL 25%",
+            f"SPY moderately overbought: RSI(10) {spy_rsi_10:.1f} in 79-81 band → UVXY 75% + BTAL 25%",
         )
 
     # Branch B: Other overbought leaders in order IOO, TQQQ, VTV, XLF
@@ -111,7 +111,7 @@ def evaluate_nuclear_strategy(
                 return (
                     "UVXY",
                     "BUY",
-                    f"{leader} extremely overbought: RSI(10) {lr:.1f} > 81 – hedge with UVXY",
+                    f"{leader} extremely overbought: RSI(10) {lr:.1f} > 81 - hedge with UVXY",
                 )
             for sym in cascade:
                 r = _rsi(sym, 10)
@@ -119,12 +119,12 @@ def evaluate_nuclear_strategy(
                     return (
                         "UVXY",
                         "BUY",
-                        f"{sym} extremely overbought: RSI(10) {r:.1f} > 81 – hedge with UVXY",
+                        f"{sym} extremely overbought: RSI(10) {r:.1f} > 81 - hedge with UVXY",
                     )
             return (
                 "UVXY_BTAL_PORTFOLIO",
                 "BUY",
-                f"{leader} moderately overbought: RSI(10) {lr:.1f} in 79–81 band → UVXY 75% + BTAL 25%",
+                f"{leader} moderately overbought: RSI(10) {lr:.1f} in 79-81 band → UVXY 75% + BTAL 25%",
             )
 
     # Branch C: VOX overbought special-case
@@ -135,12 +135,12 @@ def evaluate_nuclear_strategy(
             return (
                 "UVXY",
                 "BUY",
-                f"VOX overbought context; XLF RSI(10) {xlf_r:.1f} > 81 – hedge with UVXY",
+                f"VOX overbought context; XLF RSI(10) {xlf_r:.1f} > 81 - hedge with UVXY",
             )
         return (
             "UVXY_BTAL_PORTFOLIO",
             "BUY",
-            f"VOX overbought: RSI(10) {vox_r:.1f} > 79 – UVXY 75% + BTAL 25%",
+            f"VOX overbought: RSI(10) {vox_r:.1f} > 79 - UVXY 75% + BTAL 25%",
         )
 
     # Oversold checks (match legacy order): TQQQ first, then SPY -> UPRO
@@ -154,14 +154,14 @@ def evaluate_nuclear_strategy(
         return (
             "TQQQ",
             "BUY",
-            f"TQQQ oversold: RSI(10) {tqqq_rsi_10:.1f} < 30 – leveraged tech bounce setup",
+            f"TQQQ oversold: RSI(10) {tqqq_rsi_10:.1f} < 30 - leveraged tech bounce setup",
         )
 
     if spy_rsi_10 < 30.0:
         return (
             "UPRO",
             "BUY",
-            f"SPY oversold: RSI(10) {spy_rsi_10:.1f} < 30 – buy UPRO (3x SPY) for bounce",
+            f"SPY oversold: RSI(10) {spy_rsi_10:.1f} < 30 - buy UPRO (3x SPY) for bounce",
         )
 
     # Bull vs Bear
@@ -172,7 +172,7 @@ def evaluate_nuclear_strategy(
             "NUCLEAR_PORTFOLIO",
             "BUY",
             (
-                f"Bull market rotation – SPY ${spy_price:.2f} above 200MA ${spy_ma_200:.2f}. "
+                f"Bull market rotation - SPY ${spy_price:.2f} above 200MA ${spy_ma_200:.2f}. "
                 "Shift to Nuclear portfolio leaders (e.g., SMR/BWXT/LEU) for upside exposure."
             ),
         )
@@ -182,7 +182,7 @@ def evaluate_nuclear_strategy(
         "BEAR_PORTFOLIO",
         "BUY",
         (
-            "Bear market defensive allocation – construct two-asset inverse-volatility basket "
+            "Bear market defensive allocation - construct two-asset inverse-volatility basket "
             "based on PSQ/TQQQ/QQQ and bond RSIs (TLT/IEF) with 14-day vol weights"
         ),
     )
