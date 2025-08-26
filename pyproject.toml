@@ -53,8 +53,8 @@ pydocstyle = ">=6.0.0"  # Docstring style (Ruff D rules)
 pytest = "^8.4.1"
 pip-audit = "^2.7.3"  # Dependency vulnerability scanning
 detect-secrets = "^1.5.0"  # Secret scanning (baseline optional)
-gitleaks = "^8.18.4"  # Alternate secret scanner (optional use)
-pyright = "^1.1.380"  # Supplemental static type analysis (optional CI/nightly)
+# gitleaks = "^8.18.4"  # Alternate secret scanner (optional use) - temporarily disabled
+# pyright = "^1.1.380"  # Supplemental static type analysis (optional CI/nightly) - temporarily disabled
 
 [tool.poetry.scripts]
 alchemiser = "the_alchemiser.interface.cli.cli:app"
