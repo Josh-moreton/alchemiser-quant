@@ -36,7 +36,6 @@ class ExecutionConfig:
     # Adaptive re-pegging configuration (Phase 2 enhancement)
     enable_adaptive_repegging: bool = True
     repeg_timeout_multiplier: float = 1.5  # Multiply timeout by this factor each re-peg
-    max_spread_degradation_bps: float = 50.0  # Max spread widening allowed in bps
     repeg_price_improvement_ticks: int = 1  # Ticks to improve price each re-peg
     min_repeg_interval_seconds: float = 0.5  # Minimum time between re-pegs
     volatility_pause_threshold_bps: float = 100.0  # Pause re-pegging if volatility spikes
@@ -59,7 +58,6 @@ class ExecutionConfig:
                 # Adaptive re-pegging settings with safe fallbacks
                 enable_adaptive_repegging=getattr(execution, "enable_adaptive_repegging", True),
                 repeg_timeout_multiplier=getattr(execution, "repeg_timeout_multiplier", 1.5),
-                max_spread_degradation_bps=getattr(execution, "max_spread_degradation_bps", 50.0),
                 repeg_price_improvement_ticks=getattr(
                     execution, "repeg_price_improvement_ticks", 1
                 ),

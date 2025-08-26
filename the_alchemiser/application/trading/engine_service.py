@@ -538,6 +538,9 @@ class TradingEngine:
         slippage_bps: float | None = None,
     ) -> str | None:
         """Place a limit or market order using the smart execution engine.
+        
+        TODO: Phase 1 consolidation - unify order placement interface across
+        EngineService, SmartExecution, and AlpacaClient to reduce duplication
 
         Args:
             symbol: Stock symbol to trade.
