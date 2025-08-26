@@ -199,8 +199,7 @@ class LimitOrderResultDTO(BaseModel):
 
 
 class PolicyWarningDTO(BaseModel):
-    """
-    DTO for policy warnings generated during order validation.
+    """DTO for policy warnings generated during order validation.
 
     Contains structured information about policy decisions that
     adjusted the order but allowed it to proceed.
@@ -221,8 +220,7 @@ class PolicyWarningDTO(BaseModel):
 
 
 class AdjustedOrderRequestDTO(BaseModel, OrderValidationMixin):
-    """
-    DTO for order requests after policy processing.
+    """DTO for order requests after policy processing.
 
     Contains the original order request plus any adjustments made by policies
     and associated warnings. This is the output of PolicyOrchestrator.

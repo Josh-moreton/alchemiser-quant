@@ -1,5 +1,4 @@
-"""
-Position Policy Implementation
+"""Position Policy Implementation
 
 Concrete implementation of PositionPolicy that handles position validation
 and quantity adjustments. Extracts logic from PositionManager.
@@ -31,8 +30,7 @@ logger = logging.getLogger(__name__)
 
 
 class PositionPolicyImpl:
-    """
-    Concrete implementation of position policy.
+    """Concrete implementation of position policy.
 
     Handles validation and adjustment of orders based on current position holdings,
     with structured logging and warning generation. Uses typed protocols for
@@ -40,18 +38,17 @@ class PositionPolicyImpl:
     """
 
     def __init__(self, trading_client: TradingClientProtocol) -> None:
-        """
-        Initialize the position policy.
+        """Initialize the position policy.
 
         Args:
             trading_client: Trading client for position data
+
         """
         self.trading_client = trading_client
         self._policy_name = "PositionPolicy"
 
     def validate_and_adjust(self, order_request: OrderRequest) -> PolicyResult:
-        """
-        Validate and adjust order based on current positions.
+        """Validate and adjust order based on current positions.
 
         For sell orders, ensures quantity doesn't exceed available position.
         For buy orders, validates position concentration limits.
@@ -61,6 +58,7 @@ class PositionPolicyImpl:
 
         Returns:
             PolicyResult with position-based adjustments applied
+
         """
         log_with_context(
             logger,
@@ -210,14 +208,14 @@ class PositionPolicyImpl:
         return result
 
     def get_available_position(self, symbol: str) -> float:
-        """
-        Get the available position quantity for a symbol.
+        """Get the available position quantity for a symbol.
 
         Args:
             symbol: Stock symbol to check
 
         Returns:
             Available quantity that can be sold
+
         """
         try:
             positions = self.trading_client.get_all_positions()
@@ -239,8 +237,7 @@ class PositionPolicyImpl:
     def validate_sell_quantity(
         self, symbol: str, requested_quantity: float
     ) -> tuple[bool, float, str | None]:
-        """
-        Validate and adjust sell quantity based on available position.
+        """Validate and adjust sell quantity based on available position.
 
         Args:
             symbol: Stock symbol to sell
@@ -248,6 +245,7 @@ class PositionPolicyImpl:
 
         Returns:
             Tuple of (is_valid, adjusted_quantity, warning_message)
+
         """
         try:
             available = self.get_available_position(symbol)
@@ -281,8 +279,7 @@ class PositionPolicyImpl:
             ) from e
 
     def should_use_liquidation_api(self, symbol: str, requested_quantity: float) -> bool:
-        """
-        Determine if liquidation API should be used instead of regular sell.
+        """Determine if liquidation API should be used instead of regular sell.
 
         Args:
             symbol: Stock symbol
@@ -290,6 +287,7 @@ class PositionPolicyImpl:
 
         Returns:
             True if liquidation API should be used
+
         """
         try:
             available = self.get_available_position(symbol)

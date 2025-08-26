@@ -1,5 +1,4 @@
-"""
-Concrete Policy Implementations
+"""Concrete Policy Implementations
 
 This module provides concrete implementations of the domain policy interfaces.
 These implementations contain the actual business logic for order validation
@@ -14,10 +13,10 @@ from .position_policy_impl import PositionPolicyImpl
 from .risk_policy_impl import RiskPolicyImpl
 
 __all__ = [
-    "FractionabilityPolicyImpl",
-    "PositionPolicyImpl",
     "BuyingPowerPolicyImpl",
-    "RiskPolicyImpl",
-    "PolicyOrchestrator",
+    "FractionabilityPolicyImpl",
     "PolicyFactory",
+    "PolicyOrchestrator",
+    "PositionPolicyImpl",
+    "RiskPolicyImpl",
 ]

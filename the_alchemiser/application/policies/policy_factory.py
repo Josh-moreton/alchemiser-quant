@@ -1,5 +1,4 @@
-"""
-Policy Factory
+"""Policy Factory
 
 Factory for creating policy orchestrator with all required dependencies.
 Provides convenient methods for setting up the policy layer.
@@ -24,8 +23,7 @@ if TYPE_CHECKING:
 
 
 class PolicyFactory:
-    """
-    Factory for creating policy orchestrator instances.
+    """Factory for creating policy orchestrator instances.
 
     Provides convenient methods for setting up the unified policy layer
     with appropriate dependencies and configuration.
@@ -39,8 +37,7 @@ class PolicyFactory:
         max_position_concentration: float = 0.15,
         max_order_size_pct: float = 0.10,
     ) -> PolicyOrchestrator:
-        """
-        Create a PolicyOrchestrator with all standard policies.
+        """Create a PolicyOrchestrator with all standard policies.
 
         Args:
             trading_client: Trading client for account and position data
@@ -51,6 +48,7 @@ class PolicyFactory:
 
         Returns:
             PolicyOrchestrator configured with all standard policies
+
         """
         from decimal import Decimal
 
@@ -82,15 +80,18 @@ class PolicyFactory:
 
     @staticmethod
     def create_fractionability_only_orchestrator() -> PolicyOrchestrator:
-        """
-        Create a minimal PolicyOrchestrator with only fractionability policy.
+        """Create a minimal PolicyOrchestrator with only fractionability policy.
 
         Useful for testing or scenarios where only fractionability validation is needed.
 
         Returns:
             PolicyOrchestrator with only fractionability policy
+
         """
-        from the_alchemiser.domain.policies.policy_result import create_approved_result, PolicyResult
+        from the_alchemiser.domain.policies.policy_result import (
+            PolicyResult,
+            create_approved_result,
+        )
         from the_alchemiser.domain.trading.value_objects.order_request import OrderRequest
 
         fractionability_policy = FractionabilityPolicyImpl()

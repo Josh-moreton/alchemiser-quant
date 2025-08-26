@@ -1,5 +1,4 @@
-"""
-Policy mapping utilities for converting between DTOs and domain objects.
+"""Policy mapping utilities for converting between DTOs and domain objects.
 
 This module is part of the anti-corruption layer, converting between interface
 DTOs (Pydantic models) and pure domain objects for policy processing. This
@@ -7,8 +6,6 @@ maintains domain layer purity while providing type-safe boundaries.
 """
 
 from __future__ import annotations
-
-from decimal import Decimal
 
 from the_alchemiser.domain.policies.policy_result import PolicyResult, PolicyWarning
 from the_alchemiser.domain.shared_kernel.value_objects.money import Money
@@ -32,7 +29,7 @@ def dto_to_domain_order_request(dto: OrderRequestDTO) -> OrderRequest:
     if dto.limit_price is not None:
         # TODO: Make currency configurable rather than hardcoded
         limit_price = Money(dto.limit_price, "USD")
-    
+
     return OrderRequest(
         symbol=Symbol(dto.symbol),
         side=Side(dto.side),
@@ -50,7 +47,7 @@ def domain_order_request_to_dto(order_request: OrderRequest) -> OrderRequestDTO:
     limit_price = None
     if order_request.limit_price is not None:
         limit_price = order_request.limit_price.amount
-    
+
     return OrderRequestDTO(
         symbol=order_request.symbol.value,
         side=order_request.side.value,
@@ -90,10 +87,10 @@ def domain_result_to_dto(result: PolicyResult) -> AdjustedOrderRequestDTO:
     """Convert domain PolicyResult to AdjustedOrderRequestDTO."""
     # Convert order request
     order_dto = domain_order_request_to_dto(result.order_request)
-    
+
     # Convert warnings
     warning_dtos = [domain_warning_to_dto(warning) for warning in result.warnings]
-    
+
     # Create DTO with new collections to avoid mutable defaults
     return AdjustedOrderRequestDTO(
         symbol=order_dto.symbol,
@@ -125,10 +122,10 @@ def dto_to_domain_result(dto: AdjustedOrderRequestDTO) -> PolicyResult:
         limit_price=Money(dto.limit_price, "USD") if dto.limit_price else None,
         client_order_id=dto.client_order_id,
     )
-    
+
     # Convert warnings to immutable tuple
     warnings = tuple(dto_warning_to_domain(w) for w in dto.warnings)
-    
+
     return PolicyResult(
         order_request=order_request,
         is_approved=dto.is_approved,

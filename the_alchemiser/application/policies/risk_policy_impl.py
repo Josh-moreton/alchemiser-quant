@@ -1,5 +1,4 @@
-"""
-Risk Policy Implementation
+"""Risk Policy Implementation
 
 Concrete implementation of RiskPolicy that handles risk assessment and limits.
 Now uses pure domain objects and typed protocols.
@@ -28,8 +27,7 @@ logger = logging.getLogger(__name__)
 
 
 class RiskPolicyImpl:
-    """
-    Concrete implementation of risk policy.
+    """Concrete implementation of risk policy.
 
     Provides basic risk assessment functionality with configurable thresholds.
     Can be extended with more sophisticated risk models in the future.
@@ -44,8 +42,7 @@ class RiskPolicyImpl:
         max_position_concentration: float = 0.15,  # 15% of portfolio
         max_order_size_pct: float = 0.10,  # 10% of portfolio per order
     ) -> None:
-        """
-        Initialize the risk policy.
+        """Initialize the risk policy.
 
         Args:
             trading_client: Trading client for portfolio data
@@ -53,6 +50,7 @@ class RiskPolicyImpl:
             max_risk_score: Maximum acceptable risk score
             max_position_concentration: Maximum position concentration (as fraction of portfolio)
             max_order_size_pct: Maximum order size as percentage of portfolio
+
         """
         self.trading_client = trading_client
         self.data_provider = data_provider
@@ -61,18 +59,15 @@ class RiskPolicyImpl:
         self.max_position_concentration = max_position_concentration
         self.max_order_size_pct = max_order_size_pct
 
-    def validate_and_adjust(
-        self,
-        order_request: OrderRequest
-    ) -> PolicyResult:
-        """
-        Assess risk and validate order against risk limits.
+    def validate_and_adjust(self, order_request: OrderRequest) -> PolicyResult:
+        """Assess risk and validate order against risk limits.
 
         Args:
             order_request: The domain order request to validate
 
         Returns:
             PolicyResult with risk assessment and any adjustments
+
         """
         log_with_context(
             logger,
@@ -92,7 +87,7 @@ class RiskPolicyImpl:
             risk_score = self.calculate_risk_score(
                 order_request.symbol.value,
                 float(order_request.quantity.value),
-                order_request.order_type.value
+                order_request.order_type.value,
             )
 
             # Check if risk score exceeds maximum
@@ -129,8 +124,7 @@ class RiskPolicyImpl:
             # Assess position concentration for buy orders
             if order_request.side.value.lower() == "buy" and self.trading_client:
                 is_acceptable, concentration_warning = self.assess_position_concentration(
-                    order_request.symbol.value,
-                    float(order_request.quantity.value)
+                    order_request.symbol.value, float(order_request.quantity.value)
                 )
 
                 if not is_acceptable:
@@ -146,7 +140,8 @@ class RiskPolicyImpl:
 
                     result = create_rejected_result(
                         order_request=order_request,
-                        rejection_reason=concentration_warning or "Excessive position concentration",
+                        rejection_reason=concentration_warning
+                        or "Excessive position concentration",
                     )
                     return result.with_risk_score(risk_score)
 
@@ -198,25 +193,21 @@ class RiskPolicyImpl:
         )
 
         result = create_approved_result(order_request=order_request)
-        
+
         # Add warnings and metadata
         if warnings:
             result = result.with_warnings(tuple(warnings))
-        
+
         metadata = {"risk_score": str(risk_score)}
         result = result.with_metadata(metadata)
         result = result.with_risk_score(risk_score)
-        
+
         return result
 
     def calculate_risk_score(
-        self,
-        symbol: str,
-        quantity: float,
-        order_type: str = "market"
+        self, symbol: str, quantity: float, order_type: str = "market"
     ) -> Decimal:
-        """
-        Calculate a risk score for an order.
+        """Calculate a risk score for an order.
 
         Args:
             symbol: Stock symbol
@@ -225,6 +216,7 @@ class RiskPolicyImpl:
 
         Returns:
             Risk score (higher values indicate higher risk)
+
         """
         try:
             base_score = Decimal("10")  # Base risk score
@@ -255,12 +247,9 @@ class RiskPolicyImpl:
             return Decimal("50")  # Conservative default risk score
 
     def assess_position_concentration(
-        self,
-        symbol: str,
-        additional_quantity: float
+        self, symbol: str, additional_quantity: float
     ) -> tuple[bool, str | None]:
-        """
-        Assess if adding quantity would create excessive concentration.
+        """Assess if adding quantity would create excessive concentration.
 
         Args:
             symbol: Stock symbol
@@ -268,6 +257,7 @@ class RiskPolicyImpl:
 
         Returns:
             Tuple of (is_acceptable, warning_message)
+
         """
         try:
             if not self.trading_client or not self.data_provider:
@@ -290,7 +280,10 @@ class RiskPolicyImpl:
             concentration_pct = order_value / portfolio_value
 
             if concentration_pct > self.max_position_concentration:
-                return False, f"Order would create {concentration_pct:.1%} position concentration (max: {self.max_position_concentration:.1%})"
+                return (
+                    False,
+                    f"Order would create {concentration_pct:.1%} position concentration (max: {self.max_position_concentration:.1%})",
+                )
 
             if concentration_pct > self.max_position_concentration * 0.8:  # 80% of limit
                 return True, f"High concentration warning: {concentration_pct:.1%} of portfolio"
@@ -309,13 +302,9 @@ class RiskPolicyImpl:
             return True, f"Concentration assessment failed: {e}"
 
     def validate_order_size(
-        self,
-        symbol: str,
-        quantity: float,
-        portfolio_value: float
+        self, symbol: str, quantity: float, portfolio_value: float
     ) -> tuple[bool, str | None]:
-        """
-        Validate order size against portfolio limits.
+        """Validate order size against portfolio limits.
 
         Args:
             symbol: Stock symbol
@@ -324,6 +313,7 @@ class RiskPolicyImpl:
 
         Returns:
             Tuple of (is_acceptable, warning_message)
+
         """
         try:
             if not self.data_provider:
@@ -337,7 +327,10 @@ class RiskPolicyImpl:
             order_size_pct = order_value / portfolio_value
 
             if order_size_pct > self.max_order_size_pct:
-                return False, f"Order size {order_size_pct:.1%} exceeds limit {self.max_order_size_pct:.1%}"
+                return (
+                    False,
+                    f"Order size {order_size_pct:.1%} exceeds limit {self.max_order_size_pct:.1%}",
+                )
 
             return True, None
 

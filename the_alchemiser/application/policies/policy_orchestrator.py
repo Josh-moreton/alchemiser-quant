@@ -1,5 +1,4 @@
-"""
-Policy Orchestrator
+"""Policy Orchestrator
 
 Central coordinator for all order validation policies. Runs policies in sequence
 and aggregates their results into a final order decision. Now uses pure domain
@@ -39,8 +38,7 @@ logger = logging.getLogger(__name__)
 
 
 class PolicyOrchestrator:
-    """
-    Central orchestrator for order validation policies.
+    """Central orchestrator for order validation policies.
 
     Coordinates all policy validations and aggregates results into a final
     order decision with comprehensive logging and structured warnings.
@@ -54,14 +52,14 @@ class PolicyOrchestrator:
         buying_power_policy: BuyingPowerPolicyImpl,
         risk_policy: RiskPolicyImpl,
     ) -> None:
-        """
-        Initialize the policy orchestrator.
+        """Initialize the policy orchestrator.
 
         Args:
             fractionability_policy: Policy for asset fractionability
             position_policy: Policy for position validation
             buying_power_policy: Policy for buying power validation
             risk_policy: Policy for risk assessment
+
         """
         self.fractionability_policy = fractionability_policy
         self.position_policy = position_policy
@@ -70,8 +68,7 @@ class PolicyOrchestrator:
         self._orchestrator_name = "PolicyOrchestrator"
 
     def validate_and_adjust_order(self, order_request: OrderRequestDTO) -> AdjustedOrderRequestDTO:
-        """
-        Run all policies on an order request and return aggregated result.
+        """Run all policies on an order request and return aggregated result.
 
         This method serves as the boundary between DTOs (interface layer) and
         domain objects. It converts DTOs to domain objects, runs domain validation,
@@ -88,6 +85,7 @@ class PolicyOrchestrator:
 
         Returns:
             AdjustedOrderRequestDTO with final validation results
+
         """
         # Convert DTO to domain object
         domain_order_request = dto_to_domain_order_request(order_request)
@@ -104,8 +102,7 @@ class PolicyOrchestrator:
         return self._validate_and_adjust_domain(order_request)
 
     def _validate_and_adjust_domain(self, order_request: OrderRequest) -> PolicyResult:
-        """
-        Internal method that runs policy validation using pure domain objects.
+        """Internal method that runs policy validation using pure domain objects.
 
         This method maintains immutability by creating new PolicyResult instances
         instead of mutating existing ones.
@@ -115,6 +112,7 @@ class PolicyOrchestrator:
 
         Returns:
             PolicyResult with final validation results
+
         """
         log_with_context(
             logger,

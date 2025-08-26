@@ -1,5 +1,4 @@
-"""
-Buying Power Policy Implementation
+"""Buying Power Policy Implementation
 
 Concrete implementation of BuyingPowerPolicy that handles buying power validation.
 Extracts logic from PositionManager and ensures BuyingPowerError is raised properly.
@@ -9,7 +8,6 @@ Now uses pure domain objects and typed protocols.
 from __future__ import annotations
 
 import logging
-from decimal import Decimal
 from typing import TYPE_CHECKING
 
 from the_alchemiser.domain.policies.policy_result import (
@@ -30,32 +28,29 @@ logger = logging.getLogger(__name__)
 
 
 class BuyingPowerPolicyImpl:
-    """
-    Concrete implementation of buying power policy.
+    """Concrete implementation of buying power policy.
 
     Handles validation of orders against available buying power and raises
     BuyingPowerError for insufficient funds (no string parsing heuristics).
     Uses typed protocols for external dependencies.
     """
 
-    def __init__(self, trading_client: TradingClientProtocol, data_provider: DataProviderProtocol) -> None:
-        """
-        Initialize the buying power policy.
+    def __init__(
+        self, trading_client: TradingClientProtocol, data_provider: DataProviderProtocol
+    ) -> None:
+        """Initialize the buying power policy.
 
         Args:
             trading_client: Trading client for account data
             data_provider: Data provider for price information
+
         """
         self.trading_client = trading_client
         self.data_provider = data_provider
         self._policy_name = "BuyingPowerPolicy"
 
-    def validate_and_adjust(
-        self,
-        order_request: OrderRequest
-    ) -> PolicyResult:
-        """
-        Validate order against available buying power.
+    def validate_and_adjust(self, order_request: OrderRequest) -> PolicyResult:
+        """Validate order against available buying power.
 
         For buy orders, checks if order value is within buying power limits.
         Raises BuyingPowerError for insufficient funds.
@@ -68,6 +63,7 @@ class BuyingPowerPolicyImpl:
 
         Raises:
             BuyingPowerError: If insufficient buying power for the order
+
         """
         log_with_context(
             logger,
@@ -88,12 +84,10 @@ class BuyingPowerPolicyImpl:
                 limit_price = None
                 if order_request.limit_price:
                     limit_price = float(order_request.limit_price.amount)
-                
+
                 # Validate buying power - this will raise BuyingPowerError if insufficient
                 self.validate_buying_power(
-                    order_request.symbol.value,
-                    float(order_request.quantity.value),
-                    limit_price
+                    order_request.symbol.value, float(order_request.quantity.value), limit_price
                 )
 
                 log_with_context(
@@ -129,7 +123,9 @@ class BuyingPowerPolicyImpl:
             except Exception as e:
                 # For unexpected errors during buying power validation, log and continue
                 # This matches the original behavior of returning warnings instead of failing
-                warning_msg = f"Unable to validate buying power for {order_request.symbol.value}: {e}"
+                warning_msg = (
+                    f"Unable to validate buying power for {order_request.symbol.value}: {e}"
+                )
 
                 warning = PolicyWarning(
                     policy_name=self.policy_name,
@@ -164,19 +160,19 @@ class BuyingPowerPolicyImpl:
         )
 
         result = create_approved_result(order_request=order_request)
-        
+
         # Add warnings if any
         if warnings:
             result = result.with_warnings(tuple(warnings))
-        
+
         return result
 
     def get_available_buying_power(self) -> float:
-        """
-        Get current available buying power.
+        """Get current available buying power.
 
         Returns:
             Available buying power amount
+
         """
         try:
             account = self.trading_client.get_account()
@@ -196,13 +192,9 @@ class BuyingPowerPolicyImpl:
             ) from e
 
     def estimate_order_value(
-        self,
-        symbol: str,
-        quantity: float,
-        order_type: str = "market"
+        self, symbol: str, quantity: float, order_type: str = "market"
     ) -> float:
-        """
-        Estimate the total value of an order.
+        """Estimate the total value of an order.
 
         Args:
             symbol: Stock symbol
@@ -211,6 +203,7 @@ class BuyingPowerPolicyImpl:
 
         Returns:
             Estimated order value in dollars
+
         """
         try:
             current_price = self.data_provider.get_current_price(symbol)
@@ -232,13 +225,9 @@ class BuyingPowerPolicyImpl:
             raise DataProviderError(f"Unable to estimate order value for {symbol}: {e}") from e
 
     def validate_buying_power(
-        self,
-        symbol: str,
-        quantity: float,
-        estimated_price: float | None = None
+        self, symbol: str, quantity: float, estimated_price: float | None = None
     ) -> bool:
-        """
-        Validate if sufficient buying power exists for an order.
+        """Validate if sufficient buying power exists for an order.
 
         Args:
             symbol: Stock symbol
@@ -250,6 +239,7 @@ class BuyingPowerPolicyImpl:
 
         Raises:
             BuyingPowerError: If insufficient buying power
+
         """
         try:
             buying_power = self.get_available_buying_power()

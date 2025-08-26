@@ -1,5 +1,4 @@
-"""
-Base Policy Protocol
+"""Base Policy Protocol
 
 Defines the common interface that all order validation policies must implement.
 Uses pure domain objects to maintain domain layer purity.
@@ -14,26 +13,22 @@ from the_alchemiser.domain.trading.value_objects.order_request import OrderReque
 
 
 class OrderPolicy(Protocol):
-    """
-    Base protocol for order validation and adjustment policies.
+    """Base protocol for order validation and adjustment policies.
 
     All concrete policy implementations must implement this interface
     to be used by the PolicyOrchestrator. Uses pure domain objects
     to maintain separation of concerns and domain layer purity.
     """
 
-    def validate_and_adjust(
-        self,
-        order_request: OrderRequest
-    ) -> PolicyResult:
-        """
-        Validate and potentially adjust an order request.
+    def validate_and_adjust(self, order_request: OrderRequest) -> PolicyResult:
+        """Validate and potentially adjust an order request.
 
         Args:
             order_request: The domain order request to validate
 
         Returns:
             PolicyResult with validation results and any adjustments
+
         """
         ...
 
