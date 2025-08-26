@@ -15,7 +15,7 @@ Focuses on execution strategy logic while delegating order placement to speciali
 
 import logging
 import time
-from typing import Any, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
 from alpaca.trading.enums import OrderSide
 
@@ -24,6 +24,16 @@ from the_alchemiser.infrastructure.config.execution_config import (
     get_execution_config,
 )
 from the_alchemiser.interfaces.schemas.execution import WebSocketResultDTO
+
+if TYPE_CHECKING:
+    from the_alchemiser.application.trading.lifecycle import (
+        LifecycleEventDispatcher,
+        OrderLifecycleManager,
+    )
+    from the_alchemiser.domain.trading.lifecycle import (
+        LifecycleEventType,
+        OrderLifecycleState,
+    )
 from the_alchemiser.services.errors.exceptions import (
     BuyingPowerError,
     DataProviderError,
@@ -125,6 +135,8 @@ class SmartExecution:
         account_info_provider: Any = None,
         enable_market_order_fallback: bool = False,  # Feature flag for market order fallback
         execution_config: ExecutionConfig | None = None,  # Phase 2: Adaptive configuration
+        lifecycle_manager: "OrderLifecycleManager | None" = None,  # Phase 3: Lifecycle tracking
+        lifecycle_dispatcher: "LifecycleEventDispatcher | None" = None,  # Phase 3: Event dispatch
     ) -> None:
         """Initialize with dependency injection for execution and data access."""
         self.config = config or {}
@@ -135,7 +147,107 @@ class SmartExecution:
         self.ignore_market_hours = ignore_market_hours
         self.enable_market_order_fallback = enable_market_order_fallback
         self.execution_config = execution_config or get_execution_config()  # Phase 2: Use global config if not provided
+
+        # Phase 3: Lifecycle management integration
+        from the_alchemiser.application.trading.lifecycle import (
+            LifecycleEventDispatcher,
+            LoggingObserver,
+            MetricsObserver,
+            OrderLifecycleManager,
+        )
+
+        self.lifecycle_manager = lifecycle_manager or OrderLifecycleManager()
+
+        # Initialize dispatcher with observers if not provided
+        if lifecycle_dispatcher is None:
+            self.lifecycle_dispatcher = LifecycleEventDispatcher()
+            # Add standard observers for logging and metrics
+            self.lifecycle_dispatcher.register(LoggingObserver())
+            self.lifecycle_dispatcher.register(MetricsObserver())
+        else:
+            self.lifecycle_dispatcher = lifecycle_dispatcher
+
         self.logger = logging.getLogger(__name__)
+
+    def _track_order_lifecycle(
+        self,
+        order_id: str,
+        target_state: "OrderLifecycleState",
+        event_type: "LifecycleEventType | None" = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> None:
+        """
+        Track order lifecycle state transitions and dispatch events.
+
+        Phase 3: Integration helper to update lifecycle state and emit events
+        for comprehensive order tracking throughout the execution pipeline.
+        """
+        try:
+            from the_alchemiser.domain.trading.lifecycle import (
+                LifecycleEventType,
+                OrderLifecycleState,
+            )
+            from the_alchemiser.domain.trading.value_objects.order_id import OrderId
+
+            # Default event type based on target state
+            if event_type is None:
+                if target_state == OrderLifecycleState.SUBMITTED:
+                    event_type = LifecycleEventType.STATE_CHANGED
+                elif target_state == OrderLifecycleState.FILLED:
+                    event_type = LifecycleEventType.STATE_CHANGED
+                elif target_state == OrderLifecycleState.PARTIALLY_FILLED:
+                    event_type = LifecycleEventType.PARTIAL_FILL
+                elif target_state == OrderLifecycleState.CANCELLED:
+                    event_type = LifecycleEventType.CANCEL_CONFIRMED
+                elif target_state == OrderLifecycleState.REJECTED:
+                    event_type = LifecycleEventType.REJECTED
+                elif target_state == OrderLifecycleState.EXPIRED:
+                    event_type = LifecycleEventType.EXPIRED
+                elif target_state == OrderLifecycleState.ERROR:
+                    event_type = LifecycleEventType.ERROR
+                else:
+                    event_type = LifecycleEventType.STATE_CHANGED
+
+            # Advance lifecycle state and get event
+            typed_order_id = OrderId.from_string(order_id)
+            lifecycle_event = self.lifecycle_manager.advance(
+                typed_order_id,
+                target_state,
+                event_type=event_type,
+                metadata=metadata,
+                dispatcher=self.lifecycle_dispatcher,
+            )
+
+            # Dispatch event to observers
+            self.lifecycle_dispatcher.dispatch(lifecycle_event)
+
+        except Exception as e:
+            # Don't let lifecycle tracking failures break order execution
+            self.logger.warning(
+                "lifecycle_tracking_error",
+                extra={
+                    "order_id": order_id,
+                    "target_state": str(target_state),
+                    "error": str(e),
+                },
+            )
+
+    def _get_order_lifecycle_state(self, order_id: str) -> "OrderLifecycleState | None":
+        """Get current lifecycle state for an order."""
+        try:
+            from the_alchemiser.domain.trading.value_objects.order_id import OrderId
+
+            typed_order_id = OrderId.from_string(order_id)
+            return self.lifecycle_manager.get_state(typed_order_id)
+        except Exception as e:
+            self.logger.warning(
+                "lifecycle_state_query_error",
+                extra={
+                    "order_id": order_id,
+                    "error": str(e),
+                },
+            )
+            return None
 
     def execute_safe_sell(self, symbol: str, target_qty: float) -> str | None:
         """
@@ -764,6 +876,23 @@ class SmartExecution:
                     reason="none_order_id_returned",
                 )
 
+            # Phase 3: Track order submission in lifecycle
+            from the_alchemiser.domain.trading.lifecycle import OrderLifecycleState
+
+            self._track_order_lifecycle(
+                order_id,
+                OrderLifecycleState.SUBMITTED,
+                metadata={
+                    "symbol": symbol,
+                    "side": side.value,
+                    "quantity": qty,
+                    "limit_price": limit_price,
+                    "attempt": attempt,
+                    "timeout_seconds": timeout_seconds,
+                    "execution_strategy": "aggressive_limit",
+                },
+            )
+
             # Wait for fill with adaptive timeout
             try:
                 order_result = self._order_executor.wait_for_order_completion(
@@ -796,6 +925,19 @@ class SmartExecution:
             # Check if the order completed successfully
             order_completed = order_id in order_result.orders_completed
             if order_completed and order_result.status == "completed":
+                # Phase 3: Track successful order completion in lifecycle
+                self._track_order_lifecycle(
+                    order_id,
+                    OrderLifecycleState.FILLED,
+                    metadata={
+                        "symbol": symbol,
+                        "execution_price": limit_price,
+                        "attempt": attempt,
+                        "timeout_used": timeout_seconds,
+                        "completion_method": "aggressive_limit",
+                    },
+                )
+
                 console.print(
                     f"[green]✅ {side.value} {symbol} filled @ ${limit_price:.2f} ({attempt_label})[/green]"
                 )
@@ -810,6 +952,25 @@ class SmartExecution:
                     },
                 )
                 return order_id
+            else:
+                # Phase 3: Track timeout/partial state if applicable
+                # Note: In a real system, we'd need to query order status to determine if it's partial, cancelled, etc.
+                current_lifecycle_state = self._get_order_lifecycle_state(order_id)
+                if current_lifecycle_state == OrderLifecycleState.SUBMITTED:
+                    # Order still in submitted state - this is a timeout
+                    from the_alchemiser.domain.trading.lifecycle import LifecycleEventType
+
+                    self._track_order_lifecycle(
+                        order_id,
+                        OrderLifecycleState.SUBMITTED,  # Stay in same state but emit timeout event
+                        event_type=LifecycleEventType.TIMEOUT,
+                        metadata={
+                            "symbol": symbol,
+                            "timeout_seconds": timeout_seconds,
+                            "attempt": attempt,
+                            "reason": "order_completion_timeout",
+                        },
+                    )
 
             # Order not filled - prepare for re-peg if attempts remain
             if attempt < max_repegs:
@@ -905,6 +1066,21 @@ class SmartExecution:
                     quantity=qty,
                     reason="market_fallback_none_id",
                 )
+
+            # Phase 3: Track market order fallback in lifecycle
+            self._track_order_lifecycle(
+                fallback_order_id,
+                OrderLifecycleState.SUBMITTED,
+                metadata={
+                    "symbol": symbol,
+                    "side": side.value,
+                    "quantity": qty,
+                    "order_type": "market",
+                    "execution_strategy": "market_fallback",
+                    "limit_attempts_failed": max_repegs + 1,
+                },
+            )
+
             return fallback_order_id
         else:
             # Feature flag disabled - raise timeout error instead of fallback
