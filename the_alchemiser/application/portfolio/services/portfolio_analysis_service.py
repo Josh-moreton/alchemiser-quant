@@ -8,6 +8,7 @@ from the_alchemiser.domain.portfolio.strategy_attribution.attribution_engine imp
     StrategyAttributionEngine,
 )
 from the_alchemiser.services.trading.trading_service_manager import TradingServiceManager
+from the_alchemiser.utils.num import floats_equal
 
 
 class PortfolioAnalysisService:
@@ -47,7 +48,7 @@ class PortfolioAnalysisService:
         positions = self._get_current_position_values()
         portfolio_value = self._get_portfolio_value()
 
-        if portfolio_value == 0:
+        if floats_equal(portfolio_value, 0.0):
             return self._get_empty_portfolio_analysis()
 
         # Calculate strategy exposures
@@ -104,7 +105,7 @@ class PortfolioAnalysisService:
         current_positions = self._get_current_position_values()
         portfolio_value = self._get_portfolio_value()
 
-        if portfolio_value == 0:
+        if floats_equal(portfolio_value, 0.0):
             return {"error": "Portfolio value is zero"}
 
         # Calculate current weights
@@ -156,7 +157,7 @@ class PortfolioAnalysisService:
         positions = self._get_current_position_values()
         portfolio_value = self._get_portfolio_value()
 
-        if portfolio_value == 0:
+        if floats_equal(portfolio_value, 0.0):
             return {"error": "Portfolio value is zero"}
 
         # Group positions by strategy
@@ -340,7 +341,7 @@ class PortfolioAnalysisService:
         self, positions: dict[str, Decimal], portfolio_value: Decimal
     ) -> dict[str, Any]:
         """Calculate portfolio concentration metrics."""
-        if portfolio_value == 0:
+        if floats_equal(float(portfolio_value), 0.0):
             return {}
 
         sorted_positions = sorted(positions.values(), reverse=True)
