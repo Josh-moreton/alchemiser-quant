@@ -29,7 +29,7 @@ if TYPE_CHECKING:  # Import for type checking only to avoid runtime dependency
 
 from alpaca.trading.enums import OrderSide
 
-from the_alchemiser.application.execution.refactored_smart_execution import RefactoredSmartExecution
+from the_alchemiser.application.execution.smart_execution import SmartExecution
 from the_alchemiser.application.mapping.execution_summary_mapping import (
     safe_dict_to_execution_summary_dto,
     safe_dict_to_portfolio_state_dto,
@@ -255,7 +255,7 @@ class TradingEngine:
                 )
 
             alpaca_client = AlpacaClient(alpaca_manager, self.data_provider)
-            self.order_manager = RefactoredSmartExecution(
+            self.order_manager = SmartExecution(
                 order_executor=alpaca_client,
                 data_provider=self.data_provider,
             )

@@ -5,7 +5,7 @@ from typing import Any
 
 from alpaca.trading.enums import OrderSide
 
-from the_alchemiser.application.execution.refactored_smart_execution import RefactoredSmartExecution
+from the_alchemiser.application.execution.smart_execution import SmartExecution
 from the_alchemiser.application.trading.alpaca_client import AlpacaClient
 from the_alchemiser.domain.portfolio.rebalancing.rebalance_plan import RebalancePlan
 from the_alchemiser.services.errors import TradingSystemErrorHandler
@@ -24,7 +24,7 @@ class RebalanceExecutionService:
     def __init__(
         self,
         trading_manager: TradingServiceManager,
-        smart_execution: RefactoredSmartExecution | None = None,
+        smart_execution: SmartExecution | None = None,
         error_handler: TradingSystemErrorHandler | None = None,
     ):
         """
@@ -43,7 +43,7 @@ class RebalanceExecutionService:
             # Use AlpacaManager as the price/quote provider; it implements the minimal methods
             price_quote_provider = trading_manager.alpaca_manager
             alpaca_client = AlpacaClient(trading_manager.alpaca_manager, price_quote_provider)
-            self.smart_execution = RefactoredSmartExecution(
+            self.smart_execution = SmartExecution(
                 order_executor=alpaca_client,
                 data_provider=price_quote_provider,
             )
