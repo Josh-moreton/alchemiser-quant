@@ -40,9 +40,13 @@ from the_alchemiser.interfaces.schemas.accounts import (
     EnrichedAccountSummaryDTO,
 )
 from the_alchemiser.services.account.account_service import AccountService
-from the_alchemiser.services.errors.exceptions import DataProviderError, TradingClientError
+from the_alchemiser.services.errors.exceptions import (
+    DataProviderError,
+    TradingClientError,
+)
 from the_alchemiser.services.market_data.market_data_service import MarketDataService
 from the_alchemiser.services.trading.position_service import PositionService
+from the_alchemiser.utils.serialization import ensure_serialized_dict
 
 logger = logging.getLogger(__name__)
 
@@ -272,7 +276,12 @@ class AccountFacade:
         """
         try:
             return self._account_service.get_positions_dict()
-        except (DataProviderError, TradingClientError, ConnectionError, TimeoutError) as e:
+        except (
+            DataProviderError,
+            TradingClientError,
+            ConnectionError,
+            TimeoutError,
+        ) as e:
             self.logger.error(f"Failed to retrieve positions: {e}")
             return {}
 
@@ -425,8 +434,12 @@ class AccountFacade:
 
     # --- Typed Domain Integration Methods ---
 
-    def _build_minimal_summary(self) -> EnrichedAccountSummaryDTO:
-        """Internal helper to construct a minimal fallback summary."""
+    def _build_minimal_summary(self) -> dict[str, Any]:
+        """Internal helper to construct a minimal fallback summary.
+
+        Returns:
+            Serialized dictionary containing minimal account summary data.
+        """
         default_account = _create_default_account_info("error")
         minimal_metrics = AccountMetricsDTO(
             cash_ratio=Decimal("0.0"),
@@ -448,18 +461,19 @@ class AccountFacade:
             account_blocked=False,
             calculated_metrics=minimal_metrics,
         )
-        return EnrichedAccountSummaryDTO(raw=dict(default_account), summary=minimal_summary)
+        enriched_dto = EnrichedAccountSummaryDTO(raw=dict(default_account), summary=minimal_summary)
+        return ensure_serialized_dict(enriched_dto)
 
-    def get_enriched_account_summary(self) -> EnrichedAccountSummaryDTO:
+    def get_enriched_account_summary(self) -> dict[str, Any]:
         """Get enriched account summary using typed domain objects.
 
         This method provides integration with the typed domain system by:
         - Getting raw account summary from AccountService
         - Converting to typed domain objects using existing mappers
-        - Returning both raw and typed representations
+        - Returning serialized dictionary representation
 
         Returns:
-            EnrichedAccountSummaryDTO with both raw and typed representations
+            Serialized dictionary with both raw and typed account summary data.
         """
         try:
             # Get comprehensive account summary from service
@@ -489,7 +503,8 @@ class AccountFacade:
                 ),
             )
 
-            return EnrichedAccountSummaryDTO(raw=raw_summary, summary=summary_dto)
+            enriched_dto = EnrichedAccountSummaryDTO(raw=raw_summary, summary=summary_dto)
+            return ensure_serialized_dict(enriched_dto)
 
         except (
             DataProviderError,
