@@ -18,9 +18,7 @@ from typing import TYPE_CHECKING, Any
 
 from the_alchemiser.domain.trading.value_objects.order_request import OrderRequest
 from the_alchemiser.interfaces.schemas.orders import (
-    AdjustedOrderRequestDTO,
     OrderExecutionResultDTO,
-    OrderRequestDTO,
 )
 from the_alchemiser.services.errors.handler import TradingSystemErrorHandler
 
@@ -60,10 +58,7 @@ class CanonicalOrderExecutor:
 
         from datetime import UTC, datetime
 
-        # Convert domain OrderRequest to DTO for policy validation
-        order_dto = self._convert_to_order_dto(order_request)
-
-        # Apply policy validation if orchestrator is available
+        # Apply policy validation if orchestrator is available (domain pathway preferred)
         if self.policy_orchestrator:
             logger.info(
                 "Applying policy validation",
@@ -77,21 +72,21 @@ class CanonicalOrderExecutor:
             )
 
             try:
-                adjusted_order = self.policy_orchestrator.validate_and_adjust_order(order_dto)
+                policy_result = self.policy_orchestrator.validate_and_adjust_domain(order_request)
 
-                if not adjusted_order.is_approved:
+                if not policy_result.is_approved:
                     logger.warning(
                         "Order rejected by policy validation",
                         extra={
                             "component": "CanonicalOrderExecutor.execute",
                             "symbol": order_request.symbol.value,
-                            "rejection_reason": adjusted_order.rejection_reason,
-                            "warnings": len(adjusted_order.warnings),
+                            "rejection_reason": policy_result.rejection_reason,
+                            "warnings": len(policy_result.warnings),
                         },
                     )
                     return OrderExecutionResultDTO(
                         success=False,
-                        error=f"Policy rejection: {adjusted_order.rejection_reason}",
+                        error=f"Policy rejection: {policy_result.rejection_reason}",
                         order_id="policy_rejected",
                         status="rejected",
                         filled_qty=Decimal("0"),
@@ -101,33 +96,31 @@ class CanonicalOrderExecutor:
                     )
 
                 # Log policy warnings
-                if adjusted_order.warnings:
+                if policy_result.warnings:
                     logger.info(
                         "Policy warnings generated",
                         extra={
                             "component": "CanonicalOrderExecutor.execute",
                             "symbol": order_request.symbol.value,
-                            "warnings": [w.message for w in adjusted_order.warnings],
-                            "warning_count": len(adjusted_order.warnings),
+                            "warnings": [w.message for w in policy_result.warnings],
+                            "warning_count": len(policy_result.warnings),
                         },
                     )
 
                 # Update order request with policy adjustments
-                if adjusted_order.has_adjustments:
+                if policy_result.has_adjustments:
                     logger.info(
                         "Order adjusted by policies",
                         extra={
                             "component": "CanonicalOrderExecutor.execute",
                             "symbol": order_request.symbol.value,
                             "original_qty": str(order_request.quantity.value),
-                            "adjusted_qty": str(adjusted_order.quantity),
-                            "adjustment_reason": adjusted_order.adjustment_reason,
+                            "adjusted_qty": str(policy_result.order_request.quantity.value),
+                            "adjustment_reason": policy_result.adjustment_reason,
                         },
                     )
-                    # Create new order request with adjusted values
-                    order_request = self._update_order_request_from_dto(
-                        order_request, adjusted_order
-                    )
+                    # Replace with adjusted domain order request
+                    order_request = policy_result.order_request
 
             except Exception as e:
                 self.error_handler.handle_error(
@@ -289,61 +282,7 @@ class CanonicalOrderExecutor:
         # Additional business rule validation can be added here
         logger.debug(f"Order request validation passed for {order_request.symbol.value}")
 
-    def _convert_to_order_dto(self, order_request: OrderRequest) -> OrderRequestDTO:
-        """Convert domain OrderRequest to OrderRequestDTO for policy validation.
-
-        Args:
-            order_request: Domain order request value object
-
-        Returns:
-            OrderRequestDTO for policy processing
-        """
-        return OrderRequestDTO(
-            symbol=order_request.symbol.value,
-            side=order_request.side.value,
-            quantity=order_request.quantity.value,
-            order_type=order_request.order_type.value,
-            time_in_force=order_request.time_in_force.value,
-            limit_price=(order_request.limit_price.amount if order_request.limit_price else None),
-            client_order_id=order_request.client_order_id,
-        )
-
-    def _update_order_request_from_dto(
-        self, original_request: OrderRequest, adjusted_dto: AdjustedOrderRequestDTO
-    ) -> OrderRequest:
-        """Update domain OrderRequest with policy adjustments.
-
-        Args:
-            original_request: Original domain order request
-            adjusted_dto: Adjusted order from policy validation
-
-        Returns:
-            Updated OrderRequest with policy adjustments
-        """
-        from the_alchemiser.domain.shared_kernel.value_objects.money import Money
-        from the_alchemiser.domain.trading.value_objects.order_request import (
-            OrderRequest as NewOrderRequest,
-        )
-        from the_alchemiser.domain.trading.value_objects.order_type import OrderType
-        from the_alchemiser.domain.trading.value_objects.quantity import Quantity
-        from the_alchemiser.domain.trading.value_objects.side import Side
-        from the_alchemiser.domain.trading.value_objects.symbol import Symbol
-        from the_alchemiser.domain.trading.value_objects.time_in_force import (
-            TimeInForce,
-        )
-
-        # Create new value objects with adjusted values
-        return NewOrderRequest(
-            symbol=Symbol(adjusted_dto.symbol),
-            side=Side(adjusted_dto.side),
-            quantity=Quantity(adjusted_dto.quantity),
-            order_type=OrderType(adjusted_dto.order_type),
-            time_in_force=TimeInForce(adjusted_dto.time_in_force),
-            limit_price=(
-                Money(adjusted_dto.limit_price, "USD") if adjusted_dto.limit_price else None
-            ),
-            client_order_id=adjusted_dto.client_order_id,
-        )
+    # Removed obsolete DTO conversion helpers after domain pathway adoption.
 
     def _convert_to_alpaca_request(self, order_request: OrderRequest) -> Any:
         """Convert domain OrderRequest to Alpaca API format.

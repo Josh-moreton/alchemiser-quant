@@ -1,9 +1,7 @@
-"""
-Fractionability Policy Implementation
+"""Fractionability policy implementation.
 
-Concrete implementation of FractionabilityPolicy that handles asset fractionability
-validation and quantity adjustments. Extracts logic from LimitOrderHandler.
-Now uses pure domain objects to maintain domain layer purity.
+Concrete implementation handling asset fractionability validation and quantity
+adjustments (extracted from legacy handlers) using pure domain objects.
 """
 
 from __future__ import annotations
@@ -30,8 +28,7 @@ logger = logging.getLogger(__name__)
 
 
 class FractionabilityPolicyImpl:
-    """
-    Concrete implementation of fractionability policy.
+    """Concrete implementation of fractionability policy.
 
     Handles validation and adjustment of order quantities based on asset
     fractionability rules, with structured logging and warning generation.
@@ -42,18 +39,15 @@ class FractionabilityPolicyImpl:
         """Initialize the fractionability policy."""
         self._policy_name = "FractionabilityPolicy"
 
-    def validate_and_adjust(
-        self,
-        order_request: OrderRequest
-    ) -> PolicyResult:
-        """
-        Validate and adjust order quantity based on fractionability rules.
+    def validate_and_adjust(self, order_request: OrderRequest) -> PolicyResult:
+        """Validate and adjust order quantity based on fractionability rules.
 
         Args:
             order_request: The domain order request to validate
 
         Returns:
             PolicyResult with fractionability adjustments applied
+
         """
         log_with_context(
             logger,
@@ -69,26 +63,20 @@ class FractionabilityPolicyImpl:
         warnings: list[PolicyWarning] = []
         adjustment_reason = None
 
-        # Check if asset is fractionable
+        # Determine if asset supports fractional shares
         is_fractionable = self.is_fractionable(order_request.symbol.value)
-
         if not is_fractionable:
-            # Convert to whole shares for non-fractionable assets
-            limit_price = None
-            if order_request.limit_price:
-                limit_price = float(order_request.limit_price.amount)
-            
-            whole_quantity, was_adjusted = self.convert_to_whole_shares(
-                order_request.symbol.value,
-                float(original_quantity),
-                limit_price
+            limit_price = (
+                float(order_request.limit_price.amount)
+                if order_request.limit_price is not None
+                else None
             )
-
+            whole_quantity, was_adjusted = self.convert_to_whole_shares(
+                order_request.symbol.value, float(original_quantity), limit_price
+            )
             if was_adjusted:
                 adjusted_quantity = Decimal(str(whole_quantity))
-
                 if adjusted_quantity <= 0:
-                    # Reject order if it rounds to zero
                     log_with_context(
                         logger,
                         logging.WARNING,
@@ -99,24 +87,25 @@ class FractionabilityPolicyImpl:
                         original_quantity=str(original_quantity),
                         adjusted_quantity="0",
                     )
-
                     return create_rejected_result(
                         order_request=order_request,
                         rejection_reason="Order quantity rounds to zero whole shares",
                     )
-
-                # Add warning for adjustment
                 warning = PolicyWarning(
                     policy_name=self.policy_name,
                     action="adjust",
-                    message=f"Rounded {order_request.symbol.value} to {adjusted_quantity} whole shares for non-fractionable asset",
+                    message=(
+                        f"Rounded {order_request.symbol.value} to {adjusted_quantity} whole shares "
+                        "for non-fractionable asset"
+                    ),
                     original_value=str(original_quantity),
                     adjusted_value=str(adjusted_quantity),
                     risk_level="low",
                 )
                 warnings.append(warning)
-                adjustment_reason = f"Rounded to {adjusted_quantity} whole shares for non-fractionable asset"
-
+                adjustment_reason = (
+                    f"Rounded to {adjusted_quantity} whole shares for non-fractionable asset"
+                )
                 log_with_context(
                     logger,
                     logging.INFO,
@@ -128,17 +117,11 @@ class FractionabilityPolicyImpl:
                     adjusted_quantity=str(adjusted_quantity),
                 )
         else:
-            # For fractionable assets, apply standard rounding
-            rounded_quantity = float(
-                Decimal(str(original_quantity)).quantize(
-                    Decimal("0.000001"),
-                    rounding=ROUND_DOWN
-                )
+            rounded_quantity = Decimal(str(original_quantity)).quantize(
+                Decimal("0.000001"), rounding=ROUND_DOWN
             )
-
-            if rounded_quantity != float(original_quantity):
-                adjusted_quantity = Decimal(str(rounded_quantity))
-
+            if rounded_quantity != original_quantity:
+                adjusted_quantity = rounded_quantity
                 warning = PolicyWarning(
                     policy_name=self.policy_name,
                     action="adjust",
@@ -149,7 +132,6 @@ class FractionabilityPolicyImpl:
                 )
                 warnings.append(warning)
                 adjustment_reason = "Applied precision rounding"
-
                 log_with_context(
                     logger,
                     logging.DEBUG,
@@ -161,7 +143,6 @@ class FractionabilityPolicyImpl:
                     adjusted_quantity=str(adjusted_quantity),
                 )
 
-        # Check final quantity is valid
         if adjusted_quantity <= 0:
             log_with_context(
                 logger,
@@ -172,13 +153,11 @@ class FractionabilityPolicyImpl:
                 symbol=order_request.symbol.value,
                 adjusted_quantity=str(adjusted_quantity),
             )
-
             return create_rejected_result(
                 order_request=order_request,
                 rejection_reason="Final quantity is zero or negative",
             )
 
-        # Create adjusted order request if needed
         final_order_request = order_request
         if adjusted_quantity != original_quantity:
             final_order_request = OrderRequest(
@@ -191,7 +170,6 @@ class FractionabilityPolicyImpl:
                 client_order_id=order_request.client_order_id,
             )
 
-        # Approve the order
         log_with_context(
             logger,
             logging.INFO,
@@ -205,47 +183,33 @@ class FractionabilityPolicyImpl:
 
         result = create_approved_result(
             order_request=final_order_request,
-            original_quantity=original_quantity if adjusted_quantity != original_quantity else None,
+            original_quantity=(
+                original_quantity if adjusted_quantity != original_quantity else None
+            ),
             adjustment_reason=adjustment_reason,
         )
-        
-        # Add warnings and metadata
         if warnings:
             result = result.with_warnings(tuple(warnings))
-        
-        metadata = {"is_fractionable": str(is_fractionable)}
-        result = result.with_metadata(metadata)
-        
-        return result
+        metadata = {"fractionability.is_fractionable": str(is_fractionable)}
+        return result.with_metadata(metadata)
 
     def is_fractionable(self, symbol: str) -> bool:
-        """
-        Check if a symbol supports fractional shares.
-
-        Args:
-            symbol: Stock symbol to check
-
-        Returns:
-            True if the symbol supports fractional shares
-        """
+        """Return True if the symbol supports fractional shares."""
         return fractionability_detector.is_fractionable(symbol)
 
     def convert_to_whole_shares(
-        self,
-        symbol: str,
-        quantity: float,
-        price: float | None = None
+        self, symbol: str, quantity: float, price: float | None = None
     ) -> tuple[float, bool]:
-        """
-        Convert fractional quantity to whole shares for non-fractionable assets.
+        """Convert fractional quantity to whole shares for non-fractionable assets.
 
         Args:
-            symbol: Stock symbol
-            quantity: Original quantity (may be fractional)
-            price: Current price (for value-based adjustments)
+            symbol: Asset symbol
+            quantity: Requested quantity (float for detector compatibility)
+            price: Optional price context
 
         Returns:
-            Tuple of (adjusted_quantity, was_adjusted)
+            Tuple (whole_share_qty, was_adjusted)
+
         """
         return fractionability_detector.convert_to_whole_shares(symbol, quantity, price or 0.0)
 

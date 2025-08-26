@@ -18,14 +18,21 @@ from the_alchemiser.application.mapping.policy_mapping import (
 from the_alchemiser.domain.policies.policy_result import PolicyResult, PolicyWarning
 from the_alchemiser.domain.trading.value_objects.order_request import OrderRequest
 from the_alchemiser.infrastructure.logging.logging_utils import log_with_context
-from the_alchemiser.interfaces.schemas.orders import AdjustedOrderRequestDTO, OrderRequestDTO
+from the_alchemiser.interfaces.schemas.orders import (
+    AdjustedOrderRequestDTO,
+    OrderRequestDTO,
+)
 
 if TYPE_CHECKING:
-    from the_alchemiser.application.policies.buying_power_policy_impl import BuyingPowerPolicyImpl
+    from the_alchemiser.application.policies.buying_power_policy_impl import (
+        BuyingPowerPolicyImpl,
+    )
     from the_alchemiser.application.policies.fractionability_policy_impl import (
         FractionabilityPolicyImpl,
     )
-    from the_alchemiser.application.policies.position_policy_impl import PositionPolicyImpl
+    from the_alchemiser.application.policies.position_policy_impl import (
+        PositionPolicyImpl,
+    )
     from the_alchemiser.application.policies.risk_policy_impl import RiskPolicyImpl
 
 logger = logging.getLogger(__name__)
@@ -62,10 +69,7 @@ class PolicyOrchestrator:
         self.risk_policy = risk_policy
         self._orchestrator_name = "PolicyOrchestrator"
 
-    def validate_and_adjust_order(
-        self,
-        order_request: OrderRequestDTO
-    ) -> AdjustedOrderRequestDTO:
+    def validate_and_adjust_order(self, order_request: OrderRequestDTO) -> AdjustedOrderRequestDTO:
         """
         Run all policies on an order request and return aggregated result.
 
@@ -87,17 +91,19 @@ class PolicyOrchestrator:
         """
         # Convert DTO to domain object
         domain_order_request = dto_to_domain_order_request(order_request)
-        
+
         # Run domain validation
         domain_result = self._validate_and_adjust_domain(domain_order_request)
-        
+
         # Convert back to DTO for boundary
         return domain_result_to_dto(domain_result)
 
-    def _validate_and_adjust_domain(
-        self,
-        order_request: OrderRequest
-    ) -> PolicyResult:
+    # New public domain-facing entrypoint to avoid unnecessary DTO round-trips
+    def validate_and_adjust_domain(self, order_request: OrderRequest) -> PolicyResult:
+        """Validate using pure domain objects (preferred internal pathway)."""
+        return self._validate_and_adjust_domain(order_request)
+
+    def _validate_and_adjust_domain(self, order_request: OrderRequest) -> PolicyResult:
         """
         Internal method that runs policy validation using pure domain objects.
 
@@ -128,7 +134,9 @@ class PolicyOrchestrator:
 
         # 1. Fractionability Policy
         try:
-            fractionability_result = self.fractionability_policy.validate_and_adjust(current_request)
+            fractionability_result = self.fractionability_policy.validate_and_adjust(
+                current_request
+            )
 
             if not fractionability_result.is_approved:
                 log_with_context(
@@ -144,7 +152,7 @@ class PolicyOrchestrator:
 
             # Update current request if adjustments were made
             current_request = fractionability_result.order_request
-            
+
             # Collect warnings and metadata immutably
             all_warnings.extend(fractionability_result.warnings)
             if fractionability_result.policy_metadata:
@@ -161,7 +169,10 @@ class PolicyOrchestrator:
                 error=str(e),
             )
 
-            from the_alchemiser.domain.policies.policy_result import create_rejected_result
+            from the_alchemiser.domain.policies.policy_result import (
+                create_rejected_result,
+            )
+
             return create_rejected_result(
                 order_request=order_request,
                 rejection_reason=f"Fractionability policy error: {e}",
@@ -203,7 +214,10 @@ class PolicyOrchestrator:
                 error=str(e),
             )
 
-            from the_alchemiser.domain.policies.policy_result import create_rejected_result
+            from the_alchemiser.domain.policies.policy_result import (
+                create_rejected_result,
+            )
+
             result = create_rejected_result(
                 order_request=current_request,
                 rejection_reason=f"Position policy error: {e}",
@@ -245,7 +259,10 @@ class PolicyOrchestrator:
                 error=str(e),
             )
 
-            from the_alchemiser.domain.policies.policy_result import create_rejected_result
+            from the_alchemiser.domain.policies.policy_result import (
+                create_rejected_result,
+            )
+
             result = create_rejected_result(
                 order_request=current_request,
                 rejection_reason=f"Buying power policy error: {e}",
@@ -287,7 +304,10 @@ class PolicyOrchestrator:
                 error=str(e),
             )
 
-            from the_alchemiser.domain.policies.policy_result import create_rejected_result
+            from the_alchemiser.domain.policies.policy_result import (
+                create_rejected_result,
+            )
+
             result = create_rejected_result(
                 order_request=current_request,
                 rejection_reason=f"Risk policy error: {e}",
@@ -311,18 +331,19 @@ class PolicyOrchestrator:
         )
 
         from the_alchemiser.domain.policies.policy_result import create_approved_result
+
         result = create_approved_result(
             order_request=current_request,
             original_quantity=order_request.quantity.value if has_adjustments else None,
             adjustment_reason="Policy adjustments applied" if has_adjustments else None,
         )
-        
+
         # Add accumulated warnings and metadata immutably
         if all_warnings:
             result = result.with_warnings(tuple(all_warnings))
         if all_metadata:
             result = result.with_metadata(all_metadata)
-        
+
         return result
 
     @property

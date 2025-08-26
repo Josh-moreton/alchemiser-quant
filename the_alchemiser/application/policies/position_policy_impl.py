@@ -49,10 +49,7 @@ class PositionPolicyImpl:
         self.trading_client = trading_client
         self._policy_name = "PositionPolicy"
 
-    def validate_and_adjust(
-        self,
-        order_request: OrderRequest
-    ) -> PolicyResult:
+    def validate_and_adjust(self, order_request: OrderRequest) -> PolicyResult:
         """
         Validate and adjust order based on current positions.
 
@@ -75,16 +72,15 @@ class PositionPolicyImpl:
             quantity=str(order_request.quantity.value),
         )
 
-        original_quantity = order_request.quantity.value
+        original_quantity = order_request.quantity.value  # Decimal
         adjusted_quantity = original_quantity
         warnings: list[PolicyWarning] = []
         adjustment_reason = None
 
         # Handle sell orders - validate against available position
         if order_request.side.value.lower() == "sell":
-            is_valid, final_quantity, warning_msg = self.validate_sell_quantity(
-                order_request.symbol.value,
-                float(order_request.quantity.value)
+            is_valid, final_quantity_float, warning_msg = self.validate_sell_quantity(
+                order_request.symbol.value, float(order_request.quantity.value)
             )
 
             if not is_valid:
@@ -105,8 +101,8 @@ class PositionPolicyImpl:
                 )
 
             # Check if quantity was adjusted
-            if final_quantity != float(original_quantity):
-                adjusted_quantity = Decimal(str(final_quantity))
+            if Decimal(str(final_quantity_float)) != original_quantity:
+                adjusted_quantity = Decimal(str(final_quantity_float))
 
                 warning = PolicyWarning(
                     policy_name=self.policy_name,
@@ -128,7 +124,7 @@ class PositionPolicyImpl:
                     symbol=order_request.symbol.value,
                     original_quantity=str(original_quantity),
                     adjusted_quantity=str(adjusted_quantity),
-                    available_position=str(final_quantity),
+                    available_position=str(final_quantity_float),
                 )
             elif warning_msg:
                 # Position validation passed but with a warning
@@ -146,8 +142,7 @@ class PositionPolicyImpl:
         should_liquidate = False
         if order_request.side.value.lower() == "sell":
             should_liquidate = self.should_use_liquidation_api(
-                order_request.symbol.value,
-                float(adjusted_quantity)
+                order_request.symbol.value, float(adjusted_quantity)
             )
 
             if should_liquidate:
@@ -199,19 +194,19 @@ class PositionPolicyImpl:
 
         result = create_approved_result(
             order_request=final_order_request,
-            original_quantity=original_quantity if adjusted_quantity != original_quantity else None,
+            original_quantity=(
+                original_quantity if adjusted_quantity != original_quantity else None
+            ),
             adjustment_reason=adjustment_reason,
         )
-        
+
         # Add warnings and metadata
         if warnings:
             result = result.with_warnings(tuple(warnings))
-        
-        metadata = {
-            "liquidation_recommended": str(should_liquidate)
-        }
+
+        metadata = {"liquidation_recommended": str(should_liquidate)}
         result = result.with_metadata(metadata)
-        
+
         return result
 
     def get_available_position(self, symbol: str) -> float:
@@ -242,9 +237,7 @@ class PositionPolicyImpl:
             return 0.0
 
     def validate_sell_quantity(
-        self,
-        symbol: str,
-        requested_quantity: float
+        self, symbol: str, requested_quantity: float
     ) -> tuple[bool, float, str | None]:
         """
         Validate and adjust sell quantity based on available position.
@@ -264,7 +257,9 @@ class PositionPolicyImpl:
 
             # Smart quantity adjustment - sell only what's actually available
             if requested_quantity > available:
-                warning_msg = f"Adjusting sell quantity for {symbol}: {requested_quantity} -> {available}"
+                warning_msg = (
+                    f"Adjusting sell quantity for {symbol}: {requested_quantity} -> {available}"
+                )
                 return True, available, warning_msg
 
             return True, requested_quantity, None
@@ -285,11 +280,7 @@ class PositionPolicyImpl:
                 requested_qty=requested_quantity,
             ) from e
 
-    def should_use_liquidation_api(
-        self,
-        symbol: str,
-        requested_quantity: float
-    ) -> bool:
+    def should_use_liquidation_api(self, symbol: str, requested_quantity: float) -> bool:
         """
         Determine if liquidation API should be used instead of regular sell.
 
