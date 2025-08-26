@@ -1027,9 +1027,13 @@ def main() -> None:
     """Test TradingEngine multi-strategy execution (fail-fast DI only)."""
     import logging
 
+    from the_alchemiser.infrastructure.logging.logging_utils import get_logger
+
     logging.basicConfig(level=logging.WARNING)  # Reduced verbosity
-    print("Trading Engine Test")
-    print("─" * 50)
+    logger = get_logger(__name__)
+    
+    logger.info("Trading Engine Test")
+    logger.info("─" * 50)
 
     # Modern DI initialization (no legacy fallback). Any failure should surface immediately.
     from the_alchemiser.container.application_container import ApplicationContainer
@@ -1045,18 +1049,18 @@ def main() -> None:
     )
     trader.paper_trading = True
 
-    print("Executing multi-strategy...")
+    logger.info("Executing multi-strategy...")
     result = trader.execute_multi_strategy()
-    print(f"Execution result: success={result.success}")
+    logger.info(f"Execution result: success={result.success}")
 
-    print("Getting performance report...")
+    logger.info("Getting performance report...")
     report = trader.get_multi_strategy_performance_report()
     if "error" not in report:
-        print("Performance report generated successfully")
-        print(f"   Current positions: {len(report['current_positions'])}")
-        print(f"   Strategy tracking: {len(report['performance_summary'])}")
+        logger.info("Performance report generated successfully")
+        logger.info(f"   Current positions: {len(report['current_positions'])}")
+        logger.info(f"   Strategy tracking: {len(report['performance_summary'])}")
     else:
-        print(f"Error generating report: {report['error']}")
+        logger.error(f"Error generating report: {report['error']}")
 
 
 if __name__ == "__main__":
