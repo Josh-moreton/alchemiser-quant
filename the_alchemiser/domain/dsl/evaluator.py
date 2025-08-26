@@ -1,5 +1,4 @@
-"""
-Pure DSL evaluator for the S-expression Strategy Engine.
+"""Pure DSL evaluator for the S-expression Strategy Engine.
 Evaluates parsed AST nodes into portfolio weights using whitelisted functions
 and market data access. Provides deterministic evaluation with structured tracing.
 """
@@ -70,6 +69,7 @@ class DSLEvaluator:
             enable_parallel: Whether to enable parallel evaluation of independent branches
             parallel_mode: Parallel execution mode ("threads" or "processes")
             max_workers: Maximum number of parallel workers (None for CPU count)
+
         """
         self.market_data_port = market_data_port
         self._indicator_cache: dict[str, Any] = {}
@@ -112,6 +112,7 @@ class DSLEvaluator:
 
         Raises:
             EvaluationError: If evaluation fails
+
         """
         self._trace_entries.clear()
         self._indicator_cache.clear()
@@ -123,8 +124,7 @@ class DSLEvaluator:
             self._eval_context = create_eval_context(timestamp, symbols, env_params)
 
         try:
-            result = self._evaluate_node(ast_node)
-            return result
+            return self._evaluate_node(ast_node)
         except (EvaluationError, IndicatorError, PortfolioError):
             raise
         except Exception as e:
@@ -160,6 +160,7 @@ class DSLEvaluator:
 
         Returns:
             List of evaluation results in the same order as children
+
         """
         # For small numbers of children or if parallel is disabled, use sequential evaluation
         if not self._enable_parallel or len(children) < 2:
@@ -208,7 +209,6 @@ class DSLEvaluator:
 
     def _evaluate_node(self, node: ASTNode) -> EvalResult:
         """Evaluate a single AST node with optional memoisation."""
-
         # Check cache first if memoisation is enabled
         if (
             self._enable_memoisation
@@ -249,63 +249,61 @@ class DSLEvaluator:
 
     def _evaluate_node_impl(self, node: ASTNode) -> EvalResult:
         """Actual node evaluation implementation."""
-
         # Literals
         if isinstance(node, NumberLiteral):
             return node.value
-        elif isinstance(node, Symbol):
+        if isinstance(node, Symbol):
             raise EvaluationError(f"Unresolved symbol: {node.name}", symbol=node.name)
 
         # Comparisons
-        elif isinstance(node, GreaterThan):
+        if isinstance(node, GreaterThan):
             return self._evaluate_comparison(node, operator=">")
-        elif isinstance(node, LessThan):
+        if isinstance(node, LessThan):
             return self._evaluate_comparison(node, operator="<")
 
         # Control flow
-        elif isinstance(node, If):
+        if isinstance(node, If):
             return self._evaluate_if(node)
 
         # Indicators
-        elif isinstance(node, RSI):
+        if isinstance(node, RSI):
             return self._evaluate_rsi(node)
-        elif isinstance(node, MovingAveragePrice):
+        if isinstance(node, MovingAveragePrice):
             return self._evaluate_moving_average_price(node)
-        elif isinstance(node, MovingAverageReturn):
+        if isinstance(node, MovingAverageReturn):
             return self._evaluate_moving_average_return(node)
-        elif isinstance(node, CumulativeReturn):
+        if isinstance(node, CumulativeReturn):
             return self._evaluate_cumulative_return(node)
-        elif isinstance(node, CurrentPrice):
+        if isinstance(node, CurrentPrice):
             return self._evaluate_current_price(node)
-        elif isinstance(node, StdevReturn):
+        if isinstance(node, StdevReturn):
             return self._evaluate_stdev_return(node)
 
         # Portfolio construction
-        elif isinstance(node, Asset):
+        if isinstance(node, Asset):
             return self._evaluate_asset(node)
-        elif isinstance(node, Group):
+        if isinstance(node, Group):
             return self._evaluate_group(node)
-        elif isinstance(node, WeightEqual):
+        if isinstance(node, WeightEqual):
             return self._evaluate_weight_equal(node)
-        elif isinstance(node, WeightSpecified):
+        if isinstance(node, WeightSpecified):
             return self._evaluate_weight_specified(node)
-        elif isinstance(node, WeightInverseVolatility):
+        if isinstance(node, WeightInverseVolatility):
             return self._evaluate_weight_inverse_volatility(node)
 
         # Selectors
-        elif isinstance(node, Filter):
+        if isinstance(node, Filter):
             return self._evaluate_filter(node)
 
         # Strategy root
-        elif isinstance(node, Strategy):
+        if isinstance(node, Strategy):
             return self._evaluate_strategy(node)
 
         # Generic function call
-        elif isinstance(node, FunctionCall):
+        if isinstance(node, FunctionCall):
             raise EvaluationError(f"Unknown function: {node.function_name}")
 
-        else:
-            raise EvaluationError(f"Unknown AST node type: {type(node)}")
+        raise EvaluationError(f"Unknown AST node type: {type(node)}")
 
     def _evaluate_comparison(self, node: GreaterThan | LessThan, operator: str) -> bool:
         """Evaluate comparison operator."""
@@ -783,7 +781,6 @@ class DSLEvaluator:
 
     def _evaluate_weight_equal(self, node: WeightEqual) -> Portfolio:
         """Evaluate equal weight portfolio with optional parallel evaluation."""
-
         # Evaluate all child expressions (potentially in parallel)
         results = self._evaluate_children_parallel(node.expressions)
 
@@ -975,20 +972,19 @@ class DSLEvaluator:
         if isinstance(metric_fn, RSI):
             # Use the metric's window but substitute the symbol
             return RSI(symbol=symbol, window=metric_fn.window)
-        elif isinstance(metric_fn, StdevReturn):
+        if isinstance(metric_fn, StdevReturn):
             return StdevReturn(symbol=symbol, window=metric_fn.window)
-        elif isinstance(metric_fn, MovingAverageReturn):
+        if isinstance(metric_fn, MovingAverageReturn):
             return MovingAverageReturn(symbol=symbol, window=metric_fn.window)
-        elif isinstance(metric_fn, MovingAveragePrice):
+        if isinstance(metric_fn, MovingAveragePrice):
             return MovingAveragePrice(symbol=symbol, window=metric_fn.window)
-        elif isinstance(metric_fn, CumulativeReturn):
+        if isinstance(metric_fn, CumulativeReturn):
             return CumulativeReturn(symbol=symbol, window=metric_fn.window)
-        elif isinstance(metric_fn, CurrentPrice):
+        if isinstance(metric_fn, CurrentPrice):
             return CurrentPrice(symbol=symbol)
-        else:
-            raise EvaluationError(
-                f"Unsupported metric function for filter: {type(metric_fn)}", ast_node=metric_fn
-            )
+        raise EvaluationError(
+            f"Unsupported metric function for filter: {type(metric_fn)}", ast_node=metric_fn
+        )
 
     def _evaluate_strategy(self, node: Strategy) -> Portfolio:
         """Evaluate strategy root node."""
@@ -1043,5 +1039,4 @@ class DSLEvaluator:
             raise PortfolioError(
                 "Cannot normalize portfolio with zero total weight", operation="normalize"
             )
-        normalized = {symbol: weight / total_weight for symbol, weight in portfolio.items()}
-        return normalized
+        return {symbol: weight / total_weight for symbol, weight in portfolio.items()}

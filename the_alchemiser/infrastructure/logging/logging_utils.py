@@ -24,7 +24,6 @@ class AlchemiserLoggerAdapter(logging.LoggerAdapter[logging.Logger]):
         self, msg: Any, kwargs: MutableMapping[str, Any]
     ) -> tuple[str, MutableMapping[str, Any]]:
         """Prefix log messages with system identifier and add context IDs."""
-
         # Get context variables
         request_id = request_id_context.get()
         error_id = error_id_context.get()
@@ -46,7 +45,6 @@ class StructuredFormatter(logging.Formatter):
 
     def format(self, record: logging.LogRecord) -> str:
         """Convert a log record into a JSON string."""
-
         log_entry = {
             "timestamp": datetime.utcnow().isoformat() + "Z",
             "level": record.levelname,
@@ -83,14 +81,14 @@ class StructuredFormatter(logging.Formatter):
 
 
 def get_logger(name: str) -> logging.Logger:
-    """
-    Get a logger instance with proper configuration.
+    """Get a logger instance with proper configuration.
 
     Args:
         name: Logger name, typically __name__
 
     Returns:
         Configured logger instance
+
     """
     return logging.getLogger(name)
 
@@ -100,6 +98,7 @@ def set_request_id(request_id: str | None) -> None:
 
     Args:
         request_id: The request ID to set, or None to clear
+
     """
     request_id_context.set(request_id)
 
@@ -109,6 +108,7 @@ def set_error_id(error_id: str | None) -> None:
 
     Args:
         error_id: The error ID to set, or None to clear
+
     """
     error_id_context.set(error_id)
 
@@ -118,6 +118,7 @@ def get_request_id() -> str | None:
 
     Returns:
         The current request ID, or None if not set
+
     """
     return request_id_context.get()
 
@@ -127,6 +128,7 @@ def get_error_id() -> str | None:
 
     Returns:
         The current error ID, or None if not set
+
     """
     return error_id_context.get()
 
@@ -136,19 +138,20 @@ def generate_request_id() -> str:
 
     Returns:
         A unique request ID string
+
     """
     return str(uuid.uuid4())
 
 
 def log_with_context(logger: logging.Logger, level: int, message: str, **context: Any) -> None:
-    """
-    Log a message with additional context fields.
+    """Log a message with additional context fields.
 
     Args:
         logger: Logger instance
         level: Logging level (e.g., logging.INFO)
         message: Log message
         **context: Additional context fields to include
+
     """
     extra = {"extra_fields": context}
     logger.log(level, message, extra=extra)
@@ -164,8 +167,7 @@ def setup_logging(
     max_file_size_mb: int = 100,
     respect_existing_handlers: bool = False,
 ) -> None:
-    """
-    Set up centralized logging for the project.
+    """Set up centralized logging for the project.
 
     Args:
         log_level: Default logging level for file output
@@ -176,6 +178,7 @@ def setup_logging(
         enable_file_rotation: Whether to enable file rotation for local files
         max_file_size_mb: Maximum file size in MB before rotation
         respect_existing_handlers: If True, don't clear existing handlers (useful for CLI)
+
     """
     root_logger = logging.getLogger()
 
@@ -323,8 +326,7 @@ def configure_production_logging(
 
 
 def get_service_logger(service_name: str) -> logging.Logger:
-    """
-    Get a properly configured logger for a service.
+    """Get a properly configured logger for a service.
 
     This replaces create_service_logger by using the centrally configured
     logging system instead of creating individual handlers.
@@ -334,6 +336,7 @@ def get_service_logger(service_name: str) -> logging.Logger:
 
     Returns:
         Logger instance using central configuration
+
     """
     return logging.getLogger(f"the_alchemiser.services.{service_name}")
 
@@ -341,8 +344,7 @@ def get_service_logger(service_name: str) -> logging.Logger:
 def get_trading_logger(
     module_name: str, **context: Any
 ) -> logging.Logger | AlchemiserLoggerAdapter:
-    """
-    Get a logger specifically configured for trading operations.
+    """Get a logger specifically configured for trading operations.
 
     Args:
         module_name: Name of the module/component
@@ -350,6 +352,7 @@ def get_trading_logger(
 
     Returns:
         Logger instance with trading-specific configuration
+
     """
     logger = get_logger(module_name)
     if context:
@@ -359,14 +362,14 @@ def get_trading_logger(
 
 
 def log_trade_event(logger: logging.Logger, event_type: str, symbol: str, **details: Any) -> None:
-    """
-    Log a trading event with standardized structure.
+    """Log a trading event with standardized structure.
 
     Args:
         logger: Logger instance
         event_type: Type of event (order_placed, order_filled, etc.)
         symbol: Trading symbol
         **details: Additional event details
+
     """
     context = {
         "event_type": event_type,
@@ -380,14 +383,14 @@ def log_trade_event(logger: logging.Logger, event_type: str, symbol: str, **deta
 def log_error_with_context(
     logger: logging.Logger, error: Exception, operation: str, **context: Any
 ) -> None:
-    """
-    Log an error with full context and traceback.
+    """Log an error with full context and traceback.
 
     Args:
         logger: Logger instance
         error: Exception that occurred
         operation: Description of the operation that failed
         **context: Additional context information
+
     """
     context.update(
         {"operation": operation, "error_type": type(error).__name__, "error_message": str(error)}

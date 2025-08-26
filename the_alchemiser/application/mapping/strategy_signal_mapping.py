@@ -94,6 +94,7 @@ def typed_dict_to_domain_signal(
 
     Returns:
         New typed domain StrategySignal with value objects
+
     """
     from the_alchemiser.domain.shared_kernel.value_objects.percentage import Percentage
     from the_alchemiser.domain.strategies.value_objects.confidence import Confidence
@@ -174,6 +175,7 @@ def typed_strategy_signal_to_validated_order(
     Raises:
         ValueError: If signal action is HOLD or other invalid states
         ValueError: If limit order without limit_price
+
     """
     # Handle HOLD signals - these should not generate orders
     if signal.action == "HOLD":

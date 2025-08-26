@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Mapping functions for portfolio rebalancing DTOs.
+"""Mapping functions for portfolio rebalancing DTOs.
 
 This module provides mapping utilities to convert between dict structures,
 domain objects, and portfolio rebalancing DTOs, supporting the migration from
@@ -26,15 +25,15 @@ from the_alchemiser.interfaces.schemas.portfolio_rebalancing import (
 )
 
 __all__ = [
-    "dto_to_domain_rebalance_plan",
     "dto_plans_to_domain",
-    "rebalance_plans_dict_to_collection_dto",
-    "rebalancing_summary_dict_to_dto",
-    "rebalancing_impact_dict_to_dto",
-    "rebalance_instruction_dict_to_dto",
+    "dto_to_domain_rebalance_plan",
     "rebalance_execution_result_dict_to_dto",
-    "safe_rebalancing_summary_dict_to_dto",
+    "rebalance_instruction_dict_to_dto",
+    "rebalance_plans_dict_to_collection_dto",
+    "rebalancing_impact_dict_to_dto",
+    "rebalancing_summary_dict_to_dto",
     "safe_rebalancing_impact_dict_to_dto",
+    "safe_rebalancing_summary_dict_to_dto",
 ]
 
 
@@ -166,8 +165,7 @@ def rebalance_execution_result_dict_to_dto(data: dict[str, Any]) -> RebalanceExe
 
 
 def safe_rebalancing_summary_dict_to_dto(data: dict[str, Any]) -> RebalancingSummaryDTO:
-    """
-    Safely convert rebalancing summary dict to DTO with fallbacks.
+    """Safely convert rebalancing summary dict to DTO with fallbacks.
 
     Provides backward compatibility for incomplete dict structures.
     """
@@ -191,8 +189,7 @@ def safe_rebalancing_summary_dict_to_dto(data: dict[str, Any]) -> RebalancingSum
 
 
 def safe_rebalancing_impact_dict_to_dto(data: dict[str, Any]) -> RebalancingImpactDTO:
-    """
-    Safely convert rebalancing impact dict to DTO with fallbacks.
+    """Safely convert rebalancing impact dict to DTO with fallbacks.
 
     Provides backward compatibility for incomplete dict structures.
     """

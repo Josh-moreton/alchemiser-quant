@@ -20,16 +20,15 @@ from typing import Any, Protocol, cast
 class _ModelDumpProtocol(Protocol):  # pragma: no cover - structural typing helper
     """Structural protocol for objects exposing model_dump (e.g., Pydantic)."""
 
-    def model_dump(self) -> dict[str, Any]:  # noqa: D401 - concise
-        ...
+    def model_dump(self) -> dict[str, Any]: ...
 
 
-def _is_model_dump_obj(value: Any) -> bool:
+def _is_model_dump_obj(value: object) -> bool:
     method = getattr(value, "model_dump", None)
     return callable(method)
 
 
-def to_serializable(value: Any) -> Any:  # noqa: C901 - controlled complexity
+def to_serializable(value: object) -> object:
     """Recursively convert value into JSON-friendly primitives.
 
     Policy:
@@ -57,22 +56,20 @@ def to_serializable(value: Any) -> Any:  # noqa: C901 - controlled complexity
     if isinstance(value, Mapping):
         return {k: to_serializable(v) for k, v in value.items()}
 
-    if (
-        isinstance(value, list | tuple | set) or isinstance(value, Sequence | Set)
-    ) and not isinstance(value, str | bytes):
-        return [to_serializable(v) for v in list(value)]
+    if isinstance(value, list | tuple | set | Sequence | Set) and not isinstance(
+        value, str | bytes
+    ):
+        return [to_serializable(v) for v in value]
 
     return value
 
 
-def ensure_serialized_dict(data: Any) -> dict[str, Any]:
+def ensure_serialized_dict(data: object) -> dict[str, object]:
     """Convert supported inputs to a serialized dict[str, Any] or raise.
 
     Supported inputs: dict, dataclass instance, pydantic-like model (model_dump).
     """
-    if isinstance(data, dict):
-        result = to_serializable(data)
-    elif _is_model_dump_obj(data):
+    if isinstance(data, dict) or _is_model_dump_obj(data):
         result = to_serializable(data)
     elif is_dataclass(data) and not isinstance(data, type):
         result = to_serializable(asdict(data))
@@ -81,4 +78,4 @@ def ensure_serialized_dict(data: Any) -> dict[str, Any]:
 
     if not isinstance(result, dict):  # Narrow for mypy
         raise TypeError("Serialization did not produce a dictionary")
-    return cast(dict[str, Any], result)
+    return cast(dict[str, object], result)

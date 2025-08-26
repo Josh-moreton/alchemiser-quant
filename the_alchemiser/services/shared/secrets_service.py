@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Secrets Service
+"""Secrets Service.
 
 Handles credential retrieval for the trading system.
 Provides a clean interface for accessing API keys and other sensitive data.
@@ -20,8 +19,7 @@ class SecretsService:
         self._secrets_manager = SecretsManager()
 
     def get_alpaca_credentials(self, paper_trading: bool) -> tuple[str, str]:
-        """
-        Get Alpaca API credentials.
+        """Get Alpaca API credentials.
 
         Args:
             paper_trading: Whether to get paper trading credentials
@@ -31,6 +29,7 @@ class SecretsService:
 
         Raises:
             ConfigurationError: If credentials are not found or invalid
+
         """
         api_key, secret_key = self._secrets_manager.get_alpaca_keys(paper_trading=paper_trading)
 

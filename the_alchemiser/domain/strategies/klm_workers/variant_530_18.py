@@ -1,5 +1,4 @@
-"""
-KLM Strategy Variant 530/18 - "KMLM Switcher | Anansi Mods"
+"""KLM Strategy Variant 530/18 - "KMLM Switcher | Anansi Mods".
 
 This is the Scale-In strategy variant - the most complex in the ensemble.
 It uses progressive VIX allocation based on multiple RSI conditions.
@@ -25,8 +24,7 @@ from .base_klm_variant import BaseKLMVariant
 
 
 class KlmVariant53018(BaseKLMVariant):
-    """
-    Variant 530/18 - Complete Scale-In Strategy "KMLM Switcher | Anansi Mods"
+    """Variant 530/18 - Complete Scale-In Strategy "KMLM Switcher | Anansi Mods".
 
     This is THE most complex variant in the ensemble, featuring:
     1. Progressive Scale-In logic with dual VIX thresholds
@@ -51,12 +49,10 @@ class KlmVariant53018(BaseKLMVariant):
     ) -> (
         tuple[str | dict[str, float], str, str] | KLMDecision
     ):  # TODO: Phase 9 - Gradual migration to KLMDecision
-        """
-        Evaluate the complete 530/18 Scale-In variant exactly as in CLJ.
+        """Evaluate the complete 530/18 Scale-In variant exactly as in CLJ.
 
         This follows the exact nested structure from the CLJ file.
         """
-
         # Step 1: SPY Scale-In Logic (primary - RSI > 80)
         spy_result = self._evaluate_spy_scale_in(indicators)
         if spy_result:
@@ -103,7 +99,7 @@ class KlmVariant53018(BaseKLMVariant):
     def _evaluate_spy_scale_in(
         self, indicators: dict[str, dict[str, float]]
     ) -> tuple[dict[str, float], str, str] | None:
-        """SPY Scale-In | VIX+ -> VIX++ (CLJ lines 782-796)"""
+        """SPY Scale-In | VIX+ -> VIX++ (CLJ lines 782-796)."""
         if "SPY" not in indicators:
             return None
 
@@ -135,7 +131,7 @@ class KlmVariant53018(BaseKLMVariant):
     def _evaluate_ioo_scale_in(
         self, indicators: dict[str, dict[str, float]]
     ) -> tuple[dict[str, float], str, str] | None:
-        """IOO Scale-In | VIX+ -> VIX++ (identical pattern to SPY)"""
+        """IOO Scale-In | VIX+ -> VIX++ (identical pattern to SPY)."""
         if "IOO" not in indicators:
             return None
 
@@ -165,7 +161,7 @@ class KlmVariant53018(BaseKLMVariant):
     def _evaluate_qqq_scale_in(
         self, indicators: dict[str, dict[str, float]]
     ) -> tuple[dict[str, float], str, str] | None:
-        """QQQ Scale-In | VIX+ -> VIX++ (threshold 79 vs 80)"""
+        """QQQ Scale-In | VIX+ -> VIX++ (threshold 79 vs 80)."""
         if "QQQ" not in indicators:
             return None
 
@@ -195,7 +191,7 @@ class KlmVariant53018(BaseKLMVariant):
     def _evaluate_vtv_scale_in(
         self, indicators: dict[str, dict[str, float]]
     ) -> tuple[dict[str, float], str, str] | None:
-        """VTV Scale-In | VIX -> VIX+ (different pattern - uses VIXY)"""
+        """VTV Scale-In | VIX -> VIX+ (different pattern - uses VIXY)."""
         if "VTV" not in indicators:
             return None
 
@@ -225,7 +221,7 @@ class KlmVariant53018(BaseKLMVariant):
     def _evaluate_xlp_scale_in(
         self, indicators: dict[str, dict[str, float]]
     ) -> tuple[dict[str, float], str, str] | None:
-        """XLP Scale-In | VIX -> VIX+ (threshold 77, same pattern as VTV)"""
+        """XLP Scale-In | VIX -> VIX+ (threshold 77, same pattern as VTV)."""
         if "XLP" not in indicators:
             return None
 
@@ -255,7 +251,7 @@ class KlmVariant53018(BaseKLMVariant):
     def _evaluate_xlf_scale_in(
         self, indicators: dict[str, dict[str, float]]
     ) -> tuple[dict[str, float], str, str] | None:
-        """XLF Scale-In | VIX -> VIX+ (threshold 81, same pattern)"""
+        """XLF Scale-In | VIX -> VIX+ (threshold 81, same pattern)."""
         if "XLF" not in indicators:
             return None
 
@@ -285,7 +281,7 @@ class KlmVariant53018(BaseKLMVariant):
     def _evaluate_retl_scale_in(
         self, indicators: dict[str, dict[str, float]]
     ) -> tuple[dict[str, float], str, str] | None:
-        """RETL Scale-In | BTAL -> VIX (introduces BTAL/BIL path)"""
+        """RETL Scale-In | BTAL -> VIX (introduces BTAL/BIL path)."""
         if "RETL" not in indicators:
             return None
 
@@ -315,8 +311,7 @@ class KlmVariant53018(BaseKLMVariant):
     def _evaluate_spy_rsi_70_overbought_logic(
         self, indicators: dict[str, dict[str, float]]
     ) -> tuple[str | dict[str, float], str, str] | None:
-        """
-        SPY RSI(70) > 63 "Overbought" branch with AGG vs QQQ comparison.
+        """SPY RSI(70) > 63 "Overbought" branch with AGG vs QQQ comparison.
         This is where 530/18 gets extremely complex with commodity allocations.
         """
         if "SPY" not in indicators or "rsi_70" not in indicators["SPY"]:
@@ -354,8 +349,7 @@ class KlmVariant53018(BaseKLMVariant):
     def _evaluate_holy_grail_kmlm_switcher(
         self, indicators: dict[str, dict[str, float]]
     ) -> tuple[str | dict[str, float], str, str]:
-        """
-        "10. KMLM Switcher | Holy Grail" - The final complex branch.
+        """ "10. KMLM Switcher | Holy Grail" - The final complex branch.
 
         This includes:
         1. VOX RSI(10) > 79 → VIX Blend
@@ -365,7 +359,6 @@ class KlmVariant53018(BaseKLMVariant):
         5. KMLM Switcher + FNGU with 50/50 logic
         6. Long/short rotator with stdev filtering
         """
-
         # Check VOX overbought
         if "VOX" in indicators and indicators["VOX"].get("rsi_10", 0) > 79:
             allocation = self.vix_blend
@@ -409,8 +402,7 @@ class KlmVariant53018(BaseKLMVariant):
     def _evaluate_holy_grail_pop_bot(
         self, indicators: dict[str, dict[str, float]]
     ) -> tuple[str | dict[str, float], str, str]:
-        """Pop bot logic within Holy Grail branch"""
-
+        """Pop bot logic within Holy Grail branch."""
         # TQQQ oversold (< 31, different from standard < 30)
         if "TQQQ" in indicators and indicators["TQQQ"].get("rsi_10", 50) < 31:
             return ("TECL", ActionType.BUY.value, "Holy Grail Pop Bot: TQQQ RSI < 31 → TECL")
@@ -429,12 +421,10 @@ class KlmVariant53018(BaseKLMVariant):
     def _evaluate_kmlm_switcher_plus_fngu(
         self, indicators: dict[str, dict[str, float]]
     ) -> tuple[str | dict[str, float], str, str]:
-        """
-        "KMLM Switcher + FNGU" with complex 50/50 FNGU logic.
+        """ "KMLM Switcher + FNGU" with complex 50/50 FNGU logic.
 
         This is the most sophisticated KMLM switcher in the ensemble.
         """
-
         xlk_rsi = indicators.get("XLK", {}).get("rsi_10", 50)
         kmlm_rsi = indicators.get("KMLM", {}).get("rsi_10", 50)
 
@@ -530,8 +520,7 @@ class KlmVariant53018(BaseKLMVariant):
         return result
 
     def get_required_symbols(self) -> list[str]:
-        """530/18 Complete symbol requirements - this is the largest set"""
-
+        """530/18 Complete symbol requirements - this is the largest set."""
         # Scale-in symbols
         scale_in_symbols = ["SPY", "IOO", "QQQ", "VTV", "XLP", "XLF", "RETL"]
 
@@ -578,8 +567,7 @@ class KlmVariant53018(BaseKLMVariant):
     def evaluate_core_kmlm_switcher(
         self, indicators: dict[str, dict[str, float]]
     ) -> tuple[str | dict[str, float], str, str]:
-        """
-        530/18 doesn't use the standard core KMLM switcher pattern.
+        """530/18 doesn't use the standard core KMLM switcher pattern.
         It has its own complex Holy Grail logic.
         """
         return self._evaluate_holy_grail_kmlm_switcher(indicators)

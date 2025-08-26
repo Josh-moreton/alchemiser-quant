@@ -1,5 +1,4 @@
-"""
-KLM Strategy Variant 506/38 - "KMLM (13) - Longer BT"
+"""KLM Strategy Variant 506/38 - "KMLM (13) - Longer BT".
 
 This is the first variant in the Clojure strategy ensemble. It follows the standard
 overbought detection pattern followed by "Single Popped KMLM" logic.
@@ -21,8 +20,7 @@ from .base_klm_variant import BaseKLMVariant
 
 
 class KlmVariant50638(BaseKLMVariant):
-    """
-    Variant 506/38 - Standard overbought detection with Single Popped KMLM fallback
+    """Variant 506/38 - Standard overbought detection with Single Popped KMLM fallback.
 
     This variant represents the most common pattern in the KLM ensemble:
     1. Primary overbought checks → UVXY
@@ -40,13 +38,12 @@ class KlmVariant50638(BaseKLMVariant):
         indicators: dict[str, dict[str, float]],
         market_data: dict[str, pd.DataFrame] | None = None,
     ) -> tuple[str | dict[str, float], str, str]:
-        """
-        Evaluate the 506/38 variant strategy.
+        """Evaluate the 506/38 variant strategy.
 
         Returns:
             Tuple of (symbol_or_allocation, action, reason)
-        """
 
+        """
         # Step 1: Primary overbought checks (common across most variants)
         symbol, reason = self.check_primary_overbought_conditions(indicators)
         if symbol:
@@ -59,11 +56,9 @@ class KlmVariant50638(BaseKLMVariant):
     def _evaluate_single_popped_kmlm(
         self, indicators: dict[str, dict[str, float]]
     ) -> tuple[str | dict[str, float], str, str]:
+        """Single Popped KMLM logic from Clojure:
+        Checks UVXY RSI to decide between BSC strategy or Combined Pop Bot.
         """
-        Single Popped KMLM logic from Clojure:
-        Checks UVXY RSI to decide between BSC strategy or Combined Pop Bot
-        """
-
         # Check UVXY RSI(21) for strategy branching
         if "UVXY" in indicators:
             uvxy_rsi_21 = indicators["UVXY"]["rsi_21"]
@@ -71,9 +66,8 @@ class KlmVariant50638(BaseKLMVariant):
             if uvxy_rsi_21 > 65:
                 # UVXY elevated - use BSC (Bond/Stock/Commodity) strategy
                 return self._evaluate_bsc_strategy(indicators)
-            else:
-                # UVXY normal - use Combined Pop Bot
-                return self._evaluate_combined_pop_bot(indicators)
+            # UVXY normal - use Combined Pop Bot
+            return self._evaluate_combined_pop_bot(indicators)
 
         # Fallback if UVXY data unavailable
         return self._evaluate_combined_pop_bot(indicators)
@@ -81,8 +75,7 @@ class KlmVariant50638(BaseKLMVariant):
     def _evaluate_bsc_strategy(
         self, indicators: dict[str, dict[str, float]]
     ) -> tuple[str, str, str]:
-        """
-        BSC (Bond/Stock/Commodity) strategy when UVXY RSI > 65
+        """BSC (Bond/Stock/Commodity) strategy when UVXY RSI > 65.
 
         Logic from Clojure:
         - If SPY RSI(21) > 30: VIXM (moderate VIX position)
@@ -113,14 +106,12 @@ class KlmVariant50638(BaseKLMVariant):
     def _evaluate_combined_pop_bot(
         self, indicators: dict[str, dict[str, float]]
     ) -> tuple[str | dict[str, float], str, str]:
-        """
-        Combined Pop Bot strategy for oversold conditions and sector rotation
+        """Combined Pop Bot strategy for oversold conditions and sector rotation.
 
         Logic from Clojure:
         1. Check for oversold conditions (TQQQ, SOXL, SPXL, LABU)
         2. If none oversold, proceed to Core KMLM Switcher
         """
-
         # Priority 1: TQQQ oversold check
         if "TQQQ" in indicators and indicators["TQQQ"]["rsi_10"] < 30:
             result = (
@@ -167,13 +158,11 @@ class KlmVariant50638(BaseKLMVariant):
     def evaluate_core_kmlm_switcher(
         self, indicators: dict[str, dict[str, float]]
     ) -> tuple[str | dict[str, float], str, str]:
-        """
-        Core KMLM switcher logic - CORRECTED to match CLJ exactly:
+        """Core KMLM switcher logic - CORRECTED to match CLJ exactly:
 
         From CLJ lines 170-182: When XLK > KMLM, select FNGU with RSI filter (select-bottom 1)
         This was completely wrong before - it should be FNGU, not TECL/SOXL/SVIX!
         """
-
         # Step 1: XLK vs KMLM comparison for FNGU selection
         if "XLK" in indicators and "KMLM" in indicators:
             xlk_rsi = indicators["XLK"]["rsi_10"]
@@ -196,15 +185,13 @@ class KlmVariant50638(BaseKLMVariant):
     def _evaluate_long_short_rotator(
         self, indicators: dict[str, dict[str, float]]
     ) -> tuple[str | dict[str, float], str, str]:
-        """
-        Long/Short Rotator - CORRECTED to match CLJ exactly
+        """Long/Short Rotator - CORRECTED to match CLJ exactly.
 
         From CLJ lines 184-195: "Long/Short Rotator with FTLS KMLM SSO UUP"
         filter (stdev-return {:window 6}) (select-bottom 1) [UUP, FTLS, KMLM]
 
         This was wrong before - should only use UUP, FTLS, KMLM (not SVXY, VIXM, SVIX)
         """
-
         # CLJ specifies: UUP, FTLS, KMLM with stdev-return filter (select-bottom 1)
         rotator_symbols = ["UUP", "FTLS", "KMLM"]
 
@@ -240,8 +227,7 @@ class KlmVariant50638(BaseKLMVariant):
         return result
 
     def get_required_symbols(self) -> list[str]:
-        """
-        506/38 Required symbols - CORRECTED to match CLJ exactly
+        """506/38 Required symbols - CORRECTED to match CLJ exactly.
 
         Primary overbought: QQQE, VTV, VOX, TECL, VOOG, VOOV, XLP, TQQQ, XLY, FAS, SPY
         Single Popped KMLM: UVXY, SPY (RSI 21)
@@ -250,7 +236,6 @@ class KlmVariant50638(BaseKLMVariant):
         KMLM Switcher: XLK, KMLM, FNGU (CORRECTED!)
         L/S Rotator: UUP, FTLS, KMLM (CORRECTED!)
         """
-
         # Primary overbought detection symbols
         overbought_symbols = [
             "QQQE",

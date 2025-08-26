@@ -23,6 +23,7 @@ def bars_to_dataframe(bars: list[BarModel]) -> pd.DataFrame:
 
     Returns:
         DataFrame with OHLCV data indexed by timestamp
+
     """
     if not bars:
         return pd.DataFrame()
@@ -52,6 +53,7 @@ def quote_to_tuple(quote: QuoteModel | None) -> tuple[float | None, float | None
 
     Returns:
         Tuple of (bid_price, ask_price), either can be None if quote unavailable
+
     """
     if quote is None:
         return (None, None)
@@ -67,6 +69,7 @@ def symbol_str_to_symbol(symbol: str) -> Symbol:
 
     Returns:
         Symbol value object
+
     """
     return Symbol(symbol)
 
@@ -79,6 +82,7 @@ def quote_to_current_price(quote: QuoteModel | None) -> float | None:
 
     Returns:
         Mid-price as float, or None if quote unavailable
+
     """
     if quote is None:
         return None
@@ -95,6 +99,7 @@ def dataframe_to_bars(df: pd.DataFrame, symbol: Symbol) -> list[BarModel]:
 
     Returns:
         List of BarModel domain objects
+
     """
     if df.empty:
         return []

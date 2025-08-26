@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Centralized Error Reporter for Production Monitoring.
+"""Centralized Error Reporter for Production Monitoring.
 
 This module provides structured error reporting for hands-off operation
 according to the error handling improvement plan.
@@ -29,6 +28,7 @@ class ErrorReporter:
 
         Args:
             notification_manager: Optional notification manager for alerts
+
         """
         self.notification_manager = notification_manager
         self.error_counts: dict[str, int] = defaultdict(int)
@@ -41,7 +41,6 @@ class ErrorReporter:
         is_critical: bool = False,
     ) -> None:
         """Report an error with context for monitoring."""
-
         error_data = {
             "timestamp": datetime.now().isoformat(),
             "error_type": error.__class__.__name__,
@@ -90,7 +89,6 @@ class ErrorReporter:
         """Check for high error rates and alert."""
         # Implementation for error rate monitoring
         # TODO: Implement error rate thresholds and alerting
-        pass
 
     def get_error_summary(self) -> dict[str, Any]:
         """Get summary of recent errors for dashboard."""
@@ -118,6 +116,7 @@ def get_error_reporter(notification_manager: Any = None) -> ErrorReporter:
 
     Returns:
         Global ErrorReporter instance
+
     """
     global _global_error_reporter
     if _global_error_reporter is None:

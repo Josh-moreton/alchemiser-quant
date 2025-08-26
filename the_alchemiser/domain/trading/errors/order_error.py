@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-OrderError value object for structured error representation.
+"""OrderError value object for structured error representation.
 
 This module provides the core OrderError value object that encapsulates
 all information about order-related failures in a structured format.

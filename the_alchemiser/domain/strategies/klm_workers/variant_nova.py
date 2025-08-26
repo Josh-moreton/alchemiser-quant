@@ -1,5 +1,4 @@
-"""
-KLM Strategy Variant Nova - "Nerfed 2900/8 (373) - Nova - Short BT"
+"""KLM Strategy Variant Nova - "Nerfed 2900/8 (373) - Nova - Short BT".
 
 This variant is DIFFERENT from others in several key ways:
 1. Uses UVIX instead of UVXY in Single Popped KMLM check
@@ -18,8 +17,7 @@ from .base_klm_variant import BaseKLMVariant
 
 
 class KLMVariantNova(BaseKLMVariant):
-    """
-    Variant Nova - Individual stock selection with UVIX check
+    """Variant Nova - Individual stock selection with UVIX check.
 
     Key differences:
     - Single Popped KMLM uses UVIX (not UVXY)
@@ -37,10 +35,7 @@ class KLMVariantNova(BaseKLMVariant):
         indicators: dict[str, dict[str, float]],
         market_data: dict[str, pd.DataFrame] | None = None,
     ) -> tuple[str | dict[str, float], str, str]:
-        """
-        Evaluate Nova - same as others except UVIX check and individual stock selection
-        """
-
+        """Evaluate Nova - same as others except UVIX check and individual stock selection."""
         # Step 1: Primary overbought checks → UVXY (same as others)
         symbol, reason = self.check_primary_overbought_conditions(indicators)
         if symbol:
@@ -53,10 +48,7 @@ class KLMVariantNova(BaseKLMVariant):
     def _evaluate_single_popped_kmlm_nova(
         self, indicators: dict[str, dict[str, float]]
     ) -> tuple[str | dict[str, float], str, str]:
-        """
-        Nova Single Popped KMLM - DIFFERENT: uses UVIX instead of UVXY
-        """
-
+        """Nova Single Popped KMLM - DIFFERENT: uses UVIX instead of UVXY."""
         # Check UVIX RSI(21) for strategy branching (not UVXY!)
         if "UVIX" in indicators:
             uvix_rsi_21 = indicators["UVIX"]["rsi_21"]
@@ -64,9 +56,8 @@ class KLMVariantNova(BaseKLMVariant):
             if uvix_rsi_21 > 65:
                 # UVIX elevated - use BSC strategy
                 return self._evaluate_bsc_strategy(indicators)
-            else:
-                # UVIX normal - use Combined Pop Bot
-                return self._evaluate_combined_pop_bot(indicators)
+            # UVIX normal - use Combined Pop Bot
+            return self._evaluate_combined_pop_bot(indicators)
 
         # Fallback if UVIX data unavailable
         return self._evaluate_combined_pop_bot(indicators)
@@ -74,9 +65,7 @@ class KLMVariantNova(BaseKLMVariant):
     def _evaluate_bsc_strategy(
         self, indicators: dict[str, dict[str, float]]
     ) -> tuple[str, str, str]:
-        """
-        BSC strategy - identical to other variants
-        """
+        """BSC strategy - identical to other variants."""
         if "SPY" in indicators:
             spy_rsi_21 = indicators["SPY"]["rsi_21"]
 
@@ -97,10 +86,7 @@ class KLMVariantNova(BaseKLMVariant):
     def _evaluate_combined_pop_bot(
         self, indicators: dict[str, dict[str, float]]
     ) -> tuple[str | dict[str, float], str, str]:
-        """
-        Combined Pop Bot - identical to others (NO LABU)
-        """
-
+        """Combined Pop Bot - identical to others (NO LABU)."""
         # Priority 1: TQQQ oversold
         if "TQQQ" in indicators and indicators["TQQQ"]["rsi_10"] < 30:
             result = ("TECL", ActionType.BUY.value, "Nova Pop Bot: TQQQ RSI < 30 → TECL")
@@ -125,20 +111,16 @@ class KLMVariantNova(BaseKLMVariant):
     def evaluate_core_kmlm_switcher(
         self, indicators: dict[str, dict[str, float]]
     ) -> tuple[str | dict[str, float], str, str]:
-        """
-        Core KMLM switcher for variant Nova
-        """
+        """Core KMLM switcher for variant Nova."""
         return self._evaluate_kmlm_switcher_nova(indicators)
 
     def _evaluate_kmlm_switcher_nova(
         self, indicators: dict[str, dict[str, float]]
     ) -> tuple[str | dict[str, float], str, str]:
-        """
-        Nova KMLM Switcher - COMPLETELY DIFFERENT: Individual stocks with RSI(11)
+        """Nova KMLM Switcher - COMPLETELY DIFFERENT: Individual stocks with RSI(11).
 
         CLJ shows: RSI(11) select-top 1 from FNGO/TSLA/MSFT/AAPL/NVDA/GOOGL/AMZN
         """
-
         if "XLK" in indicators and "KMLM" in indicators:
             xlk_rsi = indicators["XLK"]["rsi_10"]
             kmlm_rsi = indicators["KMLM"]["rsi_10"]
@@ -175,10 +157,7 @@ class KLMVariantNova(BaseKLMVariant):
     def _evaluate_ls_rotator_nova(
         self, indicators: dict[str, dict[str, float]]
     ) -> tuple[str, str, str]:
-        """
-        Nova L/S Rotator - same as 520/22 (FTLS/KMLM/SSO/UUP)
-        """
-
+        """Nova L/S Rotator - same as 520/22 (FTLS/KMLM/SSO/UUP)."""
         # Volatility filter candidates: FTLS, KMLM, SSO, UUP
         rotator_symbols = ["FTLS", "KMLM", "SSO", "UUP"]
 
@@ -205,10 +184,7 @@ class KLMVariantNova(BaseKLMVariant):
         return result
 
     def get_required_symbols(self) -> list[str]:
-        """
-        Nova Required symbols - includes individual stocks and UVIX
-        """
-
+        """Nova Required symbols - includes individual stocks and UVIX."""
         # Standard overbought detection
         overbought_symbols = [
             "QQQE",

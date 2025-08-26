@@ -69,6 +69,7 @@ class SymbolClassifier:
 
         Returns:
             String identifier for the symbol's primary strategy
+
         """
         if symbol is None:
             return "unknown"
@@ -78,23 +79,22 @@ class SymbolClassifier:
         # Check legacy nuclear/TECL first for backwards compatibility
         if symbol_upper in self.NUCLEAR_SYMBOLS:
             return "nuclear"
-        elif symbol_upper in self.TECL_SYMBOLS:
+        if symbol_upper in self.TECL_SYMBOLS:
             return "tecl"
         # Check new categorizations
-        elif symbol_upper in self.LARGE_CAP_SYMBOLS:
+        if symbol_upper in self.LARGE_CAP_SYMBOLS:
             return "large_cap"
-        elif symbol_upper in self.MID_CAP_SYMBOLS:
+        if symbol_upper in self.MID_CAP_SYMBOLS:
             return "mid_cap"
-        elif symbol_upper in self.SMALL_CAP_SYMBOLS:
+        if symbol_upper in self.SMALL_CAP_SYMBOLS:
             return "small_cap"
-        elif symbol_upper in self.CRYPTO_SYMBOLS:
+        if symbol_upper in self.CRYPTO_SYMBOLS:
             return "crypto"
-        elif symbol_upper in self.BOND_SYMBOLS:
+        if symbol_upper in self.BOND_SYMBOLS:
             return "bonds"
-        elif symbol_upper in self.INDEX_FUND_SYMBOLS:
+        if symbol_upper in self.INDEX_FUND_SYMBOLS:
             return "index_funds"
-        else:
-            return "unknown"
+        return "unknown"
 
     def is_nuclear_symbol(self, symbol: str) -> bool:
         """Check if symbol belongs to Nuclear strategy."""
@@ -112,6 +112,7 @@ class SymbolClassifier:
 
         Returns:
             True if the strategy is equity-based, False otherwise
+
         """
         equity_strategies = {"large_cap", "mid_cap", "small_cap"}
         return strategy in equity_strategies
@@ -124,6 +125,7 @@ class SymbolClassifier:
 
         Returns:
             Frozenset of symbols for the strategy
+
         """
         strategy_mapping = {
             "nuclear": self.NUCLEAR_SYMBOLS,
@@ -142,6 +144,7 @@ class SymbolClassifier:
 
         Returns:
             Set of all available strategy names
+
         """
         return {
             "large_cap",
@@ -163,6 +166,7 @@ class SymbolClassifier:
 
         Returns:
             Human-readable description of the strategy
+
         """
         descriptions = {
             "large_cap": "Large cap stocks (market cap > $10B)",
@@ -185,5 +189,6 @@ class SymbolClassifier:
 
         Returns:
             Dictionary mapping symbols to their strategy names
+
         """
         return {symbol: self.classify_symbol(symbol) for symbol in symbols}

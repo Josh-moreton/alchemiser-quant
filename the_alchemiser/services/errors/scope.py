@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Error scope context manager for The Alchemiser Trading System.
+"""Error scope context manager for The Alchemiser Trading System.
 
 This module provides context managers for error handling with automatic logging.
 Renamed from ErrorContext to avoid naming collision.
@@ -24,8 +23,7 @@ class _ScopeErrorHandler:
         context: dict[str, Any] | None = None,
         default_return: Any = None,
     ) -> Any:
-        """
-        Log error and return default value instead of raising.
+        """Log error and return default value instead of raising.
 
         Args:
             error: Exception that occurred
@@ -34,6 +32,7 @@ class _ScopeErrorHandler:
 
         Returns:
             Default return value
+
         """
         context = context or {}
 
@@ -58,13 +57,13 @@ class ErrorScope:
         context: dict[str, Any] | None = None,
         reraise: bool = True,
     ) -> None:
-        """
-        Initialize error scope.
+        """Initialize error scope.
 
         Args:
             error_handler: Error handler instance
             context: Logging context
             reraise: Whether to reraise exceptions
+
         """
         self.error_handler = error_handler
         self.context = context or {}
@@ -84,11 +83,10 @@ class ErrorScope:
                 if isinstance(exc_val, Exception):
                     self.error_handler.log_and_handle(exc_val, self.context)
                 return False  # Let exception propagate
-            else:
-                # Log and suppress
-                if isinstance(exc_val, Exception):
-                    self.error_handler.log_and_handle(exc_val, self.context)
-                return True  # Suppress exception
+            # Log and suppress
+            if isinstance(exc_val, Exception):
+                self.error_handler.log_and_handle(exc_val, self.context)
+            return True  # Suppress exception
 
         return False  # No exception occurred
 

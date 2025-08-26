@@ -1,5 +1,4 @@
-"""
-[DEPRECATED] Legacy error handling utilities.
+"""[DEPRECATED] Legacy error handling utilities.
 
 This module has been deprecated and its functionality has been moved to:
 - TradingSystemErrorHandler (in handler.py) for centralized error handling
@@ -24,8 +23,7 @@ warnings.warn(
 
 
 def create_service_logger(*args: Any, **kwargs: Any) -> Any:
-    """
-    [DEPRECATED] Create a standardized logger for a service.
+    """[DEPRECATED] Create a standardized logger for a service.
 
     This function is deprecated. Use get_service_logger from
     the_alchemiser.infrastructure.logging.logging_utils instead.

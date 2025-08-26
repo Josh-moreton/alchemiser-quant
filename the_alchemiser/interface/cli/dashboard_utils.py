@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Dashboard Data Utilities
+"""Dashboard Data Utilities.
 
 This module provides helper functions for building structured data
 for dashboard consumption, including portfolio metrics, positions,
@@ -15,14 +14,14 @@ from the_alchemiser.domain.types import AccountInfo, PositionInfo
 
 
 def build_basic_dashboard_structure(paper_trading: bool) -> dict[str, Any]:
-    """
-    Build basic dashboard data structure.
+    """Build basic dashboard data structure.
 
     Args:
         paper_trading: Whether using paper trading mode
 
     Returns:
         Dict with empty dashboard structure
+
     """
     return {
         "timestamp": datetime.now().isoformat(),
@@ -46,14 +45,14 @@ def build_basic_dashboard_structure(paper_trading: bool) -> dict[str, Any]:
 
 
 def extract_portfolio_metrics(account_info: AccountInfo | dict[str, Any]) -> dict[str, float]:
-    """
-    Extract portfolio metrics from account information.
+    """Extract portfolio metrics from account information.
 
     Args:
         account_info: Account information dictionary
 
     Returns:
         Dict with portfolio metrics
+
     """
     if not account_info:
         return {}
@@ -86,14 +85,14 @@ def extract_portfolio_metrics(account_info: AccountInfo | dict[str, Any]) -> dic
 def extract_positions_data(
     open_positions: list[PositionInfo] | list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
-    """
-    Extract positions data for dashboard.
+    """Extract positions data for dashboard.
 
     Args:
         open_positions: List of position objects
 
     Returns:
         List of position dictionaries
+
     """
     positions_data = []
     for position in open_positions:
@@ -121,8 +120,7 @@ def extract_positions_data(
 def extract_strategies_data(
     strategy_signals: dict[str, Any], strategy_allocations: dict[str, Any]
 ) -> dict[str, dict[str, Any]]:
-    """
-    Extract strategies data for dashboard.
+    """Extract strategies data for dashboard.
 
     Args:
         strategy_signals: Strategy signals from execution
@@ -130,6 +128,7 @@ def extract_strategies_data(
 
     Returns:
         Dict mapping strategy names to strategy data
+
     """
     strategies_data = {}
     for strategy_type, signal_data in strategy_signals.items():
@@ -150,8 +149,7 @@ def extract_strategies_data(
 def extract_recent_trades_data(
     orders_executed: list[dict[str, Any]], limit: int = 10
 ) -> list[dict[str, Any]]:
-    """
-    Extract recent trades data for dashboard.
+    """Extract recent trades data for dashboard.
 
     Args:
         orders_executed: List of executed orders
@@ -159,6 +157,7 @@ def extract_recent_trades_data(
 
     Returns:
         List of trade dictionaries
+
     """
     recent_trades = []
     for order in orders_executed[-limit:]:
@@ -182,14 +181,14 @@ def extract_recent_trades_data(
 
 
 def build_s3_paths(paper_trading: bool) -> tuple[str, str]:
-    """
-    Build S3 paths for dashboard data storage.
+    """Build S3 paths for dashboard data storage.
 
     Args:
         paper_trading: Whether using paper trading
 
     Returns:
         Tuple of (latest_path, historical_path)
+
     """
     if paper_trading:
         latest_path = "s3://the-alchemiser-s3/dashboard/latest_paper_execution.json"

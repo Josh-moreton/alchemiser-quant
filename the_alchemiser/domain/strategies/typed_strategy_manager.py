@@ -1,5 +1,4 @@
-"""
-Typed Strategy Manager
+"""Typed Strategy Manager.
 
 Modern strategy orchestrator that depends only on MarketDataPort and typed engines.
 Aggregates typed StrategySignal objects and handles conflict resolution between
@@ -54,8 +53,7 @@ class AggregatedSignals:
 
 
 class TypedStrategyManager:
-    """
-    Typed strategy manager that orchestrates typed engines and aggregates signals.
+    """Typed strategy manager that orchestrates typed engines and aggregates signals.
 
     This manager implements clean dependency injection using only MarketDataPort
     and typed strategy engines. It produces aggregated typed structures ready
@@ -67,12 +65,12 @@ class TypedStrategyManager:
         market_data_port: MarketDataPort,
         strategy_allocations: dict[StrategyType, float] | None = None,
     ) -> None:
-        """
-        Initialize typed strategy manager.
+        """Initialize typed strategy manager.
 
         Args:
             market_data_port: Market data access interface
             strategy_allocations: Optional strategy allocations (defaults from registry)
+
         """
         self.market_data_port = market_data_port
         self.logger = logging.getLogger(__name__)
@@ -104,7 +102,7 @@ class TypedStrategyManager:
 
     def _initialize_typed_engines(self) -> None:
         """Initialize typed strategy engines that implement StrategyEngine protocol."""
-        for strategy_type in self.strategy_allocations.keys():
+        for strategy_type in self.strategy_allocations:
             try:
                 engine = self._create_typed_engine(strategy_type)
                 self.strategy_engines[strategy_type] = engine
@@ -121,18 +119,16 @@ class TypedStrategyManager:
         """Create typed strategy engine instance."""
         if strategy_type == StrategyType.NUCLEAR:
             return NuclearTypedEngine(self.market_data_port)
-        elif strategy_type == StrategyType.KLM:
+        if strategy_type == StrategyType.KLM:
             return TypedKLMStrategyEngine(self.market_data_port)
-        elif strategy_type == StrategyType.TECL:
+        if strategy_type == StrategyType.TECL:
             from the_alchemiser.domain.strategies.tecl_strategy_engine import TECLStrategyEngine
 
             return TECLStrategyEngine(self.market_data_port)
-        else:
-            raise ValueError(f"Unknown strategy type: {strategy_type}")
+        raise ValueError(f"Unknown strategy type: {strategy_type}")
 
     def generate_all_signals(self, timestamp: datetime | None = None) -> AggregatedSignals:
-        """
-        Generate signals from all enabled strategies.
+        """Generate signals from all enabled strategies.
 
         Args:
             timestamp: Optional timestamp for signal generation (defaults to now)
@@ -142,6 +138,7 @@ class TypedStrategyManager:
 
         Raises:
             StrategyExecutionError: If signal generation fails
+
         """
         if timestamp is None:
             timestamp = datetime.now(UTC)
@@ -191,11 +188,11 @@ class TypedStrategyManager:
         return aggregated
 
     def _aggregate_signals(self, aggregated: AggregatedSignals) -> None:
-        """
-        Aggregate signals from multiple strategies and resolve conflicts.
+        """Aggregate signals from multiple strategies and resolve conflicts.
 
         Args:
             aggregated: AggregatedSignals object to populate with consolidated results
+
         """
         # Group signals by symbol
         signals_by_symbol: dict[str, list[tuple[StrategyType, StrategySignal]]] = {}
@@ -234,8 +231,7 @@ class TypedStrategyManager:
     def _resolve_signal_conflict(
         self, symbol: str, strategy_signals: list[tuple[StrategyType, StrategySignal]]
     ) -> StrategySignal | None:
-        """
-        Resolve conflicts when multiple strategies have different opinions on the same symbol.
+        """Resolve conflicts when multiple strategies have different opinions on the same symbol.
 
         Args:
             symbol: The symbol with conflicting signals
@@ -243,6 +239,7 @@ class TypedStrategyManager:
 
         Returns:
             Resolved StrategySignal or None if no resolution possible
+
         """
         self.logger.info(f"Resolving conflict for {symbol} with {len(strategy_signals)} signals")
 
@@ -257,9 +254,8 @@ class TypedStrategyManager:
         if len(unique_actions) == 1:
             # All strategies agree on action - combine confidences
             return self._combine_agreeing_signals(symbol, strategy_signals)
-        else:
-            # Strategies disagree - use highest weighted confidence
-            return self._select_highest_confidence_signal(symbol, strategy_signals)
+        # Strategies disagree - use highest weighted confidence
+        return self._select_highest_confidence_signal(symbol, strategy_signals)
 
     def _combine_agreeing_signals(
         self, symbol: str, strategy_signals: list[tuple[StrategyType, StrategySignal]]

@@ -73,10 +73,9 @@ class StrategySignalModel:
         """Get confidence level as string."""
         if self.confidence >= 0.8:
             return "HIGH"
-        elif self.confidence >= 0.6:
+        if self.confidence >= 0.6:
             return "MEDIUM"
-        else:
-            return "LOW"
+        return "LOW"
 
 
 @dataclass(frozen=True)

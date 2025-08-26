@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Trading Engine Integration for Strategy Order Tracker
+"""Trading Engine Integration for Strategy Order Tracker.
 
 This module provides integration between the trading engine and strategy order tracker
 to automatically capture and track orders by strategy for P&L calculations.
@@ -112,7 +111,6 @@ def create_strategy_aware_order_callback(original_order_function: Any) -> Any:
 
     def wrapper(*args: Any, **kwargs: Any) -> Any:
         """Call the wrapped function and log the order in the active context."""
-
         # Execute original order function
         result = original_order_function(*args, **kwargs)
 
@@ -135,7 +133,6 @@ class StrategyTrackingMixin:
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         """Initialize tracking mixin and attach tracker instance."""
-
         super().__init__(*args, **kwargs)
         # Import here to avoid circular imports
         from the_alchemiser.application.tracking.strategy_order_tracker import (
@@ -166,6 +163,7 @@ class StrategyTrackingMixin:
 
         Returns:
             Dictionary containing strategy P&L summary data for email reporting.
+
         """
         return self._strategy_tracker.get_summary_for_email(current_prices)
 
@@ -181,6 +179,7 @@ def extract_order_details_from_alpaca_order(
 
     Returns:
         Dictionary with standardized order details for tracking system
+
     """
     try:
         # Handle both order response objects and order status objects
@@ -222,6 +221,7 @@ def track_alpaca_order_if_filled(
 
     Args:
         order: Alpaca order object to potentially track
+
     """
     try:
         # Check if order is filled
@@ -260,6 +260,7 @@ def configure_strategy_tracking_integration(
 
     Args:
         trading_engine: Trading engine instance to configure with tracking
+
     """
     try:
         # Add tracking mixin to trading engine if it doesn't already have it
@@ -287,10 +288,10 @@ def configure_strategy_tracking_integration(
 # Export key functions for easy importing
 __all__ = [
     "StrategyExecutionContext",
-    "strategy_execution_context",
-    "track_order_execution",
-    "get_current_strategy_context",
     "StrategyTrackingMixin",
-    "track_alpaca_order_if_filled",
     "configure_strategy_tracking_integration",
+    "get_current_strategy_context",
+    "strategy_execution_context",
+    "track_alpaca_order_if_filled",
+    "track_order_execution",
 ]

@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Order Validation Utilities
+"""Order Validation Utilities.
 
 This module provides helper functions for validating order parameters,
 including quantity validation, price validation, and parameter normalization.
@@ -13,8 +12,7 @@ from typing import Any
 
 
 def validate_quantity(qty: Any, symbol: str) -> float | None:
-    """
-    Validate and normalize quantity parameter.
+    """Validate and normalize quantity parameter.
 
     Args:
         qty: Quantity to validate (accepts any type for validation,
@@ -23,12 +21,13 @@ def validate_quantity(qty: Any, symbol: str) -> float | None:
 
     Returns:
         Validated float quantity or None if invalid
+
     """
     if qty is None:
         return None
 
     # Check for invalid types first (before float conversion)
-    if isinstance(qty, bool) or isinstance(qty, list) or isinstance(qty, dict):
+    if isinstance(qty, bool | list | dict):
         logging.warning(f"Invalid quantity type for {symbol}: {qty}")
         return None
 
@@ -48,8 +47,7 @@ def validate_quantity(qty: Any, symbol: str) -> float | None:
 
 
 def validate_notional(notional: Any, symbol: str) -> float | None:
-    """
-    Validate and normalize notional parameter.
+    """Validate and normalize notional parameter.
 
     Args:
         notional: Notional amount to validate (accepts any type for validation,
@@ -58,12 +56,13 @@ def validate_notional(notional: Any, symbol: str) -> float | None:
 
     Returns:
         Validated float notional or None if invalid
+
     """
     if notional is None:
         return None
 
     # Check for invalid types first (before float conversion)
-    if isinstance(notional, bool) or isinstance(notional, list) or isinstance(notional, dict):
+    if isinstance(notional, bool | list | dict):
         logging.warning(f"Invalid notional type for {symbol}: {notional}")
         return None
 
@@ -88,8 +87,7 @@ def validate_order_parameters(
     notional: float | None = None,
     limit_price: float | None = None,
 ) -> tuple[bool, str | None]:
-    """
-    Validate order parameters for common issues.
+    """Validate order parameters for common issues.
 
     Args:
         symbol: Stock symbol
@@ -99,6 +97,7 @@ def validate_order_parameters(
 
     Returns:
         Tuple of (is_valid, error_message)
+
     """
     # Validate that exactly one of qty or notional is provided (if both are used)
     if qty is not None and notional is not None:
@@ -115,8 +114,7 @@ def validate_order_parameters(
 
 
 def round_quantity_for_asset(qty: float, symbol: str, is_fractionable: bool = True) -> float:
-    """
-    Round quantity appropriately for the asset type.
+    """Round quantity appropriately for the asset type.
 
     Args:
         qty: Quantity to round
@@ -125,6 +123,7 @@ def round_quantity_for_asset(qty: float, symbol: str, is_fractionable: bool = Tr
 
     Returns:
         Rounded quantity
+
     """
     if not is_fractionable:
         # Round to whole shares for non-fractionable assets
@@ -134,6 +133,5 @@ def round_quantity_for_asset(qty: float, symbol: str, is_fractionable: bool = Tr
                 f"🔄 Rounded {symbol} to {rounded_qty} whole shares for non-fractionable asset"
             )
         return float(rounded_qty)
-    else:
-        # Round to 6 decimal places for fractional assets (Alpaca's limit)
-        return float(Decimal(str(qty)).quantize(Decimal("0.000001"), rounding=ROUND_DOWN))
+    # Round to 6 decimal places for fractional assets (Alpaca's limit)
+    return float(Decimal(str(qty)).quantize(Decimal("0.000001"), rounding=ROUND_DOWN))

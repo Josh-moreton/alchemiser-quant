@@ -50,6 +50,7 @@ class RebalancingOrchestratorFacade:
             trading_client: Alpaca trading client for WebSocket monitoring
             paper_trading: Whether using paper trading mode
             account_info_provider: Provider for account information
+
         """
         self.logger = logging.getLogger(__name__)
         self.error_handler = TradingSystemErrorHandler()
@@ -84,6 +85,7 @@ class RebalancingOrchestratorFacade:
 
         Raises:
             StrategyExecutionError: If rebalancing fails
+
         """
         try:
             self.logger.info(f"Starting full rebalancing cycle for {len(target_portfolio)} symbols")
@@ -131,6 +133,7 @@ class RebalancingOrchestratorFacade:
 
         Raises:
             StrategyExecutionError: If phase execution fails
+
         """
         try:
             phase_normalized = phase.lower().strip()

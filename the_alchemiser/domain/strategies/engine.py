@@ -1,5 +1,4 @@
-"""
-Typed Strategy Engine Base Class
+"""Typed Strategy Engine Base Class.
 
 Abstract base class for trading strategy implementations with full type safety,
 validation helpers, and error handling integration. This replaces pandas coupling
@@ -32,6 +31,7 @@ class StrategyEngine(ABC):
         Args:
             strategy_name: Human-readable name for this strategy
             market_data_port: Market data access interface
+
         """
         self.strategy_name = strategy_name
         self.market_data_port = market_data_port
@@ -51,6 +51,7 @@ class StrategyEngine(ABC):
         Raises:
             StrategyExecutionError: If signal generation fails
             ValidationError: If generated signals are invalid
+
         """
         ...
 
@@ -65,6 +66,7 @@ class StrategyEngine(ABC):
 
         Raises:
             ValidationError: If any signal is invalid
+
         """
         if not signals:
             self.logger.warning(f"{self.strategy_name}: No signals generated")
@@ -98,6 +100,7 @@ class StrategyEngine(ABC):
 
         Raises:
             ValidationError: If signal is invalid
+
         """
         # Check if it's actually a StrategySignal instance or has the right interface
         if (
@@ -137,6 +140,7 @@ class StrategyEngine(ABC):
 
         Returns:
             List of validated signals, or empty list if generation fails
+
         """
         try:
             signals = self.generate_signals(now)
@@ -160,6 +164,7 @@ class StrategyEngine(ABC):
 
         Returns:
             List of symbol strings required for this strategy
+
         """
         return []
 
@@ -174,6 +179,7 @@ class StrategyEngine(ABC):
 
         Raises:
             ValidationError: If required data is unavailable
+
         """
         if symbols is None:
             symbols = self.get_required_symbols()
@@ -205,6 +211,7 @@ class StrategyEngine(ABC):
 
         Args:
             additional_info: Optional additional information to log
+
         """
         info = {
             "strategy_name": self.strategy_name,

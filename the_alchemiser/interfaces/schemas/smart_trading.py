@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Smart Trading DTOs for The Alchemiser Trading System.
+"""Smart Trading DTOs for The Alchemiser Trading System.
 
 This module contains DTOs for advanced trading operations like smart order execution
 and comprehensive trading dashboard results.
@@ -26,9 +25,7 @@ from the_alchemiser.interfaces.schemas.orders import OrderExecutionResultDTO
 
 
 class OrderValidationMetadataDTO(BaseModel):
-    """
-    DTO for order validation metadata from DTO validation process.
-    """
+    """DTO for order validation metadata from DTO validation process."""
 
     model_config = ConfigDict(
         strict=True,
@@ -44,8 +41,7 @@ class OrderValidationMetadataDTO(BaseModel):
 
 
 class SmartOrderExecutionDTO(ResultDTO):
-    """
-    DTO for smart order execution results with comprehensive metadata.
+    """DTO for smart order execution results with comprehensive metadata.
 
     Contains order execution results plus validation and account impact data.
     """
@@ -67,9 +63,7 @@ class SmartOrderExecutionDTO(ResultDTO):
 
 
 class TradingDashboardDTO(ResultDTO):
-    """
-    DTO for comprehensive trading dashboard data.
-    """
+    """DTO for comprehensive trading dashboard data."""
 
     model_config = ConfigDict(
         strict=True,

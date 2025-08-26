@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Execution Configuration
+"""Execution Configuration.
 
 Configuration settings for the professional execution system.
 Loads settings from the global application configuration.
@@ -71,14 +70,14 @@ class ExecutionConfig:
             return cls()
 
     def get_slippage_tolerance(self, symbol: str) -> float:
-        """
-        Get slippage tolerance for a symbol.
+        """Get slippage tolerance for a symbol.
 
         Args:
             symbol: The symbol to check
 
         Returns:
             float: Slippage tolerance in basis points
+
         """
         # Use standard slippage for all symbols
         return self.max_slippage_bps
@@ -92,8 +91,7 @@ class ExecutionConfig:
         return bool(self.high_volume_etfs and symbol in self.high_volume_etfs)
 
     def get_adaptive_timeout(self, attempt: int, base_timeout: float) -> float:
-        """
-        Calculate adaptive timeout for re-pegging attempts.
+        """Calculate adaptive timeout for re-pegging attempts.
 
         Args:
             attempt: Current attempt number (0-based)
@@ -101,6 +99,7 @@ class ExecutionConfig:
 
         Returns:
             Adjusted timeout with exponential backoff
+
         """
         if not self.enable_adaptive_repegging:
             return base_timeout
@@ -111,8 +110,7 @@ class ExecutionConfig:
     def should_pause_for_volatility(
         self, original_spread_cents: float, current_spread_cents: float
     ) -> bool:
-        """
-        Check if re-pegging should be paused due to spread volatility.
+        """Check if re-pegging should be paused due to spread volatility.
 
         Args:
             original_spread_cents: Original spread in cents
@@ -120,6 +118,7 @@ class ExecutionConfig:
 
         Returns:
             True if volatility is too high to continue re-pegging
+
         """
         if not self.enable_adaptive_repegging or original_spread_cents <= 0:
             return False
@@ -135,8 +134,7 @@ class ExecutionConfig:
     def calculate_adaptive_limit_price(
         self, side: str, bid: float, ask: float, attempt: int, tick_size: float = 0.01
     ) -> float:
-        """
-        Calculate adaptive limit price that improves with each re-peg attempt.
+        """Calculate adaptive limit price that improves with each re-peg attempt.
 
         Args:
             side: "buy" or "sell"
@@ -147,13 +145,13 @@ class ExecutionConfig:
 
         Returns:
             Adaptive limit price
+
         """
         if not self.enable_adaptive_repegging:
             # Use original aggressive pricing
             if side.lower() == "buy":
                 return ask + tick_size
-            else:
-                return bid - tick_size
+            return bid - tick_size
 
         # Calculate price improvement based on attempt number
         price_improvement = self.repeg_price_improvement_ticks * tick_size * attempt
@@ -161,9 +159,8 @@ class ExecutionConfig:
         if side.lower() == "buy":
             # Buy orders: start at ask + 1 tick, improve (increase) each attempt
             return ask + tick_size + price_improvement
-        else:
-            # Sell orders: start at bid - 1 tick, improve (decrease) each attempt
-            return bid - tick_size - price_improvement
+        # Sell orders: start at bid - 1 tick, improve (decrease) each attempt
+        return bid - tick_size - price_improvement
 
 
 # Global config instance

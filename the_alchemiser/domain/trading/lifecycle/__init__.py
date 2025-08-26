@@ -1,5 +1,4 @@
-"""
-Order Lifecycle Management Domain Components
+"""Order Lifecycle Management Domain Components.
 
 This package contains the core domain objects for order lifecycle management,
 including states, events, and protocols for observing lifecycle transitions.
@@ -14,9 +13,9 @@ from .protocols import LifecycleObserver
 from .states import OrderLifecycleState
 
 __all__ = [
-    "OrderLifecycleState",
-    "LifecycleEventType",
-    "OrderLifecycleEvent",
-    "LifecycleObserver",
     "InvalidOrderStateTransitionError",
+    "LifecycleEventType",
+    "LifecycleObserver",
+    "OrderLifecycleEvent",
+    "OrderLifecycleState",
 ]

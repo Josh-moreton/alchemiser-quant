@@ -41,12 +41,12 @@ from .templates import (
 )
 
 __all__ = [
+    "EmailClient",
+    "EmailTemplates",
+    "build_error_email_html",
+    "build_multi_strategy_email_html",
+    "build_trading_report_html",
     "get_email_config",
     "is_neutral_mode_enabled",
     "send_email_notification",
-    "EmailClient",
-    "build_trading_report_html",
-    "build_multi_strategy_email_html",
-    "build_error_email_html",
-    "EmailTemplates",
 ]

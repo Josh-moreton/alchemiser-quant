@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Smart Execution Engine with Professional Order Strategy.
+"""Smart Execution Engine with Professional Order Strategy.
 
 This module provides sophisticated order execution using the Better Orders strategy:
 - Aggressive marketable limits (ask+1¢ for buys, bid-1¢ for sells)
@@ -178,8 +177,7 @@ class SmartExecution:
         event_type: "LifecycleEventType | None" = None,
         metadata: dict[str, Any] | None = None,
     ) -> None:
-        """
-        Track order lifecycle state transitions and dispatch events.
+        """Track order lifecycle state transitions and dispatch events.
 
         Phase 3: Integration helper to update lifecycle state and emit events
         for comprehensive order tracking throughout the execution pipeline.
@@ -193,9 +191,10 @@ class SmartExecution:
 
             # Default event type based on target state
             if event_type is None:
-                if target_state == OrderLifecycleState.SUBMITTED:
-                    event_type = LifecycleEventType.STATE_CHANGED
-                elif target_state == OrderLifecycleState.FILLED:
+                if (
+                    target_state == OrderLifecycleState.SUBMITTED
+                    or target_state == OrderLifecycleState.FILLED
+                ):
                     event_type = LifecycleEventType.STATE_CHANGED
                 elif target_state == OrderLifecycleState.PARTIALLY_FILLED:
                     event_type = LifecycleEventType.PARTIAL_FILL
@@ -252,8 +251,7 @@ class SmartExecution:
             return None
 
     def execute_safe_sell(self, symbol: str, target_qty: float) -> str | None:
-        """
-        Execute a safe sell using the configured order executor.
+        """Execute a safe sell using the configured order executor.
 
         Focuses on safe selling logic while delegating actual order placement.
         """
@@ -277,8 +275,7 @@ class SmartExecution:
     ) -> str | None:
         # TODO: Phase 1 consolidation - merge with place_market_order/place_limit_order
         # to create unified order placement interface
-        """
-        Place order using professional Better Orders execution strategy.
+        """Place order using professional Better Orders execution strategy.
 
         Implements the 5-step execution ladder:
         1. Market timing assessment (9:30-9:35 ET logic)
@@ -295,6 +292,7 @@ class SmartExecution:
 
         Returns:
             Order ID if successful, None otherwise
+
         """
         from rich.console import Console
 
@@ -512,16 +510,15 @@ class SmartExecution:
                     },
                 )
                 return self._order_executor.place_market_order(symbol, side, qty=qty)
-            else:
-                self.logger.error(
-                    "order_execution_failed_fallback_disabled",
-                    extra={
-                        "symbol": symbol,
-                        "error": str(e),
-                        "fallback_enabled": False,
-                    },
-                )
-                raise e
+            self.logger.error(
+                "order_execution_failed_fallback_disabled",
+                extra={
+                    "symbol": symbol,
+                    "error": str(e),
+                    "fallback_enabled": False,
+                },
+            )
+            raise e
         except SpreadAnalysisError as e:
             self.logger.error(
                 "spread_analysis_error",
@@ -563,16 +560,15 @@ class SmartExecution:
                     },
                 )
                 return self._order_executor.place_market_order(symbol, side, qty=qty)
-            else:
-                self.logger.error(
-                    "data_provider_error_fallback_disabled",
-                    extra={
-                        "symbol": symbol,
-                        "error": str(e),
-                        "fallback_enabled": False,
-                    },
-                )
-                raise e
+            self.logger.error(
+                "data_provider_error_fallback_disabled",
+                extra={
+                    "symbol": symbol,
+                    "error": str(e),
+                    "fallback_enabled": False,
+                },
+            )
+            raise e
         except BuyingPowerError as e:
             self.logger.error(
                 "buying_power_error",
@@ -600,7 +596,7 @@ class SmartExecution:
 
             if "buying power" in error_message or "insufficient funds" in error_message:
                 buying_power_error = BuyingPowerError(
-                    f"Classified buying power error: {str(e)}",
+                    f"Classified buying power error: {e!s}",
                     symbol=symbol,
                 )
                 self.logger.error(
@@ -619,11 +615,11 @@ class SmartExecution:
                     },
                 )
                 raise buying_power_error
-            elif "order" in error_message and (
+            if "order" in error_message and (
                 "failed" in error_message or "reject" in error_message
             ):
                 placement_error = OrderPlacementError(
-                    f"Order placement failed: {str(e)}",
+                    f"Order placement failed: {e!s}",
                     symbol=symbol,
                     reason="unknown_placement_failure",
                 )
@@ -645,58 +641,55 @@ class SmartExecution:
                         },
                     )
                     return self._order_executor.place_market_order(symbol, side, qty=qty)
-                else:
-                    self.logger.error(
-                        "order_placement_failed_fallback_disabled",
-                        extra={
-                            "symbol": symbol,
-                            "error": str(e),
-                            "fallback_enabled": False,
-                        },
-                    )
-                    raise placement_error
-            else:
-                # Unknown error - log and decide based on feature flag
                 self.logger.error(
-                    "unclassified_execution_error",
+                    "order_placement_failed_fallback_disabled",
                     extra={
                         "symbol": symbol,
                         "error": str(e),
-                        "error_type": type(e).__name__,
-                        "phase": "better_orders_main",
+                        "fallback_enabled": False,
                     },
                 )
-                if self.enable_market_order_fallback:
-                    self.logger.warning(
-                        "market_order_fallback_triggered",
-                        extra={
-                            "symbol": symbol,
-                            "reason": "unclassified_error",
-                            "original_error": str(e),
-                        },
-                    )
-                    self.logger.warning(
-                        "market_order_fallback_triggered",
-                        extra={
-                            "symbol": symbol,
-                            "reason": "unclassified_error",
-                            "original_error": str(e),
-                        },
-                    )
-                    return self._order_executor.place_market_order(symbol, side, qty=qty)
-                else:
-                    self.logger.error(
-                        "unexpected_error_fallback_disabled",
-                        extra={
-                            "symbol": symbol,
-                            "error": str(e),
-                            "fallback_enabled": False,
-                        },
-                    )
-                    raise OrderExecutionError(
-                        f"Unclassified execution error: {str(e)}",
-                        symbol=symbol,
-                    )
+                raise placement_error
+            # Unknown error - log and decide based on feature flag
+            self.logger.error(
+                "unclassified_execution_error",
+                extra={
+                    "symbol": symbol,
+                    "error": str(e),
+                    "error_type": type(e).__name__,
+                    "phase": "better_orders_main",
+                },
+            )
+            if self.enable_market_order_fallback:
+                self.logger.warning(
+                    "market_order_fallback_triggered",
+                    extra={
+                        "symbol": symbol,
+                        "reason": "unclassified_error",
+                        "original_error": str(e),
+                    },
+                )
+                self.logger.warning(
+                    "market_order_fallback_triggered",
+                    extra={
+                        "symbol": symbol,
+                        "reason": "unclassified_error",
+                        "original_error": str(e),
+                    },
+                )
+                return self._order_executor.place_market_order(symbol, side, qty=qty)
+            self.logger.error(
+                "unexpected_error_fallback_disabled",
+                extra={
+                    "symbol": symbol,
+                    "error": str(e),
+                    "fallback_enabled": False,
+                },
+            )
+            raise OrderExecutionError(
+                f"Unclassified execution error: {e!s}",
+                symbol=symbol,
+            )
 
     def wait_for_settlement(
         self,
@@ -704,8 +697,7 @@ class SmartExecution:
         max_wait_time: int = 60,
         poll_interval: float = 2.0,
     ) -> bool:
-        """
-        Wait for order settlement using WebSocket-based tracking.
+        """Wait for order settlement using WebSocket-based tracking.
 
         Uses the OrderCompletionMonitor for real-time WebSocket settlement detection.
         No legacy polling fallbacks - WebSocket streaming only.
@@ -723,6 +715,7 @@ class SmartExecution:
             to reach a terminal state (filled / canceled / rejected / expired) within
             the allowed window. This explicit failure propagation prevents masking
             real settlement issues and aligns with the no-legacy-fallback policy.
+
         """
         if not sell_orders:
             return True
@@ -753,10 +746,7 @@ class SmartExecution:
                     order_id
                 )  # TODO: Phase 5 - Migrate to AlpacaOrderObject
                 status = str(getattr(order_obj, "status", "unknown")).lower()
-                if "orderstatus." in status:
-                    actual_status = status.split(".")[-1]
-                else:
-                    actual_status = status
+                actual_status = status.split(".")[-1] if "orderstatus." in status else status
 
                 if actual_status in ["filled", "canceled", "rejected", "expired"]:
                     logging.info(
@@ -848,8 +838,7 @@ class SmartExecution:
         tick_size: float = 0.01,
         max_steps: int = 5,
     ) -> float:
-        """
-        Calculate a dynamic limit price based on the bid-ask spread and step.
+        """Calculate a dynamic limit price based on the bid-ask spread and step.
 
         Test expects:
         - BUY: bid=99.0, ask=101.0, step=1, tick_size=0.2, max_steps=3 -> 100.2
@@ -865,6 +854,7 @@ class SmartExecution:
 
         Returns:
             Calculated limit price
+
         """
         mid_price = (bid + ask) / 2.0
 
@@ -888,8 +878,7 @@ class SmartExecution:
         strategy: Any,
         console: Any,
     ) -> str | None:
-        """
-        Execute the aggressive marketable limit sequence with adaptive re-pegging.
+        """Execute the aggressive marketable limit sequence with adaptive re-pegging.
 
         Phase 2 Enhancement:
         - Uses ExecutionConfig for adaptive timeout and price calculation
@@ -936,10 +925,7 @@ class SmartExecution:
                 )
             else:
                 # Legacy pricing logic
-                if side == OrderSide.BUY:
-                    limit_price = ask + 0.01
-                else:
-                    limit_price = bid - 0.01
+                limit_price = ask + 0.01 if side == OrderSide.BUY else bid - 0.01
 
             # Determine direction for display
             if side == OrderSide.BUY:
@@ -1058,14 +1044,13 @@ class SmartExecution:
                         },
                     )
                     continue
-                else:
-                    raise OrderTimeoutError(
-                        f"Failed to wait for order completion on final attempt: {str(e)}",
-                        symbol=symbol,
-                        order_id=order_id,
-                        timeout_seconds=timeout_seconds,
-                        attempt_number=attempt + 1,
-                    )
+                raise OrderTimeoutError(
+                    f"Failed to wait for order completion on final attempt: {e!s}",
+                    symbol=symbol,
+                    order_id=order_id,
+                    timeout_seconds=timeout_seconds,
+                    attempt_number=attempt + 1,
+                )
 
             # Check if the order completed successfully
             order_completed = order_id in order_result.orders_completed
@@ -1094,25 +1079,24 @@ class SmartExecution:
                     },
                 )
                 return order_id
-            else:
-                # Phase 3: Track timeout/partial state if applicable
-                # Note: In a real system, we'd need to query order status to determine if it's partial, cancelled, etc.
-                current_lifecycle_state = self._get_order_lifecycle_state(order_id)
-                if current_lifecycle_state == OrderLifecycleState.SUBMITTED:
-                    # Order still in submitted state - this is a timeout
-                    from the_alchemiser.domain.trading.lifecycle import LifecycleEventType
+            # Phase 3: Track timeout/partial state if applicable
+            # Note: In a real system, we'd need to query order status to determine if it's partial, cancelled, etc.
+            current_lifecycle_state = self._get_order_lifecycle_state(order_id)
+            if current_lifecycle_state == OrderLifecycleState.SUBMITTED:
+                # Order still in submitted state - this is a timeout
+                from the_alchemiser.domain.trading.lifecycle import LifecycleEventType
 
-                    self._track_order_lifecycle(
-                        order_id,
-                        OrderLifecycleState.SUBMITTED,  # Stay in same state but emit timeout event
-                        event_type=LifecycleEventType.TIMEOUT,
-                        metadata={
-                            "symbol": symbol,
-                            "timeout_seconds": timeout_seconds,
-                            "attempt": attempt,
-                            "reason": "order_completion_timeout",
-                        },
-                    )
+                self._track_order_lifecycle(
+                    order_id,
+                    OrderLifecycleState.SUBMITTED,  # Stay in same state but emit timeout event
+                    event_type=LifecycleEventType.TIMEOUT,
+                    metadata={
+                        "symbol": symbol,
+                        "timeout_seconds": timeout_seconds,
+                        "attempt": attempt,
+                        "reason": "order_completion_timeout",
+                    },
+                )
 
             # Order not filled - prepare for re-peg if attempts remain
             if attempt < max_repegs:
@@ -1180,7 +1164,7 @@ class SmartExecution:
                     raise  # Re-raise the specific error
                 except Exception as e:
                     raise SpreadAnalysisError(
-                        f"Failed to get fresh quote for re-peg: {str(e)}",
+                        f"Failed to get fresh quote for re-peg: {e!s}",
                         symbol=symbol,
                     )
             else:
@@ -1236,14 +1220,13 @@ class SmartExecution:
             )
 
             return fallback_order_id
-        else:
-            # Feature flag disabled - raise timeout error instead of fallback
-            raise OrderTimeoutError(
-                f"All limit order attempts failed and market fallback disabled: {symbol} {side.value} {qty}",
-                symbol=symbol,
-                timeout_seconds=base_timeout_seconds * (max_repegs + 1),
-                attempt_number=max_repegs + 1,
-            )
+        # Feature flag disabled - raise timeout error instead of fallback
+        raise OrderTimeoutError(
+            f"All limit order attempts failed and market fallback disabled: {symbol} {side.value} {qty}",
+            symbol=symbol,
+            timeout_seconds=base_timeout_seconds * (max_repegs + 1),
+            attempt_number=max_repegs + 1,
+        )
 
     def get_order_by_id(self, order_id: str) -> Any:
         """Get order details by order ID from the trading client."""

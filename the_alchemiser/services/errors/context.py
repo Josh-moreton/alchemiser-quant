@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Error context data structures for The Alchemiser Trading System.
+"""Error context data structures for The Alchemiser Trading System.
 
 This module provides standardized error context data structures
 for consistent error reporting and tracking.
@@ -13,8 +12,7 @@ from typing import Any
 
 @dataclass(frozen=True)
 class ErrorContextData:
-    """
-    Standardized error context data for all error reporting.
+    """Standardized error context data for all error reporting.
 
     This frozen dataclass provides immutable error context information
     that can be safely passed around and serialized.

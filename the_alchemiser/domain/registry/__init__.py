@@ -9,4 +9,4 @@ Modules:
 
 from .strategy_registry import StrategyConfig, StrategyRegistry, StrategyType
 
-__all__ = ["StrategyRegistry", "StrategyType", "StrategyConfig"]
+__all__ = ["StrategyConfig", "StrategyRegistry", "StrategyType"]

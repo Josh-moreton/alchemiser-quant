@@ -49,6 +49,7 @@ def parse_event_mode(event: LambdaEventDTO | dict[str, Any]) -> list[str]:
         Signals only: {"mode": "bot"}
         Testing: {"mode": "trade", "ignore_market_hours": true}
         Empty event (safe default): {} or None → paper trading with market hours ignored
+
     """
     # Default to paper trading with market hours ignored for safety
     default_args = ["trade", "--ignore-market-hours"]
@@ -163,6 +164,7 @@ def lambda_handler(event: LambdaEventDTO | None = None, context: Any = None) -> 
         - Empty event defaults to paper trading with market hours ignored for safety
         - This allows testing outside market hours without risking live trades
         - Maintains safe behavior while supporting new event-driven modes
+
     """
     # Extract request ID for tracking
     request_id = getattr(context, "aws_request_id", "unknown") if context else "local"
@@ -228,7 +230,7 @@ def lambda_handler(event: LambdaEventDTO | None = None, context: Any = None) -> 
         mode = locals().get("mode", "unknown")
         trading_mode = locals().get("trading_mode", "unknown")
 
-        error_message = f"Lambda execution error ({type(e).__name__}): {str(e)}"
+        error_message = f"Lambda execution error ({type(e).__name__}): {e!s}"
         log_error_with_context(
             logger,
             e,
@@ -275,7 +277,7 @@ def lambda_handler(event: LambdaEventDTO | None = None, context: Any = None) -> 
     except (ImportError, AttributeError, ValueError, KeyError, TypeError, OSError) as e:
         from the_alchemiser.infrastructure.logging.logging_utils import log_error_with_context
 
-        error_message = f"Lambda execution critical error: {str(e)}"
+        error_message = f"Lambda execution critical error: {e!s}"
         log_error_with_context(
             logger,
             e,

@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Position DTOs for The Alchemiser Trading System.
+"""Position DTOs for The Alchemiser Trading System.
 
 This module contains DTOs for position data, portfolio summaries, and position analytics,
 providing type-safe interfaces for position management operations.
@@ -23,8 +22,7 @@ from the_alchemiser.interfaces.schemas.base import ResultDTO
 
 
 class PositionDTO(BaseModel):
-    """
-    DTO for individual position information.
+    """DTO for individual position information.
 
     Used when returning position data from TradingServiceManager methods.
     Provides validation and normalization of position parameters.
@@ -47,8 +45,7 @@ class PositionDTO(BaseModel):
 
 
 class PositionSummaryDTO(ResultDTO):
-    """
-    DTO for position summary with additional context.
+    """DTO for position summary with additional context.
 
     Contains position data plus metadata about the request/response.
     """
@@ -66,8 +63,7 @@ class PositionSummaryDTO(ResultDTO):
 
 
 class PortfolioSummaryDTO(ResultDTO):
-    """
-    DTO for overall portfolio summary.
+    """DTO for overall portfolio summary.
 
     Aggregated view of all positions and portfolio metrics.
     """
@@ -83,9 +79,7 @@ class PortfolioSummaryDTO(ResultDTO):
 
 
 class PortfolioMetricsDTO(BaseModel):
-    """
-    DTO for portfolio-level metrics.
-    """
+    """DTO for portfolio-level metrics."""
 
     model_config = ConfigDict(
         strict=True,
@@ -100,9 +94,7 @@ class PortfolioMetricsDTO(BaseModel):
 
 
 class PositionAnalyticsDTO(ResultDTO):
-    """
-    DTO for position risk analytics.
-    """
+    """DTO for position risk analytics."""
 
     model_config = ConfigDict(
         strict=True,
@@ -116,9 +108,7 @@ class PositionAnalyticsDTO(ResultDTO):
 
 
 class PositionMetricsDTO(ResultDTO):
-    """
-    DTO for portfolio-wide position metrics.
-    """
+    """DTO for portfolio-wide position metrics."""
 
     model_config = ConfigDict(
         strict=True,
@@ -132,9 +122,7 @@ class PositionMetricsDTO(ResultDTO):
 
 
 class LargestPositionDTO(BaseModel):
-    """
-    DTO for largest position information.
-    """
+    """DTO for largest position information."""
 
     model_config = ConfigDict(
         strict=True,
@@ -148,9 +136,7 @@ class LargestPositionDTO(BaseModel):
 
 
 class ClosePositionResultDTO(ResultDTO):
-    """
-    DTO for position closure results.
-    """
+    """DTO for position closure results."""
 
     model_config = ConfigDict(
         strict=True,
@@ -163,8 +149,7 @@ class ClosePositionResultDTO(ResultDTO):
 
 
 class PortfolioValueDTO(BaseModel):
-    """
-    DTO for portfolio value information.
+    """DTO for portfolio value information.
 
     Provides both raw numeric value and typed Money object for portfolio valuation.
     """

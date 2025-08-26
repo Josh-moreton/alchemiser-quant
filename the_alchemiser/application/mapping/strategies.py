@@ -98,6 +98,7 @@ def handle_portfolio_symbol_alias(symbol_value: str) -> str:
 
     Returns:
         Display-friendly symbol string
+
     """
     return "NUCLEAR_PORTFOLIO" if symbol_value == "PORT" else symbol_value
 
@@ -118,6 +119,7 @@ def format_strategy_signal_for_display(
 
     Returns:
         Display dict with restored legacy allocation semantics.
+
     """
     symbol_value = signal.symbol.value
     symbol_str = handle_portfolio_symbol_alias(symbol_value)
@@ -154,6 +156,7 @@ def create_empty_signal_dict() -> StrategySignalDisplayDTO:
 
     Returns:
         Empty signal dict with default values
+
     """
     return StrategySignalDisplayDTO(
         symbol="N/A",
@@ -179,6 +182,7 @@ def typed_signals_to_display_signals_dict(
 
     Returns:
         Display signals dict keyed by StrategyType.
+
     """
     display_signals: dict[StrategyType, StrategySignalDisplayDTO] = {}
 
@@ -230,6 +234,7 @@ def compute_consolidated_portfolio(
         (consolidated_portfolio, strategy_attribution)
         * consolidated_portfolio: symbol -> fractional target weight (0–1)
         * strategy_attribution: symbol -> list of strategies contributing a BUY/LONG weight
+
     """
     consolidated_portfolio: dict[str, float] = {}
     attribution: dict[str, list[StrategyType]] = defaultdict(list)
@@ -281,6 +286,7 @@ def run_all_strategies_mapping(
         - Display signals dict for CLI compatibility
         - Consolidated portfolio allocation dict
         - Strategy attribution dict (empty for now, preserved for interface compatibility)
+
     """
     # Convert typed signals to display format (with restored semantics)
     display_signals = typed_signals_to_display_signals_dict(aggregated, strategy_allocations)

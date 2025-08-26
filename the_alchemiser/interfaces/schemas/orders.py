@@ -1,5 +1,4 @@
-"""
-Order DTOs for application layer and interface boundaries.
+"""Order DTOs for application layer and interface boundaries.
 
 This module provides Pydantic v2 DTOs for order handling, replacing loose dicts
 and Any usages with strongly typed, validated structures. These DTOs are used
@@ -25,8 +24,7 @@ from the_alchemiser.interfaces.schemas.base import ResultDTO
 
 
 class OrderValidationMixin:
-    """
-    Mixin providing common validation methods for order DTOs.
+    """Mixin providing common validation methods for order DTOs.
 
     Centralizes validation logic to eliminate code duplication while
     maintaining type safety and reusability across order DTO classes.
@@ -69,8 +67,7 @@ class OrderValidationMixin:
 
 
 class OrderRequestDTO(BaseModel, OrderValidationMixin):
-    """
-    DTO for incoming order requests.
+    """DTO for incoming order requests.
 
     Used when creating new orders from user input or API requests.
     Provides validation and normalization of order parameters.
@@ -93,8 +90,7 @@ class OrderRequestDTO(BaseModel, OrderValidationMixin):
 
 
 class ValidatedOrderDTO(BaseModel, OrderValidationMixin):
-    """
-    DTO for validated orders with derived and normalized fields.
+    """DTO for validated orders with derived and normalized fields.
 
     Contains all OrderRequest fields plus additional metadata
     from validation and normalization processes.
@@ -125,8 +121,7 @@ class ValidatedOrderDTO(BaseModel, OrderValidationMixin):
 
 
 class OrderExecutionResultDTO(ResultDTO):
-    """
-    DTO for order execution results.
+    """DTO for order execution results.
 
     Adds uniform success/error fields to align with prior facade contract
     (which exposed a 'success' flag) while preserving structured status.
@@ -164,8 +159,7 @@ class OrderExecutionResultDTO(ResultDTO):
 
 
 class LimitOrderResultDTO(BaseModel):
-    """
-    DTO for limit order preparation results.
+    """DTO for limit order preparation results.
 
     Contains the result of limit order preparation including the order request data,
     conversion information, and success/failure status. Used to replace tuple returns

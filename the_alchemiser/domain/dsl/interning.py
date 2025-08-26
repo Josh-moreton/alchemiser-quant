@@ -1,5 +1,4 @@
-"""
-AST interning system for structural sharing (hash-consing).
+"""AST interning system for structural sharing (hash-consing).
 
 Converts AST trees to DAGs by deduplicating identical subtrees,
 dramatically reducing memory usage and node traversal work for
@@ -38,6 +37,7 @@ def node_key(node: ASTNode) -> tuple[Any, ...]:
 
     Returns:
         Tuple that uniquely identifies the node structure
+
     """
     if not is_dataclass(node):
         raise ValueError(f"Expected dataclass, got {type(node)}")
@@ -83,6 +83,7 @@ def intern_node(node: ASTNode) -> ASTNode:
 
     Returns:
         Canonical instance of the node (may be the same object or a cached one)
+
     """
     global _intern_stats
 
@@ -128,13 +129,13 @@ def canonicalise_ast(root: ASTNode) -> ASTNode:
 
     Returns:
         Canonicalised AST with structural sharing applied
+
     """
     return _canonicalise_recursive(root)
 
 
 def _canonicalise_recursive(node: ASTNode) -> ASTNode:
     """Recursively canonicalise a node and its children."""
-
     # First, canonicalise all child nodes (post-order)
     canonicalised_fields: dict[str, Any] = {}
     for field in fields(node):
@@ -147,8 +148,7 @@ def _canonicalise_recursive(node: ASTNode) -> ASTNode:
     fresh_node = node.__class__(**canonicalised_fields)
 
     # Intern the node with canonicalised children (ensures node_id assignment)
-    canonical = intern_node(fresh_node)
-    return canonical
+    return intern_node(fresh_node)
 
 
 def _canonicalise_value(value: Any) -> Any:
@@ -169,6 +169,7 @@ def get_intern_stats() -> dict[str, Any]:
 
     Returns:
         Dictionary with interning metrics including hit rates
+
     """
     total = _intern_stats["total_requests"]
     hits = _intern_stats["cache_hits"]

@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Command-Line Interface for The Alchemiser Quantitative Trading System.
+"""Command-Line Interface for The Alchemiser Quantitative Trading System.
 
 Provides a modern CLI built with Typer and Rich for user interaction, strategy selection,
 and reporting. Handles user commands and displays formatted output.
@@ -74,6 +73,7 @@ def show_welcome() -> None:
 
     Returns:
         None
+
     """
     welcome_text = Text()
     welcome_text.append(" The Alchemiser Quantitative Trading System\n", style=STYLE_BOLD_CYAN)
@@ -128,7 +128,6 @@ def signal(
     Default: legacy multi-strategy signal analysis via main engine.
     With --DSL: evaluate a standalone DSL (.clj) strategy file and display portfolio weights.
     """
-
     # Initialize error handler
     error_handler = TradingSystemErrorHandler()
 
@@ -439,8 +438,7 @@ def trade(
         None, "--export-tracking-json", help="Export tracking summary to JSON file"
     ),
 ) -> None:
-    """
-    💰 [bold green]Execute multi-strategy trading[/bold green]
+    """💰 [bold green]Execute multi-strategy trading[/bold green].
 
     Runs Nuclear, TECL, and KLM strategies with automatic portfolio allocation.
     Default mode is paper trading for safety.
@@ -562,8 +560,7 @@ def trade(
 def status(
     live: bool = typer.Option(False, "--live", help="🚨 Show LIVE account status (real account)"),
 ) -> None:
-    """
-    📈 [bold blue]Show account status and positions[/bold blue]
+    """📈 [bold blue]Show account status and positions[/bold blue].
 
     Displays current account balance, positions, portfolio performance, and P&L.
     Use --live flag to view live account instead of paper account.
@@ -944,8 +941,7 @@ def dsl_count(
 
 @app.command()
 def deploy() -> None:
-    """
-    🚀 Deploy to AWS Lambda
+    """🚀 Deploy to AWS Lambda.
 
     Builds and deploys to AWS Lambda using SAM (Serverless Application Model).
     """
@@ -998,9 +994,7 @@ def deploy() -> None:
 
 @app.command()
 def version() -> None:
-    """
-    ℹ️  [bold]Show version information[/bold]
-    """
+    """ℹ️  [bold]Show version information[/bold]."""
     version_info = Text()
     version_info.append(" The Alchemiser Quantitative Trading System\n", style=STYLE_BOLD_CYAN)
     version_info.append("Version: 2.0.0\n", style="bold")
@@ -1020,8 +1014,7 @@ def validate_indicators(
         False, "--verbose-validation", help="Enable verbose validation logging"
     ),
 ) -> None:
-    """
-    🔬 [bold blue]Validate technical indicators against TwelveData API[/bold blue]
+    """🔬 [bold blue]Validate technical indicators against TwelveData API[/bold blue].
 
     This command runs a comprehensive validation suite that tests all technical
     indicators used by our trading strategies against TwelveData API values.
@@ -1037,6 +1030,7 @@ def validate_indicators(
     • full: Comprehensive test of all symbols and indicators
 
     TwelveData API key is automatically retrieved from AWS Secrets Manager.
+
     """
     show_welcome()
 
@@ -1145,8 +1139,7 @@ def main(
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable verbose output"),
     quiet: bool = typer.Option(False, "--quiet", "-q", help="Suppress non-essential output"),
 ) -> None:
-    """
-    [bold]The Alchemiser - Advanced Multi-Strategy Quantitative Trading System[/bold]
+    """[bold]The Alchemiser - Advanced Multi-Strategy Quantitative Trading System[/bold].
 
     Nuclear • TECL • KLM • Multi-Strategy Trading System
 

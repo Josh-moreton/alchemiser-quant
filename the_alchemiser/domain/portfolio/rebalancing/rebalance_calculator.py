@@ -13,11 +13,12 @@ class RebalanceCalculator:
     It delegates to the existing trading_math module but returns proper domain objects.
     """
 
-    def __init__(self, min_trade_threshold: Decimal = Decimal("0.01")):
+    def __init__(self, min_trade_threshold: Decimal = Decimal("0.01")) -> None:
         """Initialize the calculator with a minimum trade threshold.
 
         Args:
             min_trade_threshold: Minimum weight difference to trigger a trade (default 1%)
+
         """
         self.min_trade_threshold = min_trade_threshold
 
@@ -36,6 +37,7 @@ class RebalanceCalculator:
 
         Returns:
             Dictionary mapping symbols to RebalancePlan domain objects
+
         """
         # Delegate to existing calculate_rebalance_amounts but return proper domain objects
         raw_plan = calculate_rebalance_amounts(

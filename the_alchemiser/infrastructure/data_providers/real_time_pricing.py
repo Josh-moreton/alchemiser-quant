@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Real-time WebSocket Price Streaming for Alpaca Trading.
+"""Real-time WebSocket Price Streaming for Alpaca Trading.
 
 This module provides real-time stock price updates via Alpaca's WebSocket streams
 to ensure accurate limit order pricing. It maintains current bid/ask quotes and
@@ -54,16 +53,15 @@ class RealTimeQuote:
         """Calculate mid-point between bid and ask."""
         if self.bid > 0 and self.ask > 0:
             return (self.bid + self.ask) / 2
-        elif self.bid > 0:
+        if self.bid > 0:
             return self.bid
-        elif self.ask > 0:
+        if self.ask > 0:
             return self.ask
         return self.last_price
 
 
 class RealTimePricingService:
-    """
-    Real-time pricing service using Alpaca's WebSocket data streams.
+    """Real-time pricing service using Alpaca's WebSocket data streams.
 
     Provides up-to-date bid/ask quotes and last trade prices for accurate
     limit order placement. Automatically manages subscriptions based on
@@ -71,13 +69,13 @@ class RealTimePricingService:
     """
 
     def __init__(self, api_key: str, secret_key: str, paper_trading: bool = True) -> None:
-        """
-        Initialize real-time pricing service.
+        """Initialize real-time pricing service.
 
         Args:
             api_key: Alpaca API key
             secret_key: Alpaca secret key
             paper_trading: Whether to use paper trading environment
+
         """
         self.api_key = api_key
         self.secret_key = secret_key
@@ -118,11 +116,11 @@ class RealTimePricingService:
         )
 
     def start(self) -> bool:
-        """
-        Start the real-time pricing service.
+        """Start the real-time pricing service.
 
         Returns:
             True if started successfully, False otherwise
+
         """
         try:
             if self._stream_thread and self._stream_thread.is_alive():
@@ -165,9 +163,8 @@ class RealTimePricingService:
                 cleanup_thread.start()
 
                 return True
-            else:
-                logging.error("❌ Failed to establish real-time pricing connection")
-                return False
+            logging.error("❌ Failed to establish real-time pricing connection")
+            return False
 
         except Exception as e:
             logging.error(f"Error starting real-time pricing service: {e}")
@@ -340,21 +337,20 @@ class RealTimePricingService:
                 logging.error(f"Error during quote cleanup: {e}")
 
     def get_real_time_quote(self, symbol: str) -> RealTimeQuote | None:
-        """
-        Get real-time quote for a symbol.
+        """Get real-time quote for a symbol.
 
         Args:
             symbol: Stock symbol
 
         Returns:
             RealTimeQuote object or None if not available
+
         """
         with self._quotes_lock:
             return self._quotes.get(symbol)
 
     def get_real_time_price(self, symbol: str) -> float | None:
-        """
-        Get the best available real-time price for a symbol.
+        """Get the best available real-time price for a symbol.
 
         Priority: mid-price > last trade > bid > ask
 
@@ -363,6 +359,7 @@ class RealTimePricingService:
 
         Returns:
             Current price or None if not available
+
         """
         quote = self.get_real_time_quote(symbol)
         if not quote:
@@ -372,25 +369,25 @@ class RealTimePricingService:
         if quote.bid > 0 and quote.ask > 0:
             return quote.mid_price
         # Fallback to last trade price
-        elif quote.last_price > 0:
+        if quote.last_price > 0:
             return quote.last_price
         # Final fallback to bid or ask
-        elif quote.bid > 0:
+        if quote.bid > 0:
             return quote.bid
-        elif quote.ask > 0:
+        if quote.ask > 0:
             return quote.ask
 
         return None
 
     def get_bid_ask_spread(self, symbol: str) -> tuple[float, float] | None:
-        """
-        Get current bid/ask spread for a symbol.
+        """Get current bid/ask spread for a symbol.
 
         Args:
             symbol: Stock symbol
 
         Returns:
             Tuple of (bid, ask) or None if not available
+
         """
         quote = self.get_real_time_quote(symbol)
         if not quote or quote.bid <= 0 or quote.ask <= 0:
@@ -423,12 +420,12 @@ class RealTimePricingService:
         }
 
     def subscribe_symbol(self, symbol: str, priority: float | None = None) -> None:
-        """
-        Subscribe to real-time updates for a specific symbol with smart limit management.
+        """Subscribe to real-time updates for a specific symbol with smart limit management.
 
         Args:
             symbol: Stock symbol to subscribe to
             priority: Priority score (higher = more important). Defaults to timestamp.
+
         """
         if priority is None:
             priority = time.time()  # Use current timestamp as default priority
@@ -479,11 +476,11 @@ class RealTimePricingService:
                 )
 
     def unsubscribe_symbol(self, symbol: str) -> None:
-        """
-        Unsubscribe from real-time updates for a specific symbol.
+        """Unsubscribe from real-time updates for a specific symbol.
 
         Args:
             symbol: Stock symbol to unsubscribe from
+
         """
         with self._subscription_lock:
             if symbol in self._subscribed_symbols:
@@ -498,23 +495,23 @@ class RealTimePricingService:
                 logging.info(f"📴 Unsubscribed from real-time data for {symbol}")
 
     def subscribe_for_trading(self, symbol: str) -> None:
-        """
-        Subscribe to a symbol with high priority for active trading.
+        """Subscribe to a symbol with high priority for active trading.
 
         Args:
             symbol: Stock symbol being actively traded
+
         """
         # High priority for active trading
         trading_priority = time.time() + 86400  # Current time + 1 day
         self.subscribe_symbol(symbol, trading_priority)
 
     def subscribe_for_order_placement(self, symbol: str) -> None:
-        """
-        Subscribe to a symbol temporarily for order placement.
+        """Subscribe to a symbol temporarily for order placement.
         Uses the highest priority to ensure subscription.
 
         Args:
             symbol: Stock symbol for order placement
+
         """
         # Maximum priority for order placement
         order_priority = time.time() + 172800  # Current time + 2 days (highest priority)
@@ -524,12 +521,12 @@ class RealTimePricingService:
         )
 
     def unsubscribe_after_order(self, symbol: str) -> None:
-        """
-        Unsubscribe from a symbol after order placement is complete.
+        """Unsubscribe from a symbol after order placement is complete.
         Only unsubscribes if no other high-priority needs exist.
 
         Args:
             symbol: Stock symbol to potentially unsubscribe from
+
         """
         with self._subscription_lock:
             if symbol in self._subscribed_symbols:
@@ -551,14 +548,14 @@ class RealTimePricingService:
                     )
 
     def get_optimized_price_for_order(self, symbol: str) -> float | None:
-        """
-        Get the most accurate price for order placement with temporary subscription.
+        """Get the most accurate price for order placement with temporary subscription.
 
         Args:
             symbol: Stock symbol
 
         Returns:
             Current price optimized for order accuracy
+
         """
         # Subscribe with highest priority for order placement
         self.subscribe_for_order_placement(symbol)
@@ -569,8 +566,7 @@ class RealTimePricingService:
         time.sleep(0.5)
 
         # Get the best available price
-        price = self.get_real_time_price(symbol)
-        return price
+        return self.get_real_time_price(symbol)
 
     def get_subscribed_symbols(self) -> set[str]:
         """Get set of currently subscribed symbols."""
@@ -579,31 +575,30 @@ class RealTimePricingService:
 
 
 class RealTimePricingManager:
-    """
-    Manager class for real-time pricing integration with existing data providers.
+    """Manager class for real-time pricing integration with existing data providers.
 
     Provides a clean interface for integrating real-time pricing into
     existing trading systems while maintaining backward compatibility.
     """
 
     def __init__(self, api_key: str, secret_key: str, paper_trading: bool = True) -> None:
-        """
-        Initialize real-time pricing manager.
+        """Initialize real-time pricing manager.
 
         Args:
             api_key: Alpaca API key
             secret_key: Alpaca secret key
             paper_trading: Whether to use paper trading environment
+
         """
         self.pricing_service = RealTimePricingService(api_key, secret_key, paper_trading)
         self._fallback_provider: Callable[[str], float | None] | None = None
 
     def set_fallback_provider(self, provider: Callable[[str], float | None]) -> None:
-        """
-        Set fallback price provider for when real-time data is not available.
+        """Set fallback price provider for when real-time data is not available.
 
         Args:
             provider: Callable that takes symbol and returns price
+
         """
         self._fallback_provider = provider
 
@@ -616,14 +611,14 @@ class RealTimePricingManager:
         self.pricing_service.stop()
 
     def get_current_price(self, symbol: str) -> float | None:
-        """
-        Get current price with real-time data priority.
+        """Get current price with real-time data priority.
 
         Args:
             symbol: Stock symbol
 
         Returns:
             Current price from real-time data or fallback provider
+
         """
         # Try real-time data first
         price = self.pricing_service.get_real_time_price(symbol)
@@ -637,44 +632,44 @@ class RealTimePricingManager:
         return None
 
     def get_latest_quote(self, symbol: str) -> tuple[float, float] | None:
-        """
-        Get latest bid/ask quote with real-time data priority.
+        """Get latest bid/ask quote with real-time data priority.
 
         Args:
             symbol: Stock symbol
 
         Returns:
             Tuple of (bid, ask) or None
+
         """
         return self.pricing_service.get_bid_ask_spread(symbol)
 
     def subscribe_for_trading(self, symbol: str) -> None:
-        """
-        Subscribe to real-time data for a symbol that will be traded.
+        """Subscribe to real-time data for a symbol that will be traded.
 
         Args:
             symbol: Stock symbol to subscribe to
+
         """
         self.pricing_service.subscribe_for_trading(symbol)
 
     def unsubscribe_after_trading(self, symbol: str) -> None:
-        """
-        Unsubscribe from real-time data after trading is complete.
+        """Unsubscribe from real-time data after trading is complete.
 
         Args:
             symbol: Stock symbol to unsubscribe from
+
         """
         self.pricing_service.unsubscribe_after_order(symbol)
 
     def get_price_for_order_placement(self, symbol: str) -> float | None:
-        """
-        Get optimized price for order placement with just-in-time subscription.
+        """Get optimized price for order placement with just-in-time subscription.
 
         Args:
             symbol: Stock symbol for order placement
 
         Returns:
             Most accurate price available, or fallback price
+
         """
         # Try optimized real-time pricing
         price = self.pricing_service.get_optimized_price_for_order(symbol)

@@ -79,6 +79,7 @@ class StrategyRegistry:
 
         Returns:
             StrategyConfig if found, None otherwise.
+
         """
         return cls._strategies.get(strategy_type)
 
@@ -88,6 +89,7 @@ class StrategyRegistry:
 
         Returns:
             Dictionary mapping strategy types to their configurations.
+
         """
         return {
             strategy_type: config
@@ -108,6 +110,7 @@ class StrategyRegistry:
 
         Raises:
             ValueError: If strategy type is not registered or disabled.
+
         """
         config = cls.get_strategy_config(strategy_type)
         if not config:
@@ -124,6 +127,7 @@ class StrategyRegistry:
 
         Returns:
             Dictionary mapping strategy types to default allocation weights.
+
         """
         enabled_configs = cls.get_enabled_strategies()
 
@@ -148,6 +152,7 @@ class StrategyRegistry:
 
         Returns:
             True if strategy is enabled, False otherwise.
+
         """
         config = cls.get_strategy_config(strategy_type)
         return config.enabled if config else False
@@ -158,6 +163,7 @@ class StrategyRegistry:
 
         Returns:
             List of all strategy types.
+
         """
         return list(cls._strategies.keys())
 
@@ -170,6 +176,7 @@ class StrategyRegistry:
 
         Raises:
             ValueError: If strategy type is not registered.
+
         """
         config = cls.get_strategy_config(strategy_type)
         if not config:
@@ -186,6 +193,7 @@ class StrategyRegistry:
 
         Raises:
             ValueError: If strategy type is not registered.
+
         """
         config = cls.get_strategy_config(strategy_type)
         if not config:
@@ -195,4 +203,4 @@ class StrategyRegistry:
 
 
 # Export the registry and types for easy access
-__all__ = ["StrategyRegistry", "StrategyType", "StrategyConfig"]
+__all__ = ["StrategyConfig", "StrategyRegistry", "StrategyType"]

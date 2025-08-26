@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Account Data Utilities
+"""Account Data Utilities.
 
 This module provides helper functions for extracting and processing account information
 from data providers, including portfolio values, P&L calculations, and position data.
@@ -13,14 +12,14 @@ from the_alchemiser.domain.types import AccountInfo, PositionInfo
 
 
 def extract_comprehensive_account_data(data_provider: Any) -> AccountInfo:
-    """
-    Extract comprehensive account information from a data provider.
+    """Extract comprehensive account information from a data provider.
 
     Args:
         data_provider: Market data provider instance
 
     Returns:
         AccountInfo containing account information
+
     """
     try:
         account = data_provider.get_account_info()
@@ -44,8 +43,7 @@ def extract_comprehensive_account_data(data_provider: Any) -> AccountInfo:
         def safe_get(obj: Any, key: str, default: Any = None) -> Any:
             if isinstance(obj, dict):
                 return obj.get(key, default)
-            else:
-                return getattr(obj, key, default)
+            return getattr(obj, key, default)
 
         return {
             "account_id": safe_get(account, "account_number", "unknown"),
@@ -85,14 +83,14 @@ def extract_comprehensive_account_data(data_provider: Any) -> AccountInfo:
 
 
 def extract_basic_account_metrics(account_info: AccountInfo) -> dict[str, float]:
-    """
-    Extract basic portfolio metrics from account info.
+    """Extract basic portfolio metrics from account info.
 
     Args:
         account_info: Account information dictionary
 
     Returns:
         Dict with portfolio_value, equity, cash, buying_power as floats
+
     """
     return {
         "portfolio_value": float(account_info.get("portfolio_value", 0)),
@@ -105,8 +103,7 @@ def extract_basic_account_metrics(account_info: AccountInfo) -> dict[str, float]
 def calculate_position_target_deltas(
     target_portfolio: dict[str, float], account_info: AccountInfo
 ) -> dict[str, float]:
-    """
-    Calculate target dollar values from portfolio weights.
+    """Calculate target dollar values from portfolio weights.
 
     Args:
         target_portfolio: Dictionary mapping symbols to target weights (0.0-1.0)
@@ -114,20 +111,21 @@ def calculate_position_target_deltas(
 
     Returns:
         Dictionary mapping symbols to target dollar values
+
     """
     portfolio_value = float(account_info["portfolio_value"])
     return {symbol: portfolio_value * weight for symbol, weight in target_portfolio.items()}
 
 
 def extract_current_position_values(current_positions: dict[str, PositionInfo]) -> dict[str, float]:
-    """
-    Extract current market values from position objects.
+    """Extract current market values from position objects.
 
     Args:
         current_positions: Dictionary mapping symbols to position objects
 
     Returns:
         Dictionary mapping symbols to current market values
+
     """
     current_values: dict[str, float] = {}
     for symbol, pos in current_positions.items():

@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Position Management Utilities
+"""Position Management Utilities.
 
 This module provides helper functions for position management operations,
 including position validation, liquidation logic, and buying power checks.
@@ -14,9 +13,7 @@ from the_alchemiser.services.errors.exceptions import DataProviderError, Trading
 
 
 class PositionManager:
-    """
-    Handles position management operations including validation and liquidation.
-    """
+    """Handles position management operations including validation and liquidation."""
 
     def __init__(self, trading_client: Any, data_provider: Any) -> None:
         """Initialize with trading client and data provider."""
@@ -25,14 +22,14 @@ class PositionManager:
         self.logger = get_logger(__name__)
 
     def get_current_positions(self, force_refresh: bool = False) -> dict[str, float]:
-        """
-        Get all current positions from Alpaca.
+        """Get all current positions from Alpaca.
 
         Args:
             force_refresh: If True, forces fresh data from broker (no cache)
 
         Returns:
             Dictionary mapping symbol to quantity owned. Only includes non-zero positions.
+
         """
         try:
             # TODO: Implement actual cache invalidation when force_refresh=True
@@ -70,8 +67,7 @@ class PositionManager:
     def validate_sell_position(
         self, symbol: str, requested_qty: float, force_refresh: bool = True
     ) -> tuple[bool, float, str | None]:
-        """
-        Validate and adjust sell quantity based on available position.
+        """Validate and adjust sell quantity based on available position.
 
         Args:
             symbol: Symbol to sell
@@ -80,6 +76,7 @@ class PositionManager:
 
         Returns:
             Tuple of (is_valid, adjusted_qty, warning_message)
+
         """
         # Force refresh from broker for critical sell operations
         positions = self.get_current_positions(force_refresh=force_refresh)
@@ -96,8 +93,7 @@ class PositionManager:
         return True, requested_qty, None
 
     def should_use_liquidation_api(self, symbol: str, requested_qty: float) -> bool:
-        """
-        Determine if liquidation API should be used instead of regular sell order.
+        """Determine if liquidation API should be used instead of regular sell order.
 
         Args:
             symbol: Symbol to sell
@@ -105,6 +101,7 @@ class PositionManager:
 
         Returns:
             True if liquidation API should be used
+
         """
         positions = self.get_current_positions()
         available = positions.get(symbol, 0)
@@ -116,8 +113,7 @@ class PositionManager:
         return requested_qty >= available * 0.99
 
     def validate_buying_power(self, symbol: str, qty: float) -> tuple[bool, str | None]:
-        """
-        Validate buying power for a purchase.
+        """Validate buying power for a purchase.
 
         Args:
             symbol: Symbol to buy
@@ -125,6 +121,7 @@ class PositionManager:
 
         Returns:
             Tuple of (is_sufficient, warning_message)
+
         """
         try:
             account = self.trading_client.get_account()
@@ -187,14 +184,14 @@ class PositionManager:
             return True, warning_msg  # Continue with order despite validation error
 
     def execute_liquidation(self, symbol: str) -> str | None:
-        """
-        Execute position liquidation using Alpaca's close_position API.
+        """Execute position liquidation using Alpaca's close_position API.
 
         Args:
             symbol: Symbol to liquidate
 
         Returns:
             Order ID if successful, None if failed
+
         """
         try:
             # Verify position exists
@@ -214,9 +211,8 @@ class PositionManager:
                 order_id = str(getattr(response, "id", "unknown"))
                 logging.info(f"Position liquidation order placed for {symbol}: {order_id}")
                 return order_id
-            else:
-                logging.error(f"Failed to liquidate position for {symbol}: No response")
-                return None
+            logging.error(f"Failed to liquidate position for {symbol}: No response")
+            return None
 
         except (AttributeError, ValueError, TypeError) as e:
             logger = get_logger(__name__)
@@ -315,14 +311,14 @@ class PositionManager:
             raise TradingClientError(f"Failed to get pending orders: {e}") from e
 
     def cancel_symbol_orders(self, symbol: str) -> bool:
-        """
-        Cancel all pending orders for a specific symbol.
+        """Cancel all pending orders for a specific symbol.
 
         Args:
             symbol: Symbol to cancel orders for
 
         Returns:
             True if successful, False otherwise
+
         """
         try:
             orders_dict = self.get_pending_orders()
@@ -385,11 +381,11 @@ class PositionManager:
             return False
 
     def cancel_all_orders(self) -> bool:
-        """
-        Cancel all pending orders.
+        """Cancel all pending orders.
 
         Returns:
             True if successful, False otherwise
+
         """
         try:
             self.trading_client.cancel_orders()
@@ -420,8 +416,7 @@ class PositionManager:
             return False
 
     def reconcile_position_after_order(self, order_id: str, symbol: str) -> bool:
-        """
-        Force position reconciliation after order execution.
+        """Force position reconciliation after order execution.
 
         Args:
             order_id: The order ID that was executed
@@ -429,6 +424,7 @@ class PositionManager:
 
         Returns:
             True if reconciliation successful, False otherwise
+
         """
         try:
             logging.info(f"Reconciling position for {symbol} after order {order_id}")
@@ -458,14 +454,14 @@ class PositionManager:
             return False
 
     def detect_position_drift(self, tolerance: float = 100.0) -> list[dict[str, Any]]:
-        """
-        Detect drift between internal and broker positions.
+        """Detect drift between internal and broker positions.
 
         Args:
             tolerance: Dollar threshold for drift alerts
 
         Returns:
             List of position drift warnings
+
         """
         try:
             # Force fresh broker positions

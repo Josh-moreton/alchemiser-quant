@@ -16,6 +16,6 @@ class OrderLifecycleMonitor(Protocol):  # pragma: no cover - structural typing
 
     def wait_for_order_completion(
         self, order_ids: list[str], max_wait_seconds: int = 60
-    ) -> WebSocketResultDTO:  # noqa: D401
+    ) -> WebSocketResultDTO:
         """Wait for the provided order IDs to reach a terminal state."""
         ...

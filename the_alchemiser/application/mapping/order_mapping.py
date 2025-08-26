@@ -132,10 +132,7 @@ def alpaca_order_to_domain(order: Any) -> Order:
 def summarize_order(order: Order) -> OrderSummary:
     """Create a lightweight summary dictionary from a domain Order."""
     limit_val: float | None
-    if order.limit_price is None:
-        limit_val = None
-    else:
-        limit_val = float(order.limit_price.amount)
+    limit_val = None if order.limit_price is None else float(order.limit_price.amount)
 
     return {
         "id": str(order.id.value),

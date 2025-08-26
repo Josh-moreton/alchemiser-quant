@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Error reporting and notification DTOs for The Alchemiser Trading System.
+"""Error reporting and notification DTOs for The Alchemiser Trading System.
 
 This module contains DTOs for error handling, reporting, and notification
 systems, moved from domain/types.py as part of the Pydantic migration.

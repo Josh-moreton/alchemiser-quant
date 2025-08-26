@@ -8,8 +8,7 @@ from .events import OrderLifecycleEvent
 
 
 class LifecycleObserver(Protocol):
-    """
-    Protocol for observing order lifecycle events.
+    """Protocol for observing order lifecycle events.
 
     Implementations of this protocol can be registered with the
     LifecycleEventDispatcher to receive notifications when order
@@ -20,8 +19,7 @@ class LifecycleObserver(Protocol):
     """
 
     def on_lifecycle_event(self, event: OrderLifecycleEvent) -> None:
-        """
-        Handle an order lifecycle event.
+        """Handle an order lifecycle event.
 
         This method is called whenever an order transitions between lifecycle
         states. Implementations should process the event quickly and avoid
@@ -34,5 +32,6 @@ class LifecycleObserver(Protocol):
             Implementations should not raise exceptions. If an exception occurs,
             it will be caught by the dispatcher and handled via the error system,
             but the event will still be delivered to other observers.
+
         """
         ...

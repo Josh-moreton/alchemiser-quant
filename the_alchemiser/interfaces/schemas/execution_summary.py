@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Execution Summary DTOs for The Alchemiser Trading System.
+"""Execution Summary DTOs for The Alchemiser Trading System.
 
 This module provides structured DTOs for execution summaries, replacing
 dict[str, Any] usage in MultiStrategyExecutionResultDTO and other execution contexts.
@@ -87,8 +86,7 @@ class TradingSummaryDTO(BaseModel):
 
 
 class ExecutionSummaryDTO(BaseModel):
-    """
-    DTO for comprehensive execution summary.
+    """DTO for comprehensive execution summary.
 
     Replaces the dict[str, Any] execution_summary field in MultiStrategyExecutionResultDTO.
     """
@@ -119,8 +117,7 @@ class ExecutionSummaryDTO(BaseModel):
 
 
 class PortfolioStateDTO(BaseModel):
-    """
-    DTO for final portfolio state.
+    """DTO for final portfolio state.
 
     Replaces the dict[str, Any] final_portfolio_state field in MultiStrategyExecutionResultDTO.
     """

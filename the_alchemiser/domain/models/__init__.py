@@ -1,5 +1,4 @@
-"""
-Domain models for the trading system.
+"""Domain models for the trading system.
 
 This package contains typed domain models that replace loose dict/DataFrame structures
 throughout the system. These models provide type safety, validation, and serialization.
@@ -13,12 +12,12 @@ from .strategy import StrategyPositionModel, StrategySignalModel
 
 __all__ = [
     "AccountModel",
-    "PortfolioHistoryModel",
     "BarModel",
-    "QuoteModel",
-    "PriceDataModel",
-    "PositionModel",
     "OrderModel",
-    "StrategySignalModel",
+    "PortfolioHistoryModel",
+    "PositionModel",
+    "PriceDataModel",
+    "QuoteModel",
     "StrategyPositionModel",
+    "StrategySignalModel",
 ]

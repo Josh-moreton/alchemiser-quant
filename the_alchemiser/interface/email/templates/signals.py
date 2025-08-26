@@ -21,6 +21,7 @@ class SignalsBuilder:
 
         Returns:
             HTML string for signal information
+
         """
         if not signal:
             return ""
@@ -287,7 +288,6 @@ class SignalsBuilder:
     @staticmethod
     def build_strategy_signals_neutral(strategy_signals: dict[Any, Any]) -> str:
         """Build strategy signals section for neutral mode (no financial data)."""
-
         if not strategy_signals:
             return ""
 
