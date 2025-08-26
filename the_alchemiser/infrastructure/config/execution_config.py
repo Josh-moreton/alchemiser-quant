@@ -187,17 +187,17 @@ def reload_execution_config() -> None:
 
 def create_strategy_config() -> Any:
     """Create a StrategyConfig from current ExecutionConfig.
-    
+
     This bridges the existing ExecutionConfig with the new strategy-specific
     configuration for Phase 2 strategy extraction.
-    
+
     Returns:
         StrategyConfig: Configuration for execution strategies
     """
     from the_alchemiser.application.execution.strategies.config import StrategyConfig
-    
+
     config = get_execution_config()
-    
+
     return StrategyConfig(
         max_attempts=config.max_repegs + 1,  # Include initial attempt
         base_timeout_seconds=config.aggressive_timeout_seconds,

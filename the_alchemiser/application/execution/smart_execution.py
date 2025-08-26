@@ -39,7 +39,6 @@ from the_alchemiser.services.errors.exceptions import (
     DataProviderError,
     OrderExecutionError,
     OrderPlacementError,
-    OrderTimeoutError,
     SpreadAnalysisError,
     TradingClientError,
 )
@@ -901,10 +900,10 @@ class SmartExecution:
             ExecutionContextAdapter,
         )
         from the_alchemiser.infrastructure.config.execution_config import create_strategy_config
-        
+
         # Create strategy configuration from current execution config
         strategy_config = create_strategy_config()
-        
+
         # Create strategy with lifecycle integration
         aggressive_strategy = AggressiveLimitStrategy(
             config=strategy_config,
@@ -913,10 +912,10 @@ class SmartExecution:
             lifecycle_dispatcher=self.lifecycle_dispatcher,
             strategy_name="AggressiveLimitStrategy",
         )
-        
+
         # Create execution context adapter
         context = ExecutionContextAdapter(self._order_executor)
-        
+
         # Delegate to strategy for execution
         try:
             return aggressive_strategy.execute(
