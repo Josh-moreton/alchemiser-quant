@@ -37,10 +37,10 @@ from the_alchemiser.application.mapping.orders import (
     dict_to_order_request_dto,
     order_request_to_validated_dto,
 )
+from the_alchemiser.domain.trading.errors import OrderError, classify_validation_failure
 from the_alchemiser.interfaces.schemas.orders import OrderRequestDTO, ValidatedOrderDTO
 from the_alchemiser.services.errors import TradingSystemErrorHandler
 from the_alchemiser.services.errors.exceptions import ValidationError
-from the_alchemiser.domain.trading.errors import OrderError, classify_validation_failure
 
 
 class OrderValidationError(ValidationError):
@@ -68,7 +68,9 @@ class ValidationResult:
     errors: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
     validated_order: ValidatedOrderDTO | None = None
-    classified_errors: list[OrderError] = field(default_factory=list)  # Structured error classification
+    classified_errors: list[OrderError] = field(
+        default_factory=list
+    )  # Structured error classification
 
 
 class OrderValidator:
@@ -175,31 +177,31 @@ class OrderValidator:
         except OrderValidationError as e:
             error_msg = str(e)
             errors.append(error_msg)
-            
+
             # Classify the validation error
             classified_error = classify_validation_failure(
                 reason=error_msg,
                 data=order_data,
             )
             classified_errors.append(classified_error)
-            
+
             return ValidationResult(
-                is_valid=False, 
-                errors=errors, 
+                is_valid=False,
+                errors=errors,
                 warnings=warnings,
                 classified_errors=classified_errors,
             )
         except Exception as e:
             error_msg = f"Unexpected validation error: {e}"
             errors.append(error_msg)
-            
-            # Classify the unexpected error  
+
+            # Classify the unexpected error
             classified_error = classify_validation_failure(
                 reason=error_msg,
                 data=order_data,
             )
             classified_errors.append(classified_error)
-            
+
             self.error_handler.handle_error(
                 error=e,
                 context="order_structure_validation",
@@ -207,8 +209,8 @@ class OrderValidator:
                 additional_data={"order_data": str(order_data)},
             )
             return ValidationResult(
-                is_valid=False, 
-                errors=errors, 
+                is_valid=False,
+                errors=errors,
                 warnings=warnings,
                 classified_errors=classified_errors,
             )

@@ -203,7 +203,7 @@ def signal(
                         from the_alchemiser.domain.market_data.models.bar import BarModel
 
                         # Handle both Symbol objects and strings
-                        symbol_str = str(symbol.value) if hasattr(symbol, 'value') else str(symbol)
+                        symbol_str = str(symbol.value) if hasattr(symbol, "value") else str(symbol)
 
                         # Reuse existing service method that returns DataFrame-like structure
                         df = self._md.get_data(symbol_str, timeframe=timeframe, period=period)
@@ -241,15 +241,19 @@ def signal(
                         from the_alchemiser.domain.market_data.models.quote import QuoteModel
 
                         # Handle both Symbol objects and strings
-                        symbol_str = str(symbol.value) if hasattr(symbol, 'value') else str(symbol)
+                        symbol_str = str(symbol.value) if hasattr(symbol, "value") else str(symbol)
 
                         q = self._md.get_validated_quote(symbol_str)
                         if q is None:
                             return None
 
                         # Return QuoteModel with bid/ask
-                        bid_val = Decimal(str(q[0])) if len(q) > 0 and q[0] is not None else Decimal("0")
-                        ask_val = Decimal(str(q[1])) if len(q) > 1 and q[1] is not None else Decimal("0")
+                        bid_val = (
+                            Decimal(str(q[0])) if len(q) > 0 and q[0] is not None else Decimal("0")
+                        )
+                        ask_val = (
+                            Decimal(str(q[1])) if len(q) > 1 and q[1] is not None else Decimal("0")
+                        )
 
                         return QuoteModel(
                             ts=datetime.now(),
@@ -260,7 +264,7 @@ def signal(
                     def get_mid_price(self, symbol: Symbol) -> float | None:
                         """Get mid price for a symbol."""
                         # Handle both Symbol objects and strings
-                        symbol_str = str(symbol.value) if hasattr(symbol, 'value') else str(symbol)
+                        symbol_str = str(symbol.value) if hasattr(symbol, "value") else str(symbol)
 
                         quote = self.get_latest_quote(symbol)
                         if not quote or quote.bid is None or quote.ask is None:
@@ -768,28 +772,30 @@ def status(
                 # Get lifecycle metrics and tracked orders
                 lifecycle_metrics = tsm.get_lifecycle_metrics()
                 tracked_orders = tsm.get_all_tracked_orders()
-                
+
                 if tracked_orders or lifecycle_metrics.get("event_counts"):
                     lifecycle_table = Table(
                         title="Order Lifecycle Status", show_lines=True, expand=True
                     )
                     lifecycle_table.add_column("Metric", style="bold cyan")
                     lifecycle_table.add_column("Value", justify="right")
-                    
+
                     # Add general metrics
                     event_counts = lifecycle_metrics.get("event_counts", {})
                     lifecycle_table.add_row("Total Tracked Orders", str(len(tracked_orders)))
-                    lifecycle_table.add_row("Active Observers", str(lifecycle_metrics.get("total_observers", 0)))
-                    
+                    lifecycle_table.add_row(
+                        "Active Observers", str(lifecycle_metrics.get("total_observers", 0))
+                    )
+
                     if event_counts:
                         lifecycle_table.add_row("", "")  # Separator
                         lifecycle_table.add_row("[bold]Event Counts[/bold]", "")
                         for event_type, count in event_counts.items():
                             lifecycle_table.add_row(f"  {event_type}", str(count))
-                    
+
                     console.print()
                     console.print(lifecycle_table)
-                    
+
                     # If there are recent tracked orders, show them
                     if tracked_orders:
                         orders_table = Table(
@@ -797,7 +803,7 @@ def status(
                         )
                         orders_table.add_column("Order ID", style="cyan")
                         orders_table.add_column("Lifecycle State", justify="center")
-                        
+
                         # Show last 10 orders
                         for order_id, state in list(tracked_orders.items())[-10:]:
                             # Color code based on state
@@ -809,15 +815,16 @@ def status(
                                 state_display = f"[yellow]{state.value}[/yellow]"
                             else:
                                 state_display = f"[blue]{state.value}[/blue]"
-                                
+
                             orders_table.add_row(
-                                str(order_id).split('(')[1].rstrip(')').split("'")[1][:8] + "...",  # Show short ID
-                                state_display
+                                str(order_id).split("(")[1].rstrip(")").split("'")[1][:8]
+                                + "...",  # Show short ID
+                                state_display,
                             )
-                        
+
                         console.print()
                         console.print(orders_table)
-                        
+
         except Exception as e:
             # Non-fatal: lifecycle display is optional enhancement
             console.print(f"[dim yellow]Order lifecycle info unavailable: {e}[/dim yellow]")

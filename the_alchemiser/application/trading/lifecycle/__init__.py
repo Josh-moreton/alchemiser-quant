@@ -12,7 +12,7 @@ from .observers import LoggingObserver, MetricsObserver
 
 __all__ = [
     "OrderLifecycleManager",
-    "LifecycleEventDispatcher", 
+    "LifecycleEventDispatcher",
     "LoggingObserver",
     "MetricsObserver",
 ]

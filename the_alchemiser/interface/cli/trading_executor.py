@@ -486,7 +486,9 @@ class TradingExecutor:
 
                         # Calculate position count
                         strategy_positions = [
-                            pos for pos in positions if pos.strategy.lower() == strategy_name.lower()
+                            pos
+                            for pos in positions
+                            if pos.strategy.lower() == strategy_name.lower()
                         ]
                         position_count = len(strategy_positions)
 

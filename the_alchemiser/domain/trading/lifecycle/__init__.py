@@ -15,7 +15,7 @@ from .states import OrderLifecycleState
 
 __all__ = [
     "OrderLifecycleState",
-    "LifecycleEventType", 
+    "LifecycleEventType",
     "OrderLifecycleEvent",
     "LifecycleObserver",
     "InvalidOrderStateTransitionError",
