@@ -7,15 +7,15 @@ policy implementations will depend on.
 """
 
 from .base_policy import OrderPolicy
+from .buying_power_policy import BuyingPowerPolicy
 from .fractionability_policy import FractionabilityPolicy
 from .position_policy import PositionPolicy
-from .buying_power_policy import BuyingPowerPolicy
 from .risk_policy import RiskPolicy
 
 __all__ = [
     "OrderPolicy",
     "FractionabilityPolicy",
-    "PositionPolicy", 
+    "PositionPolicy",
     "BuyingPowerPolicy",
     "RiskPolicy",
 ]

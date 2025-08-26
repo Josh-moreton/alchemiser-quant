@@ -119,7 +119,20 @@ class LimitOrderHandler:
     def _prepare_limit_order(
         self, symbol: str, qty: float, side: OrderSide, limit_price: float
     ) -> LimitOrderResultDTO:
-        """Prepare limit order with smart asset handling."""
+        """Prepare limit order with smart asset handling.
+
+        DEPRECATED: This fractionability logic has been moved to FractionabilityPolicy.
+        Use PolicyOrchestrator with CanonicalOrderExecutor for new implementations.
+        This method remains for backward compatibility only.
+        """
+        import warnings
+        warnings.warn(
+            "LimitOrderHandler._prepare_limit_order fractionability logic is deprecated. "
+            "Use PolicyOrchestrator with FractionabilityPolicy instead.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+
         original_qty = qty
         conversion_info = None
 
@@ -197,7 +210,20 @@ class LimitOrderHandler:
     def _handle_fractionable_fallback(
         self, symbol: str, original_qty: float, side: OrderSide, limit_price: float, error_msg: str
     ) -> str | None:
-        """Handle fractionability errors with whole share fallback."""
+        """Handle fractionability errors with whole share fallback.
+
+        DEPRECATED: This fractionability fallback logic has been moved to FractionabilityPolicy.
+        Use PolicyOrchestrator with CanonicalOrderExecutor for new implementations.
+        This method remains for backward compatibility only.
+        """
+        import warnings
+        warnings.warn(
+            "LimitOrderHandler._handle_fractionable_fallback is deprecated. "
+            "Use PolicyOrchestrator with FractionabilityPolicy instead.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+
         logging.warning(
             f"🔄 {symbol} limit order failed (not fractionable), trying whole shares..."
         )

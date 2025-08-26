@@ -167,6 +167,10 @@ class AssetOrderHandler:
         """
         Handle fractionability errors by converting to appropriate order type.
 
+        DEPRECATED: This fractionability error handling has been moved to FractionabilityPolicy.
+        Use PolicyOrchestrator with FractionabilityPolicy for new implementations.
+        This method remains for backward compatibility only.
+
         Args:
             symbol: Stock symbol
             side: Order side
@@ -176,6 +180,13 @@ class AssetOrderHandler:
         Returns:
             Tuple of (fallback_order, conversion_info) or (None, error_message)
         """
+        import warnings
+        warnings.warn(
+            "AssetOrderHandler.handle_fractionability_error is deprecated. "
+            "Use PolicyOrchestrator with FractionabilityPolicy instead.",
+            DeprecationWarning,
+            stacklevel=2
+        )
         if "not fractionable" not in error_msg.lower():
             return None, f"Non-fractionability error: {error_msg}"
 
@@ -280,6 +291,10 @@ class AssetOrderHandler:
         """
         Handle fractionability errors for limit orders.
 
+        DEPRECATED: This fractionability error handling has been moved to FractionabilityPolicy.
+        Use PolicyOrchestrator with FractionabilityPolicy for new implementations.
+        This method remains for backward compatibility only.
+
         Args:
             symbol: Stock symbol
             original_qty: Original quantity
@@ -289,6 +304,13 @@ class AssetOrderHandler:
         Returns:
             Tuple of (whole_qty, conversion_info) or (None, error_message)
         """
+        import warnings
+        warnings.warn(
+            "AssetOrderHandler.handle_limit_order_fractionability_error is deprecated. "
+            "Use PolicyOrchestrator with FractionabilityPolicy instead.",
+            DeprecationWarning,
+            stacklevel=2
+        )
         if "not fractionable" not in error_msg.lower():
             return None, f"Non-fractionability error: {error_msg}"
 

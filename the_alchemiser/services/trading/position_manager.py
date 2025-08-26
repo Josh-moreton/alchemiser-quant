@@ -73,6 +73,10 @@ class PositionManager:
         """
         Validate and adjust sell quantity based on available position.
 
+        DEPRECATED: This position validation logic has been moved to PositionPolicy.
+        Use PolicyOrchestrator with PositionPolicy for new implementations.
+        This method remains for backward compatibility only.
+
         Args:
             symbol: Symbol to sell
             requested_qty: Requested quantity to sell
@@ -81,6 +85,13 @@ class PositionManager:
         Returns:
             Tuple of (is_valid, adjusted_qty, warning_message)
         """
+        import warnings
+        warnings.warn(
+            "PositionManager.validate_sell_position is deprecated. "
+            "Use PolicyOrchestrator with PositionPolicy instead.",
+            DeprecationWarning,
+            stacklevel=2
+        )
         # Force refresh from broker for critical sell operations
         positions = self.get_current_positions(force_refresh=force_refresh)
         available = positions.get(symbol, 0)
@@ -119,6 +130,10 @@ class PositionManager:
         """
         Validate buying power for a purchase.
 
+        DEPRECATED: This buying power validation logic has been moved to BuyingPowerPolicy.
+        Use PolicyOrchestrator with BuyingPowerPolicy for new implementations.
+        This method remains for backward compatibility only.
+
         Args:
             symbol: Symbol to buy
             qty: Quantity to buy
@@ -126,6 +141,13 @@ class PositionManager:
         Returns:
             Tuple of (is_sufficient, warning_message)
         """
+        import warnings
+        warnings.warn(
+            "PositionManager.validate_buying_power is deprecated. "
+            "Use PolicyOrchestrator with BuyingPowerPolicy instead.",
+            DeprecationWarning,
+            stacklevel=2
+        )
         try:
             account = self.trading_client.get_account()
             buying_power = float(getattr(account, "buying_power", 0) or 0)

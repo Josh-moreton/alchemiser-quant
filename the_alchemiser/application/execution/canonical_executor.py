@@ -16,7 +16,11 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
 from the_alchemiser.domain.trading.value_objects.order_request import OrderRequest
-from the_alchemiser.interfaces.schemas.orders import OrderExecutionResultDTO, OrderRequestDTO, AdjustedOrderRequestDTO
+from the_alchemiser.interfaces.schemas.orders import (
+    AdjustedOrderRequestDTO,
+    OrderExecutionResultDTO,
+    OrderRequestDTO,
+)
 from the_alchemiser.services.errors.handler import TradingSystemErrorHandler
 
 if TYPE_CHECKING:  # typing-only imports
@@ -55,7 +59,7 @@ class CanonicalOrderExecutor:
 
         # Convert domain OrderRequest to DTO for policy validation
         order_dto = self._convert_to_order_dto(order_request)
-        
+
         # Apply policy validation if orchestrator is available
         if self.policy_orchestrator:
             logger.info(
@@ -68,10 +72,10 @@ class CanonicalOrderExecutor:
                     "order_type": order_request.order_type.value,
                 },
             )
-            
+
             try:
                 adjusted_order = self.policy_orchestrator.validate_and_adjust_order(order_dto)
-                
+
                 if not adjusted_order.is_approved:
                     logger.warning(
                         "Order rejected by policy validation",
@@ -92,7 +96,7 @@ class CanonicalOrderExecutor:
                         submitted_at=datetime.now(UTC),
                         completed_at=datetime.now(UTC),
                     )
-                
+
                 # Log policy warnings
                 if adjusted_order.warnings:
                     logger.info(
@@ -104,7 +108,7 @@ class CanonicalOrderExecutor:
                             "warning_count": len(adjusted_order.warnings),
                         },
                     )
-                
+
                 # Update order request with policy adjustments
                 if adjusted_order.has_adjustments:
                     logger.info(
@@ -119,7 +123,7 @@ class CanonicalOrderExecutor:
                     )
                     # Create new order request with adjusted values
                     order_request = self._update_order_request_from_dto(order_request, adjusted_order)
-                
+
             except Exception as e:
                 self.error_handler.handle_error(
                     error=e,
@@ -281,10 +285,10 @@ class CanonicalOrderExecutor:
 
     def _convert_to_order_dto(self, order_request: OrderRequest) -> OrderRequestDTO:
         """Convert domain OrderRequest to OrderRequestDTO for policy validation.
-        
+
         Args:
             order_request: Domain order request value object
-            
+
         Returns:
             OrderRequestDTO for policy processing
         """
@@ -297,29 +301,31 @@ class CanonicalOrderExecutor:
             limit_price=order_request.limit_price.amount if order_request.limit_price else None,
             client_order_id=order_request.client_order_id,
         )
-    
+
     def _update_order_request_from_dto(
-        self, 
-        original_request: OrderRequest, 
-        adjusted_dto: "AdjustedOrderRequestDTO"
+        self,
+        original_request: OrderRequest,
+        adjusted_dto: AdjustedOrderRequestDTO
     ) -> OrderRequest:
         """Update domain OrderRequest with policy adjustments.
-        
+
         Args:
             original_request: Original domain order request
             adjusted_dto: Adjusted order from policy validation
-            
+
         Returns:
             Updated OrderRequest with policy adjustments
         """
         from the_alchemiser.domain.shared_kernel.value_objects.money import Money
-        from the_alchemiser.domain.trading.value_objects.order_request import OrderRequest as NewOrderRequest
-        from the_alchemiser.domain.trading.value_objects.side import Side
+        from the_alchemiser.domain.trading.value_objects.order_request import (
+            OrderRequest as NewOrderRequest,
+        )
         from the_alchemiser.domain.trading.value_objects.order_type import OrderType
         from the_alchemiser.domain.trading.value_objects.quantity import Quantity
+        from the_alchemiser.domain.trading.value_objects.side import Side
         from the_alchemiser.domain.trading.value_objects.symbol import Symbol
         from the_alchemiser.domain.trading.value_objects.time_in_force import TimeInForce
-        
+
         # Create new value objects with adjusted values
         return NewOrderRequest(
             symbol=Symbol(adjusted_dto.symbol),
