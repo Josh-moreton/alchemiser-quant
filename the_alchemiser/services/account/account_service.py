@@ -3,6 +3,7 @@ from typing import Any, Literal, cast
 
 from the_alchemiser.domain.interfaces import AccountRepository
 from the_alchemiser.domain.types import AccountInfo, PositionsDict
+from the_alchemiser.utils.num import floats_equal
 
 
 class AccountService:
@@ -159,7 +160,7 @@ class AccountService:
                     if hasattr(position, "qty") or isinstance(position, dict)
                     else 0
                 )
-                if qty != 0:
+                if not floats_equal(qty, 0.0):
                     market_value = (
                         self._get_attr(position, "market_value", 0)
                         if hasattr(position, "market_value") or isinstance(position, dict)
@@ -341,7 +342,7 @@ class AccountService:
 
             for position in positions:
                 qty = self._get_attr(position, "qty", 0)
-                if qty != 0:
+                if not floats_equal(qty, 0.0):
                     market_value = self._get_attr(position, "market_value", 0)
                     symbol = self._get_attr(position, "symbol", "")
                     if symbol:
@@ -467,7 +468,7 @@ class AccountService:
                 qty = self._get_attr(position, "qty", 0)
 
                 # Only include positions with non-zero quantity
-                if symbol and float(qty) != 0:
+                if symbol and not floats_equal(float(qty), 0.0):
                     positions_dict[symbol] = {
                         "symbol": symbol,
                         "qty": float(qty),

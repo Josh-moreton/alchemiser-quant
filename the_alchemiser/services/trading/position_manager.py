@@ -8,8 +8,16 @@ including position validation, liquidation logic, and buying power checks.
 import logging
 from typing import Any
 
-from the_alchemiser.infrastructure.logging.logging_utils import get_logger, log_error_with_context
-from the_alchemiser.services.errors.exceptions import DataProviderError, TradingClientError
+from the_alchemiser.utils.num import floats_equal
+
+from the_alchemiser.infrastructure.logging.logging_utils import (
+    get_logger,
+    log_error_with_context,
+)
+from the_alchemiser.services.errors.exceptions import (
+    DataProviderError,
+    TradingClientError,
+)
 
 
 class PositionManager:
@@ -38,7 +46,7 @@ class PositionManager:
             return {
                 str(getattr(pos, "symbol", "")): float(getattr(pos, "qty", 0))
                 for pos in positions
-                if float(getattr(pos, "qty", 0)) != 0
+                if not floats_equal(float(getattr(pos, "qty", 0)), 0.0)
             }
         except (AttributeError, ValueError, TypeError) as e:
             logger = get_logger(__name__)
@@ -51,7 +59,13 @@ class PositionManager:
             )
             logging.error(f"Error getting positions: {e}")
             return {}
-        except (TradingClientError, DataProviderError, ConnectionError, TimeoutError, OSError) as e:
+        except (
+            TradingClientError,
+            DataProviderError,
+            ConnectionError,
+            TimeoutError,
+            OSError,
+        ) as e:
             logger = get_logger(__name__)
             log_error_with_context(
                 logger,
@@ -226,7 +240,13 @@ class PositionManager:
             )
             logging.error(f"Exception liquidating position for {symbol}: {e}")
             return None
-        except (TradingClientError, DataProviderError, ConnectionError, TimeoutError, OSError) as e:
+        except (
+            TradingClientError,
+            DataProviderError,
+            ConnectionError,
+            TimeoutError,
+            OSError,
+        ) as e:
             logger = get_logger(__name__)
             log_error_with_context(
                 logger,
@@ -366,7 +386,13 @@ class PositionManager:
                     logging.warning(f"Unexpected error cancelling order {order['id']}: {e}")
 
             return True
-        except (TradingClientError, DataProviderError, ConnectionError, TimeoutError, OSError) as e:
+        except (
+            TradingClientError,
+            DataProviderError,
+            ConnectionError,
+            TimeoutError,
+            OSError,
+        ) as e:
             logger = get_logger(__name__)
             log_error_with_context(
                 logger,
@@ -402,7 +428,13 @@ class PositionManager:
             )
             logging.error(f"Error cancelling all orders: {e}")
             return False
-        except (TradingClientError, DataProviderError, ConnectionError, TimeoutError, OSError) as e:
+        except (
+            TradingClientError,
+            DataProviderError,
+            ConnectionError,
+            TimeoutError,
+            OSError,
+        ) as e:
             logger = get_logger(__name__)
             log_error_with_context(
                 logger,
@@ -474,7 +506,8 @@ class PositionManager:
                 try:
                     positions = self.trading_client.get_all_positions()
                     pos = next(
-                        (p for p in positions if str(getattr(p, "symbol", "")) == symbol), None
+                        (p for p in positions if str(getattr(p, "symbol", "")) == symbol),
+                        None,
                     )
                     if pos:
                         market_value = float(getattr(pos, "market_value", 0))

@@ -7,6 +7,7 @@ from rich.rule import Rule
 from rich.table import Table
 
 from the_alchemiser.interfaces.schemas.common import MultiStrategyExecutionResultDTO
+from the_alchemiser.utils.num import floats_equal
 
 """Console formatting utilities for quantitative trading system output using rich."""
 
@@ -726,7 +727,7 @@ def render_multi_strategy_summary(
             actual_value = filled_qty * filled_avg_price
 
             # Fall back to estimated value if no filled data available
-            if actual_value == 0:
+            if floats_equal(actual_value, 0.0):
                 estimated_value = order.get("estimated_value", 0)
                 try:
                     if isinstance(estimated_value, int | float | str):

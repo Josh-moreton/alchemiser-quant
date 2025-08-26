@@ -14,6 +14,8 @@ from datetime import UTC, datetime, timedelta
 from enum import Enum
 from typing import Any
 
+from the_alchemiser.utils.num import floats_equal
+
 from .context import ErrorContextData
 from .handler import ErrorSeverity
 
@@ -129,7 +131,7 @@ class ErrorMetricsCollector:
 
         # Update average recovery time (exponential moving average)
         if recovery_time > 0:
-            if stats.average_recovery_time == 0:
+            if floats_equal(stats.average_recovery_time, 0.0):
                 stats.average_recovery_time = recovery_time
             else:
                 # Exponential moving average with alpha = 0.3

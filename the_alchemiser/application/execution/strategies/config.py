@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Strategy Configuration DTO
+"""Strategy Configuration DTO.
 
 Defines configuration parameters for execution strategies including
 repeg attempts, timeouts, volatility thresholds, and pricing ticks.

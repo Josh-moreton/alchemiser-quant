@@ -15,6 +15,8 @@ import logging
 
 import pandas as pd
 
+from the_alchemiser.utils.num import floats_equal
+
 
 def calculate_stdev_returns(close_prices: pd.Series, window: int) -> float:
     """Calculate standard deviation of returns over a specified window.
@@ -109,7 +111,7 @@ def calculate_moving_average_return(close_prices: pd.Series, window: int = 20) -
         if len(ma) >= 2 and not pd.isna(ma.iloc[-1]) and not pd.isna(ma.iloc[-2]):
             current_ma = ma.iloc[-1]
             prev_ma = ma.iloc[-2]
-            if prev_ma != 0:
+            if not floats_equal(prev_ma, 0.0):
                 return float(((current_ma - prev_ma) / prev_ma) * 100)
         return 0.0
     except Exception as e:
@@ -128,7 +130,7 @@ def calculate_percentage_change(current_value: float, previous_value: float) -> 
         float: Percentage change, or 0.0 if previous value is zero
 
     """
-    if previous_value == 0:
+    if floats_equal(previous_value, 0.0):
         return 0.0
     return ((current_value - previous_value) / previous_value) * 100
 
@@ -178,7 +180,7 @@ def safe_division(numerator: float, denominator: float, fallback: float = 0.0) -
 
     """
     try:
-        if denominator == 0 or pd.isna(denominator) or pd.isna(numerator):
+        if floats_equal(denominator, 0.0) or pd.isna(denominator) or pd.isna(numerator):
             return fallback
         return numerator / denominator
     except (ZeroDivisionError, TypeError):
@@ -201,7 +203,7 @@ def normalize_to_range(
         float: Normalized value in the target range
 
     """
-    if max_val == min_val:
+    if floats_equal(max_val, min_val):
         return target_min
 
     normalized = (value - min_val) / (max_val - min_val)

@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Execution Context Adapter
+"""Execution Context Adapter.
 
 Adapter to bridge OrderExecutor protocol to ExecutionContext protocol
 for strategy compatibility.

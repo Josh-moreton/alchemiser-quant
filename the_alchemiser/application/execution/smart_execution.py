@@ -481,9 +481,7 @@ class SmartExecution:
                 )
 
             # Step 2 & 3: Aggressive Marketable Limit with Re-pegging
-            return self._execute_aggressive_limit_sequence(
-                symbol, qty, side, bid, ask, strategy
-            )
+            return self._execute_aggressive_limit_sequence(symbol, qty, side, bid, ask, strategy)
 
         except OrderExecutionError as e:
             self.logger.error(

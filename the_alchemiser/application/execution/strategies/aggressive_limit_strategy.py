@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Aggressive Limit Strategy
+"""Aggressive Limit Strategy.
 
 Orchestrates RepegStrategy until order is filled or all attempts are exhausted.
 Handles order lifecycle, error management, and execution flow.
@@ -83,6 +82,7 @@ class AggressiveLimitStrategy:
             lifecycle_manager: Order lifecycle manager
             lifecycle_dispatcher: Event dispatcher
             strategy_name: Name for logging identification
+
         """
         self.config = config
         self.repeg_strategy = repeg_strategy or RepegStrategy(
@@ -224,7 +224,7 @@ class AggressiveLimitStrategy:
                 if attempt_index < self.config.max_attempts - 1:
                     continue
                 raise OrderTimeoutError(
-                    f"Failed to wait for order completion on final attempt: {str(e)}",
+                    f"Failed to wait for order completion on final attempt: {e!s}",
                     symbol=symbol,
                     order_id=order_id,
                     timeout_seconds=attempt_result.timeout_seconds,
@@ -313,9 +313,9 @@ class AggressiveLimitStrategy:
                         break
                 except SpreadAnalysisError:
                     raise
-                except Exception as e:  # noqa: BLE001
+                except Exception as e:
                     raise SpreadAnalysisError(
-                        f"Failed to get fresh quote for re-peg: {str(e)}",
+                        f"Failed to get fresh quote for re-peg: {e!s}",
                         symbol=symbol,
                     )
             else:
@@ -391,9 +391,7 @@ class AggressiveLimitStrategy:
 
             # Default event type based on target state
             if event_type is None:
-                if target_state == "SUBMITTED":
-                    lifecycle_event_type = LifecycleEventType.STATE_CHANGED
-                elif target_state == "FILLED":
+                if target_state == "SUBMITTED" or target_state == "FILLED":
                     lifecycle_event_type = LifecycleEventType.STATE_CHANGED
                 else:
                     lifecycle_event_type = LifecycleEventType.STATE_CHANGED

@@ -21,6 +21,7 @@ from alpaca.trading.requests import LimitOrderRequest
 
 from the_alchemiser.domain.interfaces import MarketDataRepository, TradingRepository
 from the_alchemiser.services.errors.decorators import translate_trading_errors
+from the_alchemiser.utils.num import floats_equal
 
 logger = logging.getLogger(__name__)
 
@@ -247,7 +248,7 @@ class OrderService:
 
         # Verify position exists
         positions = self._trading.get_positions_dict()
-        if symbol not in positions or positions[symbol] == 0:
+        if symbol not in positions or floats_equal(positions[symbol], 0.0):
             raise OrderValidationError(f"No position to liquidate for {symbol}")
 
         position_size = positions[symbol]

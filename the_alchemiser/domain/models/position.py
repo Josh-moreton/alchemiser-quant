@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 from the_alchemiser.domain.types import PositionInfo
+from the_alchemiser.utils.num import floats_equal
 
 
 @dataclass(frozen=True)
@@ -74,6 +75,6 @@ class PositionModel:
     @property
     def average_cost(self) -> float:
         """Calculate average cost per share."""
-        if self.qty == 0:
+        if floats_equal(self.qty, 0.0):
             return 0.0
         return abs(self.cost_basis / self.qty)
