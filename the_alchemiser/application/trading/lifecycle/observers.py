@@ -94,7 +94,7 @@ class LoggingObserver:
             icon = "❌"
         else:
             color = "blue"
-            icon = "ℹ️"
+            icon = "i"
 
         # Create summary table
         table = Table(show_header=False, padding=(0, 1))
