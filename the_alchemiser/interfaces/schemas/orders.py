@@ -18,7 +18,7 @@ from decimal import Decimal
 from typing import Literal
 
 from alpaca.trading.requests import LimitOrderRequest
-from pydantic import BaseModel, ConfigDict, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from the_alchemiser.interfaces.schemas.base import ResultDTO
 
@@ -248,8 +248,8 @@ class AdjustedOrderRequestDTO(BaseModel, OrderValidationMixin):
     is_approved: bool
     original_quantity: Decimal | None = None
     adjustment_reason: str | None = None
-    warnings: list[PolicyWarningDTO] = []
-    policy_metadata: dict[str, str] = {}
+    warnings: list[PolicyWarningDTO] = Field(default_factory=list)
+    policy_metadata: dict[str, str] = Field(default_factory=dict)
 
     # Risk assessment
     total_risk_score: Decimal = Decimal("0")

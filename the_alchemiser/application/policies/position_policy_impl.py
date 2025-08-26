@@ -3,24 +3,29 @@ Position Policy Implementation
 
 Concrete implementation of PositionPolicy that handles position validation
 and quantity adjustments. Extracts logic from PositionManager.
+Now uses pure domain objects and typed protocols.
 """
 
 from __future__ import annotations
 
 import logging
 from decimal import Decimal
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
-from the_alchemiser.infrastructure.logging.logging_utils import log_with_context
-from the_alchemiser.interfaces.schemas.orders import (
-    AdjustedOrderRequestDTO,
-    OrderRequestDTO,
-    PolicyWarningDTO,
+from the_alchemiser.domain.policies.policy_result import (
+    PolicyResult,
+    PolicyWarning,
+    create_approved_result,
+    create_rejected_result,
 )
+from the_alchemiser.domain.policies.protocols import TradingClientProtocol
+from the_alchemiser.domain.trading.value_objects.order_request import OrderRequest
+from the_alchemiser.domain.trading.value_objects.quantity import Quantity
+from the_alchemiser.infrastructure.logging.logging_utils import log_with_context
 from the_alchemiser.services.errors.exceptions import PositionValidationError
 
 if TYPE_CHECKING:
-    from typing import Any
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -30,10 +35,11 @@ class PositionPolicyImpl:
     Concrete implementation of position policy.
 
     Handles validation and adjustment of orders based on current position holdings,
-    with structured logging and warning generation.
+    with structured logging and warning generation. Uses typed protocols for
+    external dependencies.
     """
 
-    def __init__(self, trading_client: Any) -> None:
+    def __init__(self, trading_client: TradingClientProtocol) -> None:
         """
         Initialize the position policy.
 
@@ -45,8 +51,8 @@ class PositionPolicyImpl:
 
     def validate_and_adjust(
         self,
-        order_request: OrderRequestDTO
-    ) -> AdjustedOrderRequestDTO:
+        order_request: OrderRequest
+    ) -> PolicyResult:
         """
         Validate and adjust order based on current positions.
 
@@ -54,31 +60,31 @@ class PositionPolicyImpl:
         For buy orders, validates position concentration limits.
 
         Args:
-            order_request: The original order request to validate
+            order_request: The domain order request to validate
 
         Returns:
-            AdjustedOrderRequestDTO with position-based adjustments applied
+            PolicyResult with position-based adjustments applied
         """
         log_with_context(
             logger,
             logging.INFO,
-            f"Validating position for {order_request.symbol}",
+            f"Validating position for {order_request.symbol.value}",
             policy=self.policy_name,
-            symbol=order_request.symbol,
-            side=order_request.side,
-            quantity=str(order_request.quantity),
+            symbol=order_request.symbol.value,
+            side=order_request.side.value,
+            quantity=str(order_request.quantity.value),
         )
 
-        original_quantity = order_request.quantity
+        original_quantity = order_request.quantity.value
         adjusted_quantity = original_quantity
-        warnings: list[PolicyWarningDTO] = []
+        warnings: list[PolicyWarning] = []
         adjustment_reason = None
 
         # Handle sell orders - validate against available position
-        if order_request.side.lower() == "sell":
+        if order_request.side.value.lower() == "sell":
             is_valid, final_quantity, warning_msg = self.validate_sell_quantity(
-                order_request.symbol,
-                float(order_request.quantity)
+                order_request.symbol.value,
+                float(order_request.quantity.value)
             )
 
             if not is_valid:
@@ -88,30 +94,21 @@ class PositionPolicyImpl:
                     f"Sell order rejected: {warning_msg}",
                     policy=self.policy_name,
                     action="reject",
-                    symbol=order_request.symbol,
+                    symbol=order_request.symbol.value,
                     requested_quantity=str(original_quantity),
                     reason=warning_msg,
                 )
 
-                return AdjustedOrderRequestDTO(
-                    symbol=order_request.symbol,
-                    side=order_request.side,
-                    quantity=original_quantity,
-                    order_type=order_request.order_type,
-                    time_in_force=order_request.time_in_force,
-                    limit_price=order_request.limit_price,
-                    client_order_id=order_request.client_order_id,
-                    is_approved=False,
-                    original_quantity=original_quantity,
+                return create_rejected_result(
+                    order_request=order_request,
                     rejection_reason=warning_msg or "Insufficient position for sell order",
-                    total_risk_score=Decimal("0"),
                 )
 
             # Check if quantity was adjusted
             if final_quantity != float(original_quantity):
                 adjusted_quantity = Decimal(str(final_quantity))
 
-                warning = PolicyWarningDTO(
+                warning = PolicyWarning(
                     policy_name=self.policy_name,
                     action="adjust",
                     message=warning_msg or "Adjusted sell quantity to available position",
@@ -128,14 +125,14 @@ class PositionPolicyImpl:
                     "Adjusted sell quantity to available position",
                     policy=self.policy_name,
                     action="adjust",
-                    symbol=order_request.symbol,
+                    symbol=order_request.symbol.value,
                     original_quantity=str(original_quantity),
                     adjusted_quantity=str(adjusted_quantity),
                     available_position=str(final_quantity),
                 )
             elif warning_msg:
                 # Position validation passed but with a warning
-                warning = PolicyWarningDTO(
+                warning = PolicyWarning(
                     policy_name=self.policy_name,
                     action="allow",
                     message=warning_msg,
@@ -146,14 +143,15 @@ class PositionPolicyImpl:
                 warnings.append(warning)
 
         # Check if liquidation API should be used for large sell orders
-        if order_request.side.lower() == "sell":
+        should_liquidate = False
+        if order_request.side.value.lower() == "sell":
             should_liquidate = self.should_use_liquidation_api(
-                order_request.symbol,
+                order_request.symbol.value,
                 float(adjusted_quantity)
             )
 
             if should_liquidate:
-                warning = PolicyWarningDTO(
+                warning = PolicyWarning(
                     policy_name=self.policy_name,
                     action="allow",
                     message="Large sell order - consider using liquidation API",
@@ -169,10 +167,23 @@ class PositionPolicyImpl:
                     "Liquidation API recommended for large sell order",
                     policy=self.policy_name,
                     action="allow",
-                    symbol=order_request.symbol,
+                    symbol=order_request.symbol.value,
                     quantity=str(adjusted_quantity),
                     recommendation="use_liquidation_api",
                 )
+
+        # Create adjusted order request if needed
+        final_order_request = order_request
+        if adjusted_quantity != original_quantity:
+            final_order_request = OrderRequest(
+                symbol=order_request.symbol,
+                side=order_request.side,
+                quantity=Quantity(adjusted_quantity),
+                order_type=order_request.order_type,
+                time_in_force=order_request.time_in_force,
+                limit_price=order_request.limit_price,
+                client_order_id=order_request.client_order_id,
+            )
 
         # Approve the order
         log_with_context(
@@ -181,31 +192,27 @@ class PositionPolicyImpl:
             "Position validation passed",
             policy=self.policy_name,
             action="allow",
-            symbol=order_request.symbol,
+            symbol=order_request.symbol.value,
             final_quantity=str(adjusted_quantity),
             has_adjustments=str(adjusted_quantity != original_quantity),
         )
 
-        return AdjustedOrderRequestDTO(
-            symbol=order_request.symbol,
-            side=order_request.side,
-            quantity=adjusted_quantity,
-            order_type=order_request.order_type,
-            time_in_force=order_request.time_in_force,
-            limit_price=order_request.limit_price,
-            client_order_id=order_request.client_order_id,
-            is_approved=True,
+        result = create_approved_result(
+            order_request=final_order_request,
             original_quantity=original_quantity if adjusted_quantity != original_quantity else None,
             adjustment_reason=adjustment_reason,
-            warnings=warnings,
-            policy_metadata={
-                "liquidation_recommended": str(
-                    order_request.side.lower() == "sell" and
-                    self.should_use_liquidation_api(order_request.symbol, float(adjusted_quantity))
-                )
-            },
-            total_risk_score=Decimal("0"),
         )
+        
+        # Add warnings and metadata
+        if warnings:
+            result = result.with_warnings(tuple(warnings))
+        
+        metadata = {
+            "liquidation_recommended": str(should_liquidate)
+        }
+        result = result.with_metadata(metadata)
+        
+        return result
 
     def get_available_position(self, symbol: str) -> float:
         """

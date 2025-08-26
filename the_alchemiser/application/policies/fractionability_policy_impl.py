@@ -3,6 +3,7 @@ Fractionability Policy Implementation
 
 Concrete implementation of FractionabilityPolicy that handles asset fractionability
 validation and quantity adjustments. Extracts logic from LimitOrderHandler.
+Now uses pure domain objects to maintain domain layer purity.
 """
 
 from __future__ import annotations
@@ -12,12 +13,15 @@ from decimal import ROUND_DOWN, Decimal
 from typing import TYPE_CHECKING
 
 from the_alchemiser.domain.math.asset_info import fractionability_detector
-from the_alchemiser.infrastructure.logging.logging_utils import log_with_context
-from the_alchemiser.interfaces.schemas.orders import (
-    AdjustedOrderRequestDTO,
-    OrderRequestDTO,
-    PolicyWarningDTO,
+from the_alchemiser.domain.policies.policy_result import (
+    PolicyResult,
+    PolicyWarning,
+    create_approved_result,
+    create_rejected_result,
 )
+from the_alchemiser.domain.trading.value_objects.order_request import OrderRequest
+from the_alchemiser.domain.trading.value_objects.quantity import Quantity
+from the_alchemiser.infrastructure.logging.logging_utils import log_with_context
 
 if TYPE_CHECKING:
     pass
@@ -31,48 +35,53 @@ class FractionabilityPolicyImpl:
 
     Handles validation and adjustment of order quantities based on asset
     fractionability rules, with structured logging and warning generation.
+    Uses pure domain objects to maintain separation of concerns.
     """
 
     def __init__(self) -> None:
         """Initialize the fractionability policy."""
-        self.policy_name = "FractionabilityPolicy"
+        self._policy_name = "FractionabilityPolicy"
 
     def validate_and_adjust(
         self,
-        order_request: OrderRequestDTO
-    ) -> AdjustedOrderRequestDTO:
+        order_request: OrderRequest
+    ) -> PolicyResult:
         """
         Validate and adjust order quantity based on fractionability rules.
 
         Args:
-            order_request: The original order request to validate
+            order_request: The domain order request to validate
 
         Returns:
-            AdjustedOrderRequestDTO with fractionability adjustments applied
+            PolicyResult with fractionability adjustments applied
         """
         log_with_context(
             logger,
             logging.INFO,
-            f"Validating fractionability for {order_request.symbol}",
+            f"Validating fractionability for {order_request.symbol.value}",
             policy=self.policy_name,
-            symbol=order_request.symbol,
-            original_quantity=str(order_request.quantity),
+            symbol=order_request.symbol.value,
+            original_quantity=str(order_request.quantity.value),
         )
 
-        original_quantity = order_request.quantity
+        original_quantity = order_request.quantity.value
         adjusted_quantity = original_quantity
-        warnings: list[PolicyWarningDTO] = []
+        warnings: list[PolicyWarning] = []
         adjustment_reason = None
 
         # Check if asset is fractionable
-        is_fractionable = self.is_fractionable(order_request.symbol)
+        is_fractionable = self.is_fractionable(order_request.symbol.value)
 
         if not is_fractionable:
             # Convert to whole shares for non-fractionable assets
+            limit_price = None
+            if order_request.limit_price:
+                limit_price = float(order_request.limit_price.amount)
+            
             whole_quantity, was_adjusted = self.convert_to_whole_shares(
-                order_request.symbol,
+                order_request.symbol.value,
                 float(original_quantity),
-                float(order_request.limit_price) if order_request.limit_price else None
+                limit_price
             )
 
             if was_adjusted:
@@ -83,34 +92,24 @@ class FractionabilityPolicyImpl:
                     log_with_context(
                         logger,
                         logging.WARNING,
-                        f"Order rejected: {order_request.symbol} quantity rounded to zero",
+                        f"Order rejected: {order_request.symbol.value} quantity rounded to zero",
                         policy=self.policy_name,
                         action="reject",
-                        symbol=order_request.symbol,
+                        symbol=order_request.symbol.value,
                         original_quantity=str(original_quantity),
                         adjusted_quantity="0",
                     )
 
-                    return AdjustedOrderRequestDTO(
-                        symbol=order_request.symbol,
-                        side=order_request.side,
-                        quantity=original_quantity,
-                        order_type=order_request.order_type,
-                        time_in_force=order_request.time_in_force,
-                        limit_price=order_request.limit_price,
-                        client_order_id=order_request.client_order_id,
-                        is_approved=False,
-                        original_quantity=original_quantity,
-                        adjustment_reason="Non-fractionable asset quantity rounded to zero",
+                    return create_rejected_result(
+                        order_request=order_request,
                         rejection_reason="Order quantity rounds to zero whole shares",
-                        total_risk_score=Decimal("0"),
                     )
 
                 # Add warning for adjustment
-                warning = PolicyWarningDTO(
+                warning = PolicyWarning(
                     policy_name=self.policy_name,
                     action="adjust",
-                    message=f"Rounded {order_request.symbol} to {adjusted_quantity} whole shares for non-fractionable asset",
+                    message=f"Rounded {order_request.symbol.value} to {adjusted_quantity} whole shares for non-fractionable asset",
                     original_value=str(original_quantity),
                     adjusted_value=str(adjusted_quantity),
                     risk_level="low",
@@ -124,7 +123,7 @@ class FractionabilityPolicyImpl:
                     "Adjusted quantity for non-fractionable asset",
                     policy=self.policy_name,
                     action="adjust",
-                    symbol=order_request.symbol,
+                    symbol=order_request.symbol.value,
                     original_quantity=str(original_quantity),
                     adjusted_quantity=str(adjusted_quantity),
                 )
@@ -140,10 +139,10 @@ class FractionabilityPolicyImpl:
             if rounded_quantity != float(original_quantity):
                 adjusted_quantity = Decimal(str(rounded_quantity))
 
-                warning = PolicyWarningDTO(
+                warning = PolicyWarning(
                     policy_name=self.policy_name,
                     action="adjust",
-                    message=f"Applied precision rounding to {order_request.symbol}",
+                    message=f"Applied precision rounding to {order_request.symbol.value}",
                     original_value=str(original_quantity),
                     adjusted_value=str(adjusted_quantity),
                     risk_level="low",
@@ -157,7 +156,7 @@ class FractionabilityPolicyImpl:
                     "Applied precision rounding",
                     policy=self.policy_name,
                     action="adjust",
-                    symbol=order_request.symbol,
+                    symbol=order_request.symbol.value,
                     original_quantity=str(original_quantity),
                     adjusted_quantity=str(adjusted_quantity),
                 )
@@ -170,24 +169,26 @@ class FractionabilityPolicyImpl:
                 "Order rejected: final quantity is zero or negative",
                 policy=self.policy_name,
                 action="reject",
-                symbol=order_request.symbol,
+                symbol=order_request.symbol.value,
                 adjusted_quantity=str(adjusted_quantity),
             )
 
-            return AdjustedOrderRequestDTO(
+            return create_rejected_result(
+                order_request=order_request,
+                rejection_reason="Final quantity is zero or negative",
+            )
+
+        # Create adjusted order request if needed
+        final_order_request = order_request
+        if adjusted_quantity != original_quantity:
+            final_order_request = OrderRequest(
                 symbol=order_request.symbol,
                 side=order_request.side,
-                quantity=original_quantity,
+                quantity=Quantity(adjusted_quantity),
                 order_type=order_request.order_type,
                 time_in_force=order_request.time_in_force,
                 limit_price=order_request.limit_price,
                 client_order_id=order_request.client_order_id,
-                is_approved=False,
-                original_quantity=original_quantity,
-                adjustment_reason=adjustment_reason,
-                rejection_reason="Final quantity is zero or negative",
-                warnings=warnings,
-                total_risk_score=Decimal("0"),
             )
 
         # Approve the order
@@ -197,26 +198,25 @@ class FractionabilityPolicyImpl:
             "Fractionability validation passed",
             policy=self.policy_name,
             action="allow",
-            symbol=order_request.symbol,
+            symbol=order_request.symbol.value,
             final_quantity=str(adjusted_quantity),
             has_adjustments=str(adjusted_quantity != original_quantity),
         )
 
-        return AdjustedOrderRequestDTO(
-            symbol=order_request.symbol,
-            side=order_request.side,
-            quantity=adjusted_quantity,
-            order_type=order_request.order_type,
-            time_in_force=order_request.time_in_force,
-            limit_price=order_request.limit_price,
-            client_order_id=order_request.client_order_id,
-            is_approved=True,
+        result = create_approved_result(
+            order_request=final_order_request,
             original_quantity=original_quantity if adjusted_quantity != original_quantity else None,
             adjustment_reason=adjustment_reason,
-            warnings=warnings,
-            policy_metadata={"is_fractionable": str(is_fractionable)},
-            total_risk_score=Decimal("0"),
         )
+        
+        # Add warnings and metadata
+        if warnings:
+            result = result.with_warnings(tuple(warnings))
+        
+        metadata = {"is_fractionable": str(is_fractionable)}
+        result = result.with_metadata(metadata)
+        
+        return result
 
     def is_fractionable(self, symbol: str) -> bool:
         """
@@ -253,8 +253,3 @@ class FractionabilityPolicyImpl:
     def policy_name(self) -> str:
         """Get the name of this policy for logging and identification."""
         return self._policy_name
-
-    @policy_name.setter
-    def policy_name(self, value: str) -> None:
-        """Set the policy name."""
-        self._policy_name = value
