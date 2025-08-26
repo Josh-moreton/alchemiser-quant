@@ -21,6 +21,7 @@ from the_alchemiser.domain.interfaces import (
     TradingRepository,
 )
 from the_alchemiser.services.errors.decorators import translate_trading_errors
+from the_alchemiser.utils.num import floats_equal
 
 logger = logging.getLogger(__name__)
 
@@ -111,7 +112,7 @@ class PositionService:
         enhanced_positions = {}
 
         for symbol, quantity in positions.items():
-            if quantity == 0:
+            if floats_equal(quantity, 0.0):
                 continue  # Skip zero positions
 
             try:
@@ -258,7 +259,7 @@ class PositionService:
         positions = self._trading.get_positions_dict()
         quantity = positions.get(symbol, 0.0)
 
-        if quantity == 0:
+        if floats_equal(quantity, 0.0):
             return {
                 "position_value": 0.0,
                 "portfolio_weight": 0.0,
@@ -336,7 +337,7 @@ class PositionService:
                 total_squared_weights += weight**2
                 valid_weights += 1
 
-        if valid_weights == 0:
+        if floats_equal(valid_weights, 0.0):
             return 0.0
 
         # Herfindahl index (concentration measure)
@@ -400,7 +401,7 @@ class PositionService:
                         unrealized_pnl = position_data.get("unrealized_pnl")
 
                     # Calculate PnL percentage
-                    if unrealized_pnl is not None and cost_basis and cost_basis != 0:
+                    if unrealized_pnl is not None and cost_basis and not floats_equal(cost_basis, 0.0):
                         unrealized_pnl_percent = (
                             float(unrealized_pnl) / abs(float(cost_basis))
                         ) * 100
@@ -427,7 +428,7 @@ class PositionService:
         total = 0.0
 
         for symbol, quantity in positions.items():
-            if quantity != 0:
+            if not floats_equal(quantity, 0.0):
                 try:
                     price = self._market_data.get_current_price(symbol)
                     if price:
