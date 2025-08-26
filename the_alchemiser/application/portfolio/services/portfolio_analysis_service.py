@@ -7,8 +7,9 @@ from the_alchemiser.domain.portfolio.position.position_analyzer import PositionA
 from the_alchemiser.domain.portfolio.strategy_attribution.attribution_engine import (
     StrategyAttributionEngine,
 )
-from the_alchemiser.services.trading.trading_service_manager import TradingServiceManager
-from the_alchemiser.utils.num import floats_equal
+from the_alchemiser.services.trading.trading_service_manager import (
+    TradingServiceManager,
+)
 
 
 class PortfolioAnalysisService:
@@ -48,7 +49,8 @@ class PortfolioAnalysisService:
         positions = self._get_current_position_values()
         portfolio_value = self._get_portfolio_value()
 
-        if floats_equal(portfolio_value, 0.0):
+        # portfolio_value is Decimal (financial); direct Decimal comparison is allowed per policy
+        if portfolio_value == Decimal("0"):
             return self._get_empty_portfolio_analysis()
 
         # Calculate strategy exposures
@@ -105,7 +107,7 @@ class PortfolioAnalysisService:
         current_positions = self._get_current_position_values()
         portfolio_value = self._get_portfolio_value()
 
-        if floats_equal(portfolio_value, 0.0):
+        if portfolio_value == Decimal("0"):
             return {"error": "Portfolio value is zero"}
 
         # Calculate current weights
@@ -157,7 +159,7 @@ class PortfolioAnalysisService:
         positions = self._get_current_position_values()
         portfolio_value = self._get_portfolio_value()
 
-        if floats_equal(portfolio_value, 0.0):
+        if portfolio_value == Decimal("0"):
             return {"error": "Portfolio value is zero"}
 
         # Group positions by strategy
@@ -317,9 +319,17 @@ class PortfolioAnalysisService:
                     "equity": Decimal(str(getattr(acct_obj, "equity", 0))),
                 }
         except Exception:
-            return {"cash": Decimal("0"), "buying_power": Decimal("0"), "equity": Decimal("0")}
+            return {
+                "cash": Decimal("0"),
+                "buying_power": Decimal("0"),
+                "equity": Decimal("0"),
+            }
         # Default if neither branch returned
-        return {"cash": Decimal("0"), "buying_power": Decimal("0"), "equity": Decimal("0")}
+        return {
+            "cash": Decimal("0"),
+            "buying_power": Decimal("0"),
+            "equity": Decimal("0"),
+        }
 
     def _get_largest_positions(
         self, positions: dict[str, Decimal], portfolio_value: Decimal
@@ -341,7 +351,7 @@ class PortfolioAnalysisService:
         self, positions: dict[str, Decimal], portfolio_value: Decimal
     ) -> dict[str, Any]:
         """Calculate portfolio concentration metrics."""
-        if floats_equal(float(portfolio_value), 0.0):
+        if portfolio_value == Decimal("0"):
             return {}
 
         sorted_positions = sorted(positions.values(), reverse=True)

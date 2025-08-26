@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Literal, cast
 
 from the_alchemiser.domain.types import StrategyPositionData, StrategySignal
+from the_alchemiser.utils.num import floats_equal  # For tolerant float comparison
 
 
 @dataclass(frozen=True)
@@ -117,7 +118,8 @@ class StrategyPositionModel:
     @property
     def unrealized_pnl_percentage(self) -> float:
         """Calculate unrealized P&L percentage."""
-        if self.entry_price == 0:
+        # entry_price is float here; use tolerant comparison to avoid direct float equality
+        if floats_equal(self.entry_price, 0.0):
             return 0.0
         return ((self.current_price - self.entry_price) / self.entry_price) * 100
 

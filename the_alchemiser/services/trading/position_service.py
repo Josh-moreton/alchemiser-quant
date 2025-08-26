@@ -173,9 +173,8 @@ class PositionService:
                 if position.market_value > largest_position_value:
                     largest_position_value = position.market_value
 
-            if position.weight_percent:
-                if position.weight_percent > largest_position_percent:
-                    largest_position_percent = position.weight_percent
+            if position.weight_percent and position.weight_percent > largest_position_percent:
+                largest_position_percent = position.weight_percent
 
         cash_balance = self._get_cash_balance()
         total_equity = total_market_value + (cash_balance or 0.0)
@@ -337,7 +336,8 @@ class PositionService:
                 total_squared_weights += weight**2
                 valid_weights += 1
 
-        if floats_equal(valid_weights, 0.0):
+        # valid_weights is an int counter; safe direct equality
+        if valid_weights == 0:
             return 0.0
 
         # Herfindahl index (concentration measure)
@@ -401,7 +401,11 @@ class PositionService:
                         unrealized_pnl = position_data.get("unrealized_pnl")
 
                     # Calculate PnL percentage
-                    if unrealized_pnl is not None and cost_basis and not floats_equal(cost_basis, 0.0):
+                    if (
+                        unrealized_pnl is not None
+                        and cost_basis
+                        and not floats_equal(cost_basis, 0.0)
+                    ):
                         unrealized_pnl_percent = (
                             float(unrealized_pnl) / abs(float(cost_basis))
                         ) * 100

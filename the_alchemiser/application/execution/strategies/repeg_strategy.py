@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Repeg Strategy
+"""Repeg Strategy.
 
 Stateless strategy for planning and executing re-pegging attempts with
 adaptive pricing and timeout logic.

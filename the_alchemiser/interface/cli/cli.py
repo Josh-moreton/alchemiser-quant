@@ -994,7 +994,7 @@ def deploy() -> None:
 
 @app.command()
 def version() -> None:
-    """i  [bold]Show version information[/bold]."""
+    """I  [bold]Show version information[/bold]."""
     version_info = Text()
     version_info.append(" The Alchemiser Quantitative Trading System\n", style=STYLE_BOLD_CYAN)
     version_info.append("Version: 2.0.0\n", style="bold")
