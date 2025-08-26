@@ -3,11 +3,12 @@ Policy Factory
 
 Factory for creating policy orchestrator with all required dependencies.
 Provides convenient methods for setting up the policy layer.
+Now uses typed protocols for better type safety.
 """
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from the_alchemiser.application.policies.buying_power_policy_impl import BuyingPowerPolicyImpl
 from the_alchemiser.application.policies.fractionability_policy_impl import (
@@ -16,11 +17,10 @@ from the_alchemiser.application.policies.fractionability_policy_impl import (
 from the_alchemiser.application.policies.policy_orchestrator import PolicyOrchestrator
 from the_alchemiser.application.policies.position_policy_impl import PositionPolicyImpl
 from the_alchemiser.application.policies.risk_policy_impl import RiskPolicyImpl
+from the_alchemiser.domain.policies.protocols import DataProviderProtocol, TradingClientProtocol
 
 if TYPE_CHECKING:
     from decimal import Decimal
-
-    from the_alchemiser.interfaces.schemas.orders import AdjustedOrderRequestDTO, OrderRequestDTO
 
 
 class PolicyFactory:
@@ -33,8 +33,8 @@ class PolicyFactory:
 
     @staticmethod
     def create_orchestrator(
-        trading_client: Any,
-        data_provider: Any,
+        trading_client: TradingClientProtocol,
+        data_provider: DataProviderProtocol,
         max_risk_score: Decimal | None = None,
         max_position_concentration: float = 0.15,
         max_order_size_pct: float = 0.10,
@@ -90,7 +90,8 @@ class PolicyFactory:
         Returns:
             PolicyOrchestrator with only fractionability policy
         """
-        from decimal import Decimal
+        from the_alchemiser.domain.policies.policy_result import create_approved_result
+        from the_alchemiser.domain.trading.value_objects.order_request import OrderRequest
 
         fractionability_policy = FractionabilityPolicyImpl()
 
@@ -100,57 +101,24 @@ class PolicyFactory:
             def policy_name(self) -> str:
                 return "NoOpPositionPolicy"
 
-            def validate_and_adjust(self, order_request: OrderRequestDTO) -> AdjustedOrderRequestDTO:
-                from the_alchemiser.interfaces.schemas.orders import AdjustedOrderRequestDTO
-                return AdjustedOrderRequestDTO(
-                    symbol=order_request.symbol,
-                    side=order_request.side,
-                    quantity=order_request.quantity,
-                    order_type=order_request.order_type,
-                    time_in_force=order_request.time_in_force,
-                    limit_price=order_request.limit_price,
-                    client_order_id=order_request.client_order_id,
-                    is_approved=True,
-                    total_risk_score=Decimal("0"),
-                )
+            def validate_and_adjust(self, order_request: OrderRequest):
+                return create_approved_result(order_request=order_request)
 
         class NoOpBuyingPowerPolicy:
             @property
             def policy_name(self) -> str:
                 return "NoOpBuyingPowerPolicy"
 
-            def validate_and_adjust(self, order_request: OrderRequestDTO) -> AdjustedOrderRequestDTO:
-                from the_alchemiser.interfaces.schemas.orders import AdjustedOrderRequestDTO
-                return AdjustedOrderRequestDTO(
-                    symbol=order_request.symbol,
-                    side=order_request.side,
-                    quantity=order_request.quantity,
-                    order_type=order_request.order_type,
-                    time_in_force=order_request.time_in_force,
-                    limit_price=order_request.limit_price,
-                    client_order_id=order_request.client_order_id,
-                    is_approved=True,
-                    total_risk_score=Decimal("0"),
-                )
+            def validate_and_adjust(self, order_request: OrderRequest):
+                return create_approved_result(order_request=order_request)
 
         class NoOpRiskPolicy:
             @property
             def policy_name(self) -> str:
                 return "NoOpRiskPolicy"
 
-            def validate_and_adjust(self, order_request: OrderRequestDTO) -> AdjustedOrderRequestDTO:
-                from the_alchemiser.interfaces.schemas.orders import AdjustedOrderRequestDTO
-                return AdjustedOrderRequestDTO(
-                    symbol=order_request.symbol,
-                    side=order_request.side,
-                    quantity=order_request.quantity,
-                    order_type=order_request.order_type,
-                    time_in_force=order_request.time_in_force,
-                    limit_price=order_request.limit_price,
-                    client_order_id=order_request.client_order_id,
-                    is_approved=True,
-                    total_risk_score=Decimal("0"),
-                )
+            def validate_and_adjust(self, order_request: OrderRequest):
+                return create_approved_result(order_request=order_request)
 
         return PolicyOrchestrator(
             fractionability_policy=fractionability_policy,

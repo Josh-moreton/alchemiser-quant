@@ -2,23 +2,27 @@
 Risk Policy Implementation
 
 Concrete implementation of RiskPolicy that handles risk assessment and limits.
+Now uses pure domain objects and typed protocols.
 """
 
 from __future__ import annotations
 
 import logging
 from decimal import Decimal
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
-from the_alchemiser.infrastructure.logging.logging_utils import log_with_context
-from the_alchemiser.interfaces.schemas.orders import (
-    AdjustedOrderRequestDTO,
-    OrderRequestDTO,
-    PolicyWarningDTO,
+from the_alchemiser.domain.policies.policy_result import (
+    PolicyResult,
+    PolicyWarning,
+    create_approved_result,
+    create_rejected_result,
 )
+from the_alchemiser.domain.policies.protocols import DataProviderProtocol, TradingClientProtocol
+from the_alchemiser.domain.trading.value_objects.order_request import OrderRequest
+from the_alchemiser.infrastructure.logging.logging_utils import log_with_context
 
 if TYPE_CHECKING:
-    from typing import Any
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -29,12 +33,13 @@ class RiskPolicyImpl:
 
     Provides basic risk assessment functionality with configurable thresholds.
     Can be extended with more sophisticated risk models in the future.
+    Uses typed protocols for external dependencies.
     """
 
     def __init__(
         self,
-        trading_client: Any | None = None,
-        data_provider: Any | None = None,
+        trading_client: TradingClientProtocol | None = None,
+        data_provider: DataProviderProtocol | None = None,
         max_risk_score: Decimal = Decimal("100"),
         max_position_concentration: float = 0.15,  # 15% of portfolio
         max_order_size_pct: float = 0.10,  # 10% of portfolio per order
@@ -58,36 +63,36 @@ class RiskPolicyImpl:
 
     def validate_and_adjust(
         self,
-        order_request: OrderRequestDTO
-    ) -> AdjustedOrderRequestDTO:
+        order_request: OrderRequest
+    ) -> PolicyResult:
         """
         Assess risk and validate order against risk limits.
 
         Args:
-            order_request: The original order request to validate
+            order_request: The domain order request to validate
 
         Returns:
-            AdjustedOrderRequestDTO with risk assessment and any adjustments
+            PolicyResult with risk assessment and any adjustments
         """
         log_with_context(
             logger,
             logging.INFO,
-            f"Assessing risk for {order_request.symbol}",
+            f"Assessing risk for {order_request.symbol.value}",
             policy=self.policy_name,
-            symbol=order_request.symbol,
-            side=order_request.side,
-            quantity=str(order_request.quantity),
+            symbol=order_request.symbol.value,
+            side=order_request.side.value,
+            quantity=str(order_request.quantity.value),
         )
 
-        warnings: list[PolicyWarningDTO] = []
+        warnings: list[PolicyWarning] = []
         risk_score = Decimal("0")
 
         try:
             # Calculate risk score for the order
             risk_score = self.calculate_risk_score(
-                order_request.symbol,
-                float(order_request.quantity),
-                order_request.order_type
+                order_request.symbol.value,
+                float(order_request.quantity.value),
+                order_request.order_type.value
             )
 
             # Check if risk score exceeds maximum
@@ -98,41 +103,34 @@ class RiskPolicyImpl:
                     f"Order rejected: risk score {risk_score} exceeds maximum {self.max_risk_score}",
                     policy=self.policy_name,
                     action="reject",
-                    symbol=order_request.symbol,
+                    symbol=order_request.symbol.value,
                     risk_score=str(risk_score),
                     max_risk_score=str(self.max_risk_score),
                 )
 
-                return AdjustedOrderRequestDTO(
-                    symbol=order_request.symbol,
-                    side=order_request.side,
-                    quantity=order_request.quantity,
-                    order_type=order_request.order_type,
-                    time_in_force=order_request.time_in_force,
-                    limit_price=order_request.limit_price,
-                    client_order_id=order_request.client_order_id,
-                    is_approved=False,
+                result = create_rejected_result(
+                    order_request=order_request,
                     rejection_reason=f"Risk score {risk_score} exceeds maximum {self.max_risk_score}",
-                    total_risk_score=risk_score,
                 )
+                return result.with_risk_score(risk_score)
 
             # Add warning if risk score is high but acceptable
             if risk_score > self.max_risk_score * Decimal("0.8"):  # 80% of max
-                warning = PolicyWarningDTO(
+                warning = PolicyWarning(
                     policy_name=self.policy_name,
                     action="allow",
                     message=f"High risk score: {risk_score}",
-                    original_value=str(order_request.quantity),
-                    adjusted_value=str(order_request.quantity),
+                    original_value=str(order_request.quantity.value),
+                    adjusted_value=str(order_request.quantity.value),
                     risk_level="high",
                 )
                 warnings.append(warning)
 
             # Assess position concentration for buy orders
-            if order_request.side.lower() == "buy" and self.trading_client:
+            if order_request.side.value.lower() == "buy" and self.trading_client:
                 is_acceptable, concentration_warning = self.assess_position_concentration(
-                    order_request.symbol,
-                    float(order_request.quantity)
+                    order_request.symbol.value,
+                    float(order_request.quantity.value)
                 )
 
                 if not is_acceptable:
@@ -142,30 +140,23 @@ class RiskPolicyImpl:
                         "Order rejected: excessive position concentration",
                         policy=self.policy_name,
                         action="reject",
-                        symbol=order_request.symbol,
+                        symbol=order_request.symbol.value,
                         reason=concentration_warning,
                     )
 
-                    return AdjustedOrderRequestDTO(
-                        symbol=order_request.symbol,
-                        side=order_request.side,
-                        quantity=order_request.quantity,
-                        order_type=order_request.order_type,
-                        time_in_force=order_request.time_in_force,
-                        limit_price=order_request.limit_price,
-                        client_order_id=order_request.client_order_id,
-                        is_approved=False,
+                    result = create_rejected_result(
+                        order_request=order_request,
                         rejection_reason=concentration_warning or "Excessive position concentration",
-                        total_risk_score=risk_score,
                     )
+                    return result.with_risk_score(risk_score)
 
                 if concentration_warning:
-                    warning = PolicyWarningDTO(
+                    warning = PolicyWarning(
                         policy_name=self.policy_name,
                         action="allow",
                         message=concentration_warning,
-                        original_value=str(order_request.quantity),
-                        adjusted_value=str(order_request.quantity),
+                        original_value=str(order_request.quantity.value),
+                        adjusted_value=str(order_request.quantity.value),
                         risk_level="medium",
                     )
                     warnings.append(warning)
@@ -174,12 +165,12 @@ class RiskPolicyImpl:
             # Log error but allow order to proceed with warning
             warning_msg = f"Risk assessment failed but allowing order: {e}"
 
-            warning = PolicyWarningDTO(
+            warning = PolicyWarning(
                 policy_name=self.policy_name,
                 action="allow",
                 message=warning_msg,
-                original_value=str(order_request.quantity),
-                adjusted_value=str(order_request.quantity),
+                original_value=str(order_request.quantity.value),
+                adjusted_value=str(order_request.quantity.value),
                 risk_level="medium",
             )
             warnings.append(warning)
@@ -190,7 +181,7 @@ class RiskPolicyImpl:
                 "Risk assessment failed but allowing order to proceed",
                 policy=self.policy_name,
                 action="allow",
-                symbol=order_request.symbol,
+                symbol=order_request.symbol.value,
                 error=str(e),
                 error_type=type(e).__name__,
             )
@@ -202,23 +193,21 @@ class RiskPolicyImpl:
             "Risk assessment passed",
             policy=self.policy_name,
             action="allow",
-            symbol=order_request.symbol,
+            symbol=order_request.symbol.value,
             risk_score=str(risk_score),
         )
 
-        return AdjustedOrderRequestDTO(
-            symbol=order_request.symbol,
-            side=order_request.side,
-            quantity=order_request.quantity,
-            order_type=order_request.order_type,
-            time_in_force=order_request.time_in_force,
-            limit_price=order_request.limit_price,
-            client_order_id=order_request.client_order_id,
-            is_approved=True,
-            warnings=warnings,
-            policy_metadata={"risk_score": str(risk_score)},
-            total_risk_score=risk_score,
-        )
+        result = create_approved_result(order_request=order_request)
+        
+        # Add warnings and metadata
+        if warnings:
+            result = result.with_warnings(tuple(warnings))
+        
+        metadata = {"risk_score": str(risk_score)}
+        result = result.with_metadata(metadata)
+        result = result.with_risk_score(risk_score)
+        
+        return result
 
     def calculate_risk_score(
         self,

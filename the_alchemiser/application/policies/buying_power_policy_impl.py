@@ -3,24 +3,28 @@ Buying Power Policy Implementation
 
 Concrete implementation of BuyingPowerPolicy that handles buying power validation.
 Extracts logic from PositionManager and ensures BuyingPowerError is raised properly.
+Now uses pure domain objects and typed protocols.
 """
 
 from __future__ import annotations
 
 import logging
 from decimal import Decimal
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
-from the_alchemiser.infrastructure.logging.logging_utils import log_with_context
-from the_alchemiser.interfaces.schemas.orders import (
-    AdjustedOrderRequestDTO,
-    OrderRequestDTO,
-    PolicyWarningDTO,
+from the_alchemiser.domain.policies.policy_result import (
+    PolicyResult,
+    PolicyWarning,
+    create_approved_result,
+    create_rejected_result,
 )
+from the_alchemiser.domain.policies.protocols import DataProviderProtocol, TradingClientProtocol
+from the_alchemiser.domain.trading.value_objects.order_request import OrderRequest
+from the_alchemiser.infrastructure.logging.logging_utils import log_with_context
 from the_alchemiser.services.errors.exceptions import BuyingPowerError, DataProviderError
 
 if TYPE_CHECKING:
-    from typing import Any
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -31,9 +35,10 @@ class BuyingPowerPolicyImpl:
 
     Handles validation of orders against available buying power and raises
     BuyingPowerError for insufficient funds (no string parsing heuristics).
+    Uses typed protocols for external dependencies.
     """
 
-    def __init__(self, trading_client: Any, data_provider: Any) -> None:
+    def __init__(self, trading_client: TradingClientProtocol, data_provider: DataProviderProtocol) -> None:
         """
         Initialize the buying power policy.
 
@@ -47,8 +52,8 @@ class BuyingPowerPolicyImpl:
 
     def validate_and_adjust(
         self,
-        order_request: OrderRequestDTO
-    ) -> AdjustedOrderRequestDTO:
+        order_request: OrderRequest
+    ) -> PolicyResult:
         """
         Validate order against available buying power.
 
@@ -56,10 +61,10 @@ class BuyingPowerPolicyImpl:
         Raises BuyingPowerError for insufficient funds.
 
         Args:
-            order_request: The original order request to validate
+            order_request: The domain order request to validate
 
         Returns:
-            AdjustedOrderRequestDTO with buying power validation results
+            PolicyResult with buying power validation results
 
         Raises:
             BuyingPowerError: If insufficient buying power for the order
@@ -67,23 +72,28 @@ class BuyingPowerPolicyImpl:
         log_with_context(
             logger,
             logging.INFO,
-            f"Validating buying power for {order_request.symbol}",
+            f"Validating buying power for {order_request.symbol.value}",
             policy=self.policy_name,
-            symbol=order_request.symbol,
-            side=order_request.side,
-            quantity=str(order_request.quantity),
+            symbol=order_request.symbol.value,
+            side=order_request.side.value,
+            quantity=str(order_request.quantity.value),
         )
 
-        warnings: list[PolicyWarningDTO] = []
+        warnings: list[PolicyWarning] = []
 
         # Only validate buying power for buy orders
-        if order_request.side.lower() == "buy":
+        if order_request.side.value.lower() == "buy":
             try:
+                # Get limit price if available
+                limit_price = None
+                if order_request.limit_price:
+                    limit_price = float(order_request.limit_price.amount)
+                
                 # Validate buying power - this will raise BuyingPowerError if insufficient
                 self.validate_buying_power(
-                    order_request.symbol,
-                    float(order_request.quantity),
-                    float(order_request.limit_price) if order_request.limit_price else None
+                    order_request.symbol.value,
+                    float(order_request.quantity.value),
+                    limit_price
                 )
 
                 log_with_context(
@@ -92,8 +102,8 @@ class BuyingPowerPolicyImpl:
                     "Buying power validation passed",
                     policy=self.policy_name,
                     action="allow",
-                    symbol=order_request.symbol,
-                    quantity=str(order_request.quantity),
+                    symbol=order_request.symbol.value,
+                    quantity=str(order_request.quantity.value),
                 )
 
             except BuyingPowerError as e:
@@ -104,37 +114,29 @@ class BuyingPowerPolicyImpl:
                     "Buy order rejected due to insufficient buying power",
                     policy=self.policy_name,
                     action="reject",
-                    symbol=order_request.symbol,
-                    quantity=str(order_request.quantity),
+                    symbol=order_request.symbol.value,
+                    quantity=str(order_request.quantity.value),
                     required_amount=str(e.required_amount) if e.required_amount else "unknown",
                     available_amount=str(e.available_amount) if e.available_amount else "unknown",
                     shortfall=str(e.shortfall) if e.shortfall else "unknown",
                 )
 
-                return AdjustedOrderRequestDTO(
-                    symbol=order_request.symbol,
-                    side=order_request.side,
-                    quantity=order_request.quantity,
-                    order_type=order_request.order_type,
-                    time_in_force=order_request.time_in_force,
-                    limit_price=order_request.limit_price,
-                    client_order_id=order_request.client_order_id,
-                    is_approved=False,
+                return create_rejected_result(
+                    order_request=order_request,
                     rejection_reason=str(e),
-                    total_risk_score=Decimal("0"),
                 )
 
             except Exception as e:
                 # For unexpected errors during buying power validation, log and continue
                 # This matches the original behavior of returning warnings instead of failing
-                warning_msg = f"Unable to validate buying power for {order_request.symbol}: {e}"
+                warning_msg = f"Unable to validate buying power for {order_request.symbol.value}: {e}"
 
-                warning = PolicyWarningDTO(
+                warning = PolicyWarning(
                     policy_name=self.policy_name,
                     action="allow",
                     message=warning_msg,
-                    original_value=str(order_request.quantity),
-                    adjusted_value=str(order_request.quantity),
+                    original_value=str(order_request.quantity.value),
+                    adjusted_value=str(order_request.quantity.value),
                     risk_level="medium",
                 )
                 warnings.append(warning)
@@ -145,7 +147,7 @@ class BuyingPowerPolicyImpl:
                     "Buying power validation failed but allowing order to proceed",
                     policy=self.policy_name,
                     action="allow",
-                    symbol=order_request.symbol,
+                    symbol=order_request.symbol.value,
                     error=str(e),
                     error_type=type(e).__name__,
                 )
@@ -157,22 +159,17 @@ class BuyingPowerPolicyImpl:
             "Buying power policy approved order",
             policy=self.policy_name,
             action="allow",
-            symbol=order_request.symbol,
-            side=order_request.side,
+            symbol=order_request.symbol.value,
+            side=order_request.side.value,
         )
 
-        return AdjustedOrderRequestDTO(
-            symbol=order_request.symbol,
-            side=order_request.side,
-            quantity=order_request.quantity,
-            order_type=order_request.order_type,
-            time_in_force=order_request.time_in_force,
-            limit_price=order_request.limit_price,
-            client_order_id=order_request.client_order_id,
-            is_approved=True,
-            warnings=warnings,
-            total_risk_score=Decimal("0"),
-        )
+        result = create_approved_result(order_request=order_request)
+        
+        # Add warnings if any
+        if warnings:
+            result = result.with_warnings(tuple(warnings))
+        
+        return result
 
     def get_available_buying_power(self) -> float:
         """

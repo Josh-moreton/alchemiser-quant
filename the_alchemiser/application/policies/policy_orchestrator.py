@@ -2,21 +2,23 @@
 Policy Orchestrator
 
 Central coordinator for all order validation policies. Runs policies in sequence
-and aggregates their results into a final order decision.
+and aggregates their results into a final order decision. Now uses pure domain
+objects internally and provides DTO mapping at boundaries.
 """
 
 from __future__ import annotations
 
 import logging
-from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from the_alchemiser.infrastructure.logging.logging_utils import log_with_context
-from the_alchemiser.interfaces.schemas.orders import (
-    AdjustedOrderRequestDTO,
-    OrderRequestDTO,
-    PolicyWarningDTO,
+from the_alchemiser.application.mapping.policy_mapping import (
+    domain_result_to_dto,
+    dto_to_domain_order_request,
 )
+from the_alchemiser.domain.policies.policy_result import PolicyResult, PolicyWarning
+from the_alchemiser.domain.trading.value_objects.order_request import OrderRequest
+from the_alchemiser.infrastructure.logging.logging_utils import log_with_context
+from the_alchemiser.interfaces.schemas.orders import AdjustedOrderRequestDTO, OrderRequestDTO
 
 if TYPE_CHECKING:
     from the_alchemiser.application.policies.buying_power_policy_impl import BuyingPowerPolicyImpl
