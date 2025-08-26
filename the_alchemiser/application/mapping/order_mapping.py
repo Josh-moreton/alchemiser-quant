@@ -175,6 +175,7 @@ def raw_order_envelope_to_domain_order(envelope: RawOrderEnvelope) -> Order:
 
     Raises:
         ValueError: If envelope data cannot be converted to domain Order
+
     """
     if not envelope.success or envelope.raw_order is None:
         raise ValueError("Cannot convert failed order envelope to domain order")
@@ -193,6 +194,7 @@ def raw_order_envelope_to_execution_result_dto(
 
     Returns:
         OrderExecutionResultDTO with execution details
+
     """
     from the_alchemiser.application.mapping.alpaca_dto_mapping import (
         alpaca_order_to_execution_result,
