@@ -1,12 +1,13 @@
-"""Canonical Order Executor (Phase 1 refined).
+"""Canonical Order Executor (Phase 3 - Unified Policy Layer).
 
-Refined implementation after pre-merge review:
+Enhanced implementation with policy orchestrator integration:
+* Integrates PolicyOrchestrator for unified pre-placement validation
 * Accepts an injected lifecycle monitor (Protocol) instead of instantiating infra class directly
 * Removes mock fill fabrication - optionally fetches updated order execution result
 * Shadow mode now returns a synthetic, clearly non-executed result (success=False)
 * No private attribute access on repository
 * Structured logging via contextual `extra` data
-* Basic validation only (domain value objects already enforce invariants)
+* Policy-based validation with comprehensive error handling
 """
 
 from __future__ import annotations
@@ -16,10 +17,15 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
 from the_alchemiser.domain.trading.value_objects.order_request import OrderRequest
-from the_alchemiser.interfaces.schemas.orders import OrderExecutionResultDTO
+from the_alchemiser.interfaces.schemas.orders import (
+    OrderExecutionResultDTO,
+)
 from the_alchemiser.services.errors.handler import TradingSystemErrorHandler
 
 if TYPE_CHECKING:  # typing-only imports
+    from the_alchemiser.application.policies.policy_orchestrator import (
+        PolicyOrchestrator,
+    )
     from the_alchemiser.domain.trading.protocols.order_lifecycle import (
         OrderLifecycleMonitor,
     )
@@ -31,24 +37,112 @@ logger = logging.getLogger(__name__)
 
 
 class CanonicalOrderExecutor:
-    """Canonical order executor implementing domain-driven order execution."""
+    """Canonical order executor implementing domain-driven order execution with unified policy layer."""
 
     def __init__(
         self,
         repository: AlpacaManager,
+        policy_orchestrator: PolicyOrchestrator | None = None,
         shadow_mode: bool = False,
         lifecycle_monitor: OrderLifecycleMonitor | None = None,
     ) -> None:
         self.repository = repository
+        self.policy_orchestrator = policy_orchestrator
         self.shadow_mode = shadow_mode
         self.lifecycle_monitor = lifecycle_monitor
         self.error_handler = TradingSystemErrorHandler()
 
     def execute(self, order_request: OrderRequest) -> OrderExecutionResultDTO:
-        """Execute an order request through the canonical pathway."""
+        """Execute an order request through the canonical pathway with policy validation."""
         self._validate_order_request(order_request)
 
         from datetime import UTC, datetime
+
+        # Apply policy validation if orchestrator is available (domain pathway preferred)
+        if self.policy_orchestrator:
+            logger.info(
+                "Applying policy validation",
+                extra={
+                    "component": "CanonicalOrderExecutor.execute",
+                    "symbol": order_request.symbol.value,
+                    "side": order_request.side.value,
+                    "qty": str(order_request.quantity.value),
+                    "order_type": order_request.order_type.value,
+                },
+            )
+
+            try:
+                policy_result = self.policy_orchestrator.validate_and_adjust_domain(order_request)
+
+                if not policy_result.is_approved:
+                    logger.warning(
+                        "Order rejected by policy validation",
+                        extra={
+                            "component": "CanonicalOrderExecutor.execute",
+                            "symbol": order_request.symbol.value,
+                            "rejection_reason": policy_result.rejection_reason,
+                            "warnings": len(policy_result.warnings),
+                        },
+                    )
+                    return OrderExecutionResultDTO(
+                        success=False,
+                        error=f"Policy rejection: {policy_result.rejection_reason}",
+                        order_id="policy_rejected",
+                        status="rejected",
+                        filled_qty=Decimal("0"),
+                        avg_fill_price=None,
+                        submitted_at=datetime.now(UTC),
+                        completed_at=datetime.now(UTC),
+                    )
+
+                # Log policy warnings
+                if policy_result.warnings:
+                    logger.info(
+                        "Policy warnings generated",
+                        extra={
+                            "component": "CanonicalOrderExecutor.execute",
+                            "symbol": order_request.symbol.value,
+                            "warnings": [w.message for w in policy_result.warnings],
+                            "warning_count": len(policy_result.warnings),
+                        },
+                    )
+
+                # Update order request with policy adjustments
+                if policy_result.has_adjustments:
+                    logger.info(
+                        "Order adjusted by policies",
+                        extra={
+                            "component": "CanonicalOrderExecutor.execute",
+                            "symbol": order_request.symbol.value,
+                            "original_qty": str(order_request.quantity.value),
+                            "adjusted_qty": str(policy_result.order_request.quantity.value),
+                            "adjustment_reason": policy_result.adjustment_reason,
+                        },
+                    )
+                    # Replace with adjusted domain order request
+                    order_request = policy_result.order_request
+
+            except Exception as e:
+                self.error_handler.handle_error(
+                    error=e,
+                    component="CanonicalOrderExecutor.execute",
+                    context="policy_validation",
+                    additional_data={
+                        "symbol": order_request.symbol.value,
+                        "side": order_request.side.value,
+                        "qty": str(order_request.quantity.value),
+                    },
+                )
+                return OrderExecutionResultDTO(
+                    success=False,
+                    error=f"Policy validation failed: {e}",
+                    order_id="policy_error",
+                    status="rejected",
+                    filled_qty=Decimal("0"),
+                    avg_fill_price=None,
+                    submitted_at=datetime.now(UTC),
+                    completed_at=datetime.now(UTC),
+                )
 
         if self.shadow_mode:
             logger.info(
@@ -187,6 +281,8 @@ class CanonicalOrderExecutor:
 
         # Additional business rule validation can be added here
         logger.debug(f"Order request validation passed for {order_request.symbol.value}")
+
+    # Removed obsolete DTO conversion helpers after domain pathway adoption.
 
     def _convert_to_alpaca_request(self, order_request: OrderRequest) -> Any:
         """Convert domain OrderRequest to Alpaca API format.

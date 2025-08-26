@@ -8,8 +8,6 @@ including position validation, liquidation logic, and buying power checks.
 import logging
 from typing import Any
 
-from the_alchemiser.utils.num import floats_equal
-
 from the_alchemiser.infrastructure.logging.logging_utils import (
     get_logger,
     log_error_with_context,
@@ -18,6 +16,7 @@ from the_alchemiser.services.errors.exceptions import (
     DataProviderError,
     TradingClientError,
 )
+from the_alchemiser.utils.num import floats_equal
 
 
 class PositionManager:
@@ -83,6 +82,10 @@ class PositionManager:
     ) -> tuple[bool, float, str | None]:
         """Validate and adjust sell quantity based on available position.
 
+        DEPRECATED: This position validation logic has been moved to PositionPolicy.
+        Use PolicyOrchestrator with PositionPolicy for new implementations.
+        This method remains for backward compatibility only.
+
         Args:
             symbol: Symbol to sell
             requested_qty: Requested quantity to sell
@@ -92,6 +95,14 @@ class PositionManager:
             Tuple of (is_valid, adjusted_qty, warning_message)
 
         """
+        import warnings
+
+        warnings.warn(
+            "PositionManager.validate_sell_position is deprecated. "
+            "Use PolicyOrchestrator with PositionPolicy instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         # Force refresh from broker for critical sell operations
         positions = self.get_current_positions(force_refresh=force_refresh)
         available = positions.get(symbol, 0)
@@ -129,6 +140,10 @@ class PositionManager:
     def validate_buying_power(self, symbol: str, qty: float) -> tuple[bool, str | None]:
         """Validate buying power for a purchase.
 
+        DEPRECATED: This buying power validation logic has been moved to BuyingPowerPolicy.
+        Use PolicyOrchestrator with BuyingPowerPolicy for new implementations.
+        This method remains for backward compatibility only.
+
         Args:
             symbol: Symbol to buy
             qty: Quantity to buy
@@ -137,6 +152,14 @@ class PositionManager:
             Tuple of (is_sufficient, warning_message)
 
         """
+        import warnings
+
+        warnings.warn(
+            "PositionManager.validate_buying_power is deprecated. "
+            "Use PolicyOrchestrator with BuyingPowerPolicy instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         try:
             account = self.trading_client.get_account()
             buying_power = float(getattr(account, "buying_power", 0) or 0)
