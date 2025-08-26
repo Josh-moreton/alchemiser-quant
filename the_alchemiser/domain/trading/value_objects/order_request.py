@@ -13,9 +13,9 @@ from the_alchemiser.domain.trading.value_objects.time_in_force import TimeInForc
 @dataclass(frozen=True)
 class OrderRequest:
     """Domain value object for order requests.
-    
+
     Immutable value object representing an order request with all required
-    fields for trading. Uses strongly-typed domain value objects for 
+    fields for trading. Uses strongly-typed domain value objects for
     validation and type safety.
     """
 
@@ -31,7 +31,7 @@ class OrderRequest:
         # Validate limit price is provided for limit orders
         if self.order_type.value == "limit" and self.limit_price is None:
             raise ValueError("Limit price is required for limit orders")
-        
+
         # Validate limit price is not provided for market orders (optional constraint)
         if self.order_type.value == "market" and self.limit_price is not None:
             raise ValueError("Limit price should not be provided for market orders")
