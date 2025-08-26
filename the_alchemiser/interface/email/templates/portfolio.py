@@ -39,7 +39,7 @@ ExecutionLike = (
 )
 
 
-def _normalise_result(result: ExecutionLike) -> dict[str, Any]:  # noqa: D401 - internal helper
+def _normalise_result(result: ExecutionLike) -> dict[str, Any]:
     """Return a plain dict for an execution result (handles TypedDict/Pydantic/mapping/object)."""
     # Pydantic DTO
     if isinstance(result, MultiStrategyExecutionResultDTO):  # pragma: no branch
@@ -418,7 +418,6 @@ class PortfolioBuilder:
     @staticmethod
     def build_portfolio_rebalancing_table(result: ExecutionLike) -> str:
         """Build a portfolio rebalancing summary (percentages only)."""
-
         data = _normalise_result(result)
         execution_summary = data.get("execution_summary", {})
         target_portfolio = (
@@ -577,7 +576,6 @@ class PortfolioBuilder:
     @staticmethod
     def build_neutral_account_summary(account_info: AccountInfo | EnrichedAccountInfo) -> str:
         """Build a neutral account summary without financial values."""
-
         # Extract basic status information
         account_status: str = account_info.get("status", "UNKNOWN")
         daytrade_count = account_info.get("day_trade_count", 0)
@@ -712,10 +710,7 @@ class PortfolioBuilder:
 
             # Format quantity display
             if isinstance(qty, int | float) and qty != 0:
-                if qty >= 1:
-                    qty_display = f"{qty:.2f}"
-                else:
-                    qty_display = f"{qty:.6f}".rstrip("0").rstrip(".")
+                qty_display = f"{qty:.2f}" if qty >= 1 else f"{qty:.6f}".rstrip("0").rstrip(".")
             else:
                 qty_display = "—"
 

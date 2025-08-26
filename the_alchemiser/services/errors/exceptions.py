@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Custom exception classes for The Alchemiser Quantitative Trading System.
+"""Custom exception classes for The Alchemiser Quantitative Trading System.
 
 This module defines specific exception types for different failure scenarios
 to enable better error handling and debugging throughout the application.
@@ -50,13 +49,9 @@ class ConfigurationError(AlchemiserError):
 class DataProviderError(AlchemiserError):
     """Raised when data provider operations fail."""
 
-    pass
-
 
 class TradingClientError(AlchemiserError):
     """Raised when trading client operations fail."""
-
-    pass
 
 
 class OrderExecutionError(TradingClientError):
@@ -180,8 +175,6 @@ class BuyingPowerError(OrderExecutionError):
 class InsufficientFundsError(OrderExecutionError):
     """Raised when there are insufficient funds for an order."""
 
-    pass
-
 
 class PositionValidationError(TradingClientError):
     """Raised when position validation fails."""
@@ -248,8 +241,6 @@ class ValidationError(AlchemiserError):
 class NotificationError(AlchemiserError):
     """Raised when notification sending fails."""
 
-    pass
-
 
 class S3OperationError(AlchemiserError):
     """Raised when S3 operations fail."""
@@ -273,19 +264,13 @@ class RateLimitError(AlchemiserError):
 class MarketClosedError(TradingClientError):
     """Raised when attempting to trade while markets are closed."""
 
-    pass
-
 
 class WebSocketError(DataProviderError):
     """Raised when WebSocket connection issues occur."""
 
-    pass
-
 
 class StreamingError(DataProviderError):
     """Raised when streaming data issues occur."""
-
-    pass
 
 
 class LoggingError(AlchemiserError):
@@ -323,8 +308,6 @@ class DatabaseError(AlchemiserError):
 
 class SecurityError(AlchemiserError):
     """Raised when security-related issues occur."""
-
-    pass
 
 
 class EnvironmentError(ConfigurationError):

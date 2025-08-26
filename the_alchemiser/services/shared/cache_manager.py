@@ -1,12 +1,11 @@
-"""
-Cache management service with TTL support.
+"""Cache management service with TTL support.
 
 Provides configurable caching with time-to-live per data type.
 """
 
 import logging
 import time
-from typing import Any, Generic, TypeVar
+from typing import Any, TypeVar
 
 from cachetools import TTLCache  # type: ignore[import-untyped]
 
@@ -15,7 +14,7 @@ from the_alchemiser.services.shared.config_service import ConfigService
 T = TypeVar("T")
 
 
-class CacheManager(Generic[T]):
+class CacheManager[T]:
     """Generic cache manager with TTL support."""
 
     def __init__(
@@ -24,13 +23,13 @@ class CacheManager(Generic[T]):
         default_ttl: int = 3600,
         config_service: ConfigService | None = None,
     ) -> None:
-        """
-        Initialize cache manager.
+        """Initialize cache manager.
 
         Args:
             maxsize: Maximum number of items in cache
             default_ttl: Default time-to-live in seconds
             config_service: Configuration service for TTL overrides
+
         """
         self._cache: TTLCache[str, tuple[float, T]] = TTLCache(maxsize=maxsize, ttl=default_ttl)
         self._default_ttl = default_ttl
@@ -57,8 +56,7 @@ class CacheManager(Generic[T]):
         return default
 
     def get(self, key: str, data_type: str = "default") -> T | None:
-        """
-        Get item from cache if not expired.
+        """Get item from cache if not expired.
 
         Args:
             key: Cache key
@@ -66,6 +64,7 @@ class CacheManager(Generic[T]):
 
         Returns:
             Cached item or None if not found/expired
+
         """
         cache_key = f"{data_type}:{key}"
         try:
@@ -75,31 +74,29 @@ class CacheManager(Generic[T]):
             if time.time() - cached_time < ttl:
                 logging.debug(f"Cache hit for {cache_key}")
                 return data  # type: ignore[no-any-return]
-            else:
-                # Item expired, remove it
-                del self._cache[cache_key]
-                logging.debug(f"Cache expired for {cache_key}")
-                return None
+            # Item expired, remove it
+            del self._cache[cache_key]
+            logging.debug(f"Cache expired for {cache_key}")
+            return None
         except KeyError:
             logging.debug(f"Cache miss for {cache_key}")
             return None
 
     def set(self, key: str, value: T, data_type: str = "default") -> None:
-        """
-        Set item in cache with timestamp.
+        """Set item in cache with timestamp.
 
         Args:
             key: Cache key
             value: Value to cache
             data_type: Type of data for TTL selection
+
         """
         cache_key = f"{data_type}:{key}"
         self._cache[cache_key] = (time.time(), value)
         logging.debug(f"Cache set for {cache_key}")
 
     def invalidate(self, key: str, data_type: str = "default") -> bool:
-        """
-        Invalidate specific cache entry.
+        """Invalidate specific cache entry.
 
         Args:
             key: Cache key
@@ -107,6 +104,7 @@ class CacheManager(Generic[T]):
 
         Returns:
             True if item was found and removed
+
         """
         cache_key = f"{data_type}:{key}"
         try:
@@ -117,16 +115,16 @@ class CacheManager(Generic[T]):
             return False
 
     def invalidate_by_pattern(self, pattern: str) -> int:
-        """
-        Invalidate cache entries matching pattern.
+        """Invalidate cache entries matching pattern.
 
         Args:
             pattern: Pattern to match (simple string contains)
 
         Returns:
             Number of items invalidated
+
         """
-        keys_to_remove = [key for key in self._cache.keys() if pattern in key]
+        keys_to_remove = [key for key in self._cache if pattern in key]
         count = 0
         for key in keys_to_remove:
             try:
@@ -155,7 +153,7 @@ class CacheManager(Generic[T]):
 
         # Group by data type
         type_counts: dict[str, int] = {}
-        for key in self._cache.keys():
+        for key in self._cache:
             data_type = key.split(":", 1)[0] if ":" in key else "default"
             type_counts[data_type] = type_counts.get(data_type, 0) + 1
 
@@ -163,25 +161,25 @@ class CacheManager(Generic[T]):
         return stats
 
     def set_ttl_override(self, data_type: str, ttl_seconds: int) -> None:
-        """
-        Set TTL override for a specific data type.
+        """Set TTL override for a specific data type.
 
         Args:
             data_type: Type of data
             ttl_seconds: TTL in seconds
+
         """
         self._ttl_overrides[data_type] = ttl_seconds
         logging.debug(f"Set TTL override for {data_type}: {ttl_seconds}s")
 
     def get_effective_ttl(self, data_type: str) -> int:
-        """
-        Get effective TTL for a data type.
+        """Get effective TTL for a data type.
 
         Args:
             data_type: Type of data
 
         Returns:
             TTL in seconds
+
         """
         return self._ttl_overrides.get(data_type, self._default_ttl)
 
@@ -201,4 +199,4 @@ class CacheManager(Generic[T]):
 
     def __contains__(self, key: str) -> bool:
         """Check if key exists in cache (regardless of expiry)."""
-        return any(key in cache_key for cache_key in self._cache.keys())
+        return any(key in cache_key for cache_key in self._cache)

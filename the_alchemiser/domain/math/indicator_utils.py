@@ -16,8 +16,7 @@ def safe_get_indicator(
     *args: Any,
     **kwargs: Any,
 ) -> float:
-    """
-    Safely get an indicator value, logging exceptions and handling NaN values.
+    """Safely get an indicator value, logging exceptions and handling NaN values.
 
     This function attempts to calculate an indicator and returns the last valid
     numeric value from the resulting series. It includes robust error handling
@@ -33,6 +32,7 @@ def safe_get_indicator(
     Returns:
         float: The calculated indicator value, or a fallback value (50.0) if an
                error occurs or no valid data is found.
+
     """
     try:
         # Accept DataFrame inputs by extracting Close series when present

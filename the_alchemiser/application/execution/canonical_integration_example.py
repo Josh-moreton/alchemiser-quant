@@ -36,6 +36,7 @@ def dto_to_domain_order_request(dto: OrderRequestDTO) -> OrderRequest:
 
     Returns:
         OrderRequest: Domain value object
+
     """
     limit_price = None
     if dto.limit_price is not None:
@@ -69,6 +70,7 @@ def execute_order_with_canonical_path(
 
     Returns:
         OrderExecutionResultDTO: Execution result
+
     """
     settings = load_settings()
     use_canonical = settings.execution.use_canonical_executor
@@ -83,27 +85,26 @@ def execute_order_with_canonical_path(
         executor = CanonicalOrderExecutor(repository, shadow_mode=False)
         return executor.execute(domain_order)
 
-    else:
-        # Feature flag disabled - use legacy path with optional shadow mode
-        logger.info("Using legacy order execution (canonical executor disabled)")
+    # Feature flag disabled - use legacy path with optional shadow mode
+    logger.info("Using legacy order execution (canonical executor disabled)")
 
-        # Optional: Run canonical executor in shadow mode for comparison
-        try:
-            domain_order = dto_to_domain_order_request(order_dto)
-            shadow_executor = CanonicalOrderExecutor(repository, shadow_mode=True)
-            shadow_result = shadow_executor.execute(domain_order)
-            logger.info(f"[SHADOW] Canonical execution would result in: {shadow_result.status}")
-        except Exception as e:
-            logger.warning(f"Shadow mode canonical execution failed: {e}")
+    # Optional: Run canonical executor in shadow mode for comparison
+    try:
+        domain_order = dto_to_domain_order_request(order_dto)
+        shadow_executor = CanonicalOrderExecutor(repository, shadow_mode=True)
+        shadow_result = shadow_executor.execute(domain_order)
+        logger.info(f"[SHADOW] Canonical execution would result in: {shadow_result.status}")
+    except Exception as e:
+        logger.warning(f"Shadow mode canonical execution failed: {e}")
 
-        # Execute via legacy path
-        if legacy_execute_fn:
-            return legacy_execute_fn(order_dto)
+    # Execute via legacy path
+    if legacy_execute_fn:
+        return legacy_execute_fn(order_dto)
 
-        # Fallback to direct repository call
-        # This would be replaced with actual legacy execution logic
-        logger.warning("No legacy execution function provided, using repository directly")
-        return repository.place_order(order_dto)
+    # Fallback to direct repository call
+    # This would be replaced with actual legacy execution logic
+    logger.warning("No legacy execution function provided, using repository directly")
+    return repository.place_order(order_dto)
 
 
 # Example usage function

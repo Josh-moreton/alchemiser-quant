@@ -1,5 +1,4 @@
-"""
-AST node definitions for the S-expression Strategy DSL.
+"""AST node definitions for the S-expression Strategy DSL.
 
 Defines dataclasses for all supported DSL constructs with type safety
 and clear semantics for evaluation.

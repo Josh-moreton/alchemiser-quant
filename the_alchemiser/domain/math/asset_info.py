@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Asset Information Utilities
+"""Asset Information Utilities.
 
 Handles asset-specific information like fractionability, ETF types, and trading characteristics.
 This helps optimize order placement strategies for different asset types.
@@ -29,8 +28,7 @@ class AssetType(Enum):
 
 
 class FractionabilityDetector:
-    """
-    Detects and handles non-fractionable assets using real-time Alpaca API data.
+    """Detects and handles non-fractionable assets using real-time Alpaca API data.
 
     Professional trading systems need to handle assets that don't support
     fractional shares. This system queries Alpaca's API for authoritative
@@ -38,11 +36,11 @@ class FractionabilityDetector:
     """
 
     def __init__(self, alpaca_manager: AlpacaManager | None = None) -> None:
-        """
-        Initialize with optional AlpacaManager for API access.
+        """Initialize with optional AlpacaManager for API access.
 
         Args:
             alpaca_manager: AlpacaManager instance (will create one if None)
+
         """
         self.alpaca_manager = alpaca_manager
         self._fractionability_cache: dict[str, bool] = {}
@@ -77,14 +75,14 @@ class FractionabilityDetector:
                 )
 
     def _query_alpaca_fractionability(self, symbol: str) -> bool | None:
-        """
-        Query Alpaca API for definitive fractionability information.
+        """Query Alpaca API for definitive fractionability information.
 
         Args:
             symbol: Stock symbol to query
 
         Returns:
             True if fractionable, False if not, None if API unavailable/error
+
         """
         if not self.alpaca_manager:
             return None
@@ -96,17 +94,15 @@ class FractionabilityDetector:
             if fractionable is not None:
                 logging.debug(f"📡 Alpaca API: {symbol} fractionable = {fractionable}")
                 return bool(fractionable)
-            else:
-                logging.warning(f"⚠️ Alpaca API returned no fractionability info for {symbol}")
-                return None
+            logging.warning(f"⚠️ Alpaca API returned no fractionability info for {symbol}")
+            return None
 
         except Exception as e:
             logging.warning(f"⚠️ Alpaca API error for {symbol}: {e}")
             return None
 
     def is_fractionable(self, symbol: str, use_cache: bool = True) -> bool:
-        """
-        Determine if an asset supports fractional shares using Alpaca API.
+        """Determine if an asset supports fractional shares using Alpaca API.
 
         Args:
             symbol: Stock symbol to check
@@ -114,6 +110,7 @@ class FractionabilityDetector:
 
         Returns:
             True if asset supports fractional shares, False otherwise
+
         """
         symbol = symbol.upper()
 
@@ -140,14 +137,14 @@ class FractionabilityDetector:
         return fallback_result
 
     def _fallback_fractionability_prediction(self, symbol: str) -> bool:
-        """
-        Fallback prediction when API is unavailable (mostly deprecated).
+        """Fallback prediction when API is unavailable (mostly deprecated).
 
         Args:
             symbol: Stock symbol to predict
 
         Returns:
             True if likely fractionable, False if likely not
+
         """
         symbol = symbol.upper()
 
@@ -160,14 +157,14 @@ class FractionabilityDetector:
         return True
 
     def get_asset_type(self, symbol: str) -> AssetType:
-        """
-        Classify asset type for optimization strategies.
+        """Classify asset type for optimization strategies.
 
         Args:
             symbol: Stock symbol to classify
 
         Returns:
             AssetType enum value
+
         """
         symbol = symbol.upper()
 
@@ -176,10 +173,8 @@ class FractionabilityDetector:
             return AssetType.LEVERAGED_ETF  # Most non-fractionable assets are leveraged products
 
         # Regular ETFs (common patterns)
-        if (
-            symbol in ["SPY", "QQQ", "IWM", "VTI", "VOO", "VEA", "BIL"]
-            or symbol.startswith("VT")
-            or symbol.startswith("VO")
+        if symbol in ["SPY", "QQQ", "IWM", "VTI", "VOO", "VEA", "BIL"] or symbol.startswith(
+            ("VT", "VO")
         ):
             return AssetType.ETF
 
@@ -187,8 +182,7 @@ class FractionabilityDetector:
         return AssetType.STOCK
 
     def should_use_notional_order(self, symbol: str, quantity: float) -> bool:
-        """
-        Determine if we should use notional (dollar) orders instead of quantity orders.
+        """Determine if we should use notional (dollar) orders instead of quantity orders.
 
         Professional strategy using real API data:
         - Use notional orders for non-fractionable assets
@@ -201,6 +195,7 @@ class FractionabilityDetector:
 
         Returns:
             True if should use notional order, False for quantity order
+
         """
         # Always use notional for non-fractionable assets (API-confirmed)
         if not self.is_fractionable(symbol):
@@ -220,8 +215,7 @@ class FractionabilityDetector:
     def convert_to_whole_shares(
         self, symbol: str, quantity: float, current_price: float
     ) -> tuple[float, bool]:
-        """
-        Convert fractional quantity to whole shares for non-fractionable assets.
+        """Convert fractional quantity to whole shares for non-fractionable assets.
 
         Uses real API data to determine if conversion is needed.
 
@@ -232,6 +226,7 @@ class FractionabilityDetector:
 
         Returns:
             Tuple of (adjusted_quantity, used_rounding)
+
         """
         # Only convert if asset is actually non-fractionable (API-confirmed)
         if self.is_fractionable(symbol):

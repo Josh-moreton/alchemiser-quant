@@ -63,6 +63,7 @@ class DSLParser:
             max_nodes: Maximum AST nodes allowed (None disables cap).
             max_depth: Maximum recursion depth (None disables cap).
             enable_interning: Enable AST interning during parsing for structural sharing.
+
         """
         self._configured_max_nodes = max_nodes
         self._configured_max_depth = max_depth
@@ -90,6 +91,7 @@ class DSLParser:
 
         Returns:
             Parsed AST root node (potentially with structural sharing applied)
+
         """
         # Allow override of instance setting
         if enable_interning is not None:
@@ -98,8 +100,7 @@ class DSLParser:
         self._node_count = 0
         try:
             sexpr = self._parse_sexpr(source.strip())
-            ast = self._sexpr_to_ast(sexpr, 0)
-            return ast
+            return self._sexpr_to_ast(sexpr, 0)
         except (ParseError, SchemaError):  # re-raise cleanly
             raise
         except Exception as e:  # pragma: no cover
@@ -226,10 +227,9 @@ class DSLParser:
                 self._increment_node_count()
             # else: reused existing node, don't count it
             return interned_node
-        else:
-            # No interning - count every node
-            self._increment_node_count()
-            return node
+        # No interning - count every node
+        self._increment_node_count()
+        return node
 
     def _increment_node_count(self) -> None:
         """Increment node count and enforce limits."""
@@ -370,7 +370,7 @@ class DSLParser:
             # Only window parameter - symbol will be substituted later
             window = self._extract_window(args[0])
             return RSI("", window)  # Empty symbol to be filled later
-        elif len(args) == 2:
+        if len(args) == 2:
             # Standard format: symbol and window
             symbol = args[0]
             if not isinstance(symbol, str):
@@ -378,12 +378,11 @@ class DSLParser:
 
             window = self._extract_window(args[1])
             return RSI(symbol, window)
-        else:
-            raise SchemaError(
-                "rsi requires 1 argument (window) for filters or 2 arguments (symbol, window) for direct use",
-                construct="rsi",
-                actual_arity=len(args),
-            )
+        raise SchemaError(
+            "rsi requires 1 argument (window) for filters or 2 arguments (symbol, window) for direct use",
+            construct="rsi",
+            actual_arity=len(args),
+        )
 
     def _parse_moving_average_price(
         self, args: list[SExprType], depth: int
@@ -394,7 +393,7 @@ class DSLParser:
             # Only window parameter - symbol will be substituted later
             window = self._extract_window(args[0])
             return MovingAveragePrice("", window)  # Empty symbol to be filled later
-        elif len(args) == 2:
+        if len(args) == 2:
             # Standard format: symbol and window
             symbol = args[0]
             if not isinstance(symbol, str):
@@ -402,12 +401,11 @@ class DSLParser:
 
             window = self._extract_window(args[1])
             return MovingAveragePrice(symbol, window)
-        else:
-            raise SchemaError(
-                "moving-average-price requires 1 argument (window) for filters or 2 arguments (symbol, window) for direct use",
-                construct="moving-average-price",
-                actual_arity=len(args),
-            )
+        raise SchemaError(
+            "moving-average-price requires 1 argument (window) for filters or 2 arguments (symbol, window) for direct use",
+            construct="moving-average-price",
+            actual_arity=len(args),
+        )
 
     def _parse_moving_average_return(
         self,
@@ -420,7 +418,7 @@ class DSLParser:
             # Only window parameter - symbol will be substituted later
             window = self._extract_window(args[0])
             return MovingAverageReturn("", window)  # Empty symbol to be filled later
-        elif len(args) == 2:
+        if len(args) == 2:
             # Standard format: symbol and window
             symbol = args[0]
             if not isinstance(symbol, str):
@@ -428,12 +426,11 @@ class DSLParser:
 
             window = self._extract_window(args[1])
             return MovingAverageReturn(symbol, window)
-        else:
-            raise SchemaError(
-                "moving-average-return requires 1 argument (window) for filters or 2 arguments (symbol, window) for direct use",
-                construct="moving-average-return",
-                actual_arity=len(args),
-            )
+        raise SchemaError(
+            "moving-average-return requires 1 argument (window) for filters or 2 arguments (symbol, window) for direct use",
+            construct="moving-average-return",
+            actual_arity=len(args),
+        )
 
     def _parse_cumulative_return(
         self, args: list[SExprType], depth: int
@@ -444,7 +441,7 @@ class DSLParser:
             # Only window parameter - symbol will be substituted later
             window = self._extract_window(args[0])
             return CumulativeReturn("", window)  # Empty symbol to be filled later
-        elif len(args) == 2:
+        if len(args) == 2:
             # Standard format: symbol and window
             symbol = args[0]
             if not isinstance(symbol, str):
@@ -452,12 +449,11 @@ class DSLParser:
 
             window = self._extract_window(args[1])
             return CumulativeReturn(symbol, window)
-        else:
-            raise SchemaError(
-                "cumulative-return requires 1 argument (window) for filters or 2 arguments (symbol, window) for direct use",
-                construct="cumulative-return",
-                actual_arity=len(args),
-            )
+        raise SchemaError(
+            "cumulative-return requires 1 argument (window) for filters or 2 arguments (symbol, window) for direct use",
+            construct="cumulative-return",
+            actual_arity=len(args),
+        )
 
     def _parse_current_price(self, args: list[SExprType], depth: int) -> CurrentPrice:  # depth kept
         """Parse current price indicator."""
@@ -482,7 +478,7 @@ class DSLParser:
             # Only window parameter - symbol will be substituted later
             window = self._extract_window(args[0])
             return StdevReturn("", window)  # Empty symbol to be filled later
-        elif len(args) == 2:
+        if len(args) == 2:
             # Standard format: symbol and window
             symbol = args[0]
             if not isinstance(symbol, str):
@@ -490,12 +486,11 @@ class DSLParser:
 
             window = self._extract_window(args[1])
             return StdevReturn(symbol, window)
-        else:
-            raise SchemaError(
-                "stdev-return requires 1 argument (window) for filters or 2 arguments (symbol, window) for direct use",
-                construct="stdev-return",
-                actual_arity=len(args),
-            )
+        raise SchemaError(
+            "stdev-return requires 1 argument (window) for filters or 2 arguments (symbol, window) for direct use",
+            construct="stdev-return",
+            actual_arity=len(args),
+        )
 
     def _parse_asset(self, args: list[SExprType], depth: int) -> Asset:  # depth kept
         """Parse asset definition."""

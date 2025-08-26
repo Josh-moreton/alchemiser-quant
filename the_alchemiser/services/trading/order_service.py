@@ -1,5 +1,4 @@
-"""
-Enhanced Order Service
+"""Enhanced Order Service.
 
 This service provides type-safe, validated order placement operations.
 It builds on top of the TradingRepository interface, adding:
@@ -36,12 +35,9 @@ class OrderType(Enum):
 class OrderValidationError(Exception):
     """Exception raised when order validation fails."""
 
-    pass
-
 
 class OrderService:
-    """
-    Enhanced order service with validation and business logic.
+    """Enhanced order service with validation and business logic.
 
     This service provides a higher-level interface for order operations,
     adding validation, error handling, and business rules on top of the
@@ -54,15 +50,15 @@ class OrderService:
         market_data_repo: MarketDataRepository | None = None,
         max_order_value: float = 100000.0,
         min_order_value: float = 1.0,
-    ):
-        """
-        Initialize the order service.
+    ) -> None:
+        """Initialize the order service.
 
         Args:
             trading_repo: Trading repository for order operations
             market_data_repo: Optional market data repository for price validation
             max_order_value: Maximum allowed order value in dollars
             min_order_value: Minimum allowed order value in dollars
+
         """
         self._trading = trading_repo
         self._market_data = market_data_repo
@@ -78,8 +74,7 @@ class OrderService:
         notional: float | None = None,
         validate_price: bool = True,
     ) -> str:
-        """
-        Place a validated market order.
+        """Place a validated market order.
 
         Args:
             symbol: Stock symbol (will be normalized)
@@ -94,6 +89,7 @@ class OrderService:
         Raises:
             OrderValidationError: If validation fails
             Exception: If order placement fails
+
         """
         # Input validation and normalization
         symbol = self._validate_and_normalize_symbol(symbol)
@@ -145,8 +141,7 @@ class OrderService:
         time_in_force: str = "day",
         validate_price: bool = True,
     ) -> str:
-        """
-        Place a validated limit order.
+        """Place a validated limit order.
 
         Args:
             symbol: Stock symbol (will be normalized)
@@ -162,6 +157,7 @@ class OrderService:
         Raises:
             OrderValidationError: If validation fails
             Exception: If order placement fails
+
         """
         # Input validation and normalization
         symbol = self._validate_and_normalize_symbol(symbol)
@@ -206,8 +202,7 @@ class OrderService:
 
     @translate_trading_errors()
     def cancel_order(self, order_id: str) -> bool:
-        """
-        Cancel an order with enhanced error handling.
+        """Cancel an order with enhanced error handling.
 
         Args:
             order_id: Order ID to cancel
@@ -218,6 +213,7 @@ class OrderService:
         Raises:
             OrderValidationError: If order_id is invalid
             Exception: If cancellation fails
+
         """
         if not order_id or not isinstance(order_id, str):
             raise OrderValidationError("Invalid order ID")
@@ -234,8 +230,7 @@ class OrderService:
 
     @translate_trading_errors()
     def liquidate_position(self, symbol: str) -> str:
-        """
-        Liquidate entire position with validation.
+        """Liquidate entire position with validation.
 
         Args:
             symbol: Symbol to liquidate
@@ -246,6 +241,7 @@ class OrderService:
         Raises:
             OrderValidationError: If symbol invalid or no position
             Exception: If liquidation fails
+
         """
         symbol = self._validate_and_normalize_symbol(symbol)
 

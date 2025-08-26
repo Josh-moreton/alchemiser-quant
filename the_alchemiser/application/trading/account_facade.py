@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Account Facade - Coordinated account, position, and price data access.
+"""Account Facade - Coordinated account, position, and price data access.
 
 This facade provides a unified interface for account-related operations by coordinating
 between existing services:
@@ -86,6 +85,7 @@ class AccountFacade:
             account_service: Required account service for core operations
             market_data_service: Optional market data service for price validation
             position_service: Optional position service for enhanced analysis
+
         """
         self._account_service = account_service
         self._market_data_service = market_data_service
@@ -102,6 +102,7 @@ class AccountFacade:
 
         Returns:
             AccountInfo with normalized and validated fields
+
         """
         try:
             # Delegate to account service for core account info
@@ -195,6 +196,7 @@ class AccountFacade:
 
         Returns:
             EnrichedAccountInfo with portfolio history when available
+
         """
         try:
             # Get base account info through our normalized method
@@ -273,6 +275,7 @@ class AccountFacade:
 
         Returns:
             PositionsDict with current positions keyed by symbol
+
         """
         try:
             return self._account_service.get_positions_dict()
@@ -293,6 +296,7 @@ class AccountFacade:
 
         Returns:
             PositionsDict with current positions keyed by symbol
+
         """
         return self.get_positions()
 
@@ -307,6 +311,7 @@ class AccountFacade:
 
         Returns:
             Current price as float, or 0.0 if price unavailable
+
         """
         if not symbol or not isinstance(symbol, str):
             self.logger.warning(f"Invalid symbol provided to get_current_price: {symbol}")
@@ -331,9 +336,8 @@ class AccountFacade:
             if price and price > 0:
                 self.logger.debug(f"Retrieved price from AccountService for {symbol}: ${price:.2f}")
                 return price
-            else:
-                self.logger.warning(f"Invalid price received for {symbol}: {price}")
-                return 0.0
+            self.logger.warning(f"Invalid price received for {symbol}: {price}")
+            return 0.0
 
         except (
             DataProviderError,
@@ -357,6 +361,7 @@ class AccountFacade:
 
         Returns:
             Dict mapping symbols to current prices, excluding symbols with invalid prices
+
         """
         if not symbols or not isinstance(symbols, list):
             self.logger.warning(f"Invalid symbols list provided: {symbols}")
@@ -439,6 +444,7 @@ class AccountFacade:
 
         Returns:
             Serialized dictionary containing minimal account summary data.
+
         """
         default_account = _create_default_account_info("error")
         minimal_metrics = AccountMetricsDTO(
@@ -474,6 +480,7 @@ class AccountFacade:
 
         Returns:
             Serialized dictionary with both raw and typed account summary data.
+
         """
         try:
             # Get comprehensive account summary from service

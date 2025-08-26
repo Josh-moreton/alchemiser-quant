@@ -32,7 +32,6 @@ class ExecutionManager:
 
     def __init__(self, engine: Any) -> None:
         """Store the trading engine used for order execution."""
-
         self.engine = engine
 
     @handle_errors_with_retry(operation="multi_strategy_execution", critical=True, max_retries=1)
@@ -213,7 +212,7 @@ class ExecutionManager:
             )
             # Convert to our exception type for better handling
             raise TradingClientError(
-                f"Configuration/strategy error in multi-strategy execution: {str(e)}",
+                f"Configuration/strategy error in multi-strategy execution: {e!s}",
                 context={
                     "original_error": type(e).__name__,
                     "operation": "multi_strategy_execution",

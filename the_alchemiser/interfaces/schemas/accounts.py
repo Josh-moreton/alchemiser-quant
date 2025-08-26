@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Account DTOs for The Alchemiser Trading System.
+"""Account DTOs for The Alchemiser Trading System.
 
 This module contains DTOs for account data, buying power checks, risk metrics,
 and account-related operations.
@@ -23,8 +22,7 @@ from the_alchemiser.interfaces.schemas.base import ResultDTO
 
 
 class AccountSummaryDTO(BaseModel):
-    """
-    DTO for comprehensive account summary.
+    """DTO for comprehensive account summary.
 
     Used when returning account data from TradingServiceManager methods.
     """
@@ -50,9 +48,7 @@ class AccountSummaryDTO(BaseModel):
 
 
 class AccountMetricsDTO(BaseModel):
-    """
-    DTO for calculated account metrics.
-    """
+    """DTO for calculated account metrics."""
 
     model_config = ConfigDict(
         strict=True,
@@ -67,9 +63,7 @@ class AccountMetricsDTO(BaseModel):
 
 
 class BuyingPowerDTO(ResultDTO):
-    """
-    DTO for buying power check results.
-    """
+    """DTO for buying power check results."""
 
     model_config = ConfigDict(
         strict=True,
@@ -83,9 +77,7 @@ class BuyingPowerDTO(ResultDTO):
 
 
 class RiskMetricsDTO(ResultDTO):
-    """
-    DTO for comprehensive risk metrics.
-    """
+    """DTO for comprehensive risk metrics."""
 
     model_config = ConfigDict(
         strict=True,
@@ -97,9 +89,7 @@ class RiskMetricsDTO(ResultDTO):
 
 
 class TradeEligibilityDTO(BaseModel):
-    """
-    DTO for trade eligibility validation results.
-    """
+    """DTO for trade eligibility validation results."""
 
     model_config = ConfigDict(
         strict=True,
@@ -117,9 +107,7 @@ class TradeEligibilityDTO(BaseModel):
 
 
 class PortfolioAllocationDTO(ResultDTO):
-    """
-    DTO for portfolio allocation and diversification metrics.
-    """
+    """DTO for portfolio allocation and diversification metrics."""
 
     model_config = ConfigDict(
         strict=True,
@@ -131,9 +119,7 @@ class PortfolioAllocationDTO(ResultDTO):
 
 
 class EnrichedAccountSummaryDTO(BaseModel):
-    """
-    DTO for enriched account summary with typed domain objects.
-    """
+    """DTO for enriched account summary with typed domain objects."""
 
     model_config = ConfigDict(
         strict=True,

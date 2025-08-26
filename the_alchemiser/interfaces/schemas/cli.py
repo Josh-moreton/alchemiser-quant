@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-CLI-related DTOs for The Alchemiser Trading System.
+"""CLI-related DTOs for The Alchemiser Trading System.
 
 This module contains Pydantic v2 DTOs for CLI interface boundaries,
 moved from domain/types.py as part of the Pydantic migration.

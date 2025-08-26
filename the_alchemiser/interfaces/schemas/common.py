@@ -1,5 +1,4 @@
-"""
-Common DTOs for application layer and interface boundaries.
+"""Common DTOs for application layer and interface boundaries.
 
 This module provides Pydantic v2 DTOs for common data structures used across
 the application layer, replacing loose dataclasses and dict usage with
@@ -25,8 +24,7 @@ from the_alchemiser.interfaces.schemas.execution_summary import (
 
 
 class MultiStrategyExecutionResultDTO(BaseModel):
-    """
-    DTO for multi-strategy execution results.
+    """DTO for multi-strategy execution results.
 
     Provides an immutable, validated container for multi-strategy execution
     outcomes, replacing the dataclass version with enhanced type safety

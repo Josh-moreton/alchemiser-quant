@@ -24,6 +24,7 @@ class PositionAnalyzer:
 
         Returns:
             PositionDelta object with calculated action and quantity
+
         """
         delta = target_qty - current_qty
 
@@ -37,7 +38,7 @@ class PositionAnalyzer:
                 quantity=Decimal("0"),
                 message=f"No rebalancing needed for {symbol}: {current_qty} ≈ {target_qty}",
             )
-        elif delta < 0:
+        if delta < 0:
             sell_qty = abs(delta).quantize(Decimal("0.000001"))
             return PositionDelta(
                 symbol=symbol,
@@ -48,17 +49,16 @@ class PositionAnalyzer:
                 quantity=sell_qty,
                 message=f"Rebalancing {symbol}: selling {sell_qty} shares (reducing {current_qty} → {target_qty})",
             )
-        else:
-            buy_qty = delta.quantize(Decimal("0.000001"))
-            return PositionDelta(
-                symbol=symbol,
-                current_qty=current_qty,
-                target_qty=target_qty,
-                delta=delta,
-                action="buy_more",
-                quantity=buy_qty,
-                message=f"Rebalancing {symbol}: buying {buy_qty} shares (increasing {current_qty} → {target_qty})",
-            )
+        buy_qty = delta.quantize(Decimal("0.000001"))
+        return PositionDelta(
+            symbol=symbol,
+            current_qty=current_qty,
+            target_qty=target_qty,
+            delta=delta,
+            action="buy_more",
+            quantity=buy_qty,
+            message=f"Rebalancing {symbol}: buying {buy_qty} shares (increasing {current_qty} → {target_qty})",
+        )
 
     def calculate_position_deltas(
         self, current_quantities: dict[str, Decimal], target_quantities: dict[str, Decimal]
@@ -71,6 +71,7 @@ class PositionAnalyzer:
 
         Returns:
             Dictionary mapping symbols to PositionDelta objects
+
         """
         all_symbols = set(current_quantities.keys()) | set(target_quantities.keys())
 
@@ -110,6 +111,7 @@ class PositionAnalyzer:
 
         Returns:
             Dictionary mapping symbols to PositionDelta objects
+
         """
         return self.calculate_position_deltas(current_positions, target_positions)
 
@@ -123,6 +125,7 @@ class PositionAnalyzer:
 
         Returns:
             Tuple of (total_sells, total_buys) as Decimal amounts
+
         """
         total_sells = sum(
             (delta.quantity_abs for delta in position_deltas.values() if delta.is_sell),
@@ -145,6 +148,7 @@ class PositionAnalyzer:
 
         Returns:
             Portfolio turnover as a decimal percentage
+
         """
         if portfolio_value == 0:
             return Decimal("0")
@@ -160,6 +164,7 @@ class PositionAnalyzer:
 
         Returns:
             List of symbols requiring sell orders
+
         """
         return [symbol for symbol, delta in position_deltas.items() if delta.is_sell]
 
@@ -171,5 +176,6 @@ class PositionAnalyzer:
 
         Returns:
             List of symbols requiring buy orders
+
         """
         return [symbol for symbol, delta in position_deltas.items() if delta.is_buy]

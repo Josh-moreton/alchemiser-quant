@@ -8,6 +8,6 @@ from .strategy_position_model import StrategyPositionModel
 from .strategy_signal_model import StrategySignalModel
 
 __all__ = [
-    "StrategySignalModel",
     "StrategyPositionModel",
+    "StrategySignalModel",
 ]

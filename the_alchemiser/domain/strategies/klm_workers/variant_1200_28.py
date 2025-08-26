@@ -1,5 +1,4 @@
-"""
-KLM Strategy Variant 1200/28 - "KMLM (43)"
+"""KLM Strategy Variant 1200/28 - "KMLM (43)".
 
 This variant is nearly IDENTICAL to 506/38 except:
 - KMLM Switcher uses select-bottom 1 from TECL/SOXL/SVIX (instead of FNGU)
@@ -17,8 +16,7 @@ from .base_klm_variant import BaseKLMVariant
 
 
 class KlmVariant120028(BaseKLMVariant):
-    """
-    Variant 1200/28 - Same as 506/38 except KMLM Switcher logic
+    """Variant 1200/28 - Same as 506/38 except KMLM Switcher logic.
 
     Key difference: KMLM Switcher uses select-bottom 1 from TECL/SOXL/SVIX (not FNGU)
     """
@@ -33,10 +31,7 @@ class KlmVariant120028(BaseKLMVariant):
         indicators: dict[str, dict[str, float]],
         market_data: dict[str, pd.DataFrame] | None = None,
     ) -> tuple[str | dict[str, float], str, str]:
-        """
-        Evaluate 1200/28 - same as 506/38 except KMLM Switcher
-        """
-
+        """Evaluate 1200/28 - same as 506/38 except KMLM Switcher."""
         # Step 1: Primary overbought checks → UVXY
         symbol, reason = self.check_primary_overbought_conditions(indicators)
         if symbol:
@@ -49,10 +44,7 @@ class KlmVariant120028(BaseKLMVariant):
     def _evaluate_single_popped_kmlm(
         self, indicators: dict[str, dict[str, float]]
     ) -> tuple[str | dict[str, float], str, str]:
-        """
-        Single Popped KMLM logic - identical to 506/38
-        """
-
+        """Single Popped KMLM logic - identical to 506/38."""
         # Check UVXY RSI(21) for strategy branching
         if "UVXY" in indicators:
             uvxy_rsi_21 = indicators["UVXY"]["rsi_21"]
@@ -60,9 +52,8 @@ class KlmVariant120028(BaseKLMVariant):
             if uvxy_rsi_21 > 65:
                 # UVXY elevated - use BSC strategy
                 return self._evaluate_bsc_strategy(indicators)
-            else:
-                # UVXY normal - use Combined Pop Bot
-                return self._evaluate_combined_pop_bot(indicators)
+            # UVXY normal - use Combined Pop Bot
+            return self._evaluate_combined_pop_bot(indicators)
 
         # Fallback if UVXY data unavailable
         return self._evaluate_combined_pop_bot(indicators)
@@ -70,9 +61,7 @@ class KlmVariant120028(BaseKLMVariant):
     def _evaluate_bsc_strategy(
         self, indicators: dict[str, dict[str, float]]
     ) -> tuple[str, str, str]:
-        """
-        BSC strategy - identical to 506/38
-        """
+        """BSC strategy - identical to 506/38."""
         if "SPY" in indicators:
             spy_rsi_21 = indicators["SPY"]["rsi_21"]
 
@@ -93,10 +82,7 @@ class KlmVariant120028(BaseKLMVariant):
     def _evaluate_combined_pop_bot(
         self, indicators: dict[str, dict[str, float]]
     ) -> tuple[str | dict[str, float], str, str]:
-        """
-        Combined Pop Bot - identical to 506/38 (NO LABU)
-        """
-
+        """Combined Pop Bot - identical to 506/38 (NO LABU)."""
         # Priority 1: TQQQ oversold
         if "TQQQ" in indicators and indicators["TQQQ"]["rsi_10"] < 30:
             result = ("TECL", ActionType.BUY.value, "1200/28 Pop Bot: TQQQ RSI < 30 → TECL")
@@ -121,20 +107,16 @@ class KlmVariant120028(BaseKLMVariant):
     def evaluate_core_kmlm_switcher(
         self, indicators: dict[str, dict[str, float]]
     ) -> tuple[str | dict[str, float], str, str]:
-        """
-        Core KMLM switcher for variant 1200/28
-        """
+        """Core KMLM switcher for variant 1200/28."""
         return self._evaluate_kmlm_switcher_1200(indicators)
 
     def _evaluate_kmlm_switcher_1200(
         self, indicators: dict[str, dict[str, float]]
     ) -> tuple[str | dict[str, float], str, str]:
-        """
-        1200/28 KMLM Switcher - KEY DIFFERENCE from 506/38
+        """1200/28 KMLM Switcher - KEY DIFFERENCE from 506/38.
 
         Uses select-bottom 1 from TECL/SOXL/SVIX (not FNGU like 506/38)
         """
-
         if "XLK" in indicators and "KMLM" in indicators:
             xlk_rsi = indicators["XLK"]["rsi_10"]
             kmlm_rsi = indicators["KMLM"]["rsi_10"]
@@ -168,11 +150,9 @@ class KlmVariant120028(BaseKLMVariant):
     def _evaluate_ls_rotator_1200(
         self, indicators: dict[str, dict[str, float]]
     ) -> tuple[str, str, str]:
+        """1200/28 L/S Rotator - need to check if same as others or different
+        For now, assume similar to 1280/26 (SQQQ/TLT select-top 1).
         """
-        1200/28 L/S Rotator - need to check if same as others or different
-        For now, assume similar to 1280/26 (SQQQ/TLT select-top 1)
-        """
-
         candidates = []
         for symbol in ["SQQQ", "TLT"]:
             if symbol in indicators:
@@ -195,10 +175,7 @@ class KlmVariant120028(BaseKLMVariant):
         return result
 
     def get_required_symbols(self) -> list[str]:
-        """
-        1200/28 Required symbols - same as 506/38 except FNGU → SVIX
-        """
-
+        """1200/28 Required symbols - same as 506/38 except FNGU → SVIX."""
         # Standard overbought detection
         overbought_symbols = [
             "QQQE",

@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Configuration Service
+"""Configuration Service.
 
 Handles loading and managing configuration for the trading system.
 Provides a clean interface for accessing configuration settings.
@@ -13,11 +12,11 @@ class ConfigService:
     """Service for loading and managing configuration."""
 
     def __init__(self, config: Settings | None = None) -> None:
-        """
-        Initialize configuration service.
+        """Initialize configuration service.
 
         Args:
             config: Optional configuration object. If None, loads from global config.
+
         """
         if config is None:
             config = load_settings()
@@ -44,13 +43,13 @@ class ConfigService:
         return self._config.alpaca.endpoint
 
     def get_endpoint(self, paper_trading: bool) -> str:
-        """
-        Get the appropriate endpoint for the trading mode.
+        """Get the appropriate endpoint for the trading mode.
 
         Args:
             paper_trading: Whether using paper trading
 
         Returns:
             Appropriate endpoint URL
+
         """
         return self.paper_endpoint if paper_trading else self.live_endpoint

@@ -47,7 +47,7 @@ _di_container: Optional["ApplicationContainer"] = None
 class TradingSystem:
     """Main trading system orchestrator."""
 
-    def __init__(self, settings: Settings | None = None):
+    def __init__(self, settings: Settings | None = None) -> None:
         self.settings = settings or load_settings()
         self.logger = get_logger(__name__)
         self.error_handler = TradingSystemErrorHandler()
@@ -79,6 +79,7 @@ class TradingSystem:
         Args:
             show_tracking: When True include performance tracking table (opt-in to preserve
                 legacy minimal output by default).
+
         """
         try:
             analyzer = SignalAnalyzer(self.settings)
@@ -234,6 +235,7 @@ def main(argv: list[str] | None = None) -> bool:
 
     Returns:
         True if operation completed successfully, False otherwise
+
     """
     from the_alchemiser.interface.cli.cli_formatter import render_footer, render_header
 

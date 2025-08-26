@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Mapping functions for execution summary DTOs.
+"""Mapping functions for execution summary DTOs.
 
 This module provides mapping utilities to convert between dict structures
 and ExecutionSummaryDTO/PortfolioStateDTO, supporting the migration from
@@ -134,8 +133,7 @@ def dict_to_portfolio_state_dto(data: dict[str, Any]) -> PortfolioStateDTO:
 
 
 def safe_dict_to_execution_summary_dto(data: dict[str, Any]) -> ExecutionSummaryDTO:
-    """
-    Safely convert execution summary dict to DTO with fallbacks.
+    """Safely convert execution summary dict to DTO with fallbacks.
 
     Provides backward compatibility for incomplete dict structures.
     """
@@ -185,8 +183,7 @@ def safe_dict_to_execution_summary_dto(data: dict[str, Any]) -> ExecutionSummary
 
 
 def safe_dict_to_portfolio_state_dto(data: dict[str, Any] | None) -> PortfolioStateDTO | None:
-    """
-    Safely convert portfolio state dict to DTO with fallbacks.
+    """Safely convert portfolio state dict to DTO with fallbacks.
 
     Returns None if data is None or invalid.
     """

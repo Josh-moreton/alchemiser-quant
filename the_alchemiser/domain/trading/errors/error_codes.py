@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Specific Order Error Codes mapped to categories.
+"""Specific Order Error Codes mapped to categories.
 
 This module defines specific error codes that provide precise classification
 of order failures, enabling targeted remediation and analytics.

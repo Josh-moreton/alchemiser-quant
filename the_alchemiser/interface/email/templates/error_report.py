@@ -18,7 +18,6 @@ class ErrorReportBuilder:
         str
     ):  # ✅ Phase 14 - Current signature compatible, could accept ErrorNotificationData in future
         """Build an error alert email."""
-
         header = BaseEmailTemplate.get_header("The Alchemiser")
         status_banner = BaseEmailTemplate.get_status_banner(title, "Error", "#EF4444", "❌")
 

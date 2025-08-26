@@ -22,8 +22,7 @@ logger = logging.getLogger(__name__)
 
 
 class OrderLifecycleManager:
-    """
-    Thread-safe order lifecycle state machine manager.
+    """Thread-safe order lifecycle state machine manager.
 
     This class manages the state transitions of orders through their lifecycle,
     enforcing valid transitions and providing a central point for state queries.
@@ -42,14 +41,14 @@ class OrderLifecycleManager:
         self._states_lock = threading.RLock()  # protects _order_states structure
 
     def get_state(self, order_id: OrderId) -> OrderLifecycleState | None:
-        """
-        Get the current lifecycle state of an order.
+        """Get the current lifecycle state of an order.
 
         Args:
             order_id: Unique identifier for the order
 
         Returns:
             Current lifecycle state, or None if order not tracked
+
         """
         with self._states_lock:
             return self._order_states.get(order_id)
@@ -59,8 +58,7 @@ class OrderLifecycleManager:
         from_state: OrderLifecycleState,
         to_state: OrderLifecycleState,
     ) -> bool:
-        """
-        Check if a state transition is valid according to the state machine rules.
+        """Check if a state transition is valid according to the state machine rules.
 
         Args:
             from_state: Current state
@@ -68,6 +66,7 @@ class OrderLifecycleManager:
 
         Returns:
             True if transition is valid, False otherwise
+
         """
         return (from_state, to_state) in self.VALID_TRANSITIONS
 
@@ -80,8 +79,7 @@ class OrderLifecycleManager:
         metadata: Mapping[str, Any] | None = None,
         dispatcher: Any = None,  # LifecycleEventDispatcher (avoid circular import)
     ) -> OrderLifecycleEvent:
-        """
-        Advance an order to a new lifecycle state.
+        """Advance an order to a new lifecycle state.
 
         This method handles the complete state transition process:
         1. Validates the transition is allowed
@@ -100,6 +98,7 @@ class OrderLifecycleManager:
 
         Raises:
             InvalidOrderStateTransitionError: If transition is not allowed
+
         """
         if metadata is None:
             metadata = {}
@@ -177,18 +176,17 @@ class OrderLifecycleManager:
             return event
 
     def get_all_orders(self) -> dict[OrderId, OrderLifecycleState]:
-        """
-        Get all tracked orders and their current states.
+        """Get all tracked orders and their current states.
 
         Returns:
             Dictionary mapping order IDs to their current states
+
         """
         with self._states_lock:
             return dict(self._order_states)
 
     def cleanup_terminal_orders(self, max_age_hours: int = 24) -> int:
-        """
-        Remove terminal orders older than the specified age.
+        """Remove terminal orders older than the specified age.
 
         This method helps prevent memory leaks by cleaning up orders that
         have reached terminal states and are no longer needed for processing.
@@ -198,6 +196,7 @@ class OrderLifecycleManager:
 
         Returns:
             Number of orders cleaned up
+
         """
         # For now, just return 0 since we don't track creation time
         # This is a placeholder for future implementation that tracks timestamps

@@ -73,7 +73,7 @@ class LifecycleEventDispatcher:
         for observer in observers_snapshot:
             try:
                 observer.on_lifecycle_event(event)
-            except Exception as e:  # noqa: BLE001
+            except Exception as e:
                 name = observer.__class__.__name__
                 observer_errors.append((name, e))
                 logger.warning(
@@ -98,7 +98,7 @@ class LifecycleEventDispatcher:
                             "metadata": dict(event.metadata),
                         },
                     )
-                except Exception as handler_error:  # noqa: BLE001
+                except Exception as handler_error:
                     logger.error(
                         "Error handler failed processing observer exception: %s",
                         handler_error,

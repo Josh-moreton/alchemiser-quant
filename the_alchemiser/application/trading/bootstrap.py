@@ -57,6 +57,7 @@ def bootstrap_from_container(
 
     Raises:
         ConfigurationError: If container fails to provide required services
+
     """
     logger.info("Bootstrapping TradingEngine from DI container")
 
@@ -115,6 +116,7 @@ def bootstrap_from_service_manager(
 
     Raises:
         ConfigurationError: If service manager lacks required components
+
     """
     logger.info("Bootstrapping TradingEngine from TradingServiceManager")
     error_handler = TradingSystemErrorHandler()
@@ -185,6 +187,7 @@ def bootstrap_traditional(
 
     Raises:
         ConfigurationError: If credentials or initialization fails
+
     """
     logger.info("Bootstrapping TradingEngine using traditional method")
 

@@ -42,21 +42,21 @@ from the_alchemiser.interfaces.schemas.execution import (
 )
 
 __all__ = [
-    "execution_result_dto_to_dict",
-    "dict_to_execution_result_dto",
-    "trading_plan_dto_to_dict",
-    "dict_to_trading_plan_dto",
-    "websocket_result_dto_to_dict",
-    "dict_to_websocket_result_dto",
-    "quote_dto_to_dict",
-    "dict_to_quote_dto",
-    "lambda_event_dto_to_dict",
-    "dict_to_lambda_event_dto",
-    "order_history_dto_to_dict",
-    "dict_to_order_history_dto",
     "account_info_to_execution_result_dto",
-    "create_trading_plan_dto",
     "create_quote_dto",
+    "create_trading_plan_dto",
+    "dict_to_execution_result_dto",
+    "dict_to_lambda_event_dto",
+    "dict_to_order_history_dto",
+    "dict_to_quote_dto",
+    "dict_to_trading_plan_dto",
+    "dict_to_websocket_result_dto",
+    "execution_result_dto_to_dict",
+    "lambda_event_dto_to_dict",
+    "order_history_dto_to_dict",
+    "quote_dto_to_dict",
+    "trading_plan_dto_to_dict",
+    "websocket_result_dto_to_dict",
 ]
 
 
@@ -143,6 +143,7 @@ def execution_result_dto_to_dict(dto: ExecutionResultDTO) -> dict[str, Any]:
 
     Returns:
         Dictionary representation suitable for external reporting/logging
+
     """
     return {
         "orders_executed": _normalize_orders(dto.orders_executed),
@@ -164,6 +165,7 @@ def dict_to_execution_result_dto(data: dict[str, Any]) -> ExecutionResultDTO:
 
     Returns:
         ExecutionResultDTO instance
+
     """
     return ExecutionResultDTO(
         orders_executed=data.get("orders_executed", []),
@@ -196,14 +198,12 @@ def dict_to_trading_plan_dto(data: dict[str, Any]) -> TradingPlanDTO:
 
     Returns:
         TradingPlanDTO instance
+
     """
     # Normalize action to TradingAction enum
     action_val = data["action"]
     try:
-        if isinstance(action_val, str):
-            action = TradingAction(action_val.upper())
-        else:
-            action = action_val
+        action = TradingAction(action_val.upper()) if isinstance(action_val, str) else action_val
     except ValueError as exc:  # Issue 5
         raise ValueError(f"Invalid trading action '{action_val}'") from exc
 
@@ -236,14 +236,12 @@ def dict_to_websocket_result_dto(data: dict[str, Any]) -> WebSocketResultDTO:
 
     Returns:
         WebSocketResultDTO instance
+
     """
     # Normalize status to WebSocketStatus enum
     status_val = data["status"]
     try:
-        if isinstance(status_val, str):
-            status = WebSocketStatus(status_val.lower())
-        else:
-            status = status_val
+        status = WebSocketStatus(status_val.lower()) if isinstance(status_val, str) else status_val
     except ValueError as exc:  # Issue 5
         raise ValueError(f"Invalid websocket status '{status_val}'") from exc
 
@@ -262,6 +260,7 @@ def quote_dto_to_dict(dto: QuoteDTO) -> dict[str, Any]:
 
     Returns:
         Dictionary representation suitable for external reporting/logging
+
     """
     return {
         "bid_price": str(dto.bid_price),
@@ -284,6 +283,7 @@ def dict_to_quote_dto(data: dict[str, Any]) -> QuoteDTO:
 
     Returns:
         QuoteDTO instance
+
     """
     return QuoteDTO(
         bid_price=ensure_money(data["bid_price"]),
@@ -302,6 +302,7 @@ def lambda_event_dto_to_dict(dto: LambdaEventDTO) -> dict[str, Any]:
 
     Returns:
         Dictionary representation suitable for external reporting/logging
+
     """
     return {
         "mode": dto.mode,
@@ -323,6 +324,7 @@ def dict_to_lambda_event_dto(data: dict[str, Any]) -> LambdaEventDTO:
 
     Returns:
         LambdaEventDTO instance
+
     """
     return LambdaEventDTO(
         mode=data.get("mode"),
@@ -340,6 +342,7 @@ def order_history_dto_to_dict(dto: OrderHistoryDTO) -> dict[str, Any]:
 
     Returns:
         Dictionary representation suitable for external reporting/logging
+
     """
     return {
         "orders": _normalize_orders(dto.orders),
@@ -358,6 +361,7 @@ def dict_to_order_history_dto(data: dict[str, Any]) -> OrderHistoryDTO:
 
     Returns:
         OrderHistoryDTO instance
+
     """
     return OrderHistoryDTO(
         orders=data.get("orders", []),
@@ -384,6 +388,7 @@ def account_info_to_execution_result_dto(
 
     Returns:
         ExecutionResultDTO instance
+
     """
     return ExecutionResultDTO(
         orders_executed=orders_executed,
@@ -412,6 +417,7 @@ def create_trading_plan_dto(
 
     Returns:
         TradingPlanDTO instance
+
     """
     try:
         action_enum = TradingAction(action.upper())
@@ -445,6 +451,7 @@ def create_quote_dto(
 
     Returns:
         QuoteDTO instance
+
     """
     norm_ts: str
     if timestamp is None:

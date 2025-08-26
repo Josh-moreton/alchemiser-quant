@@ -1,5 +1,4 @@
-"""
-Market Data Service - Enhanced market data operations with caching and validation.
+"""Market Data Service - Enhanced market data operations with caching and validation.
 
 This service builds on the MarketDataRepository interface to provide:
 - Intelligent caching of market data
@@ -13,7 +12,7 @@ Typed Domain additions:
 """
 
 import logging
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from typing import Any
 
@@ -30,8 +29,7 @@ logger = logging.getLogger(__name__)
 
 
 class MarketDataService:
-    """
-    Enhanced market data service with caching and validation.
+    """Enhanced market data service with caching and validation.
 
     This service provides high-level market data operations built on top of
     the MarketDataRepository interface, adding intelligent caching, validation,
@@ -43,14 +41,14 @@ class MarketDataService:
         market_data_repo: MarketDataRepository,
         cache_ttl_seconds: int = 5,
         enable_validation: bool = True,
-    ):
-        """
-        Initialize the market data service.
+    ) -> None:
+        """Initialize the market data service.
 
         Args:
             market_data_repo: Market data repository implementation
             cache_ttl_seconds: Cache time-to-live in seconds
             enable_validation: Whether to enable data validation
+
         """
         self._market_data = market_data_repo
         self._cache_ttl = cache_ttl_seconds
@@ -70,6 +68,7 @@ class MarketDataService:
 
         Returns:
             List[BarModel] (may be empty on failure)
+
         """
         # Map period to start/end ISO strings
         end_dt = datetime.now()
@@ -80,7 +79,10 @@ class MarketDataService:
         repo_timeframe = self._map_timeframe_for_repo(timeframe)
 
         rows = self._market_data.get_historical_bars(
-            symbol=str(symbol), start_date=start_iso, end_date=end_iso, timeframe=repo_timeframe
+            symbol=str(symbol),
+            start_date=start_iso,
+            end_date=end_iso,
+            timeframe=repo_timeframe,
         )
         return bars_to_domain(rows)
 
@@ -112,8 +114,7 @@ class MarketDataService:
 
     @translate_market_data_errors(default_return=None)
     def get_validated_price(self, symbol: str, max_age_seconds: int | None = None) -> float | None:
-        """
-        Get current price with validation and optional caching.
+        """Get current price with validation and optional caching.
 
         Args:
             symbol: Stock symbol
@@ -121,6 +122,7 @@ class MarketDataService:
 
         Returns:
             Validated current price, or None if not available or invalid
+
         """
         max_age = max_age_seconds or self._cache_ttl
 
@@ -155,8 +157,7 @@ class MarketDataService:
     def get_validated_quote(
         self, symbol: str, max_age_seconds: int | None = None
     ) -> tuple[float, float] | None:
-        """
-        Get bid/ask quote with validation and optional caching.
+        """Get bid/ask quote with validation and optional caching.
 
         Args:
             symbol: Stock symbol
@@ -164,6 +165,7 @@ class MarketDataService:
 
         Returns:
             Tuple of (bid, ask) prices, or None if not available or invalid
+
         """
         max_age = max_age_seconds or self._cache_ttl
 
@@ -197,14 +199,14 @@ class MarketDataService:
         return quote
 
     def get_batch_prices(self, symbols: list[str]) -> dict[str, float]:
-        """
-        Get current prices for multiple symbols efficiently.
+        """Get current prices for multiple symbols efficiently.
 
         Args:
             symbols: List of stock symbols
 
         Returns:
             Dictionary mapping symbols to their current prices
+
         """
         results = {}
 
@@ -217,14 +219,14 @@ class MarketDataService:
         return results
 
     def get_spread_analysis(self, symbol: str) -> dict[str, Any] | None:
-        """
-        Analyze bid-ask spread for a symbol.
+        """Analyze bid-ask spread for a symbol.
 
         Args:
             symbol: Stock symbol
 
         Returns:
             Spread analysis data or None if not available
+
         """
         quote = self.get_validated_quote(symbol)
 
@@ -248,20 +250,20 @@ class MarketDataService:
 
     @translate_market_data_errors(default_return=False)
     def is_market_hours(self) -> bool:
-        """
-        Check if market is currently in trading hours.
+        """Check if market is currently in trading hours.
 
         Returns:
             True if market is open, False otherwise
+
         """
         return self._market_data.is_market_open()
 
     def clear_cache(self, symbol: str | None = None) -> None:
-        """
-        Clear cached data.
+        """Clear cached data.
 
         Args:
             symbol: Specific symbol to clear, or None to clear all
+
         """
         if symbol:
             self._price_cache.pop(symbol, None)
@@ -273,11 +275,11 @@ class MarketDataService:
             logger.debug("Cleared all cached data")
 
     def get_cache_stats(self) -> dict[str, Any]:
-        """
-        Get cache statistics.
+        """Get cache statistics.
 
         Returns:
             Cache statistics dictionary
+
         """
         return {
             "price_cache_size": len(self._price_cache),
@@ -306,6 +308,7 @@ class MarketDataService:
 
         Returns:
             Pandas DataFrame. Empty on failure.
+
         """
         try:
             # Map to typed domain inputs and fetch bars
@@ -332,8 +335,7 @@ class MarketDataService:
             return pd.DataFrame()
 
     def _is_valid_price(self, price: float, symbol: str) -> bool:
-        """
-        Validate a price value.
+        """Validate a price value.
 
         Args:
             price: Price to validate
@@ -341,6 +343,7 @@ class MarketDataService:
 
         Returns:
             True if price is valid, False otherwise
+
         """
         if price <= 0:
             return False
@@ -357,8 +360,7 @@ class MarketDataService:
         return True
 
     def _is_valid_quote(self, bid: float, ask: float, symbol: str) -> bool:
-        """
-        Validate a bid/ask quote.
+        """Validate a bid/ask quote.
 
         Args:
             bid: Bid price
@@ -367,6 +369,7 @@ class MarketDataService:
 
         Returns:
             True if quote is valid, False otherwise
+
         """
         # Basic price validation
         if not (self._is_valid_price(bid, symbol) and self._is_valid_price(ask, symbol)):

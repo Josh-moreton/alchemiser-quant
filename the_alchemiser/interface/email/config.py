@@ -16,7 +16,6 @@ class EmailConfig:
 
     def __init__(self) -> None:
         """Prepare helpers for loading configuration from multiple sources."""
-
         self.secrets_manager = SecretsManager()
         self._config_cache: EmailCredentials | None = None
 
@@ -27,6 +26,7 @@ class EmailConfig:
 
         Returns:
             EmailCredentials containing email configuration or None if configuration is invalid.
+
         """
         if self._config_cache:
             return self._config_cache

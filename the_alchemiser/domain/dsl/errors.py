@@ -1,5 +1,4 @@
-"""
-DSL-specific exceptions for the S-expression Strategy Engine.
+"""DSL-specific exceptions for the S-expression Strategy Engine.
 
 Provides clear, actionable error messages with context about what went wrong
 and suggestions for fixing DSL syntax or evaluation issues.

@@ -1,5 +1,4 @@
-"""
-Centralized Alpaca client management - Phase 1 of incremental improvements.
+"""Centralized Alpaca client management - Phase 1 of incremental improvements.
 
 This module consolidates scattered Alpaca client usage into a single, well-managed class.
 It provides a transitional approach that:
@@ -36,8 +35,7 @@ logger = logging.getLogger(__name__)
 
 
 class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
-    """
-    Centralized Alpaca client management implementing domain interfaces.
+    """Centralized Alpaca client management implementing domain interfaces.
 
     This class consolidates all Alpaca API interactions into a single, well-managed interface.
     It provides consistent error handling, logging, and implements the domain layer interfaces
@@ -55,15 +53,15 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         secret_key: str,
         paper: bool = True,
         base_url: str | None = None,
-    ):
-        """
-        Initialize Alpaca clients.
+    ) -> None:
+        """Initialize Alpaca clients.
 
         Args:
             api_key: Alpaca API key
             secret_key: Alpaca secret key
             paper: Whether to use paper trading (default: True for safety)
             base_url: Optional custom base URL
+
         """
         self._api_key = api_key
         self._secret_key = secret_key
@@ -128,11 +126,11 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             raise
 
     def get_positions(self) -> list[Any]:
-        """
-        Get all positions as list of position objects (AccountRepository interface).
+        """Get all positions as list of position objects (AccountRepository interface).
 
         Returns:
             List of position objects with attributes like symbol, qty, market_value, etc.
+
         """
         try:
             positions = self._trading_client.get_all_positions()
@@ -144,11 +142,11 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             raise
 
     def get_positions_dict(self) -> dict[str, float]:
-        """
-        Get all positions as dict mapping symbol to quantity (legacy method - use get_positions).
+        """Get all positions as dict mapping symbol to quantity (legacy method - use get_positions).
 
         Returns:
             Dictionary mapping symbol to quantity owned. Only includes non-zero positions.
+
         """
         # Build symbol->qty mapping from positions
         result: dict[str, float] = {}
@@ -214,6 +212,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
         Returns:
             OrderExecutionResultDTO reflecting the latest known state.
+
         """
         try:
             order = self._trading_client.get_order_by_id(order_id)
@@ -229,8 +228,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         qty: float | None = None,
         notional: float | None = None,
     ) -> OrderExecutionResultDTO:
-        """
-        Place a market order with validation and DTO conversion.
+        """Place a market order with validation and DTO conversion.
 
         Args:
             symbol: Stock symbol (e.g., 'AAPL')
@@ -240,6 +238,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
         Returns:
             OrderExecutionResultDTO with execution details
+
         """
         try:
             # Validation
@@ -289,8 +288,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         limit_price: float,
         time_in_force: str = "day",
     ) -> OrderExecutionResultDTO:
-        """
-        Place a limit order with validation and DTO conversion.
+        """Place a limit order with validation and DTO conversion.
 
         Args:
             symbol: Stock symbol (e.g., 'AAPL')
@@ -301,6 +299,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
         Returns:
             OrderExecutionResultDTO with execution details
+
         """
         try:
             # Validation
@@ -367,8 +366,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
     # Market Data Operations
     def get_current_price(self, symbol: str) -> float | None:
-        """
-        Get current price for a symbol.
+        """Get current price for a symbol.
 
         Returns the mid price between bid and ask, or None if not available.
         """
@@ -384,14 +382,14 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             raise
 
     def get_current_prices(self, symbols: list[str]) -> dict[str, float]:
-        """
-        Get current prices for multiple symbols.
+        """Get current prices for multiple symbols.
 
         Args:
             symbols: List of stock symbols
 
         Returns:
             Dictionary mapping symbols to their current prices
+
         """
         try:
             prices = {}
@@ -407,14 +405,14 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             raise
 
     def get_latest_quote(self, symbol: str) -> tuple[float, float] | None:
-        """
-        Get latest bid/ask quote for a symbol (interface compatible).
+        """Get latest bid/ask quote for a symbol (interface compatible).
 
         Args:
             symbol: Stock symbol
 
         Returns:
             Tuple of (bid, ask) prices, or None if not available.
+
         """
         try:
             request = StockLatestQuoteRequest(symbol_or_symbols=[symbol])
@@ -435,14 +433,13 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
                             f"Using bid price for both bid/ask for {symbol} (ask unavailable)"
                         )
                         return (bid, bid)
-                    elif ask > 0 and bid <= 0:
+                    if ask > 0 and bid <= 0:
                         logger.info(
                             f"Using ask price for both bid/ask for {symbol} (bid unavailable)"
                         )
                         return (ask, ask)
-                    else:
-                        # Both bid and ask are available and positive
-                        return (bid, ask)
+                    # Both bid and ask are available and positive
+                    return (bid, ask)
 
             logger.warning(f"No valid quote data available for {symbol}")
             return None
@@ -460,9 +457,8 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             if quote:
                 logger.debug(f"Successfully retrieved quote for {symbol}")
                 return quote
-            else:
-                logger.warning(f"No quote data available for {symbol}")
-                return None
+            logger.warning(f"No quote data available for {symbol}")
+            return None
         except Exception as e:
             logger.error(f"Failed to get latest quote for {symbol}: {e}")
             return None
@@ -470,14 +466,14 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
     def get_historical_bars(
         self, symbol: str, start_date: str, end_date: str, timeframe: str = "1Day"
     ) -> list[dict[str, Any]]:
-        """
-        Get historical bar data for a symbol.
+        """Get historical bar data for a symbol.
 
         Args:
             symbol: Stock symbol
             start_date: Start date (YYYY-MM-DD format)
             end_date: End date (YYYY-MM-DD format)
             timeframe: Timeframe (1Min, 5Min, 15Min, 1Hour, 1Day)
+
         """
         try:
             # Map timeframe strings to Alpaca TimeFrame objects
@@ -589,14 +585,14 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
     # Additional methods to match interface contracts
 
     def cancel_all_orders(self, symbol: str | None = None) -> bool:
-        """
-        Cancel all orders, optionally filtered by symbol.
+        """Cancel all orders, optionally filtered by symbol.
 
         Args:
             symbol: If provided, only cancel orders for this symbol
 
         Returns:
             True if successful, False otherwise.
+
         """
         try:
             if symbol:
@@ -620,14 +616,14 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             return False
 
     def liquidate_position(self, symbol: str) -> str | None:
-        """
-        Liquidate entire position using close_position API.
+        """Liquidate entire position using close_position API.
 
         Args:
             symbol: Symbol to liquidate
 
         Returns:
             Order ID if successful, None if failed.
+
         """
         try:
             order = self._trading_client.close_position(symbol)
@@ -639,14 +635,14 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             return None
 
     def get_asset_info(self, symbol: str) -> dict[str, Any] | None:
-        """
-        Get asset information.
+        """Get asset information.
 
         Args:
             symbol: Stock symbol
 
         Returns:
             Asset information dictionary, or None if not found.
+
         """
         try:
             asset = self._trading_client.get_asset(symbol)
@@ -664,11 +660,11 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             return None
 
     def is_market_open(self) -> bool:
-        """
-        Check if the market is currently open.
+        """Check if the market is currently open.
 
         Returns:
             True if market is open, False otherwise.
+
         """
         try:
             clock = self._trading_client.get_clock()
@@ -678,8 +674,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             return False
 
     def get_market_calendar(self, start_date: str, end_date: str) -> list[dict[str, Any]]:
-        """
-        Get market calendar information.
+        """Get market calendar information.
 
         Args:
             start_date: Start date (ISO format)
@@ -687,6 +682,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
         Returns:
             List of market calendar entries.
+
         """
         try:
             # Some stubs may not accept start/end; fetch without filters
@@ -710,8 +706,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         end_date: str | None = None,
         timeframe: str = "1Day",
     ) -> dict[str, Any] | None:
-        """
-        Get portfolio performance history.
+        """Get portfolio performance history.
 
         Args:
             start_date: Start date (ISO format), defaults to 1 month ago
@@ -720,6 +715,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
         Returns:
             Portfolio history data, or None if failed.
+
         """
         try:
             # Fetch without kwargs to satisfy type stubs
@@ -743,8 +739,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         start_date: str | None = None,
         end_date: str | None = None,
     ) -> list[dict[str, Any]]:
-        """
-        Get account activities (trades, dividends, etc.).
+        """Get account activities (trades, dividends, etc.).
 
         Args:
             activity_type: Filter by activity type (optional)
@@ -753,6 +748,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
         Returns:
             List of activity records.
+
         """
         try:
             # get_activities may not be present in stubs; guard via getattr
@@ -788,8 +784,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 def create_alpaca_manager(
     api_key: str, secret_key: str, paper: bool = True, base_url: str | None = None
 ) -> AlpacaManager:
-    """
-    Factory function to create an AlpacaManager instance.
+    """Factory function to create an AlpacaManager instance.
 
     This function provides a clean way to create AlpacaManager instances
     and can be easily extended with additional configuration options.

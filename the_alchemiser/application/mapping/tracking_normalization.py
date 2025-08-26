@@ -26,6 +26,7 @@ def ensure_price(value: float | str | Decimal | int | None, decimal_places: int 
 
     Returns:
         Quantized Decimal price
+
     """
     if value is None:
         return Decimal("0")
@@ -46,6 +47,7 @@ def normalize_tracking_order(order_data: dict[str, Any]) -> dict[str, Any]:
 
     Returns:
         Normalized order data with quantized values
+
     """
     normalized = order_data.copy()
 
@@ -78,6 +80,7 @@ def normalize_pnl_summary(pnl_data: dict[str, Any]) -> dict[str, Any]:
 
     Returns:
         Normalized P&L data with quantized values
+
     """
     normalized = pnl_data.copy()
 

@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Smart Pricing Handler
+"""Smart Pricing Handler.
 
 This module provides intelligent pricing strategies based on market conditions,
 bid/ask spreads, and order aggressiveness settings.
@@ -16,9 +15,7 @@ from the_alchemiser.services.errors.exceptions import DataProviderError
 
 
 class SmartPricingHandler:
-    """
-    Handles intelligent price calculation for limit orders.
-    """
+    """Handles intelligent price calculation for limit orders."""
 
     def __init__(self, data_provider: Any) -> None:
         """Initialize with data provider for market data."""
@@ -27,8 +24,7 @@ class SmartPricingHandler:
     def get_smart_limit_price(
         self, symbol: str, side: OrderSide, aggressiveness: float = 0.5
     ) -> float | None:
-        """
-        Get a smart limit price based on current bid/ask.
+        """Get a smart limit price based on current bid/ask.
 
         Args:
             symbol: Stock symbol
@@ -37,6 +33,7 @@ class SmartPricingHandler:
 
         Returns:
             Calculated limit price, or None if data unavailable
+
         """
         try:
             bid, ask = self.data_provider.get_latest_quote(symbol)
@@ -87,8 +84,7 @@ class SmartPricingHandler:
     def get_progressive_pricing(
         self, symbol: str, side: OrderSide, step: int = 1, total_steps: int = 4
     ) -> float | None:
-        """
-        Get progressive pricing for multi-step limit order strategies.
+        """Get progressive pricing for multi-step limit order strategies.
 
         Args:
             symbol: Stock symbol
@@ -98,6 +94,7 @@ class SmartPricingHandler:
 
         Returns:
             Calculated price for this step, or None if data unavailable
+
         """
         try:
             bid, ask = self.data_provider.get_latest_quote(symbol)
@@ -126,8 +123,7 @@ class SmartPricingHandler:
             return None
 
     def get_aggressive_sell_price(self, symbol: str, aggressiveness: float = 0.85) -> float | None:
-        """
-        Get aggressive sell pricing for quick liquidation (favors speed over price).
+        """Get aggressive sell pricing for quick liquidation (favors speed over price).
 
         Args:
             symbol: Stock symbol
@@ -135,12 +131,12 @@ class SmartPricingHandler:
 
         Returns:
             Calculated aggressive sell price, or None if data unavailable
+
         """
         return self.get_smart_limit_price(symbol, OrderSide.SELL, aggressiveness)
 
     def get_conservative_buy_price(self, symbol: str, aggressiveness: float = 0.75) -> float | None:
-        """
-        Get conservative buy pricing for better fill prices (favors price over speed).
+        """Get conservative buy pricing for better fill prices (favors price over speed).
 
         Args:
             symbol: Stock symbol
@@ -148,14 +144,14 @@ class SmartPricingHandler:
 
         Returns:
             Calculated conservative buy price, or None if data unavailable
+
         """
         return self.get_smart_limit_price(symbol, OrderSide.BUY, aggressiveness)
 
     def get_aggressive_marketable_limit(
         self, symbol: str, side: OrderSide, bid: float, ask: float
     ) -> float:
-        """
-        Calculate aggressive marketable limit prices per better orders spec.
+        """Calculate aggressive marketable limit prices per better orders spec.
 
         This is the "pro equivalent of hitting the market but with a seatbelt":
         - BUY: ask + 1 tick (ask + 0.01)
@@ -169,19 +165,18 @@ class SmartPricingHandler:
 
         Returns:
             Aggressive limit price that should execute quickly
+
         """
         if side == OrderSide.BUY:
             # Buy at ask + 1 cent (aggressive but protected)
             return round(ask + 0.01, 2)
-        else:
-            # Sell at bid - 1 cent (aggressive but protected)
-            return round(max(bid - 0.01, 0.01), 2)  # Ensure positive price
+        # Sell at bid - 1 cent (aggressive but protected)
+        return round(max(bid - 0.01, 0.01), 2)  # Ensure positive price
 
     def validate_aggressive_limit(
         self, limit_price: float, market_price: float, side: OrderSide, max_slippage_bps: float = 20
     ) -> bool:
-        """
-        Validate that aggressive limit price is within acceptable slippage bounds.
+        """Validate that aggressive limit price is within acceptable slippage bounds.
 
         For leveraged ETFs, opportunity cost often outweighs small slippage costs.
         Default 20 bps tolerance is reasonable for 3x ETFs.

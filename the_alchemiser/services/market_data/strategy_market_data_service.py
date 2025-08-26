@@ -40,6 +40,7 @@ class StrategyMarketDataService:
         Args:
             api_key: Alpaca API key
             secret_key: Alpaca secret key
+
         """
         self._client = MarketDataClient(api_key, secret_key)
 
@@ -59,6 +60,7 @@ class StrategyMarketDataService:
 
         Returns:
             List of BarModel domain objects
+
         """
         if self._service:
             return self._service.get_bars(symbol, period, timeframe)
@@ -87,6 +89,7 @@ class StrategyMarketDataService:
 
         Returns:
             QuoteModel domain object or None if unavailable
+
         """
         if self._service:
             return self._service.get_latest_quote(symbol)
@@ -115,6 +118,7 @@ class StrategyMarketDataService:
 
         Returns:
             Mid-price as float, or None if unavailable
+
         """
         quote = self.get_latest_quote(symbol)
         return quote_to_current_price(quote)
@@ -138,6 +142,7 @@ class StrategyMarketDataService:
 
         Returns:
             DataFrame with OHLCV data indexed by timestamp
+
         """
         try:
             symbol_obj = symbol_str_to_symbol(symbol)
@@ -156,6 +161,7 @@ class StrategyMarketDataService:
 
         Returns:
             Current price as float, or None if unavailable
+
         """
         try:
             symbol_obj = symbol_str_to_symbol(symbol)
@@ -175,6 +181,7 @@ class StrategyMarketDataService:
 
         Returns:
             Tuple of (bid_price, ask_price), either can be None if unavailable
+
         """
         try:
             symbol_obj = symbol_str_to_symbol(symbol)
@@ -192,6 +199,7 @@ class StrategyMarketDataService:
 
         Returns:
             Interval format expected by MarketDataClient
+
         """
         # Normalize timeframe to lowercase for comparison
         timeframe_lower = timeframe.lower()
@@ -199,11 +207,10 @@ class StrategyMarketDataService:
         # Map common timeframe variations to standard intervals
         if timeframe_lower in {"1day", "1d", "day", "daily"}:
             return "1d"
-        elif timeframe_lower in {"1hour", "1h", "hour", "hourly"}:
+        if timeframe_lower in {"1hour", "1h", "hour", "hourly"}:
             return "1h"
-        elif timeframe_lower in {"1min", "1m", "minute", "min"}:
+        if timeframe_lower in {"1min", "1m", "minute", "min"}:
             return "1m"
-        else:
-            # Default to daily if unknown timeframe
-            logger.warning(f"Unknown timeframe '{timeframe}', defaulting to '1d'")
-            return "1d"
+        # Default to daily if unknown timeframe
+        logger.warning(f"Unknown timeframe '{timeframe}', defaulting to '1d'")
+        return "1d"

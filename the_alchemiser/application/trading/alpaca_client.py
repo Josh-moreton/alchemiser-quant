@@ -40,6 +40,7 @@ Example:
     >>> client = AlpacaClient(trading_client, data_provider)
     >>> positions = client.get_current_positions()
     >>> order_id = client.place_market_order('AAPL', OrderSide.BUY, qty=10)
+
 """
 
 import logging
@@ -88,6 +89,7 @@ class AlpacaClient:
         trading_client: Alpaca trading client for API calls (backward compatibility).
         data_provider: Data provider for market quotes and prices.
         validate_buying_power: Whether to validate buying power for buy orders.
+
     """
 
     class PriceQuoteProvider(Protocol):
@@ -102,13 +104,14 @@ class AlpacaClient:
         alpaca_manager: AlpacaManager,
         data_provider: "ExecDataProvider",
         validate_buying_power: bool = False,
-    ):
+    ) -> None:
         """Initialize AlpacaClient with helper modules.
 
         Args:
             alpaca_manager: AlpacaManager instance for Alpaca API operations.
             data_provider: Data provider for quotes and prices.
             validate_buying_power: Whether to validate buying power for buy orders.
+
         """
         self.alpaca_manager = alpaca_manager
         self.trading_client = alpaca_manager.trading_client  # Backward compatibility
@@ -135,15 +138,16 @@ class AlpacaClient:
 
         Returns:
             Dictionary mapping symbol to quantity owned. Only includes non-zero positions.
+
         """
         return self.position_manager.get_current_positions()
 
     def get_pending_orders_validated(self) -> list["ValidatedOrderDTO"]:
-        """
-        Get all pending orders from Alpaca with type safety.
+        """Get all pending orders from Alpaca with type safety.
 
         Returns:
             List of ValidatedOrderDTO instances for type-safe order handling.
+
         """
         try:
             from the_alchemiser.interfaces.schemas.orders import ValidatedOrderDTO
@@ -178,29 +182,28 @@ class AlpacaClient:
             return []
 
     def cancel_all_orders(self, symbol: str | None = None) -> bool:
-        """
-        Cancel all pending orders, optionally filtered by symbol.
+        """Cancel all pending orders, optionally filtered by symbol.
 
         Args:
             symbol: If provided, only cancel orders for this symbol
 
         Returns:
             True if successful, False otherwise
+
         """
         if symbol:
             return self.position_manager.cancel_symbol_orders(symbol)
-        else:
-            return self.position_manager.cancel_all_orders()
+        return self.position_manager.cancel_all_orders()
 
     def liquidate_position(self, symbol: str) -> str | None:
-        """
-        Liquidate entire position using Alpaca's close_position API.
+        """Liquidate entire position using Alpaca's close_position API.
 
         Args:
             symbol: Symbol to liquidate
 
         Returns:
             Order ID if successful, None if failed
+
         """
         # Cancel any pending orders for this symbol first
         self.cancel_all_orders(symbol)
@@ -216,8 +219,7 @@ class AlpacaClient:
         notional: float | None = None,
         cancel_existing: bool = True,
     ) -> str | None:
-        """
-        Place a simple market order using helper modules for validation and asset handling.
+        """Place a simple market order using helper modules for validation and asset handling.
 
         TODO: Phase 1 consolidation - merge duplicated order placement logic
         across SmartExecution, AlpacaClient, and EngineService into unified interface
@@ -231,6 +233,7 @@ class AlpacaClient:
 
         Returns:
             Order ID if successful, None if failed
+
         """
         # Validate parameters
         is_valid, error_msg = validate_order_parameters(symbol, qty, notional)
@@ -263,7 +266,7 @@ class AlpacaClient:
                 if not is_sufficient:
                     logging.warning(warning_msg)
                     return None
-                elif warning_msg:
+                if warning_msg:
                     logging.warning(warning_msg)
 
             # For sell orders, validate and adjust quantity
@@ -370,8 +373,7 @@ class AlpacaClient:
         limit_price: float,
         cancel_existing: bool = True,
     ) -> str | None:
-        """
-        Place a limit order using the specialized limit order handler.
+        """Place a limit order using the specialized limit order handler.
 
         Args:
             symbol: Stock symbol
@@ -382,14 +384,14 @@ class AlpacaClient:
 
         Returns:
             Order ID if successful, None if failed
+
         """
         return self.limit_order_handler.place_limit_order(
             symbol, qty, side, limit_price, cancel_existing
         )
 
     def place_smart_sell_order(self, symbol: str, qty: float) -> str | None:
-        """
-        Smart sell order that uses liquidation API for full position sells.
+        """Smart sell order that uses liquidation API for full position sells.
 
         Args:
             symbol: Symbol to sell
@@ -397,6 +399,7 @@ class AlpacaClient:
 
         Returns:
             Order ID if successful, None if failed
+
         """
         positions = self.get_current_positions()
         available = positions.get(symbol, 0)
@@ -411,17 +414,15 @@ class AlpacaClient:
                 f"Selling {qty}/{available} shares ({qty / available:.1%}) - using liquidation API"
             )
             return self.liquidate_position(symbol)
-        else:
-            logging.info(
-                f"Selling {qty}/{available} shares ({qty / available:.1%}) - using market order"
-            )
-            return self.place_market_order(symbol, OrderSide.SELL, qty=qty)
+        logging.info(
+            f"Selling {qty}/{available} shares ({qty / available:.1%}) - using market order"
+        )
+        return self.place_market_order(symbol, OrderSide.SELL, qty=qty)
 
     def get_smart_limit_price(
         self, symbol: str, side: OrderSide, aggressiveness: float = 0.5
     ) -> float | None:
-        """
-        Get a smart limit price based on current bid/ask.
+        """Get a smart limit price based on current bid/ask.
 
         Args:
             symbol: Stock symbol
@@ -430,6 +431,7 @@ class AlpacaClient:
 
         Returns:
             Calculated limit price, or None if data unavailable
+
         """
         return self.pricing_handler.get_smart_limit_price(symbol, side, aggressiveness)
 
@@ -450,11 +452,11 @@ class AlpacaClient:
         return self.order_monitor.wait_for_order_completion(order_ids, max_wait_seconds)
 
     def _prepare_websocket_connection(self) -> bool:
-        """
-        Pre-initialize WebSocket connection and wait for it to be ready.
+        """Pre-initialize WebSocket connection and wait for it to be ready.
 
         Returns:
             True if WebSocket is ready, False if it failed to connect
+
         """
         return self.websocket_manager.prepare_websocket_connection()
 
@@ -463,14 +465,14 @@ class AlpacaClient:
         self.websocket_manager.cleanup_websocket_connection()
 
     def get_order_by_id(self, order_id: str) -> Any:
-        """
-        Get order details by order ID from the trading client.
+        """Get order details by order ID from the trading client.
 
         Args:
             order_id: The order ID to lookup
 
         Returns:
             Order object from Alpaca API, or None if not found
+
         """
         try:
             return self.trading_client.get_order_by_id(order_id)

@@ -82,6 +82,7 @@ def create_eval_context(
 
     Returns:
         Evaluation context for cache keying
+
     """
     # Default time bucket to current trading day
     if timestamp is None:
@@ -163,6 +164,7 @@ def get_memo_stats() -> dict[str, Any]:
 
     Returns:
         Dictionary with memoisation metrics including hit rates
+
     """
     total = _memo_stats["requests"]
     hits = _memo_stats["hits"]
@@ -200,8 +202,8 @@ def is_pure_node(node: ASTNode) -> bool:
 
     Returns:
         True if the node is pure and safe to memoize
-    """
 
+    """
     # Most DSL nodes are pure - they depend only on market data and parameters
     pure_node_types = (
         NumberLiteral,

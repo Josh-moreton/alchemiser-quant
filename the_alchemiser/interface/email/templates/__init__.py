@@ -27,12 +27,12 @@ from .signals import SignalsBuilder
 
 __all__ = [
     "BaseEmailTemplate",
+    "EmailTemplates",
     "ErrorReportBuilder",
     "MultiStrategyReportBuilder",
     "PerformanceBuilder",
     "PortfolioBuilder",
     "SignalsBuilder",
-    "EmailTemplates",
 ]
 
 

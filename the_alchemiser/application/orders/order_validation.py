@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Order Validation and Type Safety Module
+"""Order Validation and Type Safety Module.
 
 This module provides comprehensive order validation and type safety for trade execution.
 It uses strongly typed DTOs from interfaces/schemas/orders.py and integrates with the
@@ -46,8 +45,6 @@ from the_alchemiser.services.errors.exceptions import ValidationError
 class OrderValidationError(ValidationError):
     """Raised when order validation fails."""
 
-    pass
-
 
 @dataclass(frozen=True)
 class RiskLimits:
@@ -74,8 +71,7 @@ class ValidationResult:
 
 
 class OrderValidator:
-    """
-    Comprehensive order validator with risk management using DTOs.
+    """Comprehensive order validator with risk management using DTOs.
 
     Provides pre-trade validation including:
     - Order structure validation via DTOs
@@ -84,15 +80,14 @@ class OrderValidator:
     - Market hours validation
     """
 
-    def __init__(self, risk_limits: RiskLimits | None = None):
+    def __init__(self, risk_limits: RiskLimits | None = None) -> None:
         """Initialize validator with risk limits and error handler."""
         self.risk_limits = risk_limits or RiskLimits()
         self.logger = logging.getLogger(__name__)
         self.error_handler = TradingSystemErrorHandler()
 
     def validate_order_request(self, order_request: OrderRequestDTO) -> ValidatedOrderDTO:
-        """
-        Validate an OrderRequestDTO and return ValidatedOrderDTO.
+        """Validate an OrderRequestDTO and return ValidatedOrderDTO.
 
         Args:
             order_request: The order request DTO to validate
@@ -102,6 +97,7 @@ class OrderValidator:
 
         Raises:
             OrderValidationError: If validation fails
+
         """
         try:
             # Additional business logic validation beyond DTO validation
@@ -146,14 +142,14 @@ class OrderValidator:
             raise OrderValidationError(f"Failed to validate order request: {e}") from e
 
     def validate_order_structure(self, order_data: dict[str, Any]) -> ValidationResult:
-        """
-        Validate order structure from dict and create ValidatedOrderDTO.
+        """Validate order structure from dict and create ValidatedOrderDTO.
 
         Args:
             order_data: Raw order data dictionary
 
         Returns:
             ValidationResult with validation outcome and classified errors
+
         """
         errors: list[str] = []
         warnings: list[str] = []
@@ -276,8 +272,7 @@ class OrderValidator:
 
 # Legacy compatibility functions for existing code
 def validate_order_list(orders: list[dict[str, Any]]) -> list[ValidatedOrderDTO]:
-    """
-    Utility function to validate a list of order dictionaries.
+    """Utility function to validate a list of order dictionaries.
 
     Args:
         orders: List of order dictionaries
@@ -287,6 +282,7 @@ def validate_order_list(orders: list[dict[str, Any]]) -> list[ValidatedOrderDTO]
 
     Raises:
         OrderValidationError: If any order fails validation
+
     """
     validator = OrderValidator()
     validated_orders = []

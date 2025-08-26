@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Order Error Classifier for mapping exceptions to structured OrderError instances.
+"""Order Error Classifier for mapping exceptions to structured OrderError instances.
 
 This module provides registry-driven classification of various error types
 into standardized OrderError value objects for consistent error handling.
@@ -33,7 +32,7 @@ class ClassificationRule:
         predicate: ClassificationPredicate,
         builder: ErrorBuilder,
         description: str = "",
-    ):
+    ) -> None:
         self.predicate = predicate
         self.builder = builder
         self.description = description
@@ -77,6 +76,7 @@ class OrderErrorClassifier:
 
         Returns:
             Structured OrderError instance
+
         """
         context: ClassificationContext = {
             "type": "exception",
@@ -104,6 +104,7 @@ class OrderErrorClassifier:
 
         Returns:
             Structured OrderError instance
+
         """
         context: ClassificationContext = {
             "type": "alpaca_error",
@@ -131,6 +132,7 @@ class OrderErrorClassifier:
 
         Returns:
             Structured OrderError instance
+
         """
         context: ClassificationContext = {
             "type": "validation_failure",
@@ -176,15 +178,16 @@ class OrderErrorClassifier:
 
     def _register_default_rules(self) -> None:
         """Register default classification rules."""
-
         # VALIDATION errors
         self._rules.extend(
             [
                 ClassificationRule(
                     predicate=lambda ctx: "invalid symbol"
                     in str(ctx.get("exception_message", "")).lower()
-                    or "symbol" in str(ctx.get("error_message", "")).lower()
-                    and "invalid" in str(ctx.get("error_message", "")).lower(),
+                    or (
+                        "symbol" in str(ctx.get("error_message", "")).lower()
+                        and "invalid" in str(ctx.get("error_message", "")).lower()
+                    ),
                     builder=lambda ctx: OrderError(
                         category=OrderErrorCategory.VALIDATION,
                         code=OrderErrorCode.INVALID_SYMBOL,

@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Trading Client Service
+"""Trading Client Service.
 
 Handles trading operations via Alpaca API.
 Focused on order placement, account data, and positions.
@@ -19,13 +18,13 @@ class TradingClientService:
     """Service for trading operations via Alpaca API."""
 
     def __init__(self, api_key: str, secret_key: str, paper_trading: bool = True) -> None:
-        """
-        Initialize trading client service.
+        """Initialize trading client service.
 
         Args:
             api_key: Alpaca API key
             secret_key: Alpaca secret key
             paper_trading: Whether to use paper trading
+
         """
         self.api_key = api_key
         self.secret_key = secret_key
@@ -38,14 +37,14 @@ class TradingClientService:
         return self._alpaca_manager
 
     def get_account_info(self) -> dict[str, Any] | None:
-        """
-        Get account information.
+        """Get account information.
 
         Returns:
             Account information as dict or None if error
 
         Raises:
             TradingClientError: If account retrieval fails
+
         """
         try:
             account = self._alpaca_manager.get_account()
@@ -89,14 +88,14 @@ class TradingClientService:
             return None
 
     def get_all_positions(self) -> list[dict[str, Any]]:
-        """
-        Get all positions.
+        """Get all positions.
 
         Returns:
             List of position dicts
 
         Raises:
             TradingClientError: If positions retrieval fails
+
         """
         try:
             positions = self._alpaca_manager.get_positions()

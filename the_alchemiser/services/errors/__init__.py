@@ -1,5 +1,4 @@
-"""
-Error handling package for The Alchemiser Trading System.
+"""Error handling package for The Alchemiser Trading System.
 
 This package provides consolidated error handling with:
 - TradingSystemErrorHandler as the single facade
@@ -58,38 +57,38 @@ ErrorContext = ErrorScope  # Context manager from error_handling.py
 # For the data context from error_handler.py, use ErrorContextData instead
 
 __all__ = [
-    # New consolidated API
-    "ErrorContextData",
-    "create_error_context",
-    "ErrorScope",
-    "create_error_scope",
-    "TradingSystemErrorHandler",
-    "ErrorCategory",
-    "ErrorSeverity",
-    "ErrorDetails",
-    "EnhancedAlchemiserError",
-    "EnhancedTradingError",
-    "EnhancedDataError",
-    "EnhancedErrorReporter",
-    "get_error_handler",
-    "get_enhanced_error_reporter",
-    "get_global_error_reporter",
-    "handle_trading_error",
-    "handle_errors_with_retry",
-    "send_error_notification_if_needed",
-    "categorize_error_severity",
-    "create_enhanced_error",
-    "retry_with_backoff",
     "CircuitBreaker",
     "CircuitBreakerOpenError",
-    # Translation decorators
-    "translate_service_errors",
-    "translate_market_data_errors",
-    "translate_trading_errors",
-    "translate_streaming_errors",
-    "translate_config_errors",
-    # Legacy compatibility - minimal set
-    "create_service_logger",  # Keep for backward compatibility
+    "EnhancedAlchemiserError",
+    "EnhancedDataError",
+    "EnhancedErrorReporter",
+    "EnhancedTradingError",
+    "ErrorCategory",
     # Legacy aliases (deprecated)
     "ErrorContext",  # Use ErrorScope instead
+    # New consolidated API
+    "ErrorContextData",
+    "ErrorDetails",
+    "ErrorScope",
+    "ErrorSeverity",
+    "TradingSystemErrorHandler",
+    "categorize_error_severity",
+    "create_enhanced_error",
+    "create_error_context",
+    "create_error_scope",
+    # Legacy compatibility - minimal set
+    "create_service_logger",  # Keep for backward compatibility
+    "get_enhanced_error_reporter",
+    "get_error_handler",
+    "get_global_error_reporter",
+    "handle_errors_with_retry",
+    "handle_trading_error",
+    "retry_with_backoff",
+    "send_error_notification_if_needed",
+    "translate_config_errors",
+    "translate_market_data_errors",
+    # Translation decorators
+    "translate_service_errors",
+    "translate_streaming_errors",
+    "translate_trading_errors",
 ]

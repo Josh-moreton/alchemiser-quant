@@ -49,7 +49,7 @@ class TradingExecutor:
         ignore_market_hours: bool = False,
         show_tracking: bool = False,
         export_tracking_json: str | None = None,
-    ):
+    ) -> None:
         self.settings = settings
         self.live_trading = live_trading
         self.ignore_market_hours = ignore_market_hours
@@ -230,6 +230,7 @@ class TradingExecutor:
 
         Returns:
             List of ValidatedOrderDTO instances ready for execution
+
         """
         validated_orders = []
 

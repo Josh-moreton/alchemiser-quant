@@ -1,5 +1,4 @@
-"""
-KLM Strategy Variant 1280/26 - "KMLM (50)"
+"""KLM Strategy Variant 1280/26 - "KMLM (50)".
 
 COMPLETELY DIFFERENT from 506/38! This variant:
 1. Uses standard overbought detection → UVXY
@@ -20,8 +19,7 @@ from .base_klm_variant import BaseKLMVariant
 
 
 class KlmVariant128026(BaseKLMVariant):
-    """
-    Variant 1280/26 - COMPLETELY different from 506/38
+    """Variant 1280/26 - COMPLETELY different from 506/38.
 
     Key differences:
     - NO Single Popped KMLM logic (goes directly from overbought to Combined Pop Bot)
@@ -42,13 +40,11 @@ class KlmVariant128026(BaseKLMVariant):
     ) -> (
         tuple[str | dict[str, float], str, str] | KLMDecision
     ):  # TODO: Phase 9 - Gradual migration to KLMDecision
-        """
-        Evaluate 1280/26 - completely different flow from 506/38
+        """Evaluate 1280/26 - completely different flow from 506/38.
 
         Flow: Overbought Detection → Combined Pop Bot → KMLM Switcher
         (NO Single Popped KMLM logic)
         """
-
         # Step 1: Standard overbought checks → UVXY
         symbol, reason = self.check_primary_overbought_conditions(indicators)
         if symbol:
@@ -61,12 +57,10 @@ class KlmVariant128026(BaseKLMVariant):
     def _evaluate_combined_pop_bot_with_labu(
         self, indicators: dict[str, dict[str, float]]
     ) -> tuple[str | dict[str, float], str, str]:
-        """
-        Combined Pop Bot for 1280/26 - includes LABU with RSI < 25
+        """Combined Pop Bot for 1280/26 - includes LABU with RSI < 25.
 
         Order: TQQQ < 30 → SOXL < 30 → SPXL < 30 → LABU < 25 → KMLM Switcher
         """
-
         # Priority 1: TQQQ oversold
         if "TQQQ" in indicators and indicators["TQQQ"]["rsi_10"] < 30:
             result = ("TECL", ActionType.BUY.value, "1280/26 Pop Bot: TQQQ RSI < 30 → TECL")
@@ -97,20 +91,16 @@ class KlmVariant128026(BaseKLMVariant):
     def evaluate_core_kmlm_switcher(
         self, indicators: dict[str, dict[str, float]]
     ) -> tuple[str | dict[str, float], str, str]:
-        """
-        Core KMLM switcher for variant 1280/26
-        """
+        """Core KMLM switcher for variant 1280/26."""
         return self._evaluate_kmlm_switcher_1280(indicators)
 
     def _evaluate_kmlm_switcher_1280(
         self, indicators: dict[str, dict[str, float]]
     ) -> tuple[str | dict[str, float], str, str]:
-        """
-        1280/26 KMLM Switcher - select-bottom 2 from TECL/SOXL/SVIX (NOT FNGU)
+        """1280/26 KMLM Switcher - select-bottom 2 from TECL/SOXL/SVIX (NOT FNGU).
 
         CLJ lines 331-350: When XLK > KMLM → select-bottom 2 from [TECL, SOXL, SVIX]
         """
-
         if "XLK" in indicators and "KMLM" in indicators:
             xlk_rsi = indicators["XLK"]["rsi_10"]
             kmlm_rsi = indicators["KMLM"]["rsi_10"]
@@ -158,13 +148,11 @@ class KlmVariant128026(BaseKLMVariant):
     def _evaluate_ls_rotator_1280(
         self, indicators: dict[str, dict[str, float]]
     ) -> tuple[str, str, str]:
-        """
-        1280/26 L/S Rotator - COMPLETELY different from other variants
+        """1280/26 L/S Rotator - COMPLETELY different from other variants.
 
         CLJ shows: select-top 1 from SQQQ, TLT (not volatility filtering!)
         This selects the HIGHEST RSI (most overbought for contrarian play)
         """
-
         candidates = []
         for symbol in ["SQQQ", "TLT"]:
             if symbol in indicators:
@@ -188,10 +176,7 @@ class KlmVariant128026(BaseKLMVariant):
         return result
 
     def get_required_symbols(self) -> list[str]:
-        """
-        1280/26 Required symbols - completely different from 506/38
-        """
-
+        """1280/26 Required symbols - completely different from 506/38."""
         # Standard overbought detection
         overbought_symbols = [
             "QQQE",
