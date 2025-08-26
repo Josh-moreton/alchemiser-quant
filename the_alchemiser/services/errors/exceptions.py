@@ -100,6 +100,83 @@ class OrderExecutionError(TradingClientError):
         self.retry_count = retry_count
 
 
+class OrderPlacementError(OrderExecutionError):
+    """Raised when order placement fails and returns None ID."""
+
+    def __init__(
+        self,
+        message: str,
+        symbol: str | None = None,
+        order_type: str | None = None,
+        quantity: float | None = None,
+        price: float | None = None,
+        reason: str | None = None,
+    ) -> None:
+        """Create an order placement error for None order ID scenarios."""
+        super().__init__(
+            message=message,
+            symbol=symbol,
+            order_type=order_type,
+            quantity=quantity,
+            price=price,
+        )
+        self.reason = reason
+
+
+class OrderTimeoutError(OrderExecutionError):
+    """Raised when order execution times out during limit order sequence."""
+
+    def __init__(
+        self,
+        message: str,
+        symbol: str | None = None,
+        order_id: str | None = None,
+        timeout_seconds: float | None = None,
+        attempt_number: int | None = None,
+    ) -> None:
+        """Create an order timeout error for re-pegging scenarios."""
+        super().__init__(message=message, symbol=symbol, order_id=order_id)
+        self.timeout_seconds = timeout_seconds
+        self.attempt_number = attempt_number
+
+
+class SpreadAnalysisError(DataProviderError):
+    """Raised when spread analysis fails and cannot determine appropriate pricing."""
+
+    def __init__(
+        self,
+        message: str,
+        symbol: str | None = None,
+        bid: float | None = None,
+        ask: float | None = None,
+        spread_cents: float | None = None,
+    ) -> None:
+        """Create a spread analysis error for pricing failures."""
+        super().__init__(message)
+        self.symbol = symbol
+        self.bid = bid
+        self.ask = ask
+        self.spread_cents = spread_cents
+
+
+class BuyingPowerError(OrderExecutionError):
+    """Raised when insufficient buying power detected during execution."""
+
+    def __init__(
+        self,
+        message: str,
+        symbol: str | None = None,
+        required_amount: float | None = None,
+        available_amount: float | None = None,
+        shortfall: float | None = None,
+    ) -> None:
+        """Create a buying power error with financial context."""
+        super().__init__(message=message, symbol=symbol)
+        self.required_amount = required_amount
+        self.available_amount = available_amount
+        self.shortfall = shortfall
+
+
 class InsufficientFundsError(OrderExecutionError):
     """Raised when there are insufficient funds for an order."""
 

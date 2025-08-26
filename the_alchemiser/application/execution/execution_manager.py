@@ -69,19 +69,36 @@ class ExecutionManager:
                 consolidated_portfolio, strategy_attribution
             )
 
-            # Filter out failed orders (those with None IDs) to prevent DTO validation errors
+            # Enhanced validation: Orders with None IDs should no longer occur due to upstream fixes
+            # If any are found, it indicates a serious execution pipeline failure that should be surfaced
+            orders_with_none_ids = []
             valid_orders = []
-            failed_orders_count = 0
+
             for order in orders_executed:
                 if order and hasattr(order, "id") and order.id is not None:
                     valid_orders.append(order)
                 else:
-                    failed_orders_count += 1
-                    logging.warning(f"Filtered out failed order: {order}")
+                    orders_with_none_ids.append(order)
+                    logging.error(
+                        "order_execution_none_id_detected",
+                        extra={
+                            "order": str(order),
+                            "has_id_attr": hasattr(order, "id") if order else False,
+                            "id_value": getattr(order, "id", "NO_ATTR") if order else "NULL_ORDER",
+                        },
+                    )
 
-            if failed_orders_count > 0:
-                logging.warning(
-                    f"Filtered out {failed_orders_count} failed orders due to execution errors"
+            if orders_with_none_ids:
+                # This should not happen with our upstream fixes - surface as critical error
+                error_msg = f"CRITICAL: {len(orders_with_none_ids)} orders executed with None IDs - execution pipeline failure"
+                logging.critical(error_msg)
+                raise TradingClientError(
+                    error_msg,
+                    context={
+                        "failed_orders_count": len(orders_with_none_ids),
+                        "valid_orders_count": len(valid_orders),
+                        "failed_orders": [str(o) for o in orders_with_none_ids],
+                    },
                 )
 
             orders_executed = valid_orders
