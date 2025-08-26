@@ -1,15 +1,12 @@
-"""Canonical Order Executor for Phase 1 Implementation.
+"""Canonical Order Executor (Phase 1 refined).
 
-This module implements the canonical order execution pathway with domain value objects,
-direct repository calls, and lifecycle management for order execution.
-
-Features:
-- Domain-driven order validation using value objects
-- Direct repository integration via AlpacaManager
-- Order lifecycle management (SUBMITTED -> FILLED)
-- Mock fill detection via existing WebSocket monitoring
-- Mapping to standardized OrderExecutionResultDTO
-- Shadow mode for safe rollout
+Refined implementation after pre-merge review:
+* Accepts an injected lifecycle monitor (Protocol) instead of instantiating infra class directly
+* Removes mock fill fabrication – optionally fetches updated order execution result
+* Shadow mode now returns a synthetic, clearly non-executed result (success=False)
+* No private attribute access on repository
+* Structured logging via contextual `extra` data
+* Basic validation only (domain value objects already enforce invariants)
 """
 
 from __future__ import annotations
@@ -19,10 +16,13 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
 from the_alchemiser.domain.trading.value_objects.order_request import OrderRequest
-from the_alchemiser.infrastructure.websocket.websocket_order_monitor import (
-    OrderCompletionMonitor,
-)
 from the_alchemiser.interfaces.schemas.orders import OrderExecutionResultDTO
+from the_alchemiser.services.errors.handler import TradingSystemErrorHandler
+
+if TYPE_CHECKING:  # typing-only imports
+    from the_alchemiser.domain.trading.protocols.order_lifecycle import (
+        OrderLifecycleMonitor,
+    )
 
 if TYPE_CHECKING:
     from the_alchemiser.services.repository.alpaca_manager import AlpacaManager
@@ -31,55 +31,40 @@ logger = logging.getLogger(__name__)
 
 
 class CanonicalOrderExecutor:
-    """Canonical order executor implementing domain-driven order execution.
+    """Canonical order executor implementing domain-driven order execution."""
 
-    This executor provides a clean, typed interface for order execution using
-    domain value objects and direct repository integration.
-    """
-
-    def __init__(self, repository: AlpacaManager, shadow_mode: bool = False) -> None:
-        """Initialize with repository dependency.
-
-        Args:
-            repository: AlpacaManager instance implementing TradingRepository
-            shadow_mode: If True, log decisions but don't execute orders
-        """
+    def __init__(
+        self,
+        repository: AlpacaManager,
+        shadow_mode: bool = False,
+        lifecycle_monitor: OrderLifecycleMonitor | None = None,
+    ) -> None:
         self.repository = repository
         self.shadow_mode = shadow_mode
+        self.lifecycle_monitor = lifecycle_monitor
+        self.error_handler = TradingSystemErrorHandler()
 
     def execute(self, order_request: OrderRequest) -> OrderExecutionResultDTO:
-        """Execute an order request through the canonical pathway.
-
-        Args:
-            order_request: Domain value object containing validated order details
-
-        Returns:
-            OrderExecutionResultDTO: Standardized execution result
-
-        Raises:
-            ValueError: If order validation fails
-            Exception: If order execution fails
-        """
-        # Step 1: Validation stub (domain validation already done in value objects)
+        """Execute an order request through the canonical pathway."""
         self._validate_order_request(order_request)
 
-        # Step 2: Convert domain order request to repository format
-        alpaca_order_request = self._convert_to_alpaca_request(order_request)
+        from datetime import UTC, datetime
 
-        # Shadow mode logging
         if self.shadow_mode:
             logger.info(
-                f"[SHADOW MODE] Would execute canonical order: {order_request.side.value} "
-                f"{order_request.quantity.value} {order_request.symbol.value} "
-                f"({order_request.order_type.value})"
+                "Shadow mode canonical order (not executed)",
+                extra={
+                    "component": "CanonicalOrderExecutor.execute",
+                    "symbol": order_request.symbol.value,
+                    "side": order_request.side.value,
+                    "qty": str(order_request.quantity.value),
+                    "order_type": order_request.order_type.value,
+                },
             )
-            # Return a mock successful result for shadow mode
-            from datetime import UTC, datetime
-
             return OrderExecutionResultDTO(
-                success=True,
-                error=None,
-                order_id="shadow_mode_mock_id",
+                success=False,
+                error="Shadow mode - order not submitted",
+                order_id="shadow_mode_synthetic",
                 status="accepted",
                 filled_qty=Decimal("0"),
                 avg_fill_price=None,
@@ -87,54 +72,103 @@ class CanonicalOrderExecutor:
                 completed_at=None,
             )
 
-        # Step 3: Direct repository call
-        logger.info(
-            f"Executing canonical order: {order_request.side.value} "
-            f"{order_request.quantity.value} {order_request.symbol.value} "
-            f"({order_request.order_type.value})"
-        )
-
-        execution_result = self.repository.place_order(alpaca_order_request)
+        try:
+            alpaca_order_request = self._convert_to_alpaca_request(order_request)
+            logger.info(
+                "Submitting canonical order",
+                extra={
+                    "component": "CanonicalOrderExecutor.execute",
+                    "symbol": order_request.symbol.value,
+                    "side": order_request.side.value,
+                    "qty": str(order_request.quantity.value),
+                    "order_type": order_request.order_type.value,
+                },
+            )
+            execution_result = self.repository.place_order(alpaca_order_request)
+        except Exception as e:  # infra failure
+            self.error_handler.handle_error(
+                error=e,
+                component="CanonicalOrderExecutor.execute",
+                context="order_submission",
+                additional_data={
+                    "symbol": order_request.symbol.value,
+                    "side": order_request.side.value,
+                    "qty": str(order_request.quantity.value),
+                    "order_type": order_request.order_type.value,
+                },
+            )
+            return OrderExecutionResultDTO(
+                success=False,
+                error=f"Canonical submission failed: {e}",
+                order_id="unknown",
+                status="rejected",
+                filled_qty=Decimal("0"),
+                avg_fill_price=None,
+                submitted_at=datetime.now(UTC),
+                completed_at=datetime.now(UTC),
+            )
 
         if not execution_result.success:
-            logger.error(f"Order execution failed: {execution_result.error}")
+            logger.error(
+                "Canonical order placement failed",
+                extra={
+                    "component": "CanonicalOrderExecutor.execute",
+                    "error": execution_result.error,
+                    "order_id": execution_result.order_id,
+                },
+            )
             return execution_result
 
-        # Step 4: Lifecycle management - wait for fill via existing WebSocket monitor
-        order_id = execution_result.order_id
-        if order_id:
-            fill_result = self._wait_for_fill(order_id)
-            if fill_result:
-                from datetime import datetime
+        if self.lifecycle_monitor is None:
+            logger.info(
+                "No lifecycle monitor injected – returning immediate placement result",
+                extra={
+                    "component": "CanonicalOrderExecutor.execute",
+                    "order_id": execution_result.order_id,
+                },
+            )
+            return execution_result
 
-                # Parse the fill information with proper types
-                filled_qty = Decimal(str(fill_result.get("filled_qty", "0")))
-                avg_fill_price_str = fill_result.get("avg_fill_price")
-                avg_fill_price = Decimal(str(avg_fill_price_str)) if avg_fill_price_str else None
-
-                completed_at_str = fill_result.get("completed_at")
-                completed_at = None
-                if completed_at_str:
-                    try:
-                        completed_at = datetime.fromisoformat(
-                            completed_at_str.replace("Z", "+00:00")
-                        )
-                    except (ValueError, AttributeError):
-                        completed_at = None
-
-                # Update the execution result with fill information
-                execution_result = OrderExecutionResultDTO(
-                    success=True,
-                    error=None,
-                    order_id=order_id,
-                    status="filled",
-                    filled_qty=filled_qty,
-                    avg_fill_price=avg_fill_price,
-                    submitted_at=execution_result.submitted_at,
-                    completed_at=completed_at,
+        try:
+            monitor_result = self.lifecycle_monitor.wait_for_order_completion(
+                [execution_result.order_id], max_wait_seconds=60
+            )
+            if execution_result.order_id in monitor_result.orders_completed:
+                try:
+                    updated = self.repository.get_order_execution_result(execution_result.order_id)
+                    logger.info(
+                        "Order lifecycle completed",
+                        extra={
+                            "component": "CanonicalOrderExecutor.execute",
+                            "order_id": execution_result.order_id,
+                            "final_status": updated.status,
+                        },
+                    )
+                    return updated
+                except Exception as e:  # fetch failure – keep original result
+                    self.error_handler.handle_error(
+                        error=e,
+                        component="CanonicalOrderExecutor.execute",
+                        context="post_fill_fetch",
+                        additional_data={"order_id": execution_result.order_id},
+                    )
+            else:
+                logger.warning(
+                    "Order not completed within monitoring window",
+                    extra={
+                        "component": "CanonicalOrderExecutor.execute",
+                        "order_id": execution_result.order_id,
+                        "monitor_status": getattr(monitor_result, "status", "unknown"),
+                    },
                 )
+        except Exception as e:
+            self.error_handler.handle_error(
+                error=e,
+                component="CanonicalOrderExecutor.execute",
+                context="lifecycle_monitoring",
+                additional_data={"order_id": execution_result.order_id},
+            )
 
-        logger.info(f"Canonical order execution completed: {order_id}")
         return execution_result
 
     def _validate_order_request(self, order_request: OrderRequest) -> None:
@@ -147,7 +181,7 @@ class CanonicalOrderExecutor:
             ValueError: If validation fails
         """
         # Basic validation - domain value objects already handle most validation
-        if order_request.quantity.value <= 0:
+        if order_request.quantity.value <= Decimal("0"):
             raise ValueError("Order quantity must be positive")
 
         # Additional business rule validation can be added here
@@ -200,31 +234,4 @@ class CanonicalOrderExecutor:
                 client_order_id=order_request.client_order_id,
             )
 
-    def _wait_for_fill(self, order_id: str, timeout_seconds: int = 60) -> dict[str, str] | None:
-        """Wait for order to fill using existing WebSocket monitoring.
-
-        Args:
-            order_id: Order ID to monitor
-            timeout_seconds: Maximum wait time
-
-        Returns:
-            dict with fill information or None if not filled/timeout
-        """
-        try:
-            # Use existing WebSocket order monitor for lifecycle management
-            monitor = OrderCompletionMonitor(self.repository._trading_client)
-            result = monitor.wait_for_order_completion([order_id], timeout_seconds)
-
-            if result.status.value == "completed" and result.orders_completed:
-                # For now, return a simple fill indication
-                # In a real implementation, we would get the actual order details
-                # from the repository after completion
-                return {
-                    "filled_qty": "100",  # Mock data - would get from actual order
-                    "avg_fill_price": "150.00",  # Mock data - would get from actual order
-                    "completed_at": "2024-01-01T12:00:00Z",  # Mock data - would get from actual order
-                }
-        except Exception as e:
-            logger.warning(f"Failed to monitor order {order_id} for completion: {e}")
-
-        return None
+    # NOTE: Lifecycle monitoring handled externally via injected lifecycle_monitor.

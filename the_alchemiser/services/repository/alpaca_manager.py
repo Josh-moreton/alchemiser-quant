@@ -50,7 +50,11 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
     """
 
     def __init__(
-        self, api_key: str, secret_key: str, paper: bool = True, base_url: str | None = None
+        self,
+        api_key: str,
+        secret_key: str,
+        paper: bool = True,
+        base_url: str | None = None,
     ):
         """
         Initialize Alpaca clients.
@@ -201,6 +205,22 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         except Exception as e:
             logger.error(f"Failed to place order: {e}")
             return create_error_execution_result(e, "Order placement")
+
+    def get_order_execution_result(self, order_id: str) -> OrderExecutionResultDTO:
+        """Fetch latest order state and map to execution result DTO.
+
+        Args:
+            order_id: The unique Alpaca order ID
+
+        Returns:
+            OrderExecutionResultDTO reflecting the latest known state.
+        """
+        try:
+            order = self._trading_client.get_order_by_id(order_id)
+            return alpaca_order_to_execution_result(order)
+        except Exception as e:
+            logger.error(f"Failed to refresh order {order_id}: {e}")
+            return create_error_execution_result(e, context="Order refresh", order_id=order_id)
 
     def place_market_order(
         self,
