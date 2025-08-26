@@ -8,6 +8,7 @@ Handles order lifecycle, error management, and execution flow.
 
 import logging
 import time
+from decimal import Decimal
 from typing import TYPE_CHECKING, Any, Protocol
 
 from alpaca.trading.enums import OrderSide
@@ -33,7 +34,7 @@ class ExecutionContext(Protocol):
 
     def place_limit_order(
         self, symbol: str, qty: float, side: OrderSide, limit_price: float
-    ) -> str | None:
+    ) -> str | None:  # Boundary still uses float; internal strategy uses Decimal
         """Place a limit order."""
         ...
 
@@ -84,7 +85,9 @@ class AggressiveLimitStrategy:
             strategy_name: Name for logging identification
         """
         self.config = config
-        self.repeg_strategy = repeg_strategy or RepegStrategy(config, f"{strategy_name}.RepegStrategy")
+        self.repeg_strategy = repeg_strategy or RepegStrategy(
+            config, f"{strategy_name}.RepegStrategy"
+        )
         self.enable_market_order_fallback = enable_market_order_fallback
         self.lifecycle_manager = lifecycle_manager
         self.lifecycle_dispatcher = lifecycle_dispatcher
@@ -97,31 +100,15 @@ class AggressiveLimitStrategy:
         symbol: str,
         qty: float,
         side: OrderSide,
-        bid: float,
-        ask: float,
+        bid: Decimal,
+        ask: Decimal,
     ) -> str | None:
         """Execute aggressive limit strategy with repeg attempts.
 
-        Args:
-            context: Execution context with order placement capabilities
-            symbol: Trading symbol
-            qty: Quantity to trade
-            side: Order side (BUY/SELL)
-            bid: Current bid price
-            ask: Current ask price
-
-        Returns:
-            Order ID if successful, None if failed
-
-        Raises:
-            OrderPlacementError: If order placement fails
-            OrderTimeoutError: If all attempts timeout and fallback disabled
-            SpreadAnalysisError: If spread analysis fails
+        Simplified re-write to correct indentation issues.
         """
-        original_spread_cents = (ask - bid) * 100
+        original_spread_cents = (ask - bid) * Decimal("100")
         last_attempt_time = 0.0
-
-        # Log strategy start with structured data
         self.logger.info(
             "aggressive_limit_strategy_started",
             extra={
@@ -136,8 +123,6 @@ class AggressiveLimitStrategy:
                 "adaptive_pricing_enabled": self.config.enable_adaptive_pricing,
             },
         )
-
-        # Plan all attempts upfront for visibility
         attempt_plan = self.repeg_strategy.plan_attempts()
         self.logger.debug(
             "strategy_attempt_plan",
@@ -147,8 +132,7 @@ class AggressiveLimitStrategy:
                 "attempt_plan": attempt_plan,
             },
         )
-
-        # Execute attempts
+        cumulative_expected_timeout = 0.0
         for attempt_index in range(self.config.max_attempts):
             state = AttemptState(
                 bid=bid,
@@ -157,10 +141,8 @@ class AggressiveLimitStrategy:
                 last_attempt_time=last_attempt_time,
                 side=side,
             )
-
-            # Get attempt parameters from strategy
             attempt_result = self.repeg_strategy.next_attempt(state, attempt_index)
-
+            cumulative_expected_timeout += attempt_result.timeout_seconds
             self.logger.info(
                 "strategy_attempt_starting",
                 extra={
@@ -170,14 +152,12 @@ class AggressiveLimitStrategy:
                     "limit_price": attempt_result.price,
                     "timeout_seconds": attempt_result.timeout_seconds,
                     "reason": attempt_result.reason,
+                    "cumulative_expected_timeout": cumulative_expected_timeout,
                 },
             )
-
-            # Respect minimum re-peg interval
             if attempt_index > 0:
                 current_time = time.time()
                 time_since_last = current_time - last_attempt_time
-
                 if time_since_last < self.config.min_repeg_interval_seconds:
                     sleep_time = self.config.min_repeg_interval_seconds - time_since_last
                     self.logger.debug(
@@ -190,11 +170,8 @@ class AggressiveLimitStrategy:
                         },
                     )
                     time.sleep(sleep_time)
-
             last_attempt_time = time.time()
-
-            # Place limit order
-            order_id = context.place_limit_order(symbol, qty, side, attempt_result.price)
+            order_id = context.place_limit_order(symbol, qty, side, float(attempt_result.price))
             if not order_id:
                 error_msg = f"Limit order placement returned None ID: {symbol} {side.value} {qty}@{attempt_result.price}"
                 self.logger.error(
@@ -211,11 +188,9 @@ class AggressiveLimitStrategy:
                     symbol=symbol,
                     order_type="limit",
                     quantity=qty,
-                    price=attempt_result.price,
+                    price=float(attempt_result.price),
                     reason="none_order_id_returned",
                 )
-
-            # Track order submission in lifecycle
             self._track_order_lifecycle(
                 order_id,
                 "SUBMITTED",
@@ -231,8 +206,6 @@ class AggressiveLimitStrategy:
                     "reason": attempt_result.reason,
                 },
             )
-
-            # Wait for fill
             try:
                 order_result = context.wait_for_order_completion(
                     [order_id], max_wait_seconds=int(attempt_result.timeout_seconds)
@@ -248,22 +221,17 @@ class AggressiveLimitStrategy:
                         "error": str(e),
                     },
                 )
-                # Continue to next attempt rather than immediately failing
                 if attempt_index < self.config.max_attempts - 1:
                     continue
-                else:
-                    raise OrderTimeoutError(
-                        f"Failed to wait for order completion on final attempt: {str(e)}",
-                        symbol=symbol,
-                        order_id=order_id,
-                        timeout_seconds=attempt_result.timeout_seconds,
-                        attempt_number=attempt_index + 1,
-                    )
-
-            # Check if order completed successfully
+                raise OrderTimeoutError(
+                    f"Failed to wait for order completion on final attempt: {str(e)}",
+                    symbol=symbol,
+                    order_id=order_id,
+                    timeout_seconds=attempt_result.timeout_seconds,
+                    attempt_number=attempt_index + 1,
+                )
             order_completed = order_id in order_result.orders_completed
             if order_completed and order_result.status == "completed":
-                # Track successful completion
                 self._track_order_lifecycle(
                     order_id,
                     "FILLED",
@@ -276,7 +244,6 @@ class AggressiveLimitStrategy:
                         "completion_method": "aggressive_limit",
                     },
                 )
-
                 self.logger.info(
                     "strategy_order_filled",
                     extra={
@@ -289,22 +256,18 @@ class AggressiveLimitStrategy:
                     },
                 )
                 return order_id
-            else:
-                # Track timeout
-                self._track_order_lifecycle(
-                    order_id,
-                    "SUBMITTED",  # Stay in submitted state but emit timeout event
-                    {
-                        "strategy_name": self.strategy_name,
-                        "symbol": symbol,
-                        "timeout_seconds": attempt_result.timeout_seconds,
-                        "attempt_index": attempt_index,
-                        "reason": "order_completion_timeout",
-                    },
-                    event_type="TIMEOUT",
-                )
-
-            # Prepare for next attempt if available
+            self._track_order_lifecycle(
+                order_id,
+                "SUBMITTED",
+                {
+                    "strategy_name": self.strategy_name,
+                    "symbol": symbol,
+                    "timeout_seconds": attempt_result.timeout_seconds,
+                    "attempt_index": attempt_index,
+                    "reason": "order_completion_timeout",
+                },
+                event_type="TIMEOUT",
+            )
             if attempt_index < self.config.max_attempts - 1:
                 self.logger.info(
                     "strategy_preparing_next_attempt",
@@ -315,8 +278,6 @@ class AggressiveLimitStrategy:
                         "next_attempt": attempt_index + 1,
                     },
                 )
-
-                # Get fresh quote for volatility analysis
                 try:
                     fresh_quote = context.get_latest_quote(symbol)
                     if not fresh_quote or len(fresh_quote) < 2:
@@ -324,19 +285,15 @@ class AggressiveLimitStrategy:
                             f"Invalid fresh quote for re-peg: {fresh_quote}",
                             symbol=symbol,
                         )
-                    bid, ask = float(fresh_quote[0]), float(fresh_quote[1])
-
-                    # Check if fresh quote is invalid
+                    bid, ask = Decimal(str(fresh_quote[0])), Decimal(str(fresh_quote[1]))
                     if bid <= 0 or ask <= 0:
                         raise SpreadAnalysisError(
                             f"Invalid bid/ask prices for re-peg: bid={bid}, ask={ask}",
                             symbol=symbol,
-                            bid=bid,
-                            ask=ask,
+                            bid=float(bid),
+                            ask=float(ask),
                         )
-
-                    # Check for spread volatility
-                    current_spread_cents = (ask - bid) * 100
+                    current_spread_cents = (ask - bid) * Decimal("100")
                     if self.repeg_strategy.should_pause_for_volatility(
                         original_spread_cents, current_spread_cents
                     ):
@@ -349,14 +306,14 @@ class AggressiveLimitStrategy:
                                 "original_spread_cents": original_spread_cents,
                                 "current_spread_cents": current_spread_cents,
                                 "spread_change_pct": (current_spread_cents - original_spread_cents)
-                                / original_spread_cents * 100,
+                                / original_spread_cents
+                                * 100,
                             },
                         )
                         break
-
                 except SpreadAnalysisError:
-                    raise  # Re-raise the specific error
-                except Exception as e:
+                    raise
+                except Exception as e:  # noqa: BLE001
                     raise SpreadAnalysisError(
                         f"Failed to get fresh quote for re-peg: {str(e)}",
                         symbol=symbol,
@@ -371,8 +328,6 @@ class AggressiveLimitStrategy:
                         "final_order_id": order_id,
                     },
                 )
-
-        # All attempts exhausted - check fallback
         if self.enable_market_order_fallback:
             self.logger.info(
                 "strategy_market_order_fallback",
@@ -383,7 +338,6 @@ class AggressiveLimitStrategy:
                     "max_attempts": self.config.max_attempts,
                 },
             )
-
             fallback_order_id = context.place_market_order(symbol, side, qty=qty)
             if not fallback_order_id:
                 raise OrderPlacementError(
@@ -393,8 +347,6 @@ class AggressiveLimitStrategy:
                     quantity=qty,
                     reason="market_fallback_none_id",
                 )
-
-            # Track market order fallback
             self._track_order_lifecycle(
                 fallback_order_id,
                 "SUBMITTED",
@@ -408,16 +360,13 @@ class AggressiveLimitStrategy:
                     "limit_attempts_failed": self.config.max_attempts,
                 },
             )
-
             return fallback_order_id
-        else:
-            # Fallback disabled - raise timeout error
-            raise OrderTimeoutError(
-                f"All limit order attempts failed and market fallback disabled: {symbol} {side.value} {qty}",
-                symbol=symbol,
-                timeout_seconds=self.config.base_timeout_seconds * self.config.max_attempts,
-                attempt_number=self.config.max_attempts,
-            )
+        raise OrderTimeoutError(
+            f"All limit order attempts failed and market fallback disabled: {symbol} {side.value} {qty}",
+            symbol=symbol,
+            timeout_seconds=cumulative_expected_timeout,
+            attempt_number=self.config.max_attempts,
+        )
 
     def _track_order_lifecycle(
         self,

@@ -4,9 +4,13 @@ Strategy Configuration DTO
 
 Defines configuration parameters for execution strategies including
 repeg attempts, timeouts, volatility thresholds, and pricing ticks.
+
+Financial values (prices, ticks) use Decimal per project standards.
+Temporal values (timeouts, intervals) remain float.
 """
 
 from dataclasses import dataclass
+from decimal import Decimal
 from typing import Protocol
 
 
@@ -21,8 +25,8 @@ class StrategyConfig:
 
     # Basic execution parameters
     max_attempts: int = 3  # Maximum number of total attempts (initial + re-pegs)
-    base_timeout_seconds: float = 2.5  # Base timeout for first attempt
-    tick_size: float = 0.01  # Minimum price increment
+    base_timeout_seconds: float = 2.5  # Base timeout for first attempt (time, not money)
+    tick_size: Decimal = Decimal("0.01")  # Minimum price increment
 
     # Adaptive re-pegging parameters
     timeout_multiplier: float = 1.5  # Multiply timeout by this factor each re-peg
@@ -30,7 +34,7 @@ class StrategyConfig:
     min_repeg_interval_seconds: float = 0.5  # Minimum time between re-pegs
 
     # Volatility control
-    volatility_pause_threshold_bps: float = 100.0  # Pause re-pegging if volatility spikes
+    volatility_pause_threshold_bps: Decimal = Decimal("100")  # Basis points threshold
     enable_adaptive_pricing: bool = True  # Enable adaptive price improvement
     enable_volatility_pause: bool = True  # Enable volatility-based pause
 

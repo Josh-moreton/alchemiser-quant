@@ -8,9 +8,12 @@ Loads settings from the global application configuration.
 
 import logging
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING
 
 from .config import load_settings
+
+if TYPE_CHECKING:  # pragma: no cover - hint for type checkers only
+    from the_alchemiser.application.execution.strategies.config import StrategyConfig
 
 
 @dataclass
@@ -185,27 +188,21 @@ def reload_execution_config() -> None:
     _config_instance = ExecutionConfig.from_settings()
 
 
-def create_strategy_config() -> Any:
-    """Create a StrategyConfig from current ExecutionConfig.
+def create_strategy_config() -> "StrategyConfig":  # forward ref for static typing
+    """Create a StrategyConfig from current ExecutionConfig."""
+    from decimal import Decimal
 
-    This bridges the existing ExecutionConfig with the new strategy-specific
-    configuration for Phase 2 strategy extraction.
-
-    Returns:
-        StrategyConfig: Configuration for execution strategies
-    """
     from the_alchemiser.application.execution.strategies.config import StrategyConfig
 
     config = get_execution_config()
-
     return StrategyConfig(
-        max_attempts=config.max_repegs + 1,  # Include initial attempt
+        max_attempts=config.max_repegs + 1,
         base_timeout_seconds=config.aggressive_timeout_seconds,
-        tick_size=0.01,  # Standard tick size
+        tick_size=Decimal("0.01"),
         timeout_multiplier=config.repeg_timeout_multiplier,
         price_improvement_ticks=config.repeg_price_improvement_ticks,
         min_repeg_interval_seconds=config.min_repeg_interval_seconds,
-        volatility_pause_threshold_bps=config.volatility_pause_threshold_bps,
+        volatility_pause_threshold_bps=Decimal(str(config.volatility_pause_threshold_bps)),
         enable_adaptive_pricing=config.enable_adaptive_repegging,
         enable_volatility_pause=config.enable_adaptive_repegging,
     )

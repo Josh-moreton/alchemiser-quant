@@ -133,7 +133,7 @@ class SmartExecution:
         config: Any = None,
         account_info_provider: Any = None,
         enable_market_order_fallback: bool = False,  # Feature flag for market order fallback
-        execution_config: ExecutionConfig | None = None,  # Phase 2: Adaptive configuration
+        execution_config: (ExecutionConfig | None) = None,  # Phase 2: Adaptive configuration
         lifecycle_manager: "OrderLifecycleManager | None" = None,  # Phase 3: Lifecycle tracking
         lifecycle_dispatcher: "LifecycleEventDispatcher | None" = None,  # Phase 3: Event dispatch
     ) -> None:
@@ -895,16 +895,17 @@ class SmartExecution:
         - Maintains orchestration shell only
         - Preserves existing error handling and lifecycle management
         """
+        from decimal import Decimal
+
         from the_alchemiser.application.execution.strategies import (
             AggressiveLimitStrategy,
             ExecutionContextAdapter,
         )
-        from the_alchemiser.infrastructure.config.execution_config import create_strategy_config
+        from the_alchemiser.infrastructure.config.execution_config import (
+            create_strategy_config,
+        )
 
-        # Create strategy configuration from current execution config
         strategy_config = create_strategy_config()
-
-        # Create strategy with lifecycle integration
         aggressive_strategy = AggressiveLimitStrategy(
             config=strategy_config,
             enable_market_order_fallback=self.enable_market_order_fallback,
@@ -912,22 +913,19 @@ class SmartExecution:
             lifecycle_dispatcher=self.lifecycle_dispatcher,
             strategy_name="AggressiveLimitStrategy",
         )
-
-        # Create execution context adapter
         context = ExecutionContextAdapter(self._order_executor)
-
-        # Delegate to strategy for execution
+        bid_decimal = Decimal(str(bid))
+        ask_decimal = Decimal(str(ask))
         try:
             return aggressive_strategy.execute(
                 context=context,
                 symbol=symbol,
                 qty=qty,
                 side=side,
-                bid=bid,
-                ask=ask,
+                bid=bid_decimal,
+                ask=ask_decimal,
             )
         except Exception as e:
-            # Log the error with strategy context for debugging
             self.logger.error(
                 "aggressive_limit_strategy_execution_failed",
                 extra={
@@ -939,7 +937,6 @@ class SmartExecution:
                     "error_type": type(e).__name__,
                 },
             )
-            # Re-raise the exception to maintain existing error handling
             raise
 
     def get_order_by_id(self, order_id: str) -> Any:

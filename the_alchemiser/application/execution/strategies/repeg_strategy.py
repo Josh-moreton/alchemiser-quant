@@ -4,19 +4,29 @@ Repeg Strategy
 
 Stateless strategy for planning and executing re-pegging attempts with
 adaptive pricing and timeout logic.
+Uses Decimal for all monetary values per project standards.
 """
 
 from dataclasses import dataclass
-from typing import NamedTuple
+from decimal import ROUND_HALF_UP, Decimal
+from typing import NamedTuple, TypedDict
 
 from alpaca.trading.enums import OrderSide
 
 from .config import StrategyConfig
 
 
+class AttemptPlan(TypedDict):
+    attempt_index: int
+    timeout_seconds: float
+    price_improvement_ticks: int
+    reason: str
+
+
 class AttemptResult(NamedTuple):
     """Result of a single attempt calculation."""
-    price: float
+
+    price: Decimal
     timeout_seconds: float
     reason: str
     attempt_index: int
@@ -25,9 +35,10 @@ class AttemptResult(NamedTuple):
 @dataclass(frozen=True)
 class AttemptState:
     """Current state for an attempt sequence."""
-    bid: float
-    ask: float
-    original_spread_cents: float
+
+    bid: Decimal
+    ask: Decimal
+    original_spread_cents: Decimal
     last_attempt_time: float
     side: OrderSide
 
@@ -41,57 +52,31 @@ class RepegStrategy:
     """
 
     def __init__(self, config: StrategyConfig, strategy_name: str = "RepegStrategy") -> None:
-        """Initialize repeg strategy with configuration.
-
-        Args:
-            config: Strategy configuration parameters
-            strategy_name: Name for logging identification
-        """
         self.config = config
         self.strategy_name = strategy_name
 
-    def plan_attempts(self) -> list[dict[str, int | float | str]]:
-        """Plan all attempts for a repeg sequence.
-
-        Returns:
-            List of attempt plans with timeout and pricing parameters
-        """
-        attempts: list[dict[str, int | float | str]] = []
-
+    def plan_attempts(self) -> list[AttemptPlan]:
+        """Plan all attempts for a repeg sequence."""
+        attempts: list[AttemptPlan] = []
         for attempt_index in range(self.config.max_attempts):
             timeout = self._calculate_timeout(attempt_index)
-
-            attempts.append({
-                "attempt_index": attempt_index,
-                "timeout_seconds": timeout,
-                "price_improvement_ticks": attempt_index * self.config.price_improvement_ticks,
-                "reason": "initial" if attempt_index == 0 else f"repeg_{attempt_index}",
-            })
-
+            attempts.append(
+                AttemptPlan(
+                    attempt_index=attempt_index,
+                    timeout_seconds=timeout,
+                    price_improvement_ticks=attempt_index * self.config.price_improvement_ticks,
+                    reason=("initial" if attempt_index == 0 else f"repeg_{attempt_index}"),
+                )
+            )
         return attempts
 
     def next_attempt(self, previous_state: AttemptState, attempt_index: int) -> AttemptResult:
-        """Calculate next attempt parameters.
-
-        Args:
-            previous_state: Current market and attempt state
-            attempt_index: Zero-based attempt index
-
-        Returns:
-            AttemptResult with price, timeout, reason, and attempt_index
-        """
-        # Calculate adaptive timeout
+        """Calculate next attempt parameters."""
         timeout = self._calculate_timeout(attempt_index)
-
-        # Calculate adaptive pricing
         price = self._calculate_price(previous_state, attempt_index)
-
-        # Generate reason
-        if attempt_index == 0:
-            reason = "initial_aggressive_limit"
-        else:
-            reason = f"repeg_attempt_{attempt_index}"
-
+        reason = (
+            "initial_aggressive_limit" if attempt_index == 0 else f"repeg_attempt_{attempt_index}"
+        )
         return AttemptResult(
             price=price,
             timeout_seconds=timeout,
@@ -100,62 +85,43 @@ class RepegStrategy:
         )
 
     def should_pause_for_volatility(
-        self, original_spread_cents: float, current_spread_cents: float
+        self, original_spread_cents: Decimal, current_spread_cents: Decimal
     ) -> bool:
-        """Check if re-pegging should be paused due to spread volatility.
-
-        Args:
-            original_spread_cents: Original spread in cents
-            current_spread_cents: Current spread in cents
-
-        Returns:
-            True if volatility is too high to continue re-pegging
-        """
-        if not self.config.enable_volatility_pause or original_spread_cents <= 0:
+        if not self.config.enable_volatility_pause or original_spread_cents <= Decimal("0"):
             return False
-
-        # Calculate spread degradation in basis points
         spread_degradation_pct = (
             current_spread_cents - original_spread_cents
         ) / original_spread_cents
-        spread_degradation_bps = spread_degradation_pct * 10000  # Convert to basis points
-
+        spread_degradation_bps = spread_degradation_pct * Decimal("10000")
         return spread_degradation_bps > self.config.volatility_pause_threshold_bps
 
     def _calculate_timeout(self, attempt_index: int) -> float:
-        """Calculate adaptive timeout for attempt.
+        return self.config.base_timeout_seconds * (self.config.timeout_multiplier**attempt_index)
 
-        Args:
-            attempt_index: Zero-based attempt index
+    def _quantize(self, price: Decimal) -> Decimal:
+        # Quantize to tick size using ROUND_HALF_UP for symmetry
+        tick = self.config.tick_size
+        if tick <= Decimal("0"):
+            return price
+        # (price / tick) rounded then multiplied back
+        steps = (price / tick).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+        return steps * tick
 
-        Returns:
-            Timeout in seconds with exponential backoff
-        """
-        return self.config.base_timeout_seconds * (self.config.timeout_multiplier ** attempt_index)
-
-    def _calculate_price(self, state: AttemptState, attempt_index: int) -> float:
-        """Calculate adaptive limit price for attempt.
-
-        Args:
-            state: Current market state
-            attempt_index: Zero-based attempt index
-
-        Returns:
-            Calculated limit price
-        """
+    def _calculate_price(self, state: AttemptState, attempt_index: int) -> Decimal:
         if not self.config.enable_adaptive_pricing:
-            # Use original aggressive pricing
-            if state.side == OrderSide.BUY:
-                return state.ask + self.config.tick_size
-            else:
-                return state.bid - self.config.tick_size
-
-        # Calculate price improvement based on attempt number
-        price_improvement = self.config.price_improvement_ticks * self.config.tick_size * attempt_index
-
+            base_price = (
+                state.ask + self.config.tick_size
+                if state.side == OrderSide.BUY
+                else state.bid - self.config.tick_size
+            )
+            return self._quantize(base_price)
+        price_improvement = (
+            Decimal(self.config.price_improvement_ticks)
+            * self.config.tick_size
+            * Decimal(attempt_index)
+        )
         if state.side == OrderSide.BUY:
-            # Buy orders: start at ask + 1 tick, improve (increase) each attempt
-            return state.ask + self.config.tick_size + price_improvement
+            base_price = state.ask + self.config.tick_size + price_improvement
         else:
-            # Sell orders: start at bid - 1 tick, improve (decrease) each attempt
-            return state.bid - self.config.tick_size - price_improvement
+            base_price = state.bid - self.config.tick_size - price_improvement
+        return self._quantize(base_price)
