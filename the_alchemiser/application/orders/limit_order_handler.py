@@ -22,10 +22,26 @@ from the_alchemiser.services.errors.exceptions import DataProviderError, Trading
 
 
 class LimitOrderHandler:
-    """Handles limit order placement with smart asset-specific logic."""
+    """Handles limit order placement with smart asset-specific logic.
+    
+    DEPRECATED: This entire class is deprecated in favor of CanonicalOrderExecutor.
+    Will be removed in v3.0.0. Use CanonicalOrderExecutor with domain value objects instead.
+    """
 
     def __init__(self, trading_client: Any, position_manager: Any, asset_handler: Any) -> None:
-        """Initialize with required dependencies."""
+        """Initialize with required dependencies.
+        
+        DEPRECATED: This class is deprecated. Use CanonicalOrderExecutor instead.
+        """
+        import warnings
+        warnings.warn(
+            "LimitOrderHandler is deprecated. "
+            "Use CanonicalOrderExecutor with domain value objects instead. "
+            "This class will be removed in v3.0.0.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+        
         self.trading_client = trading_client
         self.position_manager = position_manager
         self.asset_handler = asset_handler
@@ -41,6 +57,9 @@ class LimitOrderHandler:
     ) -> str | None:
         """Place a limit order with smart fractionability handling.
 
+        DEPRECATED: This method is deprecated in favor of CanonicalOrderExecutor.
+        Will be removed in v3.0.0. Use CanonicalOrderExecutor with domain value objects instead.
+
         Args:
             symbol: Stock symbol
             qty: Quantity to trade
@@ -52,6 +71,71 @@ class LimitOrderHandler:
             Order ID if successful, None if failed
 
         """
+        import warnings
+        warnings.warn(
+            "LimitOrderHandler.place_limit_order is deprecated. "
+            "Use CanonicalOrderExecutor with domain value objects instead. "
+            "This method will be removed in v3.0.0.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+        
+        # Delegate to canonical executor if feature flag is enabled
+        from the_alchemiser.infrastructure.config import load_settings
+        settings = load_settings()
+        
+        if settings.execution.use_canonical_executor:
+            try:
+                from decimal import Decimal
+                from the_alchemiser.application.execution.canonical_executor import CanonicalOrderExecutor
+                from the_alchemiser.domain.shared_kernel.value_objects.money import Money
+                from the_alchemiser.domain.trading.value_objects.order_request import OrderRequest
+                from the_alchemiser.domain.trading.value_objects.order_type import OrderType
+                from the_alchemiser.domain.trading.value_objects.quantity import Quantity
+                from the_alchemiser.domain.trading.value_objects.side import Side
+                from the_alchemiser.domain.trading.value_objects.symbol import Symbol
+                from the_alchemiser.domain.trading.value_objects.time_in_force import TimeInForce
+                
+                # Convert to domain objects
+                domain_side = Side("buy" if side == OrderSide.BUY else "sell")
+                domain_symbol = Symbol(symbol)
+                domain_order_type = OrderType("limit")
+                domain_tif = TimeInForce("day")
+                domain_qty = Quantity(Decimal(str(qty)))
+                domain_limit_price = Money(Decimal(str(limit_price)))
+                
+                # Create order request
+                order_request = OrderRequest(
+                    symbol=domain_symbol,
+                    side=domain_side,
+                    quantity=domain_qty,
+                    order_type=domain_order_type,
+                    time_in_force=domain_tif,
+                    limit_price=domain_limit_price
+                )
+                
+                # Get repository from trading client (assume it's an AlpacaManager)
+                if hasattr(self.trading_client, '_repo') or hasattr(self.trading_client, 'repository'):
+                    repo = getattr(self.trading_client, '_repo', None) or getattr(self.trading_client, 'repository', None)
+                else:
+                    # Fallback: assume trading_client is the repository
+                    repo = self.trading_client
+                
+                # Execute via canonical executor
+                executor = CanonicalOrderExecutor(repo)
+                result = executor.execute(order_request)
+                
+                if result.success:
+                    return result.order_id
+                else:
+                    logging.error(f"Canonical execution failed: {result.error}")
+                    return None
+                    
+            except Exception as e:
+                logging.error(f"Failed to delegate to canonical executor: {e}")
+                # Fall through to legacy implementation
+        
+        # Legacy fallback implementation
         # Basic validation
         if qty <= 0:
             logging.warning(f"Invalid quantity for {symbol}: {qty}")
@@ -272,6 +356,9 @@ class LimitOrderHandler:
     ) -> str | None:
         """Place a limit order using ValidatedOrderDTO.
 
+        DEPRECATED: This method is deprecated in favor of CanonicalOrderExecutor.
+        Will be removed in v3.0.0. Use CanonicalOrderExecutor with domain value objects instead.
+
         Args:
             validated_order: ValidatedOrderDTO instance with validation metadata
             cancel_existing: Whether to cancel existing orders for this symbol first
@@ -280,6 +367,15 @@ class LimitOrderHandler:
             Order ID if successful, None otherwise
 
         """
+        import warnings
+        warnings.warn(
+            "LimitOrderHandler.place_limit_order_from_dto is deprecated. "
+            "Use CanonicalOrderExecutor with domain value objects instead. "
+            "This method will be removed in v3.0.0.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+        
         # Convert DTO side to OrderSide enum
         order_side = OrderSide.BUY if validated_order.side.lower() == "buy" else OrderSide.SELL
 

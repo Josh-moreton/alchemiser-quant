@@ -76,6 +76,9 @@ class OrderService:
     ) -> str:
         """Place a validated market order.
 
+        DEPRECATED: This method is deprecated in favor of CanonicalOrderExecutor.
+        Will be removed in v3.0.0. Use CanonicalOrderExecutor with domain value objects instead.
+
         Args:
             symbol: Stock symbol (will be normalized)
             side: "buy" or "sell" (case insensitive)
@@ -91,6 +94,27 @@ class OrderService:
             Exception: If order placement fails
 
         """
+        import warnings
+        warnings.warn(
+            "OrderService.place_market_order is deprecated. "
+            "Use CanonicalOrderExecutor with domain value objects instead. "
+            "This method will be removed in v3.0.0.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+        
+        # Delegate to canonical executor if feature flag is enabled
+        from the_alchemiser.infrastructure.config import load_settings
+        settings = load_settings()
+        
+        if settings.execution.use_canonical_executor:
+            result = self._delegate_to_canonical_executor(symbol, side, quantity, "market", "day", None, notional)
+            if result.success:
+                return result.order_id
+            else:
+                raise Exception(f"Canonical order execution failed: {result.error}")
+        
+        # Legacy fallback implementation
         # Input validation and normalization
         symbol = self._validate_and_normalize_symbol(symbol)
         side = self._validate_and_normalize_side(side)
@@ -153,8 +177,8 @@ class OrderService:
     ) -> str:
         """Place a validated limit order.
 
-        DEPRECATED: This method uses legacy service patterns. Consider using
-        CanonicalOrderExecutor for new code to leverage centralized order building.
+        DEPRECATED: This method is deprecated in favor of CanonicalOrderExecutor.
+        Will be removed in v3.0.0. Use CanonicalOrderExecutor with domain value objects instead.
 
         Args:
             symbol: Stock symbol (will be normalized)
@@ -172,6 +196,27 @@ class OrderService:
             Exception: If order placement fails
 
         """
+        import warnings
+        warnings.warn(
+            "OrderService.place_limit_order is deprecated. "
+            "Use CanonicalOrderExecutor with domain value objects instead. "
+            "This method will be removed in v3.0.0.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+        
+        # Delegate to canonical executor if feature flag is enabled
+        from the_alchemiser.infrastructure.config import load_settings
+        settings = load_settings()
+        
+        if settings.execution.use_canonical_executor:
+            result = self._delegate_to_canonical_executor(symbol, side, quantity, "limit", time_in_force, limit_price)
+            if result.success:
+                return result.order_id
+            else:
+                raise Exception(f"Canonical order execution failed: {result.error}")
+        
+        # Legacy fallback implementation
         # Input validation and normalization
         symbol = self._validate_and_normalize_symbol(symbol)
         side = self._validate_and_normalize_side(side)
@@ -433,3 +478,95 @@ class OrderService:
                 raise
             logger.warning(f"Could not validate sell position for {symbol}: {e}")
             # Don't fail the order if we can't validate position
+
+    def _delegate_to_canonical_executor(
+        self, 
+        symbol: str, 
+        side: str, 
+        quantity: float | None, 
+        order_type: str, 
+        time_in_force: str = "day",
+        limit_price: float | None = None,
+        notional: float | None = None
+    ) -> "OrderExecutionResultDTO":
+        """Delegate order execution to CanonicalOrderExecutor.
+        
+        Args:
+            symbol: Stock symbol
+            side: Order side ("buy" or "sell")
+            quantity: Quantity to trade
+            order_type: "market" or "limit"
+            time_in_force: Time in force
+            limit_price: Limit price for limit orders
+            notional: Notional amount for market orders
+            
+        Returns:
+            OrderExecutionResultDTO with execution result
+        """
+        try:
+            from decimal import Decimal
+            from the_alchemiser.application.execution.canonical_executor import CanonicalOrderExecutor
+            from the_alchemiser.domain.shared_kernel.value_objects.money import Money
+            from the_alchemiser.domain.trading.value_objects.order_request import OrderRequest
+            from the_alchemiser.domain.trading.value_objects.order_type import OrderType
+            from the_alchemiser.domain.trading.value_objects.quantity import Quantity
+            from the_alchemiser.domain.trading.value_objects.side import Side
+            from the_alchemiser.domain.trading.value_objects.symbol import Symbol
+            from the_alchemiser.domain.trading.value_objects.time_in_force import TimeInForce
+            from the_alchemiser.interfaces.schemas.orders import OrderExecutionResultDTO
+            
+            # Convert to domain objects
+            domain_side = Side(side.lower())
+            domain_symbol = Symbol(symbol)
+            domain_order_type = OrderType(order_type)
+            domain_tif = TimeInForce(time_in_force)
+            
+            # Handle quantity/notional logic
+            if quantity is not None:
+                domain_qty = Quantity(Decimal(str(quantity)))
+            elif notional is not None:
+                # For notional orders, we need to convert to quantity
+                # This is a simplification - real implementation should get current price
+                logger.warning("Notional orders via canonical executor not fully implemented")
+                return OrderExecutionResultDTO(
+                    success=False,
+                    error="Notional orders not supported in canonical executor delegation",
+                    order_id="",
+                    status="rejected"
+                )
+            else:
+                return OrderExecutionResultDTO(
+                    success=False,
+                    error="Either quantity or notional must be provided",
+                    order_id="",
+                    status="rejected"
+                )
+            
+            # Handle limit price
+            domain_limit_price = None
+            if limit_price is not None:
+                domain_limit_price = Money(Decimal(str(limit_price)))
+            
+            # Create order request
+            order_request = OrderRequest(
+                symbol=domain_symbol,
+                side=domain_side,
+                quantity=domain_qty,
+                order_type=domain_order_type,
+                time_in_force=domain_tif,
+                limit_price=domain_limit_price
+            )
+            
+            # Execute via canonical executor
+            executor = CanonicalOrderExecutor(self._trading)
+            return executor.execute(order_request)
+                
+        except Exception as e:
+            logger.error(f"Failed to delegate to canonical executor: {e}")
+            from the_alchemiser.interfaces.schemas.orders import OrderExecutionResultDTO
+            return OrderExecutionResultDTO(
+                success=False,
+                error=f"Canonical executor delegation failed: {e}",
+                order_id="",
+                status="rejected"
+            )

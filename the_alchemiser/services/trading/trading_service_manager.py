@@ -193,7 +193,28 @@ class TradingServiceManager:
     def place_market_order(
         self, symbol: str, quantity: float, side: str, validate: bool = True
     ) -> OrderExecutionResultDTO:
-        """Place a market order with DTO validation."""
+        """Place a market order with DTO validation.
+
+        DEPRECATED: This method is deprecated in favor of CanonicalOrderExecutor.
+        Will be removed in v3.0.0. Use CanonicalOrderExecutor with domain value objects instead.
+        """
+        import warnings
+        warnings.warn(
+            "TradingServiceManager.place_market_order is deprecated. "
+            "Use CanonicalOrderExecutor with domain value objects instead. "
+            "This method will be removed in v3.0.0.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+        
+        # Delegate to canonical executor if feature flag is enabled
+        from the_alchemiser.infrastructure.config import load_settings
+        settings = load_settings()
+        
+        if settings.execution.use_canonical_executor:
+            return self._delegate_to_canonical_executor(symbol, side, quantity, "market", "day")
+        
+        # Legacy fallback implementation
         if validate:
             # Create OrderRequestDTO and validate through DTO pipeline
             order_data = {
@@ -264,7 +285,28 @@ class TradingServiceManager:
         limit_price: float,
         validate: bool = True,
     ) -> OrderExecutionResultDTO:
-        """Place a limit order with DTO validation."""
+        """Place a limit order with DTO validation.
+
+        DEPRECATED: This method is deprecated in favor of CanonicalOrderExecutor.
+        Will be removed in v3.0.0. Use CanonicalOrderExecutor with domain value objects instead.
+        """
+        import warnings
+        warnings.warn(
+            "TradingServiceManager.place_limit_order is deprecated. "
+            "Use CanonicalOrderExecutor with domain value objects instead. "
+            "This method will be removed in v3.0.0.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+        
+        # Delegate to canonical executor if feature flag is enabled
+        from the_alchemiser.infrastructure.config import load_settings
+        settings = load_settings()
+        
+        if settings.execution.use_canonical_executor:
+            return self._delegate_to_canonical_executor(symbol, side, quantity, "limit", "day", limit_price)
+        
+        # Legacy fallback implementation
         if validate:
             # Create OrderRequestDTO and validate through DTO pipeline
             order_data = {
@@ -1223,3 +1265,77 @@ class TradingServiceManager:
             self.logger.info("TradingServiceManager closed successfully")
         except Exception as e:
             self.logger.error(f"Error closing TradingServiceManager: {e}")
+
+    def _delegate_to_canonical_executor(
+        self, 
+        symbol: str, 
+        side: str, 
+        quantity: float, 
+        order_type: str, 
+        time_in_force: str = "day",
+        limit_price: float | None = None
+    ) -> OrderExecutionResultDTO:
+        """Delegate order execution to CanonicalOrderExecutor.
+        
+        Args:
+            symbol: Stock symbol
+            side: Order side ("buy" or "sell")
+            quantity: Quantity to trade
+            order_type: "market" or "limit"
+            time_in_force: Time in force
+            limit_price: Limit price for limit orders
+            
+        Returns:
+            OrderExecutionResultDTO with execution result
+        """
+        try:
+            from decimal import Decimal
+            from the_alchemiser.application.execution.canonical_executor import CanonicalOrderExecutor
+            from the_alchemiser.domain.shared_kernel.value_objects.money import Money
+            from the_alchemiser.domain.trading.value_objects.order_request import OrderRequest
+            from the_alchemiser.domain.trading.value_objects.order_type import OrderType
+            from the_alchemiser.domain.trading.value_objects.quantity import Quantity
+            from the_alchemiser.domain.trading.value_objects.side import Side
+            from the_alchemiser.domain.trading.value_objects.symbol import Symbol
+            from the_alchemiser.domain.trading.value_objects.time_in_force import TimeInForce
+            
+            # Convert to domain objects
+            domain_side = Side(side.lower())
+            domain_symbol = Symbol(symbol)
+            domain_order_type = OrderType(order_type)
+            domain_tif = TimeInForce(time_in_force)
+            domain_qty = Quantity(Decimal(str(quantity)))
+            
+            # Handle limit price
+            domain_limit_price = None
+            if limit_price is not None:
+                domain_limit_price = Money(Decimal(str(limit_price)))
+            
+            # Create order request
+            order_request = OrderRequest(
+                symbol=domain_symbol,
+                side=domain_side,
+                quantity=domain_qty,
+                order_type=domain_order_type,
+                time_in_force=domain_tif,
+                limit_price=domain_limit_price
+            )
+            
+            # Execute via canonical executor
+            executor = CanonicalOrderExecutor(self.alpaca_manager)
+            return executor.execute(order_request)
+                
+        except Exception as e:
+            self.logger.error(f"Failed to delegate to canonical executor: {e}")
+            from the_alchemiser.interfaces.schemas.orders import OrderExecutionResultDTO
+            from datetime import UTC, datetime
+            return OrderExecutionResultDTO(
+                success=False,
+                error=f"Canonical executor delegation failed: {e}",
+                order_id="",
+                status="rejected",
+                filled_qty=Decimal("0"),
+                avg_fill_price=None,
+                submitted_at=datetime.now(UTC),
+                completed_at=None,
+            )

@@ -199,7 +199,7 @@ def validated_dto_to_order_handler_params(validated_order: ValidatedOrderDTO) ->
         validated_order: ValidatedOrderDTO instance
 
     Returns:
-        Dictionary with parameters for AssetOrderHandler and LimitOrderHandler
+        Dictionary with parameters for AssetOrderHandler (LimitOrderHandler deprecated)
 
     """
     # Convert side to Alpaca OrderSide enum value for handler compatibility

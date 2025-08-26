@@ -57,7 +57,7 @@ from alpaca.trading.enums import OrderSide
 
 from the_alchemiser.application.execution.smart_pricing_handler import SmartPricingHandler
 from the_alchemiser.application.orders.asset_order_handler import AssetOrderHandler
-from the_alchemiser.application.orders.limit_order_handler import LimitOrderHandler
+# DEPRECATED: LimitOrderHandler import removed - use CanonicalOrderExecutor instead
 from the_alchemiser.application.orders.order_validation_utils import (
     validate_notional,
     validate_order_parameters,
@@ -127,9 +127,7 @@ class AlpacaClient:
         )
         self.asset_handler = AssetOrderHandler(data_provider)
         self.position_manager = PositionManager(self.trading_client, data_provider)
-        self.limit_order_handler = LimitOrderHandler(
-            self.trading_client, self.position_manager, self.asset_handler
-        )
+        # DEPRECATED: LimitOrderHandler removed - use CanonicalOrderExecutor instead
         self.pricing_handler = SmartPricingHandler(data_provider)
         self.websocket_manager = WebSocketConnectionManager(self.trading_client)
 
@@ -221,8 +219,8 @@ class AlpacaClient:
     ) -> str | None:
         """Place a simple market order using helper modules for validation and asset handling.
 
-        TODO: Phase 1 consolidation - merge duplicated order placement logic
-        across SmartExecution, AlpacaClient, and EngineService into unified interface
+        DEPRECATED: This method is deprecated in favor of CanonicalOrderExecutor.
+        Will be removed in v3.0.0. Use CanonicalOrderExecutor with domain value objects instead.
 
         Args:
             symbol: Stock symbol
@@ -235,6 +233,23 @@ class AlpacaClient:
             Order ID if successful, None if failed
 
         """
+        import warnings
+        warnings.warn(
+            "AlpacaClient.place_market_order is deprecated. "
+            "Use CanonicalOrderExecutor with domain value objects instead. "
+            "This method will be removed in v3.0.0.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+        
+        # Delegate to canonical executor if feature flag is enabled
+        from the_alchemiser.infrastructure.config import load_settings
+        settings = load_settings()
+        
+        if settings.execution.use_canonical_executor:
+            return self._delegate_to_canonical_executor(symbol, qty, side, "market", None, notional)
+        
+        # Legacy fallback - keep original implementation
         # Validate parameters
         is_valid, error_msg = validate_order_parameters(symbol, qty, notional)
         if not is_valid:
@@ -375,6 +390,9 @@ class AlpacaClient:
     ) -> str | None:
         """Place a limit order using the specialized limit order handler.
 
+        DEPRECATED: This method is deprecated in favor of CanonicalOrderExecutor.
+        Will be removed in v3.0.0. Use CanonicalOrderExecutor with domain value objects instead.
+
         Args:
             symbol: Stock symbol
             qty: Quantity to trade
@@ -386,12 +404,34 @@ class AlpacaClient:
             Order ID if successful, None if failed
 
         """
-        return self.limit_order_handler.place_limit_order(
-            symbol, qty, side, limit_price, cancel_existing
+        import warnings
+        warnings.warn(
+            "AlpacaClient.place_limit_order is deprecated. "
+            "Use CanonicalOrderExecutor with domain value objects instead. "
+            "This method will be removed in v3.0.0.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+        
+        # Delegate to canonical executor if feature flag is enabled
+        from the_alchemiser.infrastructure.config import load_settings
+        settings = load_settings()
+        
+        if settings.execution.use_canonical_executor:
+            return self._delegate_to_canonical_executor(symbol, qty, side, "limit", limit_price)
+        
+        # Legacy fallback - raise deprecation error since LimitOrderHandler is deprecated
+        raise DeprecationWarning(
+            "Legacy limit order path is no longer available. "
+            "Enable settings.execution.use_canonical_executor=True to use the canonical executor path. "
+            "LimitOrderHandler has been deprecated and will be removed in v3.0.0."
         )
 
     def place_smart_sell_order(self, symbol: str, qty: float) -> str | None:
         """Smart sell order that uses liquidation API for full position sells.
+
+        DEPRECATED: This method is deprecated in favor of CanonicalOrderExecutor.
+        Will be removed in v3.0.0. Use CanonicalOrderExecutor with domain value objects instead.
 
         Args:
             symbol: Symbol to sell
@@ -401,6 +441,24 @@ class AlpacaClient:
             Order ID if successful, None if failed
 
         """
+        import warnings
+        warnings.warn(
+            "AlpacaClient.place_smart_sell_order is deprecated. "
+            "Use CanonicalOrderExecutor with domain value objects instead. "
+            "This method will be removed in v3.0.0.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+        
+        # Delegate to canonical executor if feature flag is enabled
+        from the_alchemiser.infrastructure.config import load_settings
+        settings = load_settings()
+        
+        if settings.execution.use_canonical_executor:
+            from alpaca.trading.enums import OrderSide
+            return self._delegate_to_canonical_executor(symbol, qty, OrderSide.SELL, "market", None)
+        
+        # Legacy fallback implementation
         positions = self.get_current_positions()
         available = positions.get(symbol, 0)
 
@@ -478,4 +536,84 @@ class AlpacaClient:
             return self.trading_client.get_order_by_id(order_id)
         except Exception as e:
             logging.warning(f"Could not retrieve order {order_id}: {e}")
+            return None
+
+    def _delegate_to_canonical_executor(
+        self, 
+        symbol: str, 
+        qty: float | None, 
+        side: OrderSide, 
+        order_type: str, 
+        limit_price: float | None = None,
+        notional: float | None = None
+    ) -> str | None:
+        """Delegate order execution to CanonicalOrderExecutor.
+        
+        Args:
+            symbol: Stock symbol
+            qty: Quantity to trade
+            side: Order side
+            order_type: "market" or "limit"
+            limit_price: Limit price for limit orders
+            notional: Notional amount for market orders
+            
+        Returns:
+            Order ID if successful, None if failed
+        """
+        try:
+            from decimal import Decimal
+            from the_alchemiser.application.execution.canonical_executor import CanonicalOrderExecutor
+            from the_alchemiser.domain.shared_kernel.value_objects.money import Money
+            from the_alchemiser.domain.trading.value_objects.order_request import OrderRequest
+            from the_alchemiser.domain.trading.value_objects.order_type import OrderType
+            from the_alchemiser.domain.trading.value_objects.quantity import Quantity
+            from the_alchemiser.domain.trading.value_objects.side import Side
+            from the_alchemiser.domain.trading.value_objects.symbol import Symbol
+            from the_alchemiser.domain.trading.value_objects.time_in_force import TimeInForce
+            
+            # Convert to domain objects
+            domain_side = Side("buy" if side == OrderSide.BUY else "sell")
+            domain_symbol = Symbol(symbol)
+            domain_order_type = OrderType(order_type)
+            domain_tif = TimeInForce("day")
+            
+            # Handle quantity/notional logic
+            if qty is not None:
+                domain_qty = Quantity(Decimal(str(qty)))
+            elif notional is not None:
+                # For notional orders, we need to convert to quantity
+                # This is a simplification - real implementation should get current price
+                logging.warning("Notional orders via canonical executor not fully implemented")
+                return None
+            else:
+                logging.error("Either qty or notional must be provided")
+                return None
+            
+            # Handle limit price
+            domain_limit_price = None
+            if limit_price is not None:
+                domain_limit_price = Money(Decimal(str(limit_price)))
+            
+            # Create order request
+            order_request = OrderRequest(
+                symbol=domain_symbol,
+                side=domain_side,
+                quantity=domain_qty,
+                order_type=domain_order_type,
+                time_in_force=domain_tif,
+                limit_price=domain_limit_price
+            )
+            
+            # Execute via canonical executor
+            executor = CanonicalOrderExecutor(self.alpaca_manager)
+            result = executor.execute(order_request)
+            
+            if result.success:
+                return result.order_id
+            else:
+                logging.error(f"Canonical execution failed: {result.error}")
+                return None
+                
+        except Exception as e:
+            logging.error(f"Failed to delegate to canonical executor: {e}")
             return None
