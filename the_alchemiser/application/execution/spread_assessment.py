@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Spread Assessment for Better Order Execution
+"""Spread Assessment for Better Order Execution.
 
 Implements pre-market and real-time spread analysis to optimize
 order timing and pricing decisions.
@@ -45,12 +44,10 @@ class SpreadAssessment:
 
     def __init__(self, data_provider: Any) -> None:
         """Store the data provider used to fetch quotes."""
-
         self.data_provider = data_provider
 
     def assess_premarket_conditions(self, symbol: str) -> PreMarketConditions | None:
-        """
-        Step 0: Pre-market spread assessment
+        """Step 0: Pre-market spread assessment.
 
         Returns recommendations for:
         - Whether to wait for market open
@@ -106,7 +103,6 @@ class SpreadAssessment:
         """Classify spread quality based on cents."""
         if spread_cents <= 3.0:
             return SpreadQuality.TIGHT
-        elif spread_cents <= 5.0:
+        if spread_cents <= 5.0:
             return SpreadQuality.NORMAL
-        else:
-            return SpreadQuality.WIDE
+        return SpreadQuality.WIDE

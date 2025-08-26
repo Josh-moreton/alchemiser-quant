@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Exception translation decorators for The Alchemiser Trading System.
+"""Exception translation decorators for The Alchemiser Trading System.
 
 This module provides decorators that only translate exceptions without logging.
 The logging is handled explicitly by orchestrators/services using the handler.
@@ -25,8 +24,7 @@ def translate_service_errors(
     error_types: dict[type[Exception], type[Exception]] | None = None,
     default_return: Any = None,
 ) -> Callable[[F], F]:
-    """
-    Decorator to translate service errors without logging.
+    """Decorator to translate service errors without logging.
 
     This decorator only translates exceptions - no logging is performed.
     Orchestrators/services should use the handler explicitly for logging.
@@ -37,6 +35,7 @@ def translate_service_errors(
 
     Returns:
         Decorated function
+
     """
     if error_types is None:
         error_types = {
@@ -59,8 +58,7 @@ def translate_service_errors(
 
                 if default_return is not None:
                     return default_return
-                else:
-                    raise translated_error
+                raise translated_error
             except Exception as e:
                 # Handle unexpected errors
                 translated_error = DataProviderError(f"Unexpected error in {func.__name__}: {e}")
@@ -68,8 +66,7 @@ def translate_service_errors(
 
                 if default_return is not None:
                     return default_return
-                else:
-                    raise translated_error
+                raise translated_error
 
         return wrapper  # type: ignore[return-value]
 

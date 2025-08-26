@@ -49,6 +49,7 @@ class EmailClient:
 
         Returns:
             True if sent successfully, False otherwise
+
         """
         email_config = self._get_config()
         if not email_config:
@@ -116,6 +117,7 @@ class EmailClient:
 
         Returns:
             True if sent successfully, False otherwise
+
         """
         return self.send_notification(
             subject=subject,

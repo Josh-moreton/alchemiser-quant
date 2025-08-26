@@ -6,7 +6,7 @@ This package must remain framework-agnostic and side-effect free.
 from .types import Identifier, Money, Percentage
 
 __all__ = [
+    "Identifier",
     "Money",
     "Percentage",
-    "Identifier",
 ]

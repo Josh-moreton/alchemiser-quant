@@ -1,5 +1,4 @@
-"""
-Configuration Utilities
+"""Configuration Utilities.
 
 This module provides helper functions for configuration loading operations.
 """
@@ -11,8 +10,7 @@ from typing import Any
 
 
 def load_alert_config() -> dict[str, Any]:
-    """
-    Load alert configuration from S3 or local file with fallback to default values.
+    """Load alert configuration from S3 or local file with fallback to default values.
 
     This function attempts to load alert configuration in the following order:
     1. From S3 bucket (if configured and available)
@@ -21,6 +19,7 @@ def load_alert_config() -> dict[str, Any]:
 
     Returns:
         dict: The loaded configuration dictionary with alert settings.
+
     """
     try:
         # Try to load from S3 first, then local

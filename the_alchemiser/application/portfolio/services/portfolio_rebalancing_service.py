@@ -22,8 +22,7 @@ from the_alchemiser.services.trading.trading_service_manager import TradingServi
 
 
 class PortfolioRebalancingService:
-    """
-    Main application service for portfolio rebalancing operations.
+    """Main application service for portfolio rebalancing operations.
 
     Orchestrates domain objects to provide high-level rebalancing functionality
     while maintaining clean separation from infrastructure concerns.
@@ -36,9 +35,8 @@ class PortfolioRebalancingService:
         position_analyzer: PositionAnalyzer | None = None,
         attribution_engine: StrategyAttributionEngine | None = None,
         min_trade_threshold: Decimal = Decimal("0.01"),
-    ):
-        """
-        Initialize the portfolio rebalancing service.
+    ) -> None:
+        """Initialize the portfolio rebalancing service.
 
         Args:
             trading_manager: Service for trading operations and market data
@@ -46,6 +44,7 @@ class PortfolioRebalancingService:
             position_analyzer: Analyzer for position deltas (optional)
             attribution_engine: Engine for strategy attribution (optional)
             min_trade_threshold: Minimum threshold for trade execution
+
         """
         self.trading_manager = trading_manager
         self.rebalance_calculator = rebalance_calculator or RebalanceCalculator(min_trade_threshold)
@@ -58,8 +57,7 @@ class PortfolioRebalancingService:
         current_positions: dict[str, Decimal] | None = None,
         portfolio_value: Decimal | None = None,
     ) -> dict[str, RebalancePlan]:
-        """
-        Internal method to calculate rebalancing plan as domain objects.
+        """Internal method to calculate rebalancing plan as domain objects.
 
         Used by methods that need to work with domain objects internally.
         """
@@ -81,8 +79,7 @@ class PortfolioRebalancingService:
         current_positions: dict[str, Decimal] | None = None,
         portfolio_value: Decimal | None = None,
     ) -> RebalancePlanCollectionDTO:
-        """
-        Calculate a complete rebalancing plan for the portfolio.
+        """Calculate a complete rebalancing plan for the portfolio.
 
         Args:
             target_weights: Target allocation weights by symbol
@@ -91,6 +88,7 @@ class PortfolioRebalancingService:
 
         Returns:
             RebalancePlanCollectionDTO with rebalancing plans for all symbols
+
         """
         try:
             # Use internal domain method
@@ -116,8 +114,7 @@ class PortfolioRebalancingService:
         current_positions: dict[str, Decimal] | None = None,
         portfolio_value: Decimal | None = None,
     ) -> dict[str, PositionDelta]:
-        """
-        Analyze position deltas between current and target allocations.
+        """Analyze position deltas between current and target allocations.
 
         Args:
             target_weights: Target allocation weights by symbol
@@ -126,6 +123,7 @@ class PortfolioRebalancingService:
 
         Returns:
             Dictionary mapping symbols to their position deltas
+
         """
         # Fetch current data if not provided
         if current_positions is None:
@@ -143,14 +141,14 @@ class PortfolioRebalancingService:
         return self.position_analyzer.analyze_all_positions(current_positions, target_positions)
 
     def get_rebalancing_summary(self, target_weights: dict[str, Decimal]) -> RebalancingSummaryDTO:
-        """
-        Get a comprehensive summary of rebalancing requirements.
+        """Get a comprehensive summary of rebalancing requirements.
 
         Args:
             target_weights: Target allocation weights by symbol
 
         Returns:
             RebalancingSummaryDTO with summary analysis
+
         """
         try:
             current_positions = self._get_current_position_values()
@@ -219,28 +217,28 @@ class PortfolioRebalancingService:
             )
 
     def get_symbols_requiring_sells(self, target_weights: dict[str, Decimal]) -> list[str]:
-        """
-        Get list of symbols that need to be sold for rebalancing.
+        """Get list of symbols that need to be sold for rebalancing.
 
         Args:
             target_weights: Target allocation weights by symbol
 
         Returns:
             List of symbols requiring sell orders
+
         """
         rebalance_plan = self._calculate_rebalancing_plan_domain(target_weights)
         sell_plans = self.rebalance_calculator.get_sell_plans(rebalance_plan)
         return list(sell_plans.keys())
 
     def get_symbols_requiring_buys(self, target_weights: dict[str, Decimal]) -> list[str]:
-        """
-        Get list of symbols that need to be bought for rebalancing.
+        """Get list of symbols that need to be bought for rebalancing.
 
         Args:
             target_weights: Target allocation weights by symbol
 
         Returns:
             List of symbols requiring buy orders
+
         """
         rebalance_plan = self._calculate_rebalancing_plan_domain(target_weights)
         buy_plans = self.rebalance_calculator.get_buy_plans(rebalance_plan)
@@ -249,14 +247,14 @@ class PortfolioRebalancingService:
     def estimate_rebalancing_impact(
         self, target_weights: dict[str, Decimal]
     ) -> RebalancingImpactDTO:
-        """
-        Estimate the impact of rebalancing on the portfolio.
+        """Estimate the impact of rebalancing on the portfolio.
 
         Args:
             target_weights: Target allocation weights by symbol
 
         Returns:
             RebalancingImpactDTO with impact analysis
+
         """
         try:
             current_positions = self._get_current_position_values()
@@ -307,9 +305,9 @@ class PortfolioRebalancingService:
             net_benefit_estimate = -total_estimated_costs  # Conservative approach
 
             # Recommendation logic
-            if total_estimated_costs > portfolio_value * Decimal("0.01"):  # > 1% of portfolio
-                recommendation = "DEFER"
-            elif num_trades > 10:
+            if (
+                total_estimated_costs > portfolio_value * Decimal("0.01") or num_trades > 10
+            ):  # > 1% of portfolio
                 recommendation = "DEFER"
             else:
                 recommendation = "EXECUTE"

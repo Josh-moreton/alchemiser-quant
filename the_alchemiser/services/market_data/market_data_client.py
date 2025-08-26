@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Market Data Client
+"""Market Data Client.
 
 Handles market data REST API calls to Alpaca.
 Focused on data retrieval without trading operations.
@@ -25,12 +24,12 @@ class MarketDataClient:
     """Client for market data operations via Alpaca API."""
 
     def __init__(self, api_key: str, secret_key: str) -> None:
-        """
-        Initialize market data client.
+        """Initialize market data client.
 
         Args:
             api_key: Alpaca API key
             secret_key: Alpaca secret key
+
         """
         self.api_key = api_key
         self.secret_key = secret_key
@@ -39,8 +38,7 @@ class MarketDataClient:
     def get_historical_bars(
         self, symbol: str, period: str = "1y", interval: str = "1d"
     ) -> pd.DataFrame:
-        """
-        Get historical bar data for a symbol.
+        """Get historical bar data for a symbol.
 
         Args:
             symbol: Stock symbol
@@ -52,6 +50,7 @@ class MarketDataClient:
 
         Raises:
             MarketDataError: If data retrieval fails
+
         """
         try:
             # Convert period to start/end dates
@@ -96,8 +95,7 @@ class MarketDataClient:
         end: datetime,
         timeframe: TimeFrame | str | None = None,
     ) -> list[Any]:
-        """
-        Get historical data for a specific date range.
+        """Get historical data for a specific date range.
 
         Args:
             symbol: Stock symbol
@@ -110,6 +108,7 @@ class MarketDataClient:
 
         Raises:
             MarketDataError: If data retrieval fails
+
         """
         try:
             # Handle timeframe parameter
@@ -145,8 +144,7 @@ class MarketDataClient:
             ) from e
 
     def get_latest_quote(self, symbol: str) -> tuple[float, float]:
-        """
-        Get the latest bid and ask quote for a symbol.
+        """Get the latest bid and ask quote for a symbol.
 
         Args:
             symbol: Stock symbol
@@ -156,6 +154,7 @@ class MarketDataClient:
 
         Raises:
             MarketDataError: If quote retrieval fails
+
         """
         try:
             quote = self._alpaca_manager.get_latest_quote(symbol)
@@ -172,14 +171,14 @@ class MarketDataClient:
             return 0.0, 0.0
 
     def get_current_price_from_quote(self, symbol: str) -> float | None:
-        """
-        Get current price from the latest quote.
+        """Get current price from the latest quote.
 
         Args:
             symbol: Stock symbol
 
         Returns:
             Current price or None if unavailable
+
         """
         try:
             quote = self._alpaca_manager.get_latest_quote(symbol)
@@ -205,11 +204,11 @@ class MarketDataClient:
             if hasattr(bars, symbol):
                 return getattr(bars, symbol)
             # Try data dictionary access as fallback
-            elif hasattr(bars, "data"):
+            if hasattr(bars, "data"):
                 data_dict = getattr(bars, "data", {})
                 if hasattr(data_dict, "get"):
                     return data_dict.get(symbol, [])
-                elif symbol in data_dict:
+                if symbol in data_dict:
                     return data_dict[symbol]
         except (AttributeError, KeyError, TypeError):
             pass

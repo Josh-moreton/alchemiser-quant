@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Limit Order Handling Utilities
+"""Limit Order Handling Utilities.
 
 This module handles limit order placement with smart fractionability logic,
 validation, and error handling with fallback strategies.
@@ -23,9 +22,7 @@ from the_alchemiser.services.errors.exceptions import DataProviderError, Trading
 
 
 class LimitOrderHandler:
-    """
-    Handles limit order placement with smart asset-specific logic.
-    """
+    """Handles limit order placement with smart asset-specific logic."""
 
     def __init__(self, trading_client: Any, position_manager: Any, asset_handler: Any) -> None:
         """Initialize with required dependencies."""
@@ -42,8 +39,7 @@ class LimitOrderHandler:
         limit_price: float,
         cancel_existing: bool = True,
     ) -> str | None:
-        """
-        Place a limit order with smart fractionability handling.
+        """Place a limit order with smart fractionability handling.
 
         Args:
             symbol: Stock symbol
@@ -54,6 +50,7 @@ class LimitOrderHandler:
 
         Returns:
             Order ID if successful, None if failed
+
         """
         # Basic validation
         if qty <= 0:
@@ -203,9 +200,8 @@ class LimitOrderHandler:
                 return self._handle_fractionable_fallback(
                     symbol, original_qty, side, limit_price, error_msg
                 )
-            else:
-                # Re-raise the original error if it's not a fractionability issue
-                raise order_error
+            # Re-raise the original error if it's not a fractionability issue
+            raise order_error
 
     def _handle_fractionable_fallback(
         self, symbol: str, original_qty: float, side: OrderSide, limit_price: float, error_msg: str
@@ -274,8 +270,7 @@ class LimitOrderHandler:
     def place_limit_order_from_dto(
         self, validated_order: "ValidatedOrderDTO", cancel_existing: bool = True
     ) -> str | None:
-        """
-        Place a limit order using ValidatedOrderDTO.
+        """Place a limit order using ValidatedOrderDTO.
 
         Args:
             validated_order: ValidatedOrderDTO instance with validation metadata
@@ -283,6 +278,7 @@ class LimitOrderHandler:
 
         Returns:
             Order ID if successful, None otherwise
+
         """
         # Convert DTO side to OrderSide enum
         order_side = OrderSide.BUY if validated_order.side.lower() == "buy" else OrderSide.SELL

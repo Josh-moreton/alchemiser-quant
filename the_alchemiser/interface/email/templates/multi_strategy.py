@@ -21,7 +21,6 @@ class MultiStrategyReportBuilder:
         result: MultiStrategyExecutionResultDTO | Any, mode: str
     ) -> str:
         """Build a comprehensive multi-strategy email report."""
-
         # Determine success status
         success = getattr(result, "success", True)
         status_color = "#10B981" if success else "#EF4444"
@@ -128,7 +127,6 @@ class MultiStrategyReportBuilder:
         result: MultiStrategyExecutionResultDTO | Any, mode: str
     ) -> str:
         """Build a neutral multi-strategy email report without financial values."""
-
         # Determine success status
         success = getattr(result, "success", True)
         status_color = "#10B981" if success else "#EF4444"

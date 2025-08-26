@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-TECL Strategy Engine
+"""TECL Strategy Engine.
 
 Implements the "TECL For The Long Term (v7)" strategy from Composer.trade.
 This strategy is designed for long-term technology leverage (TECL) with volatility protection.
@@ -44,13 +43,14 @@ warnings.filterwarnings("ignore")
 
 
 class TECLStrategyEngine(StrategyEngine):
-    """TECL Strategy Engine - Long-term technology leverage with volatility protection"""
+    """TECL Strategy Engine - Long-term technology leverage with volatility protection."""
 
     def __init__(self, data_provider: MarketDataPort) -> None:
         """Initialize TECL strategy with typed MarketDataPort.
 
         Args:
             data_provider: Market data provider implementing MarketDataPort protocol
+
         """
         super().__init__("TECL", data_provider)
         self.data_provider = data_provider  # Keep for backward compatibility with existing methods
@@ -79,7 +79,7 @@ class TECLStrategyEngine(StrategyEngine):
         return self.all_symbols
 
     def get_market_data(self) -> dict[str, Any]:
-        """Fetch data for all symbols"""
+        """Fetch data for all symbols."""
         from the_alchemiser.application.mapping.market_data_mapping import (
             bars_to_dataframe,
             symbol_str_to_symbol,
@@ -100,7 +100,7 @@ class TECLStrategyEngine(StrategyEngine):
         return market_data
 
     def calculate_indicators(self, market_data: dict[str, Any]) -> dict[str, Any]:
-        """Calculate all technical indicators needed for TECL strategy"""
+        """Calculate all technical indicators needed for TECL strategy."""
         indicators = {}
         for symbol, df in market_data.items():
             if df.empty:
@@ -119,8 +119,7 @@ class TECLStrategyEngine(StrategyEngine):
     def evaluate_tecl_strategy(
         self, indicators: dict[str, Any], market_data: dict[str, Any] | None = None
     ) -> tuple[str | dict[str, float], str, str]:
-        """
-        Evaluate the TECL (Technology) strategy with detailed reasoning.
+        """Evaluate the TECL (Technology) strategy with detailed reasoning.
 
         Returns: (recommended_symbol_or_allocation, action, detailed_reason)
         - For single symbols: returns symbol string
@@ -146,16 +145,14 @@ class TECLStrategyEngine(StrategyEngine):
             # BULL MARKET PATH
             market_analysis += "• Regime: BULL MARKET (SPY above 200MA)\n"
             return self._evaluate_bull_market_path(indicators, market_analysis)
-        else:
-            # BEAR MARKET PATH
-            market_analysis += "• Regime: BEAR MARKET (SPY below 200MA)\n"
-            return self._evaluate_bear_market_path(indicators, market_analysis)
+        # BEAR MARKET PATH
+        market_analysis += "• Regime: BEAR MARKET (SPY below 200MA)\n"
+        return self._evaluate_bear_market_path(indicators, market_analysis)
 
     def _evaluate_bull_market_path(
         self, indicators: dict[str, Any], market_analysis: str
     ) -> tuple[str | dict[str, float], str, str]:
-        """Evaluate strategy when SPY is above 200-day MA (bull market)"""
-
+        """Evaluate strategy when SPY is above 200-day MA (bull market)."""
         # First check: TQQQ overbought > 79 - Mixed allocation (25% UVXY + 75% BIL)
         if "TQQQ" in indicators and indicators["TQQQ"]["rsi_10"] > 79:
             tqqq_rsi = indicators["TQQQ"]["rsi_10"]
@@ -184,8 +181,7 @@ class TECLStrategyEngine(StrategyEngine):
     def _evaluate_bear_market_path(
         self, indicators: dict[str, Any], market_analysis: str
     ) -> tuple[str | dict[str, float], str, str]:
-        """Evaluate strategy when SPY is below 200-day MA (bear market)"""
-
+        """Evaluate strategy when SPY is below 200-day MA (bear market)."""
         # First check: TQQQ oversold < 31 (buy the dip even in bear market)
         if "TQQQ" in indicators and indicators["TQQQ"]["rsi_10"] < 31:
             tqqq_rsi = indicators["TQQQ"]["rsi_10"]
@@ -221,7 +217,7 @@ class TECLStrategyEngine(StrategyEngine):
                 reasoning += "• Rationale: Ride volatility spike while staying defensive"
 
                 return {"UVXY": 0.15, "BIL": 0.85}, ActionType.BUY.value, reasoning
-            elif uvxy_rsi > 74:
+            if uvxy_rsi > 74:
                 # High UVXY - defensive
                 reasoning = f"{market_analysis}\n\nHigh Volatility Environment:\n"
                 reasoning += f"• UVXY RSI(10): {uvxy_rsi:.1f} > 74 (elevated)\n"
@@ -237,8 +233,7 @@ class TECLStrategyEngine(StrategyEngine):
     def _evaluate_kmlm_switcher(
         self, indicators: dict[str, Any], market_analysis: str, market_regime: str
     ) -> tuple[str | dict[str, float], str, str]:
-        """
-        KMLM Switcher logic: Compare XLK vs KMLM RSI to determine technology timing
+        """KMLM Switcher logic: Compare XLK vs KMLM RSI to determine technology timing.
 
         This is the core technology timing mechanism of the strategy.
         """
@@ -274,52 +269,43 @@ class TECLStrategyEngine(StrategyEngine):
 
                 logging.debug(f"XLK extremely overbought: {xlk_rsi:.2f} > 81")
                 return "BIL", ActionType.BUY.value, reasoning
-            else:
-                # XLK strong but not extreme - buy technology
-                reasoning = f"{switcher_analysis}• XLK Status: Strong but sustainable (<81)\n"
-                reasoning += "• Strategy: Technology momentum play\n"
-                reasoning += "• Target: TECL (3x leveraged tech) for sector strength\n"
-                reasoning += "• Rationale: Tech outperforming materials, trend continuation"
+            # XLK strong but not extreme - buy technology
+            reasoning = f"{switcher_analysis}• XLK Status: Strong but sustainable (<81)\n"
+            reasoning += "• Strategy: Technology momentum play\n"
+            reasoning += "• Target: TECL (3x leveraged tech) for sector strength\n"
+            reasoning += "• Rationale: Tech outperforming materials, trend continuation"
 
-                logging.debug(f"XLK stronger than KMLM: {xlk_rsi:.2f} > {kmlm_rsi:.2f}")
-                return "TECL", ActionType.BUY.value, reasoning
+            logging.debug(f"XLK stronger than KMLM: {xlk_rsi:.2f} > {kmlm_rsi:.2f}")
+            return "TECL", ActionType.BUY.value, reasoning
 
-        else:
-            # Materials (KMLM) is stronger than technology (XLK)
-            switcher_analysis += "• Sector Comparison: Materials STRONGER than Technology\n"
+        # Materials (KMLM) is stronger than technology (XLK)
+        switcher_analysis += "• Sector Comparison: Materials STRONGER than Technology\n"
 
-            if xlk_rsi < 29:
-                # XLK oversold - buy the dip
-                reasoning = f"{switcher_analysis}• XLK Status: Oversold (<29) despite weakness\n"
-                reasoning += "• Strategy: Counter-trend tech dip buying\n"
-                reasoning += "• Target: TECL (3x leveraged tech) for oversold bounce\n"
-                reasoning += (
-                    "• Rationale: Tech oversold creates opportunity despite sector weakness"
-                )
+        if xlk_rsi < 29:
+            # XLK oversold - buy the dip
+            reasoning = f"{switcher_analysis}• XLK Status: Oversold (<29) despite weakness\n"
+            reasoning += "• Strategy: Counter-trend tech dip buying\n"
+            reasoning += "• Target: TECL (3x leveraged tech) for oversold bounce\n"
+            reasoning += "• Rationale: Tech oversold creates opportunity despite sector weakness"
 
-                logging.debug(f"XLK oversold: {xlk_rsi:.2f} < 29")
-                return "TECL", ActionType.BUY.value, reasoning
-            else:
-                # XLK weak - return BIL directly in bull market, use selection in bear market
-                logging.debug(f"KMLM stronger than XLK: {kmlm_rsi:.2f} > {xlk_rsi:.2f}")
-                if market_regime == "Bull market":
-                    reasoning = f"{switcher_analysis}• Tech Status: Weak relative to materials\n"
-                    reasoning += "• Strategy: Defensive positioning in bull market\n"
-                    reasoning += "• Target: BIL (cash) - avoid weak tech sector\n"
-                    reasoning += "• Rationale: Materials strength suggests rotation away from tech"
+            logging.debug(f"XLK oversold: {xlk_rsi:.2f} < 29")
+            return "TECL", ActionType.BUY.value, reasoning
+        # XLK weak - return BIL directly in bull market, use selection in bear market
+        logging.debug(f"KMLM stronger than XLK: {kmlm_rsi:.2f} > {xlk_rsi:.2f}")
+        if market_regime == "Bull market":
+            reasoning = f"{switcher_analysis}• Tech Status: Weak relative to materials\n"
+            reasoning += "• Strategy: Defensive positioning in bull market\n"
+            reasoning += "• Target: BIL (cash) - avoid weak tech sector\n"
+            reasoning += "• Rationale: Materials strength suggests rotation away from tech"
 
-                    return "BIL", ActionType.BUY.value, reasoning
-                else:
-                    # Bear market - use bond vs short selection
-                    return self._evaluate_bond_vs_short_selection(
-                        indicators, switcher_analysis, market_regime
-                    )
+            return "BIL", ActionType.BUY.value, reasoning
+        # Bear market - use bond vs short selection
+        return self._evaluate_bond_vs_short_selection(indicators, switcher_analysis, market_regime)
 
     def _evaluate_bond_vs_short_selection(
         self, indicators: dict[str, Any], switcher_analysis: str, market_regime: str
     ) -> tuple[str | dict[str, float], str, str]:
-        """
-        Final selection between bonds and short positions using RSI filter mechanism.
+        """Final selection between bonds and short positions using RSI filter mechanism.
         This implements the filter/select-top logic from the Clojure version.
         """
         # Create candidate list with their RSI(9) values
@@ -361,6 +347,7 @@ class TECLStrategyEngine(StrategyEngine):
 
         Returns:
             List of StrategySignal objects with typed domain values
+
         """
         try:
             # Get market data and indicators
@@ -448,16 +435,13 @@ class TECLStrategyEngine(StrategyEngine):
                 return False
             if signal.confidence.value < 0 or signal.confidence.value > 1:
                 return False
-            if signal.target_allocation.value < 0 or signal.target_allocation.value > 1:
-                return False
-
-            return True
+            return not (signal.target_allocation.value < 0 or signal.target_allocation.value > 1)
 
         except Exception:
             return False
 
     def get_strategy_summary(self) -> str:
-        """Get a summary description of the TECL strategy"""
+        """Get a summary description of the TECL strategy."""
         return """
         TECL Strategy Summary:
 
@@ -492,8 +476,7 @@ class TECLStrategyEngine(StrategyEngine):
 
 
 def main() -> None:
-    """Test the TECL strategy engine"""
-
+    """Test the TECL strategy engine."""
     print("🚀 TECL Strategy Engine Test")
     print("=" * 50)
     print("Note: This test requires a configured data provider")

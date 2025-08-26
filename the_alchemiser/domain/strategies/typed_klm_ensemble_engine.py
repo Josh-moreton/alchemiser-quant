@@ -1,5 +1,4 @@
-"""
-Typed KLM Strategy Ensemble Engine
+"""Typed KLM Strategy Ensemble Engine.
 
 Multi-strategy ensemble system that implements the StrategyEngine protocol
 and generates typed StrategySignal objects. Evaluates all KLM variants and
@@ -48,8 +47,7 @@ from .klm_workers import (
 
 
 class TypedKLMStrategyEngine(StrategyEngine):
-    """
-    Typed KLM Strategy Ensemble implementing StrategyEngine protocol.
+    """Typed KLM Strategy Ensemble implementing StrategyEngine protocol.
 
     Implements the complete Clojure ensemble architecture:
     1. Evaluates all strategy variants

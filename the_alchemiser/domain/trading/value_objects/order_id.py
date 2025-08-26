@@ -16,5 +16,3 @@ else:
 
 class OrderId(OrderIdBase):
     """Typed identifier for orders."""
-
-    pass

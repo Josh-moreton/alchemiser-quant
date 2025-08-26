@@ -1,5 +1,4 @@
-"""
-Modern price fetching service.
+"""Modern price fetching service.
 
 Provides async/callback-based API for current price requests with
 graceful REST fallback when streaming is unavailable.
@@ -22,12 +21,12 @@ class ModernPriceFetchingService:
         market_data_client: MarketDataClient,
         streaming_service: StreamingService | None,
     ) -> None:
-        """
-        Initialize modern price fetching service.
+        """Initialize modern price fetching service.
 
         Args:
             market_data_client: Market data client for REST API calls
             streaming_service: Streaming service for real-time data
+
         """
         self._market_data_client = market_data_client
         self._streaming_service = streaming_service
@@ -36,8 +35,7 @@ class ModernPriceFetchingService:
     async def get_current_price_async(
         self, symbol: str, timeout_seconds: float = 5.0
     ) -> float | None:
-        """
-        Get current price asynchronously with timeout.
+        """Get current price asynchronously with timeout.
 
         Args:
             symbol: Stock symbol
@@ -45,6 +43,7 @@ class ModernPriceFetchingService:
 
         Returns:
             Current price or None if unavailable
+
         """
         try:
             # Try streaming first
@@ -81,13 +80,13 @@ class ModernPriceFetchingService:
         callback: Callable[[str, float | None], None],
         fallback_to_rest: bool = True,
     ) -> None:
-        """
-        Get current price and call callback when available.
+        """Get current price and call callback when available.
 
         Args:
             symbol: Stock symbol
             callback: Callback function to call with (symbol, price)
             fallback_to_rest: Whether to use REST API as fallback
+
         """
         try:
             # Try streaming first
@@ -111,8 +110,7 @@ class ModernPriceFetchingService:
     def subscribe_to_price_updates(
         self, symbol: str, callback: Callable[[str, float], None]
     ) -> str:
-        """
-        Subscribe to price updates for a symbol.
+        """Subscribe to price updates for a symbol.
 
         Args:
             symbol: Stock symbol
@@ -120,6 +118,7 @@ class ModernPriceFetchingService:
 
         Returns:
             Subscription ID for unsubscribing
+
         """
         if symbol not in self._price_callbacks:
             self._price_callbacks[symbol] = []
@@ -134,8 +133,7 @@ class ModernPriceFetchingService:
         return subscription_id
 
     def unsubscribe_from_price_updates(self, symbol: str, subscription_id: str) -> bool:
-        """
-        Unsubscribe from price updates.
+        """Unsubscribe from price updates.
 
         Args:
             symbol: Stock symbol
@@ -143,6 +141,7 @@ class ModernPriceFetchingService:
 
         Returns:
             True if unsubscribed successfully
+
         """
         if symbol not in self._price_callbacks:
             return False
@@ -161,8 +160,7 @@ class ModernPriceFetchingService:
     def get_multiple_prices_async(
         self, symbols: list[str], timeout_seconds: float = 10.0
     ) -> Awaitable[dict[str, float | None]]:
-        """
-        Get prices for multiple symbols concurrently.
+        """Get prices for multiple symbols concurrently.
 
         Args:
             symbols: List of stock symbols
@@ -170,6 +168,7 @@ class ModernPriceFetchingService:
 
         Returns:
             Dictionary mapping symbols to prices
+
         """
         return self._fetch_multiple_prices(symbols, timeout_seconds)
 
@@ -204,8 +203,7 @@ class ModernPriceFetchingService:
     def get_price_with_fallback_chain(
         self, symbol: str, fallback_methods: list[str] | None = None
     ) -> float | None:
-        """
-        Get price using a chain of fallback methods.
+        """Get price using a chain of fallback methods.
 
         Args:
             symbol: Stock symbol
@@ -214,6 +212,7 @@ class ModernPriceFetchingService:
 
         Returns:
             Current price or None if all methods fail
+
         """
         if fallback_methods is None:
             fallback_methods = ["streaming", "quote", "historical"]
@@ -252,11 +251,11 @@ class ModernPriceFetchingService:
         return None
 
     def health_check(self) -> dict[str, Any]:
-        """
-        Check health of price fetching service.
+        """Check health of price fetching service.
 
         Returns:
             Health status dictionary
+
         """
         status: dict[str, Any] = {
             "streaming_connected": (

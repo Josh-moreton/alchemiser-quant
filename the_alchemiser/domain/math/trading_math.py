@@ -48,6 +48,7 @@ def calculate_position_size(
     Note:
         The function rounds to 6 decimal places as this is the maximum
         precision supported by Alpaca for fractional shares.
+
     """
     if current_price <= 0:
         return 0.0
@@ -56,9 +57,7 @@ def calculate_position_size(
     target_value = account_value * portfolio_weight
 
     # Calculate shares (fractional)
-    shares = round(target_value / current_price, 6)  # 6 decimals is safe for Alpaca
-
-    return shares
+    return round(target_value / current_price, 6)  # 6 decimals is safe for Alpaca
 
 
 def calculate_dynamic_limit_price(
@@ -110,11 +109,9 @@ def calculate_dynamic_limit_price(
     Note:
         This is a pure function version of the dynamic pricing logic used
         in the OrderManager class for limit order placement.
+
     """
-    if bid > 0 and ask > 0:
-        mid = (bid + ask) / 2
-    else:
-        mid = bid if side_is_buy else ask
+    mid = (bid + ask) / 2 if bid > 0 and ask > 0 else bid if side_is_buy else ask
 
     if step > max_steps:
         return round(ask if side_is_buy else bid, 2)
@@ -156,6 +153,7 @@ def calculate_slippage_buffer(current_price: float, slippage_bps: float) -> floa
     Note:
         Basis points are 1/100th of a percent, so 100 bps = 1.0%.
         This is a common way to express small percentages in finance.
+
     """
     return current_price * (slippage_bps / 10000)
 
@@ -191,6 +189,7 @@ def calculate_allocation_discrepancy(
         A positive weight_difference means the position is underweight
         and needs to be increased. A negative difference means the position
         is overweight and should be reduced.
+
     """
     if total_portfolio_value <= 0:
         return 0.0, target_weight
@@ -255,6 +254,7 @@ def calculate_rebalance_amounts(
     Note:
         The function handles symbols that exist in either target_weights or
         current_values but not both. Missing positions are treated as 0.0.
+
     """
     rebalance_plan = {}
 

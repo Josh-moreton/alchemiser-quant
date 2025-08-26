@@ -4,4 +4,4 @@ from .value_objects.identifier import Identifier
 from .value_objects.money import Money
 from .value_objects.percentage import Percentage
 
-__all__ = ["Money", "Percentage", "Identifier"]
+__all__ = ["Identifier", "Money", "Percentage"]

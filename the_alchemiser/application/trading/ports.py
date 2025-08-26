@@ -114,10 +114,10 @@ class ReportingPort(Protocol):
 
 # Export list for explicit re-exports
 __all__ = [
-    "MarketDataPort",  # Re-exported from domain/market_data
     "AccountReadPort",
+    "MarketDataPort",  # Re-exported from domain/market_data
     "OrderExecutionPort",
-    "StrategyAdapterPort",
     "RebalancingOrchestratorPort",
     "ReportingPort",
+    "StrategyAdapterPort",
 ]

@@ -44,6 +44,7 @@ def calculate_target_vs_current_allocations(
 
     Returns:
         (target_values, current_values) both symbol -> Decimal dollar value
+
     """
     # Normalize account info to AccountInfo TypedDict compatible dict
     # AccountInfo is a TypedDict (dict subclass) so isinstance(account_info, dict) is always True.
@@ -93,6 +94,7 @@ def build_allocation_comparison(
 
     Returns:
         AllocationComparison: target/current values and deltas by symbol (quantized 0.01)
+
     """
     target_values, current_values = calculate_target_vs_current_allocations(
         target_portfolio, account_info, current_positions
@@ -109,7 +111,7 @@ def build_allocation_comparison(
 
 
 __all__ = [
-    "calculate_target_vs_current_allocations",
     "AllocationComparison",
     "build_allocation_comparison",
+    "calculate_target_vs_current_allocations",
 ]

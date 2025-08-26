@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-General execution result DTOs for The Alchemiser Trading System.
+"""General execution result DTOs for The Alchemiser Trading System.
 
 This module contains DTOs for general operation results, including
 success/error handling patterns used across the trading system.
@@ -22,9 +21,7 @@ from the_alchemiser.interfaces.schemas.base import ResultDTO
 
 
 class OperationResultDTO(ResultDTO):
-    """
-    Generic DTO for operation results with success/error handling.
-    """
+    """Generic DTO for operation results with success/error handling."""
 
     model_config = ConfigDict(
         strict=True,
@@ -36,9 +33,7 @@ class OperationResultDTO(ResultDTO):
 
 
 class OrderCancellationDTO(ResultDTO):
-    """
-    DTO for order cancellation results.
-    """
+    """DTO for order cancellation results."""
 
     model_config = ConfigDict(
         strict=True,
@@ -50,9 +45,7 @@ class OrderCancellationDTO(ResultDTO):
 
 
 class OrderStatusDTO(ResultDTO):
-    """
-    DTO for order status query results.
-    """
+    """DTO for order status query results."""
 
     model_config = ConfigDict(
         strict=True,

@@ -14,8 +14,7 @@ from the_alchemiser.services.trading.trading_service_manager import TradingServi
 
 
 class RebalanceExecutionService:
-    """
-    Service for executing rebalancing trades.
+    """Service for executing rebalancing trades.
 
     Handles the actual execution of buy/sell orders required for portfolio rebalancing,
     with smart execution and comprehensive error handling.
@@ -26,14 +25,14 @@ class RebalanceExecutionService:
         trading_manager: TradingServiceManager,
         smart_execution: SmartExecution | None = None,
         error_handler: TradingSystemErrorHandler | None = None,
-    ):
-        """
-        Initialize the rebalance execution service.
+    ) -> None:
+        """Initialize the rebalance execution service.
 
         Args:
             trading_manager: Service for trading operations
             smart_execution: Smart execution engine (optional)
             error_handler: Error handler for trading errors (optional)
+
         """
         self.trading_manager = trading_manager
         # Build a single AlpacaClient using the authenticated AlpacaManager and use it for execution
@@ -52,8 +51,7 @@ class RebalanceExecutionService:
     def execute_rebalancing_plan(
         self, rebalance_plan: dict[str, RebalancePlan], dry_run: bool = True
     ) -> dict[str, Any]:
-        """
-        Execute a complete rebalancing plan.
+        """Execute a complete rebalancing plan.
 
         Args:
             rebalance_plan: Complete rebalancing plan to execute
@@ -61,6 +59,7 @@ class RebalanceExecutionService:
 
         Returns:
             Execution results with order details and status
+
         """
         try:
             # Filter plans that need rebalancing
@@ -110,8 +109,7 @@ class RebalanceExecutionService:
     def execute_single_rebalance(
         self, symbol: str, plan: RebalancePlan, dry_run: bool = True
     ) -> dict[str, Any]:
-        """
-        Execute rebalancing for a single symbol.
+        """Execute rebalancing for a single symbol.
 
         Args:
             symbol: Symbol to rebalance
@@ -120,6 +118,7 @@ class RebalanceExecutionService:
 
         Returns:
             Execution result for the single symbol
+
         """
         try:
             if not plan.needs_rebalance:
@@ -134,9 +133,8 @@ class RebalanceExecutionService:
             if plan.trade_amount > 0:
                 # Buy order
                 return self._place_buy_order(symbol, abs(plan.trade_amount), dry_run)
-            else:
-                # Sell order
-                return self._place_sell_order(symbol, abs(plan.trade_amount), dry_run)
+            # Sell order
+            return self._place_sell_order(symbol, abs(plan.trade_amount), dry_run)
 
         except Exception as e:
             self.error_handler.handle_error(
@@ -153,17 +151,15 @@ class RebalanceExecutionService:
                 "error": str(e),
             }
 
-    def validate_rebalancing_plan(  # noqa: C901 - complex validation retained for clarity
-        self, rebalance_plan: dict[str, RebalancePlan]
-    ) -> dict[str, Any]:
-        """
-        Validate a rebalancing plan before execution.
+    def validate_rebalancing_plan(self, rebalance_plan: dict[str, RebalancePlan]) -> dict[str, Any]:
+        """Validate a rebalancing plan before execution.
 
         Args:
             rebalance_plan: Plan to validate
 
         Returns:
             Validation results with any issues found
+
         """
         import logging
 

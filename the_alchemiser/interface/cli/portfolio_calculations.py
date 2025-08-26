@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Portfolio calculation utilities extracted from TradingEngine.
+"""Portfolio calculation utilities extracted from TradingEngine.
 
 This module provides calculation functions for portfolio target vs current allocations
 without any display logic, supporting the separation of business logic from presentation.
@@ -34,6 +33,7 @@ def calculate_target_vs_current_allocations(
         Tuple containing:
             - target_values: Target dollar values by symbol
             - current_values: Current market values by symbol
+
     """
 
     # Use helper functions to calculate values

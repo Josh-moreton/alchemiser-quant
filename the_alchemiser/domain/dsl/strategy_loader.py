@@ -1,5 +1,4 @@
-"""
-Strategy loader for DSL files.
+"""Strategy loader for DSL files.
 
 Loads, parses, and evaluates strategy files written in the S-expression DSL.
 Provides integration with the existing trading system infrastructure.
@@ -37,6 +36,7 @@ class StrategyLoader:
             market_data_port: Market data access interface
             optimization_config: Explicit optimization config (overrides env if provided)
             use_environment: When True and no explicit config supplied, load from environment
+
         """
         self.market_data_port = market_data_port
 
@@ -72,6 +72,7 @@ class StrategyLoader:
         Raises:
             FileNotFoundError: If file doesn't exist
             IOError: If file can't be read
+
         """
         path = Path(file_path)
         if not path.exists():
@@ -93,6 +94,7 @@ class StrategyLoader:
 
         Raises:
             DSLError: If parsing or evaluation fails
+
         """
         # Parse the strategy
         ast_node = self.parser.parse(source_code)
@@ -127,6 +129,7 @@ class StrategyLoader:
             FileNotFoundError: If file doesn't exist
             IOError: If file can't be read
             DSLError: If parsing or evaluation fails
+
         """
         source_code = self.load_strategy_file(file_path)
         return self.evaluate_strategy(source_code)
@@ -137,6 +140,7 @@ class StrategyLoader:
         Args:
             trace: Evaluation trace from evaluator
             output_path: Path to save trace file
+
         """
         path = Path(output_path)
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -155,6 +159,7 @@ class StrategyLoader:
 
         Raises:
             ValueError: If portfolio is invalid
+
         """
         if not portfolio:
             raise ValueError("Portfolio cannot be empty")
@@ -193,6 +198,7 @@ class StrategyResult:
             trace: Evaluation trace
             strategy_name: Optional strategy name
             metadata: Optional strategy metadata
+
         """
         self.portfolio = portfolio
         self.trace = trace
@@ -228,6 +234,7 @@ class StrategyResult:
 
         Returns:
             List of (symbol, weight) tuples sorted by weight descending
+
         """
         sorted_positions = sorted(self.portfolio.items(), key=lambda x: x[1], reverse=True)
         return sorted_positions[:n]

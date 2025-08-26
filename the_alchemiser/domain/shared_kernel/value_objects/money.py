@@ -11,6 +11,7 @@ class Money:
     Notes:
         - Use Decimal for all arithmetic to avoid float precision errors.
         - Amount is normalized to 2 decimal places (USD-style) by default.
+
     """
 
     amount: Decimal

@@ -29,7 +29,6 @@ class TradingReportBuilder:
         open_positions: list[dict[str, Any]] | None = None,
     ) -> str:
         """Build a comprehensive HTML trading report email."""
-
         # Determine status styling
         status_color = "#10B981" if success else "#EF4444"
         status_emoji = "✅" if success else "❌"
@@ -106,7 +105,6 @@ class TradingReportBuilder:
         open_positions: list[dict[str, Any]] | None = None,
     ) -> str:
         """Build a neutral HTML trading report email without dollar values or percentages."""
-
         # Determine status styling
         status_color = "#10B981" if success else "#EF4444"
         status_emoji = "✅" if success else "❌"

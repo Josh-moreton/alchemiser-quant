@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Market Data DTOs for The Alchemiser Trading System.
+"""Market Data DTOs for The Alchemiser Trading System.
 
 This module contains DTOs for market data operations, price queries,
 spread analysis, and market status information.
@@ -23,9 +22,7 @@ from the_alchemiser.interfaces.schemas.base import ResultDTO
 
 
 class PriceDTO(ResultDTO):
-    """
-    DTO for latest price information.
-    """
+    """DTO for latest price information."""
 
     model_config = ConfigDict(
         strict=True,
@@ -39,9 +36,7 @@ class PriceDTO(ResultDTO):
 
 
 class PriceHistoryDTO(ResultDTO):
-    """
-    DTO for price history data.
-    """
+    """DTO for price history data."""
 
     model_config = ConfigDict(
         strict=True,
@@ -57,9 +52,7 @@ class PriceHistoryDTO(ResultDTO):
 
 
 class SpreadAnalysisDTO(ResultDTO):
-    """
-    DTO for bid-ask spread analysis.
-    """
+    """DTO for bid-ask spread analysis."""
 
     model_config = ConfigDict(
         strict=True,
@@ -73,9 +66,7 @@ class SpreadAnalysisDTO(ResultDTO):
 
 
 class MarketStatusDTO(ResultDTO):
-    """
-    DTO for market status information.
-    """
+    """DTO for market status information."""
 
     model_config = ConfigDict(
         strict=True,
@@ -88,9 +79,7 @@ class MarketStatusDTO(ResultDTO):
 
 
 class MultiSymbolQuotesDTO(ResultDTO):
-    """
-    DTO for multi-symbol quote data.
-    """
+    """DTO for multi-symbol quote data."""
 
     model_config = ConfigDict(
         strict=True,

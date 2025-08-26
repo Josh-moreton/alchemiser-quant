@@ -1,5 +1,4 @@
-"""
-Price Utilities
+"""Price Utilities.
 
 This module provides helper functions for price handling and conversion operations.
 """
@@ -10,8 +9,7 @@ import pandas as pd
 
 
 def ensure_scalar_price(price: Any) -> float | None:
-    """
-    Ensure price is a scalar value for JSON serialization and string formatting.
+    """Ensure price is a scalar value for JSON serialization and string formatting.
 
     This function converts pandas Series, numpy arrays, or other array-like price
     values into scalar floats suitable for JSON serialization and display.
@@ -23,6 +21,7 @@ def ensure_scalar_price(price: Any) -> float | None:
     Returns:
         float or None: The scalar price value, or None if conversion fails
                       or the input is None/NaN.
+
     """
     if price is None:
         return None

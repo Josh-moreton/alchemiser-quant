@@ -275,6 +275,7 @@ class CanonicalOrderExecutor:
 
         Raises:
             ValueError: If validation fails
+
         """
         # Basic validation - domain value objects already handle most validation
         if order_request.quantity.value <= Decimal("0"):
@@ -345,6 +346,7 @@ class CanonicalOrderExecutor:
 
         Returns:
             MarketOrderRequest or LimitOrderRequest: Alpaca API compatible order request
+
         """
         from alpaca.trading.enums import OrderSide
         from alpaca.trading.enums import TimeInForce as AlpacaTimeInForce
@@ -371,17 +373,17 @@ class CanonicalOrderExecutor:
                 time_in_force=alpaca_tif,
                 client_order_id=order_request.client_order_id,
             )
-        else:  # limit order
-            if order_request.limit_price is None:
-                raise ValueError("Limit price required for limit orders")
+        # limit order
+        if order_request.limit_price is None:
+            raise ValueError("Limit price required for limit orders")
 
-            return LimitOrderRequest(
-                symbol=order_request.symbol.value,
-                qty=str(order_request.quantity.value),
-                side=alpaca_side,
-                time_in_force=alpaca_tif,
-                limit_price=str(order_request.limit_price.amount),
-                client_order_id=order_request.client_order_id,
-            )
+        return LimitOrderRequest(
+            symbol=order_request.symbol.value,
+            qty=str(order_request.quantity.value),
+            side=alpaca_side,
+            time_in_force=alpaca_tif,
+            limit_price=str(order_request.limit_price.amount),
+            client_order_id=order_request.client_order_id,
+        )
 
     # NOTE: Lifecycle monitoring handled externally via injected lifecycle_monitor.

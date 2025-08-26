@@ -1,5 +1,4 @@
-"""
-KLM Strategy Variant 410/38 - "MonkeyBusiness Simons variant"
+"""KLM Strategy Variant 410/38 - "MonkeyBusiness Simons variant".
 
 This variant is IDENTICAL to 506/38 except:
 - L/S Rotator uses FTLS/KMLM/SSO/UUP (includes SSO)
@@ -14,8 +13,7 @@ from .variant_506_38 import KlmVariant50638
 
 
 class KlmVariant41038(KlmVariant50638):
-    """
-    Variant 410/38 - MonkeyBusiness Simons variant
+    """Variant 410/38 - MonkeyBusiness Simons variant.
 
     Identical to 506/38 except L/S Rotator includes SSO in the candidate list.
     """
@@ -29,13 +27,11 @@ class KlmVariant41038(KlmVariant50638):
     def _evaluate_long_short_rotator(
         self, indicators: dict[str, dict[str, float]]
     ) -> tuple[str, str, str]:
-        """
-        410/38 L/S Rotator - SAME as 506/38 but includes SSO
+        """410/38 L/S Rotator - SAME as 506/38 but includes SSO.
 
         CLJ: "Long/Short Rotator with FTLS KMLM SSO UUP"
         Adds SSO to the UUP/FTLS/KMLM candidates from 506/38
         """
-
         # 410/38 includes SSO in addition to the base set
         rotator_symbols = ["UUP", "FTLS", "KMLM", "SSO"]
 
@@ -66,9 +62,7 @@ class KlmVariant41038(KlmVariant50638):
         return result
 
     def get_required_symbols(self) -> list[str]:
-        """
-        410/38 Required symbols - same as 506/38 plus SSO
-        """
+        """410/38 Required symbols - same as 506/38 plus SSO."""
         # Get base symbols from parent 506/38
         base_symbols = super().get_required_symbols()
 

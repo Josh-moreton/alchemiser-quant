@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Error Monitoring and Alerting Framework for The Alchemiser Trading System.
+"""Error Monitoring and Alerting Framework for The Alchemiser Trading System.
 
 This module implements Phase 3 of the error handling enhancement plan:
 - Error Metrics and Monitoring for real-time tracking
@@ -31,7 +30,7 @@ class HealthStatus(Enum):
 class ErrorEvent:
     """Represents an error event for monitoring."""
 
-    def __init__(self, error: Exception, context: ErrorContextData, timestamp: datetime):
+    def __init__(self, error: Exception, context: ErrorContextData, timestamp: datetime) -> None:
         self.error = error
         self.context = context
         self.timestamp = timestamp
@@ -83,7 +82,7 @@ class RecoveryStats:
 class ErrorMetricsCollector:
     """Collect and track error metrics for monitoring."""
 
-    def __init__(self, max_history_hours: int = 24):
+    def __init__(self, max_history_hours: int = 24) -> None:
         self.max_history_hours = max_history_hours
         self.error_counts: dict[str, int] = defaultdict(int)
         self.error_rates: dict[str, deque[float]] = defaultdict(lambda: deque(maxlen=1000))
@@ -265,7 +264,7 @@ class AlertThresholdManager:
     def get_threshold_summary(self) -> dict[str, dict[str, float]]:
         """Get summary of current thresholds."""
         summary = {}
-        for metric_name in self.static_thresholds.keys():
+        for metric_name in self.static_thresholds:
             summary[metric_name] = {
                 "static_threshold": self.static_thresholds[metric_name],
                 "dynamic_threshold": self.get_dynamic_threshold(metric_name),
@@ -285,7 +284,7 @@ class HealthReport:
         active_alerts: list[dict[str, Any]],
         recovery_stats: dict[str, RecoveryStats],
         recommendations: list[str],
-    ):
+    ) -> None:
         self.status = status
         self.timestamp = timestamp
         self.error_summary = error_summary
@@ -308,7 +307,7 @@ class HealthReport:
 class ErrorHealthDashboard:
     """Real-time error health monitoring dashboard."""
 
-    def __init__(self, metrics_collector: ErrorMetricsCollector):
+    def __init__(self, metrics_collector: ErrorMetricsCollector) -> None:
         self.metrics = metrics_collector
         self.alerts = AlertThresholdManager()
         self.logger = logging.getLogger(__name__)

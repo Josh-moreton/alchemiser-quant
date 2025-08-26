@@ -20,8 +20,7 @@ class DataProvider(Protocol):
 
 
 class AccountService:
-    """
-    Service class for account and position management.
+    """Service class for account and position management.
 
     Uses composition and dependency injection instead of thin proxy methods.
     Provides higher-level account operations by combining data provider
@@ -37,8 +36,7 @@ class AccountService:
     def get_account_info(
         self,
     ) -> AccountInfo:  # Phase 17: Migrated from dict[str, Any] to AccountInfo
-        """
-        Return comprehensive account info.
+        """Return comprehensive account info.
 
         Combines raw data provider information with processed account metrics.
         """
@@ -47,8 +45,7 @@ class AccountService:
     def get_positions_dict(
         self,
     ) -> PositionsDict:  # Phase 18: Migrated from dict[str, dict[str, Any]] to PositionsDict
-        """
-        Return current positions keyed by symbol.
+        """Return current positions keyed by symbol.
 
         Transforms the raw positions list into a symbol-indexed dictionary
         for easier lookup and manipulation.
@@ -66,8 +63,7 @@ class AccountService:
                 def safe_get_pos(obj: Any, key: str, default: Any = 0.0) -> Any:
                     if isinstance(obj, dict):
                         return obj.get(key, default)
-                    else:
-                        return getattr(obj, key, default)
+                    return getattr(obj, key, default)
 
                 # Convert raw position to PositionInfo
                 qty_raw = safe_get_pos(position, "qty", 0.0)
@@ -88,8 +84,7 @@ class AccountService:
         return position_dict
 
     def get_current_price(self, symbol: str) -> float:
-        """
-        Get current price for a symbol.
+        """Get current price for a symbol.
 
         Provides type-safe wrapper around data provider with sensible defaults.
         """
@@ -97,8 +92,7 @@ class AccountService:
         return float(price) if price is not None else 0.0
 
     def get_current_prices(self, symbols: list[str]) -> dict[str, float]:
-        """
-        Return current market values for multiple symbols.
+        """Return current market values for multiple symbols.
 
         Efficiently batches price requests and handles errors gracefully.
         Returns only valid prices to prevent calculation errors downstream.

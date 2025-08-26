@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Comprehensive Indicator Validation for The Alchemiser Quantitative Trading System.
+"""Comprehensive Indicator Validation for The Alchemiser Quantitative Trading System.
 
 This module provides a comprehensive testing suite that validates ALL technical
 indicators used by our trading strategies against TwelveData API values.
@@ -25,13 +24,10 @@ from the_alchemiser.domain.math.indicators import TechnicalIndicators
 
 
 class IndicatorValidationSuite:
-    """
-    Comprehensive validation suite for technical indicators against TwelveData API.
-    """
+    """Comprehensive validation suite for technical indicators against TwelveData API."""
 
     def __init__(self, api_key: str, console: Console) -> None:
         """Store API credentials and initialize result containers."""
-
         self.api_key = api_key
         self.console = console
         self.api_base_url = "https://api.twelvedata.com"
@@ -389,7 +385,6 @@ class IndicatorValidationSuite:
 
     def generate_report(self, summary: dict[str, Any]) -> None:
         """Generate a comprehensive validation report."""
-
         # Summary Panel
         summary_text = Text()
         summary_text.append(f"Total Tests: {summary['total_tests']}\n", style="white")

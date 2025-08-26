@@ -1,5 +1,4 @@
-"""
-Typed Nuclear Strategy Engine
+"""Typed Nuclear Strategy Engine.
 
 Typed implementation of the Nuclear energy trading strategy that inherits from
 StrategyEngine and uses MarketDataPort for data access. Produces StrategySignal
@@ -74,6 +73,7 @@ class NuclearTypedEngine(StrategyEngine):
 
         Raises:
             StrategyExecutionError: If signal generation fails
+
         """
         try:
             # Resolve parameters to support both call styles
@@ -180,6 +180,7 @@ class NuclearTypedEngine(StrategyEngine):
 
         Returns:
             Tuple of (recommended_symbol, action, detailed_reason)
+
         """
         # Use the new pure evaluation helper
         return evaluate_nuclear_strategy(indicators, market_data)
@@ -193,7 +194,6 @@ class NuclearTypedEngine(StrategyEngine):
         target_allocation_override: float | None = None,
     ) -> StrategySignal:
         """Convert legacy signal format to typed StrategySignal."""
-
         # Normalize symbol - handle portfolio cases and invalid symbol names
         if symbol == "UVXY_BTAL_PORTFOLIO":
             signal_symbol = "UVXY"  # Primary symbol for portfolio signals
@@ -232,13 +232,13 @@ class NuclearTypedEngine(StrategyEngine):
         # High confidence conditions
         if "extremely overbought" in reasoning.lower():
             return 0.9
-        elif "oversold" in reasoning.lower() and action == "BUY":
+        if "oversold" in reasoning.lower() and action == "BUY":
             return 0.85
-        elif "volatility hedge" in reasoning.lower():
+        if "volatility hedge" in reasoning.lower():
             return 0.8
-        elif "bull market" in reasoning.lower() or "bear market" in reasoning.lower():
+        if "bull market" in reasoning.lower() or "bear market" in reasoning.lower():
             return 0.7
-        elif action == "HOLD":
+        if action == "HOLD":
             return 0.6
 
         return base_confidence
@@ -247,16 +247,15 @@ class NuclearTypedEngine(StrategyEngine):
         """Calculate target allocation percentage based on signal."""
         if action == "HOLD":
             return 0.0
-        elif symbol == "UVXY_BTAL_PORTFOLIO" or symbol == "NUCLEAR_PORTFOLIO":
+        if symbol == "UVXY_BTAL_PORTFOLIO" or symbol == "NUCLEAR_PORTFOLIO":
             return 1.0  # 100% allocation for portfolio strategies
-        elif symbol in ["UVXY", "SQQQ", "PSQ"]:
+        if symbol in ["UVXY", "SQQQ", "PSQ"]:
             return 0.25  # 25% for volatility/hedging positions
-        elif symbol in ["TQQQ", "UPRO"]:
+        if symbol in ["TQQQ", "UPRO"]:
             return 0.30  # 30% for leveraged growth positions
-        elif symbol in self.nuclear_symbols:
+        if symbol in self.nuclear_symbols:
             return 0.20  # 20% for individual nuclear stocks
-        else:
-            return 0.15  # 15% default allocation
+        return 0.15  # 15% default allocation
 
     # --- Portfolio expansion helpers ---
 

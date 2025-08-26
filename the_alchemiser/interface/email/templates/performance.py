@@ -34,10 +34,7 @@ class PerformanceBuilder:
             estimated_value = order.get("estimated_value", 0)
 
             # Handle both string and enum values for side
-            if hasattr(side, "value"):
-                side_str = side.value.upper()
-            else:
-                side_str = str(side).upper()
+            side_str = side.value.upper() if hasattr(side, "value") else str(side).upper()
 
             side_color = "#10B981" if side_str == "BUY" else "#EF4444"
             side_emoji = "🟢" if side_str == "BUY" else "🔴"
@@ -238,10 +235,7 @@ class PerformanceBuilder:
             qty = order.get("qty", 0)
 
             # Handle both string and enum values for side
-            if hasattr(side, "value"):
-                side_str = side.value.upper()
-            else:
-                side_str = str(side).upper()
+            side_str = side.value.upper() if hasattr(side, "value") else str(side).upper()
 
             side_color = "#10B981" if side_str == "BUY" else "#EF4444"
             side_emoji = "🟢" if side_str == "BUY" else "🔴"
