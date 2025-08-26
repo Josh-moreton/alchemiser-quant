@@ -475,10 +475,13 @@ class TECLStrategyEngine(StrategyEngine):
 
 def main() -> None:
     """Test the TECL strategy engine."""
-    print("🚀 TECL Strategy Engine Test")
-    print("=" * 50)
-    print("Note: This test requires a configured data provider")
-    print("Use the strategy through the signal generator for full functionality")
+    from the_alchemiser.infrastructure.logging.logging_utils import get_logger
+
+    logger = get_logger(__name__)
+    logger.info("🚀 TECL Strategy Engine Test")
+    logger.info("=" * 50)
+    logger.info("Note: This test requires a configured data provider")
+    logger.info("Use the strategy through the signal generator for full functionality")
 
 
 if __name__ == "__main__":

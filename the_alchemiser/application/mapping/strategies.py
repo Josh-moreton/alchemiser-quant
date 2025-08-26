@@ -7,7 +7,7 @@ strategy engines, value objects, and shared CLI display helpers.
 
 Allocation Scaling Contract (IMPORTANT):
 ---------------------------------------
-All allocation figures exposed by this module are FRACTIONS (0.0–1.0) representing
+All allocation figures exposed by this module are FRACTIONS (0.0-1.0) representing
 portfolio weights. Formatting to human-readable percentages (e.g. 30.0%) is performed
 only at the presentation layer (e.g. CLI renderers) using standard percentage
 format specifiers ("{value:.1%}").
@@ -15,19 +15,19 @@ format specifiers ("{value:.1%}").
 Backward Compatibility:
 -----------------------
 Historically, callers sometimes supplied ``allocation_percentage`` already scaled
-to 0–100 while the renderer also applied percentage formatting, producing 100x
+to 0-100 while the renderer also applied percentage formatting, producing 100x
 inflated numbers. To migrate safely:
 
-* New canonical field: ``allocation_weight`` (fraction 0–1)
+* New canonical field: ``allocation_weight`` (fraction 0-1)
 * Legacy field still emitted: ``allocation_percentage`` (alias, same fractional value)
-    – Downstream code expecting the old key continues to work
-    – Renderers should prefer ``allocation_weight`` when present
+    - Downstream code expecting the old key continues to work
+    - Renderers should prefer ``allocation_weight`` when present
 
 Key Functions:
-* ``typed_signals_to_display_signals_dict`` – Convert AggregatedSignals to display dict
-* ``compute_consolidated_portfolio`` – Build consolidated portfolio (fractions 0–1)
-* ``format_strategy_signal_for_display`` – Individual signal formatting (fractional)
-* ``handle_portfolio_symbol_alias`` – PORT → NUCLEAR_PORTFOLIO conversion
+* ``typed_signals_to_display_signals_dict`` - Convert AggregatedSignals to display dict
+* ``compute_consolidated_portfolio`` - Build consolidated portfolio (fractions 0-1)
+* ``format_strategy_signal_for_display`` - Individual signal formatting (fractional)
+* ``handle_portfolio_symbol_alias`` - PORT → NUCLEAR_PORTFOLIO conversion
 
 Design Principles:
 * Pure functions with no side effects
@@ -57,16 +57,16 @@ class StrategySignalDisplayDTO(TypedDict, total=False):
 
     Semantics (RESTORED):
         allocation_weight / allocation_percentage now represent the STRATEGY-LEVEL
-        portfolio weight fraction (0–1) allocated to the strategy, matching legacy
+        portfolio weight fraction (0-1) allocated to the strategy, matching legacy
         CLI behaviour prior to centralisation. This restores parity so that
         previously displayed values are unchanged.
 
     Additional Fields (new):
-        intra_strategy_weight: Fraction (0–1) weight of this symbol *within* the strategy
+        intra_strategy_weight: Fraction (0-1) weight of this symbol *within* the strategy
             (i.e. the original signal.target_allocation.value). Provided for richer
             reasoning / debugging but not required by existing renderers.
         constituents_breakdown: Optional multi-line text block detailing constituent
-            weights (only for multi‑signal/portfolio strategies like Nuclear). Used to
+            weights (only for multi-signal/portfolio strategies like Nuclear). Used to
             preserve the richer reasoning that was removed in PR #277 initial draft.
 
     Fields:
@@ -74,9 +74,9 @@ class StrategySignalDisplayDTO(TypedDict, total=False):
         action: BUY | SELL | HOLD
         confidence: Float in [0,1]
         reasoning: Human-readable explanation (may include appended breakdown)
-        allocation_weight: Strategy-level portfolio weight fraction (0–1)
-        allocation_percentage: Alias of allocation_weight (fraction, not 0–100)
-        intra_strategy_weight: (Optional) Symbol's share within its strategy (0–1)
+        allocation_weight: Strategy-level portfolio weight fraction (0-1)
+        allocation_percentage: Alias of allocation_weight (fraction, not 0-100)
+        intra_strategy_weight: (Optional) Symbol's share within its strategy (0-1)
         constituents_breakdown: (Optional) Textual breakdown of multi-signal portfolio
     """
 
@@ -85,8 +85,8 @@ class StrategySignalDisplayDTO(TypedDict, total=False):
     confidence: float
     reasoning: str
     allocation_weight: float  # strategy-level allocation fraction (legacy semantics)
-    allocation_percentage: float  # alias (fraction, not 0–100)
-    intra_strategy_weight: float  # symbol share within strategy (0–1)
+    allocation_percentage: float  # alias (fraction, not 0-100)
+    intra_strategy_weight: float  # symbol share within strategy (0-1)
     constituents_breakdown: str
 
 
@@ -112,7 +112,7 @@ def format_strategy_signal_for_display(
 
     Args:
         signal: Typed domain strategy signal
-        strategy_allocation_fraction: Strategy-level allocation fraction (0–1)
+        strategy_allocation_fraction: Strategy-level allocation fraction (0-1)
         multi_signal_context: Optional mapping of constituent symbol -> fraction of total
             strategy allocation (already multiplied by *intra* weight) used to build a
             breakdown for portfolio strategies.
@@ -228,11 +228,11 @@ def compute_consolidated_portfolio(
 
     Args:
         aggregated: Aggregated signals from TypedStrategyManager
-        strategy_allocations: Portfolio allocation between strategies (fractions 0–1)
+        strategy_allocations: Portfolio allocation between strategies (fractions 0-1)
 
     Returns:
         (consolidated_portfolio, strategy_attribution)
-        * consolidated_portfolio: symbol -> fractional target weight (0–1)
+        * consolidated_portfolio: symbol -> fractional target weight (0-1)
         * strategy_attribution: symbol -> list of strategies contributing a BUY/LONG weight
 
     """

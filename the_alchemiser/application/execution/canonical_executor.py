@@ -2,7 +2,7 @@
 
 Refined implementation after pre-merge review:
 * Accepts an injected lifecycle monitor (Protocol) instead of instantiating infra class directly
-* Removes mock fill fabrication – optionally fetches updated order execution result
+* Removes mock fill fabrication - optionally fetches updated order execution result
 * Shadow mode now returns a synthetic, clearly non-executed result (success=False)
 * No private attribute access on repository
 * Structured logging via contextual `extra` data
@@ -121,7 +121,7 @@ class CanonicalOrderExecutor:
 
         if self.lifecycle_monitor is None:
             logger.info(
-                "No lifecycle monitor injected – returning immediate placement result",
+                "No lifecycle monitor injected - returning immediate placement result",
                 extra={
                     "component": "CanonicalOrderExecutor.execute",
                     "order_id": execution_result.order_id,
@@ -145,7 +145,7 @@ class CanonicalOrderExecutor:
                         },
                     )
                     return updated
-                except Exception as e:  # fetch failure – keep original result
+                except Exception as e:  # fetch failure - keep original result
                     self.error_handler.handle_error(
                         error=e,
                         component="CanonicalOrderExecutor.execute",

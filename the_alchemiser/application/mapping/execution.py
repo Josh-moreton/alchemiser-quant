@@ -12,7 +12,7 @@ Ordered fixes applied (review issues 1→10):
     strings; computed spread/mid likewise (still parseable downstream).
 5. Enum conversions wrapped with contextual ValueError messages.
 6. Mixed order shapes eliminated via `_normalize_order_details`.
-7. Tests (added separately) cover round‑trips, precision, invalid enums.
+7. Tests (added separately) cover round-trips, precision, invalid enums.
 8. Style: removed shebang, wrapped long lines.
 9. Clarified docstring scope (DTO <-> boundary types & domain entity helpers).
 10. Timestamp normalisation now guarantees timezone awareness & ISO 8601.
