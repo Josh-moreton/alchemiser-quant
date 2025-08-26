@@ -23,7 +23,7 @@ from the_alchemiser.interfaces.schemas.orders import OrderExecutionResultDTO
 logger = logging.getLogger(__name__)
 
 
-def alpaca_order_to_dto(order: Any) -> AlpacaOrderDTO:
+def alpaca_order_to_dto(order: object) -> AlpacaOrderDTO:
     """Convert raw Alpaca order object to AlpacaOrderDTO.
 
     Handles both attribute-based objects and dict responses from Alpaca API.
@@ -40,7 +40,7 @@ def alpaca_order_to_dto(order: Any) -> AlpacaOrderDTO:
     """
 
     # Extract helper function to handle both attribute access and dict access
-    def get_attr(name: str, default: Any = None) -> Any:
+    def get_attr(name: str, default: object = None) -> object:
         if isinstance(order, dict):
             return order.get(name, default)
         return getattr(order, name, default)

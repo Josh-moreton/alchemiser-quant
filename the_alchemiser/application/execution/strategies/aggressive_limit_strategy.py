@@ -8,9 +8,11 @@ Handles order lifecycle, error management, and execution flow.
 import logging
 import time
 from decimal import Decimal
-from typing import TYPE_CHECKING, Any, Protocol
+from typing import TYPE_CHECKING, Protocol
 
 from alpaca.trading.enums import OrderSide
+
+from the_alchemiser.interfaces.schemas.execution import WebSocketResultDTO
 
 from the_alchemiser.services.errors.exceptions import (
     OrderPlacementError,
@@ -45,7 +47,7 @@ class ExecutionContext(Protocol):
 
     def wait_for_order_completion(
         self, order_ids: list[str], max_wait_seconds: int = 30
-    ) -> Any:  # WebSocketResultDTO
+    ) -> WebSocketResultDTO:
         """Wait for order completion."""
         ...
 

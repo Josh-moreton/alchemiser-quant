@@ -5,9 +5,11 @@ Adapter to bridge OrderExecutor protocol to ExecutionContext protocol
 for strategy compatibility.
 """
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from alpaca.trading.enums import OrderSide
+
+from the_alchemiser.interfaces.schemas.execution import WebSocketResultDTO
 
 if TYPE_CHECKING:
     from the_alchemiser.application.execution.smart_execution import OrderExecutor
@@ -31,7 +33,7 @@ class ExecutionContextAdapter:
 
     def wait_for_order_completion(
         self, order_ids: list[str], max_wait_seconds: int = 30
-    ) -> Any:  # WebSocketResultDTO
+    ) -> WebSocketResultDTO:
         return self._order_executor.wait_for_order_completion(order_ids, max_wait_seconds)
 
     def get_latest_quote(self, symbol: str) -> tuple[float, float] | None:
