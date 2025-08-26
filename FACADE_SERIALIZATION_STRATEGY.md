@@ -2,7 +2,7 @@
 
 ## Decision: Option B - Serialize at Facade Boundary
 
-**Date**: 2024-08-26  
+**Date**: 2025-08-26
 **Context**: Issue #255 - Standardize facade serialization strategy for DTOs
 
 ## Problem
@@ -46,7 +46,18 @@ This inconsistency increased cognitive load for callers and made the facade boun
 - **Breaking Change**: Yes, for callers expecting DTO objects
 - **Migration**: Callers should expect `dict[str, Any]` instead of DTO objects
 - **Benefits**: Consistent, JSON-ready interface across all facade methods
-- **Type Safety**: Maintained internally, sacrificed at boundary for simplicity
+- **Type Safety**: Maintained internally, sacrificed at boundary for simplicity (structural typing can be reintroduced with `TypedDict` if needed)
+- **Decimal Handling**: All Decimals serialized to string to ensure native JSON compatibility without custom encoder.
+
+### Migration Notes
+| Method | Old Return | New Return | Action |
+|--------|------------|-----------|--------|
+| calculate_rebalancing_plan | RebalancePlanCollectionDTO | dict[str, Any] | Remove `.model_dump()`; treat as dict |
+| get_rebalancing_summary | RebalancingSummaryDTO | dict[str, Any] | Remove `.model_dump()` |
+| estimate_rebalancing_impact | RebalancingImpactDTO | dict[str, Any] | Remove `.model_dump()` |
+| get_enriched_account_summary | EnrichedAccountSummaryDTO | dict[str, Any] | Replace attribute access with key lookup |
+| execute_rebalancing.rebalance_plan | DTO | serialized dict | Access via `['rebalance_plan']` |
+| perform_portfolio_rebalancing_workflow.rebalancing_plan | DTOs | serialized dict entries | Use key access |
 
 ## Examples
 
@@ -83,3 +94,13 @@ def get_complete_portfolio_overview(self, target_weights: dict[str, Decimal] | N
         "portfolio_analysis": self.get_portfolio_analysis(),  # Consistent dict
     }
 ```
+
+## Decimal Serialization Policy
+
+Decimals are converted to their exact string form at the facade boundary using `to_serializable` (in `the_alchemiser/utils/serialization.py`). Consumers needing arithmetic should cast back via `Decimal(str_value)`.
+
+## Post-Review Adjustments
+
+- Added centralized serialization utility.
+- Ensured nested DTOs in composite responses are serialized.
+- Added migration table & decimal policy.

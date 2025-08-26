@@ -19,16 +19,19 @@ from the_alchemiser.application.portfolio.services.rebalance_execution_service i
     RebalanceExecutionService,
 )
 from the_alchemiser.domain.portfolio.position.position_analyzer import PositionAnalyzer
-from the_alchemiser.domain.portfolio.rebalancing.rebalance_calculator import RebalanceCalculator
+from the_alchemiser.domain.portfolio.rebalancing.rebalance_calculator import (
+    RebalanceCalculator,
+)
 from the_alchemiser.domain.portfolio.strategy_attribution.attribution_engine import (
     StrategyAttributionEngine,
 )
 from the_alchemiser.domain.registry.strategy_registry import StrategyType
 from the_alchemiser.domain.types import OrderDetails
-from the_alchemiser.interfaces.schemas.portfolio_rebalancing import (
-    RebalancePlanDTO,
+from the_alchemiser.interfaces.schemas.portfolio_rebalancing import RebalancePlanDTO
+from the_alchemiser.services.trading.trading_service_manager import (
+    TradingServiceManager,
 )
-from the_alchemiser.services.trading.trading_service_manager import TradingServiceManager
+from the_alchemiser.utils.serialization import ensure_serialized_dict
 
 
 class PortfolioManagementFacade:
@@ -40,7 +43,9 @@ class PortfolioManagementFacade:
     """
 
     def __init__(
-        self, trading_manager: TradingServiceManager, min_trade_threshold: Decimal = Decimal("0.01")
+        self,
+        trading_manager: TradingServiceManager,
+        min_trade_threshold: Decimal = Decimal("0.01"),
     ):
         """
         Initialize the portfolio management facade.
@@ -111,9 +116,7 @@ class PortfolioManagementFacade:
         summary_dto = self.rebalancing_service.get_rebalancing_summary(target_weights)
         return summary_dto.model_dump()
 
-    def estimate_rebalancing_impact(
-        self, target_weights: dict[str, Decimal]
-    ) -> dict[str, Any]:
+    def estimate_rebalancing_impact(self, target_weights: dict[str, Decimal]) -> dict[str, Any]:
         """Estimate the impact of rebalancing.
 
         Returns:
@@ -185,12 +188,13 @@ class PortfolioManagementFacade:
         except Exception:
             pass
 
-        return {
+        result_dict = {
             "status": "completed",
             "validation_results": validation,
             "execution_results": execution_results,
             "rebalance_plan": rebalance_plan,
         }
+        return ensure_serialized_dict(result_dict)
 
     def execute_single_symbol_rebalance(
         self, symbol: str, target_weight: Decimal, dry_run: bool = True
@@ -201,7 +205,10 @@ class PortfolioManagementFacade:
         rebalance_plan = self.rebalancing_service.calculate_rebalancing_plan(target_weights)
 
         if symbol not in rebalance_plan.plans:
-            return {"status": "error", "message": f"No rebalancing plan generated for {symbol}"}
+            return {
+                "status": "error",
+                "message": f"No rebalancing plan generated for {symbol}",
+            }
 
         # Execute single symbol rebalance
         return self.execution_service.execute_single_rebalance(
@@ -255,11 +262,13 @@ class PortfolioManagementFacade:
         rebalance_plan = self.rebalancing_service.calculate_rebalancing_plan(target_weights)
         domain_plans = dto_plans_to_domain(rebalance_plan.plans)
         validation = self.execution_service.validate_rebalancing_plan(domain_plans)
-        workflow_results["rebalancing_plan"] = {
-            "plan": rebalance_plan,
-            "validation": validation,
-            "summary": self.rebalancing_service.get_rebalancing_summary(target_weights),
-        }
+        workflow_results["rebalancing_plan"] = ensure_serialized_dict(
+            {
+                "plan": rebalance_plan,
+                "validation": validation,
+                "summary": self.rebalancing_service.get_rebalancing_summary(target_weights),
+            }
+        )
 
         # Step 3: Execute if validation passes
         if validation["is_valid"]:

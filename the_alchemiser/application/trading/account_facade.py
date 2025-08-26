@@ -40,9 +40,13 @@ from the_alchemiser.interfaces.schemas.accounts import (
     EnrichedAccountSummaryDTO,
 )
 from the_alchemiser.services.account.account_service import AccountService
-from the_alchemiser.services.errors.exceptions import DataProviderError, TradingClientError
+from the_alchemiser.services.errors.exceptions import (
+    DataProviderError,
+    TradingClientError,
+)
 from the_alchemiser.services.market_data.market_data_service import MarketDataService
 from the_alchemiser.services.trading.position_service import PositionService
+from the_alchemiser.utils.serialization import ensure_serialized_dict
 
 logger = logging.getLogger(__name__)
 
@@ -272,7 +276,12 @@ class AccountFacade:
         """
         try:
             return self._account_service.get_positions_dict()
-        except (DataProviderError, TradingClientError, ConnectionError, TimeoutError) as e:
+        except (
+            DataProviderError,
+            TradingClientError,
+            ConnectionError,
+            TimeoutError,
+        ) as e:
             self.logger.error(f"Failed to retrieve positions: {e}")
             return {}
 
@@ -453,7 +462,7 @@ class AccountFacade:
             calculated_metrics=minimal_metrics,
         )
         enriched_dto = EnrichedAccountSummaryDTO(raw=dict(default_account), summary=minimal_summary)
-        return enriched_dto.model_dump()
+        return ensure_serialized_dict(enriched_dto)
 
     def get_enriched_account_summary(self) -> dict[str, Any]:
         """Get enriched account summary using typed domain objects.
@@ -495,7 +504,7 @@ class AccountFacade:
             )
 
             enriched_dto = EnrichedAccountSummaryDTO(raw=raw_summary, summary=summary_dto)
-            return enriched_dto.model_dump()
+            return ensure_serialized_dict(enriched_dto)
 
         except (
             DataProviderError,
