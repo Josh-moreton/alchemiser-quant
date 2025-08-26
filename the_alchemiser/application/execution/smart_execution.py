@@ -146,7 +146,9 @@ class SmartExecution:
         self._account_info_provider = account_info_provider
         self.ignore_market_hours = ignore_market_hours
         self.enable_market_order_fallback = enable_market_order_fallback
-        self.execution_config = execution_config or get_execution_config()  # Phase 2: Use global config if not provided
+        self.execution_config = (
+            execution_config or get_execution_config()
+        )  # Phase 2: Use global config if not provided
 
         # Phase 3: Lifecycle management integration
         from the_alchemiser.application.trading.lifecycle import (
@@ -444,7 +446,9 @@ class SmartExecution:
             )
             # Feature flag controlled market order fallback
             if self.enable_market_order_fallback:
-                console.print("[yellow]Order execution failed, falling back to market order[/yellow]")
+                console.print(
+                    "[yellow]Order execution failed, falling back to market order[/yellow]"
+                )
                 self.logger.info(
                     "market_order_fallback_triggered",
                     extra={
@@ -530,7 +534,9 @@ class SmartExecution:
                 )
                 console.print("[red]Insufficient buying power detected[/red]")
                 raise buying_power_error
-            elif "order" in error_message and ("failed" in error_message or "reject" in error_message):
+            elif "order" in error_message and (
+                "failed" in error_message or "reject" in error_message
+            ):
                 placement_error = OrderPlacementError(
                     f"Order placement failed: {str(e)}",
                     symbol=symbol,
@@ -545,7 +551,9 @@ class SmartExecution:
                     },
                 )
                 if self.enable_market_order_fallback:
-                    console.print("[yellow]Order placement failed, falling back to market order[/yellow]")
+                    console.print(
+                        "[yellow]Order placement failed, falling back to market order[/yellow]"
+                    )
                     return self._order_executor.place_market_order(symbol, side, qty=qty)
                 else:
                     console.print("[red]Order placement failed, market fallback disabled[/red]")
@@ -806,7 +814,9 @@ class SmartExecution:
 
         for attempt in range(max_repegs + 1):
             # Phase 2: Adaptive timeout with exponential backoff
-            timeout_seconds = self.execution_config.get_adaptive_timeout(attempt, base_timeout_seconds)
+            timeout_seconds = self.execution_config.get_adaptive_timeout(
+                attempt, base_timeout_seconds
+            )
 
             # Phase 2: Adaptive limit price calculation
             if self.execution_config.enable_adaptive_repegging:
@@ -974,7 +984,9 @@ class SmartExecution:
 
             # Order not filled - prepare for re-peg if attempts remain
             if attempt < max_repegs:
-                console.print(f"[yellow]{attempt_label} not filled, analyzing for re-peg...[/yellow]")
+                console.print(
+                    f"[yellow]{attempt_label} not filled, analyzing for re-peg...[/yellow]"
+                )
 
                 # Get fresh quote for re-peg pricing and volatility analysis
                 try:
@@ -1006,7 +1018,9 @@ class SmartExecution:
                                 "symbol": symbol,
                                 "original_spread_cents": original_spread_cents,
                                 "current_spread_cents": current_spread_cents,
-                                "spread_change_pct": (current_spread_cents - original_spread_cents) / original_spread_cents * 100,
+                                "spread_change_pct": (current_spread_cents - original_spread_cents)
+                                / original_spread_cents
+                                * 100,
                                 "attempt": attempt,
                             },
                         )

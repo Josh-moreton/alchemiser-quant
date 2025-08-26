@@ -60,9 +60,13 @@ class ExecutionConfig:
                 enable_adaptive_repegging=getattr(execution, "enable_adaptive_repegging", True),
                 repeg_timeout_multiplier=getattr(execution, "repeg_timeout_multiplier", 1.5),
                 max_spread_degradation_bps=getattr(execution, "max_spread_degradation_bps", 50.0),
-                repeg_price_improvement_ticks=getattr(execution, "repeg_price_improvement_ticks", 1),
+                repeg_price_improvement_ticks=getattr(
+                    execution, "repeg_price_improvement_ticks", 1
+                ),
                 min_repeg_interval_seconds=getattr(execution, "min_repeg_interval_seconds", 0.5),
-                volatility_pause_threshold_bps=getattr(execution, "volatility_pause_threshold_bps", 100.0),
+                volatility_pause_threshold_bps=getattr(
+                    execution, "volatility_pause_threshold_bps", 100.0
+                ),
             )
         except Exception as e:
             logging.error(f"Error loading execution config: {e}")
@@ -104,12 +108,10 @@ class ExecutionConfig:
             return base_timeout
 
         # Apply exponential backoff: base_timeout * multiplier^attempt
-        return base_timeout * (self.repeg_timeout_multiplier ** attempt)
+        return base_timeout * (self.repeg_timeout_multiplier**attempt)
 
     def should_pause_for_volatility(
-        self,
-        original_spread_cents: float,
-        current_spread_cents: float
+        self, original_spread_cents: float, current_spread_cents: float
     ) -> bool:
         """
         Check if re-pegging should be paused due to spread volatility.
@@ -125,18 +127,15 @@ class ExecutionConfig:
             return False
 
         # Calculate spread degradation in basis points
-        spread_degradation_pct = (current_spread_cents - original_spread_cents) / original_spread_cents
+        spread_degradation_pct = (
+            current_spread_cents - original_spread_cents
+        ) / original_spread_cents
         spread_degradation_bps = spread_degradation_pct * 10000  # Convert to basis points
 
         return spread_degradation_bps > self.volatility_pause_threshold_bps
 
     def calculate_adaptive_limit_price(
-        self,
-        side: str,
-        bid: float,
-        ask: float,
-        attempt: int,
-        tick_size: float = 0.01
+        self, side: str, bid: float, ask: float, attempt: int, tick_size: float = 0.01
     ) -> float:
         """
         Calculate adaptive limit price that improves with each re-peg attempt.
