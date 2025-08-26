@@ -6,22 +6,22 @@ This module provides structured error classification for order lifecycle and exe
 enabling deterministic branching, richer analytics, and improved user-facing messaging.
 """
 
+from .classifier import (
+    OrderErrorClassifier,
+    classify_alpaca_error,
+    classify_exception,
+    classify_validation_failure,
+)
 from .error_categories import OrderErrorCategory
 from .error_codes import OrderErrorCode
 from .order_error import OrderError
-from .classifier import (
-    OrderErrorClassifier,
-    classify_exception,
-    classify_alpaca_error,
-    classify_validation_failure,
-)
 
 __all__ = [
     "OrderErrorCategory",
-    "OrderErrorCode", 
+    "OrderErrorCode",
     "OrderError",
     "OrderErrorClassifier",
     "classify_exception",
-    "classify_alpaca_error", 
+    "classify_alpaca_error",
     "classify_validation_failure",
 ]

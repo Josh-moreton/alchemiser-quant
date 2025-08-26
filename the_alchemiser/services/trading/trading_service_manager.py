@@ -15,7 +15,9 @@ from the_alchemiser.application.mapping.order_mapping import (
 from the_alchemiser.application.mapping.orders import (
     dict_to_order_request_dto,
 )
-from the_alchemiser.application.mapping.position_mapping import alpaca_position_to_summary
+from the_alchemiser.application.mapping.position_mapping import (
+    alpaca_position_to_summary,
+)
 from the_alchemiser.application.mapping.trading_service_dto_mapping import (
     account_summary_typed_to_dto,
     dict_to_buying_power_dto,
@@ -35,6 +37,17 @@ from the_alchemiser.application.mapping.trading_service_dto_mapping import (
     list_to_open_orders_dto,
 )
 from the_alchemiser.application.orders.order_validation import OrderValidator
+from the_alchemiser.application.trading.lifecycle import (
+    LifecycleEventDispatcher,
+    LoggingObserver,
+    MetricsObserver,
+    OrderLifecycleManager,
+)
+from the_alchemiser.domain.trading.lifecycle import (
+    LifecycleEventType,
+    OrderLifecycleState,
+)
+from the_alchemiser.domain.trading.value_objects.order_id import OrderId
 from the_alchemiser.interfaces.schemas.accounts import (
     AccountMetricsDTO,
     AccountSummaryDTO,
@@ -44,7 +57,10 @@ from the_alchemiser.interfaces.schemas.accounts import (
     RiskMetricsDTO,
     TradeEligibilityDTO,
 )
-from the_alchemiser.interfaces.schemas.enriched_data import EnrichedPositionsDTO, OpenOrdersDTO
+from the_alchemiser.interfaces.schemas.enriched_data import (
+    EnrichedPositionsDTO,
+    OpenOrdersDTO,
+)
 from the_alchemiser.interfaces.schemas.market_data import (
     MarketStatusDTO,
     MultiSymbolQuotesDTO,
@@ -56,7 +72,10 @@ from the_alchemiser.interfaces.schemas.operations import (
     OrderCancellationDTO,
     OrderStatusDTO,
 )
-from the_alchemiser.interfaces.schemas.orders import OrderExecutionResultDTO, OrderRequestDTO
+from the_alchemiser.interfaces.schemas.orders import (
+    OrderExecutionResultDTO,
+    OrderRequestDTO,
+)
 from the_alchemiser.interfaces.schemas.positions import (
     ClosePositionResultDTO,
     PortfolioSummaryDTO,
@@ -110,7 +129,64 @@ class TradingServiceManager:
         # Initialize DTO-based order validator
         self.order_validator = OrderValidator()
 
+        # Initialize order lifecycle management
+        self.lifecycle_manager = OrderLifecycleManager()
+        self.lifecycle_dispatcher = LifecycleEventDispatcher()
+        # Register default observers
+        self.lifecycle_dispatcher.register(LoggingObserver(use_rich_logging=True))
+        self.lifecycle_dispatcher.register(MetricsObserver())
+
         self.logger.info(f"TradingServiceManager initialized with paper={paper}")
+
+    def _create_order_id(self, client_order_id: str | None = None) -> OrderId:
+        """
+        Create an OrderId for lifecycle tracking.
+
+        Args:
+            client_order_id: Optional client-specified order ID
+
+        Returns:
+            OrderId for lifecycle tracking
+        """
+        if client_order_id:
+            try:
+                return OrderId.from_string(client_order_id)
+            except ValueError:
+                # If client_order_id is not a valid UUID, generate a new one
+                pass
+        return OrderId.generate()
+
+    def _emit_lifecycle_event(
+        self,
+        order_id: OrderId,
+        target_state: OrderLifecycleState,
+        event_type: LifecycleEventType = LifecycleEventType.STATE_CHANGED,
+        metadata: dict[str, Any] | None = None,
+    ) -> None:
+        """
+        Emit a lifecycle event for an order.
+
+        Args:
+            order_id: Order identifier
+            target_state: Target lifecycle state
+            event_type: Type of lifecycle event
+            metadata: Additional event metadata
+        """
+        try:
+            self.lifecycle_manager.advance(
+                order_id=order_id,
+                target_state=target_state,
+                event_type=event_type,
+                metadata=metadata or {},
+                dispatcher=self.lifecycle_dispatcher,
+            )
+        except Exception as e:
+            self.logger.warning(
+                "Failed to emit lifecycle event for order %s: %s",
+                order_id,
+                e,
+                exc_info=True,
+            )
 
     # Order Management Operations
     def place_market_order(
@@ -179,7 +255,12 @@ class TradingServiceManager:
             )
 
     def place_limit_order(
-        self, symbol: str, quantity: float, side: str, limit_price: float, validate: bool = True
+        self,
+        symbol: str,
+        quantity: float,
+        side: str,
+        limit_price: float,
+        validate: bool = True,
     ) -> OrderExecutionResultDTO:
         """Place a limit order with DTO validation"""
         try:
@@ -276,7 +357,10 @@ class TradingServiceManager:
 
     @translate_trading_errors(
         default_return=OpenOrdersDTO(
-            success=False, orders=[], symbol_filter=None, error="open orders unavailable"
+            success=False,
+            orders=[],
+            symbol_filter=None,
+            error="open orders unavailable",
         )
     )
     def get_open_orders(self, symbol: str | None = None) -> OpenOrdersDTO:
@@ -337,7 +421,9 @@ class TradingServiceManager:
                     return dict_to_position_summary_dto(position_dict)
                 else:
                     return PositionSummaryDTO(
-                        success=False, symbol=symbol, error=f"No position found for {symbol}"
+                        success=False,
+                        symbol=symbol,
+                        error=f"No position found for {symbol}",
                     )
             else:
                 # Get portfolio summary
@@ -376,7 +462,11 @@ class TradingServiceManager:
         """Get detailed position analytics"""
         try:
             risk_metrics = self.positions.get_position_risk_metrics(symbol)
-            analytics_dict = {"success": True, "symbol": symbol, "risk_metrics": risk_metrics}
+            analytics_dict = {
+                "success": True,
+                "symbol": symbol,
+                "risk_metrics": risk_metrics,
+            }
             return dict_to_position_analytics_dto(analytics_dict)
         except Exception as e:
             return PositionAnalyticsDTO(success=False, symbol=symbol, error=str(e))
@@ -390,7 +480,11 @@ class TradingServiceManager:
                 "success": True,
                 "diversification_score": diversification_score,
                 "largest_positions": [
-                    {"symbol": pos.symbol, "weight": pos.weight_percent, "value": pos.market_value}
+                    {
+                        "symbol": pos.symbol,
+                        "weight": pos.weight_percent,
+                        "value": pos.market_value,
+                    }
                     for pos in largest_positions
                 ],
             }
@@ -408,13 +502,19 @@ class TradingServiceManager:
                 return dict_to_price_dto(price_dict)
             else:
                 return PriceDTO(
-                    success=False, symbol=symbol, error=f"Could not get price for {symbol}"
+                    success=False,
+                    symbol=symbol,
+                    error=f"Could not get price for {symbol}",
                 )
         except Exception as e:
             return PriceDTO(success=False, symbol=symbol, error=str(e))
 
     def get_price_history(
-        self, symbol: str, timeframe: str = "1Day", limit: int = 100, validate: bool = True
+        self,
+        symbol: str,
+        timeframe: str = "1Day",
+        limit: int = 100,
+        validate: bool = True,
     ) -> PriceHistoryDTO:
         """Get price history (not directly available - use AlpacaManager directly)"""
         return PriceHistoryDTO(
@@ -430,11 +530,17 @@ class TradingServiceManager:
         try:
             spread_data = self.market_data.get_spread_analysis(symbol)
             if spread_data:
-                spread_dict = {"success": True, "symbol": symbol, "spread_analysis": spread_data}
+                spread_dict = {
+                    "success": True,
+                    "symbol": symbol,
+                    "spread_analysis": spread_data,
+                }
                 return dict_to_spread_analysis_dto(spread_dict)
             else:
                 return SpreadAnalysisDTO(
-                    success=False, symbol=symbol, error=f"Could not analyze spread for {symbol}"
+                    success=False,
+                    symbol=symbol,
+                    error=f"Could not analyze spread for {symbol}",
                 )
         except Exception as e:
             return SpreadAnalysisDTO(success=False, symbol=symbol, error=str(e))
@@ -598,7 +704,12 @@ class TradingServiceManager:
         )
     )
     def execute_smart_order(
-        self, symbol: str, quantity: int, side: str, order_type: str = "market", **kwargs: Any
+        self,
+        symbol: str,
+        quantity: int,
+        side: str,
+        order_type: str = "market",
+        **kwargs: Any,
     ) -> SmartOrderExecutionDTO:
         """
         Execute a smart order with comprehensive validation and risk management
@@ -614,6 +725,20 @@ class TradingServiceManager:
             Comprehensive order execution result
         """
         try:
+            # Create order ID for lifecycle tracking
+            order_id = self._create_order_id(kwargs.get("client_order_id"))
+            # Emit initial lifecycle event
+            self._emit_lifecycle_event(
+                order_id=order_id,
+                target_state=OrderLifecycleState.NEW,
+                event_type=LifecycleEventType.STATE_CHANGED,
+                metadata={
+                    "symbol": symbol,
+                    "quantity": quantity,
+                    "side": side,
+                    "order_type": order_type,
+                },
+            )
             # Create OrderRequestDTO for comprehensive validation
             order_data = {
                 "symbol": symbol,
@@ -630,6 +755,21 @@ class TradingServiceManager:
                 order_request = dict_to_order_request_dto(order_data)
                 validated_order = self.order_validator.validate_order_request(order_request)
 
+                # Emit validation success event
+                self._emit_lifecycle_event(
+                    order_id=order_id,
+                    target_state=OrderLifecycleState.VALIDATED,
+                    event_type=LifecycleEventType.STATE_CHANGED,
+                    metadata={
+                        "estimated_value": (
+                            validated_order.estimated_value
+                            if validated_order.estimated_value is not None
+                            else Decimal("0")
+                        ),
+                        "risk_score": validated_order.risk_score,
+                        "is_fractional": validated_order.is_fractional,
+                    },
+                )
                 self.logger.info(
                     f"Order validation successful for {symbol}: "
                     f"estimated_value=${validated_order.estimated_value}, "
@@ -638,6 +778,16 @@ class TradingServiceManager:
                 )
 
             except Exception as validation_error:
+                # Emit validation failure event
+                self._emit_lifecycle_event(
+                    order_id=order_id,
+                    target_state=OrderLifecycleState.REJECTED,
+                    event_type=LifecycleEventType.REJECTED,
+                    metadata={
+                        "validation_error": str(validation_error),
+                    },
+                )
+
                 return SmartOrderExecutionDTO(
                     success=False,
                     reason="Order validation failed",
@@ -662,9 +812,21 @@ class TradingServiceManager:
                 symbol,
                 quantity,
                 side,
-                float(estimated_cost) if isinstance(estimated_cost, Decimal) else estimated_cost,
+                (float(estimated_cost) if isinstance(estimated_cost, Decimal) else estimated_cost),
             )
             if not eligibility.eligible:
+                # Emit rejection event for failed eligibility
+                self._emit_lifecycle_event(
+                    order_id=order_id,
+                    target_state=OrderLifecycleState.REJECTED,
+                    event_type=LifecycleEventType.REJECTED,
+                    metadata={
+                        "eligibility_reason": eligibility.reason,
+                        "eligibility_details": eligibility.details,
+                        "estimated_cost": (float(estimated_cost) if estimated_cost else None),
+                    },
+                )
+
                 return SmartOrderExecutionDTO(
                     success=False,
                     reason=eligibility.reason or "Trade not eligible",
@@ -677,12 +839,30 @@ class TradingServiceManager:
                 )
 
             # Execute the order based on type
+            # First, emit submission event
+            self._emit_lifecycle_event(
+                order_id=order_id,
+                target_state=OrderLifecycleState.SUBMITTED,
+                event_type=LifecycleEventType.STATE_CHANGED,
+                metadata={
+                    "order_type": order_type,
+                },
+            )
             order_result: OrderExecutionResultDTO
             if order_type.lower() == "market":
                 order_result = self.place_market_order(symbol, quantity, side, validate=False)
             elif order_type.lower() == "limit":
                 limit_price = kwargs.get("limit_price")
                 if not limit_price:
+                    # Emit error event for missing limit price
+                    self._emit_lifecycle_event(
+                        order_id=order_id,
+                        target_state=OrderLifecycleState.ERROR,
+                        event_type=LifecycleEventType.ERROR,
+                        metadata={
+                            "error": "limit_price required for limit orders",
+                        },
+                    )
                     return SmartOrderExecutionDTO(
                         success=False, reason="limit_price required for limit orders"
                     )
@@ -692,6 +872,15 @@ class TradingServiceManager:
             elif order_type.lower() == "stop_loss":
                 stop_price = kwargs.get("stop_price")
                 if not stop_price:
+                    # Emit error event for missing stop price
+                    self._emit_lifecycle_event(
+                        order_id=order_id,
+                        target_state=OrderLifecycleState.ERROR,
+                        event_type=LifecycleEventType.ERROR,
+                        metadata={
+                            "error": "stop_price required for stop_loss orders",
+                        },
+                    )
                     return SmartOrderExecutionDTO(
                         success=False, reason="stop_price required for stop_loss orders"
                     )
@@ -699,8 +888,69 @@ class TradingServiceManager:
                     symbol, quantity, stop_price, validate=False
                 )
             else:
+                # Emit error event for unsupported order type
+                self._emit_lifecycle_event(
+                    order_id=order_id,
+                    target_state=OrderLifecycleState.ERROR,
+                    event_type=LifecycleEventType.ERROR,
+                    metadata={
+                        "error": f"Unsupported order type: {order_type}",
+                    },
+                )
                 return SmartOrderExecutionDTO(
                     success=False, reason=f"Unsupported order type: {order_type}"
+                )
+
+            # Emit lifecycle events based on order result
+            if order_result.success:
+                status_value = order_result.status.lower() if order_result.status else ""
+                # Determine final state based on order status
+                if status_value in ("filled", "complete"):
+                    final_state = OrderLifecycleState.FILLED
+                    event_type = LifecycleEventType.STATE_CHANGED
+                elif status_value in ("partially_filled", "partial"):
+                    final_state = OrderLifecycleState.PARTIALLY_FILLED
+                    event_type = LifecycleEventType.PARTIAL_FILL
+                else:
+                    # Order acknowledged but not yet filled
+                    final_state = OrderLifecycleState.ACKNOWLEDGED
+                    event_type = LifecycleEventType.STATE_CHANGED
+
+                self._emit_lifecycle_event(
+                    order_id=order_id,
+                    target_state=final_state,
+                    event_type=event_type,
+                    metadata={
+                        "broker_order_id": order_result.order_id,
+                        "filled_qty": order_result.filled_qty,
+                        "avg_fill_price": order_result.avg_fill_price,
+                        "status": order_result.status,
+                    },
+                )
+            else:
+                # Order failed - emit error or rejection event
+                error_message = order_result.error or "Unknown error"
+                error_state = (
+                    OrderLifecycleState.REJECTED
+                    if "reject" in error_message.lower()
+                    else OrderLifecycleState.ERROR
+                )
+                error_event_type = (
+                    LifecycleEventType.REJECTED
+                    if error_state == OrderLifecycleState.REJECTED
+                    else LifecycleEventType.ERROR
+                )
+
+                self._emit_lifecycle_event(
+                    order_id=order_id,
+                    target_state=error_state,
+                    event_type=error_event_type,
+                    metadata={
+                        "error": error_message,
+                        "broker_order_id": (
+                            order_result.order_id if order_result.order_id else None
+                        ),
+                    },
                 )
 
             # Create validation metadata
@@ -728,10 +978,72 @@ class TradingServiceManager:
             )
 
         except Exception as e:
+            # Emit error event for any unexpected exception
+            try:
+                order_id_var = locals().get("order_id")
+                if order_id_var is not None and isinstance(order_id_var, OrderId):
+                    self._emit_lifecycle_event(
+                        order_id=order_id_var,
+                        target_state=OrderLifecycleState.ERROR,
+                        event_type=LifecycleEventType.ERROR,
+                        metadata={
+                            "unexpected_error": str(e),
+                            "error_type": type(e).__name__,
+                        },
+                    )
+            except Exception as lifecycle_error:
+                self.logger.warning("Failed to emit error lifecycle event: %s", lifecycle_error)
+
             self.logger.error(f"Unexpected error in execute_smart_order: {e}")
             return SmartOrderExecutionDTO(
                 success=False, reason="Unexpected execution error", error=str(e)
             )
+
+    # Order Lifecycle Management Operations
+    def get_order_lifecycle_state(self, order_id: OrderId) -> OrderLifecycleState | None:
+        """
+        Get the current lifecycle state of an order.
+
+        Args:
+            order_id: Order identifier
+
+        Returns:
+            Current lifecycle state, or None if order not tracked
+        """
+        return self.lifecycle_manager.get_state(order_id)
+
+    def get_all_tracked_orders(self) -> dict[OrderId, OrderLifecycleState]:
+        """
+        Get all tracked orders and their current lifecycle states.
+
+        Returns:
+            Dictionary mapping order IDs to their current states
+        """
+        return self.lifecycle_manager.get_all_orders()
+
+    def get_lifecycle_metrics(self) -> dict[str, Any]:
+        """
+        Get lifecycle metrics from the metrics observer.
+
+        Returns:
+            Dictionary containing lifecycle event and transition metrics
+        """
+        # Find the metrics observer
+        for observer in self.lifecycle_dispatcher.iter_observers():
+            if hasattr(observer, "get_event_counts") and hasattr(observer, "get_transition_counts"):
+                return {
+                    "event_counts": observer.get_event_counts(),
+                    "transition_counts": observer.get_transition_counts(),
+                    "total_observers": self.lifecycle_dispatcher.get_observer_count(),
+                    "observer_types": self.lifecycle_dispatcher.get_observer_types(),
+                }
+
+        return {
+            "event_counts": {},
+            "transition_counts": {},
+            "total_observers": self.lifecycle_dispatcher.get_observer_count(),
+            "observer_types": self.lifecycle_dispatcher.get_observer_types(),
+        }
 
     def execute_order_dto(self, order_request: OrderRequestDTO) -> SmartOrderExecutionDTO:
         """
