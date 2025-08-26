@@ -6,12 +6,22 @@ from data providers, including portfolio values, P&L calculations, and position 
 """
 
 import logging
-from typing import Any
+from typing import Protocol, TypeVar
 
 from the_alchemiser.domain.types import AccountInfo, PositionInfo
 
+T = TypeVar('T')
 
-def extract_comprehensive_account_data(data_provider: Any) -> AccountInfo:
+
+class AccountInfoProvider(Protocol):
+    """Protocol for providers that can return account information."""
+    
+    def get_account_info(self) -> AccountInfo:
+        """Get account information."""
+        ...
+
+
+def extract_comprehensive_account_data(data_provider: AccountInfoProvider) -> AccountInfo:
     """Extract comprehensive account information from a data provider.
 
     Args:
@@ -40,7 +50,7 @@ def extract_comprehensive_account_data(data_provider: Any) -> AccountInfo:
 
         # Construct proper AccountInfo from account data
         # Handle both dict and object types for maximum compatibility
-        def safe_get(obj: Any, key: str, default: Any = None) -> Any:
+        def safe_get(obj: object, key: str, default: T = None) -> T:  # type: ignore[assignment]
             if isinstance(obj, dict):
                 return obj.get(key, default)
             return getattr(obj, key, default)

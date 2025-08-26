@@ -120,7 +120,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         return self._paper
 
     # Trading Operations
-    def get_account(self) -> Any:
+    def get_account(self) -> object | None:
         """Get account information with error handling."""
         try:
             account = self._trading_client.get_account()
@@ -181,7 +181,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             logger.error(f"Failed to get positions: {e}")
             raise
 
-    def get_position(self, symbol: str) -> Any | None:
+    def get_position(self, symbol: str) -> object | None:
         """Get position for a specific symbol."""
         try:
             position = self._trading_client.get_open_position(symbol)
@@ -194,7 +194,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             logger.error(f"Failed to get position for {symbol}: {e}")
             raise
 
-    def place_order(self, order_request: Any) -> "RawOrderEnvelope":
+    def place_order(self, order_request: MarketOrderRequest | LimitOrderRequest) -> "RawOrderEnvelope":
         """Place an order and return raw envelope with metadata."""
         from datetime import UTC, datetime
 
@@ -508,7 +508,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             logger.error(f"Failed to get latest quote for {symbol}: {e}")
             return None
 
-    def get_latest_quote_raw(self, symbol: str) -> Any | None:
+    def get_latest_quote_raw(self, symbol: str) -> object | None:
         """Get latest quote as raw object (backward compatibility)."""
         try:
             request = StockLatestQuoteRequest(symbol_or_symbols=[symbol])

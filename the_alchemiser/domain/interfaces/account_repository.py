@@ -21,7 +21,7 @@ class AccountRepository(Protocol):
     the foundation for our eventual infrastructure layer.
     """
 
-    def get_account(self) -> dict[str, Any] | None:
+    def get_account(self) -> object | None:
         """Get account information.
 
         Returns:

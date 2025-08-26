@@ -6,7 +6,10 @@ including position validation, liquidation logic, and buying power checks.
 """
 
 import logging
-from typing import Any
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from the_alchemiser.domain.policies.protocols import TradingClientProtocol, DataProviderProtocol
 
 from the_alchemiser.infrastructure.logging.logging_utils import (
     get_logger,
@@ -22,7 +25,7 @@ from the_alchemiser.utils.num import floats_equal
 class PositionManager:
     """Handles position management operations including validation and liquidation."""
 
-    def __init__(self, trading_client: Any, data_provider: Any) -> None:
+    def __init__(self, trading_client: TradingClientProtocol, data_provider: DataProviderProtocol) -> None:
         """Initialize with trading client and data provider."""
         self.trading_client = trading_client
         self.data_provider = data_provider

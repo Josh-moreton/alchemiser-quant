@@ -1,9 +1,11 @@
 import logging
-from typing import Any, Literal, cast
+from typing import TypeVar, cast
 
 from the_alchemiser.domain.interfaces import AccountRepository
 from the_alchemiser.domain.types import AccountInfo, PositionsDict
 from the_alchemiser.utils.num import floats_equal
+
+T = TypeVar('T')
 
 
 class AccountService:
@@ -19,7 +21,7 @@ class AccountService:
         self.account_repository = account_repository
         self.logger = logging.getLogger(__name__)
 
-    def _get_attr(self, obj: Any, attr: str, default: Any = 0) -> Any:
+    def _get_attr(self, obj: object, attr: str, default: T = 0) -> T:  # type: ignore[assignment]
         """Helper method to safely get attributes from objects or dicts.
 
         Args:
