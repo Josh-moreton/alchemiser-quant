@@ -588,13 +588,12 @@ def status(
     console.print(f"[bold yellow]Fetching {mode_display} account status...[/bold yellow]")
 
     try:
-        # Initialize DI container and use modern TradingEngine
-        import the_alchemiser.main as app_main
+        # Initialize DI container through TradingSystem
         from the_alchemiser.main import TradingSystem
 
-        # Ensure DI system is initialized
-        TradingSystem()
-        container = app_main._di_container
+        # Create TradingSystem instance to get properly initialized container
+        trading_system = TradingSystem()
+        container = trading_system.container
         if container is None:
             raise RuntimeError("DI container not available - ensure system is properly initialized")
 
