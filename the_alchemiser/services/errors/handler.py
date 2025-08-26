@@ -26,6 +26,12 @@ from the_alchemiser.interfaces.schemas.errors import (
     ErrorReportSummary,
 )
 
+# Order error classification system
+from the_alchemiser.domain.trading.errors import (
+    OrderError,
+    classify_exception,
+)
+
 from .context import ErrorContextData
 from .exceptions import (
     AlchemiserError,
@@ -443,6 +449,62 @@ class TradingSystemErrorHandler:
                 report += "\n"
 
         return report
+
+    def classify_order_error(
+        self,
+        error: Exception,
+        order_id: str | None = None,
+        additional_context: dict[str, Any] | None = None,
+    ) -> OrderError:
+        """Classify an order-related error using the structured error classification system.
+        
+        Args:
+            error: The exception to classify
+            order_id: Associated order ID if available
+            additional_context: Additional context for classification
+            
+        Returns:
+            Structured OrderError instance with category, code, and remediation info
+        """
+        from the_alchemiser.domain.shared_kernel.value_objects.identifier import Identifier
+        
+        # Convert string order_id to Identifier if provided
+        typed_order_id = None
+        if order_id:
+            try:
+                typed_order_id = Identifier.from_string(order_id)
+            except (ValueError, TypeError):
+                # If conversion fails, keep as None and include in additional_context
+                if additional_context is None:
+                    additional_context = {}
+                additional_context["raw_order_id"] = order_id
+        
+        # Add trading context to help with classification
+        context_with_trading = {
+            "trading_context": True,
+            "order_related": True,
+            **(additional_context or {}),
+        }
+        
+        # Use the domain error classifier
+        order_error = classify_exception(
+            error,
+            order_id=typed_order_id,
+            additional_context=context_with_trading,
+        )
+        
+        # Log the classified error for monitoring
+        self.logger.info(
+            f"Classified order error: [{order_error.category.value}|{order_error.code.value}] {order_error.message}",
+            extra={
+                "order_error_category": order_error.category.value,
+                "order_error_code": order_error.code.value,
+                "is_transient": order_error.is_transient,
+                "order_id": str(order_error.order_id) if order_error.order_id else None,
+            }
+        )
+        
+        return order_error
 
     def clear_errors(self) -> None:
         """Clear all recorded errors."""
