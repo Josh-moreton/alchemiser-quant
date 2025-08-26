@@ -509,6 +509,164 @@ class StrategyOrderTracker:
             )
             raise
 
+    def track_order_error(
+        self,
+        order_id: str,
+        strategy: StrategyType,
+        symbol: str,
+        side: str,
+        quantity: Decimal,
+        error: Exception,
+        order_price: Decimal | None = None,
+    ) -> None:
+        """Track an order error with classified error information.
+        
+        This method creates an order event with ERROR status and includes
+        classified error metadata for analytics and debugging.
+        
+        Args:
+            order_id: Unique order identifier
+            strategy: Strategy that generated the order
+            symbol: Symbol being traded
+            side: Order side (buy/sell)
+            quantity: Order quantity
+            error: The exception that caused the error
+            order_price: Order price if available
+        """
+        try:
+            # Classify the error using the order error classification system
+            from the_alchemiser.domain.trading.errors import classify_exception
+            from the_alchemiser.domain.shared_kernel.value_objects.identifier import Identifier
+            
+            # Convert string order_id to Identifier for classification
+            typed_order_id = None
+            try:
+                typed_order_id = Identifier.from_string(order_id)
+            except (ValueError, TypeError):
+                # If conversion fails, we'll pass None and include the raw ID in context
+                pass
+            
+            classified_error = classify_exception(
+                error,
+                order_id=typed_order_id,
+                additional_context={
+                    "raw_order_id": order_id,
+                    "strategy": strategy.value,
+                    "symbol": symbol,
+                    "side": side,
+                    "quantity": str(quantity),
+                    "price": str(order_price) if order_price else None,
+                }
+            )
+            
+            # Create StrategyOrderDTO with ERROR status
+            from the_alchemiser.interfaces.schemas.tracking import (
+                StrategyOrderEventDTO, 
+                OrderEventStatus,
+            )
+            
+            error_event = StrategyOrderEventDTO(
+                event_id=f"error_{order_id}_{datetime.now().isoformat()}",
+                strategy=strategy.value,  # Remove redundant cast
+                symbol=symbol.upper(),
+                side=side.lower(),  # type: ignore
+                quantity=quantity,
+                status=OrderEventStatus.ERROR,
+                price=order_price,
+                ts=datetime.now(UTC),
+                error=str(classified_error.message),
+            )
+            
+            # Log the classified error for monitoring
+            logging.error(
+                f"Order error tracked: [{classified_error.category.value}|{classified_error.code.value}] "
+                f"{classified_error.message} (Order: {order_id}, Strategy: {strategy.value})",
+                extra={
+                    "order_id": order_id,
+                    "strategy": strategy.value,
+                    "symbol": symbol,
+                    "error_category": classified_error.category.value,
+                    "error_code": classified_error.code.value,
+                    "is_transient": classified_error.is_transient,
+                    "classified_error_details": classified_error.to_dict(),
+                }
+            )
+            
+            # Store the error event using existing order tracking infrastructure
+            # Convert to internal StrategyOrder for existing persistence logic
+            error_order = StrategyOrder(
+                order_id=order_id,
+                strategy=strategy.value,
+                symbol=symbol.upper(),
+                side=side.upper(),
+                quantity=float(quantity),
+                price=float(order_price) if order_price else 0.0,
+                timestamp=datetime.now(UTC).isoformat(),  # Convert to string
+            )
+            
+            # Add error metadata to the order cache with classification info
+            error_order_dict = asdict(error_order)
+            error_order_dict.update({
+                "status": "ERROR",
+                "error_message": str(error),
+                "classified_error": classified_error.to_dict(),
+                "error_category": classified_error.category.value,
+                "error_code": classified_error.code.value,
+                "is_transient": classified_error.is_transient,
+            })
+            
+            # Persist the error order with classification metadata
+            self._persist_error_order(error_order_dict)
+            
+        except Exception as tracking_error:
+            # Handle errors in error tracking itself
+            self.error_handler.handle_error(
+                error=tracking_error,
+                context="error_order_tracking",
+                component="StrategyOrderTracker.track_order_error",
+                additional_data={
+                    "original_error": str(error),
+                    "order_id": order_id,
+                    "strategy": strategy.value,
+                    "symbol": symbol,
+                },
+            )
+
+    def _persist_error_order(self, error_order_dict: dict[str, Any]) -> None:
+        """Persist error order with classification metadata to S3."""
+        try:
+            # Create a specialized error orders file
+            error_orders_path = f"{self.orders_s3_path}error_orders.json"
+            
+            # Load existing error orders
+            existing_errors = []
+            if self.s3_handler.file_exists(error_orders_path):
+                existing_data = self.s3_handler.read_json(error_orders_path)
+                if existing_data is not None:
+                    existing_errors = existing_data.get("error_orders", [])
+            
+            # Add new error order
+            existing_errors.append({
+                **error_order_dict,
+                "tracked_at": datetime.now(UTC).isoformat(),
+            })
+            
+            # Keep only recent error orders (last 1000)
+            if len(existing_errors) > 1000:
+                existing_errors = existing_errors[-1000:]
+            
+            # Save back to S3
+            error_data = {
+                "error_orders": existing_errors,
+                "last_updated": datetime.now(UTC).isoformat(),
+                "total_count": len(existing_errors),
+            }
+            
+            self.s3_handler.write_json(error_orders_path, error_data)
+            
+        except Exception as e:
+            logging.error(f"Failed to persist error order: {e}")
+
     def get_orders_for_strategy(self, strategy_name: str) -> list[StrategyOrderDTO]:
         """Get strategy orders as DTOs (new DTO-based interface)."""
         try:

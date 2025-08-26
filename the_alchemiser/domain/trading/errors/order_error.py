@@ -102,7 +102,7 @@ class OrderError:
             "category": self.category.value,
             "code": self.code.value,
             "message": self.message,
-            "order_id": str(self.order_id.value) if self.order_id else None,
+            "order_id": str(self.order_id.value) if self.order_id and hasattr(self.order_id, 'value') else None,
             "details": dict(self.details) if self.details else None,
             "is_transient": self.is_transient,
             "timestamp": self.timestamp.isoformat() if self.timestamp else None,
