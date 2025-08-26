@@ -8,7 +8,9 @@ order timing and pricing decisions.
 import logging
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any
+from typing import TYPE_CHECKING
+
+from the_alchemiser.domain.policies.protocols import DataProviderProtocol
 
 
 class SpreadQuality(Enum):
@@ -42,7 +44,7 @@ class SpreadAnalysis:
 class SpreadAssessment:
     """Pre-market and real-time spread analysis."""
 
-    def __init__(self, data_provider: Any) -> None:
+    def __init__(self, data_provider: DataProviderProtocol) -> None:
         """Store the data provider used to fetch quotes."""
         self.data_provider = data_provider
 

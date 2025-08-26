@@ -6,9 +6,11 @@ bid/ask spreads, and order aggressiveness settings.
 """
 
 import logging
-from typing import Any
+from typing import TYPE_CHECKING
 
 from alpaca.trading.enums import OrderSide
+
+from the_alchemiser.domain.policies.protocols import DataProviderProtocol
 
 from the_alchemiser.infrastructure.logging.logging_utils import get_logger, log_error_with_context
 from the_alchemiser.services.errors.exceptions import DataProviderError
@@ -17,7 +19,7 @@ from the_alchemiser.services.errors.exceptions import DataProviderError
 class SmartPricingHandler:
     """Handles intelligent price calculation for limit orders."""
 
-    def __init__(self, data_provider: Any) -> None:
+    def __init__(self, data_provider: DataProviderProtocol) -> None:
         """Initialize with data provider for market data."""
         self.data_provider = data_provider
 

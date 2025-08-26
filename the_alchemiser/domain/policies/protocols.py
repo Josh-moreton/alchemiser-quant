@@ -10,6 +10,22 @@ from decimal import Decimal
 from typing import Any, Protocol
 
 
+class DataProviderProtocol(Protocol):
+    """Protocol for data provider dependencies used by execution components."""
+
+    def get_current_price(self, symbol: str) -> float | None:
+        """Get current market price for a symbol."""
+        ...
+
+    def get_latest_quote(self, symbol: str) -> tuple[float, float] | None:
+        """Get latest bid/ask quote for a symbol."""
+        ...
+
+    def get_positions(self) -> list[Any]:
+        """Get all current positions."""
+        ...
+
+
 class TradingClientProtocol(Protocol):
     """Protocol for trading client dependencies used by policies."""
 
@@ -21,10 +37,10 @@ class TradingClientProtocol(Protocol):
         """Get all current positions."""
         ...
 
+    def get_clock(self) -> Any:
+        """Get market clock information."""
+        ...
 
-class DataProviderProtocol(Protocol):
-    """Protocol for data provider dependencies used by policies."""
-
-    def get_current_price(self, symbol: str) -> Decimal:
-        """Get current market price for a symbol."""
+    def get_order_by_id(self, order_id: str) -> Any:
+        """Get order by ID."""
         ...

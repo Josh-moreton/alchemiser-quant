@@ -18,6 +18,9 @@ from typing import TYPE_CHECKING, Any, Protocol
 
 from alpaca.trading.enums import OrderSide
 
+from the_alchemiser.domain.policies.protocols import TradingClientProtocol, DataProviderProtocol
+from the_alchemiser.domain.interfaces.account_repository import AccountRepository
+from the_alchemiser.domain.types import AlpacaOrderProtocol
 from the_alchemiser.infrastructure.config.execution_config import (
     ExecutionConfig,
     get_execution_config,
@@ -33,6 +36,7 @@ if TYPE_CHECKING:
         LifecycleEventType,
         OrderLifecycleState,
     )
+    from the_alchemiser.domain.math.market_timing_utils import ExecutionStrategy
 from the_alchemiser.services.errors.exceptions import (
     BuyingPowerError,
     DataProviderError,
@@ -81,12 +85,12 @@ class OrderExecutor(Protocol):
         ...
 
     @property
-    def trading_client(self) -> Any:  # Backward compatibility
+    def trading_client(self) -> TradingClientProtocol:  # Backward compatibility
         """Access to trading client for market hours and order queries."""
         ...
 
     @property
-    def data_provider(self) -> "DataProvider":
+    def data_provider(self) -> DataProviderProtocol:
         """Access to data provider for quotes and prices."""
         ...
 
@@ -105,7 +109,7 @@ class DataProvider(Protocol):
         ...
 
 
-def is_market_open(trading_client: Any) -> bool:
+def is_market_open(trading_client: TradingClientProtocol) -> bool:
     """Check if the market is currently open."""
     try:
         clock = trading_client.get_clock()
@@ -127,16 +131,16 @@ class SmartExecution:
     def __init__(
         self,
         order_executor: "OrderExecutor",
-        data_provider: "DataProvider",
+        data_provider: DataProviderProtocol,
         ignore_market_hours: bool = False,
-        config: Any = None,
-        account_info_provider: Any = None,
+        config: ExecutionConfig | None = None,
+        account_info_provider: AccountRepository | None = None,
         enable_market_order_fallback: bool = False,  # Feature flag for market order fallback
         execution_config: (ExecutionConfig | None) = None,  # Phase 2: Adaptive configuration
         # Phase 5: Lifecycle tracking removed - delegated to canonical executor
     ) -> None:
         """Initialize with dependency injection for execution and data access."""
-        self.config = config or {}
+        self.config: dict[str, Any] = config or {}
         self._order_executor = order_executor
         self._data_provider = data_provider
         self._trading_client = getattr(order_executor, "trading_client", None)
@@ -215,7 +219,7 @@ class SmartExecution:
                     # Check buying power if we have account info provider
                     if self._account_info_provider and side.lower() == "buy":
                         try:
-                            account_info = self._account_info_provider.get_account_info()
+                            account_info = self._account_info_provider.get_account()
                             available_cash = float(account_info.get("cash", 0))
                             order_value = rounded_qty * current_price
 
@@ -769,7 +773,7 @@ class SmartExecution:
         side: OrderSide,
         bid: float,
         ask: float,
-        strategy: Any,
+        strategy: ExecutionStrategy,
     ) -> str | None:
         """Execute the aggressive marketable limit sequence with adaptive re-pegging.
 
@@ -823,7 +827,7 @@ class SmartExecution:
             )
             raise
 
-    def get_order_by_id(self, order_id: str) -> Any:
+    def get_order_by_id(self, order_id: str) -> AlpacaOrderProtocol | None:
         """Get order details by order ID from the trading client."""
         try:
             return self._order_executor.trading_client.get_order_by_id(order_id)

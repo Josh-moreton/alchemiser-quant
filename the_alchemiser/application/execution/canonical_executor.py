@@ -14,11 +14,14 @@ from __future__ import annotations
 
 import logging
 from decimal import Decimal
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
+
+from alpaca.trading.requests import LimitOrderRequest, MarketOrderRequest
 
 from the_alchemiser.domain.trading.value_objects.order_request import OrderRequest
 from the_alchemiser.interfaces.schemas.orders import (
     OrderExecutionResultDTO,
+    RawOrderEnvelope,
 )
 from the_alchemiser.services.errors.handler import TradingSystemErrorHandler
 
@@ -337,7 +340,7 @@ class CanonicalOrderExecutor:
 
     # Removed obsolete DTO conversion helpers after domain pathway adoption.
 
-    def _convert_to_alpaca_request(self, order_request: OrderRequest) -> Any:
+    def _convert_to_alpaca_request(self, order_request: OrderRequest) -> MarketOrderRequest | LimitOrderRequest:
         """Convert domain OrderRequest to Alpaca API format.
 
         Args:
@@ -386,7 +389,7 @@ class CanonicalOrderExecutor:
         )
 
     def _emit_submission_lifecycle_events(
-        self, execution_result: OrderExecutionResultDTO, raw_envelope: Any
+        self, execution_result: OrderExecutionResultDTO, raw_envelope: RawOrderEnvelope
     ) -> None:
         """Emit lifecycle events for order submission from repository responses.
         
