@@ -202,3 +202,82 @@ class LimitOrderResultDTO(BaseModel):
     def is_success(self) -> bool:
         """Alias for success to align with other result DTO naming patterns."""
         return self.success
+
+
+class PolicyWarningDTO(BaseModel):
+    """
+    DTO for policy warnings generated during order validation.
+    
+    Contains structured information about policy decisions that
+    adjusted the order but allowed it to proceed.
+    """
+    
+    model_config = ConfigDict(
+        strict=True,
+        frozen=True,
+        validate_assignment=True,
+    )
+    
+    policy_name: str  # e.g., "FractionabilityPolicy", "PositionPolicy"
+    action: Literal["adjust", "allow", "reject"]
+    message: str
+    original_value: str | None = None
+    adjusted_value: str | None = None
+    risk_level: Literal["low", "medium", "high"] = "low"
+
+
+class AdjustedOrderRequestDTO(BaseModel, OrderValidationMixin):
+    """
+    DTO for order requests after policy processing.
+    
+    Contains the original order request plus any adjustments made by policies
+    and associated warnings. This is the output of PolicyOrchestrator.
+    """
+    
+    model_config = ConfigDict(
+        strict=True,
+        frozen=True,
+        validate_assignment=True,
+        str_strip_whitespace=True,
+    )
+    
+    # Original order fields
+    symbol: str
+    side: Literal["buy", "sell"]
+    quantity: Decimal
+    order_type: Literal["market", "limit"]
+    time_in_force: Literal["day", "gtc", "ioc", "fok"] = "day"
+    limit_price: Decimal | None = None
+    client_order_id: str | None = None
+    
+    # Policy processing results
+    is_approved: bool
+    original_quantity: Decimal | None = None
+    adjustment_reason: str | None = None
+    warnings: list[PolicyWarningDTO] = []
+    policy_metadata: dict[str, str] = {}
+    
+    # Risk assessment
+    total_risk_score: Decimal = Decimal("0")
+    rejection_reason: str | None = None
+    
+    @model_validator(mode="after")
+    def validate_approval_consistency(self) -> "AdjustedOrderRequestDTO":
+        """Validate consistency between approval status and other fields."""
+        if not self.is_approved and not self.rejection_reason:
+            raise ValueError("Rejected orders must have a rejection reason")
+        
+        if self.is_approved and self.rejection_reason:
+            raise ValueError("Approved orders cannot have a rejection reason")
+            
+        return self
+    
+    @property
+    def has_adjustments(self) -> bool:
+        """Check if the order was adjusted by policies."""
+        return self.original_quantity is not None and self.original_quantity != self.quantity
+    
+    @property
+    def has_warnings(self) -> bool:
+        """Check if policies generated warnings."""
+        return len(self.warnings) > 0
