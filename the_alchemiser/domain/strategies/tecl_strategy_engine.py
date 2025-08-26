@@ -24,7 +24,7 @@ Key Symbols:
 
 import logging
 import warnings
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
@@ -403,9 +403,7 @@ class TECLStrategyEngine(StrategyEngine):
     def run_once(self) -> list[Alert] | None:
         """Run strategy once and return alerts (StrategyEngine protocol)."""
         try:
-            from datetime import datetime
-
-            signals = self.generate_signals(datetime.now())
+            signals = self.generate_signals(datetime.now(UTC))
             if not signals:
                 return None
 
