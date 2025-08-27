@@ -4,7 +4,10 @@ Handles trading execution with comprehensive error handling and notifications.
 """
 
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from the_alchemiser.container.application_container import ApplicationContainer
 
 from the_alchemiser.application.execution.smart_execution import is_market_open
 from the_alchemiser.application.mapping.strategy_signal_mapping import (
@@ -45,12 +48,14 @@ class TradingExecutor:
     def __init__(
         self,
         settings: Settings,
+        container: "ApplicationContainer",
         live_trading: bool = False,
         ignore_market_hours: bool = False,
         show_tracking: bool = False,
         export_tracking_json: str | None = None,
     ) -> None:
         self.settings = settings
+        self.container = container
         self.live_trading = live_trading
         self.ignore_market_hours = ignore_market_hours
         self.show_tracking = show_tracking
@@ -70,24 +75,18 @@ class TradingExecutor:
     def _create_trading_engine(self) -> TradingEngine:
         """Create and configure the trading engine using modern bootstrap approach."""
         strategy_allocations = self._get_strategy_allocations()
-        # Check and use container in one step to avoid MyPy unreachable code issues
-        from the_alchemiser.main import _di_container as app_di_container
-
-        container = app_di_container
-        if container is None:
-            raise RuntimeError("DI container not available - ensure system is properly initialized")
 
         # Ensure DI container respects requested trading mode before instantiation
         try:
             desired_paper_mode = not self.live_trading
             # Override the paper_trading provider so downstream providers pick the right keys/endpoints
-            container.config.paper_trading.override(desired_paper_mode)
+            self.container.config.paper_trading.override(desired_paper_mode)
         except Exception:
             # Non-fatal; fallback will still set trader.paper_trading later for UI, but endpoints may remain default
             pass
 
         # Use modern bootstrap approach instead of deprecated create_with_di
-        bootstrap_context = bootstrap_from_container(container)
+        bootstrap_context = bootstrap_from_container(self.container)
         trader = TradingEngine(
             bootstrap_context=bootstrap_context,
             strategy_allocations=strategy_allocations,
@@ -193,24 +192,20 @@ class TradingExecutor:
 
         # Show enriched open orders using typed domain model
         try:
-            # Acquire TradingServiceManager from DI container credentials
-            import the_alchemiser.main as app_main
+            # Use injected container instead of global access
+            api_key = self.container.config.alpaca_api_key()
+            secret_key = self.container.config.alpaca_secret_key()
+            paper = self.container.config.paper_trading()
+            from the_alchemiser.services.trading.trading_service_manager import (
+                TradingServiceManager,
+            )
 
-            container = app_main._di_container
-            if container is not None:
-                api_key = container.config.alpaca_api_key()
-                secret_key = container.config.alpaca_secret_key()
-                paper = container.config.paper_trading()
-                from the_alchemiser.services.trading.trading_service_manager import (
-                    TradingServiceManager,
-                )
-
-                tsm = TradingServiceManager(api_key, secret_key, paper=paper)
-                open_orders = tsm.get_open_orders()
-                if open_orders and open_orders.orders:
-                    # Convert DTO to expected format
-                    orders_list = [order.summary for order in open_orders.orders]
-                    render_enriched_order_summaries(orders_list)
+            tsm = TradingServiceManager(api_key, secret_key, paper=paper)
+            open_orders = tsm.get_open_orders()
+            if open_orders and open_orders.orders:
+                # Convert DTO to expected format
+                orders_list = [order.summary for order in open_orders.orders]
+                render_enriched_order_summaries(orders_list)
         except Exception:
             # Non-fatal UI enhancement; ignore errors here
             pass
@@ -443,7 +438,7 @@ class TradingExecutor:
             console.print("\n")
 
             # Create a signal analyzer instance to reuse the tracking display logic
-            analyzer = SignalAnalyzer(self.settings)
+            analyzer = SignalAnalyzer(self.settings, self.container)
             analyzer._display_strategy_tracking()
 
         except Exception as e:

@@ -40,6 +40,7 @@ class OrderRequestBuilder:
 
         Raises:
             ValueError: If parameters are invalid
+
         """
         # Validation
         if not symbol or not symbol.strip():
@@ -112,6 +113,7 @@ class OrderRequestBuilder:
 
         Raises:
             ValueError: If parameters are invalid
+
         """
         # Validation
         if not symbol or not symbol.strip():

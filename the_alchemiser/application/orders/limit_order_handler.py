@@ -123,11 +123,12 @@ class LimitOrderHandler:
         This method remains for backward compatibility only.
         """
         import warnings
+
         warnings.warn(
             "LimitOrderHandler._prepare_limit_order fractionability logic is deprecated. "
             "Use PolicyOrchestrator with FractionabilityPolicy instead.",
             DeprecationWarning,
-            stacklevel=2
+            stacklevel=2,
         )
 
         original_qty = qty
@@ -213,11 +214,12 @@ class LimitOrderHandler:
         This method remains for backward compatibility only.
         """
         import warnings
+
         warnings.warn(
             "LimitOrderHandler._handle_fractionable_fallback is deprecated. "
             "Use PolicyOrchestrator with FractionabilityPolicy instead.",
             DeprecationWarning,
-            stacklevel=2
+            stacklevel=2,
         )
 
         logging.warning(
