@@ -384,6 +384,7 @@ class MetricsObserver:
         
         Returns:
             Structured metrics data suitable for external monitoring systems
+
         """
         summary = self.get_execution_metrics_summary()
         
@@ -465,6 +466,7 @@ class MetricsObserver:
         Args:
             order_id: The order ID that was filled
             metadata: Event metadata containing execution details
+
         """
         try:
             from decimal import Decimal
