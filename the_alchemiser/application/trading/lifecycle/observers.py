@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import time
 from typing import Any
 
 from rich.console import Console
@@ -148,6 +149,9 @@ class MetricsObserver:
         self._spread_data: dict[str, dict[str, float]] = {}  # order_id -> spread info
         self._fallback_usage: dict[str, bool] = {}  # order_id -> fallback used
         self._volatility_pauses: dict[str, int] = {}  # order_id -> pause count
+        
+        # Phase 7 Enhancement: Track first fill times for partial fills
+        self._first_fill_times: dict[str, float] = {}  # order_id -> first fill timestamp
 
     def on_lifecycle_event(self, event: OrderLifecycleEvent) -> None:
         """Handle a lifecycle event by updating metrics.
@@ -221,6 +225,20 @@ class MetricsObserver:
                     self._spread_data[order_id_str] = {}
                 self._spread_data[order_id_str]["final"] = float(metadata["spread_final"])
 
+        # Phase 7 Enhancement: Track time to first fill for partial fills
+        if event.new_state.value == "PARTIALLY_FILLED" and order_id_str in self._submission_times:
+            if order_id_str not in self._first_fill_times:
+                first_fill_time = event.timestamp.timestamp()
+                submission_time = self._submission_times[order_id_str]
+                time_to_first_fill_ms = (first_fill_time - submission_time) * 1000
+                order_metrics["time_to_first_fill_ms"] = time_to_first_fill_ms
+                self._first_fill_times[order_id_str] = first_fill_time
+                logging.info(f"📊 First fill for order {order_id_str}: {time_to_first_fill_ms:.1f}ms")
+
+        # Phase 7 Enhancement: Integrate slippage analysis for completed orders
+        if event.new_state.value == "FILLED":
+            self._analyze_execution_slippage(order_id_str, metadata)
+
         # Track fallback usage
         if metadata.get("fallback_used"):
             self._fallback_usage[order_id_str] = True
@@ -242,6 +260,10 @@ class MetricsObserver:
         # Add time to fill for completed orders
         if "time_to_fill_ms" in order_metrics:
             metrics_log_data["time_to_fill_ms"] = order_metrics["time_to_fill_ms"]
+            
+        # Phase 7 Enhancement: Add time to first fill for partial fills
+        if "time_to_first_fill_ms" in order_metrics:
+            metrics_log_data["time_to_first_fill_ms"] = order_metrics["time_to_first_fill_ms"]
 
         # Add spread data if available
         spread_data = self._spread_data.get(order_id_str, {})
@@ -323,12 +345,19 @@ class MetricsObserver:
 
         # Calculate average time to fill for completed orders
         fill_times: list[float] = []
+        first_fill_times: list[float] = []  # Phase 7 Enhancement
         for metrics in self._order_metrics.values():
             time_to_fill = metrics.get("time_to_fill_ms")
             if time_to_fill is not None and isinstance(time_to_fill, (int, float)):
                 fill_times.append(float(time_to_fill))
+                
+            # Phase 7 Enhancement: Track first fill times
+            time_to_first_fill = metrics.get("time_to_first_fill_ms")
+            if time_to_first_fill is not None and isinstance(time_to_first_fill, (int, float)):
+                first_fill_times.append(float(time_to_first_fill))
 
         avg_time_to_fill = sum(fill_times) / len(fill_times) if fill_times else 0.0
+        avg_time_to_first_fill = sum(first_fill_times) / len(first_fill_times) if first_fill_times else 0.0
 
         return {
             "total_orders_tracked": total_orders,
@@ -342,7 +371,77 @@ class MetricsObserver:
             else 0,
             "completed_orders": len(fill_times),
             "average_time_to_fill_ms": avg_time_to_fill,
+            # Phase 7 Enhancement: Add first fill metrics
+            "orders_with_partial_fills": len(first_fill_times),
+            "average_time_to_first_fill_ms": avg_time_to_first_fill,
         }
+
+    def export_execution_metrics(self) -> dict[str, Any]:
+        """Export execution performance metrics in structured format.
+        
+        Phase 7 Enhancement: Provides comprehensive metrics export including
+        latency histograms, success rates, and fallback ratios.
+        
+        Returns:
+            Structured metrics data suitable for external monitoring systems
+        """
+        summary = self.get_execution_metrics_summary()
+        
+        # Build histogram data for latency analysis
+        fill_times = []
+        first_fill_times = []
+        
+        for metrics in self._order_metrics.values():
+            if "time_to_fill_ms" in metrics:
+                fill_times.append(metrics["time_to_fill_ms"])
+            if "time_to_first_fill_ms" in metrics:
+                first_fill_times.append(metrics["time_to_first_fill_ms"])
+        
+        # Calculate percentiles for histogram
+        def calculate_percentiles(values: list[float]) -> dict[str, float]:
+            if not values:
+                return {"p50": 0.0, "p90": 0.0, "p95": 0.0, "p99": 0.0}
+            
+            sorted_values = sorted(values)
+            n = len(sorted_values)
+            
+            return {
+                "p50": sorted_values[int(n * 0.5)] if n > 0 else 0.0,
+                "p90": sorted_values[int(n * 0.9)] if n > 0 else 0.0,
+                "p95": sorted_values[int(n * 0.95)] if n > 0 else 0.0,
+                "p99": sorted_values[int(n * 0.99)] if n > 0 else 0.0,
+            }
+        
+        export_data = {
+            "timestamp": int(time.time()),
+            "summary": summary,
+            "latency_histograms": {
+                "time_to_full_fill_ms": {
+                    "values": fill_times,
+                    "count": len(fill_times),
+                    "percentiles": calculate_percentiles(fill_times),
+                },
+                "time_to_first_fill_ms": {
+                    "values": first_fill_times,
+                    "count": len(first_fill_times),
+                    "percentiles": calculate_percentiles(first_fill_times),
+                },
+            },
+            "counters": {
+                "fallback_used_count": sum(1 for used in self._fallback_usage.values() if used),
+                "volatility_pause_count": sum(self._volatility_pauses.values()),
+                "total_orders": len(self._order_metrics),
+                "total_attempts": sum(self._attempt_counts.values()),
+            },
+            "rates": {
+                "success_rate": len(fill_times) / len(self._order_metrics) if self._order_metrics else 0.0,
+                "fallback_ratio": summary["fallback_usage_rate"],
+                "partial_fill_rate": len(first_fill_times) / len(self._order_metrics) if self._order_metrics else 0.0,
+            },
+        }
+        
+        self.logger.info("Exported execution metrics", extra={"metrics_export": export_data})
+        return export_data
 
     def reset_metrics(self) -> None:
         """Reset all collected metrics."""
@@ -354,4 +453,52 @@ class MetricsObserver:
         self._spread_data.clear()
         self._fallback_usage.clear()
         self._volatility_pauses.clear()
+        self._first_fill_times.clear()  # Phase 7 Enhancement
         self.logger.info("All metrics observer data reset")
+
+    def _analyze_execution_slippage(self, order_id: str, metadata: dict[str, Any]) -> None:
+        """Analyze slippage for a completed order execution.
+        
+        Phase 7 Enhancement: Integrates with SlippageAnalyzer to record
+        execution slippage when orders are filled.
+        
+        Args:
+            order_id: The order ID that was filled
+            metadata: Event metadata containing execution details
+        """
+        try:
+            from decimal import Decimal
+
+            from the_alchemiser.infrastructure.services.slippage_analyzer import (
+                get_slippage_analyzer,
+            )
+
+            # Extract execution data from metadata
+            executed_price = metadata.get("executed_price")
+            executed_quantity = metadata.get("executed_quantity") 
+            symbol = metadata.get("symbol")
+            
+            if executed_price is not None and executed_quantity is not None:
+                analyzer = get_slippage_analyzer()
+                
+                # Analyze execution slippage
+                slippage_result = analyzer.analyze_execution(
+                    order_id=order_id,
+                    executed_price=Decimal(str(executed_price)),
+                    executed_quantity=Decimal(str(executed_quantity)),
+                    execution_timestamp=time.time(),
+                )
+                
+                if slippage_result:
+                    # Store slippage data in order metrics
+                    if order_id in self._order_metrics:
+                        self._order_metrics[order_id]["slippage_bps"] = float(slippage_result.slippage_bps)
+                        self._order_metrics[order_id]["slippage_dollars"] = float(slippage_result.slippage_dollars)
+                        self._order_metrics[order_id]["is_favorable_slippage"] = slippage_result.is_favorable
+                        
+        except ImportError:
+            # Slippage analyzer not available
+            self.logger.debug(f"Slippage analyzer not available for order {order_id}")
+        except Exception as e:
+            # Don't break metrics collection if slippage analysis fails
+            self.logger.warning(f"Failed to analyze slippage for order {order_id}: {e}")

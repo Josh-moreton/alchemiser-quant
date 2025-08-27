@@ -12,6 +12,8 @@ from typing import NamedTuple, TypedDict
 
 from alpaca.trading.enums import OrderSide
 
+from the_alchemiser.infrastructure.services.tick_size_service import get_tick_size
+
 from .config import StrategyConfig
 
 
@@ -40,6 +42,7 @@ class AttemptState:
     original_spread_cents: Decimal
     last_attempt_time: float
     side: OrderSide
+    symbol: str  # Phase 7 Enhancement: Add symbol for dynamic tick size resolution
 
 
 class RepegStrategy:
@@ -97,9 +100,13 @@ class RepegStrategy:
     def _calculate_timeout(self, attempt_index: int) -> float:
         return self.config.base_timeout_seconds * (self.config.timeout_multiplier**attempt_index)
 
-    def _quantize(self, price: Decimal) -> Decimal:
-        # Quantize to tick size using ROUND_HALF_UP for symmetry
-        tick = self.config.tick_size
+    def _quantize(self, price: Decimal, symbol: str) -> Decimal:
+        """Quantize price to appropriate tick size using dynamic resolution.
+        
+        Phase 7 Enhancement: Uses DynamicTickSizeService instead of hardcoded tick_size.
+        """
+        # Get dynamic tick size based on symbol and current price
+        tick = get_tick_size(symbol, price)
         if tick <= Decimal("0"):
             return price
         # (price / tick) rounded then multiplied back
@@ -107,20 +114,25 @@ class RepegStrategy:
         return steps * tick
 
     def _calculate_price(self, state: AttemptState, attempt_index: int) -> Decimal:
+        """Calculate price for attempt using dynamic tick size resolution."""
+        # Get dynamic tick size for this symbol
+        dynamic_tick = get_tick_size(state.symbol, (state.bid + state.ask) / 2)
+        
         if not self.config.enable_adaptive_pricing:
             base_price = (
-                state.ask + self.config.tick_size
+                state.ask + dynamic_tick
                 if state.side == OrderSide.BUY
-                else state.bid - self.config.tick_size
+                else state.bid - dynamic_tick
             )
-            return self._quantize(base_price)
+            return self._quantize(base_price, state.symbol)
+        
         price_improvement = (
             Decimal(self.config.price_improvement_ticks)
-            * self.config.tick_size
+            * dynamic_tick
             * Decimal(attempt_index)
         )
         if state.side == OrderSide.BUY:
-            base_price = state.ask + self.config.tick_size + price_improvement
+            base_price = state.ask + dynamic_tick + price_improvement
         else:
-            base_price = state.bid - self.config.tick_size - price_improvement
-        return self._quantize(base_price)
+            base_price = state.bid - dynamic_tick - price_improvement
+        return self._quantize(base_price, state.symbol)
