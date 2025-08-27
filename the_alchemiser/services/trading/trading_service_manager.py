@@ -189,186 +189,7 @@ class TradingServiceManager:
                 exc_info=True,
             )
 
-    # Order Management Operations
-    def place_market_order(
-        self, symbol: str, quantity: float, side: str, validate: bool = True
-    ) -> OrderExecutionResultDTO:
-        """Place a market order with DTO validation.
-
-        DEPRECATED: This method is deprecated in favor of CanonicalOrderExecutor.
-        Will be removed in v3.0.0. Use CanonicalOrderExecutor with domain value objects instead.
-        """
-        import warnings
-        warnings.warn(
-            "TradingServiceManager.place_market_order is deprecated. "
-            "Use CanonicalOrderExecutor with domain value objects instead. "
-            "This method will be removed in v3.0.0.",
-            DeprecationWarning,
-            stacklevel=2
-        )
-        
-        # Delegate to canonical executor if feature flag is enabled
-        from the_alchemiser.infrastructure.config import load_settings
-        settings = load_settings()
-        
-        if settings.execution.use_canonical_executor:
-            return self._delegate_to_canonical_executor(symbol, side, quantity, "market", "day")
-        
-        # Legacy fallback implementation
-        if validate:
-            # Create OrderRequestDTO and validate through DTO pipeline
-            order_data = {
-                "symbol": symbol,
-                "side": side,
-                "quantity": quantity,
-                "order_type": "market",
-                "time_in_force": "day",
-            }
-            try:
-                order_request = dict_to_order_request_dto(order_data)
-                validated_order = self.order_validator.validate_order_request(order_request)
-                self.logger.info(
-                    "Market order validation successful for %s: estimated_value=$%s, risk_score=%s",
-                    symbol,
-                    validated_order.estimated_value,
-                    validated_order.risk_score,
-                )
-            except Exception as validation_error:
-                return OrderExecutionResultDTO(
-                    success=False,
-                    error=f"Order validation failed: {validation_error}",
-                    order_id="",
-                    status="rejected",
-                    filled_qty=Decimal("0"),
-                    avg_fill_price=None,
-                    submitted_at=datetime.now(UTC),
-                    completed_at=None,
-                )
-
-        # Use centralized order request builder (typed path)
-        from the_alchemiser.application.execution.order_request_builder import (
-            OrderRequestBuilder,
-        )
-
-        try:
-            req = OrderRequestBuilder.build_market_order_request(
-                symbol=symbol,
-                side=side,
-                qty=quantity,
-                time_in_force="day",
-            )
-            raw_envelope = self.alpaca_manager.place_order(req)
-
-            # Convert envelope to OrderExecutionResultDTO
-            from the_alchemiser.application.mapping.order_mapping import (
-                raw_order_envelope_to_execution_result_dto,
-            )
-
-            return raw_order_envelope_to_execution_result_dto(raw_envelope)
-        except Exception as e:
-            return OrderExecutionResultDTO(
-                success=False,
-                error=str(e),
-                order_id="",
-                status="rejected",
-                filled_qty=Decimal("0"),
-                avg_fill_price=None,
-                submitted_at=datetime.now(UTC),
-                completed_at=None,
-            )
-
-    def place_limit_order(
-        self,
-        symbol: str,
-        quantity: float,
-        side: str,
-        limit_price: float,
-        validate: bool = True,
-    ) -> OrderExecutionResultDTO:
-        """Place a limit order with DTO validation.
-
-        DEPRECATED: This method is deprecated in favor of CanonicalOrderExecutor.
-        Will be removed in v3.0.0. Use CanonicalOrderExecutor with domain value objects instead.
-        """
-        import warnings
-        warnings.warn(
-            "TradingServiceManager.place_limit_order is deprecated. "
-            "Use CanonicalOrderExecutor with domain value objects instead. "
-            "This method will be removed in v3.0.0.",
-            DeprecationWarning,
-            stacklevel=2
-        )
-        
-        # Delegate to canonical executor if feature flag is enabled
-        from the_alchemiser.infrastructure.config import load_settings
-        settings = load_settings()
-        
-        if settings.execution.use_canonical_executor:
-            return self._delegate_to_canonical_executor(symbol, side, quantity, "limit", "day", limit_price)
-        
-        # Legacy fallback implementation
-        if validate:
-            # Create OrderRequestDTO and validate through DTO pipeline
-            order_data = {
-                "symbol": symbol,
-                "side": side,
-                "quantity": quantity,
-                "order_type": "limit",
-                "limit_price": limit_price,
-                "time_in_force": "day",
-            }
-            try:
-                order_request = dict_to_order_request_dto(order_data)
-                validated_order = self.order_validator.validate_order_request(order_request)
-                self.logger.info(
-                    "Limit order validation successful for %s: estimated_value=$%s, risk_score=%s",
-                    symbol,
-                    validated_order.estimated_value,
-                    validated_order.risk_score,
-                )
-            except Exception as validation_error:
-                return OrderExecutionResultDTO(
-                    success=False,
-                    error=f"Order validation failed: {validation_error}",
-                    order_id="",
-                    status="rejected",
-                    filled_qty=Decimal("0"),
-                    avg_fill_price=None,
-                    submitted_at=datetime.now(UTC),
-                    completed_at=None,
-                )
-
-        from the_alchemiser.application.execution.order_request_builder import (
-            OrderRequestBuilder,
-        )
-
-        try:
-            req = OrderRequestBuilder.build_limit_order_request(
-                symbol=symbol,
-                side=side,
-                quantity=quantity,
-                limit_price=limit_price,
-                time_in_force="day",
-            )
-            raw_envelope = self.alpaca_manager.place_order(req)
-
-            # Convert envelope to OrderExecutionResultDTO
-            from the_alchemiser.application.mapping.order_mapping import (
-                raw_order_envelope_to_execution_result_dto,
-            )
-
-            return raw_order_envelope_to_execution_result_dto(raw_envelope)
-        except Exception as e:
-            return OrderExecutionResultDTO(
-                success=False,
-                error=str(e),
-                order_id="",
-                status="rejected",
-                filled_qty=Decimal("0"),
-                avg_fill_price=None,
-                submitted_at=datetime.now(UTC),
-                completed_at=None,
-            )
+    # place_market_order / place_limit_order removed. Use CanonicalOrderExecutor directly.
 
     def place_stop_loss_order(
         self, symbol: str, quantity: float, stop_price: float, validate: bool = True
@@ -893,7 +714,53 @@ class TradingServiceManager:
             )
             order_result: OrderExecutionResultDTO
             if order_type.lower() == "market":
-                order_result = self.place_market_order(symbol, quantity, side, validate=False)
+                # Use canonical executor directly since legacy methods removed
+                from decimal import Decimal
+                from the_alchemiser.application.execution.canonical_executor import (
+                    CanonicalOrderExecutor,
+                )
+                from the_alchemiser.domain.shared_kernel.value_objects.money import (
+                    Money,
+                )
+                from the_alchemiser.domain.trading.value_objects.order_request import (
+                    OrderRequest,
+                )
+                from the_alchemiser.domain.trading.value_objects.order_type import (
+                    OrderType,
+                )
+                from the_alchemiser.domain.trading.value_objects.quantity import (
+                    Quantity,
+                )
+                from the_alchemiser.domain.trading.value_objects.side import Side
+                from the_alchemiser.domain.trading.value_objects.symbol import Symbol
+                from the_alchemiser.domain.trading.value_objects.time_in_force import (
+                    TimeInForce,
+                )
+
+                try:
+                    order_request_domain = OrderRequest(
+                        symbol=Symbol(symbol),
+                        side=Side("buy" if side.lower() == "buy" else "sell"),
+                        quantity=Quantity(Decimal(str(quantity))),
+                        order_type=OrderType("market"),
+                        time_in_force=TimeInForce("day"),
+                        limit_price=None,
+                    )
+                    executor = CanonicalOrderExecutor(self.alpaca_manager)
+                    order_result = executor.execute(order_request_domain)
+                except Exception as e:
+                    from datetime import UTC, datetime
+
+                    order_result = OrderExecutionResultDTO(
+                        success=False,
+                        error=str(e),
+                        order_id="",
+                        status="rejected",
+                        filled_qty=Decimal("0"),
+                        avg_fill_price=None,
+                        submitted_at=datetime.now(UTC),
+                        completed_at=None,
+                    )
             elif order_type.lower() == "limit":
                 limit_price = kwargs.get("limit_price")
                 if not limit_price or not isinstance(limit_price, int | float):
@@ -909,9 +776,53 @@ class TradingServiceManager:
                     return SmartOrderExecutionDTO(
                         success=False, reason="limit_price required for limit orders"
                     )
-                order_result = self.place_limit_order(
-                    symbol, quantity, side, float(limit_price), validate=False
+                # Use canonical executor directly since legacy methods removed
+                from decimal import Decimal
+                from the_alchemiser.application.execution.canonical_executor import (
+                    CanonicalOrderExecutor,
                 )
+                from the_alchemiser.domain.shared_kernel.value_objects.money import (
+                    Money,
+                )
+                from the_alchemiser.domain.trading.value_objects.order_request import (
+                    OrderRequest,
+                )
+                from the_alchemiser.domain.trading.value_objects.order_type import (
+                    OrderType,
+                )
+                from the_alchemiser.domain.trading.value_objects.quantity import (
+                    Quantity,
+                )
+                from the_alchemiser.domain.trading.value_objects.side import Side
+                from the_alchemiser.domain.trading.value_objects.symbol import Symbol
+                from the_alchemiser.domain.trading.value_objects.time_in_force import (
+                    TimeInForce,
+                )
+
+                try:
+                    order_request_domain = OrderRequest(
+                        symbol=Symbol(symbol),
+                        side=Side("buy" if side.lower() == "buy" else "sell"),
+                        quantity=Quantity(Decimal(str(quantity))),
+                        order_type=OrderType("limit"),
+                        time_in_force=TimeInForce("day"),
+                        limit_price=Money(amount=Decimal(str(limit_price)), currency="USD"),
+                    )
+                    executor = CanonicalOrderExecutor(self.alpaca_manager)
+                    order_result = executor.execute(order_request_domain)
+                except Exception as e:
+                    from datetime import UTC, datetime
+
+                    order_result = OrderExecutionResultDTO(
+                        success=False,
+                        error=str(e),
+                        order_id="",
+                        status="rejected",
+                        filled_qty=Decimal("0"),
+                        avg_fill_price=None,
+                        submitted_at=datetime.now(UTC),
+                        completed_at=None,
+                    )
             elif order_type.lower() == "stop_loss":
                 stop_price = kwargs.get("stop_price")
                 if not stop_price or not isinstance(stop_price, int | float):
@@ -1266,91 +1177,4 @@ class TradingServiceManager:
         except Exception as e:
             self.logger.error(f"Error closing TradingServiceManager: {e}")
 
-    def _delegate_to_canonical_executor(
-        self, 
-        symbol: str, 
-        side: str, 
-        quantity: float, 
-        order_type: str, 
-        time_in_force: str = "day",
-        limit_price: float | None = None
-    ) -> OrderExecutionResultDTO:
-        """Delegate order execution to CanonicalOrderExecutor.
-        
-        Args:
-            symbol: Stock symbol
-            side: Order side ("buy" or "sell")
-            quantity: Quantity to trade
-            order_type: "market" or "limit"
-            time_in_force: Time in force
-            limit_price: Limit price for limit orders
-            
-        Returns:
-            OrderExecutionResultDTO with execution result
-        """
-        try:
-            from decimal import Decimal
-            from the_alchemiser.application.execution.canonical_executor import CanonicalOrderExecutor
-            from the_alchemiser.domain.shared_kernel.value_objects.money import Money
-            from the_alchemiser.domain.trading.value_objects.order_request import OrderRequest
-            from the_alchemiser.domain.trading.value_objects.order_type import OrderType
-            from the_alchemiser.domain.trading.value_objects.quantity import Quantity
-            from the_alchemiser.domain.trading.value_objects.side import Side
-            from the_alchemiser.domain.trading.value_objects.symbol import Symbol
-            from the_alchemiser.domain.trading.value_objects.time_in_force import TimeInForce
-            
-            # Convert to domain objects
-            domain_side = Side(side.lower())
-            domain_symbol = Symbol(symbol)
-            # Ensure order_type is valid literal
-            if order_type not in ("market", "limit"):
-                self.logger.error(f"Invalid order_type: {order_type}")
-                from the_alchemiser.interfaces.schemas.orders import OrderExecutionResultDTO
-                from datetime import UTC, datetime
-                return OrderExecutionResultDTO(
-                    success=False,
-                    error=f"Invalid order_type: {order_type}",
-                    order_id="",
-                    status="rejected",
-                    filled_qty=Decimal("0"),
-                    avg_fill_price=None,
-                    submitted_at=datetime.now(UTC),
-                    completed_at=None,
-                )
-            domain_order_type = OrderType(order_type)  # type: ignore
-            domain_tif = TimeInForce(time_in_force)
-            domain_qty = Quantity(Decimal(str(quantity)))
-            
-            # Handle limit price
-            domain_limit_price = None
-            if limit_price is not None:
-                domain_limit_price = Money(amount=Decimal(str(limit_price)), currency="USD")
-            
-            # Create order request
-            order_request = OrderRequest(
-                symbol=domain_symbol,
-                side=domain_side,
-                quantity=domain_qty,
-                order_type=domain_order_type,
-                time_in_force=domain_tif,
-                limit_price=domain_limit_price
-            )
-            
-            # Execute via canonical executor
-            executor = CanonicalOrderExecutor(self.alpaca_manager)
-            return executor.execute(order_request)
-                
-        except Exception as e:
-            self.logger.error(f"Failed to delegate to canonical executor: {e}")
-            from the_alchemiser.interfaces.schemas.orders import OrderExecutionResultDTO
-            from datetime import UTC, datetime
-            return OrderExecutionResultDTO(
-                success=False,
-                error=f"Canonical executor delegation failed: {e}",
-                order_id="",
-                status="rejected",
-                filled_qty=Decimal("0"),
-                avg_fill_price=None,
-                submitted_at=datetime.now(UTC),
-                completed_at=None,
-            )
+    # _delegate_to_canonical_executor removed.
