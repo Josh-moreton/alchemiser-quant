@@ -2,7 +2,21 @@
 """Smart Execution Engine with Professional Order Strategy.
 
 This module provides sophisticated order execution using the Better Orders strategy:
-- Aggressive marketable limits (ask+1¢ for buys, bid-1¢ for sells)
+- Aggressive marketable limits (ask+1¢ for buys, bid-            # Get alpaca manager from order executor for canonical executor
+            alpaca_manager = getattr(self._order_executor, "alpaca_manager", None)
+            if not alpaca_manager:
+                # If not available, get underlying trading repository
+                alpaca_manager = getattr(self._order_executor, "_trading", self._order_executor)
+
+            order_request = OrderRequest(
+                symbol=DomainSymbol(symbol),
+                side=DomainSide("buy" if side.value.lower() == "buy" else "sell"),
+                quantity=DomainQuantity(Decimal(str(qty))),
+                order_type=DomainOrderType("limit"),
+                time_in_force=DomainTimeInForce("day"),
+                limit_price=DomainMoney(amount=Decimal(str(limit_price)), currency="USD"),
+            )
+            executor = CanonicalOrderExecutor(alpaca_manager)lls)
 - Market timing logic for 9:30-9:35 ET execution
 - Fast 2-3 second timeouts with re-pegging
 - Designed for leveraged ETFs and high-volume trading
@@ -23,6 +37,23 @@ from the_alchemiser.infrastructure.config.execution_config import (
     get_execution_config,
 )
 from the_alchemiser.interfaces.schemas.execution import WebSocketResultDTO
+from the_alchemiser.application.execution.canonical_executor import (
+    CanonicalOrderExecutor,
+)
+from the_alchemiser.domain.trading.value_objects.order_request import OrderRequest
+from the_alchemiser.domain.trading.value_objects.symbol import Symbol as DomainSymbol
+from the_alchemiser.domain.trading.value_objects.side import Side as DomainSide
+from the_alchemiser.domain.trading.value_objects.quantity import (
+    Quantity as DomainQuantity,
+)
+from the_alchemiser.domain.trading.value_objects.order_type import (
+    OrderType as DomainOrderType,
+)
+from the_alchemiser.domain.trading.value_objects.time_in_force import (
+    TimeInForce as DomainTimeInForce,
+)
+from the_alchemiser.domain.shared_kernel.value_objects.money import Money
+from decimal import Decimal
 
 if TYPE_CHECKING:
     pass
@@ -37,51 +68,24 @@ from the_alchemiser.services.errors.exceptions import (
 
 
 class OrderExecutor(Protocol):
-    """Protocol for order execution components."""
+    """Protocol for minimal dependencies required by SmartExecution.
 
-    def place_market_order(
-        self,
-        symbol: str,
-        side: OrderSide,
-        qty: float | None = None,
-        notional: float | None = None,
-    ) -> str | None:
-        """Place a market order."""
-        ...
+    Legacy direct order placement methods removed; SmartExecution now builds
+    canonical OrderRequest objects internally and uses CanonicalOrderExecutor.
+    """
 
-    def place_smart_sell_order(self, symbol: str, qty: float) -> str | None:
-        """Place a smart sell order."""
-        ...
-
-    def liquidate_position(self, symbol: str) -> str | None:
-        """Liquidate a position."""
-        ...
-
-    def get_current_positions(self) -> dict[str, float]:
-        """Get current positions."""
-        ...
-
-    def place_limit_order(
-        self, symbol: str, qty: float, side: OrderSide, limit_price: float
-    ) -> str | None:
-        """Place a limit order."""
-        ...
-
+    def place_smart_sell_order(self, symbol: str, qty: float) -> str | None: ...
+    def liquidate_position(self, symbol: str) -> str | None: ...
+    def get_current_positions(self) -> dict[str, float]: ...
     def wait_for_order_completion(
         self, order_ids: list[str], max_wait_seconds: int = 30
-    ) -> WebSocketResultDTO:
-        """Wait for order completion."""
-        ...
+    ) -> WebSocketResultDTO: ...
 
     @property
-    def trading_client(self) -> Any:  # Backward compatibility
-        """Access to trading client for market hours and order queries."""
-        ...
+    def trading_client(self) -> Any: ...  # Backward compatibility
 
     @property
-    def data_provider(self) -> "DataProvider":
-        """Access to data provider for quotes and prices."""
-        ...
+    def data_provider(self) -> "DataProvider": ...
 
 
 class DataProvider(Protocol):
@@ -141,6 +145,139 @@ class SmartExecution:
         )  # Phase 2: Use global config if not provided
 
         self.logger = logging.getLogger(__name__)
+
+    # Canonical order submission helpers replacing legacy market/limit methods
+    def _submit_canonical_market_order(
+        self,
+        symbol: str,
+        side: OrderSide,
+        qty: float | None = None,
+        notional: float | None = None,
+    ) -> str | None:
+        """Submit a market order through the CanonicalOrderExecutor.
+
+        Quantity takes precedence; notional converted using current price. Returns order id or None.
+        """
+        try:
+            if qty is None:
+                if notional is None:
+                    self.logger.error(
+                        "market_order_missing_qty_and_notional",
+                        extra={"symbol": symbol},
+                    )
+                    return None
+                price = None
+                try:
+                    price = self._data_provider.get_current_price(symbol)
+                except Exception as e:  # noqa: BLE001
+                    self.logger.warning(
+                        "price_lookup_failed_for_notional_conversion",
+                        extra={"symbol": symbol, "error": str(e)},
+                    )
+                if not price or price <= 0:
+                    self.logger.warning(
+                        "price_unavailable_cannot_convert_notional",
+                        extra={"symbol": symbol, "notional": notional},
+                    )
+                    return None
+                qty = float(notional / price)
+            if qty <= 0:
+                self.logger.warning(
+                    "non_positive_quantity_aborting_market_order",
+                    extra={"symbol": symbol, "qty": qty},
+                )
+                return None
+
+            # Get alpaca manager from order executor for canonical executor
+            alpaca_manager = getattr(self._order_executor, "alpaca_manager", None)
+            if not alpaca_manager:
+                # If not available, get underlying trading repository
+                alpaca_manager = getattr(self._order_executor, "_trading", self._order_executor)
+
+            # Ensure we have a proper AlpacaManager instance, type cast as needed
+            from the_alchemiser.services.repository.alpaca_manager import AlpacaManager
+
+            if not isinstance(alpaca_manager, AlpacaManager):
+                raise ValueError("Unable to get AlpacaManager instance for canonical executor")
+
+            side_value = "buy" if side.value.lower() == "buy" else "sell"
+            # Type assertion is safe since we control the values above
+            side_literal = side_value if side_value in ("buy", "sell") else "buy"
+            order_request = OrderRequest(
+                symbol=DomainSymbol(symbol),
+                side=DomainSide(side_literal),  # type: ignore[arg-type]
+                quantity=DomainQuantity(Decimal(str(qty))),
+                order_type=DomainOrderType("market"),
+                time_in_force=DomainTimeInForce("day"),
+            )
+            executor = CanonicalOrderExecutor(alpaca_manager)
+            result = executor.execute(order_request)
+            if result.success:
+                return result.order_id
+            self.logger.error(
+                "canonical_market_order_failed",
+                extra={"symbol": symbol, "error": result.error},
+            )
+            return None
+        except Exception as e:  # noqa: BLE001
+            self.logger.error(
+                "canonical_market_order_exception",
+                extra={"symbol": symbol, "error": str(e)},
+            )
+            return None
+
+    def _submit_canonical_limit_order(
+        self,
+        symbol: str,
+        side: OrderSide,
+        qty: float,
+        limit_price: float,
+    ) -> str | None:
+        """Submit a limit order through the CanonicalOrderExecutor."""
+        try:
+            if qty <= 0 or limit_price <= 0:
+                self.logger.warning(
+                    "invalid_limit_order_params",
+                    extra={"symbol": symbol, "qty": qty, "limit_price": limit_price},
+                )
+                return None
+
+            side_value = "buy" if side.value.lower() == "buy" else "sell"
+            # Type assertion is safe since we control the values above
+            side_literal = side_value if side_value in ("buy", "sell") else "buy"
+            order_request = OrderRequest(
+                symbol=DomainSymbol(symbol),
+                side=DomainSide(side_literal),  # type: ignore[arg-type]
+                quantity=DomainQuantity(Decimal(str(qty))),
+                order_type=DomainOrderType("limit"),
+                time_in_force=DomainTimeInForce("day"),
+                limit_price=Money(amount=Decimal(str(limit_price)), currency="USD"),
+            )
+
+            # Get alpaca manager for canonical executor (same as market order)
+            from the_alchemiser.services.repository.alpaca_manager import AlpacaManager
+
+            alpaca_manager = getattr(self._order_executor, "alpaca_manager", None)
+            if not alpaca_manager:
+                alpaca_manager = getattr(self._order_executor, "_trading", self._order_executor)
+            if not isinstance(alpaca_manager, AlpacaManager):
+                raise ValueError("Unable to get AlpacaManager instance for canonical executor")
+
+            executor = CanonicalOrderExecutor(alpaca_manager)
+            result = executor.execute(order_request)
+            if result.success:
+                return result.order_id
+            self.logger.error(
+                "canonical_limit_order_failed",
+                extra={"symbol": symbol, "error": result.error},
+            )
+            return None
+        except Exception as e:  # noqa: BLE001
+            self.logger.error(
+                "canonical_limit_order_exception",
+                extra={"symbol": symbol, "error": str(e)},
+            )
+            return None
 
     def execute_safe_sell(self, symbol: str, target_qty: float) -> str | None:
         """Execute a safe sell using the configured order executor.
@@ -255,7 +392,7 @@ class SmartExecution:
                             "notional": notional,
                         },
                     )
-                    return self._order_executor.place_market_order(symbol, side, notional=notional)
+                    return self._submit_canonical_market_order(symbol, side, notional=notional)
 
                 if qty <= 0:
                     self.logger.warning(
@@ -267,7 +404,7 @@ class SmartExecution:
                             "notional": notional,
                         },
                     )
-                    return self._order_executor.place_market_order(symbol, side, notional=notional)
+                    return self._submit_canonical_market_order(symbol, side, notional=notional)
 
             except DataProviderError:
                 self.logger.warning(
@@ -278,7 +415,7 @@ class SmartExecution:
                         "quantity": qty,
                     },
                 )
-                return self._order_executor.place_market_order(symbol, side, notional=notional)
+                return self._submit_canonical_market_order(symbol, side, notional=notional)
 
         # Step 1: Market timing and spread assessment
         strategy = timing_engine.get_execution_strategy()
@@ -311,7 +448,7 @@ class SmartExecution:
                         "quantity": qty,
                     },
                 )
-                return self._order_executor.place_market_order(symbol, side, qty=qty)
+                return self._submit_canonical_market_order(symbol, side, qty=qty)
             bid, ask = float(quote[0]), float(quote[1])
 
             # Check if quote is invalid (fallback zeros)
@@ -324,7 +461,7 @@ class SmartExecution:
                         "quantity": qty,
                     },
                 )
-                return self._order_executor.place_market_order(symbol, side, qty=qty)
+                return self._submit_canonical_market_order(symbol, side, qty=qty)
             spread_analysis = spread_assessor.analyze_current_spread(symbol, bid, ask)
 
             self.logger.debug(
@@ -362,7 +499,7 @@ class SmartExecution:
                             "quantity": qty,
                         },
                     )
-                    return self._order_executor.place_market_order(symbol, side, qty=qty)
+                    return self._submit_canonical_market_order(symbol, side, qty=qty)
                 bid, ask = float(quote[0]), float(quote[1])
                 spread_analysis = spread_assessor.analyze_current_spread(symbol, bid, ask)
                 self.logger.debug(
@@ -396,7 +533,7 @@ class SmartExecution:
                         "original_error": str(e),
                     },
                 )
-                return self._order_executor.place_market_order(symbol, side, qty=qty)
+                return self._submit_canonical_market_order(symbol, side, qty=qty)
             self.logger.error(
                 "order_execution_failed_fallback_disabled",
                 extra={
@@ -446,7 +583,7 @@ class SmartExecution:
                         "original_error": str(e),
                     },
                 )
-                return self._order_executor.place_market_order(symbol, side, qty=qty)
+                return self._submit_canonical_market_order(symbol, side, qty=qty)
             self.logger.error(
                 "data_provider_error_fallback_disabled",
                 extra={
@@ -527,7 +664,7 @@ class SmartExecution:
                             "original_error": str(e),
                         },
                     )
-                    return self._order_executor.place_market_order(symbol, side, qty=qty)
+                    return self._submit_canonical_market_order(symbol, side, qty=qty)
                 self.logger.error(
                     "order_placement_failed_fallback_disabled",
                     extra={
@@ -564,7 +701,7 @@ class SmartExecution:
                         "original_error": str(e),
                     },
                 )
-                return self._order_executor.place_market_order(symbol, side, qty=qty)
+                return self._submit_canonical_market_order(symbol, side, qty=qty)
             self.logger.error(
                 "unexpected_error_fallback_disabled",
                 extra={

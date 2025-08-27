@@ -36,6 +36,10 @@ class OrderValidationError(Exception):
     """Exception raised when order validation fails."""
 
 
+class OrderOperationError(Exception):
+    """Exception raised when an order operation (e.g. liquidation) fails."""
+
+
 class OrderService:
     """Enhanced order service with validation and business logic.
 
@@ -65,165 +69,7 @@ class OrderService:
         self._max_order_value = max_order_value
         self._min_order_value = min_order_value
 
-    @translate_trading_errors()
-    def place_market_order(
-        self,
-        symbol: str,
-        side: str,
-        quantity: float | None = None,
-        notional: float | None = None,
-        validate_price: bool = True,
-    ) -> str:
-        """Place a validated market order.
-
-        Args:
-            symbol: Stock symbol (will be normalized)
-            side: "buy" or "sell" (case insensitive)
-            quantity: Number of shares to trade
-            notional: Dollar amount to trade (alternative to quantity)
-            validate_price: Whether to validate current price before ordering
-
-        Returns:
-            Order ID from successful order placement
-
-        Raises:
-            OrderValidationError: If validation fails
-            Exception: If order placement fails
-
-        """
-        # Input validation and normalization
-        symbol = self._validate_and_normalize_symbol(symbol)
-        side = self._validate_and_normalize_side(side)
-
-        # Validate quantity or notional
-        if quantity is not None and notional is not None:
-            raise OrderValidationError("Cannot specify both quantity and notional")
-
-        if quantity is None and notional is None:
-            raise OrderValidationError("Must specify either quantity or notional")
-
-        if quantity is not None:
-            quantity = self._validate_quantity(quantity)
-
-        if notional is not None:
-            notional = self._validate_notional(notional)
-
-        # Optional price validation
-        if validate_price and self._market_data:
-            self._validate_market_price(symbol)
-
-        # Position validation for sell orders
-        if side == "sell":
-            self._validate_sell_position(symbol, quantity, notional)
-
-        # Place the order through repository
-        logger.info(
-            f"Placing market {side} order for {symbol}: qty={quantity}, notional=${notional}"
-        )
-
-        order_result = self._trading.place_market_order(
-            symbol=symbol, side=side, qty=quantity, notional=notional
-        )
-
-        if not order_result.success:
-            error_msg = getattr(order_result, "error_message", None) or "Unknown error"
-            raise Exception(f"Order placement failed: {error_msg}")
-
-        # Extract order ID from envelope
-        order_id = None
-        raw_order = getattr(order_result, "raw_order", None)
-        if raw_order:
-            order_id = getattr(raw_order, "id", None)
-
-        if not order_id:
-            raise Exception("Order placement succeeded but no order ID returned")
-
-        logger.info(f"✅ Market order placed successfully: {order_id}")
-        return str(order_id)
-
-    @translate_trading_errors()
-    def place_limit_order(
-        self,
-        symbol: str,
-        side: str,
-        quantity: float,
-        limit_price: float,
-        time_in_force: str = "day",
-        validate_price: bool = True,
-    ) -> str:
-        """Place a validated limit order.
-
-        DEPRECATED: This method uses legacy service patterns. Consider using
-        CanonicalOrderExecutor for new code to leverage centralized order building.
-
-        Args:
-            symbol: Stock symbol (will be normalized)
-            side: "buy" or "sell" (case insensitive)
-            quantity: Number of shares to trade
-            limit_price: Limit price for the order
-            time_in_force: Time in force ("day", "gtc", "ioc", "fok")
-            validate_price: Whether to validate limit price against current market
-
-        Returns:
-            Order ID from successful order placement
-
-        Raises:
-            OrderValidationError: If validation fails
-            Exception: If order placement fails
-
-        """
-        # Input validation and normalization
-        symbol = self._validate_and_normalize_symbol(symbol)
-        side = self._validate_and_normalize_side(side)
-        quantity = self._validate_quantity(quantity)
-        limit_price = self._validate_price(limit_price)
-        tif = self._validate_time_in_force(time_in_force)
-
-        # Price reasonableness check
-        if validate_price and self._market_data:
-            self._validate_limit_price(symbol, side, limit_price)
-
-        # Position validation for sell orders
-        if side == "sell":
-            self._validate_sell_position(symbol, quantity, None)
-
-        # Create and place limit order using centralized builder
-        logger.info(
-            f"Placing limit {side} order for {symbol}: "
-            f"qty={quantity}, price=${limit_price:.2f}, tif={tif}"
-        )
-
-        # Use centralized order request builder
-        from the_alchemiser.application.execution.order_request_builder import (
-            OrderRequestBuilder,
-        )
-
-        order_request = OrderRequestBuilder.build_limit_order_request(
-            symbol=symbol,
-            side=side,
-            quantity=quantity,
-            limit_price=limit_price,
-            time_in_force=time_in_force,
-        )
-
-        # Repository now returns RawOrderEnvelope, need to handle differently
-        envelope = self._trading.place_order(order_request)
-
-        if not envelope.success:
-            error_msg = getattr(envelope, "error_message", None) or "Unknown error"
-            raise Exception(f"Limit order placement failed: {error_msg}")
-
-        # Extract order ID from envelope
-        order_id = None
-        raw_order = getattr(envelope, "raw_order", None)
-        if raw_order:
-            order_id = getattr(raw_order, "id", None)
-
-        if not order_id:
-            raise Exception("Limit order placement succeeded but no order ID returned")
-
-        logger.info(f"✅ Limit order placed successfully: {order_id}")
-        return str(order_id)
+    # Legacy place_market_order / place_limit_order removed. Use CanonicalOrderExecutor externally.
 
     @translate_trading_errors()
     def cancel_order(self, order_id: str) -> bool:
@@ -281,7 +127,7 @@ class OrderService:
         order_id = self._trading.liquidate_position(symbol)
 
         if not order_id:
-            raise Exception("Position liquidation returned None - failed")
+            raise OrderOperationError("Position liquidation returned None - failed")
 
         logger.info(f"✅ Position liquidated successfully: {order_id}")
         return order_id
@@ -387,7 +233,7 @@ class OrderService:
         except Exception as e:
             raise OrderValidationError(f"Cannot validate market price for {symbol}: {e}")
 
-    def _validate_limit_price(self, symbol: str, side: str, limit_price: float) -> None:
+    def _validate_limit_price(self, symbol: str, limit_price: float) -> None:
         """Validate limit price against current market."""
         if not self._market_data:
             return  # Skip if no market data service
@@ -412,9 +258,7 @@ class OrderService:
         except Exception as e:
             logger.warning(f"Could not validate limit price for {symbol}: {e}")
 
-    def _validate_sell_position(
-        self, symbol: str, quantity: float | None, notional: float | None
-    ) -> None:
+    def _validate_sell_position(self, symbol: str, quantity: float | None) -> None:
         """Validate that we have sufficient position for sell order."""
         try:
             positions = self._trading.get_positions_dict()
@@ -433,3 +277,5 @@ class OrderService:
                 raise
             logger.warning(f"Could not validate sell position for {symbol}: {e}")
             # Don't fail the order if we can't validate position
+
+    # _delegate_to_canonical_executor removed.
