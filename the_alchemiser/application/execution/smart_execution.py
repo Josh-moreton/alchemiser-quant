@@ -25,14 +25,7 @@ from the_alchemiser.infrastructure.config.execution_config import (
 from the_alchemiser.interfaces.schemas.execution import WebSocketResultDTO
 
 if TYPE_CHECKING:
-    from the_alchemiser.application.trading.lifecycle import (
-        LifecycleEventDispatcher,
-        OrderLifecycleManager,
-    )
-    from the_alchemiser.domain.trading.lifecycle import (
-        LifecycleEventType,
-        OrderLifecycleState,
-    )
+    pass
 from the_alchemiser.services.errors.exceptions import (
     BuyingPowerError,
     DataProviderError,

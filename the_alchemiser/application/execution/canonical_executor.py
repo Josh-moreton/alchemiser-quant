@@ -225,7 +225,7 @@ class CanonicalOrderExecutor:
             )
 
             execution_result = raw_order_envelope_to_execution_result_dto(raw_envelope)
-            
+
             # Emit lifecycle events if dispatcher available (Phase 5)
             self._emit_submission_lifecycle_events(execution_result, raw_envelope)
         except Exception as e:  # infra failure
@@ -287,10 +287,10 @@ class CanonicalOrderExecutor:
                             "final_status": updated.status,
                         },
                     )
-                    
+
                     # Emit completion lifecycle events (Phase 5)
                     self._emit_completion_lifecycle_events(updated)
-                    
+
                     return updated
                 except Exception as e:  # fetch failure - keep original result
                     self.error_handler.handle_error(
@@ -389,12 +389,13 @@ class CanonicalOrderExecutor:
         self, execution_result: OrderExecutionResultDTO, raw_envelope: Any
     ) -> None:
         """Emit lifecycle events for order submission from repository responses.
-        
+
         Phase 5: Uniform lifecycle event emission from canonical executor path.
-        
+
         Args:
             execution_result: Processed execution result DTO
             raw_envelope: Raw repository response envelope with metadata
+
         """
         if not self.lifecycle_dispatcher or not self.lifecycle_manager:
             return
@@ -407,18 +408,24 @@ class CanonicalOrderExecutor:
             from the_alchemiser.domain.trading.value_objects.order_id import OrderId
 
             order_id = OrderId.from_string(execution_result.order_id)
-            
+
             # Build metadata from execution result and envelope
             submission_metadata = {
                 "component": "CanonicalOrderExecutor",
-                "submission_time": execution_result.submitted_at.isoformat() if execution_result.submitted_at else None,
+                "submission_time": execution_result.submitted_at.isoformat()
+                if execution_result.submitted_at
+                else None,
                 "success": execution_result.success,
                 "order_type": getattr(raw_envelope.original_request, "order_type", "unknown"),
                 "symbol": getattr(raw_envelope.original_request, "symbol", "unknown"),
                 "side": getattr(raw_envelope.original_request, "side", "unknown"),
                 "qty": getattr(raw_envelope.original_request, "qty", "unknown"),
-                "request_timestamp": raw_envelope.request_timestamp.isoformat() if hasattr(raw_envelope, "request_timestamp") else None,
-                "response_timestamp": raw_envelope.response_timestamp.isoformat() if hasattr(raw_envelope, "response_timestamp") else None,
+                "request_timestamp": raw_envelope.request_timestamp.isoformat()
+                if hasattr(raw_envelope, "request_timestamp")
+                else None,
+                "response_timestamp": raw_envelope.response_timestamp.isoformat()
+                if hasattr(raw_envelope, "response_timestamp")
+                else None,
             }
 
             if execution_result.success:
@@ -431,7 +438,7 @@ class CanonicalOrderExecutor:
                     dispatcher=self.lifecycle_dispatcher,
                 )
                 self.lifecycle_dispatcher.dispatch(event)
-                
+
                 logger.debug(
                     "Emitted SUBMITTED lifecycle event",
                     extra={
@@ -447,7 +454,7 @@ class CanonicalOrderExecutor:
                     "error": execution_result.error,
                     "rejection_reason": execution_result.error,
                 }
-                
+
                 event = self.lifecycle_manager.advance(
                     order_id,
                     OrderLifecycleState.REJECTED,
@@ -456,7 +463,7 @@ class CanonicalOrderExecutor:
                     dispatcher=self.lifecycle_dispatcher,
                 )
                 self.lifecycle_dispatcher.dispatch(event)
-                
+
                 logger.debug(
                     "Emitted REJECTED lifecycle event",
                     extra={
@@ -477,15 +484,14 @@ class CanonicalOrderExecutor:
                 },
             )
 
-    def _emit_completion_lifecycle_events(
-        self, execution_result: OrderExecutionResultDTO
-    ) -> None:
+    def _emit_completion_lifecycle_events(self, execution_result: OrderExecutionResultDTO) -> None:
         """Emit lifecycle events for order completion monitoring.
-        
+
         Phase 5: Emit FILLED/TIMEOUT/REJECTED events based on final order state.
-        
+
         Args:
             execution_result: Final execution result after monitoring
+
         """
         if not self.lifecycle_dispatcher or not self.lifecycle_manager:
             return
@@ -498,17 +504,25 @@ class CanonicalOrderExecutor:
             from the_alchemiser.domain.trading.value_objects.order_id import OrderId
 
             order_id = OrderId.from_string(execution_result.order_id)
-            
+
             # Build completion metadata
             completion_metadata = {
                 "component": "CanonicalOrderExecutor",
                 "final_status": execution_result.status,
-                "filled_qty": str(execution_result.filled_qty) if execution_result.filled_qty else "0",
-                "avg_fill_price": str(execution_result.avg_fill_price) if execution_result.avg_fill_price else None,
-                "completed_at": execution_result.completed_at.isoformat() if execution_result.completed_at else None,
-                "submission_time": execution_result.submitted_at.isoformat() if execution_result.submitted_at else None,
+                "filled_qty": str(execution_result.filled_qty)
+                if execution_result.filled_qty
+                else "0",
+                "avg_fill_price": str(execution_result.avg_fill_price)
+                if execution_result.avg_fill_price
+                else None,
+                "completed_at": execution_result.completed_at.isoformat()
+                if execution_result.completed_at
+                else None,
+                "submission_time": execution_result.submitted_at.isoformat()
+                if execution_result.submitted_at
+                else None,
             }
-            
+
             # Calculate time to fill if available
             if execution_result.submitted_at and execution_result.completed_at:
                 time_diff = execution_result.completed_at - execution_result.submitted_at
@@ -552,7 +566,7 @@ class CanonicalOrderExecutor:
                 dispatcher=self.lifecycle_dispatcher,
             )
             self.lifecycle_dispatcher.dispatch(event)
-            
+
             logger.debug(
                 "Emitted completion lifecycle event",
                 extra={

@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:  # Avoid runtime import cost / circulars
     from the_alchemiser.application.mapping.strategies import StrategySignalDisplayDTO
+    from the_alchemiser.container.application_container import ApplicationContainer
 
 from the_alchemiser.domain.registry import StrategyType
 from the_alchemiser.domain.strategies.typed_strategy_manager import TypedStrategyManager
@@ -25,8 +26,9 @@ from the_alchemiser.services.errors.exceptions import DataProviderError, Strateg
 class SignalAnalyzer:
     """Handles signal analysis and display."""
 
-    def __init__(self, settings: Settings) -> None:
+    def __init__(self, settings: Settings, container: "ApplicationContainer") -> None:
         self.settings = settings
+        self.container = container
         self.logger = get_logger(__name__)
 
     def _get_strategy_allocations(self) -> dict[StrategyType, float]:
@@ -41,15 +43,8 @@ class SignalAnalyzer:
         self,
     ) -> tuple[dict[StrategyType, "StrategySignalDisplayDTO"], dict[str, float]]:
         """Generate strategy signals."""
-        # Acquire DI container initialized by main entry point
-        import the_alchemiser.main as app_main
-
-        container = app_main._di_container
-        if container is None:
-            raise RuntimeError("DI container not available - ensure system is properly initialized")
-
         # Use typed adapter for engines (DataFrame compatibility) and typed port for fetching
-        market_data_port = container.infrastructure.market_data_service()
+        market_data_port = self.container.infrastructure.market_data_service()
 
         # Create strategy manager with proper allocations
         strategy_allocations = self._get_strategy_allocations()

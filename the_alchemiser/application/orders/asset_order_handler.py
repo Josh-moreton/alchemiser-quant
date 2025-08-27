@@ -175,11 +175,12 @@ class AssetOrderHandler:
 
         """
         import warnings
+
         warnings.warn(
             "AssetOrderHandler.handle_fractionability_error is deprecated. "
             "Use PolicyOrchestrator with FractionabilityPolicy instead.",
             DeprecationWarning,
-            stacklevel=2
+            stacklevel=2,
         )
         if "not fractionable" not in error_msg.lower():
             return None, f"Non-fractionability error: {error_msg}"
@@ -298,11 +299,12 @@ class AssetOrderHandler:
 
         """
         import warnings
+
         warnings.warn(
             "AssetOrderHandler.handle_limit_order_fractionability_error is deprecated. "
             "Use PolicyOrchestrator with FractionabilityPolicy instead.",
             DeprecationWarning,
-            stacklevel=2
+            stacklevel=2,
         )
         if "not fractionable" not in error_msg.lower():
             return None, f"Non-fractionability error: {error_msg}"

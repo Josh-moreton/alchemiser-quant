@@ -51,6 +51,7 @@ class TradingSystem:
         self.settings = settings or load_settings()
         self.logger = get_logger(__name__)
         self.error_handler = TradingSystemErrorHandler()
+        self.container: Optional["ApplicationContainer"] = None
         self._initialize_di()
 
     def _initialize_di(self) -> None:
@@ -58,8 +59,11 @@ class TradingSystem:
         global _di_container
 
         if DI_AVAILABLE:
-            _di_container = ApplicationContainer()
-            ServiceFactory.initialize(_di_container)
+            self.container = ApplicationContainer()
+            _di_container = (
+                self.container
+            )  # Keep global for backward compatibility during transition
+            ServiceFactory.initialize(self.container)
             self.logger.info("Dependency injection initialized")
         else:
             self.logger.error("DI not available - system requires dependency injection")
@@ -82,7 +86,9 @@ class TradingSystem:
 
         """
         try:
-            analyzer = SignalAnalyzer(self.settings)
+            if self.container is None:
+                raise RuntimeError("DI container not initialized")
+            analyzer = SignalAnalyzer(self.settings, self.container)
             return analyzer.run(show_tracking=show_tracking)
         except (DataProviderError, StrategyExecutionError) as e:
             self.error_handler.handle_error(
@@ -102,8 +108,11 @@ class TradingSystem:
     ) -> bool:
         """Execute multi-strategy trading."""
         try:
+            if self.container is None:
+                raise RuntimeError("DI container not initialized")
             executor = TradingExecutor(
                 settings=self.settings,
+                container=self.container,
                 live_trading=live_trading,
                 ignore_market_hours=ignore_market_hours,
                 show_tracking=show_tracking,

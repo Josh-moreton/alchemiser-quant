@@ -140,7 +140,7 @@ class MetricsObserver:
         # Existing metrics collection
         self._event_counts: dict[str, int] = {}
         self._transition_counts: dict[tuple[str, str], int] = {}
-        
+
         # Enhanced metrics for Phase 5 requirements
         self._order_metrics: dict[str, dict[str, Any]] = {}  # order_id -> metrics
         self._attempt_counts: dict[str, int] = {}  # order_id -> attempt count
@@ -156,10 +156,8 @@ class MetricsObserver:
             event: The lifecycle event to process
 
         """
-        import time
-        
         order_id_str = str(event.order_id.value)  # Use UUID value for consistent string keys
-        
+
         # Count events by type
         event_type = event.event_type.value
         self._event_counts[event_type] = self._event_counts.get(event_type, 0) + 1
@@ -178,7 +176,7 @@ class MetricsObserver:
                 "first_seen": event.timestamp.timestamp(),
                 "last_updated": event.timestamp.timestamp(),
                 "states_visited": [],
-                "events": []
+                "events": [],
             }
             self._attempt_counts[order_id_str] = 0
             self._volatility_pauses[order_id_str] = 0
@@ -188,33 +186,35 @@ class MetricsObserver:
         order_metrics = self._order_metrics[order_id_str]
         order_metrics["last_updated"] = event.timestamp.timestamp()
         order_metrics["states_visited"].append(event.new_state.value)
-        order_metrics["events"].append({
-            "event_type": event_type,
-            "timestamp": event.timestamp.timestamp(),
-            "metadata": dict(event.metadata) if event.metadata else {}
-        })
+        order_metrics["events"].append(
+            {
+                "event_type": event_type,
+                "timestamp": event.timestamp.timestamp(),
+                "metadata": dict(event.metadata) if event.metadata else {},
+            }
+        )
 
         # Track specific metrics from metadata
         metadata = event.metadata or {}
-        
+
         # Track attempt counts
         if event.new_state.value == "SUBMITTED":
             self._attempt_counts[order_id_str] += 1
             self._submission_times[order_id_str] = event.timestamp.timestamp()
-            
+
             # Track initial spread if available
             if "spread_initial" in metadata and metadata["spread_initial"] is not None:
                 if order_id_str not in self._spread_data:
                     self._spread_data[order_id_str] = {}
                 self._spread_data[order_id_str]["initial"] = float(metadata["spread_initial"])
-        
+
         # Track time to fill
         if event.new_state.value == "FILLED" and order_id_str in self._submission_times:
             fill_time = event.timestamp.timestamp()
             submission_time = self._submission_times[order_id_str]
             time_to_fill_ms = (fill_time - submission_time) * 1000
             order_metrics["time_to_fill_ms"] = time_to_fill_ms
-            
+
             # Track final spread if available
             if "spread_final" in metadata and metadata["spread_final"] is not None:
                 if order_id_str not in self._spread_data:
@@ -222,11 +222,11 @@ class MetricsObserver:
                 self._spread_data[order_id_str]["final"] = float(metadata["spread_final"])
 
         # Track fallback usage
-        if "fallback_used" in metadata and metadata["fallback_used"]:
+        if metadata.get("fallback_used"):
             self._fallback_usage[order_id_str] = True
 
         # Track volatility pauses
-        if "volatility_pause" in metadata and metadata["volatility_pause"]:
+        if metadata.get("volatility_pause"):
             self._volatility_pauses[order_id_str] += 1
 
         # Structured metrics logging
@@ -238,11 +238,11 @@ class MetricsObserver:
             "fallback_used": self._fallback_usage.get(order_id_str, False),
             "volatility_pauses": self._volatility_pauses.get(order_id_str, 0),
         }
-        
+
         # Add time to fill for completed orders
         if "time_to_fill_ms" in order_metrics:
             metrics_log_data["time_to_fill_ms"] = order_metrics["time_to_fill_ms"]
-            
+
         # Add spread data if available
         spread_data = self._spread_data.get(order_id_str, {})
         if "initial" in spread_data:
@@ -251,10 +251,7 @@ class MetricsObserver:
             metrics_log_data["spread_final"] = spread_data["final"]
 
         # Log structured metrics
-        self.logger.info(
-            "Order lifecycle metrics update",
-            extra={"metrics": metrics_log_data}
-        )
+        self.logger.info("Order lifecycle metrics update", extra={"metrics": metrics_log_data})
 
         # Debug log for development
         self.logger.debug(
@@ -323,14 +320,14 @@ class MetricsObserver:
         total_attempts = sum(self._attempt_counts.values())
         orders_with_fallback = sum(1 for used in self._fallback_usage.values() if used)
         total_volatility_pauses = sum(self._volatility_pauses.values())
-        
+
         # Calculate average time to fill for completed orders
         fill_times: list[float] = []
         for metrics in self._order_metrics.values():
             time_to_fill = metrics.get("time_to_fill_ms")
             if time_to_fill is not None and isinstance(time_to_fill, (int, float)):
                 fill_times.append(float(time_to_fill))
-        
+
         avg_time_to_fill = sum(fill_times) / len(fill_times) if fill_times else 0.0
 
         return {
@@ -340,7 +337,9 @@ class MetricsObserver:
             "orders_using_fallback": orders_with_fallback,
             "fallback_usage_rate": orders_with_fallback / total_orders if total_orders > 0 else 0,
             "total_volatility_pauses": total_volatility_pauses,
-            "average_volatility_pauses_per_order": total_volatility_pauses / total_orders if total_orders > 0 else 0,
+            "average_volatility_pauses_per_order": total_volatility_pauses / total_orders
+            if total_orders > 0
+            else 0,
             "completed_orders": len(fill_times),
             "average_time_to_fill_ms": avg_time_to_fill,
         }

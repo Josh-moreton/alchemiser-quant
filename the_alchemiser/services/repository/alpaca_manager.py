@@ -307,6 +307,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             logger.error(f"Invalid order parameters: {e}")
             # Return error envelope for consistency
             from datetime import datetime
+
             from the_alchemiser.interfaces.schemas.orders import RawOrderEnvelope
 
             now = datetime.now()
@@ -322,6 +323,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             logger.error(f"Failed to place market order for {symbol}: {e}")
             # Return error envelope for consistency
             from datetime import datetime
+
             from the_alchemiser.interfaces.schemas.orders import RawOrderEnvelope
 
             now = datetime.now()
