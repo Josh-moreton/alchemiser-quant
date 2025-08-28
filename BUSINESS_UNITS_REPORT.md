@@ -31,6 +31,24 @@ Every module is classified under one of these business units:
 - `the_alchemiser/shared_kernel/application/__init__.py` - Shared kernel application layer
 - `the_alchemiser/shared_kernel/infrastructure/__init__.py` - Shared kernel infrastructure layer
 - `the_alchemiser/shared_kernel/interfaces/__init__.py` - Shared kernel interfaces layer
+- `the_alchemiser/shared_kernel/infrastructure/config/__init__.py` - Configuration infrastructure
+- `the_alchemiser/shared_kernel/infrastructure/config/config_service.py` - Configuration service
+- `the_alchemiser/shared_kernel/infrastructure/secrets/__init__.py` - Secrets management infrastructure
+- `the_alchemiser/shared_kernel/infrastructure/secrets/secrets_service.py` - Secrets management service
+- `the_alchemiser/shared_kernel/infrastructure/errors/__init__.py` - Error handling infrastructure
+- `the_alchemiser/shared_kernel/infrastructure/errors/exceptions.py` - Custom exception classes
+- `the_alchemiser/shared_kernel/infrastructure/errors/handler.py` - Error handler
+- `the_alchemiser/shared_kernel/infrastructure/errors/decorators.py` - Error decorators
+- `the_alchemiser/shared_kernel/infrastructure/errors/error_handling.py` - Error handling utilities
+- `the_alchemiser/shared_kernel/infrastructure/errors/error_monitoring.py` - Error monitoring
+- `the_alchemiser/shared_kernel/infrastructure/errors/error_recovery.py` - Error recovery
+- `the_alchemiser/shared_kernel/infrastructure/errors/error_reporter.py` - Error reporting
+- `the_alchemiser/shared_kernel/infrastructure/errors/context.py` - Error context
+- `the_alchemiser/shared_kernel/infrastructure/errors/scope.py` - Error scope
+- `the_alchemiser/shared_kernel/infrastructure/utilities/__init__.py` - Utilities infrastructure
+- `the_alchemiser/shared_kernel/infrastructure/utilities/cache_manager.py` - Cache manager
+- `the_alchemiser/shared_kernel/infrastructure/utilities/retry_decorator.py` - Retry decorator
+- `the_alchemiser/shared_kernel/infrastructure/utilities/service_factory.py` - Service factory
 - `the_alchemiser/domain/shared_kernel/types.py` - Backwards compatibility shim (ActionType enum & value object re-exports)
 - `the_alchemiser/domain/shared_kernel/tooling/__init__.py` - Tooling package (numeric helpers export)
 - `the_alchemiser/domain/shared_kernel/tooling/num.py` - Float tolerance comparison utility (`floats_equal`)
@@ -43,6 +61,14 @@ Every module is classified under one of these business units:
 - `the_alchemiser/strategy/application/__init__.py` - Strategy application layer
 - `the_alchemiser/strategy/infrastructure/__init__.py` - Strategy infrastructure layer
 - `the_alchemiser/strategy/interfaces/__init__.py` - Strategy interfaces layer
+- `the_alchemiser/strategy/infrastructure/market_data/__init__.py` - Strategy infrastructure market data
+- `the_alchemiser/strategy/infrastructure/market_data/market_data_service.py` - Market data service
+- `the_alchemiser/strategy/infrastructure/market_data/market_data_client.py` - Market data client
+- `the_alchemiser/strategy/infrastructure/market_data/price_fetching_utils.py` - Price fetching utilities
+- `the_alchemiser/strategy/infrastructure/market_data/price_service.py` - Price service
+- `the_alchemiser/strategy/infrastructure/market_data/price_utils.py` - Price utilities
+- `the_alchemiser/strategy/infrastructure/market_data/streaming_service.py` - Streaming service
+- `the_alchemiser/strategy/infrastructure/market_data/strategy_market_data_service.py` - Strategy market data service
 
 ### Portfolio Context
 **Business Unit**: portfolio assessment & management | **Status**: current
@@ -52,6 +78,11 @@ Every module is classified under one of these business units:
 - `the_alchemiser/portfolio/application/__init__.py` - Portfolio application layer
 - `the_alchemiser/portfolio/infrastructure/__init__.py` - Portfolio infrastructure layer
 - `the_alchemiser/portfolio/interfaces/__init__.py` - Portfolio interfaces layer
+- `the_alchemiser/portfolio/application/services/__init__.py` - Portfolio application services
+- `the_alchemiser/portfolio/application/services/account_service.py` - Account management service
+- `the_alchemiser/portfolio/application/services/account_utils.py` - Account data utilities
+- `the_alchemiser/portfolio/application/services/position_service.py` - Position management service
+- `the_alchemiser/portfolio/application/services/position_manager.py` - Position management utilities
 
 ### Execution Context
 **Business Unit**: order execution/placement | **Status**: current
@@ -61,6 +92,12 @@ Every module is classified under one of these business units:
 - `the_alchemiser/execution/application/__init__.py` - Execution application layer
 - `the_alchemiser/execution/infrastructure/__init__.py` - Execution infrastructure layer
 - `the_alchemiser/execution/interfaces/__init__.py` - Execution interfaces layer
+- `the_alchemiser/execution/application/services/__init__.py` - Execution application services
+- `the_alchemiser/execution/application/services/order_service.py` - Order management service
+- `the_alchemiser/execution/infrastructure/brokers/__init__.py` - Execution infrastructure brokers
+- `the_alchemiser/execution/infrastructure/brokers/trading_service_manager.py` - Trading service manager
+- `the_alchemiser/execution/infrastructure/repositories/__init__.py` - Execution infrastructure repositories
+- `the_alchemiser/execution/infrastructure/repositories/alpaca_manager.py` - Alpaca repository manager
 
 ### Anti-Corruption Context
 **Business Unit**: utilities | **Status**: current
@@ -99,4 +136,34 @@ All imports across impacted files were updated; no remaining references to the r
   - order execution/placement: 5 modules (execution context)
 - **All modules status**: current
 
-**Note**: Task 2 (PR #398) completed removal of the legacy `utils/` module. Further tasks will continue migrating any remaining legacy patterns.
+**Note**: Task 2 (PR #398) completed removal of the legacy `utils/` module. Task 3 (PR #399) completed migration of the `services/` directory into bounded context layers.
+
+---
+
+## Services Migration Summary (Task 3)
+
+**Epic #375 Task 3**: Successfully migrated all services from `the_alchemiser/services/` into appropriate bounded context layers:
+
+### Migrated Services by Context:
+
+**Shared Kernel Infrastructure** (Cross-cutting concerns):
+- Configuration management (config_service.py)
+- Secrets management (secrets_service.py)
+- Error handling utilities (exceptions, handlers, decorators, etc.)
+- Caching and retry mechanisms
+- Service factory utilities
+
+**Portfolio Context Application** (Portfolio management):
+- Account management service and utilities
+- Position management service and utilities
+
+**Strategy Context Infrastructure** (Market data for strategies):
+- Market data service and client
+- Price fetching and utilities
+- Streaming services
+
+**Execution Context** (Order execution):
+- Order service (application layer)
+- Trading service manager and Alpaca repository (infrastructure layer)
+
+All services maintain their original functionality while now being properly classified within the DDD bounded context architecture. Import statements throughout the codebase have been updated accordingly.

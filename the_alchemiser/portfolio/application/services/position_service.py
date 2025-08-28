@@ -24,7 +24,7 @@ from the_alchemiser.domain.interfaces import (
     MarketDataRepository,
     TradingRepository,
 )
-from the_alchemiser.services.errors.decorators import translate_trading_errors
+from the_alchemiser.shared_kernel.infrastructure.errors.decorators import translate_trading_errors
 from the_alchemiser.domain.shared_kernel import floats_equal
 
 logger = logging.getLogger(__name__)

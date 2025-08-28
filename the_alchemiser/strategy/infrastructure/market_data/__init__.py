@@ -8,8 +8,8 @@ is deprecated and will be removed once all callers are migrated.
 
 from __future__ import annotations
 
-from the_alchemiser.services.market_data.market_data_service import MarketDataService
-from the_alchemiser.services.market_data.strategy_market_data_service import (
+from the_alchemiser.strategy.infrastructure.market_data.market_data_service import MarketDataService
+from the_alchemiser.strategy.infrastructure.market_data.strategy_market_data_service import (
     StrategyMarketDataService,
 )
 

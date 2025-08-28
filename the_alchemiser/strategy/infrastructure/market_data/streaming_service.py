@@ -131,7 +131,7 @@ class StreamingService:
             Tuple of (price, cleanup_function)
 
         """
-        from the_alchemiser.services.market_data.price_fetching_utils import (
+        from the_alchemiser.strategy.infrastructure.market_data.price_fetching_utils import (
             create_cleanup_function,
             subscribe_for_real_time,
         )
