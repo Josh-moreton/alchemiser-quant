@@ -9,8 +9,10 @@ from decimal import Decimal
 from the_alchemiser.domain.shared_kernel.value_objects.money import Money
 from the_alchemiser.domain.trading.value_objects.order_id import OrderId
 from the_alchemiser.domain.trading.value_objects.order_status import OrderStatus
+from the_alchemiser.domain.trading.value_objects.order_type import OrderType
 from the_alchemiser.domain.trading.value_objects.quantity import Quantity
 from the_alchemiser.domain.trading.value_objects.symbol import Symbol
+from the_alchemiser.domain.trading.value_objects.time_in_force import TimeInForce
 
 
 @dataclass
@@ -21,7 +23,8 @@ class Order:
     symbol: Symbol
     quantity: Quantity
     status: OrderStatus
-    order_type: str  # Market, Limit, etc.
+    order_type: OrderType
+    time_in_force: TimeInForce
     limit_price: Money | None = None
     filled_quantity: Quantity = field(default_factory=lambda: Quantity(Decimal("0")))
     created_at: datetime = field(default_factory=lambda: datetime.now(UTC))

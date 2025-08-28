@@ -10,9 +10,9 @@ from typing import Literal
 class OrderType:
     """Order type specification with validation."""
 
-    value: Literal["market", "limit"]
+    value: Literal["market", "limit", "stop", "stop_limit"]
 
     def __post_init__(self) -> None:  # pragma: no cover - trivial validation
-        valid_values = {"market", "limit"}
+        valid_values = {"market", "limit", "stop", "stop_limit"}
         if self.value not in valid_values:
             raise ValueError(f"OrderType must be one of {valid_values}")
