@@ -26,7 +26,7 @@ from the_alchemiser.utils.num import floats_equal
 class PositionManager:
     """Handles position management operations including validation and liquidation."""
 
-    def __init__(self, trading_client: Any, data_provider: Any) -> None:
+    def __init__(self, trading_client: Any, data_provider: Any) -> None:  # noqa: ANN401  # External SDK objects (Alpaca TradingClient and DataProvider)
         """Initialize with trading client and data provider."""
         self.trading_client = trading_client
         self.data_provider = data_provider

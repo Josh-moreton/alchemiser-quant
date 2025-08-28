@@ -11,13 +11,18 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from the_alchemiser.domain.registry import StrategyType
 from the_alchemiser.domain.types import OrderDetails
 from the_alchemiser.infrastructure.secrets.secrets_manager import SecretsManager
-from the_alchemiser.infrastructure.websocket.websocket_order_monitor import OrderCompletionMonitor
-from the_alchemiser.interfaces.schemas.execution import WebSocketResultDTO, WebSocketStatus
+from the_alchemiser.infrastructure.websocket.websocket_order_monitor import (
+    OrderCompletionMonitor,
+)
+from the_alchemiser.interfaces.schemas.execution import (
+    WebSocketResultDTO,
+    WebSocketStatus,
+)
 
 if TYPE_CHECKING:
     from the_alchemiser.application.portfolio.services.portfolio_management_facade import (
@@ -40,9 +45,9 @@ class RebalancingOrchestrator:
     def __init__(
         self,
         portfolio_facade: PortfolioManagementFacade,
-        trading_client: object,  # TradingClient from alpaca
+        trading_client: Any,  # noqa: ANN401  # TradingClient from alpaca - external SDK object
         paper_trading: bool = True,
-        account_info_provider: object | None = None,  # Object with get_account_info method
+        account_info_provider: (Any | None) = None,  # noqa: ANN401  # External provider with get_account_info method
     ) -> None:
         """Initialize orchestrator with required dependencies.
 

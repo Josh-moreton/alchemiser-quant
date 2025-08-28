@@ -575,7 +575,7 @@ class TradingServiceManager:
         quantity: int,
         side: str,
         order_type: str = "market",
-        **kwargs: object,
+        **kwargs: Any,  # noqa: ANN401  # Order parameters are dynamic (limit_price, stop_price, etc.)
     ) -> SmartOrderExecutionDTO:
         """Execute a smart order with comprehensive validation and risk management.
 

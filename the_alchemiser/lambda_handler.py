@@ -17,7 +17,10 @@ import json
 import logging
 from typing import Any
 
-from the_alchemiser.infrastructure.logging.logging_utils import generate_request_id, set_request_id
+from the_alchemiser.infrastructure.logging.logging_utils import (
+    generate_request_id,
+    set_request_id,
+)
 from the_alchemiser.interfaces.schemas.execution import LambdaEventDTO
 from the_alchemiser.main import main
 from the_alchemiser.services.errors.exceptions import (
@@ -31,7 +34,9 @@ from the_alchemiser.services.errors.exceptions import (
 logger = logging.getLogger(__name__)
 
 
-def parse_event_mode(event: LambdaEventDTO | dict[str, Any]) -> list[str]:
+def parse_event_mode(
+    event: LambdaEventDTO | dict[str, Any],
+) -> list[str]:  # noqa: ANN401  # Lambda event can be flexible dict or TypedDict
     """Parse the Lambda event to determine which trading mode to execute.
 
     Args:
@@ -104,7 +109,7 @@ def parse_event_mode(event: LambdaEventDTO | dict[str, Any]) -> list[str]:
     return args
 
 
-def lambda_handler(event: LambdaEventDTO | None = None, context: Any = None) -> dict[str, Any]:
+def lambda_handler(event: LambdaEventDTO | None = None, context: Any = None) -> dict[str, Any]:  # noqa: ANN401  # AWS Lambda context is external object
     """AWS Lambda function handler for The Alchemiser trading system.
 
     This function serves as the entry point when the trading system is deployed
@@ -228,7 +233,9 @@ def lambda_handler(event: LambdaEventDTO | None = None, context: Any = None) -> 
         return response
 
     except (DataProviderError, StrategyExecutionError, TradingClientError) as e:
-        from the_alchemiser.infrastructure.logging.logging_utils import log_error_with_context
+        from the_alchemiser.infrastructure.logging.logging_utils import (
+            log_error_with_context,
+        )
 
         # Safely get variables that might not be defined
         mode = locals().get("mode", "unknown")
@@ -279,7 +286,9 @@ def lambda_handler(event: LambdaEventDTO | None = None, context: Any = None) -> 
             "request_id": request_id,
         }
     except (ImportError, AttributeError, ValueError, KeyError, TypeError, OSError) as e:
-        from the_alchemiser.infrastructure.logging.logging_utils import log_error_with_context
+        from the_alchemiser.infrastructure.logging.logging_utils import (
+            log_error_with_context,
+        )
 
         error_message = f"Lambda execution critical error: {e!s}"
         log_error_with_context(

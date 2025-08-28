@@ -21,12 +21,12 @@ from .exceptions import (
     TradingClientError,
 )
 
-F = TypeVar("F", bound=Callable[..., Any])
+F = TypeVar("F", bound=Callable[..., Any])  # Generic function type for decorators
 
 
 def translate_service_errors(
     error_types: dict[type[Exception], type[Exception]] | None = None,
-    default_return: Any = None,
+    default_return: Any = None,  # noqa: ANN401  # Flexible default return for any function type
 ) -> Callable[[F], F]:
     """Decorator to translate service errors without logging.
 
@@ -51,7 +51,7 @@ def translate_service_errors(
 
     def decorator(func: F) -> F:
         @functools.wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
+        def wrapper(*args: Any, **kwargs: Any) -> Any:  # noqa: ANN401  # Decorator passthrough for any function signature
             try:
                 return func(*args, **kwargs)
             except tuple(error_types.keys()) as e:
@@ -77,8 +77,10 @@ def translate_service_errors(
     return decorator
 
 
-def translate_market_data_errors(default_return: Any = None) -> Callable[[F], F]:
-    """Decorator specifically for market data service error translation."""
+def translate_market_data_errors(
+    default_return: Any = None,
+) -> Callable[[F], F]:  # noqa: ANN401  # Flexible default return for any function type
+    """Translate market data service error translation."""
     return translate_service_errors(
         error_types={
             ConnectionError: MarketDataError,
@@ -90,8 +92,10 @@ def translate_market_data_errors(default_return: Any = None) -> Callable[[F], F]
     )
 
 
-def translate_trading_errors(default_return: Any = None) -> Callable[[F], F]:
-    """Decorator specifically for trading service error translation."""
+def translate_trading_errors(
+    default_return: Any = None,
+) -> Callable[[F], F]:  # noqa: ANN401  # Flexible default return for any function type
+    """Translate trading service error translation."""
     return translate_service_errors(
         error_types={
             ConnectionError: TradingClientError,
@@ -103,8 +107,10 @@ def translate_trading_errors(default_return: Any = None) -> Callable[[F], F]:
     )
 
 
-def translate_streaming_errors(default_return: Any = None) -> Callable[[F], F]:
-    """Decorator specifically for streaming service error translation."""
+def translate_streaming_errors(
+    default_return: Any = None,
+) -> Callable[[F], F]:  # noqa: ANN401  # Flexible default return for any function type
+    """Translate streaming service error translation."""
     return translate_service_errors(
         error_types={
             ConnectionError: StreamingError,
@@ -115,8 +121,10 @@ def translate_streaming_errors(default_return: Any = None) -> Callable[[F], F]:
     )
 
 
-def translate_config_errors(default_return: Any = None) -> Callable[[F], F]:
-    """Decorator specifically for configuration error translation."""
+def translate_config_errors(
+    default_return: Any = None,
+) -> Callable[[F], F]:  # noqa: ANN401  # Flexible default return for any function type
+    """Translate configuration error translation."""
     return translate_service_errors(
         error_types={
             FileNotFoundError: ConfigurationError,
