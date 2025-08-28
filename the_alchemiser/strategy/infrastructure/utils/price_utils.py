@@ -41,6 +41,7 @@ def ensure_scalar_price(price: Any) -> float | None:
     # Handle numpy arrays
     try:
         import numpy as np
+
         if isinstance(price, np.ndarray):
             if price.size == 0:
                 return None
@@ -55,14 +56,16 @@ def ensure_scalar_price(price: Any) -> float | None:
         # Check for NaN values
         if pd.isna(price):
             return None
-        
+
         # Convert to float
         return float(price)
     except (ValueError, TypeError, OverflowError):
         return None
 
 
-def validate_price_range(price: float, min_price: float = 0.01, max_price: float = 100000.0) -> bool:
+def validate_price_range(
+    price: float, min_price: float = 0.01, max_price: float = 100000.0
+) -> bool:
     """Validate if price is within reasonable range.
 
     Args:
@@ -76,7 +79,7 @@ def validate_price_range(price: float, min_price: float = 0.01, max_price: float
     """
     if price is None:
         return False
-    
+
     try:
         price_float = float(price)
         return min_price <= price_float <= max_price
@@ -98,7 +101,7 @@ def format_price(price: Any, precision: int = 2) -> str:
     scalar_price = ensure_scalar_price(price)
     if scalar_price is None:
         return "N/A"
-    
+
     try:
         return f"{scalar_price:.{precision}f}"
     except (ValueError, TypeError):
@@ -119,13 +122,13 @@ def calculate_mid_price(bid: float, ask: float) -> float | None:
     try:
         bid_price = ensure_scalar_price(bid)
         ask_price = ensure_scalar_price(ask)
-        
+
         if bid_price is None or ask_price is None:
             return None
-        
+
         if bid_price <= 0 or ask_price <= 0:
             return None
-        
+
         return (bid_price + ask_price) / 2.0
     except (ValueError, TypeError):
         return None
@@ -145,13 +148,13 @@ def calculate_spread(bid: float, ask: float) -> float | None:
     try:
         bid_price = ensure_scalar_price(bid)
         ask_price = ensure_scalar_price(ask)
-        
+
         if bid_price is None or ask_price is None:
             return None
-        
+
         if bid_price <= 0 or ask_price <= 0:
             return None
-        
+
         return ask_price - bid_price
     except (ValueError, TypeError):
         return None
@@ -171,10 +174,10 @@ def calculate_spread_percentage(bid: float, ask: float) -> float | None:
     try:
         spread = calculate_spread(bid, ask)
         mid_price = calculate_mid_price(bid, ask)
-        
+
         if spread is None or mid_price is None or mid_price == 0:
             return None
-        
+
         return (spread / mid_price) * 100.0
     except (ValueError, TypeError):
         return None
