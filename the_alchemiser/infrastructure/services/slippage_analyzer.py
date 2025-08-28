@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 @dataclass(frozen=True)
 class SlippageAnalysis:
     """Analysis results for order execution slippage."""
-    
+
     order_id: str
     symbol: str
     side: str  # "BUY" or "SELL"
@@ -36,7 +36,7 @@ class SlippageAnalysis:
 
 class SlippageAnalyzer:
     """Analyzes post-execution slippage for trading performance monitoring.
-    
+
     Phase 7 Enhancement: Compares intended vs executed prices and records
     slippage in basis points for detailed execution quality analysis.
     """
@@ -44,10 +44,10 @@ class SlippageAnalyzer:
     def __init__(self) -> None:
         """Initialize the slippage analyzer."""
         self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
-        
+
         # Storage for slippage analysis results
         self._slippage_results: list[SlippageAnalysis] = []
-        
+
         # Cache for intended prices (order_id -> intended_price)
         self._intended_prices: dict[str, dict[str, Any]] = {}
 
@@ -60,7 +60,7 @@ class SlippageAnalyzer:
         quantity: Decimal,
     ) -> None:
         """Record the intended execution parameters for later slippage analysis.
-        
+
         Args:
             order_id: Unique order identifier
             symbol: Trading symbol
@@ -75,7 +75,7 @@ class SlippageAnalyzer:
             "intended_price": intended_price,
             "quantity": quantity,
         }
-        
+
         self.logger.debug(
             f"📋 Recorded intended execution for {order_id}: {side} {quantity} {symbol} @ ${intended_price}"
         )
@@ -88,13 +88,13 @@ class SlippageAnalyzer:
         execution_timestamp: float,
     ) -> SlippageAnalysis | None:
         """Analyze slippage for a completed execution.
-        
+
         Args:
             order_id: Order identifier
             executed_price: Actual execution price
             executed_quantity: Actual executed quantity
             execution_timestamp: When execution occurred
-            
+
         Returns:
             SlippageAnalysis result or None if no intended price recorded
 
@@ -102,12 +102,12 @@ class SlippageAnalyzer:
         if order_id not in self._intended_prices:
             self.logger.warning(f"No intended price recorded for order {order_id}")
             return None
-        
+
         intended_data = self._intended_prices[order_id]
         intended_price = intended_data["intended_price"]
         symbol = intended_data["symbol"]
         side = intended_data["side"]
-        
+
         # Calculate slippage
         slippage_analysis = self._calculate_slippage(
             order_id=order_id,
@@ -118,15 +118,15 @@ class SlippageAnalyzer:
             quantity=executed_quantity,
             execution_timestamp=execution_timestamp,
         )
-        
+
         # Store the analysis
         self._slippage_results.append(slippage_analysis)
-        
+
         self.logger.info(
             f"💰 Slippage analysis for {order_id}: {slippage_analysis.slippage_bps:.1f} bps "
             f"({'favorable' if slippage_analysis.is_favorable else 'unfavorable'})"
         )
-        
+
         return slippage_analysis
 
     def _calculate_slippage(
@@ -140,7 +140,7 @@ class SlippageAnalyzer:
         execution_timestamp: float,
     ) -> SlippageAnalysis:
         """Calculate detailed slippage metrics.
-        
+
         Args:
             order_id: Order identifier
             symbol: Trading symbol
@@ -149,7 +149,7 @@ class SlippageAnalyzer:
             executed_price: Actual execution price
             quantity: Executed quantity
             execution_timestamp: Execution timestamp
-            
+
         Returns:
             Complete slippage analysis
 
@@ -161,19 +161,19 @@ class SlippageAnalyzer:
         else:
             # For sells: receiving less than intended is unfavorable slippage
             raw_slippage = intended_price - executed_price
-        
+
         # Convert to basis points (bps): 1 bps = 0.01% = 0.0001
         if intended_price > Decimal("0"):
             slippage_bps = (raw_slippage / intended_price) * Decimal("10000")
         else:
             slippage_bps = Decimal("0")
-        
+
         # Calculate dollar impact
         slippage_dollars = raw_slippage * quantity
-        
+
         # Determine if slippage was favorable (negative slippage is good)
         is_favorable = raw_slippage < Decimal("0")
-        
+
         return SlippageAnalysis(
             order_id=order_id,
             symbol=symbol,
@@ -189,7 +189,7 @@ class SlippageAnalyzer:
 
     def get_slippage_summary(self) -> dict[str, Any]:
         """Get summary statistics for all slippage analyses.
-        
+
         Returns:
             Dictionary containing slippage summary metrics
 
@@ -202,18 +202,20 @@ class SlippageAnalyzer:
                 "unfavorable_executions": 0,
                 "total_slippage_cost": 0.0,
             }
-        
+
         total_executions = len(self._slippage_results)
         favorable_count = sum(1 for result in self._slippage_results if result.is_favorable)
         unfavorable_count = total_executions - favorable_count
-        
+
         # Calculate average slippage in bps
         total_slippage_bps = sum(float(result.slippage_bps) for result in self._slippage_results)
         avg_slippage_bps = total_slippage_bps / total_executions
-        
+
         # Calculate total dollar cost
-        total_slippage_cost = sum(float(result.slippage_dollars) for result in self._slippage_results)
-        
+        total_slippage_cost = sum(
+            float(result.slippage_dollars) for result in self._slippage_results
+        )
+
         return {
             "total_executions": total_executions,
             "average_slippage_bps": avg_slippage_bps,
@@ -226,37 +228,37 @@ class SlippageAnalyzer:
 
     def get_slippage_by_symbol(self) -> dict[str, dict[str, Any]]:
         """Get slippage analysis grouped by symbol.
-        
+
         Returns:
             Dictionary mapping symbols to their slippage statistics
 
         """
         symbol_data: dict[str, list[SlippageAnalysis]] = {}
-        
+
         for result in self._slippage_results:
             if result.symbol not in symbol_data:
                 symbol_data[result.symbol] = []
             symbol_data[result.symbol].append(result)
-        
+
         symbol_summaries = {}
         for symbol, results in symbol_data.items():
             total = len(results)
             favorable = sum(1 for r in results if r.is_favorable)
             avg_bps = sum(float(r.slippage_bps) for r in results) / total
             total_cost = sum(float(r.slippage_dollars) for r in results)
-            
+
             symbol_summaries[symbol] = {
                 "executions": total,
                 "average_slippage_bps": avg_bps,
                 "favorable_rate": favorable / total,
                 "total_cost": total_cost,
             }
-        
+
         return symbol_summaries
 
     def export_slippage_data(self) -> dict[str, Any]:
         """Export all slippage data for external analysis.
-        
+
         Returns:
             Complete slippage dataset with metadata
 
@@ -289,18 +291,14 @@ class SlippageAnalyzer:
         self.logger.info("Slippage analyzer data reset")
 
 
-# Global instance for easy access
-_global_slippage_analyzer: SlippageAnalyzer | None = None
+# NOTE: Removed global singleton accessor; prefer dependency injection.
 
 
-def get_slippage_analyzer() -> SlippageAnalyzer:
-    """Get the global slippage analyzer instance.
-    
-    Returns:
-        Global SlippageAnalyzer instance
+def create_slippage_analyzer() -> SlippageAnalyzer:
+    """Create a new slippage analyzer instance.
 
+    Construct once in the application layer and inject where required
+    (e.g., observers, execution managers). Avoid module-level singletons
+    to maintain testability and domain purity.
     """
-    global _global_slippage_analyzer
-    if _global_slippage_analyzer is None:
-        _global_slippage_analyzer = SlippageAnalyzer()
-    return _global_slippage_analyzer
+    return SlippageAnalyzer()

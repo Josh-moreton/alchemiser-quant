@@ -16,6 +16,8 @@ All functions follow functional programming principles with no side effects,
 ensuring predictable behavior and easy testing.
 """
 
+from typing import Any
+
 # TODO: Phase 12 - Types available for future migration to structured trading calculations
 # from the_alchemiser.domain.types import BacktestResult, PerformanceMetrics, TradeAnalysis
 
@@ -131,6 +133,8 @@ def calculate_dynamic_limit_price_with_symbol(
     symbol: str,
     step: int = 0,
     max_steps: int = 5,
+    *,
+    tick_size_provider: Any | None = None,
 ) -> float:
     """Calculate a limit price using dynamic tick size resolution.
 
@@ -146,6 +150,7 @@ def calculate_dynamic_limit_price_with_symbol(
             Defaults to 0.
         max_steps (int, optional): Maximum steps before using market price.
             Defaults to 5.
+    tick_size_provider (Any | None): Optional injected tick size provider (must expose get_tick_size).
 
     Returns:
         float: Calculated limit price with appropriate precision.
@@ -159,16 +164,25 @@ def calculate_dynamic_limit_price_with_symbol(
     """
     from decimal import Decimal
 
-    from the_alchemiser.infrastructure.services.tick_size_service import get_tick_size
+    from the_alchemiser.infrastructure.services.tick_size_service import (
+        DynamicTickSizeService,
+    )
 
     mid_price = (bid + ask) / 2 if bid > 0 and ask > 0 else bid if side_is_buy else ask
-    
+
     # Get dynamic tick size for this symbol and price
-    tick_size_decimal = get_tick_size(symbol, Decimal(str(mid_price)))
+    service = tick_size_provider or DynamicTickSizeService()
+    tick_size_decimal = service.get_tick_size(symbol, Decimal(str(mid_price)))
     tick_size = float(tick_size_decimal)
 
     if step > max_steps:
-        return round(ask if side_is_buy else bid, max(2, len(str(tick_size_decimal).split('.')[-1])))
+        # Handle special Decimal cases (infinity, NaN) by falling back to 2 decimal places
+        exponent = tick_size_decimal.as_tuple().exponent
+        if isinstance(exponent, int):
+            precision = max(2, -exponent)
+        else:
+            precision = 2
+        return round(ask if side_is_buy else bid, precision)
 
     if side_is_buy:
         price = min(mid_price + step * tick_size, ask if ask > 0 else mid_price)
@@ -176,7 +190,11 @@ def calculate_dynamic_limit_price_with_symbol(
         price = max(mid_price - step * tick_size, bid if bid > 0 else mid_price)
 
     # Use appropriate precision based on tick size
-    precision = max(2, len(str(tick_size_decimal).split('.')[-1]))
+    exponent = tick_size_decimal.as_tuple().exponent
+    if isinstance(exponent, int):
+        precision = max(2, -exponent)
+    else:
+        precision = 2
     return round(price, precision)
 
 

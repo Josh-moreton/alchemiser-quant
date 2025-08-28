@@ -361,14 +361,12 @@ class OrderCompletionMonitor:
                 pass
             self._websocket_thread = None
 
-    def _emit_partial_fill_event(
-        self, order_id: str, filled_qty: Any, avg_price: Any
-    ) -> None:
+    def _emit_partial_fill_event(self, order_id: str, filled_qty: Any, avg_price: Any) -> None:
         """Emit a partial fill event for lifecycle monitoring.
-        
+
         Phase 7 Enhancement: Emit PARTIAL events with filled_qty and avg_price
         without breaking the existing FILLED flow.
-        
+
         Args:
             order_id: The order ID that was partially filled
             filled_qty: Quantity that was filled in this partial execution
@@ -393,19 +391,19 @@ class OrderCompletionMonitor:
                 metadata["filled_qty"] = str(filled_qty)
             if avg_price is not None:
                 metadata["avg_price"] = str(avg_price)
-                
+
             event = OrderLifecycleEvent.create_state_change(
-                order_id=OrderId.create(order_id),
+                order_id=OrderId.from_string(order_id),
                 previous_state=OrderLifecycleState.ACKNOWLEDGED,  # Assume previous state
                 new_state=OrderLifecycleState.PARTIALLY_FILLED,
                 event_type=LifecycleEventType.PARTIAL_FILL,
                 metadata=metadata,
             )
-            
+
             # Try to dispatch the event if a global dispatcher is available
             # This is optional and won't break if no dispatcher is configured
             logging.debug(f"📊 Emitting partial fill event for order {order_id}")
-            
+
         except ImportError:
             # Lifecycle system not available, just log the partial fill
             logging.info(f"🔄 Partial fill detected for order {order_id} (no lifecycle system)")

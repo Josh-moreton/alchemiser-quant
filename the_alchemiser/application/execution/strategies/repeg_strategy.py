@@ -12,7 +12,10 @@ from typing import NamedTuple, TypedDict
 
 from alpaca.trading.enums import OrderSide
 
-from the_alchemiser.infrastructure.services.tick_size_service import get_tick_size
+from the_alchemiser.infrastructure.services.tick_size_service import (
+    DynamicTickSizeService,
+    resolve_tick_size,
+)
 
 from .config import StrategyConfig
 
@@ -53,9 +56,16 @@ class RepegStrategy:
     explicitly through method parameters.
     """
 
-    def __init__(self, config: StrategyConfig, strategy_name: str = "RepegStrategy") -> None:
+    def __init__(
+        self,
+        config: StrategyConfig,
+        strategy_name: str = "RepegStrategy",
+        tick_size_service: DynamicTickSizeService | None = None,
+    ) -> None:
         self.config = config
         self.strategy_name = strategy_name
+        # Require explicit service injection; if omitted, create a new instance (transitional)
+        self._tick_size_service = tick_size_service or DynamicTickSizeService()
 
     def plan_attempts(self) -> list[AttemptPlan]:
         """Plan all attempts for a repeg sequence."""
@@ -102,11 +112,11 @@ class RepegStrategy:
 
     def _quantize(self, price: Decimal, symbol: str) -> Decimal:
         """Quantize price to appropriate tick size using dynamic resolution.
-        
+
         Phase 7 Enhancement: Uses DynamicTickSizeService instead of hardcoded tick_size.
         """
         # Get dynamic tick size based on symbol and current price
-        tick = get_tick_size(symbol, price)
+        tick = resolve_tick_size(self._tick_size_service, symbol, price)
         if tick <= Decimal("0"):
             return price
         # (price / tick) rounded then multiplied back
@@ -116,8 +126,9 @@ class RepegStrategy:
     def _calculate_price(self, state: AttemptState, attempt_index: int) -> Decimal:
         """Calculate price for attempt using dynamic tick size resolution."""
         # Get dynamic tick size for this symbol
-        dynamic_tick = get_tick_size(state.symbol, (state.bid + state.ask) / 2)
-        
+        mid_price = (state.bid + state.ask) / 2
+        dynamic_tick = resolve_tick_size(self._tick_size_service, state.symbol, mid_price)
+
         if not self.config.enable_adaptive_pricing:
             base_price = (
                 state.ask + dynamic_tick
@@ -125,11 +136,9 @@ class RepegStrategy:
                 else state.bid - dynamic_tick
             )
             return self._quantize(base_price, state.symbol)
-        
+
         price_improvement = (
-            Decimal(self.config.price_improvement_ticks)
-            * dynamic_tick
-            * Decimal(attempt_index)
+            Decimal(self.config.price_improvement_ticks) * dynamic_tick * Decimal(attempt_index)
         )
         if state.side == OrderSide.BUY:
             base_price = state.ask + dynamic_tick + price_improvement
