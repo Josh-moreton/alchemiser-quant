@@ -11,7 +11,9 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from the_alchemiser.infrastructure.dependency_injection.application_container import ApplicationContainer
+    from the_alchemiser.infrastructure.dependency_injection.application_container import (
+        ApplicationContainer,
+    )
 
 from the_alchemiser.application.execution.smart_execution import is_market_open
 from the_alchemiser.application.mapping.strategy_signal_mapping import (

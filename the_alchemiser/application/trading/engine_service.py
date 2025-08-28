@@ -1045,7 +1045,9 @@ def main() -> None:
     )
 
     # Modern DI initialization (no legacy fallback). Any failure should surface immediately.
-    from the_alchemiser.infrastructure.dependency_injection.application_container import ApplicationContainer
+    from the_alchemiser.infrastructure.dependency_injection.application_container import (
+        ApplicationContainer,
+    )
     from the_alchemiser.main import TradingSystem
 
     TradingSystem()  # Initialize DI system side-effects

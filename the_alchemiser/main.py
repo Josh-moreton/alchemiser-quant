@@ -35,7 +35,9 @@ from the_alchemiser.services.errors.handler import TradingSystemErrorHandler
 
 # DI imports (optional)
 try:
-    from the_alchemiser.infrastructure.dependency_injection.application_container import ApplicationContainer
+    from the_alchemiser.infrastructure.dependency_injection.application_container import (
+        ApplicationContainer,
+    )
     from the_alchemiser.services.shared.service_factory import ServiceFactory
 
     DI_AVAILABLE = True

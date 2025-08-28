@@ -79,7 +79,7 @@ def translate_service_errors(
 
 def translate_market_data_errors(
     default_return: Any = None,
-) -> Callable[[F], F]:  # noqa: ANN401  # Flexible default return for any function type
+) -> Callable[[F], F]:  # Flexible default return for any function type
     """Translate market data service error translation."""
     return translate_service_errors(
         error_types={
@@ -94,7 +94,7 @@ def translate_market_data_errors(
 
 def translate_trading_errors(
     default_return: Any = None,
-) -> Callable[[F], F]:  # noqa: ANN401  # Flexible default return for any function type
+) -> Callable[[F], F]:  # Flexible default return for any function type
     """Translate trading service error translation."""
     return translate_service_errors(
         error_types={
@@ -109,7 +109,7 @@ def translate_trading_errors(
 
 def translate_streaming_errors(
     default_return: Any = None,
-) -> Callable[[F], F]:  # noqa: ANN401  # Flexible default return for any function type
+) -> Callable[[F], F]:  # Flexible default return for any function type
     """Translate streaming service error translation."""
     return translate_service_errors(
         error_types={
@@ -123,7 +123,7 @@ def translate_streaming_errors(
 
 def translate_config_errors(
     default_return: Any = None,
-) -> Callable[[F], F]:  # noqa: ANN401  # Flexible default return for any function type
+) -> Callable[[F], F]:  # Flexible default return for any function type
     """Translate configuration error translation."""
     return translate_service_errors(
         error_types={

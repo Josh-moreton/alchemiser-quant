@@ -36,7 +36,7 @@ logger = logging.getLogger(__name__)
 
 def parse_event_mode(
     event: LambdaEventDTO | dict[str, Any],
-) -> list[str]:  # noqa: ANN401  # Lambda event can be flexible dict or TypedDict
+) -> list[str]:  # Lambda event can be flexible dict or TypedDict
     """Parse the Lambda event to determine which trading mode to execute.
 
     Args:
