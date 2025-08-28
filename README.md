@@ -1,15 +1,6 @@
 # The Alchemiser
 
-Internal notes on how the trading bot is put together and how the pieces interact.
-
-## Quick Start
-
-### Environment Setup
-
-```bash
-source .venv/bin/activate
-export PYTHONPATH="${PWD}:${PWD}/the_alchemiser:${PYTHONPATH}"
-```
+Internal notes on how the trading engine is put together and how the pieces interact.
 
 ## Business Unit Classification
 
