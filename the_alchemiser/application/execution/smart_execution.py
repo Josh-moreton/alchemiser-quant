@@ -28,32 +28,32 @@ Focuses on execution strategy logic while delegating order placement to speciali
 
 import logging
 import time
+from decimal import Decimal
 from typing import TYPE_CHECKING, Any, Protocol
 
 from alpaca.trading.enums import OrderSide
 
+from the_alchemiser.application.execution.canonical_executor import (
+    CanonicalOrderExecutor,
+)
+from the_alchemiser.domain.shared_kernel.value_objects.money import Money
+from the_alchemiser.domain.trading.value_objects.order_request import OrderRequest
+from the_alchemiser.domain.trading.value_objects.order_type import (
+    OrderType as DomainOrderType,
+)
+from the_alchemiser.domain.trading.value_objects.quantity import (
+    Quantity as DomainQuantity,
+)
+from the_alchemiser.domain.trading.value_objects.side import Side as DomainSide
+from the_alchemiser.domain.trading.value_objects.symbol import Symbol as DomainSymbol
+from the_alchemiser.domain.trading.value_objects.time_in_force import (
+    TimeInForce as DomainTimeInForce,
+)
 from the_alchemiser.infrastructure.config.execution_config import (
     ExecutionConfig,
     get_execution_config,
 )
 from the_alchemiser.interfaces.schemas.execution import WebSocketResultDTO
-from the_alchemiser.application.execution.canonical_executor import (
-    CanonicalOrderExecutor,
-)
-from the_alchemiser.domain.trading.value_objects.order_request import OrderRequest
-from the_alchemiser.domain.trading.value_objects.symbol import Symbol as DomainSymbol
-from the_alchemiser.domain.trading.value_objects.side import Side as DomainSide
-from the_alchemiser.domain.trading.value_objects.quantity import (
-    Quantity as DomainQuantity,
-)
-from the_alchemiser.domain.trading.value_objects.order_type import (
-    OrderType as DomainOrderType,
-)
-from the_alchemiser.domain.trading.value_objects.time_in_force import (
-    TimeInForce as DomainTimeInForce,
-)
-from the_alchemiser.domain.shared_kernel.value_objects.money import Money
-from decimal import Decimal
 
 if TYPE_CHECKING:
     pass
@@ -169,7 +169,7 @@ class SmartExecution:
                 price = None
                 try:
                     price = self._data_provider.get_current_price(symbol)
-                except Exception as e:  # noqa: BLE001
+                except Exception as e:
                     self.logger.warning(
                         "price_lookup_failed_for_notional_conversion",
                         extra={"symbol": symbol, "error": str(e)},
@@ -219,7 +219,7 @@ class SmartExecution:
                 extra={"symbol": symbol, "error": result.error},
             )
             return None
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             self.logger.error(
                 "canonical_market_order_exception",
                 extra={"symbol": symbol, "error": str(e)},
@@ -272,7 +272,7 @@ class SmartExecution:
                 extra={"symbol": symbol, "error": result.error},
             )
             return None
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             self.logger.error(
                 "canonical_limit_order_exception",
                 extra={"symbol": symbol, "error": str(e)},

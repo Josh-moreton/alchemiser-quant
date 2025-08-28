@@ -371,6 +371,7 @@ class OrderCompletionMonitor:
             order_id: The order ID that was partially filled
             filled_qty: Quantity that was filled in this partial execution
             avg_price: Average price of the partial fill
+
         """
         try:
             # Try to get the lifecycle dispatcher if available
