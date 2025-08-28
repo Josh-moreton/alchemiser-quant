@@ -725,7 +725,7 @@ class TradingServiceManager:
                 from the_alchemiser.application.execution.canonical_executor import (
                     CanonicalOrderExecutor,
                 )
-                from the_alchemiser.domain.shared_kernel.value_objects.money import (
+                from the_alchemiser.shared_kernel.value_objects.money import (
                     Money,
                 )
                 from the_alchemiser.domain.trading.value_objects.order_request import (
@@ -788,7 +788,7 @@ class TradingServiceManager:
                 from the_alchemiser.application.execution.canonical_executor import (
                     CanonicalOrderExecutor,
                 )
-                from the_alchemiser.domain.shared_kernel.value_objects.money import (
+                from the_alchemiser.shared_kernel.value_objects.money import (
                     Money,
                 )
                 from the_alchemiser.domain.trading.value_objects.order_request import (

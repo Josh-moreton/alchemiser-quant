@@ -10,11 +10,19 @@ across different bounded contexts.
 from __future__ import annotations
 
 from .tooling import floats_equal
-from .types import ActionType, Identifier, Money, Percentage
+from .types import ActionType
+
+# Re-export canonical value objects from the new shared kernel package so that
+# existing imports (domain namespace) keep functioning during migration.
+from the_alchemiser.shared_kernel import (
+    Identifier,
+    Money,
+    Percentage,
+)
 
 __all__ = [
     "ActionType",
-    "Identifier", 
+    "Identifier",
     "Money",
     "Percentage",
     "floats_equal",

@@ -40,7 +40,7 @@ from alpaca.trading.enums import OrderSide
 from the_alchemiser.application.execution.canonical_executor import (
     CanonicalOrderExecutor,
 )
-from the_alchemiser.domain.shared_kernel.value_objects.money import Money
+from the_alchemiser.shared_kernel.value_objects.money import Money
 from the_alchemiser.domain.trading.value_objects.order_request import OrderRequest
 from the_alchemiser.domain.trading.value_objects.order_type import (
     OrderType as DomainOrderType,
