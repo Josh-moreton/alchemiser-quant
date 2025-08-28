@@ -1,4 +1,4 @@
-"""Business Unit: strategy & signal generation; Status: current.
+"""Business Unit: utilities; Status: current.
 
 Market Data Service - Enhanced market data operations with caching and validation.
 

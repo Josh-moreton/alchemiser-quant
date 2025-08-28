@@ -83,8 +83,8 @@ from the_alchemiser.infrastructure.websocket.websocket_order_monitor import (
 from the_alchemiser.interfaces.schemas.execution import WebSocketResultDTO
 
 # (Legacy exceptions import removed)
-from the_alchemiser.services.repository.alpaca_manager import AlpacaManager
-from the_alchemiser.services.trading.position_manager import PositionManager
+from the_alchemiser.execution.infrastructure.repositories.alpaca_manager import AlpacaManager
+from the_alchemiser.portfolio.application.services.position_manager import PositionManager
 
 logger = logging.getLogger(__name__)
 

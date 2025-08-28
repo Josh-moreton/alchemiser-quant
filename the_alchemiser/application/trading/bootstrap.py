@@ -20,13 +20,13 @@ from the_alchemiser.application.mapping.strategy_market_data_adapter import (
 )
 from the_alchemiser.infrastructure.config import Settings, load_settings
 from the_alchemiser.infrastructure.secrets.secrets_manager import SecretsManager
-from the_alchemiser.services.account.account_service import AccountService as TypedAccountService
-from the_alchemiser.services.errors.context import create_error_context
-from the_alchemiser.services.errors.exceptions import ConfigurationError
-from the_alchemiser.services.errors.handler import TradingSystemErrorHandler
-from the_alchemiser.services.market_data.market_data_service import MarketDataService
-from the_alchemiser.services.repository.alpaca_manager import AlpacaManager
-from the_alchemiser.services.trading.trading_service_manager import TradingServiceManager
+from the_alchemiser.portfolio.application.services.account_service import AccountService as TypedAccountService
+from the_alchemiser.shared_kernel.infrastructure.errors.context import create_error_context
+from the_alchemiser.shared_kernel.infrastructure.errors.exceptions import ConfigurationError
+from the_alchemiser.shared_kernel.infrastructure.errors.handler import TradingSystemErrorHandler
+from the_alchemiser.strategy.infrastructure.market_data.market_data_service import MarketDataService
+from the_alchemiser.execution.infrastructure.repositories.alpaca_manager import AlpacaManager
+from the_alchemiser.execution.infrastructure.brokers.trading_service_manager import TradingServiceManager
 
 logger = logging.getLogger(__name__)
 

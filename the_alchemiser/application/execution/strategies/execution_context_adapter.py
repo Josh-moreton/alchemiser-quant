@@ -47,7 +47,7 @@ class ExecutionContextAdapter:
                 alpaca_manager = getattr(self._order_executor, "_trading", self._order_executor)
 
             # Ensure we have a proper AlpacaManager instance, type cast as needed
-            from the_alchemiser.services.repository.alpaca_manager import AlpacaManager
+            from the_alchemiser.execution.infrastructure.repositories.alpaca_manager import AlpacaManager
 
             if not isinstance(alpaca_manager, AlpacaManager):
                 raise ValueError("Unable to get AlpacaManager instance for canonical executor")
@@ -83,7 +83,7 @@ class ExecutionContextAdapter:
                 alpaca_manager = getattr(self._order_executor, "_trading", self._order_executor)
 
             # Ensure we have a proper AlpacaManager instance, type cast as needed
-            from the_alchemiser.services.repository.alpaca_manager import AlpacaManager
+            from the_alchemiser.execution.infrastructure.repositories.alpaca_manager import AlpacaManager
 
             if not isinstance(alpaca_manager, AlpacaManager):
                 raise ValueError("Unable to get AlpacaManager instance for canonical executor")

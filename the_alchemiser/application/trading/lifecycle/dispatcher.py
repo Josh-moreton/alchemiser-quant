@@ -13,7 +13,7 @@ from the_alchemiser.domain.trading.lifecycle import (
     LifecycleObserver,
     OrderLifecycleEvent,
 )
-from the_alchemiser.services.errors.handler import TradingSystemErrorHandler
+from the_alchemiser.shared_kernel.infrastructure.errors.handler import TradingSystemErrorHandler
 
 logger = logging.getLogger(__name__)
 

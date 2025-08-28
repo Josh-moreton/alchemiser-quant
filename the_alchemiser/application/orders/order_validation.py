@@ -42,8 +42,8 @@ from the_alchemiser.application.mapping.orders import (
 )
 from the_alchemiser.domain.trading.errors import OrderError, classify_validation_failure
 from the_alchemiser.interfaces.schemas.orders import OrderRequestDTO, ValidatedOrderDTO
-from the_alchemiser.services.errors import TradingSystemErrorHandler
-from the_alchemiser.services.errors.exceptions import ValidationError
+from the_alchemiser.shared_kernel.infrastructure.errors import TradingSystemErrorHandler
+from the_alchemiser.shared_kernel.infrastructure.errors.exceptions import ValidationError
 
 
 class OrderValidationError(ValidationError):

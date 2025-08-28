@@ -96,12 +96,12 @@ from the_alchemiser.interfaces.schemas.smart_trading import (
     SmartOrderExecutionDTO,
     TradingDashboardDTO,
 )
-from the_alchemiser.services.account.account_service import AccountService
-from the_alchemiser.services.errors.decorators import translate_trading_errors
-from the_alchemiser.services.market_data.market_data_service import MarketDataService
-from the_alchemiser.services.repository.alpaca_manager import AlpacaManager
-from the_alchemiser.services.trading.order_service import OrderService
-from the_alchemiser.services.trading.position_service import PositionService
+from the_alchemiser.portfolio.application.services.account_service import AccountService
+from the_alchemiser.shared_kernel.infrastructure.errors.decorators import translate_trading_errors
+from the_alchemiser.strategy.infrastructure.market_data.market_data_service import MarketDataService
+from the_alchemiser.execution.infrastructure.repositories.alpaca_manager import AlpacaManager
+from the_alchemiser.execution.application.services.order_service import OrderService
+from the_alchemiser.portfolio.application.services.position_service import PositionService
 from the_alchemiser.domain.shared_kernel import floats_equal
 
 
