@@ -9,6 +9,6 @@ from the_alchemiser.domain.strategies.protocols.strategy_engine import StrategyE
 # the_alchemiser.domain.market_data.protocols.market_data_port
 #
 # For strategies expecting DataFrame methods, use StrategyMarketDataAdapter:
-# from the_alchemiser.application.mapping.strategy_market_data_adapter import StrategyMarketDataAdapter
+# from the_alchemiser.strategy.application.mapping.strategy_market_data_adapter import StrategyMarketDataAdapter
 
 __all__ = ["StrategyEngine"]

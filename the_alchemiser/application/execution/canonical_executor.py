@@ -25,10 +25,10 @@ from the_alchemiser.interfaces.schemas.orders import (
 from the_alchemiser.infrastructure.errors.handler import TradingSystemErrorHandler
 
 if TYPE_CHECKING:  # typing-only imports
-    from the_alchemiser.application.policies.policy_orchestrator import (
+    from the_alchemiser.portfolio.application.policy_orchestrator import (
         PolicyOrchestrator,
     )
-    from the_alchemiser.application.trading.lifecycle import (
+    from the_alchemiser.execution.application import (
         LifecycleEventDispatcher,
         OrderLifecycleManager,
     )
@@ -181,7 +181,7 @@ class CanonicalOrderExecutor:
 
             from alpaca.trading.requests import LimitOrderRequest, MarketOrderRequest
 
-            from the_alchemiser.application.execution.order_request_builder import (
+            from the_alchemiser.execution.application.order_request_builder import (
                 OrderRequestBuilder,
             )
 

@@ -25,7 +25,7 @@ from the_alchemiser.shared_kernel.value_objects.symbol import Symbol
 from the_alchemiser.infrastructure.market_data.market_data_client import (
     MarketDataClient,
 )
-from the_alchemiser.application.market_data.market_data_service import MarketDataService
+from the_alchemiser.strategy.infrastructure.market_data_service import MarketDataService
 
 logger = logging.getLogger(__name__)
 

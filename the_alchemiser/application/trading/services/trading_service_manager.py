@@ -43,8 +43,8 @@ from the_alchemiser.application.mapping.trading_service_dto_mapping import (
     list_to_enriched_positions_dto,
     list_to_open_orders_dto,
 )
-from the_alchemiser.application.orders.order_validation import OrderValidator
-from the_alchemiser.application.trading.lifecycle import (
+from the_alchemiser.execution.application.order_validation import OrderValidator
+from the_alchemiser.execution.application import (
     LifecycleEventDispatcher,
     LoggingObserver,
     MetricsObserver,
@@ -96,12 +96,12 @@ from the_alchemiser.interfaces.schemas.smart_trading import (
     SmartOrderExecutionDTO,
     TradingDashboardDTO,
 )
-from the_alchemiser.application.account.account_service import AccountService
+from the_alchemiser.portfolio.application.account_service import AccountService
 from the_alchemiser.infrastructure.errors.decorators import translate_trading_errors
-from the_alchemiser.application.market_data.market_data_service import MarketDataService
+from the_alchemiser.strategy.infrastructure.market_data_service import MarketDataService
 from the_alchemiser.infrastructure.repositories.alpaca_manager import AlpacaManager
-from the_alchemiser.application.trading.services.order_service import OrderService
-from the_alchemiser.application.trading.services.position_service import PositionService
+from the_alchemiser.execution.application.order_service import OrderService
+from the_alchemiser.execution.application.position_service import PositionService
 from the_alchemiser.domain.shared_kernel import floats_equal
 
 
@@ -722,7 +722,7 @@ class TradingServiceManager:
                 # Use canonical executor directly since legacy methods removed
                 from decimal import Decimal
 
-                from the_alchemiser.application.execution.canonical_executor import (
+                from the_alchemiser.execution.application.canonical_executor import (
                     CanonicalOrderExecutor,
                 )
                 from the_alchemiser.shared_kernel.value_objects.money import (
@@ -785,7 +785,7 @@ class TradingServiceManager:
                 # Use canonical executor directly since legacy methods removed
                 from decimal import Decimal
 
-                from the_alchemiser.application.execution.canonical_executor import (
+                from the_alchemiser.execution.application.canonical_executor import (
                     CanonicalOrderExecutor,
                 )
                 from the_alchemiser.shared_kernel.value_objects.money import (

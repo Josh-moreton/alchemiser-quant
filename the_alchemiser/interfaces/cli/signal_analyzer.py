@@ -11,7 +11,7 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:  # Avoid runtime import cost / circulars
-    from the_alchemiser.application.mapping.strategies import StrategySignalDisplayDTO
+    from the_alchemiser.strategy.application.mapping.strategies import StrategySignalDisplayDTO
     from the_alchemiser.infrastructure.dependency_injection.application_container import (
         ApplicationContainer,
     )
@@ -63,7 +63,7 @@ class SignalAnalyzer:
         aggregated_signals = typed_manager.generate_all_signals(datetime.now(UTC))
 
         # Use centralized mapping function (reuse requirement)
-        from the_alchemiser.application.mapping.strategies import run_all_strategies_mapping
+        from the_alchemiser.strategy.application.mapping.strategies import run_all_strategies_mapping
 
         strategy_signals, consolidated_portfolio, _strategy_attribution = (
             run_all_strategies_mapping(aggregated_signals, strategy_allocations)

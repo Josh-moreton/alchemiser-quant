@@ -13,7 +13,7 @@ from collections.abc import Callable
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from the_alchemiser.application.execution.canonical_executor import (
+from the_alchemiser.execution.application.canonical_executor import (
     CanonicalOrderExecutor,
 )
 from the_alchemiser.shared_kernel.value_objects.money import Money

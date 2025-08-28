@@ -24,7 +24,7 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.table import Table
 from rich.text import Text
 
-from the_alchemiser.application.trading.engine_service import TradingEngine
+from the_alchemiser.strategy.application.engine_service import TradingEngine
 from the_alchemiser.domain.dsl.errors import DSLError
 from the_alchemiser.domain.dsl.parser import DSLParser
 from the_alchemiser.domain.dsl.strategy_loader import StrategyLoader
@@ -46,8 +46,8 @@ from the_alchemiser.shared_kernel.errors import (
 )
 from the_alchemiser.strategy.domain.errors import StrategyExecutionError
 from the_alchemiser.infrastructure.errors.handler import TradingSystemErrorHandler
-from the_alchemiser.application.market_data.market_data_service import MarketDataService
-from the_alchemiser.application.trading.services.trading_service_manager import (
+from the_alchemiser.strategy.infrastructure.market_data_service import MarketDataService
+from the_alchemiser.execution.application.trading_service_manager import (
     TradingServiceManager,
 )
 
@@ -609,7 +609,7 @@ def status(
             pass  # pragma: no cover
 
         # Create trader using modern bootstrap approach
-        from the_alchemiser.application.trading.bootstrap import (
+        from the_alchemiser.strategy.application.bootstrap import (
             bootstrap_from_container,
         )
 

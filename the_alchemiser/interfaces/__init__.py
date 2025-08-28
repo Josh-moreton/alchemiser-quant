@@ -1,9 +1,9 @@
 """Business Unit: utilities; Status: current.
 
-Interfaces layer for The Alchemiser Trading System.
+Reporting and analytics layer.
 
-This package contains DTOs, schemas, and interface definitions that define
-the contract between different layers of the application.
+This module contains reporting functionality for trading performance,
+portfolio analysis, and system monitoring.
 """
 
 from __future__ import annotations

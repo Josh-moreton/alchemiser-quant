@@ -10,7 +10,7 @@ from typing import cast
 from the_alchemiser.infrastructure.dependency_injection.application_container import (
     ApplicationContainer,
 )
-from the_alchemiser.application.trading.services.trading_service_manager import (
+from the_alchemiser.execution.application.trading_service_manager import (
     TradingServiceManager,
 )
 

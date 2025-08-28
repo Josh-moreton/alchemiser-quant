@@ -15,16 +15,16 @@ if TYPE_CHECKING:
         ApplicationContainer,
     )
 
-from the_alchemiser.application.execution.smart_execution import is_market_open
-from the_alchemiser.application.mapping.strategy_signal_mapping import (
+from the_alchemiser.execution.application.smart_execution import is_market_open
+from the_alchemiser.strategy.application.mapping.strategy_signal_mapping import (
     convert_signals_dict_to_domain,
     typed_strategy_signal_to_validated_order,
 )
-from the_alchemiser.application.mapping.strategy_signal_mapping import (
+from the_alchemiser.strategy.application.mapping.strategy_signal_mapping import (
     map_signals_dict as _map_signals_to_typed,
 )
-from the_alchemiser.application.trading.bootstrap import bootstrap_from_container
-from the_alchemiser.application.trading.engine_service import TradingEngine
+from the_alchemiser.strategy.application.bootstrap import bootstrap_from_container
+from the_alchemiser.strategy.application.engine_service import TradingEngine
 from the_alchemiser.domain.registry import StrategyType
 from the_alchemiser.domain.strategies.value_objects.strategy_signal import (
     StrategySignal as TypedStrategySignal,
@@ -199,7 +199,7 @@ class TradingExecutor:
             api_key = self.container.config.alpaca_api_key()
             secret_key = self.container.config.alpaca_secret_key()
             paper = self.container.config.paper_trading()
-            from the_alchemiser.application.trading.services.trading_service_manager import (
+            from the_alchemiser.execution.application.trading_service_manager import (
                 TradingServiceManager,
             )
 

@@ -39,7 +39,7 @@ Safety Features:
 Example:
     Canonical order placement (preferred):
 
-    >>> from the_alchemiser.application.execution.canonical_executor import CanonicalOrderExecutor
+    >>> from the_alchemiser.execution.application.canonical_executor import CanonicalOrderExecutor
     >>> from the_alchemiser.domain.trading.value_objects.order_request import OrderRequest
     >>> from the_alchemiser.domain.trading.value_objects.symbol import Symbol
     >>> from the_alchemiser.domain.trading.value_objects.side import Side
@@ -60,17 +60,17 @@ import time
 from typing import TYPE_CHECKING, Any, Protocol
 
 if TYPE_CHECKING:
-    from the_alchemiser.application.execution.smart_execution import (
+    from the_alchemiser.execution.application.smart_execution import (
         DataProvider as ExecDataProvider,
     )
     from the_alchemiser.interfaces.schemas.orders import ValidatedOrderDTO
 
 from alpaca.trading.enums import OrderSide
 
-from the_alchemiser.application.execution.smart_pricing_handler import (
+from the_alchemiser.execution.application.smart_pricing_handler import (
     SmartPricingHandler,
 )
-from the_alchemiser.application.orders.asset_order_handler import AssetOrderHandler
+from the_alchemiser.execution.application.asset_order_handler import AssetOrderHandler
 
 # DEPRECATED: LimitOrderHandler import removed - use CanonicalOrderExecutor instead
 # (Legacy order validation utilities removed with legacy paths)
@@ -84,7 +84,7 @@ from the_alchemiser.interfaces.schemas.execution import WebSocketResultDTO
 
 # (Legacy exceptions import removed)
 from the_alchemiser.infrastructure.repositories.alpaca_manager import AlpacaManager
-from the_alchemiser.application.trading.services.position_manager import PositionManager
+from the_alchemiser.execution.application.position_manager import PositionManager
 
 logger = logging.getLogger(__name__)
 
@@ -227,7 +227,7 @@ class AlpacaClient:
         """Place a smart sell order using canonical executor."""
         from decimal import Decimal
 
-        from the_alchemiser.application.execution.canonical_executor import (
+        from the_alchemiser.execution.application.canonical_executor import (
             CanonicalOrderExecutor,
         )
         from the_alchemiser.domain.trading.value_objects.order_request import (
