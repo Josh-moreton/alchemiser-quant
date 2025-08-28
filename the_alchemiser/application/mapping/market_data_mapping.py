@@ -14,7 +14,7 @@ import pandas as pd
 
 from the_alchemiser.domain.market_data.models.bar import BarModel
 from the_alchemiser.domain.market_data.models.quote import QuoteModel
-from the_alchemiser.domain.shared_kernel.value_objects.symbol import Symbol
+from shared_kernel.value_objects.symbol import Symbol
 
 
 def bars_to_dataframe(bars: list[BarModel]) -> pd.DataFrame:

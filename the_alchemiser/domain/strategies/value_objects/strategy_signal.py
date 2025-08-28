@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Literal
 
-from the_alchemiser.domain.shared_kernel.value_objects.percentage import (
+from shared_kernel.value_objects.percentage import (
     Percentage,
 )
 from the_alchemiser.domain.strategies.value_objects.confidence import Confidence

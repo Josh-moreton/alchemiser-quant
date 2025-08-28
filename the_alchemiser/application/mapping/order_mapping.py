@@ -15,7 +15,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, Any, Literal, TypedDict, cast
 
 from the_alchemiser.application.mapping.orders import normalize_order_status
-from the_alchemiser.domain.shared_kernel.value_objects.money import Money
+from shared_kernel.value_objects.money import Money
 from the_alchemiser.domain.trading.entities.order import Order
 from the_alchemiser.domain.trading.value_objects.order_id import OrderId
 from the_alchemiser.domain.trading.value_objects.order_status import OrderStatus

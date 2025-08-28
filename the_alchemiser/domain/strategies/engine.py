@@ -184,7 +184,7 @@ class StrategyEngine(ABC):
         unavailable_symbols = []
         for symbol in symbols:
             try:
-                from the_alchemiser.domain.shared_kernel.value_objects.symbol import Symbol
+                from shared_kernel.value_objects.symbol import Symbol
 
                 symbol_obj = Symbol(symbol)
                 price = self.market_data_port.get_mid_price(symbol_obj)
