@@ -1,4 +1,7 @@
-"""Account domain models."""
+"""Business Unit: utilities; Status: current.
+
+Account domain models.
+"""
 
 from dataclasses import dataclass
 from typing import Literal

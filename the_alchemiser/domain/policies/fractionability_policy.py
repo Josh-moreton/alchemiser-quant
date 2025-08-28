@@ -1,4 +1,6 @@
-"""Fractionability Policy Interface
+"""Business Unit: utilities; Status: current.
+
+Fractionability Policy Interface
 
 Handles validation and adjustment of order quantities based on asset fractionability rules.
 """

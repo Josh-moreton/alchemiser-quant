@@ -1,4 +1,6 @@
-"""Email module for The Alchemiser quantitative trading system.
+"""Business Unit: utilities; Status: current.
+
+Email module for The Alchemiser quantitative trading system.
 
 This module provides email notification functionality with clean separation
 of concerns across configuration, client operations, and template generation.

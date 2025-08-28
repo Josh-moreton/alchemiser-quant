@@ -1,4 +1,6 @@
-"""Portfolio calculation utilities (business logic only).
+"""Business Unit: portfolio assessment & management; Status: current.
+
+Portfolio calculation utilities (business logic only).
 
 Moved from interface layer to application.trading to maintain layering:
 application may not import interface/cli. Provides pure allocation calculations.

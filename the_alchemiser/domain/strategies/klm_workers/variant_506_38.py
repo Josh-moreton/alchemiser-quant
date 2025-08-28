@@ -1,4 +1,6 @@
-"""KLM Strategy Variant 506/38 - "KMLM (13) - Longer BT".
+"""Business Unit: utilities; Status: current.
+
+KLM Strategy Variant 506/38 - "KMLM (13) - Longer BT".
 
 This is the first variant in the Clojure strategy ensemble. It follows the standard
 overbought detection pattern followed by "Single Popped KMLM" logic.

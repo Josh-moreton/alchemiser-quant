@@ -1,4 +1,6 @@
-"""Tracking data normalization utilities.
+"""Business Unit: utilities; Status: current.
+
+Tracking data normalization utilities.
 
 Centralized quantization and normalization for strategy tracking data to ensure
 consistent precision handling and avoid float comparison issues.

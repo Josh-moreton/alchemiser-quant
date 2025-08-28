@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Secrets Service.
+"""Business Unit: utilities; Status: current.
+
+Secrets Service.
 
 Handles credential retrieval for the trading system.
 Provides a clean interface for accessing API keys and other sensitive data.

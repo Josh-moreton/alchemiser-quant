@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Error Monitoring and Alerting Framework for The Alchemiser Trading System.
+"""Business Unit: utilities; Status: current.
+
+Error Monitoring and Alerting Framework for The Alchemiser Trading System.
 
 This module implements Phase 3 of the error handling enhancement plan:
 - Error Metrics and Monitoring for real-time tracking

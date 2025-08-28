@@ -1,4 +1,6 @@
-"""Market Data Service - Enhanced market data operations with caching and validation.
+"""Business Unit: utilities; Status: current.
+
+Market Data Service - Enhanced market data operations with caching and validation.
 
 This service builds on the MarketDataRepository interface to provide:
 - Intelligent caching of market data

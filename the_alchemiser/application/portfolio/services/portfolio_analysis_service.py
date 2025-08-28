@@ -1,4 +1,7 @@
-"""Portfolio analysis service - provides comprehensive portfolio analysis."""
+"""Business Unit: portfolio assessment & management; Status: current.
+
+Portfolio analysis service - provides comprehensive portfolio analysis.
+"""
 
 from decimal import Decimal
 from typing import Any

@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Specific Order Error Codes mapped to categories.
+"""Business Unit: order execution/placement; Status: current.
+
+Specific Order Error Codes mapped to categories.
 
 This module defines specific error codes that provide precise classification
 of order failures, enabling targeted remediation and analytics.

@@ -1,4 +1,7 @@
-"""Order lifecycle state enumeration."""
+"""Business Unit: order execution/placement; Status: current.
+
+Order lifecycle state enumeration.
+"""
 
 from __future__ import annotations
 

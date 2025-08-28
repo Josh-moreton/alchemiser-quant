@@ -1,4 +1,6 @@
-"""Signals content builder for email templates.
+"""Business Unit: utilities; Status: current.
+
+Signals content builder for email templates.
 
 This module handles building HTML content for technical indicators,
 strategy signals, and trading signal analysis.

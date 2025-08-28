@@ -1,4 +1,6 @@
-"""Typed KLM Strategy Ensemble Engine.
+"""Business Unit: utilities; Status: current.
+
+Typed KLM Strategy Ensemble Engine.
 
 Multi-strategy ensemble system that implements the StrategyEngine protocol
 and generates typed StrategySignal objects. Evaluates all KLM variants and

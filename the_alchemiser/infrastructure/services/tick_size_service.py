@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Dynamic Tick Size Service.
+"""Business Unit: utilities; Status: current.
+
+Dynamic Tick Size Service.
 
 Phase 7 Enhancement: Provides symbol-specific tick size resolution
 to replace hardcoded $0.01 values throughout the system.

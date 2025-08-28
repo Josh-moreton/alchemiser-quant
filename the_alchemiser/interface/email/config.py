@@ -1,4 +1,6 @@
-"""Email configuration management module.
+"""Business Unit: utilities; Status: current.
+
+Email configuration management module.
 
 This module handles loading email settings from environment variables and AWS Secrets Manager.
 Replaces the `get_email_config` function from the original email_utils.py.

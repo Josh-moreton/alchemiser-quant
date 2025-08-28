@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Order Error Categories for structured error classification.
+"""Business Unit: order execution/placement; Status: current.
+
+Order Error Categories for structured error classification.
 
 This module defines the high-level categories for order-related errors,
 enabling consistent classification and handling across the trading system.

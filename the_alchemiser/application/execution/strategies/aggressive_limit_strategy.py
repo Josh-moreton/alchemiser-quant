@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Aggressive Limit Strategy.
+"""Business Unit: strategy & signal generation; Status: current.
+
+Aggressive Limit Strategy.
 
 Orchestrates RepegStrategy until order is filled or all attempts are exhausted.
 Handles order lifecycle, error management, and execution flow.

@@ -1,4 +1,6 @@
-"""Position Policy Implementation
+"""Business Unit: utilities; Status: current.
+
+Position Policy Implementation
 
 Concrete implementation of PositionPolicy that handles position validation
 and quantity adjustments. Extracts logic from PositionManager.

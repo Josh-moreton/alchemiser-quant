@@ -1,4 +1,6 @@
-"""AWS Lambda Handler for The Alchemiser Quantitative Trading System.
+"""Business Unit: utilities; Status: current.
+
+AWS Lambda Handler for The Alchemiser Quantitative Trading System.
 
 This module provides the entry point for running The Alchemiser trading system
 as an AWS Lambda function, enabling serverless execution and automated trading

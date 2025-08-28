@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Alpaca Infrastructure DTOs for The Alchemiser Trading System.
+"""Business Unit: utilities; Status: current.
+
+Alpaca Infrastructure DTOs for The Alchemiser Trading System.
 
 This module provides Pydantic v2 DTOs for Alpaca API responses, ensuring
 typed boundaries at the infrastructure layer. These DTOs map directly

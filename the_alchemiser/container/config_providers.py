@@ -1,4 +1,7 @@
-"""Configuration providers for dependency injection."""
+"""Business Unit: utilities; Status: current.
+
+Configuration providers for dependency injection.
+"""
 
 from dependency_injector import containers, providers
 

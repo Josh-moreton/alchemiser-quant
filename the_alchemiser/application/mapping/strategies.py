@@ -1,4 +1,6 @@
-"""Pure mapping functions for strategy signals to display/DTO dictionaries.
+"""Business Unit: utilities; Status: current.
+
+Pure mapping functions for strategy signals to display/DTO dictionaries.
 
 This module consolidates strategy signal mapping in a dedicated mapping module and
 removes ad-hoc dict shapes from runtime paths. It provides pure mapping

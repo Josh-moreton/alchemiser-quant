@@ -1,4 +1,6 @@
-"""Core type definitions for The Alchemiser trading system.
+"""Business Unit: utilities; Status: current.
+
+Core type definitions for The Alchemiser trading system.
 
 This module contains domain-appropriate TypedDict definitions that represent
 core business entities and concepts. Interface/UI types have been moved to

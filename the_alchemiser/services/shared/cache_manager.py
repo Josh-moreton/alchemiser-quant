@@ -1,4 +1,6 @@
-"""Cache management service with TTL support.
+"""Business Unit: utilities; Status: current.
+
+Cache management service with TTL support.
 
 Provides configurable caching with time-to-live per data type.
 """

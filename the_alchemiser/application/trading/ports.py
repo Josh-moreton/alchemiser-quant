@@ -1,4 +1,6 @@
-"""Application-layer ports module for trading engine.
+"""Business Unit: order execution/placement; Status: current.
+
+Application-layer ports module for trading engine.
 
 This module aggregates stable Protocol interfaces that the decomposed trading
 engine depends upon. It reuses existing domain protocols and introduces minimal

@@ -1,4 +1,6 @@
-"""Integration example for canonical order executor.
+"""Business Unit: order execution/placement; Status: legacy.
+
+Integration example for canonical order executor.
 
 This module demonstrates how the canonical order executor can be integrated
 into existing trading workflows with shadow mode for safe rollout.

@@ -1,4 +1,6 @@
-"""Pure DSL evaluator for the S-expression Strategy Engine.
+"""Business Unit: utilities; Status: current.
+
+Pure DSL evaluator for the S-expression Strategy Engine.
 Evaluates parsed AST nodes into portfolio weights using whitelisted functions
 and market data access. Provides deterministic evaluation with structured tracing.
 """

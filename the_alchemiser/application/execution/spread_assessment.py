@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Spread Assessment for Better Order Execution.
+"""Business Unit: order execution/placement; Status: current.
+
+Spread Assessment for Better Order Execution.
 
 Implements pre-market and real-time spread analysis to optimize
 order timing and pricing decisions.

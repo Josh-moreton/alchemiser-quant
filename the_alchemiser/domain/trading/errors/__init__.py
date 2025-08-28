@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Order Error Classification System for The Alchemiser Trading System.
+"""Business Unit: order execution/placement; Status: current.
+
+Order Error Classification System for The Alchemiser Trading System.
 
 This module provides structured error classification for order lifecycle and execution paths,
 enabling deterministic branching, richer analytics, and improved user-facing messaging.

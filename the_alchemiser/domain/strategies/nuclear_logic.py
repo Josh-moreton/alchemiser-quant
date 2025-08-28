@@ -1,4 +1,6 @@
-"""Pure evaluation logic for the Nuclear strategy (typed, framework-free).
+"""Business Unit: utilities; Status: current.
+
+Pure evaluation logic for the Nuclear strategy (typed, framework-free).
 
 This module exposes a small, pure function used by the typed Nuclear engine
 to decide the recommended symbol, action, and reasoning from precomputed

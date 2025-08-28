@@ -1,4 +1,7 @@
-"""Portfolio management facade - unified interface for all portfolio operations."""
+"""Business Unit: portfolio assessment & management; Status: current.
+
+Portfolio management facade - unified interface for all portfolio operations.
+"""
 
 import logging
 from decimal import Decimal

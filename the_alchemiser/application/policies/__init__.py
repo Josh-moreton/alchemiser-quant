@@ -1,4 +1,6 @@
-"""Concrete Policy Implementations
+"""Business Unit: utilities; Status: current.
+
+Concrete Policy Implementations
 
 This module provides concrete implementations of the domain policy interfaces.
 These implementations contain the actual business logic for order validation

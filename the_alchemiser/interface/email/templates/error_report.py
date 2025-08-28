@@ -1,4 +1,6 @@
-"""Error report template builder.
+"""Business Unit: utilities; Status: current.
+
+Error report template builder.
 
 This module handles error notification email template generation.
 """

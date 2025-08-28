@@ -1,1 +1,4 @@
-"""Strategy tracking package for The Alchemiser."""
+"""Business Unit: utilities; Status: current.
+
+Strategy tracking package for The Alchemiser.
+"""

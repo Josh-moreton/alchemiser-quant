@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Main Entry Point for The Alchemiser Trading System.
+"""Business Unit: utilities; Status: current.
+
+Main Entry Point for The Alchemiser Trading System.
 
 A clean, focused entry point for the multi-strategy quantitative trading system.
 Supports signal analysis and trading execution with dependency injection.

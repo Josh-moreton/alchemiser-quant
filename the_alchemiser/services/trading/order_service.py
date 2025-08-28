@@ -1,4 +1,6 @@
-"""Enhanced Order Service.
+"""Business Unit: order execution/placement; Status: current.
+
+Enhanced Order Service.
 
 This service provides type-safe, validated order placement operations.
 It builds on top of the TradingRepository interface, adding:

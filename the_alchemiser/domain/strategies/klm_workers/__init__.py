@@ -1,4 +1,6 @@
-"""KLM Strategy Workers Package.
+"""Business Unit: utilities; Status: current.
+
+KLM Strategy Workers Package.
 
 This package contains all individual strategy variants for the KLM ensemble system.
 Each variant is implemented as a separate module for better maintainability.

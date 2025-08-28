@@ -1,4 +1,6 @@
-"""Protocol interfaces for external dependencies used by policies.
+"""Business Unit: utilities; Status: current.
+
+Protocol interfaces for external dependencies used by policies.
 
 These protocols define the minimal interface contracts that policies need
 from external services, providing type safety while maintaining loose coupling.

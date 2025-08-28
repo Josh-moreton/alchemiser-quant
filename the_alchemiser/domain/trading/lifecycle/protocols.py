@@ -1,4 +1,7 @@
-"""Observer protocol for order lifecycle events."""
+"""Business Unit: order execution/placement; Status: current.
+
+Observer protocol for order lifecycle events.
+"""
 
 from __future__ import annotations
 

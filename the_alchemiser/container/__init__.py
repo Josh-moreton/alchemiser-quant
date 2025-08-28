@@ -1,4 +1,7 @@
-"""Dependency injection container package."""
+"""Business Unit: utilities; Status: current.
+
+Dependency injection container package.
+"""
 
 from .application_container import ApplicationContainer
 from .config_providers import ConfigProviders

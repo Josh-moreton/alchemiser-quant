@@ -1,4 +1,6 @@
-"""Adapter bridging infrastructure websocket monitor to OrderLifecycleMonitor Protocol.
+"""Business Unit: order execution/placement; Status: current.
+
+Adapter bridging infrastructure websocket monitor to OrderLifecycleMonitor Protocol.
 
 Keeps application layer decoupled from infrastructure implementation while
 reusing the existing OrderCompletionMonitor without private attribute access.

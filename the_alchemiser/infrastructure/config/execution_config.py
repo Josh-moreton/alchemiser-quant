@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Execution Configuration.
+"""Business Unit: order execution/placement; Status: current.
+
+Execution Configuration.
 
 Configuration settings for the professional execution system.
 Loads settings from the global application configuration.

@@ -1,4 +1,6 @@
-"""Typed Nuclear Strategy Engine.
+"""Business Unit: utilities; Status: current.
+
+Typed Nuclear Strategy Engine.
 
 Typed implementation of the Nuclear energy trading strategy that inherits from
 StrategyEngine and uses MarketDataPort for data access. Produces StrategySignal

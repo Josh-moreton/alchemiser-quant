@@ -1,4 +1,6 @@
-"""Email utilities module - REFACTORED.
+"""Business Unit: utilities; Status: current.
+
+Email utilities module - REFACTORED.
 
 This module now imports from the new modular email system for backward compatibility.
 The email functionality has been split into separate modules:

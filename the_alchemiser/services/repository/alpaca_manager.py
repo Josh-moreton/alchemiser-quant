@@ -1,4 +1,6 @@
-"""Centralized Alpaca client management - Phase 1 of incremental improvements.
+"""Business Unit: utilities; Status: current.
+
+Centralized Alpaca client management - Phase 1 of incremental improvements.
 
 This module consolidates scattered Alpaca client usage into a single, well-managed class.
 It provides a transitional approach that:

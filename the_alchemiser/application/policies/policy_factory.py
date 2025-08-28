@@ -1,4 +1,6 @@
-"""Policy Factory
+"""Business Unit: utilities; Status: current.
+
+Policy Factory
 
 Factory for creating policy orchestrator with all required dependencies.
 Provides convenient methods for setting up the policy layer.

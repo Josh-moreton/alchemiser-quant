@@ -1,4 +1,7 @@
-"""Service factory using dependency injection."""
+"""Business Unit: utilities; Status: current.
+
+Service factory using dependency injection.
+"""
 
 from typing import cast
 

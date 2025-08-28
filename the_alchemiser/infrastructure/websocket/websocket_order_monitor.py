@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""WebSocket Order Monitoring Utilities.
+"""Business Unit: order execution/placement; Status: current.
+
+WebSocket Order Monitoring Utilities.
 
 This module provides WebSocket-based order completion monitoring for real-time
 order settlement detection. No legacy polling fallbacks - WebSocket only.

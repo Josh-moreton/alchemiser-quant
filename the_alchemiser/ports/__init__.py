@@ -1,4 +1,6 @@
-"""Core port definitions for application layer.
+"""Business Unit: utilities; Status: current.
+
+Core port definitions for application layer.
 
 These protocol interfaces describe the behaviour required by the trading
 application.  Concrete implementations live in the ``adapters`` package.

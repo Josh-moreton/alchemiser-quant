@@ -1,4 +1,7 @@
-"""Utilities to convert domain time-series models to pandas structures for indicators."""
+"""Business Unit: utilities; Status: current.
+
+Utilities to convert domain time-series models to pandas structures for indicators.
+"""
 
 from __future__ import annotations
 

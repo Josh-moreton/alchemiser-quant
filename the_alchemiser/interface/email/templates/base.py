@@ -1,4 +1,6 @@
-"""Base HTML email template module.
+"""Business Unit: utilities; Status: current.
+
+Base HTML email template module.
 
 This module provides the core HTML template structure and common styling
 used across all email types.

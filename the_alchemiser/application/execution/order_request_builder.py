@@ -1,4 +1,6 @@
-"""Centralized order request builder for Alpaca API requests.
+"""Business Unit: order execution/placement; Status: current.
+
+Centralized order request builder for Alpaca API requests.
 
 This module provides a single construction site for MarketOrderRequest and
 LimitOrderRequest objects, eliminating duplication across services and

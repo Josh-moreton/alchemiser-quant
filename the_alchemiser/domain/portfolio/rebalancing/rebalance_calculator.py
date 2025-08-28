@@ -1,4 +1,7 @@
-"""Pure calculation logic for portfolio rebalancing."""
+"""Business Unit: portfolio assessment & management; Status: current.
+
+Pure calculation logic for portfolio rebalancing.
+"""
 
 from decimal import Decimal
 

@@ -1,4 +1,6 @@
-"""Policy Orchestrator
+"""Business Unit: utilities; Status: current.
+
+Policy Orchestrator
 
 Central coordinator for all order validation policies. Runs policies in sequence
 and aggregates their results into a final order decision. Now uses pure domain

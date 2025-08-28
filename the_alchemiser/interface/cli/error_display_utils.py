@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""CLI error display utilities for order error classification.
+"""Business Unit: utilities; Status: current.
+
+CLI error display utilities for order error classification.
 
 This module extends the existing CLI formatting to display classified order errors
 with proper categorization, remediation hints, and visual styling.

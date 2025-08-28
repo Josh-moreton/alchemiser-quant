@@ -1,4 +1,6 @@
-"""Order DTOs for application layer and interface boundaries.
+"""Business Unit: order execution/placement; Status: current.
+
+Order DTOs for application layer and interface boundaries.
 
 This module provides Pydantic v2 DTOs for order handling, replacing loose dicts
 and Any usages with strongly typed, validated structures. These DTOs are used

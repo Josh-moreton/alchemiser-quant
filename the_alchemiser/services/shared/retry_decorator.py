@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Retry Decorator with Exponential Backoff.
+"""Business Unit: utilities; Status: current.
+
+Retry Decorator with Exponential Backoff.
 
 This module provides retry functionality with exponential backoff and jitter
 for robust error handling according to the error handling improvement plan.

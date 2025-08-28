@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Execution Summary DTOs for The Alchemiser Trading System.
+"""Business Unit: order execution/placement; Status: current.
+
+Execution Summary DTOs for The Alchemiser Trading System.
 
 This module provides structured DTOs for execution summaries, replacing
 dict[str, Any] usage in MultiStrategyExecutionResultDTO and other execution contexts.

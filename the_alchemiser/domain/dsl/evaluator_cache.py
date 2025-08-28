@@ -1,4 +1,6 @@
-"""Evaluation context & caching utilities for DSL evaluator memoisation.
+"""Business Unit: utilities; Status: current.
+
+Evaluation context & caching utilities for DSL evaluator memoisation.
 
 Changes (post review hardening):
  - Replaced hybrid functools.lru_cache approach with a true thread-safe

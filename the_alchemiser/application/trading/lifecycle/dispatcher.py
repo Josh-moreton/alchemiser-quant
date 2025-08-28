@@ -1,4 +1,7 @@
-"""Lifecycle event dispatcher with thread-safe observer pattern."""
+"""Business Unit: order execution/placement; Status: current.
+
+Lifecycle event dispatcher with thread-safe observer pattern.
+"""
 
 from __future__ import annotations
 

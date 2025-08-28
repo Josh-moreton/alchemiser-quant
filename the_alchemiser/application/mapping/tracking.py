@@ -1,4 +1,6 @@
-"""Mapping utilities between Strategy Tracking DTOs and external reporting formats.
+"""Business Unit: utilities; Status: current.
+
+Mapping utilities between Strategy Tracking DTOs and external reporting formats.
 
 This module provides mapping functions for strategy tracking DTOs, converting
 between StrategyOrderEventDTO/StrategyExecutionSummaryDTO and external reporting

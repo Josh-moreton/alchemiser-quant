@@ -1,3 +1,5 @@
+"""Business Unit: utilities; Status: current."""
+
 from typing import Any
 
 from rich.align import Align

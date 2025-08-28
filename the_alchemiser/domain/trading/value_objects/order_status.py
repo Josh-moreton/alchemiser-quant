@@ -1,3 +1,5 @@
+"""Business Unit: order execution/placement; Status: current."""
+
 from __future__ import annotations
 
 from enum import Enum

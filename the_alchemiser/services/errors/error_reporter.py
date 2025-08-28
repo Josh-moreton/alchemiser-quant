@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Centralized Error Reporter for Production Monitoring.
+"""Business Unit: utilities; Status: current.
+
+Centralized Error Reporter for Production Monitoring.
 
 This module provides structured error reporting for hands-off operation
 according to the error handling improvement plan.

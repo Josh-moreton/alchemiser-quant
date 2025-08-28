@@ -1,4 +1,7 @@
-"""Strategy signal model using domain value objects."""
+"""Business Unit: strategy & signal generation; Status: current.
+
+Strategy signal model using domain value objects.
+"""
 
 from __future__ import annotations
 

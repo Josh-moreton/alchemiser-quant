@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Progressive Order Execution Utilities.
+"""Business Unit: order execution/placement; Status: current.
+
+Progressive Order Execution Utilities.
 
 This module provides intelligent order execution parameters based on market conditions:
 - Volatility-aware timeout adjustments

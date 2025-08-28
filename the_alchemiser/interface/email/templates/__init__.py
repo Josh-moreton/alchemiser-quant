@@ -1,4 +1,6 @@
-"""Email templates module for The Alchemiser.
+"""Business Unit: utilities; Status: current.
+
+Email templates module for The Alchemiser.
 
 This module provides email template builders with clean separation of concerns.
 Each template type has its own dedicated module for better organization.

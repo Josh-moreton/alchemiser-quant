@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Real-time WebSocket Price Streaming for Alpaca Trading.
+"""Business Unit: utilities; Status: current.
+
+Real-time WebSocket Price Streaming for Alpaca Trading.
 
 This module provides real-time stock price updates via Alpaca's WebSocket streams
 to ensure accurate limit order pricing. It maintains current bid/ask quotes and

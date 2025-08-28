@@ -1,4 +1,6 @@
-"""Policy mapping utilities for converting between DTOs and domain objects.
+"""Business Unit: utilities; Status: current.
+
+Policy mapping utilities for converting between DTOs and domain objects.
 
 This module is part of the anti-corruption layer, converting between interface
 DTOs (Pydantic models) and pure domain objects for policy processing. This

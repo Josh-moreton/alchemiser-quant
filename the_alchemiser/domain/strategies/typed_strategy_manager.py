@@ -1,4 +1,6 @@
-"""Typed Strategy Manager.
+"""Business Unit: strategy & signal generation; Status: current.
+
+Typed Strategy Manager.
 
 Modern strategy orchestrator that depends only on MarketDataPort and typed engines.
 Aggregates typed StrategySignal objects and handles conflict resolution between

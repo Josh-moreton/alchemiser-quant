@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Trading Client Service.
+"""Business Unit: order execution/placement; Status: current.
+
+Trading Client Service.
 
 Handles trading operations via Alpaca API.
 Focused on order placement, account data, and positions.

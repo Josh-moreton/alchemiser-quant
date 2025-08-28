@@ -1,4 +1,6 @@
-"""Domain-level declaration of valid order lifecycle transitions.
+"""Business Unit: order execution/placement; Status: current.
+
+Domain-level declaration of valid order lifecycle transitions.
 
 Separated from application layer so business rules live in domain.
 """

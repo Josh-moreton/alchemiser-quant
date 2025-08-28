@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Mapping functions for portfolio rebalancing DTOs.
+"""Business Unit: portfolio assessment & management; Status: current.
+
+Mapping functions for portfolio rebalancing DTOs.
 
 This module provides mapping utilities to convert between dict structures,
 domain objects, and portfolio rebalancing DTOs, supporting the migration from

@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Smart Trading DTOs for The Alchemiser Trading System.
+"""Business Unit: order execution/placement; Status: current.
+
+Smart Trading DTOs for The Alchemiser Trading System.
 
 This module contains DTOs for advanced trading operations like smart order execution
 and comprehensive trading dashboard results.

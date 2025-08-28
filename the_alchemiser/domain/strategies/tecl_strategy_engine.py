@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""TECL Strategy Engine.
+"""Business Unit: strategy & signal generation; Status: current.
+
+TECL Strategy Engine.
 
 Implements the "TECL For The Long Term (v7)" strategy from Composer.trade.
 This strategy is designed for long-term technology leverage (TECL) with volatility protection.

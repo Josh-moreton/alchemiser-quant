@@ -1,4 +1,6 @@
-"""Fractionability policy implementation.
+"""Business Unit: utilities; Status: current.
+
+Fractionability policy implementation.
 
 Concrete implementation handling asset fractionability validation and quantity
 adjustments (extracted from legacy handlers) using pure domain objects.

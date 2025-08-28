@@ -1,4 +1,6 @@
-"""Utility functions and classes for generating trading alerts.
+"""Business Unit: utilities; Status: current.
+
+Utility functions and classes for generating trading alerts.
 
 This module centralizes alert creation and logging, providing helpers that
 convert strategy recommendations into structured data that can be persisted or

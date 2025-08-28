@@ -1,4 +1,7 @@
-"""Helpers for building execution summaries and dashboard data."""
+"""Business Unit: utilities; Status: current.
+
+Helpers for building execution summaries and dashboard data.
+"""
 
 import logging
 from typing import Any

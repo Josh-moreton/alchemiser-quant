@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Strategy Registry for The Alchemiser Quantitative Trading System.
+"""Business Unit: strategy & signal generation; Status: current.
+
+Strategy Registry for The Alchemiser Quantitative Trading System.
 
 This module provides a registry-based approach to strategy management, replacing
 dynamic imports with explicit registration and factory patterns.

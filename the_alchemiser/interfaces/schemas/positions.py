@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Position DTOs for The Alchemiser Trading System.
+"""Business Unit: utilities; Status: current.
+
+Position DTOs for The Alchemiser Trading System.
 
 This module contains DTOs for position data, portfolio summaries, and position analytics,
 providing type-safe interfaces for position management operations.

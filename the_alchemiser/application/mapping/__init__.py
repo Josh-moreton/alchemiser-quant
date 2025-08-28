@@ -1,4 +1,6 @@
-"""Mapping layer: DTO <-> Domain conversion utilities.
+"""Business Unit: utilities; Status: current.
+
+Mapping layer: DTO <-> Domain conversion utilities.
 
 All modules here provide pure functions for translating between external DTOs, domain
 value objects/entities and infrastructure payloads. Import specific functions rather

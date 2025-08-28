@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Streaming Service.
+"""Business Unit: utilities; Status: current.
+
+Streaming Service.
 
 Handles real-time price subscriptions via WebSocket.
 Provides callback-based API for current price requests.

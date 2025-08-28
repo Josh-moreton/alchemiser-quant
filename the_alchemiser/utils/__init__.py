@@ -1,4 +1,6 @@
-"""Utility functions and helpers for The Alchemiser Quantitative Trading System.
+"""Business Unit: utilities; Status: current.
+
+Utility functions and helpers for The Alchemiser Quantitative Trading System.
 
 This package contains various utility modules for trading operations,
 mathematical calculations, data handling, and system integration.

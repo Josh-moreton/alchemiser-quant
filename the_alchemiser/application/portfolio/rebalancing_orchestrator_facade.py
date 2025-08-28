@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Application-layer rebalancing orchestrator facade.
+"""Business Unit: portfolio assessment & management; Status: current.
+
+Application-layer rebalancing orchestrator facade.
 
 This module provides a clean application-layer interface for portfolio rebalancing
 orchestration, reusing existing domain and infrastructure components while providing

@@ -1,4 +1,6 @@
-"""Trading execution CLI module.
+"""Business Unit: order execution/placement; Status: current.
+
+Trading execution CLI module.
 
 Handles trading execution with comprehensive error handling and notifications.
 """

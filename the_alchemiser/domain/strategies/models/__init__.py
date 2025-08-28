@@ -1,4 +1,6 @@
-"""Strategy domain models package.
+"""Business Unit: utilities; Status: current.
+
+Strategy domain models package.
 
 This package provides strongly-typed models for strategy domain objects using
 domain value objects and Decimal for financial precision.

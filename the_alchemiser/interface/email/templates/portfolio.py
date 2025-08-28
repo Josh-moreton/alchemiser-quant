@@ -1,4 +1,6 @@
-"""Portfolio content builder for email templates.
+"""Business Unit: portfolio assessment & management; Status: current.
+
+Portfolio content builder for email templates.
 
 Builds HTML content for portfolio tables, position summaries, allocations, and
 neutral-mode representations. This version removes the ad-hoc ExtendedAccountInfo

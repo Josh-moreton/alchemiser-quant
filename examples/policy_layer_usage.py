@@ -1,4 +1,6 @@
-"""Unified Policy Layer Usage Example
+"""Business Unit: utilities; Status: legacy.
+
+Unified Policy Layer Usage Example
 
 This example demonstrates how to use the new unified policy layer
 for order validation and adjustment.

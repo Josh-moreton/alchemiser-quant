@@ -1,4 +1,7 @@
-"""Strategy domain models."""
+"""Business Unit: strategy & signal generation; Status: current.
+
+Strategy domain models.
+"""
 
 from dataclasses import dataclass
 from typing import Literal, cast

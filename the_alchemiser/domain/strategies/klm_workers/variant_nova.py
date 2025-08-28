@@ -1,4 +1,6 @@
-"""KLM Strategy Variant Nova - "Nerfed 2900/8 (373) - Nova - Short BT".
+"""Business Unit: utilities; Status: current.
+
+KLM Strategy Variant Nova - "Nerfed 2900/8 (373) - Nova - Short BT".
 
 This variant is DIFFERENT from others in several key ways:
 1. Uses UVIX instead of UVXY in Single Popped KMLM check

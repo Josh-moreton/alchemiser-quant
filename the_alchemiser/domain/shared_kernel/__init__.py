@@ -1,4 +1,6 @@
-"""Shared kernel: cross-context value objects and errors.
+"""Business Unit: utilities; Status: current.
+
+Shared kernel: cross-context value objects and errors.
 
 This package must remain framework-agnostic and side-effect free.
 """

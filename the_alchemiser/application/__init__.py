@@ -1,4 +1,6 @@
-"""Execution package for The Alchemiser Quantitative Trading System.
+"""Business Unit: utilities; Status: current.
+
+Execution package for The Alchemiser Quantitative Trading System.
 
 This package handles the execution layer of the trading system, including
 order management, portfolio rebalancing, and trade execution. It provides

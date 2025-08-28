@@ -1,4 +1,7 @@
-"""Pure position delta calculation logic."""
+"""Business Unit: portfolio assessment & management; Status: current.
+
+Pure position delta calculation logic.
+"""
 
 from decimal import Decimal
 

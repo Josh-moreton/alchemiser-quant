@@ -1,4 +1,6 @@
-"""CLI Observer Interface for Lifecycle Events.
+"""Business Unit: order execution/placement; Status: current.
+
+CLI Observer Interface for Lifecycle Events.
 
 Provides a clean Protocol interface for CLI components to subscribe to lifecycle events
 without introducing console printing or rich formatting into the core trading system.

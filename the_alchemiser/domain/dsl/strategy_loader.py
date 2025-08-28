@@ -1,4 +1,6 @@
-"""Strategy loader for DSL files.
+"""Business Unit: strategy & signal generation; Status: current.
+
+Strategy loader for DSL files.
 
 Loads, parses, and evaluates strategy files written in the S-expression DSL.
 Provides integration with the existing trading system infrastructure.

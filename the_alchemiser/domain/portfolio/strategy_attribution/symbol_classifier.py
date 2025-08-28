@@ -1,4 +1,7 @@
-"""Symbol classification for strategy attribution."""
+"""Business Unit: strategy & signal generation; Status: current.
+
+Symbol classification for strategy attribution.
+"""
 
 
 class SymbolClassifier:

@@ -1,4 +1,6 @@
-"""S-expression parser with Clojure vector [] support for trading strategy DSL.
+"""Business Unit: utilities; Status: current.
+
+S-expression parser with Clojure vector [] support for trading strategy DSL.
 
 Vectors act as grouping constructs. For portfolio / selector constructs they
 are flattened into the surrounding argument list. For conditional branches a

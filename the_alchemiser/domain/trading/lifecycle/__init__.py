@@ -1,4 +1,6 @@
-"""Order Lifecycle Management Domain Components.
+"""Business Unit: order execution/placement; Status: current.
+
+Order Lifecycle Management Domain Components.
 
 This package contains the core domain objects for order lifecycle management,
 including states, events, and protocols for observing lifecycle transitions.

@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Order Error Classifier for mapping exceptions to structured OrderError instances.
+"""Business Unit: order execution/placement; Status: current.
+
+Order Error Classifier for mapping exceptions to structured OrderError instances.
 
 This module provides registry-driven classification of various error types
 into standardized OrderError value objects for consistent error handling.

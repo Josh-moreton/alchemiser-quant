@@ -1,4 +1,6 @@
-"""Domain models for the trading system.
+"""Business Unit: utilities; Status: current.
+
+Domain models for the trading system.
 
 This package contains typed domain models that replace loose dict/DataFrame structures
 throughout the system. These models provide type safety, validation, and serialization.

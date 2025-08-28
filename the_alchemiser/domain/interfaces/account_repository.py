@@ -1,4 +1,6 @@
-"""Account Repository Interface.
+"""Business Unit: utilities; Status: current.
+
+Account Repository Interface.
 
 This interface defines the contract for all account-related operations including
 account information, portfolio data, and balance management.

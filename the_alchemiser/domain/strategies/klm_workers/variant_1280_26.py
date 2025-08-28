@@ -1,4 +1,6 @@
-"""KLM Strategy Variant 1280/26 - "KMLM (50)".
+"""Business Unit: utilities; Status: current.
+
+KLM Strategy Variant 1280/26 - "KMLM (50)".
 
 COMPLETELY DIFFERENT from 506/38! This variant:
 1. Uses standard overbought detection → UVXY

@@ -1,4 +1,6 @@
-"""Execution mapping utilities (anti-corruption layer).
+"""Business Unit: order execution/placement; Status: current.
+
+Execution mapping utilities (anti-corruption layer).
 
 Ordered fixes applied (review issues 1→10):
 1. DDD boundary alignment: introduce internal normalisation for order objects so

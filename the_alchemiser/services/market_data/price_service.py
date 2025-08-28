@@ -1,4 +1,6 @@
-"""Modern price fetching service.
+"""Business Unit: utilities; Status: current.
+
+Modern price fetching service.
 
 Provides async/callback-based API for current price requests with
 graceful REST fallback when streaming is unavailable.

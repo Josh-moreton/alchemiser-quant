@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Command-Line Interface for The Alchemiser Quantitative Trading System.
+"""Business Unit: utilities; Status: current.
+
+Command-Line Interface for The Alchemiser Quantitative Trading System.
 
 Provides a modern CLI built with Typer and Rich for user interaction, strategy selection,
 and reporting. Handles user commands and displays formatted output.

@@ -1,4 +1,7 @@
-"""Shared kernel type exports for cross-context value objects."""
+"""Business Unit: utilities; Status: current.
+
+Shared kernel type exports for cross-context value objects.
+"""
 
 from .value_objects.identifier import Identifier
 from .value_objects.money import Money

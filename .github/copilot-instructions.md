@@ -5,6 +5,11 @@ Rules for this repo (enforced):
 - Use assert_close()/numpy.testing.assert_allclose for numerical comparisons.
 - Do NOT create tests or use testing frameworks - testing is not required for this project.
 - Suggestions that violate the above must be rewritten.
+- Every new module must start with a docstring stating its **Business Unit**
+  (strategy & signal generation, portfolio assessment & management, order
+  execution/placement, or utilities) and whether it is **current** or
+  **legacy**. Keep `BUSINESS_UNITS_REPORT.md` up to date when files are added
+  or removed.
 
 ## Overview
 The Alchemiser is a sophisticated multi-strategy quantitative trading system built with modern Python practices and Domain-Driven Design (DDD) architecture, deployed as AWS Lambda functions.

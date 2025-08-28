@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Order listing DTOs for The Alchemiser Trading System.
+"""Business Unit: utilities; Status: current.
+
+Order listing DTOs for The Alchemiser Trading System.
 
 This module contains DTOs for order listing operations, including
 open orders retrieval and order history.

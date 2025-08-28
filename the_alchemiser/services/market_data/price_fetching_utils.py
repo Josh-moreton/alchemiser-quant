@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Price Fetching Utilities.
+"""Business Unit: utilities; Status: current.
+
+Price Fetching Utilities.
 
 This module provides helper functions for price fetching operations,
 breaking down verbose price fetching logic into reusable components.

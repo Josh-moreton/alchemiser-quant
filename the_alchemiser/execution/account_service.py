@@ -1,4 +1,7 @@
-"""Account and position management helpers."""
+"""Business Unit: order execution/placement; Status: current.
+
+Account and position management helpers.
+"""
 
 import logging
 from typing import Any, Protocol

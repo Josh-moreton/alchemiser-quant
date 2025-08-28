@@ -1,4 +1,6 @@
-"""Market data services package exports.
+"""Business Unit: utilities; Status: current.
+
+Market data services package exports.
 
 Prefer MarketDataService as the canonical typed service. StrategyMarketDataService
 is deprecated and will be removed once all callers are migrated.

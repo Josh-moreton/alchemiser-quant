@@ -1,4 +1,7 @@
-"""Logging helpers for consistent structured output."""
+"""Business Unit: utilities; Status: current.
+
+Logging helpers for consistent structured output.
+"""
 
 import json
 import logging

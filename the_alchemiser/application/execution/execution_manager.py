@@ -1,4 +1,7 @@
-"""Coordinate execution of multiple trading strategies."""
+"""Business Unit: order execution/placement; Status: current.
+
+Coordinate execution of multiple trading strategies.
+"""
 
 import logging
 from typing import Any

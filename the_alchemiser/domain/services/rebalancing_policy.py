@@ -1,4 +1,6 @@
-"""Portfolio rebalancing decision policy.
+"""Business Unit: utilities; Status: current.
+
+Portfolio rebalancing decision policy.
 
 This module houses pure functions that decide how a portfolio should be
 rebalanced based on target allocations and current positions.  The functions
