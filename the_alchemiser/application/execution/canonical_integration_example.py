@@ -30,7 +30,7 @@ from the_alchemiser.interfaces.schemas.orders import (
 )
 
 if TYPE_CHECKING:
-    from the_alchemiser.services.repository.alpaca_manager import AlpacaManager
+    from the_alchemiser.execution.infrastructure.brokers.alpaca_manager import AlpacaManager
 
 logger = logging.getLogger(__name__)
 

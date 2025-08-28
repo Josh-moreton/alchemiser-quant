@@ -82,7 +82,7 @@ from the_alchemiser.services.errors.exceptions import (
     TradingClientError,
 )
 from the_alchemiser.services.errors.handler import TradingSystemErrorHandler
-from the_alchemiser.services.repository.alpaca_manager import AlpacaManager
+from the_alchemiser.execution.infrastructure.brokers.alpaca_manager import AlpacaManager
 
 from ..execution.execution_manager import ExecutionManager
 from ..reporting.reporting import build_portfolio_state_data
