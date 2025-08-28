@@ -11,7 +11,7 @@ from typing import Protocol, runtime_checkable
 
 from the_alchemiser.domain.market_data.models.bar import BarModel
 from the_alchemiser.domain.market_data.models.quote import QuoteModel
-from the_alchemiser.domain.shared_kernel.value_objects.symbol import Symbol
+from the_alchemiser.shared_kernel.value_objects.symbol import Symbol
 
 
 @runtime_checkable
