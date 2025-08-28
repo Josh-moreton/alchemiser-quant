@@ -169,10 +169,9 @@ class TypedStrategyManager:
             except Exception as e:
                 # Log error and skip this strategy
                 self.logger.error(f"Error generating signals for {strategy_type.value}: {e}")
-                continue
-                self.logger.error(f"Error generating signals from {strategy_type.value}: {e}")
                 # Continue with other strategies
                 aggregated.add_strategy_signals(strategy_type, [])
+                continue
 
         # Perform aggregation and conflict resolution
         self._aggregate_signals(aggregated)
