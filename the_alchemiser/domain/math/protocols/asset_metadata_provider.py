@@ -21,6 +21,7 @@ class AssetMetadataProvider(Protocol):
 
         Returns:
             True if asset supports fractional shares
+
         """
         ...
 
@@ -33,6 +34,7 @@ class AssetMetadataProvider(Protocol):
 
         Returns:
             True if should use notional order
+
         """
         ...
 
@@ -48,5 +50,6 @@ class AssetMetadataProvider(Protocol):
 
         Returns:
             Tuple of (adjusted_quantity, used_rounding)
+
         """
         ...

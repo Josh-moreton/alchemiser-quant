@@ -20,11 +20,11 @@ from the_alchemiser.domain.math.indicator_utils import safe_get_indicator
 from the_alchemiser.domain.math.indicators import TechnicalIndicators
 from the_alchemiser.domain.shared_kernel.value_objects.percentage import Percentage
 from the_alchemiser.domain.strategies.engine import StrategyEngine
+from the_alchemiser.domain.strategies.errors import StrategyComputationError
 from the_alchemiser.domain.strategies.nuclear_logic import evaluate_nuclear_strategy
 from the_alchemiser.domain.strategies.value_objects.confidence import Confidence
 from the_alchemiser.domain.strategies.value_objects.strategy_signal import StrategySignal
 from the_alchemiser.domain.trading.value_objects.symbol import Symbol
-from the_alchemiser.services.errors.exceptions import StrategyExecutionError
 
 
 class NuclearTypedEngine(StrategyEngine):
@@ -74,7 +74,7 @@ class NuclearTypedEngine(StrategyEngine):
             List of StrategySignal objects
 
         Raises:
-            StrategyExecutionError: If signal generation fails
+            StrategyComputationError: If signal generation fails
 
         """
         try:
@@ -82,8 +82,9 @@ class NuclearTypedEngine(StrategyEngine):
             if isinstance(now_or_port, MarketDataPort):
                 market_data_port_override: MarketDataPort | None = now_or_port
                 if maybe_now is None:
-                    raise StrategyExecutionError(
-                        "Timestamp 'now' must be provided when passing a MarketDataPort override"
+                    raise StrategyComputationError(
+                        "Timestamp 'now' must be provided when passing a MarketDataPort override",
+                        "nuclear"
                     )
                 now: datetime = maybe_now
             else:
@@ -118,7 +119,7 @@ class NuclearTypedEngine(StrategyEngine):
             return [signal]
 
         except Exception as e:
-            raise StrategyExecutionError(f"Nuclear strategy generation failed: {e}") from e
+            raise StrategyComputationError(f"Nuclear strategy generation failed: {e}", "nuclear") from e
 
     def _fetch_market_data(
         self, market_data_port: MarketDataPort | None = None

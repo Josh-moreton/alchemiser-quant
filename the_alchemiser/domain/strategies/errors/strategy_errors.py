@@ -15,6 +15,7 @@ class StrategyValidationError(ValueError):
         Args:
             message: Error description
             strategy_name: Name of strategy that failed validation
+
         """
         super().__init__(message)
         self.strategy_name = strategy_name
@@ -29,6 +30,7 @@ class StrategyComputationError(RuntimeError):
         Args:
             message: Error description  
             strategy_name: Name of strategy that failed computation
+
         """
         super().__init__(message)
         self.strategy_name = strategy_name
