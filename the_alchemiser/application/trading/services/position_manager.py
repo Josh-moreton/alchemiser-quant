@@ -20,7 +20,7 @@ from the_alchemiser.domain.shared_kernel.errors.exceptions import (
     DataProviderError,
     TradingClientError,
 )
-from the_alchemiser.utils.num import floats_equal
+from the_alchemiser.domain.shared_kernel import floats_equal
 
 
 class PositionManager:

@@ -77,7 +77,10 @@ def retry_api_call(
     max_retries: int = 3, base_delay: float = 1.0
 ) -> Callable[[Callable[P, T]], Callable[P, T]]:
     """Retry decorator for API calls with common exceptions."""
-    from the_alchemiser.domain.shared_kernel.errors.exceptions import DataProviderError, TradingClientError
+    from the_alchemiser.domain.shared_kernel.errors.exceptions import (
+        DataProviderError,
+        TradingClientError,
+    )
 
     return retry_with_backoff(
         exceptions=(DataProviderError, TradingClientError, ConnectionError, TimeoutError),

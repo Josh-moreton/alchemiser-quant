@@ -33,7 +33,7 @@ from the_alchemiser.domain.dsl.strategy_loader import StrategyLoader
 from the_alchemiser.domain.market_data.models.bar import BarModel
 from the_alchemiser.domain.market_data.models.quote import QuoteModel
 from the_alchemiser.domain.market_data.protocols.market_data_port import MarketDataPort
-from the_alchemiser.domain.shared_kernel.value_objects.symbol import Symbol
+from the_alchemiser.shared_kernel.value_objects.symbol import Symbol
 from the_alchemiser.infrastructure.logging.logging_utils import (
     get_logger,
     log_error_with_context,

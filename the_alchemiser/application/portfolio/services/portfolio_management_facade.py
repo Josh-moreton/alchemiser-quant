@@ -36,8 +36,8 @@ from the_alchemiser.interfaces.schemas.portfolio_rebalancing import RebalancePla
 from the_alchemiser.application.trading.services.trading_service_manager import (
     TradingServiceManager,
 )
-from the_alchemiser.utils.num import floats_equal
-from the_alchemiser.utils.serialization import ensure_serialized_dict
+from the_alchemiser.domain.shared_kernel import floats_equal
+from the_alchemiser.interfaces.utils.serialization import ensure_serialized_dict
 
 
 class PortfolioManagementFacade:

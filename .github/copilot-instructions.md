@@ -125,6 +125,31 @@ def risky_trading_operation():
         )
         raise StrategyExecutionError(f"Trading operation failed: {e}") from e
 ```
+        ### DTO Naming Policy
+
+        - **Do not use `Dto` as a default suffix.**
+            Only use `Dto` when you have shape-twins across layers and no other suffix resolves ambiguity (e.g., `Order` domain vs `Order` API).
+        - **Name by purpose and boundary, not by pattern.**
+            Use suffixes that clarify context:
+            - **Domain (entities/value objects):** plain nouns (`Order`, `Portfolio`, `Money`)
+            - **Application/use-case I/O:** `Command`, `Query`, `Result` (`PlaceOrderCommand`, `GetPortfolioQuery`, `PlaceOrderResult`)
+            - **API/Interfaces (HTTP/CLI/GRPC):** `Request`, `Response`, `View` (`CreateOrderRequest`, `CreateOrderResponse`, `OrderView`)
+            - **Messaging/events:** `Event` (versioned if external) (`TradeExecutedEventV1`)
+            - **Persistence/ORM:** `Record`, `Row`, `Model` (`OrderRecord`)
+        - **Clarity and separation:**
+            Suffixes must indicate *where* the type lives and *why* it exists.
+            Avoid collisions by using context-specific names.
+
+        **Example:**
+        ```python
+        # application/use_case.py
+        class PlaceOrderCommand(BaseModel): ...
+        class PlaceOrderResult(BaseModel): ...
+
+        # interfaces/http_schemas.py
+        class CreateOrderRequest(BaseModel): ...
+        class CreateOrderResponse(BaseModel): ...
+        ```
 
 **Error Categories**: CRITICAL, TRADING, DATA, STRATEGY, CONFIGURATION, NOTIFICATION, WARNING
 

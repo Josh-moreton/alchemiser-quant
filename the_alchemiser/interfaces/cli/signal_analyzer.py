@@ -26,7 +26,10 @@ from the_alchemiser.interfaces.cli.cli_formatter import (
     render_portfolio_allocation,
     render_strategy_signals,
 )
-from the_alchemiser.domain.shared_kernel.errors.exceptions import DataProviderError, StrategyExecutionError
+from the_alchemiser.domain.shared_kernel.errors.exceptions import (
+    DataProviderError,
+    StrategyExecutionError,
+)
 
 
 class SignalAnalyzer:

@@ -18,7 +18,7 @@ from datetime import UTC, datetime, timedelta
 from enum import Enum
 from typing import Any
 
-from the_alchemiser.utils.num import floats_equal
+from the_alchemiser.domain.shared_kernel import floats_equal
 
 from .context import ErrorContextData
 from .handler import ErrorSeverity

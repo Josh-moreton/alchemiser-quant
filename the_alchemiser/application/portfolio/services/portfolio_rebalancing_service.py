@@ -24,7 +24,9 @@ from the_alchemiser.interfaces.schemas.portfolio_rebalancing import (
     RebalancingSummaryDTO,
 )
 from the_alchemiser.infrastructure.errors.handler import TradingSystemErrorHandler
-from the_alchemiser.application.trading.services.trading_service_manager import TradingServiceManager
+from the_alchemiser.application.trading.services.trading_service_manager import (
+    TradingServiceManager,
+)
 
 
 class PortfolioRebalancingService:

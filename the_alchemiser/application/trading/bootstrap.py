@@ -26,7 +26,9 @@ from the_alchemiser.domain.shared_kernel.errors.exceptions import ConfigurationE
 from the_alchemiser.infrastructure.errors.handler import TradingSystemErrorHandler
 from the_alchemiser.application.market_data.market_data_service import MarketDataService
 from the_alchemiser.infrastructure.repositories.alpaca_manager import AlpacaManager
-from the_alchemiser.application.trading.services.trading_service_manager import TradingServiceManager
+from the_alchemiser.application.trading.services.trading_service_manager import (
+    TradingServiceManager,
+)
 
 logger = logging.getLogger(__name__)
 

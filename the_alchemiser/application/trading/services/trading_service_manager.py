@@ -102,7 +102,7 @@ from the_alchemiser.application.market_data.market_data_service import MarketDat
 from the_alchemiser.infrastructure.repositories.alpaca_manager import AlpacaManager
 from the_alchemiser.application.trading.services.order_service import OrderService
 from the_alchemiser.application.trading.services.position_service import PositionService
-from the_alchemiser.utils.num import floats_equal
+from the_alchemiser.domain.shared_kernel import floats_equal
 
 
 class TradingServiceManager:
@@ -725,7 +725,7 @@ class TradingServiceManager:
                 from the_alchemiser.application.execution.canonical_executor import (
                     CanonicalOrderExecutor,
                 )
-                from the_alchemiser.domain.shared_kernel.value_objects.money import (
+                from the_alchemiser.shared_kernel.value_objects.money import (
                     Money,
                 )
                 from the_alchemiser.domain.trading.value_objects.order_request import (
@@ -788,7 +788,7 @@ class TradingServiceManager:
                 from the_alchemiser.application.execution.canonical_executor import (
                     CanonicalOrderExecutor,
                 )
-                from the_alchemiser.domain.shared_kernel.value_objects.money import (
+                from the_alchemiser.shared_kernel.value_objects.money import (
                     Money,
                 )
                 from the_alchemiser.domain.trading.value_objects.order_request import (

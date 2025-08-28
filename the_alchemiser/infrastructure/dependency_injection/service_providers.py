@@ -12,7 +12,9 @@ from the_alchemiser.application.account.account_service import AccountService
 from the_alchemiser.application.market_data.market_data_service import MarketDataService
 from the_alchemiser.application.trading.services.order_service import OrderService
 from the_alchemiser.application.trading.services.position_service import PositionService
-from the_alchemiser.application.trading.services.trading_service_manager import TradingServiceManager
+from the_alchemiser.application.trading.services.trading_service_manager import (
+    TradingServiceManager,
+)
 
 
 class ServiceProviders(containers.DeclarativeContainer):

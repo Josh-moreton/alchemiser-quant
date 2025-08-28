@@ -21,8 +21,10 @@ from the_alchemiser.application.mapping.market_data_mapping import (
 )
 from the_alchemiser.domain.market_data.models.bar import BarModel
 from the_alchemiser.domain.market_data.models.quote import QuoteModel
-from the_alchemiser.domain.shared_kernel.value_objects.symbol import Symbol
-from the_alchemiser.infrastructure.market_data.market_data_client import MarketDataClient
+from the_alchemiser.shared_kernel.value_objects.symbol import Symbol
+from the_alchemiser.infrastructure.market_data.market_data_client import (
+    MarketDataClient,
+)
 from the_alchemiser.application.market_data.market_data_service import MarketDataService
 
 logger = logging.getLogger(__name__)
@@ -75,7 +77,9 @@ class StrategyMarketDataService:
             )
 
             # Convert DataFrame to BarModel list
-            from the_alchemiser.application.mapping.market_data_mapping import dataframe_to_bars
+            from the_alchemiser.application.mapping.market_data_mapping import (
+                dataframe_to_bars,
+            )
 
             return dataframe_to_bars(df, symbol)
 

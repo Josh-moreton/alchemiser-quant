@@ -24,7 +24,7 @@ from .exceptions import (
 
 __all__ = [
     "AlchemiserError",
-    "BuyingPowerError", 
+    "BuyingPowerError",
     "ConfigurationError",
     "DataProviderError",
     "InsufficientFundsError",
