@@ -1,10 +1,3 @@
-"""Business Unit: utilities; Status: current.
-
-Shared kernel infrastructure layer.
-
-Contains infrastructure implementations for shared kernel concerns.
-"""
+"""Business Unit: utilities; Status: current."""
 
 from __future__ import annotations
-
-__all__: list[str] = []

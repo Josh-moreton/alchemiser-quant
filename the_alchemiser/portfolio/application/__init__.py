@@ -1,11 +1,9 @@
-"""Business Unit: portfolio assessment & management; Status: current.
+"""Business Unit: utilities; Status: current.
 
-Portfolio application layer.
+Reporting and analytics layer.
 
-Contains application services and workflows for portfolio rebalancing,
-risk management, and portfolio performance analysis.
+This module contains reporting functionality for trading performance,
+portfolio analysis, and system monitoring.
 """
 
 from __future__ import annotations
-
-__all__: list[str] = []

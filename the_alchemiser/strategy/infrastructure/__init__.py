@@ -1,11 +1,6 @@
-"""Business Unit: strategy & signal generation; Status: current.
+"""Business Unit: utilities; Status: current.
 
-Strategy infrastructure layer.
-
-Contains infrastructure implementations for strategy data access,
-external signal providers, and technical indicator calculations.
+Data provider utilities and abstractions.
 """
 
 from __future__ import annotations
-
-__all__: list[str] = []

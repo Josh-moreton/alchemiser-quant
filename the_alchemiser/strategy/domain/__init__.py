@@ -1,11 +1,21 @@
-"""Business Unit: strategy & signal generation; Status: current.
+"""Business Unit: utilities; Status: current.
 
-Strategy domain layer.
+S-expression Strategy DSL Engine.
 
-Contains pure domain logic for strategy engines, signal generation,
-and strategy-related value objects.
+A minimal, secure DSL for evaluating trading strategies written as S-expressions.
+Provides deterministic evaluation with structured tracing and strict whitelisting.
 """
 
 from __future__ import annotations
 
-__all__: list[str] = []
+from the_alchemiser.domain.dsl.errors import DSLError, EvaluationError, ParseError
+from the_alchemiser.domain.dsl.evaluator import DSLEvaluator
+from the_alchemiser.domain.dsl.parser import DSLParser
+
+__all__ = [
+    "DSLError",
+    "DSLEvaluator",
+    "DSLParser",
+    "EvaluationError",
+    "ParseError",
+]

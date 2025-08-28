@@ -1,11 +1,13 @@
-"""Business Unit: order execution/placement; Status: current.
+"""Business Unit: utilities; Status: current.
 
-Execution domain layer.
+Domain policy public exports (pure domain only).
 
-Contains pure domain logic for order entities, execution algorithms,
-and execution-related value objects and business rules.
+Exports only pure domain constructs - no interface/DTO layer leakage.
 """
 
 from __future__ import annotations
 
-__all__: list[str] = []
+from .base_policy import OrderPolicy
+from .policy_result import PolicyResult, PolicyWarning
+
+__all__ = ["OrderPolicy", "PolicyResult", "PolicyWarning"]

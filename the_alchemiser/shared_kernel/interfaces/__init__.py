@@ -1,10 +1,13 @@
 """Business Unit: utilities; Status: current.
 
-Shared kernel interfaces layer.
+Interface layer utilities for application boundary handling.
 
-Contains interface definitions and adapters for shared kernel concerns.
+This package contains utilities specific to the interface layer,
+particularly for serialization and data conversion at application boundaries.
 """
 
 from __future__ import annotations
 
-__all__: list[str] = []
+from .serialization import ensure_serialized_dict, to_serializable
+
+__all__ = ["ensure_serialized_dict", "to_serializable"]
