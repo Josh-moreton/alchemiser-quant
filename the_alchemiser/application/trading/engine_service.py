@@ -41,6 +41,7 @@ from the_alchemiser.application.mapping.execution_summary_mapping import (
 )
 from the_alchemiser.application.mapping.strategies import (
     StrategySignalDisplayDTO,
+    run_all_strategies_mapping,
 )
 from the_alchemiser.application.portfolio.services.portfolio_management_facade import (
     PortfolioManagementFacade,
@@ -52,6 +53,10 @@ from the_alchemiser.application.trading.bootstrap import (
     bootstrap_from_container,
     bootstrap_from_service_manager,
     bootstrap_traditional,
+)
+from the_alchemiser.infrastructure.logging.logging_utils import (
+    get_logger,
+    log_with_context,
 )
 
 # Import application-layer ports for dependency injection
@@ -381,12 +386,6 @@ class TradingEngine:
                 dict[str, list[StrategyType]],
             ]:
                 """Bridge method that converts typed signals to CLI-compatible format for CLI compatibility."""
-                from datetime import UTC, datetime
-
-                from the_alchemiser.application.mapping.strategies import (
-                    run_all_strategies_mapping,
-                )
-
                 # Generate typed signals
                 aggregated = self._typed.generate_all_signals(datetime.now(UTC))
 
@@ -1029,13 +1028,6 @@ class TradingEngine:
 
 def main() -> None:
     """Test TradingEngine multi-strategy execution (fail-fast DI only)."""
-    import logging
-
-    from the_alchemiser.infrastructure.logging.logging_utils import (
-        get_logger,
-        log_with_context,
-    )
-
     logging.basicConfig(level=logging.WARNING)  # Reduced verbosity
     logger = get_logger(__name__)
 
@@ -1045,6 +1037,8 @@ def main() -> None:
     )
 
     # Modern DI initialization (no legacy fallback). Any failure should surface immediately.
+    # These imports are kept at function level to avoid circular imports at module load time
+    # since main.py indirectly imports this module through CLI components
     from the_alchemiser.infrastructure.dependency_injection.application_container import (
         ApplicationContainer,
     )

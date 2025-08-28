@@ -18,7 +18,8 @@ from typing import Any, TypedDict
 from the_alchemiser.application.mapping.strategy_market_data_adapter import (
     StrategyMarketDataAdapter,
 )
-from the_alchemiser.infrastructure.config import Settings
+from the_alchemiser.infrastructure.config import Settings, load_settings
+from the_alchemiser.infrastructure.secrets.secrets_manager import SecretsManager
 from the_alchemiser.services.account.account_service import AccountService as TypedAccountService
 from the_alchemiser.services.errors.context import create_error_context
 from the_alchemiser.services.errors.exceptions import ConfigurationError
@@ -197,8 +198,6 @@ def bootstrap_traditional(
 
     # Load configuration
     try:
-        from the_alchemiser.infrastructure.config import load_settings
-
         resolved_config = config or load_settings()
     except Exception as e:
         logger.error(f"Failed to load configuration: {e}")
@@ -206,8 +205,6 @@ def bootstrap_traditional(
 
     # Load credentials
     try:
-        from the_alchemiser.infrastructure.secrets.secrets_manager import SecretsManager
-
         secrets_manager = SecretsManager()
         api_key, secret_key = secrets_manager.get_alpaca_keys(paper_trading=paper_trading)
 
