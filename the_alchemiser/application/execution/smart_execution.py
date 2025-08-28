@@ -302,9 +302,10 @@ class SmartExecution:
         notional: float | None = None,
         max_slippage_bps: float | None = None,
     ) -> str | None:
-        # TODO: Phase 1 consolidation - merge with place_market_order/place_limit_order
-        # to create unified order placement interface
         """Place order using professional Better Orders execution strategy.
+        
+        Consolidated execution pathway: delegates to CanonicalOrderExecutor via 
+        _submit_canonical_market_order() and AggressiveLimitStrategy execution.
 
         Implements the 5-step execution ladder:
         1. Market timing assessment (9:30-9:35 ET logic)

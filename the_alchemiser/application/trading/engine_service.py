@@ -548,8 +548,8 @@ class TradingEngine:
     ) -> str | None:
         """Place a limit or market order using the smart execution engine.
 
-        TODO: Phase 1 consolidation - unify order placement interface across
-        EngineService, SmartExecution, and AlpacaClient to reduce duplication
+        Order placement consolidated: delegates to SmartExecution.place_order() 
+        which routes through CanonicalOrderExecutor for unified execution pathway.
 
         Args:
             symbol: Stock symbol to trade.
