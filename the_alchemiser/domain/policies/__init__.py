@@ -1,4 +1,6 @@
-"""Domain policy public exports (pure domain only).
+"""Business Unit: utilities; Status: current.
+
+Domain policy public exports (pure domain only).
 
 Exports only pure domain constructs - no interface/DTO layer leakage.
 """

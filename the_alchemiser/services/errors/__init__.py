@@ -1,4 +1,6 @@
-"""Error handling package for The Alchemiser Trading System.
+"""Business Unit: utilities; Status: current.
+
+Error handling package for The Alchemiser Trading System.
 
 This package provides consolidated error handling with:
 - TradingSystemErrorHandler as the single facade

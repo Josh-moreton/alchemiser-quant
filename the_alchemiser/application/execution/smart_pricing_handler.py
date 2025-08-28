@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Smart Pricing Handler.
+"""Business Unit: order execution/placement; Status: current.
+
+Smart Pricing Handler.
 
 This module provides intelligent pricing strategies based on market conditions,
 bid/ask spreads, and order aggressiveness settings.

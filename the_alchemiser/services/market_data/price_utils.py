@@ -1,4 +1,6 @@
-"""Price Utilities.
+"""Business Unit: utilities; Status: current.
+
+Price Utilities.
 
 This module provides helper functions for price handling and conversion operations.
 """

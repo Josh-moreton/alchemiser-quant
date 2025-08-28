@@ -11,6 +11,21 @@ source .venv/bin/activate
 export PYTHONPATH="${PWD}:${PWD}/the_alchemiser:${PYTHONPATH}"
 ```
 
+## Business Unit Classification
+
+Every source file begins with a module-level docstring that declares:
+
+- **Business Unit** – one of
+  - strategy & signal generation
+  - portfolio assessment & management
+  - order execution/placement
+  - utilities
+- **Status** – `current` or `legacy`
+
+See `BUSINESS_UNITS_REPORT.md` for the complete, auto-generated inventory.
+Contributors must keep these docstrings accurate when files are created or
+significantly changed.
+
 ## System Architecture
 
 ### Layered DDD Architecture (Domain-Driven Design)

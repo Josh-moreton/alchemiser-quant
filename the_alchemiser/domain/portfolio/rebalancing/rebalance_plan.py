@@ -1,4 +1,7 @@
-"""RebalancePlan value object for portfolio rebalancing calculations."""
+"""Business Unit: portfolio assessment & management; Status: current.
+
+RebalancePlan value object for portfolio rebalancing calculations.
+"""
 
 from dataclasses import dataclass
 from decimal import Decimal

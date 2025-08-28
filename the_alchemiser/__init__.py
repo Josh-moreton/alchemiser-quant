@@ -1,4 +1,6 @@
-"""The Alchemiser Quantitative Trading System Package.
+"""Business Unit: utilities; Status: current.
+
+The Alchemiser Quantitative Trading System Package.
 
 A sophisticated multi-strategy quantitative trading system for automated portfolio management using
 algorithmic trading strategies. The package supports multiple trading strategies,
@@ -28,5 +30,4 @@ Example:
 
 Author: Josh Moreton
 License: Private
-
 """

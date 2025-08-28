@@ -1,4 +1,6 @@
-"""Schemas package for DTOs used at system boundaries.
+"""Business Unit: utilities; Status: current.
+
+Schemas package for DTOs used at system boundaries.
 
 This package contains Pydantic models for data transfer objects (DTOs) used by
 the application layer and interfaces. These DTOs provide type safety and validation

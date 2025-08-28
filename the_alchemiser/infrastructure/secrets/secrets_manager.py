@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""AWS Secrets Manager Integration
+"""Business Unit: utilities; Status: current.
+
+AWS Secrets Manager Integration
 Handles retrieving secrets from AWS Secrets Manager for the Quantitative Trading System.
 
 Environment-Aware Behavior:

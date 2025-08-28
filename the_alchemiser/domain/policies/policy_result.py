@@ -1,4 +1,6 @@
-"""Pure domain policy result objects.
+"""Business Unit: utilities; Status: current.
+
+Pure domain policy result objects.
 
 These value objects represent the results of policy validation and adjustment
 without any dependencies on external frameworks or DTOs. They are used within

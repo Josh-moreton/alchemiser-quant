@@ -1,4 +1,6 @@
-"""Domain port for market data access.
+"""Business Unit: utilities; Status: current.
+
+Domain port for market data access.
 
 This port defines the minimal contract strategies need.
 """

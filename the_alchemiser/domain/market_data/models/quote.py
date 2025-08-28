@@ -1,4 +1,7 @@
-"""Domain model for a bid/ask quote."""
+"""Business Unit: utilities; Status: current.
+
+Domain model for a bid/ask quote.
+"""
 
 from __future__ import annotations
 

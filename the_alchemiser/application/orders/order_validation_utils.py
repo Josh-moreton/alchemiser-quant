@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Order Validation Utilities.
+"""Business Unit: order execution/placement; Status: current.
+
+Order Validation Utilities.
 
 This module provides helper functions for validating order parameters,
 including quantity validation, price validation, and parameter normalization.

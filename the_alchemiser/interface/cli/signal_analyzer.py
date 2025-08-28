@@ -1,4 +1,6 @@
-"""Signal analysis CLI module.
+"""Business Unit: utilities; Status: current.
+
+Signal analysis CLI module.
 
 Handles signal generation and display without trading execution.
 """

@@ -1,4 +1,6 @@
-"""Typed Strategy Engine Base Class.
+"""Business Unit: utilities; Status: current.
+
+Typed Strategy Engine Base Class.
 
 Abstract base class for trading strategy implementations with full type safety,
 validation helpers, and error handling integration. This replaces pandas coupling

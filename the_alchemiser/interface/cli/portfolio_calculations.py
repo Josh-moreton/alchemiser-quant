@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Portfolio calculation utilities extracted from TradingEngine.
+"""Business Unit: portfolio assessment & management; Status: current.
+
+Portfolio calculation utilities extracted from TradingEngine.
 
 This module provides calculation functions for portfolio target vs current allocations
 without any display logic, supporting the separation of business logic from presentation.

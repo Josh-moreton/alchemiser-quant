@@ -1,1 +1,4 @@
-"""Infrastructure adapters for legacy system integration."""
+"""Business Unit: utilities; Status: current.
+
+Infrastructure adapters for legacy system integration.
+"""

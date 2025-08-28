@@ -1,4 +1,7 @@
-"""Market data domain models."""
+"""Business Unit: utilities; Status: current.
+
+Market data domain models.
+"""
 
 from dataclasses import dataclass
 from datetime import datetime

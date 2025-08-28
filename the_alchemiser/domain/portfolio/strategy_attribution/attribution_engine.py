@@ -1,4 +1,7 @@
-"""Strategy attribution engine for determining symbol ownership."""
+"""Business Unit: strategy & signal generation; Status: current.
+
+Strategy attribution engine for determining symbol ownership.
+"""
 
 from decimal import Decimal
 from typing import Any

@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Account Facade - Coordinated account, position, and price data access.
+"""Business Unit: order execution/placement; Status: current.
+
+Account Facade - Coordinated account, position, and price data access.
 
 This facade provides a unified interface for account-related operations by coordinating
 between existing services:

@@ -1,4 +1,6 @@
-"""Mathematical Utilities for Trading Strategies.
+"""Business Unit: utilities; Status: current.
+
+Mathematical Utilities for Trading Strategies.
 
 This module provides statistical and mathematical functions commonly used
 across different trading strategies, particularly for return calculations,

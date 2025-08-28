@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Main error handler for The Alchemiser Trading System.
+"""Business Unit: utilities; Status: current.
+
+Main error handler for The Alchemiser Trading System.
 
 This module provides the single facade TradingSystemErrorHandler for all error handling,
 categorization, and detailed error reporting via email notifications.

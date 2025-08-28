@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Error context data structures for The Alchemiser Trading System.
+"""Business Unit: utilities; Status: current.
+
+Error context data structures for The Alchemiser Trading System.
 
 This module provides standardized error context data structures
 for consistent error reporting and tracking.

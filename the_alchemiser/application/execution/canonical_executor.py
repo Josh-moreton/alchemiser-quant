@@ -1,4 +1,6 @@
-"""Canonical Order Executor (Phase 3 - Unified Policy Layer).
+"""Business Unit: order execution/placement; Status: current.
+
+Canonical Order Executor (Phase 3 - Unified Policy Layer).
 
 Enhanced implementation with policy orchestrator integration:
 * Integrates PolicyOrchestrator for unified pre-placement validation

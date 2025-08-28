@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""WebSocket Connection Manager.
+"""Business Unit: utilities; Status: current.
+
+WebSocket Connection Manager.
 
 This module manages WebSocket connections for order monitoring and real-time data,
 providing connection lifecycle management and cleanup utilities.

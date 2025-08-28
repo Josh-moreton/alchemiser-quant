@@ -1,4 +1,6 @@
-"""Domain Layer Interfaces.
+"""Business Unit: utilities; Status: current.
+
+Domain Layer Interfaces.
 
 This module defines the core interfaces for our trading system, following the
 eventual architecture vision while being compatible with current implementations.

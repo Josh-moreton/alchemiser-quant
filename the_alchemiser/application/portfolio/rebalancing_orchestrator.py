@@ -1,4 +1,6 @@
-"""Rebalancing Orchestrator for sequential SELL→settle→BUY execution.
+"""Business Unit: portfolio assessment & management; Status: current.
+
+Rebalancing Orchestrator for sequential SELL→settle→BUY execution.
 
 This module provides orchestration for portfolio rebalancing with proper settlement
 timing to avoid buying power issues. It delegates to PortfolioManagementFacade for

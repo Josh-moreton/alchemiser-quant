@@ -1,4 +1,7 @@
-"""Order lifecycle state machine manager."""
+"""Business Unit: order execution/placement; Status: current.
+
+Order lifecycle state machine manager.
+"""
 
 from __future__ import annotations
 

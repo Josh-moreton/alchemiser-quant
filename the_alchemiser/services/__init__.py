@@ -1,4 +1,6 @@
-"""Service layer package.
+"""Business Unit: utilities; Status: current.
+
+Service layer package.
 
 Lightweight package initializer for the restructured service layer. The
 concrete services now live in dedicated subpackages:

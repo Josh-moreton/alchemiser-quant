@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Position Management Utilities.
+"""Business Unit: order execution/placement; Status: current.
+
+Position Management Utilities.
 
 This module provides helper functions for position management operations,
 including position validation, liquidation logic, and buying power checks.

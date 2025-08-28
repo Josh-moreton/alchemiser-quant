@@ -1,4 +1,7 @@
-"""Order domain models."""
+"""Business Unit: order execution/placement; Status: current.
+
+Order domain models.
+"""
 
 from dataclasses import dataclass
 from datetime import datetime

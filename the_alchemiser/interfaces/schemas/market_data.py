@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Market Data DTOs for The Alchemiser Trading System.
+"""Business Unit: utilities; Status: current.
+
+Market Data DTOs for The Alchemiser Trading System.
 
 This module contains DTOs for market data operations, price queries,
 spread analysis, and market status information.

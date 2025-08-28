@@ -1,4 +1,6 @@
-"""Strategy market data adapter for DataFrame compatibility.
+"""Business Unit: strategy & signal generation; Status: current.
+
+Strategy market data adapter for DataFrame compatibility.
 
 This adapter bridges strategies that expect DataFrame-based MarketDataPort
 to use the canonical domain-based MarketDataPort with Symbol and domain models.

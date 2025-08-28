@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Alpaca Client for Direct API Access.
+"""Business Unit: order execution/placement; Status: current.
+
+Alpaca Client for Direct API Access.
 
 A streamlined, robust wrapper around Alpaca's trading APIs that provides direct access
 to core trading functions. This client has been refactored to use helper modules for
@@ -48,7 +50,6 @@ Example:
     >>> executor = CanonicalOrderExecutor(client.alpaca_manager)
     >>> req = OrderRequest(symbol=Symbol('AAPL'), side=Side('buy'), quantity=Quantity(Decimal('10')), order_type=OrderType('market'), time_in_force=TimeInForce('day'))  # noqa: E501
     >>> result = executor.execute(req)
-
 """
 
 import logging

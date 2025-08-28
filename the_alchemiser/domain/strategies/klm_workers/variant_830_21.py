@@ -1,4 +1,6 @@
-"""KLM Strategy Variant 830/21 - "MonkeyBusiness Simons variant V2".
+"""Business Unit: utilities; Status: current.
+
+KLM Strategy Variant 830/21 - "MonkeyBusiness Simons variant V2".
 
 This variant is similar to other standard variants except:
 1. KMLM Switcher uses select-TOP 1 from TECL/SOXL/SVIX (opposite of others)

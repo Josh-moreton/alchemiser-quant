@@ -1,4 +1,6 @@
-"""Enhanced Position Service.
+"""Business Unit: order execution/placement; Status: current.
+
+Enhanced Position Service.
 
 This service provides type-safe position monitoring and management operations.
 It builds on top of the TradingRepository and MarketDataRepository interfaces, adding:

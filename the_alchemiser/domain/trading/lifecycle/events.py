@@ -1,4 +1,7 @@
-"""Order lifecycle events and event types."""
+"""Business Unit: order execution/placement; Status: current.
+
+Order lifecycle events and event types.
+"""
 
 from __future__ import annotations
 

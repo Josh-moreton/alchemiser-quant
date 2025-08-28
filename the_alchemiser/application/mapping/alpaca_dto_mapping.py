@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Alpaca DTO mapping utilities for infrastructure boundary.
+"""Business Unit: utilities; Status: current.
+
+Alpaca DTO mapping utilities for infrastructure boundary.
 
 This module provides mapping functions to convert between Alpaca API responses
 and OrderExecutionResultDTO, ensuring proper type conversion and validation

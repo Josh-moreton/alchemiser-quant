@@ -1,4 +1,6 @@
-"""Configuration system for DSL optimization features.
+"""Business Unit: utilities; Status: current.
+
+Configuration system for DSL optimization features.
 
 Provides environment variable and programmatic configuration for
 enabling/disabling AST interning, evaluator memoisation, and parallel execution.

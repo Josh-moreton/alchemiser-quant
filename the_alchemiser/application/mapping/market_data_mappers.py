@@ -1,4 +1,7 @@
-"""Mapping utilities between infra/DTOs and domain market data models."""
+"""Business Unit: utilities; Status: current.
+
+Mapping utilities between infra/DTOs and domain market data models.
+"""
 
 from __future__ import annotations
 

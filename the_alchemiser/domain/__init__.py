@@ -1,4 +1,6 @@
-"""Domain layer root package.
+"""Business Unit: utilities; Status: current.
+
+Domain layer root package.
 
 This package contains pure domain models, value objects, entities, and
 protocols. Keep this layer free from framework and infrastructure dependencies.

@@ -1,4 +1,6 @@
-"""Multi-strategy report template builder.
+"""Business Unit: strategy & signal generation; Status: current.
+
+Multi-strategy report template builder.
 
 This module handles the multi-strategy email template generation.
 """

@@ -1,4 +1,6 @@
-"""KLM Strategy Variant 410/38 - "MonkeyBusiness Simons variant".
+"""Business Unit: utilities; Status: current.
+
+KLM Strategy Variant 410/38 - "MonkeyBusiness Simons variant".
 
 This variant is IDENTICAL to 506/38 except:
 - L/S Rotator uses FTLS/KMLM/SSO/UUP (includes SSO)

@@ -1,4 +1,6 @@
-"""Configuration Utilities.
+"""Business Unit: utilities; Status: current.
+
+Configuration Utilities.
 
 This module provides helper functions for configuration loading operations.
 """

@@ -1,4 +1,6 @@
-"""Canonical lowercase order status literals for system boundaries.
+"""Business Unit: order execution/placement; Status: current.
+
+Canonical lowercase order status literals for system boundaries.
 
 Purpose
 -------

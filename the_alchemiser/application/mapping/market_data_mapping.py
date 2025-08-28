@@ -1,4 +1,6 @@
-"""Market data mapping utilities for strategy adaptation.
+"""Business Unit: utilities; Status: current.
+
+Market data mapping utilities for strategy adaptation.
 
 Provides conversion functions between typed domain models and DataFrame formats
 for strategies that still need pandas ergonomics while maintaining domain purity.

@@ -1,4 +1,6 @@
-"""Common DTOs for application layer and interface boundaries.
+"""Business Unit: utilities; Status: current.
+
+Common DTOs for application layer and interface boundaries.
 
 This module provides Pydantic v2 DTOs for common data structures used across
 the application layer, replacing loose dataclasses and dict usage with

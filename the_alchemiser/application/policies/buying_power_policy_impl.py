@@ -1,4 +1,6 @@
-"""Buying Power Policy Implementation
+"""Business Unit: utilities; Status: current.
+
+Buying Power Policy Implementation
 
 Concrete implementation of BuyingPowerPolicy that handles buying power validation.
 Extracts logic from PositionManager and ensures BuyingPowerError is raised properly.

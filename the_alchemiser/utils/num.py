@@ -1,4 +1,6 @@
-"""Numeric helper utilities.
+"""Business Unit: utilities; Status: current.
+
+Numeric helper utilities.
 
 Provides tolerant float comparison complying with project rule: never use
 direct float equality (== / !=). Use this helper in non-financial contexts;

@@ -1,4 +1,6 @@
-"""Risk Policy Implementation
+"""Business Unit: utilities; Status: current.
+
+Risk Policy Implementation
 
 Concrete implementation of RiskPolicy that handles risk assessment and limits.
 Now uses pure domain objects and typed protocols.

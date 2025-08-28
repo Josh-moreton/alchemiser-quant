@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Execution Context Adapter.
+"""Business Unit: order execution/placement; Status: current.
+
+Execution Context Adapter.
 
 Adapter to bridge OrderExecutor protocol to ExecutionContext protocol
 for strategy compatibility using canonical executor.

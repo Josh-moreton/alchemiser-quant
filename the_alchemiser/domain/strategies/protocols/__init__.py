@@ -1,3 +1,5 @@
+"""Business Unit: utilities; Status: current."""
+
 from the_alchemiser.domain.strategies.protocols.strategy_engine import StrategyEngine
 
 # DEPRECATION NOTICE: MarketDataPort from this module is deprecated.

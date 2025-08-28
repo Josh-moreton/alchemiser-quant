@@ -1,4 +1,6 @@
-"""Technical indicators for trading strategies.
+"""Business Unit: utilities; Status: current.
+
+Technical indicators for trading strategies.
 
 This module provides technical analysis indicators used by trading strategies
 in The Alchemiser quantitative trading system. All indicators are implemented using pandas

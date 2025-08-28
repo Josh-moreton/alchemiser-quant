@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Mapping functions for execution summary DTOs.
+"""Business Unit: order execution/placement; Status: current.
+
+Mapping functions for execution summary DTOs.
 
 This module provides mapping utilities to convert between dict structures
 and ExecutionSummaryDTO/PortfolioStateDTO, supporting the migration from

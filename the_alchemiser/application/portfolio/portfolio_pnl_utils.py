@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Portfolio P&L Utilities.
+"""Business Unit: portfolio assessment & management; Status: current.
+
+Portfolio P&L Utilities.
 
 This module provides helper functions for calculating and extracting
 profit and loss data from strategy tracking and portfolio positions.

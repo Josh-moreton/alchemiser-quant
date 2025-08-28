@@ -1,4 +1,7 @@
-"""Infrastructure layer providers for dependency injection."""
+"""Business Unit: utilities; Status: current.
+
+Infrastructure layer providers for dependency injection.
+"""
 
 from dependency_injector import containers, providers
 

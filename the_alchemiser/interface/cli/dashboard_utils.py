@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Dashboard Data Utilities.
+"""Business Unit: utilities; Status: current.
+
+Dashboard Data Utilities.
 
 This module provides helper functions for building structured data
 for dashboard consumption, including portfolio metrics, positions,

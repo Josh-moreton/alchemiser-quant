@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Configuration Service.
+"""Business Unit: utilities; Status: current.
+
+Configuration Service.
 
 Handles loading and managing configuration for the trading system.
 Provides a clean interface for accessing configuration settings.

@@ -1,4 +1,6 @@
-"""Mapping utilities between Alpaca order objects and domain Order entity.
+"""Business Unit: order execution/placement; Status: current.
+
+Mapping utilities between Alpaca order objects and domain Order entity.
 
 This module is part of the anti-corruption layer. It converts external Alpaca
 order representations into pure domain models so the rest of the application

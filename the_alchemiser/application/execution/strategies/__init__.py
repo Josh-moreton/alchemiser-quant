@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Execution strategies package.
+"""Business Unit: order execution/placement; Status: current.
+
+Execution strategies package.
 
 Contains strategy classes for order execution patterns including
 repeg strategies and aggressive limit strategies.

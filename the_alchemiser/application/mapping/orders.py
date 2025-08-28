@@ -1,4 +1,7 @@
-"""Order mapping utilities and status normalization (application layer)."""
+"""Business Unit: order execution/placement; Status: current.
+
+Order mapping utilities and status normalization (application layer).
+"""
 
 from __future__ import annotations
 

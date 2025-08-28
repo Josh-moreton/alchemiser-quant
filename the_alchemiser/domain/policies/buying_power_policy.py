@@ -1,4 +1,6 @@
-"""Buying Power Policy Interface
+"""Business Unit: utilities; Status: current.
+
+Buying Power Policy Interface
 
 Handles validation of order values against available buying power.
 """

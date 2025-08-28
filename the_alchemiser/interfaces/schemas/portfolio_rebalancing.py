@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Portfolio Rebalancing DTOs for The Alchemiser Trading System.
+"""Business Unit: portfolio assessment & management; Status: current.
+
+Portfolio Rebalancing DTOs for The Alchemiser Trading System.
 
 This module provides Pydantic v2 DTOs for portfolio rebalancing operations,
 replacing dict/Any usage in portfolio services with strongly typed boundaries.

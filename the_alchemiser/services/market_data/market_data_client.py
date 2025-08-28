@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Market Data Client.
+"""Business Unit: utilities; Status: current.
+
+Market Data Client.
 
 Handles market data REST API calls to Alpaca.
 Focused on data retrieval without trading operations.

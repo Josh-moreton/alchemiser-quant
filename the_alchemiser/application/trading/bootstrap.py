@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Trading Engine Bootstrap Module.
+"""Business Unit: order execution/placement; Status: current.
+
+Trading Engine Bootstrap Module.
 
 Encapsulates all TradingEngine dependency injection and initialization paths
 into dedicated bootstrap functions that return a typed context bundle.

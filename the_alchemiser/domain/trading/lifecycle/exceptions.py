@@ -1,4 +1,7 @@
-"""Order lifecycle management exceptions."""
+"""Business Unit: order execution/placement; Status: current.
+
+Order lifecycle management exceptions.
+"""
 
 from __future__ import annotations
 

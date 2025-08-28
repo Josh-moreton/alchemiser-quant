@@ -1,4 +1,6 @@
-"""Base Policy Protocol
+"""Business Unit: utilities; Status: current.
+
+Base Policy Protocol
 
 Defines the common interface that all order validation policies must implement.
 Uses pure domain objects to maintain domain layer purity.

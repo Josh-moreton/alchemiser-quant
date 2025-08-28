@@ -1,4 +1,6 @@
-"""Mapping utilities between strategy DTOs and domain objects.
+"""Business Unit: strategy & signal generation; Status: current.
+
+Mapping utilities between strategy DTOs and domain objects.
 
 This module provides conversion functions between TypedDict DTOs (used at interface
 boundaries) and domain value objects/models (used in business logic).

@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Market Open Timing Utilities.
+"""Business Unit: utilities; Status: current.
+
+Market Open Timing Utilities.
 
 Implements the timing logic from better orders spec for optimal execution
 during market open hours (9:30-9:35 ET).

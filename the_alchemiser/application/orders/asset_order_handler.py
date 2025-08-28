@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Asset-Specific Order Logic.
+"""Business Unit: order execution/placement; Status: current.
+
+Asset-Specific Order Logic.
 
 This module handles asset-specific order placement logic, including
 fractionable vs non-fractionable asset handling, order type conversion,

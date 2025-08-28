@@ -1,4 +1,7 @@
-"""Rebalance execution service - handles trade execution for rebalancing."""
+"""Business Unit: portfolio assessment & management; Status: current.
+
+Rebalance execution service - handles trade execution for rebalancing.
+"""
 
 from decimal import Decimal
 from typing import Any

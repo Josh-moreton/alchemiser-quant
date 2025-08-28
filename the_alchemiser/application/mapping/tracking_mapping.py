@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Mapping utilities between tracking DTOs and internal dataclasses.
+"""Business Unit: utilities; Status: current.
+
+Mapping utilities between tracking DTOs and internal dataclasses.
 
 This module provides anti-corruption layer mappings for the strategy_order_tracker
 refactor, converting between StrategyOrderEventDTO/StrategyExecutionSummaryDTO

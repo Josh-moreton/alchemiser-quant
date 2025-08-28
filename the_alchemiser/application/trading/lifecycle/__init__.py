@@ -1,4 +1,6 @@
-"""Order Lifecycle Management Application Layer.
+"""Business Unit: order execution/placement; Status: current.
+
+Order Lifecycle Management Application Layer.
 
 This package contains the application layer components for order lifecycle
 management, including the state machine manager, event dispatcher, and

@@ -1,4 +1,6 @@
-"""AST interning system for structural sharing (hash-consing).
+"""Business Unit: utilities; Status: current.
+
+AST interning system for structural sharing (hash-consing).
 
 Converts AST trees to DAGs by deduplicating identical subtrees,
 dramatically reducing memory usage and node traversal work for

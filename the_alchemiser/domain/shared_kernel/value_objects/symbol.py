@@ -1,4 +1,6 @@
-"""Typed value object for Symbols used across the domain.
+"""Business Unit: utilities; Status: current.
+
+Typed value object for Symbols used across the domain.
 
 Keep domain free of external libs; normalize to upper-case and strip whitespace.
 """

@@ -1,4 +1,6 @@
-"""Infrastructure layer integrations.
+"""Business Unit: utilities; Status: current.
+
+Infrastructure layer integrations.
 
 Adapters to external systems (Alpaca, AWS, WebSocket streaming, secrets, logging).
 Keep side-effects minimal at import time; postpone network/service initialization until

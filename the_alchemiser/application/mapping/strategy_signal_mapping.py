@@ -1,4 +1,6 @@
-"""Mapping utilities for strategy signals to typed domain structures.
+"""Business Unit: strategy & signal generation; Status: current.
+
+Mapping utilities for strategy signals to typed domain structures.
 
 This module provides bidirectional conversion between strategy signals:
 1. Legacy dicts → typed domain StrategySignal (legacy_signal_to_typed)

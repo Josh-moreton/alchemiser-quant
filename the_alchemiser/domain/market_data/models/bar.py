@@ -1,4 +1,6 @@
-"""Domain model for an OHLCV bar.
+"""Business Unit: utilities; Status: current.
+
+Domain model for an OHLCV bar.
 
 Use Decimal for all financial quantities. Keep domain framework-free.
 """

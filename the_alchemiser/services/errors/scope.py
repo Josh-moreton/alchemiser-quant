@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Error scope context manager for The Alchemiser Trading System.
+"""Business Unit: utilities; Status: current.
+
+Error scope context manager for The Alchemiser Trading System.
 
 This module provides context managers for error handling with automatic logging.
 Renamed from ErrorContext to avoid naming collision.

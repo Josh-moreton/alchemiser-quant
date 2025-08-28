@@ -1,4 +1,6 @@
-"""[DEPRECATED] Legacy error handling utilities.
+"""Business Unit: utilities; Status: current.
+
+[DEPRECATED] Legacy error handling utilities.
 
 This module has been deprecated and its functionality has been moved to:
 - TradingSystemErrorHandler (in handler.py) for centralized error handling

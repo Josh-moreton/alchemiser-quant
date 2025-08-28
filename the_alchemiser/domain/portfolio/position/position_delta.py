@@ -1,4 +1,7 @@
-"""PositionDelta value object for position change calculations."""
+"""Business Unit: portfolio assessment & management; Status: current.
+
+PositionDelta value object for position change calculations.
+"""
 
 from dataclasses import dataclass
 from decimal import Decimal

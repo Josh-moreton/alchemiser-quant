@@ -1,4 +1,6 @@
-"""Main trading report template builder.
+"""Business Unit: order execution/placement; Status: current.
+
+Main trading report template builder.
 
 This module handles the primary trading report email template generation.
 """

@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Trading execution and result DTOs for The Alchemiser Trading System.
+"""Business Unit: order execution/placement; Status: current.
+
+Trading execution and result DTOs for The Alchemiser Trading System.
 
 Pydantic v2 DTOs supporting trading execution lifecycle, order processing,
 websocket events, quotes, lambda events, and order history. Replaces legacy

@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Slippage Post-Fill Analyzer.
+"""Business Unit: utilities; Status: current.
+
+Slippage Post-Fill Analyzer.
 
 Phase 7 Enhancement: Analyzes slippage by comparing intended vs executed prices
 and records results in basis points (bps) for performance monitoring.

@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Error Recovery and Resilience Framework for The Alchemiser Trading System.
+"""Business Unit: utilities; Status: current.
+
+Error Recovery and Resilience Framework for The Alchemiser Trading System.
 
 This module implements Phase 2 of the error handling enhancement plan:
 - Automatic Error Recovery strategies

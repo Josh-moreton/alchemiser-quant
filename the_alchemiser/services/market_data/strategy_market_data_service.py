@@ -1,4 +1,6 @@
-"""Strategy Market Data Service - Canonical MarketDataPort implementation.
+"""Business Unit: strategy & signal generation; Status: current.
+
+Strategy Market Data Service - Canonical MarketDataPort implementation.
 
 This service implements the canonical MarketDataPort protocol using typed domain
 models while providing backward-compatible DataFrame adapters for strategies.

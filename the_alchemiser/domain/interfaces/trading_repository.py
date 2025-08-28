@@ -1,4 +1,6 @@
-"""Trading Repository Interface.
+"""Business Unit: order execution/placement; Status: current.
+
+Trading Repository Interface.
 
 This interface defines the contract for all trading operations including order
 placement, position management, and portfolio operations.

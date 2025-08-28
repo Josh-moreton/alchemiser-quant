@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Base DTO primitives used across result-oriented response models.
+"""Business Unit: utilities; Status: current.
+
+Base DTO primitives used across result-oriented response models.
 
 Provides a single place for the ubiquitous success / error pattern to
 eliminate duplication and ensure uniform semantics across facade methods.

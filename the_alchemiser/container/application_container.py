@@ -1,4 +1,7 @@
-"""Main application container for dependency injection."""
+"""Business Unit: utilities; Status: current.
+
+Main application container for dependency injection.
+"""
 
 from dependency_injector import containers, providers
 

@@ -1,4 +1,6 @@
-"""Market Data Repository Interface.
+"""Business Unit: utilities; Status: current.
+
+Market Data Repository Interface.
 
 This interface defines the contract for all market data operations including
 current prices, quotes, historical data, and streaming data.

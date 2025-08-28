@@ -1,4 +1,6 @@
-"""Base KLM Strategy Variant.
+"""Business Unit: utilities; Status: current.
+
+Base KLM Strategy Variant.
 
 Abstract base class for all KLM strategy variants. Provides common functionality
 and enforces a consistent interface across all variants.

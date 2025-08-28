@@ -1,4 +1,7 @@
-"""Trading service facade aggregating order, position, market data, and account operations."""
+"""Business Unit: order execution/placement; Status: current.
+
+Trading service facade aggregating order, position, market data, and account operations.
+"""
 
 import logging
 from datetime import UTC, datetime

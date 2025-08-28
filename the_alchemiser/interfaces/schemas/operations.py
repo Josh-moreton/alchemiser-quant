@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""General execution result DTOs for The Alchemiser Trading System.
+"""Business Unit: utilities; Status: current.
+
+General execution result DTOs for The Alchemiser Trading System.
 
 This module contains DTOs for general operation results, including
 success/error handling patterns used across the trading system.

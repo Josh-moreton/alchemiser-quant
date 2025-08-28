@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Exception translation decorators for The Alchemiser Trading System.
+"""Business Unit: utilities; Status: current.
+
+Exception translation decorators for The Alchemiser Trading System.
 
 This module provides decorators that only translate exceptions without logging.
 The logging is handled explicitly by orchestrators/services using the handler.

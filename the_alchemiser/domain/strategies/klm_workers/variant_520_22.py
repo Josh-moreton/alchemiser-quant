@@ -1,4 +1,6 @@
-"""KLM Strategy Variant 520/22 - "KMLM (23) - Original".
+"""Business Unit: utilities; Status: current.
+
+KLM Strategy Variant 520/22 - "KMLM (23) - Original".
 
 This variant is similar to 506/38 and 1200/28 except:
 - KMLM Switcher uses select-bottom 1 from TECL/SVIX only (no SOXL, no FNGU)

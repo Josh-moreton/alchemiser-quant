@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Strategy Order Tracker for Per-Strategy P&L Management.
+"""Business Unit: strategy & signal generation; Status: current.
+
+Strategy Order Tracker for Per-Strategy P&L Management.
 
 This module provides dedicated tracking of orders and positions per strategy for accurate P&L calculations.
 It persists order data and calculates realized/unrealized P&L per strategy.

@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Trading Engine for The Alchemiser.
+"""Business Unit: order execution/placement; Status: current.
+
+Trading Engine for The Alchemiser.
 
 Unified multi-strategy trading engine for Alpaca, supporting portfolio rebalancing,
 strategy execution, reporting, and dashboard integration.
@@ -18,7 +20,6 @@ Example:
     >>> container = ApplicationContainer.create_for_testing()
     >>> engine = TradingEngine.create_with_di(container=container)
     >>> result = engine.execute_multi_strategy()
-
 """
 
 import logging

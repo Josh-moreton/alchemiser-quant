@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Account DTOs for The Alchemiser Trading System.
+"""Business Unit: utilities; Status: current.
+
+Account DTOs for The Alchemiser Trading System.
 
 This module contains DTOs for account data, buying power checks, risk metrics,
 and account-related operations.

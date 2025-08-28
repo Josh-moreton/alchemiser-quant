@@ -1,4 +1,6 @@
-"""Performance content builder for email templates.
+"""Business Unit: utilities; Status: current.
+
+Performance content builder for email templates.
 
 This module handles building HTML content for trading summaries,
 order execution reports, and performance metrics.

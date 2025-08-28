@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Trading Engine Integration for Strategy Order Tracker.
+"""Business Unit: utilities; Status: current.
+
+Trading Engine Integration for Strategy Order Tracker.
 
 This module provides integration between the trading engine and strategy order tracker
 to automatically capture and track orders by strategy for P&L calculations.

@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Smart Execution Engine with Professional Order Strategy.
+"""Business Unit: order execution/placement; Status: current.
+
+Smart Execution Engine with Professional Order Strategy.
 
 This module provides sophisticated order execution using the Better Orders strategy:
 - Aggressive marketable limits (ask+1¢ for buys, bid-            # Get alpaca manager from order executor for canonical executor

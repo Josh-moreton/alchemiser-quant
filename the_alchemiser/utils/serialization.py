@@ -1,4 +1,6 @@
-"""Utility helpers for application-layer boundary serialization.
+"""Business Unit: utilities; Status: current.
+
+Utility helpers for application-layer boundary serialization.
 
 Provides safe, recursive conversion of Pydantic models, dataclasses, Decimals,
 and nested containers into JSON-friendly Python primitives while preserving

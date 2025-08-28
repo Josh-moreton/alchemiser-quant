@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Order Validation and Type Safety Module.
+"""Business Unit: order execution/placement; Status: current.
+
+Order Validation and Type Safety Module.
 
 This module provides comprehensive order validation and type safety for trade execution.
 It uses strongly typed DTOs from interfaces/schemas/orders.py and integrates with the

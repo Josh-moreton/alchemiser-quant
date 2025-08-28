@@ -1,4 +1,7 @@
-"""Portfolio rebalancing service - main application orchestrator."""
+"""Business Unit: portfolio assessment & management; Status: current.
+
+Portfolio rebalancing service - main application orchestrator.
+"""
 
 from decimal import Decimal
 from typing import Any

@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Strategy Configuration DTO.
+"""Business Unit: order execution/placement; Status: current.
+
+Strategy Configuration DTO.
 
 Defines configuration parameters for execution strategies including
 repeg attempts, timeouts, volatility thresholds, and pricing ticks.
