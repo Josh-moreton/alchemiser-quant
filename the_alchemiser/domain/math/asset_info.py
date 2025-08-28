@@ -5,19 +5,18 @@ Asset Information Utilities.
 
 Handles asset-specific information like fractionability, ETF types, and trading characteristics.
 This helps optimize order placement strategies for different asset types.
+
+This module now uses the AssetMetadataProvider protocol to avoid infrastructure dependencies.
 """
 from __future__ import annotations
 
-
 import logging
 from enum import Enum
+from typing import TYPE_CHECKING
 
-try:
-    from the_alchemiser.services.repository.alpaca_manager import AlpacaManager
-
-    ALPACA_AVAILABLE = True
-except ImportError:
-    ALPACA_AVAILABLE = False
+if TYPE_CHECKING:
+    from the_alchemiser.domain.math.protocols.asset_metadata_provider import AssetMetadataProvider
+    from the_alchemiser.domain.trading.value_objects.symbol import Symbol
 
 
 class AssetType(Enum):
@@ -32,81 +31,55 @@ class AssetType(Enum):
 
 
 class FractionabilityDetector:
-    """Detects and handles non-fractionable assets using real-time Alpaca API data.
+    """Detects and handles non-fractionable assets using AssetMetadataProvider.
 
     Professional trading systems need to handle assets that don't support
-    fractional shares. This system queries Alpaca's API for authoritative
-    fractionability information with intelligent caching and fallbacks.
+    fractional shares. This system delegates to an AssetMetadataProvider 
+    implementation for authoritative fractionability information.
     """
 
-    def __init__(self, alpaca_manager: AlpacaManager | None = None) -> None:
-        """Initialize with optional AlpacaManager for API access.
+    def __init__(self, asset_metadata_provider: AssetMetadataProvider | None = None) -> None:
+        """Initialize with optional AssetMetadataProvider.
 
         Args:
-            alpaca_manager: AlpacaManager instance (will create one if None)
+            asset_metadata_provider: Provider for asset metadata access
 
         """
-        self.alpaca_manager = alpaca_manager
+        self.asset_metadata_provider = asset_metadata_provider
         self._fractionability_cache: dict[str, bool] = {}
 
-        # Backup prediction patterns (used only when API is unavailable)
-        # NOTE: These were mostly wrong based on API testing, so we only use them as fallback
+        # Backup prediction patterns (used only when provider is unavailable)
         self.backup_known_non_fractionable = {
             "FNGU",  # Confirmed non-fractionable via API
-            # Most others were wrong, so we'll rely on API
         }
 
-        # Initialize AlpacaManager if needed
-        if self.alpaca_manager is None and ALPACA_AVAILABLE:
-            try:
-                from the_alchemiser.infrastructure.secrets.secrets_manager import SecretsManager
-
-                secrets_manager = SecretsManager()
-                paper_api_key, paper_secret_key = secrets_manager.get_alpaca_keys(
-                    paper_trading=True
-                )
-
-                if paper_api_key and paper_secret_key:
-                    self.alpaca_manager = AlpacaManager(
-                        api_key=paper_api_key, secret_key=paper_secret_key, paper=True
-                    )
-                    logging.info("✅ FractionabilityDetector initialized with Alpaca API access")
-                else:
-                    logging.warning("⚠️ No Alpaca API keys found, using fallback prediction")
-            except Exception as e:
-                logging.warning(
-                    f"⚠️ Could not initialize AlpacaManager: {e}, using fallback prediction"
-                )
-
-    def _query_alpaca_fractionability(self, symbol: str) -> bool | None:
-        """Query Alpaca API for definitive fractionability information.
+    def _query_provider_fractionability(self, symbol: str) -> bool | None:
+        """Query provider for definitive fractionability information.
 
         Args:
             symbol: Stock symbol to query
 
         Returns:
-            True if fractionable, False if not, None if API unavailable/error
+            True if fractionable, False if not, None if provider unavailable/error
 
         """
-        if not self.alpaca_manager:
+        if not self.asset_metadata_provider:
             return None
 
         try:
-            asset = self.alpaca_manager.trading_client.get_asset(symbol)
-            fractionable = getattr(asset, "fractionable", None)
-
-            if fractionable is not None:
-                logging.debug(f"📡 Alpaca API: {symbol} fractionable = {fractionable}")
-                return bool(fractionable)
-            logging.warning(f"⚠️ Alpaca API returned no fractionability info for {symbol}")
-            return None
+            from the_alchemiser.domain.trading.value_objects.symbol import Symbol
+            
+            symbol_obj = Symbol(symbol)
+            fractionable = self.asset_metadata_provider.is_fractionable(symbol_obj)
+            logging.debug(f"📡 Provider: {symbol} fractionable = {fractionable}")
+            return fractionable
 
         except Exception as e:
-            logging.warning(f"⚠️ Alpaca API error for {symbol}: {e}")
+            logging.warning(f"⚠️ Provider error for {symbol}: {e}")
             return None
 
     def is_fractionable(self, symbol: str, use_cache: bool = True) -> bool:
-        """Determine if an asset supports fractional shares using Alpaca API.
+        """Determine if an asset supports fractional shares using provider.
 
         Args:
             symbol: Stock symbol to check
@@ -124,16 +97,16 @@ class FractionabilityDetector:
             logging.debug(f"📋 Cache hit: {symbol} fractionable = {cached_result}")
             return cached_result
 
-        # Query Alpaca API for authoritative answer
-        api_result = self._query_alpaca_fractionability(symbol)
+        # Query provider for authoritative answer
+        provider_result = self._query_provider_fractionability(symbol)
 
-        if api_result is not None:
-            # Cache the API result
-            self._fractionability_cache[symbol] = api_result
-            return api_result
+        if provider_result is not None:
+            # Cache the provider result
+            self._fractionability_cache[symbol] = provider_result
+            return provider_result
 
-        # Fallback to backup prediction if API unavailable
-        logging.info(f"🔄 Using fallback prediction for {symbol} (API unavailable)")
+        # Fallback to backup prediction if provider unavailable
+        logging.info(f"🔄 Using fallback prediction for {symbol} (provider unavailable)")
         fallback_result = self._fallback_fractionability_prediction(symbol)
 
         # Cache the fallback result with a warning
@@ -141,7 +114,7 @@ class FractionabilityDetector:
         return fallback_result
 
     def _fallback_fractionability_prediction(self, symbol: str) -> bool:
-        """Fallback prediction when API is unavailable (mostly deprecated).
+        """Fallback prediction when provider is unavailable.
 
         Args:
             symbol: Stock symbol to predict
@@ -152,12 +125,12 @@ class FractionabilityDetector:
         """
         symbol = symbol.upper()
 
-        # Known non-fractionable from API testing
+        # Known non-fractionable from testing
         if symbol in self.backup_known_non_fractionable:
             return False
 
         # Conservative approach: assume fractionable unless proven otherwise
-        # This is safer since most assets are fractionable according to API testing
+        # This is safer since most assets are fractionable according to testing
         return True
 
     def get_asset_type(self, symbol: str) -> AssetType:
@@ -188,7 +161,7 @@ class FractionabilityDetector:
     def should_use_notional_order(self, symbol: str, quantity: float) -> bool:
         """Determine if we should use notional (dollar) orders instead of quantity orders.
 
-        Professional strategy using real API data:
+        Professional strategy using provider data:
         - Use notional orders for non-fractionable assets
         - Use notional orders for small fractional quantities
         - Use quantity orders for large whole-share quantities
@@ -201,7 +174,7 @@ class FractionabilityDetector:
             True if should use notional order, False for quantity order
 
         """
-        # Always use notional for non-fractionable assets (API-confirmed)
+        # Always use notional for non-fractionable assets (provider-confirmed)
         if not self.is_fractionable(symbol):
             return True
 
@@ -221,7 +194,7 @@ class FractionabilityDetector:
     ) -> tuple[float, bool]:
         """Convert fractional quantity to whole shares for non-fractionable assets.
 
-        Uses real API data to determine if conversion is needed.
+        Uses provider data to determine if conversion is needed.
 
         Args:
             symbol: Stock symbol
@@ -232,7 +205,7 @@ class FractionabilityDetector:
             Tuple of (adjusted_quantity, used_rounding)
 
         """
-        # Only convert if asset is actually non-fractionable (API-confirmed)
+        # Only convert if asset is actually non-fractionable (provider-confirmed)
         if self.is_fractionable(symbol):
             return quantity, False
 
@@ -244,7 +217,7 @@ class FractionabilityDetector:
             original_value = quantity * current_price
             new_value = whole_shares * current_price
             logging.info(
-                f"🔄 API-confirmed non-fractionable {symbol}: {quantity:.6f} → {whole_shares} shares "
+                f"🔄 Provider-confirmed non-fractionable {symbol}: {quantity:.6f} → {whole_shares} shares "
                 f"(${original_value:.2f} → ${new_value:.2f})"
             )
 
@@ -259,5 +232,5 @@ class FractionabilityDetector:
         }
 
 
-# Global instance for easy access (will initialize with API access if available)
+# Global instance for easy access (will initialize with provider if available)
 fractionability_detector = FractionabilityDetector()
