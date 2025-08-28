@@ -14,6 +14,8 @@ Usage:
     # Build an error report
     html = EmailTemplates.build_error_report(...)
 """
+from __future__ import annotations
+
 
 from typing import Any
 

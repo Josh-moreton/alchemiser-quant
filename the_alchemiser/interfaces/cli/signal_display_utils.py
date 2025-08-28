@@ -6,6 +6,8 @@ Signal Display Utilities.
 This module provides helper functions for displaying and logging signal results
 that are common across different strategy signal generators.
 """
+from __future__ import annotations
+
 
 from typing import Any
 

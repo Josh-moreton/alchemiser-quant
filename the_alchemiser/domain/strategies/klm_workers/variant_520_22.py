@@ -9,6 +9,8 @@ This variant is similar to 506/38 and 1200/28 except:
 
 This is the "Original" baseline implementation.
 """
+from __future__ import annotations
+
 
 import pandas as pd
 

@@ -6,6 +6,8 @@ Error scope context manager for The Alchemiser Trading System.
 This module provides context managers for error handling with automatic logging.
 Renamed from ErrorContext to avoid naming collision.
 """
+from __future__ import annotations
+
 
 import logging
 import traceback
@@ -71,7 +73,7 @@ class ErrorScope:
         self.context = context or {}
         self.reraise = reraise
 
-    def __enter__(self) -> "ErrorScope":
+    def __enter__(self) -> ErrorScope:
         """Enter context manager."""
         return self
 

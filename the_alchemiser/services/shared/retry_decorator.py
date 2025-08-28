@@ -6,6 +6,8 @@ Retry Decorator with Exponential Backoff.
 This module provides retry functionality with exponential backoff and jitter
 for robust error handling according to the error handling improvement plan.
 """
+from __future__ import annotations
+
 
 import logging
 import random

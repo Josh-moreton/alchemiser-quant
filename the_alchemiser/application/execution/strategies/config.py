@@ -9,6 +9,8 @@ repeg attempts, timeouts, volatility thresholds, and pricing ticks.
 Financial values (prices, ticks) use Decimal per project standards.
 Temporal values (timeouts, intervals) remain float.
 """
+from __future__ import annotations
+
 
 from dataclasses import dataclass
 from decimal import Decimal

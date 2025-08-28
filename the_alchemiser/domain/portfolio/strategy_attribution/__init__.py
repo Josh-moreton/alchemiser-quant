@@ -2,3 +2,5 @@
 
 Strategy attribution domain logic.
 """
+from __future__ import annotations
+

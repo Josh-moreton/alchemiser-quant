@@ -8,6 +8,8 @@ This module implements Phase 3 of the error handling enhancement plan:
 - Alert Threshold Management with dynamic thresholds
 - Production Health Dashboard for system health monitoring
 """
+from __future__ import annotations
+
 
 import logging
 import statistics

@@ -5,6 +5,8 @@ Signals content builder for email templates.
 This module handles building HTML content for technical indicators,
 strategy signals, and trading signal analysis.
 """
+from __future__ import annotations
+
 
 from typing import Any
 

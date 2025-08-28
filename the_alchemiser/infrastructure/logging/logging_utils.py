@@ -2,6 +2,8 @@
 
 Logging helpers for consistent structured output.
 """
+from __future__ import annotations
+
 
 import json
 import logging

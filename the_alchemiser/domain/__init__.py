@@ -6,6 +6,8 @@ This package contains pure domain models, value objects, entities, and
 protocols. Keep this layer free from framework and infrastructure dependencies.
 """
 
+from __future__ import annotations
+
 # Domain Layer notes
 # - Interfaces define contracts that infrastructure adapters implement
 # - Models represent core business entities and value objects

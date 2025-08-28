@@ -6,6 +6,8 @@ Centralized Error Reporter for Production Monitoring.
 This module provides structured error reporting for hands-off operation
 according to the error handling improvement plan.
 """
+from __future__ import annotations
+
 
 import logging
 from collections import defaultdict

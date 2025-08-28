@@ -15,6 +15,8 @@ The module focuses on indicators actually used by the trading strategies:
 All functions return pandas Series objects that can be easily integrated
 with the trading system's data processing pipeline.
 """
+from __future__ import annotations
+
 
 import pandas as pd
 

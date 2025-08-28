@@ -21,6 +21,8 @@ Example:
     >>> engine = TradingEngine.create_with_di(container=container)
     >>> result = engine.execute_multi_strategy()
 """
+from __future__ import annotations
+
 
 import logging
 from datetime import UTC, datetime
@@ -373,7 +375,7 @@ class TradingEngine:
             def run_all_strategies(
                 self,
             ) -> tuple[
-                dict[StrategyType, "StrategySignalDisplayDTO"],
+                dict[StrategyType, StrategySignalDisplayDTO],
                 dict[str, float],
                 dict[str, list[StrategyType]],
             ]:
@@ -952,7 +954,7 @@ class TradingEngine:
         container: Any,
         strategy_allocations: dict[StrategyType, float] | None = None,
         ignore_market_hours: bool = False,
-    ) -> "TradingEngine":
+    ) -> TradingEngine:
         """Factory method for creating TradingEngine from DI container.
 
         Args:
@@ -977,7 +979,7 @@ class TradingEngine:
         trading_service_manager: Any,
         strategy_allocations: dict[StrategyType, float] | None = None,
         ignore_market_hours: bool = False,
-    ) -> "TradingEngine":
+    ) -> TradingEngine:
         """Factory method for creating TradingEngine from TradingServiceManager.
 
         Args:
@@ -1003,7 +1005,7 @@ class TradingEngine:
         config: Settings | None = None,
         strategy_allocations: dict[StrategyType, float] | None = None,
         ignore_market_hours: bool = False,
-    ) -> "TradingEngine":
+    ) -> TradingEngine:
         """Factory method for creating TradingEngine using traditional approach.
 
         Args:

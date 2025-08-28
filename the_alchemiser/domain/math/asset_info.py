@@ -6,6 +6,8 @@ Asset Information Utilities.
 Handles asset-specific information like fractionability, ETF types, and trading characteristics.
 This helps optimize order placement strategies for different asset types.
 """
+from __future__ import annotations
+
 
 import logging
 from enum import Enum

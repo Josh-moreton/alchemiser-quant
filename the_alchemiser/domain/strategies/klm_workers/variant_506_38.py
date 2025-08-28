@@ -13,6 +13,8 @@ CORRECTED LOGIC:
 - L/S Rotator: UUP, FTLS, KMLM only (NOT SVXY/VIXM/SVIX)
 - This matches CLJ lines 170-195 exactly
 """
+from __future__ import annotations
+
 
 import pandas as pd
 

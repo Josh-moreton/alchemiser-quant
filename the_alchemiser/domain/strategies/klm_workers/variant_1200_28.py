@@ -9,6 +9,8 @@ This variant is nearly IDENTICAL to 506/38 except:
 Pattern: QQQE → VTV → VOX → TECL → VOOG → VOOV → XLP → TQQQ → XLY → FAS → SPY →
          Single Popped KMLM (UVXY RSI check → BSC or Pop Bot → KMLM Switcher)
 """
+from __future__ import annotations
+
 
 import pandas as pd
 

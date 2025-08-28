@@ -4,6 +4,8 @@ Multi-strategy report template builder.
 
 This module handles the multi-strategy email template generation.
 """
+from __future__ import annotations
+
 
 from typing import Any
 

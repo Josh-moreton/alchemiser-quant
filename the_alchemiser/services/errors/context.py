@@ -6,6 +6,8 @@ Error context data structures for The Alchemiser Trading System.
 This module provides standardized error context data structures
 for consistent error reporting and tracking.
 """
+from __future__ import annotations
+
 
 from dataclasses import dataclass
 from datetime import UTC, datetime

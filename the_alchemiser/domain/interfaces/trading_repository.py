@@ -8,6 +8,8 @@ placement, position management, and portfolio operations.
 This interface is designed to support typed DTO returns while maintaining
 compatibility with current AlpacaManager usage patterns.
 """
+from __future__ import annotations
+
 
 from typing import TYPE_CHECKING, Any, Protocol
 
@@ -62,7 +64,7 @@ class TradingRepository(Protocol):
         """
         ...
 
-    def place_order(self, order_request: Any) -> "RawOrderEnvelope":
+    def place_order(self, order_request: Any) -> RawOrderEnvelope:
         """Place an order.
 
         Args:
@@ -80,7 +82,7 @@ class TradingRepository(Protocol):
         side: str,
         qty: float | None = None,
         notional: float | None = None,
-    ) -> "RawOrderEnvelope":
+    ) -> RawOrderEnvelope:
         """Place a market order.
 
         Args:

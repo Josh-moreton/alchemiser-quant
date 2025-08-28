@@ -6,6 +6,8 @@ Configuration Service.
 Handles loading and managing configuration for the trading system.
 Provides a clean interface for accessing configuration settings.
 """
+from __future__ import annotations
+
 
 from the_alchemiser.infrastructure.config import Settings, load_settings
 

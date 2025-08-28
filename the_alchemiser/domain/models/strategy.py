@@ -2,6 +2,8 @@
 
 Strategy domain models.
 """
+from __future__ import annotations
+
 
 from dataclasses import dataclass
 from typing import Literal, cast
@@ -21,7 +23,7 @@ class StrategySignalModel:
     allocation_percentage: float
 
     @classmethod
-    def from_dict(cls, data: StrategySignal) -> "StrategySignalModel":
+    def from_dict(cls, data: StrategySignal) -> StrategySignalModel:
         """Create from StrategySignal TypedDict."""
         # Normalize symbol - extract first symbol if it's a dict
         symbol = data["symbol"]
@@ -93,7 +95,7 @@ class StrategyPositionModel:
     strategy_type: str
 
     @classmethod
-    def from_dict(cls, data: StrategyPositionData) -> "StrategyPositionModel":
+    def from_dict(cls, data: StrategyPositionData) -> StrategyPositionModel:
         """Create from StrategyPositionData TypedDict."""
         return cls(
             symbol=data["symbol"],

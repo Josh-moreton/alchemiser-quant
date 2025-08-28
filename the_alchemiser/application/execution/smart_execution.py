@@ -27,6 +27,8 @@ This module provides sophisticated order execution using the Better Orders strat
 Refactored to use composition instead of thin proxy methods.
 Focuses on execution strategy logic while delegating order placement to specialized components.
 """
+from __future__ import annotations
+
 
 import logging
 import time
@@ -87,7 +89,7 @@ class OrderExecutor(Protocol):
     def trading_client(self) -> Any: ...  # Backward compatibility
 
     @property
-    def data_provider(self) -> "DataProvider": ...
+    def data_provider(self) -> DataProvider: ...
 
 
 class DataProvider(Protocol):
@@ -125,8 +127,8 @@ class SmartExecution:
 
     def __init__(
         self,
-        order_executor: "OrderExecutor",
-        data_provider: "DataProvider",
+        order_executor: OrderExecutor,
+        data_provider: DataProvider,
         ignore_market_hours: bool = False,
         config: Any = None,
         account_info_provider: Any = None,

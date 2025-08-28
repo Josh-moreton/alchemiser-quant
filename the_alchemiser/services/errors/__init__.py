@@ -11,6 +11,8 @@ This package provides consolidated error handling with:
 Re-exports all components for backward compatibility.
 """
 
+from __future__ import annotations
+
 # New consolidated API
 from .context import ErrorContextData, create_error_context
 from .decorators import (

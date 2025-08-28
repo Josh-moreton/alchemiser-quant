@@ -6,6 +6,8 @@ Main Entry Point for The Alchemiser Trading System.
 A clean, focused entry point for the multi-strategy quantitative trading system.
 Supports signal analysis and trading execution with dependency injection.
 """
+from __future__ import annotations
+
 
 import argparse
 import logging

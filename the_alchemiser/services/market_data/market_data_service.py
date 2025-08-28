@@ -12,6 +12,8 @@ Typed Domain additions:
 - Implements methods compatible with MarketDataPort (get_bars, get_latest_quote, get_mid_price)
     to support the Typed Domain V2 migration without legacy fallbacks.
 """
+from __future__ import annotations
+
 
 import logging
 from datetime import UTC, datetime, timedelta

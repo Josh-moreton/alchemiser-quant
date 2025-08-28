@@ -6,6 +6,8 @@ This package contains the application layer components for order lifecycle
 management, including the state machine manager, event dispatcher, and
 concrete observer implementations.
 """
+from __future__ import annotations
+
 
 from .dispatcher import LifecycleEventDispatcher
 from .manager import OrderLifecycleManager

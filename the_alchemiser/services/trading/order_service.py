@@ -13,6 +13,8 @@ It builds on top of the TradingRepository interface, adding:
 This represents the service layer from our eventual architecture vision,
 providing business logic while depending on domain interfaces.
 """
+from __future__ import annotations
+
 
 import logging
 from decimal import Decimal

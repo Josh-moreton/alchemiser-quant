@@ -11,6 +11,8 @@ It provides a transitional approach that:
 
 Phase 2 Update: Now implements domain interfaces for type safety and future migration.
 """
+from __future__ import annotations
+
 
 import logging
 
@@ -196,7 +198,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             logger.error(f"Failed to get position for {symbol}: {e}")
             raise
 
-    def place_order(self, order_request: Any) -> "RawOrderEnvelope":
+    def place_order(self, order_request: Any) -> RawOrderEnvelope:
         """Place an order and return raw envelope with metadata."""
         from datetime import UTC, datetime
 
@@ -258,7 +260,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         side: str,
         qty: float | None = None,
         notional: float | None = None,
-    ) -> "RawOrderEnvelope":
+    ) -> RawOrderEnvelope:
         """Place a market order with validation and envelope return.
 
         Args:

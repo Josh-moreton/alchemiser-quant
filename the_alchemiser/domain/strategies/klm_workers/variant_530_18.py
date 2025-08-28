@@ -16,6 +16,8 @@ COMPLETE LOGIC FLOW FROM CLJ:
 
 This captures the COMPLETE CLJ implementation - the most sophisticated variant.
 """
+from __future__ import annotations
+
 
 import pandas as pd
 

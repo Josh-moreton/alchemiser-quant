@@ -5,6 +5,8 @@ Configuration system for DSL optimization features.
 Provides environment variable and programmatic configuration for
 enabling/disabling AST interning, evaluator memoisation, and parallel execution.
 """
+from __future__ import annotations
+
 
 import os
 from dataclasses import dataclass
@@ -28,7 +30,7 @@ class DSLOptimizationConfig:
     parallel_max_workers: int | None = None
 
     @classmethod
-    def from_environment(cls) -> "DSLOptimizationConfig":
+    def from_environment(cls) -> DSLOptimizationConfig:
         """Create configuration from environment variables.
 
         Environment variables:

@@ -8,6 +8,8 @@ account information, portfolio data, and balance management.
 This interface is designed to match our current AlpacaManager usage patterns
 while providing the abstraction needed for the eventual architecture.
 """
+from __future__ import annotations
+
 
 from typing import Any, Protocol
 

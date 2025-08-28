@@ -4,6 +4,8 @@ Configuration Utilities.
 
 This module provides helper functions for configuration loading operations.
 """
+from __future__ import annotations
+
 
 import json
 import logging

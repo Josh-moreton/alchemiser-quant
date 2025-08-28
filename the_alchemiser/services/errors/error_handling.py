@@ -10,6 +10,8 @@ This module has been deprecated and its functionality has been moved to:
 This module is kept temporarily for backward compatibility but will be removed
 in a future version. Please migrate to the new error handling APIs.
 """
+from __future__ import annotations
+
 
 import warnings
 from collections.abc import Callable

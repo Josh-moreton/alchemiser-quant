@@ -5,6 +5,8 @@ Modern price fetching service.
 Provides async/callback-based API for current price requests with
 graceful REST fallback when streaming is unavailable.
 """
+from __future__ import annotations
+
 
 import asyncio
 import logging

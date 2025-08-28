@@ -31,6 +31,8 @@ Usage:
     )
 """
 
+from __future__ import annotations
+
 # Import main functions for backward compatibility
 
 from .client import EmailClient, send_email_notification
