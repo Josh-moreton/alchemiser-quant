@@ -18,7 +18,7 @@ import pandas as pd
 from the_alchemiser.domain.market_data.protocols.market_data_port import MarketDataPort
 from the_alchemiser.domain.math.indicator_utils import safe_get_indicator
 from the_alchemiser.domain.math.indicators import TechnicalIndicators
-from shared_kernel.value_objects.percentage import Percentage
+from the_alchemiser.domain.shared_kernel.value_objects.percentage import Percentage
 from the_alchemiser.domain.strategies.engine import StrategyEngine
 from the_alchemiser.domain.strategies.errors.strategy_errors import StrategyExecutionError
 from the_alchemiser.domain.strategies.nuclear_logic import evaluate_nuclear_strategy

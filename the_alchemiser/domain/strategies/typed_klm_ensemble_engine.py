@@ -26,7 +26,7 @@ from the_alchemiser.domain.math.math_utils import (
     calculate_moving_average_return,
     calculate_stdev_returns,
 )
-from shared_kernel.value_objects.percentage import Percentage
+from the_alchemiser.domain.shared_kernel.value_objects.percentage import Percentage
 from the_alchemiser.domain.strategies.engine import StrategyEngine
 from the_alchemiser.domain.strategies.errors.strategy_errors import StrategyExecutionError
 from the_alchemiser.domain.strategies.value_objects.confidence import Confidence

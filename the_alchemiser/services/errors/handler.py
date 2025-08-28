@@ -463,7 +463,7 @@ class TradingSystemErrorHandler:
             Structured OrderError instance with category, code, and remediation info
 
         """
-        from shared_kernel.value_objects.identifier import Identifier
+        from the_alchemiser.domain.shared_kernel.value_objects.identifier import Identifier
 
         # Convert string order_id to Identifier if provided
         typed_order_id = None
