@@ -138,8 +138,9 @@ class AggressiveLimitStrategy:
                 bid=bid,
                 ask=ask,
                 original_spread_cents=original_spread_cents,
-                last_attempt_time=last_attempt_time,
+                last_attempt_time=time.time(),
                 side=side,
+                symbol=symbol,
             )
             attempt_result = self.repeg_strategy.next_attempt(state, attempt_index)
             cumulative_expected_timeout += attempt_result.timeout_seconds
