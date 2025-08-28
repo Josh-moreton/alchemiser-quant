@@ -26,19 +26,19 @@ from alpaca.trading.client import TradingClient
 from alpaca.trading.enums import OrderSide, TimeInForce
 from alpaca.trading.requests import LimitOrderRequest, MarketOrderRequest
 
-from the_alchemiser.application.mapping.alpaca_dto_mapping import (
+from the_alchemiser.anti_corruption.alpaca_dto_mapping import (
     alpaca_order_to_execution_result,
     create_error_execution_result,
 )
-from the_alchemiser.domain.interfaces import (
+from the_alchemiser.shared_kernel.domain import (
     AccountRepository,
     MarketDataRepository,
     TradingRepository,
 )
-from the_alchemiser.interfaces.schemas.orders import OrderExecutionResultDTO
+from the_alchemiser.shared_kernel.interfaces.orders import OrderExecutionResultDTO
 
 if TYPE_CHECKING:
-    from the_alchemiser.interfaces.schemas.orders import RawOrderEnvelope
+    from the_alchemiser.shared_kernel.interfaces.orders import RawOrderEnvelope
 
 logger = logging.getLogger(__name__)
 
@@ -202,7 +202,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         """Place an order and return raw envelope with metadata."""
         from datetime import UTC, datetime
 
-        from the_alchemiser.interfaces.schemas.orders import RawOrderEnvelope
+        from the_alchemiser.shared_kernel.interfaces.orders import RawOrderEnvelope
 
         request_timestamp = datetime.now(UTC)
 
@@ -312,7 +312,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             # Return error envelope for consistency
             from datetime import datetime
 
-            from the_alchemiser.interfaces.schemas.orders import RawOrderEnvelope
+            from the_alchemiser.shared_kernel.interfaces.orders import RawOrderEnvelope
 
             now = datetime.now()
             return RawOrderEnvelope(
@@ -328,7 +328,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             # Return error envelope for consistency
             from datetime import datetime
 
-            from the_alchemiser.interfaces.schemas.orders import RawOrderEnvelope
+            from the_alchemiser.shared_kernel.interfaces.orders import RawOrderEnvelope
 
             now = datetime.now()
             return RawOrderEnvelope(
@@ -391,7 +391,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             envelope = self.place_order(order_request)
 
             # Convert envelope to OrderExecutionResultDTO for backward compatibility
-            from the_alchemiser.application.mapping.order_mapping import (
+            from the_alchemiser.anti_corruption.order_mapping import (
                 raw_order_envelope_to_execution_result_dto,
             )
 

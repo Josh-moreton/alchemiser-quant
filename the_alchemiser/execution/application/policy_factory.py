@@ -11,14 +11,14 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from the_alchemiser.application.policies.buying_power_policy_impl import BuyingPowerPolicyImpl
-from the_alchemiser.application.policies.fractionability_policy_impl import (
+from the_alchemiser.execution.application.buying_power_policy_impl import BuyingPowerPolicyImpl
+from the_alchemiser.execution.application.fractionability_policy_impl import (
     FractionabilityPolicyImpl,
 )
-from the_alchemiser.application.policies.policy_orchestrator import PolicyOrchestrator
-from the_alchemiser.application.policies.position_policy_impl import PositionPolicyImpl
-from the_alchemiser.application.policies.risk_policy_impl import RiskPolicyImpl
-from the_alchemiser.domain.policies.protocols import DataProviderProtocol, TradingClientProtocol
+from the_alchemiser.execution.application.policy_orchestrator import PolicyOrchestrator
+from the_alchemiser.execution.application.position_policy_impl import PositionPolicyImpl
+from the_alchemiser.execution.application.risk_policy_impl import RiskPolicyImpl
+from the_alchemiser.execution.domain.protocols import DataProviderProtocol, TradingClientProtocol
 
 if TYPE_CHECKING:
     from decimal import Decimal
@@ -90,11 +90,11 @@ class PolicyFactory:
             PolicyOrchestrator with only fractionability policy
 
         """
-        from the_alchemiser.domain.policies.policy_result import (
+        from the_alchemiser.execution.domain.policy_result import (
             PolicyResult,
             create_approved_result,
         )
-        from the_alchemiser.domain.trading.value_objects.order_request import OrderRequest
+        from the_alchemiser.execution.domain.value_objects.order_request import OrderRequest
 
         fractionability_policy = FractionabilityPolicyImpl()
 

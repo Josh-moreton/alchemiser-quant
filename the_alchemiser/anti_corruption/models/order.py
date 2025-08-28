@@ -9,12 +9,12 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Literal
 
-from the_alchemiser.domain.trading.value_objects.order_status import OrderStatus
-from the_alchemiser.domain.trading.value_objects.order_status_literal import (
+from the_alchemiser.execution.domain.value_objects.order_status import OrderStatus
+from the_alchemiser.execution.domain.value_objects.order_status_literal import (
     OrderStatusLiteral,
 )
-from the_alchemiser.domain.types import OrderDetails
-from the_alchemiser.domain.shared_kernel import floats_equal
+from the_alchemiser.shared_kernel.domain.types import OrderDetails
+from the_alchemiser.shared_kernel import floats_equal
 
 
 @dataclass(frozen=True)

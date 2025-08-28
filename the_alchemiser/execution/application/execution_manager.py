@@ -8,15 +8,15 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from the_alchemiser.application.mapping.execution_summary_mapping import (
+from the_alchemiser.anti_corruption.execution_summary_mapping import (
     safe_dict_to_execution_summary_dto,
     safe_dict_to_portfolio_state_dto,
 )
-from the_alchemiser.application.mapping.strategy_signal_mapping import (
+from the_alchemiser.anti_corruption.strategy_signal_mapping import (
     map_signals_dict as _map_signals_to_typed,
 )
-from the_alchemiser.domain.types import AccountInfo
-from the_alchemiser.interfaces.schemas.common import MultiStrategyExecutionResultDTO
+from the_alchemiser.shared_kernel.domain.types import AccountInfo
+from the_alchemiser.shared_kernel.interfaces.common import MultiStrategyExecutionResultDTO
 from the_alchemiser.shared_kernel.infrastructure.errors import handle_errors_with_retry
 from the_alchemiser.shared_kernel.infrastructure.errors.exceptions import (
     ConfigurationError,
@@ -135,7 +135,7 @@ class ExecutionManager:
             self.engine._archive_daily_strategy_pnl(execution_summary.get("pnl_summary", {}))
             return result
         except TradingClientError as e:
-            from the_alchemiser.infrastructure.logging.logging_utils import (
+            from the_alchemiser.shared_kernel.infrastructure.logging_utils import (
                 get_logger,
                 log_error_with_context,
             )
@@ -150,7 +150,7 @@ class ExecutionManager:
             )
             raise  # Re-raise to let upper layers handle
         except DataProviderError as e:
-            from the_alchemiser.infrastructure.logging.logging_utils import (
+            from the_alchemiser.shared_kernel.infrastructure.logging_utils import (
                 get_logger,
                 log_error_with_context,
             )
@@ -201,7 +201,7 @@ class ExecutionManager:
             ValueError,
             AttributeError,
         ) as e:
-            from the_alchemiser.infrastructure.logging.logging_utils import (
+            from the_alchemiser.shared_kernel.infrastructure.logging_utils import (
                 get_logger,
                 log_error_with_context,
             )

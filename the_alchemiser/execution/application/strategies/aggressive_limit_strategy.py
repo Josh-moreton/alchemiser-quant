@@ -26,7 +26,7 @@ from .config import StrategyConfig
 from .repeg_strategy import AttemptState, RepegStrategy
 
 if TYPE_CHECKING:
-    from the_alchemiser.application.trading.lifecycle import (
+    from the_alchemiser.execution.application.lifecycle import (
         LifecycleEventDispatcher,
         OrderLifecycleManager,
     )

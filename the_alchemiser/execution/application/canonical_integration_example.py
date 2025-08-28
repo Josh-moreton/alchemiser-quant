@@ -13,18 +13,18 @@ from collections.abc import Callable
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from the_alchemiser.application.execution.canonical_executor import (
+from the_alchemiser.execution.application.canonical_executor import (
     CanonicalOrderExecutor,
 )
 from the_alchemiser.shared_kernel.value_objects.money import Money
-from the_alchemiser.domain.trading.value_objects.order_request import OrderRequest
-from the_alchemiser.domain.trading.value_objects.order_type import OrderType
-from the_alchemiser.domain.trading.value_objects.quantity import Quantity
-from the_alchemiser.domain.trading.value_objects.side import Side
-from the_alchemiser.domain.trading.value_objects.symbol import Symbol
-from the_alchemiser.domain.trading.value_objects.time_in_force import TimeInForce
-from the_alchemiser.infrastructure.config import load_settings
-from the_alchemiser.interfaces.schemas.orders import (
+from the_alchemiser.execution.domain.value_objects.order_request import OrderRequest
+from the_alchemiser.execution.domain.value_objects.order_type import OrderType
+from the_alchemiser.execution.domain.value_objects.quantity import Quantity
+from the_alchemiser.execution.domain.value_objects.side import Side
+from the_alchemiser.execution.domain.value_objects.symbol import Symbol
+from the_alchemiser.execution.domain.value_objects.time_in_force import TimeInForce
+from the_alchemiser.shared_kernel.infrastructure import load_settings
+from the_alchemiser.shared_kernel.interfaces.orders import (
     OrderExecutionResultDTO,
     OrderRequestDTO,
 )
@@ -114,7 +114,7 @@ def execute_order_with_canonical_path(
     raw_envelope = repository.place_order(order_dto)
 
     # Convert RawOrderEnvelope to OrderExecutionResultDTO
-    from the_alchemiser.application.mapping.order_mapping import (
+    from the_alchemiser.anti_corruption.order_mapping import (
         raw_order_envelope_to_execution_result_dto,
     )
 

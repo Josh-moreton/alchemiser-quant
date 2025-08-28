@@ -13,14 +13,14 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
-from the_alchemiser.domain.dsl.errors import DSLError
-from the_alchemiser.domain.dsl.evaluator import DSLEvaluator, Portfolio
-from the_alchemiser.domain.dsl.optimization_config import (
+from the_alchemiser.strategy.domain.errors import DSLError
+from the_alchemiser.strategy.domain.evaluator import DSLEvaluator, Portfolio
+from the_alchemiser.strategy.domain.optimization_config import (
     DSLOptimizationConfig,
     configure_from_environment,
 )
-from the_alchemiser.domain.dsl.parser import DSLParser
-from the_alchemiser.domain.market_data.protocols.market_data_port import MarketDataPort
+from the_alchemiser.strategy.domain.parser import DSLParser
+from the_alchemiser.strategy.infrastructure.protocols.market_data_port import MarketDataPort
 
 
 class StrategyLoader:

@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from typing import Literal, TypedDict
 
-from the_alchemiser.domain.types import AccountInfo, OrderDetails, PositionInfo, StrategySignal
+from the_alchemiser.shared_kernel.domain.types import AccountInfo, OrderDetails, PositionInfo, StrategySignal
 
 
 # CLI Command Types

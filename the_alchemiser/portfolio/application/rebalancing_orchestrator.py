@@ -13,19 +13,19 @@ import logging
 import time
 from typing import TYPE_CHECKING, Any
 
-from the_alchemiser.domain.registry import StrategyType
-from the_alchemiser.domain.types import OrderDetails
-from the_alchemiser.infrastructure.secrets.secrets_manager import SecretsManager
-from the_alchemiser.infrastructure.websocket.websocket_order_monitor import (
+from the_alchemiser.shared_kernel.domain import StrategyType
+from the_alchemiser.shared_kernel.domain.types import OrderDetails
+from the_alchemiser.shared_kernel.infrastructure.secrets_manager import SecretsManager
+from the_alchemiser.shared_kernel.infrastructure.websocket_order_monitor import (
     OrderCompletionMonitor,
 )
-from the_alchemiser.interfaces.schemas.execution import (
+from the_alchemiser.shared_kernel.interfaces.execution import (
     WebSocketResultDTO,
     WebSocketStatus,
 )
 
 if TYPE_CHECKING:
-    from the_alchemiser.application.portfolio.services.portfolio_management_facade import (
+    from the_alchemiser.portfolio.application.services.portfolio_management_facade import (
         PortfolioManagementFacade,
     )
 

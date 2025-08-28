@@ -13,9 +13,9 @@ from collections.abc import Mapping
 from decimal import Decimal, InvalidOperation
 from typing import Any, Protocol, cast, runtime_checkable
 
-from the_alchemiser.domain.types import AccountInfo, EnrichedAccountInfo, PositionInfo
-from the_alchemiser.interfaces.schemas.common import MultiStrategyExecutionResultDTO
-from the_alchemiser.interfaces.schemas.execution import ExecutionResultDTO
+from the_alchemiser.shared_kernel.domain.types import AccountInfo, EnrichedAccountInfo, PositionInfo
+from the_alchemiser.shared_kernel.interfaces.common import MultiStrategyExecutionResultDTO
+from the_alchemiser.shared_kernel.interfaces.execution import ExecutionResultDTO
 
 from .base import BaseEmailTemplate
 

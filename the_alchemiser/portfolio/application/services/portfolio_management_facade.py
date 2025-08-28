@@ -9,35 +9,35 @@ import logging
 from decimal import Decimal
 from typing import Any
 
-from the_alchemiser.application.mapping.orders import normalize_order_status
-from the_alchemiser.application.mapping.portfolio_rebalancing_mapping import (
+from the_alchemiser.anti_corruption.orders import normalize_order_status
+from the_alchemiser.anti_corruption.portfolio_rebalancing_mapping import (
     dto_plans_to_domain,
     dto_to_domain_rebalance_plan,
 )
-from the_alchemiser.application.portfolio.services.portfolio_analysis_service import (
+from the_alchemiser.portfolio.application.services.portfolio_analysis_service import (
     PortfolioAnalysisService,
 )
-from the_alchemiser.application.portfolio.services.portfolio_rebalancing_service import (
+from the_alchemiser.portfolio.application.services.portfolio_rebalancing_service import (
     PortfolioRebalancingService,
 )
-from the_alchemiser.application.portfolio.services.rebalance_execution_service import (
+from the_alchemiser.portfolio.application.services.rebalance_execution_service import (
     RebalanceExecutionService,
 )
-from the_alchemiser.domain.portfolio.position.position_analyzer import PositionAnalyzer
-from the_alchemiser.domain.portfolio.rebalancing.rebalance_calculator import (
+from the_alchemiser.portfolio.domain.position.position_analyzer import PositionAnalyzer
+from the_alchemiser.portfolio.domain.rebalancing.rebalance_calculator import (
     RebalanceCalculator,
 )
-from the_alchemiser.domain.portfolio.strategy_attribution.attribution_engine import (
+from the_alchemiser.portfolio.domain.strategy_attribution.attribution_engine import (
     StrategyAttributionEngine,
 )
-from the_alchemiser.domain.registry.strategy_registry import StrategyType
-from the_alchemiser.domain.types import OrderDetails
-from the_alchemiser.interfaces.schemas.portfolio_rebalancing import RebalancePlanDTO
+from the_alchemiser.shared_kernel.domain.strategy_registry import StrategyType
+from the_alchemiser.shared_kernel.domain.types import OrderDetails
+from the_alchemiser.shared_kernel.interfaces.portfolio_rebalancing import RebalancePlanDTO
 from the_alchemiser.execution.infrastructure.brokers.trading_service_manager import (
     TradingServiceManager,
 )
-from the_alchemiser.domain.shared_kernel import floats_equal
-from the_alchemiser.interfaces.utils.serialization import ensure_serialized_dict
+from the_alchemiser.shared_kernel import floats_equal
+from the_alchemiser.shared_kernel.interfaces.serialization import ensure_serialized_dict
 
 
 class PortfolioManagementFacade:

@@ -12,7 +12,7 @@ from __future__ import annotations
 from abc import abstractmethod
 from typing import Protocol
 
-from the_alchemiser.domain.trading.value_objects.symbol import Symbol
+from the_alchemiser.execution.domain.value_objects.symbol import Symbol
 
 
 class AssetMetadataProvider(Protocol):

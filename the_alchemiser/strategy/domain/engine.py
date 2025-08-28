@@ -14,12 +14,12 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import Any
 
-from the_alchemiser.domain.market_data.protocols.market_data_port import MarketDataPort
-from the_alchemiser.domain.strategies.errors.strategy_errors import (
+from the_alchemiser.strategy.infrastructure.protocols.market_data_port import MarketDataPort
+from the_alchemiser.strategy.domain.errors.strategy_errors import (
     MarketDataUnavailableError,
     StrategyValidationError,
 )
-from the_alchemiser.domain.strategies.value_objects.strategy_signal import StrategySignal
+from the_alchemiser.strategy.domain.value_objects.strategy_signal import StrategySignal
 
 
 class StrategyEngine(ABC):

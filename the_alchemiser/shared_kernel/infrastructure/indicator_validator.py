@@ -24,8 +24,8 @@ from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeEl
 from rich.table import Table
 from rich.text import Text
 
-from the_alchemiser.domain.math.indicators import TechnicalIndicators
-from the_alchemiser.infrastructure.logging.logging_utils import get_logger, log_with_context
+from the_alchemiser.shared_kernel.domain.indicators import TechnicalIndicators
+from the_alchemiser.shared_kernel.infrastructure.logging_utils import get_logger, log_with_context
 
 
 class IndicatorValidationSuite:

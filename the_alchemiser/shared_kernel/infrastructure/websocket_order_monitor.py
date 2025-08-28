@@ -17,7 +17,7 @@ from typing import Any
 
 from rich.console import Console
 
-from the_alchemiser.interfaces.schemas.execution import WebSocketResultDTO, WebSocketStatus
+from the_alchemiser.shared_kernel.interfaces.execution import WebSocketResultDTO, WebSocketStatus
 
 
 class OrderCompletionMonitor:
@@ -54,7 +54,7 @@ class OrderCompletionMonitor:
 
         # Check if WebSocket is enabled in config
         try:
-            from the_alchemiser.infrastructure.config import load_settings
+            from the_alchemiser.shared_kernel.infrastructure import load_settings
 
             config = load_settings()
             websocket_enabled = config.alpaca.enable_websocket_orders
@@ -380,15 +380,15 @@ class OrderCompletionMonitor:
         try:
             # Try to get the lifecycle dispatcher if available
             # This is a best-effort attempt to emit events
-            from the_alchemiser.application.trading.lifecycle.dispatcher import (
+            from the_alchemiser.execution.application.lifecycle.dispatcher import (
                 LifecycleEventDispatcher,
             )
-            from the_alchemiser.domain.trading.lifecycle.events import (
+            from the_alchemiser.execution.domain.lifecycle.events import (
                 LifecycleEventType,
                 OrderLifecycleEvent,
             )
-            from the_alchemiser.domain.trading.lifecycle.states import OrderLifecycleState
-            from the_alchemiser.domain.trading.value_objects.order_id import OrderId
+            from the_alchemiser.execution.domain.lifecycle.states import OrderLifecycleState
+            from the_alchemiser.execution.domain.value_objects.order_id import OrderId
 
             # Create partial fill event with metadata
             metadata = {}

@@ -39,13 +39,13 @@ Safety Features:
 Example:
     Canonical order placement (preferred):
 
-    >>> from the_alchemiser.application.execution.canonical_executor import CanonicalOrderExecutor
-    >>> from the_alchemiser.domain.trading.value_objects.order_request import OrderRequest
-    >>> from the_alchemiser.domain.trading.value_objects.symbol import Symbol
-    >>> from the_alchemiser.domain.trading.value_objects.side import Side
-    >>> from the_alchemiser.domain.trading.value_objects.quantity import Quantity
-    >>> from the_alchemiser.domain.trading.value_objects.order_type import OrderType
-    >>> from the_alchemiser.domain.trading.value_objects.time_in_force import TimeInForce
+    >>> from the_alchemiser.execution.application.canonical_executor import CanonicalOrderExecutor
+    >>> from the_alchemiser.execution.domain.value_objects.order_request import OrderRequest
+    >>> from the_alchemiser.execution.domain.value_objects.symbol import Symbol
+    >>> from the_alchemiser.execution.domain.value_objects.side import Side
+    >>> from the_alchemiser.execution.domain.value_objects.quantity import Quantity
+    >>> from the_alchemiser.execution.domain.value_objects.order_type import OrderType
+    >>> from the_alchemiser.execution.domain.value_objects.time_in_force import TimeInForce
     >>> client = AlpacaClient(trading_client, data_provider)
     >>> executor = CanonicalOrderExecutor(client.alpaca_manager)
     >>> req = OrderRequest(symbol=Symbol('AAPL'), side=Side('buy'), quantity=Quantity(Decimal('10')), order_type=OrderType('market'), time_in_force=TimeInForce('day'))  # noqa: E501
@@ -60,27 +60,27 @@ import time
 from typing import TYPE_CHECKING, Any, Protocol
 
 if TYPE_CHECKING:
-    from the_alchemiser.application.execution.smart_execution import (
+    from the_alchemiser.execution.application.smart_execution import (
         DataProvider as ExecDataProvider,
     )
-    from the_alchemiser.interfaces.schemas.orders import ValidatedOrderDTO
+    from the_alchemiser.shared_kernel.interfaces.orders import ValidatedOrderDTO
 
 from alpaca.trading.enums import OrderSide
 
-from the_alchemiser.application.execution.smart_pricing_handler import (
+from the_alchemiser.execution.application.smart_pricing_handler import (
     SmartPricingHandler,
 )
-from the_alchemiser.application.orders.asset_order_handler import AssetOrderHandler
+from the_alchemiser.execution.application.asset_order_handler import AssetOrderHandler
 
 # DEPRECATED: LimitOrderHandler import removed - use CanonicalOrderExecutor instead
 # (Legacy order validation utilities removed with legacy paths)
-from the_alchemiser.infrastructure.websocket.websocket_connection_manager import (
+from the_alchemiser.shared_kernel.infrastructure.websocket_connection_manager import (
     WebSocketConnectionManager,
 )
-from the_alchemiser.infrastructure.websocket.websocket_order_monitor import (
+from the_alchemiser.shared_kernel.infrastructure.websocket_order_monitor import (
     OrderCompletionMonitor,
 )
-from the_alchemiser.interfaces.schemas.execution import WebSocketResultDTO
+from the_alchemiser.shared_kernel.interfaces.execution import WebSocketResultDTO
 
 # (Legacy exceptions import removed)
 from the_alchemiser.execution.infrastructure.repositories.alpaca_manager import AlpacaManager
@@ -168,7 +168,7 @@ class AlpacaClient:
             for order_dict in raw_orders.values():  # Iterate over values, not keys
                 try:
                     # Convert dict to OrderRequestDTO first, then to ValidatedOrderDTO
-                    from the_alchemiser.application.mapping.orders import (
+                    from the_alchemiser.anti_corruption.orders import (
                         dict_to_order_request_dto,
                         order_request_to_validated_dto,
                     )
@@ -227,17 +227,17 @@ class AlpacaClient:
         """Place a smart sell order using canonical executor."""
         from decimal import Decimal
 
-        from the_alchemiser.application.execution.canonical_executor import (
+        from the_alchemiser.execution.application.canonical_executor import (
             CanonicalOrderExecutor,
         )
-        from the_alchemiser.domain.trading.value_objects.order_request import (
+        from the_alchemiser.execution.domain.value_objects.order_request import (
             OrderRequest,
         )
-        from the_alchemiser.domain.trading.value_objects.order_type import OrderType
-        from the_alchemiser.domain.trading.value_objects.quantity import Quantity
-        from the_alchemiser.domain.trading.value_objects.side import Side
-        from the_alchemiser.domain.trading.value_objects.symbol import Symbol
-        from the_alchemiser.domain.trading.value_objects.time_in_force import (
+        from the_alchemiser.execution.domain.value_objects.order_type import OrderType
+        from the_alchemiser.execution.domain.value_objects.quantity import Quantity
+        from the_alchemiser.execution.domain.value_objects.side import Side
+        from the_alchemiser.execution.domain.value_objects.symbol import Symbol
+        from the_alchemiser.execution.domain.value_objects.time_in_force import (
             TimeInForce,
         )
 

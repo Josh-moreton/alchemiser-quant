@@ -12,14 +12,14 @@ from collections.abc import Mapping
 from datetime import UTC, datetime
 from typing import Any
 
-from the_alchemiser.domain.trading.lifecycle import (
+from the_alchemiser.execution.domain.lifecycle import (
     InvalidOrderStateTransitionError,
     LifecycleEventType,
     OrderLifecycleEvent,
     OrderLifecycleState,
 )
-from the_alchemiser.domain.trading.lifecycle.transitions import VALID_TRANSITIONS
-from the_alchemiser.domain.trading.value_objects.order_id import OrderId
+from the_alchemiser.execution.domain.lifecycle.transitions import VALID_TRANSITIONS
+from the_alchemiser.execution.domain.value_objects.order_id import OrderId
 
 logger = logging.getLogger(__name__)
 

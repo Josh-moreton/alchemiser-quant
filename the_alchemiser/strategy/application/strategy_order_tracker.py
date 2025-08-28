@@ -28,14 +28,14 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from typing import Any, cast
 
-from the_alchemiser.application.mapping.tracking_mapping import (
+from the_alchemiser.anti_corruption.tracking_mapping import (
     orders_to_execution_summary_dto,
     strategy_pnl_to_dict,
 )
-from the_alchemiser.domain.registry import StrategyType
-from the_alchemiser.infrastructure.config import load_settings
-from the_alchemiser.infrastructure.s3.s3_utils import get_s3_handler
-from the_alchemiser.interfaces.schemas.tracking import (
+from the_alchemiser.shared_kernel.domain import StrategyType
+from the_alchemiser.shared_kernel.infrastructure import load_settings
+from the_alchemiser.shared_kernel.infrastructure.s3_utils import get_s3_handler
+from the_alchemiser.shared_kernel.interfaces.tracking import (
     ExecutionStatus,
     StrategyExecutionSummaryDTO,
     StrategyLiteral,
@@ -50,8 +50,8 @@ from the_alchemiser.shared_kernel.infrastructure.errors.exceptions import (
 )
 
 # TODO: Import order history and email summary types once implementation aligns
-# from the_alchemiser.interfaces.schemas.execution import OrderHistoryDTO
-# from the_alchemiser.interfaces.schemas.reporting import EmailSummary
+# from the_alchemiser.shared_kernel.interfaces.execution import OrderHistoryDTO
+# from the_alchemiser.shared_kernel.interfaces.reporting import EmailSummary
 
 
 @dataclass  # Note: Pydantic DTOs available in interfaces.schemas.tracking for I/O boundaries
@@ -543,7 +543,7 @@ class StrategyOrderTracker:
             from the_alchemiser.shared_kernel.value_objects.identifier import (
                 Identifier,
             )
-            from the_alchemiser.domain.trading.errors import classify_exception
+            from the_alchemiser.execution.domain.errors import classify_exception
 
             # Convert string order_id to Identifier for classification
             typed_order_id = None

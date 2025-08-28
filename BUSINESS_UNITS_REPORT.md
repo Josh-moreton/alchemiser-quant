@@ -16,154 +16,395 @@ Every module is classified under one of these business units:
 
 ---
 
-## DDD Bounded Contexts (New Structure)
-
-### Shared Kernel Context
-**Business Unit**: utilities | **Status**: current
-
-- `the_alchemiser/shared_kernel/__init__.py` - Shared kernel entry point
-- `the_alchemiser/shared_kernel/value_objects/__init__.py` - Value objects package
-- `the_alchemiser/shared_kernel/value_objects/money.py` - Money value object
-- `the_alchemiser/shared_kernel/value_objects/percentage.py` - Percentage value object
-- `the_alchemiser/shared_kernel/value_objects/identifier.py` - Identifier value object
-- `the_alchemiser/shared_kernel/value_objects/symbol.py` - Symbol value object
-- `the_alchemiser/shared_kernel/domain/__init__.py` - Shared kernel domain layer
-- `the_alchemiser/shared_kernel/application/__init__.py` - Shared kernel application layer
-- `the_alchemiser/shared_kernel/infrastructure/__init__.py` - Shared kernel infrastructure layer
-- `the_alchemiser/shared_kernel/interfaces/__init__.py` - Shared kernel interfaces layer
-- `the_alchemiser/shared_kernel/infrastructure/config/__init__.py` - Configuration infrastructure
-- `the_alchemiser/shared_kernel/infrastructure/config/config_service.py` - Configuration service
-- `the_alchemiser/shared_kernel/infrastructure/secrets/__init__.py` - Secrets management infrastructure
-- `the_alchemiser/shared_kernel/infrastructure/secrets/secrets_service.py` - Secrets management service
-- `the_alchemiser/shared_kernel/infrastructure/errors/__init__.py` - Error handling infrastructure
-- `the_alchemiser/shared_kernel/infrastructure/errors/exceptions.py` - Custom exception classes
-- `the_alchemiser/shared_kernel/infrastructure/errors/handler.py` - Error handler
-- `the_alchemiser/shared_kernel/infrastructure/errors/decorators.py` - Error decorators
-- `the_alchemiser/shared_kernel/infrastructure/errors/error_handling.py` - Error handling utilities
-- `the_alchemiser/shared_kernel/infrastructure/errors/error_monitoring.py` - Error monitoring
-- `the_alchemiser/shared_kernel/infrastructure/errors/error_recovery.py` - Error recovery
-- `the_alchemiser/shared_kernel/infrastructure/errors/error_reporter.py` - Error reporting
-- `the_alchemiser/shared_kernel/infrastructure/errors/context.py` - Error context
-- `the_alchemiser/shared_kernel/infrastructure/errors/scope.py` - Error scope
-- `the_alchemiser/shared_kernel/infrastructure/utilities/__init__.py` - Utilities infrastructure
-- `the_alchemiser/shared_kernel/infrastructure/utilities/cache_manager.py` - Cache manager
-- `the_alchemiser/shared_kernel/infrastructure/utilities/retry_decorator.py` - Retry decorator
-- `the_alchemiser/shared_kernel/infrastructure/utilities/service_factory.py` - Service factory
-- `the_alchemiser/domain/shared_kernel/types.py` - Backwards compatibility shim (ActionType enum & value object re-exports)
-- `the_alchemiser/domain/shared_kernel/tooling/__init__.py` - Tooling package (numeric helpers export)
-- `the_alchemiser/domain/shared_kernel/tooling/num.py` - Float tolerance comparison utility (`floats_equal`)
+## DDD Bounded Contexts Structure
 
 ### Strategy Context
+**Purpose**: Signal generation, indicator calculation, regime detection, strategy composition
+
+#### Domain Layer
 **Business Unit**: strategy & signal generation | **Status**: current
 
-- `the_alchemiser/strategy/__init__.py` - Strategy context entry point
-- `the_alchemiser/strategy/domain/__init__.py` - Strategy domain layer
-- `the_alchemiser/strategy/application/__init__.py` - Strategy application layer
-- `the_alchemiser/strategy/infrastructure/__init__.py` - Strategy infrastructure layer
-- `the_alchemiser/strategy/interfaces/__init__.py` - Strategy interfaces layer
-- `the_alchemiser/strategy/infrastructure/market_data/__init__.py` - Strategy infrastructure market data
-- `the_alchemiser/strategy/infrastructure/market_data/market_data_service.py` - Market data service
-- `the_alchemiser/strategy/infrastructure/market_data/market_data_client.py` - Market data client
-- `the_alchemiser/strategy/infrastructure/market_data/price_fetching_utils.py` - Price fetching utilities
-- `the_alchemiser/strategy/infrastructure/market_data/price_service.py` - Price service
-- `the_alchemiser/strategy/infrastructure/market_data/price_utils.py` - Price utilities
-- `the_alchemiser/strategy/infrastructure/market_data/streaming_service.py` - Streaming service
-- `the_alchemiser/strategy/infrastructure/market_data/strategy_market_data_service.py` - Strategy market data service
+
+#### Domain Layer
+**Business Unit**: strategy & signal generation | **Status**: current
+
+- `strategy/domain/__init__.py`
+- `strategy/domain/ast.py`
+- `strategy/domain/engine.py`
+- `strategy/domain/entities/__init__.py`
+- `strategy/domain/errors.py`
+- `strategy/domain/errors/__init__.py`
+- `strategy/domain/errors/strategy_errors.py`
+- `strategy/domain/evaluator.py`
+- `strategy/domain/evaluator_cache.py`
+- `strategy/domain/interning.py`
+- `strategy/domain/klm_workers/__init__.py`
+- `strategy/domain/klm_workers/base_klm_variant.py`
+- `strategy/domain/klm_workers/variant_1200_28.py`
+- `strategy/domain/klm_workers/variant_1280_26.py`
+- `strategy/domain/klm_workers/variant_410_38.py`
+- `strategy/domain/klm_workers/variant_506_38.py`
+- `strategy/domain/klm_workers/variant_520_22.py`
+- `strategy/domain/klm_workers/variant_530_18.py`
+- `strategy/domain/klm_workers/variant_830_21.py`
+- `strategy/domain/klm_workers/variant_nova.py`
+- `strategy/domain/models/__init__.py`
+- `strategy/domain/models/strategy_position_model.py`
+- `strategy/domain/models/strategy_signal_model.py`
+- `strategy/domain/nuclear_logic.py`
+- `strategy/domain/nuclear_typed_engine.py`
+- `strategy/domain/optimization_config.py`
+- `strategy/domain/parser.py`
+- `strategy/domain/protocols/__init__.py`
+- `strategy/domain/protocols/strategy_engine.py`
+- `strategy/domain/strategy.py`
+- `strategy/domain/strategy_loader.py`
+- `strategy/domain/strategy_manager.py`
+- `strategy/domain/tecl_strategy_engine.py`
+- `strategy/domain/typed_klm_ensemble_engine.py`
+- `strategy/domain/typed_strategy_manager.py`
+- `strategy/domain/value_objects/alert.py`
+- `strategy/domain/value_objects/confidence.py`
+- `strategy/domain/value_objects/strategy_signal.py`
+
+
+#### Application Layer
+**Business Unit**: strategy & signal generation | **Status**: current
+
+- `strategy/application/__init__.py`
+- `strategy/application/integration.py`
+- `strategy/application/strategy_order_tracker.py`
+
+
+#### Infrastructure Layer
+**Business Unit**: strategy & signal generation | **Status**: current
+
+- `strategy/infrastructure/__init__.py`
+- `strategy/infrastructure/market_data.py`
+- `strategy/infrastructure/market_data/__init__.py`
+- `strategy/infrastructure/market_data/market_data_client.py`
+- `strategy/infrastructure/market_data/market_data_service.py`
+- `strategy/infrastructure/market_data/price_fetching_utils.py`
+- `strategy/infrastructure/market_data/price_service.py`
+- `strategy/infrastructure/market_data/price_utils.py`
+- `strategy/infrastructure/market_data/strategy_market_data_service.py`
+- `strategy/infrastructure/market_data/streaming_service.py`
+- `strategy/infrastructure/models/bar.py`
+- `strategy/infrastructure/models/quote.py`
+- `strategy/infrastructure/protocols/market_data_port.py`
+- `strategy/infrastructure/real_time_pricing.py`
+
+
+#### Interfaces Layer
+**Business Unit**: strategy & signal generation | **Status**: current
+
+- `strategy/interfaces/__init__.py`
+
 
 ### Portfolio Context
+**Purpose**: Portfolio state, valuation, allocations, risk constraints, rebalancing decisions
+
+#### Domain Layer
 **Business Unit**: portfolio assessment & management | **Status**: current
 
-- `the_alchemiser/portfolio/__init__.py` - Portfolio context entry point
-- `the_alchemiser/portfolio/domain/__init__.py` - Portfolio domain layer
-- `the_alchemiser/portfolio/application/__init__.py` - Portfolio application layer
-- `the_alchemiser/portfolio/infrastructure/__init__.py` - Portfolio infrastructure layer
-- `the_alchemiser/portfolio/interfaces/__init__.py` - Portfolio interfaces layer
-- `the_alchemiser/portfolio/application/services/__init__.py` - Portfolio application services
-- `the_alchemiser/portfolio/application/services/account_service.py` - Account management service
-- `the_alchemiser/portfolio/application/services/account_utils.py` - Account data utilities
-- `the_alchemiser/portfolio/application/services/position_service.py` - Position management service
-- `the_alchemiser/portfolio/application/services/position_manager.py` - Position management utilities
+- `portfolio/domain/__init__.py`
+- `portfolio/domain/account.py`
+- `portfolio/domain/position/__init__.py`
+- `portfolio/domain/position/position_analyzer.py`
+- `portfolio/domain/position/position_delta.py`
+- `portfolio/domain/rebalancing/__init__.py`
+- `portfolio/domain/rebalancing/rebalance_calculator.py`
+- `portfolio/domain/rebalancing/rebalance_plan.py`
+- `portfolio/domain/strategy_attribution/__init__.py`
+- `portfolio/domain/strategy_attribution/attribution_engine.py`
+- `portfolio/domain/strategy_attribution/symbol_classifier.py`
+
+
+#### Application Layer
+**Business Unit**: portfolio assessment & management | **Status**: current
+
+- `portfolio/application/__init__.py`
+- `portfolio/application/portfolio_pnl_utils.py`
+- `portfolio/application/rebalancing_orchestrator.py`
+- `portfolio/application/rebalancing_orchestrator_facade.py`
+- `portfolio/application/reporting.py`
+- `portfolio/application/services/__init__.py`
+- `portfolio/application/services/account_service.py`
+- `portfolio/application/services/account_utils.py`
+- `portfolio/application/services/portfolio_analysis_service.py`
+- `portfolio/application/services/portfolio_management_facade.py`
+- `portfolio/application/services/portfolio_rebalancing_service.py`
+- `portfolio/application/services/position_manager.py`
+- `portfolio/application/services/position_service.py`
+- `portfolio/application/services/rebalance_execution_service.py`
+
+
+#### Infrastructure Layer
+**Business Unit**: portfolio assessment & management | **Status**: current
+
+- `portfolio/infrastructure/__init__.py`
+
+
+#### Interfaces Layer
+**Business Unit**: portfolio assessment & management | **Status**: current
+
+- `portfolio/interfaces/__init__.py`
+
 
 ### Execution Context
+**Purpose**: Order validation, smart execution strategies, routing, monitoring fill lifecycle
+
+#### Domain Layer
 **Business Unit**: order execution/placement | **Status**: current
 
-- `the_alchemiser/execution/__init__.py` - Execution context entry point
-- `the_alchemiser/execution/domain/__init__.py` - Execution domain layer
-- `the_alchemiser/execution/application/__init__.py` - Execution application layer
-- `the_alchemiser/execution/infrastructure/__init__.py` - Execution infrastructure layer
-- `the_alchemiser/execution/interfaces/__init__.py` - Execution interfaces layer
-- `the_alchemiser/execution/application/services/__init__.py` - Execution application services
-- `the_alchemiser/execution/application/services/order_service.py` - Order management service
-- `the_alchemiser/execution/infrastructure/brokers/__init__.py` - Execution infrastructure brokers
-- `the_alchemiser/execution/infrastructure/brokers/trading_service_manager.py` - Trading service manager
-- `the_alchemiser/execution/infrastructure/repositories/__init__.py` - Execution infrastructure repositories
-- `the_alchemiser/execution/infrastructure/repositories/alpaca_manager.py` - Alpaca repository manager
+- `execution/domain/__init__.py`
+- `execution/domain/base_policy.py`
+- `execution/domain/buying_power_policy.py`
+- `execution/domain/entities/order.py`
+- `execution/domain/errors/__init__.py`
+- `execution/domain/errors/classifier.py`
+- `execution/domain/errors/error_categories.py`
+- `execution/domain/errors/error_codes.py`
+- `execution/domain/errors/order_error.py`
+- `execution/domain/fractionability_policy.py`
+- `execution/domain/lifecycle/__init__.py`
+- `execution/domain/lifecycle/events.py`
+- `execution/domain/lifecycle/exceptions.py`
+- `execution/domain/lifecycle/protocols.py`
+- `execution/domain/lifecycle/states.py`
+- `execution/domain/lifecycle/transitions.py`
+- `execution/domain/policy_result.py`
+- `execution/domain/position_policy.py`
+- `execution/domain/protocols.py`
+- `execution/domain/protocols/__init__.py`
+- `execution/domain/protocols/order_lifecycle.py`
+- `execution/domain/protocols/trading_repository.py`
+- `execution/domain/risk_policy.py`
+- `execution/domain/value_objects/order_id.py`
+- `execution/domain/value_objects/order_request.py`
+- `execution/domain/value_objects/order_status.py`
+- `execution/domain/value_objects/order_status_literal.py`
+- `execution/domain/value_objects/order_type.py`
+- `execution/domain/value_objects/quantity.py`
+- `execution/domain/value_objects/side.py`
+- `execution/domain/value_objects/symbol.py`
+- `execution/domain/value_objects/time_in_force.py`
 
-### Anti-Corruption Context
+
+#### Application Layer
+**Business Unit**: order execution/placement | **Status**: current
+
+- `execution/application/__init__.py`
+- `execution/application/account_facade.py`
+- `execution/application/alpaca_client.py`
+- `execution/application/asset_order_handler.py`
+- `execution/application/bootstrap.py`
+- `execution/application/buying_power_policy_impl.py`
+- `execution/application/canonical_executor.py`
+- `execution/application/canonical_integration_example.py`
+- `execution/application/engine_service.py`
+- `execution/application/execution_manager.py`
+- `execution/application/fractionability_policy_impl.py`
+- `execution/application/lifecycle/__init__.py`
+- `execution/application/lifecycle/dispatcher.py`
+- `execution/application/lifecycle/manager.py`
+- `execution/application/lifecycle/observers.py`
+- `execution/application/order_lifecycle_adapter.py`
+- `execution/application/order_request_builder.py`
+- `execution/application/order_validation.py`
+- `execution/application/order_validation_utils.py`
+- `execution/application/policy_factory.py`
+- `execution/application/policy_orchestrator.py`
+- `execution/application/portfolio_calculations.py`
+- `execution/application/ports.py`
+- `execution/application/position_policy_impl.py`
+- `execution/application/progressive_order_utils.py`
+- `execution/application/risk_policy_impl.py`
+- `execution/application/services/__init__.py`
+- `execution/application/services/order_service.py`
+- `execution/application/smart_execution.py`
+- `execution/application/smart_pricing_handler.py`
+- `execution/application/spread_assessment.py`
+- `execution/application/strategies/__init__.py`
+- `execution/application/strategies/aggressive_limit_strategy.py`
+- `execution/application/strategies/config.py`
+- `execution/application/strategies/execution_context_adapter.py`
+- `execution/application/strategies/repeg_strategy.py`
+
+
+#### Infrastructure Layer
+**Business Unit**: order execution/placement | **Status**: current
+
+- `execution/infrastructure/__init__.py`
+- `execution/infrastructure/brokers/__init__.py`
+- `execution/infrastructure/brokers/trading_service_manager.py`
+- `execution/infrastructure/repositories/__init__.py`
+- `execution/infrastructure/repositories/alpaca_manager.py`
+
+
+#### Interfaces Layer
+**Business Unit**: order execution/placement | **Status**: current
+
+- `execution/interfaces/__init__.py`
+
+
+### Shared Kernel
+**Purpose**: Cross-cutting concerns and shared value objects
+
+#### Domain Layer
 **Business Unit**: utilities | **Status**: current
 
-- `the_alchemiser/anti_corruption/__init__.py` - Anti-corruption context entry point
-- `the_alchemiser/anti_corruption/domain/__init__.py` - Anti-corruption domain layer
-- `the_alchemiser/anti_corruption/application/__init__.py` - Anti-corruption application layer
-- `the_alchemiser/anti_corruption/infrastructure/__init__.py` - Anti-corruption infrastructure layer
-- `the_alchemiser/anti_corruption/interfaces/__init__.py` - Anti-corruption interfaces layer
+- `shared_kernel/domain/__init__.py`
+- `shared_kernel/domain/account_like.py`
+- `shared_kernel/domain/account_repository.py`
+- `shared_kernel/domain/asset_info.py`
+- `shared_kernel/domain/indicator_utils.py`
+- `shared_kernel/domain/indicators.py`
+- `shared_kernel/domain/market_data_repository.py`
+- `shared_kernel/domain/market_timing_utils.py`
+- `shared_kernel/domain/math_utils.py`
+- `shared_kernel/domain/order_like.py`
+- `shared_kernel/domain/position_like.py`
+- `shared_kernel/domain/protocols/__init__.py`
+- `shared_kernel/domain/protocols/asset_metadata_provider.py`
+- `shared_kernel/domain/rebalancing_policy.py`
+- `shared_kernel/domain/strategy_registry.py`
+- `shared_kernel/domain/trading_math.py`
+- `shared_kernel/domain/trading_repository.py`
+- `shared_kernel/domain/types.py`
 
-### Interface Utilities (Added in Task 2 / PR #398)
+
+#### Application Layer
 **Business Unit**: utilities | **Status**: current
 
-- `the_alchemiser/interfaces/utils/__init__.py` - Interface utilities package
-- `the_alchemiser/interfaces/utils/serialization.py` - Boundary-safe serialization helpers
+- `shared_kernel/application/__init__.py`
+
+
+#### Infrastructure Layer
+**Business Unit**: utilities | **Status**: current
+
+- `shared_kernel/infrastructure/__init__.py`
+- `shared_kernel/infrastructure/alert_service.py`
+- `shared_kernel/infrastructure/application_container.py`
+- `shared_kernel/infrastructure/client.py`
+- `shared_kernel/infrastructure/config.py`
+- `shared_kernel/infrastructure/config/__init__.py`
+- `shared_kernel/infrastructure/config/config_service.py`
+- `shared_kernel/infrastructure/config_providers.py`
+- `shared_kernel/infrastructure/config_utils.py`
+- `shared_kernel/infrastructure/email_utils.py`
+- `shared_kernel/infrastructure/errors/__init__.py`
+- `shared_kernel/infrastructure/errors/context.py`
+- `shared_kernel/infrastructure/errors/decorators.py`
+- `shared_kernel/infrastructure/errors/error_handling.py`
+- `shared_kernel/infrastructure/errors/error_monitoring.py`
+- `shared_kernel/infrastructure/errors/error_recovery.py`
+- `shared_kernel/infrastructure/errors/error_reporter.py`
+- `shared_kernel/infrastructure/errors/exceptions.py`
+- `shared_kernel/infrastructure/errors/handler.py`
+- `shared_kernel/infrastructure/errors/scope.py`
+- `shared_kernel/infrastructure/execution_config.py`
+- `shared_kernel/infrastructure/indicator_validator.py`
+- `shared_kernel/infrastructure/infrastructure_providers.py`
+- `shared_kernel/infrastructure/logging_utils.py`
+- `shared_kernel/infrastructure/s3_utils.py`
+- `shared_kernel/infrastructure/secrets/__init__.py`
+- `shared_kernel/infrastructure/secrets/secrets_service.py`
+- `shared_kernel/infrastructure/secrets_manager.py`
+- `shared_kernel/infrastructure/service_providers.py`
+- `shared_kernel/infrastructure/slippage_analyzer.py`
+- `shared_kernel/infrastructure/templates/__init__.py`
+- `shared_kernel/infrastructure/templates/base.py`
+- `shared_kernel/infrastructure/templates/error_report.py`
+- `shared_kernel/infrastructure/templates/multi_strategy.py`
+- `shared_kernel/infrastructure/templates/performance.py`
+- `shared_kernel/infrastructure/templates/portfolio.py`
+- `shared_kernel/infrastructure/templates/signals.py`
+- `shared_kernel/infrastructure/templates/trading_report.py`
+- `shared_kernel/infrastructure/tick_size_service.py`
+- `shared_kernel/infrastructure/utilities/__init__.py`
+- `shared_kernel/infrastructure/websocket_connection_manager.py`
+- `shared_kernel/infrastructure/websocket_order_monitor.py`
+
+
+#### Interfaces Layer
+**Business Unit**: utilities | **Status**: current
+
+- `shared_kernel/interfaces/__init__.py`
+- `shared_kernel/interfaces/accounts.py`
+- `shared_kernel/interfaces/alpaca.py`
+- `shared_kernel/interfaces/base.py`
+- `shared_kernel/interfaces/cli.py`
+- `shared_kernel/interfaces/cli_formatter.py`
+- `shared_kernel/interfaces/common.py`
+- `shared_kernel/interfaces/dashboard_utils.py`
+- `shared_kernel/interfaces/enriched_data.py`
+- `shared_kernel/interfaces/error_display_utils.py`
+- `shared_kernel/interfaces/errors.py`
+- `shared_kernel/interfaces/execution.py`
+- `shared_kernel/interfaces/execution_summary.py`
+- `shared_kernel/interfaces/market_data.py`
+- `shared_kernel/interfaces/operations.py`
+- `shared_kernel/interfaces/orders.py`
+- `shared_kernel/interfaces/portfolio_calculations.py`
+- `shared_kernel/interfaces/portfolio_rebalancing.py`
+- `shared_kernel/interfaces/positions.py`
+- `shared_kernel/interfaces/reporting.py`
+- `shared_kernel/interfaces/serialization.py`
+- `shared_kernel/interfaces/signal_analyzer.py`
+- `shared_kernel/interfaces/signal_display_utils.py`
+- `shared_kernel/interfaces/smart_trading.py`
+- `shared_kernel/interfaces/tracking.py`
+- `shared_kernel/interfaces/trading_executor.py`
+
+
+### Anti-Corruption Layer
+**Purpose**: External ↔ internal mappers and translation
+
+**Business Unit**: utilities | **Status**: current
+
+- `anti_corruption/__init__.py`
+- `anti_corruption/account_mapping.py`
+- `anti_corruption/alpaca_dto_mapping.py`
+- `anti_corruption/application/__init__.py`
+- `anti_corruption/domain/__init__.py`
+- `anti_corruption/execution.py`
+- `anti_corruption/execution_summary_mapping.py`
+- `anti_corruption/infrastructure/__init__.py`
+- `anti_corruption/interfaces/__init__.py`
+- `anti_corruption/market_data_mappers.py`
+- `anti_corruption/market_data_mapping.py`
+- `anti_corruption/models/__init__.py`
+- `anti_corruption/models/order.py`
+- `anti_corruption/models/position.py`
+- `anti_corruption/order_mapping.py`
+- `anti_corruption/orders.py`
+- `anti_corruption/pandas_time_series.py`
+- `anti_corruption/policy_mapping.py`
+- `anti_corruption/portfolio_rebalancing_mapping.py`
+- `anti_corruption/position_mapping.py`
+- `anti_corruption/strategies.py`
+- `anti_corruption/strategy_domain_mapping.py`
+- `anti_corruption/strategy_market_data_adapter.py`
+- `anti_corruption/strategy_signal_mapping.py`
+- `anti_corruption/tracking.py`
+- `anti_corruption/tracking_mapping.py`
+- `anti_corruption/tracking_normalization.py`
+- `anti_corruption/trading_service_dto_mapping.py`
+
+
+### Top-Level Modules
+**Business Unit**: utilities | **Status**: current
+
+- `the_alchemiser/__init__.py`
+- `the_alchemiser/lambda_handler.py`
+- `the_alchemiser/main.py`
+
 
 ---
-
-## Task 2 Migration (PR #398) – Retirement of `utils/` Module
-
-Task 2 of Epic #375 removed the legacy monolithic `the_alchemiser/utils/` module. Responsibilities were redistributed to bounded contexts:
-
-- `ActionType` enum → shared kernel types shim (`the_alchemiser/domain/shared_kernel/types.py`)
-- Numeric helper `floats_equal` → shared kernel tooling (`the_alchemiser/domain/shared_kernel/tooling/num.py`)
-- Serialization utilities → interface utilities (`the_alchemiser/interfaces/utils/serialization.py`)
-
-All imports across impacted files were updated; no remaining references to the removed `utils` namespace exist.
 
 ## Summary
 
-- **Total new modules**: 25 new DDD bounded context modules (Task 1) + 4 migration utility modules (Task 2)
-- **Modules by business unit**:
-  - utilities: 19 modules (shared_kernel + anti_corruption + interface utilities + tooling shim)
-  - strategy & signal generation: 5 modules (strategy context)
-  - portfolio assessment & management: 5 modules (portfolio context)
-  - order execution/placement: 5 modules (execution context)
-- **All modules status**: current
-
-**Note**: Task 2 (PR #398) completed removal of the legacy `utils/` module. Task 3 (PR #399) completed migration of the `services/` directory into bounded context layers.
-
----
-
-## Services Migration Summary (Task 3)
-
-**Epic #375 Task 3**: Successfully migrated all services from `the_alchemiser/services/` into appropriate bounded context layers:
-
-### Migrated Services by Context:
-
-**Shared Kernel Infrastructure** (Cross-cutting concerns):
-- Configuration management (config_service.py)
-- Secrets management (secrets_service.py)
-- Error handling utilities (exceptions, handlers, decorators, etc.)
-- Caching and retry mechanisms
-- Service factory utilities
-
-**Portfolio Context Application** (Portfolio management):
-- Account management service and utilities
-- Position management service and utilities
-
-**Strategy Context Infrastructure** (Market data for strategies):
-- Market data service and client
-- Price fetching and utilities
-- Streaming services
-
-**Execution Context** (Order execution):
-- Order service (application layer)
-- Trading service manager and Alpaca repository (infrastructure layer)
-
-All services maintain their original functionality while now being properly classified within the DDD bounded context architecture. Import statements throughout the codebase have been updated accordingly.
+**Total modules**: 275
+**Architecture**: Domain-Driven Design with bounded contexts
+**Migration status**: Complete - all legacy services/ directory content migrated

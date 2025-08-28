@@ -12,8 +12,8 @@ from decimal import Decimal
 
 import pandas as pd
 
-from the_alchemiser.domain.market_data.models.bar import BarModel
-from the_alchemiser.domain.market_data.models.quote import QuoteModel
+from the_alchemiser.strategy.infrastructure.models.bar import BarModel
+from the_alchemiser.strategy.infrastructure.models.quote import QuoteModel
 from the_alchemiser.shared_kernel.value_objects.symbol import Symbol
 
 

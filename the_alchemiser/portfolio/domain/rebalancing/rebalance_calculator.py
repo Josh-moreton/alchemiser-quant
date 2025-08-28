@@ -7,8 +7,8 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from the_alchemiser.domain.math.trading_math import calculate_rebalance_amounts
-from the_alchemiser.domain.portfolio.rebalancing.rebalance_plan import RebalancePlan
+from the_alchemiser.shared_kernel.domain.trading_math import calculate_rebalance_amounts
+from the_alchemiser.portfolio.domain.rebalancing.rebalance_plan import RebalancePlan
 
 
 class RebalanceCalculator:

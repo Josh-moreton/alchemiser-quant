@@ -15,11 +15,11 @@ from __future__ import annotations
 import logging
 from typing import Any, TypedDict
 
-from the_alchemiser.application.mapping.strategy_market_data_adapter import (
+from the_alchemiser.anti_corruption.strategy_market_data_adapter import (
     StrategyMarketDataAdapter,
 )
-from the_alchemiser.infrastructure.config import Settings, load_settings
-from the_alchemiser.infrastructure.secrets.secrets_manager import SecretsManager
+from the_alchemiser.shared_kernel.infrastructure import Settings, load_settings
+from the_alchemiser.shared_kernel.infrastructure.secrets_manager import SecretsManager
 from the_alchemiser.portfolio.application.services.account_service import AccountService as TypedAccountService
 from the_alchemiser.shared_kernel.infrastructure.errors.context import create_error_context
 from the_alchemiser.shared_kernel.infrastructure.errors.exceptions import ConfigurationError

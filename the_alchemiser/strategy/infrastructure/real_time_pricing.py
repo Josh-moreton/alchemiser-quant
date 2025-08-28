@@ -40,7 +40,7 @@ from alpaca.data.live import StockDataStream
 from alpaca.data.models import Quote, Trade
 
 # TODO: Phase 11 - Types available for future migration to structured pricing data
-# from the_alchemiser.domain.types import PriceData, QuoteData
+# from the_alchemiser.shared_kernel.domain.types import PriceData, QuoteData
 
 
 @dataclass

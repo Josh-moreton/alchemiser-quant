@@ -14,18 +14,18 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any, Literal, TypedDict, cast
 
-from the_alchemiser.application.mapping.orders import normalize_order_status
+from the_alchemiser.anti_corruption.orders import normalize_order_status
 from the_alchemiser.shared_kernel.value_objects.money import Money
-from the_alchemiser.domain.trading.entities.order import Order
-from the_alchemiser.domain.trading.value_objects.order_id import OrderId
-from the_alchemiser.domain.trading.value_objects.order_status import OrderStatus
-from the_alchemiser.domain.trading.value_objects.order_type import OrderType
-from the_alchemiser.domain.trading.value_objects.quantity import Quantity
-from the_alchemiser.domain.trading.value_objects.symbol import Symbol
-from the_alchemiser.domain.trading.value_objects.time_in_force import TimeInForce
+from the_alchemiser.execution.domain.entities.order import Order
+from the_alchemiser.execution.domain.value_objects.order_id import OrderId
+from the_alchemiser.execution.domain.value_objects.order_status import OrderStatus
+from the_alchemiser.execution.domain.value_objects.order_type import OrderType
+from the_alchemiser.execution.domain.value_objects.quantity import Quantity
+from the_alchemiser.execution.domain.value_objects.symbol import Symbol
+from the_alchemiser.execution.domain.value_objects.time_in_force import TimeInForce
 
 if TYPE_CHECKING:
-    from the_alchemiser.interfaces.schemas.orders import OrderExecutionResultDTO, RawOrderEnvelope
+    from the_alchemiser.shared_kernel.interfaces.orders import OrderExecutionResultDTO, RawOrderEnvelope
 
 
 class OrderSummary(TypedDict, total=False):
@@ -215,7 +215,7 @@ def raw_order_envelope_to_execution_result_dto(
         OrderExecutionResultDTO with execution details
 
     """
-    from the_alchemiser.application.mapping.alpaca_dto_mapping import (
+    from the_alchemiser.anti_corruption.alpaca_dto_mapping import (
         alpaca_order_to_execution_result,
         create_error_execution_result,
     )

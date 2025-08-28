@@ -37,27 +37,27 @@ from typing import TYPE_CHECKING, Any, Protocol
 
 from alpaca.trading.enums import OrderSide
 
-from the_alchemiser.application.execution.canonical_executor import (
+from the_alchemiser.execution.application.canonical_executor import (
     CanonicalOrderExecutor,
 )
 from the_alchemiser.shared_kernel.value_objects.money import Money
-from the_alchemiser.domain.trading.value_objects.order_request import OrderRequest
-from the_alchemiser.domain.trading.value_objects.order_type import (
+from the_alchemiser.execution.domain.value_objects.order_request import OrderRequest
+from the_alchemiser.execution.domain.value_objects.order_type import (
     OrderType as DomainOrderType,
 )
-from the_alchemiser.domain.trading.value_objects.quantity import (
+from the_alchemiser.execution.domain.value_objects.quantity import (
     Quantity as DomainQuantity,
 )
-from the_alchemiser.domain.trading.value_objects.side import Side as DomainSide
-from the_alchemiser.domain.trading.value_objects.symbol import Symbol as DomainSymbol
-from the_alchemiser.domain.trading.value_objects.time_in_force import (
+from the_alchemiser.execution.domain.value_objects.side import Side as DomainSide
+from the_alchemiser.execution.domain.value_objects.symbol import Symbol as DomainSymbol
+from the_alchemiser.execution.domain.value_objects.time_in_force import (
     TimeInForce as DomainTimeInForce,
 )
-from the_alchemiser.infrastructure.config.execution_config import (
+from the_alchemiser.shared_kernel.infrastructure.execution_config import (
     ExecutionConfig,
     get_execution_config,
 )
-from the_alchemiser.interfaces.schemas.execution import WebSocketResultDTO
+from the_alchemiser.shared_kernel.interfaces.execution import WebSocketResultDTO
 
 if TYPE_CHECKING:
     pass
@@ -328,10 +328,10 @@ class SmartExecution:
             Order ID if successful, None otherwise
 
         """
-        from the_alchemiser.application.execution.spread_assessment import (
+        from the_alchemiser.execution.application.spread_assessment import (
             SpreadAssessment,
         )
-        from the_alchemiser.domain.math.market_timing_utils import (
+        from the_alchemiser.shared_kernel.domain.market_timing_utils import (
             MarketOpenTimingEngine,
         )
 
@@ -915,11 +915,11 @@ class SmartExecution:
         """
         from decimal import Decimal
 
-        from the_alchemiser.application.execution.strategies import (
+        from the_alchemiser.execution.application.strategies import (
             AggressiveLimitStrategy,
             ExecutionContextAdapter,
         )
-        from the_alchemiser.infrastructure.config.execution_config import (
+        from the_alchemiser.shared_kernel.infrastructure.execution_config import (
             create_strategy_config,
         )
 

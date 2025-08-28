@@ -18,9 +18,9 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any, Literal, cast
 
-from the_alchemiser.application.mapping.orders import normalize_order_status
-from the_alchemiser.interfaces.schemas.alpaca import AlpacaErrorDTO, AlpacaOrderDTO
-from the_alchemiser.interfaces.schemas.orders import OrderExecutionResultDTO
+from the_alchemiser.anti_corruption.orders import normalize_order_status
+from the_alchemiser.shared_kernel.interfaces.alpaca import AlpacaErrorDTO, AlpacaOrderDTO
+from the_alchemiser.shared_kernel.interfaces.orders import OrderExecutionResultDTO
 
 logger = logging.getLogger(__name__)
 

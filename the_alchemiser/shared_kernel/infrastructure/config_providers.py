@@ -7,8 +7,8 @@ from __future__ import annotations
 
 from dependency_injector import containers, providers
 
-from the_alchemiser.infrastructure.config import load_settings
-from the_alchemiser.infrastructure.secrets.secrets_manager import SecretsManager
+from the_alchemiser.shared_kernel.infrastructure import load_settings
+from the_alchemiser.shared_kernel.infrastructure.secrets_manager import SecretsManager
 
 
 class ConfigProviders(containers.DeclarativeContainer):

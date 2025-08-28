@@ -11,7 +11,7 @@ from __future__ import annotations
 from decimal import Decimal, InvalidOperation
 from typing import Any, TypedDict
 
-from the_alchemiser.domain.types import AccountInfo, PositionInfo, PositionsDict
+from the_alchemiser.shared_kernel.domain.types import AccountInfo, PositionInfo, PositionsDict
 from the_alchemiser.portfolio.application.services.account_utils import (
     extract_current_position_values as _float_current_values,
 )

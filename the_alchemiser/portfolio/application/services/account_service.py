@@ -5,9 +5,9 @@ from __future__ import annotations
 import logging
 from typing import Any, Literal, cast
 
-from the_alchemiser.domain.interfaces import AccountRepository
-from the_alchemiser.domain.types import AccountInfo, PositionsDict
-from the_alchemiser.domain.shared_kernel import floats_equal
+from the_alchemiser.shared_kernel.domain import AccountRepository
+from the_alchemiser.shared_kernel.domain.types import AccountInfo, PositionsDict
+from the_alchemiser.shared_kernel import floats_equal
 
 
 class AccountService:

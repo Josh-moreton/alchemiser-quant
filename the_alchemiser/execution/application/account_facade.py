@@ -28,14 +28,14 @@ import logging
 from decimal import Decimal
 from typing import Any, cast
 
-from the_alchemiser.application.mapping.account_mapping import account_summary_to_typed
-from the_alchemiser.domain.types import (
+from the_alchemiser.anti_corruption.account_mapping import account_summary_to_typed
+from the_alchemiser.shared_kernel.domain.types import (
     AccountInfo,
     ClosedPositionData,
     EnrichedAccountInfo,
     PositionsDict,
 )
-from the_alchemiser.interfaces.schemas.accounts import (
+from the_alchemiser.shared_kernel.interfaces.accounts import (
     AccountMetricsDTO,
     AccountSummaryDTO,
     EnrichedAccountSummaryDTO,
@@ -48,7 +48,7 @@ from the_alchemiser.shared_kernel.infrastructure.errors.exceptions import (
 )
 from the_alchemiser.strategy.infrastructure.market_data.market_data_service import MarketDataService
 from the_alchemiser.portfolio.application.services.position_service import PositionService
-from the_alchemiser.interfaces.utils.serialization import ensure_serialized_dict
+from the_alchemiser.shared_kernel.interfaces.serialization import ensure_serialized_dict
 
 logger = logging.getLogger(__name__)
 

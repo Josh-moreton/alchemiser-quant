@@ -15,7 +15,7 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Any
 
-from the_alchemiser.interfaces.schemas.execution_summary import (
+from the_alchemiser.shared_kernel.interfaces.execution_summary import (
     AllocationSummaryDTO,
     ExecutionSummaryDTO,
     PortfolioStateDTO,

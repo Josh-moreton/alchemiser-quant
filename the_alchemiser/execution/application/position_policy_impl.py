@@ -13,16 +13,16 @@ import logging
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from the_alchemiser.domain.policies.policy_result import (
+from the_alchemiser.execution.domain.policy_result import (
     PolicyResult,
     PolicyWarning,
     create_approved_result,
     create_rejected_result,
 )
-from the_alchemiser.domain.policies.protocols import TradingClientProtocol
-from the_alchemiser.domain.trading.value_objects.order_request import OrderRequest
-from the_alchemiser.domain.trading.value_objects.quantity import Quantity
-from the_alchemiser.infrastructure.logging.logging_utils import log_with_context
+from the_alchemiser.execution.domain.protocols import TradingClientProtocol
+from the_alchemiser.execution.domain.value_objects.order_request import OrderRequest
+from the_alchemiser.execution.domain.value_objects.quantity import Quantity
+from the_alchemiser.shared_kernel.infrastructure.logging_utils import log_with_context
 from the_alchemiser.shared_kernel.infrastructure.errors.exceptions import PositionValidationError
 
 if TYPE_CHECKING:

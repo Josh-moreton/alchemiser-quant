@@ -14,7 +14,7 @@ import logging
 from datetime import UTC, datetime
 from typing import Any
 
-from the_alchemiser.domain.types import AccountInfo, PositionInfo
+from the_alchemiser.shared_kernel.domain.types import AccountInfo, PositionInfo
 
 
 def build_basic_dashboard_structure(paper_trading: bool) -> dict[str, Any]:

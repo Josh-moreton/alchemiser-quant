@@ -16,8 +16,8 @@ import decimal
 from decimal import Decimal
 from typing import Any
 
-from the_alchemiser.domain.portfolio.rebalancing.rebalance_plan import RebalancePlan
-from the_alchemiser.interfaces.schemas.portfolio_rebalancing import (
+from the_alchemiser.portfolio.domain.rebalancing.rebalance_plan import RebalancePlan
+from the_alchemiser.shared_kernel.interfaces.portfolio_rebalancing import (
     RebalanceExecutionResultDTO,
     RebalanceInstructionDTO,
     RebalancePlanCollectionDTO,

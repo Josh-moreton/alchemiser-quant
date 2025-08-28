@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from the_alchemiser.domain.portfolio.position.position_delta import PositionDelta
+from the_alchemiser.portfolio.domain.position.position_delta import PositionDelta
 
 
 class PositionAnalyzer:

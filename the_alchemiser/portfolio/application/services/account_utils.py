@@ -12,7 +12,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from the_alchemiser.domain.types import AccountInfo, PositionInfo
+from the_alchemiser.shared_kernel.domain.types import AccountInfo, PositionInfo
 
 
 def extract_comprehensive_account_data(data_provider: Any) -> AccountInfo:

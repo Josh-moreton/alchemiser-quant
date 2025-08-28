@@ -16,7 +16,7 @@ from typing import NamedTuple, TypedDict
 
 from alpaca.trading.enums import OrderSide
 
-from the_alchemiser.infrastructure.services.tick_size_service import (
+from the_alchemiser.shared_kernel.infrastructure.tick_size_service import (
     DynamicTickSizeService,
     resolve_tick_size,
 )

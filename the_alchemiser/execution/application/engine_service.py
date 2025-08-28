@@ -30,47 +30,47 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, Protocol
 
 if TYPE_CHECKING:  # Import for type checking only to avoid runtime dependency
-    from the_alchemiser.application.mapping.strategies import StrategySignalDisplayDTO
+    from the_alchemiser.anti_corruption.strategies import StrategySignalDisplayDTO
 
 from alpaca.trading.enums import OrderSide
 
-from the_alchemiser.application.execution.smart_execution import SmartExecution
-from the_alchemiser.application.mapping.execution_summary_mapping import (
+from the_alchemiser.execution.application.smart_execution import SmartExecution
+from the_alchemiser.anti_corruption.execution_summary_mapping import (
     safe_dict_to_execution_summary_dto,
     safe_dict_to_portfolio_state_dto,
 )
-from the_alchemiser.application.mapping.strategies import (
+from the_alchemiser.anti_corruption.strategies import (
     StrategySignalDisplayDTO,
     run_all_strategies_mapping,
 )
-from the_alchemiser.application.portfolio.services.portfolio_management_facade import (
+from the_alchemiser.portfolio.application.services.portfolio_management_facade import (
     PortfolioManagementFacade,
 )
-from the_alchemiser.application.trading.account_facade import AccountFacade
-from the_alchemiser.application.trading.alpaca_client import AlpacaClient
-from the_alchemiser.application.trading.bootstrap import (
+from the_alchemiser.execution.application.account_facade import AccountFacade
+from the_alchemiser.execution.application.alpaca_client import AlpacaClient
+from the_alchemiser.execution.application.bootstrap import (
     TradingBootstrapContext,
     bootstrap_from_container,
     bootstrap_from_service_manager,
     bootstrap_traditional,
 )
-from the_alchemiser.infrastructure.logging.logging_utils import (
+from the_alchemiser.shared_kernel.infrastructure.logging_utils import (
     get_logger,
     log_with_context,
 )
 
 # Import application-layer ports for dependency injection
-from the_alchemiser.domain.registry import StrategyType
-from the_alchemiser.domain.strategies.typed_strategy_manager import TypedStrategyManager
-from the_alchemiser.domain.types import (
+from the_alchemiser.shared_kernel.domain import StrategyType
+from the_alchemiser.strategy.domain.typed_strategy_manager import TypedStrategyManager
+from the_alchemiser.shared_kernel.domain.types import (
     AccountInfo,
     EnrichedAccountInfo,
     OrderDetails,
     PositionsDict,
 )
-from the_alchemiser.infrastructure.config import Settings
-from the_alchemiser.interfaces.schemas.common import MultiStrategyExecutionResultDTO
-from the_alchemiser.interfaces.schemas.execution import ExecutionResultDTO
+from the_alchemiser.shared_kernel.infrastructure import Settings
+from the_alchemiser.shared_kernel.interfaces.common import MultiStrategyExecutionResultDTO
+from the_alchemiser.shared_kernel.interfaces.execution import ExecutionResultDTO
 from the_alchemiser.portfolio.application.services.account_service import (
     AccountService as TypedAccountService,
 )
@@ -289,7 +289,7 @@ class TradingEngine:
                     trading_manager=trading_manager,
                 )
                 # Initialize rebalancing orchestrator facade for sequential SELL→settle→BUY execution
-                from the_alchemiser.application.portfolio.rebalancing_orchestrator_facade import (
+                from the_alchemiser.portfolio.application.rebalancing_orchestrator_facade import (
                     RebalancingOrchestratorFacade,
                 )
 
@@ -767,7 +767,7 @@ class TradingEngine:
     def _archive_daily_strategy_pnl(self, pnl_summary: dict[str, Any]) -> None:
         """Archive daily strategy P&L for historical tracking."""
         try:
-            from the_alchemiser.application.tracking.strategy_order_tracker import (
+            from the_alchemiser.strategy.application.strategy_order_tracker import (
                 get_strategy_tracker,
             )
 
@@ -1039,7 +1039,7 @@ def main() -> None:
     # Modern DI initialization (no legacy fallback). Any failure should surface immediately.
     # These imports are kept at function level to avoid circular imports at module load time
     # since main.py indirectly imports this module through CLI components
-    from the_alchemiser.infrastructure.dependency_injection.application_container import (
+    from the_alchemiser.shared_kernel.infrastructure.application_container import (
         ApplicationContainer,
     )
     from the_alchemiser.main import TradingSystem

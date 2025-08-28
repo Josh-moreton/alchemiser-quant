@@ -14,7 +14,7 @@ from typing import Any
 
 from alpaca.trading.enums import OrderSide
 
-from the_alchemiser.infrastructure.logging.logging_utils import get_logger, log_error_with_context
+from the_alchemiser.shared_kernel.infrastructure.logging_utils import get_logger, log_error_with_context
 from the_alchemiser.shared_kernel.infrastructure.errors.exceptions import DataProviderError
 
 

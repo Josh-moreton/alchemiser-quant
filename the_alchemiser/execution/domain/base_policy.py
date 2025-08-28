@@ -10,8 +10,8 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from the_alchemiser.domain.policies.policy_result import PolicyResult
-from the_alchemiser.domain.trading.value_objects.order_request import OrderRequest
+from the_alchemiser.execution.domain.policy_result import PolicyResult
+from the_alchemiser.execution.domain.value_objects.order_request import OrderRequest
 
 
 class OrderPolicy(Protocol):

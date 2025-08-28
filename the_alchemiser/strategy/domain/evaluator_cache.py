@@ -18,7 +18,7 @@ from dataclasses import dataclass, fields, is_dataclass
 from threading import RLock
 from typing import Any
 
-from the_alchemiser.domain.dsl.ast import (
+from the_alchemiser.strategy.domain.ast import (
     RSI,
     Asset,
     ASTNode,

@@ -13,7 +13,7 @@ from typing import Any
 from .base import BaseEmailTemplate
 
 # TODO: Phase 12 - Types available for future migration to structured performance reports
-# from the_alchemiser.domain.types import BacktestResult, PerformanceMetrics, TradeAnalysis
+# from the_alchemiser.shared_kernel.domain.types import BacktestResult, PerformanceMetrics, TradeAnalysis
 
 
 class PerformanceBuilder:

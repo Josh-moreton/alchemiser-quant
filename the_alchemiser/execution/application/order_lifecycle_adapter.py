@@ -10,13 +10,13 @@ from __future__ import annotations
 
 from typing import Any, Protocol
 
-from the_alchemiser.domain.trading.protocols.order_lifecycle import (
+from the_alchemiser.execution.domain.protocols.order_lifecycle import (
     OrderLifecycleMonitor,
 )
-from the_alchemiser.infrastructure.websocket.websocket_order_monitor import (
+from the_alchemiser.shared_kernel.infrastructure.websocket_order_monitor import (
     OrderCompletionMonitor,
 )
-from the_alchemiser.interfaces.schemas.execution import WebSocketResultDTO
+from the_alchemiser.shared_kernel.interfaces.execution import WebSocketResultDTO
 
 
 class TradingClientProtocol(Protocol):  # pragma: no cover - structural typing

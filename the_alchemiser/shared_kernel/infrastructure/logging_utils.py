@@ -15,7 +15,7 @@ from contextvars import ContextVar
 from datetime import datetime
 from typing import Any
 
-from the_alchemiser.infrastructure.s3.s3_utils import S3FileHandler
+from the_alchemiser.shared_kernel.infrastructure.s3_utils import S3FileHandler
 
 # Context variables for request tracking
 request_id_context: ContextVar[str | None] = ContextVar("request_id", default=None)

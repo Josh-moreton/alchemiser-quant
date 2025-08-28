@@ -22,10 +22,10 @@ from typing import Any
 
 import pandas as pd
 
-from the_alchemiser.application.mapping.market_data_mappers import bars_to_domain
-from the_alchemiser.domain.interfaces import MarketDataRepository
-from the_alchemiser.domain.market_data.models.bar import BarModel
-from the_alchemiser.domain.market_data.models.quote import QuoteModel
+from the_alchemiser.anti_corruption.market_data_mappers import bars_to_domain
+from the_alchemiser.shared_kernel.domain import MarketDataRepository
+from the_alchemiser.strategy.infrastructure.models.bar import BarModel
+from the_alchemiser.strategy.infrastructure.models.quote import QuoteModel
 from the_alchemiser.shared_kernel.value_objects.symbol import Symbol
 from the_alchemiser.shared_kernel.infrastructure.errors.decorators import translate_market_data_errors
 

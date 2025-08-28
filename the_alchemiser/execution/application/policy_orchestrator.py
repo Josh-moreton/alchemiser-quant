@@ -12,29 +12,29 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from the_alchemiser.application.mapping.policy_mapping import (
+from the_alchemiser.anti_corruption.policy_mapping import (
     domain_result_to_dto,
     dto_to_domain_order_request,
 )
-from the_alchemiser.domain.policies.policy_result import PolicyResult, PolicyWarning
-from the_alchemiser.domain.trading.value_objects.order_request import OrderRequest
-from the_alchemiser.infrastructure.logging.logging_utils import log_with_context
-from the_alchemiser.interfaces.schemas.orders import (
+from the_alchemiser.execution.domain.policy_result import PolicyResult, PolicyWarning
+from the_alchemiser.execution.domain.value_objects.order_request import OrderRequest
+from the_alchemiser.shared_kernel.infrastructure.logging_utils import log_with_context
+from the_alchemiser.shared_kernel.interfaces.orders import (
     AdjustedOrderRequestDTO,
     OrderRequestDTO,
 )
 
 if TYPE_CHECKING:
-    from the_alchemiser.application.policies.buying_power_policy_impl import (
+    from the_alchemiser.execution.application.buying_power_policy_impl import (
         BuyingPowerPolicyImpl,
     )
-    from the_alchemiser.application.policies.fractionability_policy_impl import (
+    from the_alchemiser.execution.application.fractionability_policy_impl import (
         FractionabilityPolicyImpl,
     )
-    from the_alchemiser.application.policies.position_policy_impl import (
+    from the_alchemiser.execution.application.position_policy_impl import (
         PositionPolicyImpl,
     )
-    from the_alchemiser.application.policies.risk_policy_impl import RiskPolicyImpl
+    from the_alchemiser.execution.application.risk_policy_impl import RiskPolicyImpl
 
 logger = logging.getLogger(__name__)
 
@@ -169,7 +169,7 @@ class PolicyOrchestrator:
                 error=str(e),
             )
 
-            from the_alchemiser.domain.policies.policy_result import (
+            from the_alchemiser.execution.domain.policy_result import (
                 create_rejected_result,
             )
 
@@ -214,7 +214,7 @@ class PolicyOrchestrator:
                 error=str(e),
             )
 
-            from the_alchemiser.domain.policies.policy_result import (
+            from the_alchemiser.execution.domain.policy_result import (
                 create_rejected_result,
             )
 
@@ -259,7 +259,7 @@ class PolicyOrchestrator:
                 error=str(e),
             )
 
-            from the_alchemiser.domain.policies.policy_result import (
+            from the_alchemiser.execution.domain.policy_result import (
                 create_rejected_result,
             )
 
@@ -304,7 +304,7 @@ class PolicyOrchestrator:
                 error=str(e),
             )
 
-            from the_alchemiser.domain.policies.policy_result import (
+            from the_alchemiser.execution.domain.policy_result import (
                 create_rejected_result,
             )
 
@@ -330,7 +330,7 @@ class PolicyOrchestrator:
             total_warnings=str(len(all_warnings)),
         )
 
-        from the_alchemiser.domain.policies.policy_result import create_approved_result
+        from the_alchemiser.execution.domain.policy_result import create_approved_result
 
         result = create_approved_result(
             order_request=current_request,

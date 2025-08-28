@@ -21,7 +21,7 @@ from __future__ import annotations
 import pandas as pd
 
 # TODO: Phase 11 - Type available for future structured indicator results
-# from the_alchemiser.domain.types import IndicatorData
+# from the_alchemiser.shared_kernel.domain.types import IndicatorData
 
 
 class TechnicalIndicators:

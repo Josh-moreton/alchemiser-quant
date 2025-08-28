@@ -14,7 +14,7 @@ Key Features:
 - Symbol normalization and data integrity checks
 
 Usage:
-    from the_alchemiser.interfaces.schemas.tracking import (
+    from the_alchemiser.shared_kernel.interfaces.tracking import (
         StrategyOrderEventDTO,
         StrategyExecutionSummaryDTO,
         OrderEventStatus,
@@ -55,7 +55,7 @@ from typing import Literal, Self, cast
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from the_alchemiser.domain.registry.strategy_registry import StrategyType
+from the_alchemiser.shared_kernel.domain.strategy_registry import StrategyType
 
 # Constants to avoid duplication
 STRATEGY_FIELD_DESCRIPTION = "Strategy name from registered strategies"

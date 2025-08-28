@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from the_alchemiser.interfaces.schemas.common import MultiStrategyExecutionResultDTO
+from the_alchemiser.shared_kernel.interfaces.common import MultiStrategyExecutionResultDTO
 
 from .base import BaseEmailTemplate
 from .performance import PerformanceBuilder

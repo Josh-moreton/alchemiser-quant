@@ -19,7 +19,7 @@ import logging
 
 import pandas as pd
 
-from the_alchemiser.domain.shared_kernel import floats_equal
+from the_alchemiser.shared_kernel import floats_equal
 
 
 def calculate_stdev_returns(close_prices: pd.Series, window: int) -> float:

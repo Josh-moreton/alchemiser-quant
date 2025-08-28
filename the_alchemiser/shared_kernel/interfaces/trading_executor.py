@@ -11,27 +11,27 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from the_alchemiser.infrastructure.dependency_injection.application_container import (
+    from the_alchemiser.shared_kernel.infrastructure.application_container import (
         ApplicationContainer,
     )
 
-from the_alchemiser.application.execution.smart_execution import is_market_open
-from the_alchemiser.application.mapping.strategy_signal_mapping import (
+from the_alchemiser.execution.application.smart_execution import is_market_open
+from the_alchemiser.anti_corruption.strategy_signal_mapping import (
     convert_signals_dict_to_domain,
     typed_strategy_signal_to_validated_order,
 )
-from the_alchemiser.application.mapping.strategy_signal_mapping import (
+from the_alchemiser.anti_corruption.strategy_signal_mapping import (
     map_signals_dict as _map_signals_to_typed,
 )
-from the_alchemiser.application.trading.bootstrap import bootstrap_from_container
-from the_alchemiser.application.trading.engine_service import TradingEngine
-from the_alchemiser.domain.registry import StrategyType
-from the_alchemiser.domain.strategies.value_objects.strategy_signal import (
+from the_alchemiser.execution.application.bootstrap import bootstrap_from_container
+from the_alchemiser.execution.application.engine_service import TradingEngine
+from the_alchemiser.shared_kernel.domain import StrategyType
+from the_alchemiser.strategy.domain.value_objects.strategy_signal import (
     StrategySignal as TypedStrategySignal,
 )
-from the_alchemiser.infrastructure.config import Settings
-from the_alchemiser.infrastructure.logging.logging_utils import get_logger
-from the_alchemiser.interfaces.cli.cli_formatter import (
+from the_alchemiser.shared_kernel.infrastructure import Settings
+from the_alchemiser.shared_kernel.infrastructure.logging_utils import get_logger
+from the_alchemiser.shared_kernel.interfaces.cli_formatter import (
     render_enriched_order_summaries,
     render_footer,
     render_header,
@@ -39,8 +39,8 @@ from the_alchemiser.interfaces.cli.cli_formatter import (
     render_strategy_signals,
     render_target_vs_current_allocations,
 )
-from the_alchemiser.interfaces.schemas.common import MultiStrategyExecutionResultDTO
-from the_alchemiser.interfaces.schemas.orders import ValidatedOrderDTO
+from the_alchemiser.shared_kernel.interfaces.common import MultiStrategyExecutionResultDTO
+from the_alchemiser.shared_kernel.interfaces.orders import ValidatedOrderDTO
 from the_alchemiser.shared_kernel.infrastructure.errors.exceptions import (
     NotificationError,
     StrategyExecutionError,
@@ -116,7 +116,7 @@ class TradingExecutor:
     def _send_market_closed_notification(self) -> None:
         """Send market closed notification."""
         try:
-            from the_alchemiser.infrastructure.notifications.email_utils import (
+            from the_alchemiser.shared_kernel.infrastructure.email_utils import (
                 build_error_email_html,
                 send_email_notification,
             )
@@ -320,10 +320,10 @@ class TradingExecutor:
 
         """
         try:
-            from the_alchemiser.infrastructure.notifications.email_utils import (
+            from the_alchemiser.shared_kernel.infrastructure.email_utils import (
                 send_email_notification,
             )
-            from the_alchemiser.infrastructure.notifications.templates import EmailTemplates
+            from the_alchemiser.shared_kernel.infrastructure.templates import EmailTemplates
 
             # Enrich result with fresh position data without mutating the frozen DTO
             try:
@@ -458,7 +458,7 @@ class TradingExecutor:
             from rich.console import Console
             from rich.panel import Panel
 
-            from the_alchemiser.interfaces.cli.signal_analyzer import SignalAnalyzer
+            from the_alchemiser.shared_kernel.interfaces.signal_analyzer import SignalAnalyzer
 
             console = Console()
             console.print("\n")
@@ -488,7 +488,7 @@ class TradingExecutor:
             import json
             from pathlib import Path
 
-            from the_alchemiser.application.tracking.strategy_order_tracker import (
+            from the_alchemiser.strategy.application.strategy_order_tracker import (
                 StrategyOrderTracker,
             )
 

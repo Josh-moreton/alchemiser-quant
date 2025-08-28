@@ -16,8 +16,8 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from the_alchemiser.domain.types import AccountInfo, OrderDetails
-from the_alchemiser.interfaces.schemas.execution_summary import (
+from the_alchemiser.shared_kernel.domain.types import AccountInfo, OrderDetails
+from the_alchemiser.shared_kernel.interfaces.execution_summary import (
     ExecutionSummaryDTO,
     PortfolioStateDTO,
 )

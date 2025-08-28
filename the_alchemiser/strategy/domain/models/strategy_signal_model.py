@@ -11,10 +11,10 @@ from decimal import Decimal
 from typing import Any, cast
 
 from the_alchemiser.shared_kernel.value_objects.percentage import Percentage
-from the_alchemiser.domain.strategies.value_objects.confidence import Confidence
-from the_alchemiser.domain.strategies.value_objects.strategy_signal import Action
-from the_alchemiser.domain.trading.value_objects.symbol import Symbol
-from the_alchemiser.domain.types import StrategySignal as StrategySignalDTO
+from the_alchemiser.strategy.domain.value_objects.confidence import Confidence
+from the_alchemiser.strategy.domain.value_objects.strategy_signal import Action
+from the_alchemiser.execution.domain.value_objects.symbol import Symbol
+from the_alchemiser.shared_kernel.domain.types import StrategySignal as StrategySignalDTO
 
 
 @dataclass(frozen=True)
@@ -40,7 +40,7 @@ class StrategySignalModel:
     ) -> StrategySignalModel:
         """Create from domain StrategySignal value object."""
         # Import here to avoid circular dependency
-        from the_alchemiser.domain.strategies.value_objects.strategy_signal import StrategySignal
+        from the_alchemiser.strategy.domain.value_objects.strategy_signal import StrategySignal
 
         if not isinstance(signal, StrategySignal):
             raise TypeError("Expected StrategySignal value object")

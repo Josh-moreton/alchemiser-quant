@@ -11,15 +11,15 @@ from decimal import Decimal
 from typing import Any, Literal, cast
 
 from the_alchemiser.shared_kernel.value_objects.money import Money
-from the_alchemiser.domain.trading.entities.order import Order
-from the_alchemiser.domain.trading.value_objects.order_id import OrderId
-from the_alchemiser.domain.trading.value_objects.order_status import OrderStatus
-from the_alchemiser.domain.trading.value_objects.order_status_literal import (
+from the_alchemiser.execution.domain.entities.order import Order
+from the_alchemiser.execution.domain.value_objects.order_id import OrderId
+from the_alchemiser.execution.domain.value_objects.order_status import OrderStatus
+from the_alchemiser.execution.domain.value_objects.order_status_literal import (
     OrderStatusLiteral,
 )
-from the_alchemiser.domain.trading.value_objects.quantity import Quantity
-from the_alchemiser.domain.trading.value_objects.symbol import Symbol
-from the_alchemiser.interfaces.schemas.orders import (
+from the_alchemiser.execution.domain.value_objects.quantity import Quantity
+from the_alchemiser.execution.domain.value_objects.symbol import Symbol
+from the_alchemiser.shared_kernel.interfaces.orders import (
     OrderExecutionResultDTO,
     OrderRequestDTO,
     ValidatedOrderDTO,

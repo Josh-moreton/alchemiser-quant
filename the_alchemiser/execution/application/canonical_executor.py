@@ -18,21 +18,21 @@ import logging
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
-from the_alchemiser.domain.trading.value_objects.order_request import OrderRequest
-from the_alchemiser.interfaces.schemas.orders import (
+from the_alchemiser.execution.domain.value_objects.order_request import OrderRequest
+from the_alchemiser.shared_kernel.interfaces.orders import (
     OrderExecutionResultDTO,
 )
 from the_alchemiser.shared_kernel.infrastructure.errors.handler import TradingSystemErrorHandler
 
 if TYPE_CHECKING:  # typing-only imports
-    from the_alchemiser.application.policies.policy_orchestrator import (
+    from the_alchemiser.execution.application.policy_orchestrator import (
         PolicyOrchestrator,
     )
-    from the_alchemiser.application.trading.lifecycle import (
+    from the_alchemiser.execution.application.lifecycle import (
         LifecycleEventDispatcher,
         OrderLifecycleManager,
     )
-    from the_alchemiser.domain.trading.protocols.order_lifecycle import (
+    from the_alchemiser.execution.domain.protocols.order_lifecycle import (
         OrderLifecycleMonitor,
     )
 
@@ -181,7 +181,7 @@ class CanonicalOrderExecutor:
 
             from alpaca.trading.requests import LimitOrderRequest, MarketOrderRequest
 
-            from the_alchemiser.application.execution.order_request_builder import (
+            from the_alchemiser.execution.application.order_request_builder import (
                 OrderRequestBuilder,
             )
 
@@ -222,7 +222,7 @@ class CanonicalOrderExecutor:
             raw_envelope = self.repository.place_order(alpaca_order_request)
 
             # Convert envelope to OrderExecutionResultDTO
-            from the_alchemiser.application.mapping.order_mapping import (
+            from the_alchemiser.anti_corruption.order_mapping import (
                 raw_order_envelope_to_execution_result_dto,
             )
 
@@ -403,11 +403,11 @@ class CanonicalOrderExecutor:
             return
 
         try:
-            from the_alchemiser.domain.trading.lifecycle import (
+            from the_alchemiser.execution.domain.lifecycle import (
                 LifecycleEventType,
                 OrderLifecycleState,
             )
-            from the_alchemiser.domain.trading.value_objects.order_id import OrderId
+            from the_alchemiser.execution.domain.value_objects.order_id import OrderId
 
             order_id = OrderId.from_string(execution_result.order_id)
 
@@ -499,11 +499,11 @@ class CanonicalOrderExecutor:
             return
 
         try:
-            from the_alchemiser.domain.trading.lifecycle import (
+            from the_alchemiser.execution.domain.lifecycle import (
                 LifecycleEventType,
                 OrderLifecycleState,
             )
-            from the_alchemiser.domain.trading.value_objects.order_id import OrderId
+            from the_alchemiser.execution.domain.value_objects.order_id import OrderId
 
             order_id = OrderId.from_string(execution_result.order_id)
 

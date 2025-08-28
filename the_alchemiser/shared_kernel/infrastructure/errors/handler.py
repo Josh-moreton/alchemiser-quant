@@ -21,14 +21,14 @@ from functools import wraps
 from typing import Any
 
 # Order error classification system
-from the_alchemiser.domain.trading.errors import (
+from the_alchemiser.execution.domain.errors import (
     OrderError,
     classify_exception,
 )
-from the_alchemiser.infrastructure.logging.logging_utils import set_error_id
+from the_alchemiser.shared_kernel.infrastructure.logging_utils import set_error_id
 
 # Enhanced error reporting and classification utilities.
-from the_alchemiser.interfaces.schemas.errors import (
+from the_alchemiser.shared_kernel.interfaces.errors import (
     ErrorDetailInfo,
     ErrorNotificationData,
     ErrorReportSummary,
@@ -597,8 +597,8 @@ def send_error_notification_if_needed() -> ErrorNotificationData | None:
         return None
 
     try:
-        from the_alchemiser.infrastructure.notifications.client import send_email_notification
-        from the_alchemiser.infrastructure.notifications.templates import EmailTemplates
+        from the_alchemiser.shared_kernel.infrastructure.client import send_email_notification
+        from the_alchemiser.shared_kernel.infrastructure.templates import EmailTemplates
 
         # Generate error report
         error_report = _error_handler.generate_error_report()

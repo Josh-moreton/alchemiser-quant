@@ -10,7 +10,7 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Protocol
 
-from the_alchemiser.interfaces.schemas.orders import AdjustedOrderRequestDTO, OrderRequestDTO
+from the_alchemiser.shared_kernel.interfaces.orders import AdjustedOrderRequestDTO, OrderRequestDTO
 
 
 class RiskPolicy(Protocol):

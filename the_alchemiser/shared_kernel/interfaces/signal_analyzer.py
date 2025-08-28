@@ -11,16 +11,16 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:  # Avoid runtime import cost / circulars
-    from the_alchemiser.application.mapping.strategies import StrategySignalDisplayDTO
-    from the_alchemiser.infrastructure.dependency_injection.application_container import (
+    from the_alchemiser.anti_corruption.strategies import StrategySignalDisplayDTO
+    from the_alchemiser.shared_kernel.infrastructure.application_container import (
         ApplicationContainer,
     )
 
-from the_alchemiser.domain.registry import StrategyType
-from the_alchemiser.domain.strategies.typed_strategy_manager import TypedStrategyManager
-from the_alchemiser.infrastructure.config import Settings
-from the_alchemiser.infrastructure.logging.logging_utils import get_logger
-from the_alchemiser.interfaces.cli.cli_formatter import (
+from the_alchemiser.shared_kernel.domain import StrategyType
+from the_alchemiser.strategy.domain.typed_strategy_manager import TypedStrategyManager
+from the_alchemiser.shared_kernel.infrastructure import Settings
+from the_alchemiser.shared_kernel.infrastructure.logging_utils import get_logger
+from the_alchemiser.shared_kernel.interfaces.cli_formatter import (
     render_footer,
     render_header,
     render_portfolio_allocation,
@@ -62,7 +62,7 @@ class SignalAnalyzer:
         aggregated_signals = typed_manager.generate_all_signals(datetime.now(UTC))
 
         # Use centralized mapping function (reuse requirement)
-        from the_alchemiser.application.mapping.strategies import run_all_strategies_mapping
+        from the_alchemiser.anti_corruption.strategies import run_all_strategies_mapping
 
         strategy_signals, consolidated_portfolio, _strategy_attribution = (
             run_all_strategies_mapping(aggregated_signals, strategy_allocations)
@@ -98,7 +98,7 @@ class SignalAnalyzer:
             from rich.panel import Panel
             from rich.table import Table
 
-            from the_alchemiser.application.tracking.strategy_order_tracker import (
+            from the_alchemiser.strategy.application.strategy_order_tracker import (
                 StrategyOrderTracker,
             )
 

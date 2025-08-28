@@ -14,17 +14,17 @@ import logging
 import os
 import sys
 
-from the_alchemiser.domain.registry import StrategyType
-from the_alchemiser.infrastructure.config import Settings, load_settings
-from the_alchemiser.infrastructure.logging.logging_utils import (
+from the_alchemiser.shared_kernel.domain import StrategyType
+from the_alchemiser.shared_kernel.infrastructure import Settings, load_settings
+from the_alchemiser.shared_kernel.infrastructure.logging_utils import (
     configure_production_logging,
     generate_request_id,
     get_logger,
     set_request_id,
     setup_logging,
 )
-from the_alchemiser.interfaces.cli.signal_analyzer import SignalAnalyzer
-from the_alchemiser.interfaces.cli.trading_executor import TradingExecutor
+from the_alchemiser.shared_kernel.interfaces.signal_analyzer import SignalAnalyzer
+from the_alchemiser.shared_kernel.interfaces.trading_executor import TradingExecutor
 from the_alchemiser.shared_kernel.infrastructure.errors.exceptions import (
     ConfigurationError,
     DataProviderError,
@@ -35,7 +35,7 @@ from the_alchemiser.shared_kernel.infrastructure.errors.handler import TradingSy
 
 # DI imports (optional)
 try:
-    from the_alchemiser.infrastructure.dependency_injection.application_container import (
+    from the_alchemiser.shared_kernel.infrastructure.application_container import (
         ApplicationContainer,
     )
     from the_alchemiser.shared_kernel.infrastructure.utilities.service_factory import ServiceFactory
@@ -45,7 +45,7 @@ except ImportError:
     DI_AVAILABLE = False
 
 # CLI formatter imports (moved from function-level)
-from the_alchemiser.interfaces.cli.cli_formatter import render_footer, render_header
+from the_alchemiser.shared_kernel.interfaces.cli_formatter import render_footer, render_header
 
 # Global DI container
 # Use Optional for proper type inference by static type checkers

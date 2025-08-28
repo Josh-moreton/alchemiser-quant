@@ -10,17 +10,17 @@ from __future__ import annotations
 
 from typing import Any
 
-from the_alchemiser.domain.registry import StrategyType
-from the_alchemiser.domain.strategies.models.strategy_position_model import (
+from the_alchemiser.shared_kernel.domain import StrategyType
+from the_alchemiser.strategy.domain.models.strategy_position_model import (
     StrategyPositionModel,
 )
-from the_alchemiser.domain.strategies.models.strategy_signal_model import (
+from the_alchemiser.strategy.domain.models.strategy_signal_model import (
     StrategySignalModel,
 )
-from the_alchemiser.domain.types import (
+from the_alchemiser.shared_kernel.domain.types import (
     StrategyPositionData as StrategyPositionDTO,
 )
-from the_alchemiser.domain.types import (
+from the_alchemiser.shared_kernel.domain.types import (
     StrategySignal as StrategySignalDTO,
 )
 
@@ -89,7 +89,7 @@ def normalize_legacy_signal_dict(legacy_signal: dict[str, Any]) -> StrategySigna
     This function provides the same normalization as the existing
     strategy_signal_mapping module for backward compatibility.
     """
-    from the_alchemiser.application.mapping.strategy_signal_mapping import (
+    from the_alchemiser.anti_corruption.strategy_signal_mapping import (
         legacy_signal_to_typed,
     )
 

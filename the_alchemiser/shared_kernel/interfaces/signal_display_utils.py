@@ -11,10 +11,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from the_alchemiser.domain.registry import StrategyType
-from the_alchemiser.domain.types import StrategySignal
-from the_alchemiser.infrastructure.alerts.alert_service import Alert
-from the_alchemiser.infrastructure.logging.logging_utils import get_logger, log_trade_event
+from the_alchemiser.shared_kernel.domain import StrategyType
+from the_alchemiser.shared_kernel.domain.types import StrategySignal
+from the_alchemiser.shared_kernel.infrastructure.alert_service import Alert
+from the_alchemiser.shared_kernel.infrastructure.logging_utils import get_logger, log_trade_event
 
 
 def display_signal_results(
@@ -38,7 +38,7 @@ def display_signal_results(
         return None
 
     # Log all alerts
-    from the_alchemiser.infrastructure.alerts.alert_service import log_alert_to_file
+    from the_alchemiser.shared_kernel.infrastructure.alert_service import log_alert_to_file
 
     for alert in alerts:
         log_alert_to_file(alert)

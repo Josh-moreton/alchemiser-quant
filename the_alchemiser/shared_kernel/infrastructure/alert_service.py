@@ -15,7 +15,7 @@ import logging
 import re
 from typing import Any
 
-from the_alchemiser.infrastructure.config import load_settings
+from the_alchemiser.shared_kernel.infrastructure import load_settings
 
 
 class Alert:
@@ -215,7 +215,7 @@ def log_alert_to_file(
     }
 
     try:
-        from the_alchemiser.infrastructure.s3.s3_utils import get_s3_handler
+        from the_alchemiser.shared_kernel.infrastructure.s3_utils import get_s3_handler
 
         s3_handler = get_s3_handler()
 

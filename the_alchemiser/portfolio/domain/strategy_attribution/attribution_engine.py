@@ -8,10 +8,10 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Any
 
-from the_alchemiser.domain.portfolio.strategy_attribution.symbol_classifier import (
+from the_alchemiser.portfolio.domain.strategy_attribution.symbol_classifier import (
     SymbolClassifier,
 )
-from the_alchemiser.domain.registry import StrategyType
+from the_alchemiser.shared_kernel.domain import StrategyType
 
 
 class StrategyAttributionEngine:

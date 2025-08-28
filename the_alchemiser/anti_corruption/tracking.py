@@ -13,7 +13,7 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Any
 
-from the_alchemiser.interfaces.schemas.tracking import (
+from the_alchemiser.shared_kernel.interfaces.tracking import (
     StrategyExecutionSummaryDTO,
     StrategyOrderEventDTO,
 )

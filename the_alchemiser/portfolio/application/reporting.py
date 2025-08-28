@@ -8,8 +8,8 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from the_alchemiser.domain.registry import StrategyType
-from the_alchemiser.domain.types import AccountInfo, PositionsDict
+from the_alchemiser.shared_kernel.domain import StrategyType
+from the_alchemiser.shared_kernel.domain.types import AccountInfo, PositionsDict
 from the_alchemiser.shared_kernel.infrastructure.errors.exceptions import DataProviderError, TradingClientError
 
 
@@ -24,7 +24,7 @@ def create_execution_summary(
     account_after: AccountInfo,
 ) -> dict[str, Any]:  # TODO: Phase 10 - ReportingData structure needs alignment
     """Create execution summary using helper utilities."""
-    from the_alchemiser.application.portfolio.portfolio_pnl_utils import (
+    from the_alchemiser.portfolio.application.portfolio_pnl_utils import (
         build_allocation_summary,
         build_strategy_summary,
         calculate_strategy_pnl_summary,
@@ -70,8 +70,8 @@ def save_dashboard_data(
 ) -> None:
     """Save structured data for dashboard consumption to S3."""
     try:
-        from the_alchemiser.infrastructure.s3.s3_utils import get_s3_handler
-        from the_alchemiser.interfaces.cli.dashboard_utils import (
+        from the_alchemiser.shared_kernel.infrastructure.s3_utils import get_s3_handler
+        from the_alchemiser.shared_kernel.interfaces.dashboard_utils import (
             build_basic_dashboard_structure,
             build_s3_paths,
             extract_portfolio_metrics,
@@ -126,7 +126,7 @@ def build_portfolio_state_data(
     current_positions: PositionsDict,
 ) -> dict[str, Any]:
     """Build portfolio state data for reporting purposes."""
-    from the_alchemiser.domain.math.trading_math import calculate_allocation_discrepancy
+    from the_alchemiser.shared_kernel.domain.trading_math import calculate_allocation_discrepancy
     from the_alchemiser.portfolio.application.services.account_utils import (
         extract_current_position_values,
     )

@@ -17,14 +17,14 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
-from the_alchemiser.domain.market_data.protocols.market_data_port import MarketDataPort
-from the_alchemiser.domain.registry.strategy_registry import StrategyRegistry, StrategyType
-from the_alchemiser.domain.strategies.engine import StrategyEngine
-from the_alchemiser.domain.strategies.nuclear_typed_engine import NuclearTypedEngine
-from the_alchemiser.domain.strategies.typed_klm_ensemble_engine import TypedKLMStrategyEngine
-from the_alchemiser.domain.strategies.value_objects.confidence import Confidence
-from the_alchemiser.domain.strategies.value_objects.strategy_signal import StrategySignal
-from the_alchemiser.domain.trading.value_objects.symbol import Symbol
+from the_alchemiser.strategy.infrastructure.protocols.market_data_port import MarketDataPort
+from the_alchemiser.shared_kernel.domain.strategy_registry import StrategyRegistry, StrategyType
+from the_alchemiser.strategy.domain.engine import StrategyEngine
+from the_alchemiser.strategy.domain.nuclear_typed_engine import NuclearTypedEngine
+from the_alchemiser.strategy.domain.typed_klm_ensemble_engine import TypedKLMStrategyEngine
+from the_alchemiser.strategy.domain.value_objects.confidence import Confidence
+from the_alchemiser.strategy.domain.value_objects.strategy_signal import StrategySignal
+from the_alchemiser.execution.domain.value_objects.symbol import Symbol
 
 
 class AggregatedSignals:
@@ -122,7 +122,7 @@ class TypedStrategyManager:
         if strategy_type == StrategyType.KLM:
             return TypedKLMStrategyEngine(self.market_data_port)
         if strategy_type == StrategyType.TECL:
-            from the_alchemiser.domain.strategies.tecl_strategy_engine import TECLStrategyEngine
+            from the_alchemiser.strategy.domain.tecl_strategy_engine import TECLStrategyEngine
 
             return TECLStrategyEngine(self.market_data_port)
         raise ValueError(f"Unknown strategy type: {strategy_type}")

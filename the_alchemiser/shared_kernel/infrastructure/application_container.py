@@ -7,11 +7,11 @@ from __future__ import annotations
 
 from dependency_injector import containers, providers
 
-from the_alchemiser.infrastructure.dependency_injection.config_providers import ConfigProviders
-from the_alchemiser.infrastructure.dependency_injection.infrastructure_providers import (
+from the_alchemiser.shared_kernel.infrastructure.config_providers import ConfigProviders
+from the_alchemiser.shared_kernel.infrastructure.infrastructure_providers import (
     InfrastructureProviders,
 )
-from the_alchemiser.infrastructure.dependency_injection.service_providers import ServiceProviders
+from the_alchemiser.shared_kernel.infrastructure.service_providers import ServiceProviders
 
 
 class ApplicationContainer(containers.DeclarativeContainer):

@@ -10,8 +10,8 @@ from rich.panel import Panel
 from rich.rule import Rule
 from rich.table import Table
 
-from the_alchemiser.interfaces.schemas.common import MultiStrategyExecutionResultDTO
-from the_alchemiser.domain.shared_kernel import floats_equal
+from the_alchemiser.shared_kernel.interfaces.common import MultiStrategyExecutionResultDTO
+from the_alchemiser.shared_kernel import floats_equal
 
 """Console formatting utilities for quantitative trading system output using rich."""
 
@@ -763,7 +763,7 @@ def render_multi_strategy_summary(
     if execution_result.account_info_after:
         from typing import cast
 
-        from the_alchemiser.domain.types import EnrichedAccountInfo, PortfolioHistoryData
+        from the_alchemiser.shared_kernel.domain.types import EnrichedAccountInfo, PortfolioHistoryData
 
         # Build enriched account dict for display
         base_account: EnrichedAccountInfo = cast(

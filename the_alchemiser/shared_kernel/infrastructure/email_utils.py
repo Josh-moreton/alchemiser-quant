@@ -17,8 +17,8 @@ The email functionality has been split into separate modules:
   - error_report.py: Error notification templates
 
 For new code, import directly from the notifications module:
-    from the_alchemiser.infrastructure.notifications import send_email_notification
-    from the_alchemiser.infrastructure.notifications.templates import EmailTemplates
+    from the_alchemiser.shared_kernel.infrastructure import send_email_notification
+    from the_alchemiser.shared_kernel.infrastructure.templates import EmailTemplates
 
 This file maintains backward compatibility for existing imports.
 """
@@ -28,9 +28,9 @@ from __future__ import annotations
 from typing import Any
 
 # Import DTOs for type-safe email rendering
-from the_alchemiser.domain.types import AccountInfo, EnrichedAccountInfo
-from the_alchemiser.interfaces.schemas.common import MultiStrategyExecutionResultDTO
-from the_alchemiser.interfaces.schemas.execution import ExecutionResultDTO
+from the_alchemiser.shared_kernel.domain.types import AccountInfo, EnrichedAccountInfo
+from the_alchemiser.shared_kernel.interfaces.common import MultiStrategyExecutionResultDTO
+from the_alchemiser.shared_kernel.interfaces.execution import ExecutionResultDTO
 
 # Import all functions from the new modular structure
 from .client import EmailClient, send_email_notification

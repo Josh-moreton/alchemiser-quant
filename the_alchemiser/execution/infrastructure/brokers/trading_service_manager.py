@@ -10,22 +10,22 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
-from the_alchemiser.application.mapping.account_mapping import (
+from the_alchemiser.anti_corruption.account_mapping import (
     account_summary_to_typed,
     account_typed_to_serializable,
     to_money_usd,
 )
-from the_alchemiser.application.mapping.order_mapping import (
+from the_alchemiser.anti_corruption.order_mapping import (
     alpaca_order_to_domain,
     summarize_order,
 )
-from the_alchemiser.application.mapping.orders import (
+from the_alchemiser.anti_corruption.orders import (
     dict_to_order_request_dto,
 )
-from the_alchemiser.application.mapping.position_mapping import (
+from the_alchemiser.anti_corruption.position_mapping import (
     alpaca_position_to_summary,
 )
-from the_alchemiser.application.mapping.trading_service_dto_mapping import (
+from the_alchemiser.anti_corruption.trading_service_dto_mapping import (
     account_summary_typed_to_dto,
     dict_to_buying_power_dto,
     dict_to_enriched_account_summary_dto,
@@ -43,19 +43,19 @@ from the_alchemiser.application.mapping.trading_service_dto_mapping import (
     list_to_enriched_positions_dto,
     list_to_open_orders_dto,
 )
-from the_alchemiser.application.orders.order_validation import OrderValidator
-from the_alchemiser.application.trading.lifecycle import (
+from the_alchemiser.execution.application.order_validation import OrderValidator
+from the_alchemiser.execution.application.lifecycle import (
     LifecycleEventDispatcher,
     LoggingObserver,
     MetricsObserver,
     OrderLifecycleManager,
 )
-from the_alchemiser.domain.trading.lifecycle import (
+from the_alchemiser.execution.domain.lifecycle import (
     LifecycleEventType,
     OrderLifecycleState,
 )
-from the_alchemiser.domain.trading.value_objects.order_id import OrderId
-from the_alchemiser.interfaces.schemas.accounts import (
+from the_alchemiser.execution.domain.value_objects.order_id import OrderId
+from the_alchemiser.shared_kernel.interfaces.accounts import (
     AccountMetricsDTO,
     AccountSummaryDTO,
     BuyingPowerDTO,
@@ -64,26 +64,26 @@ from the_alchemiser.interfaces.schemas.accounts import (
     RiskMetricsDTO,
     TradeEligibilityDTO,
 )
-from the_alchemiser.interfaces.schemas.enriched_data import (
+from the_alchemiser.shared_kernel.interfaces.enriched_data import (
     EnrichedPositionsDTO,
     OpenOrdersDTO,
 )
-from the_alchemiser.interfaces.schemas.market_data import (
+from the_alchemiser.shared_kernel.interfaces.market_data import (
     MarketStatusDTO,
     MultiSymbolQuotesDTO,
     PriceDTO,
     PriceHistoryDTO,
     SpreadAnalysisDTO,
 )
-from the_alchemiser.interfaces.schemas.operations import (
+from the_alchemiser.shared_kernel.interfaces.operations import (
     OrderCancellationDTO,
     OrderStatusDTO,
 )
-from the_alchemiser.interfaces.schemas.orders import (
+from the_alchemiser.shared_kernel.interfaces.orders import (
     OrderExecutionResultDTO,
     OrderRequestDTO,
 )
-from the_alchemiser.interfaces.schemas.positions import (
+from the_alchemiser.shared_kernel.interfaces.positions import (
     ClosePositionResultDTO,
     PortfolioSummaryDTO,
     PortfolioValueDTO,
@@ -91,7 +91,7 @@ from the_alchemiser.interfaces.schemas.positions import (
     PositionMetricsDTO,
     PositionSummaryDTO,
 )
-from the_alchemiser.interfaces.schemas.smart_trading import (
+from the_alchemiser.shared_kernel.interfaces.smart_trading import (
     OrderValidationMetadataDTO,
     SmartOrderExecutionDTO,
     TradingDashboardDTO,
@@ -102,7 +102,7 @@ from the_alchemiser.strategy.infrastructure.market_data.market_data_service impo
 from the_alchemiser.execution.infrastructure.repositories.alpaca_manager import AlpacaManager
 from the_alchemiser.execution.application.services.order_service import OrderService
 from the_alchemiser.portfolio.application.services.position_service import PositionService
-from the_alchemiser.domain.shared_kernel import floats_equal
+from the_alchemiser.shared_kernel import floats_equal
 
 
 class TradingServiceManager:
@@ -722,24 +722,24 @@ class TradingServiceManager:
                 # Use canonical executor directly since legacy methods removed
                 from decimal import Decimal
 
-                from the_alchemiser.application.execution.canonical_executor import (
+                from the_alchemiser.execution.application.canonical_executor import (
                     CanonicalOrderExecutor,
                 )
                 from the_alchemiser.shared_kernel.value_objects.money import (
                     Money,
                 )
-                from the_alchemiser.domain.trading.value_objects.order_request import (
+                from the_alchemiser.execution.domain.value_objects.order_request import (
                     OrderRequest,
                 )
-                from the_alchemiser.domain.trading.value_objects.order_type import (
+                from the_alchemiser.execution.domain.value_objects.order_type import (
                     OrderType,
                 )
-                from the_alchemiser.domain.trading.value_objects.quantity import (
+                from the_alchemiser.execution.domain.value_objects.quantity import (
                     Quantity,
                 )
-                from the_alchemiser.domain.trading.value_objects.side import Side
-                from the_alchemiser.domain.trading.value_objects.symbol import Symbol
-                from the_alchemiser.domain.trading.value_objects.time_in_force import (
+                from the_alchemiser.execution.domain.value_objects.side import Side
+                from the_alchemiser.execution.domain.value_objects.symbol import Symbol
+                from the_alchemiser.execution.domain.value_objects.time_in_force import (
                     TimeInForce,
                 )
 
@@ -785,24 +785,24 @@ class TradingServiceManager:
                 # Use canonical executor directly since legacy methods removed
                 from decimal import Decimal
 
-                from the_alchemiser.application.execution.canonical_executor import (
+                from the_alchemiser.execution.application.canonical_executor import (
                     CanonicalOrderExecutor,
                 )
                 from the_alchemiser.shared_kernel.value_objects.money import (
                     Money,
                 )
-                from the_alchemiser.domain.trading.value_objects.order_request import (
+                from the_alchemiser.execution.domain.value_objects.order_request import (
                     OrderRequest,
                 )
-                from the_alchemiser.domain.trading.value_objects.order_type import (
+                from the_alchemiser.execution.domain.value_objects.order_type import (
                     OrderType,
                 )
-                from the_alchemiser.domain.trading.value_objects.quantity import (
+                from the_alchemiser.execution.domain.value_objects.quantity import (
                     Quantity,
                 )
-                from the_alchemiser.domain.trading.value_objects.side import Side
-                from the_alchemiser.domain.trading.value_objects.symbol import Symbol
-                from the_alchemiser.domain.trading.value_objects.time_in_force import (
+                from the_alchemiser.execution.domain.value_objects.side import Side
+                from the_alchemiser.execution.domain.value_objects.symbol import Symbol
+                from the_alchemiser.execution.domain.value_objects.time_in_force import (
                     TimeInForce,
                 )
 

@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 import pandas as pd
 
-from the_alchemiser.domain.dsl.ast import (
+from the_alchemiser.strategy.domain.ast import (
     RSI,
     Asset,
     ASTNode,
@@ -37,13 +37,13 @@ from the_alchemiser.domain.dsl.ast import (
     WeightInverseVolatility,
     WeightSpecified,
 )
-from the_alchemiser.domain.dsl.errors import EvaluationError, IndicatorError, PortfolioError
-from the_alchemiser.domain.market_data.protocols.market_data_port import MarketDataPort
-from the_alchemiser.domain.math.indicators import TechnicalIndicators
+from the_alchemiser.strategy.domain.errors import EvaluationError, IndicatorError, PortfolioError
+from the_alchemiser.strategy.infrastructure.protocols.market_data_port import MarketDataPort
+from the_alchemiser.shared_kernel.domain.indicators import TechnicalIndicators
 
 # Type imports for annotations
 if TYPE_CHECKING:
-    from the_alchemiser.domain.dsl.evaluator_cache import EvalContext, NodeEvaluationCache
+    from the_alchemiser.strategy.domain.evaluator_cache import EvalContext, NodeEvaluationCache
 
 # Type for evaluation results
 Portfolio = dict[str, Decimal]
@@ -82,7 +82,7 @@ class DSLEvaluator:
         self._enable_memoisation = enable_memoisation
         self._node_cache: NodeEvaluationCache | None = None
         if enable_memoisation:
-            from the_alchemiser.domain.dsl.evaluator_cache import NodeEvaluationCache
+            from the_alchemiser.strategy.domain.evaluator_cache import NodeEvaluationCache
 
             self._node_cache = NodeEvaluationCache(maxsize=cache_maxsize)
 
@@ -121,7 +121,7 @@ class DSLEvaluator:
 
         # Set up evaluation context for memoisation
         if self._enable_memoisation:
-            from the_alchemiser.domain.dsl.evaluator_cache import create_eval_context
+            from the_alchemiser.strategy.domain.evaluator_cache import create_eval_context
 
             self._eval_context = create_eval_context(timestamp, symbols, env_params)
 
@@ -141,7 +141,7 @@ class DSLEvaluator:
         if not self._enable_memoisation or self._node_cache is None:
             return {"memoisation_enabled": False}
 
-        from the_alchemiser.domain.dsl.evaluator_cache import get_memo_stats
+        from the_alchemiser.strategy.domain.evaluator_cache import get_memo_stats
 
         stats = get_memo_stats()
         stats["memoisation_enabled"] = True
@@ -218,11 +218,11 @@ class DSLEvaluator:
             and self._eval_context is not None
         ):
             if getattr(node, "node_id", None) is None:
-                from the_alchemiser.domain.dsl.evaluator_cache import ensure_node_id
+                from the_alchemiser.strategy.domain.evaluator_cache import ensure_node_id
 
                 ensure_node_id(node)
             if node.node_id is not None:
-                from the_alchemiser.domain.dsl.evaluator_cache import is_pure_node
+                from the_alchemiser.strategy.domain.evaluator_cache import is_pure_node
 
                 if is_pure_node(node):
                     found, cached_result = self._node_cache.get(node.node_id, self._eval_context)
@@ -240,7 +240,7 @@ class DSLEvaluator:
             and self._eval_context is not None
             and getattr(node, "node_id", None) is not None
         ):
-            from the_alchemiser.domain.dsl.evaluator_cache import is_pure_node
+            from the_alchemiser.strategy.domain.evaluator_cache import is_pure_node
 
             if is_pure_node(node):
                 # node.node_id guarded by enclosing condition; cast for mypy

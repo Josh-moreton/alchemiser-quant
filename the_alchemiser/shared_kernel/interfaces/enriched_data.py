@@ -13,7 +13,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
-from the_alchemiser.interfaces.schemas.base import ResultDTO
+from the_alchemiser.shared_kernel.interfaces.base import ResultDTO
 
 
 class EnrichedOrderDTO(BaseModel):

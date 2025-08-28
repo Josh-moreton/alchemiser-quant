@@ -19,20 +19,20 @@ from typing import Any
 
 import pandas as pd
 
-from the_alchemiser.domain.market_data.protocols.market_data_port import MarketDataPort
-from the_alchemiser.domain.math.indicator_utils import safe_get_indicator
-from the_alchemiser.domain.math.indicators import TechnicalIndicators
-from the_alchemiser.domain.math.math_utils import (
+from the_alchemiser.strategy.infrastructure.protocols.market_data_port import MarketDataPort
+from the_alchemiser.shared_kernel.domain.indicator_utils import safe_get_indicator
+from the_alchemiser.shared_kernel.domain.indicators import TechnicalIndicators
+from the_alchemiser.shared_kernel.domain.math_utils import (
     calculate_moving_average_return,
     calculate_stdev_returns,
 )
 from the_alchemiser.shared_kernel.value_objects.percentage import Percentage
-from the_alchemiser.domain.strategies.engine import StrategyEngine
-from the_alchemiser.domain.strategies.errors.strategy_errors import StrategyExecutionError
-from the_alchemiser.domain.strategies.value_objects.confidence import Confidence
-from the_alchemiser.domain.strategies.value_objects.strategy_signal import StrategySignal
-from the_alchemiser.domain.trading.value_objects.symbol import Symbol
-from the_alchemiser.domain.shared_kernel import ActionType
+from the_alchemiser.strategy.domain.engine import StrategyEngine
+from the_alchemiser.strategy.domain.errors.strategy_errors import StrategyExecutionError
+from the_alchemiser.strategy.domain.value_objects.confidence import Confidence
+from the_alchemiser.strategy.domain.value_objects.strategy_signal import StrategySignal
+from the_alchemiser.execution.domain.value_objects.symbol import Symbol
+from the_alchemiser.shared_kernel import ActionType
 
 # Import all KLM strategy variants from modular workers package
 from .klm_workers import (
@@ -165,7 +165,7 @@ class TypedKLMStrategyEngine(StrategyEngine):
 
         Allows a one-off MarketDataPort override for this call.
         """
-        from the_alchemiser.application.mapping.market_data_mapping import (
+        from the_alchemiser.anti_corruption.market_data_mapping import (
             bars_to_dataframe,
             symbol_str_to_symbol,
         )

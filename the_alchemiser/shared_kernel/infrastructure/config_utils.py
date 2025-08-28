@@ -27,12 +27,12 @@ def load_alert_config() -> dict[str, Any]:
     """
     try:
         # Try to load from S3 first, then local
-        from the_alchemiser.infrastructure.s3.s3_utils import get_s3_handler
+        from the_alchemiser.shared_kernel.infrastructure.s3_utils import get_s3_handler
 
         s3_handler = get_s3_handler()
 
         # Check if file exists in S3 bucket
-        from the_alchemiser.infrastructure.config import load_settings
+        from the_alchemiser.shared_kernel.infrastructure import load_settings
 
         global_config = load_settings()
         s3_uri = global_config.alerts.alert_config_s3 or "s3://the-alchemiser-s3/alert_config.json"
@@ -52,7 +52,7 @@ def load_alert_config() -> dict[str, Any]:
         logging.warning(f"Could not load alert config: {e}")
 
     # Default config if nothing found - use global config values
-    from the_alchemiser.infrastructure.config import load_settings
+    from the_alchemiser.shared_kernel.infrastructure import load_settings
 
     global_config = load_settings()
     return {"alerts": {"cooldown_minutes": global_config.alerts.cooldown_minutes}}

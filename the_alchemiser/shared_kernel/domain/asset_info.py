@@ -16,7 +16,7 @@ from enum import Enum
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from the_alchemiser.domain.math.protocols.asset_metadata_provider import AssetMetadataProvider
+    from the_alchemiser.shared_kernel.domain.protocols.asset_metadata_provider import AssetMetadataProvider
 
 
 class AssetType(Enum):
@@ -67,7 +67,7 @@ class FractionabilityDetector:
             return None
 
         try:
-            from the_alchemiser.domain.trading.value_objects.symbol import Symbol
+            from the_alchemiser.execution.domain.value_objects.symbol import Symbol
 
             symbol_obj = Symbol(symbol)
             fractionable = self.asset_metadata_provider.is_fractionable(symbol_obj)

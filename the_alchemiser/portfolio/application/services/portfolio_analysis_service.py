@@ -8,8 +8,8 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Any
 
-from the_alchemiser.domain.portfolio.position.position_analyzer import PositionAnalyzer
-from the_alchemiser.domain.portfolio.strategy_attribution.attribution_engine import (
+from the_alchemiser.portfolio.domain.position.position_analyzer import PositionAnalyzer
+from the_alchemiser.portfolio.domain.strategy_attribution.attribution_engine import (
     StrategyAttributionEngine,
 )
 from the_alchemiser.execution.infrastructure.brokers.trading_service_manager import (
