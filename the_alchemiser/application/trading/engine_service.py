@@ -31,11 +31,6 @@ from typing import TYPE_CHECKING, Any, Protocol
 
 if TYPE_CHECKING:  # Import for type checking only to avoid runtime dependency
     from the_alchemiser.application.mapping.strategies import StrategySignalDisplayDTO
-    # Avoid circular import at runtime
-    from the_alchemiser.infrastructure.dependency_injection.application_container import (
-        ApplicationContainer,
-    )
-    from the_alchemiser.main import TradingSystem
 
 from alpaca.trading.enums import OrderSide
 
