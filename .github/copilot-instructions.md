@@ -48,11 +48,11 @@ Cross-Cutting Shared Kernel (Minimal):
  - MUST NOT depend on any bounded context packages
 
 BOUNDARY PRINCIPLES:
- - No cross-context domain imports. Communication ONLY via published Application layer DTOs or Interface contracts.
- - A context may depend inward on Shared Kernel; never laterally on another context's Domain package.
- - Anti-Corruption Mappers live in each context's application.mapping module; never in infrastructure.
- - Infrastructure adapters expose only Protocol implementations declared in the owning Domain.
- - Interfaces layer never contains business rules; it formats, transports, or orchestrates user interaction.
+ - No cross-context domain imports. Communication ONLY via versioned Application contracts (DTOs) serialized across a message boundary (SQS, CLI simulation) – never direct domain object sharing.
+ - Contexts depend inward on shared_kernel ONLY (value objects, enums, minimal helpers); never laterally.
+ - All external <-> internal translation centralized in top-level anti_corruption/ (contexts MUST NOT import anti_corruption; dependency direction is external -> anti_corruption -> context via DTO construction).
+ - Infrastructure adapters expose only Protocol (Port) implementations declared in application.ports (or application/ports.py) – domain stays tech-agnostic.
+ - Interfaces layer never contains business rules; it parses/validates input, invokes a use case, formats output.
 
 RETIRED LAYERS / PACKAGES:
  - Generic services/ and utils/ are being dismantled. Code is re-homed into context-aligned layers.
@@ -60,25 +60,48 @@ RETIRED LAYERS / PACKAGES:
 
 PACKAGE NAMING (ILLUSTRATIVE TARGET STRUCTURE):
 the_alchemiser/
-    shared_kernel/               # Cross-context immutable value objects & helpers
+    shared_kernel/               # Pure immutable VOs, enums, tiny stateless helpers (no inbound deps)
         value_objects/
-    strategy/                    # Strategy bounded context
+        tooling/
+    anti_corruption/             # External ↔ internal mappers (alpaca_order_to_domain, dto serializers)
+        brokers/
+        market_data/
+        serialization/
+    strategy/
         domain/
         application/
+            contracts/           # SignalV1, internal command/query/result types
+            ports.py             # MarketDataPort, SignalPublisher
+            use_cases/
         infrastructure/
+            adapters/            # AlpacaMarketDataAdapter, SqsSignalPublisher
         interfaces/
-    portfolio/                   # Portfolio bounded context
+            lambda/
+            cli/
+    portfolio/
         domain/
         application/
+            contracts/           # RebalancePlanV1, (ExecutionReportV1 consumer shape if mirrored)
+            ports.py             # PositionRepositoryPort, PlanPublisher, ExecReportHandlerPort
+            use_cases/
         infrastructure/
+            adapters/            # SqsPlanPublisher, PortfolioStateRepository, S3 writers
         interfaces/
-    execution/                   # Execution bounded context
+            lambda/
+            cli/
+    execution/
         domain/
         application/
+            contracts/           # ExecutionReportV1, Plan consumption DTO mirror
+            ports.py             # OrderRouterPort, ExecutionReportPublisher
+            use_cases/
         infrastructure/
+            adapters/            # AlpacaOrderRouter, SqsExecutionReportPublisher
         interfaces/
-    main.py
-    lambda_handler.py
+            lambda/
+            cli/
+    main.py                      # Optional orchestration / CLI entry
+    lambda_handler.py            # (May delegate or be deprecated)
 
 -------------------------------------------------------------------------------
 TYPING & CODE QUALITY
@@ -94,18 +117,25 @@ TYPING & CODE QUALITY
  - Interfaces layer: CLI, presentation, serialization, transport.
  - Shared Kernel: leaf-only; cannot import from any bounded context.
 
-DTO / MESSAGE NAMING RULES:
+DTO / MESSAGE NAMING & VERSIONING RULES:
  - Domain: Plain nouns (Order, Position, StrategySignal, Portfolio, ExecutionPolicy).
- - Application I/O: Command / Query / Result suffix.
+ - Inter-context contracts (application/contracts): Version suffix (SignalV1, RebalancePlanV1, ExecutionReportV1, PlannedOrderV1, FillV1).
+ - Use-case internal I/O: Command / Query / Result suffix.
  - Interfaces (CLI/API): Request / Response / View.
- - Events: Event (versioned externally) e.g., TradeExecutedEventV1.
+ - Events: <Noun><Action/Event>V<version> (TradeExecutedEventV1) when modeled explicitly.
  - Persistence mapping: Record / Row / Model.
- - Use Dto only when unavoidable for clash ambiguity.
+ - Prefer semantic names over generic *Dto; retain version for backward compatibility. NEVER mutate an existing version in-place; add V2+ with upgrade mapper in anti_corruption.serialization.
+PRIMARY CONTRACT FLOWS:
+ - Strategy -> Portfolio: SignalV1(symbol, action (ActionType), confidence (float), target_allocation (Percentage/Decimal), reasoning, timestamp, correlation_id, deduplication_id, causation_id)
+ - Portfolio -> Execution: RebalancePlanV1(plan_id, correlation_id, generated_at, planned_orders[list[PlannedOrderV1]])
+ - Execution -> Portfolio: ExecutionReportV1(report_id, correlation_id, fills[list[FillV1]], summary, account_delta, generated_at)
+ - Correlation chain preserved across lifecycle for traceability.
 
 MAPPING & ANTI-CORRUPTION:
- - All translation between external API payloads and Domain objects occurs in application.mapping modules.
- - Never embed third-party payload shapes inside Domain entities.
- - Round-trip invariants must hold (serialization <-> domain) for stable contracts.
+ - Centralized in anti_corruption/ (NOT inside context application.mapping anymore – that folder is deprecated).
+ - Provides pure functions/classes translating external SDK payloads → domain VOs / DTOs and vice versa (e.g., alpaca_order_to_domain, domain_order_to_alpaca_request).
+ - Contexts receive already-mapped objects (DTOs / VOs); they do NOT import anti_corruption (one-way dependency to avoid leakage of external schemas).
+ - Document any lossy conversions; ensure round-trip invariants where required for idempotency.
 
 ERROR HANDLING:
  - Never fail silently. Raise typed exceptions (StrategyExecutionError, OrderExecutionError, DataAccessError, etc.).
@@ -117,14 +147,17 @@ CONCURRENCY & INTEGRITY:
  - Avoid shared mutable state across contexts; pass immutable DTO snapshots.
  - Recompute derived values instead of caching mutable cross-context state unless a formal cache adapter exists.
 
-IMPORT RULES (ENFORCEMENT TARGET):
- - strategy.domain -> may import: shared_kernel.*
- - portfolio.domain -> may import: shared_kernel.*
- - execution.domain -> may import: shared_kernel.*
- - No domain package imports another context's application/infrastructure.
- - application.* may depend on its own domain + shared_kernel + (optionally) other contexts' published application DTOs (never their domain internals).
- - infrastructure.* may depend on owning application & domain + shared_kernel; not on other context domains.
- - interfaces.* may depend on its own application layer and (read-only) published application DTOs from other contexts.
+IMPORT RULES (TO BE ENFORCED VIA import-linter):
+ - Layer direction inside a context: interfaces -> application -> domain; infrastructure -> application/domain (infrastructure must NOT import interfaces; prefer factories/wiring outside domain logic).
+ - Domain imports: shared_kernel only.
+ - Application imports: own domain, shared_kernel, own contracts/ports; cross-context only via serialized DTO payloads (avoid importing another context's application module – treat foreign DTOs as external JSON, rehydrate locally if necessary).
+ - Infrastructure imports: own application + domain + shared_kernel; never other contexts' infrastructure.
+ - Interfaces imports: own application + shared_kernel (+ optional foreign DTO class ONLY if no alternative; prefer boundary JSON).
+ - anti_corruption may import context domain + application contracts + shared_kernel; contexts MUST NOT import anti_corruption.
+ - Hard forbidden: any reference to legacy services/ or utils/; cross-context domain/infrastructure imports; domain -> application/infrastructure; application -> interfaces.
+ - Example contracts for import-linter (abridged):
+     * Layers per context (interfaces > application > domain) + infrastructure isolation.
+     * Forbidden: strategy.domain -> portfolio.* / execution.* (and symmetric), * -> the_alchemiser.services.* / the_alchemiser.utils.* / other_context.infrastructure.*
 
 LEGACY & MIGRATION FLAGS:
  - Mark temporary shims with module docstring Status: legacy and schedule removal.
@@ -153,15 +186,48 @@ PROHIBITED PATTERNS:
 
 RECOMMENDED WORKFLOW:
  1. Define or refine Domain model (value objects, entities, policies) inside the owning context.
- 2. Add Protocol(s) for external dependencies (e.g., MarketDataGateway) inside domain.protocols.
- 3. Implement adapters in infrastructure implementing those Protocols.
- 4. Create Application use case (PlaceOrderCommandHandler) wiring domain + protocol instances.
- 5. Expose stable DTO in application.results (PlaceOrderResult).
- 6. Interfaces layer consumes use case; formats output (CLI table, JSON, email).
+ 2. Define Protocol(s)/Ports in application/ports.py (MarketDataPort, OrderRouterPort, Publishers...).
+ 3. Implement adapters in infrastructure/adapters/ satisfying Ports.
+ 4. Implement application use cases (verb_noun modules under application/use_cases/).
+ 5. Define/extend versioned DTO contracts in application/contracts/ (never mutate an existing version).
+ 6. Interfaces layer (CLI/Lambda) materializes inbound DTOs from JSON, invokes use case, publishes outbound DTO via Port.
+ 7. Add/adjust anti_corruption mappers only when integrating new external payload shapes.
 
 FLOAT & NUMERIC POLICY:
  - Money/quantity/risk metrics -> Decimal.
  - Statistical ratios -> float permitted but compare with tolerance via helpers.
+
+EVENT-DRIVEN COMMUNICATION & OUTBOX:
+ - Default flow: SignalV1 -> RebalancePlanV1 -> ExecutionReportV1 across FIFO queues (signals.fifo, plans.fifo, exec-reports.fifo).
+ - Each message includes metadata: message_id, correlation_id (root), causation_id (immediate predecessor), deduplication_id (FIFO idempotency), timestamp.
+ - Producers SHOULD persist an outbox record (minimal store acceptable) before publish for reliability where state change + message must be atomic.
+ - Consumers MUST be idempotent (skip if message_id already processed).
+ - CLI/demo path may shortcut queue delivery but MUST still construct DTOs exactly as production.
+
+PORT DEFINITIONS (MINIMUM SET):
+ - strategy.application.ports: MarketDataPort, SignalPublisher.
+ - portfolio.application.ports: PositionRepositoryPort, PlanPublisher, ExecutionReportHandlerPort / callback, PortfolioStateRepositoryPort.
+ - execution.application.ports: OrderRouterPort, ExecutionReportPublisher, (optional) ExecutionMarketDataPort.
+ - Adapters named <tech>_<role>.py (alpaca_order_router.py, sqs_signal_publisher.py).
+
+PORTFOLIO STATE OWNERSHIP:
+ - ONLY Portfolio context mutates portfolio/position state; Execution reports outcomes; Strategy suggests intents.
+ - Sizing happens in Portfolio planning; Execution MUST NOT recompute target quantities (except broker lot normalization inside its domain logic).
+
+NAMING CONVENTIONS (ADDITIONAL):
+ - Use cases: verb_noun modules (generate_signals.py, create_rebalance_plan.py, execute_plan.py, apply_execution_report.py).
+ - Value objects: singular files (money.py, symbol.py, percentage.py) inside shared_kernel/value_objects/.
+ - Mappers (anti_corruption): <external>_to_<internal>.py / <internal>_to_<external>.py.
+ - DTO files: snake_case with version suffix (signal_v1.py, rebalance_plan_v1.py, execution_report_v1.py).
+
+ARCHITECTURE ENFORCEMENT:
+ - Configure import-linter in CI to enforce contracts above.
+ - mypy strict mode required for all new/modified modules.
+ - No direct anti_corruption usage in domain/application; mapping performed at interface boundary before invoking use case.
+
+LEGACY CLEANUP GUIDELINES:
+ - When touching code under deprecated services/ or utils/, migrate logic into proper context layer before extending functionality.
+ - application.mapping modules are deprecated – create mapping in anti_corruption/ instead.
 
 BUSINESS UNIT DOCSTRINGS:
 Example top-of-file docstring:
