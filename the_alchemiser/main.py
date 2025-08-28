@@ -44,6 +44,9 @@ try:
 except ImportError:
     DI_AVAILABLE = False
 
+# CLI formatter imports (moved from function-level)
+from the_alchemiser.interfaces.cli.cli_formatter import render_footer, render_header
+
 # Global DI container
 # Use Optional for proper type inference by static type checkers
 _di_container: ApplicationContainer | None = None
@@ -251,8 +254,6 @@ def main(argv: list[str] | None = None) -> bool:
         True if operation completed successfully, False otherwise
 
     """
-    from the_alchemiser.interfaces.cli.cli_formatter import render_footer, render_header
-
     # Setup
     configure_application_logging()
 

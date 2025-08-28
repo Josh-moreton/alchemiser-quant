@@ -41,6 +41,7 @@ from the_alchemiser.interfaces.schemas.accounts import (
     EnrichedAccountSummaryDTO,
 )
 from the_alchemiser.services.account.account_service import AccountService
+from the_alchemiser.services.errors import handle_trading_error
 from the_alchemiser.services.errors.exceptions import (
     DataProviderError,
     TradingClientError,
@@ -175,8 +176,6 @@ class AccountFacade:
 
             # Enhanced error handling for context
             try:
-                from the_alchemiser.services.errors import handle_trading_error
-
                 handle_trading_error(
                     error=e,
                     context="account information retrieval",
