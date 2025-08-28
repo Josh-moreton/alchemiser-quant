@@ -30,6 +30,7 @@ class ActionType(Enum):
         >>> action = ActionType.BUY
         >>> print(f"Recommended action: {action.value}")
         Recommended action: BUY
+
     """
 
     BUY = "BUY"

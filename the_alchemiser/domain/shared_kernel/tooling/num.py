@@ -53,6 +53,7 @@ def floats_equal(
         True
         >>> floats_equal(1.0, 1.000001, rel_tol=1e-5)
         True
+
     """
     try:
         if np is not None and (isinstance(a, np.ndarray) or isinstance(b, np.ndarray)):
