@@ -12,13 +12,10 @@ from __future__ import annotations
 from .tooling import floats_equal
 from .types import ActionType
 
-# Re-export canonical value objects from the new shared kernel package so that
-# existing imports (domain namespace) keep functioning during migration.
-from the_alchemiser.shared_kernel import (
-    Identifier,
-    Money,
-    Percentage,
-)
+# Re-export canonical value objects from the value_objects package
+from the_alchemiser.shared_kernel.value_objects.identifier import Identifier
+from the_alchemiser.shared_kernel.value_objects.money import Money
+from the_alchemiser.shared_kernel.value_objects.percentage import Percentage
 
 __all__ = [
     "ActionType",

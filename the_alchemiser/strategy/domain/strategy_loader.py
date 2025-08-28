@@ -13,7 +13,7 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
-from the_alchemiser.strategy.domain.errors import DSLError
+from the_alchemiser.strategy.domain.dsl_errors import DSLError
 from the_alchemiser.strategy.domain.evaluator import DSLEvaluator, Portfolio
 from the_alchemiser.strategy.domain.optimization_config import (
     DSLOptimizationConfig,

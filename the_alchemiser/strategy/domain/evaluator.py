@@ -37,7 +37,7 @@ from the_alchemiser.strategy.domain.ast import (
     WeightInverseVolatility,
     WeightSpecified,
 )
-from the_alchemiser.strategy.domain.errors import EvaluationError, IndicatorError, PortfolioError
+from the_alchemiser.strategy.domain.dsl_errors import EvaluationError, IndicatorError, PortfolioError
 from the_alchemiser.strategy.infrastructure.protocols.market_data_port import MarketDataPort
 from the_alchemiser.shared_kernel.domain.indicators import TechnicalIndicators
 

@@ -8,7 +8,7 @@ Provides deterministic evaluation with structured tracing and strict whitelistin
 
 from __future__ import annotations
 
-from the_alchemiser.strategy.domain.errors import DSLError, EvaluationError, ParseError
+from the_alchemiser.strategy.domain.dsl_errors import DSLError, EvaluationError, ParseError
 from the_alchemiser.strategy.domain.evaluator import DSLEvaluator
 from the_alchemiser.strategy.domain.parser import DSLParser
 
