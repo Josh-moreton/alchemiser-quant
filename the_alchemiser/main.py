@@ -51,7 +51,7 @@ class TradingSystem:
         self.settings = settings or load_settings()
         self.logger = get_logger(__name__)
         self.error_handler = TradingSystemErrorHandler()
-        self.container: Optional["ApplicationContainer"] = None
+        self.container: ApplicationContainer | None = None
         self._initialize_di()
 
     def _initialize_di(self) -> None:

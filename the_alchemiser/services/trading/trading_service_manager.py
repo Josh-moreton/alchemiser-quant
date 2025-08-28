@@ -716,6 +716,7 @@ class TradingServiceManager:
             if order_type.lower() == "market":
                 # Use canonical executor directly since legacy methods removed
                 from decimal import Decimal
+
                 from the_alchemiser.application.execution.canonical_executor import (
                     CanonicalOrderExecutor,
                 )
@@ -778,6 +779,7 @@ class TradingServiceManager:
                     )
                 # Use canonical executor directly since legacy methods removed
                 from decimal import Decimal
+
                 from the_alchemiser.application.execution.canonical_executor import (
                     CanonicalOrderExecutor,
                 )

@@ -6,7 +6,7 @@ for strategy compatibility using canonical executor.
 """
 
 from decimal import Decimal
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 from alpaca.trading.enums import OrderSide
 
