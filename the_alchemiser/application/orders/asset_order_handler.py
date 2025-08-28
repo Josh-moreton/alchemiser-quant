@@ -7,6 +7,8 @@ This module handles asset-specific order placement logic, including
 fractionable vs non-fractionable asset handling, order type conversion,
 and fallback strategies.
 """
+from __future__ import annotations
+
 
 import logging
 from decimal import ROUND_DOWN, Decimal
@@ -56,7 +58,7 @@ class AssetOrderHandler:
         return None, "Must provide either qty or notional"
 
     def prepare_market_order_from_dto(
-        self, validated_order: "ValidatedOrderDTO"
+        self, validated_order: ValidatedOrderDTO
     ) -> tuple[MarketOrderRequest | None, str | None]:
         """Prepare a market order request from ValidatedOrderDTO.
 

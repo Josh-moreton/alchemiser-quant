@@ -2,6 +2,8 @@
 
 Order domain models.
 """
+from __future__ import annotations
+
 
 from dataclasses import dataclass
 from datetime import datetime
@@ -32,7 +34,7 @@ class OrderModel:
     updated_at: datetime
 
     @classmethod
-    def from_dict(cls, data: OrderDetails) -> "OrderModel":
+    def from_dict(cls, data: OrderDetails) -> OrderModel:
         """Create from OrderDetails TypedDict."""
         created_at_raw = data["created_at"]
         created_at_parsed = datetime.fromisoformat(created_at_raw.replace("Z", "+00:00"))

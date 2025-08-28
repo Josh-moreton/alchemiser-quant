@@ -2,6 +2,8 @@
 
 Account domain models.
 """
+from __future__ import annotations
+
 
 from dataclasses import dataclass
 from typing import Literal
@@ -25,7 +27,7 @@ class AccountModel:
     status: Literal["ACTIVE", "INACTIVE"]
 
     @classmethod
-    def from_dict(cls, data: AccountInfo) -> "AccountModel":
+    def from_dict(cls, data: AccountInfo) -> AccountModel:
         """Create from AccountInfo TypedDict."""
         return cls(
             account_id=data["account_id"],
@@ -66,7 +68,7 @@ class PortfolioHistoryModel:
     timestamp: list[str]
 
     @classmethod
-    def from_dict(cls, data: PortfolioHistoryData) -> "PortfolioHistoryModel":
+    def from_dict(cls, data: PortfolioHistoryData) -> PortfolioHistoryModel:
         """Create from PortfolioHistoryData TypedDict."""
         return cls(
             profit_loss=data.get("profit_loss", []),

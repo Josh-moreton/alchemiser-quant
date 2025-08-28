@@ -2,6 +2,8 @@
 
 Main application container for dependency injection.
 """
+from __future__ import annotations
+
 
 from dependency_injector import containers, providers
 
@@ -30,7 +32,7 @@ class ApplicationContainer(containers.DeclarativeContainer):
     # Application layer (will be added in Phase 2)
 
     @classmethod
-    def create_for_environment(cls, env: str = "development") -> "ApplicationContainer":
+    def create_for_environment(cls, env: str = "development") -> ApplicationContainer:
         """Create container configured for specific environment."""
         container = cls()
 
@@ -46,7 +48,7 @@ class ApplicationContainer(containers.DeclarativeContainer):
         return container
 
     @classmethod
-    def create_for_testing(cls) -> "ApplicationContainer":
+    def create_for_testing(cls) -> ApplicationContainer:
         """Create container with test doubles."""
         container = cls.create_for_environment("test")
 

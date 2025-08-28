@@ -2,6 +2,8 @@
 
 Shared kernel type exports for cross-context value objects.
 """
+from __future__ import annotations
+
 
 from .value_objects.identifier import Identifier
 from .value_objects.money import Money

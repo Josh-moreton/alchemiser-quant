@@ -9,6 +9,8 @@ This variant is similar to other standard variants except:
 
 This is the V2 (enhanced) version of the MonkeyBusiness Simons approach.
 """
+from __future__ import annotations
+
 
 import pandas as pd
 

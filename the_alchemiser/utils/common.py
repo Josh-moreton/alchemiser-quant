@@ -5,6 +5,8 @@ Common constants and enums shared across the trading system.
 This module provides shared enumeration types and constants used throughout
 the trading system to ensure consistency and type safety.
 """
+from __future__ import annotations
+
 
 from enum import Enum
 

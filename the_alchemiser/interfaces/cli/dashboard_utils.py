@@ -7,6 +7,8 @@ This module provides helper functions for building structured data
 for dashboard consumption, including portfolio metrics, positions,
 and performance data.
 """
+from __future__ import annotations
+
 
 import logging
 from datetime import UTC, datetime

@@ -9,6 +9,8 @@ into dedicated bootstrap functions that return a typed context bundle.
 This module extracts the complex initialization logic from TradingEngine
 to improve separation of concerns and testability.
 """
+from __future__ import annotations
+
 
 import logging
 from typing import Any, TypedDict

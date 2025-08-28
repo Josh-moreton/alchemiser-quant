@@ -2,6 +2,8 @@
 
 Portfolio rebalancing service - main application orchestrator.
 """
+from __future__ import annotations
+
 
 from decimal import Decimal
 from typing import Any

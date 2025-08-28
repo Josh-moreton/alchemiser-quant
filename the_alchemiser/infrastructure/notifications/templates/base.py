@@ -5,6 +5,8 @@ Base HTML email template module.
 This module provides the core HTML template structure and common styling
 used across all email types.
 """
+from __future__ import annotations
+
 
 from datetime import UTC, datetime
 

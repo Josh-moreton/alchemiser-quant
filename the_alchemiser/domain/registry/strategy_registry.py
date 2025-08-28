@@ -9,6 +9,8 @@ dynamic imports with explicit registration and factory patterns.
 The registry maps strategy names to their corresponding classes, enabling
 static analysis while maintaining flexibility in strategy selection.
 """
+from __future__ import annotations
+
 
 from dataclasses import dataclass
 from enum import Enum

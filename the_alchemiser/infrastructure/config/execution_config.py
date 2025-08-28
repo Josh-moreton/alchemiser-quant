@@ -6,6 +6,8 @@ Execution Configuration.
 Configuration settings for the professional execution system.
 Loads settings from the global application configuration.
 """
+from __future__ import annotations
+
 
 import logging
 from dataclasses import dataclass
@@ -46,7 +48,7 @@ class ExecutionConfig:
     volatility_pause_threshold_bps: float = 100.0  # Pause re-pegging if volatility spikes
 
     @classmethod
-    def from_settings(cls) -> "ExecutionConfig":
+    def from_settings(cls) -> ExecutionConfig:
         """Load configuration from application settings."""
         try:
             execution = load_settings().execution
@@ -187,7 +189,7 @@ def reload_execution_config() -> None:
     _config_instance = ExecutionConfig.from_settings()
 
 
-def create_strategy_config() -> "StrategyConfig":  # forward ref for static typing
+def create_strategy_config() -> StrategyConfig:  # forward ref for static typing
     """Create a StrategyConfig from current ExecutionConfig."""
     from decimal import Decimal
 

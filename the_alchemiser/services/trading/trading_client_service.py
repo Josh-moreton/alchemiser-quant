@@ -9,6 +9,8 @@ Focused on order placement, account data, and positions.
 MIGRATION NOTE: This service now uses AlpacaManager for consolidated Alpaca access.
 This provides better error handling, logging, and testing capabilities.
 """
+from __future__ import annotations
+
 
 import logging
 from typing import Any

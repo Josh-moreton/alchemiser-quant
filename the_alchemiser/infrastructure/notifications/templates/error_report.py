@@ -5,6 +5,8 @@ Error report template builder.
 This module handles error notification email template generation.
 """
 
+from __future__ import annotations
+
 # ✅ Phase 14 - Error handler types enabled
 
 from .base import BaseEmailTemplate

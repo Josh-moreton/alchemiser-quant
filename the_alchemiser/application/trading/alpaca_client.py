@@ -51,6 +51,8 @@ Example:
     >>> req = OrderRequest(symbol=Symbol('AAPL'), side=Side('buy'), quantity=Quantity(Decimal('10')), order_type=OrderType('market'), time_in_force=TimeInForce('day'))  # noqa: E501
     >>> result = executor.execute(req)
 """
+from __future__ import annotations
+
 
 import logging
 import time
@@ -113,7 +115,7 @@ class AlpacaClient:
     def __init__(
         self,
         alpaca_manager: AlpacaManager,
-        data_provider: "ExecDataProvider",
+        data_provider: ExecDataProvider,
         validate_buying_power: bool = False,
     ) -> None:
         """Initialize AlpacaClient with helper modules.
@@ -151,7 +153,7 @@ class AlpacaClient:
         """
         return self.position_manager.get_current_positions()
 
-    def get_pending_orders_validated(self) -> list["ValidatedOrderDTO"]:
+    def get_pending_orders_validated(self) -> list[ValidatedOrderDTO]:
         """Get all pending orders from Alpaca with type safety.
 
         Returns:

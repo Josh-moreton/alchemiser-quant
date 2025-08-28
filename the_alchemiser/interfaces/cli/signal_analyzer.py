@@ -4,6 +4,8 @@ Signal analysis CLI module.
 
 Handles signal generation and display without trading execution.
 """
+from __future__ import annotations
+
 
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
@@ -28,7 +30,7 @@ from the_alchemiser.services.errors.exceptions import DataProviderError, Strateg
 class SignalAnalyzer:
     """Handles signal analysis and display."""
 
-    def __init__(self, settings: Settings, container: "ApplicationContainer") -> None:
+    def __init__(self, settings: Settings, container: ApplicationContainer) -> None:
         self.settings = settings
         self.container = container
         self.logger = get_logger(__name__)
@@ -43,7 +45,7 @@ class SignalAnalyzer:
 
     def _generate_signals(
         self,
-    ) -> tuple[dict[StrategyType, "StrategySignalDisplayDTO"], dict[str, float]]:
+    ) -> tuple[dict[StrategyType, StrategySignalDisplayDTO], dict[str, float]]:
         """Generate strategy signals."""
         # Use typed adapter for engines (DataFrame compatibility) and typed port for fetching
         market_data_port = self.container.infrastructure.market_data_service()
@@ -68,7 +70,7 @@ class SignalAnalyzer:
 
     def _display_results(
         self,
-        strategy_signals: dict[StrategyType, "StrategySignalDisplayDTO"],
+        strategy_signals: dict[StrategyType, StrategySignalDisplayDTO],
         consolidated_portfolio: dict[str, float],
         show_tracking: bool,
     ) -> None:
@@ -180,7 +182,7 @@ class SignalAnalyzer:
 
     def _display_strategy_summary(
         self,
-        strategy_signals: dict[StrategyType, "StrategySignalDisplayDTO"],
+        strategy_signals: dict[StrategyType, StrategySignalDisplayDTO],
         consolidated_portfolio: dict[str, float],
     ) -> None:
         """Display strategy allocation summary."""
@@ -218,7 +220,7 @@ class SignalAnalyzer:
     def _count_positions_for_strategy(
         self,
         strategy_name: str,
-        strategy_signals: dict[StrategyType, "StrategySignalDisplayDTO"],
+        strategy_signals: dict[StrategyType, StrategySignalDisplayDTO],
         consolidated_portfolio: dict[str, float],
     ) -> int:
         """Count positions for a specific strategy."""
@@ -248,7 +250,7 @@ class SignalAnalyzer:
     def _get_symbols_for_strategy(
         self,
         strategy_name: str,
-        strategy_signals: dict[StrategyType, "StrategySignalDisplayDTO"],
+        strategy_signals: dict[StrategyType, StrategySignalDisplayDTO],
     ) -> set[str]:
         """Get symbols associated with a strategy."""
         strategy_type = getattr(StrategyType, strategy_name.upper(), None)

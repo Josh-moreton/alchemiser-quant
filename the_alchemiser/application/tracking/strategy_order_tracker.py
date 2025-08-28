@@ -19,6 +19,8 @@ Design:
 - Integrates with trading engine to capture order fills
 - Provides P&L metrics for email reporting and dashboards
 """
+from __future__ import annotations
+
 
 import logging
 from dataclasses import asdict, dataclass
@@ -73,7 +75,7 @@ class StrategyOrder:
         side: str,
         quantity: float,
         price: float,
-    ) -> "StrategyOrder":
+    ) -> StrategyOrder:
         """Create StrategyOrder from order execution data."""
         return cls(
             order_id=order_id,

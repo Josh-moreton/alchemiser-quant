@@ -6,6 +6,8 @@ Provides tolerant float comparison complying with project rule: never use
 direct float equality (== / !=). Use this helper in non-financial contexts;
 for money/quantities always prefer Decimal value objects.
 """
+from __future__ import annotations
+
 
 from collections.abc import Sequence
 from decimal import Decimal

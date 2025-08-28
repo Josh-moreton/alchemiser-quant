@@ -5,6 +5,8 @@ KLM Strategy Workers Package.
 This package contains all individual strategy variants for the KLM ensemble system.
 Each variant is implemented as a separate module for better maintainability.
 """
+from __future__ import annotations
+
 
 from .base_klm_variant import BaseKLMVariant
 from .variant_410_38 import KlmVariant41038

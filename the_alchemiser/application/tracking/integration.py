@@ -12,6 +12,8 @@ Key Features:
 - Integration with existing TradingEngine and SmartExecution
 - Minimal changes to existing code patterns
 """
+from __future__ import annotations
+
 
 import logging
 from contextlib import contextmanager

@@ -45,6 +45,8 @@ Usage:
         details=[event]
     )
 """
+from __future__ import annotations
+
 
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -250,7 +252,7 @@ class StrategyOrderDTO(BaseModel, StrategyValidationMixin):
         quantity: float,
         price: float,
         timestamp: str | datetime | None = None,
-    ) -> "StrategyOrderDTO":
+    ) -> StrategyOrderDTO:
         """Create DTO from raw order data (factory method for legacy compatibility)."""
         if timestamp is None:
             ts = datetime.now(UTC)
@@ -336,7 +338,7 @@ class StrategyPositionDTO(BaseModel, StrategyValidationMixin):
         average_cost: float,
         total_cost: float,
         last_updated: str | datetime | None = None,
-    ) -> "StrategyPositionDTO":
+    ) -> StrategyPositionDTO:
         """Create DTO from raw position data (factory method for legacy compatibility)."""
         if last_updated is None:
             ts = datetime.now(UTC)
@@ -449,7 +451,7 @@ class StrategyPnLDTO(BaseModel):
         total_pnl: float,
         positions: dict[str, float],
         allocation_value: float,
-    ) -> "StrategyPnLDTO":
+    ) -> StrategyPnLDTO:
         """Create DTO from raw P&L data (factory method for legacy compatibility)."""
         # Convert positions to Decimal
         decimal_positions = {symbol: Decimal(str(qty)) for symbol, qty in positions.items()}

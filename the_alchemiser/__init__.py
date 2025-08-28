@@ -31,3 +31,5 @@ Example:
 Author: Josh Moreton
 License: Private
 """
+from __future__ import annotations
+

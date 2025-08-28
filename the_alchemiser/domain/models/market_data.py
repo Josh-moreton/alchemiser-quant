@@ -2,6 +2,8 @@
 
 Market data domain models.
 """
+from __future__ import annotations
+
 
 from dataclasses import dataclass
 from datetime import datetime
@@ -24,7 +26,7 @@ class BarModel:
     volume: int
 
     @classmethod
-    def from_dict(cls, data: MarketDataPoint) -> "BarModel":
+    def from_dict(cls, data: MarketDataPoint) -> BarModel:
         """Create from MarketDataPoint TypedDict."""
         timestamp_raw = data["timestamp"]
         timestamp_parsed = datetime.fromisoformat(timestamp_raw.replace("Z", "+00:00"))
@@ -73,7 +75,7 @@ class QuoteModel:
     timestamp: datetime
 
     @classmethod
-    def from_dict(cls, data: QuoteData, symbol: str) -> "QuoteModel":
+    def from_dict(cls, data: QuoteData, symbol: str) -> QuoteModel:
         """Create from QuoteData TypedDict (domain-pure)."""
         timestamp_raw = data["timestamp"]
         timestamp_parsed = datetime.fromisoformat(timestamp_raw.replace("Z", "+00:00"))
@@ -120,7 +122,7 @@ class PriceDataModel:
     volume: int | None = None
 
     @classmethod
-    def from_dict(cls, data: PriceData) -> "PriceDataModel":
+    def from_dict(cls, data: PriceData) -> PriceDataModel:
         """Create from PriceData TypedDict."""
         timestamp_raw = data["timestamp"]
         timestamp_parsed = datetime.fromisoformat(timestamp_raw.replace("Z", "+00:00"))

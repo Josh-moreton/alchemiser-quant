@@ -12,6 +12,8 @@ Functions include:
 - Return-based metrics for strategy evaluation
 - Statistical measures for ensemble selection
 """
+from __future__ import annotations
+
 
 import logging
 

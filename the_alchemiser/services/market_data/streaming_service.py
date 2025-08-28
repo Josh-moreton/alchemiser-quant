@@ -6,6 +6,8 @@ Streaming Service.
 Handles real-time price subscriptions via WebSocket.
 Provides callback-based API for current price requests.
 """
+from __future__ import annotations
+
 
 import logging
 from collections.abc import Callable

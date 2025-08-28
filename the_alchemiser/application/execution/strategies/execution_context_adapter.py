@@ -6,6 +6,8 @@ Execution Context Adapter.
 Adapter to bridge OrderExecutor protocol to ExecutionContext protocol
 for strategy compatibility using canonical executor.
 """
+from __future__ import annotations
+
 
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
@@ -30,7 +32,7 @@ if TYPE_CHECKING:
 class ExecutionContextAdapter:
     """Adapter to provide ExecutionContext interface using canonical executor."""
 
-    def __init__(self, order_executor: "OrderExecutor") -> None:
+    def __init__(self, order_executor: OrderExecutor) -> None:
         self._order_executor = order_executor
 
     def place_limit_order(

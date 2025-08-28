@@ -1,4 +1,6 @@
 """Business Unit: utilities; Status: current."""
+from __future__ import annotations
+
 
 import logging
 from typing import Any, Literal, cast

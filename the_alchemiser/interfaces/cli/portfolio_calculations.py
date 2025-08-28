@@ -6,6 +6,8 @@ Portfolio calculation utilities extracted from TradingEngine.
 This module provides calculation functions for portfolio target vs current allocations
 without any display logic, supporting the separation of business logic from presentation.
 """
+from __future__ import annotations
+
 
 from typing import Any
 

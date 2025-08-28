@@ -4,6 +4,8 @@ Trading execution CLI module.
 
 Handles trading execution with comprehensive error handling and notifications.
 """
+from __future__ import annotations
+
 
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
@@ -50,7 +52,7 @@ class TradingExecutor:
     def __init__(
         self,
         settings: Settings,
-        container: "ApplicationContainer",
+        container: ApplicationContainer,
         live_trading: bool = False,
         ignore_market_hours: bool = False,
         show_tracking: bool = False,

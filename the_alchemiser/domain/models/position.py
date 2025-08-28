@@ -2,6 +2,8 @@
 
 Position domain models.
 """
+from __future__ import annotations
+
 
 from dataclasses import dataclass
 from typing import Literal
@@ -24,7 +26,7 @@ class PositionModel:
     current_price: float
 
     @classmethod
-    def from_dict(cls, data: PositionInfo) -> "PositionModel":
+    def from_dict(cls, data: PositionInfo) -> PositionModel:
         """Create from PositionInfo TypedDict."""
         return cls(
             symbol=data["symbol"],

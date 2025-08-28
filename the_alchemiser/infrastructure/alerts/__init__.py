@@ -2,3 +2,5 @@
 
 Alerting utilities for translating strategy signals into notifications.
 """
+from __future__ import annotations
+

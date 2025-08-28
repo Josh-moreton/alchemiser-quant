@@ -6,6 +6,8 @@ This module centralizes alert creation and logging, providing helpers that
 convert strategy recommendations into structured data that can be persisted or
 displayed to users.
 """
+from __future__ import annotations
+
 
 import datetime as dt
 import json

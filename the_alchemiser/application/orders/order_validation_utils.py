@@ -6,6 +6,8 @@ Order Validation Utilities.
 This module provides helper functions for validating order parameters,
 including quantity validation, price validation, and parameter normalization.
 """
+from __future__ import annotations
+
 
 import logging
 import math

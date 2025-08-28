@@ -7,6 +7,8 @@ Stateless strategy for planning and executing re-pegging attempts with
 adaptive pricing and timeout logic.
 Uses Decimal for all monetary values per project standards.
 """
+from __future__ import annotations
+
 
 from dataclasses import dataclass
 from decimal import ROUND_HALF_UP, Decimal

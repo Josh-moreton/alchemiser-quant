@@ -20,6 +20,8 @@ from the relevant subpackage, for example:
     from the_alchemiser.services.trading.trading_service_manager import TradingServiceManager
 """
 
+from __future__ import annotations
+
 __all__ = [
     "account",
     "errors",

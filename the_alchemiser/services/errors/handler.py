@@ -6,6 +6,8 @@ Main error handler for The Alchemiser Trading System.
 This module provides the single facade TradingSystemErrorHandler for all error handling,
 categorization, and detailed error reporting via email notifications.
 """
+from __future__ import annotations
+
 
 import logging
 import random
@@ -146,7 +148,7 @@ class EnhancedAlchemiserError(AlchemiserError):
         """Get exponential backoff delay for retries."""
         return min(2.0**self.retry_count, 60.0)  # Max 60 seconds
 
-    def increment_retry(self) -> "EnhancedAlchemiserError":
+    def increment_retry(self) -> EnhancedAlchemiserError:
         """Create a new instance with incremented retry count."""
         return self.__class__(
             message=self.original_message,

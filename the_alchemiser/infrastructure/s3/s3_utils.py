@@ -4,6 +4,8 @@
 S3 Utilities for Quantitative Trading System
 Handles reading and writing files to S3 storage.
 """
+from __future__ import annotations
+
 
 import json
 import logging
