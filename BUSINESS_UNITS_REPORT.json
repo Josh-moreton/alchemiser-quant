@@ -654,12 +654,6 @@
     "description": "Classes: LoggingObserver, MetricsObserver"
   },
   {
-    "file": "the_alchemiser/application/trading/lifecycle/cli_observer_interface.py",
-    "business_unit": "order execution/placement",
-    "status": "current",
-    "description": "Classes: CLILifecycleObserver, CLIObserverAdapter"
-  },
-  {
     "file": "the_alchemiser/application/trading/lifecycle/__init__.py",
     "business_unit": "order execution/placement",
     "status": "current",
@@ -1492,12 +1486,6 @@
     "business_unit": "order execution/placement",
     "status": "current",
     "description": "Classes: PositionManager"
-  },
-  {
-    "file": "the_alchemiser/services/trading/trading_client_service.py",
-    "business_unit": "order execution/placement",
-    "status": "current",
-    "description": "Classes: TradingClientService"
   },
   {
     "file": "the_alchemiser/services/trading/__init__.py",
