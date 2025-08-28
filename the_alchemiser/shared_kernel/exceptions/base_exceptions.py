@@ -121,3 +121,103 @@ class ValidationError(AlchemiserError):
         super().__init__(message)
         self.field_name = field_name
         self.value = value
+
+
+class RateLimitError(AlchemiserError):
+    """Raised when rate limits are exceeded."""
+
+    def __init__(
+        self,
+        message: str,
+        rate_limit: int | None = None,
+        reset_time: str | None = None,
+    ) -> None:
+        """Create a rate limit error with timing details."""
+        context: dict[str, Any] = {}
+        if rate_limit is not None:
+            context["rate_limit"] = rate_limit
+        if reset_time:
+            context["reset_time"] = reset_time
+
+        super().__init__(message, context)
+        self.rate_limit = rate_limit
+        self.reset_time = reset_time
+
+
+class LoggingError(AlchemiserError):
+    """Raised when logging operations fail."""
+
+
+class FileOperationError(AlchemiserError):
+    """Raised when file operations fail."""
+
+    def __init__(
+        self,
+        message: str,
+        file_path: str | None = None,
+        operation: str | None = None,
+    ) -> None:
+        """Create a file operation error with file details."""
+        context: dict[str, Any] = {}
+        if file_path:
+            context["file_path"] = file_path
+        if operation:
+            context["operation"] = operation
+
+        super().__init__(message, context)
+        self.file_path = file_path
+        self.operation = operation
+
+
+class DatabaseError(AlchemiserError):
+    """Raised when database operations fail."""
+
+    def __init__(
+        self,
+        message: str,
+        query: str | None = None,
+        table: str | None = None,
+    ) -> None:
+        """Create a database error with query details."""
+        context: dict[str, Any] = {}
+        if query:
+            context["query"] = query
+        if table:
+            context["table"] = table
+
+        super().__init__(message, context)
+        self.query = query
+        self.table = table
+
+
+class SecurityError(AlchemiserError):
+    """Raised when security-related operations fail."""
+
+
+class EnvironmentError(ConfigurationError):
+    """Raised when environment configuration is invalid."""
+
+
+class S3OperationError(AlchemiserError):
+    """Raised when S3 operations fail."""
+
+    def __init__(
+        self,
+        message: str,
+        bucket: str | None = None,
+        key: str | None = None,
+        operation: str | None = None,
+    ) -> None:
+        """Create an S3 operation error with AWS details."""
+        context: dict[str, Any] = {}
+        if bucket:
+            context["bucket"] = bucket
+        if key:
+            context["key"] = key
+        if operation:
+            context["operation"] = operation
+
+        super().__init__(message, context)
+        self.bucket = bucket
+        self.key = key
+        self.operation = operation
