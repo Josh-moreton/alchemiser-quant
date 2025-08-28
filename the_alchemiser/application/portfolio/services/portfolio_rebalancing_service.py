@@ -18,6 +18,7 @@ from the_alchemiser.interfaces.schemas.portfolio_rebalancing import (
     RebalancingImpactDTO,
     RebalancingSummaryDTO,
 )
+from the_alchemiser.services.errors.handler import TradingSystemErrorHandler
 from the_alchemiser.services.trading.trading_service_manager import TradingServiceManager
 
 
@@ -355,9 +356,64 @@ class PortfolioRebalancingService:
         return values
 
     def _get_portfolio_value(self) -> Decimal:
-        """Get total portfolio value from trading manager."""
-        portfolio_dto = self.trading_manager.get_portfolio_value()
-        return portfolio_dto.value
+        """Get total portfolio value from trading manager.
+        
+        Returns:
+            Decimal: The portfolio value
+            
+        Raises:
+            ValueError: If portfolio_dto is None or portfolio_dto.value is not a valid Decimal
+
+        """
+        try:
+            portfolio_dto = self.trading_manager.get_portfolio_value()
+            
+            # Defensive validation: ensure we got a valid PortfolioValueDTO
+            if portfolio_dto is None:
+                error_handler = TradingSystemErrorHandler()
+                error = ValueError("Portfolio DTO is None - potential upstream schema drift")
+                error_handler.handle_error(
+                    error=error,
+                    component="PortfolioRebalancingService._get_portfolio_value",
+                    context="portfolio value retrieval",
+                    additional_data={"portfolio_dto": None}
+                )
+                raise error
+                
+            # Defensive validation: ensure portfolio_dto.value is a valid Decimal
+            if not isinstance(portfolio_dto.value, Decimal):
+                error_handler = TradingSystemErrorHandler()
+                error = ValueError(
+                    f"Portfolio value is not a Decimal: {type(portfolio_dto.value)} - "
+                    f"potential upstream schema drift"
+                )
+                error_handler.handle_error(
+                    error=error,
+                    component="PortfolioRebalancingService._get_portfolio_value",
+                    context="portfolio value validation",
+                    additional_data={
+                        "portfolio_dto_type": str(type(portfolio_dto)),
+                        "value_type": str(type(portfolio_dto.value)),
+                        "value_repr": repr(portfolio_dto.value)
+                    }
+                )
+                raise error
+                
+            return portfolio_dto.value
+            
+        except Exception as e:
+            # Re-raise if already handled above, otherwise handle and re-raise
+            if isinstance(e, ValueError) and "schema drift" in str(e):
+                raise
+            
+            error_handler = TradingSystemErrorHandler()
+            error_handler.handle_error(
+                error=e,
+                component="PortfolioRebalancingService._get_portfolio_value",
+                context="portfolio value retrieval - unexpected error",
+                additional_data={"error_type": str(type(e))}
+            )
+            raise
 
     def _calculate_strategy_changes(
         self, current_exposures: dict[str, Any], target_exposures: dict[str, Any]
