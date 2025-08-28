@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any
 
-from shared_kernel.value_objects.money import Money
+from the_alchemiser.domain.shared_kernel.value_objects.money import Money
 
 
 def to_money_usd(value: str | float | int | Decimal | None) -> Money | None:

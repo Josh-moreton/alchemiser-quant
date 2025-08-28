@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from shared_kernel.value_objects.identifier import Identifier
+from the_alchemiser.domain.shared_kernel.value_objects.identifier import Identifier
 
 if TYPE_CHECKING:  # Only for static typing; avoids runtime circular import
     # Import the Order entity for precise typing during type checking only

@@ -12,7 +12,7 @@ from __future__ import annotations
 from decimal import Decimal
 
 from the_alchemiser.domain.policies.policy_result import PolicyResult, PolicyWarning
-from shared_kernel.value_objects.money import Money
+from the_alchemiser.domain.shared_kernel.value_objects.money import Money
 from the_alchemiser.domain.trading.value_objects.order_request import OrderRequest
 from the_alchemiser.domain.trading.value_objects.order_type import OrderType
 from the_alchemiser.domain.trading.value_objects.quantity import Quantity

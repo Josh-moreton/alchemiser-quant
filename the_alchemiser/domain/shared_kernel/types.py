@@ -1,16 +1,12 @@
-"""Business Unit: utilities; Status: legacy.
+"""Business Unit: utilities; Status: current.
 
-Shared kernel type exports for cross-context value objects (Legacy Location).
-
-This module is deprecated. Use `shared_kernel.value_objects.*` instead.
+Shared kernel type exports for cross-context value objects.
 """
 
 from __future__ import annotations
 
-# Re-export from new location for backward compatibility
-from shared_kernel.value_objects.identifier import Identifier
-from shared_kernel.value_objects.money import Money
-from shared_kernel.value_objects.percentage import Percentage
-from shared_kernel.value_objects.symbol import Symbol
+from .value_objects.identifier import Identifier
+from .value_objects.money import Money
+from .value_objects.percentage import Percentage
 
-__all__ = ["Identifier", "Money", "Percentage", "Symbol"]
+__all__ = ["Identifier", "Money", "Percentage"]
