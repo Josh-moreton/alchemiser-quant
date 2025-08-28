@@ -22,7 +22,7 @@ from the_alchemiser.domain.trading.value_objects.order_request import OrderReque
 from the_alchemiser.interfaces.schemas.orders import (
     OrderExecutionResultDTO,
 )
-from the_alchemiser.services.errors.handler import TradingSystemErrorHandler
+from the_alchemiser.infrastructure.errors.handler import TradingSystemErrorHandler
 
 if TYPE_CHECKING:  # typing-only imports
     from the_alchemiser.application.policies.policy_orchestrator import (
@@ -37,7 +37,7 @@ if TYPE_CHECKING:  # typing-only imports
     )
 
 if TYPE_CHECKING:
-    from the_alchemiser.services.repository.alpaca_manager import AlpacaManager
+    from the_alchemiser.infrastructure.repositories.alpaca_manager import AlpacaManager
 
 logger = logging.getLogger(__name__)
 

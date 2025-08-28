@@ -22,9 +22,9 @@ from the_alchemiser.application.portfolio.services.portfolio_management_facade i
 )
 from the_alchemiser.domain.registry.strategy_registry import StrategyType
 from the_alchemiser.domain.types import OrderDetails
-from the_alchemiser.services.errors.context import create_error_context
-from the_alchemiser.services.errors.exceptions import StrategyExecutionError
-from the_alchemiser.services.errors.handler import TradingSystemErrorHandler
+from the_alchemiser.infrastructure.errors.context import create_error_context
+from the_alchemiser.domain.shared_kernel.errors.exceptions import StrategyExecutionError
+from the_alchemiser.infrastructure.errors.handler import TradingSystemErrorHandler
 
 
 class RebalancingOrchestratorFacade:

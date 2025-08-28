@@ -25,20 +25,20 @@ from the_alchemiser.infrastructure.logging.logging_utils import (
 )
 from the_alchemiser.interfaces.cli.signal_analyzer import SignalAnalyzer
 from the_alchemiser.interfaces.cli.trading_executor import TradingExecutor
-from the_alchemiser.services.errors.exceptions import (
+from the_alchemiser.domain.shared_kernel.errors.exceptions import (
     ConfigurationError,
     DataProviderError,
     StrategyExecutionError,
     TradingClientError,
 )
-from the_alchemiser.services.errors.handler import TradingSystemErrorHandler
+from the_alchemiser.infrastructure.errors.handler import TradingSystemErrorHandler
 
 # DI imports (optional)
 try:
     from the_alchemiser.infrastructure.dependency_injection.application_container import (
         ApplicationContainer,
     )
-    from the_alchemiser.services.shared.service_factory import ServiceFactory
+    from the_alchemiser.infrastructure.shared.service_factory import ServiceFactory
 
     DI_AVAILABLE = True
 except ImportError:

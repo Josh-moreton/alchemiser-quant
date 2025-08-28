@@ -40,14 +40,14 @@ from the_alchemiser.infrastructure.logging.logging_utils import (
 )
 from the_alchemiser.infrastructure.secrets.secrets_manager import secrets_manager
 from the_alchemiser.interfaces.cli.cli_formatter import render_account_info
-from the_alchemiser.services.errors.exceptions import (
+from the_alchemiser.domain.shared_kernel.errors.exceptions import (
     AlchemiserError,
     StrategyExecutionError,
     TradingClientError,
 )
-from the_alchemiser.services.errors.handler import TradingSystemErrorHandler
-from the_alchemiser.services.market_data.market_data_service import MarketDataService
-from the_alchemiser.services.trading.trading_service_manager import (
+from the_alchemiser.infrastructure.errors.handler import TradingSystemErrorHandler
+from the_alchemiser.application.market_data.market_data_service import MarketDataService
+from the_alchemiser.application.trading.services.trading_service_manager import (
     TradingServiceManager,
 )
 

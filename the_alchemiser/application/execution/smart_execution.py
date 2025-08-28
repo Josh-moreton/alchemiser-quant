@@ -61,7 +61,7 @@ from the_alchemiser.interfaces.schemas.execution import WebSocketResultDTO
 
 if TYPE_CHECKING:
     pass
-from the_alchemiser.services.errors.exceptions import (
+from the_alchemiser.domain.shared_kernel.errors.exceptions import (
     BuyingPowerError,
     DataProviderError,
     OrderExecutionError,
@@ -199,7 +199,7 @@ class SmartExecution:
                 alpaca_manager = getattr(self._order_executor, "_trading", self._order_executor)
 
             # Ensure we have a proper AlpacaManager instance, type cast as needed
-            from the_alchemiser.services.repository.alpaca_manager import AlpacaManager
+            from the_alchemiser.infrastructure.repositories.alpaca_manager import AlpacaManager
 
             if not isinstance(alpaca_manager, AlpacaManager):
                 raise ValueError("Unable to get AlpacaManager instance for canonical executor")
@@ -259,7 +259,7 @@ class SmartExecution:
             )
 
             # Get alpaca manager for canonical executor (same as market order)
-            from the_alchemiser.services.repository.alpaca_manager import AlpacaManager
+            from the_alchemiser.infrastructure.repositories.alpaca_manager import AlpacaManager
 
             alpaca_manager = getattr(self._order_executor, "alpaca_manager", None)
             if not alpaca_manager:

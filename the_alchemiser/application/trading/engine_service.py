@@ -71,18 +71,18 @@ from the_alchemiser.domain.types import (
 from the_alchemiser.infrastructure.config import Settings
 from the_alchemiser.interfaces.schemas.common import MultiStrategyExecutionResultDTO
 from the_alchemiser.interfaces.schemas.execution import ExecutionResultDTO
-from the_alchemiser.services.account.account_service import (
+from the_alchemiser.application.account.account_service import (
     AccountService as TypedAccountService,
 )
-from the_alchemiser.services.errors.context import create_error_context
-from the_alchemiser.services.errors.exceptions import (
+from the_alchemiser.infrastructure.errors.context import create_error_context
+from the_alchemiser.domain.shared_kernel.errors.exceptions import (
     ConfigurationError,
     DataProviderError,
     StrategyExecutionError,
     TradingClientError,
 )
-from the_alchemiser.services.errors.handler import TradingSystemErrorHandler
-from the_alchemiser.services.repository.alpaca_manager import AlpacaManager
+from the_alchemiser.infrastructure.errors.handler import TradingSystemErrorHandler
+from the_alchemiser.infrastructure.repositories.alpaca_manager import AlpacaManager
 
 from ..execution.execution_manager import ExecutionManager
 from ..reporting.reporting import build_portfolio_state_data
@@ -410,10 +410,10 @@ class TradingEngine:
                         for st in self._typed.strategy_allocations
                     }
                 except Exception as e:
-                    from the_alchemiser.services.errors.context import (
+                    from the_alchemiser.infrastructure.errors.context import (
                         create_error_context,
                     )
-                    from the_alchemiser.services.errors.handler import (
+                    from the_alchemiser.infrastructure.errors.handler import (
                         TradingSystemErrorHandler,
                     )
 
@@ -724,7 +724,7 @@ class TradingEngine:
             logging.error(f"Multi-strategy execution failed: {e}")
 
             # Enhanced error handling (fail-fast; no legacy import fallback)
-            from the_alchemiser.services.errors import handle_trading_error
+            from the_alchemiser.infrastructure.errors import handle_trading_error
 
             handle_trading_error(
                 error=e,

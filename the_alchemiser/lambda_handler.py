@@ -23,7 +23,7 @@ from the_alchemiser.infrastructure.logging.logging_utils import (
 )
 from the_alchemiser.interfaces.schemas.execution import LambdaEventDTO
 from the_alchemiser.main import main
-from the_alchemiser.services.errors.exceptions import (
+from the_alchemiser.domain.shared_kernel.errors.exceptions import (
     DataProviderError,
     NotificationError,
     StrategyExecutionError,
@@ -256,7 +256,7 @@ def lambda_handler(event: LambdaEventDTO | None = None, context: Any = None) -> 
 
         # Enhanced error handling with detailed reporting
         try:
-            from the_alchemiser.services.errors import (
+            from the_alchemiser.infrastructure.errors import (
                 handle_trading_error,
                 send_error_notification_if_needed,
             )
@@ -304,7 +304,7 @@ def lambda_handler(event: LambdaEventDTO | None = None, context: Any = None) -> 
 
         # Enhanced error handling with detailed reporting
         try:
-            from the_alchemiser.services.errors import (
+            from the_alchemiser.infrastructure.errors import (
                 handle_trading_error,
                 send_error_notification_if_needed,
             )
