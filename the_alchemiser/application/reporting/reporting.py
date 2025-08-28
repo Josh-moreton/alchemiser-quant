@@ -69,7 +69,7 @@ def save_dashboard_data(
     """Save structured data for dashboard consumption to S3."""
     try:
         from the_alchemiser.infrastructure.s3.s3_utils import get_s3_handler
-        from the_alchemiser.interface.cli.dashboard_utils import (
+        from the_alchemiser.interfaces.cli.dashboard_utils import (
             build_basic_dashboard_structure,
             build_s3_paths,
             extract_portfolio_metrics,

@@ -6,7 +6,7 @@ This module provides email template builders with clean separation of concerns.
 Each template type has its own dedicated module for better organization.
 
 Usage:
-    from the_alchemiser.interface.email.templates import EmailTemplates
+    from the_alchemiser.infrastructure.notifications.templates import EmailTemplates
 
     # Build a neutral multi-strategy report
     html = EmailTemplates.build_multi_strategy_report_neutral(...)

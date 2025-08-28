@@ -16,9 +16,9 @@ The email functionality has been split into separate modules:
   - multi_strategy.py: Multi-strategy report templates
   - error_report.py: Error notification templates
 
-For new code, import directly from the email module:
-    from the_alchemiser.interface.email import send_email_notification
-    from the_alchemiser.interface.email.templates import EmailTemplates
+For new code, import directly from the notifications module:
+    from the_alchemiser.infrastructure.notifications import send_email_notification
+    from the_alchemiser.infrastructure.notifications.templates import EmailTemplates
 
 This file maintains backward compatibility for existing imports.
 """

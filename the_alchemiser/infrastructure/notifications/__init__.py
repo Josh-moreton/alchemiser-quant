@@ -1,6 +1,6 @@
 """Business Unit: utilities; Status: current.
 
-Email module for The Alchemiser quantitative trading system.
+Notifications module for The Alchemiser quantitative trading system.
 
 This module provides email notification functionality with clean separation
 of concerns across configuration, client operations, and template generation.
@@ -11,8 +11,8 @@ Main components:
 - templates: HTML email template builders
 
 Usage:
-    from the_alchemiser.interface.email import send_email_notification
-    from the_alchemiser.interface.email.templates import EmailTemplates
+    from the_alchemiser.infrastructure.notifications import send_email_notification
+    from the_alchemiser.infrastructure.notifications.templates import EmailTemplates
 
     # Send a simple notification
     send_email_notification(

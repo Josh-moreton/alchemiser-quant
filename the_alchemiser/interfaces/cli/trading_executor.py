@@ -27,7 +27,7 @@ from the_alchemiser.domain.strategies.value_objects.strategy_signal import (
 )
 from the_alchemiser.infrastructure.config import Settings
 from the_alchemiser.infrastructure.logging.logging_utils import get_logger
-from the_alchemiser.interface.cli.cli_formatter import (
+from the_alchemiser.interfaces.cli.cli_formatter import (
     render_enriched_order_summaries,
     render_footer,
     render_header,
@@ -112,7 +112,7 @@ class TradingExecutor:
     def _send_market_closed_notification(self) -> None:
         """Send market closed notification."""
         try:
-            from the_alchemiser.interface.email.email_utils import (
+            from the_alchemiser.infrastructure.notifications.email_utils import (
                 build_error_email_html,
                 send_email_notification,
             )
@@ -316,10 +316,10 @@ class TradingExecutor:
 
         """
         try:
-            from the_alchemiser.interface.email.email_utils import (
+            from the_alchemiser.infrastructure.notifications.email_utils import (
                 send_email_notification,
             )
-            from the_alchemiser.interface.email.templates import EmailTemplates
+            from the_alchemiser.infrastructure.notifications.templates import EmailTemplates
 
             # Enrich result with fresh position data without mutating the frozen DTO
             try:
@@ -452,7 +452,7 @@ class TradingExecutor:
             from rich.console import Console
             from rich.panel import Panel
 
-            from the_alchemiser.interface.cli.signal_analyzer import SignalAnalyzer
+            from the_alchemiser.interfaces.cli.signal_analyzer import SignalAnalyzer
 
             console = Console()
             console.print("\n")

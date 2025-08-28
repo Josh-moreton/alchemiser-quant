@@ -37,7 +37,7 @@ from the_alchemiser.infrastructure.logging.logging_utils import (
     log_error_with_context,
 )
 from the_alchemiser.infrastructure.secrets.secrets_manager import secrets_manager
-from the_alchemiser.interface.cli.cli_formatter import render_account_info
+from the_alchemiser.interfaces.cli.cli_formatter import render_account_info
 from the_alchemiser.services.errors.exceptions import (
     AlchemiserError,
     StrategyExecutionError,

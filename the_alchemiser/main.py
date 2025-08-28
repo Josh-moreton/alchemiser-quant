@@ -22,8 +22,8 @@ from the_alchemiser.infrastructure.logging.logging_utils import (
     set_request_id,
     setup_logging,
 )
-from the_alchemiser.interface.cli.signal_analyzer import SignalAnalyzer
-from the_alchemiser.interface.cli.trading_executor import TradingExecutor
+from the_alchemiser.interfaces.cli.signal_analyzer import SignalAnalyzer
+from the_alchemiser.interfaces.cli.trading_executor import TradingExecutor
 from the_alchemiser.services.errors.exceptions import (
     ConfigurationError,
     DataProviderError,
@@ -248,7 +248,7 @@ def main(argv: list[str] | None = None) -> bool:
         True if operation completed successfully, False otherwise
 
     """
-    from the_alchemiser.interface.cli.cli_formatter import render_footer, render_header
+    from the_alchemiser.interfaces.cli.cli_formatter import render_footer, render_header
 
     # Setup
     configure_application_logging()

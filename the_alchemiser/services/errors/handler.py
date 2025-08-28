@@ -595,8 +595,8 @@ def send_error_notification_if_needed() -> ErrorNotificationData | None:
         return None
 
     try:
-        from the_alchemiser.interface.email.client import send_email_notification
-        from the_alchemiser.interface.email.templates import EmailTemplates
+        from the_alchemiser.infrastructure.notifications.client import send_email_notification
+        from the_alchemiser.infrastructure.notifications.templates import EmailTemplates
 
         # Generate error report
         error_report = _error_handler.generate_error_report()
