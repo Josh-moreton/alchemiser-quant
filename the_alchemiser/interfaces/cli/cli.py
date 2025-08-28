@@ -45,8 +45,8 @@ from the_alchemiser.services.errors.exceptions import (
     StrategyExecutionError,
     TradingClientError,
 )
-from the_alchemiser.services.errors.handler import TradingSystemErrorHandler
-from the_alchemiser.services.market_data.market_data_service import MarketDataService
+# TODO: Error handler needs to be migrated
+from the_alchemiser.strategy.application.use_cases.market_data_operations import MarketDataOperations
 from the_alchemiser.services.trading.trading_service_manager import (
     TradingServiceManager,
 )

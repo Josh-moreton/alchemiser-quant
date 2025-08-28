@@ -30,7 +30,12 @@ Every module is classified under one of these business units:
 - `the_alchemiser/shared_kernel/domain/__init__.py` - Shared kernel domain layer
 - `the_alchemiser/shared_kernel/application/__init__.py` - Shared kernel application layer
 - `the_alchemiser/shared_kernel/infrastructure/__init__.py` - Shared kernel infrastructure layer
+- `the_alchemiser/shared_kernel/infrastructure/base_alpaca_adapter.py` - Base Alpaca adapter for shared connection management
 - `the_alchemiser/shared_kernel/interfaces/__init__.py` - Shared kernel interfaces layer
+- `the_alchemiser/shared_kernel/exceptions/__init__.py` - Exceptions package
+- `the_alchemiser/shared_kernel/exceptions/base_exceptions.py` - Base exception classes and cross-cutting exceptions
+- `the_alchemiser/shared_kernel/tooling/__init__.py` - Tooling package
+- `the_alchemiser/shared_kernel/tooling/retry.py` - Retry utility functions
 - `the_alchemiser/domain/shared_kernel/types.py` - Backwards compatibility shim (ActionType enum & value object re-exports)
 - `the_alchemiser/domain/shared_kernel/tooling/__init__.py` - Tooling package (numeric helpers export)
 - `the_alchemiser/domain/shared_kernel/tooling/num.py` - Float tolerance comparison utility (`floats_equal`)
@@ -40,14 +45,42 @@ Every module is classified under one of these business units:
 
 - `the_alchemiser/strategy/__init__.py` - Strategy context entry point
 - `the_alchemiser/strategy/domain/__init__.py` - Strategy domain layer
+- `the_alchemiser/strategy/domain/exceptions.py` - Strategy-specific exception classes
 - `the_alchemiser/strategy/application/__init__.py` - Strategy application layer
+- `the_alchemiser/strategy/application/use_cases/market_data_operations.py` - Market data operations use case
+- `the_alchemiser/strategy/application/use_cases/strategy_data_service.py` - Strategy data service use case
 - `the_alchemiser/strategy/infrastructure/__init__.py` - Strategy infrastructure layer
+- `the_alchemiser/strategy/infrastructure/adapters/market_data_client.py` - Market data client adapter
+- `the_alchemiser/strategy/infrastructure/adapters/streaming_adapter.py` - Streaming data adapter
+- `the_alchemiser/strategy/infrastructure/adapters/alpaca_market_data_adapter.py` - Alpaca market data adapter
+- `the_alchemiser/strategy/infrastructure/utils/price_utils.py` - Price utility functions
 - `the_alchemiser/strategy/interfaces/__init__.py` - Strategy interfaces layer
 
 ### Portfolio Context
 **Business Unit**: portfolio assessment & management | **Status**: current
 
 - `the_alchemiser/portfolio/__init__.py` - Portfolio context entry point
+- `the_alchemiser/portfolio/domain/__init__.py` - Portfolio domain layer
+- `the_alchemiser/portfolio/domain/utils/__init__.py` - Portfolio domain utilities package
+- `the_alchemiser/portfolio/domain/utils/account_data_utils.py` - Account data utility functions
+- `the_alchemiser/portfolio/application/__init__.py` - Portfolio application layer
+- `the_alchemiser/portfolio/application/use_cases/account_operations.py` - Account operations use case
+- `the_alchemiser/portfolio/infrastructure/__init__.py` - Portfolio infrastructure layer
+- `the_alchemiser/portfolio/infrastructure/adapters/alpaca_account_adapter.py` - Alpaca account adapter
+- `the_alchemiser/portfolio/interfaces/__init__.py` - Portfolio interfaces layer
+
+### Execution Context
+**Business Unit**: order execution/placement | **Status**: current
+
+- `the_alchemiser/execution/__init__.py` - Execution context entry point
+- `the_alchemiser/execution/domain/__init__.py` - Execution domain layer
+- `the_alchemiser/execution/domain/exceptions.py` - Execution-specific exception classes  
+- `the_alchemiser/execution/application/__init__.py` - Execution application layer
+- `the_alchemiser/execution/application/use_cases/order_operations.py` - Order operations use case
+- `the_alchemiser/execution/application/use_cases/position_analysis.py` - Position analysis use case
+- `the_alchemiser/execution/infrastructure/__init__.py` - Execution infrastructure layer
+- `the_alchemiser/execution/infrastructure/adapters/alpaca_order_adapter.py` - Alpaca order adapter
+- `the_alchemiser/execution/interfaces/__init__.py` - Execution interfaces layer
 - `the_alchemiser/portfolio/domain/__init__.py` - Portfolio domain layer
 - `the_alchemiser/portfolio/application/__init__.py` - Portfolio application layer
 - `the_alchemiser/portfolio/infrastructure/__init__.py` - Portfolio infrastructure layer
@@ -91,12 +124,12 @@ All imports across impacted files were updated; no remaining references to the r
 
 ## Summary
 
-- **Total new modules**: 25 new DDD bounded context modules (Task 1) + 4 migration utility modules (Task 2)
+- **Total new modules**: 47 new DDD bounded context modules (Task 1) + 4 migration utility modules (Task 2) + 18 services migration modules (Task 3)
 - **Modules by business unit**:
-  - utilities: 19 modules (shared_kernel + anti_corruption + interface utilities + tooling shim)
-  - strategy & signal generation: 5 modules (strategy context)
-  - portfolio assessment & management: 5 modules (portfolio context)
-  - order execution/placement: 5 modules (execution context)
+  - utilities: 24 modules (shared_kernel + anti_corruption + interface utilities + tooling shim)
+  - strategy & signal generation: 12 modules (strategy context with market data operations)
+  - portfolio assessment & management: 9 modules (portfolio context with account operations)
+  - order execution/placement: 10 modules (execution context with trading operations)
 - **All modules status**: current
 
-**Note**: Task 2 (PR #398) completed removal of the legacy `utils/` module. Further tasks will continue migrating any remaining legacy patterns.
+**Note**: Task 3 (DDD Epic #375) completed migration of services/ directory into bounded context domain & application layers. The legacy services structure has been eliminated and replaced with context-specific adapters and use cases following strict layered architecture.

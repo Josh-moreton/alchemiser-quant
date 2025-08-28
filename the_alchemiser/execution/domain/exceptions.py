@@ -17,6 +17,14 @@ class TradingClientError(AlchemiserError):
     """Raised when trading client operations fail."""
 
 
+class OrderValidationError(TradingClientError):
+    """Raised when order validation fails."""
+
+
+class OrderOperationError(TradingClientError):
+    """Raised when an order operation (e.g. liquidation) fails."""
+
+
 class OrderPlacementError(TradingClientError):
     """Raised when an order placement fails due to trading client issues."""
 

@@ -14,7 +14,11 @@ from enum import Enum
 from alpaca.trading.enums import TimeInForce
 
 from the_alchemiser.domain.interfaces import MarketDataRepository, TradingRepository
-from the_alchemiser.services.errors.decorators import translate_trading_errors
+from the_alchemiser.execution.domain.exceptions import (
+    TradingClientError,
+    OrderValidationError,
+    OrderOperationError,
+)
 from the_alchemiser.domain.shared_kernel.tooling.num import floats_equal
 
 logger = logging.getLogger(__name__)
@@ -64,7 +68,6 @@ class OrderOperations:
         self._max_order_value = max_order_value
         self._min_order_value = min_order_value
 
-    @translate_trading_errors()
     def cancel_order(self, order_id: str) -> bool:
         """Cancel an order with enhanced error handling.
 
@@ -92,7 +95,6 @@ class OrderOperations:
 
         return result
 
-    @translate_trading_errors()
     def liquidate_position(self, symbol: str) -> str:
         """Liquidate entire position with validation.
 

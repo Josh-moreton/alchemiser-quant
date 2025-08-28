@@ -15,7 +15,7 @@ from the_alchemiser.domain.interfaces import (
     MarketDataRepository,
     TradingRepository,
 )
-from the_alchemiser.services.errors.decorators import translate_trading_errors
+from the_alchemiser.execution.domain.exceptions import TradingClientError
 from the_alchemiser.domain.shared_kernel.tooling.num import floats_equal
 
 logger = logging.getLogger(__name__)
@@ -74,7 +74,6 @@ class PositionAnalysis:
         self.market_data_repo = market_data_repo
         self.logger = logging.getLogger(__name__)
 
-    @translate_trading_errors
     def get_position_details(self, symbol: str) -> PositionInfo | None:
         """Get detailed information for a specific position.
 
@@ -142,7 +141,6 @@ class PositionAnalysis:
             self.logger.error(f"Failed to get position details for {symbol}: {e}")
             raise
 
-    @translate_trading_errors
     def get_all_positions(self) -> list[PositionInfo]:
         """Get detailed information for all positions.
 
@@ -211,7 +209,6 @@ class PositionAnalysis:
             self.logger.error(f"Failed to get all positions: {e}")
             raise
 
-    @translate_trading_errors
     def get_portfolio_summary(self) -> PortfolioSummary:
         """Get portfolio-level position summary.
 

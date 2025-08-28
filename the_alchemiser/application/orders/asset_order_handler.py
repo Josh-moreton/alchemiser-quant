@@ -22,7 +22,7 @@ from alpaca.trading.requests import MarketOrderRequest
 
 from the_alchemiser.domain.math.asset_info import fractionability_detector
 from the_alchemiser.infrastructure.logging.logging_utils import get_logger, log_error_with_context
-from the_alchemiser.services.errors.exceptions import DataProviderError
+from the_alchemiser.strategy.domain.exceptions import DataProviderError
 
 
 class AssetOrderHandler:
