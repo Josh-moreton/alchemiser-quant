@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from typing import cast
 
-from the_alchemiser.container.application_container import ApplicationContainer
+from the_alchemiser.infrastructure.dependency_injection.application_container import ApplicationContainer
 from the_alchemiser.services.trading.trading_service_manager import TradingServiceManager
 
 
