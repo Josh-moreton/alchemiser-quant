@@ -251,47 +251,47 @@ select = ["E", "W", "F", "I", "N", "UP", "ANN", "S", "BLE", "COM", "C4", "DTZ", 
 
 ```
 the_alchemiser/
-├── core/                          # Legacy/core logic (being migrated to domain/)
-│   ├── config.py                  # Pydantic settings models
-│   ├── exceptions.py              # Custom exception hierarchy
-│   ├── error_handler.py           # Centralized error handling
-│   ├── data/                      # Data providers and caching
-│   │   └── data_provider.py       # Unified Alpaca API wrapper
-│   ├── trading/                   # Strategy engines
-│   │   ├── strategy_manager.py    # Multi-strategy coordination
-│   │   ├── strategy_engine.py     # Nuclear strategy implementation
-│   │   └── tecl_strategy_engine.py # TECL strategy implementation
-│   └── ui/                        # User interface components
-│       └── email/                 # Email templates and sending
-├── execution/                     # Order execution and portfolio management
-│   ├── trading_engine.py          # Main trading orchestration
-│   ├── smart_execution.py         # Professional order execution
-│   ├── alpaca_client.py           # Direct Alpaca API client
-│   ├── portfolio_rebalancer.py    # Portfolio rebalancing logic
-│   └── account_service.py         # Account and position management
-├── tracking/                      # Performance tracking and attribution
-│   └── strategy_order_tracker.py  # Per-strategy order tracking
+├── domain/                        # Pure business logic (DDD Domain Layer)
+│   ├── shared_kernel/
+│   │   └── value_objects/         # Money, Percentage, Identifier
+│   ├── trading/
+│   │   ├── entities/              # Order, Position, Account
+│   │   ├── value_objects/         # Symbol, Quantity, OrderStatus
+│   │   └── protocols/             # Repository interfaces
+│   ├── strategies/                # Strategy engines and protocols
+│   │   ├── value_objects/         # StrategySignal, Confidence, Alert
+│   │   └── protocols/             # Strategy engine interfaces
+│   └── policies/                  # Business rules and validation
+├── services/                      # Business logic orchestration (DDD Services Layer)
+│   ├── trading/                   # Trading services (OrderService, PositionService)
+│   ├── market_data/               # Market data services
+│   ├── account/                   # Account management services
+│   ├── shared/                    # Shared service utilities
+│   └── errors/                    # Error handling and recovery
+├── infrastructure/                # External integrations (DDD Infrastructure Layer)
+│   ├── dependency_injection/      # DI container and providers
+│   │   ├── application_container.py    # Main application container
+│   │   ├── config_providers.py         # Configuration providers
+│   │   ├── infrastructure_providers.py # Infrastructure providers
+│   │   └── service_providers.py        # Service providers
+│   ├── config/                    # Configuration management
+│   ├── logging/                   # Logging utilities
+│   ├── notifications/             # Email notifications
+│   ├── secrets/                   # AWS Secrets Manager
+│   └── websocket/                 # WebSocket connections
+├── application/                   # Trading orchestration (DDD Application Layer)
+│   ├── trading/                   # Trading engine and orchestration
+│   ├── execution/                 # Smart order execution
+│   ├── portfolio/                 # Portfolio rebalancing
+│   ├── mapping/                   # Anti‑corruption mappers (DTO ↔ Domain ↔ Infra)
+│   └── tracking/                  # Performance tracking
+├── interfaces/                    # User interfaces (DDD Interface Layer)
+│   ├── cli/                       # Rich CLI with Typer
+│   ├── email/                     # Email templates
+│   └── schemas/                   # Pydantic DTOs for I/O
 ├── utils/                         # Utility functions
-│   ├── price_fetching_utils.py    # Price retrieval with fallbacks
-│   ├── market_timing_utils.py     # Market hours and timing
-│   └── portfolio_pnl_utils.py     # P&L calculation utilities
-├── cli.py                         # Typer-based command line interface
 ├── main.py                        # Main execution entry point
 └── lambda_handler.py              # AWS Lambda handler
-
-# New typed domain directories (incremental rollout)
-the_alchemiser/domain/
-├── shared_kernel/
-│   └── value_objects/             # Money, Percentage, Identifier
-├── trading/
-│   ├── entities/                  # Order, Position, Account
-│   ├── value_objects/             # Symbol, Quantity, OrderStatus
-│   └── protocols/                 # Repository interfaces
-└── strategies/
-    └── value_objects/             # StrategySignal, Confidence, Alert
-
-the_alchemiser/application/mapping/  # Anti‑corruption mappers (DTO ↔ Domain ↔ Infra)
-the_alchemiser/interfaces/schemas/   # Pydantic DTOs for I/O
 ```
 
 ### Dependency Management with Poetry

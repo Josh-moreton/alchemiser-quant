@@ -36,31 +36,31 @@
     "description": ""
   },
   {
-    "file": "the_alchemiser/container/__init__.py",
+    "file": "the_alchemiser/infrastructure/dependency_injection/__init__.py",
     "business_unit": "utilities",
     "status": "current",
     "description": ""
   },
   {
-    "file": "the_alchemiser/container/config_providers.py",
+    "file": "the_alchemiser/infrastructure/dependency_injection/config_providers.py",
     "business_unit": "utilities",
     "status": "current",
     "description": "Classes: ConfigProviders"
   },
   {
-    "file": "the_alchemiser/container/infrastructure_providers.py",
+    "file": "the_alchemiser/infrastructure/dependency_injection/infrastructure_providers.py",
     "business_unit": "utilities",
     "status": "current",
     "description": "Classes: InfrastructureProviders"
   },
   {
-    "file": "the_alchemiser/container/service_providers.py",
+    "file": "the_alchemiser/infrastructure/dependency_injection/service_providers.py",
     "business_unit": "utilities",
     "status": "current",
     "description": "Classes: ServiceProviders"
   },
   {
-    "file": "the_alchemiser/container/application_container.py",
+    "file": "the_alchemiser/infrastructure/dependency_injection/application_container.py",
     "business_unit": "utilities",
     "status": "current",
     "description": "Classes: ApplicationContainer"
