@@ -85,7 +85,7 @@ class OrderRequestDTO(BaseModel, OrderValidationMixin):
     symbol: str
     side: Literal["buy", "sell"]
     quantity: Decimal
-    order_type: Literal["market", "limit"]
+    order_type: Literal["market", "limit", "stop", "stop_limit"]
     time_in_force: Literal["day", "gtc", "ioc", "fok"] = "day"
     limit_price: Decimal | None = None
     client_order_id: str | None = None
@@ -109,7 +109,7 @@ class ValidatedOrderDTO(BaseModel, OrderValidationMixin):
     symbol: str
     side: Literal["buy", "sell"]
     quantity: Decimal
-    order_type: Literal["market", "limit"]
+    order_type: Literal["market", "limit", "stop", "stop_limit"]
     time_in_force: Literal["day", "gtc", "ioc", "fok"]
     limit_price: Decimal | None = None
     client_order_id: str | None = None

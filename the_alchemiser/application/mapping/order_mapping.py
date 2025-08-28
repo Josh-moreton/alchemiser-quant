@@ -19,8 +19,10 @@ from the_alchemiser.domain.shared_kernel.value_objects.money import Money
 from the_alchemiser.domain.trading.entities.order import Order
 from the_alchemiser.domain.trading.value_objects.order_id import OrderId
 from the_alchemiser.domain.trading.value_objects.order_status import OrderStatus
+from the_alchemiser.domain.trading.value_objects.order_type import OrderType
 from the_alchemiser.domain.trading.value_objects.quantity import Quantity
 from the_alchemiser.domain.trading.value_objects.symbol import Symbol
+from the_alchemiser.domain.trading.value_objects.time_in_force import TimeInForce
 
 if TYPE_CHECKING:
     from the_alchemiser.interfaces.schemas.orders import OrderExecutionResultDTO, RawOrderEnvelope
@@ -34,6 +36,7 @@ class OrderSummary(TypedDict, total=False):
     qty: float
     status: str
     type: str
+    time_in_force: str
     limit_price: float | None
     created_at: str | None
 
@@ -93,6 +96,7 @@ def alpaca_order_to_domain(order: Any) -> Order:
     qty_raw = get_attr("qty") or get_attr("quantity") or 0
     status_raw = get_attr("status")
     order_type_raw = get_attr("order_type") or get_attr("type") or "market"
+    time_in_force_raw = get_attr("time_in_force") or "day"
     limit_price_raw = get_attr("limit_price")
     created_at_raw = get_attr("created_at")
 
@@ -102,7 +106,18 @@ def alpaca_order_to_domain(order: Any) -> Order:
     quantity_dec = _coerce_decimal(qty_raw) or Decimal("0")
     quantity = Quantity(quantity_dec)
     status = _map_status(status_raw)
-    order_type = str(order_type_raw)
+    
+    # Validate and map order type 
+    order_type_str = str(order_type_raw)
+    if order_type_str not in ("market", "limit", "stop", "stop_limit"):
+        order_type_str = "market"  # Default fallback
+    order_type = OrderType(order_type_str)  # type: ignore[arg-type]
+    
+    # Validate and map time in force
+    time_in_force_str = str(time_in_force_raw)
+    if time_in_force_str not in ("day", "gtc", "ioc", "fok"):
+        time_in_force_str = "day"  # Default fallback  
+    time_in_force = TimeInForce(time_in_force_str)  # type: ignore[arg-type]
 
     limit_price_dec = _coerce_decimal(limit_price_raw)
     limit_price = Money(limit_price_dec, "USD") if limit_price_dec is not None else None
@@ -129,6 +144,7 @@ def alpaca_order_to_domain(order: Any) -> Order:
         quantity=quantity,
         status=status,
         order_type=order_type,
+        time_in_force=time_in_force,
         limit_price=limit_price,
         created_at=created_at,
     )
@@ -144,7 +160,8 @@ def summarize_order(order: Order) -> OrderSummary:
         "symbol": order.symbol.value,
         "qty": float(order.quantity.value),
         "status": order.status.value,
-        "type": order.order_type,
+        "type": order.order_type.value,
+        "time_in_force": order.time_in_force.value,
         "limit_price": limit_val,
         "created_at": order.created_at.isoformat(),
     }
