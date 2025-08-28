@@ -21,12 +21,9 @@ from datetime import UTC, datetime
 from enum import Enum
 from typing import Any, TypeVar
 
-from the_alchemiser.domain.shared_kernel.errors.exceptions import (
-    MarketDataError,
-    OrderExecutionError,
-    RateLimitError,
-    TradingClientError,
-)
+from the_alchemiser.shared_kernel.errors import RateLimitError, TradingClientError
+from the_alchemiser.strategy.domain.errors import MarketDataError
+from the_alchemiser.execution.domain.errors import OrderExecutionError
 from .handler import EnhancedAlchemiserError, ErrorSeverity
 
 F = TypeVar("F", bound=Callable[..., Any])

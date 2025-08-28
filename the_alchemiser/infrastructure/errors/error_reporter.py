@@ -14,12 +14,9 @@ from collections import defaultdict
 from datetime import UTC, datetime
 from typing import Any
 
-from the_alchemiser.domain.shared_kernel.errors.exceptions import (
-    InsufficientFundsError,
-    MarketClosedError,
-    OrderExecutionError,
-    SecurityError,
-)
+from the_alchemiser.shared_kernel.errors import SecurityError
+from the_alchemiser.portfolio.domain.errors import InsufficientFundsError
+from the_alchemiser.execution.domain.errors import MarketClosedError, OrderExecutionError
 
 logger = logging.getLogger(__name__)
 

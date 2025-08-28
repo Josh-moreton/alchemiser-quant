@@ -42,7 +42,7 @@ from the_alchemiser.interfaces.schemas.accounts import (
 )
 from the_alchemiser.application.account.account_service import AccountService
 from the_alchemiser.infrastructure.errors import handle_trading_error
-from the_alchemiser.domain.shared_kernel.errors.exceptions import (
+from the_alchemiser.shared_kernel.errors import (
     DataProviderError,
     TradingClientError,
 )

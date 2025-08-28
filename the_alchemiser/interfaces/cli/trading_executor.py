@@ -41,11 +41,8 @@ from the_alchemiser.interfaces.cli.cli_formatter import (
 )
 from the_alchemiser.interfaces.schemas.common import MultiStrategyExecutionResultDTO
 from the_alchemiser.interfaces.schemas.orders import ValidatedOrderDTO
-from the_alchemiser.domain.shared_kernel.errors.exceptions import (
-    NotificationError,
-    StrategyExecutionError,
-    TradingClientError,
-)
+from the_alchemiser.shared_kernel.errors import NotificationError, TradingClientError
+from the_alchemiser.strategy.domain.errors import StrategyExecutionError
 
 
 class TradingExecutor:

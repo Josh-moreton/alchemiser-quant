@@ -12,7 +12,7 @@ from __future__ import annotations
 import logging
 
 from the_alchemiser.infrastructure.secrets.secrets_manager import SecretsManager
-from the_alchemiser.domain.shared_kernel.errors.exceptions import ConfigurationError
+from the_alchemiser.shared_kernel.errors import ConfigurationError
 
 
 class SecretsService:

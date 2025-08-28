@@ -44,10 +44,8 @@ from the_alchemiser.interfaces.schemas.tracking import (
     StrategyPositionDTO,
 )
 from the_alchemiser.infrastructure.errors import TradingSystemErrorHandler
-from the_alchemiser.domain.shared_kernel.errors.exceptions import (
-    DataProviderError,
-    StrategyExecutionError,
-)
+from the_alchemiser.shared_kernel.errors import DataProviderError
+from the_alchemiser.strategy.domain.errors import StrategyExecutionError
 
 # TODO: Import order history and email summary types once implementation aligns
 # from the_alchemiser.interfaces.schemas.execution import OrderHistoryDTO

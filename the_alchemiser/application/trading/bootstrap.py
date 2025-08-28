@@ -22,7 +22,7 @@ from the_alchemiser.infrastructure.config import Settings, load_settings
 from the_alchemiser.infrastructure.secrets.secrets_manager import SecretsManager
 from the_alchemiser.application.account.account_service import AccountService as TypedAccountService
 from the_alchemiser.infrastructure.errors.context import create_error_context
-from the_alchemiser.domain.shared_kernel.errors.exceptions import ConfigurationError
+from the_alchemiser.shared_kernel.errors import ConfigurationError
 from the_alchemiser.infrastructure.errors.handler import TradingSystemErrorHandler
 from the_alchemiser.application.market_data.market_data_service import MarketDataService
 from the_alchemiser.infrastructure.repositories.alpaca_manager import AlpacaManager

@@ -61,14 +61,13 @@ from the_alchemiser.interfaces.schemas.execution import WebSocketResultDTO
 
 if TYPE_CHECKING:
     pass
-from the_alchemiser.domain.shared_kernel.errors.exceptions import (
-    BuyingPowerError,
-    DataProviderError,
+from the_alchemiser.shared_kernel.errors import DataProviderError, TradingClientError
+from the_alchemiser.execution.domain.errors import (
     OrderExecutionError,
     OrderPlacementError,
     SpreadAnalysisError,
-    TradingClientError,
 )
+from the_alchemiser.portfolio.domain.errors import BuyingPowerError
 
 
 class OrderExecutor(Protocol):

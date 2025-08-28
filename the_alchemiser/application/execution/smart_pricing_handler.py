@@ -15,7 +15,7 @@ from typing import Any
 from alpaca.trading.enums import OrderSide
 
 from the_alchemiser.infrastructure.logging.logging_utils import get_logger, log_error_with_context
-from the_alchemiser.domain.shared_kernel.errors.exceptions import DataProviderError
+from the_alchemiser.shared_kernel.errors import DataProviderError
 
 
 class SmartPricingHandler:

@@ -23,12 +23,12 @@ from the_alchemiser.infrastructure.logging.logging_utils import (
 )
 from the_alchemiser.interfaces.schemas.execution import LambdaEventDTO
 from the_alchemiser.main import main
-from the_alchemiser.domain.shared_kernel.errors.exceptions import (
+from the_alchemiser.shared_kernel.errors import (
     DataProviderError,
     NotificationError,
-    StrategyExecutionError,
     TradingClientError,
 )
+from the_alchemiser.strategy.domain.errors import StrategyExecutionError
 
 # Set up logging
 logger = logging.getLogger(__name__)

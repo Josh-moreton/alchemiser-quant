@@ -35,18 +35,16 @@ from the_alchemiser.interfaces.schemas.errors import (
 )
 
 from .context import ErrorContextData
-from the_alchemiser.domain.shared_kernel.errors.exceptions import (
+from the_alchemiser.shared_kernel.errors import (
     AlchemiserError,
     ConfigurationError,
     DataProviderError,
-    InsufficientFundsError,
-    MarketDataError,
     NotificationError,
-    OrderExecutionError,
-    PositionValidationError,
-    StrategyExecutionError,
     TradingClientError,
 )
+from the_alchemiser.strategy.domain.errors import MarketDataError, StrategyExecutionError
+from the_alchemiser.portfolio.domain.errors import InsufficientFundsError, PositionValidationError
+from the_alchemiser.execution.domain.errors import OrderExecutionError
 
 
 class ErrorSeverity:

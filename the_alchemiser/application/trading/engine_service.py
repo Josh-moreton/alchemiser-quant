@@ -75,12 +75,12 @@ from the_alchemiser.application.account.account_service import (
     AccountService as TypedAccountService,
 )
 from the_alchemiser.infrastructure.errors.context import create_error_context
-from the_alchemiser.domain.shared_kernel.errors.exceptions import (
+from the_alchemiser.shared_kernel.errors import (
     ConfigurationError,
     DataProviderError,
-    StrategyExecutionError,
     TradingClientError,
 )
+from the_alchemiser.strategy.domain.errors import StrategyExecutionError
 from the_alchemiser.infrastructure.errors.handler import TradingSystemErrorHandler
 from the_alchemiser.infrastructure.repositories.alpaca_manager import AlpacaManager
 

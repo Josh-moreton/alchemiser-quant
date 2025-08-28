@@ -21,10 +21,8 @@ from the_alchemiser.domain.policies.policy_result import (
 from the_alchemiser.domain.policies.protocols import DataProviderProtocol, TradingClientProtocol
 from the_alchemiser.domain.trading.value_objects.order_request import OrderRequest
 from the_alchemiser.infrastructure.logging.logging_utils import log_with_context
-from the_alchemiser.domain.shared_kernel.errors.exceptions import (
-    BuyingPowerError,
-    DataProviderError,
-)
+from the_alchemiser.shared_kernel.errors import DataProviderError
+from the_alchemiser.portfolio.domain.errors import BuyingPowerError
 
 if TYPE_CHECKING:
     pass

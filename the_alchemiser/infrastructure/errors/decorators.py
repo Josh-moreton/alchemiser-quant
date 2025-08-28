@@ -13,13 +13,13 @@ import functools
 from collections.abc import Callable
 from typing import Any, TypeVar
 
-from the_alchemiser.domain.shared_kernel.errors.exceptions import (
+from the_alchemiser.shared_kernel.errors import (
     ConfigurationError,
     DataProviderError,
-    MarketDataError,
     StreamingError,
     TradingClientError,
 )
+from the_alchemiser.strategy.domain.errors import MarketDataError
 
 F = TypeVar("F", bound=Callable[..., Any])  # Generic function type for decorators
 

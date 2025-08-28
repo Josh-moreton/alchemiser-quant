@@ -18,12 +18,12 @@ from the_alchemiser.application.mapping.strategy_signal_mapping import (
 from the_alchemiser.domain.types import AccountInfo
 from the_alchemiser.interfaces.schemas.common import MultiStrategyExecutionResultDTO
 from the_alchemiser.infrastructure.errors import handle_errors_with_retry
-from the_alchemiser.domain.shared_kernel.errors.exceptions import (
+from the_alchemiser.shared_kernel.errors import (
     ConfigurationError,
     DataProviderError,
-    StrategyExecutionError,
     TradingClientError,
 )
+from the_alchemiser.strategy.domain.errors import StrategyExecutionError
 
 from ..reporting.reporting import (
     build_portfolio_state_data,

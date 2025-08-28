@@ -77,7 +77,7 @@ def retry_api_call(
     max_retries: int = 3, base_delay: float = 1.0
 ) -> Callable[[Callable[P, T]], Callable[P, T]]:
     """Retry decorator for API calls with common exceptions."""
-    from the_alchemiser.domain.shared_kernel.errors.exceptions import (
+    from the_alchemiser.shared_kernel.errors import (
         DataProviderError,
         TradingClientError,
     )
@@ -93,7 +93,7 @@ def retry_data_fetch(
     max_retries: int = 3, base_delay: float = 0.5
 ) -> Callable[[Callable[P, T]], Callable[P, T]]:
     """Retry decorator for data fetching operations."""
-    from the_alchemiser.domain.shared_kernel.errors.exceptions import DataProviderError
+    from the_alchemiser.shared_kernel.errors import DataProviderError
 
     return retry_with_backoff(
         exceptions=(DataProviderError, ConnectionError, TimeoutError),
@@ -106,7 +106,7 @@ def retry_order_execution(
     max_retries: int = 2, base_delay: float = 0.5
 ) -> Callable[[Callable[P, T]], Callable[P, T]]:
     """Retry decorator for order execution with limited retries."""
-    from the_alchemiser.domain.shared_kernel.errors.exceptions import OrderExecutionError
+    from the_alchemiser.execution.domain.errors import OrderExecutionError
 
     return retry_with_backoff(
         exceptions=(OrderExecutionError,),
