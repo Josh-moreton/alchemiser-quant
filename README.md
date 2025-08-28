@@ -1,15 +1,6 @@
 # The Alchemiser
 
-Internal notes on how the trading bot is put together and how the pieces interact.
-
-## Quick Start
-
-### Environment Setup
-
-```bash
-source .venv/bin/activate
-export PYTHONPATH="${PWD}:${PWD}/the_alchemiser:${PYTHONPATH}"
-```
+Internal notes on how the trading engine is put together and how the pieces interact.
 
 ## Business Unit Classification
 
@@ -109,7 +100,7 @@ We’re migrating to a strongly-typed, framework-free domain model with incremen
 
 ### Command Line Interface
 
-- `the_alchemiser.cli` is built with Typer and provides the `alchemiser` command (`bot`, `trade`, `status`, `deploy`, etc.).
+- `the_alchemiser.cli` is built with Typer and provides the `alchemiser` command (`signal`, `trade`, `status`, `deploy`, etc.).
 
 ## Execution Flow
 
@@ -117,612 +108,242 @@ We’re migrating to a strongly-typed, framework-free domain model with incremen
 2. `AlpacaManager` and `TradingServiceManager` connect to Alpaca using those settings.
 3. `MultiStrategyManager` runs each strategy and merges their desired portfolios.
 4. `TradingEngine` uses `PortfolioRebalancer` to derive required trades.
-5. `SmartExecution` submits orders and monitors fills via WebSockets.
-6. Results and attribution are persisted by the tracking layer.
+# The Alchemiser
 
-## Error Handling Architecture
+Modern quantitative trading platform refactored around explicit Domain‑Driven Design (DDD) with THREE bounded contexts: Strategy, Portfolio, and Execution. Each context is internally layered (Domain, Application, Infrastructure, Interfaces) and communicates only through stable, typed DTO contracts. Generic `services/` and grab‑bag `utils/` packages are being retired – their code is re‑homed into the correct context and layer. Architectural constraints are enforced via typing, lint rules, and import discipline.
 
-### Core Error System (`core/error_handler.py`)
+---
+## High-Level Goals
+1. Strong modularity: independent evolution of Strategy, Portfolio, and Execution.
+2. Explicit boundaries: no cross-context domain imports; only published Application DTOs.
+3. Deterministic domain core: pure, framework-free domain code (entities, value objects, policies).
+4. Testability & refactor safety: strict mypy + value objects for all monetary & quantity calculations.
+5. Operational resilience: typed errors, categorized handling, observable execution paths.
 
-The system uses a comprehensive error handling framework designed for autonomous operation:
+---
+## Bounded Contexts Overview
 
-```python
-# Error categorization with automatic email notifications
-from the_alchemiser.core.error_handler import TradingSystemErrorHandler
+### 1. Strategy Context
+Purpose: Generate and score trading signals from market data, indicators, and regime detection.
 
-error_handler = TradingSystemErrorHandler()
-error_details = error_handler.handle_error(
-    error=exception,
-    component="ComponentName.method_name",
-    context="operation_description",
-    additional_data={"symbol": "AAPL", "qty": 100}
-)
-```
+Domain: Strategy engines (Nuclear, TECL, KLM), value objects (StrategySignal, Confidence, Alert), allocation policies.
+Application: Multi-strategy orchestration, signal normalization, ranking, conflict resolution, DTO mapping.
+Infrastructure: Market data gateways (Alpaca REST/WebSocket adapters), indicator caches, computed feature stores.
+Interfaces: CLI signal views, validation commands, potential HTTP endpoints for signal export.
 
-### Error Categories
+Bounded Outputs: StrategySignalResult, StrategyAttributionView.
+Inputs (from Portfolio): Requested universe (symbols), risk parameters (max allocation per symbol/group).
 
-- **CRITICAL**: System-level failures that stop all operations
-- **TRADING**: Order execution, position validation issues
-- **DATA**: Market data, API connectivity issues
-- **STRATEGY**: Strategy calculation, signal generation issues
-- **CONFIGURATION**: Config, authentication, setup issues
-- **NOTIFICATION**: Email, alert delivery issues
-- **WARNING**: Non-critical issues that don't stop execution
+### 2. Portfolio Context
+Purpose: Represent current holdings, valuation, risk analytics, and compute target allocations.
 
-### Silent Failure Prevention
+Domain: Account, Position, Portfolio Aggregate, Policies (cash reserve, exposure limits), Value Objects (Money, Percentage, Symbol, Quantity).
+Application: Rebalancing (ComputeTargetAllocationsCommand), drift analysis, performance aggregation, mapping to/from broker DTOs.
+Infrastructure: Account & position repository adapters (Alpaca), historical equity/time-series fetchers, persistence layers.
+Interfaces: Portfolio status CLI, P&L dashboards, email/report generation.
 
-All critical trading operations have been audited to prevent silent failures:
+Bounded Outputs: TargetAllocationResult, PortfolioValuationView.
+Inputs (from Strategy): StrategySignalResult feed.
+Outputs (to Execution): ExecutionPlanCommand (desired trades / adjustments).
 
-1. **Strategy Engine**: Volatility calculations and portfolio allocation now raise `StrategyExecutionError` or `IndicatorCalculationError` instead of returning `None`
-2. **Data Provider**: Robust error handling with proper `None`/`[]` returns and logging
-3. **Order Execution**: Comprehensive validation and fallback handling
-4. **Account Operations**: Detailed error handling with conservative defaults
+### 3. Execution Context
+Purpose: Validate, route, and monitor orders to achieve target portfolio adjustments with minimal slippage and risk.
 
-### Autonomous Operation Features
+Domain: Order, OrderIntent, ExecutionPolicy, OrderStatus, SlippageModel, FillEvent.
+Application: Smart execution pipeline (PlaceOrderCommand, ExecutePlanCommand), order sizing, batching, cancellation, retry logic.
+Infrastructure: Broker order adapters, WebSocket listeners, fill/quote stream integration, backoff and rate-limit controls.
+Interfaces: Trading CLI, deployment (Lambda handler), execution monitoring views.
 
-- **Email Alerts**: Automatic detailed error reports with specific remediation actions
-- **Error Context**: Full debugging context captured (component, operation, data, stack trace)
-- **Suggested Actions**: Each error type includes specific resolution steps
-- **Fail-Fast Design**: EventBridge retry limit reduced to 1 to prevent cascade failures
-- **Dead Letter Queue**: Failed executions captured in SQS for investigation
+Bounded Outputs: OrderExecutionResult, FillStreamEvent.
+Inputs (from Portfolio): ExecutionPlanCommand specifying desired adjustments.
 
-### Error Integration Points
+### Shared Kernel (Minimal)
+Immutable primitives used across all contexts: Money, Percentage, Identifier, Symbol, basic time utilities. Zero dependencies back into contexts.
 
-Key components with enhanced error handling:
+---
+## Layered Structure (Per Context)
+Each context replicates a consistent internal layering model:
 
-- `main.py`: Top-level execution error catching and reporting
-- `lambda_handler.py`: AWS Lambda-specific error handling with context
-- `execution/trading_engine.py`: Trading operation error categorization
-- `core/trading/strategy_engine.py`: Strategy calculation error handling
-- `core/trading/strategy_manager.py`: Portfolio allocation error management
+domain/        Pure business objects & policies (no I/O, no frameworks)
+application/   Use cases (Commands, Queries, Results), orchestration, mapping, validation
+infrastructure/Adapters & gateways (broker APIs, data feeds, persistence, messaging)
+interfaces/    CLI, presentation, external surface schemas (Pydantic), email views
 
-### Email Notification System
+Cross-context communication: application → application via explicit DTOs (no domain leakage).
 
-Automatic email alerts include:
+---
+## Architectural Invariants
+1. Domain purity: no `requests`, `pydantic`, `logging`, network calls, or file I/O.
+2. Money & quantities: `Decimal` only; rounding localized to infrastructure or presentation.
+3. No direct cross-context domain imports – use exported DTO contracts.
+4. Anti-corruption mapping lives strictly in each context's application.mapping module.
+5. Infrastructure implements Domain-declared Protocols; Domain never imports infrastructure classes.
+6. Interfaces layer: formatting & transport only – no business logic.
+7. Errors are typed and categorized; no silent fallback to legacy implementations.
 
-- Error categorization and severity
-- Component and context information
-- Specific remediation actions
-- Additional debugging data
-- Full stack traces
-- Professional HTML formatting
+---
+## Business Unit Docstrings
+Every source file starts with:
+"""Business Unit: <strategy & signal generation | portfolio assessment & management | order execution/placement | utilities> | Status: current
 
-## 2025 Python Practices
+Short purpose sentence.
+"""
+Legacy modules must be marked `Status: legacy` and scheduled for removal.
 
-- Project managed with Poetry and a single `pyproject.toml`.
-- Strict typing checked by `mypy` with `disallow_untyped_defs`.
-    - Typed Domain V2 gate: keep domain free of frameworks; all financial values are `Decimal`.
-- Configuration and domain models defined with Pydantic.
-- Code style enforced by Ruff (formatter + lint, line length 100).
-- Development workflow includes `make format` and `make lint` for code quality.
-- Protocols and dataclasses enable clean dependency injection.
-- Rich and Typer keep command‑line interfaces concise and user friendly.
+See `BUSINESS_UNITS_REPORT.md` for the generated inventory.
 
-## Development Standards for AI Agents
+---
+## Data & Flow Summary
+1. Strategy Context produces normalized StrategySignalResult (universe weight intentions + rationale).
+2. Portfolio Context ingests StrategySignalResult, current holdings, risk policies → emits TargetAllocationResult.
+3. Portfolio Application converts target vs current into ExecutionPlanCommand.
+4. Execution Context validates plan, builds OrderIntents, applies ExecutionPolicy, routes orders via broker adapter.
+5. Fills and status events feed back (for now) into Portfolio valuation and Strategy attribution through published Result DTOs.
 
-### Code Quality and Type Safety
+---
+## Key Use Case Contracts (Illustrative Names)
+Strategy:
+ - GenerateSignalsCommand -> StrategySignalResult
+ - ListStrategiesQuery -> StrategyCatalogView
 
-**mypy Configuration** (`pyproject.toml`):
+Portfolio:
+ - ComputeTargetAllocationsCommand -> TargetAllocationResult
+ - GetPortfolioValuationQuery -> PortfolioValuationView
 
-```toml
-[tool.mypy]
-python_version = "3.12"
-disallow_untyped_defs = true
-disallow_incomplete_defs = true
-disallow_untyped_calls = true
-warn_return_any = true
-warn_unused_ignores = true
-```
+Execution:
+ - ExecutePlanCommand (from Portfolio) -> OrderExecutionResult
+ - PlaceOrderCommand -> SingleOrderResult
 
-**Required Practices**:
+Shared Event (Execution -> Portfolio/Strategy):
+ - TradeExecutedEventV1 (symbol, qty, price, strategy_ref, correlation_id)
 
-- ✅ **All functions must have type hints**: Parameters and return types
-- ✅ **Use Protocols for dependency injection**: Clean interfaces over inheritance
-- ✅ **Pydantic for configuration**: Type-safe settings and data models
-- ✅ **Dataclasses for structured data**: Replace dictionaries with typed structures
-- ✅ **Typed Domain V2**: Prefer domain value objects/entities over untyped dicts; route new work via mappers
+---
+## Typing & DTO Guidelines
+Domain: dataclasses / frozen value objects.
+Application I/O: Pydantic models or TypedDicts suffixed with Command, Query, Result.
+Interfaces: Request / Response / View models.
+Events: Event suffix + version when externally published.
 
-### Code Formatting and Linting
+Avoid ambiguous duplicates; if a clash occurs, introduce context-specific naming or suffix (e.g., StrategyOrderIntent vs OrderIntent if required).
 
-**Formatting & Linting (Ruff)**:
+---
+## Error Handling
+Categories align to contexts for triage: STRATEGY, PORTFOLIO, EXECUTION, DATA, CONFIGURATION, NOTIFICATION, WARNING, CRITICAL.
+Use central error handler to record context metadata: component="portfolio.application.rebalancer.ComputeTargetAllocationsHandler".
+Never catch Exception without re-raising a typed domain/application exception.
 
-- Line length: 100 characters (Ruff formatter)
-- Automatic formatting: `make format` (runs `ruff format` + `ruff check --fix`)
-- Pre-commit hooks enforce formatting, lint, and mypy
+---
+## Example Workflow (Happy Path)
+1. CLI `alchemiser signal` invokes Strategy Application GenerateSignalsCommand.
+2. CLI `alchemiser trade` orchestrates: GenerateSignals -> ComputeTargetAllocations -> ExecutePlan.
+3. Execution monitors fills; emits TradeExecutedEventV1 consumed (future) by Portfolio for reconciliation.
 
-**Ruff Configuration** (replaces flake8):
-
-```toml
-[tool.ruff]
-line-length = 100
-target-version = "py312"
-select = ["E", "W", "F", "I", "N", "UP", "ANN", "S", "BLE", "COM", "C4", "DTZ", "T10", "EM", "EXE", "ISC", "ICN", "G", "INP", "PIE", "T20", "PYI", "PT", "Q", "RSE", "RET", "SLF", "SIM", "TID", "TCH", "ARG", "PTH", "ERA", "PGH", "PL", "TRY", "NPY", "RUF"]
-```
-
-**Key Rules for AI Agents**:
-
-- Import sorting with `isort` compatibility
-- No unused imports or variables
-- Proper exception handling (no bare `except:`)
-- Type annotations required
-- Security checks enabled
-
-### Project Structure and Organization
-
+---
+## Repository (In-Progress Target Layout)
 ```
 the_alchemiser/
-├── domain/                        # Pure business logic (DDD Domain Layer)
-│   ├── shared_kernel/
-│   │   └── value_objects/         # Money, Percentage, Identifier
-│   ├── trading/
-│   │   ├── entities/              # Order, Position, Account
-│   │   ├── value_objects/         # Symbol, Quantity, OrderStatus
-│   │   └── protocols/             # Repository interfaces
-│   ├── strategies/                # Strategy engines and protocols
-│   │   ├── value_objects/         # StrategySignal, Confidence, Alert
-│   │   └── protocols/             # Strategy engine interfaces
-│   └── policies/                  # Business rules and validation
-├── services/                      # Business logic orchestration (DDD Services Layer)
-│   ├── trading/                   # Trading services (OrderService, PositionService)
-│   ├── market_data/               # Market data services
-│   ├── account/                   # Account management services
-│   ├── shared/                    # Shared service utilities
-│   └── errors/                    # Error handling and recovery
-├── infrastructure/                # External integrations (DDD Infrastructure Layer)
-│   ├── dependency_injection/      # DI container and providers
-│   │   ├── application_container.py    # Main application container
-│   │   ├── config_providers.py         # Configuration providers
-│   │   ├── infrastructure_providers.py # Infrastructure providers
-│   │   └── service_providers.py        # Service providers
-│   ├── config/                    # Configuration management
-│   ├── logging/                   # Logging utilities
-│   ├── notifications/             # Email notifications
-│   ├── secrets/                   # AWS Secrets Manager
-│   └── websocket/                 # WebSocket connections
-├── application/                   # Trading orchestration (DDD Application Layer)
-│   ├── trading/                   # Trading engine and orchestration
-│   ├── execution/                 # Smart order execution
-│   ├── portfolio/                 # Portfolio rebalancing
-│   ├── mapping/                   # Anti‑corruption mappers (DTO ↔ Domain ↔ Infra)
-│   └── tracking/                  # Performance tracking
-├── interfaces/                    # User interfaces (DDD Interface Layer)
-│   ├── cli/                       # Rich CLI with Typer
-│   ├── email/                     # Email templates
-│   └── schemas/                   # Pydantic DTOs for I/O
-├── utils/                         # Utility functions
-├── main.py                        # Main execution entry point
-└── lambda_handler.py              # AWS Lambda handler
+    shared_kernel/
+        value_objects/               # Money, Percentage, Identifier, Symbol
+    strategy/
+        domain/                      # Engines, signals, policies
+        application/                 # Orchestration, mapping, commands
+        infrastructure/              # Market data gateways
+        interfaces/                  # CLI signal views
+    portfolio/
+        domain/                      # Account, Position, Portfolio, risk policies
+        application/                 # Rebalancing, valuation
+        infrastructure/              # Account/position adapters
+        interfaces/                  # Status & reporting views
+    execution/
+        domain/                      # Order, OrderIntent, ExecutionPolicy
+        application/                 # Smart execution commands
+        infrastructure/              # Broker APIs, WebSocket listeners
+        interfaces/                  # Trade CLI, deployment
+    main.py
+    lambda_handler.py
 ```
 
-### Dependency Management with Poetry
-
-**Essential Dependencies**:
-
-- `alpaca-py`: Alpaca API client
-- `pydantic`: Type-safe configuration and data models
-- `rich`: Terminal formatting and progress bars
-- `typer`: Command-line interface framework
-- `pandas`: Data analysis and manipulation
-- `numpy`: Numerical computations
-- `boto3`: AWS SDK for Lambda and SQS
-
-**Development Dependencies**:
-
-- `mypy`: Static type checking
-<!-- Removed: black (replaced by Ruff formatter) -->
-- `ruff`: Fast Python linter and code quality enforcement
-
-### Error Handling Patterns for AI Agents
-
-**Custom Exception Hierarchy** (`core/exceptions.py`):
-
-```python
-class AlchemiserError(Exception):
-    """Base exception for all Alchemiser errors"""
-
-class TradingClientError(AlchemiserError):
-    """Base for trading-related errors"""
-
-class StrategyExecutionError(AlchemiserError):
-    """Strategy calculation and execution errors"""
-
-class IndicatorCalculationError(AlchemiserError):
-    """Technical indicator calculation errors"""
-```
-
-**Error Handling Pattern**:
-
-```python
-from the_alchemiser.core.error_handler import TradingSystemErrorHandler
-from the_alchemiser.core.exceptions import StrategyExecutionError
-
-def risky_operation():
-    try:
-        # Your trading logic here
-        pass
-    except Exception as e:
-        error_handler = TradingSystemErrorHandler()
-        error_handler.handle_error(
-            error=e,
-            component="ComponentName.method_name",
-            context="specific_operation_description",
-            additional_data={"relevant": "debugging_data"}
-        )
-
-        # Re-raise if critical, or handle gracefully
-        if isinstance(e, StrategyExecutionError):
-            raise  # Critical strategy errors should bubble up
-        else:
-            # Log and continue with fallback
-            logging.warning(f"Non-critical error: {e}")
-            return safe_fallback_value
-```
-
-### Testing Patterns
-
-**Test Structure**:
-
-```python
-import pytest
-from unittest.mock import Mock, patch
-from the_alchemiser.core.trading.strategy_engine import NuclearStrategyEngine
-
-class TestNuclearStrategy:
-    def setup_method(self):
-        """Setup for each test method"""
-        self.engine = NuclearStrategyEngine()
-
-    def test_volatility_calculation_with_valid_data(self):
-        """Test normal volatility calculation"""
-        indicators = {"AAPL": {"price_history": [100, 101, 99, 102]}}
-        result = self.engine._get_14_day_volatility("AAPL", indicators)
-        assert result > 0
-
-    def test_volatility_calculation_raises_on_invalid_data(self):
-        """Test that invalid data raises proper exception"""
-        with pytest.raises(IndicatorCalculationError):
-            self.engine._get_14_day_volatility("INVALID", {})
-```
-
-### Configuration Management
-
-**Settings Pattern** (`core/config.py`):
-
-```python
-from pydantic import BaseSettings, Field
-from typing import Optional
-
-class Settings(BaseSettings):
-    """Type-safe configuration with environment variable support"""
-
-    alpaca_api_key: str = Field(..., env="ALPACA_API_KEY")
-    alpaca_secret_key: str = Field(..., env="ALPACA_SECRET_KEY")
-    paper_trading: bool = Field(True, env="PAPER_TRADING")
-    email_recipient: str = Field(..., env="EMAIL_RECIPIENT")
-
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-
-# Usage
-def load_settings() -> Settings:
-    return Settings()
-```
-
-### Protocol-Based Dependency Injection
-
-**Interface Definition**:
-
-```python
-from typing import Protocol, Dict, Any
-
-class AccountInfoProvider(Protocol):
-    """Protocol for account information providers"""
-    def get_account_info(self) -> Dict[str, Any]: ...
-
-class PositionProvider(Protocol):
-    """Protocol for position data providers"""
-    def get_positions_dict(self) -> Dict[str, Dict[str, Any]]: ...
-
-# Implementation
-class TradingEngine:
-    def __init__(self, account_provider: AccountInfoProvider):
-        self._account_provider = account_provider
-
-    def get_account_info(self) -> Dict[str, Any]:
-        return self._account_provider.get_account_info()
-```
-
-## Business Logic and Data Flow
-
-### Strategy Execution Pipeline
-
-**Multi-Strategy Coordination** (`core/trading/strategy_manager.py`):
-
-1. **Signal Generation**: Each strategy (Nuclear, TECL) generates independent signals
-2. **Portfolio Allocation**: Strategies are allocated based on configured weights
-3. **Signal Consolidation**: Multiple strategy signals merged into target portfolio
-4. **Attribution Tracking**: Each position tracked back to originating strategy
-
-**Key Strategy Patterns**:
-
-- **Nuclear Strategy**: Bear/bull market detection with uranium mining focus
-- **TECL Strategy**: Technology leverage with volatility protection
-- **Market Regime Detection**: SPY 200-day MA analysis for bull/bear classification
-- **Volatility-Based Allocation**: Inverse volatility weighting for risk management
-
-### Order Execution Flow
-
-**Smart Execution Pipeline** (`execution/smart_execution.py`):
-
-1. **Market Timing Assessment**: 9:30-9:35 ET special handling
-2. **Aggressive Marketable Limits**: Ask+1¢ for buys, bid-1¢ for sells
-3. **Re-pegging Sequence**: 2-3 second timeouts with price updates
-4. **Market Order Fallback**: Execution certainty for critical fills
-
-**Professional Order Strategy**:
-
-- Better Orders execution methodology
-- Spread analysis and timing optimization
-- Pre-market condition assessment
-- Fractionable asset handling with fallbacks
-
-### Data Provider Architecture
-
-#### Market Data Architecture
-
-The system uses modern typed services for market data access:
-
-- `AlpacaManager` provides the core repository implementation
-- `StrategyMarketDataService` implements the MarketDataPort protocol for strategy access
-- `MarketDataService` provides enhanced operations with caching and validation
-
-**Modern Data Access**:
-
-- **Real-time Priority**: WebSocket data preferred over REST
-- **Automatic Fallbacks**: REST API backup for real-time failures
-- **Historical Fallbacks**: Recent price history when quotes unavailable
-- **Caching Layer**: Intelligent caching with TTL for performance
-
-**Data Sources**:
-
-- Alpaca REST API (primary)
-- Alpaca WebSocket (real-time)
-- Historical price fallback
-- Technical indicator calculations
-
-### Risk Management System
-
-**Position Validation** (`execution/alpaca_client.py`):
-
-- **Buying Power Checks**: Prevent overleverage on buy orders
-- **Position Validation**: Ensure sufficient holdings for sell orders
-- **Fractionability Handling**: Automatic conversion for non-fractional assets
-- **Asset Type Detection**: ETF vs stock handling differences
-
-**Portfolio Constraints**:
-
-- Maximum position sizes per strategy
-- Cash allocation minimums (5% minimum cash)
-- Volatility-based position sizing
-- Conservative fallbacks during calculation errors
-
-### Performance Tracking and Attribution
-
-**Strategy Attribution** (`tracking/strategy_order_tracker.py`):
-
-- Per-strategy order tracking
-- Position attribution to originating signals
-- P&L calculation by strategy
-- Historical performance analysis
-
-**Reporting Pipeline**:
-
-- Real-time execution summaries
-- Daily P&L archiving
-- Email reporting with rich formatting
-- Dashboard data generation for web interface
-
-### Configuration and Environment Management
-
-**Environment-Specific Settings**:
-
-```python
-# Paper trading vs live trading
-PAPER_TRADING=true  # Safe default
-ALPACA_API_KEY=your_paper_key
-ALPACA_SECRET_KEY=your_paper_secret
-
-# Live trading (production)
-PAPER_TRADING=false
-ALPACA_API_KEY=your_live_key
-ALPACA_SECRET_KEY=your_live_secret
-```
-
-**Key Configuration Points**:
-
-- Trading mode (paper/live) isolation
-- Strategy allocation weights
-- Email notification settings
-- Risk management parameters
-- Market hours enforcement
-
-## AWS Infrastructure and Deployment
-
-### EventBridge Scheduler Configuration
-
-The system is designed for autonomous operation with careful retry management:
-
-- **Retry Policy**: Limited to 1 retry attempt (reduced from default 185)
-- **Dead Letter Queue**: Failed executions captured in `the-alchemiser-dlq` SQS queue
-- **Fail-Fast Design**: Prevents runaway retry loops and excessive Lambda invocations
-
-### Lambda Handler (`lambda_handler.py`)
-
-Enhanced error handling for AWS Lambda execution:
-
-```python
-# Automatic error categorization and email notification
-def lambda_handler(event, context):
-    try:
-        result = run_multi_strategy_trading(live_trading=True)
-        return {"statusCode": 200, "body": "Success"}
-    except Exception as e:
-        # Comprehensive error handling with context
-        error_handler.handle_error(e, "lambda_execution", "AWS_Lambda")
-        raise  # Re-raise for Lambda error handling
-```
-
-### Monitoring and Debugging
-
-- **CloudWatch Logs**: Comprehensive logging with error categorization
-- **SQS Dead Letter Queue**: 14-day retention for failed execution investigation
-- **Email Alerts**: Immediate notification of critical issues
-- **Error Context**: Full debugging information captured automatically
-
-## Quick Commands
-
+Retired / To Remove: legacy `services/`, broad `utils/` modules (in flight – avoid adding new code there).
+
+---
+## Development Standards
+Environment: Use Poetry ALWAYS (no bare `python`).
+Formatting & Lint: `make format` (ruff format + fix). Line length 100.
+Type Checking: `poetry run mypy the_alchemiser/` must pass cleanly.
+Money/Quantity: `Decimal`; never compare floats directly.
+Cross-Context DTO Imports: only from another context's application layer (or shared_kernel primitives).
+No logic in __init__.py beyond safe re-exports.
+
+---
+## Quick Start
 ```bash
-make dev                            # install with dev dependencies
-make format                         # run Ruff formatter + lint fixes
-make lint                          # run flake8, mypy, security checks
-make test                          # run pytest with coverage
-
-# Modern CLI (DI-first architecture)
-alchemiser signal                  # strategy analysis (DI mode, default)
-alchemiser signal --legacy         # strategy analysis (legacy mode)
-alchemiser trade                   # paper trading (DI mode)
-alchemiser trade --live            # live trading (DI mode)
-alchemiser trade --ignore-market-hours  # override market hours
-alchemiser status                  # account status and positions
-alchemiser deploy                  # deploy to AWS Lambda
-```
-
-## Development Workflow for AI Agents
-
-### Local Development Setup
-
-```bash
-# 1. Install dependencies
 poetry install
-
-# 2. Set up environment
-cp .env.example .env
-# Edit .env with your Alpaca paper trading credentials
-
-# 3. Run type checking
 poetry run mypy the_alchemiser/
-
-# 4. Format code
-poetry run ruff format the_alchemiser/
-poetry run ruff the_alchemiser/
-
-# 5. Run tests
-poetry run pytest
-
-# 6. Test strategies locally
-poetry run alchemiser bot --paper
+poetry run alchemiser signal      # Generate and display strategy signals
+poetry run alchemiser trade       # Compute allocations + execute (paper by default)
+poetry run alchemiser status      # Portfolio & P&L view
 ```
 
-### Common Development Tasks
-
-**Adding New Strategies**:
-
-1. Create strategy engine in `core/trading/`
-2. Implement required methods: `get_signal()`, `get_reasoning()`
-3. Add to `StrategyType` enum
-4. Register in `MultiStrategyManager`
-5. Add tests and type hints
-
-**Debugging Order Execution**:
-
-```python
-# Enable detailed logging
-import logging
-logging.basicConfig(level=logging.DEBUG)
-
-# Test individual order placement
-from the_alchemiser.execution.smart_execution import SmartExecution
-executor = SmartExecution(trading_client, data_provider)
-order_id = executor.place_order("AAPL", 10, OrderSide.BUY)
+Optional environment variables (Pydantic settings resolve these):
+```
+ALPACA_API_KEY=...
+ALPACA_SECRET_KEY=...
+PAPER_TRADING=true
+EMAIL_RECIPIENT=you@example.com
 ```
 
-**Testing Error Handling**:
+---
+## Contributing Within the New Model
+1. Decide the owning bounded context (e.g., new risk metric -> Portfolio Domain).
+2. Define/extend value objects & policies (pure domain).
+3. Declare Protocols in domain.protocols for external dependencies.
+4. Implement adapters in infrastructure implementing those Protocols.
+5. Expose use cases via application Command/Query handlers.
+6. Expose DTOs to other contexts via application.results (only what is stable & necessary).
+7. Update CLI / Interfaces to consume new application outputs.
+8. Add Business Unit docstring & update `BUSINESS_UNITS_REPORT.md` generator if needed.
 
-```python
-# Test specific error scenarios
-from the_alchemiser.core.error_handler import TradingSystemErrorHandler
-from the_alchemiser.core.exceptions import StrategyExecutionError
+---
+## Migration Notes (Epic #375)
+The current epic transitions from a monolithic service façade to context-focused layers. Pending tasks typically involve:
+ - Moving residual market data helpers into Strategy Infrastructure.
+ - Splitting combined order/portfolio logic: ensure sizing lives in Portfolio, execution tactics in Execution.
+ - Replacing any remaining direct broker calls inside Strategy with Protocol-driven abstractions.
+ - Pruning deprecated legacy wrappers flagged `Status: legacy`.
 
-try:
-    # Simulate error condition
-    raise StrategyExecutionError("Test error", strategy_name="test")
-except Exception as e:
-    handler = TradingSystemErrorHandler()
-    handler.handle_error(e, "test_component", "test_context")
-```
+---
+## Observability & Operations
+ - Execution infrastructure logs order lifecycle with correlation IDs linking back to StrategySignal.
+ - Portfolio valuation snapshots emitted before/after execution cycles for drift auditing.
+ - Error emails include context category + remediation suggestions.
 
-### Code Review Checklist for AI Agents
+---
+## Style & Safety Summary
+| Concern          | Rule |
+|------------------|------|
+| Float comparison | Disallowed (use Decimal or tolerance) |
+| Cross-domain import | Only via application DTOs |
+| Domain side-effects | Forbidden |
+| Money math rounding | Defer to infrastructure/presentation |
+| Error swallowing | Forbidden |
 
-**Type Safety**:
+---
+## Roadmap (Selected Next Steps)
+ - Event propagation channel (Execution -> Portfolio) for asynchronous fill reconciliation.
+ - Strategy feature store versioning in Strategy Infrastructure.
+ - Portfolio risk scenario engine (stress & factor exposures) in Portfolio Domain.
+ - Execution adaptive slippage model with feedback loop.
 
-- ✅ All function parameters have type hints
-- ✅ Return types specified for all functions
-- ✅ No `Any` types unless absolutely necessary
-- ✅ Protocols used for dependency injection
+---
+## License / Internal Use
+Internal system – distribution restricted. Treat credentials & broker access with care; never commit secrets.
 
-**Error Handling**:
+---
+## Contact
+For architectural questions: open a discussion referencing Epic #375.
 
-- ✅ Custom exceptions raised instead of returning `None`
-- ✅ Error context provided in exception messages
-- ✅ Conservative fallbacks implemented where appropriate
-- ✅ Error handler integration for critical operations
+Happy alchemising.
 
-**Code Quality**:
-
-- ✅ Functions are single-purpose and well-named
-- ✅ No magic numbers (use constants or configuration)
-- ✅ Comprehensive docstrings for public methods
-- ✅ Logging at appropriate levels (DEBUG, INFO, WARNING, ERROR)
-
-**Testing Requirements**:
-
-- ✅ Unit tests for business logic
-- ✅ Error condition testing
-- ✅ Mock external dependencies (Alpaca API)
-- ✅ Integration tests for critical paths
-
-### Operational Knowledge
-
-**Paper Trading vs Live Trading**:
-
-- Paper trading uses separate Alpaca account and API keys
-- All order execution is simulated but follows real market data
-- Switch via `PAPER_TRADING` environment variable
-- Live trading requires careful validation and testing
-
-**Market Hours and Timing**:
-
-- Regular hours: 9:30 AM - 4:00 PM ET
-- Pre-market: 4:00 AM - 9:30 AM ET
-- After-hours: 4:00 PM - 8:00 PM ET
-- System can trade outside regular hours if configured
-
-**Strategy Allocation Management**:
-
-```python
-# Configure strategy weights
-strategy_allocations = {
-    StrategyType.NUCLEAR: 0.6,  # 60% nuclear strategy
-    StrategyType.TECL: 0.4      # 40% TECL strategy
-}
-```
-
-**Performance Monitoring**:
-
-- Daily P&L archived in S3
-- Strategy attribution tracked per order
-- Email reports sent after each execution
 - Dashboard data updated in real-time
 
 ## Troubleshooting Guide for AI Agents

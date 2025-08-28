@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from the_alchemiser.utils.common import ActionType
+from the_alchemiser.domain.shared_kernel import ActionType
 
 from .base_klm_variant import BaseKLMVariant
 
