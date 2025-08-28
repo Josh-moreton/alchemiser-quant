@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from typing import Literal, cast
 
 from the_alchemiser.domain.types import StrategyPositionData, StrategySignal
-from the_alchemiser.utils.num import floats_equal  # For tolerant float comparison
+from the_alchemiser.domain.shared_kernel import floats_equal  # For tolerant float comparison
 
 
 @dataclass(frozen=True)

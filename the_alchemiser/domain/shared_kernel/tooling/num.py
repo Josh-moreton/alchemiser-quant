@@ -1,10 +1,13 @@
 """Business Unit: utilities; Status: current.
 
-Numeric helper utilities.
+Numeric helper utilities for cross-context use.
 
 Provides tolerant float comparison complying with project rule: never use
 direct float equality (== / !=). Use this helper in non-financial contexts;
 for money/quantities always prefer Decimal value objects.
+
+NOTE: This module must remain framework-agnostic and side-effect free
+to comply with shared kernel principles.
 """
 
 from __future__ import annotations
@@ -28,6 +31,10 @@ def floats_equal(
 ) -> bool:
     """Check whether two floating-point values are approximately equal.
 
+    This function provides safe float comparison that complies with the project
+    policy of never using direct float equality (== / !=). Use this for
+    non-financial numeric comparisons; for money/quantities use Decimal objects.
+
     Args:
         a: First value or array to compare.
         b: Second value or array to compare.
@@ -37,6 +44,15 @@ def floats_equal(
     Returns:
         bool: True if the values are equal within the given tolerances; otherwise False.
 
+    Raises:
+        ValueError: If comparing empty sequences.
+        TypeError: If unsupported types are provided.
+
+    Example:
+        >>> floats_equal(0.1 + 0.2, 0.3)
+        True
+        >>> floats_equal(1.0, 1.000001, rel_tol=1e-5)
+        True
     """
     try:
         if np is not None and (isinstance(a, np.ndarray) or isinstance(b, np.ndarray)):

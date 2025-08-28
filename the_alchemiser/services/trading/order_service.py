@@ -24,7 +24,7 @@ from alpaca.trading.enums import TimeInForce
 
 from the_alchemiser.domain.interfaces import MarketDataRepository, TradingRepository
 from the_alchemiser.services.errors.decorators import translate_trading_errors
-from the_alchemiser.utils.num import floats_equal
+from the_alchemiser.domain.shared_kernel import floats_equal
 
 logger = logging.getLogger(__name__)
 
