@@ -32,6 +32,8 @@ Every module is classified under one of these business units:
 - `the_alchemiser/shared_kernel/infrastructure/__init__.py` - Shared kernel infrastructure layer
 - `the_alchemiser/shared_kernel/interfaces/__init__.py` - Shared kernel interfaces layer
 - `the_alchemiser/domain/shared_kernel/types.py` - Backwards compatibility shim (ActionType enum & value object re-exports)
+- `the_alchemiser/domain/shared_kernel/tooling/__init__.py` - Tooling package (numeric helpers export)
+- `the_alchemiser/domain/shared_kernel/tooling/num.py` - Float tolerance comparison utility (`floats_equal`)
 
 ### Strategy Context
 **Business Unit**: strategy & signal generation | **Status**: current
@@ -69,16 +71,32 @@ Every module is classified under one of these business units:
 - `the_alchemiser/anti_corruption/infrastructure/__init__.py` - Anti-corruption infrastructure layer
 - `the_alchemiser/anti_corruption/interfaces/__init__.py` - Anti-corruption interfaces layer
 
+### Interface Utilities (Added in Task 2 / PR #398)
+**Business Unit**: utilities | **Status**: current
+
+- `the_alchemiser/interfaces/utils/__init__.py` - Interface utilities package
+- `the_alchemiser/interfaces/utils/serialization.py` - Boundary-safe serialization helpers
+
 ---
+
+## Task 2 Migration (PR #398) – Retirement of `utils/` Module
+
+Task 2 of Epic #375 removed the legacy monolithic `the_alchemiser/utils/` module. Responsibilities were redistributed to bounded contexts:
+
+- `ActionType` enum → shared kernel types shim (`the_alchemiser/domain/shared_kernel/types.py`)
+- Numeric helper `floats_equal` → shared kernel tooling (`the_alchemiser/domain/shared_kernel/tooling/num.py`)
+- Serialization utilities → interface utilities (`the_alchemiser/interfaces/utils/serialization.py`)
+
+All imports across impacted files were updated; no remaining references to the removed `utils` namespace exist.
 
 ## Summary
 
-- **Total new modules**: 25 new DDD bounded context modules
+- **Total new modules**: 25 new DDD bounded context modules (Task 1) + 4 migration utility modules (Task 2)
 - **Modules by business unit**:
-  - utilities: 15 modules (shared_kernel + anti_corruption contexts)
+  - utilities: 19 modules (shared_kernel + anti_corruption + interface utilities + tooling shim)
   - strategy & signal generation: 5 modules (strategy context)
   - portfolio assessment & management: 5 modules (portfolio context)
   - order execution/placement: 5 modules (execution context)
 - **All modules status**: current
 
-**Note**: This report shows only the new DDD bounded context structure created in Task 1 of Epic #375. Additional existing modules will be documented as they are migrated to the new structure in subsequent tasks.
+**Note**: Task 2 (PR #398) completed removal of the legacy `utils/` module. Further tasks will continue migrating any remaining legacy patterns.
