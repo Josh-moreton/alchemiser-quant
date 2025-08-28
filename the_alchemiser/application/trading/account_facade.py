@@ -48,7 +48,7 @@ from the_alchemiser.services.errors.exceptions import (
 )
 from the_alchemiser.services.market_data.market_data_service import MarketDataService
 from the_alchemiser.services.trading.position_service import PositionService
-from the_alchemiser.utils.serialization import ensure_serialized_dict
+from the_alchemiser.interfaces.utils.serialization import ensure_serialized_dict
 
 logger = logging.getLogger(__name__)
 

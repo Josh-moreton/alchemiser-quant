@@ -6,7 +6,7 @@ This document provides an inventory of all modules in the Alchemiser system, cat
 
 Every module is classified under one of these business units:
 - **strategy & signal generation**: Strategy engines, signal computation, and technical analysis
-- **portfolio assessment & management**: Portfolio rebalancing, position management, and risk assessment  
+- **portfolio assessment & management**: Portfolio rebalancing, position management, and risk assessment
 - **order execution/placement**: Order routing, execution algorithms, and trade settlement
 - **utilities**: Cross-cutting concerns, shared infrastructure, and support functions
 
@@ -22,7 +22,7 @@ Every module is classified under one of these business units:
 **Business Unit**: utilities | **Status**: current
 
 - `the_alchemiser/shared_kernel/__init__.py` - Shared kernel entry point
-- `the_alchemiser/shared_kernel/value_objects/__init__.py` - Value objects package  
+- `the_alchemiser/shared_kernel/value_objects/__init__.py` - Value objects package
 - `the_alchemiser/shared_kernel/value_objects/money.py` - Money value object
 - `the_alchemiser/shared_kernel/value_objects/percentage.py` - Percentage value object
 - `the_alchemiser/shared_kernel/value_objects/identifier.py` - Identifier value object
@@ -31,6 +31,7 @@ Every module is classified under one of these business units:
 - `the_alchemiser/shared_kernel/application/__init__.py` - Shared kernel application layer
 - `the_alchemiser/shared_kernel/infrastructure/__init__.py` - Shared kernel infrastructure layer
 - `the_alchemiser/shared_kernel/interfaces/__init__.py` - Shared kernel interfaces layer
+- `the_alchemiser/domain/shared_kernel/types.py` - Backwards compatibility shim (ActionType enum & value object re-exports)
 
 ### Strategy Context
 **Business Unit**: strategy & signal generation | **Status**: current
@@ -41,7 +42,7 @@ Every module is classified under one of these business units:
 - `the_alchemiser/strategy/infrastructure/__init__.py` - Strategy infrastructure layer
 - `the_alchemiser/strategy/interfaces/__init__.py` - Strategy interfaces layer
 
-### Portfolio Context  
+### Portfolio Context
 **Business Unit**: portfolio assessment & management | **Status**: current
 
 - `the_alchemiser/portfolio/__init__.py` - Portfolio context entry point
@@ -76,7 +77,7 @@ Every module is classified under one of these business units:
 - **Modules by business unit**:
   - utilities: 15 modules (shared_kernel + anti_corruption contexts)
   - strategy & signal generation: 5 modules (strategy context)
-  - portfolio assessment & management: 5 modules (portfolio context)  
+  - portfolio assessment & management: 5 modules (portfolio context)
   - order execution/placement: 5 modules (execution context)
 - **All modules status**: current
 

@@ -32,7 +32,7 @@ from the_alchemiser.domain.strategies.errors.strategy_errors import StrategyExec
 from the_alchemiser.domain.strategies.value_objects.confidence import Confidence
 from the_alchemiser.domain.strategies.value_objects.strategy_signal import StrategySignal
 from the_alchemiser.domain.trading.value_objects.symbol import Symbol
-from the_alchemiser.utils.common import ActionType
+from the_alchemiser.domain.shared_kernel import ActionType
 
 # Import all KLM strategy variants from modular workers package
 from .klm_workers import (
