@@ -16,7 +16,7 @@ from the_alchemiser.domain.registry import StrategyType
 from the_alchemiser.domain.strategies.typed_strategy_manager import TypedStrategyManager
 from the_alchemiser.infrastructure.config import Settings
 from the_alchemiser.infrastructure.logging.logging_utils import get_logger
-from the_alchemiser.interface.cli.cli_formatter import (
+from the_alchemiser.interfaces.cli.cli_formatter import (
     render_footer,
     render_header,
     render_portfolio_allocation,

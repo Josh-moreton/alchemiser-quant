@@ -56,7 +56,7 @@ detect-secrets = "^1.5.0"  # Secret scanning (baseline optional)
 pyright = "^1.1.380"  # Supplemental static type analysis (optional CI/nightly)
 
 [tool.poetry.scripts]
-alchemiser = "the_alchemiser.interface.cli.cli:app"
+alchemiser = "the_alchemiser.interfaces.cli.cli:app"
 
 [tool.poetry.urls]
 Homepage = "https://github.com/Josh-moreton/The-Alchemiser"
