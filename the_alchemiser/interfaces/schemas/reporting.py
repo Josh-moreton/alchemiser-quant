@@ -6,8 +6,8 @@ Reporting and dashboard DTOs for The Alchemiser Trading System.
 This module contains DTOs for reporting, dashboard metrics, and email
 notifications, moved from domain/types.py as part of the Pydantic migration.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 from typing import Any, TypedDict
 

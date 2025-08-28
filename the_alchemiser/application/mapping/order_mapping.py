@@ -105,13 +105,13 @@ def alpaca_order_to_domain(order: Any) -> Order:
     quantity_dec = _coerce_decimal(qty_raw) or Decimal("0")
     quantity = Quantity(quantity_dec)
     status = _map_status(status_raw)
-    
+
     # Validate and map order type
     order_type_str = str(order_type_raw).lower()
     if order_type_str not in {"market", "limit"}:
         order_type_str = "market"  # Default fallback
     order_type = OrderType(cast(Literal["market", "limit"], order_type_str))
-    
+
     # Validate and map time in force
     time_in_force_str = str(time_in_force_raw).lower()
     if time_in_force_str not in {"day", "gtc", "ioc", "fok"}:

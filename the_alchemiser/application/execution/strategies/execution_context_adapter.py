@@ -6,8 +6,8 @@ Execution Context Adapter.
 Adapter to bridge OrderExecutor protocol to ExecutionContext protocol
 for strategy compatibility using canonical executor.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any

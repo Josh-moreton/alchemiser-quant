@@ -8,8 +8,8 @@ This module provides intelligent order execution parameters based on market cond
 - Spread-aware step sizing and timing
 - Dynamic pricing strategies based on market microstructure
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 import logging
 from dataclasses import dataclass

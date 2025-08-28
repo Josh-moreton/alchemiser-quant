@@ -8,8 +8,8 @@ including states, events, and protocols for observing lifecycle transitions.
 All components follow domain-driven design principles with no external
 framework dependencies.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 from .events import LifecycleEventType, OrderLifecycleEvent
 from .exceptions import InvalidOrderStateTransitionError

@@ -4,8 +4,8 @@ Cache management service with TTL support.
 
 Provides configurable caching with time-to-live per data type.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 import logging
 import time

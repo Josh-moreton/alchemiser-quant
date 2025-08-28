@@ -6,8 +6,8 @@ WebSocket Order Monitoring Utilities.
 This module provides WebSocket-based order completion monitoring for real-time
 order settlement detection. No legacy polling fallbacks - WebSocket only.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 import contextlib
 import logging

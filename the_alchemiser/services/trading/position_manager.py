@@ -6,8 +6,8 @@ Position Management Utilities.
 This module provides helper functions for position management operations,
 including position validation, liquidation logic, and buying power checks.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 import logging
 from typing import Any
@@ -26,7 +26,7 @@ from the_alchemiser.utils.num import floats_equal
 class PositionManager:
     """Handles position management operations including validation and liquidation."""
 
-    def __init__(self, trading_client: Any, data_provider: Any) -> None:
+    def __init__(self, trading_client: Any, data_provider: Any) -> None:  # noqa: ANN401  # External SDK objects (Alpaca TradingClient and DataProvider)
         """Initialize with trading client and data provider."""
         self.trading_client = trading_client
         self.data_provider = data_provider

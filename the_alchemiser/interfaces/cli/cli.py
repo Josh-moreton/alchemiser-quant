@@ -6,8 +6,8 @@ Command-Line Interface for The Alchemiser Quantitative Trading System.
 Provides a modern CLI built with Typer and Rich for user interaction, strategy selection,
 and reporting. Handles user commands and displays formatted output.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 import logging
 import subprocess

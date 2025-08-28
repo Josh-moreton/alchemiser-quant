@@ -8,8 +8,8 @@ Environment-Aware Behavior:
 - Production (AWS Lambda): Only uses AWS Secrets Manager, fails hard if not available
 - Development: Falls back to environment variables (including .env files) if AWS Secrets Manager fails
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 import json
 import logging

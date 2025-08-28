@@ -8,8 +8,8 @@ placement, position management, and portfolio operations.
 This interface is designed to support typed DTO returns while maintaining
 compatibility with current AlpacaManager usage patterns.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Protocol
 

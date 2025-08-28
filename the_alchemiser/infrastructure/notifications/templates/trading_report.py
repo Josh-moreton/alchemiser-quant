@@ -4,8 +4,8 @@ Main trading report template builder.
 
 This module handles the primary trading report email template generation.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 from typing import Any, cast
 

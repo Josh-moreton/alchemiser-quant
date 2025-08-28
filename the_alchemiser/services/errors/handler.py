@@ -6,8 +6,8 @@ Main error handler for The Alchemiser Trading System.
 This module provides the single facade TradingSystemErrorHandler for all error handling,
 categorization, and detailed error reporting via email notifications.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 import logging
 import random

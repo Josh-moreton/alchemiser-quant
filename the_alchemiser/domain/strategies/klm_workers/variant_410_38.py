@@ -8,8 +8,8 @@ This variant is IDENTICAL to 506/38 except:
 
 Since 506/38 was just corrected to use FNGU, 410/38 only differs in the SSO addition.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 from the_alchemiser.utils.common import ActionType
 

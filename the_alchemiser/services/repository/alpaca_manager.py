@@ -11,8 +11,8 @@ It provides a transitional approach that:
 
 Phase 2 Update: Now implements domain interfaces for type safety and future migration.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 import logging
 

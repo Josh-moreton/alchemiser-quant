@@ -6,8 +6,8 @@ Specific Order Error Codes mapped to categories.
 This module defines specific error codes that provide precise classification
 of order failures, enabling targeted remediation and analytics.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 from enum import Enum
 

@@ -6,8 +6,8 @@ Order Error Classification System for The Alchemiser Trading System.
 This module provides structured error classification for order lifecycle and execution paths,
 enabling deterministic branching, richer analytics, and improved user-facing messaging.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 from .classifier import (
     OrderErrorClassifier,

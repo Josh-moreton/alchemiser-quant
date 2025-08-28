@@ -11,8 +11,8 @@ Design:
 - ROUND_HALF_UP rounding for financial consistency
 - Reuse existing execution mapping helpers where appropriate
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Any

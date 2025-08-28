@@ -5,8 +5,8 @@ Configuration system for DSL optimization features.
 Provides environment variable and programmatic configuration for
 enabling/disabling AST interning, evaluator memoisation, and parallel execution.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 import os
 from dataclasses import dataclass

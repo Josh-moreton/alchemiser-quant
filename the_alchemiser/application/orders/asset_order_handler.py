@@ -7,8 +7,8 @@ This module handles asset-specific order placement logic, including
 fractionable vs non-fractionable asset handling, order type conversion,
 and fallback strategies.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 import logging
 from decimal import ROUND_DOWN, Decimal

@@ -2,8 +2,8 @@
 
 Portfolio rebalancing service - main application orchestrator.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 from decimal import Decimal
 from typing import Any
@@ -362,17 +362,17 @@ class PortfolioRebalancingService:
 
     def _get_portfolio_value(self) -> Decimal:
         """Get total portfolio value from trading manager.
-        
+
         Returns:
             Decimal: The portfolio value
-            
+
         Raises:
             ValueError: If portfolio_dto is None or portfolio_dto.value is not a valid Decimal
 
         """
         try:
             portfolio_dto = self.trading_manager.get_portfolio_value()
-            
+
             # Defensive validation: ensure we got a valid PortfolioValueDTO
             if portfolio_dto is None:
                 error_handler = TradingSystemErrorHandler()
@@ -381,10 +381,10 @@ class PortfolioRebalancingService:
                     error=error,
                     component="PortfolioRebalancingService._get_portfolio_value",
                     context="portfolio value retrieval",
-                    additional_data={"portfolio_dto": None}
+                    additional_data={"portfolio_dto": None},
                 )
                 raise error
-                
+
             # Defensive validation: ensure portfolio_dto.value is a valid Decimal
             if not isinstance(portfolio_dto.value, Decimal):
                 error_handler = TradingSystemErrorHandler()
@@ -399,24 +399,24 @@ class PortfolioRebalancingService:
                     additional_data={
                         "portfolio_dto_type": str(type(portfolio_dto)),
                         "value_type": str(type(portfolio_dto.value)),
-                        "value_repr": repr(portfolio_dto.value)
-                    }
+                        "value_repr": repr(portfolio_dto.value),
+                    },
                 )
                 raise error
-                
+
             return portfolio_dto.value
-            
+
         except Exception as e:
             # Re-raise if already handled above, otherwise handle and re-raise
             if isinstance(e, ValueError) and "schema drift" in str(e):
                 raise
-            
+
             error_handler = TradingSystemErrorHandler()
             error_handler.handle_error(
                 error=e,
                 component="PortfolioRebalancingService._get_portfolio_value",
                 context="portfolio value retrieval - unexpected error",
-                additional_data={"error_type": str(type(e))}
+                additional_data={"error_type": str(type(e))},
             )
             raise
 

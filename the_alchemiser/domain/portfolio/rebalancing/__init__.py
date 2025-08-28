@@ -2,5 +2,5 @@
 
 Rebalancing domain logic and value objects.
 """
-from __future__ import annotations
 
+from __future__ import annotations

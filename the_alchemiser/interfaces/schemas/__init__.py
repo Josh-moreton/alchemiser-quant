@@ -14,5 +14,5 @@ Modules:
 - reporting: Dashboard, metrics, and email DTOs
 - execution: Trading execution and integration DTOs
 """
-from __future__ import annotations
 
+from __future__ import annotations

@@ -21,36 +21,39 @@ class AssetMetadataProvider(Protocol):
     @abstractmethod
     def is_fractionable(self, symbol: Symbol) -> bool:
         """Check if an asset supports fractional shares.
-        
+
         Args:
             symbol: The symbol to check
-            
+
         Returns:
             True if the asset supports fractional shares
+
         """
         ...
 
     @abstractmethod
     def get_asset_class(self, symbol: Symbol) -> str:
         """Get the asset class for a symbol.
-        
+
         Args:
             symbol: The symbol to classify
-            
+
         Returns:
             Asset class string (e.g., 'stock', 'etf', 'crypto')
+
         """
         ...
 
     @abstractmethod
     def should_use_notional_order(self, symbol: Symbol, quantity: float) -> bool:
         """Determine if notional (dollar) orders should be used.
-        
+
         Args:
             symbol: The symbol to trade
             quantity: Intended quantity
-            
+
         Returns:
             True if notional orders should be used
+
         """
         ...

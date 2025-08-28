@@ -7,8 +7,8 @@ This module contains Pydantic v2 DTOs for CLI interface boundaries,
 moved from domain/types.py as part of the Pydantic migration.
 These handle user interaction, command processing, and display formatting.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 from typing import Literal, TypedDict
 

@@ -1,6 +1,6 @@
 """Business Unit: utilities; Status: current."""
-from __future__ import annotations
 
+from __future__ import annotations
 
 import logging
 from typing import Any, Literal, cast
@@ -23,8 +23,8 @@ class AccountService:
         self.account_repository = account_repository
         self.logger = logging.getLogger(__name__)
 
-    def _get_attr(self, obj: Any, attr: str, default: Any = 0) -> Any:
-        """Helper method to safely get attributes from objects or dicts.
+    def _get_attr(self, obj: Any, attr: str, default: Any = 0) -> Any:  # noqa: ANN401  # Handles both objects and dicts dynamically
+        """Safely get attributes from objects or dicts.
 
         Args:
             obj: Object or dict to get attribute from

@@ -2,5 +2,5 @@
 
 Strategy tracking package for The Alchemiser.
 """
-from __future__ import annotations
 
+from __future__ import annotations

@@ -4,8 +4,8 @@ Price Utilities.
 
 This module provides helper functions for price handling and conversion operations.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 from typing import Any
 

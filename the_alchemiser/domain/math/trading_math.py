@@ -17,8 +17,8 @@ The module provides the mathematical foundation for:
 All functions follow functional programming principles with no side effects,
 ensuring predictable behavior and easy testing.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 from typing import Any
 

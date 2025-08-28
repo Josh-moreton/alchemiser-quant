@@ -6,8 +6,8 @@ Custom exception classes for The Alchemiser Quantitative Trading System.
 This module defines specific exception types for different failure scenarios
 to enable better error handling and debugging throughout the application.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 from datetime import UTC, datetime
 from typing import Any

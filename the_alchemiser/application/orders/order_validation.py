@@ -28,8 +28,8 @@ Usage:
     # Validate and get validated DTO
     validated_order = validator.validate_order_request(request)
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field

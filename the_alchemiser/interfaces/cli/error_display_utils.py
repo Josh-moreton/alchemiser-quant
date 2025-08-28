@@ -6,8 +6,8 @@ CLI error display utilities for order error classification.
 This module extends the existing CLI formatting to display classified order errors
 with proper categorization, remediation hints, and visual styling.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 from typing import Any
 

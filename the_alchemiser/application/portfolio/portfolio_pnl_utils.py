@@ -6,8 +6,8 @@ Portfolio P&L Utilities.
 This module provides helper functions for calculating and extracting
 profit and loss data from strategy tracking and portfolio positions.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 import logging
 from typing import Any

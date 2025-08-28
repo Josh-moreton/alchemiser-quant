@@ -2,5 +2,5 @@
 
 Infrastructure adapters for legacy system integration.
 """
-from __future__ import annotations
 
+from __future__ import annotations

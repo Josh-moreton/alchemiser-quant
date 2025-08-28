@@ -4,8 +4,8 @@ Indicator utility functions for safe calculation and error handling.
 
 This module provides helper functions for safely calculating and retrieving technical indicator values.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 import logging
 from collections.abc import Callable

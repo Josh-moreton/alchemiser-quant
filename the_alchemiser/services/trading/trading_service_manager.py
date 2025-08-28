@@ -2,8 +2,8 @@
 
 Trading service facade aggregating order, position, market data, and account operations.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime
@@ -575,7 +575,7 @@ class TradingServiceManager:
         quantity: int,
         side: str,
         order_type: str = "market",
-        **kwargs: object,
+        **kwargs: Any,  # noqa: ANN401  # Order parameters are dynamic (limit_price, stop_price, etc.)
     ) -> SmartOrderExecutionDTO:
         """Execute a smart order with comprehensive validation and risk management.
 

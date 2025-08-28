@@ -6,8 +6,8 @@ Aggressive Limit Strategy.
 Orchestrates RepegStrategy until order is filled or all attempts are exhausted.
 Handles order lifecycle, error management, and execution flow.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 import logging
 import time
@@ -73,8 +73,8 @@ class AggressiveLimitStrategy:
         config: StrategyConfig,
         repeg_strategy: RepegStrategy | None = None,
         enable_market_order_fallback: bool = False,
-        lifecycle_manager: "OrderLifecycleManager | None" = None,
-        lifecycle_dispatcher: "LifecycleEventDispatcher | None" = None,
+        lifecycle_manager: OrderLifecycleManager | None = None,
+        lifecycle_dispatcher: LifecycleEventDispatcher | None = None,
         strategy_name: str = "AggressiveLimitStrategy",
     ) -> None:
         """Initialize aggressive limit strategy.

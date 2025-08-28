@@ -2,8 +2,8 @@
 
 Service factory using dependency injection.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 from typing import cast
 

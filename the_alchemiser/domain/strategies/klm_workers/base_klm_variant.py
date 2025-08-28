@@ -5,8 +5,8 @@ Base KLM Strategy Variant.
 Abstract base class for all KLM strategy variants. Provides common functionality
 and enforces a consistent interface across all variants.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 import logging
 from abc import ABC, abstractmethod

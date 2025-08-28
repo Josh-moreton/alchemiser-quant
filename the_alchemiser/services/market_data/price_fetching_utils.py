@@ -6,8 +6,8 @@ Price Fetching Utilities.
 This module provides helper functions for price fetching operations,
 breaking down verbose price fetching logic into reusable components.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 import logging
 import time

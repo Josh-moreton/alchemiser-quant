@@ -2,7 +2,7 @@
 
 Domain-specific exceptions for strategy engines.
 
-These exceptions keep the domain layer pure by avoiding dependencies on 
+These exceptions keep the domain layer pure by avoiding dependencies on
 service-layer exception classes.
 """
 

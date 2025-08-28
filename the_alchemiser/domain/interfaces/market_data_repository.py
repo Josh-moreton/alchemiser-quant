@@ -8,8 +8,8 @@ current prices, quotes, historical data, and streaming data.
 This interface is designed to match our current AlpacaManager and data provider
 usage patterns while providing the abstraction needed for the eventual architecture.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 from typing import Any, Protocol
 
