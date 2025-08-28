@@ -25,7 +25,6 @@ from the_alchemiser.domain.strategies.typed_klm_ensemble_engine import TypedKLMS
 from the_alchemiser.domain.strategies.value_objects.confidence import Confidence
 from the_alchemiser.domain.strategies.value_objects.strategy_signal import StrategySignal
 from the_alchemiser.domain.trading.value_objects.symbol import Symbol
-from the_alchemiser.services.errors.handler import TradingSystemErrorHandler
 
 
 class AggregatedSignals:
@@ -76,7 +75,6 @@ class TypedStrategyManager:
         """
         self.market_data_port = market_data_port
         self.logger = logging.getLogger(__name__)
-        self.error_handler = TradingSystemErrorHandler()
 
         # Use provided allocations or defaults from registry
         if strategy_allocations is None:
@@ -169,20 +167,11 @@ class TypedStrategyManager:
                 self.logger.info(f"{strategy_type.value} generated {len(signals)} signals")
 
             except Exception as e:
-                # Use error handler for structured error reporting
-                self.error_handler.handle_error(
-                    error=e,
-                    context="signal_generation",
-                    component=f"TypedStrategyManager.{strategy_type.value}",
-                    additional_data={
-                        "strategy_type": strategy_type.value,
-                        "timestamp": timestamp.isoformat(),
-                        "enabled_strategies": list(self.strategy_allocations.keys()),
-                    },
-                )
-                self.logger.error(f"Error generating signals from {strategy_type.value}: {e}")
+                # Log error and skip this strategy
+                self.logger.error(f"Error generating signals for {strategy_type.value}: {e}")
                 # Continue with other strategies
                 aggregated.add_strategy_signals(strategy_type, [])
+                continue
 
         # Perform aggregation and conflict resolution
         self._aggregate_signals(aggregated)

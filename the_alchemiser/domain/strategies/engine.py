@@ -15,9 +15,12 @@ from datetime import datetime
 from typing import Any
 
 from the_alchemiser.domain.market_data.protocols.market_data_port import MarketDataPort
+from the_alchemiser.domain.strategies.errors.strategy_errors import (
+    MarketDataUnavailableError,
+    StrategyExecutionError,
+    StrategyValidationError,
+)
 from the_alchemiser.domain.strategies.value_objects.strategy_signal import StrategySignal
-from the_alchemiser.services.errors.exceptions import ValidationError
-from the_alchemiser.services.errors.handler import TradingSystemErrorHandler
 
 
 class StrategyEngine(ABC):
@@ -38,7 +41,6 @@ class StrategyEngine(ABC):
         self.strategy_name = strategy_name
         self.market_data_port = market_data_port
         self.logger = logging.getLogger(f"{__name__}.{strategy_name}")
-        self.error_handler = TradingSystemErrorHandler()
 
     @abstractmethod
     def generate_signals(self, now: datetime) -> list[StrategySignal]:
@@ -67,7 +69,7 @@ class StrategyEngine(ABC):
             True if all signals are valid
 
         Raises:
-            ValidationError: If any signal is invalid
+            StrategyValidationError: If any signal is invalid
 
         """
         if not signals:
@@ -79,17 +81,8 @@ class StrategyEngine(ABC):
                 self._validate_single_signal(signal)
             except Exception as e:
                 error_msg = f"{self.strategy_name}: Invalid signal at index {i}: {e}"
-                self.error_handler.handle_error(
-                    error=e,
-                    context="signal_validation",
-                    component=f"{self.strategy_name}.validate_signals",
-                    additional_data={
-                        "signal_index": i,
-                        "signal_symbol": getattr(signal, "symbol", "unknown"),
-                        "total_signals": len(signals),
-                    },
-                )
-                raise ValidationError(error_msg) from e
+                self.logger.error(error_msg)
+                raise StrategyValidationError(error_msg, self.strategy_name) from e
 
         self.logger.info(f"{self.strategy_name}: Validated {len(signals)} signals successfully")
         return True
@@ -101,7 +94,7 @@ class StrategyEngine(ABC):
             signal: Signal to validate
 
         Raises:
-            ValidationError: If signal is invalid
+            StrategyValidationError: If signal is invalid
 
         """
         # Check if it's actually a StrategySignal instance or has the right interface
@@ -110,7 +103,7 @@ class StrategyEngine(ABC):
             or not hasattr(signal, "confidence")
             or not hasattr(signal, "target_allocation")
         ):
-            raise ValidationError(f"Expected StrategySignal-like object, got {type(signal)}")
+            raise StrategyValidationError(f"Expected StrategySignal-like object, got {type(signal)}")
 
         # For proper StrategySignal instances, check the type
         if (
@@ -118,21 +111,21 @@ class StrategyEngine(ABC):
             and signal.__class__.__name__ != "StrategySignal"
             and not isinstance(signal, StrategySignal)
         ):
-            raise ValidationError(f"Expected StrategySignal, got {type(signal)}")
+            raise StrategyValidationError(f"Expected StrategySignal, got {type(signal)}")
 
         # Validate action
         if signal.action not in ("BUY", "SELL", "HOLD"):
-            raise ValidationError(f"Invalid action: {signal.action}")
+            raise StrategyValidationError(f"Invalid action: {signal.action}")
 
         # Validate confidence is in range [0, 1]
         confidence_value = signal.confidence.value
         if confidence_value < 0 or confidence_value > 1:
-            raise ValidationError(f"Confidence must be between 0 and 1, got {confidence_value}")
+            raise StrategyValidationError(f"Confidence must be between 0 and 1, got {confidence_value}")
 
         # Validate target allocation is non-negative
         allocation_value = signal.target_allocation.value
         if allocation_value < 0:
-            raise ValidationError(f"Target allocation cannot be negative, got {allocation_value}")
+            raise StrategyValidationError(f"Target allocation cannot be negative, got {allocation_value}")
 
     def safe_generate_signals(self, now: datetime) -> list[StrategySignal]:
         """Safely generate signals with error handling.
@@ -149,12 +142,6 @@ class StrategyEngine(ABC):
             self.validate_signals(signals)
             return signals
         except Exception as e:
-            self.error_handler.handle_error(
-                error=e,
-                context="signal_generation",
-                component=f"{self.strategy_name}.safe_generate_signals",
-                additional_data={"timestamp": now.isoformat(), "strategy": self.strategy_name},
-            )
             self.logger.error(f"{self.strategy_name}: Signal generation failed: {e}")
             return []
 
@@ -180,7 +167,7 @@ class StrategyEngine(ABC):
             True if all required data is available
 
         Raises:
-            ValidationError: If required data is unavailable
+            MarketDataUnavailableError: If required data is unavailable
 
         """
         if symbols is None:
@@ -204,7 +191,7 @@ class StrategyEngine(ABC):
 
         if unavailable_symbols:
             error_msg = f"{self.strategy_name}: Required market data unavailable for symbols: {unavailable_symbols}"
-            raise ValidationError(error_msg)
+            raise MarketDataUnavailableError(error_msg, unavailable_symbols)
 
         return True
 
@@ -218,7 +205,6 @@ class StrategyEngine(ABC):
         info = {
             "strategy_name": self.strategy_name,
             "required_symbols": self.get_required_symbols(),
-            "error_count": len(self.error_handler.errors),
         }
 
         if additional_info:

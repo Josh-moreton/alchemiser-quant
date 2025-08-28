@@ -20,11 +20,11 @@ from the_alchemiser.domain.math.indicator_utils import safe_get_indicator
 from the_alchemiser.domain.math.indicators import TechnicalIndicators
 from the_alchemiser.domain.shared_kernel.value_objects.percentage import Percentage
 from the_alchemiser.domain.strategies.engine import StrategyEngine
+from the_alchemiser.domain.strategies.errors.strategy_errors import StrategyExecutionError
 from the_alchemiser.domain.strategies.nuclear_logic import evaluate_nuclear_strategy
 from the_alchemiser.domain.strategies.value_objects.confidence import Confidence
 from the_alchemiser.domain.strategies.value_objects.strategy_signal import StrategySignal
 from the_alchemiser.domain.trading.value_objects.symbol import Symbol
-from the_alchemiser.services.errors.exceptions import StrategyExecutionError
 
 
 class NuclearTypedEngine(StrategyEngine):

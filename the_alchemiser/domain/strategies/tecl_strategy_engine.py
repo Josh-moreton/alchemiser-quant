@@ -479,9 +479,7 @@ class TECLStrategyEngine(StrategyEngine):
 
 def main() -> None:
     """Test the TECL strategy engine."""
-    from the_alchemiser.infrastructure.logging.logging_utils import get_logger
-
-    logger = get_logger(__name__)
+    logger = logging.getLogger(__name__)
     logger.info("🚀 TECL Strategy Engine Test")
     logger.info("=" * 50)
     logger.info("Note: This test requires a configured data provider")
