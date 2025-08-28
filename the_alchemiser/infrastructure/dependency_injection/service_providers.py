@@ -8,10 +8,10 @@ from __future__ import annotations
 from dependency_injector import containers, providers
 
 from the_alchemiser.domain.strategies.typed_klm_ensemble_engine import TypedKLMStrategyEngine
-from the_alchemiser.services.account.account_service import AccountService
-from the_alchemiser.services.market_data.market_data_service import MarketDataService
-from the_alchemiser.services.trading.order_service import OrderService
-from the_alchemiser.services.trading.position_service import PositionService
+from the_alchemiser.portfolio.infrastructure.adapters.account_service import AccountService
+from the_alchemiser.strategy.infrastructure.market_data.market_data_service import MarketDataService
+from the_alchemiser.execution.application.orders.order_service import OrderService
+from the_alchemiser.portfolio.application.queries.position_service import PositionService
 from the_alchemiser.services.trading.trading_service_manager import TradingServiceManager
 
 

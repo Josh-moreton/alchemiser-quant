@@ -13,8 +13,8 @@ import logging
 from collections.abc import Awaitable, Callable
 from typing import Any
 
-from the_alchemiser.services.market_data.market_data_client import MarketDataClient
-from the_alchemiser.services.market_data.streaming_service import StreamingService
+from the_alchemiser.strategy.infrastructure.market_data.market_data_client import MarketDataClient
+from the_alchemiser.strategy.infrastructure.market_data.streaming_service import StreamingService
 
 
 class ModernPriceFetchingService:

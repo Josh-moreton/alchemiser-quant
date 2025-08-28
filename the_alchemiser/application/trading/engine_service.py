@@ -71,7 +71,7 @@ from the_alchemiser.domain.types import (
 from the_alchemiser.infrastructure.config import Settings
 from the_alchemiser.interfaces.schemas.common import MultiStrategyExecutionResultDTO
 from the_alchemiser.interfaces.schemas.execution import ExecutionResultDTO
-from the_alchemiser.services.account.account_service import (
+from the_alchemiser.portfolio.infrastructure.adapters.account_service import (
     AccountService as TypedAccountService,
 )
 from the_alchemiser.services.errors.context import create_error_context

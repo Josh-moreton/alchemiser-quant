@@ -96,9 +96,9 @@ from the_alchemiser.interfaces.schemas.smart_trading import (
     SmartOrderExecutionDTO,
     TradingDashboardDTO,
 )
-from the_alchemiser.services.account.account_service import AccountService
+from the_alchemiser.portfolio.infrastructure.adapters.account_service import AccountService
 from the_alchemiser.services.errors.decorators import translate_trading_errors
-from the_alchemiser.services.market_data.market_data_service import MarketDataService
+from the_alchemiser.strategy.infrastructure.market_data.market_data_service import MarketDataService
 from the_alchemiser.execution.infrastructure.brokers.alpaca_manager import AlpacaManager
 from the_alchemiser.execution.application.orders.order_service import OrderService
 from the_alchemiser.portfolio.application.queries.position_service import PositionService
