@@ -47,8 +47,8 @@ from the_alchemiser.shared_kernel.errors import (
 from the_alchemiser.strategy.domain.errors import StrategyExecutionError
 from the_alchemiser.infrastructure.errors.handler import TradingSystemErrorHandler
 from the_alchemiser.strategy.infrastructure.market_data_service import MarketDataService
-from the_alchemiser.execution.application.trading_service_manager import (
-    TradingServiceManager,
+from the_alchemiser.interfaces.trading_system_coordinator import (
+    TradingSystemCoordinator,
 )
 
 # Constants to avoid duplication
@@ -180,7 +180,7 @@ def signal(
                     )
                     raise typer.Exit(1)
 
-                tsm = TradingServiceManager(api_key, secret_key, paper=True)
+                tsm = TradingSystemCoordinator(api_key, secret_key, paper=True)
 
                 # Adapter implementing MarketDataPort
                 class _MarketDataPortAdapter(MarketDataPort):
@@ -624,12 +624,12 @@ def status(
         account_info: dict[str, Any] = dict(trader.get_account_info())
 
         # Always use enriched typed account summary (using typed domain)
-        tsm: TradingServiceManager | None = None
+        tsm: TradingSystemCoordinator | None = None
         try:
             api_key, secret_key = secrets_manager.get_alpaca_keys(paper_trading=not live)
             if not api_key or not secret_key:
                 raise RuntimeError("Alpaca credentials not available")
-            tsm = TradingServiceManager(api_key, secret_key, paper=not live)
+            tsm = TradingSystemCoordinator(api_key, secret_key, paper=not live)
             enriched = tsm.get_account_summary_enriched()
             # Extract the summary from the DTO
             if enriched and enriched.summary:
@@ -648,7 +648,7 @@ def status(
                 api_key, secret_key = secrets_manager.get_alpaca_keys(paper_trading=not live)
                 if not api_key or not secret_key:
                     raise RuntimeError("Alpaca credentials not available")
-                tsm = TradingServiceManager(api_key, secret_key, paper=not live)
+                tsm = TradingSystemCoordinator(api_key, secret_key, paper=not live)
 
             enriched_positions = tsm.get_positions_enriched()
             if enriched_positions:
@@ -766,7 +766,7 @@ def status(
 
         # Display order lifecycle information if available
         try:
-            # Access TradingServiceManager through the bootstrap context
+            # Access TradingSystemCoordinator through the bootstrap context
             tsm = bootstrap_context.get("trading_service_manager")
             if tsm:
                 # Get lifecycle metrics and tracked orders

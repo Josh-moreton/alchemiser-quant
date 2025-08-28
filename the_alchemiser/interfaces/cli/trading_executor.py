@@ -199,11 +199,11 @@ class TradingExecutor:
             api_key = self.container.config.alpaca_api_key()
             secret_key = self.container.config.alpaca_secret_key()
             paper = self.container.config.paper_trading()
-            from the_alchemiser.execution.application.trading_service_manager import (
-                TradingServiceManager,
+            from the_alchemiser.interfaces.trading_system_coordinator import (
+                TradingSystemCoordinator,
             )
 
-            tsm = TradingServiceManager(api_key, secret_key, paper=paper)
+            tsm = TradingSystemCoordinator(api_key, secret_key, paper=paper)
             open_orders = tsm.get_open_orders()
             if open_orders and open_orders.orders:
                 # Convert DTO to expected format

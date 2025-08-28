@@ -10,8 +10,8 @@ from typing import cast
 from the_alchemiser.infrastructure.dependency_injection.application_container import (
     ApplicationContainer,
 )
-from the_alchemiser.execution.application.trading_service_manager import (
-    TradingServiceManager,
+from the_alchemiser.interfaces.trading_system_coordinator import (
+    TradingSystemCoordinator,
 )
 
 
@@ -28,21 +28,31 @@ class ServiceFactory:
         cls._container = container
 
     @classmethod
+    def create_trading_system_coordinator(
+        cls,
+        api_key: str | None = None,
+        secret_key: str | None = None,
+        paper: bool | None = None,
+    ) -> TradingSystemCoordinator:
+        """Create TradingSystemCoordinator using DI or traditional method."""
+        if cls._container is not None and all(x is None for x in [api_key, secret_key, paper]):
+            # Use DI container
+            return cast(TradingSystemCoordinator, cls._container.services.trading_system_coordinator())
+        # Backward compatibility: direct instantiation
+        api_key = api_key or "default_key"
+        secret_key = secret_key or "default_secret"
+        paper = paper if paper is not None else True
+        return TradingSystemCoordinator(api_key, secret_key, paper)
+
+    @classmethod
     def create_trading_service_manager(
         cls,
         api_key: str | None = None,
         secret_key: str | None = None,
         paper: bool | None = None,
-    ) -> TradingServiceManager:
-        """Create TradingServiceManager using DI or traditional method."""
-        if cls._container is not None and all(x is None for x in [api_key, secret_key, paper]):
-            # Use DI container
-            return cast(TradingServiceManager, cls._container.services.trading_service_manager())
-        # Backward compatibility: direct instantiation
-        api_key = api_key or "default_key"
-        secret_key = secret_key or "default_secret"
-        paper = paper if paper is not None else True
-        return TradingServiceManager(api_key, secret_key, paper)
+    ) -> TradingSystemCoordinator:
+        """Backward compatibility alias for create_trading_system_coordinator."""
+        return cls.create_trading_system_coordinator(api_key, secret_key, paper)
 
     @classmethod
     def get_container(cls) -> ApplicationContainer | None:
