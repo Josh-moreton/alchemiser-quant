@@ -12,7 +12,7 @@ from the_alchemiser.domain.portfolio.position.position_analyzer import PositionA
 from the_alchemiser.domain.portfolio.strategy_attribution.attribution_engine import (
     StrategyAttributionEngine,
 )
-from the_alchemiser.services.trading.trading_service_manager import (
+from the_alchemiser.application.trading.services.trading_service_manager import (
     TradingServiceManager,
 )
 

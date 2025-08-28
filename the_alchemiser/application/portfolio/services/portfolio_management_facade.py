@@ -33,7 +33,7 @@ from the_alchemiser.domain.portfolio.strategy_attribution.attribution_engine imp
 from the_alchemiser.domain.registry.strategy_registry import StrategyType
 from the_alchemiser.domain.types import OrderDetails
 from the_alchemiser.interfaces.schemas.portfolio_rebalancing import RebalancePlanDTO
-from the_alchemiser.services.trading.trading_service_manager import (
+from the_alchemiser.application.trading.services.trading_service_manager import (
     TradingServiceManager,
 )
 from the_alchemiser.utils.num import floats_equal
