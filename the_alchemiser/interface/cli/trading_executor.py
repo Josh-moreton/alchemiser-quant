@@ -302,7 +302,17 @@ class TradingExecutor:
     def _send_trading_notification(
         self, result: MultiStrategyExecutionResultDTO, mode_str: str
     ) -> None:
-        """Send trading completion notification."""
+        """Send trading completion notification.
+        
+        Enriches the result with fresh position data for email rendering.
+        Only supports PortfolioStateDTO for final_portfolio_state - legacy dict
+        paths are intentionally ignored per No Legacy Fallback Policy.
+        
+        Args:
+            result: The execution result DTO
+            mode_str: Trading mode string for display
+
+        """
         try:
             from the_alchemiser.interface.email.email_utils import (
                 send_email_notification,
@@ -322,6 +332,14 @@ class TradingExecutor:
                     ):
                         # Convert DTO to dict
                         state_dict = result.final_portfolio_state.model_dump()
+                    elif result.final_portfolio_state and isinstance(result.final_portfolio_state, dict):
+                        # Legacy dict case: Per No Legacy Fallback Policy, this path is 
+                        # intentionally unsupported. We do not merge legacy dict state.
+                        # This avoids hidden legacy execution paths in production.
+                        self.logger.warning(
+                            "final_portfolio_state is a legacy dict - ignoring per No Legacy Fallback Policy"
+                        )
+                        # Continue with empty state_dict to avoid legacy fallback
 
                     updated_state = {
                         **state_dict,
