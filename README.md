@@ -100,7 +100,7 @@ We’re migrating to a strongly-typed, framework-free domain model with incremen
 
 ### Command Line Interface
 
-- `the_alchemiser.cli` is built with Typer and provides the `alchemiser` command (`bot`, `trade`, `status`, `deploy`, etc.).
+- `the_alchemiser.cli` is built with Typer and provides the `alchemiser` command (`signal`, `trade`, `status`, `deploy`, etc.).
 
 ## Execution Flow
 
