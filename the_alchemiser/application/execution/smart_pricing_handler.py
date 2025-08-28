@@ -6,8 +6,8 @@ Smart Pricing Handler.
 This module provides intelligent pricing strategies based on market conditions,
 bid/ask spreads, and order aggressiveness settings.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 import logging
 from typing import Any

@@ -22,8 +22,8 @@ For new code, import directly from the notifications module:
 
 This file maintains backward compatibility for existing imports.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 from typing import Any
 

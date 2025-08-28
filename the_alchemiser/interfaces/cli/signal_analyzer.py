@@ -4,8 +4,8 @@ Signal analysis CLI module.
 
 Handles signal generation and display without trading execution.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any

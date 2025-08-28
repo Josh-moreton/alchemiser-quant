@@ -6,8 +6,8 @@ Secrets Service.
 Handles credential retrieval for the trading system.
 Provides a clean interface for accessing API keys and other sensitive data.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 import logging
 

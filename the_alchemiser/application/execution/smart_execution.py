@@ -27,8 +27,8 @@ This module provides sophisticated order execution using the Better Orders strat
 Refactored to use composition instead of thin proxy methods.
 Focuses on execution strategy logic while delegating order placement to specialized components.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 import logging
 import time
@@ -307,8 +307,8 @@ class SmartExecution:
         max_slippage_bps: float | None = None,
     ) -> str | None:
         """Place order using professional Better Orders execution strategy.
-        
-        Consolidated execution pathway: delegates to CanonicalOrderExecutor via 
+
+        Consolidated execution pathway: delegates to CanonicalOrderExecutor via
         _submit_canonical_market_order() and AggressiveLimitStrategy execution.
 
         Implements the 5-step execution ladder:

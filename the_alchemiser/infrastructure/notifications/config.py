@@ -5,8 +5,8 @@ Email configuration management module.
 This module handles loading email settings from environment variables and AWS Secrets Manager.
 Replaces the `get_email_config` function from the original email_utils.py.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 import logging
 

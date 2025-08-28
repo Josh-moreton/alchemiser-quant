@@ -6,8 +6,8 @@ Position Management Utilities.
 This module provides helper functions for position management operations,
 including position validation, liquidation logic, and buying power checks.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 import logging
 from typing import Any

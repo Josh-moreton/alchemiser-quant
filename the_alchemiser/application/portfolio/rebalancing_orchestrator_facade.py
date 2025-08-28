@@ -10,8 +10,8 @@ a single entry point for the TradingEngine to delegate rebalancing concerns.
 This facade wraps the existing RebalancingOrchestrator and PortfolioManagementFacade
 to provide a typed, clean interface for application-layer usage.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 import logging
 from typing import Any

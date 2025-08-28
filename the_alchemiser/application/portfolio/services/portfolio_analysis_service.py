@@ -2,8 +2,8 @@
 
 Portfolio analysis service - provides comprehensive portfolio analysis.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 from decimal import Decimal
 from typing import Any

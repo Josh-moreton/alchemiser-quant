@@ -50,9 +50,10 @@ Example:
     >>> executor = CanonicalOrderExecutor(client.alpaca_manager)
     >>> req = OrderRequest(symbol=Symbol('AAPL'), side=Side('buy'), quantity=Quantity(Decimal('10')), order_type=OrderType('market'), time_in_force=TimeInForce('day'))  # noqa: E501
     >>> result = executor.execute(req)
-"""
-from __future__ import annotations
 
+"""
+
+from __future__ import annotations
 
 import logging
 import time
@@ -161,8 +162,6 @@ class AlpacaClient:
 
         """
         try:
-            from the_alchemiser.interfaces.schemas.orders import ValidatedOrderDTO
-
             raw_orders = self.position_manager.get_pending_orders()
 
             validated_orders: list[ValidatedOrderDTO] = []

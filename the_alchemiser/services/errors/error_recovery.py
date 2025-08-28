@@ -8,8 +8,8 @@ This module implements Phase 2 of the error handling enhancement plan:
 - Circuit Breaker patterns for preventing cascading failures
 - Smart Retry mechanisms with multiple strategies
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 import logging
 import random

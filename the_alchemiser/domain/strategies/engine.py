@@ -17,7 +17,6 @@ from typing import Any
 from the_alchemiser.domain.market_data.protocols.market_data_port import MarketDataPort
 from the_alchemiser.domain.strategies.errors.strategy_errors import (
     MarketDataUnavailableError,
-    StrategyExecutionError,
     StrategyValidationError,
 )
 from the_alchemiser.domain.strategies.value_objects.strategy_signal import StrategySignal
@@ -103,7 +102,9 @@ class StrategyEngine(ABC):
             or not hasattr(signal, "confidence")
             or not hasattr(signal, "target_allocation")
         ):
-            raise StrategyValidationError(f"Expected StrategySignal-like object, got {type(signal)}")
+            raise StrategyValidationError(
+                f"Expected StrategySignal-like object, got {type(signal)}"
+            )
 
         # For proper StrategySignal instances, check the type
         if (
@@ -120,12 +121,16 @@ class StrategyEngine(ABC):
         # Validate confidence is in range [0, 1]
         confidence_value = signal.confidence.value
         if confidence_value < 0 or confidence_value > 1:
-            raise StrategyValidationError(f"Confidence must be between 0 and 1, got {confidence_value}")
+            raise StrategyValidationError(
+                f"Confidence must be between 0 and 1, got {confidence_value}"
+            )
 
         # Validate target allocation is non-negative
         allocation_value = signal.target_allocation.value
         if allocation_value < 0:
-            raise StrategyValidationError(f"Target allocation cannot be negative, got {allocation_value}")
+            raise StrategyValidationError(
+                f"Target allocation cannot be negative, got {allocation_value}"
+            )
 
     def safe_generate_signals(self, now: datetime) -> list[StrategySignal]:
         """Safely generate signals with error handling.

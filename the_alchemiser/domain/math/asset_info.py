@@ -8,6 +8,7 @@ This helps optimize order placement strategies for different asset types.
 
 This module now uses the AssetMetadataProvider protocol to avoid infrastructure dependencies.
 """
+
 from __future__ import annotations
 
 import logging
@@ -16,7 +17,6 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from the_alchemiser.domain.math.protocols.asset_metadata_provider import AssetMetadataProvider
-    from the_alchemiser.domain.trading.value_objects.symbol import Symbol
 
 
 class AssetType(Enum):
@@ -34,7 +34,7 @@ class FractionabilityDetector:
     """Detects and handles non-fractionable assets using AssetMetadataProvider.
 
     Professional trading systems need to handle assets that don't support
-    fractional shares. This system delegates to an AssetMetadataProvider 
+    fractional shares. This system delegates to an AssetMetadataProvider
     implementation for authoritative fractionability information.
     """
 
@@ -68,7 +68,7 @@ class FractionabilityDetector:
 
         try:
             from the_alchemiser.domain.trading.value_objects.symbol import Symbol
-            
+
             symbol_obj = Symbol(symbol)
             fractionable = self.asset_metadata_provider.is_fractionable(symbol_obj)
             logging.debug(f"📡 Provider: {symbol} fractionable = {fractionable}")

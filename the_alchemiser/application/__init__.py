@@ -20,5 +20,5 @@ Key Features:
     - Integration with Alpaca trading platform
     - Support for both paper and live trading
 """
-from __future__ import annotations
 
+from __future__ import annotations

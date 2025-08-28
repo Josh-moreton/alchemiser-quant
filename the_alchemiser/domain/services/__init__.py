@@ -2,5 +2,5 @@
 
 Domain service layer containing pure business policies.
 """
-from __future__ import annotations
 
+from __future__ import annotations

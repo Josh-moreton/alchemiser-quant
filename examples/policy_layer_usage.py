@@ -5,8 +5,8 @@ Unified Policy Layer Usage Example
 This example demonstrates how to use the new unified policy layer
 for order validation and adjustment.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 from decimal import Decimal
 
@@ -18,7 +18,7 @@ def example_policy_usage():
     """Example showing how to use the unified policy layer."""
     # Setup (in real application, these would be your actual clients)
     trading_client = get_trading_client()  # Your trading client
-    data_provider = get_data_provider()    # Your data provider
+    data_provider = get_data_provider()  # Your data provider
 
     # Create policy orchestrator with all standard policies
     policy_orchestrator = PolicyFactory.create_orchestrator(
@@ -26,7 +26,7 @@ def example_policy_usage():
         data_provider=data_provider,
         max_risk_score=Decimal("100"),
         max_position_concentration=0.15,  # 15% max concentration
-        max_order_size_pct=0.10,         # 10% max order size
+        max_order_size_pct=0.10,  # 10% max order size
     )
 
     # Create an order request
@@ -82,6 +82,7 @@ def get_data_provider():
 
 
 # Policy-specific usage examples
+
 
 def fractionability_only_example():
     """Example using only fractionability policy."""

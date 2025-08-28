@@ -6,8 +6,8 @@ Spread Assessment for Better Order Execution.
 Implements pre-market and real-time spread analysis to optimize
 order timing and pricing decisions.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 import logging
 from dataclasses import dataclass

@@ -12,8 +12,8 @@ Key Features:
 - Integration with existing TradingEngine and SmartExecution
 - Minimal changes to existing code patterns
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 import logging
 from contextlib import contextmanager
@@ -31,7 +31,7 @@ class StrategyExecutionContext:
     """Context manager to track which strategy is currently executing orders."""
 
     _current_strategy: StrategyType | None = None
-    _order_tracker: "StrategyOrderTracker | None" = None
+    _order_tracker: StrategyOrderTracker | None = None
 
     @classmethod
     def set_current_strategy(cls, strategy: StrategyType) -> None:

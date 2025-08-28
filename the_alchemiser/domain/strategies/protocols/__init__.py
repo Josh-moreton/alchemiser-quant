@@ -1,6 +1,6 @@
 """Business Unit: utilities; Status: current."""
-from __future__ import annotations
 
+from __future__ import annotations
 
 from the_alchemiser.domain.strategies.protocols.strategy_engine import StrategyEngine
 

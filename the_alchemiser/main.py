@@ -6,14 +6,13 @@ Main Entry Point for The Alchemiser Trading System.
 A clean, focused entry point for the multi-strategy quantitative trading system.
 Supports signal analysis and trading execution with dependency injection.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 import argparse
 import logging
 import os
 import sys
-from typing import Optional
 
 from the_alchemiser.domain.registry import StrategyType
 from the_alchemiser.infrastructure.config import Settings, load_settings
@@ -45,7 +44,7 @@ except ImportError:
 
 # Global DI container
 # Use Optional for proper type inference by static type checkers
-_di_container: Optional["ApplicationContainer"] = None
+_di_container: ApplicationContainer | None = None
 
 
 class TradingSystem:

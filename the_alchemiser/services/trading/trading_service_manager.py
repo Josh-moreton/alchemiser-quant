@@ -2,8 +2,8 @@
 
 Trading service facade aggregating order, position, market data, and account operations.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime

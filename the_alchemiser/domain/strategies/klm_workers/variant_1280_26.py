@@ -11,8 +11,8 @@ COMPLETELY DIFFERENT from 506/38! This variant:
 
 This is a fundamentally different architecture from other variants.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 import pandas as pd
 

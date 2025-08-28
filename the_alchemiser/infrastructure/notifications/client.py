@@ -5,8 +5,8 @@ Email client module for sending notifications.
 This module handles SMTP operations and message sending functionality.
 Replaces the `send_email_notification` function from the original email_utils.py.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 import logging
 import smtplib

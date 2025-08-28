@@ -3,8 +3,8 @@
 Symbol classification for strategy attribution.
 """
 
-
 from __future__ import annotations
+
 
 class SymbolClassifier:
     """Classifies symbols to their primary strategy.

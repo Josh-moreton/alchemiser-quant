@@ -20,9 +20,10 @@ Example:
     >>> container = ApplicationContainer.create_for_testing()
     >>> engine = TradingEngine.create_with_di(container=container)
     >>> result = engine.execute_multi_strategy()
-"""
-from __future__ import annotations
 
+"""
+
+from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime
@@ -551,7 +552,7 @@ class TradingEngine:
     ) -> str | None:
         """Place a limit or market order using the smart execution engine.
 
-        Order placement consolidated: delegates to SmartExecution.place_order() 
+        Order placement consolidated: delegates to SmartExecution.place_order()
         which routes through CanonicalOrderExecutor for unified execution pathway.
 
         Args:

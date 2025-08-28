@@ -23,8 +23,8 @@ Key Symbols:
 - SQQQ: Inverse NASDAQ for bear market conditions
 - BSV: Short-term bond ETF alternative
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 import logging
 import warnings

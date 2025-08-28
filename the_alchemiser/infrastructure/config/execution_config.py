@@ -6,8 +6,8 @@ Execution Configuration.
 Configuration settings for the professional execution system.
 Loads settings from the global application configuration.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 import logging
 from dataclasses import dataclass

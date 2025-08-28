@@ -6,8 +6,8 @@ Centralized Error Reporter for Production Monitoring.
 This module provides structured error reporting for hands-off operation
 according to the error handling improvement plan.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 import logging
 from collections import defaultdict
@@ -109,7 +109,7 @@ class ErrorReporter:
 
 
 # Singleton instance for global use
-_global_error_reporter: "ErrorReporter | None" = None
+_global_error_reporter: ErrorReporter | None = None
 
 
 def get_error_reporter(notification_manager: Any = None) -> ErrorReporter:

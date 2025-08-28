@@ -2,8 +2,8 @@
 
 Configuration package for The Alchemiser Quantitative Trading System.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 from .config import Settings, load_settings
 from .execution_config import get_execution_config

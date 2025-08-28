@@ -15,7 +15,6 @@ from __future__ import annotations
 #
 # Current modules:
 # - interfaces: Protocol definitions for repositories and services
-
 from .interfaces import (
     AccountRepository,
     MarketDataRepository,

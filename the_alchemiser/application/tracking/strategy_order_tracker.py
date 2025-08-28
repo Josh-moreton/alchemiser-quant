@@ -19,8 +19,8 @@ Design:
 - Integrates with trading engine to capture order fills
 - Provides P&L metrics for email reporting and dashboards
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 import logging
 from dataclasses import asdict, dataclass
@@ -1230,8 +1230,8 @@ class StrategyOrderTracker:
 
 
 # Global instances for easy access - separate by trading mode
-_strategy_tracker_paper: "StrategyOrderTracker | None" = None
-_strategy_tracker_live: "StrategyOrderTracker | None" = None
+_strategy_tracker_paper: StrategyOrderTracker | None = None
+_strategy_tracker_live: StrategyOrderTracker | None = None
 
 
 def get_strategy_tracker(

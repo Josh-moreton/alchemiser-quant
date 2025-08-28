@@ -9,8 +9,8 @@ Focused on data retrieval without trading operations.
 MIGRATION NOTE: This client now uses AlpacaManager for consolidated Alpaca access.
 This provides better error handling, logging, and testing capabilities.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime, timedelta

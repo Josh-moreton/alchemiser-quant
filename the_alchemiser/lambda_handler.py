@@ -10,8 +10,8 @@ The handler wraps the main application entry point and provides appropriate
 response formatting for AWS Lambda integration. It supports different trading
 modes based on the event payload.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 import json
 import logging

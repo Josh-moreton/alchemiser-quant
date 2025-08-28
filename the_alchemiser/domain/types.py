@@ -6,8 +6,8 @@ This module contains domain-appropriate TypedDict definitions that represent
 core business entities and concepts. Interface/UI types have been moved to
 interfaces/schemas modules as part of the Pydantic migration.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 from typing import Any, Literal, Protocol, TypedDict
 

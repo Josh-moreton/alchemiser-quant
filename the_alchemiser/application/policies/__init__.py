@@ -6,8 +6,8 @@ This module provides concrete implementations of the domain policy interfaces.
 These implementations contain the actual business logic for order validation
 and adjustment that was previously scattered across different components.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 from .buying_power_policy_impl import BuyingPowerPolicyImpl
 from .fractionability_policy_impl import FractionabilityPolicyImpl

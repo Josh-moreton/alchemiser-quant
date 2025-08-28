@@ -24,8 +24,8 @@ KEY FEATURES:
 5. Smart reconnection logic
 6. Memory-efficient quote caching
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 import logging
 import threading

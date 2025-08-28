@@ -10,8 +10,8 @@ This variant is DIFFERENT from others in several key ways:
 
 This is the "Nova" experimental variant with individual stock selection.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 import pandas as pd
 

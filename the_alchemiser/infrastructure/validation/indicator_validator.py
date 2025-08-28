@@ -6,8 +6,8 @@ Comprehensive Indicator Validation for The Alchemiser Quantitative Trading Syste
 This module provides a comprehensive testing suite that validates ALL technical
 indicators used by our trading strategies against TwelveData API values.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 import json
 import logging
