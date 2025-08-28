@@ -26,7 +26,7 @@ from the_alchemiser.interfaces.schemas.base import ResultDTO
 class AccountSummaryDTO(BaseModel):
     """DTO for comprehensive account summary.
 
-    Used when returning account data from TradingServiceManager methods.
+    Used when returning account data from TradingSystemCoordinator methods.
     """
 
     model_config = ConfigDict(

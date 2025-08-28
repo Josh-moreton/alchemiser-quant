@@ -3,7 +3,7 @@
 Portfolio Application Service.
 
 Handles account management, position analysis, portfolio valuation, and risk assessment.
-Replaces portfolio-related functionality from TradingServiceManager.
+Replaces portfolio-related functionality from TradingSystemCoordinator.
 """
 
 from __future__ import annotations
@@ -51,55 +51,55 @@ class PortfolioApplication:
         self, symbol: str, include_closed_today: bool = False
     ) -> PositionSummaryDTO:
         """Get position summary for a symbol."""
-        # Implementation from TradingServiceManager
+        # Implementation from TradingSystemCoordinator
         pass
 
     def get_position_analytics(self, symbol: str) -> PositionAnalyticsDTO:
         """Get position analytics."""
-        # Implementation from TradingServiceManager
+        # Implementation from TradingSystemCoordinator
         pass
 
     def calculate_position_metrics(self) -> PositionMetricsDTO:
         """Calculate position metrics."""
-        # Implementation from TradingServiceManager
+        # Implementation from TradingSystemCoordinator
         pass
 
     def get_account_summary(self) -> AccountSummaryDTO:
         """Get account summary."""
-        # Implementation from TradingServiceManager
+        # Implementation from TradingSystemCoordinator
         pass
 
     def check_buying_power(self, required_amount: float) -> BuyingPowerDTO:
         """Check buying power."""
-        # Implementation from TradingServiceManager
+        # Implementation from TradingSystemCoordinator
         pass
 
     def get_risk_metrics(self) -> RiskMetricsDTO:
         """Get risk metrics."""
-        # Implementation from TradingServiceManager
+        # Implementation from TradingSystemCoordinator
         pass
 
     def get_portfolio_allocation(self) -> PortfolioAllocationDTO:
         """Get portfolio allocation."""
-        # Implementation from TradingServiceManager
+        # Implementation from TradingSystemCoordinator
         pass
 
     def get_account_summary_enriched(self) -> EnrichedAccountSummaryDTO:
         """Get enriched account summary."""
-        # Implementation from TradingServiceManager
+        # Implementation from TradingSystemCoordinator
         pass
 
     def get_all_positions(self) -> EnrichedPositionsDTO:
         """Get all positions."""
-        # Implementation from TradingServiceManager
+        # Implementation from TradingSystemCoordinator
         pass
 
     def get_positions_enriched(self) -> EnrichedPositionsDTO:
         """Get enriched positions."""
-        # Implementation from TradingServiceManager
+        # Implementation from TradingSystemCoordinator
         pass
 
     def get_portfolio_value(self) -> PortfolioValueDTO:
         """Get portfolio value."""
-        # Implementation from TradingServiceManager
+        # Implementation from TradingSystemCoordinator
         pass

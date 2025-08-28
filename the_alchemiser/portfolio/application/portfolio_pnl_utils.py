@@ -12,7 +12,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from the_alchemiser.application.tracking.strategy_order_tracker import get_strategy_tracker
+from the_alchemiser.interfaces.strategy_order_tracker import get_strategy_tracker
 
 # TODO: Phase 12 - Types available for future migration to structured performance data
 # from the_alchemiser.domain.types import PerformanceMetrics, PortfolioSnapshot, StrategyPnLSummary, TradeAnalysis

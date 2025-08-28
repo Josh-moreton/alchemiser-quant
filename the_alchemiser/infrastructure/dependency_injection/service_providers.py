@@ -13,7 +13,7 @@ from the_alchemiser.strategy.infrastructure.market_data_service import MarketDat
 from the_alchemiser.execution.application.order_service import OrderService
 from the_alchemiser.execution.application.position_service import PositionService
 from the_alchemiser.execution.application.trading_service_manager import (
-    TradingServiceManager,
+    TradingSystemCoordinator,
 )
 
 
@@ -39,9 +39,9 @@ class ServiceProviders(containers.DeclarativeContainer):
         AccountService, account_repository=infrastructure.account_repository
     )
 
-    # Backward compatibility: provide TradingServiceManager
+    # Backward compatibility: provide TradingSystemCoordinator
     trading_service_manager = providers.Factory(
-        TradingServiceManager,
+        TradingSystemCoordinator,
         api_key=config.alpaca_api_key,
         secret_key=config.alpaca_secret_key,
         paper=config.paper_trading,

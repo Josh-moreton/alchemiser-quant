@@ -34,7 +34,7 @@ from the_alchemiser.domain.registry.strategy_registry import StrategyType
 from the_alchemiser.domain.types import OrderDetails
 from the_alchemiser.interfaces.schemas.portfolio_rebalancing import RebalancePlanDTO
 from the_alchemiser.execution.application.trading_service_manager import (
-    TradingServiceManager,
+    TradingSystemCoordinator,
 )
 from the_alchemiser.domain.shared_kernel import floats_equal
 from the_alchemiser.interfaces.utils.serialization import ensure_serialized_dict
@@ -49,7 +49,7 @@ class PortfolioManagementFacade:
 
     def __init__(
         self,
-        trading_manager: TradingServiceManager,
+        trading_manager: TradingSystemCoordinator,
         min_trade_threshold: Decimal = Decimal("0.01"),
     ) -> None:
         """Initialize the portfolio management facade.

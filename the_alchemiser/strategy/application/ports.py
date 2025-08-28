@@ -1,4 +1,4 @@
-"""Business Unit: order execution/placement; Status: current.
+"""Business Unit: strategy & signal generation; Status: current.
 
 Application-layer ports module for trading engine.
 

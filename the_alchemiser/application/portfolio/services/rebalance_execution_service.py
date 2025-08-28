@@ -16,7 +16,7 @@ from the_alchemiser.domain.portfolio.rebalancing.rebalance_plan import Rebalance
 from the_alchemiser.infrastructure.errors import TradingSystemErrorHandler
 from the_alchemiser.strategy.domain.errors import StrategyExecutionError
 from the_alchemiser.execution.application.trading_service_manager import (
-    TradingServiceManager,
+    TradingSystemCoordinator,
 )
 
 
@@ -29,7 +29,7 @@ class RebalanceExecutionService:
 
     def __init__(
         self,
-        trading_manager: TradingServiceManager,
+        trading_manager: TradingSystemCoordinator,
         smart_execution: SmartExecution | None = None,
         error_handler: TradingSystemErrorHandler | None = None,
     ) -> None:

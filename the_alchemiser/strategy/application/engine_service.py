@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Business Unit: order execution/placement; Status: current.
+"""Business Unit: strategy & signal generation; Status: current.
 
 Trading Engine for The Alchemiser.
 
@@ -281,7 +281,7 @@ class TradingEngine:
 
         # Portfolio rebalancer and orchestrator
         try:
-            # Require TradingServiceManager for portfolio operations
+            # Require TradingSystemCoordinator for portfolio operations
             trading_manager = getattr(self, "_trading_service_manager", None)
             if trading_manager is not None and hasattr(trading_manager, "alpaca_manager"):
                 # Use modern portfolio management facade
@@ -302,7 +302,7 @@ class TradingEngine:
             else:
                 # No legacy fallbacks - fail fast and require proper DI setup
                 raise ConfigurationError(
-                    "TradingServiceManager is required for portfolio operations. "
+                    "TradingSystemCoordinator is required for portfolio operations. "
                     "Please use TradingEngine factory methods or provide trading_service_manager parameter."
                 )
         except Exception as e:
@@ -767,7 +767,7 @@ class TradingEngine:
     def _archive_daily_strategy_pnl(self, pnl_summary: dict[str, Any]) -> None:
         """Archive daily strategy P&L for historical tracking."""
         try:
-            from the_alchemiser.application.tracking.strategy_order_tracker import (
+            from the_alchemiser.interfaces.strategy_order_tracker import (
                 get_strategy_tracker,
             )
 
@@ -980,10 +980,10 @@ class TradingEngine:
         strategy_allocations: dict[StrategyType, float] | None = None,
         ignore_market_hours: bool = False,
     ) -> TradingEngine:
-        """Factory method for creating TradingEngine from TradingServiceManager.
+        """Factory method for creating TradingEngine from TradingSystemCoordinator.
 
         Args:
-            trading_service_manager: TradingServiceManager instance
+            trading_service_manager: TradingSystemCoordinator instance
             strategy_allocations: Strategy allocation weights
             ignore_market_hours: Whether to ignore market hours
 

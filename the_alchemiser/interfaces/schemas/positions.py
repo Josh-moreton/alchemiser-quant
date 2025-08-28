@@ -26,7 +26,7 @@ from the_alchemiser.interfaces.schemas.base import ResultDTO
 class PositionDTO(BaseModel):
     """DTO for individual position information.
 
-    Used when returning position data from TradingServiceManager methods.
+    Used when returning position data from TradingSystemCoordinator methods.
     Provides validation and normalization of position parameters.
     """
 

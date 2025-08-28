@@ -7,7 +7,7 @@ Coordinates between the three bounded context application services:
 - PortfolioApplication (accounts, positions, valuation)
 - ExecutionApplication (orders, execution)
 
-This replaces the monolithic TradingServiceManager with a thin coordination layer
+This replaces the monolithic TradingSystemCoordinator with a thin coordination layer
 that follows DDD principles by not containing business logic but only orchestrating
 calls between bounded contexts via their published application interfaces.
 """

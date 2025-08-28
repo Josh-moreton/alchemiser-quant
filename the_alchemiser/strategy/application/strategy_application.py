@@ -3,7 +3,7 @@
 Strategy Application Service.
 
 Handles market data access, price analysis, and strategy signal generation support.
-Replaces market data and strategy-related functionality from TradingServiceManager.
+Replaces market data and strategy-related functionality from TradingSystemCoordinator.
 """
 
 from __future__ import annotations
@@ -40,7 +40,7 @@ class StrategyApplication:
 
     def get_latest_price(self, symbol: str, validate: bool = True) -> PriceDTO:
         """Get latest price for a symbol."""
-        # Implementation from TradingServiceManager
+        # Implementation from TradingSystemCoordinator
         pass
 
     def get_price_history(
@@ -51,20 +51,20 @@ class StrategyApplication:
         timeframe: str = "1Day",
     ) -> list[dict[str, any]]:
         """Get price history for a symbol."""
-        # Implementation from TradingServiceManager
+        # Implementation from TradingSystemCoordinator
         pass
 
     def analyze_spread(self, symbol: str) -> SpreadAnalysisDTO:
         """Analyze bid-ask spread for a symbol."""
-        # Implementation from TradingServiceManager
+        # Implementation from TradingSystemCoordinator
         pass
 
     def get_market_status(self) -> MarketStatusDTO:
         """Get market status."""
-        # Implementation from TradingServiceManager
+        # Implementation from TradingSystemCoordinator
         pass
 
     def get_multi_symbol_quotes(self, symbols: list[str]) -> MultiSymbolQuotesDTO:
         """Get quotes for multiple symbols."""
-        # Implementation from TradingServiceManager
+        # Implementation from TradingSystemCoordinator
         pass

@@ -25,7 +25,7 @@ from the_alchemiser.application.mapping.orders import (
 from the_alchemiser.application.mapping.position_mapping import (
     alpaca_position_to_summary,
 )
-from the_alchemiser.application.mapping.trading_service_dto_mapping import (
+from the_alchemiser.interfaces.trading_service_dto_mapping import (
     account_summary_typed_to_dto,
     dict_to_buying_power_dto,
     dict_to_enriched_account_summary_dto,
@@ -105,7 +105,7 @@ from the_alchemiser.execution.application.position_service import PositionServic
 from the_alchemiser.domain.shared_kernel import floats_equal
 
 
-class TradingServiceManager:
+class TradingSystemCoordinator:
     """Centralized service manager providing high-level access to all trading services.
 
     This class acts as a facade, providing a single entry point for all trading operations
@@ -142,7 +142,7 @@ class TradingServiceManager:
         self.lifecycle_dispatcher.register(LoggingObserver(use_rich_logging=True))
         self.lifecycle_dispatcher.register(MetricsObserver())
 
-        self.logger.info(f"TradingServiceManager initialized with paper={paper}")
+        self.logger.info(f"TradingSystemCoordinator initialized with paper={paper}")
 
     def _create_order_id(self, client_order_id: str | None = None) -> OrderId:
         """Create an OrderId for lifecycle tracking.
@@ -1180,8 +1180,8 @@ class TradingServiceManager:
         try:
             if hasattr(self.alpaca_manager, "close"):
                 self.alpaca_manager.close()
-            self.logger.info("TradingServiceManager closed successfully")
+            self.logger.info("TradingSystemCoordinator closed successfully")
         except Exception as e:
-            self.logger.error(f"Error closing TradingServiceManager: {e}")
+            self.logger.error(f"Error closing TradingSystemCoordinator: {e}")
 
     # _delegate_to_canonical_executor removed.

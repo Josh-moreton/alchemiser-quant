@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Business Unit: strategy & signal generation; Status: current.
+"""Business Unit: order execution/placement; Status: current.
 
 Repeg Strategy.
 

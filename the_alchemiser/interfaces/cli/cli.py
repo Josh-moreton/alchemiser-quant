@@ -678,7 +678,7 @@ def status(
 
         # Display strategy tracking information
         try:
-            from the_alchemiser.application.tracking.strategy_order_tracker import (
+            from the_alchemiser.interfaces.strategy_order_tracker import (
                 StrategyOrderTracker,
             )
 

@@ -485,7 +485,7 @@ class TradingExecutor:
             import json
             from pathlib import Path
 
-            from the_alchemiser.application.tracking.strategy_order_tracker import (
+            from the_alchemiser.interfaces.strategy_order_tracker import (
                 StrategyOrderTracker,
             )
 

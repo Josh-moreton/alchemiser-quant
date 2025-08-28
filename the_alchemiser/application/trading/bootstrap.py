@@ -27,7 +27,7 @@ from the_alchemiser.infrastructure.errors.handler import TradingSystemErrorHandl
 from the_alchemiser.strategy.infrastructure.market_data_service import MarketDataService
 from the_alchemiser.infrastructure.repositories.alpaca_manager import AlpacaManager
 from the_alchemiser.execution.application.trading_service_manager import (
-    TradingServiceManager,
+    TradingSystemCoordinator,
 )
 
 logger = logging.getLogger(__name__)
@@ -46,7 +46,7 @@ class TradingBootstrapContext(TypedDict):
     data_provider: StrategyMarketDataAdapter  # DataFrame-compatible adapter
     alpaca_manager: AlpacaManager
     trading_client: Any  # Alpaca TradingClient
-    trading_service_manager: TradingServiceManager | None
+    trading_service_manager: TradingSystemCoordinator | None
     paper_trading: bool
     config_dict: dict[str, Any]
 
@@ -77,7 +77,7 @@ def bootstrap_from_container(
         # Create DataFrame-compatible adapter for legacy code
         data_provider = StrategyMarketDataAdapter(market_data_port)
 
-        # Optional TradingServiceManager
+        # Optional TradingSystemCoordinator
         try:
             trading_service_manager = container.services.trading_service_manager()
         except (AttributeError, ConfigurationError, ImportError):
@@ -111,12 +111,12 @@ def bootstrap_from_container(
 
 
 def bootstrap_from_service_manager(
-    trading_service_manager: TradingServiceManager,
+    trading_service_manager: TradingSystemCoordinator,
 ) -> TradingBootstrapContext:
-    """Bootstrap TradingEngine dependencies from TradingServiceManager.
+    """Bootstrap TradingEngine dependencies from TradingSystemCoordinator.
 
     Args:
-        trading_service_manager: Injected TradingServiceManager
+        trading_service_manager: Injected TradingSystemCoordinator
 
     Returns:
         TradingBootstrapContext with all dependencies
@@ -125,14 +125,14 @@ def bootstrap_from_service_manager(
         ConfigurationError: If service manager lacks required components
 
     """
-    logger.info("Bootstrapping TradingEngine from TradingServiceManager")
+    logger.info("Bootstrapping TradingEngine from TradingSystemCoordinator")
     error_handler = TradingSystemErrorHandler()
 
     try:
         # Extract AlpacaManager from service manager
         alpaca_manager = trading_service_manager.alpaca_manager
         if alpaca_manager is None:
-            raise ConfigurationError("TradingServiceManager missing AlpacaManager")
+            raise ConfigurationError("TradingSystemCoordinator missing AlpacaManager")
 
         # Extract trading client
         trading_client = alpaca_manager.trading_client
@@ -151,7 +151,7 @@ def bootstrap_from_service_manager(
         paper_trading = alpaca_manager.is_paper_trading
         config_dict: dict[str, Any] = {}
 
-        logger.info("Successfully bootstrapped from TradingServiceManager")
+        logger.info("Successfully bootstrapped from TradingSystemCoordinator")
         return TradingBootstrapContext(
             account_service=account_service,
             market_data_port=market_data_port,
@@ -173,7 +173,7 @@ def bootstrap_from_service_manager(
             },
         )
         error_handler.handle_error_with_context(error=e, context=context, should_continue=False)
-        raise ConfigurationError(f"TradingServiceManager bootstrap failed: {e}") from e
+        raise ConfigurationError(f"TradingSystemCoordinator bootstrap failed: {e}") from e
 
 
 def bootstrap_traditional(
@@ -232,7 +232,7 @@ def bootstrap_traditional(
         account_service = TypedAccountService(alpaca_manager)
 
         # Enhanced service manager for downstream operations
-        trading_service_manager = TradingServiceManager(
+        trading_service_manager = TradingSystemCoordinator(
             str(api_key), str(secret_key), paper=paper_trading
         )
 

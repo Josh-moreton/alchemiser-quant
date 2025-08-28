@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Business Unit: utilities; Status: current.
+"""Business Unit: order execution/placement; Status: current.
 
 Alpaca DTO mapping utilities for infrastructure boundary.
 

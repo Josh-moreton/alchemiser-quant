@@ -13,7 +13,7 @@ from the_alchemiser.domain.portfolio.strategy_attribution.attribution_engine imp
     StrategyAttributionEngine,
 )
 from the_alchemiser.execution.application.trading_service_manager import (
-    TradingServiceManager,
+    TradingSystemCoordinator,
 )
 
 
@@ -26,7 +26,7 @@ class PortfolioAnalysisService:
 
     def __init__(
         self,
-        trading_manager: TradingServiceManager,
+        trading_manager: TradingSystemCoordinator,
         position_analyzer: PositionAnalyzer | None = None,
         attribution_engine: StrategyAttributionEngine | None = None,
     ) -> None:

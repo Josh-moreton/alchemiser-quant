@@ -605,7 +605,7 @@ def render_enriched_order_summaries(
     orders: list[dict[str, Any]],
     console: Console | None = None,
 ) -> None:
-    """Render enriched order summaries returned by TradingServiceManager.
+    """Render enriched order summaries returned by TradingSystemCoordinator.
 
     Accepts a list of items where each item may be an enriched dict with a 'summary' key
     or already a summary-like dict. Safely formats a concise table.

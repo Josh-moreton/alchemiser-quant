@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Business Unit: utilities; Status: current.
+"""Business Unit: portfolio assessment & management; Status: current.
 
 Account Data Utilities.
 

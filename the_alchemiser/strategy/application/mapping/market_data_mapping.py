@@ -1,4 +1,4 @@
-"""Business Unit: utilities; Status: current.
+"""Business Unit: strategy & signal generation; Status: current.
 
 Market data mapping utilities for strategy adaptation.
 

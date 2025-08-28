@@ -3,7 +3,7 @@
 Execution Application Service.
 
 Handles order placement, execution strategies, and order lifecycle management.
-Replaces order-related functionality from TradingServiceManager.
+Replaces order-related functionality from TradingSystemCoordinator.
 """
 
 from __future__ import annotations
@@ -63,34 +63,34 @@ class ExecutionApplication:
         self, symbol: str, quantity: float, stop_price: float
     ) -> OrderStatusDTO:
         """Place a stop loss order."""
-        # Implementation from TradingServiceManager
+        # Implementation from TradingSystemCoordinator
         pass
 
     def cancel_order(self, order_id: str) -> OrderCancellationDTO:
         """Cancel an order."""
-        # Implementation from TradingServiceManager
+        # Implementation from TradingSystemCoordinator
         pass
 
     def get_order_status(self, order_id: str) -> OrderStatusDTO:
         """Get order status."""
-        # Implementation from TradingServiceManager
+        # Implementation from TradingSystemCoordinator
         pass
 
     def get_open_orders(self, symbol: str | None = None) -> OpenOrdersDTO:
         """Get open orders."""
-        # Implementation from TradingServiceManager
+        # Implementation from TradingSystemCoordinator
         pass
 
     def close_position(self, symbol: str, percentage: float = 100.0) -> ClosePositionResultDTO:
         """Close a position."""
-        # Implementation from TradingServiceManager
+        # Implementation from TradingSystemCoordinator
         pass
 
     def validate_trade_eligibility(
         self, symbol: str, quantity: float, order_type: str
     ) -> TradeEligibilityDTO:
         """Validate trade eligibility."""
-        # Implementation from TradingServiceManager
+        # Implementation from TradingSystemCoordinator
         pass
 
     def execute_smart_order(
@@ -105,12 +105,12 @@ class ExecutionApplication:
         client_order_id: str | None = None,
     ) -> SmartOrderExecutionDTO:
         """Execute a smart order with lifecycle tracking."""
-        # Implementation from TradingServiceManager
+        # Implementation from TradingSystemCoordinator
         pass
 
     def execute_order_dto(self, order_request: OrderRequestDTO) -> SmartOrderExecutionDTO:
         """Execute order from DTO."""
-        # Implementation from TradingServiceManager
+        # Implementation from TradingSystemCoordinator
         pass
 
     def get_order_lifecycle_state(self, order_id: OrderId) -> OrderLifecycleState | None:
@@ -123,5 +123,5 @@ class ExecutionApplication:
 
     def get_lifecycle_metrics(self) -> dict[str, Any]:
         """Get lifecycle metrics."""
-        # Implementation from TradingServiceManager
+        # Implementation from TradingSystemCoordinator
         pass

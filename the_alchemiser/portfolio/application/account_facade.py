@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Business Unit: order execution/placement; Status: current.
+"""Business Unit: portfolio assessment & management; Status: current.
 
 Account Facade - Coordinated account, position, and price data access.
 

@@ -25,7 +25,7 @@ from the_alchemiser.interfaces.schemas.portfolio_rebalancing import (
 )
 from the_alchemiser.infrastructure.errors.handler import TradingSystemErrorHandler
 from the_alchemiser.execution.application.trading_service_manager import (
-    TradingServiceManager,
+    TradingSystemCoordinator,
 )
 
 
@@ -38,7 +38,7 @@ class PortfolioRebalancingService:
 
     def __init__(
         self,
-        trading_manager: TradingServiceManager,
+        trading_manager: TradingSystemCoordinator,
         rebalance_calculator: RebalanceCalculator | None = None,
         position_analyzer: PositionAnalyzer | None = None,
         attribution_engine: StrategyAttributionEngine | None = None,

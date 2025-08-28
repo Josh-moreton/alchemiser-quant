@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Business Unit: order execution/placement; Status: current.
 
-DTO mapping utilities for TradingServiceManager results.
+DTO mapping utilities for TradingSystemCoordinator results.
 
 This module provides mapping functions to convert between internal data structures
-and DTOs for the TradingServiceManager facade, ensuring type-safe returns.
+and DTOs for the TradingSystemCoordinator facade, ensuring type-safe returns.
 
 Part of the anti-corruption layer for clean DTO boundaries.
 """

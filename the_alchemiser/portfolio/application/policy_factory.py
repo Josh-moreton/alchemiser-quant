@@ -1,4 +1,4 @@
-"""Business Unit: utilities; Status: current.
+"""Business Unit: portfolio assessment & management; Status: current.
 
 Policy Factory
 
