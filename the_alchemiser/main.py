@@ -31,7 +31,7 @@ from the_alchemiser.services.errors.exceptions import (
     StrategyExecutionError,
     TradingClientError,
 )
-from the_alchemiser.services.errors.handler import TradingSystemErrorHandler
+# TODO: Error handler needs to be migrated
 
 # DI imports (optional)
 try:

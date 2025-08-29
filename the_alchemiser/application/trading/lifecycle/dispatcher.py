@@ -13,7 +13,7 @@ from the_alchemiser.domain.trading.lifecycle import (
     LifecycleObserver,
     OrderLifecycleEvent,
 )
-from the_alchemiser.services.errors.handler import TradingSystemErrorHandler
+# TODO: Error handler needs to be migrated
 
 logger = logging.getLogger(__name__)
 

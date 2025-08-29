@@ -10,7 +10,7 @@ from typing import Any
 
 from the_alchemiser.domain.registry import StrategyType
 from the_alchemiser.domain.types import AccountInfo, PositionsDict
-from the_alchemiser.services.errors.exceptions import DataProviderError, TradingClientError
+from the_alchemiser.strategy.domain.exceptions import DataProviderError, TradingClientError
 
 
 def create_execution_summary(

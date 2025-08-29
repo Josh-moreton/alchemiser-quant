@@ -40,13 +40,13 @@ from the_alchemiser.interfaces.schemas.accounts import (
     AccountSummaryDTO,
     EnrichedAccountSummaryDTO,
 )
-from the_alchemiser.services.account.account_service import AccountService
+from the_alchemiser.portfolio.application.use_cases.account_operations import AccountOperations
 from the_alchemiser.services.errors import handle_trading_error
 from the_alchemiser.services.errors.exceptions import (
     DataProviderError,
     TradingClientError,
 )
-from the_alchemiser.services.market_data.market_data_service import MarketDataService
+from the_alchemiser.strategy.application.use_cases.market_data_operations import MarketDataOperations
 from the_alchemiser.services.trading.position_service import PositionService
 from the_alchemiser.interfaces.utils.serialization import ensure_serialized_dict
 
