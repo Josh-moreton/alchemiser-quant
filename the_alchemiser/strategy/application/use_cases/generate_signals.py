@@ -64,8 +64,8 @@ class GenerateSignalsUseCase:
         recent_prices = [bar.close_price for bar in history[-10:]]
         older_prices = [bar.close_price for bar in history[-20:-10]]
         
-        recent_avg = sum(recent_prices) / Decimal('10')
-        older_avg = sum(older_prices) / Decimal('10')
+        recent_avg = sum(recent_prices) / Decimal(str(len(recent_prices)))
+        older_avg = sum(older_prices) / Decimal(str(len(older_prices)))
         
         if older_avg == Decimal('0'):
             return 0.0
