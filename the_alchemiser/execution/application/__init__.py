@@ -8,4 +8,10 @@ smart routing, execution monitoring, and trade settlement.
 
 from __future__ import annotations
 
-__all__: list[str] = []
+from .contracts import ExecutionReportContractV1, FillV1, execution_report_from_domain
+
+__all__ = [
+    "ExecutionReportContractV1",
+    "FillV1",
+    "execution_report_from_domain",
+]

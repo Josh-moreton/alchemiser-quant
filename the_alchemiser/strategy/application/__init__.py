@@ -8,4 +8,9 @@ signal processing, and strategy orchestration.
 
 from __future__ import annotations
 
-__all__: list[str] = []
+from .contracts import SignalContractV1, signal_from_domain
+
+__all__ = [
+    "SignalContractV1",
+    "signal_from_domain",
+]
