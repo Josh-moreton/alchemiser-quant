@@ -47,6 +47,9 @@ Every module is classified under one of these business units:
 - `the_alchemiser/strategy/domain/__init__.py` - Strategy domain layer
 - `the_alchemiser/strategy/domain/exceptions.py` - Strategy-specific exception classes
 - `the_alchemiser/strategy/application/__init__.py` - Strategy application layer
+- `the_alchemiser/strategy/application/contracts/__init__.py` - Strategy application contracts package
+- `the_alchemiser/strategy/application/contracts/_envelope.py` - Envelope mixin for consistent message metadata
+- `the_alchemiser/strategy/application/contracts/signal_contract_v1.py` - Signal contract V1 for cross-context communication
 - `the_alchemiser/strategy/application/use_cases/market_data_operations.py` - Market data operations use case
 - `the_alchemiser/strategy/application/use_cases/strategy_data_service.py` - Strategy data service use case
 - `the_alchemiser/strategy/infrastructure/__init__.py` - Strategy infrastructure layer
@@ -64,6 +67,9 @@ Every module is classified under one of these business units:
 - `the_alchemiser/portfolio/domain/utils/__init__.py` - Portfolio domain utilities package
 - `the_alchemiser/portfolio/domain/utils/account_data_utils.py` - Account data utility functions
 - `the_alchemiser/portfolio/application/__init__.py` - Portfolio application layer
+- `the_alchemiser/portfolio/application/contracts/__init__.py` - Portfolio application contracts package
+- `the_alchemiser/portfolio/application/contracts/_envelope.py` - Envelope mixin for consistent message metadata
+- `the_alchemiser/portfolio/application/contracts/rebalance_plan_contract_v1.py` - Rebalance plan contract V1 for cross-context communication
 - `the_alchemiser/portfolio/application/use_cases/account_operations.py` - Account operations use case
 - `the_alchemiser/portfolio/infrastructure/__init__.py` - Portfolio infrastructure layer
 - `the_alchemiser/portfolio/infrastructure/adapters/alpaca_account_adapter.py` - Alpaca account adapter
@@ -76,6 +82,9 @@ Every module is classified under one of these business units:
 - `the_alchemiser/execution/domain/__init__.py` - Execution domain layer
 - `the_alchemiser/execution/domain/exceptions.py` - Execution-specific exception classes  
 - `the_alchemiser/execution/application/__init__.py` - Execution application layer
+- `the_alchemiser/execution/application/contracts/__init__.py` - Execution application contracts package
+- `the_alchemiser/execution/application/contracts/_envelope.py` - Envelope mixin for consistent message metadata
+- `the_alchemiser/execution/application/contracts/execution_report_contract_v1.py` - Execution report contract V1 for cross-context communication
 - `the_alchemiser/execution/application/use_cases/order_operations.py` - Order operations use case
 - `the_alchemiser/execution/application/use_cases/position_analysis.py` - Position analysis use case
 - `the_alchemiser/execution/infrastructure/__init__.py` - Execution infrastructure layer
