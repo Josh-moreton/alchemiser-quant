@@ -78,7 +78,7 @@ class GenerateSignalsUseCase:
         # Simplified example for demonstration
         from uuid import uuid4
         from decimal import Decimal
-        from the_alchemiser.domain.shared_kernel import ActionType
+        from the_alchemiser.shared_kernel import ActionType
         from the_alchemiser.shared_kernel.value_objects.percentage import Percentage
         
         action = ActionType.BUY if strength > 0 else ActionType.SELL
