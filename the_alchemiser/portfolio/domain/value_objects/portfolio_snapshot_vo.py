@@ -34,7 +34,11 @@ class PortfolioSnapshotVO:
     timestamp: datetime
     
     def __post_init__(self) -> None:
-        """Validate portfolio snapshot data."""
+        """Validate portfolio snapshot data.
+        
+        TODO: Add validation for derived fields (e.g., total_value = cash + invested)
+        FIXME: Consider adding range validation for percentages and scores
+        """
         if self.total_value.amount < Decimal('0'):
             raise ValueError("Total value cannot be negative")
         if self.cash_balance.amount < Decimal('0'):

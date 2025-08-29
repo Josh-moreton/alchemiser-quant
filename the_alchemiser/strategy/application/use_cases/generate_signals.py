@@ -43,11 +43,13 @@ class GenerateSignalsUseCase:
             latest_bar = self._market_data.get_latest_bar(symbol, "1Day")
             history = self._market_data.get_history(symbol, "1Day", 50)
             
-            # Simple signal generation example (normally would use domain service)
+            # TODO: Replace simplified signal generation with proper domain service
+            # FIXME: Move signal calculation logic from use case to domain layer
             # This is a simplified example - real logic would be in domain layer
             signal_strength = self._calculate_simple_signal(latest_bar, history)
             
-            if abs(signal_strength) > 0.5:  # Threshold for signal
+            if abs(signal_strength) > 0.5:  # TODO: Replace hardcoded threshold with configurable parameter
+                # FIXME: Use domain service/factory for signal contract creation
                 signal_contract = self._create_signal_contract(symbol, signal_strength)
                 self._signal_publisher.publish(signal_contract)
                 signals.append(signal_contract)
@@ -55,8 +57,12 @@ class GenerateSignalsUseCase:
         return signals
     
     def _calculate_simple_signal(self, latest_bar: MarketBarVO, history: Sequence[MarketBarVO]) -> float:
-        """Simple signal calculation (example only)."""
-        # This is a placeholder - real signal logic would be in domain
+        """Simple signal calculation (example only).
+        
+        TODO: Replace with proper domain service implementation
+        FIXME: Move sophisticated signal algorithms to domain layer
+        """
+        # FIXME: This is a placeholder - real signal logic would be in domain
         # Just return a simple momentum-based signal
         if len(history) < 20:
             return 0.0
@@ -73,9 +79,13 @@ class GenerateSignalsUseCase:
         return float((recent_avg - older_avg) / older_avg)
     
     def _create_signal_contract(self, symbol: Symbol, strength: float) -> SignalContractV1:
-        """Create signal contract from calculation results."""
-        # This would normally use a domain service or factory
-        # Simplified example for demonstration
+        """Create signal contract from calculation results.
+        
+        TODO: Replace with proper domain service or factory
+        FIXME: Move signal contract creation logic to domain layer
+        """
+        # FIXME: This would normally use a domain service or factory
+        # TODO: Replace simplified example with production implementation
         from uuid import uuid4
         from decimal import Decimal
         from the_alchemiser.shared_kernel import ActionType
@@ -87,7 +97,7 @@ class GenerateSignalsUseCase:
             correlation_id=uuid4(),
             symbol=symbol,
             action=action,
-            target_allocation=Percentage(Decimal(str(abs(strength) * 0.1))),  # 10% max
+            target_allocation=Percentage(Decimal(str(abs(strength) * 0.1))),  # TODO: Replace hardcoded 10% max with configurable parameter
             confidence=abs(strength),
-            reasoning=f"Simple momentum signal: {strength:.3f}"
+            reasoning=f"Simple momentum signal: {strength:.3f}"  # FIXME: Replace with detailed reasoning from domain logic
         )

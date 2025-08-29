@@ -25,7 +25,11 @@ class Position:
     last_updated: datetime
     
     def __post_init__(self) -> None:
-        """Validate position data."""
+        """Validate position data.
+        
+        TODO: Add more comprehensive validation rules
+        FIXME: Consider adding validation for currency consistency
+        """
         if self.quantity < Decimal('0'):
             raise ValueError("Quantity cannot be negative")
         if self.average_cost.amount < Decimal('0'):
@@ -33,7 +37,10 @@ class Position:
     
     @property
     def cost_basis(self) -> Money:
-        """Calculate total cost basis of the position."""
+        """Calculate total cost basis of the position.
+        
+        TODO: Consider impact of stock splits and dividends on cost basis
+        """
         return Money(self.average_cost.amount * self.quantity, self.average_cost.currency)
     
     @property

@@ -25,7 +25,11 @@ class MarketBarVO:
     timeframe: str
     
     def __post_init__(self) -> None:
-        """Validate price relationships."""
+        """Validate price relationships.
+        
+        TODO: Add validation for timestamp ranges and trading hours
+        FIXME: Consider adding validation for reasonable price ranges
+        """
         if not (self.low_price <= self.open_price <= self.high_price):
             raise ValueError("Invalid OHLC relationship: open not within high/low range")
         if not (self.low_price <= self.close_price <= self.high_price):

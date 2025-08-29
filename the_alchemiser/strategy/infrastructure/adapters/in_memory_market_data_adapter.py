@@ -1,6 +1,9 @@
 """Business Unit: strategy & signal generation | Status: current
 
 In-memory market data adapter for testing and development.
+
+TODO: Replace with production market data adapter (e.g., Alpaca, Yahoo Finance)
+FIXME: This simplified adapter only provides deterministic test data
 """
 
 from typing import Sequence, Dict, List
@@ -13,10 +16,15 @@ from the_alchemiser.shared_kernel.value_objects.symbol import Symbol
 
 
 class InMemoryMarketDataAdapter(MarketDataPort):
-    """Simple in-memory market data provider for testing."""
+    """Simple in-memory market data provider for testing.
+    
+    TODO: Replace with production adapter that connects to real market data API
+    FIXME: Only supports limited symbols with synthetic data
+    """
     
     def __init__(self) -> None:
-        # Pre-seed with some test data
+        # TODO: Replace hardcoded symbols with configurable symbol list
+        # FIXME: Pre-seed with some test data - replace with real data source
         self._bars: Dict[str, List[MarketBarVO]] = {
             "AAPL": self._generate_test_bars("AAPL"),
             "MSFT": self._generate_test_bars("MSFT"),
@@ -50,14 +58,18 @@ class InMemoryMarketDataAdapter(MarketDataPort):
         return bars[-limit:] if len(bars) > limit else bars
     
     def _generate_test_bars(self, symbol_str: str) -> List[MarketBarVO]:
-        """Generate deterministic test data."""
+        """Generate deterministic test data.
+        
+        TODO: Replace with real historical data fetcher
+        FIXME: Current implementation generates synthetic uptrend data only
+        """
         bars = []
         base_price = Decimal("100.00")
         base_time = datetime.now(UTC) - timedelta(days=100)
         
         for i in range(100):
             timestamp = base_time + timedelta(days=i)
-            price = base_price + Decimal(str(i * 0.5))  # Trending upward
+            price = base_price + Decimal(str(i * 0.5))  # TODO: Replace linear trend with realistic price movements
             
             bar = MarketBarVO(
                 symbol=Symbol(symbol_str),
