@@ -10,7 +10,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from the_alchemiser.shared_kernel.exceptions.base_exceptions import AlchemiserError
+from the_alchemiser.shared_kernel.exceptions.base_exceptions import (
+    AlchemiserError,
+    DataAccessError
+)
 
 
 class DataProviderError(AlchemiserError):
@@ -140,3 +143,11 @@ class StreamingError(DataProviderError):
         super().__init__(message, context)
         self.stream_type = stream_type
         self.symbols = symbols or []
+
+
+class SymbolNotFoundError(DataAccessError):
+    """Exception raised when market data symbol is not found."""
+
+
+class PublishError(AlchemiserError):
+    """Exception raised when signal publishing fails."""

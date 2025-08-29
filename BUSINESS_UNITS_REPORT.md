@@ -46,7 +46,10 @@ Every module is classified under one of these business units:
 - `the_alchemiser/strategy/__init__.py` - Strategy context entry point
 - `the_alchemiser/strategy/domain/__init__.py` - Strategy domain layer
 - `the_alchemiser/strategy/domain/exceptions.py` - Strategy-specific exception classes
+- `the_alchemiser/strategy/domain/value_objects/__init__.py` - Strategy domain value objects package
+- `the_alchemiser/strategy/domain/value_objects/market_bar_vo.py` - Market data value object for OHLCV bars
 - `the_alchemiser/strategy/application/__init__.py` - Strategy application layer
+- `the_alchemiser/strategy/application/ports.py` - External dependency protocols (MarketDataPort, SignalPublisherPort)
 - `the_alchemiser/strategy/application/contracts/__init__.py` - Strategy application contracts package
 - `the_alchemiser/strategy/application/contracts/_envelope.py` - Envelope mixin for consistent message metadata
 - `the_alchemiser/strategy/application/contracts/signal_contract_v1.py` - Signal contract V1 for cross-context communication
@@ -56,6 +59,8 @@ Every module is classified under one of these business units:
 - `the_alchemiser/strategy/infrastructure/adapters/market_data_client.py` - Market data client adapter
 - `the_alchemiser/strategy/infrastructure/adapters/streaming_adapter.py` - Streaming data adapter
 - `the_alchemiser/strategy/infrastructure/adapters/alpaca_market_data_adapter.py` - Alpaca market data adapter
+- `the_alchemiser/strategy/infrastructure/adapters/in_memory_market_data_adapter.py` - In-memory market data adapter for testing
+- `the_alchemiser/strategy/infrastructure/adapters/in_memory_signal_publisher_adapter.py` - In-memory signal publisher adapter for testing
 - `the_alchemiser/strategy/infrastructure/utils/price_utils.py` - Price utility functions
 - `the_alchemiser/strategy/interfaces/__init__.py` - Strategy interfaces layer
 
@@ -64,9 +69,15 @@ Every module is classified under one of these business units:
 
 - `the_alchemiser/portfolio/__init__.py` - Portfolio context entry point
 - `the_alchemiser/portfolio/domain/__init__.py` - Portfolio domain layer
+- `the_alchemiser/portfolio/domain/exceptions.py` - Portfolio-specific exception classes
+- `the_alchemiser/portfolio/domain/entities/__init__.py` - Portfolio domain entities package
+- `the_alchemiser/portfolio/domain/entities/position.py` - Position entity for portfolio holdings
+- `the_alchemiser/portfolio/domain/value_objects/__init__.py` - Portfolio domain value objects package
+- `the_alchemiser/portfolio/domain/value_objects/portfolio_snapshot_vo.py` - Portfolio snapshot value object
 - `the_alchemiser/portfolio/domain/utils/__init__.py` - Portfolio domain utilities package
 - `the_alchemiser/portfolio/domain/utils/account_data_utils.py` - Account data utility functions
 - `the_alchemiser/portfolio/application/__init__.py` - Portfolio application layer
+- `the_alchemiser/portfolio/application/ports.py` - External dependency protocols (PositionRepositoryPort, PlanPublisherPort, ExecutionReportHandlerPort, PortfolioStateRepositoryPort)
 - `the_alchemiser/portfolio/application/contracts/__init__.py` - Portfolio application contracts package
 - `the_alchemiser/portfolio/application/contracts/_envelope.py` - Envelope mixin for consistent message metadata
 - `the_alchemiser/portfolio/application/contracts/rebalance_plan_contract_v1.py` - Rebalance plan contract V1 for cross-context communication
@@ -82,6 +93,7 @@ Every module is classified under one of these business units:
 - `the_alchemiser/execution/domain/__init__.py` - Execution domain layer
 - `the_alchemiser/execution/domain/exceptions.py` - Execution-specific exception classes  
 - `the_alchemiser/execution/application/__init__.py` - Execution application layer
+- `the_alchemiser/execution/application/ports.py` - External dependency protocols (OrderRouterPort, PlanSubscriberPort, ExecutionReportPublisherPort, ExecutionMarketDataPort)
 - `the_alchemiser/execution/application/contracts/__init__.py` - Execution application contracts package
 - `the_alchemiser/execution/application/contracts/_envelope.py` - Envelope mixin for consistent message metadata
 - `the_alchemiser/execution/application/contracts/execution_report_contract_v1.py` - Execution report contract V1 for cross-context communication
@@ -133,12 +145,12 @@ All imports across impacted files were updated; no remaining references to the r
 
 ## Summary
 
-- **Total new modules**: 47 new DDD bounded context modules (Task 1) + 4 migration utility modules (Task 2) + 18 services migration modules (Task 3)
+- **Total new modules**: 47 new DDD bounded context modules (Task 1) + 4 migration utility modules (Task 2) + 18 services migration modules (Task 3) + 8 new port/protocol modules (Task 5)
 - **Modules by business unit**:
   - utilities: 24 modules (shared_kernel + anti_corruption + interface utilities + tooling shim)
-  - strategy & signal generation: 12 modules (strategy context with market data operations)
-  - portfolio assessment & management: 9 modules (portfolio context with account operations)
-  - order execution/placement: 10 modules (execution context with trading operations)
+  - strategy & signal generation: 16 modules (strategy context with market data operations + ports + value objects)
+  - portfolio assessment & management: 13 modules (portfolio context with account operations + ports + entities + value objects)
+  - order execution/placement: 11 modules (execution context with trading operations + ports)
 - **All modules status**: current
 
-**Note**: Task 3 (DDD Epic #375) completed migration of services/ directory into bounded context domain & application layers. The legacy services structure has been eliminated and replaced with context-specific adapters and use cases following strict layered architecture.
+**Note**: Task 5 (DDD Epic #375) completed implementation of explicit typed Protocol interfaces (ports) per bounded context's application layer to fully invert dependencies on external systems and cross-context abstractions. This enables deterministic testing, side-effect isolation, and clean adapter swapping.
