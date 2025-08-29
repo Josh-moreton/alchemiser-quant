@@ -18,8 +18,7 @@ from the_alchemiser.execution.domain.exceptions import (
     OrderExecutionError, 
     OrderNotFoundError, 
     ProcessingError, 
-    PublishError,
-    InsufficientFundsError
+    PublishError
 )
 from the_alchemiser.strategy.domain.exceptions import SymbolNotFoundError
 from the_alchemiser.shared_kernel.exceptions.base_exceptions import DataAccessError, ValidationError
