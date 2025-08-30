@@ -1,5 +1,8 @@
 """Business Unit: portfolio assessment & management; Status: current.
 
+Anti-corruption mapping functions for account and portfolio data transformation.
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

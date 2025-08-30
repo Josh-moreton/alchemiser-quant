@@ -1,7 +1,7 @@
 # The Alchemiser Makefile
 # Quick commands for development and deployment
 
-.PHONY: help install dev clean run-signals run-trade run-trade-live status deploy format lint
+.PHONY: help install dev clean run-signals run-trade run-trade-live status deploy format lint importlint
 
 # Default target
 help:
@@ -19,7 +19,8 @@ help:
 	@echo ""
 	@echo "Development:"
 	@echo "  format          Format code with Ruff (formatter + fixes)"
-	@echo "  lint            Run linting"
+	@echo "  lint            Run linting and architectural checks"
+	@echo "  importlint      Check architectural boundaries only"
 	@echo "  clean           Clean build artifacts"
 	@echo ""
 	@echo "Deployment:"
@@ -60,6 +61,12 @@ format:
 lint:
 	@echo "🔍 Running linting..."
 	poetry run ruff check the_alchemiser/
+	@echo "🏗️ Checking architectural boundaries..."
+	poetry run lint-imports
+
+importlint:
+	@echo "🏗️ Checking architectural boundaries with import-linter..."
+	poetry run lint-imports
 
 clean:
 	@echo "🧹 Cleaning build artifacts..."
