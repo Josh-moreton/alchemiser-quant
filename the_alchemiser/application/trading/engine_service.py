@@ -57,7 +57,7 @@ from the_alchemiser.application.trading.bootstrap import (
 
 # Import application-layer ports for dependency injection
 from the_alchemiser.domain.registry import StrategyType
-from the_alchemiser.domain.strategies.typed_strategy_manager import TypedStrategyManager
+from the_alchemiser.strategy.domain.strategies.typed_strategy_manager import TypedStrategyManager
 from the_alchemiser.domain.types import (
     AccountInfo,
     EnrichedAccountInfo,

@@ -148,3 +148,15 @@ class SymbolNotFoundError(DataAccessError):
 
 class PublishError(AlchemiserError):
     """Exception raised when signal publishing fails."""
+
+
+class MarketDataUnavailableError(MarketDataError):
+    """Exception raised when required market data is unavailable."""
+
+
+class StrategyValidationError(AlchemiserError):
+    """Exception raised when strategy validation fails."""
+
+
+class StrategyExecutionError(AlchemiserError):
+    """Exception raised when strategy execution fails."""
