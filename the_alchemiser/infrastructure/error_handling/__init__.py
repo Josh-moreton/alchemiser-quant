@@ -32,6 +32,11 @@ from .exceptions import (
     StrategyExecutionError,
     TradingClientError,
 )
+from .handler import (
+    TradingSystemErrorHandler,
+    handle_errors_with_retry,
+    handle_trading_error,
+)
 
 __all__ = [
     # Error context
@@ -43,6 +48,10 @@ __all__ = [
     "translate_service_errors",
     "translate_streaming_errors",
     "translate_trading_errors",
+    # Handler functions
+    "TradingSystemErrorHandler",
+    "handle_errors_with_retry", 
+    "handle_trading_error",
     # Exception classes
     "AlchemiserError",
     "ConfigurationError",
