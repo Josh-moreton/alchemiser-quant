@@ -1,4 +1,4 @@
-"""Business Unit: order execution/placement | Status: current
+"""Business Unit: order execution/placement; Status: current.
 
 Order mapping utilities and status normalization (anti-corruption layer).
 """
