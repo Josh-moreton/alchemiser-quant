@@ -11,7 +11,9 @@ from __future__ import annotations
 import logging
 
 from the_alchemiser.cross_context.eventing.event_bus import EventBus
-from the_alchemiser.execution.application.contracts.execution_report_contract_v1 import ExecutionReportContractV1
+from the_alchemiser.execution.application.contracts.execution_report_contract_v1 import (
+    ExecutionReportContractV1,
+)
 from the_alchemiser.portfolio.application.use_cases.generate_plan import GeneratePlanUseCase
 from the_alchemiser.portfolio.application.use_cases.update_portfolio import UpdatePortfolioUseCase
 from the_alchemiser.strategy.application.contracts.signal_contract_v1 import SignalContractV1
@@ -34,6 +36,7 @@ def wire_portfolio_event_subscriptions(
         event_bus: EventBus instance for subscription
         generate_plan_use_case: Use case for generating plans from signals
         update_portfolio_use_case: Use case for updating portfolio from execution reports
+
     """
     logger.info("Wiring Portfolio context event subscriptions...")
     

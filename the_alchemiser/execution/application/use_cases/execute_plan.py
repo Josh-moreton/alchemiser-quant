@@ -15,7 +15,9 @@ from the_alchemiser.execution.application.contracts.execution_report_contract_v1
     FillV1,
 )
 from the_alchemiser.execution.application.ports import ExecutionReportPublisherPort
-from the_alchemiser.portfolio.application.contracts.rebalance_plan_contract_v1 import RebalancePlanContractV1
+from the_alchemiser.portfolio.application.contracts.rebalance_plan_contract_v1 import (
+    RebalancePlanContractV1,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +30,7 @@ class ExecutePlanUseCase:
         
         Args:
             execution_report_publisher: Port for publishing execution reports
+
         """
         self._execution_report_publisher = execution_report_publisher
     
@@ -36,6 +39,7 @@ class ExecutePlanUseCase:
         
         Args:
             plan: Rebalance plan to execute
+
         """
         logger.info(
             "Executing rebalance plan with %d orders (plan_id: %s, correlation_id: %s)",

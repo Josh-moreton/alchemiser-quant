@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Business Unit: utilities | Status: current
+"""Business Unit: utilities | Status: current.
 
 Event-driven system demonstration script.
 
@@ -22,8 +22,8 @@ def setup_logging() -> None:
     """Set up logging to show event flow."""
     logging.basicConfig(
         level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        datefmt='%H:%M:%S'
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        datefmt="%H:%M:%S"
     )
 
 
@@ -51,13 +51,13 @@ def demonstrate_event_flow() -> None:
     correlation_id = uuid4()
     signal = SignalContractV1(
         correlation_id=correlation_id,
-        symbol=Symbol('AAPL'),
+        symbol=Symbol("AAPL"),
         action=ActionType.BUY,
-        target_allocation=Percentage(Decimal('0.15')),
+        target_allocation=Percentage(Decimal("0.15")),
         confidence=0.85
     )
     
-    print(f"\n📤 Publishing signal:")
+    print("\n📤 Publishing signal:")
     print(f"   Symbol: {signal.symbol}")
     print(f"   Action: {signal.action}")
     print(f"   Allocation: {signal.target_allocation}")
@@ -89,13 +89,13 @@ def demonstrate_event_flow() -> None:
     
     new_signal = SignalContractV1(
         correlation_id=uuid4(),
-        symbol=Symbol('MSFT'),
+        symbol=Symbol("MSFT"),
         action=ActionType.SELL,
-        target_allocation=Percentage(Decimal('0.05')),
+        target_allocation=Percentage(Decimal("0.05")),
         confidence=0.75
     )
     
-    print(f"\n📤 Publishing new signal:")
+    print("\n📤 Publishing new signal:")
     print(f"   Symbol: {new_signal.symbol}")
     print(f"   Action: {new_signal.action}")
     print(f"   Message ID: {new_signal.message_id}")
@@ -111,7 +111,7 @@ def demonstrate_event_flow() -> None:
     print("-"*50)
     
     event_bus = composer.get_event_bus()
-    print(f"\n📊 EventBus metrics:")
+    print("\n📊 EventBus metrics:")
     print(f"   Signal handlers: {event_bus.get_handler_count(SignalContractV1)}")
     print(f"   Total processed: {event_bus.get_processed_count()} handler/message pairs")
     

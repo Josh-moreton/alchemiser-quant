@@ -4,12 +4,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from the_alchemiser.shared_kernel.value_objects.money import Money
 from the_alchemiser.domain.trading.value_objects.order_type import OrderType
 from the_alchemiser.domain.trading.value_objects.quantity import Quantity
 from the_alchemiser.domain.trading.value_objects.side import Side
 from the_alchemiser.domain.trading.value_objects.symbol import Symbol
 from the_alchemiser.domain.trading.value_objects.time_in_force import TimeInForce
+from the_alchemiser.shared_kernel.value_objects.money import Money
 
 
 @dataclass(frozen=True)

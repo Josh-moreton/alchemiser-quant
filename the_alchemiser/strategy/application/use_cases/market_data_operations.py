@@ -19,8 +19,8 @@ from the_alchemiser.anti_corruption.market_data.domain_mappers import bars_to_do
 from the_alchemiser.domain.interfaces import MarketDataRepository
 from the_alchemiser.domain.market_data.models.bar import BarModel
 from the_alchemiser.domain.market_data.models.quote import QuoteModel
-from the_alchemiser.shared_kernel.value_objects.symbol import Symbol
 from the_alchemiser.services.errors.decorators import translate_market_data_errors
+from the_alchemiser.shared_kernel.value_objects.symbol import Symbol
 
 logger = logging.getLogger(__name__)
 

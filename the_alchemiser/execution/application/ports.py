@@ -3,30 +3,26 @@
 Port protocols for Execution context external dependencies.
 """
 
+from dataclasses import dataclass
+from datetime import datetime
+from decimal import Decimal
 from typing import Protocol
 from uuid import UUID
-from decimal import Decimal
-from datetime import datetime
-from dataclasses import dataclass
-from the_alchemiser.shared_kernel.value_objects.symbol import Symbol
+
+from the_alchemiser.execution.application.contracts.execution_report_contract_v1 import (
+    ExecutionReportContractV1,
+)
 from the_alchemiser.portfolio.application.contracts.rebalance_plan_contract_v1 import (
+    PlannedOrderV1,
     RebalancePlanContractV1,
-    PlannedOrderV1
 )
-from the_alchemiser.execution.application.contracts.execution_report_contract_v1 import ExecutionReportContractV1
-from the_alchemiser.execution.domain.exceptions import (
-    OrderExecutionError, 
-    OrderNotFoundError, 
-    ProcessingError, 
-    PublishError
-)
-from the_alchemiser.strategy.domain.exceptions import SymbolNotFoundError
-from the_alchemiser.shared_kernel.exceptions.base_exceptions import DataAccessError, ValidationError
+from the_alchemiser.shared_kernel.value_objects.symbol import Symbol
 
 
 @dataclass(frozen=True)
 class OrderAckVO:
     """Value object for order submission acknowledgment."""
+
     order_id: UUID
     accepted: bool
     broker_order_id: str | None
@@ -37,6 +33,7 @@ class OrderAckVO:
 @dataclass(frozen=True)
 class CancelAckVO:
     """Value object for order cancellation acknowledgment."""
+
     order_id: UUID
     cancelled: bool
     message: str
@@ -46,6 +43,7 @@ class CancelAckVO:
 @dataclass(frozen=True)
 class OrderStatusVO:
     """Value object for order status information."""
+
     order_id: UUID
     status: str
     filled_quantity: Decimal
@@ -57,6 +55,7 @@ class OrderStatusVO:
 @dataclass(frozen=True)
 class BidAskSpreadVO:
     """Value object for bid/ask spread information."""
+
     symbol: Symbol
     bid_price: Decimal
     ask_price: Decimal
@@ -101,6 +100,7 @@ class OrderRouterPort(Protocol):
             OrderExecutionError: Broker submission failure
             ValidationError: Invalid order parameters
             InsufficientFundsError: Account lacks required funds/shares
+
         """
         ...
     
@@ -116,6 +116,7 @@ class OrderRouterPort(Protocol):
         Raises:
             OrderExecutionError: Broker cancellation failure
             OrderNotFoundError: Order ID not found
+
         """
         ...
     
@@ -131,6 +132,7 @@ class OrderRouterPort(Protocol):
         Raises:
             OrderExecutionError: Broker query failure
             OrderNotFoundError: Order ID not found
+
         """
         ...
 
@@ -163,6 +165,7 @@ class PlanSubscriberPort(Protocol):
         Raises:
             ProcessingError: Plan processing failure
             ValidationError: Invalid plan contract
+
         """
         ...
 
@@ -195,6 +198,7 @@ class ExecutionReportPublisherPort(Protocol):
         Raises:
             PublishError: Message delivery failure
             ValidationError: Invalid report contract
+
         """
         ...
 
@@ -230,6 +234,7 @@ class ExecutionMarketDataPort(Protocol):
         Raises:
             DataAccessError: Market data failure
             SymbolNotFoundError: Invalid symbol
+
         """
         ...
     
@@ -245,18 +250,19 @@ class ExecutionMarketDataPort(Protocol):
         Raises:
             DataAccessError: Market data failure
             SymbolNotFoundError: Invalid symbol
+
         """
         ...
 
 
 # Export list for explicit re-exports
 __all__ = [
-    "OrderAckVO",
-    "CancelAckVO", 
-    "OrderStatusVO",
     "BidAskSpreadVO",
-    "OrderRouterPort",
-    "PlanSubscriberPort",
-    "ExecutionReportPublisherPort",
+    "CancelAckVO",
     "ExecutionMarketDataPort",
+    "ExecutionReportPublisherPort",
+    "OrderAckVO",
+    "OrderRouterPort",
+    "OrderStatusVO",
+    "PlanSubscriberPort",
 ]

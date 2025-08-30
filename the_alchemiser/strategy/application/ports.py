@@ -3,14 +3,13 @@
 Port protocols for Strategy context external dependencies.
 """
 
-from typing import Protocol, Sequence
-from decimal import Decimal
+from collections.abc import Sequence
 from datetime import datetime
+from typing import Protocol
+
 from the_alchemiser.shared_kernel.value_objects.symbol import Symbol
 from the_alchemiser.strategy.application.contracts.signal_contract_v1 import SignalContractV1
 from the_alchemiser.strategy.domain.value_objects.market_bar_vo import MarketBarVO
-from the_alchemiser.strategy.domain.exceptions import SymbolNotFoundError, PublishError
-from the_alchemiser.shared_kernel.exceptions.base_exceptions import DataAccessError, ValidationError
 
 
 class MarketDataPort(Protocol):
@@ -46,6 +45,7 @@ class MarketDataPort(Protocol):
         Raises:
             DataAccessError: Network/API failure
             SymbolNotFoundError: Invalid symbol
+
         """
         ...
     
@@ -71,6 +71,7 @@ class MarketDataPort(Protocol):
             DataAccessError: Network/API failure
             SymbolNotFoundError: Invalid symbol
             ValueError: Invalid limit or timeframe
+
         """
         ...
 
@@ -103,6 +104,7 @@ class SignalPublisherPort(Protocol):
         Raises:
             PublishError: Message delivery failure
             ValidationError: Invalid signal contract
+
         """
         ...
 

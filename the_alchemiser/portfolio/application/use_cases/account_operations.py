@@ -12,8 +12,8 @@ import logging
 from typing import Any, Literal
 
 from the_alchemiser.domain.interfaces import AccountRepository
-from the_alchemiser.domain.types import AccountInfo, PositionsDict
 from the_alchemiser.domain.shared_kernel.tooling.num import floats_equal
+from the_alchemiser.domain.types import AccountInfo, PositionsDict
 
 
 class AccountOperations:

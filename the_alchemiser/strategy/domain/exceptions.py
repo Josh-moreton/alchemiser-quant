@@ -10,10 +10,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from the_alchemiser.shared_kernel.exceptions.base_exceptions import (
-    AlchemiserError,
-    DataAccessError
-)
+from the_alchemiser.shared_kernel.exceptions.base_exceptions import AlchemiserError, DataAccessError
 
 
 class DataProviderError(AlchemiserError):

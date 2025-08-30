@@ -7,7 +7,9 @@ from __future__ import annotations
 
 import logging
 
-from the_alchemiser.execution.application.contracts.execution_report_contract_v1 import ExecutionReportContractV1
+from the_alchemiser.execution.application.contracts.execution_report_contract_v1 import (
+    ExecutionReportContractV1,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -17,13 +19,13 @@ class UpdatePortfolioUseCase:
     
     def __init__(self) -> None:
         """Initialize the use case."""
-        pass
     
     def handle_execution_report(self, report: ExecutionReportContractV1) -> None:
         """Handle incoming execution report and update portfolio state.
         
         Args:
             report: Execution report to process
+
         """
         logger.info(
             "Processing execution report with %d fills (report_id: %s, correlation_id: %s)",

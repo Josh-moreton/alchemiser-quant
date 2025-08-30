@@ -22,6 +22,7 @@ from the_alchemiser.domain.trading.value_objects.order_request import OrderReque
 from the_alchemiser.interfaces.schemas.orders import (
     OrderExecutionResultDTO,
 )
+
 # TODO: Error handler needs to be migrated
 
 if TYPE_CHECKING:  # typing-only imports

@@ -12,7 +12,9 @@ import logging
 
 from the_alchemiser.cross_context.eventing.event_bus import EventBus
 from the_alchemiser.execution.application.use_cases.execute_plan import ExecutePlanUseCase
-from the_alchemiser.portfolio.application.contracts.rebalance_plan_contract_v1 import RebalancePlanContractV1
+from the_alchemiser.portfolio.application.contracts.rebalance_plan_contract_v1 import (
+    RebalancePlanContractV1,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +31,7 @@ def wire_execution_event_subscriptions(
     Args:
         event_bus: EventBus instance for subscription
         execute_plan_use_case: Use case for executing rebalance plans
+
     """
     logger.info("Wiring Execution context event subscriptions...")
     

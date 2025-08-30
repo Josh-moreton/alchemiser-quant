@@ -8,8 +8,8 @@ communication between bounded contexts using application contracts as event payl
 
 from __future__ import annotations
 
-from typing import Callable, Protocol, TypeVar
-from uuid import UUID
+from collections.abc import Callable
+from typing import Protocol, TypeVar
 
 from pydantic import BaseModel
 
@@ -60,6 +60,7 @@ class EventBus(Protocol):
         Raises:
             ValueError: If event lacks required envelope metadata
             Exception: Any exception raised by event handlers (fail-fast behavior)
+
         """
         ...
     
@@ -82,6 +83,7 @@ class EventBus(Protocol):
         Note:
             Multiple handlers can be registered for the same contract type.
             Registration order determines execution order.
+
         """
         ...
     
@@ -93,5 +95,6 @@ class EventBus(Protocol):
         
         Warning:
             This does not unregister handlers, only clears idempotency state.
+
         """
         ...

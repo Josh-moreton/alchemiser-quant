@@ -27,6 +27,7 @@ class GeneratePlanUseCase:
         
         Args:
             plan_publisher: Port for publishing generated plans
+
         """
         self._plan_publisher = plan_publisher
     
@@ -35,6 +36,7 @@ class GeneratePlanUseCase:
         
         Args:
             signal: Strategy signal to process
+
         """
         logger.info(
             "Processing signal for %s %s (correlation_id: %s)",

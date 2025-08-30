@@ -10,7 +10,6 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any, Literal, cast
 
-from the_alchemiser.shared_kernel.value_objects.money import Money
 from the_alchemiser.domain.trading.entities.order import Order
 from the_alchemiser.domain.trading.value_objects.order_id import OrderId
 from the_alchemiser.domain.trading.value_objects.order_status import OrderStatus
@@ -24,6 +23,7 @@ from the_alchemiser.interfaces.schemas.orders import (
     OrderRequestDTO,
     ValidatedOrderDTO,
 )
+from the_alchemiser.shared_kernel.value_objects.money import Money
 
 __all__ = ["OrderStatusLiteral", "normalize_order_status"]
 

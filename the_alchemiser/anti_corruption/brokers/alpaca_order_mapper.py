@@ -5,16 +5,16 @@ Anti-corruption layer for Alpaca order transformations.
 
 from __future__ import annotations
 
-from typing import Any, Dict
+from typing import Any
 
-from the_alchemiser.shared_kernel.value_objects.action_type import ActionType
 from the_alchemiser.portfolio.application.contracts.rebalance_plan_contract_v1 import PlannedOrderV1
+from the_alchemiser.shared_kernel.value_objects.action_type import ActionType
 
 
 class AlpacaOrderMapper:
     """Maps between domain order objects and Alpaca API requests."""
     
-    def planned_order_to_alpaca_request(self, order: PlannedOrderV1) -> Dict[str, Any]:
+    def planned_order_to_alpaca_request(self, order: PlannedOrderV1) -> dict[str, Any]:
         """Convert PlannedOrderV1 to Alpaca order request parameters.
         
         Args:
@@ -25,6 +25,7 @@ class AlpacaOrderMapper:
             
         Raises:
             ValueError: Invalid order data
+
         """
         # Convert domain side to Alpaca side
         side_map = {

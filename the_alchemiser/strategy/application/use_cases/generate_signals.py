@@ -3,11 +3,12 @@
 Use case for generating strategy signals from market data.
 """
 
-from typing import Sequence
+from collections.abc import Sequence
 from decimal import Decimal
+
 from the_alchemiser.shared_kernel.value_objects.symbol import Symbol
-from the_alchemiser.strategy.application.ports import MarketDataPort, SignalPublisherPort
 from the_alchemiser.strategy.application.contracts.signal_contract_v1 import SignalContractV1
+from the_alchemiser.strategy.application.ports import MarketDataPort, SignalPublisherPort
 from the_alchemiser.strategy.domain.value_objects.market_bar_vo import MarketBarVO
 
 
@@ -35,6 +36,7 @@ class GenerateSignalsUseCase:
             DataAccessError: Market data failure
             SymbolNotFoundError: Invalid symbol
             PublishError: Signal publishing failure
+
         """
         signals = []
         
@@ -73,7 +75,7 @@ class GenerateSignalsUseCase:
         recent_avg = sum(recent_prices) / Decimal(str(len(recent_prices)))
         older_avg = sum(older_prices) / Decimal(str(len(older_prices)))
         
-        if older_avg == Decimal('0'):
+        if older_avg == Decimal("0"):
             return 0.0
         
         return float((recent_avg - older_avg) / older_avg)
@@ -86,8 +88,9 @@ class GenerateSignalsUseCase:
         """
         # FIXME: This would normally use a domain service or factory
         # TODO: Replace simplified example with production implementation
-        from uuid import uuid4
         from decimal import Decimal
+        from uuid import uuid4
+
         from the_alchemiser.shared_kernel import ActionType
         from the_alchemiser.shared_kernel.value_objects.percentage import Percentage
         

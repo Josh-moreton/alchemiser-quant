@@ -11,7 +11,9 @@ from __future__ import annotations
 import logging
 
 from the_alchemiser.cross_context.eventing.event_bus import EventBus
-from the_alchemiser.portfolio.application.contracts.rebalance_plan_contract_v1 import RebalancePlanContractV1
+from the_alchemiser.portfolio.application.contracts.rebalance_plan_contract_v1 import (
+    RebalancePlanContractV1,
+)
 from the_alchemiser.portfolio.application.ports import PlanPublisherPort
 from the_alchemiser.portfolio.domain.exceptions import PublishError
 from the_alchemiser.shared_kernel.exceptions.base_exceptions import ValidationError
@@ -32,6 +34,7 @@ class EventBusPlanPublisherAdapter(PlanPublisherPort):
         
         Args:
             event_bus: EventBus instance for publishing events
+
         """
         self._event_bus = event_bus
     
@@ -44,6 +47,7 @@ class EventBusPlanPublisherAdapter(PlanPublisherPort):
         Raises:
             ValidationError: Invalid plan contract
             PublishError: EventBus publication failure
+
         """
         try:
             # Basic validation

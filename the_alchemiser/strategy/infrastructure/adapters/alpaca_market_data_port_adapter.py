@@ -4,8 +4,8 @@ Alpaca market data adapter implementing MarketDataPort.
 """
 
 import logging
+from collections.abc import Sequence
 from datetime import datetime
-from typing import Sequence
 
 from alpaca.data.historical import StockHistoricalDataClient
 from alpaca.data.requests import StockBarsRequest
@@ -29,6 +29,7 @@ class AlpacaMarketDataAdapter(MarketDataPort):
         Args:
             api_key: Alpaca API key from environment
             secret_key: Alpaca secret key from environment
+
         """
         self._client = StockHistoricalDataClient(api_key, secret_key)
         self._mapper = AlpacaMarketDataMapper()
@@ -47,6 +48,7 @@ class AlpacaMarketDataAdapter(MarketDataPort):
         Raises:
             DataAccessError: Alpaca API failure
             SymbolNotFoundError: Invalid symbol
+
         """
         try:
             # Convert timeframe to Alpaca format
@@ -125,6 +127,7 @@ class AlpacaMarketDataAdapter(MarketDataPort):
             DataAccessError: Alpaca API failure
             SymbolNotFoundError: Invalid symbol
             ValueError: Invalid parameters
+
         """
         if not (1 <= limit <= 10000):
             raise ValueError(f"Limit must be 1-10000, got: {limit}")
@@ -200,6 +203,7 @@ class AlpacaMarketDataAdapter(MarketDataPort):
             
         Raises:
             ValueError: Unsupported timeframe
+
         """
         timeframe_map = {
             "1Min": TimeFrame(1, TimeFrameUnit.Minute),

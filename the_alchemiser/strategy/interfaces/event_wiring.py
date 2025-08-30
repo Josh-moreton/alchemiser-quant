@@ -29,6 +29,7 @@ def wire_strategy_event_subscriptions(
     
     Args:
         event_bus: EventBus instance for subscription
+
     """
     logger.info("Wiring Strategy context event subscriptions...")
     

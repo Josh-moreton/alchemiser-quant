@@ -32,6 +32,7 @@ class EventBusSignalPublisherAdapter(SignalPublisherPort):
         
         Args:
             event_bus: EventBus instance for publishing events
+
         """
         self._event_bus = event_bus
     
@@ -44,6 +45,7 @@ class EventBusSignalPublisherAdapter(SignalPublisherPort):
         Raises:
             ValidationError: Invalid signal contract
             PublishError: EventBus publication failure
+
         """
         try:
             # Basic validation

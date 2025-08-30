@@ -22,10 +22,10 @@ from the_alchemiser.anti_corruption.market_data.market_data_mapping import (
 from the_alchemiser.domain.market_data.models.bar import BarModel
 from the_alchemiser.domain.market_data.models.quote import QuoteModel
 from the_alchemiser.shared_kernel.value_objects.symbol import Symbol
-from the_alchemiser.strategy.infrastructure.adapters.market_data_client import MarketDataClient
 from the_alchemiser.strategy.application.use_cases.market_data_operations import (
     MarketDataOperations,
 )
+from the_alchemiser.strategy.infrastructure.adapters.market_data_client import MarketDataClient
 
 logger = logging.getLogger(__name__)
 
@@ -128,7 +128,7 @@ class StrategyDataService:
         except Exception as e:
             logger.error(f"Failed to get quote for {symbol.value}: {e}")
             # Return default quote
-            from datetime import datetime, UTC
+            from datetime import UTC, datetime
             from decimal import Decimal
 
             return QuoteModel(

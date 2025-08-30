@@ -15,7 +15,6 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, Any, Literal, TypedDict, cast
 
 from the_alchemiser.anti_corruption.brokers.order_status_mapping import normalize_order_status
-from the_alchemiser.shared_kernel.value_objects.money import Money
 from the_alchemiser.domain.trading.entities.order import Order
 from the_alchemiser.domain.trading.value_objects.order_id import OrderId
 from the_alchemiser.domain.trading.value_objects.order_status import OrderStatus
@@ -23,6 +22,7 @@ from the_alchemiser.domain.trading.value_objects.order_type import OrderType
 from the_alchemiser.domain.trading.value_objects.quantity import Quantity
 from the_alchemiser.domain.trading.value_objects.symbol import Symbol
 from the_alchemiser.domain.trading.value_objects.time_in_force import TimeInForce
+from the_alchemiser.shared_kernel.value_objects.money import Money
 
 if TYPE_CHECKING:
     from the_alchemiser.interfaces.schemas.orders import OrderExecutionResultDTO, RawOrderEnvelope

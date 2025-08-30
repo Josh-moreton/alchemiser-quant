@@ -3,16 +3,20 @@
 Port protocols for Portfolio context external dependencies.
 """
 
-from typing import Protocol, Sequence
-from uuid import UUID
+from collections.abc import Sequence
 from datetime import datetime
-from the_alchemiser.shared_kernel.value_objects.symbol import Symbol
-from the_alchemiser.portfolio.application.contracts.rebalance_plan_contract_v1 import RebalancePlanContractV1
-from the_alchemiser.execution.application.contracts.execution_report_contract_v1 import ExecutionReportContractV1
+from typing import Protocol
+from uuid import UUID
+
+from the_alchemiser.execution.application.contracts.execution_report_contract_v1 import (
+    ExecutionReportContractV1,
+)
+from the_alchemiser.portfolio.application.contracts.rebalance_plan_contract_v1 import (
+    RebalancePlanContractV1,
+)
 from the_alchemiser.portfolio.domain.entities.position import Position
 from the_alchemiser.portfolio.domain.value_objects.portfolio_snapshot_vo import PortfolioSnapshotVO
-from the_alchemiser.portfolio.domain.exceptions import ConcurrencyError, ProcessingError, PublishError
-from the_alchemiser.shared_kernel.exceptions.base_exceptions import DataAccessError, ValidationError
+from the_alchemiser.shared_kernel.value_objects.symbol import Symbol
 
 
 class PositionRepositoryPort(Protocol):
@@ -43,6 +47,7 @@ class PositionRepositoryPort(Protocol):
             
         Raises:
             DataAccessError: Storage system failure
+
         """
         ...
     
@@ -55,6 +60,7 @@ class PositionRepositoryPort(Protocol):
         Raises:
             DataAccessError: Storage system failure
             ConcurrencyError: Optimistic lock violation
+
         """
         ...
     
@@ -69,6 +75,7 @@ class PositionRepositoryPort(Protocol):
             
         Raises:
             DataAccessError: Storage system failure
+
         """
         ...
 
@@ -101,6 +108,7 @@ class PlanPublisherPort(Protocol):
         Raises:
             PublishError: Message delivery failure
             ValidationError: Invalid plan contract
+
         """
         ...
 
@@ -133,6 +141,7 @@ class ExecutionReportHandlerPort(Protocol):
         Raises:
             ProcessingError: Report processing failure
             ValidationError: Invalid report contract
+
         """
         ...
 
@@ -171,6 +180,7 @@ class PortfolioStateRepositoryPort(Protocol):
             
         Raises:
             DataAccessError: Storage system failure
+
         """
         ...
     
@@ -185,14 +195,15 @@ class PortfolioStateRepositoryPort(Protocol):
             
         Raises:
             DataAccessError: Storage system failure
+
         """
         ...
 
 
 # Export list for explicit re-exports
 __all__ = [
-    "PositionRepositoryPort",
-    "PlanPublisherPort", 
     "ExecutionReportHandlerPort",
+    "PlanPublisherPort",
     "PortfolioStateRepositoryPort",
+    "PositionRepositoryPort",
 ]

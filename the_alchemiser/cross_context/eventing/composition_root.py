@@ -43,6 +43,7 @@ class EventSystemComposer:
         
         Returns:
             The EventBus instance used by all contexts
+
         """
         return self._event_bus
     
@@ -51,6 +52,7 @@ class EventSystemComposer:
         
         Returns:
             Signal publisher that uses the shared EventBus
+
         """
         return EventBusSignalPublisherAdapter(self._event_bus)
     
@@ -59,6 +61,7 @@ class EventSystemComposer:
         
         Returns:
             Plan publisher that uses the shared EventBus
+
         """
         return EventBusPlanPublisherAdapter(self._event_bus)
     
@@ -67,6 +70,7 @@ class EventSystemComposer:
         
         Returns:
             Execution report publisher that uses the shared EventBus
+
         """
         return EventBusExecutionReportPublisherAdapter(self._event_bus)
     
@@ -125,6 +129,7 @@ def get_event_system_composer() -> EventSystemComposer:
     
     Returns:
         Singleton EventSystemComposer instance
+
     """
     global _global_composer
     if _global_composer is None:

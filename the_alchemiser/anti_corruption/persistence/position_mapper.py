@@ -25,6 +25,7 @@ class PositionMapper:
             
         Returns:
             DynamoDB item dictionary
+
         """
         return {
             "symbol": position.symbol.value,
@@ -38,7 +39,7 @@ class PositionMapper:
             "market_price_amount": str(position.market_price.amount),
             "market_price_currency": position.market_price.currency,
             "last_updated": position.last_updated.isoformat(),
-            "version": getattr(position, 'version', 1)
+            "version": getattr(position, "version", 1)
         }
     
     def dynamodb_item_to_position(self, item: dict[str, Any]) -> Position:
@@ -52,6 +53,7 @@ class PositionMapper:
             
         Raises:
             ValueError: Invalid item data
+
         """
         try:
             position = Position(
@@ -78,7 +80,7 @@ class PositionMapper:
             
             # Add version for optimistic locking if present
             if "version" in item:
-                setattr(position, 'version', item["version"])
+                position.version = item["version"]
             
             return position
             

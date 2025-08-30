@@ -6,10 +6,10 @@ TODO: Replace with production message broker adapter (e.g., SQS, Redis, EventBri
 FIXME: This simplified adapter only stores signals in memory
 """
 
-from typing import List
 from uuid import UUID
-from the_alchemiser.strategy.application.ports import SignalPublisherPort
+
 from the_alchemiser.strategy.application.contracts.signal_contract_v1 import SignalContractV1
+from the_alchemiser.strategy.application.ports import SignalPublisherPort
 
 
 class InMemorySignalPublisherAdapter(SignalPublisherPort):
@@ -20,7 +20,7 @@ class InMemorySignalPublisherAdapter(SignalPublisherPort):
     """
     
     def __init__(self) -> None:
-        self._published_signals: List[SignalContractV1] = []
+        self._published_signals: list[SignalContractV1] = []
         self._published_message_ids: set[UUID] = set()
     
     def publish(self, signal: SignalContractV1) -> None:
@@ -31,6 +31,7 @@ class InMemorySignalPublisherAdapter(SignalPublisherPort):
             
         Raises:
             ValidationError: Invalid signal contract (basic validation)
+
         """
         # TODO: Replace basic validation with comprehensive schema validation
         # FIXME: Add proper error handling and logging
@@ -44,7 +45,7 @@ class InMemorySignalPublisherAdapter(SignalPublisherPort):
             self._published_signals.append(signal)
             self._published_message_ids.add(signal.message_id)
     
-    def get_published_signals(self) -> List[SignalContractV1]:
+    def get_published_signals(self) -> list[SignalContractV1]:
         """Get all published signals (for testing purposes).
         
         TODO: Remove this method in production - only needed for testing

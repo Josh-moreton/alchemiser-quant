@@ -11,7 +11,9 @@ from __future__ import annotations
 import logging
 
 from the_alchemiser.cross_context.eventing.event_bus import EventBus
-from the_alchemiser.execution.application.contracts.execution_report_contract_v1 import ExecutionReportContractV1
+from the_alchemiser.execution.application.contracts.execution_report_contract_v1 import (
+    ExecutionReportContractV1,
+)
 from the_alchemiser.execution.application.ports import ExecutionReportPublisherPort
 from the_alchemiser.execution.domain.exceptions import PublishError
 from the_alchemiser.shared_kernel.exceptions.base_exceptions import ValidationError
@@ -32,6 +34,7 @@ class EventBusExecutionReportPublisherAdapter(ExecutionReportPublisherPort):
         
         Args:
             event_bus: EventBus instance for publishing events
+
         """
         self._event_bus = event_bus
     
@@ -44,10 +47,11 @@ class EventBusExecutionReportPublisherAdapter(ExecutionReportPublisherPort):
         Raises:
             ValidationError: Invalid report contract
             PublishError: EventBus publication failure
+
         """
         try:
             # Basic validation
-            if not hasattr(report, 'fills'):
+            if not hasattr(report, "fills"):
                 raise ValidationError("Report must have fills attribute")
             
             # Validate envelope metadata is present

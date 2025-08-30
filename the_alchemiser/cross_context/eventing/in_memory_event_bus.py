@@ -10,12 +10,11 @@ from __future__ import annotations
 
 import logging
 from collections import defaultdict
-from typing import Any, Callable, TypeVar
+from collections.abc import Callable
+from typing import Any, TypeVar
 from uuid import UUID
 
 from pydantic import BaseModel
-
-from .event_bus import EventBus
 
 logger = logging.getLogger(__name__)
 
@@ -68,11 +67,12 @@ class InMemoryEventBus:
         Raises:
             ValueError: If event lacks required envelope metadata
             Exception: Any exception from handlers (fail-fast propagation)
+
         """
         # Validate event has required envelope metadata
-        if not hasattr(event, 'message_id'):
+        if not hasattr(event, "message_id"):
             raise ValueError("Event must have message_id attribute (envelope metadata)")
-        if not hasattr(event, 'correlation_id'):
+        if not hasattr(event, "correlation_id"):
             raise ValueError("Event must have correlation_id attribute (envelope metadata)")
         
         event_type = type(event)
@@ -109,7 +109,7 @@ class InMemoryEventBus:
             if processed_key in self._processed_messages:
                 logger.debug(
                     "Skipping handler %s for message_id %s (already processed)",
-                    handler.__name__ if hasattr(handler, '__name__') else str(handler),
+                    handler.__name__ if hasattr(handler, "__name__") else str(handler),
                     message_id
                 )
                 skipped_count += 1
@@ -119,7 +119,7 @@ class InMemoryEventBus:
             try:
                 logger.debug(
                     "Executing handler %s for event %s (message_id: %s)",
-                    handler.__name__ if hasattr(handler, '__name__') else str(handler),
+                    handler.__name__ if hasattr(handler, "__name__") else str(handler),
                     event_type.__name__,
                     message_id
                 )
@@ -130,7 +130,7 @@ class InMemoryEventBus:
             except Exception as e:
                 logger.error(
                     "Handler %s failed processing event %s (message_id: %s): %s",
-                    handler.__name__ if hasattr(handler, '__name__') else str(handler),
+                    handler.__name__ if hasattr(handler, "__name__") else str(handler),
                     event_type.__name__,
                     message_id,
                     e,
@@ -158,12 +158,13 @@ class InMemoryEventBus:
         Args:
             contract_cls: Contract type to subscribe to
             handler: Function to call when events of this type are published
+
         """
         self._handlers[contract_cls].append(handler)
         
         logger.debug(
             "Registered handler %s for contract type %s (total handlers: %d)",
-            handler.__name__ if hasattr(handler, '__name__') else str(handler),
+            handler.__name__ if hasattr(handler, "__name__") else str(handler),
             contract_cls.__name__,
             len(self._handlers[contract_cls])
         )
@@ -190,6 +191,7 @@ class InMemoryEventBus:
             
         Returns:
             Number of registered handlers for this type
+
         """
         return len(self._handlers.get(contract_cls, []))
     
@@ -198,5 +200,6 @@ class InMemoryEventBus:
         
         Returns:
             Number of processed message/handler combinations
+
         """
         return len(self._processed_messages)

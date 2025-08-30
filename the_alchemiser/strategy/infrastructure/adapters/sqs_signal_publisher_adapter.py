@@ -4,7 +4,7 @@ SQS signal publisher adapter implementing SignalPublisherPort.
 """
 
 import logging
-from typing import Any, Dict
+from typing import Any
 
 import boto3
 from botocore.exceptions import BotoCoreError, ClientError
@@ -26,6 +26,7 @@ class SqsSignalPublisherAdapter(SignalPublisherPort):
         Args:
             queue_url: Full SQS queue URL
             region_name: AWS region
+
         """
         self._queue_url = queue_url
         self._sqs = boto3.client("sqs", region_name=region_name)
@@ -44,6 +45,7 @@ class SqsSignalPublisherAdapter(SignalPublisherPort):
         Raises:
             PublishError: SQS delivery failure
             ValidationError: Invalid signal contract
+
         """
         try:
             # Validate signal contract first
@@ -57,7 +59,7 @@ class SqsSignalPublisherAdapter(SignalPublisherPort):
             
             # Use correlation_id for message grouping (FIFO)
             # Use message_id for deduplication
-            send_params: Dict[str, Any] = {
+            send_params: dict[str, Any] = {
                 "QueueUrl": self._queue_url,
                 "MessageBody": message_body,
                 "MessageAttributes": message_attributes,
@@ -112,6 +114,7 @@ class SqsSignalPublisherAdapter(SignalPublisherPort):
             
         Raises:
             ValidationError: Invalid signal
+
         """
         if not signal.correlation_id:
             raise ValidationError("Signal missing correlation_id")
@@ -127,7 +130,7 @@ class SqsSignalPublisherAdapter(SignalPublisherPort):
                 f"Signal confidence must be 0-1, got: {signal.confidence}"
             )
     
-    def _build_message_attributes(self, signal: SignalContractV1) -> Dict[str, Dict[str, str]]:
+    def _build_message_attributes(self, signal: SignalContractV1) -> dict[str, dict[str, str]]:
         """Build SQS message attributes for filtering/routing.
         
         Args:
@@ -135,6 +138,7 @@ class SqsSignalPublisherAdapter(SignalPublisherPort):
             
         Returns:
             SQS message attributes dict
+
         """
         return {
             "MessageType": {

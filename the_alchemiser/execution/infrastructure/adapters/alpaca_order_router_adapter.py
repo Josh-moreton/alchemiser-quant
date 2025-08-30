@@ -6,7 +6,6 @@ Alpaca order router adapter implementing OrderRouterPort.
 import logging
 from datetime import datetime
 from decimal import Decimal
-from typing import Dict
 from uuid import UUID
 
 import alpaca_trade_api as tradeapi
@@ -39,6 +38,7 @@ class AlpacaOrderRouterAdapter(OrderRouterPort):
             api_key: Alpaca API key
             secret_key: Alpaca secret key  
             base_url: Base URL (paper/live trading)
+
         """
         self._api = tradeapi.REST(api_key, secret_key, base_url)
         self._mapper = AlpacaOrderMapper()
@@ -47,7 +47,7 @@ class AlpacaOrderRouterAdapter(OrderRouterPort):
             base_url=base_url
         )
         # Track internal order ID to broker order ID mapping
-        self._order_id_map: Dict[UUID, str] = {}
+        self._order_id_map: dict[UUID, str] = {}
     
     def submit_order(self, order: PlannedOrderV1) -> OrderAckVO:
         """Submit order to Alpaca for execution.
@@ -62,6 +62,7 @@ class AlpacaOrderRouterAdapter(OrderRouterPort):
             OrderExecutionError: Broker submission failure
             ValidationError: Invalid order parameters
             InsufficientFundsError: Account lacks funds/shares
+
         """
         try:
             # Convert to Alpaca order format via anti-corruption layer
@@ -100,7 +101,7 @@ class AlpacaOrderRouterAdapter(OrderRouterPort):
             return order_ack
             
         except APIError as e:
-            error_code = getattr(e, 'code', None)
+            error_code = getattr(e, "code", None)
             
             # Map specific Alpaca errors to domain exceptions
             if error_code == 40310000:  # Insufficient funds
@@ -112,7 +113,7 @@ class AlpacaOrderRouterAdapter(OrderRouterPort):
                 raise InsufficientFundsError(
                     f"Insufficient funds for order {order.order_id}: {e}"
                 ) from e
-            elif error_code in [40010001, 42210000]:  # Invalid symbols/parameters
+            if error_code in [40010001, 42210000]:  # Invalid symbols/parameters
                 self._logger.warning(
                     "Invalid order parameters",
                     order_id=str(order.order_id),
@@ -121,16 +122,15 @@ class AlpacaOrderRouterAdapter(OrderRouterPort):
                 raise ValidationError(
                     f"Invalid order parameters: {e}"
                 ) from e
-            else:
-                self._logger.error(
-                    "Alpaca order submission failed",
-                    order_id=str(order.order_id),
-                    error=str(e),
-                    error_code=error_code
-                )
-                raise OrderExecutionError(
-                    f"Alpaca order submission failed: {e}"
-                ) from e
+            self._logger.error(
+                "Alpaca order submission failed",
+                order_id=str(order.order_id),
+                error=str(e),
+                error_code=error_code
+            )
+            raise OrderExecutionError(
+                f"Alpaca order submission failed: {e}"
+            ) from e
                 
         except Exception as e:
             self._logger.error(
@@ -154,6 +154,7 @@ class AlpacaOrderRouterAdapter(OrderRouterPort):
         Raises:
             OrderExecutionError: Broker cancellation failure
             OrderNotFoundError: Order ID not found
+
         """
         try:
             # Find the broker order ID first
@@ -189,15 +190,14 @@ class AlpacaOrderRouterAdapter(OrderRouterPort):
                 raise OrderNotFoundError(
                     f"Order {order_id} not found at broker"
                 ) from e
-            else:
-                self._logger.error(
-                    "Alpaca order cancellation failed",
-                    order_id=str(order_id),
-                    error=str(e)
-                )
-                raise OrderExecutionError(
-                    f"Alpaca order cancellation failed: {e}"
-                ) from e
+            self._logger.error(
+                "Alpaca order cancellation failed",
+                order_id=str(order_id),
+                error=str(e)
+            )
+            raise OrderExecutionError(
+                f"Alpaca order cancellation failed: {e}"
+            ) from e
         except OrderNotFoundError:
             raise  # Re-raise domain exception as-is
         except Exception as e:
@@ -222,6 +222,7 @@ class AlpacaOrderRouterAdapter(OrderRouterPort):
         Raises:
             OrderExecutionError: Broker query failure
             OrderNotFoundError: Order ID not found
+
         """
         try:
             # Find the broker order ID first
@@ -268,15 +269,14 @@ class AlpacaOrderRouterAdapter(OrderRouterPort):
                 raise OrderNotFoundError(
                     f"Order {order_id} not found at broker"
                 ) from e
-            else:
-                self._logger.error(
-                    "Alpaca order status query failed",
-                    order_id=str(order_id),
-                    error=str(e)
-                )
-                raise OrderExecutionError(
-                    f"Alpaca order status query failed: {e}"
-                ) from e
+            self._logger.error(
+                "Alpaca order status query failed",
+                order_id=str(order_id),
+                error=str(e)
+            )
+            raise OrderExecutionError(
+                f"Alpaca order status query failed: {e}"
+            ) from e
         except OrderNotFoundError:
             raise  # Re-raise domain exception as-is
         except Exception as e:
@@ -300,6 +300,7 @@ class AlpacaOrderRouterAdapter(OrderRouterPort):
             
         Raises:
             OrderNotFoundError: Order ID not found
+
         """
         if order_id in self._order_id_map:
             return self._order_id_map[order_id]
