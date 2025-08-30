@@ -90,6 +90,87 @@ Resources:
         - !Ref DependenciesLayer
       # No Events here - using separate EventBridge Scheduler below
 
+  # DDD Context-specific Lambda Functions (Phase 9)
+  
+  # Strategy Context: Signal Generation (Scheduled)
+  StrategySignalFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: the-alchemiser-strategy-signals
+      PackageType: Zip
+      Runtime: python3.12
+      CodeUri: .
+      Handler: the_alchemiser.strategy.interfaces.aws_lambda.strategy_signal_handler.handler
+      Role: !GetAtt TradingSystemExecutionRole.Arn
+      Layers:
+        - !Ref DependenciesLayer
+      # TODO: Add EventBridge schedule for regular signal generation
+      # Events:
+      #   ScheduleEvent:
+      #     Type: Schedule
+      #     Properties:
+      #       Schedule: cron(0 14 ? * MON-FRI *) # 2 PM UTC (9 AM EST)
+
+  # Portfolio Context: Signal Consumer (SQS Triggered)
+  PortfolioSignalConsumerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: the-alchemiser-portfolio-signal-consumer
+      PackageType: Zip
+      Runtime: python3.12
+      CodeUri: .
+      Handler: the_alchemiser.portfolio.interfaces.aws_lambda.signal_consumer_handler.handler
+      Role: !GetAtt TradingSystemExecutionRole.Arn
+      Layers:
+        - !Ref DependenciesLayer
+      # TODO: Add SQS event source mapping to actual signal queue (Issue #390)
+      # Events:
+      #   SQSEvent:
+      #     Type: SQS
+      #     Properties:
+      #       Queue: !GetAtt SignalQueue.Arn
+      #       BatchSize: 10
+
+  # Execution Context: Plan Consumer (SQS Triggered)
+  ExecutionPlanConsumerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: the-alchemiser-execution-plan-consumer
+      PackageType: Zip
+      Runtime: python3.12
+      CodeUri: .
+      Handler: the_alchemiser.execution.interfaces.aws_lambda.plan_consumer_handler.handler
+      Role: !GetAtt TradingSystemExecutionRole.Arn
+      Layers:
+        - !Ref DependenciesLayer
+      # TODO: Add SQS event source mapping to actual plan queue (Issue #390)
+      # Events:
+      #   SQSEvent:
+      #     Type: SQS
+      #     Properties:
+      #       Queue: !GetAtt PlanQueue.Arn
+      #       BatchSize: 5
+
+  # Portfolio Context: Execution Report Consumer (SQS Triggered)
+  PortfolioReportConsumerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: the-alchemiser-portfolio-report-consumer
+      PackageType: Zip
+      Runtime: python3.12
+      CodeUri: .
+      Handler: the_alchemiser.portfolio.interfaces.aws_lambda.execution_report_consumer_handler.handler
+      Role: !GetAtt TradingSystemExecutionRole.Arn
+      Layers:
+        - !Ref DependenciesLayer
+      # TODO: Add SQS event source mapping to actual execution report queue (Issue #390)
+      # Events:
+      #   SQSEvent:
+      #     Type: SQS
+      #     Properties:
+      #       Queue: !GetAtt ExecutionReportQueue.Arn
+      #       BatchSize: 10
+
   # Dead Letter Queue for failed trading executions
   TradingSystemDLQ:
     Type: AWS::SQS::Queue
@@ -97,6 +178,37 @@ Resources:
       QueueName: the-alchemiser-dlq
       MessageRetentionPeriod: 1209600 # 14 days
       VisibilityTimeout: 60
+
+  # TODO: SQS Queues for cross-context messaging (Issue #390)
+  # SignalQueue:
+  #   Type: AWS::SQS::Queue
+  #   Properties:
+  #     QueueName: the-alchemiser-signals
+  #     VisibilityTimeout: 60
+  #     MessageRetentionPeriod: 1209600
+  #     RedrivePolicy:
+  #       deadLetterTargetArn: !GetAtt TradingSystemDLQ.Arn
+  #       maxReceiveCount: 3
+  
+  # PlanQueue:
+  #   Type: AWS::SQS::Queue
+  #   Properties:
+  #     QueueName: the-alchemiser-plans
+  #     VisibilityTimeout: 120
+  #     MessageRetentionPeriod: 1209600
+  #     RedrivePolicy:
+  #       deadLetterTargetArn: !GetAtt TradingSystemDLQ.Arn
+  #       maxReceiveCount: 3
+  
+  # ExecutionReportQueue:
+  #   Type: AWS::SQS::Queue
+  #   Properties:
+  #     QueueName: the-alchemiser-execution-reports
+  #     VisibilityTimeout: 60
+  #     MessageRetentionPeriod: 1209600
+  #     RedrivePolicy:
+  #       deadLetterTargetArn: !GetAtt TradingSystemDLQ.Arn
+  #       maxReceiveCount: 3
 
   # EventBridge Scheduler with proper timezone support and reduced retry policy
   TradingSystemSchedule:
@@ -211,3 +323,20 @@ Outputs:
   TradingSystemLogGroup:
     Description: "CloudWatch Log Group for monitoring"
     Value: !Ref TradingSystemLogGroup
+
+  # DDD Context Lambda Functions (Phase 9)
+  StrategySignalFunction:
+    Description: "Strategy signal generation Lambda Function ARN"
+    Value: !GetAtt StrategySignalFunction.Arn
+
+  PortfolioSignalConsumerFunction:
+    Description: "Portfolio signal consumer Lambda Function ARN"
+    Value: !GetAtt PortfolioSignalConsumerFunction.Arn
+
+  ExecutionPlanConsumerFunction:
+    Description: "Execution plan consumer Lambda Function ARN"
+    Value: !GetAtt ExecutionPlanConsumerFunction.Arn
+
+  PortfolioReportConsumerFunction:
+    Description: "Portfolio report consumer Lambda Function ARN"
+    Value: !GetAtt PortfolioReportConsumerFunction.Arn
