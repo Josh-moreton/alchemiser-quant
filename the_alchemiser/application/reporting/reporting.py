@@ -24,7 +24,7 @@ def create_execution_summary(
     account_after: AccountInfo,
 ) -> dict[str, Any]:  # TODO: Phase 10 - ReportingData structure needs alignment
     """Create execution summary using helper utilities."""
-    from the_alchemiser.application.portfolio.portfolio_pnl_utils import (
+    from the_alchemiser.portfolio.application.portfolio_pnl_utils import (
         build_allocation_summary,
         build_strategy_summary,
         calculate_strategy_pnl_summary,
