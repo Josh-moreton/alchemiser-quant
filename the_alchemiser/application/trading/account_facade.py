@@ -41,12 +41,13 @@ from the_alchemiser.interfaces.schemas.accounts import (
     EnrichedAccountSummaryDTO,
 )
 from the_alchemiser.interfaces.utils.serialization import ensure_serialized_dict
+# TODO: Migrate handle_trading_error to infrastructure when dependencies resolved
 from the_alchemiser.services.errors import handle_trading_error
-from the_alchemiser.services.errors.exceptions import (
+from the_alchemiser.infrastructure.error_handling import (
     DataProviderError,
     TradingClientError,
 )
-from the_alchemiser.services.trading.position_service import PositionService
+from the_alchemiser.application.trading.position_service import PositionService
 
 logger = logging.getLogger(__name__)
 

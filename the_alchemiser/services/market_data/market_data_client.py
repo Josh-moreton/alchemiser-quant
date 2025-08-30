@@ -21,7 +21,7 @@ from alpaca.data.requests import StockBarsRequest
 from alpaca.data.timeframe import TimeFrame
 
 from the_alchemiser.services.errors.exceptions import MarketDataError
-from the_alchemiser.services.repository.alpaca_manager import AlpacaManager
+from the_alchemiser.infrastructure.brokers.alpaca_manager import AlpacaManager
 
 
 class MarketDataClient:

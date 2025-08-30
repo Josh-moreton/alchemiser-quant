@@ -23,8 +23,8 @@ from the_alchemiser.infrastructure.secrets.secrets_manager import SecretsManager
 from the_alchemiser.portfolio.application.use_cases.account_operations import (
     AccountOperations as TypedAccountService,
 )
-from the_alchemiser.services.errors.context import create_error_context
-from the_alchemiser.services.repository.alpaca_manager import AlpacaManager
+from the_alchemiser.infrastructure.error_handling.context import create_error_context
+from the_alchemiser.infrastructure.brokers.alpaca_manager import AlpacaManager
 from the_alchemiser.shared_kernel.exceptions.base_exceptions import ConfigurationError
 
 # TODO: Error handler needs to be migrated

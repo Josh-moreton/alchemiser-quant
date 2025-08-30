@@ -5,12 +5,14 @@ Error handling infrastructure for The Alchemiser Trading System.
 Provides centralized error handling with:
 - Exception classes for domain-specific errors
 - Translation decorators for exception mapping
+- Error context data for structured error information
 
 Note: This is a minimal implementation to support migration from services.errors
 """
 
 from __future__ import annotations
 
+from .context import ErrorContextData, create_error_context
 from .decorators import (
     translate_config_errors,
     translate_market_data_errors,
@@ -32,6 +34,9 @@ from .exceptions import (
 )
 
 __all__ = [
+    # Error context
+    "ErrorContextData",
+    "create_error_context",
     # Translation decorators
     "translate_config_errors",
     "translate_market_data_errors",
