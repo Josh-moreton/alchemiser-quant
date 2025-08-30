@@ -1,4 +1,4 @@
-"""Business Unit: strategy & signal generation | Status: current
+"""Business Unit: strategy & signal generation; Status: current.
 
 Mapping utilities between infra/DTOs and domain market data models.
 """
