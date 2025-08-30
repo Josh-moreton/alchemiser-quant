@@ -14,7 +14,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any, Literal, TypedDict, cast
 
-from the_alchemiser.application.mapping.orders import normalize_order_status
+from the_alchemiser.anti_corruption.brokers.order_status_mapping import normalize_order_status
 from the_alchemiser.shared_kernel.value_objects.money import Money
 from the_alchemiser.domain.trading.entities.order import Order
 from the_alchemiser.domain.trading.value_objects.order_id import OrderId
@@ -215,7 +215,7 @@ def raw_order_envelope_to_execution_result_dto(
         OrderExecutionResultDTO with execution details
 
     """
-    from the_alchemiser.application.mapping.alpaca_dto_mapping import (
+    from the_alchemiser.anti_corruption.brokers.alpaca_dto_mapping import (
         alpaca_order_to_execution_result,
         create_error_execution_result,
     )

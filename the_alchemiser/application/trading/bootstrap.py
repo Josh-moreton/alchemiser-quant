@@ -15,7 +15,7 @@ from __future__ import annotations
 import logging
 from typing import Any, TypedDict
 
-from the_alchemiser.application.mapping.strategy_market_data_adapter import (
+from the_alchemiser.anti_corruption.market_data.strategy_adapter_mapping import (
     StrategyMarketDataAdapter,
 )
 from the_alchemiser.infrastructure.config import Settings, load_settings

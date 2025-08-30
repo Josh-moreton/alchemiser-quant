@@ -1,6 +1,6 @@
 """Business Unit: order execution/placement; Status: current.
 
-Order mapping utilities and status normalization (application layer).
+Order mapping utilities and status normalization (anti-corruption layer).
 """
 
 from __future__ import annotations

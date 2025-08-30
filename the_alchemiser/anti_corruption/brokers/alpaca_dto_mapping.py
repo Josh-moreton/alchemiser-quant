@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Business Unit: utilities; Status: current.
+"""Business Unit: order execution/placement; Status: current.
 
-Alpaca DTO mapping utilities for infrastructure boundary.
+Alpaca DTO mapping utilities for anti-corruption layer.
 
 This module provides mapping functions to convert between Alpaca API responses
 and OrderExecutionResultDTO, ensuring proper type conversion and validation
@@ -18,7 +18,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any, Literal, cast
 
-from the_alchemiser.application.mapping.orders import normalize_order_status
+from the_alchemiser.anti_corruption.brokers.order_status_mapping import normalize_order_status
 from the_alchemiser.interfaces.schemas.alpaca import AlpacaErrorDTO, AlpacaOrderDTO
 from the_alchemiser.interfaces.schemas.orders import OrderExecutionResultDTO
 

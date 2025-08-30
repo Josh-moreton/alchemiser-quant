@@ -222,7 +222,7 @@ class CanonicalOrderExecutor:
             raw_envelope = self.repository.place_order(alpaca_order_request)
 
             # Convert envelope to OrderExecutionResultDTO
-            from the_alchemiser.application.mapping.order_mapping import (
+            from the_alchemiser.anti_corruption.brokers.domain_order_mapping import (
                 raw_order_envelope_to_execution_result_dto,
             )
 

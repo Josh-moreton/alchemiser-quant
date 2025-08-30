@@ -36,7 +36,7 @@ from dataclasses import dataclass, field
 from decimal import Decimal
 from typing import Any
 
-from the_alchemiser.application.mapping.orders import (
+from the_alchemiser.anti_corruption.brokers.order_status_mapping import (
     dict_to_order_request_dto,
     order_request_to_validated_dto,
 )

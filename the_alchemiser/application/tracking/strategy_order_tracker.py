@@ -28,7 +28,7 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from typing import Any, cast
 
-from the_alchemiser.application.mapping.tracking_mapping import (
+from the_alchemiser.anti_corruption.serialization.tracking_dto_mapping import (
     orders_to_execution_summary_dto,
     strategy_pnl_to_dict,
 )

@@ -14,10 +14,10 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Any
 
-from the_alchemiser.application.mapping.account_mapping import (
+from the_alchemiser.anti_corruption.brokers.account_mapping import (
     AccountSummaryTyped,
 )
-from the_alchemiser.application.mapping.position_mapping import PositionSummary
+from the_alchemiser.anti_corruption.brokers.position_mapping import PositionSummary
 from the_alchemiser.interfaces.schemas.accounts import (
     AccountMetricsDTO,
     AccountSummaryDTO,

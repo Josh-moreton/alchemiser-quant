@@ -30,16 +30,16 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, Protocol
 
 if TYPE_CHECKING:  # Import for type checking only to avoid runtime dependency
-    from the_alchemiser.application.mapping.strategies import StrategySignalDisplayDTO
+    from the_alchemiser.anti_corruption.serialization.strategies import StrategySignalDisplayDTO
 
 from alpaca.trading.enums import OrderSide
 
 from the_alchemiser.application.execution.smart_execution import SmartExecution
-from the_alchemiser.application.mapping.execution_summary_mapping import (
+from the_alchemiser.anti_corruption.serialization.execution_summary_mapping import (
     safe_dict_to_execution_summary_dto,
     safe_dict_to_portfolio_state_dto,
 )
-from the_alchemiser.application.mapping.strategies import (
+from the_alchemiser.anti_corruption.serialization.strategies import (
     StrategySignalDisplayDTO,
     run_all_strategies_mapping,
 )

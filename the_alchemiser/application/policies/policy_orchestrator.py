@@ -12,7 +12,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from the_alchemiser.application.mapping.policy_mapping import (
+from the_alchemiser.anti_corruption.serialization.policy_dto_mapping import (
     domain_result_to_dto,
     dto_to_domain_order_request,
 )

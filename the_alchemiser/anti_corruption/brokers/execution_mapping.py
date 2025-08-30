@@ -27,7 +27,7 @@ from datetime import UTC, datetime
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
 
-from the_alchemiser.application.mapping.execution_summary_mapping import (
+from the_alchemiser.anti_corruption.serialization.execution_summary_mapping import (
     safe_dict_to_execution_summary_dto,
     safe_dict_to_portfolio_state_dto,
 )
