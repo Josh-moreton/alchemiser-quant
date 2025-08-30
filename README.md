@@ -181,6 +181,8 @@ Cross-context communication: application → application via explicit DTOs (no d
 6. Interfaces layer: formatting & transport only – no business logic.
 7. Errors are typed and categorized; no silent fallback to legacy implementations.
 
+**Enforcement**: Architectural boundaries are enforced by import-linter with 8 contracts covering layered architecture, cross-context isolation, shared kernel purity, and anti-corruption patterns. Violations fail CI via `make lint`. Strict mypy ensures complete type coverage and financial calculation safety.
+
 ---
 ## Business Unit Docstrings
 Every source file starts with:

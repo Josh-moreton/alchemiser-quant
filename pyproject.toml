@@ -54,6 +54,7 @@ pytest = "^8.4.1"
 pip-audit = "^2.7.3"  # Dependency vulnerability scanning
 detect-secrets = "^1.5.0"  # Secret scanning (baseline optional)
 pyright = "^1.1.380"  # Supplemental static type analysis (optional CI/nightly)
+import-linter = "^2.1.0"  # Architectural boundary enforcement
 
 [tool.poetry.scripts]
 alchemiser = "the_alchemiser.interfaces.cli.cli:app"
@@ -111,6 +112,15 @@ show_error_codes = true
 pretty = true
 color_output = true
 cache_dir = ".mypy_cache"
+# Additional strict flags for enhanced type safety (with pragmatic exceptions)
+disallow_untyped_defs = true
+disallow_any_generics = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_return_any = true
+strict_equality = true
+# Skip disallow_any_unimported due to pandas/numpy usage in financial domain
 
 # Retain targeted ignores for third-party libs lacking type hints
 [[tool.mypy.overrides]]
@@ -124,3 +134,87 @@ module = [
     "yaml.*"
 ]
 ignore_missing_imports = true
+
+[tool.importlinter]
+root_package = "the_alchemiser"
+
+[[tool.importlinter.contracts]]
+name = "Shared kernel isolation - No imports from bounded contexts"
+type = "forbidden"
+source_modules = ["the_alchemiser.shared_kernel"]
+forbidden_modules = [
+    "the_alchemiser.strategy",
+    "the_alchemiser.portfolio",
+    "the_alchemiser.execution",
+    "the_alchemiser.anti_corruption",
+]
+
+[[tool.importlinter.contracts]]
+name = "No cross-context domain imports - Strategy domain isolation"
+type = "forbidden"
+source_modules = ["the_alchemiser.strategy.domain"]
+forbidden_modules = [
+    "the_alchemiser.portfolio.domain",
+    "the_alchemiser.execution.domain",
+    "the_alchemiser.anti_corruption.domain",
+]
+
+[[tool.importlinter.contracts]]
+name = "No cross-context domain imports - Portfolio domain isolation"
+type = "forbidden"
+source_modules = ["the_alchemiser.portfolio.domain"]
+forbidden_modules = [
+    "the_alchemiser.strategy.domain",
+    "the_alchemiser.execution.domain",
+    "the_alchemiser.anti_corruption.domain",
+]
+
+[[tool.importlinter.contracts]]
+name = "No cross-context domain imports - Execution domain isolation"
+type = "forbidden"
+source_modules = ["the_alchemiser.execution.domain"]
+forbidden_modules = [
+    "the_alchemiser.strategy.domain",
+    "the_alchemiser.portfolio.domain",
+    "the_alchemiser.anti_corruption.domain",
+]
+
+[[tool.importlinter.contracts]]
+name = "Strategy Context - Layered Architecture"
+type = "layers"
+layers = [
+    "the_alchemiser.strategy.interfaces",
+    "the_alchemiser.strategy.application",
+    "the_alchemiser.strategy.domain",
+]
+
+[[tool.importlinter.contracts]]
+name = "Portfolio Context - Layered Architecture"
+type = "layers"
+layers = [
+    "the_alchemiser.portfolio.interfaces",
+    "the_alchemiser.portfolio.application",
+    "the_alchemiser.portfolio.domain",
+]
+
+[[tool.importlinter.contracts]]
+name = "Execution Context - Layered Architecture"
+type = "layers"
+layers = [
+    "the_alchemiser.execution.interfaces",
+    "the_alchemiser.execution.application",
+    "the_alchemiser.execution.domain",
+]
+
+[[tool.importlinter.contracts]]
+name = "Anti-corruption one-way access - Contexts cannot import anti-corruption"
+type = "forbidden"
+source_modules = [
+    "the_alchemiser.strategy.domain",
+    "the_alchemiser.strategy.application",
+    "the_alchemiser.portfolio.domain", 
+    "the_alchemiser.portfolio.application",
+    "the_alchemiser.execution.domain",
+    "the_alchemiser.execution.application",
+]
+forbidden_modules = ["the_alchemiser.anti_corruption"]
