@@ -237,13 +237,13 @@ class AlpacaOrderRouterAdapter(OrderRouterPort):
             alpaca_order = self._api.get_order(broker_order_id)
             
             # Convert to domain value object
-            filled_qty = Decimal(str(alpaca_order.filled_qty or 0))
-            total_qty = Decimal(str(alpaca_order.qty))
+            filled_qty = Decimal(alpaca_order.filled_qty or 0)
+            total_qty = Decimal(alpaca_order.qty)
             remaining_qty = total_qty - filled_qty
             
             avg_fill_price = None
             if alpaca_order.filled_avg_price:
-                avg_fill_price = Decimal(str(alpaca_order.filled_avg_price))
+                avg_fill_price = Decimal(alpaca_order.filled_avg_price)
             
             status_vo = OrderStatusVO(
                 order_id=order_id,
