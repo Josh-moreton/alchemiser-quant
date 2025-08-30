@@ -28,7 +28,7 @@ import logging
 from decimal import Decimal
 from typing import Any, cast
 
-from the_alchemiser.application.mapping.account_mapping import account_summary_to_typed
+from the_alchemiser.anti_corruption.brokers.account_mapping import account_summary_to_typed
 from the_alchemiser.domain.types import (
     AccountInfo,
     ClosedPositionData,

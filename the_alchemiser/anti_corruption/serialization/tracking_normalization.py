@@ -1,4 +1,4 @@
-"""Business Unit: utilities; Status: current.
+"""Business Unit: strategy & signal generation | Status: current.
 
 Tracking data normalization utilities.
 
@@ -18,7 +18,7 @@ from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
 
 # Re-export precision helpers from execution mapping
-from the_alchemiser.application.mapping.execution import ensure_money, ensure_quantity
+from the_alchemiser.anti_corruption.brokers.execution_mapping import ensure_money, ensure_quantity
 
 
 def ensure_price(value: float | str | Decimal | int | None, decimal_places: int = 4) -> Decimal:

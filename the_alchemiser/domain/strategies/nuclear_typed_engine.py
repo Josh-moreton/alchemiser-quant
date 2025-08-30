@@ -127,7 +127,7 @@ class NuclearTypedEngine(StrategyEngine):
 
         Allows a one-off MarketDataPort override for this call.
         """
-        from the_alchemiser.application.mapping.market_data_mapping import (
+        from the_alchemiser.anti_corruption.market_data.market_data_mapping import (
             bars_to_dataframe,
             symbol_str_to_symbol,
         )

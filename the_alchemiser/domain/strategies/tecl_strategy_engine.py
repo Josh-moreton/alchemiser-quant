@@ -84,7 +84,7 @@ class TECLStrategyEngine(StrategyEngine):
 
     def get_market_data(self) -> dict[str, Any]:
         """Fetch data for all symbols."""
-        from the_alchemiser.application.mapping.market_data_mapping import (
+        from the_alchemiser.anti_corruption.market_data.market_data_mapping import (
             bars_to_dataframe,
             symbol_str_to_symbol,
         )

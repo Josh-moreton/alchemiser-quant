@@ -8,7 +8,7 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Any
 
-from the_alchemiser.application.mapping.portfolio_rebalancing_mapping import (
+from the_alchemiser.anti_corruption.serialization.rebalance_plan_mapping import (
     rebalance_plans_dict_to_collection_dto,
 )
 from the_alchemiser.domain.portfolio.position.position_analyzer import PositionAnalyzer
