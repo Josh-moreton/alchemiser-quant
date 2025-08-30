@@ -1,4 +1,4 @@
-"""Business Unit: portfolio assessment & management | Status: current
+"""Business Unit: portfolio assessment & management; Status: current.
 
 from __future__ import annotations
 
