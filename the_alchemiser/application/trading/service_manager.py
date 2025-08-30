@@ -101,8 +101,8 @@ from the_alchemiser.application.account.account_service import AccountService
 from the_alchemiser.infrastructure.error_handling.decorators import translate_trading_errors
 from the_alchemiser.infrastructure.market_data.market_data_service import MarketDataService
 from the_alchemiser.infrastructure.brokers.alpaca_manager import AlpacaManager
-from the_alchemiser.services.trading.order_service import OrderService
-from the_alchemiser.services.trading.position_service import PositionService
+from the_alchemiser.application.trading.order_service import OrderService
+from the_alchemiser.application.trading.position_service import PositionService
 
 
 class TradingServiceManager:
@@ -197,7 +197,7 @@ class TradingServiceManager:
     # place_market_order / place_limit_order removed. Use CanonicalOrderExecutor directly.
 
     def place_stop_loss_order(
-        self, symbol: str, quantity: float, stop_price: float, validate: bool = True  # noqa: ARG002
+        self, symbol: str, quantity: float, stop_price: float, validate: bool = True
     ) -> OrderExecutionResultDTO:
         """Place a stop-loss order using liquidation (not directly supported)."""
         return OrderExecutionResultDTO(
@@ -361,7 +361,7 @@ class TradingServiceManager:
             return PositionMetricsDTO(success=False, error=str(e))
 
     # Market Data Operations
-    def get_latest_price(self, symbol: str, validate: bool = True) -> PriceDTO:  # noqa: ARG002
+    def get_latest_price(self, symbol: str, validate: bool = True) -> PriceDTO:
         """Get latest price with validation and caching."""
         try:
             price = self.market_data.get_validated_price(symbol)
@@ -381,7 +381,7 @@ class TradingServiceManager:
         symbol: str,
         timeframe: str = "1Day",
         limit: int = 100,
-        validate: bool = True,  # noqa: ARG002
+        validate: bool = True,
     ) -> PriceHistoryDTO:
         """Get price history (not directly available - use AlpacaManager directly)."""
         return PriceHistoryDTO(

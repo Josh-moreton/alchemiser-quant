@@ -61,13 +61,16 @@ from the_alchemiser.shared_kernel.value_objects.money import Money
 
 if TYPE_CHECKING:
     pass
-from the_alchemiser.services.errors.exceptions import (
-    BuyingPowerError,
+from the_alchemiser.infrastructure.error_handling import (
     DataProviderError,
     OrderExecutionError,
+    TradingClientError,
+)
+# TODO: These exceptions may need to be added to infrastructure error handling
+from the_alchemiser.services.errors.exceptions import (
+    BuyingPowerError,
     OrderPlacementError,
     SpreadAnalysisError,
-    TradingClientError,
 )
 
 
@@ -199,7 +202,7 @@ class SmartExecution:
                 alpaca_manager = getattr(self._order_executor, "_trading", self._order_executor)
 
             # Ensure we have a proper AlpacaManager instance, type cast as needed
-            from the_alchemiser.services.repository.alpaca_manager import AlpacaManager
+            from the_alchemiser.infrastructure.brokers.alpaca_manager import AlpacaManager
 
             if not isinstance(alpaca_manager, AlpacaManager):
                 raise ValueError("Unable to get AlpacaManager instance for canonical executor")
@@ -259,7 +262,7 @@ class SmartExecution:
             )
 
             # Get alpaca manager for canonical executor (same as market order)
-            from the_alchemiser.services.repository.alpaca_manager import AlpacaManager
+            from the_alchemiser.infrastructure.brokers.alpaca_manager import AlpacaManager
 
             alpaca_manager = getattr(self._order_executor, "alpaca_manager", None)
             if not alpaca_manager:

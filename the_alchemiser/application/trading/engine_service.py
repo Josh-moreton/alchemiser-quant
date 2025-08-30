@@ -74,7 +74,7 @@ from the_alchemiser.interfaces.schemas.execution import ExecutionResultDTO
 from the_alchemiser.services.account.account_service import (
     AccountService as TypedAccountService,
 )
-from the_alchemiser.services.errors.context import create_error_context
+from the_alchemiser.infrastructure.error_handling.context import create_error_context
 from the_alchemiser.services.errors.exceptions import (
     ConfigurationError,
     DataProviderError,
@@ -83,7 +83,7 @@ from the_alchemiser.services.errors.exceptions import (
 )
 
 # TODO: Error handler needs to be migrated
-from the_alchemiser.services.repository.alpaca_manager import AlpacaManager
+from the_alchemiser.infrastructure.brokers.alpaca_manager import AlpacaManager
 
 from ..execution.execution_manager import ExecutionManager
 from ..reporting.reporting import build_portfolio_state_data
@@ -411,7 +411,7 @@ class TradingEngine:
                         for st in self._typed.strategy_allocations
                     }
                 except Exception as e:
-                    from the_alchemiser.services.errors.context import (
+                    from the_alchemiser.infrastructure.error_handling.context import (
                         create_error_context,
                     )
                     from the_alchemiser.services.errors.handler import (
