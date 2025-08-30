@@ -434,7 +434,7 @@ def trade(
     ),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable verbose output"),
     no_header: bool = typer.Option(False, "--no-header", help="Skip welcome header"),
-    force: bool = typer.Option(False, "--force", help="Skip confirmation prompts"),
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompts"),  # TODO: Implement force mode
     show_tracking: bool = typer.Option(
         False, "--show-tracking", help="Display strategy performance tracking after execution"
     ),
@@ -449,6 +449,7 @@ def trade(
 
     [bold red]⚠️  Use --live flag for real money trading![/bold red]
     """
+    _ = force  # TODO: Implement force mode to skip confirmations
     if not no_header:
         show_welcome()
 

@@ -197,7 +197,7 @@ class TradingServiceManager:
     # place_market_order / place_limit_order removed. Use CanonicalOrderExecutor directly.
 
     def place_stop_loss_order(
-        self, symbol: str, quantity: float, stop_price: float, validate: bool = True
+        self, symbol: str, quantity: float, stop_price: float, validate: bool = True  # noqa: ARG002
     ) -> OrderExecutionResultDTO:
         """Place a stop-loss order using liquidation (not directly supported)."""
         return OrderExecutionResultDTO(
@@ -361,7 +361,7 @@ class TradingServiceManager:
             return PositionMetricsDTO(success=False, error=str(e))
 
     # Market Data Operations
-    def get_latest_price(self, symbol: str, validate: bool = True) -> PriceDTO:
+    def get_latest_price(self, symbol: str, validate: bool = True) -> PriceDTO:  # noqa: ARG002
         """Get latest price with validation and caching."""
         try:
             price = self.market_data.get_validated_price(symbol)
@@ -381,7 +381,7 @@ class TradingServiceManager:
         symbol: str,
         timeframe: str = "1Day",
         limit: int = 100,
-        validate: bool = True,
+        validate: bool = True,  # noqa: ARG002
     ) -> PriceHistoryDTO:
         """Get price history (not directly available - use AlpacaManager directly)."""
         return PriceHistoryDTO(

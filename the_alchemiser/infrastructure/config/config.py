@@ -135,7 +135,7 @@ class Settings(BaseSettings):
     @classmethod
     def settings_customise_sources(
         cls,
-        settings_cls: Any,
+        settings_cls: Any,  # noqa: ARG003
         init_settings: Any,
         env_settings: Any,
         dotenv_settings: Any,
