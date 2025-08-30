@@ -16,11 +16,11 @@ if TYPE_CHECKING:
     )
 
 from the_alchemiser.application.execution.smart_execution import is_market_open
-from the_alchemiser.application.mapping.strategy_signal_mapping import (
+from the_alchemiser.anti_corruption.serialization.strategy_signal_mapping import (
     convert_signals_dict_to_domain,
     typed_strategy_signal_to_validated_order,
 )
-from the_alchemiser.application.mapping.strategy_signal_mapping import (
+from the_alchemiser.anti_corruption.serialization.strategy_signal_mapping import (
     map_signals_dict as _map_signals_to_typed,
 )
 from the_alchemiser.application.trading.bootstrap import bootstrap_from_container

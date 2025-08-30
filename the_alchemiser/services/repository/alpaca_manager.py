@@ -26,7 +26,7 @@ from alpaca.trading.client import TradingClient
 from alpaca.trading.enums import OrderSide, TimeInForce
 from alpaca.trading.requests import LimitOrderRequest, MarketOrderRequest
 
-from the_alchemiser.application.mapping.alpaca_dto_mapping import (
+from the_alchemiser.anti_corruption.brokers.alpaca_dto_mapping import (
     alpaca_order_to_execution_result,
     create_error_execution_result,
 )
@@ -391,7 +391,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             envelope = self.place_order(order_request)
 
             # Convert envelope to OrderExecutionResultDTO for backward compatibility
-            from the_alchemiser.application.mapping.order_mapping import (
+            from the_alchemiser.anti_corruption.brokers.domain_order_mapping import (
                 raw_order_envelope_to_execution_result_dto,
             )
 
