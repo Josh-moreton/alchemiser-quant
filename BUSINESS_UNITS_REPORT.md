@@ -61,6 +61,8 @@ Every module is classified under one of these business units:
 - `the_alchemiser/strategy/infrastructure/adapters/alpaca_market_data_adapter.py` - Alpaca market data adapter
 - `the_alchemiser/strategy/infrastructure/adapters/in_memory_market_data_adapter.py` - In-memory market data adapter for testing
 - `the_alchemiser/strategy/infrastructure/adapters/in_memory_signal_publisher_adapter.py` - In-memory signal publisher adapter for testing
+- `the_alchemiser/strategy/infrastructure/adapters/alpaca_market_data_port_adapter.py` - Alpaca market data adapter implementing MarketDataPort protocol
+- `the_alchemiser/strategy/infrastructure/adapters/sqs_signal_publisher_adapter.py` - SQS signal publisher adapter implementing SignalPublisherPort protocol
 - `the_alchemiser/strategy/infrastructure/utils/price_utils.py` - Price utility functions
 - `the_alchemiser/strategy/interfaces/__init__.py` - Strategy interfaces layer
 
@@ -84,6 +86,7 @@ Every module is classified under one of these business units:
 - `the_alchemiser/portfolio/application/use_cases/account_operations.py` - Account operations use case
 - `the_alchemiser/portfolio/infrastructure/__init__.py` - Portfolio infrastructure layer
 - `the_alchemiser/portfolio/infrastructure/adapters/alpaca_account_adapter.py` - Alpaca account adapter
+- `the_alchemiser/portfolio/infrastructure/adapters/dynamodb_position_repository_adapter.py` - DynamoDB position repository adapter implementing PositionRepositoryPort protocol
 - `the_alchemiser/portfolio/interfaces/__init__.py` - Portfolio interfaces layer
 
 ### Execution Context
@@ -101,6 +104,7 @@ Every module is classified under one of these business units:
 - `the_alchemiser/execution/application/use_cases/position_analysis.py` - Position analysis use case
 - `the_alchemiser/execution/infrastructure/__init__.py` - Execution infrastructure layer
 - `the_alchemiser/execution/infrastructure/adapters/alpaca_order_adapter.py` - Alpaca order adapter
+- `the_alchemiser/execution/infrastructure/adapters/alpaca_order_router_adapter.py` - Alpaca order router adapter implementing OrderRouterPort protocol
 - `the_alchemiser/execution/interfaces/__init__.py` - Execution interfaces layer
 - `the_alchemiser/portfolio/domain/__init__.py` - Portfolio domain layer
 - `the_alchemiser/portfolio/application/__init__.py` - Portfolio application layer
@@ -124,6 +128,14 @@ Every module is classified under one of these business units:
 - `the_alchemiser/anti_corruption/application/__init__.py` - Anti-corruption application layer
 - `the_alchemiser/anti_corruption/infrastructure/__init__.py` - Anti-corruption infrastructure layer
 - `the_alchemiser/anti_corruption/interfaces/__init__.py` - Anti-corruption interfaces layer
+- `the_alchemiser/anti_corruption/market_data/__init__.py` - Market data anti-corruption layer
+- `the_alchemiser/anti_corruption/market_data/alpaca_to_domain.py` - Alpaca market data to domain object mapping
+- `the_alchemiser/anti_corruption/serialization/__init__.py` - Serialization anti-corruption layer
+- `the_alchemiser/anti_corruption/serialization/signal_serializer.py` - Signal contract serialization for messaging
+- `the_alchemiser/anti_corruption/persistence/__init__.py` - Persistence anti-corruption layer
+- `the_alchemiser/anti_corruption/persistence/position_mapper.py` - Position entity to DynamoDB item mapping
+- `the_alchemiser/anti_corruption/brokers/__init__.py` - Broker anti-corruption layer
+- `the_alchemiser/anti_corruption/brokers/alpaca_order_mapper.py` - Domain order to Alpaca API request mapping
 
 ### Interface Utilities (Added in Task 2 / PR #398)
 **Business Unit**: utilities | **Status**: current
@@ -145,12 +157,12 @@ All imports across impacted files were updated; no remaining references to the r
 
 ## Summary
 
-- **Total new modules**: 47 new DDD bounded context modules (Task 1) + 4 migration utility modules (Task 2) + 18 services migration modules (Task 3) + 8 new port/protocol modules (Task 5)
+- **Total new modules**: 47 new DDD bounded context modules (Task 1) + 4 migration utility modules (Task 2) + 18 services migration modules (Task 3) + 8 new port/protocol modules (Task 5) + 11 new infrastructure adapters and anti-corruption mappers (Task 6)
 - **Modules by business unit**:
-  - utilities: 24 modules (shared_kernel + anti_corruption + interface utilities + tooling shim)
-  - strategy & signal generation: 16 modules (strategy context with market data operations + ports + value objects)
-  - portfolio assessment & management: 13 modules (portfolio context with account operations + ports + entities + value objects)
-  - order execution/placement: 11 modules (execution context with trading operations + ports)
+  - utilities: 32 modules (shared_kernel + anti_corruption + interface utilities + tooling shim)
+  - strategy & signal generation: 18 modules (strategy context with market data operations + ports + value objects + adapters)
+  - portfolio assessment & management: 14 modules (portfolio context with account operations + ports + entities + value objects + adapters)
+  - order execution/placement: 12 modules (execution context with trading operations + ports + adapters)
 - **All modules status**: current
 
-**Note**: Task 5 (DDD Epic #375) completed implementation of explicit typed Protocol interfaces (ports) per bounded context's application layer to fully invert dependencies on external systems and cross-context abstractions. This enables deterministic testing, side-effect isolation, and clean adapter swapping.
+**Note**: Task 5 (DDD Epic #375) completed implementation of explicit typed Protocol interfaces (ports) per bounded context's application layer to fully invert dependencies on external systems and cross-context abstractions. Task 6 (DDD Epic #375 Phase 6) completed implementation of concrete infrastructure adapters satisfying these port protocols, with anti-corruption layers for clean external system integration. This enables deterministic testing, side-effect isolation, clean adapter swapping, and proper separation between domain logic and external system concerns.
