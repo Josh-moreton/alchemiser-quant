@@ -9,18 +9,17 @@ while keeping AWS Lambda specifics isolated from application logic.
 from __future__ import annotations
 
 import logging
-import os
-from typing import Any
 
 from the_alchemiser.anti_corruption.serialization.signal_serializer import SignalSerializer
+from the_alchemiser.cross_context.eventing import InMemoryEventBus
 from the_alchemiser.infrastructure.config import Settings, load_settings
 from the_alchemiser.shared_kernel.exceptions.base_exceptions import ConfigurationError
 from the_alchemiser.strategy.application.use_cases.generate_signals import GenerateSignalsUseCase
-from the_alchemiser.strategy.infrastructure.adapters.alpaca_market_data_adapter import (
-    AlpacaMarketDataAdapter,
-)
 from the_alchemiser.strategy.infrastructure.adapters.event_bus_signal_publisher_adapter import (
     EventBusSignalPublisherAdapter,
+)
+from the_alchemiser.strategy.infrastructure.adapters.in_memory_market_data_adapter import (
+    InMemoryMarketDataAdapter,
 )
 
 logger = logging.getLogger(__name__)
@@ -51,6 +50,7 @@ def bootstrap_strategy_context() -> StrategyBootstrapContext:
         
     Raises:
         ConfigurationError: If required configuration is missing or invalid
+
     """
     logger.info("Bootstrapping Strategy context for Lambda execution")
     
@@ -58,22 +58,13 @@ def bootstrap_strategy_context() -> StrategyBootstrapContext:
         # Load configuration from environment
         config = load_settings()
         
-        # Create market data adapter (using Alpaca)
-        # TODO: Add proper credential handling
-        alpaca_api_key = os.getenv("ALPACA_API_KEY")
-        alpaca_secret_key = os.getenv("ALPACA_SECRET_KEY")
+        # Create market data adapter (using in-memory for testing/demo)
+        # TODO: Switch to real Alpaca adapter for production
+        market_data_adapter = InMemoryMarketDataAdapter()
         
-        if not alpaca_api_key or not alpaca_secret_key:
-            raise ConfigurationError("Missing required Alpaca API credentials")
-        
-        market_data_adapter = AlpacaMarketDataAdapter(
-            api_key=alpaca_api_key,
-            secret_key=alpaca_secret_key,
-            paper_trading=config.alpaca.paper_trading,
-        )
-        
-        # Create signal publisher (using EventBus)
-        signal_publisher = EventBusSignalPublisherAdapter()
+        # Create EventBus and signal publisher
+        event_bus = InMemoryEventBus()
+        signal_publisher = EventBusSignalPublisherAdapter(event_bus)
         
         # Create use case
         generate_signals_use_case = GenerateSignalsUseCase(

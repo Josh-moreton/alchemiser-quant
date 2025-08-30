@@ -50,6 +50,7 @@ def _parse_sqs_plan_record(record: dict[str, Any]) -> RebalancePlanContractV1:
         
     Raises:
         ValueError: If record cannot be parsed
+
     """
     try:
         # Get message body (might be JSON string)
@@ -94,8 +95,9 @@ def handler(event: dict, context: Any) -> dict[str, Any]:
         
     Returns:
         dict with processing status and metrics
+
     """
-    correlation_id = getattr(context, 'aws_request_id', 'unknown')
+    correlation_id = getattr(context, "aws_request_id", "unknown")
     records = event.get("Records", [])
     
     logger.info("Execution plan consumer invoked", extra={

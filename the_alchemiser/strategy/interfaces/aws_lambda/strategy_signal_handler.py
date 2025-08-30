@@ -12,7 +12,6 @@ Action: GenerateSignalsUseCase -> publish SignalContractV1 events
 
 from __future__ import annotations
 
-import json
 import logging
 from typing import Any
 
@@ -21,9 +20,7 @@ from the_alchemiser.shared_kernel.exceptions.base_exceptions import (
     DataAccessError,
 )
 from the_alchemiser.shared_kernel.value_objects.symbol import Symbol
-from the_alchemiser.strategy.application.contracts.signal_contract_v1 import SignalContractV1
-from the_alchemiser.strategy.domain.exceptions import SymbolNotFoundError
-from the_alchemiser.strategy.infrastructure.adapters.exceptions import PublishError
+from the_alchemiser.strategy.domain.exceptions import PublishError, SymbolNotFoundError
 
 from .bootstrap import bootstrap_strategy_context
 
@@ -59,8 +56,9 @@ def handler(event: dict, context: Any) -> dict[str, Any]:
         
     Returns:
         dict with processing status and metrics
+
     """
-    correlation_id = getattr(context, 'aws_request_id', 'unknown')
+    correlation_id = getattr(context, "aws_request_id", "unknown")
     logger.info("Strategy signal handler invoked", extra={
         "correlation_id": correlation_id,
         "event_source": event.get("source", "unknown")

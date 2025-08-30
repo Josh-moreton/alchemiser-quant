@@ -77,9 +77,9 @@ Every module is classified under one of these business units:
 - `the_alchemiser/strategy/infrastructure/utils/price_utils.py` - Price utility functions
 - `the_alchemiser/strategy/interfaces/__init__.py` - Strategy interfaces layer
 - `the_alchemiser/strategy/interfaces/event_wiring.py` - Event subscription wiring for Strategy context
-- `the_alchemiser/strategy/interfaces/lambda/__init__.py` - Lambda interface layer package
-- `the_alchemiser/strategy/interfaces/lambda/bootstrap.py` - Bootstrap helper for Strategy Lambda handlers
-- `the_alchemiser/strategy/interfaces/lambda/strategy_signal_handler.py` - AWS Lambda handler for scheduled signal generation
+- `the_alchemiser/strategy/interfaces/aws_lambda/__init__.py` - Lambda interface layer package
+- `the_alchemiser/strategy/interfaces/aws_lambda/bootstrap.py` - Bootstrap helper for Strategy Lambda handlers
+- `the_alchemiser/strategy/interfaces/aws_lambda/strategy_signal_handler.py` - AWS Lambda handler for scheduled signal generation
 
 ### Portfolio Context
 **Business Unit**: portfolio assessment & management | **Status**: current
@@ -107,10 +107,10 @@ Every module is classified under one of these business units:
 - `the_alchemiser/portfolio/infrastructure/adapters/dynamodb_position_repository_adapter.py` - DynamoDB position repository adapter implementing PositionRepositoryPort protocol
 - `the_alchemiser/portfolio/interfaces/__init__.py` - Portfolio interfaces layer
 - `the_alchemiser/portfolio/interfaces/event_wiring.py` - Event subscription wiring for Portfolio context
-- `the_alchemiser/portfolio/interfaces/lambda/__init__.py` - Lambda interface layer package
-- `the_alchemiser/portfolio/interfaces/lambda/bootstrap.py` - Bootstrap helper for Portfolio Lambda handlers
-- `the_alchemiser/portfolio/interfaces/lambda/signal_consumer_handler.py` - AWS Lambda handler for consuming strategy signals
-- `the_alchemiser/portfolio/interfaces/lambda/execution_report_consumer_handler.py` - AWS Lambda handler for consuming execution reports
+- `the_alchemiser/portfolio/interfaces/aws_lambda/__init__.py` - Lambda interface layer package
+- `the_alchemiser/portfolio/interfaces/aws_lambda/bootstrap.py` - Bootstrap helper for Portfolio Lambda handlers
+- `the_alchemiser/portfolio/interfaces/aws_lambda/signal_consumer_handler.py` - AWS Lambda handler for consuming strategy signals
+- `the_alchemiser/portfolio/interfaces/aws_lambda/execution_report_consumer_handler.py` - AWS Lambda handler for consuming execution reports
 
 ### Execution Context
 **Business Unit**: order execution/placement | **Status**: current
@@ -132,9 +132,9 @@ Every module is classified under one of these business units:
 - `the_alchemiser/execution/infrastructure/adapters/alpaca_order_router_adapter.py` - Alpaca order router adapter implementing OrderRouterPort protocol
 - `the_alchemiser/execution/interfaces/__init__.py` - Execution interfaces layer
 - `the_alchemiser/execution/interfaces/event_wiring.py` - Event subscription wiring for Execution context
-- `the_alchemiser/execution/interfaces/lambda/__init__.py` - Lambda interface layer package
-- `the_alchemiser/execution/interfaces/lambda/bootstrap.py` - Bootstrap helper for Execution Lambda handlers
-- `the_alchemiser/execution/interfaces/lambda/plan_consumer_handler.py` - AWS Lambda handler for consuming rebalance plans
+- `the_alchemiser/execution/interfaces/aws_lambda/__init__.py` - Lambda interface layer package
+- `the_alchemiser/execution/interfaces/aws_lambda/bootstrap.py` - Bootstrap helper for Execution Lambda handlers
+- `the_alchemiser/execution/interfaces/aws_lambda/plan_consumer_handler.py` - AWS Lambda handler for consuming rebalance plans
 - `the_alchemiser/portfolio/domain/__init__.py` - Portfolio domain layer
 - `the_alchemiser/portfolio/application/__init__.py` - Portfolio application layer
 - `the_alchemiser/portfolio/infrastructure/__init__.py` - Portfolio infrastructure layer

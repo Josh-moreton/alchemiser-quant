@@ -100,7 +100,7 @@ Resources:
       PackageType: Zip
       Runtime: python3.12
       CodeUri: .
-      Handler: the_alchemiser.strategy.interfaces.lambda.strategy_signal_handler.handler
+      Handler: the_alchemiser.strategy.interfaces.aws_lambda.strategy_signal_handler.handler
       Role: !GetAtt TradingSystemExecutionRole.Arn
       Layers:
         - !Ref DependenciesLayer
@@ -119,7 +119,7 @@ Resources:
       PackageType: Zip
       Runtime: python3.12
       CodeUri: .
-      Handler: the_alchemiser.portfolio.interfaces.lambda.signal_consumer_handler.handler
+      Handler: the_alchemiser.portfolio.interfaces.aws_lambda.signal_consumer_handler.handler
       Role: !GetAtt TradingSystemExecutionRole.Arn
       Layers:
         - !Ref DependenciesLayer
@@ -139,7 +139,7 @@ Resources:
       PackageType: Zip
       Runtime: python3.12
       CodeUri: .
-      Handler: the_alchemiser.execution.interfaces.lambda.plan_consumer_handler.handler
+      Handler: the_alchemiser.execution.interfaces.aws_lambda.plan_consumer_handler.handler
       Role: !GetAtt TradingSystemExecutionRole.Arn
       Layers:
         - !Ref DependenciesLayer
@@ -159,7 +159,7 @@ Resources:
       PackageType: Zip
       Runtime: python3.12
       CodeUri: .
-      Handler: the_alchemiser.portfolio.interfaces.lambda.execution_report_consumer_handler.handler
+      Handler: the_alchemiser.portfolio.interfaces.aws_lambda.execution_report_consumer_handler.handler
       Role: !GetAtt TradingSystemExecutionRole.Arn
       Layers:
         - !Ref DependenciesLayer

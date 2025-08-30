@@ -11,6 +11,7 @@ from __future__ import annotations
 import logging
 
 from the_alchemiser.anti_corruption.serialization.signal_serializer import SignalSerializer
+from the_alchemiser.cross_context.eventing import InMemoryEventBus
 from the_alchemiser.infrastructure.config import Settings, load_settings
 from the_alchemiser.portfolio.application.use_cases.generate_plan import GeneratePlanUseCase
 from the_alchemiser.portfolio.application.use_cases.update_portfolio import UpdatePortfolioUseCase
@@ -49,6 +50,7 @@ def bootstrap_portfolio_context() -> PortfolioBootstrapContext:
         
     Raises:
         ConfigurationError: If required configuration is missing or invalid
+
     """
     logger.info("Bootstrapping Portfolio context for Lambda execution")
     
@@ -56,8 +58,9 @@ def bootstrap_portfolio_context() -> PortfolioBootstrapContext:
         # Load configuration from environment
         config = load_settings()
         
-        # Create plan publisher (using EventBus)
-        plan_publisher = EventBusPlanPublisherAdapter()
+        # Create EventBus and plan publisher
+        event_bus = InMemoryEventBus()
+        plan_publisher = EventBusPlanPublisherAdapter(event_bus)
         
         # Create use cases
         generate_plan_use_case = GeneratePlanUseCase(plan_publisher=plan_publisher)

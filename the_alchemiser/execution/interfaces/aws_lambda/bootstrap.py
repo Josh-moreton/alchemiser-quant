@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import logging
 
+from the_alchemiser.cross_context.eventing import InMemoryEventBus
 from the_alchemiser.execution.application.use_cases.execute_plan import ExecutePlanUseCase
 from the_alchemiser.execution.infrastructure.adapters.event_bus_execution_report_publisher_adapter import (
     EventBusExecutionReportPublisherAdapter,
@@ -43,6 +44,7 @@ def bootstrap_execution_context() -> ExecutionBootstrapContext:
         
     Raises:
         ConfigurationError: If required configuration is missing or invalid
+
     """
     logger.info("Bootstrapping Execution context for Lambda execution")
     
@@ -50,8 +52,9 @@ def bootstrap_execution_context() -> ExecutionBootstrapContext:
         # Load configuration from environment
         config = load_settings()
         
-        # Create execution report publisher (using EventBus)
-        execution_report_publisher = EventBusExecutionReportPublisherAdapter()
+        # Create EventBus and execution report publisher
+        event_bus = InMemoryEventBus()
+        execution_report_publisher = EventBusExecutionReportPublisherAdapter(event_bus)
         
         # Create use case
         execute_plan_use_case = ExecutePlanUseCase(

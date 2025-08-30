@@ -1,13 +1,13 @@
 """Business Unit: portfolio assessment & management | Status: current.
 
-AWS Lambda handler for consuming strategy signals from SQS.
+AWS Lambda handler for consuming execution reports from SQS.
 
-This handler is triggered by SQS events containing SignalContractV1 JSON payloads
-and invokes the GeneratePlanUseCase to create rebalance plans for cross-context
-publication.
+This handler is triggered by SQS events containing ExecutionReportContractV1 JSON
+payloads and invokes the UpdatePortfolioUseCase to update portfolio state based
+on execution fills.
 
-Trigger: SQS event carrying SignalContractV1 JSON
-Action: parse -> GeneratePlanUseCase -> publish RebalancePlanContractV1
+Trigger: SQS event carrying ExecutionReportContractV1 JSON
+Action: parse -> UpdatePortfolioUseCase -> persist updated positions
 """
 
 from __future__ import annotations
@@ -16,10 +16,12 @@ import json
 import logging
 from typing import Any
 
+from the_alchemiser.execution.application.contracts.execution_report_contract_v1 import (
+    ExecutionReportContractV1,
+)
 from the_alchemiser.shared_kernel.exceptions.base_exceptions import (
     ConfigurationError,
 )
-from the_alchemiser.strategy.application.contracts.signal_contract_v1 import SignalContractV1
 
 from .bootstrap import bootstrap_portfolio_context
 
@@ -37,17 +39,18 @@ def _get_bootstrap_context():
     return _bootstrap_context
 
 
-def _parse_sqs_signal_record(record: dict[str, Any]) -> SignalContractV1:
-    """Parse SQS record containing SignalContractV1 JSON.
+def _parse_sqs_report_record(record: dict[str, Any]) -> ExecutionReportContractV1:
+    """Parse SQS record containing ExecutionReportContractV1 JSON.
     
     Args:
         record: SQS record from event
         
     Returns:
-        Parsed SignalContractV1 instance
+        Parsed ExecutionReportContractV1 instance
         
     Raises:
         ValueError: If record cannot be parsed
+
     """
     try:
         # Get message body (might be JSON string)
@@ -60,26 +63,26 @@ def _parse_sqs_signal_record(record: dict[str, Any]) -> SignalContractV1:
         # Handle potential SQS message wrapping
         if "Message" in message_data:
             # SNS -> SQS wrapping
-            signal_data = json.loads(message_data["Message"])
+            report_data = json.loads(message_data["Message"])
         else:
             # Direct SQS message
-            signal_data = message_data
+            report_data = message_data
             
-        # Parse signal contract
-        return SignalContractV1.model_validate(signal_data)
+        # Parse execution report contract
+        return ExecutionReportContractV1.model_validate(report_data)
         
     except (json.JSONDecodeError, KeyError, ValueError) as e:
-        raise ValueError(f"Failed to parse SQS signal record: {e}") from e
+        raise ValueError(f"Failed to parse SQS execution report record: {e}") from e
 
 
 def handler(event: dict, context: Any) -> dict[str, Any]:
-    """AWS Lambda handler for portfolio signal consumption.
+    """AWS Lambda handler for portfolio execution report consumption.
     
     Expected event format (SQS):
     {
         "Records": [
             {
-                "body": "{...SignalContractV1 JSON...}",
+                "body": "{...ExecutionReportContractV1 JSON...}",
                 "messageId": "...",
                 "receiptHandle": "..."
             }
@@ -92,19 +95,20 @@ def handler(event: dict, context: Any) -> dict[str, Any]:
         
     Returns:
         dict with processing status and metrics
+
     """
-    correlation_id = getattr(context, 'aws_request_id', 'unknown')
+    correlation_id = getattr(context, "aws_request_id", "unknown")
     records = event.get("Records", [])
     
-    logger.info("Portfolio signal consumer invoked", extra={
+    logger.info("Portfolio execution report consumer invoked", extra={
         "correlation_id": correlation_id,
         "record_count": len(records)
     })
     
     processed = 0
     skipped = 0
-    plans_generated = 0
-    processed_message_ids = []
+    total_fills = 0
+    processed_report_ids = []
     
     try:
         # Get dependencies
@@ -114,35 +118,35 @@ def handler(event: dict, context: Any) -> dict[str, Any]:
             message_id = record.get("messageId", "unknown")
             
             try:
-                # Parse signal from SQS record
-                signal = _parse_sqs_signal_record(record)
+                # Parse execution report from SQS record
+                report = _parse_sqs_report_record(record)
                 
-                logger.debug("Processing signal", extra={
+                logger.debug("Processing execution report", extra={
                     "message_id": message_id,
-                    "signal_id": str(signal.message_id),
-                    "symbol": str(signal.symbol),
-                    "action": signal.action.value
+                    "report_id": str(report.report_id),
+                    "fills_count": len(report.fills),
+                    "correlation_id": str(report.correlation_id)
                 })
                 
                 # TODO: Implement idempotency check here if needed
                 # For now, assume SQS deduplication handles this
                 
                 # Execute use case
-                bootstrap_ctx.generate_plan_use_case.handle_signal(signal)
+                bootstrap_ctx.update_portfolio_use_case.handle_execution_report(report)
                 
                 processed += 1
-                plans_generated += 1  # Assuming each signal generates one plan
-                processed_message_ids.append(str(signal.message_id))
+                total_fills += len(report.fills)
+                processed_report_ids.append(str(report.report_id))
                 
             except ValueError as e:
                 # Parsing error - skip this record and continue
                 logger.warning(
-                    "Skipped unparseable signal record: %s", 
+                    "Skipped unparseable execution report record: %s", 
                     str(e),
                     extra={
                         "message_id": message_id,
                         "correlation_id": correlation_id,
-                        "component": "signal_consumer_handler"
+                        "component": "execution_report_consumer_handler"
                     }
                 )
                 skipped += 1
@@ -151,14 +155,14 @@ def handler(event: dict, context: Any) -> dict[str, Any]:
             except Exception as e:
                 # Use case execution error - log and re-raise to ensure retry
                 logger.error(
-                    "Failed to process signal %s: %s",
+                    "Failed to process execution report %s: %s",
                     message_id,
                     str(e),
                     extra={
                         "message_id": message_id,
                         "correlation_id": correlation_id,
                         "error_type": type(e).__name__,
-                        "component": "signal_consumer_handler"
+                        "component": "execution_report_consumer_handler"
                     },
                     exc_info=True
                 )
@@ -169,16 +173,16 @@ def handler(event: dict, context: Any) -> dict[str, Any]:
             "status": "success",
             "processed": processed,
             "skipped": skipped,
-            "plans_generated": plans_generated,
+            "total_fills": total_fills,
             "correlation_id": correlation_id,
-            "processed_signal_ids": processed_message_ids
+            "processed_report_ids": processed_report_ids
         }
         
-        logger.info("Portfolio signal consumption completed", extra={
+        logger.info("Portfolio execution report consumption completed", extra={
             "correlation_id": correlation_id,
             "processed": processed,
             "skipped": skipped,
-            "plans_generated": plans_generated
+            "total_fills": total_fills
         })
         
         return result
@@ -191,7 +195,7 @@ def handler(event: dict, context: Any) -> dict[str, Any]:
             extra={
                 "correlation_id": correlation_id,
                 "error_type": type(e).__name__,
-                "component": "signal_consumer_handler"
+                "component": "execution_report_consumer_handler"
             },
             exc_info=True
         )
@@ -200,12 +204,12 @@ def handler(event: dict, context: Any) -> dict[str, Any]:
     except Exception as e:
         # Unexpected error - log and re-raise
         logger.error(
-            "Unexpected error in portfolio signal consumer: %s",
+            "Unexpected error in portfolio execution report consumer: %s",
             str(e),
             extra={
                 "correlation_id": correlation_id,
                 "error_type": type(e).__name__,
-                "component": "signal_consumer_handler"
+                "component": "execution_report_consumer_handler"
             },
             exc_info=True
         )
