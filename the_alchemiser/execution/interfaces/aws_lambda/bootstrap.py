@@ -69,5 +69,9 @@ def bootstrap_execution_context() -> ExecutionBootstrapContext:
         )
         
     except Exception as e:
-        logger.error(f"Failed to bootstrap Execution context: {e}", exc_info=True)
+        logger.error(
+            "Failed to bootstrap Execution context",
+            extra={"error": str(e)},
+            exc_info=True,
+        )
         raise ConfigurationError(f"Execution context bootstrap failed: {e}") from e
