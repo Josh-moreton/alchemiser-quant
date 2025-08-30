@@ -378,11 +378,8 @@ class OrderCompletionMonitor:
 
         """
         try:
-            # Try to get the lifecycle dispatcher if available
+            # Try to get the lifecycle events if available
             # This is a best-effort attempt to emit events
-            from the_alchemiser.application.trading.lifecycle.dispatcher import (
-                LifecycleEventDispatcher,
-            )
             from the_alchemiser.domain.trading.lifecycle.events import (
                 LifecycleEventType,
                 OrderLifecycleEvent,

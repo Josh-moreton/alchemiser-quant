@@ -109,7 +109,7 @@ class ReportingPort(Protocol):
     is kept concrete rather than abstract.
     """
 
-    def emit_rebalance_summary(self, preview: dict[str, float]) -> None:
+    def emit_rebalance_summary(self, preview: dict[str, float]) -> None:  # noqa: ARG002
         """Emit rebalancing summary for reporting/notification."""
         ...
 

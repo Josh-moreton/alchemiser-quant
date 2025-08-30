@@ -39,12 +39,12 @@ from the_alchemiser.infrastructure.logging.logging_utils import (
 )
 from the_alchemiser.infrastructure.secrets.secrets_manager import secrets_manager
 from the_alchemiser.interfaces.cli.cli_formatter import render_account_info
-from the_alchemiser.services.errors.exceptions import (
+from the_alchemiser.infrastructure.error_handling import (
     AlchemiserError,
     StrategyExecutionError,
     TradingClientError,
 )
-from the_alchemiser.services.trading.trading_service_manager import (
+from the_alchemiser.application.trading.service_manager import (
     TradingServiceManager,
 )
 from the_alchemiser.shared_kernel.value_objects.symbol import Symbol
@@ -434,7 +434,7 @@ def trade(
     ),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable verbose output"),
     no_header: bool = typer.Option(False, "--no-header", help="Skip welcome header"),
-    force: bool = typer.Option(False, "--force", help="Skip confirmation prompts"),
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompts"),  # TODO: Implement force mode
     show_tracking: bool = typer.Option(
         False, "--show-tracking", help="Display strategy performance tracking after execution"
     ),
@@ -449,6 +449,7 @@ def trade(
 
     [bold red]⚠️  Use --live flag for real money trading![/bold red]
     """
+    _ = force  # TODO: Implement force mode to skip confirmations
     if not no_header:
         show_welcome()
 

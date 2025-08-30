@@ -203,4 +203,5 @@ class OrderLifecycleManager:
         """
         # For now, just return 0 since we don't track creation time
         # This is a placeholder for future implementation that tracks timestamps
+        _ = max_age_hours  # TODO: Implement actual cleanup logic
         return 0

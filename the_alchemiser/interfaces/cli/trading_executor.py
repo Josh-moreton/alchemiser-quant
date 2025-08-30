@@ -41,7 +41,7 @@ from the_alchemiser.interfaces.cli.cli_formatter import (
 )
 from the_alchemiser.interfaces.schemas.common import MultiStrategyExecutionResultDTO
 from the_alchemiser.interfaces.schemas.orders import ValidatedOrderDTO
-from the_alchemiser.services.errors.exceptions import (
+from the_alchemiser.infrastructure.error_handling import (
     NotificationError,
     StrategyExecutionError,
     TradingClientError,
@@ -202,7 +202,7 @@ class TradingExecutor:
             api_key = self.container.config.alpaca_api_key()
             secret_key = self.container.config.alpaca_secret_key()
             paper = self.container.config.paper_trading()
-            from the_alchemiser.services.trading.trading_service_manager import (
+            from the_alchemiser.application.trading import (
                 TradingServiceManager,
             )
 
@@ -384,7 +384,13 @@ class TradingExecutor:
     def _handle_trading_error(self, error: Exception, mode_str: str) -> None:
         """Handle trading execution errors."""
         try:
-            from the_alchemiser.services.errors.handler import (
+            # TODO: Migrate to use infrastructure error handling when handler is fully migrated
+            # from the_alchemiser.infrastructure.error_handling import (
+            #     TradingSystemErrorHandler,
+            #     send_error_notification_if_needed,
+            # )
+            # For now, use existing implementation
+            from the_alchemiser.infrastructure.error_handling import (
                 TradingSystemErrorHandler,
                 send_error_notification_if_needed,
             )

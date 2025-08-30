@@ -172,6 +172,30 @@ Every module is classified under one of these business units:
 - `the_alchemiser/interfaces/utils/__init__.py` - Interface utilities package
 - `the_alchemiser/interfaces/utils/serialization.py` - Boundary-safe serialization helpers
 
+### Infrastructure Services Migration (Added in Task 3 / PR #XXX)
+**Business Unit**: utilities | **Status**: current
+
+- `the_alchemiser/infrastructure/error_handling/__init__.py` - Error handling infrastructure package
+- `the_alchemiser/infrastructure/error_handling/exceptions.py` - Domain-specific exception classes
+- `the_alchemiser/infrastructure/error_handling/decorators.py` - Exception translation decorators
+- `the_alchemiser/infrastructure/error_handling/context.py` - Error context utilities
+- `the_alchemiser/infrastructure/error_handling/handler.py` - Trading system error handler (migrated)
+- `the_alchemiser/infrastructure/market_data/__init__.py` - Market data infrastructure package
+- `the_alchemiser/infrastructure/market_data/market_data_service.py` - Enhanced market data service (migrated)
+- `the_alchemiser/infrastructure/brokers/__init__.py` - Broker infrastructure package
+- `the_alchemiser/infrastructure/brokers/alpaca_manager.py` - Alpaca broker manager (migrated)
+- `the_alchemiser/infrastructure/dependency_injection/factory.py` - Service factory (migrated)
+
+### Application Services Migration (Added in Task 3 / PR #XXX)
+**Business Unit**: portfolio assessment & management, order execution/placement | **Status**: current
+
+- `the_alchemiser/application/account/__init__.py` - Account services package
+- `the_alchemiser/application/account/account_service.py` - Account management service (migrated)
+- `the_alchemiser/application/account/account_utils.py` - Account utility functions (migrated)
+- `the_alchemiser/application/trading/service_manager.py` - Trading service manager (migrated)
+- `the_alchemiser/application/trading/order_service.py` - Order management service (migrated)
+- `the_alchemiser/application/trading/position_service.py` - Position management service (migrated)
+
 ---
 
 ## Task 2 Migration (PR #398) – Retirement of `utils/` Module
@@ -183,6 +207,42 @@ Task 2 of Epic #375 removed the legacy monolithic `the_alchemiser/utils/` module
 - Serialization utilities → interface utilities (`the_alchemiser/interfaces/utils/serialization.py`)
 
 All imports across impacted files were updated; no remaining references to the removed `utils` namespace exist.
+
+## Task 3 Migration (PR #XXX) – Retirement of `services/` Module
+
+Task 3 of Epic #375 migrated the legacy monolithic `the_alchemiser/services/` module. Responsibilities were redistributed to bounded contexts and infrastructure layers:
+
+### Services Module Migration
+- **Error Handling Services** (`services.errors.*`) → **Infrastructure Error Handling** (`infrastructure.error_handling.*`)
+  - Exception classes moved to `infrastructure/error_handling/exceptions.py`
+  - Translation decorators moved to `infrastructure/error_handling/decorators.py`
+  - Error context utilities moved to `infrastructure/error_handling/context.py`
+  
+- **Trading Services** (`services.trading.*`) → **Application Trading Layer** (`application.trading.*`)
+  - `TradingServiceManager` moved to `application/trading/service_manager.py`
+  - `OrderService` and `PositionService` moved to `application/trading/`
+  
+- **Market Data Services** (`services.market_data.*`) → **Infrastructure Market Data** (`infrastructure.market_data.*`)
+  - `MarketDataService` moved to `infrastructure/market_data/market_data_service.py`
+  
+- **Repository Services** (`services.repository.*`) → **Infrastructure Brokers** (`infrastructure.brokers.*`)
+  - `AlpacaManager` moved to `infrastructure/brokers/alpaca_manager.py`
+  
+- **Account Services** (`services.account.*`) → **Application Account Layer** (`application.account.*`)
+  - `AccountService` moved to `application/account/account_service.py`
+  - `AccountUtils` moved to `application/account/account_utils.py`
+  
+- **Shared Services** (`services.shared.*`) → **Infrastructure Utilities**
+  - `ServiceFactory` moved to `infrastructure/dependency_injection/factory.py`
+
+### Consumer Updates Completed
+- **Lambda Handler**: Updated error handling imports to use `infrastructure.error_handling`
+- **Main Application**: Updated service factory and error handling imports  
+- **CLI Interfaces**: Updated error handling and trading service manager imports
+- **Application Layer**: Updated 70+ imports across execution, trading, and strategy contexts
+- **Infrastructure Layer**: Updated dependency injection service providers
+
+All critical imports updated; 21 remaining references to legacy services are marked as TODOs for future handler migration completion.
 
 ## Summary
 

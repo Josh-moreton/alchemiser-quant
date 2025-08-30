@@ -42,7 +42,8 @@ from the_alchemiser.anti_corruption.brokers.order_status_mapping import (
 )
 from the_alchemiser.domain.trading.errors import OrderError, classify_validation_failure
 from the_alchemiser.interfaces.schemas.orders import OrderRequestDTO, ValidatedOrderDTO
-from the_alchemiser.services.errors import TradingSystemErrorHandler
+# TODO: Migrate TradingSystemErrorHandler to infrastructure when dependencies resolved
+from the_alchemiser.infrastructure.error_handling import TradingSystemErrorHandler
 from the_alchemiser.shared_kernel.exceptions.base_exceptions import ValidationError
 
 

@@ -433,7 +433,7 @@ class PortfolioBuilder:
 
         # Use the same logic as CLI - import the utility functions
         try:
-            from the_alchemiser.services.account.account_utils import (
+            from the_alchemiser.application.account.account_utils import (
                 extract_current_position_values,
             )
 

@@ -16,7 +16,8 @@ from typing import TYPE_CHECKING, Any, Protocol
 
 from alpaca.trading.enums import OrderSide
 
-from the_alchemiser.services.errors.exceptions import (
+# TODO: These exceptions may need to be added to infrastructure error handling
+from the_alchemiser.infrastructure.error_handling.exceptions import (
     OrderPlacementError,
     OrderTimeoutError,
     SpreadAnalysisError,

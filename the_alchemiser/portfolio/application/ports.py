@@ -165,7 +165,7 @@ class PortfolioStateRepositoryPort(Protocol):
     Idempotency: save_* methods with same data have no additional effect
     """
     
-    def save_portfolio_snapshot(
+    def save_portfolio_snapshot(  # noqa: ARG002
         self, 
         portfolio_id: UUID,
         snapshot: PortfolioSnapshotVO,
@@ -184,7 +184,7 @@ class PortfolioStateRepositoryPort(Protocol):
         """
         ...
     
-    def get_latest_snapshot(self, portfolio_id: UUID) -> PortfolioSnapshotVO | None:
+    def get_latest_snapshot(self, portfolio_id: UUID) -> PortfolioSnapshotVO | None:  # noqa: ARG002
         """Get most recent portfolio snapshot.
         
         Args:
