@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from typing import Any, Dict
 
-from the_alchemiser.domain.shared_kernel import ActionType
+from the_alchemiser.shared_kernel.value_objects.action_type import ActionType
 from the_alchemiser.portfolio.application.contracts.rebalance_plan_contract_v1 import PlannedOrderV1
 
 
