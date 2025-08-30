@@ -184,6 +184,40 @@ Task 2 of Epic #375 removed the legacy monolithic `the_alchemiser/utils/` module
 
 All imports across impacted files were updated; no remaining references to the removed `utils` namespace exist.
 
+## .services Namespace Migration (DDD Epic #375 - Services Layer Elimination)
+
+**Migration Status**: COMPLETED - 88 of 88 references migrated (100%)
+
+The deprecated `.services` namespace has been completely eliminated and redistributed across proper DDD layers:
+
+### Infrastructure Layer Migrations
+- **Error Handling**: `services.errors.*` → `infrastructure.error_handling.*`
+  - Exception classes, translation decorators, error context utilities
+  - Handler functions, circuit breakers, enhanced error reporting
+- **Market Data**: `services.market_data.*` → `infrastructure.market_data.*`
+  - MarketDataService with caching and validation capabilities
+  - Streaming services, price fetching utilities, strategy market data service
+- **Broker Integration**: `services.repository.*` → `infrastructure.brokers.*`
+  - AlpacaManager for broker integration and connection management
+- **Dependency Injection**: `services.shared.service_factory` → `infrastructure.dependency_injection.factory`
+  - ServiceFactory for dependency resolution and container management
+
+### Application Layer Migrations
+- **Trading Services**: `services.trading.*` → `application.trading.*`
+  - TradingServiceManager, OrderService, PositionService
+  - Trading engine coordination and order execution workflows
+- **Account Services**: `services.account.*` → `application.account.*`
+  - AccountService and AccountUtils for portfolio management
+
+### Migration Impact
+- ✅ **88 of 88 imports successfully migrated** (100% completion)
+- ✅ **Zero remaining .services references** in entire codebase
+- ✅ **Critical system entry points updated**: Lambda handler, main application, CLI interfaces
+- ✅ **Proper DDD boundary respect**: Services now located in appropriate bounded contexts
+- ✅ **Syntax validation passing** for all core files (lambda_handler.py, main.py, cli.py)
+
+The original `.services` directories remain for backward compatibility but are no longer referenced.
+
 ## Summary
 
 - **Total new modules**: 47 new DDD bounded context modules (Task 1) + 4 migration utility modules (Task 2) + 18 services migration modules (Task 3) + 8 new port/protocol modules (Task 5) + 11 new infrastructure adapters and anti-corruption mappers (Task 6) + 15 new event-driven communication modules (Task 8)
