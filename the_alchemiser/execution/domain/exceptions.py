@@ -10,7 +10,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from the_alchemiser.shared_kernel.exceptions.base_exceptions import AlchemiserError
+from the_alchemiser.shared_kernel.exceptions.base_exceptions import (
+    AlchemiserError,
+    DataAccessError
+)
 
 
 class TradingClientError(AlchemiserError):
@@ -152,3 +155,19 @@ class MarketClosedError(TradingClientError):
 
         super().__init__(message, context)
         self.next_open_time = next_open_time
+
+
+class OrderExecutionError(AlchemiserError):
+    """Exception raised when broker order operations fail."""
+
+
+class OrderNotFoundError(DataAccessError):
+    """Exception raised when order ID is not found."""
+
+
+class ProcessingError(AlchemiserError):
+    """Exception raised when plan processing fails."""
+
+
+class PublishError(AlchemiserError):
+    """Exception raised when execution report publishing fails."""
