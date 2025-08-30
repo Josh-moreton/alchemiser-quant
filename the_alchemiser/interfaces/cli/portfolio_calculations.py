@@ -12,7 +12,7 @@ from __future__ import annotations
 from typing import Any
 
 from the_alchemiser.domain.types import AccountInfo
-from the_alchemiser.services.account.account_utils import (
+from the_alchemiser.application.account.account_utils import (
     calculate_position_target_deltas,
     extract_current_position_values,
 )

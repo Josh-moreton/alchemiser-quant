@@ -17,8 +17,8 @@ from the_alchemiser.anti_corruption.serialization.strategy_signal_mapping import
 )
 from the_alchemiser.domain.types import AccountInfo
 from the_alchemiser.interfaces.schemas.common import MultiStrategyExecutionResultDTO
-from the_alchemiser.services.errors import handle_errors_with_retry
-from the_alchemiser.services.errors.exceptions import (
+from the_alchemiser.infrastructure.error_handling import handle_errors_with_retry
+from the_alchemiser.infrastructure.error_handling.exceptions import (
     ConfigurationError,
     DataProviderError,
     StrategyExecutionError,

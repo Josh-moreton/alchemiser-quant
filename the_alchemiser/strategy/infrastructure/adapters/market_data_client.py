@@ -16,7 +16,7 @@ import pandas as pd
 from alpaca.data.requests import StockBarsRequest
 from alpaca.data.timeframe import TimeFrame
 
-from the_alchemiser.services.repository.alpaca_manager import AlpacaManager
+from the_alchemiser.infrastructure.brokers.alpaca_manager import AlpacaManager
 from the_alchemiser.strategy.domain.exceptions import MarketDataError
 
 

@@ -343,7 +343,7 @@ def get_service_logger(service_name: str) -> logging.Logger:
         Logger instance using central configuration
 
     """
-    return logging.getLogger(f"the_alchemiser.services.{service_name}")
+    return logging.getLogger(f"the_alchemiser.infrastructure.{service_name}")
 
 
 def get_trading_logger(

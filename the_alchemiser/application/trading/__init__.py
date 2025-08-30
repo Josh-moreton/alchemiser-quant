@@ -1,9 +1,12 @@
-"""Business Unit: order execution/placement; Status: current.
+"""
+Business Unit: order execution/placement
+Status: current
 
-Trading engine and core trading functionality.
-
-This module contains the main trading engine, Alpaca client integration,
-and core trading orchestration logic.
+Trading services for order management and execution.
 """
 
-from __future__ import annotations
+from .trading_service_manager import TradingServiceManager
+from .order_service import OrderService
+from .position_service import PositionService
+
+__all__ = ["TradingServiceManager", "OrderService", "PositionService"]
