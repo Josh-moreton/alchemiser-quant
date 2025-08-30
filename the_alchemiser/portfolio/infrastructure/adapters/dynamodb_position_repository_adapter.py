@@ -102,7 +102,7 @@ class DynamoDbPositionRepositoryAdapter(PositionRepositoryPort):
                 item = self._mapper.position_to_dynamodb_item(position)
                 
                 # Add optimistic locking condition if position has version
-                if hasattr(position, 'version') and position.version > 1:
+                if position.version > 1:
                     transact_items.append({
                         "Put": {
                             "TableName": self._table.table_name,
