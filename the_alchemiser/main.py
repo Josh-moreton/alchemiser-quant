@@ -25,7 +25,7 @@ from the_alchemiser.infrastructure.logging.logging_utils import (
 )
 from the_alchemiser.interfaces.cli.signal_analyzer import SignalAnalyzer
 from the_alchemiser.interfaces.cli.trading_executor import TradingExecutor
-from the_alchemiser.services.errors.exceptions import (
+from the_alchemiser.infrastructure.error_handling import (
     ConfigurationError,
     DataProviderError,
     StrategyExecutionError,
@@ -39,7 +39,7 @@ try:
     from the_alchemiser.infrastructure.dependency_injection.application_container import (
         ApplicationContainer,
     )
-    from the_alchemiser.services.shared.service_factory import ServiceFactory
+    from the_alchemiser.infrastructure.dependency_injection.factory import ServiceFactory
 
     DI_AVAILABLE = True
 except ImportError:

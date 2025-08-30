@@ -39,12 +39,12 @@ from the_alchemiser.infrastructure.logging.logging_utils import (
 )
 from the_alchemiser.infrastructure.secrets.secrets_manager import secrets_manager
 from the_alchemiser.interfaces.cli.cli_formatter import render_account_info
-from the_alchemiser.services.errors.exceptions import (
+from the_alchemiser.infrastructure.error_handling import (
     AlchemiserError,
     StrategyExecutionError,
     TradingClientError,
 )
-from the_alchemiser.services.trading.trading_service_manager import (
+from the_alchemiser.application.trading.service_manager import (
     TradingServiceManager,
 )
 from the_alchemiser.shared_kernel.value_objects.symbol import Symbol
