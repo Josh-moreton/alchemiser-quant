@@ -77,7 +77,10 @@ def handler(event: dict, context: Any) -> dict[str, Any]:
         # Convert to Symbol value objects
         symbols = [Symbol(symbol_str) for symbol_str in symbols_data]
         
-        logger.info(f"Generating signals for {len(symbols)} symbols: {symbols_data}")
+        logger.info("Generating signals", extra={
+            "symbol_count": len(symbols),
+            "symbols": symbols_data
+        })
         
         # Execute use case
         published_signals = bootstrap_ctx.generate_signals_use_case.execute(symbols)
