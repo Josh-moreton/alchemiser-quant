@@ -4,7 +4,7 @@ DynamoDB position repository adapter implementing PositionRepositoryPort.
 """
 
 import logging
-from typing import Sequence
+from collections.abc import Sequence
 
 import boto3
 from botocore.exceptions import ClientError
@@ -27,6 +27,7 @@ class DynamoDbPositionRepositoryAdapter(PositionRepositoryPort):
         Args:
             table_name: DynamoDB table name for positions
             region_name: AWS region
+
         """
         dynamodb = boto3.resource("dynamodb", region_name=region_name)
         self._table = dynamodb.Table(table_name)
@@ -44,6 +45,7 @@ class DynamoDbPositionRepositoryAdapter(PositionRepositoryPort):
             
         Raises:
             DataAccessError: DynamoDB failure
+
         """
         try:
             self._logger.info("Loading all positions from DynamoDB")
@@ -90,6 +92,7 @@ class DynamoDbPositionRepositoryAdapter(PositionRepositoryPort):
         Raises:
             DataAccessError: DynamoDB failure
             ConcurrencyError: Optimistic lock violation
+
         """
         if not positions:
             self._logger.debug("No positions to save, skipping")
@@ -146,15 +149,14 @@ class DynamoDbPositionRepositoryAdapter(PositionRepositoryPort):
                 raise ConcurrencyError(
                     "Position was modified by another process"
                 ) from e
-            else:
-                self._logger.error(
-                    "DynamoDB error saving positions",
-                    error=str(e),
-                    error_code=error_code
-                )
-                raise DataAccessError(
-                    f"Failed to save positions to DynamoDB: {e}"
-                ) from e
+            self._logger.error(
+                "DynamoDB error saving positions",
+                error=str(e),
+                error_code=error_code
+            )
+            raise DataAccessError(
+                f"Failed to save positions to DynamoDB: {e}"
+            ) from e
     
     def get_position(self, symbol: Symbol) -> Position | None:
         """Get specific position by symbol.
@@ -167,6 +169,7 @@ class DynamoDbPositionRepositoryAdapter(PositionRepositoryPort):
             
         Raises:
             DataAccessError: DynamoDB failure
+
         """
         try:
             self._logger.debug(

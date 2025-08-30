@@ -26,8 +26,8 @@ from the_alchemiser.interfaces.cli.cli_formatter import (
     render_portfolio_allocation,
     render_strategy_signals,
 )
-from the_alchemiser.strategy.domain.exceptions import DataProviderError
 from the_alchemiser.shared_kernel.exceptions.base_exceptions import StrategyExecutionError
+from the_alchemiser.strategy.domain.exceptions import DataProviderError
 
 
 class SignalAnalyzer:
@@ -63,7 +63,9 @@ class SignalAnalyzer:
         aggregated_signals = typed_manager.generate_all_signals(datetime.now(UTC))
 
         # Use centralized mapping function (reuse requirement)
-        from the_alchemiser.anti_corruption.serialization.strategies import run_all_strategies_mapping
+        from the_alchemiser.anti_corruption.serialization.strategies import (
+            run_all_strategies_mapping,
+        )
 
         strategy_signals, consolidated_portfolio, _strategy_attribution = (
             run_all_strategies_mapping(aggregated_signals, strategy_allocations)

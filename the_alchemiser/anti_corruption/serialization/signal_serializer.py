@@ -22,6 +22,7 @@ class SignalSerializer:
             
         Raises:
             ValueError: Serialization failure
+
         """
         try:
             # Use pydantic's json serialization for proper handling
@@ -40,6 +41,7 @@ class SignalSerializer:
             
         Raises:
             ValueError: Deserialization failure
+
         """
         try:
             data = json.loads(json_str)

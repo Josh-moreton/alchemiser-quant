@@ -40,6 +40,15 @@ Every module is classified under one of these business units:
 - `the_alchemiser/domain/shared_kernel/tooling/__init__.py` - Tooling package (numeric helpers export)
 - `the_alchemiser/domain/shared_kernel/tooling/num.py` - Float tolerance comparison utility (`floats_equal`)
 
+### Cross-Context Event Communication (DDD Epic #375 Phase 8)
+**Business Unit**: utilities | **Status**: current
+
+- `the_alchemiser/cross_context/__init__.py` - Cross-context coordination package
+- `the_alchemiser/cross_context/eventing/__init__.py` - Eventing infrastructure package  
+- `the_alchemiser/cross_context/eventing/event_bus.py` - EventBus protocol for publish/subscribe
+- `the_alchemiser/cross_context/eventing/in_memory_event_bus.py` - In-memory EventBus implementation with idempotency
+- `the_alchemiser/cross_context/eventing/composition_root.py` - Event system composition root and wiring
+
 ### Strategy Context
 **Business Unit**: strategy & signal generation | **Status**: current
 
@@ -55,16 +64,19 @@ Every module is classified under one of these business units:
 - `the_alchemiser/strategy/application/contracts/signal_contract_v1.py` - Signal contract V1 for cross-context communication
 - `the_alchemiser/strategy/application/use_cases/market_data_operations.py` - Market data operations use case
 - `the_alchemiser/strategy/application/use_cases/strategy_data_service.py` - Strategy data service use case
+- `the_alchemiser/strategy/application/use_cases/generate_signals.py` - Signal generation use case
 - `the_alchemiser/strategy/infrastructure/__init__.py` - Strategy infrastructure layer
 - `the_alchemiser/strategy/infrastructure/adapters/market_data_client.py` - Market data client adapter
 - `the_alchemiser/strategy/infrastructure/adapters/streaming_adapter.py` - Streaming data adapter
 - `the_alchemiser/strategy/infrastructure/adapters/alpaca_market_data_adapter.py` - Alpaca market data adapter
 - `the_alchemiser/strategy/infrastructure/adapters/in_memory_market_data_adapter.py` - In-memory market data adapter for testing
 - `the_alchemiser/strategy/infrastructure/adapters/in_memory_signal_publisher_adapter.py` - In-memory signal publisher adapter for testing
+- `the_alchemiser/strategy/infrastructure/adapters/event_bus_signal_publisher_adapter.py` - EventBus-based signal publisher adapter
 - `the_alchemiser/strategy/infrastructure/adapters/alpaca_market_data_port_adapter.py` - Alpaca market data adapter implementing MarketDataPort protocol
 - `the_alchemiser/strategy/infrastructure/adapters/sqs_signal_publisher_adapter.py` - SQS signal publisher adapter implementing SignalPublisherPort protocol
 - `the_alchemiser/strategy/infrastructure/utils/price_utils.py` - Price utility functions
 - `the_alchemiser/strategy/interfaces/__init__.py` - Strategy interfaces layer
+- `the_alchemiser/strategy/interfaces/event_wiring.py` - Event subscription wiring for Strategy context
 
 ### Portfolio Context
 **Business Unit**: portfolio assessment & management | **Status**: current
@@ -84,10 +96,14 @@ Every module is classified under one of these business units:
 - `the_alchemiser/portfolio/application/contracts/_envelope.py` - Envelope mixin for consistent message metadata
 - `the_alchemiser/portfolio/application/contracts/rebalance_plan_contract_v1.py` - Rebalance plan contract V1 for cross-context communication
 - `the_alchemiser/portfolio/application/use_cases/account_operations.py` - Account operations use case
+- `the_alchemiser/portfolio/application/use_cases/generate_plan.py` - Plan generation use case (handles signals)
+- `the_alchemiser/portfolio/application/use_cases/update_portfolio.py` - Portfolio update use case (handles execution reports)
 - `the_alchemiser/portfolio/infrastructure/__init__.py` - Portfolio infrastructure layer
 - `the_alchemiser/portfolio/infrastructure/adapters/alpaca_account_adapter.py` - Alpaca account adapter
+- `the_alchemiser/portfolio/infrastructure/adapters/event_bus_plan_publisher_adapter.py` - EventBus-based plan publisher adapter
 - `the_alchemiser/portfolio/infrastructure/adapters/dynamodb_position_repository_adapter.py` - DynamoDB position repository adapter implementing PositionRepositoryPort protocol
 - `the_alchemiser/portfolio/interfaces/__init__.py` - Portfolio interfaces layer
+- `the_alchemiser/portfolio/interfaces/event_wiring.py` - Event subscription wiring for Portfolio context
 
 ### Execution Context
 **Business Unit**: order execution/placement | **Status**: current
@@ -101,11 +117,14 @@ Every module is classified under one of these business units:
 - `the_alchemiser/execution/application/contracts/_envelope.py` - Envelope mixin for consistent message metadata
 - `the_alchemiser/execution/application/contracts/execution_report_contract_v1.py` - Execution report contract V1 for cross-context communication
 - `the_alchemiser/execution/application/use_cases/order_operations.py` - Order operations use case
+- `the_alchemiser/execution/application/use_cases/execute_plan.py` - Plan execution use case (handles plans)
 - `the_alchemiser/execution/application/use_cases/position_analysis.py` - Position analysis use case
 - `the_alchemiser/execution/infrastructure/__init__.py` - Execution infrastructure layer
 - `the_alchemiser/execution/infrastructure/adapters/alpaca_order_adapter.py` - Alpaca order adapter
+- `the_alchemiser/execution/infrastructure/adapters/event_bus_execution_report_publisher_adapter.py` - EventBus-based execution report publisher adapter
 - `the_alchemiser/execution/infrastructure/adapters/alpaca_order_router_adapter.py` - Alpaca order router adapter implementing OrderRouterPort protocol
 - `the_alchemiser/execution/interfaces/__init__.py` - Execution interfaces layer
+- `the_alchemiser/execution/interfaces/event_wiring.py` - Event subscription wiring for Execution context
 - `the_alchemiser/portfolio/domain/__init__.py` - Portfolio domain layer
 - `the_alchemiser/portfolio/application/__init__.py` - Portfolio application layer
 - `the_alchemiser/portfolio/infrastructure/__init__.py` - Portfolio infrastructure layer
@@ -157,12 +176,12 @@ All imports across impacted files were updated; no remaining references to the r
 
 ## Summary
 
-- **Total new modules**: 47 new DDD bounded context modules (Task 1) + 4 migration utility modules (Task 2) + 18 services migration modules (Task 3) + 8 new port/protocol modules (Task 5) + 11 new infrastructure adapters and anti-corruption mappers (Task 6)
+- **Total new modules**: 47 new DDD bounded context modules (Task 1) + 4 migration utility modules (Task 2) + 18 services migration modules (Task 3) + 8 new port/protocol modules (Task 5) + 11 new infrastructure adapters and anti-corruption mappers (Task 6) + 15 new event-driven communication modules (Task 8)
 - **Modules by business unit**:
-  - utilities: 32 modules (shared_kernel + anti_corruption + interface utilities + tooling shim)
-  - strategy & signal generation: 18 modules (strategy context with market data operations + ports + value objects + adapters)
-  - portfolio assessment & management: 14 modules (portfolio context with account operations + ports + entities + value objects + adapters)
-  - order execution/placement: 12 modules (execution context with trading operations + ports + adapters)
+  - utilities: 37 modules (shared_kernel + anti_corruption + interface utilities + tooling shim + cross-context eventing)
+  - strategy & signal generation: 20 modules (strategy context with market data operations + ports + value objects + adapters + event wiring)
+  - portfolio assessment & management: 17 modules (portfolio context with account operations + ports + entities + value objects + adapters + event wiring)
+  - order execution/placement: 15 modules (execution context with trading operations + ports + adapters + event wiring)
 - **All modules status**: current
 
-**Note**: Task 5 (DDD Epic #375) completed implementation of explicit typed Protocol interfaces (ports) per bounded context's application layer to fully invert dependencies on external systems and cross-context abstractions. Task 6 (DDD Epic #375 Phase 6) completed implementation of concrete infrastructure adapters satisfying these port protocols, with anti-corruption layers for clean external system integration. This enables deterministic testing, side-effect isolation, clean adapter swapping, and proper separation between domain logic and external system concerns.
+**Note**: Task 5 (DDD Epic #375) completed implementation of explicit typed Protocol interfaces (ports) per bounded context's application layer to fully invert dependencies on external systems and cross-context abstractions. Task 6 (DDD Epic #375 Phase 6) completed implementation of concrete infrastructure adapters satisfying these port protocols, with anti-corruption layers for clean external system integration. Task 8 (DDD Epic #375 Phase 8) completed implementation of in-process event publishing & consumption using synchronous EventBus abstraction, enabling decoupled communication between bounded contexts with idempotency guarantees and correlation/causation tracking. This enables deterministic testing, side-effect isolation, clean adapter swapping, proper separation between domain logic and external system concerns, and complete elimination of direct cross-context coupling.

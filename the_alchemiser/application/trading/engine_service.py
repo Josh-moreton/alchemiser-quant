@@ -34,7 +34,6 @@ if TYPE_CHECKING:  # Import for type checking only to avoid runtime dependency
 
 from alpaca.trading.enums import OrderSide
 
-from the_alchemiser.application.execution.smart_execution import SmartExecution
 from the_alchemiser.anti_corruption.serialization.execution_summary_mapping import (
     safe_dict_to_execution_summary_dto,
     safe_dict_to_portfolio_state_dto,
@@ -43,6 +42,7 @@ from the_alchemiser.anti_corruption.serialization.strategies import (
     StrategySignalDisplayDTO,
     run_all_strategies_mapping,
 )
+from the_alchemiser.application.execution.smart_execution import SmartExecution
 from the_alchemiser.application.portfolio.services.portfolio_management_facade import (
     PortfolioManagementFacade,
 )
@@ -53,10 +53,6 @@ from the_alchemiser.application.trading.bootstrap import (
     bootstrap_from_container,
     bootstrap_from_service_manager,
     bootstrap_traditional,
-)
-from the_alchemiser.infrastructure.logging.logging_utils import (
-    get_logger,
-    log_with_context,
 )
 
 # Import application-layer ports for dependency injection
@@ -69,6 +65,10 @@ from the_alchemiser.domain.types import (
     PositionsDict,
 )
 from the_alchemiser.infrastructure.config import Settings
+from the_alchemiser.infrastructure.logging.logging_utils import (
+    get_logger,
+    log_with_context,
+)
 from the_alchemiser.interfaces.schemas.common import MultiStrategyExecutionResultDTO
 from the_alchemiser.interfaces.schemas.execution import ExecutionResultDTO
 from the_alchemiser.services.account.account_service import (
@@ -81,6 +81,7 @@ from the_alchemiser.services.errors.exceptions import (
     StrategyExecutionError,
     TradingClientError,
 )
+
 # TODO: Error handler needs to be migrated
 from the_alchemiser.services.repository.alpaca_manager import AlpacaManager
 

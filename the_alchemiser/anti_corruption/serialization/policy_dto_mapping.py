@@ -12,7 +12,6 @@ from __future__ import annotations
 from decimal import Decimal
 
 from the_alchemiser.domain.policies.policy_result import PolicyResult, PolicyWarning
-from the_alchemiser.shared_kernel.value_objects.money import Money
 from the_alchemiser.domain.trading.value_objects.order_request import OrderRequest
 from the_alchemiser.domain.trading.value_objects.order_type import OrderType
 from the_alchemiser.domain.trading.value_objects.quantity import Quantity
@@ -24,6 +23,7 @@ from the_alchemiser.interfaces.schemas.orders import (
     OrderRequestDTO,
     PolicyWarningDTO,
 )
+from the_alchemiser.shared_kernel.value_objects.money import Money
 
 
 def dto_to_domain_order_request(dto: OrderRequestDTO) -> OrderRequest:

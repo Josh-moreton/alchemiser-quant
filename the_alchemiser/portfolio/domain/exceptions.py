@@ -3,10 +3,7 @@
 Portfolio context domain exceptions.
 """
 
-from the_alchemiser.shared_kernel.exceptions.base_exceptions import (
-    AlchemiserError,
-    DataAccessError
-)
+from the_alchemiser.shared_kernel.exceptions.base_exceptions import AlchemiserError, DataAccessError
 
 
 class PortfolioExecutionError(AlchemiserError):

@@ -14,12 +14,11 @@ from enum import Enum
 from alpaca.trading.enums import TimeInForce
 
 from the_alchemiser.domain.interfaces import MarketDataRepository, TradingRepository
-from the_alchemiser.execution.domain.exceptions import (
-    TradingClientError,
-    OrderValidationError,
-    OrderOperationError,
-)
 from the_alchemiser.domain.shared_kernel.tooling.num import floats_equal
+from the_alchemiser.execution.domain.exceptions import (
+    OrderOperationError,
+    OrderValidationError,
+)
 
 logger = logging.getLogger(__name__)
 

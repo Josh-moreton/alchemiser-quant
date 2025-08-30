@@ -10,14 +10,14 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime, timedelta
-from typing import Any, cast
+from typing import Any
 
 import pandas as pd
 from alpaca.data.requests import StockBarsRequest
 from alpaca.data.timeframe import TimeFrame
 
-from the_alchemiser.strategy.domain.exceptions import MarketDataError
 from the_alchemiser.services.repository.alpaca_manager import AlpacaManager
+from the_alchemiser.strategy.domain.exceptions import MarketDataError
 
 
 class MarketDataClient:
@@ -298,23 +298,22 @@ class MarketDataClient:
 
             if hasattr(bars, "df"):
                 return bars.df
-            else:
-                # Fallback conversion
-                df = pd.DataFrame(
-                    [
-                        {
-                            "timestamp": bar.timestamp,
-                            "open": bar.open,
-                            "high": bar.high,
-                            "low": bar.low,
-                            "close": bar.close,
-                            "volume": bar.volume,
-                        }
-                        for bar in bars[symbol]
-                    ]
-                )
-                df.set_index("timestamp", inplace=True)
-                return df
+            # Fallback conversion
+            df = pd.DataFrame(
+                [
+                    {
+                        "timestamp": bar.timestamp,
+                        "open": bar.open,
+                        "high": bar.high,
+                        "low": bar.low,
+                        "close": bar.close,
+                        "volume": bar.volume,
+                    }
+                    for bar in bars[symbol]
+                ]
+            )
+            df.set_index("timestamp", inplace=True)
+            return df
 
         except Exception as e:
             error_msg = (

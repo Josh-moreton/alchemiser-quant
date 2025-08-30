@@ -6,13 +6,14 @@ TODO: Replace with production market data adapter (e.g., Alpaca, Yahoo Finance)
 FIXME: This simplified adapter only provides deterministic test data
 """
 
-from typing import Sequence, Dict, List
+from collections.abc import Sequence
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
-from datetime import datetime, timedelta, UTC
-from the_alchemiser.strategy.application.ports import MarketDataPort
-from the_alchemiser.strategy.domain.value_objects.market_bar_vo import MarketBarVO
-from the_alchemiser.strategy.domain.exceptions import SymbolNotFoundError
+
 from the_alchemiser.shared_kernel.value_objects.symbol import Symbol
+from the_alchemiser.strategy.application.ports import MarketDataPort
+from the_alchemiser.strategy.domain.exceptions import SymbolNotFoundError
+from the_alchemiser.strategy.domain.value_objects.market_bar_vo import MarketBarVO
 
 
 class InMemoryMarketDataAdapter(MarketDataPort):
@@ -25,7 +26,7 @@ class InMemoryMarketDataAdapter(MarketDataPort):
     def __init__(self) -> None:
         # TODO: Replace hardcoded symbols with configurable symbol list
         # FIXME: Pre-seed with some test data - replace with real data source
-        self._bars: Dict[str, List[MarketBarVO]] = {
+        self._bars: dict[str, list[MarketBarVO]] = {
             "AAPL": self._generate_test_bars("AAPL"),
             "MSFT": self._generate_test_bars("MSFT"),
             "GOOGL": self._generate_test_bars("GOOGL"),
@@ -57,7 +58,7 @@ class InMemoryMarketDataAdapter(MarketDataPort):
         # Return last 'limit' bars
         return bars[-limit:] if len(bars) > limit else bars
     
-    def _generate_test_bars(self, symbol_str: str) -> List[MarketBarVO]:
+    def _generate_test_bars(self, symbol_str: str) -> list[MarketBarVO]:
         """Generate deterministic test data.
         
         TODO: Replace with real historical data fetcher

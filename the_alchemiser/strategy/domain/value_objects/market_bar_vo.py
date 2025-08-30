@@ -15,6 +15,7 @@ from the_alchemiser.shared_kernel.value_objects.symbol import Symbol
 @dataclass(frozen=True)
 class MarketBarVO:
     """Immutable market price bar with volume."""
+
     symbol: Symbol
     timestamp: datetime
     open_price: Decimal
@@ -34,5 +35,5 @@ class MarketBarVO:
             raise ValueError("Invalid OHLC relationship: open not within high/low range")
         if not (self.low_price <= self.close_price <= self.high_price):
             raise ValueError("Invalid OHLC relationship: close not within high/low range")
-        if self.volume < Decimal('0'):
+        if self.volume < Decimal("0"):
             raise ValueError("Volume cannot be negative")

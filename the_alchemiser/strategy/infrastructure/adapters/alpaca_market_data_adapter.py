@@ -11,7 +11,7 @@ import logging
 from datetime import UTC, datetime
 from typing import Any
 
-from alpaca.data.requests import StockBarsRequest, StockLatestQuoteRequest
+from alpaca.data.requests import StockBarsRequest
 from alpaca.data.timeframe import TimeFrame, TimeFrameUnit
 
 from the_alchemiser.domain.interfaces import MarketDataRepository

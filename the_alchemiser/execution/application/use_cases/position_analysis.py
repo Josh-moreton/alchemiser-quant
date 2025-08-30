@@ -15,7 +15,6 @@ from the_alchemiser.domain.interfaces import (
     MarketDataRepository,
     TradingRepository,
 )
-from the_alchemiser.execution.domain.exceptions import TradingClientError
 from the_alchemiser.domain.shared_kernel.tooling.num import floats_equal
 
 logger = logging.getLogger(__name__)

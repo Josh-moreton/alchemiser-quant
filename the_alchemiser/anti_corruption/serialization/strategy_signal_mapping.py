@@ -98,9 +98,9 @@ def typed_dict_to_domain_signal(
         New typed domain StrategySignal with value objects
 
     """
-    from the_alchemiser.shared_kernel.value_objects.percentage import Percentage
     from the_alchemiser.domain.strategies.value_objects.confidence import Confidence
     from the_alchemiser.domain.trading.value_objects.symbol import Symbol
+    from the_alchemiser.shared_kernel.value_objects.percentage import Percentage
 
     # Extract symbol, handling special cases
     symbol_value = typed_dict_signal["symbol"]

@@ -34,10 +34,11 @@ class AlpacaMarketDataMapper:
             
         Raises:
             ValueError: Invalid price data
+
         """
         return MarketBarVO(
             symbol=symbol,
-            timestamp=datetime.fromisoformat(str(alpaca_bar.timestamp).replace('Z', '+00:00')),
+            timestamp=datetime.fromisoformat(str(alpaca_bar.timestamp).replace("Z", "+00:00")),
             open_price=Decimal(str(alpaca_bar.open)),
             high_price=Decimal(str(alpaca_bar.high)),
             low_price=Decimal(str(alpaca_bar.low)),
