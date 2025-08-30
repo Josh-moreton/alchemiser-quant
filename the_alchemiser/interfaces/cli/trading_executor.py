@@ -26,7 +26,7 @@ from the_alchemiser.application.execution.smart_execution import is_market_open
 from the_alchemiser.application.trading.bootstrap import bootstrap_from_container
 from the_alchemiser.application.trading.engine_service import TradingEngine
 from the_alchemiser.domain.registry import StrategyType
-from the_alchemiser.domain.strategies.value_objects.strategy_signal import (
+from the_alchemiser.strategy.domain.value_objects.strategy_signal import (
     StrategySignal as TypedStrategySignal,
 )
 from the_alchemiser.infrastructure.config import Settings
