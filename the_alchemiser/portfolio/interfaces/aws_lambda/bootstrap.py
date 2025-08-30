@@ -79,5 +79,5 @@ def bootstrap_portfolio_context() -> PortfolioBootstrapContext:
         )
         
     except Exception as e:
-        logger.error(f"Failed to bootstrap Portfolio context: {e}", exc_info=True)
+        logger.error("Failed to bootstrap Portfolio context", extra={'error': str(e)}, exc_info=True)
         raise ConfigurationError(f"Portfolio context bootstrap failed: {e}") from e
