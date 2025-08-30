@@ -390,7 +390,7 @@ class TradingExecutor:
             #     send_error_notification_if_needed,
             # )
             # For now, use existing implementation
-            from the_alchemiser.services.errors.handler import (
+            from the_alchemiser.infrastructure.error_handling import (
                 TradingSystemErrorHandler,
                 send_error_notification_if_needed,
             )

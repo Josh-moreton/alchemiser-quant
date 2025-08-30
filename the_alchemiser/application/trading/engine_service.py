@@ -71,11 +71,11 @@ from the_alchemiser.infrastructure.logging.logging_utils import (
 )
 from the_alchemiser.interfaces.schemas.common import MultiStrategyExecutionResultDTO
 from the_alchemiser.interfaces.schemas.execution import ExecutionResultDTO
-from the_alchemiser.services.account.account_service import (
+from the_alchemiser.application.account.account_service import (
     AccountService as TypedAccountService,
 )
 from the_alchemiser.infrastructure.error_handling.context import create_error_context
-from the_alchemiser.services.errors.exceptions import (
+from the_alchemiser.infrastructure.error_handling.exceptions import (
     ConfigurationError,
     DataProviderError,
     StrategyExecutionError,
@@ -414,7 +414,7 @@ class TradingEngine:
                     from the_alchemiser.infrastructure.error_handling.context import (
                         create_error_context,
                     )
-                    from the_alchemiser.services.errors.handler import (
+                    from the_alchemiser.infrastructure.error_handling import (
                         TradingSystemErrorHandler,
                     )
 
@@ -725,7 +725,7 @@ class TradingEngine:
             logging.error(f"Multi-strategy execution failed: {e}")
 
             # Enhanced error handling (fail-fast; no legacy import fallback)
-            from the_alchemiser.services.errors import handle_trading_error
+            from the_alchemiser.infrastructure.error_handling import handle_trading_error
 
             handle_trading_error(
                 error=e,
