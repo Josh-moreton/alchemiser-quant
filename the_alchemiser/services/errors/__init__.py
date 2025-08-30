@@ -24,8 +24,9 @@ from .decorators import (
 )
 
 # Backward compatibility imports from old modules
-# NOTE: Most items from error_handling are now deprecated
-from .error_handling import create_service_logger  # Keep for backward compatibility
+# NOTE: create_service_logger from error_handling is deprecated
+# Use get_service_logger from infrastructure.logging.logging_utils instead
+from the_alchemiser.infrastructure.logging.logging_utils import get_service_logger as create_service_logger  # Backward compatibility
 from .handler import (
     CircuitBreaker,
     CircuitBreakerOpenError,

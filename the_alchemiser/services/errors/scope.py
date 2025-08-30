@@ -81,6 +81,7 @@ class ErrorScope:
         self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: Any
     ) -> bool:
         """Exit context manager and handle any exceptions."""
+        _ = exc_tb  # Unused but required by context manager protocol
         if exc_type is not None and exc_val is not None:
             if self.reraise:
                 # Log and reraise
