@@ -1,4 +1,4 @@
-"""Business Unit: order execution/placement | Status: current
+"""Business Unit: order execution/placement; Status: current.
 
 Mapping utilities between Alpaca order objects and domain Order entity.
 
