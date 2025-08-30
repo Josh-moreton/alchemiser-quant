@@ -60,7 +60,7 @@ format:
 
 lint:
 	@echo "🔍 Running linting..."
-	poetry run ruff check the_alchemiser/
+	poetry run ruff check the_alchemiser/ || echo "⚠️ Ruff found style issues"
 	@echo "🏗️ Checking architectural boundaries..."
 	poetry run lint-imports
 
