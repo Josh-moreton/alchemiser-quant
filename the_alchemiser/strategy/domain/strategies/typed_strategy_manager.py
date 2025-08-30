@@ -122,7 +122,7 @@ class TypedStrategyManager:
         if strategy_type == StrategyType.KLM:
             return TypedKLMStrategyEngine(self.market_data_port)
         if strategy_type == StrategyType.TECL:
-            from the_alchemiser.domain.strategies.tecl_strategy_engine import TECLStrategyEngine
+            from the_alchemiser.strategy.domain.tecl.tecl_strategy_engine import TECLStrategyEngine
 
             return TECLStrategyEngine(self.market_data_port)
         raise ValueError(f"Unknown strategy type: {strategy_type}")

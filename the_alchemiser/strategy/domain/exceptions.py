@@ -160,3 +160,7 @@ class StrategyValidationError(AlchemiserError):
 
 class StrategyExecutionError(AlchemiserError):
     """Exception raised when strategy execution fails."""
+
+
+class StrategyComputationError(AlchemiserError):
+    """Exception raised when strategy computation fails."""
