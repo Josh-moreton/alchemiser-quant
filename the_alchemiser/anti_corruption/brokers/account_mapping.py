@@ -31,6 +31,8 @@ def to_money_usd(value: str | float | int | Decimal | None) -> Money | None:
 
 @dataclass(frozen=True)
 class AccountMetrics:
+    """Account metrics derived from account data."""
+    
     cash_ratio: Decimal
     market_exposure: Decimal
     leverage_ratio: Decimal | None
@@ -39,6 +41,8 @@ class AccountMetrics:
 
 @dataclass(frozen=True)
 class AccountSummaryTyped:
+    """Typed account summary with financial amounts as Money objects."""
+    
     account_id: str
     equity: Money
     cash: Money

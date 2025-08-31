@@ -1,4 +1,4 @@
-"""Business Unit: utilities | Status: current
+"""Business Unit: utilities | Status: current.
 
 Anti-corruption layer for broker transformations.
 """

@@ -16,7 +16,7 @@ import contextlib
 import logging
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import Any, Literal, cast
+from typing import Any, Literal, Protocol, cast
 
 from the_alchemiser.anti_corruption.brokers.order_status_mapping import normalize_order_status
 from the_alchemiser.interfaces.schemas.alpaca import AlpacaErrorDTO, AlpacaOrderDTO
@@ -25,7 +25,18 @@ from the_alchemiser.interfaces.schemas.orders import OrderExecutionResultDTO
 logger = logging.getLogger(__name__)
 
 
-def alpaca_order_to_dto(order: Any) -> AlpacaOrderDTO:
+class AlpacaOrderLike(Protocol):
+    """Protocol for Alpaca order objects from external SDK."""
+    
+    def __getattr__(self, name: str) -> Any:  # noqa: ANN401  # Protocol for external SDK
+        """Access order attributes."""
+        ...
+
+
+AlpacaOrderInput = AlpacaOrderLike | dict[str, Any]
+
+
+def alpaca_order_to_dto(order: AlpacaOrderInput) -> AlpacaOrderDTO:
     """Convert raw Alpaca order object to AlpacaOrderDTO.
 
     Handles both attribute-based objects and dict responses from Alpaca API.
@@ -42,7 +53,7 @@ def alpaca_order_to_dto(order: Any) -> AlpacaOrderDTO:
     """
 
     # Extract helper function to handle both attribute access and dict access
-    def get_attr(name: str, default: Any = None) -> Any:
+    def get_attr(name: str, default: Any = None) -> Any:  # noqa: ANN401  # External API object access
         if isinstance(order, dict):
             return order.get(name, default)
         return getattr(order, name, default)
@@ -57,7 +68,7 @@ def alpaca_order_to_dto(order: Any) -> AlpacaOrderDTO:
         raise ValueError("Symbol is required")
 
     # Extract financial values with proper Decimal conversion
-    def to_decimal(value: Any) -> Decimal | None:
+    def to_decimal(value: Any) -> Decimal | None:  # noqa: ANN401  # External API value conversion
         if value is None:
             return None
         try:
@@ -67,7 +78,7 @@ def alpaca_order_to_dto(order: Any) -> AlpacaOrderDTO:
             raise
 
     # Extract timestamps with proper datetime handling
-    def to_datetime(value: Any) -> datetime | None:
+    def to_datetime(value: Any) -> datetime | None:  # noqa: ANN401  # External API value conversion
         if value is None:
             return None
         if isinstance(value, datetime):
@@ -175,7 +186,7 @@ def alpaca_dto_to_execution_result(alpaca_dto: AlpacaOrderDTO) -> OrderExecution
     )
 
 
-def alpaca_order_to_execution_result(order: Any) -> OrderExecutionResultDTO:
+def alpaca_order_to_execution_result(order: AlpacaOrderInput) -> OrderExecutionResultDTO:
     """Direct conversion from raw Alpaca order to OrderExecutionResultDTO.
 
     Convenience function that combines alpaca_order_to_dto and
