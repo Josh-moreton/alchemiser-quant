@@ -17,18 +17,18 @@ import json
 import logging
 from typing import Any
 
-from the_alchemiser.infrastructure.logging.logging_utils import (
-    generate_request_id,
-    set_request_id,
-)
-from the_alchemiser.interfaces.schemas.execution import LambdaEventDTO
-from the_alchemiser.main import main
 from the_alchemiser.infrastructure.error_handling import (
     DataProviderError,
     NotificationError,
     StrategyExecutionError,
     TradingClientError,
 )
+from the_alchemiser.infrastructure.logging.logging_utils import (
+    generate_request_id,
+    set_request_id,
+)
+from the_alchemiser.interfaces.schemas.execution import LambdaEventDTO
+from the_alchemiser.main import main
 
 # Set up logging
 logger = logging.getLogger(__name__)

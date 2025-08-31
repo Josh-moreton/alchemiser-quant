@@ -23,20 +23,20 @@ def wire_strategy_event_subscriptions(
     event_bus: EventBus,
 ) -> None:
     """Wire Strategy context event subscriptions.
-    
+
     Currently Strategy context is primarily an event producer (signals),
     but this function is provided for future extensibility.
-    
+
     Args:
         event_bus: EventBus instance for subscription
 
     """
     logger.info("Wiring Strategy context event subscriptions...")
-    
+
     # TODO: Add strategy event subscriptions as needed
     # For example, Strategy context might want to:
     # - Receive portfolio performance feedback
     # - Listen to market regime changes
     # - Subscribe to risk management alerts
-    
+
     logger.info("Strategy context event subscriptions wired successfully")

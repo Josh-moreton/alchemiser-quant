@@ -16,13 +16,13 @@ from the_alchemiser.shared_kernel.value_objects.symbol import Symbol
 
 class PositionMapper:
     """Maps between Position domain entities and DynamoDB items."""
-    
+
     def position_to_dynamodb_item(self, position: Position) -> dict[str, Any]:
         """Convert Position entity to DynamoDB item.
-        
+
         Args:
             position: Position domain entity
-            
+
         Returns:
             DynamoDB item dictionary
 
@@ -39,18 +39,18 @@ class PositionMapper:
             "market_price_amount": str(position.market_price.amount),
             "market_price_currency": position.market_price.currency,
             "last_updated": position.last_updated.isoformat(),
-            "version": getattr(position, "version", 1)
+            "version": getattr(position, "version", 1),
         }
-    
+
     def dynamodb_item_to_position(self, item: dict[str, Any]) -> Position:
         """Convert DynamoDB item to Position entity.
-        
+
         Args:
             item: DynamoDB item dictionary
-            
+
         Returns:
             Position domain entity
-            
+
         Raises:
             ValueError: Invalid item data
 
@@ -60,29 +60,25 @@ class PositionMapper:
                 symbol=Symbol(item["symbol"]),
                 quantity=Decimal(item["quantity"]),
                 average_cost=Money(
-                    Decimal(item["average_cost_amount"]),
-                    item["average_cost_currency"]
+                    Decimal(item["average_cost_amount"]), item["average_cost_currency"]
                 ),
                 current_value=Money(
-                    Decimal(item["current_value_amount"]),
-                    item["current_value_currency"]
+                    Decimal(item["current_value_amount"]), item["current_value_currency"]
                 ),
                 unrealized_pnl=Money(
-                    Decimal(item["unrealized_pnl_amount"]),
-                    item["unrealized_pnl_currency"]
+                    Decimal(item["unrealized_pnl_amount"]), item["unrealized_pnl_currency"]
                 ),
                 market_price=Money(
-                    Decimal(item["market_price_amount"]),
-                    item["market_price_currency"]
+                    Decimal(item["market_price_amount"]), item["market_price_currency"]
                 ),
-                last_updated=datetime.fromisoformat(item["last_updated"])
+                last_updated=datetime.fromisoformat(item["last_updated"]),
             )
-            
+
             # Add version for optimistic locking if present
             if "version" in item:
                 position.version = item["version"]
-            
+
             return position
-            
+
         except (KeyError, ValueError) as e:
             raise ValueError(f"Invalid DynamoDB item for position: {e}") from e

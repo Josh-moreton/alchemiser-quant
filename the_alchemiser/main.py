@@ -16,6 +16,12 @@ import sys
 
 from the_alchemiser.domain.registry import StrategyType
 from the_alchemiser.infrastructure.config import Settings, load_settings
+from the_alchemiser.infrastructure.error_handling import (
+    ConfigurationError,
+    DataProviderError,
+    StrategyExecutionError,
+    TradingClientError,
+)
 from the_alchemiser.infrastructure.logging.logging_utils import (
     configure_production_logging,
     generate_request_id,
@@ -25,12 +31,6 @@ from the_alchemiser.infrastructure.logging.logging_utils import (
 )
 from the_alchemiser.interfaces.cli.signal_analyzer import SignalAnalyzer
 from the_alchemiser.interfaces.cli.trading_executor import TradingExecutor
-from the_alchemiser.infrastructure.error_handling import (
-    ConfigurationError,
-    DataProviderError,
-    StrategyExecutionError,
-    TradingClientError,
-)
 
 # TODO: Error handler needs to be migrated
 

@@ -11,6 +11,7 @@ from typing import Any
 from the_alchemiser.anti_corruption.serialization.rebalance_plan_mapping import (
     rebalance_plans_dict_to_collection_dto,
 )
+from the_alchemiser.application.trading.service_manager import TradingServiceManager
 from the_alchemiser.domain.portfolio.position.position_analyzer import PositionAnalyzer
 from the_alchemiser.domain.portfolio.position.position_delta import PositionDelta
 from the_alchemiser.domain.portfolio.rebalancing.rebalance_calculator import RebalanceCalculator
@@ -18,13 +19,12 @@ from the_alchemiser.domain.portfolio.rebalancing.rebalance_plan import Rebalance
 from the_alchemiser.domain.portfolio.strategy_attribution.attribution_engine import (
     StrategyAttributionEngine,
 )
+from the_alchemiser.infrastructure.error_handling import TradingSystemErrorHandler
 from the_alchemiser.interfaces.schemas.portfolio_rebalancing import (
     RebalancePlanCollectionDTO,
     RebalancingImpactDTO,
     RebalancingSummaryDTO,
 )
-from the_alchemiser.infrastructure.error_handling import TradingSystemErrorHandler
-from the_alchemiser.application.trading.service_manager import TradingServiceManager
 
 
 class PortfolioRebalancingService:

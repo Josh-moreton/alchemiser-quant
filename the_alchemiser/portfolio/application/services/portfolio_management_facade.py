@@ -14,14 +14,8 @@ from the_alchemiser.anti_corruption.serialization.rebalance_plan_mapping import 
     dto_plans_to_domain,
     dto_to_domain_rebalance_plan,
 )
-from the_alchemiser.portfolio.application.services.portfolio_analysis_service import (
-    PortfolioAnalysisService,
-)
-from the_alchemiser.portfolio.application.services.portfolio_rebalancing_service import (
-    PortfolioRebalancingService,
-)
-from the_alchemiser.portfolio.application.services.rebalance_execution_service import (
-    RebalanceExecutionService,
+from the_alchemiser.application.trading.service_manager import (
+    TradingServiceManager,
 )
 from the_alchemiser.domain.portfolio.position.position_analyzer import PositionAnalyzer
 from the_alchemiser.domain.portfolio.rebalancing.rebalance_calculator import (
@@ -35,8 +29,14 @@ from the_alchemiser.domain.shared_kernel import floats_equal
 from the_alchemiser.domain.types import OrderDetails
 from the_alchemiser.interfaces.schemas.portfolio_rebalancing import RebalancePlanDTO
 from the_alchemiser.interfaces.utils.serialization import ensure_serialized_dict
-from the_alchemiser.application.trading.service_manager import (
-    TradingServiceManager,
+from the_alchemiser.portfolio.application.services.portfolio_analysis_service import (
+    PortfolioAnalysisService,
+)
+from the_alchemiser.portfolio.application.services.portfolio_rebalancing_service import (
+    PortfolioRebalancingService,
+)
+from the_alchemiser.portfolio.application.services.rebalance_execution_service import (
+    RebalanceExecutionService,
 )
 
 

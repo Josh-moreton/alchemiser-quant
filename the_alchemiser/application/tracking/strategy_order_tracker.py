@@ -34,6 +34,11 @@ from the_alchemiser.anti_corruption.serialization.tracking_dto_mapping import (
 )
 from the_alchemiser.domain.registry import StrategyType
 from the_alchemiser.infrastructure.config import load_settings
+from the_alchemiser.infrastructure.error_handling import TradingSystemErrorHandler
+from the_alchemiser.infrastructure.error_handling.exceptions import (
+    DataProviderError,
+    StrategyExecutionError,
+)
 from the_alchemiser.infrastructure.s3.s3_utils import get_s3_handler
 from the_alchemiser.interfaces.schemas.tracking import (
     ExecutionStatus,
@@ -42,11 +47,6 @@ from the_alchemiser.interfaces.schemas.tracking import (
     StrategyOrderDTO,
     StrategyPnLDTO,
     StrategyPositionDTO,
-)
-from the_alchemiser.infrastructure.error_handling import TradingSystemErrorHandler
-from the_alchemiser.infrastructure.error_handling.exceptions import (
-    DataProviderError,
-    StrategyExecutionError,
 )
 
 # TODO: Import order history and email summary types once implementation aligns

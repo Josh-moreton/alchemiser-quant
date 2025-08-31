@@ -11,10 +11,10 @@ from __future__ import annotations
 from decimal import Decimal, InvalidOperation
 from typing import Any, TypedDict
 
-from the_alchemiser.domain.types import AccountInfo, PositionInfo, PositionsDict
 from the_alchemiser.application.account.account_utils import (
     extract_current_position_values as _float_current_values,
 )
+from the_alchemiser.domain.types import AccountInfo, PositionInfo, PositionsDict
 
 # NOTE: Existing account_utils returns float calculations. We wrap and promote to Decimal
 # for precision as required by project standards. Internal float helpers retained until

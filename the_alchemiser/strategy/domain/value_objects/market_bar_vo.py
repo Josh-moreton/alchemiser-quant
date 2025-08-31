@@ -24,10 +24,10 @@ class MarketBarVO:
     close_price: Decimal
     volume: Decimal
     timeframe: str
-    
+
     def __post_init__(self) -> None:
         """Validate price relationships.
-        
+
         TODO: Add validation for timestamp ranges and trading hours
         FIXME: Consider adding validation for reasonable price ranges
         """

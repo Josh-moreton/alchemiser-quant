@@ -32,51 +32,51 @@ logger = logging.getLogger(__name__)
 
 class EventSystemComposer:
     """Composes the event-driven system with EventBus and all contexts."""
-    
+
     def __init__(self) -> None:
         """Initialize the composer."""
         self._event_bus = InMemoryEventBus()
         self._wired = False
-    
+
     def get_event_bus(self) -> InMemoryEventBus:
         """Get the shared EventBus instance.
-        
+
         Returns:
             The EventBus instance used by all contexts
 
         """
         return self._event_bus
-    
+
     def create_signal_publisher(self) -> EventBusSignalPublisherAdapter:
         """Create EventBus-based signal publisher for Strategy context.
-        
+
         Returns:
             Signal publisher that uses the shared EventBus
 
         """
         return EventBusSignalPublisherAdapter(self._event_bus)
-    
+
     def create_plan_publisher(self) -> EventBusPlanPublisherAdapter:
         """Create EventBus-based plan publisher for Portfolio context.
-        
+
         Returns:
             Plan publisher that uses the shared EventBus
 
         """
         return EventBusPlanPublisherAdapter(self._event_bus)
-    
+
     def create_execution_report_publisher(self) -> EventBusExecutionReportPublisherAdapter:
         """Create EventBus-based execution report publisher for Execution context.
-        
+
         Returns:
             Execution report publisher that uses the shared EventBus
 
         """
         return EventBusExecutionReportPublisherAdapter(self._event_bus)
-    
+
     def wire_all_subscriptions(self) -> None:
         """Wire all event subscriptions across all bounded contexts.
-        
+
         This method sets up the complete event flow:
         - Strategy signals -> Portfolio plan generation
         - Portfolio plans -> Execution plan execution
@@ -85,35 +85,30 @@ class EventSystemComposer:
         if self._wired:
             logger.warning("Event subscriptions already wired, skipping")
             return
-        
+
         logger.info("Wiring all event subscriptions across bounded contexts...")
-        
+
         # Create use cases that will handle events
         plan_publisher = self.create_plan_publisher()
         execution_report_publisher = self.create_execution_report_publisher()
-        
+
         generate_plan_use_case = GeneratePlanUseCase(plan_publisher)
         update_portfolio_use_case = UpdatePortfolioUseCase()
         execute_plan_use_case = ExecutePlanUseCase(execution_report_publisher)
-        
+
         # Wire each context's subscriptions
         wire_strategy_event_subscriptions(self._event_bus)
         wire_portfolio_event_subscriptions(
-            self._event_bus,
-            generate_plan_use_case,
-            update_portfolio_use_case
+            self._event_bus, generate_plan_use_case, update_portfolio_use_case
         )
-        wire_execution_event_subscriptions(
-            self._event_bus,
-            execute_plan_use_case
-        )
-        
+        wire_execution_event_subscriptions(self._event_bus, execute_plan_use_case)
+
         self._wired = True
         logger.info("All event subscriptions wired successfully")
-    
+
     def reset_for_testing(self) -> None:
         """Reset the EventBus state for testing purposes.
-        
+
         This clears idempotency tracking but keeps handler registrations.
         """
         self._event_bus.reset()
@@ -126,7 +121,7 @@ _global_composer: EventSystemComposer | None = None
 
 def get_event_system_composer() -> EventSystemComposer:
     """Get the global EventSystemComposer instance.
-    
+
     Returns:
         Singleton EventSystemComposer instance
 

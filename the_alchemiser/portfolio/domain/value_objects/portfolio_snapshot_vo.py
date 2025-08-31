@@ -33,10 +33,10 @@ class PortfolioSnapshotVO:
     diversification_score: Decimal
     risk_score: Decimal
     timestamp: datetime
-    
+
     def __post_init__(self) -> None:
         """Validate portfolio snapshot data.
-        
+
         TODO: Add validation for derived fields (e.g., total_value = cash + invested)
         FIXME: Consider adding range validation for percentages and scores
         """

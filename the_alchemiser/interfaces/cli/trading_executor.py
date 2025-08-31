@@ -26,10 +26,12 @@ from the_alchemiser.application.execution.smart_execution import is_market_open
 from the_alchemiser.application.trading.bootstrap import bootstrap_from_container
 from the_alchemiser.application.trading.engine_service import TradingEngine
 from the_alchemiser.domain.registry import StrategyType
-from the_alchemiser.strategy.domain.value_objects.strategy_signal import (
-    StrategySignal as TypedStrategySignal,
-)
 from the_alchemiser.infrastructure.config import Settings
+from the_alchemiser.infrastructure.error_handling import (
+    NotificationError,
+    StrategyExecutionError,
+    TradingClientError,
+)
 from the_alchemiser.infrastructure.logging.logging_utils import get_logger
 from the_alchemiser.interfaces.cli.cli_formatter import (
     render_enriched_order_summaries,
@@ -41,10 +43,8 @@ from the_alchemiser.interfaces.cli.cli_formatter import (
 )
 from the_alchemiser.interfaces.schemas.common import MultiStrategyExecutionResultDTO
 from the_alchemiser.interfaces.schemas.orders import ValidatedOrderDTO
-from the_alchemiser.infrastructure.error_handling import (
-    NotificationError,
-    StrategyExecutionError,
-    TradingClientError,
+from the_alchemiser.strategy.domain.value_objects.strategy_signal import (
+    StrategySignal as TypedStrategySignal,
 )
 
 

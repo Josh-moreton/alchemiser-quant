@@ -27,11 +27,11 @@ def wire_portfolio_event_subscriptions(
     update_portfolio_use_case: UpdatePortfolioUseCase,
 ) -> None:
     """Wire Portfolio context event subscriptions.
-    
+
     Registers event handlers with the EventBus to enable Portfolio context to:
     - Receive SignalContractV1 events from Strategy context
     - Receive ExecutionReportContractV1 events from Execution context
-    
+
     Args:
         event_bus: EventBus instance for subscription
         generate_plan_use_case: Use case for generating plans from signals
@@ -39,19 +39,15 @@ def wire_portfolio_event_subscriptions(
 
     """
     logger.info("Wiring Portfolio context event subscriptions...")
-    
+
     # Subscribe to strategy signals to generate rebalance plans
-    event_bus.subscribe(
-        SignalContractV1,
-        generate_plan_use_case.handle_signal
-    )
+    event_bus.subscribe(SignalContractV1, generate_plan_use_case.handle_signal)
     logger.debug("Registered handler for SignalContractV1 events")
-    
+
     # Subscribe to execution reports to update portfolio state
     event_bus.subscribe(
-        ExecutionReportContractV1,
-        update_portfolio_use_case.handle_execution_report
+        ExecutionReportContractV1, update_portfolio_use_case.handle_execution_report
     )
     logger.debug("Registered handler for ExecutionReportContractV1 events")
-    
+
     logger.info("Portfolio context event subscriptions wired successfully")
