@@ -164,7 +164,12 @@ class AggressiveLimitStrategy:
                 current_time = time.time()
                 time_since_last = current_time - last_attempt_time
                 if time_since_last < self.config.min_repeg_interval_seconds:
-                    sleep_time = self.config.min_repeg_interval_seconds - time_since_last
+                    # Implement exponential backoff with jitter for more intelligent throttling
+                    base_sleep_time = self.config.min_repeg_interval_seconds - time_since_last
+                    # Add exponential backoff factor based on attempt number for repeated failures
+                    backoff_factor = min(1.5 ** (attempt_index - 1), 4.0)  # Cap at 4x
+                    sleep_time = min(base_sleep_time * backoff_factor, 10.0)  # Cap at 10 seconds
+                    
                     self.logger.debug(
                         "strategy_repeg_interval_throttle",
                         extra={
@@ -172,6 +177,8 @@ class AggressiveLimitStrategy:
                             "symbol": symbol,
                             "attempt_index": attempt_index,
                             "sleep_time": sleep_time,
+                            "backoff_factor": backoff_factor,
+                            "base_sleep_time": base_sleep_time,
                         },
                     )
                     time.sleep(sleep_time)
