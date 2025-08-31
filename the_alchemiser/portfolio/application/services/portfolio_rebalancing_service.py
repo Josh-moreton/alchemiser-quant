@@ -11,7 +11,6 @@ from typing import Any
 from the_alchemiser.anti_corruption.serialization.rebalance_plan_mapping import (
     rebalance_plans_dict_to_collection_dto,
 )
-from the_alchemiser.application.trading.service_manager import TradingServiceManager
 from the_alchemiser.domain.portfolio.position.position_analyzer import PositionAnalyzer
 from the_alchemiser.domain.portfolio.position.position_delta import PositionDelta
 from the_alchemiser.domain.portfolio.rebalancing.rebalance_calculator import RebalanceCalculator
@@ -25,6 +24,7 @@ from the_alchemiser.interfaces.schemas.portfolio_rebalancing import (
     RebalancingImpactDTO,
     RebalancingSummaryDTO,
 )
+from the_alchemiser.portfolio.application.ports import MarketDataPort, TradingDataPort
 
 
 class PortfolioRebalancingService:
@@ -36,7 +36,8 @@ class PortfolioRebalancingService:
 
     def __init__(
         self,
-        trading_manager: TradingServiceManager,
+        trading_data_port: TradingDataPort,
+        market_data_port: MarketDataPort,
         rebalance_calculator: RebalanceCalculator | None = None,
         position_analyzer: PositionAnalyzer | None = None,
         attribution_engine: StrategyAttributionEngine | None = None,
@@ -45,14 +46,16 @@ class PortfolioRebalancingService:
         """Initialize the portfolio rebalancing service.
 
         Args:
-            trading_manager: Service for trading operations and market data
+            trading_data_port: Port for accessing trading data
+            market_data_port: Port for accessing market data
             rebalance_calculator: Calculator for rebalancing plans (optional)
             position_analyzer: Analyzer for position deltas (optional)
             attribution_engine: Engine for strategy attribution (optional)
             min_trade_threshold: Minimum threshold for trade execution
 
         """
-        self.trading_manager = trading_manager
+        self._trading_data_port = trading_data_port
+        self._market_data_port = market_data_port
         self.rebalance_calculator = rebalance_calculator or RebalanceCalculator(min_trade_threshold)
         self.position_analyzer = position_analyzer or PositionAnalyzer()
         self.attribution_engine = attribution_engine or StrategyAttributionEngine()
@@ -348,8 +351,8 @@ class PortfolioRebalancingService:
             )
 
     def _get_current_position_values(self) -> dict[str, Decimal]:
-        """Get current position values from trading manager."""
-        positions = self.trading_manager.get_all_positions()
+        """Get current position values from trading data port."""
+        positions = self._trading_data_port.get_all_positions()
         values: dict[str, Decimal] = {}
         for pos in positions:
             try:
@@ -361,7 +364,7 @@ class PortfolioRebalancingService:
         return values
 
     def _get_portfolio_value(self) -> Decimal:
-        """Get total portfolio value from trading manager.
+        """Get total portfolio value from market data port.
 
         Returns:
             Decimal: The portfolio value
@@ -371,7 +374,7 @@ class PortfolioRebalancingService:
 
         """
         try:
-            portfolio_dto = self.trading_manager.get_portfolio_value()
+            portfolio_dto = self._market_data_port.get_portfolio_value()
 
             # Defensive validation: ensure we got a valid PortfolioValueDTO
             if portfolio_dto is None:

@@ -5,7 +5,8 @@ Port protocols for Portfolio context external dependencies.
 
 from collections.abc import Sequence
 from datetime import datetime
-from typing import Protocol
+from decimal import Decimal
+from typing import Any, Protocol
 from uuid import UUID
 
 from the_alchemiser.execution.application.contracts.execution_report_contract_v1 import (
@@ -197,10 +198,91 @@ class PortfolioStateRepositoryPort(Protocol):
         ...
 
 
+class MarketDataPort(Protocol):
+    """Port for accessing market data needed by Portfolio context.
+    
+    Responsibilities:
+    - Provide current market prices for valuation
+    - Support portfolio value calculations
+    - Handle quote requests for multiple symbols
+    
+    NOT responsible for:
+    - Strategy signals (Strategy context responsibility)
+    - Order routing (Execution context responsibility)
+    - Historical data analysis (Strategy context responsibility)
+    
+    Error expectations:
+    - Raises MarketDataError for data provider failures
+    
+    Idempotency: get_* methods are side-effect free
+    """
+    
+    def get_current_price(self, symbol: Symbol) -> Decimal:
+        """Get current market price for symbol.
+        
+        Args:
+            symbol: Symbol to get price for
+            
+        Returns:
+            Current market price
+            
+        Raises:
+            MarketDataError: Price lookup failure
+            
+        """
+        ...
+        
+    def get_portfolio_value(self) -> dict[str, Any]:
+        """Get current total portfolio value.
+        
+        Returns:
+            Portfolio value information
+            
+        Raises:
+            MarketDataError: Portfolio value calculation failure
+            
+        """
+        ...
+
+
+class TradingDataPort(Protocol):
+    """Port for accessing trading data needed by Portfolio context.
+    
+    Responsibilities:
+    - Provide current position holdings from trading system
+    - Support portfolio rebalancing operations
+    - Handle position lookup and aggregation
+    
+    NOT responsible for:
+    - Order execution (Execution context responsibility)
+    - Strategy decisions (Strategy context responsibility)  
+    - Position management logic (belongs in domain)
+    
+    Error expectations:
+    - Raises TradingDataError for trading system failures
+    
+    Idempotency: get_* methods are side-effect free
+    """
+    
+    def get_all_positions(self) -> list[dict[str, Any]]:
+        """Get all current position holdings from trading system.
+        
+        Returns:
+            List of position data from trading system
+            
+        Raises:
+            TradingDataError: Position data retrieval failure
+            
+        """
+        ...
+
+
 # Export list for explicit re-exports
 __all__ = [
     "ExecutionReportHandlerPort",
+    "MarketDataPort", 
     "PlanPublisherPort",
     "PortfolioStateRepositoryPort",
     "PositionRepositoryPort",
+    "TradingDataPort",
 ]
