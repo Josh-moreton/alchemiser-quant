@@ -32,7 +32,7 @@ class AlpacaSettings(BaseModel):
 class AwsSettings(BaseModel):
     """AWS deployment configuration."""
 
-    region: str = "eu-west-2"
+    region: str = "us-east-1"
     account_id: str = ""
     repo_name: str = ""
     lambda_arn: str = ""
@@ -49,7 +49,7 @@ class AlertsSettings(BaseModel):
 class SecretsManagerSettings(BaseModel):
     """Configuration for AWS Secrets Manager access."""
 
-    region_name: str = "eu-west-2"
+    region_name: str = "us-east-1"
     secret_name: str = "nuclear-secrets"
 
 
