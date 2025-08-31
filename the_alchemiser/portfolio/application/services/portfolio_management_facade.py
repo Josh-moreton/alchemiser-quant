@@ -14,13 +14,13 @@ from the_alchemiser.anti_corruption.serialization.rebalance_plan_mapping import 
     dto_plans_to_domain,
     dto_to_domain_rebalance_plan,
 )
-from the_alchemiser.application.portfolio.services.portfolio_analysis_service import (
+from the_alchemiser.portfolio.application.services.portfolio_analysis_service import (
     PortfolioAnalysisService,
 )
-from the_alchemiser.application.portfolio.services.portfolio_rebalancing_service import (
+from the_alchemiser.portfolio.application.services.portfolio_rebalancing_service import (
     PortfolioRebalancingService,
 )
-from the_alchemiser.application.portfolio.services.rebalance_execution_service import (
+from the_alchemiser.portfolio.application.services.rebalance_execution_service import (
     RebalanceExecutionService,
 )
 from the_alchemiser.domain.portfolio.position.position_analyzer import PositionAnalyzer

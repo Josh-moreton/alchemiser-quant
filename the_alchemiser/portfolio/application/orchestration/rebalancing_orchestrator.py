@@ -25,7 +25,7 @@ from the_alchemiser.interfaces.schemas.execution import (
 )
 
 if TYPE_CHECKING:
-    from the_alchemiser.application.portfolio.services.portfolio_management_facade import (
+    from the_alchemiser.portfolio.application.services.portfolio_management_facade import (
         PortfolioManagementFacade,
     )
 

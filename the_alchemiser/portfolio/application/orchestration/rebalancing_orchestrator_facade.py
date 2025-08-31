@@ -16,8 +16,8 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from the_alchemiser.application.portfolio.rebalancing_orchestrator import RebalancingOrchestrator
-from the_alchemiser.application.portfolio.services.portfolio_management_facade import (
+from the_alchemiser.portfolio.application.orchestration.rebalancing_orchestrator import RebalancingOrchestrator
+from the_alchemiser.portfolio.application.services.portfolio_management_facade import (
     PortfolioManagementFacade,
 )
 from the_alchemiser.domain.registry.strategy_registry import StrategyType

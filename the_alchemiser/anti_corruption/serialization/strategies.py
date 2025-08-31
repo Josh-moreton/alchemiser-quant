@@ -45,8 +45,8 @@ from collections import defaultdict
 from typing import TypedDict
 
 from the_alchemiser.domain.registry import StrategyType
-from the_alchemiser.domain.strategies.typed_strategy_manager import AggregatedSignals
-from the_alchemiser.domain.strategies.value_objects.strategy_signal import (
+from the_alchemiser.strategy.domain.strategies.typed_strategy_manager import AggregatedSignals
+from the_alchemiser.strategy.domain.value_objects.strategy_signal import (
     StrategySignal as TypedStrategySignal,
 )
 

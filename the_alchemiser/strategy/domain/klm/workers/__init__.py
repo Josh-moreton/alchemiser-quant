@@ -1,4 +1,4 @@
-"""Business Unit: utilities; Status: current.
+"""Business Unit: strategy & signal generation | Status: current.
 
 KLM Strategy Workers Package.
 

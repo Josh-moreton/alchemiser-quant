@@ -43,7 +43,7 @@ from the_alchemiser.anti_corruption.serialization.strategies import (
     run_all_strategies_mapping,
 )
 from the_alchemiser.application.execution.smart_execution import SmartExecution
-from the_alchemiser.application.portfolio.services.portfolio_management_facade import (
+from the_alchemiser.portfolio.application.services.portfolio_management_facade import (
     PortfolioManagementFacade,
 )
 from the_alchemiser.application.trading.account_facade import AccountFacade
@@ -57,7 +57,7 @@ from the_alchemiser.application.trading.bootstrap import (
 
 # Import application-layer ports for dependency injection
 from the_alchemiser.domain.registry import StrategyType
-from the_alchemiser.domain.strategies.typed_strategy_manager import TypedStrategyManager
+from the_alchemiser.strategy.domain.strategies.typed_strategy_manager import TypedStrategyManager
 from the_alchemiser.domain.types import (
     AccountInfo,
     EnrichedAccountInfo,
@@ -290,7 +290,7 @@ class TradingEngine:
                     trading_manager=trading_manager,
                 )
                 # Initialize rebalancing orchestrator facade for sequential SELL→settle→BUY execution
-                from the_alchemiser.application.portfolio.rebalancing_orchestrator_facade import (
+                from the_alchemiser.portfolio.application.orchestration.rebalancing_orchestrator_facade import (
                     RebalancingOrchestratorFacade,
                 )
 

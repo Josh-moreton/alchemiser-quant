@@ -1,4 +1,4 @@
-"""Business Unit: utilities; Status: current.
+"""Business Unit: strategy & signal generation | Status: current.
 
 Typed Nuclear Strategy Engine.
 
@@ -18,11 +18,11 @@ import pandas as pd
 from the_alchemiser.domain.market_data.protocols.market_data_port import MarketDataPort
 from the_alchemiser.domain.math.indicator_utils import safe_get_indicator
 from the_alchemiser.domain.math.indicators import TechnicalIndicators
-from the_alchemiser.domain.strategies.engine import StrategyEngine
-from the_alchemiser.domain.strategies.errors.strategy_errors import StrategyExecutionError
-from the_alchemiser.domain.strategies.nuclear_logic import evaluate_nuclear_strategy
-from the_alchemiser.domain.strategies.value_objects.confidence import Confidence
-from the_alchemiser.domain.strategies.value_objects.strategy_signal import StrategySignal
+from the_alchemiser.strategy.domain.strategies.engine import StrategyEngine
+from the_alchemiser.strategy.domain.exceptions import StrategyExecutionError
+from the_alchemiser.strategy.domain.nuclear.nuclear_logic import evaluate_nuclear_strategy
+from the_alchemiser.strategy.domain.value_objects.confidence import Confidence
+from the_alchemiser.strategy.domain.value_objects.strategy_signal import StrategySignal
 from the_alchemiser.domain.trading.value_objects.symbol import Symbol
 from the_alchemiser.shared_kernel.value_objects.percentage import Percentage
 

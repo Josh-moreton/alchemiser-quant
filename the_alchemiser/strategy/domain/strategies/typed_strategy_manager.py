@@ -19,11 +19,11 @@ from typing import Any
 
 from the_alchemiser.domain.market_data.protocols.market_data_port import MarketDataPort
 from the_alchemiser.domain.registry.strategy_registry import StrategyRegistry, StrategyType
-from the_alchemiser.domain.strategies.engine import StrategyEngine
-from the_alchemiser.domain.strategies.nuclear_typed_engine import NuclearTypedEngine
-from the_alchemiser.domain.strategies.typed_klm_ensemble_engine import TypedKLMStrategyEngine
-from the_alchemiser.domain.strategies.value_objects.confidence import Confidence
-from the_alchemiser.domain.strategies.value_objects.strategy_signal import StrategySignal
+from the_alchemiser.strategy.domain.strategies.engine import StrategyEngine
+from the_alchemiser.strategy.domain.nuclear.nuclear_typed_engine import NuclearTypedEngine
+from the_alchemiser.strategy.domain.klm.typed_klm_ensemble_engine import TypedKLMStrategyEngine
+from the_alchemiser.strategy.domain.value_objects.confidence import Confidence
+from the_alchemiser.strategy.domain.value_objects.strategy_signal import StrategySignal
 from the_alchemiser.domain.trading.value_objects.symbol import Symbol
 
 
@@ -122,7 +122,7 @@ class TypedStrategyManager:
         if strategy_type == StrategyType.KLM:
             return TypedKLMStrategyEngine(self.market_data_port)
         if strategy_type == StrategyType.TECL:
-            from the_alchemiser.domain.strategies.tecl_strategy_engine import TECLStrategyEngine
+            from the_alchemiser.strategy.domain.tecl.tecl_strategy_engine import TECLStrategyEngine
 
             return TECLStrategyEngine(self.market_data_port)
         raise ValueError(f"Unknown strategy type: {strategy_type}")

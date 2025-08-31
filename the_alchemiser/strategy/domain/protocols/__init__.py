@@ -1,8 +1,8 @@
-"""Business Unit: utilities; Status: current."""
+"""Business Unit: strategy & signal generation | Status: current."""
 
 from __future__ import annotations
 
-from the_alchemiser.domain.strategies.protocols.strategy_engine import StrategyEngine
+from .strategy_engine import StrategyEngine
 
 # DEPRECATION NOTICE: MarketDataPort from this module is deprecated.
 # Use the canonical MarketDataPort from:
