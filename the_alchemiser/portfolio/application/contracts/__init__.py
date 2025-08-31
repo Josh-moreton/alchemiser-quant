@@ -17,6 +17,6 @@ from .rebalance_plan_contract_v1 import (
 
 __all__ = [
     "PlannedOrderV1",
-    "RebalancePlanContractV1", 
+    "RebalancePlanContractV1",
     "rebalance_plan_from_domain",
 ]

@@ -8,12 +8,12 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Any
 
+from the_alchemiser.application.trading.service_manager import (
+    TradingServiceManager,
+)
 from the_alchemiser.domain.portfolio.position.position_analyzer import PositionAnalyzer
 from the_alchemiser.domain.portfolio.strategy_attribution.attribution_engine import (
     StrategyAttributionEngine,
-)
-from the_alchemiser.application.trading.service_manager import (
-    TradingServiceManager,
 )
 
 

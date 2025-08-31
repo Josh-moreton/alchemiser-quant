@@ -16,13 +16,15 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from the_alchemiser.portfolio.application.orchestration.rebalancing_orchestrator import RebalancingOrchestrator
-from the_alchemiser.portfolio.application.services.portfolio_management_facade import (
-    PortfolioManagementFacade,
-)
 from the_alchemiser.domain.registry.strategy_registry import StrategyType
 from the_alchemiser.domain.types import OrderDetails
 from the_alchemiser.infrastructure.error_handling.context import create_error_context
+from the_alchemiser.portfolio.application.orchestration.rebalancing_orchestrator import (
+    RebalancingOrchestrator,
+)
+from the_alchemiser.portfolio.application.services.portfolio_management_facade import (
+    PortfolioManagementFacade,
+)
 from the_alchemiser.shared_kernel.exceptions.base_exceptions import StrategyExecutionError
 
 # TODO: Error handler needs to be migrated

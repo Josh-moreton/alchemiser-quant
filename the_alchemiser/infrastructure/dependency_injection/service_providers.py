@@ -7,9 +7,9 @@ from __future__ import annotations
 
 from dependency_injector import containers, providers
 
-from the_alchemiser.strategy.domain.klm.typed_klm_ensemble_engine import TypedKLMStrategyEngine
 from the_alchemiser.application.trading.order_service import OrderService
 from the_alchemiser.application.trading.position_service import PositionService
+from the_alchemiser.strategy.domain.klm.typed_klm_ensemble_engine import TypedKLMStrategyEngine
 
 # TODO: TradingServiceManager needs to be refactored
 

@@ -23,27 +23,27 @@ logger = logging.getLogger(__name__)
 
 class EventBusExecutionReportPublisherAdapter(ExecutionReportPublisherPort):
     """EventBus-based execution report publisher for Execution context.
-    
+
     This adapter publishes ExecutionReportContractV1 events through the EventBus,
     enabling Portfolio context to receive execution results without direct coupling.
     The EventBus handles idempotency and delivery semantics.
     """
-    
+
     def __init__(self, event_bus: EventBus) -> None:
         """Initialize the publisher with an EventBus instance.
-        
+
         Args:
             event_bus: EventBus instance for publishing events
 
         """
         self._event_bus = event_bus
-    
+
     def publish(self, report: ExecutionReportContractV1) -> None:
         """Publish an execution report through the EventBus.
-        
+
         Args:
             report: Complete execution report with fills and summary
-            
+
         Raises:
             ValidationError: Invalid report contract
             PublishError: EventBus publication failure
@@ -53,30 +53,30 @@ class EventBusExecutionReportPublisherAdapter(ExecutionReportPublisherPort):
             # Basic validation
             if not hasattr(report, "fills"):
                 raise ValidationError("Report must have fills attribute")
-            
+
             # Validate envelope metadata is present
             if not report.message_id:
                 raise ValidationError("Report must have message_id (envelope metadata)")
             if not report.correlation_id:
                 raise ValidationError("Report must have correlation_id (envelope metadata)")
-            
+
             logger.debug(
                 "Publishing execution report via EventBus (report_id: %s, message_id: %s, fills: %d)",
                 report.report_id,
                 report.message_id,
-                len(report.fills)
+                len(report.fills),
             )
-            
+
             # Publish through EventBus
             self._event_bus.publish(report)
-            
+
             logger.info(
                 "Successfully published execution report with %d fills (report_id: %s, message_id: %s)",
                 len(report.fills),
                 report.report_id,
-                report.message_id
+                report.message_id,
             )
-            
+
         except (ValidationError, ValueError) as e:
             logger.error("Execution report validation failed: %s", e)
             raise ValidationError(f"Invalid report contract: {e}") from e

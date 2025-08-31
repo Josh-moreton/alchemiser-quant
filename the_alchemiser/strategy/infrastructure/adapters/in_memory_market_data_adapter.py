@@ -18,11 +18,11 @@ from the_alchemiser.strategy.domain.value_objects.market_bar_vo import MarketBar
 
 class InMemoryMarketDataAdapter(MarketDataPort):
     """Simple in-memory market data provider for testing.
-    
+
     TODO: Replace with production adapter that connects to real market data API
     FIXME: Only supports limited symbols with synthetic data
     """
-    
+
     def __init__(self) -> None:
         # TODO: Replace hardcoded symbols with configurable symbol list
         # FIXME: Pre-seed with some test data - replace with real data source
@@ -31,47 +31,45 @@ class InMemoryMarketDataAdapter(MarketDataPort):
             "MSFT": self._generate_test_bars("MSFT"),
             "GOOGL": self._generate_test_bars("GOOGL"),
         }
-    
+
     def get_latest_bar(self, symbol: Symbol, timeframe: str) -> MarketBarVO:
         """Get most recent bar from test data."""
         bars = self._bars.get(symbol.value, [])
         if not bars:
             raise SymbolNotFoundError(f"No data for symbol: {symbol}")
         return bars[-1]
-    
+
     def get_history(
-        self, 
-        symbol: Symbol, 
-        timeframe: str, 
-        limit: int,
-        end_time: datetime | None = None
+        self, symbol: Symbol, timeframe: str, limit: int, end_time: datetime | None = None
     ) -> Sequence[MarketBarVO]:
         """Get historical bars from test data."""
         bars = self._bars.get(symbol.value, [])
         if not bars:
             raise SymbolNotFoundError(f"No data for symbol: {symbol}")
-        
+
         # Apply end_time filter if provided
         if end_time:
             bars = [bar for bar in bars if bar.timestamp <= end_time]
-        
+
         # Return last 'limit' bars
         return bars[-limit:] if len(bars) > limit else bars
-    
+
     def _generate_test_bars(self, symbol_str: str) -> list[MarketBarVO]:
         """Generate deterministic test data.
-        
+
         TODO: Replace with real historical data fetcher
         FIXME: Current implementation generates synthetic uptrend data only
         """
         bars = []
         base_price = Decimal("100.00")
         base_time = datetime.now(UTC) - timedelta(days=100)
-        
+
         for i in range(100):
             timestamp = base_time + timedelta(days=i)
-            price = base_price + Decimal(str(i * 0.5))  # TODO: Replace linear trend with realistic price movements
-            
+            price = base_price + Decimal(
+                str(i * 0.5)
+            )  # TODO: Replace linear trend with realistic price movements
+
             bar = MarketBarVO(
                 symbol=Symbol(symbol_str),
                 timestamp=timestamp,
@@ -80,8 +78,8 @@ class InMemoryMarketDataAdapter(MarketDataPort):
                 low_price=price - Decimal("1.00"),
                 close_price=price + Decimal("0.50"),
                 volume=Decimal("1000000"),
-                timeframe="1Day"
+                timeframe="1Day",
             )
             bars.append(bar)
-        
+
         return bars

@@ -1,7 +1,7 @@
 # The Alchemiser Makefile
 # Quick commands for development and deployment
 
-.PHONY: help install dev clean run-signals run-trade run-trade-live status deploy format lint importlint
+.PHONY: help install dev clean run-signals run-trade run-trade-live status deploy format lint importlint smoke
 
 # Default target
 help:
@@ -16,6 +16,9 @@ help:
 	@echo "  run-trade       Execute paper trading"
 	@echo "  run-trade-live  Execute LIVE trading (⚠️ real money)"
 	@echo "  status          Show account status"
+	@echo ""
+	@echo "Validation:"
+	@echo "  smoke           Run end-to-end smoke validation"
 	@echo ""
 	@echo "Development:"
 	@echo "  format          Format code with Ruff (formatter + fixes)"
@@ -51,6 +54,11 @@ run-trade-live:
 status:
 	@echo "📊 Checking account status..."
 	poetry run alchemiser status
+
+# Validation
+smoke:
+	@echo "🧪 Running end-to-end smoke validation..."
+	poetry run python -m the_alchemiser.interfaces.smoke.harness
 
 # Development
 format:

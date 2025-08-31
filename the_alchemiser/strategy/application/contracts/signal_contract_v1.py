@@ -16,7 +16,7 @@ Example Usage:
         confidence=0.85,
         reasoning="Strong bullish momentum detected"
     )
-    
+
     # Accessing contract data
     print(f"Signal for {signal.symbol}: {signal.action}")
     print(f"Confidence: {signal.confidence}")
@@ -36,32 +36,32 @@ from ._envelope import EnvelopeV1
 
 class SignalContractV1(EnvelopeV1):
     """Version 1 contract for strategy signals crossing context boundaries.
-    
+
     This contract enables Strategy -> Portfolio communication without exposing
     internal domain objects. All fields use primitives or shared kernel types.
-    
+
     Attributes:
         symbol: Stock/ETF symbol from shared kernel
         action: Trading action (BUY/SELL/HOLD) from shared kernel
-        target_allocation: Target portfolio percentage from shared kernel  
+        target_allocation: Target portfolio percentage from shared kernel
         confidence: Signal confidence level (0.0-1.0) - uses float for non-financial data
         reasoning: Optional human-readable explanation for the signal
 
     """
-    
+
     model_config = ConfigDict(
         strict=True,
         frozen=True,
         validate_assignment=True,
         str_strip_whitespace=True,
     )
-    
+
     symbol: Symbol = Field(..., description="Stock/ETF symbol")
     action: ActionType = Field(..., description="Trading action: BUY/SELL/HOLD")
     target_allocation: Percentage = Field(..., description="Target portfolio allocation (0-1)")
     confidence: float = Field(..., ge=0.0, le=1.0, description="Signal confidence level (0.0-1.0)")
     reasoning: str | None = Field(None, description="Optional reasoning for the signal")
-    
+
     @field_validator("confidence")
     @classmethod
     def validate_confidence_precision(cls, v: float) -> float:
@@ -77,15 +77,15 @@ def signal_from_domain(
     causation_id: UUID | None = None,
 ) -> SignalContractV1:
     """Map a domain StrategySignal to a SignalContractV1.
-    
+
     Args:
         domain_signal: Domain StrategySignal object
         correlation_id: Root correlation ID for message tracing
         causation_id: Optional ID of the message that caused this signal
-        
+
     Returns:
         SignalContractV1 ready for cross-context communication
-        
+
     Note:
         This function intentionally uses object type to avoid importing domain
         objects into the application layer. The actual domain object should have
@@ -94,11 +94,11 @@ def signal_from_domain(
     """
     # Convert confidence from domain Confidence value object to float
     confidence_value = float(domain_signal.confidence.value)  # type: ignore[attr-defined]
-    
+
     # Map action string to ActionType enum
     action_map = {"BUY": ActionType.BUY, "SELL": ActionType.SELL, "HOLD": ActionType.HOLD}
     action = action_map[domain_signal.action]  # type: ignore[attr-defined]
-    
+
     return SignalContractV1(
         correlation_id=correlation_id,
         causation_id=causation_id,

@@ -16,15 +16,16 @@ from the_alchemiser.anti_corruption.serialization.strategy_signal_mapping import
     map_signals_dict as _map_signals_to_typed,
 )
 from the_alchemiser.domain.types import AccountInfo
-from the_alchemiser.interfaces.schemas.common import MultiStrategyExecutionResultDTO
+
 # TODO: Migrate from services.errors once handler dependencies are resolved
-from the_alchemiser.infrastructure.error_handling import handle_errors_with_retry
 from the_alchemiser.infrastructure.error_handling import (
     ConfigurationError,
     DataProviderError,
     StrategyExecutionError,
     TradingClientError,
+    handle_errors_with_retry,
 )
+from the_alchemiser.interfaces.schemas.common import MultiStrategyExecutionResultDTO
 
 from ..reporting.reporting import (
     build_portfolio_state_data,

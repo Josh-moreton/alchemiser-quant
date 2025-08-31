@@ -15,23 +15,20 @@ from the_alchemiser.strategy.domain.value_objects.market_bar_vo import MarketBar
 
 class AlpacaMarketDataMapper:
     """Maps Alpaca API responses to domain value objects."""
-    
+
     def alpaca_bar_to_market_bar_vo(
-        self, 
-        alpaca_bar: Any, 
-        symbol: Symbol, 
-        timeframe: str
+        self, alpaca_bar: Any, symbol: Symbol, timeframe: str
     ) -> MarketBarVO:
         """Convert Alpaca bar to MarketBarVO.
-        
+
         Args:
             alpaca_bar: Alpaca bar object from API
             symbol: Symbol value object
             timeframe: String timeframe identifier
-            
+
         Returns:
             MarketBarVO with converted data
-            
+
         Raises:
             ValueError: Invalid price data
 
@@ -44,5 +41,5 @@ class AlpacaMarketDataMapper:
             low_price=Decimal(str(alpaca_bar.low)),
             close_price=Decimal(str(alpaca_bar.close)),
             volume=Decimal(str(alpaca_bar.volume)),
-            timeframe=timeframe
+            timeframe=timeframe,
         )

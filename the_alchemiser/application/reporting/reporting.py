@@ -126,10 +126,10 @@ def build_portfolio_state_data(
     current_positions: PositionsDict,
 ) -> dict[str, Any]:
     """Build portfolio state data for reporting purposes."""
-    from the_alchemiser.domain.math.trading_math import calculate_allocation_discrepancy
     from the_alchemiser.application.account.account_utils import (
         extract_current_position_values,
     )
+    from the_alchemiser.domain.math.trading_math import calculate_allocation_discrepancy
 
     portfolio_value = float(account_info.get("portfolio_value", 0.0))
 

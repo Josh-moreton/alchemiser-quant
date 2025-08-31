@@ -16,9 +16,9 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any
 
+from the_alchemiser.strategy.domain.klm.typed_klm_ensemble_engine import TypedKLMStrategyEngine
 from the_alchemiser.strategy.domain.nuclear.nuclear_typed_engine import NuclearTypedEngine
 from the_alchemiser.strategy.domain.tecl.tecl_strategy_engine import TECLStrategyEngine
-from the_alchemiser.strategy.domain.klm.typed_klm_ensemble_engine import TypedKLMStrategyEngine
 
 
 class StrategyType(Enum):

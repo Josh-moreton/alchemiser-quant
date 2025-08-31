@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 class ExecutionBootstrapContext:
     """Dependency bundle for Execution Lambda handlers."""
-    
+
     def __init__(
         self,
         execute_plan_use_case: ExecutePlanUseCase,
@@ -35,39 +35,39 @@ class ExecutionBootstrapContext:
 
 def bootstrap_execution_context() -> ExecutionBootstrapContext:
     """Bootstrap Execution context dependencies for Lambda execution.
-    
+
     Constructs all required ports, adapters, and use cases while pulling
     configuration from environment variables.
-    
+
     Returns:
         ExecutionBootstrapContext with initialized dependencies
-        
+
     Raises:
         ConfigurationError: If required configuration is missing or invalid
 
     """
     logger.info("Bootstrapping Execution context for Lambda execution")
-    
+
     try:
         # Load configuration from environment
         config = load_settings()
-        
+
         # Create EventBus and execution report publisher
         event_bus = InMemoryEventBus()
         execution_report_publisher = EventBusExecutionReportPublisherAdapter(event_bus)
-        
+
         # Create use case
         execute_plan_use_case = ExecutePlanUseCase(
             execution_report_publisher=execution_report_publisher
         )
-        
+
         logger.info("Execution context bootstrap completed successfully")
-        
+
         return ExecutionBootstrapContext(
             execute_plan_use_case=execute_plan_use_case,
             config=config,
         )
-        
+
     except Exception as e:
         logger.error(
             "Failed to bootstrap Execution context",

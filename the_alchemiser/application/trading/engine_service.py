@@ -42,10 +42,10 @@ from the_alchemiser.anti_corruption.serialization.strategies import (
     StrategySignalDisplayDTO,
     run_all_strategies_mapping,
 )
-from the_alchemiser.application.execution.smart_execution import SmartExecution
-from the_alchemiser.portfolio.application.services.portfolio_management_facade import (
-    PortfolioManagementFacade,
+from the_alchemiser.application.account.account_service import (
+    AccountService as TypedAccountService,
 )
+from the_alchemiser.application.execution.smart_execution import SmartExecution
 from the_alchemiser.application.trading.account_facade import AccountFacade
 from the_alchemiser.application.trading.alpaca_client import AlpacaClient
 from the_alchemiser.application.trading.bootstrap import (
@@ -57,23 +57,16 @@ from the_alchemiser.application.trading.bootstrap import (
 
 # Import application-layer ports for dependency injection
 from the_alchemiser.domain.registry import StrategyType
-from the_alchemiser.strategy.domain.strategies.typed_strategy_manager import TypedStrategyManager
 from the_alchemiser.domain.types import (
     AccountInfo,
     EnrichedAccountInfo,
     OrderDetails,
     PositionsDict,
 )
+
+# TODO: Error handler needs to be migrated
+from the_alchemiser.infrastructure.brokers.alpaca_manager import AlpacaManager
 from the_alchemiser.infrastructure.config import Settings
-from the_alchemiser.infrastructure.logging.logging_utils import (
-    get_logger,
-    log_with_context,
-)
-from the_alchemiser.interfaces.schemas.common import MultiStrategyExecutionResultDTO
-from the_alchemiser.interfaces.schemas.execution import ExecutionResultDTO
-from the_alchemiser.application.account.account_service import (
-    AccountService as TypedAccountService,
-)
 from the_alchemiser.infrastructure.error_handling.context import create_error_context
 from the_alchemiser.infrastructure.error_handling.exceptions import (
     ConfigurationError,
@@ -81,9 +74,16 @@ from the_alchemiser.infrastructure.error_handling.exceptions import (
     StrategyExecutionError,
     TradingClientError,
 )
-
-# TODO: Error handler needs to be migrated
-from the_alchemiser.infrastructure.brokers.alpaca_manager import AlpacaManager
+from the_alchemiser.infrastructure.logging.logging_utils import (
+    get_logger,
+    log_with_context,
+)
+from the_alchemiser.interfaces.schemas.common import MultiStrategyExecutionResultDTO
+from the_alchemiser.interfaces.schemas.execution import ExecutionResultDTO
+from the_alchemiser.portfolio.application.services.portfolio_management_facade import (
+    PortfolioManagementFacade,
+)
+from the_alchemiser.strategy.domain.strategies.typed_strategy_manager import TypedStrategyManager
 
 from ..execution.execution_manager import ExecutionManager
 from ..reporting.reporting import build_portfolio_state_data
@@ -411,11 +411,11 @@ class TradingEngine:
                         for st in self._typed.strategy_allocations
                     }
                 except Exception as e:
-                    from the_alchemiser.infrastructure.error_handling.context import (
-                        create_error_context,
-                    )
                     from the_alchemiser.infrastructure.error_handling import (
                         TradingSystemErrorHandler,
+                    )
+                    from the_alchemiser.infrastructure.error_handling.context import (
+                        create_error_context,
                     )
 
                     error_handler = TradingSystemErrorHandler()

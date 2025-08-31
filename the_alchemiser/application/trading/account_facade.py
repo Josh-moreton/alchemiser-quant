@@ -29,11 +29,19 @@ from decimal import Decimal
 from typing import Any, cast
 
 from the_alchemiser.anti_corruption.brokers.account_mapping import account_summary_to_typed
+from the_alchemiser.application.trading.position_service import PositionService
 from the_alchemiser.domain.types import (
     AccountInfo,
     ClosedPositionData,
     EnrichedAccountInfo,
     PositionsDict,
+)
+
+# TODO: Migrate handle_trading_error to infrastructure when dependencies resolved
+from the_alchemiser.infrastructure.error_handling import (
+    DataProviderError,
+    TradingClientError,
+    handle_trading_error,
 )
 from the_alchemiser.interfaces.schemas.accounts import (
     AccountMetricsDTO,
@@ -41,13 +49,6 @@ from the_alchemiser.interfaces.schemas.accounts import (
     EnrichedAccountSummaryDTO,
 )
 from the_alchemiser.interfaces.utils.serialization import ensure_serialized_dict
-# TODO: Migrate handle_trading_error to infrastructure when dependencies resolved
-from the_alchemiser.infrastructure.error_handling import handle_trading_error
-from the_alchemiser.infrastructure.error_handling import (
-    DataProviderError,
-    TradingClientError,
-)
-from the_alchemiser.application.trading.position_service import PositionService
 
 logger = logging.getLogger(__name__)
 

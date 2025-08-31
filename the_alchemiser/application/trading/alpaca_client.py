@@ -71,6 +71,10 @@ from the_alchemiser.application.execution.smart_pricing_handler import (
     SmartPricingHandler,
 )
 from the_alchemiser.application.orders.asset_order_handler import AssetOrderHandler
+from the_alchemiser.application.trading.position_manager import PositionManager
+
+# (Legacy exceptions import removed)
+from the_alchemiser.infrastructure.brokers.alpaca_manager import AlpacaManager
 
 # DEPRECATED: LimitOrderHandler import removed - use CanonicalOrderExecutor instead
 # (Legacy order validation utilities removed with legacy paths)
@@ -81,10 +85,6 @@ from the_alchemiser.infrastructure.websocket.websocket_order_monitor import (
     OrderCompletionMonitor,
 )
 from the_alchemiser.interfaces.schemas.execution import WebSocketResultDTO
-
-# (Legacy exceptions import removed)
-from the_alchemiser.infrastructure.brokers.alpaca_manager import AlpacaManager
-from the_alchemiser.application.trading.position_manager import PositionManager
 
 logger = logging.getLogger(__name__)
 

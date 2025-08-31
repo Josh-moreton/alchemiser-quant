@@ -50,7 +50,7 @@ __all__ = [
     "translate_trading_errors",
     # Handler functions
     "TradingSystemErrorHandler",
-    "handle_errors_with_retry", 
+    "handle_errors_with_retry",
     "handle_trading_error",
     # Exception classes
     "AlchemiserError",

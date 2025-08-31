@@ -10,16 +10,16 @@ from the_alchemiser.strategy.application.contracts.signal_contract_v1 import Sig
 
 class SignalSerializer:
     """Handles serialization of signal contracts for message publishing."""
-    
+
     def signal_contract_to_json(self, signal: SignalContractV1) -> str:
         """Convert signal contract to JSON string.
-        
+
         Args:
             signal: Signal contract to serialize
-            
+
         Returns:
             JSON string representation
-            
+
         Raises:
             ValueError: Serialization failure
 
@@ -29,16 +29,16 @@ class SignalSerializer:
             return signal.model_dump_json()
         except Exception as e:
             raise ValueError(f"Failed to serialize signal contract: {e}") from e
-    
+
     def json_to_signal_contract(self, json_str: str) -> SignalContractV1:
         """Convert JSON string to signal contract.
-        
+
         Args:
             json_str: JSON string to deserialize
-            
+
         Returns:
             SignalContractV1 instance
-            
+
         Raises:
             ValueError: Deserialization failure
 

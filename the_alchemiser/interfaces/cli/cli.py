@@ -25,6 +25,9 @@ from rich.table import Table
 from rich.text import Text
 
 from the_alchemiser.application.trading.engine_service import TradingEngine
+from the_alchemiser.application.trading.service_manager import (
+    TradingServiceManager,
+)
 from the_alchemiser.domain.dsl.errors import DSLError
 from the_alchemiser.domain.dsl.parser import DSLParser
 from the_alchemiser.domain.dsl.strategy_loader import StrategyLoader
@@ -33,20 +36,17 @@ from the_alchemiser.domain.dsl.strategy_loader import StrategyLoader
 from the_alchemiser.domain.market_data.models.bar import BarModel
 from the_alchemiser.domain.market_data.models.quote import QuoteModel
 from the_alchemiser.domain.market_data.protocols.market_data_port import MarketDataPort
+from the_alchemiser.infrastructure.error_handling import (
+    AlchemiserError,
+    StrategyExecutionError,
+    TradingClientError,
+)
 from the_alchemiser.infrastructure.logging.logging_utils import (
     get_logger,
     log_error_with_context,
 )
 from the_alchemiser.infrastructure.secrets.secrets_manager import secrets_manager
 from the_alchemiser.interfaces.cli.cli_formatter import render_account_info
-from the_alchemiser.infrastructure.error_handling import (
-    AlchemiserError,
-    StrategyExecutionError,
-    TradingClientError,
-)
-from the_alchemiser.application.trading.service_manager import (
-    TradingServiceManager,
-)
 from the_alchemiser.shared_kernel.value_objects.symbol import Symbol
 
 # TODO: Error handler needs to be migrated
@@ -434,7 +434,9 @@ def trade(
     ),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable verbose output"),
     no_header: bool = typer.Option(False, "--no-header", help="Skip welcome header"),
-    force: bool = typer.Option(False, "--force", help="Skip confirmation prompts"),  # TODO: Implement force mode
+    force: bool = typer.Option(
+        False, "--force", help="Skip confirmation prompts"
+    ),  # TODO: Implement force mode
     show_tracking: bool = typer.Option(
         False, "--show-tracking", help="Display strategy performance tracking after execution"
     ),
@@ -994,6 +996,103 @@ def deploy() -> None:
             )
             console.print(f"[bold red]❌ Unexpected deployment error: {e}[/bold red]")
             raise typer.Exit(1)
+
+
+@app.command()
+def smoke(
+    verbose: bool = typer.Option(
+        False, "--verbose", "-v", help="Enable verbose output with contract JSON"
+    ),
+    symbols: str = typer.Option(
+        "AAPL,MSFT", "--symbols", "-s", help="Comma-separated symbols to test"
+    ),
+) -> None:
+    """🧪 [bold]Run end-to-end smoke validation[/bold].
+
+    Validates that Strategy → Portfolio → Execution → Portfolio contexts
+    interoperate correctly via ContractV1 DTOs without regression.
+
+    This is a deterministic, repeatable lightweight validation that uses
+    in-memory adapters and deterministic providers to ensure consistent
+    behavior across runs.
+    """
+    from the_alchemiser.interfaces.smoke.harness import SmokeValidationHarness
+
+    # Parse symbols
+    symbol_list = [s.strip() for s in symbols.split(",") if s.strip()]
+
+    console.print("[bold cyan]🧪 Starting smoke validation...[/bold cyan]")
+    console.print(f"Symbols: {', '.join(symbol_list)}")
+    console.print(f"Verbose: {'Enabled' if verbose else 'Disabled'}")
+    console.print()
+
+    try:
+        harness = SmokeValidationHarness(verbose=verbose)
+
+        with Progress(
+            SpinnerColumn(),
+            TextColumn(PROGRESS_DESCRIPTION_FORMAT),
+            console=console,
+        ) as progress:
+            task = progress.add_task("[cyan]Running smoke validation...", total=None)
+
+            result = harness.run_smoke_validation(symbol_list)
+
+            progress.update(task, description="[green]✓ Smoke validation complete")
+
+        # Display results
+        if result.success:
+            console.print("[bold green]✅ Smoke validation PASSED[/bold green]")
+        else:
+            console.print("[bold red]❌ Smoke validation FAILED[/bold red]")
+
+        # Results table
+        results_table = Table(title="Smoke Validation Results", style="cyan")
+        results_table.add_column("Metric", style="bold")
+        results_table.add_column("Value", justify="center")
+        results_table.add_column("Status", justify="center")
+
+        results_table.add_row(
+            "Signals Generated",
+            str(result.signals_generated),
+            "✅" if result.signals_generated > 0 else "❌",
+        )
+        results_table.add_row(
+            "Plans Generated",
+            str(result.plans_generated),
+            "✅" if result.plans_generated > 0 else "❌",
+        )
+        results_table.add_row(
+            "Reports Generated",
+            str(result.reports_generated),
+            "✅" if result.reports_generated > 0 else "❌",
+        )
+        results_table.add_row(
+            "Correlation Chain",
+            "Valid" if result.correlation_chain_valid else "Invalid",
+            "✅" if result.correlation_chain_valid else "❌",
+        )
+        results_table.add_row(
+            "Idempotency Check",
+            "Passed" if result.idempotency_check_passed else "Failed",
+            "✅" if result.idempotency_check_passed else "❌",
+        )
+
+        console.print(results_table)
+
+        if result.error_message:
+            console.print(f"[bold red]Error: {result.error_message}[/bold red]")
+
+        if not result.success:
+            raise typer.Exit(1)
+
+    except Exception as e:
+        console.print(f"[bold red]❌ Smoke validation failed: {e}[/bold red]")
+        if verbose:
+            import traceback
+
+            console.print("[dim]" + traceback.format_exc() + "[/dim]")
+        raise typer.Exit(1)
 
 
 @app.command()

@@ -24,10 +24,10 @@ class Position:
     unrealized_pnl: Money
     market_price: Money
     last_updated: datetime
-    
+
     def __post_init__(self) -> None:
         """Validate position data.
-        
+
         TODO: Add more comprehensive validation rules
         FIXME: Consider adding validation for currency consistency
         """
@@ -35,15 +35,15 @@ class Position:
             raise ValueError("Quantity cannot be negative")
         if self.average_cost.amount < Decimal("0"):
             raise ValueError("Average cost cannot be negative")
-    
+
     @property
     def cost_basis(self) -> Money:
         """Calculate total cost basis of the position.
-        
+
         TODO: Consider impact of stock splits and dividends on cost basis
         """
         return Money(self.average_cost.amount * self.quantity, self.average_cost.currency)
-    
+
     @property
     def is_profitable(self) -> bool:
         """Check if position is currently profitable."""

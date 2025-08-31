@@ -13,13 +13,13 @@ import logging
 from typing import Any
 
 from the_alchemiser.domain.shared_kernel import floats_equal
-from the_alchemiser.infrastructure.logging.logging_utils import (
-    get_logger,
-    log_error_with_context,
-)
 from the_alchemiser.infrastructure.error_handling.exceptions import (
     DataProviderError,
     TradingClientError,
+)
+from the_alchemiser.infrastructure.logging.logging_utils import (
+    get_logger,
+    log_error_with_context,
 )
 
 

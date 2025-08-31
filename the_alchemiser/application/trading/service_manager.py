@@ -43,6 +43,7 @@ from the_alchemiser.anti_corruption.brokers.trading_service_dto_mapping import (
     list_to_enriched_positions_dto,
     list_to_open_orders_dto,
 )
+from the_alchemiser.application.account.account_service import AccountService
 from the_alchemiser.application.orders.order_validation import OrderValidator
 from the_alchemiser.application.trading.lifecycle import (
     LifecycleEventDispatcher,
@@ -50,12 +51,17 @@ from the_alchemiser.application.trading.lifecycle import (
     MetricsObserver,
     OrderLifecycleManager,
 )
+from the_alchemiser.application.trading.order_service import OrderService
+from the_alchemiser.application.trading.position_service import PositionService
 from the_alchemiser.domain.shared_kernel import floats_equal
 from the_alchemiser.domain.trading.lifecycle import (
     LifecycleEventType,
     OrderLifecycleState,
 )
 from the_alchemiser.domain.trading.value_objects.order_id import OrderId
+from the_alchemiser.infrastructure.brokers.alpaca_manager import AlpacaManager
+from the_alchemiser.infrastructure.error_handling.decorators import translate_trading_errors
+from the_alchemiser.infrastructure.market_data.market_data_service import MarketDataService
 from the_alchemiser.interfaces.schemas.accounts import (
     AccountMetricsDTO,
     AccountSummaryDTO,
@@ -97,12 +103,6 @@ from the_alchemiser.interfaces.schemas.smart_trading import (
     SmartOrderExecutionDTO,
     TradingDashboardDTO,
 )
-from the_alchemiser.application.account.account_service import AccountService
-from the_alchemiser.infrastructure.error_handling.decorators import translate_trading_errors
-from the_alchemiser.infrastructure.market_data.market_data_service import MarketDataService
-from the_alchemiser.infrastructure.brokers.alpaca_manager import AlpacaManager
-from the_alchemiser.application.trading.order_service import OrderService
-from the_alchemiser.application.trading.position_service import PositionService
 
 
 class TradingServiceManager:

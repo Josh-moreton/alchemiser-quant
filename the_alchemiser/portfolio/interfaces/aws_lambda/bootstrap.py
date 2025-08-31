@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 class PortfolioBootstrapContext:
     """Dependency bundle for Portfolio Lambda handlers."""
-    
+
     def __init__(
         self,
         generate_plan_use_case: GeneratePlanUseCase,
@@ -41,43 +41,45 @@ class PortfolioBootstrapContext:
 
 def bootstrap_portfolio_context() -> PortfolioBootstrapContext:
     """Bootstrap Portfolio context dependencies for Lambda execution.
-    
+
     Constructs all required ports, adapters, and use cases while pulling
     configuration from environment variables.
-    
+
     Returns:
         PortfolioBootstrapContext with initialized dependencies
-        
+
     Raises:
         ConfigurationError: If required configuration is missing or invalid
 
     """
     logger.info("Bootstrapping Portfolio context for Lambda execution")
-    
+
     try:
         # Load configuration from environment
         config = load_settings()
-        
+
         # Create EventBus and plan publisher
         event_bus = InMemoryEventBus()
         plan_publisher = EventBusPlanPublisherAdapter(event_bus)
-        
+
         # Create use cases
         generate_plan_use_case = GeneratePlanUseCase(plan_publisher=plan_publisher)
         update_portfolio_use_case = UpdatePortfolioUseCase()
-        
+
         # Create serializer for contract handling
         signal_serializer = SignalSerializer()
-        
+
         logger.info("Portfolio context bootstrap completed successfully")
-        
+
         return PortfolioBootstrapContext(
             generate_plan_use_case=generate_plan_use_case,
             update_portfolio_use_case=update_portfolio_use_case,
             signal_serializer=signal_serializer,
             config=config,
         )
-        
+
     except Exception as e:
-        logger.error("Failed to bootstrap Portfolio context", extra={'error': str(e)}, exc_info=True)
+        logger.error(
+            "Failed to bootstrap Portfolio context", extra={"error": str(e)}, exc_info=True
+        )
         raise ConfigurationError(f"Portfolio context bootstrap failed: {e}") from e

@@ -23,27 +23,27 @@ logger = logging.getLogger(__name__)
 
 class EventBusPlanPublisherAdapter(PlanPublisherPort):
     """EventBus-based plan publisher for Portfolio context.
-    
+
     This adapter publishes RebalancePlanContractV1 events through the EventBus,
     enabling Execution context to receive plans without direct coupling.
     The EventBus handles idempotency and delivery semantics.
     """
-    
+
     def __init__(self, event_bus: EventBus) -> None:
         """Initialize the publisher with an EventBus instance.
-        
+
         Args:
             event_bus: EventBus instance for publishing events
 
         """
         self._event_bus = event_bus
-    
+
     def publish(self, plan: RebalancePlanContractV1) -> None:
         """Publish a rebalance plan through the EventBus.
-        
+
         Args:
             plan: Complete plan contract with planned orders
-            
+
         Raises:
             ValidationError: Invalid plan contract
             PublishError: EventBus publication failure
@@ -55,32 +55,32 @@ class EventBusPlanPublisherAdapter(PlanPublisherPort):
                 logger.warning(
                     "Publishing plan with no orders (plan_id: %s, message_id: %s)",
                     plan.plan_id,
-                    plan.message_id
+                    plan.message_id,
                 )
-            
+
             # Validate envelope metadata is present
             if not plan.message_id:
                 raise ValidationError("Plan must have message_id (envelope metadata)")
             if not plan.correlation_id:
                 raise ValidationError("Plan must have correlation_id (envelope metadata)")
-            
+
             logger.debug(
                 "Publishing rebalance plan via EventBus (plan_id: %s, message_id: %s, orders: %d)",
                 plan.plan_id,
                 plan.message_id,
-                len(plan.planned_orders)
+                len(plan.planned_orders),
             )
-            
+
             # Publish through EventBus
             self._event_bus.publish(plan)
-            
+
             logger.info(
                 "Successfully published rebalance plan with %d orders (plan_id: %s, message_id: %s)",
                 len(plan.planned_orders),
                 plan.plan_id,
-                plan.message_id
+                plan.message_id,
             )
-            
+
         except (ValidationError, ValueError) as e:
             logger.error("Plan validation failed: %s", e)
             raise ValidationError(f"Invalid plan contract: {e}") from e

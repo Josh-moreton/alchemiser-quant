@@ -16,11 +16,11 @@ from decimal import Decimal
 from typing import Any, Literal
 
 from the_alchemiser.domain.registry import StrategyType
+from the_alchemiser.domain.types import StrategySignal
+from the_alchemiser.interfaces.schemas.orders import ValidatedOrderDTO
 from the_alchemiser.strategy.domain.value_objects.strategy_signal import (
     StrategySignal as TypedStrategySignal,
 )
-from the_alchemiser.domain.types import StrategySignal
-from the_alchemiser.interfaces.schemas.orders import ValidatedOrderDTO
 
 ActionLiteral = Literal["BUY", "SELL", "HOLD"]
 
@@ -98,9 +98,9 @@ def typed_dict_to_domain_signal(
         New typed domain StrategySignal with value objects
 
     """
-    from the_alchemiser.strategy.domain.value_objects.confidence import Confidence
     from the_alchemiser.domain.trading.value_objects.symbol import Symbol
     from the_alchemiser.shared_kernel.value_objects.percentage import Percentage
+    from the_alchemiser.strategy.domain.value_objects.confidence import Confidence
 
     # Extract symbol, handling special cases
     symbol_value = typed_dict_signal["symbol"]
