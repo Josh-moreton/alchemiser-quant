@@ -156,7 +156,7 @@ class RealTimePricingService:
             check_interval = 0.05  # Start with 50ms
             max_interval = 0.5  # Cap at 500ms
             elapsed_time = 0.0
-            
+
             while elapsed_time < max_wait_time:
                 if self._connected:
                     break
@@ -204,7 +204,7 @@ class RealTimePricingService:
         reconnect_delay = 2.0  # Start with 2 seconds
         max_reconnect_delay = 60.0  # Cap at 1 minute
         successful_connections = 0
-        
+
         while self._should_reconnect:
             try:
                 if self._stream:
@@ -224,11 +224,12 @@ class RealTimePricingService:
                 if self._should_reconnect:
                     logging.info(f"🔄 Reconnecting in {reconnect_delay:.1f} seconds...")
                     time.sleep(reconnect_delay)
-                    
+
                     # Exponential backoff with jitter for reconnection delays
                     reconnect_delay = min(reconnect_delay * 1.5, max_reconnect_delay)
                     # Add small jitter to prevent thundering herd
                     import secrets
+
                     jitter = secrets.randbelow(500) / 1000.0  # 0.0 to 0.5 seconds
                     reconnect_delay += jitter
 
@@ -588,11 +589,11 @@ class RealTimePricingService:
 
         # Wait for real-time data with timeout and early exit if data available
         import time
-        
+
         max_wait = 0.5  # Maximum wait time
         check_interval = 0.05  # Check every 50ms
         elapsed = 0.0
-        
+
         while elapsed < max_wait:
             # Check if we have recent data for this symbol
             if symbol in self._quotes and symbol in self._last_update:
@@ -600,7 +601,7 @@ class RealTimePricingService:
                 time_since_update = (datetime.now(UTC) - self._last_update[symbol]).total_seconds()
                 if time_since_update < 1.0:
                     break
-            
+
             time.sleep(check_interval)
             elapsed += check_interval
 

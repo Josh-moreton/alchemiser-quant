@@ -54,10 +54,6 @@ from the_alchemiser.application.trading.bootstrap import (
     bootstrap_from_service_manager,
     bootstrap_traditional,
 )
-from the_alchemiser.infrastructure.logging.logging_utils import (
-    get_logger,
-    log_with_context,
-)
 
 # Import application-layer ports for dependency injection
 from the_alchemiser.domain.registry import StrategyType
@@ -69,6 +65,10 @@ from the_alchemiser.domain.types import (
     PositionsDict,
 )
 from the_alchemiser.infrastructure.config import Settings
+from the_alchemiser.infrastructure.logging.logging_utils import (
+    get_logger,
+    log_with_context,
+)
 from the_alchemiser.interfaces.schemas.common import MultiStrategyExecutionResultDTO
 from the_alchemiser.interfaces.schemas.execution import ExecutionResultDTO
 from the_alchemiser.services.account.account_service import (
