@@ -1,6 +1,6 @@
 """Order management and lifecycle.
 
-Currently under construction - no logic implemented yet.
+Contains order services, validators, and lifecycle management.
 """
 
 from __future__ import annotations
