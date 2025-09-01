@@ -151,11 +151,19 @@ class RealTimePricingService:
             )
             self._stream_thread.start()
 
-            # Wait a moment for connection
-            for _ in range(50):  # 5 second timeout
+            # Wait a moment for connection with exponential backoff
+            max_wait_time = 5.0  # 5 second timeout
+            check_interval = 0.05  # Start with 50ms
+            max_interval = 0.5  # Cap at 500ms
+            elapsed_time = 0.0
+            
+            while elapsed_time < max_wait_time:
                 if self._connected:
                     break
-                time.sleep(0.1)
+                time.sleep(check_interval)
+                elapsed_time += check_interval
+                # Exponential backoff for less aggressive polling
+                check_interval = min(check_interval * 1.2, max_interval)
 
             if self._connected:
                 logging.info("✅ Real-time pricing service started successfully")
@@ -192,13 +200,20 @@ class RealTimePricingService:
             logging.error(f"Error stopping real-time pricing service: {e}")
 
     def _run_stream(self) -> None:
-        """Run the WebSocket stream with automatic reconnection."""
+        """Run the WebSocket stream with automatic reconnection and exponential backoff."""
+        reconnect_delay = 2.0  # Start with 2 seconds
+        max_reconnect_delay = 60.0  # Cap at 1 minute
+        successful_connections = 0
+        
         while self._should_reconnect:
             try:
                 if self._stream:
                     logging.info("📡 Starting real-time data stream...")
                     self._connected = True
                     self._stats["last_heartbeat"] = datetime.now(UTC)
+                    successful_connections += 1
+                    # Reset reconnect delay on successful connection
+                    reconnect_delay = 2.0
                     self._stream.run()
 
             except Exception as e:
@@ -207,8 +222,15 @@ class RealTimePricingService:
                 logging.error(f"Real-time stream error: {e}")
 
                 if self._should_reconnect:
-                    logging.info("🔄 Reconnecting in 10 seconds...")
-                    time.sleep(10)
+                    logging.info(f"🔄 Reconnecting in {reconnect_delay:.1f} seconds...")
+                    time.sleep(reconnect_delay)
+                    
+                    # Exponential backoff with jitter for reconnection delays
+                    reconnect_delay = min(reconnect_delay * 1.5, max_reconnect_delay)
+                    # Add small jitter to prevent thundering herd
+                    import secrets
+                    jitter = secrets.randbelow(500) / 1000.0  # 0.0 to 0.5 seconds
+                    reconnect_delay += jitter
 
     async def _on_quote(self, quote: Quote | dict[str, Any]) -> None:
         """Handle incoming quote updates."""
@@ -564,10 +586,23 @@ class RealTimePricingService:
         # Subscribe with highest priority for order placement
         self.subscribe_for_order_placement(symbol)
 
-        # Wait briefly for real-time data
+        # Wait for real-time data with timeout and early exit if data available
         import time
-
-        time.sleep(0.5)
+        
+        max_wait = 0.5  # Maximum wait time
+        check_interval = 0.05  # Check every 50ms
+        elapsed = 0.0
+        
+        while elapsed < max_wait:
+            # Check if we have recent data for this symbol
+            if symbol in self._quotes and symbol in self._last_update:
+                # If data is very recent (within 1 second), use it immediately
+                time_since_update = (datetime.now(UTC) - self._last_update[symbol]).total_seconds()
+                if time_since_update < 1.0:
+                    break
+            
+            time.sleep(check_interval)
+            elapsed += check_interval
 
         # Get the best available price
         return self.get_real_time_price(symbol)

@@ -13,6 +13,7 @@ to provide a typed, clean interface for application-layer usage.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any
 
@@ -78,7 +79,8 @@ class RebalancingOrchestratorFacade:
         """Execute complete rebalancing cycle with sequential SELL→settle→BUY.
 
         This method delegates to the existing RebalancingOrchestrator while providing
-        consistent error handling and logging at the application layer.
+        consistent error handling and logging at the application layer. It runs the
+        async rebalancing cycle in a new event loop to maintain backward compatibility.
 
         Args:
             target_portfolio: Target allocation weights (0.0-1.0) by symbol
@@ -94,9 +96,11 @@ class RebalancingOrchestratorFacade:
         try:
             self.logger.info(f"Starting full rebalancing cycle for {len(target_portfolio)} symbols")
 
-            # Delegate to existing orchestrator
-            orders = self._orchestrator.execute_full_rebalance_cycle(
-                target_portfolio, strategy_attribution
+            # Run the async orchestrator method using asyncio.run for backward compatibility
+            orders = asyncio.run(
+                self._orchestrator.execute_full_rebalance_cycle(
+                    target_portfolio, strategy_attribution
+                )
             )
 
             self.logger.info(f"Rebalancing cycle completed with {len(orders)} total orders")

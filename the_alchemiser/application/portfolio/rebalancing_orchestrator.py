@@ -9,8 +9,8 @@ the actual execution phases and uses WebSocket-based monitoring for order comple
 
 from __future__ import annotations
 
+import asyncio
 import logging
-import time
 from typing import TYPE_CHECKING, Any
 
 from the_alchemiser.domain.registry import StrategyType
@@ -94,7 +94,7 @@ class RebalancingOrchestrator:
 
         return sell_orders
 
-    def wait_for_settlement_and_bp_refresh(self, sell_orders: list[OrderDetails]) -> None:
+    async def wait_for_settlement_and_bp_refresh(self, sell_orders: list[OrderDetails]) -> None:
         """Wait for sell order settlement and buying power refresh via WebSocket monitoring.
 
         Args:
@@ -111,8 +111,8 @@ class RebalancingOrchestrator:
         sell_order_ids = [order["id"] for order in sell_orders if order["id"] != "unknown"]
 
         if not sell_order_ids:
-            logging.warning("No valid order IDs to monitor, using time-based delay")
-            time.sleep(5)  # Fallback delay
+            logging.warning("No valid order IDs to monitor, using async fallback delay")
+            await asyncio.sleep(5)  # Non-blocking fallback delay
             return
 
         try:
@@ -123,9 +123,9 @@ class RebalancingOrchestrator:
             # Initialize WebSocket monitor
             monitor = OrderCompletionMonitor(self.trading_client, api_key, secret_key)
 
-            # Wait for all sell orders to complete (30 second timeout)
-            completion_result: WebSocketResultDTO = monitor.wait_for_order_completion(
-                sell_order_ids, max_wait_seconds=30
+            # Run WebSocket monitoring in executor to avoid blocking
+            completion_result: WebSocketResultDTO = await asyncio.get_event_loop().run_in_executor(
+                None, monitor.wait_for_order_completion, sell_order_ids, 30
             )
 
             # Handle completion results using enum comparisons (fix for previous string comparison bug)
@@ -145,12 +145,15 @@ class RebalancingOrchestrator:
                     f"❌ WebSocket monitoring error: {completion_result.message} (completed={len(completed_order_ids)})"
                 )
 
-            # Brief additional delay to ensure buying power propagation
-            time.sleep(2)
+            # Brief additional non-blocking delay to ensure buying power propagation
+            await asyncio.sleep(2)
 
         except Exception as e:
-            logging.warning(f"WebSocket monitoring failed, using fallback delay: {e}")
-            time.sleep(10)  # Fallback delay if WebSocket fails
+            logging.warning(f"WebSocket monitoring failed, using async fallback delay: {e}")
+            # Use exponential backoff with timeout
+            backoff = 2
+            max_backoff_time = 15
+            await asyncio.sleep(min(backoff * 2, max_backoff_time))
 
     def execute_buy_phase(
         self,
@@ -187,7 +190,7 @@ class RebalancingOrchestrator:
 
         return buy_orders
 
-    def execute_full_rebalance_cycle(
+    async def execute_full_rebalance_cycle(
         self,
         target_portfolio: dict[str, float],
         strategy_attribution: dict[str, list[StrategyType]] | None = None,
@@ -223,8 +226,8 @@ class RebalancingOrchestrator:
             sell_orders = self.execute_sell_phase(target_portfolio, strategy_attribution)
             all_orders.extend(sell_orders)
 
-            # Phase 2: Wait for sell order settlements and buying power refresh
-            self.wait_for_settlement_and_bp_refresh(sell_orders)
+            # Phase 2: Wait for sell order settlements and buying power refresh (now async)
+            await self.wait_for_settlement_and_bp_refresh(sell_orders)
 
             # Phase 3: Execute BUY orders with refreshed buying power
             buy_orders = self.execute_buy_phase(target_portfolio, strategy_attribution)
