@@ -7,101 +7,92 @@ CORE ENFORCED RULES:
 2. Use assert_close()/numpy.testing.assert_allclose for numerical test comparisons (when tests exist).
 3. Do NOT create new tests or introduce testing frameworks (project currently excludes them for AI agents).
 4. Each new module MUST start with a module docstring declaring Business Unit and Status (current|legacy).
-     Business Units (bounded-context aligned):
-         - strategy & signal generation
-         - portfolio assessment & management
-         - order execution/placement
-         - utilities (shared kernel / cross-cutting) – keep minimal
+     Business Units (module-aligned):
+         - strategy – signal generation, indicators, ML models
+         - portfolio – portfolio state, sizing, rebalancing logic
+         - execution – broker API integrations, order placement, error handling
+         - shared – DTOs, utilities, logging, cross-cutting concerns
 5. Keep BUSINESS_UNITS_REPORT.md consistent when adding/removing files.
 6. No legacy fallbacks: never reintroduce removed legacy providers or silent downgrade paths.
 
 -------------------------------------------------------------------------------
-DDD EVOLUTION: THREE BOUNDED CONTEXTS
+MODULAR ARCHITECTURE: FOUR TOP-LEVEL MODULES
 -------------------------------------------------------------------------------
-We are restructuring around THREE explicit bounded contexts, each internally
-layered (Domain, Application, Infrastructure, Interfaces):
+The codebase is organized around four main modules with clear responsibilities
+and controlled dependencies:
 
-1. Strategy Context
-     Purpose: Signal generation, indicator calculation, regime detection, strategy composition.
-     Domain: Strategy engines, value objects (StrategySignal, Confidence, Alert), policies.
-     Application: Orchestrates multi-strategy runs, normalization, scoring, DTO mappers.
-     Infrastructure: Data acquisition adapters (market data fetchers, indicator caches) specific to strategy needs.
-     Interfaces: CLI signal display, potential HTTP exports, validation utilities.
+1. strategy/
+     Purpose: Signal generation, indicator calculation, ML models, regime detection
+     Contains: Strategy engines, technical indicators, ML pipelines, signal processors
+     Examples: Nuclear strategy, TECL strategy, market regime detection, volatility indicators
+     
+2. portfolio/
+     Purpose: Portfolio state management, sizing, rebalancing logic, risk management
+     Contains: Portfolio valuation, position tracking, allocation calculations, rebalancing algorithms
+     Examples: Portfolio rebalancer, position manager, risk constraints, allocation optimizer
+     
+3. execution/
+     Purpose: Broker API integrations, order placement, smart execution, error handling
+     Contains: Order routing, broker connectors, execution strategies, order lifecycle management
+     Examples: Alpaca integration, smart execution algorithms, order validation, fill monitoring
+     
+4. shared/
+     Purpose: DTOs, utilities, logging, cross-cutting concerns, common value objects
+     Contains: Data transfer objects, utility functions, logging setup, shared types
+     Examples: Money/Decimal types, Symbol classes, DTOs, configuration, error handling
 
-2. Portfolio Context
-     Purpose: Portfolio state, valuation, allocations, risk constraints, rebalancing decisions.
-     Domain: Account, Position, Portfolio Aggregate, Value Objects (Money, Percentage, Symbol, Quantity), risk policies.
-     Application: Rebalancing use cases, target allocation computation, exposure analytics, mapping to/from external DTOs.
-     Infrastructure: Brokerage/account adapters (account balances, positions, historical equity), persistence/storage.
-     Interfaces: Portfolio status CLI tables, reporting/email views, external query endpoints.
+MODULE DEPENDENCY RULES:
+ - strategy/ → shared/ (allowed)
+ - portfolio/ → shared/ (allowed)  
+ - execution/ → shared/ (allowed)
+ - strategy/ → portfolio/ (FORBIDDEN)
+ - strategy/ → execution/ (FORBIDDEN)
+ - portfolio/ → execution/ (FORBIDDEN)
+ - shared/ → any other module (FORBIDDEN - shared must be leaf dependencies)
 
-3. Execution Context
-     Purpose: Order validation, smart execution strategies, routing, monitoring fill lifecycle.
-     Domain: Order, OrderIntent, ExecutionPolicy, OrderStatus, SlippageModel.
-     Application: PlaceOrderCommand / CancelOrderCommand handlers, smart execution pipeline, order sizing rules.
-     Infrastructure: Broker order API adapters, WebSocket listeners, retry & backoff utilities.
-     Interfaces: Execution CLI (trade), deployment entrypoints (Lambda), event publishing of fills.
+IMPORT HYGIENE & API BOUNDARIES:
+ - Use module APIs, not deep subfolders. Import from strategy.indicators, not strategy.indicators.technical.sma
+ - Each module should expose a clean public API through __init__.py  
+ - Avoid importing private/internal implementations from other modules
+ - Cross-module communication should use well-defined interfaces and DTOs
 
-Cross-Cutting Shared Kernel (Minimal):
- - Immutable primitives & ubiquitous value objects (Money, Percentage, Identifier, Symbol)
- - Pure functions with no external side-effects
- - MUST NOT depend on any bounded context packages
+CODE PLACEMENT EXAMPLES:
+ - New indicator (SMA, RSI, etc.) → strategy/indicators/
+ - New strategy engine → strategy/engines/  
+ - New broker connector → execution/brokers/
+ - Portfolio rebalancing logic → portfolio/rebalancing/
+ - New position tracker → portfolio/positions/
+ - Order execution strategy → execution/strategies/
+ - Common DTO classes → shared/dtos/
+ - Utility functions → shared/utils/
+ - Logging setup → shared/logging/
+ - Configuration types → shared/config/
 
-BOUNDARY PRINCIPLES:
- - No cross-context domain imports. Communication ONLY via versioned Application contracts (DTOs) serialized across a message boundary (SQS, CLI simulation) – never direct domain object sharing.
- - Contexts depend inward on shared_kernel ONLY (value objects, enums, minimal helpers); never laterally.
- - All external <-> internal translation centralized in top-level anti_corruption/ (contexts MUST NOT import anti_corruption; dependency direction is external -> anti_corruption -> context via DTO construction).
- - Infrastructure adapters expose only Protocol (Port) implementations declared in application.ports (or application/ports.py) – domain stays tech-agnostic.
- - Interfaces layer never contains business rules; it parses/validates input, invokes a use case, formats output.
+TARGET MODULE STRUCTURE:
+strategy/
+├── indicators/              # Technical indicators, market signals
+├── engines/                 # Strategy implementations (Nuclear, TECL, etc.)
+├── signals/                 # Signal processing and generation
+└── models/                  # ML models and data processing
 
-RETIRED LAYERS / PACKAGES:
- - Generic services/ and utils/ are being dismantled. Code is re-homed into context-aligned layers.
- - Do NOT add new modules under services/ or utils/ (except temporary shim flagged legacy during migration).
+portfolio/  
+├── positions/               # Position tracking and management
+├── rebalancing/             # Rebalancing algorithms and logic
+├── valuation/               # Portfolio valuation and metrics
+└── risk/                    # Risk management and constraints
 
-PACKAGE NAMING (ILLUSTRATIVE TARGET STRUCTURE):
-the_alchemiser/
-    shared_kernel/               # Pure immutable VOs, enums, tiny stateless helpers (no inbound deps)
-        value_objects/
-        tooling/
-    anti_corruption/             # External ↔ internal mappers (alpaca_order_to_domain, dto serializers)
-        brokers/
-        market_data/
-        serialization/
-    strategy/
-        domain/
-        application/
-            contracts/           # SignalV1, internal command/query/result types
-            ports.py             # MarketDataPort, SignalPublisher
-            use_cases/
-        infrastructure/
-            adapters/            # AlpacaMarketDataAdapter, SqsSignalPublisher
-        interfaces/
-            lambda/
-            cli/
-    portfolio/
-        domain/
-        application/
-            contracts/           # RebalancePlanV1, (ExecutionReportV1 consumer shape if mirrored)
-            ports.py             # PositionRepositoryPort, PlanPublisher, ExecReportHandlerPort
-            use_cases/
-        infrastructure/
-            adapters/            # SqsPlanPublisher, PortfolioStateRepository, S3 writers
-        interfaces/
-            lambda/
-            cli/
-    execution/
-        domain/
-        application/
-            contracts/           # ExecutionReportV1, Plan consumption DTO mirror
-            ports.py             # OrderRouterPort, ExecutionReportPublisher
-            use_cases/
-        infrastructure/
-            adapters/            # AlpacaOrderRouter, SqsExecutionReportPublisher
-        interfaces/
-            lambda/
-            cli/
-    main.py                      # Optional orchestration / CLI entry
-    lambda_handler.py            # (May delegate or be deprecated)
+execution/
+├── brokers/                 # Broker API integrations (Alpaca, etc.)
+├── orders/                  # Order management and lifecycle
+├── strategies/              # Smart execution strategies  
+└── routing/                 # Order routing and placement
+
+shared/
+├── dtos/                    # Data transfer objects
+├── types/                   # Common value objects (Money, Symbol, etc.)
+├── utils/                   # Utility functions and helpers
+├── config/                  # Configuration management
+└── logging/                 # Logging setup and utilities
 
 -------------------------------------------------------------------------------
 TYPING & CODE QUALITY
@@ -110,130 +101,140 @@ TYPING & CODE QUALITY
  - Every function annotated (parameters + explicit return). Use None explicitly.
  - Money & quantities: Decimal only (no float arithmetic for financial values).
  - Non-financial float comparisons: math.isclose or explicit epsilon helpers.
- - Prefer Protocol over ABC for ports (repository, gateway, provider patterns).
- - Domain layer: framework-free (NO Pydantic, logging, requests, boto3, pandas, rich).
- - Application layer: orchestrates use cases (Commands, Queries, Results) + mapping.
- - Infrastructure layer: external side-effects (I/O, network, persistence, brokers, AWS, Alpaca).
- - Interfaces layer: CLI, presentation, serialization, transport.
- - Shared Kernel: leaf-only; cannot import from any bounded context.
+ - Prefer Protocol over ABC for interface definitions.
+ - Each module should be internally cohesive with minimal external dependencies.
 
-DTO / MESSAGE NAMING & VERSIONING RULES:
- - Domain: Plain nouns (Order, Position, StrategySignal, Portfolio, ExecutionPolicy).
- - Inter-context contracts (application/contracts): Version suffix (SignalV1, RebalancePlanV1, ExecutionReportV1, PlannedOrderV1, FillV1).
- - Use-case internal I/O: Command / Query / Result suffix.
- - Interfaces (CLI/API): Request / Response / View.
- - Events: <Noun><Action/Event>V<version> (TradeExecutedEventV1) when modeled explicitly.
- - Persistence mapping: Record / Row / Model.
- - Prefer semantic names over generic *Dto; retain version for backward compatibility. NEVER mutate an existing version in-place; add V2+ with upgrade mapper in anti_corruption.serialization.
-PRIMARY CONTRACT FLOWS:
- - Strategy -> Portfolio: SignalV1(symbol, action (ActionType), confidence (float), target_allocation (Percentage/Decimal), reasoning, timestamp, correlation_id, deduplication_id, causation_id)
- - Portfolio -> Execution: RebalancePlanV1(plan_id, correlation_id, generated_at, planned_orders[list[PlannedOrderV1]])
- - Execution -> Portfolio: ExecutionReportV1(report_id, correlation_id, fills[list[FillV1]], summary, account_delta, generated_at)
- - Correlation chain preserved across lifecycle for traceability.
+DTO & MESSAGE NAMING CONVENTIONS:
+ - Domain types: Plain nouns (Order, Position, Signal, Portfolio)
+ - Cross-module DTOs: Descriptive names with context (StrategySignalDTO, PortfolioStateDTO)
+ - Request/Response types: Clear suffixes (CreateOrderRequest, ExecutionResponse)
+ - Configuration types: Config suffix (StrategyConfig, ExecutionConfig)
+ - Prefer semantic names over generic *Dto
 
-MAPPING & ANTI-CORRUPTION:
- - Centralized in anti_corruption/ (NOT inside context application.mapping anymore – that folder is deprecated).
- - Provides pure functions/classes translating external SDK payloads → domain VOs / DTOs and vice versa (e.g., alpaca_order_to_domain, domain_order_to_alpaca_request).
- - Contexts receive already-mapped objects (DTOs / VOs); they do NOT import anti_corruption (one-way dependency to avoid leakage of external schemas).
- - Document any lossy conversions; ensure round-trip invariants where required for idempotency.
+INTER-MODULE COMMUNICATION:
+ - Modules communicate via well-defined DTOs and interfaces
+ - Strategy module generates signals consumed by portfolio module
+ - Portfolio module creates execution plans consumed by execution module
+ - All communication through explicit contracts, not shared state
+ - Use correlation IDs for traceability across module boundaries
 
 ERROR HANDLING:
- - Never fail silently. Raise typed exceptions (StrategyExecutionError, OrderExecutionError, DataAccessError, etc.).
- - Central error handler categorizes: CRITICAL, STRATEGY, PORTFOLIO, EXECUTION, DATA, CONFIGURATION, NOTIFICATION, WARNING.
- - Execution context owns order lifecycle error semantics; Portfolio context handles valuation/risk anomalies.
- - Provide component="Context.Layer.Class.method" in error metadata for traceability.
+ - Never fail silently. Raise typed exceptions with module context.
+ - Module-specific error types: StrategyError, PortfolioError, ExecutionError, ConfigurationError
+ - Include module="strategy.indicators.sma" in error metadata for traceability.
+ - Central error handler categorizes by module and severity.
 
-CONCURRENCY & INTEGRITY:
- - Avoid shared mutable state across contexts; pass immutable DTO snapshots.
- - Recompute derived values instead of caching mutable cross-context state unless a formal cache adapter exists.
+CONCURRENCY & STATE MANAGEMENT:
+ - Avoid shared mutable state between modules
+ - Pass immutable data structures and DTOs between modules
+ - Each module manages its own internal state
+ - Recompute derived values instead of caching cross-module state
 
 IMPORT RULES (TO BE ENFORCED VIA import-linter):
- - Layer direction inside a context: interfaces -> application -> domain; infrastructure -> application/domain (infrastructure must NOT import interfaces; prefer factories/wiring outside domain logic).
- - Domain imports: shared_kernel only.
- - Application imports: own domain, shared_kernel, own contracts/ports; cross-context only via serialized DTO payloads (avoid importing another context's application module – treat foreign DTOs as external JSON, rehydrate locally if necessary).
- - Infrastructure imports: own application + domain + shared_kernel; never other contexts' infrastructure.
- - Interfaces imports: own application + shared_kernel (+ optional foreign DTO class ONLY if no alternative; prefer boundary JSON).
- - anti_corruption may import context domain + application contracts + shared_kernel; contexts MUST NOT import anti_corruption.
- - Hard forbidden: any reference to legacy services/ or utils/; cross-context domain/infrastructure imports; domain -> application/infrastructure; application -> interfaces.
- - Example contracts for import-linter (abridged):
-     * Layers per context (interfaces > application > domain) + infrastructure isolation.
-     * Forbidden: strategy.domain -> portfolio.* / execution.* (and symmetric), * -> the_alchemiser.services.* / the_alchemiser.utils.* / other_context.infrastructure.*
+ - Module isolation: strategy/, portfolio/, execution/ cannot import from each other
+ - Shared dependencies: All modules may import from shared/ only
+ - Deep imports forbidden: Use public module APIs, not internal submodules
+ - Legacy cleanup: Never import from deprecated services/ or utils/ directories
+ - Example valid imports:
+   * from shared.types import Money, Symbol
+   * from strategy.indicators import MovingAverage
+   * from portfolio.positions import PositionTracker
+   * from execution.brokers import AlpacaConnector
+ - Example forbidden imports:
+   * from strategy.internal.calculations import sma  # Deep import
+   * from portfolio import rebalance_portfolio # Cross-module import 
+   * from services.legacy_service import helper # Legacy import
 
-LEGACY & MIGRATION FLAGS:
+LEGACY & MIGRATION:
  - Mark temporary shims with module docstring Status: legacy and schedule removal.
- - Do not extend legacy modules; create current replacements and migrate call sites.
+ - Do not extend legacy modules; create current replacements in proper modules.
+ - When touching deprecated services/ or utils/ code, migrate to appropriate module first.
 
 PERFORMANCE & OBSERVABILITY:
- - Domain functions must be deterministic and side-effect free.
- - Infrastructure network calls must include minimal structured logging (context id, symbol, operation).
- - Avoid premature micro-optimizations; focus on clarity with O(1)/O(n) reasoning documented when non-trivial.
+ - Functions should be deterministic and minimize side effects within modules.
+ - Include structured logging with module context (module="strategy.indicators").
+ - Focus on clarity with O(1)/O(n) reasoning documented when non-trivial.
 
 SECURITY & CONFIGURATION:
- - All secrets via environment / AWS Secrets Manager adapters (in infrastructure layer only).
- - No hard-coded API keys or credentials in any layer.
+ - All secrets via environment variables or secure configuration management.
+ - No hard-coded API keys or credentials in any module.
+ - Configuration should be centralized in shared/config/.
 
 STYLE SUMMARY:
  - Line length 100. Ruff formatter enforced.
  - Import order auto (ruff). No unused imports.
- - Use Decimal quantize only in infrastructure or presentation formatting, not for internal math unless rounding policy documented.
+ - Use Decimal quantize only for formatting, not for internal math unless rounding policy documented.
 
 PROHIBITED PATTERNS:
- - Direct cross-context domain imports.
- - Logic in interfaces layer.
+ - Cross-module direct imports (strategy → portfolio, portfolio → execution, etc.).
+ - Logic mixed between modules without clear interfaces.
  - Silent except: or broad except Exception without re-raise via typed error.
- - Adding new generic helpers to a catch-all utils/ directory.
- - Float equality checks.
+ - Adding new code to legacy services/ or utils/ directories.
+ - Float equality checks for financial calculations.
 
 RECOMMENDED WORKFLOW:
- 1. Define or refine Domain model (value objects, entities, policies) inside the owning context.
- 2. Define Protocol(s)/Ports in application/ports.py (MarketDataPort, OrderRouterPort, Publishers...).
- 3. Implement adapters in infrastructure/adapters/ satisfying Ports.
- 4. Implement application use cases (verb_noun modules under application/use_cases/).
- 5. Define/extend versioned DTO contracts in application/contracts/ (never mutate an existing version).
- 6. Interfaces layer (CLI/Lambda) materializes inbound DTOs from JSON, invokes use case, publishes outbound DTO via Port.
- 7. Add/adjust anti_corruption mappers only when integrating new external payload shapes.
+ 1. Identify which module the new code belongs to based on responsibility.
+ 2. Define interfaces and DTOs for any cross-module communication.
+ 3. Implement functionality within the appropriate module.
+ 4. Create clean public APIs through module __init__.py files.
+ 5. Use shared/ for common utilities, types, and cross-cutting concerns.
+ 6. Test module boundaries and ensure proper isolation.
 
 FLOAT & NUMERIC POLICY:
- - Money/quantity/risk metrics -> Decimal.
- - Statistical ratios -> float permitted but compare with tolerance via helpers.
+ - Money/quantity/risk metrics → Decimal.
+ - Statistical ratios → float permitted but compare with tolerance via helpers.
 
-EVENT-DRIVEN COMMUNICATION & OUTBOX:
- - Default flow: SignalV1 -> RebalancePlanV1 -> ExecutionReportV1 across FIFO queues (signals.fifo, plans.fifo, exec-reports.fifo).
- - Each message includes metadata: message_id, correlation_id (root), causation_id (immediate predecessor), deduplication_id (FIFO idempotency), timestamp.
- - Producers SHOULD persist an outbox record (minimal store acceptable) before publish for reliability where state change + message must be atomic.
- - Consumers MUST be idempotent (skip if message_id already processed).
- - CLI/demo path may shortcut queue delivery but MUST still construct DTOs exactly as production.
+MODULE-SPECIFIC GUIDELINES:
 
-PORT DEFINITIONS (MINIMUM SET):
- - strategy.application.ports: MarketDataPort, SignalPublisher.
- - portfolio.application.ports: PositionRepositoryPort, PlanPublisher, ExecutionReportHandlerPort / callback, PortfolioStateRepositoryPort.
- - execution.application.ports: OrderRouterPort, ExecutionReportPublisher, (optional) ExecutionMarketDataPort.
- - Adapters named <tech>_<role>.py (alpaca_order_router.py, sqs_signal_publisher.py).
+strategy/:
+ - Focus on signal generation and analysis logic
+ - Should be stateless where possible  
+ - Communicate results via clear signal DTOs
+ - No direct market access (use data providers via interfaces)
 
-PORTFOLIO STATE OWNERSHIP:
- - ONLY Portfolio context mutates portfolio/position state; Execution reports outcomes; Strategy suggests intents.
- - Sizing happens in Portfolio planning; Execution MUST NOT recompute target quantities (except broker lot normalization inside its domain logic).
+portfolio/:
+ - Manages all portfolio state and positions
+ - Handles rebalancing calculations and constraints
+ - Provides portfolio analytics and reporting
+ - Never directly places orders (delegates to execution)
 
-NAMING CONVENTIONS (ADDITIONAL):
- - Use cases: verb_noun modules (generate_signals.py, create_rebalance_plan.py, execute_plan.py, apply_execution_report.py).
- - Value objects: singular files (money.py, symbol.py, percentage.py) inside shared_kernel/value_objects/.
- - Mappers (anti_corruption): <external>_to_<internal>.py / <internal>_to_<external>.py.
- - DTO files: snake_case with version suffix (signal_v1.py, rebalance_plan_v1.py, execution_report_v1.py).
+execution/: 
+ - Handles all broker integrations and order placement
+ - Implements smart execution algorithms
+ - Manages order lifecycle and error handling
+ - Should be the only module that touches external trading APIs
 
-ARCHITECTURE ENFORCEMENT:
- - Configure import-linter in CI to enforce contracts above.
- - mypy strict mode required for all new/modified modules.
- - No direct anti_corruption usage in domain/application; mapping performed at interface boundary before invoking use case.
-
-LEGACY CLEANUP GUIDELINES:
- - When touching code under deprecated services/ or utils/, migrate logic into proper context layer before extending functionality.
- - application.mapping modules are deprecated – create mapping in anti_corruption/ instead.
+shared/:
+ - Provides common types and utilities used across modules
+ - Should have no dependencies on other modules
+ - Keep minimal and focused on truly shared concerns
+ - Include logging, configuration, DTOs, and base types
 
 BUSINESS UNIT DOCSTRINGS:
-Example top-of-file docstring:
-"""Business Unit: portfolio assessment & management | Status: current
+Example top-of-file docstring for each module:
 
-Rebalancing engine computing target allocations from strategy signals and risk constraints.
+strategy module:
+"""Business Unit: strategy | Status: current
+
+Signal generation and indicator calculation for trading strategies.
+"""
+
+portfolio module:
+"""Business Unit: portfolio | Status: current
+
+Portfolio state management and rebalancing logic.
+"""
+
+execution module:
+"""Business Unit: execution | Status: current
+
+Broker API integrations and order placement.
+"""
+
+shared module:
+"""Business Unit: shared | Status: current
+
+DTOs, utilities, and cross-cutting concerns.
 """
 
 LINT & TYPE COMMANDS (always with poetry run):
@@ -242,8 +243,10 @@ LINT & TYPE COMMANDS (always with poetry run):
  - poetry run mypy the_alchemiser/
 
 DEPLOYMENT:
- - Lambda entrypoint remains top-level; Execution context application orchestrates cross-context calls.
+ - Lambda entrypoint remains top-level for backward compatibility.
+ - Consider gradual migration to module-based entry points.
 
 FINAL NOTE:
-This document supersedes older references to a monolithic services/ layer. All new code must align with the three bounded contexts and layered structure.
+This document supersedes older references to DDD bounded contexts and layered architecture. 
+All new code must align with the four-module structure and dependency rules outlined above.
 """
