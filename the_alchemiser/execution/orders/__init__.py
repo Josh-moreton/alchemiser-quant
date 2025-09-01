@@ -1,8 +1,9 @@
-"""Order management and lifecycle.
+"""Business Unit: order execution/placement; Status: current.
 
-Contains order services, validators, and lifecycle management.
+Order management and handling layer.
+
+This module contains all order-related functionality including validation,
+progressive orders, limit orders, and asset-specific order handling.
 """
 
 from __future__ import annotations
-
-__all__: list[str] = []
