@@ -20,10 +20,10 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from the_alchemiser.interfaces.schemas.base import ResultDTO
+from the_alchemiser.interfaces.schemas.base import Result
 
 
-class PositionDTO(BaseModel):
+class Position(BaseModel):
     """DTO for individual position information.
 
     Used when returning position data from TradingServiceManager methods.
@@ -46,7 +46,7 @@ class PositionDTO(BaseModel):
     unrealized_pnl_percent: Decimal = Field(..., description="Unrealized P&L percentage")
 
 
-class PositionSummaryDTO(ResultDTO):
+class PositionSummaryResult(Result):
     """DTO for position summary with additional context.
 
     Contains position data plus metadata about the request/response.
@@ -59,12 +59,12 @@ class PositionSummaryDTO(ResultDTO):
     )
 
     symbol: str | None = None
-    position: PositionDTO | None = None
+    position: Position | None = None
     error: str | None = None
     # End of file newline ensured below
 
 
-class PortfolioSummaryDTO(ResultDTO):
+class PortfolioSummaryResult(Result):
     """DTO for overall portfolio summary.
 
     Aggregated view of all positions and portfolio metrics.
@@ -76,11 +76,11 @@ class PortfolioSummaryDTO(ResultDTO):
         validate_assignment=True,
     )
 
-    portfolio: PortfolioMetricsDTO | None = None
+    portfolio: PortfolioMetrics | None = None
     error: str | None = None
 
 
-class PortfolioMetricsDTO(BaseModel):
+class PortfolioMetrics(BaseModel):
     """DTO for portfolio-level metrics."""
 
     model_config = ConfigDict(
@@ -95,7 +95,7 @@ class PortfolioMetricsDTO(BaseModel):
     largest_position_percent: Decimal
 
 
-class PositionAnalyticsDTO(ResultDTO):
+class PositionAnalyticsResult(Result):
     """DTO for position risk analytics."""
 
     model_config = ConfigDict(
@@ -109,7 +109,7 @@ class PositionAnalyticsDTO(ResultDTO):
     error: str | None = None
 
 
-class PositionMetricsDTO(ResultDTO):
+class PositionMetricsResult(Result):
     """DTO for portfolio-wide position metrics."""
 
     model_config = ConfigDict(
@@ -119,11 +119,11 @@ class PositionMetricsDTO(ResultDTO):
     )
 
     diversification_score: Decimal | None = None
-    largest_positions: list[LargestPositionDTO] | None = None
+    largest_positions: list[LargestPosition] | None = None
     error: str | None = None
 
 
-class LargestPositionDTO(BaseModel):
+class LargestPosition(BaseModel):
     """DTO for largest position information."""
 
     model_config = ConfigDict(
@@ -137,7 +137,7 @@ class LargestPositionDTO(BaseModel):
     market_value: Decimal
 
 
-class ClosePositionResultDTO(ResultDTO):
+class ClosePositionResult(Result):
     """DTO for position closure results."""
 
     model_config = ConfigDict(
@@ -150,7 +150,7 @@ class ClosePositionResultDTO(ResultDTO):
     error: str | None = None
 
 
-class PortfolioValueDTO(BaseModel):
+class PortfolioValue(BaseModel):
     """DTO for portfolio value information.
 
     Provides both raw numeric value and typed Money object for portfolio valuation.
@@ -165,3 +165,15 @@ class PortfolioValueDTO(BaseModel):
 
     value: Decimal = Field(..., ge=0, description="Raw portfolio value")
     money: Any = Field(..., description="Typed Money object for portfolio value")
+
+
+# Backward compatibility aliases - will be removed in future version
+PositionDTO = Position
+PositionSummaryDTO = PositionSummaryResult
+PortfolioSummaryDTO = PortfolioSummaryResult
+PortfolioMetricsDTO = PortfolioMetrics
+PositionAnalyticsDTO = PositionAnalyticsResult
+PositionMetricsDTO = PositionMetricsResult
+LargestPositionDTO = LargestPosition
+ClosePositionResultDTO = ClosePositionResult
+PortfolioValueDTO = PortfolioValue

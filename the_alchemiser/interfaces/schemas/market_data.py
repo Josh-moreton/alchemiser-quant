@@ -20,10 +20,10 @@ from typing import Any
 
 from pydantic import ConfigDict
 
-from the_alchemiser.interfaces.schemas.base import ResultDTO
+from the_alchemiser.interfaces.schemas.base import Result
 
 
-class PriceDTO(ResultDTO):
+class PriceResult(Result):
     """DTO for latest price information."""
 
     model_config = ConfigDict(
@@ -37,7 +37,7 @@ class PriceDTO(ResultDTO):
     error: str | None = None
 
 
-class PriceHistoryDTO(ResultDTO):
+class PriceHistoryResult(Result):
     """DTO for price history data."""
 
     model_config = ConfigDict(
@@ -53,7 +53,7 @@ class PriceHistoryDTO(ResultDTO):
     error: str | None = None
 
 
-class SpreadAnalysisDTO(ResultDTO):
+class SpreadAnalysisResult(Result):
     """DTO for bid-ask spread analysis."""
 
     model_config = ConfigDict(
@@ -67,7 +67,7 @@ class SpreadAnalysisDTO(ResultDTO):
     error: str | None = None
 
 
-class MarketStatusDTO(ResultDTO):
+class MarketStatusResult(Result):
     """DTO for market status information."""
 
     model_config = ConfigDict(
@@ -80,7 +80,7 @@ class MarketStatusDTO(ResultDTO):
     error: str | None = None
 
 
-class MultiSymbolQuotesDTO(ResultDTO):
+class MultiSymbolQuotesResult(Result):
     """DTO for multi-symbol quote data."""
 
     model_config = ConfigDict(
@@ -92,3 +92,11 @@ class MultiSymbolQuotesDTO(ResultDTO):
     quotes: dict[str, Decimal] | None = None
     symbols: list[str] | None = None
     error: str | None = None
+
+
+# Backward compatibility aliases - will be removed in future version
+PriceDTO = PriceResult
+PriceHistoryDTO = PriceHistoryResult
+SpreadAnalysisDTO = SpreadAnalysisResult
+MarketStatusDTO = MarketStatusResult
+MultiSymbolQuotesDTO = MultiSymbolQuotesResult
