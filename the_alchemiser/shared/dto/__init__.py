@@ -1,18 +1,24 @@
 """Data transfer objects.
 
-Placeholder DTO exports for inter-module communication.
-Currently under construction - no logic implemented yet.
+Typed DTOs for inter-module communication with correlation tracking
+and serialization helpers.
 """
 
 from __future__ import annotations
 
+# Import implemented DTOs
+from the_alchemiser.shared.dto.execution_report_dto import (
+    ExecutedOrderDTO,
+    ExecutionReportDTO,
+)
+from the_alchemiser.shared.dto.rebalance_plan_dto import (
+    RebalancePlanDTO,
+    RebalancePlanItemDTO,
+)
+from the_alchemiser.shared.dto.signal_dto import StrategySignalDTO
+
 
 # Placeholder DTO classes for future implementation
-class StrategySignalDTO:
-    """Placeholder for strategy signal data transfer."""
-
-
-
 class PortfolioStateDTO:
     """Placeholder for portfolio state data transfer."""
 
@@ -25,11 +31,6 @@ class PositionDTO:
 
 class OrderDTO:
     """Placeholder for order data transfer."""
-
-
-
-class ExecutionResultDTO:
-    """Placeholder for execution result data transfer."""
 
 
 
@@ -49,15 +50,17 @@ class ErrorDTO:
 
 
 __all__ = [
+    # Placeholder DTOs
     "ConfigurationDTO",
     "ErrorDTO",
-    "ExecutionResultDTO",
+    # Implemented DTOs
+    "ExecutedOrderDTO",
+    "ExecutionReportDTO",
     "MarketDataDTO",
     "OrderDTO",
     "PortfolioStateDTO",
     "PositionDTO",
+    "RebalancePlanDTO",
+    "RebalancePlanItemDTO",
     "StrategySignalDTO",
 ]
-
-# Note: These are placeholder classes only. Actual DTOs will be implemented
-# in Phase 2 of the migration when business logic is moved.
