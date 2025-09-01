@@ -19,10 +19,10 @@ from typing import Any
 
 from pydantic import ConfigDict
 
-from the_alchemiser.interfaces.schemas.base import ResultDTO
+from the_alchemiser.interfaces.schemas.base import Result
 
 
-class OperationResultDTO(ResultDTO):
+class OperationResult(Result):
     """Generic DTO for operation results with success/error handling."""
 
     model_config = ConfigDict(
@@ -34,7 +34,7 @@ class OperationResultDTO(ResultDTO):
     details: dict[str, Any] | None = None
 
 
-class OrderCancellationDTO(ResultDTO):
+class OrderCancellationResult(Result):
     """DTO for order cancellation results."""
 
     model_config = ConfigDict(
@@ -46,7 +46,7 @@ class OrderCancellationDTO(ResultDTO):
     order_id: str | None = None
 
 
-class OrderStatusDTO(ResultDTO):
+class OrderStatusResult(Result):
     """DTO for order status query results."""
 
     model_config = ConfigDict(
@@ -57,3 +57,9 @@ class OrderStatusDTO(ResultDTO):
 
     order_id: str | None = None
     status: str | None = None
+
+
+# Backward compatibility aliases - will be removed in future version
+OperationResultDTO = OperationResult
+OrderCancellationDTO = OrderCancellationResult
+OrderStatusDTO = OrderStatusResult

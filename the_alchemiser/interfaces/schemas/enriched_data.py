@@ -13,10 +13,10 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
-from the_alchemiser.interfaces.schemas.base import ResultDTO
+from the_alchemiser.interfaces.schemas.base import Result
 
 
-class EnrichedOrderDTO(BaseModel):
+class EnrichedOrderView(BaseModel):
     """DTO for enriched order data with domain mapping."""
 
     model_config = ConfigDict(
@@ -30,7 +30,7 @@ class EnrichedOrderDTO(BaseModel):
     summary: dict[str, Any]  # Order summary
 
 
-class OpenOrdersDTO(ResultDTO):
+class OpenOrdersView(Result):
     """DTO for open orders list response."""
 
     model_config = ConfigDict(
@@ -39,11 +39,11 @@ class OpenOrdersDTO(ResultDTO):
         validate_assignment=True,
     )
 
-    orders: list[EnrichedOrderDTO]
+    orders: list[EnrichedOrderView]
     symbol_filter: str | None = None
 
 
-class EnrichedPositionDTO(BaseModel):
+class EnrichedPositionView(BaseModel):
     """DTO for enriched position data with domain mapping."""
 
     model_config = ConfigDict(
@@ -56,7 +56,7 @@ class EnrichedPositionDTO(BaseModel):
     summary: dict[str, Any]  # Position summary
 
 
-class EnrichedPositionsDTO(ResultDTO):
+class EnrichedPositionsView(Result):
     """DTO for enriched positions list response."""
 
     model_config = ConfigDict(
@@ -65,4 +65,11 @@ class EnrichedPositionsDTO(ResultDTO):
         validate_assignment=True,
     )
 
-    positions: list[EnrichedPositionDTO]
+    positions: list[EnrichedPositionView]
+
+
+# Backward compatibility aliases - will be removed in future version
+EnrichedOrderDTO = EnrichedOrderView
+OpenOrdersDTO = OpenOrdersView
+EnrichedPositionDTO = EnrichedPositionView
+EnrichedPositionsDTO = EnrichedPositionsView
