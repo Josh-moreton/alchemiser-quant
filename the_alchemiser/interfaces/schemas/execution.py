@@ -38,7 +38,7 @@ class WebSocketStatus(str, Enum):
     ERROR = "error"
 
 
-class ExecutionResultDTO(BaseModel):
+class ExecutionResult(BaseModel):
     """Complete outcome of a trading execution cycle."""
 
     model_config = ConfigDict(
@@ -61,7 +61,7 @@ class ExecutionResultDTO(BaseModel):
     )
 
 
-class TradingPlanDTO(BaseModel):
+class TradingPlan(BaseModel):
     """Validated trading plan with normalized symbol and positive financial values."""
 
     model_config = ConfigDict(
@@ -106,7 +106,7 @@ class TradingPlanDTO(BaseModel):
     # preserves historical context for the refactor.
 
 
-class WebSocketResultDTO(BaseModel):
+class WebSocketResult(BaseModel):
     """Outcome of WebSocket operations (status, message, completed orders)."""
 
     model_config = ConfigDict(
@@ -123,7 +123,7 @@ class WebSocketResultDTO(BaseModel):
     )
 
 
-class QuoteDTO(BaseModel):
+class Quote(BaseModel):
     """Real-time quote data with positive bid/ask prices and sizes."""
 
     model_config = ConfigDict(
@@ -154,7 +154,7 @@ class QuoteDTO(BaseModel):
         return v
 
 
-class LambdaEventDTO(BaseModel):
+class LambdaEvent(BaseModel):
     """AWS Lambda event configuration parameters."""
 
     model_config = ConfigDict(
@@ -174,7 +174,7 @@ class LambdaEventDTO(BaseModel):
     )
 
 
-class OrderHistoryDTO(BaseModel):
+class OrderHistory(BaseModel):
     """Historical order data with metadata for analysis/reporting."""
 
     model_config = ConfigDict(
@@ -191,7 +191,14 @@ class OrderHistoryDTO(BaseModel):
 
 
 __all__ = [
-    # Primary DTO exports (no deprecated symbols)
+    # Primary DTO exports (new naming policy)
+    "ExecutionResult",
+    "LambdaEvent",
+    "OrderHistory",
+    "Quote",
+    "TradingPlan",
+    "WebSocketResult",
+    # Backward compatibility aliases
     "ExecutionResultDTO",
     "LambdaEventDTO",
     "OrderHistoryDTO",
@@ -199,3 +206,12 @@ __all__ = [
     "TradingPlanDTO",
     "WebSocketResultDTO",
 ]
+
+
+# Backward compatibility aliases - will be removed in future version
+ExecutionResultDTO = ExecutionResult
+LambdaEventDTO = LambdaEvent
+OrderHistoryDTO = OrderHistory
+QuoteDTO = Quote
+TradingPlanDTO = TradingPlan
+WebSocketResultDTO = WebSocketResult
