@@ -1,8 +1,22 @@
-"""Smart execution strategies.
+#!/usr/bin/env python3
+"""Business Unit: execution; Status: current.
 
-Currently under construction - no logic implemented yet.
+Execution strategies package.
+
+Contains strategy classes for order execution patterns including
+repeg strategies and aggressive limit strategies.
 """
 
 from __future__ import annotations
 
-__all__: list[str] = []
+from .aggressive_limit_strategy import AggressiveLimitStrategy
+from .config import StrategyConfig
+from .execution_context_adapter import ExecutionContextAdapter
+from .repeg_strategy import RepegStrategy
+
+__all__ = [
+    "AggressiveLimitStrategy",
+    "ExecutionContextAdapter",
+    "RepegStrategy",
+    "StrategyConfig",
+]
