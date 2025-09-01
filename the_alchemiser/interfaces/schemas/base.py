@@ -12,7 +12,7 @@ from __future__ import annotations
 from pydantic import BaseModel, ConfigDict
 
 
-class ResultDTO(BaseModel):
+class Result(BaseModel):
     """Common base for DTOs that expose success/error outcome fields."""
 
     model_config = ConfigDict(strict=True, frozen=True, validate_assignment=True)
@@ -23,3 +23,7 @@ class ResultDTO(BaseModel):
     @property
     def is_success(self) -> bool:  # Convenience mirror
         return self.success
+
+
+# Backward compatibility alias - will be removed in future version
+ResultDTO = Result

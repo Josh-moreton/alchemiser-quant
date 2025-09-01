@@ -20,10 +20,10 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
-from the_alchemiser.interfaces.schemas.base import ResultDTO
+from the_alchemiser.interfaces.schemas.base import Result
 
 
-class AccountSummaryDTO(BaseModel):
+class AccountSummary(BaseModel):
     """DTO for comprehensive account summary.
 
     Used when returning account data from TradingServiceManager methods.
@@ -46,10 +46,10 @@ class AccountSummaryDTO(BaseModel):
     trading_blocked: bool
     transfers_blocked: bool
     account_blocked: bool
-    calculated_metrics: AccountMetricsDTO
+    calculated_metrics: AccountMetrics
 
 
-class AccountMetricsDTO(BaseModel):
+class AccountMetrics(BaseModel):
     """DTO for calculated account metrics."""
 
     model_config = ConfigDict(
@@ -64,7 +64,7 @@ class AccountMetricsDTO(BaseModel):
     available_buying_power_ratio: Decimal
 
 
-class BuyingPowerDTO(ResultDTO):
+class BuyingPowerResult(Result):
     """DTO for buying power check results."""
 
     model_config = ConfigDict(
@@ -78,7 +78,7 @@ class BuyingPowerDTO(ResultDTO):
     sufficient_funds: bool | None = None
 
 
-class RiskMetricsDTO(ResultDTO):
+class RiskMetricsResult(Result):
     """DTO for comprehensive risk metrics."""
 
     model_config = ConfigDict(
@@ -90,7 +90,7 @@ class RiskMetricsDTO(ResultDTO):
     risk_metrics: dict[str, Any] | None = None
 
 
-class TradeEligibilityDTO(BaseModel):
+class TradeEligibilityResult(BaseModel):
     """DTO for trade eligibility validation results."""
 
     model_config = ConfigDict(
@@ -108,7 +108,7 @@ class TradeEligibilityDTO(BaseModel):
     estimated_cost: Decimal | None = None
 
 
-class PortfolioAllocationDTO(ResultDTO):
+class PortfolioAllocationResult(Result):
     """DTO for portfolio allocation and diversification metrics."""
 
     model_config = ConfigDict(
@@ -120,7 +120,7 @@ class PortfolioAllocationDTO(ResultDTO):
     allocation_data: dict[str, Any] | None = None
 
 
-class EnrichedAccountSummaryDTO(BaseModel):
+class EnrichedAccountSummaryView(BaseModel):
     """DTO for enriched account summary with typed domain objects."""
 
     model_config = ConfigDict(
@@ -130,4 +130,14 @@ class EnrichedAccountSummaryDTO(BaseModel):
     )
 
     raw: dict[str, Any]
-    summary: AccountSummaryDTO
+    summary: AccountSummary
+
+
+# Backward compatibility aliases - will be removed in future version
+AccountSummaryDTO = AccountSummary
+AccountMetricsDTO = AccountMetrics
+BuyingPowerDTO = BuyingPowerResult
+RiskMetricsDTO = RiskMetricsResult
+TradeEligibilityDTO = TradeEligibilityResult
+PortfolioAllocationDTO = PortfolioAllocationResult
+EnrichedAccountSummaryDTO = EnrichedAccountSummaryView

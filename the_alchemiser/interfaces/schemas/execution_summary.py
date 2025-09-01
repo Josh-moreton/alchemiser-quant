@@ -24,7 +24,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from the_alchemiser.domain.types import AccountInfo
 
 
-class AllocationSummaryDTO(BaseModel):
+class AllocationSummary(BaseModel):
     """DTO for portfolio allocation summary data."""
 
     model_config = ConfigDict(
@@ -39,7 +39,7 @@ class AllocationSummaryDTO(BaseModel):
     largest_position_pct: Decimal = Field(..., ge=0, description="Largest position percentage")
 
 
-class StrategyPnLSummaryDTO(BaseModel):
+class StrategyPnLSummary(BaseModel):
     """DTO for strategy P&L summary data."""
 
     model_config = ConfigDict(
@@ -55,7 +55,7 @@ class StrategyPnLSummaryDTO(BaseModel):
     num_profitable: int = Field(..., ge=0, description="Number of profitable strategies")
 
 
-class StrategySummaryDTO(BaseModel):
+class StrategySummary(BaseModel):
     """DTO for individual strategy summary within execution."""
 
     model_config = ConfigDict(
@@ -71,7 +71,7 @@ class StrategySummaryDTO(BaseModel):
     pnl: Decimal = Field(..., description="Strategy P&L")
 
 
-class TradingSummaryDTO(BaseModel):
+class TradingSummary(BaseModel):
     """DTO for trading execution summary."""
 
     model_config = ConfigDict(
@@ -87,7 +87,7 @@ class TradingSummaryDTO(BaseModel):
     total_value: Decimal = Field(..., ge=0, description="Total value of executed orders")
 
 
-class ExecutionSummaryDTO(BaseModel):
+class ExecutionSummary(BaseModel):
     """DTO for comprehensive execution summary.
 
     Replaces the dict[str, Any] execution_summary field in MultiStrategyExecutionResultDTO.
@@ -101,12 +101,12 @@ class ExecutionSummaryDTO(BaseModel):
     )
 
     # Core execution metrics
-    allocations: AllocationSummaryDTO = Field(..., description="Portfolio allocation summary")
-    strategy_summary: dict[str, StrategySummaryDTO] = Field(
+    allocations: AllocationSummary = Field(..., description="Portfolio allocation summary")
+    strategy_summary: dict[str, StrategySummary] = Field(
         ..., description="Individual strategy summaries"
     )
-    trading_summary: TradingSummaryDTO = Field(..., description="Trading execution summary")
-    pnl_summary: StrategyPnLSummaryDTO = Field(..., description="P&L summary across strategies")
+    trading_summary: TradingSummary = Field(..., description="Trading execution summary")
+    pnl_summary: StrategyPnLSummary = Field(..., description="P&L summary across strategies")
 
     # Account state tracking
     account_info_before: AccountInfo = Field(..., description="Account state before execution")
@@ -118,7 +118,7 @@ class ExecutionSummaryDTO(BaseModel):
     error: str | None = Field(None, description="Error message if execution failed")
 
 
-class PortfolioStateDTO(BaseModel):
+class PortfolioState(BaseModel):
     """DTO for final portfolio state.
 
     Replaces the dict[str, Any] final_portfolio_state field in MultiStrategyExecutionResultDTO.
@@ -153,3 +153,12 @@ class PortfolioStateDTO(BaseModel):
     # Summary metrics
     total_symbols: int = Field(..., ge=0, description="Total number of symbols in portfolio")
     rebalance_needed: bool = Field(..., description="Whether rebalancing is needed")
+
+
+# Backward compatibility aliases - will be removed in future version
+AllocationSummaryDTO = AllocationSummary
+StrategyPnLSummaryDTO = StrategyPnLSummary
+StrategySummaryDTO = StrategySummary
+TradingSummaryDTO = TradingSummary
+ExecutionSummaryDTO = ExecutionSummary
+PortfolioStateDTO = PortfolioState

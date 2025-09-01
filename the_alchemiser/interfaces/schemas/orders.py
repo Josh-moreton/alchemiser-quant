@@ -22,7 +22,7 @@ from typing import Any, Literal
 from alpaca.trading.requests import LimitOrderRequest
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from the_alchemiser.interfaces.schemas.base import ResultDTO
+from the_alchemiser.interfaces.schemas.base import Result
 
 
 class OrderValidationMixin:
@@ -68,7 +68,7 @@ class OrderValidationMixin:
         return self
 
 
-class OrderRequestDTO(BaseModel, OrderValidationMixin):
+class OrderRequest(BaseModel, OrderValidationMixin):
     """DTO for incoming order requests.
 
     Used when creating new orders from user input or API requests.
@@ -91,7 +91,7 @@ class OrderRequestDTO(BaseModel, OrderValidationMixin):
     client_order_id: str | None = None
 
 
-class ValidatedOrderDTO(BaseModel, OrderValidationMixin):
+class ValidatedOrder(BaseModel, OrderValidationMixin):
     """DTO for validated orders with derived and normalized fields.
 
     Contains all OrderRequest fields plus additional metadata
@@ -105,7 +105,7 @@ class ValidatedOrderDTO(BaseModel, OrderValidationMixin):
         str_strip_whitespace=True,
     )
 
-    # Core order fields (mirrored from OrderRequestDTO)
+    # Core order fields (mirrored from OrderRequest)
     symbol: str
     side: Literal["buy", "sell"]
     quantity: Decimal
@@ -122,7 +122,7 @@ class ValidatedOrderDTO(BaseModel, OrderValidationMixin):
     validation_timestamp: datetime
 
 
-class OrderExecutionResultDTO(ResultDTO):
+class OrderExecutionResult(Result):
     """DTO for order execution results.
 
     Adds uniform success/error fields to align with prior facade contract
@@ -157,10 +157,10 @@ class OrderExecutionResultDTO(ResultDTO):
             raise ValueError("Average fill price must be greater than 0")
         return v
 
-    # is_success inherited from ResultDTO
+    # is_success inherited from Result
 
 
-class LimitOrderResultDTO(BaseModel):
+class LimitOrderResult(BaseModel):
     """DTO for limit order preparation results.
 
     Contains the result of limit order preparation including the order request data,
@@ -217,19 +217,19 @@ class RawOrderEnvelope(BaseModel):
     error_message: str | None = None
 
 
-class AdjustedOrderRequestDTO(OrderRequestDTO):
+class AdjustedOrderRequest(OrderRequest):
     """DTO for order requests that have been adjusted by policies."""
 
     adjustment_reason: str | None = None
     original_quantity: Decimal | None = None
-    warnings: list[PolicyWarningDTO] = Field(default_factory=list)
+    warnings: list[PolicyWarning] = Field(default_factory=list)
     is_approved: bool = True
     rejection_reason: str | None = None
     policy_metadata: dict[str, Any] | None = None
     total_risk_score: Decimal | None = None
 
 
-class PolicyWarningDTO(BaseModel):
+class PolicyWarning(BaseModel):
     """DTO for policy warnings during order validation."""
 
     model_config = ConfigDict(
@@ -245,3 +245,12 @@ class PolicyWarningDTO(BaseModel):
     original_value: Any | None = None
     adjusted_value: Any | None = None
     risk_level: str | None = None
+
+
+# Backward compatibility aliases - will be removed in future version
+OrderRequestDTO = OrderRequest
+ValidatedOrderDTO = ValidatedOrder
+OrderExecutionResultDTO = OrderExecutionResult
+LimitOrderResultDTO = LimitOrderResult
+AdjustedOrderRequestDTO = AdjustedOrderRequest
+PolicyWarningDTO = PolicyWarning
