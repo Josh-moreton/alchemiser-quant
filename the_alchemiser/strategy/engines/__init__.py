@@ -1,8 +1,24 @@
-"""Strategy implementations (Nuclear, TECL, etc.).
+"""Business Unit: strategy | Status: current.
 
-Currently under construction - no logic implemented yet.
+Strategy implementations (Nuclear, TECL, KLM, etc.).
+
+This module contains the concrete strategy engine implementations that generate
+trading signals based on market data and technical indicators.
 """
 
 from __future__ import annotations
 
-__all__: list[str] = []
+from .engine import StrategyEngine
+from .nuclear_typed_engine import NuclearTypedEngine  
+from .tecl_strategy_engine import TECLStrategyEngine
+from .typed_klm_ensemble_engine import TypedKLMStrategyEngine
+from .typed_strategy_manager import TypedStrategyManager, AggregatedSignals
+
+__all__ = [
+    "StrategyEngine",
+    "NuclearTypedEngine", 
+    "TECLStrategyEngine",
+    "TypedKLMStrategyEngine",
+    "TypedStrategyManager",
+    "AggregatedSignals",
+]
