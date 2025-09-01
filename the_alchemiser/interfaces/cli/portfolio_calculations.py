@@ -1,14 +1,17 @@
 #!/usr/bin/env python3
-"""Business Unit: portfolio assessment & management; Status: current.
+"""Business Unit: portfolio assessment & management; Status: legacy.
 
-Portfolio calculation utilities extracted from TradingEngine.
+DEPRECATED: Portfolio calculation utilities extracted from TradingEngine.
 
-This module provides calculation functions for portfolio target vs current allocations
-without any display logic, supporting the separation of business logic from presentation.
+This module is deprecated in favor of the_alchemiser.application.trading.portfolio_calculations
+which provides Decimal precision and AllocationComparison structured data.
+
+Use build_allocation_comparison() for new code.
 """
 
 from __future__ import annotations
 
+import warnings
 from typing import Any
 
 from the_alchemiser.domain.types import AccountInfo
@@ -24,9 +27,10 @@ def calculate_target_vs_current_allocations(
     current_positions: dict[str, Any],
 ) -> tuple[dict[str, float], dict[str, float]]:
     """Calculate target vs current allocations without display.
-
-    Shows a comparison between target portfolio weights and current position values,
-    helping to visualize rebalancing needs.
+    
+    DEPRECATED: Use the_alchemiser.application.trading.portfolio_calculations.build_allocation_comparison() 
+    for new code. This function returns float values which lose precision. The new function 
+    returns AllocationComparison with Decimal precision.
 
     Args:
         target_portfolio: Target allocation weights by symbol.
@@ -39,6 +43,12 @@ def calculate_target_vs_current_allocations(
             - current_values: Current market values by symbol
 
     """
+    warnings.warn(
+        "calculate_target_vs_current_allocations is deprecated. "
+        "Use application.trading.portfolio_calculations.build_allocation_comparison() instead.",
+        DeprecationWarning,
+        stacklevel=2
+    )
 
     # Use helper functions to calculate values
     # Accept both legacy display shape and typed AccountInfo

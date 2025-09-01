@@ -21,6 +21,40 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict
 
 
+class MultiStrategyExecutionResultDTO(BaseModel):
+    """DTO for multi-strategy execution results.
+
+    Provides an immutable, validated container for multi-strategy execution
+    outcomes, replacing the dataclass version with enhanced type safety
+    and validation capabilities.
+    """
+
+    model_config = ConfigDict(
+        strict=True,
+        frozen=True,
+        validate_assignment=True,
+        str_strip_whitespace=True,
+    )
+
+    # Core execution status
+    success: bool
+
+    # Strategy data (using Any to avoid circular imports)
+    strategy_signals: dict[Any, Any]
+    consolidated_portfolio: dict[str, float]
+
+    # Order execution results
+    orders_executed: list[dict[str, Any]]
+
+    # Account state tracking
+    account_info_before: dict[str, Any]
+    account_info_after: dict[str, Any]
+
+    # Structured execution summary and portfolio state (Any to avoid imports)
+    execution_summary: dict[str, Any]
+    final_portfolio_state: dict[str, Any] | None = None
+
+
 class AllocationComparisonDTO(BaseModel):
     """DTO for allocation comparison with Decimal precision."""
 
