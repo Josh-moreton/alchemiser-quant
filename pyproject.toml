@@ -42,7 +42,7 @@ dependency-injector = "^4.48.1"
 [tool.poetry.group.dev.dependencies]
 ruff = ">=0.1.0"
 mypy = ">=1.0.0"
-pre-commit = "^3.7.0"
+pre-commit = "^4.3.0"
 types-PyYAML = ">=6.0.0"
 types-requests = ">=2.31.0"
 types-pytz = ">=2023.3.0"
