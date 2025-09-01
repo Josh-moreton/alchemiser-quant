@@ -39,7 +39,7 @@ Safety Features:
 Example:
     Canonical order placement (preferred):
 
-    >>> from the_alchemiser.application.execution.canonical_executor import CanonicalOrderExecutor
+    >>> from the_alchemiser.execution.canonical_executor import CanonicalOrderExecutor
     >>> from the_alchemiser.domain.trading.value_objects.order_request import OrderRequest
     >>> from the_alchemiser.domain.trading.value_objects.symbol import Symbol
     >>> from the_alchemiser.domain.trading.value_objects.side import Side
@@ -60,14 +60,14 @@ import time
 from typing import TYPE_CHECKING, Any, Protocol
 
 if TYPE_CHECKING:
-    from the_alchemiser.application.execution.smart_execution import (
+    from the_alchemiser.execution.smart_execution import (
         DataProvider as ExecDataProvider,
     )
     from the_alchemiser.interfaces.schemas.orders import ValidatedOrderDTO
 
 from alpaca.trading.enums import OrderSide
 
-from the_alchemiser.application.execution.smart_pricing_handler import (
+from the_alchemiser.execution.smart_pricing_handler import (
     SmartPricingHandler,
 )
 from the_alchemiser.application.orders.asset_order_handler import AssetOrderHandler
@@ -83,7 +83,7 @@ from the_alchemiser.infrastructure.websocket.websocket_order_monitor import (
 from the_alchemiser.interfaces.schemas.execution import WebSocketResultDTO
 
 # (Legacy exceptions import removed)
-from the_alchemiser.services.repository.alpaca_manager import AlpacaManager
+from the_alchemiser.execution.brokers.alpaca.adapter import AlpacaManager
 from the_alchemiser.services.trading.position_manager import PositionManager
 
 logger = logging.getLogger(__name__)
@@ -227,7 +227,7 @@ class AlpacaClient:
         """Place a smart sell order using canonical executor."""
         from decimal import Decimal
 
-        from the_alchemiser.application.execution.canonical_executor import (
+        from the_alchemiser.execution.canonical_executor import (
             CanonicalOrderExecutor,
         )
         from the_alchemiser.domain.trading.value_objects.order_request import (

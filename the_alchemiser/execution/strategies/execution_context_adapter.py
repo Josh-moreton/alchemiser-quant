@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING, Any
 
 from alpaca.trading.enums import OrderSide
 
-from the_alchemiser.application.execution.canonical_executor import (
+from the_alchemiser.execution.core.canonical_executor import (
     CanonicalOrderExecutor,
 )
 from the_alchemiser.domain.shared_kernel.value_objects.money import Money
@@ -26,7 +26,7 @@ from the_alchemiser.domain.trading.value_objects.symbol import Symbol
 from the_alchemiser.domain.trading.value_objects.time_in_force import TimeInForce
 
 if TYPE_CHECKING:
-    from the_alchemiser.application.execution.smart_execution import OrderExecutor
+    from the_alchemiser.execution.strategies.smart_execution import OrderExecutor
 
 
 class ExecutionContextAdapter:

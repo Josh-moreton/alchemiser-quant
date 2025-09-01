@@ -37,7 +37,7 @@ from typing import TYPE_CHECKING, Any, Protocol
 
 from alpaca.trading.enums import OrderSide
 
-from the_alchemiser.application.execution.canonical_executor import (
+from the_alchemiser.execution.core.canonical_executor import (
     CanonicalOrderExecutor,
 )
 from the_alchemiser.domain.shared_kernel.value_objects.money import Money
@@ -328,7 +328,7 @@ class SmartExecution:
             Order ID if successful, None otherwise
 
         """
-        from the_alchemiser.application.execution.spread_assessment import (
+        from the_alchemiser.execution.utils.spread import (
             SpreadAssessment,
         )
         from the_alchemiser.domain.math.market_timing_utils import (
@@ -915,7 +915,7 @@ class SmartExecution:
         """
         from decimal import Decimal
 
-        from the_alchemiser.application.execution.strategies import (
+        from the_alchemiser.execution.strategies import (
             AggressiveLimitStrategy,
             ExecutionContextAdapter,
         )

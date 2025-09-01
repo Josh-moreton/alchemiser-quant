@@ -15,7 +15,7 @@ if TYPE_CHECKING:
         ApplicationContainer,
     )
 
-from the_alchemiser.application.execution.smart_execution import is_market_open
+from the_alchemiser.execution.strategies.smart_execution import is_market_open
 from the_alchemiser.application.mapping.strategy_signal_mapping import (
     convert_signals_dict_to_domain,
     typed_strategy_signal_to_validated_order,

@@ -8,7 +8,7 @@ from __future__ import annotations
 from dependency_injector import containers, providers
 
 from the_alchemiser.services.market_data.market_data_service import MarketDataService
-from the_alchemiser.services.repository.alpaca_manager import AlpacaManager
+from the_alchemiser.execution.brokers.alpaca.adapter import AlpacaManager
 
 
 class InfrastructureProviders(containers.DeclarativeContainer):

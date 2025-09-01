@@ -181,7 +181,7 @@ class CanonicalOrderExecutor:
 
             from alpaca.trading.requests import LimitOrderRequest, MarketOrderRequest
 
-            from the_alchemiser.application.execution.order_request_builder import (
+            from the_alchemiser.execution.orders.builder import (
                 OrderRequestBuilder,
             )
 

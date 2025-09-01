@@ -34,7 +34,7 @@ if TYPE_CHECKING:  # Import for type checking only to avoid runtime dependency
 
 from alpaca.trading.enums import OrderSide
 
-from the_alchemiser.application.execution.smart_execution import SmartExecution
+from the_alchemiser.execution.strategies.smart_execution import SmartExecution
 from the_alchemiser.application.mapping.execution_summary_mapping import (
     safe_dict_to_execution_summary_dto,
     safe_dict_to_portfolio_state_dto,
@@ -82,7 +82,7 @@ from the_alchemiser.services.errors.exceptions import (
     TradingClientError,
 )
 from the_alchemiser.services.errors.handler import TradingSystemErrorHandler
-from the_alchemiser.services.repository.alpaca_manager import AlpacaManager
+from the_alchemiser.execution.brokers.alpaca.adapter import AlpacaManager
 
 from ..execution.execution_manager import ExecutionManager
 from ..reporting.reporting import build_portfolio_state_data
