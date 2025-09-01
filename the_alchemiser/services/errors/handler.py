@@ -126,7 +126,6 @@ class EnhancedAlchemiserError(AlchemiserError):
             elif isinstance(context, dict):
                 self.context = context
             else:
-                # For any other object that might have a to_dict method (backward compatibility)
                 self.context = context.to_dict() if hasattr(context, "to_dict") else {}
         else:
             self.context = {}

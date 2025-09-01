@@ -24,8 +24,6 @@ from .decorators import (
 )
 
 # Backward compatibility imports from old modules
-# NOTE: Most items from error_handling are now deprecated
-from .error_handling import create_service_logger  # Keep for backward compatibility
 from .handler import (
     CircuitBreaker,
     CircuitBreakerOpenError,

@@ -53,17 +53,18 @@ class RemovalSession:
 class BackwardCompatibilityRemover:
     """Tool for safely removing backward compatibility artifacts."""
     
-    def __init__(self, root_path: str = ".", dry_run: bool = False):
+    def __init__(self, root_path: str = ".", dry_run: bool = False, interactive: bool = True):
         self.root_path = Path(root_path)
         self.dry_run = dry_run
+        self.interactive = interactive
         self.session = None
         self.backup_dir = Path("/tmp") / "phase7_cleanup_backups"
         
         # Create backup directory
         self.backup_dir.mkdir(exist_ok=True)
         
-        # Test commands
-        self.smoke_test_cmd = ["./scripts/smoke_tests.sh"]
+        # Test commands (adjust paths based on working directory)
+        self.smoke_test_cmd = ["scripts/smoke_tests.sh"]
         self.lint_test_cmd = ["poetry", "run", "ruff", "check", "the_alchemiser/"]
         self.type_test_cmd = ["poetry", "run", "mypy", "the_alchemiser/"]
     
@@ -155,8 +156,8 @@ class BackwardCompatibilityRemover:
                 print(f"❌ Removal failed: {operation.error_message}")
                 self.session.failed_operations += 1
             
-            # Brief pause between operations
-            if not self.dry_run:
+            # Brief pause between operations - only in interactive mode
+            if not self.dry_run and self.interactive:
                 input("Press Enter to continue to next operation...")
     
     def _confirm_high_risk_removal(self, operation: RemovalOperation) -> bool:
@@ -322,7 +323,7 @@ class BackwardCompatibilityRemover:
         print("   Running smoke tests...")
         result = subprocess.run(
             self.smoke_test_cmd, 
-            cwd=self.root_path,
+            cwd=self.root_path.parent,  # Run from repository root
             capture_output=True, 
             text=True
         )
@@ -407,7 +408,7 @@ class BackwardCompatibilityRemover:
         
         # Smoke tests
         print("   Running smoke tests...")
-        result = subprocess.run(self.smoke_test_cmd, cwd=self.root_path)
+        result = subprocess.run(self.smoke_test_cmd, cwd=self.root_path.parent)
         if result.returncode != 0:
             print("   ❌ Final smoke tests failed")
             return False
@@ -417,7 +418,7 @@ class BackwardCompatibilityRemover:
         print("   Running linting check...")
         result = subprocess.run(
             self.lint_test_cmd, 
-            cwd=self.root_path,
+            cwd=self.root_path.parent,  # Run from repository root
             capture_output=True,
             text=True
         )

@@ -213,7 +213,7 @@ class Phase7CleanupOrchestrator:
         """Run the removal phase with testing and rollback."""
         print("🔧 Starting safe removal process...")
         
-        remover = BackwardCompatibilityRemover(self.root_path, self.dry_run)
+        remover = BackwardCompatibilityRemover(self.root_path, self.dry_run, False)  # Non-interactive for orchestrator
         session_id = remover.start_session(artifacts)
         
         try:
@@ -271,8 +271,8 @@ class Phase7CleanupOrchestrator:
         # Run smoke tests
         print("   Running smoke tests...")
         result = subprocess.run(
-            ["./scripts/smoke_tests.sh"],
-            cwd=self.root_path.parent,
+            ["scripts/smoke_tests.sh"],
+            cwd=self.root_path.parent,  # Run from repository root
             capture_output=True,
             text=True
         )
