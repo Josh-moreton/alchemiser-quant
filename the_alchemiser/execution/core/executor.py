@@ -25,7 +25,7 @@ from the_alchemiser.services.errors.exceptions import (
     TradingClientError,
 )
 
-from ..reporting.reporting import (
+from the_alchemiser.application.reporting.reporting import (
     build_portfolio_state_data,
     create_execution_summary,
     save_dashboard_data,

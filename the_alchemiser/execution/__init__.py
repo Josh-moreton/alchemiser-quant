@@ -22,7 +22,7 @@ __all__: list[str] = [
     "AlpacaManager",
     
     # Execution strategies
-    "SmartExecutionEngine",
+    "SmartExecution",
     "AggressiveLimitStrategy",
     "RepegStrategy",
     
@@ -34,5 +34,5 @@ __all__: list[str] = [
 from .core import ExecutionManager, CanonicalOrderExecutor
 from .orders import OrderValidator, OrderService, OrderRequestBuilder
 from .brokers import AlpacaManager
-from .strategies import SmartExecutionEngine, AggressiveLimitStrategy, RepegStrategy
+from .strategies import SmartExecution, AggressiveLimitStrategy, RepegStrategy
 from .utils import SmartPricingHandler, SpreadAssessment

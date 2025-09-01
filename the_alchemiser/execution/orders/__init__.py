@@ -9,10 +9,10 @@ __all__: list[str] = [
     "OrderValidator",
     "OrderService",
     "OrderRequestBuilder",
-    "OrderLifecycleAdapter"
+    "WebSocketOrderLifecycleAdapter"
 ]
 
 from .validator import OrderValidator
 from .manager import OrderService
 from .builder import OrderRequestBuilder
-from .lifecycle import OrderLifecycleAdapter
+from .lifecycle import WebSocketOrderLifecycleAdapter

@@ -43,7 +43,7 @@ from the_alchemiser.application.mapping.trading_service_dto_mapping import (
     list_to_enriched_positions_dto,
     list_to_open_orders_dto,
 )
-from the_alchemiser.application.orders.order_validation import OrderValidator
+from the_alchemiser.execution.orders.validator import OrderValidator
 from the_alchemiser.application.trading.lifecycle import (
     LifecycleEventDispatcher,
     LoggingObserver,

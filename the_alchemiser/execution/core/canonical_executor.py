@@ -37,7 +37,7 @@ if TYPE_CHECKING:  # typing-only imports
     )
 
 if TYPE_CHECKING:
-    from the_alchemiser.services.repository.alpaca_manager import AlpacaManager
+    from the_alchemiser.execution.brokers.alpaca.adapter import AlpacaManager
 
 logger = logging.getLogger(__name__)
 

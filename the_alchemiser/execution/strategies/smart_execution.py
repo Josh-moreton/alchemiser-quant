@@ -53,7 +53,7 @@ from the_alchemiser.domain.trading.value_objects.symbol import Symbol as DomainS
 from the_alchemiser.domain.trading.value_objects.time_in_force import (
     TimeInForce as DomainTimeInForce,
 )
-from the_alchemiser.infrastructure.config.execution_config import (
+from the_alchemiser.shared.config.execution_config import (
     ExecutionConfig,
     get_execution_config,
 )
@@ -199,7 +199,7 @@ class SmartExecution:
                 alpaca_manager = getattr(self._order_executor, "_trading", self._order_executor)
 
             # Ensure we have a proper AlpacaManager instance, type cast as needed
-            from the_alchemiser.services.repository.alpaca_manager import AlpacaManager
+            from the_alchemiser.execution.brokers.alpaca.adapter import AlpacaManager
 
             if not isinstance(alpaca_manager, AlpacaManager):
                 raise ValueError("Unable to get AlpacaManager instance for canonical executor")
@@ -259,7 +259,7 @@ class SmartExecution:
             )
 
             # Get alpaca manager for canonical executor (same as market order)
-            from the_alchemiser.services.repository.alpaca_manager import AlpacaManager
+            from the_alchemiser.execution.brokers.alpaca.adapter import AlpacaManager
 
             alpaca_manager = getattr(self._order_executor, "alpaca_manager", None)
             if not alpaca_manager:
@@ -919,7 +919,7 @@ class SmartExecution:
             AggressiveLimitStrategy,
             ExecutionContextAdapter,
         )
-        from the_alchemiser.infrastructure.config.execution_config import (
+        from the_alchemiser.shared.config.execution_config import (
             create_strategy_config,
         )
 

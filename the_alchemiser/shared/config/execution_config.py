@@ -13,10 +13,10 @@ import logging
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from .config import load_settings
+from the_alchemiser.infrastructure.config.config import load_settings
 
 if TYPE_CHECKING:  # pragma: no cover - hint for type checkers only
-    from the_alchemiser.application.execution.strategies.config import StrategyConfig
+    from the_alchemiser.execution.strategies.config import StrategyConfig
 
 
 @dataclass
@@ -193,7 +193,7 @@ def create_strategy_config() -> StrategyConfig:  # forward ref for static typing
     """Create a StrategyConfig from current ExecutionConfig."""
     from decimal import Decimal
 
-    from the_alchemiser.application.execution.strategies.config import StrategyConfig
+    from the_alchemiser.execution.strategies.config import StrategyConfig
 
     config = get_execution_config()
     return StrategyConfig(

@@ -14,7 +14,7 @@ Key Features:
 - Comprehensive error reporting for validation failures via TradingSystemErrorHandler
 
 Usage:
-    from the_alchemiser.application.orders.order_validation import OrderValidator
+    from the_alchemiser.execution.orders.validator import OrderValidator
     from the_alchemiser.interfaces.schemas.orders import OrderRequestDTO
 
     # Create validator
