@@ -1,8 +1,10 @@
 """Broker API integrations.
 
-Currently under construction - no logic implemented yet.
+Contains adapters for various broker APIs including Alpaca.
 """
 
 from __future__ import annotations
 
-__all__: list[str] = []
+from .alpaca import AlpacaManager, create_alpaca_manager
+
+__all__ = ["AlpacaManager", "create_alpaca_manager"]
