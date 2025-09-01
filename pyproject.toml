@@ -54,6 +54,7 @@ pytest = "^8.4.1"
 pip-audit = "^2.7.3"  # Dependency vulnerability scanning
 detect-secrets = "^1.5.0"  # Secret scanning (baseline optional)
 pyright = "^1.1.380"  # Supplemental static type analysis (optional CI/nightly)
+import-linter = "^2.0"  # Module dependency enforcement
 
 [tool.poetry.scripts]
 alchemiser = "the_alchemiser.interfaces.cli.cli:app"
@@ -112,6 +113,21 @@ pretty = true
 color_output = true
 cache_dir = ".mypy_cache"
 
+# Progressive type checking for migration
+# Focus on new modular structure with strict enforcement
+# Legacy code excluded until migration complete
+exclude = [
+    # Legacy DDD structure - exclude until migration complete
+    "the_alchemiser/application/",
+    "the_alchemiser/domain/",
+    "the_alchemiser/infrastructure/config/execution_config.py",
+    "the_alchemiser/services/",
+    "the_alchemiser/utils/",
+    # Exclude problematic legacy files
+    "the_alchemiser/.*_backup/",
+    "the_alchemiser/.*/.*original.*",
+]
+
 # Retain targeted ignores for third-party libs lacking type hints
 [[tool.mypy.overrides]]
 module = [
@@ -124,3 +140,61 @@ module = [
     "yaml.*"
 ]
 ignore_missing_imports = true
+
+[tool.importlinter]
+root_package = "the_alchemiser"
+
+# Progressive enforcement: Start with basic rules and add stricter ones as migration progresses
+[[tool.importlinter.contracts]]
+name = "Shared module isolation (enforced)"
+type = "forbidden"
+source_modules = [
+    "the_alchemiser.shared"
+]
+forbidden_modules = [
+    "the_alchemiser.strategy",
+    "the_alchemiser.portfolio",
+    "the_alchemiser.execution"
+]
+
+# These contracts check for violations but don't fail CI initially
+# Uncomment progressively as migration advances
+
+# [[tool.importlinter.contracts]]
+# name = "No strategy to portfolio/execution imports"
+# type = "forbidden"
+# source_modules = [
+#     "the_alchemiser.strategy"
+# ]
+# forbidden_modules = [
+#     "the_alchemiser.portfolio",
+#     "the_alchemiser.execution"
+# ]
+
+# [[tool.importlinter.contracts]]
+# name = "No portfolio to execution imports"
+# type = "forbidden"
+# source_modules = [
+#     "the_alchemiser.portfolio"
+# ]
+# forbidden_modules = [
+#     "the_alchemiser.execution"
+# ]
+
+# [[tool.importlinter.contracts]]
+# name = "No execution to portfolio imports"
+# type = "forbidden"
+# source_modules = [
+#     "the_alchemiser.execution"
+# ]
+# forbidden_modules = [
+#     "the_alchemiser.portfolio"
+# ]
+
+# [[tool.importlinter.contracts]]
+# name = "Modules may only import from shared"
+# type = "layers"
+# layers = [
+#     "the_alchemiser.shared",
+#     "the_alchemiser.strategy | the_alchemiser.portfolio | the_alchemiser.execution"
+# ]
