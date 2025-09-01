@@ -169,7 +169,7 @@ class AggressiveLimitStrategy:
                     # Add exponential backoff factor based on attempt number for repeated failures
                     backoff_factor = min(1.5 ** (attempt_index - 1), 4.0)  # Cap at 4x
                     sleep_time = min(base_sleep_time * backoff_factor, 10.0)  # Cap at 10 seconds
-                    
+
                     self.logger.debug(
                         "strategy_repeg_interval_throttle",
                         extra={
