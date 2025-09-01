@@ -3,9 +3,18 @@
 Portfolio state management and rebalancing logic.
 
 This module handles portfolio valuation, position tracking, allocation calculations, 
-and rebalancing algorithms. Currently under construction - no logic implemented yet.
+and rebalancing algorithms.
 """
 
 from __future__ import annotations
 
-__all__: list[str] = []
+__all__ = [
+    # Holdings
+    "PositionAnalyzer", 
+    "PositionDelta",
+    # Allocation
+    "RebalanceCalculator",
+    "RebalancePlan",
+    # State
+    "SymbolClassifier",
+]
