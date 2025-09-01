@@ -7,4 +7,10 @@ This module handles portfolio rebalancing, allocation strategies, and execution 
 
 from __future__ import annotations
 
-__all__: list[str] = []
+from .rebalance_calculator import RebalanceCalculator
+from .rebalance_plan import RebalancePlan
+
+__all__ = [
+    "RebalanceCalculator",
+    "RebalancePlan",
+]

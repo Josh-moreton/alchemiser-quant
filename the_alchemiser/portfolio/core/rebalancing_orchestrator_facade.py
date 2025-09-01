@@ -17,8 +17,8 @@ import asyncio
 import logging
 from typing import Any
 
-from the_alchemiser.application.portfolio.rebalancing_orchestrator import RebalancingOrchestrator
-from the_alchemiser.application.portfolio.services.portfolio_management_facade import (
+from .rebalancing_orchestrator import RebalancingOrchestrator
+from .portfolio_management_facade import (
     PortfolioManagementFacade,
 )
 from the_alchemiser.domain.registry.strategy_registry import StrategyType
