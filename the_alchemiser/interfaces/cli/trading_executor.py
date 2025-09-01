@@ -173,12 +173,26 @@ class TradingExecutor:
             account_info = trader.get_account_info()
             current_positions = trader.get_positions_dict()
             if account_info and consolidated_portfolio:
+                # Build allocation comparison using application layer
+                from the_alchemiser.application.trading.portfolio_calculations import (
+                    build_allocation_comparison,
+                )
+                
                 # Convert TypedDict to regular dict for the renderer
                 from typing import cast
-
+                
                 account_dict = cast(dict[str, Any], account_info)
+                allocation_comparison = build_allocation_comparison(
+                    target_portfolio=consolidated_portfolio,
+                    account_info=account_dict,
+                    current_positions=current_positions
+                )
+                
                 render_target_vs_current_allocations(
-                    consolidated_portfolio, account_dict, current_positions
+                    consolidated_portfolio, 
+                    account_dict, 
+                    current_positions,
+                    allocation_comparison=allocation_comparison
                 )
         except Exception as e:
             self.logger.warning(f"Could not display portfolio summary: {e}")
@@ -187,14 +201,41 @@ class TradingExecutor:
         self._show_execution_progress()
         result: MultiStrategyExecutionResultDTO = trader.execute_multi_strategy()
 
-        # Display results
+        # Display results using new unified summary DTO
         try:
             enriched_account = trader.get_enriched_account_info()
             enriched_account_dict = dict(enriched_account) if enriched_account else None
-        except Exception:
-            enriched_account_dict = None
-
-        render_multi_strategy_summary(result, enriched_account_dict)
+            
+            # Build unified summary DTO
+            from the_alchemiser.application.mapping.summary_mapping import (
+                build_multi_strategy_summary,
+            )
+            
+            account_info = trader.get_account_info()
+            current_positions = trader.get_positions_dict()
+            
+            if account_info and consolidated_portfolio:
+                summary_dto = build_multi_strategy_summary(
+                    execution_result=result,
+                    target_portfolio=consolidated_portfolio,
+                    account_info=account_info,
+                    current_positions=current_positions,
+                    enriched_account=enriched_account_dict
+                )
+                render_multi_strategy_summary(summary_dto)
+            else:
+                # Fallback to original signature if data unavailable
+                render_multi_strategy_summary(result, enriched_account_dict)
+                
+        except Exception as e:
+            self.logger.warning(f"Could not display execution summary: {e}")
+            # Fallback to original rendering
+            try:
+                enriched_account = trader.get_enriched_account_info()
+                enriched_account_dict = dict(enriched_account) if enriched_account else None
+                render_multi_strategy_summary(result, enriched_account_dict)
+            except Exception:
+                pass
 
         # Show enriched open orders using typed domain model
         try:

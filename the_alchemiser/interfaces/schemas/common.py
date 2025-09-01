@@ -15,22 +15,33 @@ Key Features:
 
 from __future__ import annotations
 
+from decimal import Decimal
+from typing import Any
+
 from pydantic import BaseModel, ConfigDict
 
-from the_alchemiser.domain.registry import StrategyType
-from the_alchemiser.domain.types import AccountInfo, OrderDetails, StrategySignal
-from the_alchemiser.interfaces.schemas.execution_summary import (
-    ExecutionSummaryDTO,
-    PortfolioStateDTO,
-)
+
+class AllocationComparisonDTO(BaseModel):
+    """DTO for allocation comparison with Decimal precision."""
+
+    model_config = ConfigDict(
+        strict=True,
+        frozen=True,
+        validate_assignment=True,
+    )
+
+    target_values: dict[str, Decimal]
+    current_values: dict[str, Decimal]
+    deltas: dict[str, Decimal]
 
 
-class MultiStrategyExecutionResultDTO(BaseModel):
-    """DTO for multi-strategy execution results.
-
-    Provides an immutable, validated container for multi-strategy execution
-    outcomes, replacing the dataclass version with enhanced type safety
-    and validation capabilities.
+class MultiStrategySummaryDTO(BaseModel):
+    """DTO for consolidated multi-strategy summary with allocation comparison.
+    
+    Provides a single unified DTO containing execution results, allocation 
+    comparison, enriched account info, and closed P&L subset to eliminate
+    duplicate calculations and ensure consistent Decimal precision across
+    the CLI rendering pipeline.
     """
 
     model_config = ConfigDict(
@@ -40,20 +51,14 @@ class MultiStrategyExecutionResultDTO(BaseModel):
         str_strip_whitespace=True,
     )
 
-    # Core execution status
-    success: bool
-
-    # Strategy data
-    strategy_signals: dict[StrategyType, StrategySignal]
-    consolidated_portfolio: dict[str, float]
-
-    # Order execution results
-    orders_executed: list[OrderDetails]
-
-    # Account state tracking
-    account_info_before: AccountInfo
-    account_info_after: AccountInfo
-
-    # Structured execution summary and portfolio state
-    execution_summary: ExecutionSummaryDTO
-    final_portfolio_state: PortfolioStateDTO | None = None
+    # Core execution results (Any to avoid circular imports)
+    execution_result: Any
+    
+    # Allocation comparison with Decimal precision
+    allocation_comparison: AllocationComparisonDTO
+    
+    # Enriched account information
+    enriched_account: dict[str, Any]
+    
+    # Closed P&L subset (summary metrics only to avoid duplication)
+    closed_pnl_summary: dict[str, Decimal] | None = None

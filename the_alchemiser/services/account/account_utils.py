@@ -10,6 +10,7 @@ from data providers, including portfolio values, P&L calculations, and position 
 from __future__ import annotations
 
 import logging
+from decimal import Decimal
 from typing import Any
 
 from the_alchemiser.domain.types import AccountInfo, PositionInfo
@@ -121,6 +122,26 @@ def calculate_position_target_deltas(
     return {symbol: portfolio_value * weight for symbol, weight in target_portfolio.items()}
 
 
+def calculate_position_target_deltas_decimal(
+    target_portfolio: dict[str, float], account_info: AccountInfo
+) -> dict[str, Decimal]:
+    """Calculate target dollar values from portfolio weights using Decimal precision.
+
+    Args:
+        target_portfolio: Dictionary mapping symbols to target weights (0.0-1.0)
+        account_info: Account information containing portfolio_value
+
+    Returns:
+        Dictionary mapping symbols to target dollar values as Decimal
+
+    """
+    portfolio_value = Decimal(str(account_info["portfolio_value"]))
+    return {
+        symbol: (portfolio_value * Decimal(str(weight))).quantize(Decimal("0.01"))
+        for symbol, weight in target_portfolio.items()
+    }
+
+
 def extract_current_position_values(current_positions: dict[str, PositionInfo]) -> dict[str, float]:
     """Extract current market values from position objects.
 
@@ -137,4 +158,26 @@ def extract_current_position_values(current_positions: dict[str, PositionInfo]) 
             current_values[symbol] = float(pos["market_value"])
         except (ValueError, TypeError, KeyError):
             current_values[symbol] = 0.0
+    return current_values
+
+
+def extract_current_position_values_decimal(
+    current_positions: dict[str, PositionInfo]
+) -> dict[str, Decimal]:
+    """Extract current market values from position objects using Decimal precision.
+
+    Args:
+        current_positions: Dictionary mapping symbols to position objects
+
+    Returns:
+        Dictionary mapping symbols to current market values as Decimal
+
+    """
+    current_values: dict[str, Decimal] = {}
+    for symbol, pos in current_positions.items():
+        try:
+            market_value = pos["market_value"]
+            current_values[symbol] = Decimal(str(market_value)).quantize(Decimal("0.01"))
+        except (ValueError, TypeError, KeyError):
+            current_values[symbol] = Decimal("0.00")
     return current_values

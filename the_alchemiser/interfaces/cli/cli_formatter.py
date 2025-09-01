@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from rich.align import Align
 from rich.console import Console
@@ -12,6 +12,10 @@ from rich.table import Table
 
 from the_alchemiser.interfaces.schemas.common import MultiStrategyExecutionResultDTO
 from the_alchemiser.utils.num import floats_equal
+
+if TYPE_CHECKING:
+    from the_alchemiser.application.trading.portfolio_calculations import AllocationComparison
+    from the_alchemiser.interfaces.schemas.common import MultiStrategySummaryDTO
 
 """Console formatting utilities for quantitative trading system output using rich."""
 
@@ -273,9 +277,9 @@ def render_orders_executed(
     table.add_column("Orders", style="cyan", justify="center")
     table.add_column("Total Value", style="green", justify="right")
 
-    table.add_row("Buys", str(len(buy_orders)), f"${total_buy_value:,.2f}")
-    table.add_row("Sells", str(len(sell_orders)), f"${total_sell_value:,.2f}")
-    table.add_row("[bold]Net", f"[bold]{len(orders_executed)}", f"[bold]${net_value:+,.2f}")
+    table.add_row("Buys", str(len(buy_orders)), _format_money(total_buy_value))
+    table.add_row("Sells", str(len(sell_orders)), _format_money(total_sell_value))
+    table.add_row("[bold]Net", f"[bold]{len(orders_executed)}", f"[bold]{_format_money(net_value, show_sign=True)}")
 
     c.print(table)
 
@@ -295,29 +299,65 @@ def render_orders_executed(
                 order.get("symbol", "N/A"),
                 f"[{side_color}]{side}[/{side_color}]",
                 f"{order.get('qty', 0):.6f}",
-                f"${order.get('estimated_value', 0):,.2f}",
+                _format_money(order.get("estimated_value", 0)),
             )
 
         c.print(detail_table)
 
 
-def _format_money(value: Any) -> str:
-    """Format value that may be a Money domain object or raw number."""
-    # Domain Money path
+def _format_money(value: Any, show_sign: bool = False) -> str:
+    """Format value that may be a Money domain object, Decimal, or raw number.
+    
+    Centralized money formatting helper accepting Decimal, Money, str, float
+    to remove ad-hoc f"${float(x):,.2f}" occurrences across the CLI.
+    
+    Args:
+        value: Value to format (Money, Decimal, str, float, int, or None)
+        show_sign: If True, show + sign for positive values
+        
+    Returns:
+        Formatted money string with appropriate currency symbol
+
+    """
+    from decimal import Decimal
+    
+    # Handle None/empty values
+    if value is None:
+        return "-"
+    
+    # Domain Money object path
     try:
-        # Money has amount (Decimal) and currency; access directly when present
         if hasattr(value, "amount") and hasattr(value, "currency"):
             amt = float(value.amount)
             cur = str(value.currency)
             symbol = "$" if cur == "USD" else f"{cur} "
+            if show_sign and amt >= 0:
+                return f"{symbol}+{amt:,.2f}"
             return f"{symbol}{amt:,.2f}"
     except Exception:
         pass
-    # Legacy numeric path
+    
+    # Decimal path (preserve precision)
     try:
-        return f"${float(value):,.2f}"
+        if isinstance(value, Decimal):
+            amt = float(value)
+            if show_sign and amt >= 0:
+                return f"$+{amt:,.2f}"
+            return f"${amt:,.2f}"
     except Exception:
-        return "-"
+        pass
+    
+    # Numeric path (str, float, int)
+    try:
+        amt = float(value)
+        if show_sign and amt >= 0:
+            return f"$+{amt:,.2f}"
+        return f"${amt:,.2f}"
+    except (ValueError, TypeError):
+        pass
+    
+    # Fallback for any unhandled type
+    return "-"
 
 
 def render_account_info(account_info: dict[str, Any], console: Console | None = None) -> None:
@@ -457,32 +497,46 @@ def render_target_vs_current_allocations(
     account_info: dict[str, Any],
     current_positions: dict[str, Any],
     console: Console | None = None,
-    allocation_comparison: dict[str, Any] | None = None,
+    allocation_comparison: AllocationComparison | dict[str, Any] | None = None,
 ) -> None:
     """Pretty-print target vs current allocations using optional precomputed Decimal comparison.
 
-    If allocation_comparison provided, expects keys: target_values, current_values, deltas
-    with Decimal values. Falls back to on-the-fly float computation otherwise.
+    If allocation_comparison provided (from build_allocation_comparison), uses Decimal values
+    directly without recomputation. Falls back to legacy float computation only if not provided.
+    
+    Args:
+        target_portfolio: Target allocation weights by symbol (0-1 float)
+        account_info: Account information dict
+        current_positions: Current position data
+        console: Optional Rich console for rendering
+        allocation_comparison: Optional AllocationComparison with Decimal precision
+
     """
     from decimal import Decimal
 
     c = console or Console()
 
     if allocation_comparison:
+        # Use precomputed AllocationComparison with Decimal precision - no recomputation
         target_values = allocation_comparison.get("target_values", {})
         current_values = allocation_comparison.get("current_values", {})
         deltas = allocation_comparison.get("deltas", {})
-        # Derive portfolio_value from sum of target values if not present
+        
+        # Derive portfolio_value from sum of target values for consistency
         try:
-            portfolio_value = sum(target_values.values()) or account_info.get(
-                "portfolio_value", 0.0
-            )
+            portfolio_value = sum(target_values.values())
+            if portfolio_value == 0:
+                portfolio_value = Decimal(str(account_info.get("portfolio_value", 0)))
         except Exception:
-            portfolio_value = account_info.get("portfolio_value", 0.0)
+            portfolio_value = Decimal(str(account_info.get("portfolio_value", 0)))
     else:
-        portfolio_value = account_info.get("portfolio_value", 0.0)
+        # Legacy fallback: compute using float arithmetic
+        portfolio_value_float = account_info.get("portfolio_value", 0.0)
+        portfolio_value = Decimal(str(portfolio_value_float))
+        
         target_values = {
-            symbol: portfolio_value * weight for symbol, weight in target_portfolio.items()
+            symbol: Decimal(str(portfolio_value_float * weight)) 
+            for symbol, weight in target_portfolio.items()
         }
         current_values = {}
         for symbol, pos in current_positions.items():
@@ -490,9 +544,10 @@ def render_target_vs_current_allocations(
                 market_value = float(pos.get("market_value", 0.0))
             else:
                 market_value = float(getattr(pos, "market_value", 0.0))
-            current_values[symbol] = market_value
+            current_values[symbol] = Decimal(str(market_value))
+            
         deltas = {
-            s: (Decimal(str(target_values.get(s, 0))) - Decimal(str(current_values.get(s, 0))))
+            s: (target_values.get(s, Decimal("0")) - current_values.get(s, Decimal("0")))
             for s in set(target_values) | set(current_values)
         }
 
@@ -506,22 +561,15 @@ def render_target_vs_current_allocations(
     all_symbols = set(target_portfolio.keys()) | set(current_positions.keys())
     for symbol in sorted(all_symbols):
         target_weight = target_portfolio.get(symbol, 0.0)
-        target_value = target_values.get(symbol, 0)
-        current_value = current_values.get(symbol, 0)
-        # Normalize to floats for percentage weight calculation
-        try:
-            tv_float = float(target_value)
-            cv_float = float(current_value)
-        except Exception:
-            tv_float = 0.0
-            cv_float = 0.0
-        current_weight = cv_float / float(portfolio_value) if float(portfolio_value) > 0 else 0.0
+        target_value = target_values.get(symbol, Decimal("0"))
+        current_value = current_values.get(symbol, Decimal("0"))
+        
+        # Calculate weights using Decimal arithmetic for precision
+        current_weight = float(current_value / portfolio_value) if portfolio_value > 0 else 0.0
+            
         percent_diff = abs(target_weight - current_weight)
-        dollar_diff = deltas.get(symbol, 0)
-        try:
-            dollar_diff_float = float(dollar_diff)
-        except Exception:
-            dollar_diff_float = 0.0
+        dollar_diff = deltas.get(symbol, Decimal("0"))
+        dollar_diff_float = float(dollar_diff)
 
         if percent_diff > 0.01:
             if dollar_diff_float > 50:
@@ -545,9 +593,9 @@ def render_target_vs_current_allocations(
 
         table.add_row(
             symbol,
-            f"{target_weight:.1%}\n[dim]${tv_float:,.0f}[/dim]",
-            f"{current_weight:.1%}\n[dim]${cv_float:,.0f}[/dim]",
-            f"[{dollar_color}]{dollar_sign}${abs(dollar_diff_float):,.0f}[/{dollar_color}]",
+            f"{target_weight:.1%}\n[dim]{_format_money(target_value)}[/dim]",
+            f"{current_weight:.1%}\n[dim]{_format_money(current_value)}[/dim]",
+            f"[{dollar_color}]{dollar_sign}{_format_money(abs(dollar_diff))}[/{dollar_color}]",
             action,
         )
 
@@ -671,18 +719,22 @@ def render_enriched_order_summaries(
         )
 
     c.print(table)
+    
+    # Show truncation notice if needed
+    if len(summaries) > 50:
+        c.print(f"[dim]... and {len(summaries) - 50} more orders (showing top 50)[/dim]")
 
 
 def render_multi_strategy_summary(
-    execution_result: MultiStrategyExecutionResultDTO,
+    summary_data: MultiStrategySummaryDTO | MultiStrategyExecutionResultDTO,
     enriched_account: dict[str, Any] | None = None,
     console: Console | None = None,
 ) -> None:
     """Render a summary of multi-strategy execution results using Rich.
 
     Args:
-        execution_result: The execution result DTO to display
-        enriched_account: Optional enriched account info for enhanced display
+        summary_data: The summary DTO (new unified format) or execution result DTO (legacy fallback)
+        enriched_account: Optional enriched account info for enhanced display (legacy)
         console: Optional console for rendering
 
     """
@@ -691,6 +743,16 @@ def render_multi_strategy_summary(
     from rich.text import Text
 
     c = console or Console()
+    
+    # Handle new unified DTO or legacy fallback
+    if hasattr(summary_data, "execution_result"):
+        # New MultiStrategySummaryDTO format
+        execution_result = summary_data.execution_result
+        enriched_account = summary_data.enriched_account
+    else:
+        # Legacy MultiStrategyExecutionResultDTO format
+        execution_result = summary_data
+        enriched_account = enriched_account or {}
 
     if not execution_result.success:
         c.print(
