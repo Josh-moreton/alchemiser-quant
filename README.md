@@ -72,57 +72,74 @@ poetry run alchemiser version
 poetry run alchemiser validate-indicators
 ```
 
-## 🏗️ Current Architecture
+## 🏗️ Architecture
 
-The system follows a **Domain-Driven Design (DDD) layered architecture** with clear separation of concerns:
+The system follows a **modular architecture** with four top-level modules and strict dependency rules:
 
 ### Architecture Overview
 
 ```
-the_alchemiser/
-├── domain/              # Business logic and domain models
-├── application/         # Use cases and orchestration
-├── infrastructure/      # External service integrations
-├── services/           # Business service implementations
-├── interfaces/         # CLI and external interfaces
-└── utils/              # Shared utilities
+strategy/                # Signal generation and indicators
+portfolio/               # Portfolio state and rebalancing
+execution/              # Broker integrations and order placement
+shared/                 # DTOs, utilities, cross-cutting concerns
 ```
 
-#### **Domain Layer** (`the_alchemiser/domain/`)
-Pure business logic with no external dependencies:
-- **Strategy Engines**: Nuclear, TECL, KLM trading strategies
-- **Trading Entities**: Order, Position, Account models
-- **Value Objects**: Symbol, Money, Percentage types
-- **Domain Interfaces**: Repository contracts and protocols
-- **Shared Kernel**: Common value objects and types
+#### **Strategy Module** (`strategy/`)
+Signal generation, indicator calculation, ML models, regime detection:
+- **Indicators**: Technical indicators, market signals (`strategy/indicators/`)
+- **Engines**: Strategy implementations - Nuclear, TECL, KLM (`strategy/engines/`)
+- **Signals**: Signal processing and generation (`strategy/signals/`)
+- **Models**: ML models and data processing (`strategy/models/`)
 
-#### **Application Layer** (`the_alchemiser/application/`)
-Orchestrates business workflows:
-- **Execution**: Order placement and smart execution logic
-- **Portfolio**: Portfolio rebalancing and position management
-- **Mapping**: DTO/Domain object translation
-- **Tracking**: Strategy performance and P&L tracking
-- **Policies**: Order validation and risk management
+#### **Portfolio Module** (`portfolio/`)
+Portfolio state management, sizing, rebalancing logic, risk management:
+- **Positions**: Position tracking and management (`portfolio/positions/`)
+- **Rebalancing**: Rebalancing algorithms and logic (`portfolio/rebalancing/`)
+- **Valuation**: Portfolio valuation and metrics (`portfolio/valuation/`)
+- **Risk**: Risk management and constraints (`portfolio/risk/`)
 
-#### **Infrastructure Layer** (`the_alchemiser/infrastructure/`)
-External service integrations:
-- **Alpaca Integration**: Trading API and data providers
-- **AWS Services**: Lambda, S3, Secrets Manager
-- **Configuration**: Environment-based settings
-- **Logging**: Structured logging with context
-- **Dependency Injection**: Service composition
+#### **Execution Module** (`execution/`)
+Broker API integrations, order placement, smart execution, error handling:
+- **Brokers**: Broker API integrations - Alpaca integration (`execution/brokers/`)
+- **Orders**: Order management and lifecycle (`execution/orders/`)
+- **Strategies**: Smart execution strategies (`execution/strategies/`)
+- **Routing**: Order routing and placement (`execution/routing/`)
 
-#### **Services Layer** (`the_alchemiser/services/`)
-Business service implementations:
-- **Trading Services**: Order execution and position management
-- **Market Data**: Real-time and historical data access
-- **Error Handling**: Comprehensive error management
-- **Account Services**: Portfolio and account information
+#### **Shared Module** (`shared/`)
+DTOs, utilities, logging, cross-cutting concerns, common value objects:
+- **DTOs**: Data transfer objects (`shared/dtos/`)
+- **Types**: Common value objects - Money, Symbol classes (`shared/types/`)
+- **Utils**: Utility functions and helpers (`shared/utils/`)
+- **Config**: Configuration management (`shared/config/`)
+- **Logging**: Logging setup and utilities (`shared/logging/`)
 
-#### **Interfaces Layer** (`the_alchemiser/interfaces/`)
-External interfaces and user interaction:
-- **CLI**: Rich command-line interface with analysis tools
-- **Schemas**: Data transfer objects and API contracts
+### Module Dependency Rules
+
+```
+✅ Allowed Dependencies:
+- strategy/ → shared/
+- portfolio/ → shared/  
+- execution/ → shared/
+
+❌ Forbidden Dependencies:
+- strategy/ → portfolio/
+- strategy/ → execution/
+- portfolio/ → execution/
+- shared/ → any other module
+```
+
+### Inter-Module Communication
+
+Modules communicate via well-defined DTOs and interfaces:
+- **Strategy** generates signals consumed by **Portfolio**
+- **Portfolio** creates execution plans consumed by **Execution**
+- All communication through explicit contracts, not shared state
+- Use correlation IDs for traceability across module boundaries
+
+### Current Implementation Status
+
+> **Note**: The codebase is currently migrating to this four-module architecture. New development should follow the modular structure above. The current implementation uses a DDD layered architecture that is being refactored into these modules.
 
 ## 🧠 Trading Strategies
 
@@ -157,15 +174,43 @@ Module description...
 """
 ```
 
-**Business Units:**
-- **strategy & signal generation**: Strategy engines and signal processing
-- **portfolio assessment & management**: Portfolio state and rebalancing
-- **order execution/placement**: Order management and broker integration  
-- **utilities**: Shared infrastructure and cross-cutting concerns
+**Business Units (aligned with modules):**
+- **strategy**: Signal generation, indicators, ML models
+- **portfolio**: Portfolio state, sizing, rebalancing logic
+- **execution**: Broker API integrations, order placement, error handling
+- **shared**: DTOs, utilities, logging, cross-cutting concerns
 
 **Status Values:**
 - **current**: Active, maintained code
 - **legacy**: Deprecated, scheduled for removal
+
+**Example Module Docstrings:**
+
+```python
+# strategy module
+"""Business Unit: strategy | Status: current
+
+Signal generation and indicator calculation for trading strategies.
+"""
+
+# portfolio module  
+"""Business Unit: portfolio | Status: current
+
+Portfolio state management and rebalancing logic.
+"""
+
+# execution module
+"""Business Unit: execution | Status: current
+
+Broker API integrations and order placement.
+"""
+
+# shared module
+"""Business Unit: shared | Status: current
+
+DTOs, utilities, and cross-cutting concerns.
+"""
+```
 
 ## ⚙️ Configuration
 
@@ -303,52 +348,6 @@ error_details = error_handler.handle_error(
 - **Structured Logging**: Context-aware logging with request IDs
 - **Circuit Breakers**: Automatic failure handling and recovery
 
-## 🔄 Future Architecture (Target State)
-
-> **Migration Planned**: The system is planned to migrate to a **four-module architecture** as defined in `.github/copilot-instructions.md`:
-
-```
-strategy/     # Signal generation and indicators  
-portfolio/    # Portfolio state and rebalancing
-execution/    # Broker integrations and order placement
-shared/       # DTOs, utilities, cross-cutting concerns
-```
-
-### Target Module Structure
-
-```
-strategy/
-├── indicators/              # Technical indicators, market signals
-├── engines/                 # Strategy implementations
-├── signals/                 # Signal processing and generation
-└── models/                  # ML models and data processing
-
-portfolio/  
-├── positions/               # Position tracking and management
-├── rebalancing/             # Rebalancing algorithms and logic
-├── valuation/               # Portfolio valuation and metrics
-└── risk/                    # Risk management and constraints
-
-execution/
-├── brokers/                 # Broker API integrations
-├── orders/                  # Order management and lifecycle
-├── strategies/              # Smart execution strategies  
-└── routing/                 # Order routing and placement
-
-shared/
-├── dtos/                    # Data transfer objects
-├── types/                   # Common value objects
-├── utils/                   # Utility functions and helpers
-├── config/                  # Configuration management
-└── logging/                 # Logging setup and utilities
-```
-
-This migration will provide:
-- **Cleaner Module Boundaries**: Strict dependency rules
-- **Improved Maintainability**: Clear separation of concerns
-- **Enhanced Testability**: Better isolation for unit testing
-- **Consistent API Design**: Standardized interfaces across modules
-
 ## 📚 Key Files Reference
 
 ### Entry Points
@@ -357,48 +356,75 @@ This migration will provide:
 - `interfaces/cli/cli.py`: Command-line interface
 
 ### Core Configuration
-- `infrastructure/config/config.py`: Application settings
+- `shared/config/`: Application settings and configuration management
 - `template.yaml`: AWS infrastructure definition
 - `pyproject.toml`: Dependencies and tool configuration
 
 ### Strategy Implementation
-- `domain/registry/strategy_registry.py`: Strategy configuration
-- `domain/strategies/`: Strategy engine implementations
-- `application/execution/`: Order execution logic
+- `strategy/engines/`: Strategy engine implementations (Nuclear, TECL, KLM)
+- `strategy/indicators/`: Technical indicators and signal processing
+- `portfolio/rebalancing/`: Portfolio rebalancing and allocation logic
 
 ### Error Handling
-- `services/errors/handler.py`: Central error handling
-- `services/errors/exceptions.py`: Custom exception definitions
+- `shared/utils/`: Error handling utilities and patterns
+- Module-specific error types with context
 
 ## 🤖 AI Agent Guidelines
 
 This repository is optimized for AI-driven development:
 
 ### Code Generation Standards
-- Follow business unit docstring requirements
-- Use explicit typing for all functions
-- Implement comprehensive error handling
-- Maintain DDD architectural boundaries
+- Follow business unit docstring requirements (strategy|portfolio|execution|shared)
+- Use explicit typing for all functions (100% mypy compliance)
+- Implement comprehensive error handling with module context
+- Maintain modular architectural boundaries
 
-### Import Guidelines
-- Use public module APIs, not deep imports
-- Import from layer interfaces, not implementations
-- Follow dependency direction: domain ← application ← infrastructure
+### Import Guidelines & Module Isolation
+```python
+# ✅ Allowed imports
+from shared.types import Money, Symbol
+from strategy.indicators import MovingAverage
+from portfolio.positions import PositionTracker
+from execution.brokers import AlpacaConnector
+
+# ❌ Forbidden imports
+from strategy.internal.calculations import sma  # Deep import
+from portfolio import rebalance_portfolio  # Cross-module import
+```
+
+### Module Placement Guidelines
+- **New indicator (SMA, RSI, etc.)** → `strategy/indicators/`
+- **New strategy engine** → `strategy/engines/`
+- **New broker connector** → `execution/brokers/`
+- **Portfolio rebalancing logic** → `portfolio/rebalancing/`
+- **New position tracker** → `portfolio/positions/`
+- **Order execution strategy** → `execution/strategies/`
+- **Common DTO classes** → `shared/dtos/`
+- **Utility functions** → `shared/utils/`
+- **Configuration types** → `shared/config/`
 
 ### Error Handling Patterns
 ```python
-# Critical errors should bubble up
+# Module-specific error types with context
+from shared.errors import StrategyError, PortfolioError, ExecutionError
+
 try:
     result = strategy.calculate()
 except StrategyError as e:
+    logger.error(f"Strategy error", extra={"module": "strategy.indicators.sma"})
     if e.severity == ErrorSeverity.CRITICAL:
         raise
-    else:
-        logger.warning(f"Non-critical error: {e}")
-        return safe_fallback_value
+    return safe_fallback_value
 ```
 
-For AI agents working on this codebase, refer to `.github/copilot-instructions.md` for detailed architectural guidance and coding standards.
+### Dependency Rules
+- **strategy/** may only import from **shared/**
+- **portfolio/** may only import from **shared/**
+- **execution/** may only import from **shared/**
+- **shared/** must not import from any other module
+- Cross-module communication via DTOs and interfaces only
+
+For complete architectural guidance and coding standards, refer to `.github/copilot-instructions.md`.
 
 ---
 
