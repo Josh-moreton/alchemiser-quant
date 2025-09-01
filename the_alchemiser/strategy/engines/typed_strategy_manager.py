@@ -15,10 +15,9 @@ from __future__ import annotations
 import logging
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from the_alchemiser.domain.market_data.protocols.market_data_port import MarketDataPort
-from the_alchemiser.domain.registry.strategy_registry import StrategyRegistry, StrategyType
 from .engine import StrategyEngine
 from .nuclear_typed_engine import NuclearTypedEngine
 from .typed_klm_ensemble_engine import TypedKLMStrategyEngine
@@ -26,17 +25,20 @@ from .value_objects.confidence import Confidence
 from .value_objects.strategy_signal import StrategySignal
 from the_alchemiser.domain.trading.value_objects.symbol import Symbol
 
+if TYPE_CHECKING:
+    from the_alchemiser.domain.registry.strategy_registry import StrategyRegistry, StrategyType
+
 
 class AggregatedSignals:
     """Aggregated strategy signals with conflict resolution."""
 
     def __init__(self) -> None:
-        self.signals_by_strategy: dict[StrategyType, list[StrategySignal]] = {}
+        self.signals_by_strategy: dict["StrategyType", list[StrategySignal]] = {}
         self.consolidated_signals: list[StrategySignal] = []
         self.conflicts: list[dict[str, Any]] = []
 
     def add_strategy_signals(
-        self, strategy_type: StrategyType, signals: list[StrategySignal]
+        self, strategy_type: "StrategyType", signals: list[StrategySignal]
     ) -> None:
         """Add signals from a specific strategy."""
         self.signals_by_strategy[strategy_type] = signals
@@ -48,7 +50,7 @@ class AggregatedSignals:
             all_signals.extend(signals)
         return all_signals
 
-    def get_signals_by_strategy(self) -> dict[StrategyType, list[StrategySignal]]:
+    def get_signals_by_strategy(self) -> dict["StrategyType", list[StrategySignal]]:
         """Get signals grouped by strategy."""
         return self.signals_by_strategy.copy()
 
@@ -64,7 +66,7 @@ class TypedStrategyManager:
     def __init__(
         self,
         market_data_port: MarketDataPort,
-        strategy_allocations: dict[StrategyType, float] | None = None,
+        strategy_allocations: dict["StrategyType", float] | None = None,
     ) -> None:
         """Initialize typed strategy manager.
 
@@ -78,9 +80,11 @@ class TypedStrategyManager:
 
         # Use provided allocations or defaults from registry
         if strategy_allocations is None:
+            from the_alchemiser.domain.registry.strategy_registry import StrategyRegistry
             self.strategy_allocations = StrategyRegistry.get_default_allocations()
         else:
             # Filter to only enabled strategies
+            from the_alchemiser.domain.registry.strategy_registry import StrategyRegistry
             self.strategy_allocations = {
                 strategy_type: allocation
                 for strategy_type, allocation in strategy_allocations.items()
@@ -93,7 +97,7 @@ class TypedStrategyManager:
             raise ValueError(f"Strategy allocations must sum to 1.0, got {total_allocation}")
 
         # Initialize typed strategy engines
-        self.strategy_engines: dict[StrategyType, StrategyEngine] = {}
+        self.strategy_engines: dict["StrategyType", StrategyEngine] = {}
         self._initialize_typed_engines()
 
         self.logger.info(
@@ -115,8 +119,10 @@ class TypedStrategyManager:
                 # Remove from allocations if initialization failed
                 del self.strategy_allocations[strategy_type]
 
-    def _create_typed_engine(self, strategy_type: StrategyType) -> StrategyEngine:
+    def _create_typed_engine(self, strategy_type: "StrategyType") -> StrategyEngine:
         """Create typed strategy engine instance."""
+        from the_alchemiser.domain.registry.strategy_registry import StrategyType
+        
         if strategy_type == StrategyType.NUCLEAR:
             return NuclearTypedEngine(self.market_data_port)
         if strategy_type == StrategyType.KLM:
@@ -186,7 +192,7 @@ class TypedStrategyManager:
 
         """
         # Group signals by symbol
-        signals_by_symbol: dict[str, list[tuple[StrategyType, StrategySignal]]] = {}
+        signals_by_symbol: dict[str, list[tuple["StrategyType", StrategySignal]]] = {}
 
         for strategy_type, signals in aggregated.signals_by_strategy.items():
             for signal in signals:
@@ -249,7 +255,7 @@ class TypedStrategyManager:
         return self._select_highest_confidence_signal(symbol, strategy_signals)
 
     def _combine_agreeing_signals(
-        self, symbol: str, strategy_signals: list[tuple[StrategyType, StrategySignal]]
+        self, symbol: str, strategy_signals: list[tuple["StrategyType", StrategySignal]]
     ) -> StrategySignal:
         """Combine signals when all strategies agree on the action."""
         # Use the first signal as template
@@ -287,7 +293,7 @@ class TypedStrategyManager:
         )
 
     def _select_highest_confidence_signal(
-        self, symbol: str, strategy_signals: list[tuple[StrategyType, StrategySignal]]
+        self, symbol: str, strategy_signals: list[tuple["StrategyType", StrategySignal]]
     ) -> StrategySignal:
         """Select signal with highest weighted confidence when strategies disagree."""
         best_score = Decimal("-1")
@@ -325,10 +331,10 @@ class TypedStrategyManager:
             timestamp=best_signal.timestamp,
         )
 
-    def get_strategy_allocations(self) -> dict[StrategyType, float]:
+    def get_strategy_allocations(self) -> dict["StrategyType", float]:
         """Get current strategy allocations."""
         return self.strategy_allocations.copy()
 
-    def get_enabled_strategies(self) -> list[StrategyType]:
+    def get_enabled_strategies(self) -> list["StrategyType"]:
         """Get list of enabled strategy types."""
         return list(self.strategy_engines.keys())
