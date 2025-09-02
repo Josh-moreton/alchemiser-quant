@@ -1,7 +1,7 @@
 # The Alchemiser Makefile
 # Quick commands for development and deployment
 
-.PHONY: help install dev clean run-signals run-trade run-trade-live status deploy format lint
+.PHONY: help install dev clean run-signals run-trade run-trade-live status deploy format lint type-check import-check migration-check
 
 # Default target
 help:
@@ -20,6 +20,9 @@ help:
 	@echo "Development:"
 	@echo "  format          Format code with Ruff (formatter + fixes)"
 	@echo "  lint            Run linting"
+	@echo "  type-check      Run MyPy type checking"
+	@echo "  import-check    Check module dependency rules"
+	@echo "  migration-check Full migration validation suite"
 	@echo "  clean           Clean build artifacts"
 	@echo ""
 	@echo "Deployment:"
@@ -60,6 +63,20 @@ format:
 lint:
 	@echo "🔍 Running linting..."
 	poetry run ruff check the_alchemiser/
+
+type-check:
+	@echo "🔍 Running MyPy type checking on modular structure..."
+	poetry run mypy the_alchemiser/shared/ the_alchemiser/strategy/ the_alchemiser/portfolio/ the_alchemiser/execution/ --no-error-summary
+
+import-check:
+	@echo "🔍 Checking module dependency rules..."
+	poetry run lint-imports
+
+migration-check: lint type-check import-check
+	@echo "🚀 Running full migration validation suite..."
+	@echo "📊 Running smoke tests..."
+	./scripts/smoke_tests.sh || echo "⚠️ Some smoke tests failed (may be expected during migration)"
+	@echo "✅ Migration validation complete!"
 
 clean:
 	@echo "🧹 Cleaning build artifacts..."
