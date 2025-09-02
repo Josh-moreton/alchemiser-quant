@@ -17,7 +17,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
-from the_alchemiser.domain.market_data.protocols.market_data_port import MarketDataPort
+from the_alchemiser.shared.types.market_data_port import MarketDataPort
 from the_alchemiser.domain.registry.strategy_registry import StrategyRegistry, StrategyType
 from the_alchemiser.domain.strategies.engine import StrategyEngine
 from the_alchemiser.domain.strategies.nuclear_typed_engine import NuclearTypedEngine

@@ -14,7 +14,7 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import Any
 
-from the_alchemiser.domain.market_data.protocols.market_data_port import MarketDataPort
+from the_alchemiser.shared.types.market_data_port import MarketDataPort
 from .errors.strategy_errors import (
     MarketDataUnavailableError,
     StrategyValidationError,

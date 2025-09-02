@@ -16,7 +16,7 @@ from the_alchemiser.domain.trading.protocols.order_lifecycle import (
 from the_alchemiser.infrastructure.websocket.websocket_order_monitor import (
     OrderCompletionMonitor,
 )
-from the_alchemiser.interfaces.schemas.execution import WebSocketResultDTO
+from the_alchemiser.execution.core.execution_schemas import WebSocketResultDTO
 
 
 class TradingClientProtocol(Protocol):  # pragma: no cover - structural typing

@@ -19,7 +19,7 @@ from the_alchemiser.infrastructure.secrets.secrets_manager import SecretsManager
 from the_alchemiser.infrastructure.websocket.websocket_order_monitor import (
     OrderCompletionMonitor,
 )
-from the_alchemiser.interfaces.schemas.execution import (
+from the_alchemiser.execution.core.execution_schemas import (
     WebSocketResultDTO,
     WebSocketStatus,
 )

@@ -21,7 +21,7 @@ from the_alchemiser.shared.utils.logging_utils import (
     generate_request_id,
     set_request_id,
 )
-from the_alchemiser.interfaces.schemas.execution import LambdaEventDTO
+from the_alchemiser.execution.core.execution_schemas import LambdaEventDTO
 from the_alchemiser.main import main
 from the_alchemiser.shared.utils.exceptions import (
     DataProviderError,

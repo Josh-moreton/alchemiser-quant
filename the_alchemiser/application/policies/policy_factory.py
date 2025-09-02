@@ -94,7 +94,7 @@ class PolicyFactory:
             PolicyResult,
             create_approved_result,
         )
-        from the_alchemiser.domain.trading.value_objects.order_request import OrderRequest
+        from the_alchemiser.execution.orders.order_request import OrderRequest
 
         fractionability_policy = FractionabilityPolicyImpl()
 

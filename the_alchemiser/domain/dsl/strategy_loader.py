@@ -20,7 +20,7 @@ from the_alchemiser.domain.dsl.optimization_config import (
     configure_from_environment,
 )
 from the_alchemiser.domain.dsl.parser import DSLParser
-from the_alchemiser.domain.market_data.protocols.market_data_port import MarketDataPort
+from the_alchemiser.shared.types.market_data_port import MarketDataPort
 
 
 class StrategyLoader:

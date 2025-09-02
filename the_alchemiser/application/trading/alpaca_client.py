@@ -40,11 +40,11 @@ Example:
     Canonical order placement (preferred):
 
     >>> from the_alchemiser.application.execution.canonical_executor import CanonicalOrderExecutor
-    >>> from the_alchemiser.domain.trading.value_objects.order_request import OrderRequest
+    >>> from the_alchemiser.execution.orders.order_request import OrderRequest
     >>> from the_alchemiser.shared.value_objects.symbol import Symbol
     >>> from the_alchemiser.domain.trading.value_objects.side import Side
-    >>> from the_alchemiser.domain.trading.value_objects.quantity import Quantity
-    >>> from the_alchemiser.domain.trading.value_objects.order_type import OrderType
+    >>> from the_alchemiser.shared.types.quantity import Quantity
+    >>> from the_alchemiser.execution.orders.order_type import OrderType
     >>> from the_alchemiser.domain.trading.value_objects.time_in_force import TimeInForce
     >>> client = AlpacaClient(trading_client, data_provider)
     >>> executor = CanonicalOrderExecutor(client.alpaca_manager)
@@ -80,7 +80,7 @@ from the_alchemiser.infrastructure.websocket.websocket_connection_manager import
 from the_alchemiser.infrastructure.websocket.websocket_order_monitor import (
     OrderCompletionMonitor,
 )
-from the_alchemiser.interfaces.schemas.execution import WebSocketResultDTO
+from the_alchemiser.execution.core.execution_schemas import WebSocketResultDTO
 
 # (Legacy exceptions import removed)
 from the_alchemiser.services.repository.alpaca_manager import AlpacaManager
@@ -230,11 +230,11 @@ class AlpacaClient:
         from the_alchemiser.application.execution.canonical_executor import (
             CanonicalOrderExecutor,
         )
-        from the_alchemiser.domain.trading.value_objects.order_request import (
+        from the_alchemiser.execution.orders.order_request import (
             OrderRequest,
         )
-        from the_alchemiser.domain.trading.value_objects.order_type import OrderType
-        from the_alchemiser.domain.trading.value_objects.quantity import Quantity
+        from the_alchemiser.execution.orders.order_type import OrderType
+        from the_alchemiser.shared.types.quantity import Quantity
         from the_alchemiser.domain.trading.value_objects.side import Side
         from the_alchemiser.shared.value_objects.symbol import Symbol
         from the_alchemiser.domain.trading.value_objects.time_in_force import (

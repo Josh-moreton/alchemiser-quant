@@ -70,7 +70,7 @@ from the_alchemiser.shared.utils.logging_utils import (
     log_with_context,
 )
 from the_alchemiser.interfaces.schemas.common import MultiStrategyExecutionResultDTO
-from the_alchemiser.interfaces.schemas.execution import ExecutionResultDTO
+from the_alchemiser.execution.core.execution_schemas import ExecutionResultDTO
 from the_alchemiser.services.account.account_service import (
     AccountService as TypedAccountService,
 )

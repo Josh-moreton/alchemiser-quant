@@ -32,7 +32,7 @@ from the_alchemiser.application.mapping.execution_summary_mapping import (
     safe_dict_to_portfolio_state_dto,
 )
 from the_alchemiser.shared.value_objects.core_types import AccountInfo, OrderDetails
-from the_alchemiser.interfaces.schemas.execution import (
+from the_alchemiser.execution.core.execution_schemas import (
     ExecutionResultDTO,
     LambdaEventDTO,
     OrderHistoryDTO,

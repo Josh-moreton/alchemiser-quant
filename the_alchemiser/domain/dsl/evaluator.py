@@ -38,7 +38,7 @@ from the_alchemiser.domain.dsl.ast import (
     WeightSpecified,
 )
 from the_alchemiser.domain.dsl.errors import EvaluationError, IndicatorError, PortfolioError
-from the_alchemiser.domain.market_data.protocols.market_data_port import MarketDataPort
+from the_alchemiser.shared.types.market_data_port import MarketDataPort
 from the_alchemiser.domain.math.indicators import TechnicalIndicators
 
 # Type imports for annotations

@@ -19,7 +19,7 @@ from typing import Any
 
 import pandas as pd
 
-from the_alchemiser.domain.market_data.protocols.market_data_port import MarketDataPort
+from the_alchemiser.shared.types.market_data_port import MarketDataPort
 from the_alchemiser.domain.math.indicator_utils import safe_get_indicator
 from the_alchemiser.domain.math.indicators import TechnicalIndicators
 from the_alchemiser.domain.math.math_utils import (

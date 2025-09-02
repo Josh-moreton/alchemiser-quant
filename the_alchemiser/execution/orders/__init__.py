@@ -9,3 +9,5 @@ progressive orders, limit orders, and asset-specific order handling.
 from __future__ import annotations
 # Exported from legacy migration
 from .order_schemas import *
+from .order_request import OrderRequest
+from .order_type import OrderType

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from the_alchemiser.interfaces.schemas.execution import WebSocketResultDTO
+from the_alchemiser.execution.core.execution_schemas import WebSocketResultDTO
 
 """Protocol for order lifecycle monitoring.
 

@@ -17,7 +17,7 @@ from the_alchemiser.domain.trading.value_objects.order_status import OrderStatus
 from the_alchemiser.domain.trading.value_objects.order_status_literal import (
     OrderStatusLiteral,
 )
-from the_alchemiser.domain.trading.value_objects.quantity import Quantity
+from the_alchemiser.shared.types.quantity import Quantity
 from the_alchemiser.shared.value_objects.symbol import Symbol
 from the_alchemiser.execution.orders.order_schemas import (
     OrderExecutionResultDTO,

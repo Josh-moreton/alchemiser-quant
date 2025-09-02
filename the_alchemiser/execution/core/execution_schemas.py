@@ -17,7 +17,7 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from the_alchemiser.shared.value_objects.core_types import AccountInfo, OrderDetails
-from the_alchemiser.interfaces.schemas.execution_summary import (
+from the_alchemiser.execution.core.execution_schemas_summary import (
     ExecutionSummaryDTO,
     PortfolioStateDTO,
 )
