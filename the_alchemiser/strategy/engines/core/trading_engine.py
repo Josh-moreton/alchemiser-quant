@@ -49,7 +49,7 @@ from the_alchemiser.execution.strategies.smart_execution import SmartExecution
 from the_alchemiser.portfolio.core.portfolio_management_facade import (
     PortfolioManagementFacade,
 )
-from the_alchemiser.shared.config.bootstrap import (
+from the_alchemiser.app.config.bootstrap import (
     TradingBootstrapContext,
     bootstrap_from_container,
     bootstrap_from_service_manager,
@@ -1040,7 +1040,7 @@ def main() -> None:
     # These imports are kept at function level to avoid circular imports at module load time
     # since main.py indirectly imports this module through CLI components
     from the_alchemiser.main import TradingSystem
-    from the_alchemiser.shared.config.container import (
+    from the_alchemiser.app.config.container import (
         ApplicationContainer,
     )
 

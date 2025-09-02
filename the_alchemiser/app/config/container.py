@@ -8,10 +8,10 @@ from __future__ import annotations
 from dependency_injector import containers, providers
 
 from the_alchemiser.shared.config.config_providers import ConfigProviders
-from the_alchemiser.shared.config.infrastructure_providers import (
+from the_alchemiser.app.config.infrastructure_providers import (
     InfrastructureProviders,
 )
-from the_alchemiser.shared.config.service_providers import ServiceProviders
+from the_alchemiser.app.config.service_providers import ServiceProviders
 
 
 class ApplicationContainer(containers.DeclarativeContainer):

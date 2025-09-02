@@ -94,7 +94,7 @@ from the_alchemiser.shared.schemas.operations import (
     OrderCancellationDTO,
     OrderStatusDTO,
 )
-from the_alchemiser.shared.schemas.smart_trading import (
+from the_alchemiser.execution.schemas.smart_trading import (
     OrderValidationMetadataDTO,
     SmartOrderExecutionDTO,
     TradingDashboardDTO,

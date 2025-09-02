@@ -35,10 +35,10 @@ from the_alchemiser.strategy.registry.strategy_registry import StrategyType
 
 # DI imports (optional)
 try:
-    from the_alchemiser.shared.config.container import (
+    from the_alchemiser.app.config.container import (
         ApplicationContainer,
     )
-    from the_alchemiser.shared.utils.service_factory import ServiceFactory
+    from the_alchemiser.app.service_factory import ServiceFactory
 
     DI_AVAILABLE = True
 except ImportError:

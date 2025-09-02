@@ -11,7 +11,7 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from the_alchemiser.shared.config.container import (
+    from the_alchemiser.app.config.container import (
         ApplicationContainer,
     )
 
@@ -25,7 +25,7 @@ from the_alchemiser.shared.cli.cli_formatter import (
     render_strategy_signals,
     render_target_vs_current_allocations,
 )
-from the_alchemiser.shared.config.bootstrap import bootstrap_from_container
+from the_alchemiser.app.config.bootstrap import bootstrap_from_container
 from the_alchemiser.shared.config.config import Settings
 from the_alchemiser.shared.logging.logging_utils import get_logger
 from the_alchemiser.shared.schemas.common import MultiStrategyExecutionResultDTO

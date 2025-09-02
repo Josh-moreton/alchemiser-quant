@@ -610,7 +610,7 @@ def status(
             pass  # pragma: no cover
 
         # Create trader using modern bootstrap approach
-        from the_alchemiser.shared.config.bootstrap import (
+        from the_alchemiser.app.config.bootstrap import (
             bootstrap_from_container,
         )
 

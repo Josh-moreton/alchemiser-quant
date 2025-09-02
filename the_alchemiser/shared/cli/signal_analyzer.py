@@ -11,7 +11,7 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:  # Avoid runtime import cost / circulars
-    from the_alchemiser.shared.config.container import (
+    from the_alchemiser.app.config.container import (
         ApplicationContainer,
     )
     from the_alchemiser.strategy.schemas.strategies import StrategySignalDisplayDTO
