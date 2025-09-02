@@ -328,7 +328,7 @@ class SmartExecution:
             Order ID if successful, None otherwise
 
         """
-        from the_alchemiser.application.execution.spread_assessment import (
+        from the_alchemiser.execution.pricing.spread_assessment import (
             SpreadAssessment,
         )
         from the_alchemiser.domain.math.market_timing_utils import (

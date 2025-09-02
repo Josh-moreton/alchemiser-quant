@@ -22,7 +22,7 @@ from the_alchemiser.strategy.mappers.market_data_mapping import (
 from the_alchemiser.shared.types.bar import BarModel
 from the_alchemiser.shared.types.quote import QuoteModel
 from the_alchemiser.shared.types.symbol_legacy import Symbol
-from the_alchemiser.services.market_data.market_data_client import MarketDataClient
+from the_alchemiser.strategy.data.market_data_client import MarketDataClient
 from the_alchemiser.strategy.data.market_data_service import MarketDataService
 
 logger = logging.getLogger(__name__)

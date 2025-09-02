@@ -19,7 +19,7 @@ from typing import Any
 
 # Issue deprecation warning when this module is imported
 warnings.warn(
-    "the_alchemiser.services.errors.error_handling is deprecated. "
+    "the_alchemiser.shared.utils.error_handling is deprecated. "
     "Use TradingSystemErrorHandler, translation decorators, or ErrorScope instead.",
     DeprecationWarning,
     stacklevel=2,

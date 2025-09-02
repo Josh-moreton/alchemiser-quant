@@ -16,3 +16,11 @@ __all__ = [
     "AccountMapper",
     "TradingServiceDTOMapper"
 ]
+# Execution mapping utilities
+from .alpaca_dto_mapping import (
+    map_alpaca_order_to_dto,
+    map_dto_to_alpaca_order,
+    map_alpaca_position_to_dto,
+    map_alpaca_account_to_dto
+)
+

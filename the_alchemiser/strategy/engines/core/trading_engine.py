@@ -74,7 +74,7 @@ from the_alchemiser.execution.core.execution_schemas import ExecutionResultDTO
 from the_alchemiser.execution.services.account_service import (
     AccountService as TypedAccountService,
 )
-from the_alchemiser.services.errors.context import create_error_context
+from the_alchemiser.shared.utils.context import create_error_context
 from the_alchemiser.shared.utils.exceptions import (
     ConfigurationError,
     DataProviderError,
@@ -410,7 +410,7 @@ class TradingEngine:
                         for st in self._typed.strategy_allocations
                     }
                 except Exception as e:
-                    from the_alchemiser.services.errors.context import (
+                    from the_alchemiser.shared.utils.context import (
                         create_error_context,
                     )
                     from the_alchemiser.shared.utils.error_handler import (

@@ -26,7 +26,7 @@ from alpaca.trading.client import TradingClient
 from alpaca.trading.enums import OrderSide, TimeInForce
 from alpaca.trading.requests import LimitOrderRequest, MarketOrderRequest
 
-from the_alchemiser.application.mapping.alpaca_dto_mapping import (
+from the_alchemiser.execution.mappers.alpaca_dto_mapping import (
     alpaca_order_to_execution_result,
     create_error_execution_result,
 )

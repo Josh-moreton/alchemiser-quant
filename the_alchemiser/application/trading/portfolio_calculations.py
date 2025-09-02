@@ -12,7 +12,7 @@ from decimal import Decimal, InvalidOperation
 from typing import Any, TypedDict
 
 from the_alchemiser.shared.value_objects.core_types import AccountInfo, PositionInfo, PositionsDict
-from the_alchemiser.services.account.account_utils import (
+from the_alchemiser.shared.utils.account_utils import (
     extract_current_position_values as _float_current_values,
 )
 

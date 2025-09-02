@@ -67,7 +67,7 @@ if TYPE_CHECKING:
 
 from alpaca.trading.enums import OrderSide
 
-from the_alchemiser.application.execution.smart_pricing_handler import (
+from the_alchemiser.execution.pricing.smart_pricing_handler import (
     SmartPricingHandler,
 )
 from the_alchemiser.application.orders.asset_order_handler import AssetOrderHandler

@@ -127,7 +127,7 @@ def build_portfolio_state_data(
 ) -> dict[str, Any]:
     """Build portfolio state data for reporting purposes."""
     from the_alchemiser.domain.math.trading_math import calculate_allocation_discrepancy
-    from the_alchemiser.services.account.account_utils import (
+    from the_alchemiser.shared.utils.account_utils import (
         extract_current_position_values,
     )
 
