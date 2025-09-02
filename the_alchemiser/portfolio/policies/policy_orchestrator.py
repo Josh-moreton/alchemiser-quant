@@ -25,16 +25,16 @@ from the_alchemiser.execution.orders.order_schemas import (
 )
 
 if TYPE_CHECKING:
-    from the_alchemiser.application.policies.buying_power_policy_impl import (
+    from the_alchemiser.portfolio.policies.buying_power_policy_impl import (
         BuyingPowerPolicyImpl,
     )
-    from the_alchemiser.application.policies.fractionability_policy_impl import (
+    from the_alchemiser.portfolio.policies.fractionability_policy_impl import (
         FractionabilityPolicyImpl,
     )
-    from the_alchemiser.application.policies.position_policy_impl import (
+    from the_alchemiser.portfolio.policies.position_policy_impl import (
         PositionPolicyImpl,
     )
-    from the_alchemiser.application.policies.risk_policy_impl import RiskPolicyImpl
+    from the_alchemiser.portfolio.policies.risk_policy_impl import RiskPolicyImpl
 
 logger = logging.getLogger(__name__)
 

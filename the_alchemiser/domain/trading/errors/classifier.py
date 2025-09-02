@@ -14,7 +14,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
-from the_alchemiser.domain.shared_kernel.value_objects.identifier import Identifier
+from the_alchemiser.shared.value_objects.identifier import Identifier
 
 from .error_categories import OrderErrorCategory
 from .error_codes import OrderErrorCode

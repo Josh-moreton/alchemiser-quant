@@ -289,7 +289,7 @@ class TradingEngine:
                     trading_manager=trading_manager,
                 )
                 # Initialize rebalancing orchestrator facade for sequential SELL→settle→BUY execution
-                from the_alchemiser.application.portfolio.rebalancing_orchestrator_facade import (
+                from the_alchemiser.portfolio.rebalancing.orchestrator_facade import (
                     RebalancingOrchestratorFacade,
                 )
 
