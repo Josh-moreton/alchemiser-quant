@@ -116,7 +116,7 @@ class TradingExecutor:
     def _send_market_closed_notification(self) -> None:
         """Send market closed notification."""
         try:
-            from the_alchemiser.infrastructure.notifications.email_utils import (
+            from the_alchemiser.shared.notifications.email_utils import (
                 build_error_email_html,
                 send_email_notification,
             )
@@ -320,10 +320,10 @@ class TradingExecutor:
 
         """
         try:
-            from the_alchemiser.infrastructure.notifications.email_utils import (
+            from the_alchemiser.shared.notifications.email_utils import (
                 send_email_notification,
             )
-            from the_alchemiser.infrastructure.notifications.templates import EmailTemplates
+            from the_alchemiser.shared.notifications.templates import EmailTemplates
 
             # Enrich result with fresh position data without mutating the frozen DTO
             try:

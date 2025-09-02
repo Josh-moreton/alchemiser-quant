@@ -18,11 +18,11 @@ from decimal import Decimal
 from typing import Any
 
 from the_alchemiser.shared.types.market_data_port import MarketDataPort
-from the_alchemiser.domain.registry.strategy_registry import StrategyRegistry, StrategyType
+from the_alchemiser.strategy.registry.strategy_registry import StrategyRegistry, StrategyType
 from the_alchemiser.strategy.engines.engine import StrategyEngine
-from the_alchemiser.domain.strategies.nuclear_typed_engine import NuclearTypedEngine
+from the_alchemiser.strategy.engines.nuclear_typed_engine import NuclearTypedEngine
 from the_alchemiser.strategy.engines.typed_klm_ensemble_engine import TypedKLMStrategyEngine
-from the_alchemiser.domain.strategies.value_objects.confidence import Confidence
+from the_alchemiser.strategy.engines.archived.backup.value_objects.confidence import Confidence
 from the_alchemiser.strategy.signals.strategy_signal import StrategySignal
 from the_alchemiser.shared.value_objects.symbol import Symbol
 
@@ -122,7 +122,7 @@ class TypedStrategyManager:
         if strategy_type == StrategyType.KLM:
             return TypedKLMStrategyEngine(self.market_data_port)
         if strategy_type == StrategyType.TECL:
-            from the_alchemiser.domain.strategies.tecl_strategy_engine import TECLStrategyEngine
+            from the_alchemiser.strategy.engines.tecl_strategy_engine import TECLStrategyEngine
 
             return TECLStrategyEngine(self.market_data_port)
         raise ValueError(f"Unknown strategy type: {strategy_type}")

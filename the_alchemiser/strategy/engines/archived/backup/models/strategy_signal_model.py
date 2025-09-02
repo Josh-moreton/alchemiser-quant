@@ -11,7 +11,7 @@ from decimal import Decimal
 from typing import Any, cast
 
 from the_alchemiser.shared.types.percentage import Percentage
-from the_alchemiser.domain.strategies.value_objects.confidence import Confidence
+from the_alchemiser.strategy.engines.archived.backup.value_objects.confidence import Confidence
 from the_alchemiser.strategy.signals.strategy_signal import Action
 from the_alchemiser.shared.value_objects.symbol import Symbol
 from the_alchemiser.shared.value_objects.core_types import StrategySignal as StrategySignalDTO

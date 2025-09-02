@@ -14,7 +14,7 @@ from rich.panel import Panel
 from rich.table import Table
 
 from the_alchemiser.domain.trading.lifecycle import OrderLifecycleEvent
-from the_alchemiser.infrastructure.services.slippage_analyzer import SlippageAnalyzer
+from the_alchemiser.execution.analytics.slippage_analyzer import SlippageAnalyzer
 
 logger = logging.getLogger(__name__)
 
