@@ -20,7 +20,7 @@ from the_alchemiser.domain.policies.policy_result import (
 )
 from the_alchemiser.domain.policies.protocols import DataProviderProtocol, TradingClientProtocol
 from the_alchemiser.domain.trading.value_objects.order_request import OrderRequest
-from the_alchemiser.infrastructure.logging.logging_utils import log_with_context
+from the_alchemiser.shared.utils.logging_utils import log_with_context
 
 if TYPE_CHECKING:
     pass

@@ -21,11 +21,11 @@ from the_alchemiser.domain.trading.value_objects.order_id import OrderId
 from the_alchemiser.domain.trading.value_objects.order_status import OrderStatus
 from the_alchemiser.domain.trading.value_objects.order_type import OrderType
 from the_alchemiser.domain.trading.value_objects.quantity import Quantity
-from the_alchemiser.domain.trading.value_objects.symbol import Symbol
+from the_alchemiser.shared.value_objects.symbol import Symbol
 from the_alchemiser.domain.trading.value_objects.time_in_force import TimeInForce
 
 if TYPE_CHECKING:
-    from the_alchemiser.interfaces.schemas.orders import OrderExecutionResultDTO, RawOrderEnvelope
+    from the_alchemiser.execution.orders.order_schemas import OrderExecutionResultDTO, RawOrderEnvelope
 
 
 class OrderSummary(TypedDict, total=False):

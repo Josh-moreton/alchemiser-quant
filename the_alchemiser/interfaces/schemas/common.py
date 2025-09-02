@@ -18,7 +18,7 @@ from __future__ import annotations
 from pydantic import BaseModel, ConfigDict
 
 from the_alchemiser.domain.registry import StrategyType
-from the_alchemiser.domain.types import AccountInfo, OrderDetails, StrategySignal
+from the_alchemiser.shared.value_objects.core_types import AccountInfo, OrderDetails, StrategySignal
 from the_alchemiser.interfaces.schemas.execution_summary import (
     ExecutionSummaryDTO,
     PortfolioStateDTO,

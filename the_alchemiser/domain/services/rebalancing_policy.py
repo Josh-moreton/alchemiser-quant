@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
-from the_alchemiser.domain.types import OrderDetails, PositionsDict
+from the_alchemiser.shared.value_objects.core_types import OrderDetails, PositionsDict
 
 
 def calculate_rebalance_orders(

@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from the_alchemiser.domain.types import KLMDecision  # TODO: Phase 9 - Added for gradual migration
+from the_alchemiser.shared.value_objects.core_types import KLMDecision  # TODO: Phase 9 - Added for gradual migration
 from the_alchemiser.utils.common import ActionType
 
 from .base_klm_variant import BaseKLMVariant

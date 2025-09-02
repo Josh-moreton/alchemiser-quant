@@ -12,11 +12,11 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from the_alchemiser.infrastructure.logging.logging_utils import (
+from the_alchemiser.shared.utils.logging_utils import (
     get_logger,
     log_error_with_context,
 )
-from the_alchemiser.services.errors.exceptions import (
+from the_alchemiser.shared.utils.exceptions import (
     DataProviderError,
     TradingClientError,
 )

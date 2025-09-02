@@ -763,7 +763,7 @@ def render_multi_strategy_summary(
     if execution_result.account_info_after:
         from typing import cast
 
-        from the_alchemiser.domain.types import EnrichedAccountInfo, PortfolioHistoryData
+        from the_alchemiser.shared.value_objects.core_types import EnrichedAccountInfo, PortfolioHistoryData
 
         # Build enriched account dict for display
         base_account: EnrichedAccountInfo = cast(

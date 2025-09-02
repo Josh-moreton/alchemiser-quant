@@ -6,7 +6,7 @@ import logging
 from typing import Any, Literal, cast
 
 from the_alchemiser.domain.interfaces import AccountRepository
-from the_alchemiser.domain.types import AccountInfo, PositionsDict
+from the_alchemiser.shared.value_objects.core_types import AccountInfo, PositionsDict
 from the_alchemiser.utils.num import floats_equal
 
 

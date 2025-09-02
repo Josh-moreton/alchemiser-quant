@@ -23,7 +23,7 @@ from __future__ import annotations
 from typing import Any
 
 # TODO: Phase 12 - Types available for future migration to structured trading calculations
-# from the_alchemiser.domain.types import BacktestResult, PerformanceMetrics, TradeAnalysis
+# from the_alchemiser.shared.value_objects.core_types import BacktestResult, PerformanceMetrics, TradeAnalysis
 
 
 def calculate_position_size(

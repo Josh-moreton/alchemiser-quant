@@ -14,7 +14,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Protocol
 
 if TYPE_CHECKING:
-    from the_alchemiser.interfaces.schemas.orders import RawOrderEnvelope
+    from the_alchemiser.execution.orders.order_schemas import RawOrderEnvelope
 
 
 class TradingRepository(Protocol):

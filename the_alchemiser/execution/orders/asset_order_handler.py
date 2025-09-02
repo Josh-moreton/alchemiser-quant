@@ -15,14 +15,14 @@ from decimal import ROUND_DOWN, Decimal
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from the_alchemiser.interfaces.schemas.orders import ValidatedOrderDTO
+    from the_alchemiser.execution.orders.order_schemas import ValidatedOrderDTO
 
 from alpaca.trading.enums import OrderSide, TimeInForce
 from alpaca.trading.requests import MarketOrderRequest
 
 from the_alchemiser.domain.math.asset_info import fractionability_detector
-from the_alchemiser.infrastructure.logging.logging_utils import get_logger, log_error_with_context
-from the_alchemiser.services.errors.exceptions import DataProviderError
+from the_alchemiser.shared.utils.logging_utils import get_logger, log_error_with_context
+from the_alchemiser.shared.utils.exceptions import DataProviderError
 
 
 class AssetOrderHandler:

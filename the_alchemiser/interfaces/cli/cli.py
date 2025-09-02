@@ -34,13 +34,13 @@ from the_alchemiser.domain.market_data.models.bar import BarModel
 from the_alchemiser.domain.market_data.models.quote import QuoteModel
 from the_alchemiser.domain.market_data.protocols.market_data_port import MarketDataPort
 from the_alchemiser.domain.shared_kernel.value_objects.symbol import Symbol
-from the_alchemiser.infrastructure.logging.logging_utils import (
+from the_alchemiser.shared.utils.logging_utils import (
     get_logger,
     log_error_with_context,
 )
 from the_alchemiser.infrastructure.secrets.secrets_manager import secrets_manager
 from the_alchemiser.interfaces.cli.cli_formatter import render_account_info
-from the_alchemiser.services.errors.exceptions import (
+from the_alchemiser.shared.utils.exceptions import (
     AlchemiserError,
     StrategyExecutionError,
     TradingClientError,
@@ -1157,7 +1157,7 @@ def main(
     [dim]Use --help with any command for detailed information.[/dim]
     """
     # Configure logging based on CLI options
-    from the_alchemiser.infrastructure.logging.logging_utils import setup_logging
+    from the_alchemiser.shared.utils.logging_utils import setup_logging
 
     if verbose:
         log_level = logging.DEBUG

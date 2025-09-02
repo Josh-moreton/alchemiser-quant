@@ -49,7 +49,7 @@ from the_alchemiser.domain.trading.value_objects.quantity import (
     Quantity as DomainQuantity,
 )
 from the_alchemiser.domain.trading.value_objects.side import Side as DomainSide
-from the_alchemiser.domain.trading.value_objects.symbol import Symbol as DomainSymbol
+from the_alchemiser.shared.value_objects.symbol import Symbol as DomainSymbol
 from the_alchemiser.domain.trading.value_objects.time_in_force import (
     TimeInForce as DomainTimeInForce,
 )
@@ -61,7 +61,7 @@ from the_alchemiser.interfaces.schemas.execution import WebSocketResultDTO
 
 if TYPE_CHECKING:
     pass
-from the_alchemiser.services.errors.exceptions import (
+from the_alchemiser.shared.utils.exceptions import (
     BuyingPowerError,
     DataProviderError,
     OrderExecutionError,

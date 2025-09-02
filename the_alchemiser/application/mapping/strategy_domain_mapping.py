@@ -17,10 +17,10 @@ from the_alchemiser.domain.strategies.models.strategy_position_model import (
 from the_alchemiser.domain.strategies.models.strategy_signal_model import (
     StrategySignalModel,
 )
-from the_alchemiser.domain.types import (
+from the_alchemiser.shared.value_objects.core_types import (
     StrategyPositionData as StrategyPositionDTO,
 )
-from the_alchemiser.domain.types import (
+from the_alchemiser.shared.value_objects.core_types import (
     StrategySignal as StrategySignalDTO,
 )
 

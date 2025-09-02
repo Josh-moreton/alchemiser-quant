@@ -30,7 +30,7 @@ from the_alchemiser.domain.strategies.value_objects.strategy_signal import (
     StrategySignal as TypedStrategySignal,
 )
 from the_alchemiser.infrastructure.config import Settings
-from the_alchemiser.infrastructure.logging.logging_utils import get_logger
+from the_alchemiser.shared.utils.logging_utils import get_logger
 from the_alchemiser.interfaces.cli.cli_formatter import (
     render_enriched_order_summaries,
     render_footer,
@@ -40,8 +40,8 @@ from the_alchemiser.interfaces.cli.cli_formatter import (
     render_target_vs_current_allocations,
 )
 from the_alchemiser.interfaces.schemas.common import MultiStrategyExecutionResultDTO
-from the_alchemiser.interfaces.schemas.orders import ValidatedOrderDTO
-from the_alchemiser.services.errors.exceptions import (
+from the_alchemiser.execution.orders.order_schemas import ValidatedOrderDTO
+from the_alchemiser.shared.utils.exceptions import (
     NotificationError,
     StrategyExecutionError,
     TradingClientError,

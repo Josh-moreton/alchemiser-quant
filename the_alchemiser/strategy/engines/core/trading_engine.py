@@ -58,14 +58,14 @@ from the_alchemiser.application.trading.bootstrap import (
 # Import application-layer ports for dependency injection
 from the_alchemiser.domain.registry import StrategyType
 from the_alchemiser.domain.strategies.typed_strategy_manager import TypedStrategyManager
-from the_alchemiser.domain.types import (
+from the_alchemiser.shared.value_objects.core_types import (
     AccountInfo,
     EnrichedAccountInfo,
     OrderDetails,
     PositionsDict,
 )
 from the_alchemiser.infrastructure.config import Settings
-from the_alchemiser.infrastructure.logging.logging_utils import (
+from the_alchemiser.shared.utils.logging_utils import (
     get_logger,
     log_with_context,
 )
@@ -75,7 +75,7 @@ from the_alchemiser.services.account.account_service import (
     AccountService as TypedAccountService,
 )
 from the_alchemiser.services.errors.context import create_error_context
-from the_alchemiser.services.errors.exceptions import (
+from the_alchemiser.shared.utils.exceptions import (
     ConfigurationError,
     DataProviderError,
     StrategyExecutionError,

@@ -15,7 +15,7 @@ Key Features:
 
 Usage:
     from the_alchemiser.application.orders.order_validation import OrderValidator
-    from the_alchemiser.interfaces.schemas.orders import OrderRequestDTO
+    from the_alchemiser.execution.orders.order_schemas import OrderRequestDTO
 
     # Create validator
     validator = OrderValidator()
@@ -41,9 +41,9 @@ from the_alchemiser.application.mapping.orders import (
     order_request_to_validated_dto,
 )
 from the_alchemiser.domain.trading.errors import OrderError, classify_validation_failure
-from the_alchemiser.interfaces.schemas.orders import OrderRequestDTO, ValidatedOrderDTO
+from the_alchemiser.execution.orders.order_schemas import OrderRequestDTO, ValidatedOrderDTO
 from the_alchemiser.services.errors import TradingSystemErrorHandler
-from the_alchemiser.services.errors.exceptions import ValidationError
+from the_alchemiser.shared.utils.exceptions import ValidationError
 
 
 class OrderValidationError(ValidationError):

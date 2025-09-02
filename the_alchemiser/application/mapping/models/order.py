@@ -13,7 +13,7 @@ from the_alchemiser.domain.trading.value_objects.order_status import OrderStatus
 from the_alchemiser.domain.trading.value_objects.order_status_literal import (
     OrderStatusLiteral,
 )
-from the_alchemiser.domain.types import OrderDetails
+from the_alchemiser.shared.value_objects.core_types import OrderDetails
 from the_alchemiser.utils.num import floats_equal
 
 

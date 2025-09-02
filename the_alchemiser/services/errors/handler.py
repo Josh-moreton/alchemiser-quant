@@ -25,7 +25,7 @@ from the_alchemiser.domain.trading.errors import (
     OrderError,
     classify_exception,
 )
-from the_alchemiser.infrastructure.logging.logging_utils import set_error_id
+from the_alchemiser.shared.utils.logging_utils import set_error_id
 
 # Enhanced error reporting and classification utilities.
 from the_alchemiser.interfaces.schemas.errors import (

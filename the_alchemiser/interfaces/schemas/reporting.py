@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from typing import Any, TypedDict
 
-from the_alchemiser.domain.types import OrderDetails, StrategyPnLSummary
+from the_alchemiser.shared.value_objects.core_types import OrderDetails, StrategyPnLSummary
 
 
 # Dashboard and Metrics Types

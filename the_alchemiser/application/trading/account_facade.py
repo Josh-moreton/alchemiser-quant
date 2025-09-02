@@ -29,7 +29,7 @@ from decimal import Decimal
 from typing import Any, cast
 
 from the_alchemiser.application.mapping.account_mapping import account_summary_to_typed
-from the_alchemiser.domain.types import (
+from the_alchemiser.shared.value_objects.core_types import (
     AccountInfo,
     ClosedPositionData,
     EnrichedAccountInfo,
@@ -42,7 +42,7 @@ from the_alchemiser.interfaces.schemas.accounts import (
 )
 from the_alchemiser.services.account.account_service import AccountService
 from the_alchemiser.services.errors import handle_trading_error
-from the_alchemiser.services.errors.exceptions import (
+from the_alchemiser.shared.utils.exceptions import (
     DataProviderError,
     TradingClientError,
 )

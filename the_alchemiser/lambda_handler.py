@@ -17,13 +17,13 @@ import json
 import logging
 from typing import Any
 
-from the_alchemiser.infrastructure.logging.logging_utils import (
+from the_alchemiser.shared.utils.logging_utils import (
     generate_request_id,
     set_request_id,
 )
 from the_alchemiser.interfaces.schemas.execution import LambdaEventDTO
 from the_alchemiser.main import main
-from the_alchemiser.services.errors.exceptions import (
+from the_alchemiser.shared.utils.exceptions import (
     DataProviderError,
     NotificationError,
     StrategyExecutionError,
@@ -233,7 +233,7 @@ def lambda_handler(event: LambdaEventDTO | None = None, context: Any = None) -> 
         return response
 
     except (DataProviderError, StrategyExecutionError, TradingClientError) as e:
-        from the_alchemiser.infrastructure.logging.logging_utils import (
+        from the_alchemiser.shared.utils.logging_utils import (
             log_error_with_context,
         )
 
@@ -286,7 +286,7 @@ def lambda_handler(event: LambdaEventDTO | None = None, context: Any = None) -> 
             "request_id": request_id,
         }
     except (ImportError, AttributeError, ValueError, KeyError, TypeError, OSError) as e:
-        from the_alchemiser.infrastructure.logging.logging_utils import (
+        from the_alchemiser.shared.utils.logging_utils import (
             log_error_with_context,
         )
 

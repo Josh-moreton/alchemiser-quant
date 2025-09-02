@@ -79,7 +79,7 @@ from the_alchemiser.interfaces.schemas.operations import (
     OrderCancellationDTO,
     OrderStatusDTO,
 )
-from the_alchemiser.interfaces.schemas.orders import (
+from the_alchemiser.execution.orders.order_schemas import (
     OrderExecutionResultDTO,
     OrderRequestDTO,
 )
@@ -738,7 +738,7 @@ class TradingServiceManager:
                     Quantity,
                 )
                 from the_alchemiser.domain.trading.value_objects.side import Side
-                from the_alchemiser.domain.trading.value_objects.symbol import Symbol
+                from the_alchemiser.shared.value_objects.symbol import Symbol
                 from the_alchemiser.domain.trading.value_objects.time_in_force import (
                     TimeInForce,
                 )
@@ -801,7 +801,7 @@ class TradingServiceManager:
                     Quantity,
                 )
                 from the_alchemiser.domain.trading.value_objects.side import Side
-                from the_alchemiser.domain.trading.value_objects.symbol import Symbol
+                from the_alchemiser.shared.value_objects.symbol import Symbol
                 from the_alchemiser.domain.trading.value_objects.time_in_force import (
                     TimeInForce,
                 )

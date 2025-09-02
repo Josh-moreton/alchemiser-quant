@@ -41,7 +41,7 @@ Example:
 
     >>> from the_alchemiser.application.execution.canonical_executor import CanonicalOrderExecutor
     >>> from the_alchemiser.domain.trading.value_objects.order_request import OrderRequest
-    >>> from the_alchemiser.domain.trading.value_objects.symbol import Symbol
+    >>> from the_alchemiser.shared.value_objects.symbol import Symbol
     >>> from the_alchemiser.domain.trading.value_objects.side import Side
     >>> from the_alchemiser.domain.trading.value_objects.quantity import Quantity
     >>> from the_alchemiser.domain.trading.value_objects.order_type import OrderType
@@ -63,7 +63,7 @@ if TYPE_CHECKING:
     from the_alchemiser.execution.strategies.smart_execution import (
         DataProvider as ExecDataProvider,
     )
-    from the_alchemiser.interfaces.schemas.orders import ValidatedOrderDTO
+    from the_alchemiser.execution.orders.order_schemas import ValidatedOrderDTO
 
 from alpaca.trading.enums import OrderSide
 
@@ -236,7 +236,7 @@ class AlpacaClient:
         from the_alchemiser.domain.trading.value_objects.order_type import OrderType
         from the_alchemiser.domain.trading.value_objects.quantity import Quantity
         from the_alchemiser.domain.trading.value_objects.side import Side
-        from the_alchemiser.domain.trading.value_objects.symbol import Symbol
+        from the_alchemiser.shared.value_objects.symbol import Symbol
         from the_alchemiser.domain.trading.value_objects.time_in_force import (
             TimeInForce,
         )

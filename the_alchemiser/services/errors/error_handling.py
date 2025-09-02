@@ -30,16 +30,16 @@ def create_service_logger(*args: Any, **kwargs: Any) -> Any:
     """[DEPRECATED] Create a standardized logger for a service.
 
     This function is deprecated. Use get_service_logger from
-    the_alchemiser.infrastructure.logging.logging_utils instead.
+    the_alchemiser.shared.utils.logging_utils instead.
     """
     warnings.warn(
         "create_service_logger is deprecated. "
-        "Use get_service_logger from the_alchemiser.infrastructure.logging.logging_utils instead.",
+        "Use get_service_logger from the_alchemiser.shared.utils.logging_utils instead.",
         DeprecationWarning,
         stacklevel=2,
     )
     # Import here to avoid circular imports
-    from the_alchemiser.infrastructure.logging.logging_utils import get_service_logger
+    from the_alchemiser.shared.utils.logging_utils import get_service_logger
 
     return get_service_logger(args[0] if args else "unknown")
 

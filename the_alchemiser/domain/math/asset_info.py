@@ -67,7 +67,7 @@ class FractionabilityDetector:
             return None
 
         try:
-            from the_alchemiser.domain.trading.value_objects.symbol import Symbol
+            from the_alchemiser.shared.value_objects.symbol import Symbol
 
             symbol_obj = Symbol(symbol)
             fractionable = self.asset_metadata_provider.is_fractionable(symbol_obj)

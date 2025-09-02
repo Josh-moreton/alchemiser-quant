@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Literal
 
-from the_alchemiser.domain.trading.value_objects.symbol import Symbol
+from the_alchemiser.shared.value_objects.symbol import Symbol
 
 Severity = Literal["INFO", "WARNING", "ERROR"]
 

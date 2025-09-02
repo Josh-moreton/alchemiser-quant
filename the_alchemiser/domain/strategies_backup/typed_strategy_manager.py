@@ -24,7 +24,7 @@ from the_alchemiser.domain.strategies.nuclear_typed_engine import NuclearTypedEn
 from the_alchemiser.domain.strategies.typed_klm_ensemble_engine import TypedKLMStrategyEngine
 from the_alchemiser.domain.strategies.value_objects.confidence import Confidence
 from the_alchemiser.domain.strategies.value_objects.strategy_signal import StrategySignal
-from the_alchemiser.domain.trading.value_objects.symbol import Symbol
+from the_alchemiser.shared.value_objects.symbol import Symbol
 
 
 class AggregatedSignals:

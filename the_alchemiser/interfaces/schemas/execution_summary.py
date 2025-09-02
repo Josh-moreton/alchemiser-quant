@@ -21,7 +21,7 @@ from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from the_alchemiser.domain.types import AccountInfo
+from the_alchemiser.shared.value_objects.core_types import AccountInfo
 
 
 class AllocationSummary(BaseModel):

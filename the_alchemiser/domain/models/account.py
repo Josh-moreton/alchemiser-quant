@@ -8,7 +8,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
-from the_alchemiser.domain.types import AccountInfo, PortfolioHistoryData
+from the_alchemiser.shared.value_objects.core_types import AccountInfo, PortfolioHistoryData
 
 
 @dataclass(frozen=True)

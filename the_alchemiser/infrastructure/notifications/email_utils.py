@@ -28,7 +28,7 @@ from __future__ import annotations
 from typing import Any
 
 # Import DTOs for type-safe email rendering
-from the_alchemiser.domain.types import AccountInfo, EnrichedAccountInfo
+from the_alchemiser.shared.value_objects.core_types import AccountInfo, EnrichedAccountInfo
 from the_alchemiser.interfaces.schemas.common import MultiStrategyExecutionResultDTO
 from the_alchemiser.interfaces.schemas.execution import ExecutionResultDTO
 

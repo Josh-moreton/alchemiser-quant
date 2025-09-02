@@ -24,7 +24,7 @@ from .errors.strategy_errors import StrategyExecutionError
 from .nuclear_logic import evaluate_nuclear_strategy
 from .value_objects.confidence import Confidence
 from .value_objects.strategy_signal import StrategySignal
-from the_alchemiser.domain.trading.value_objects.symbol import Symbol
+from the_alchemiser.shared.value_objects.symbol import Symbol
 
 
 class NuclearTypedEngine(StrategyEngine):

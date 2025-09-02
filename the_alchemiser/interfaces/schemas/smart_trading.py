@@ -23,7 +23,7 @@ from pydantic import BaseModel, ConfigDict
 
 from the_alchemiser.interfaces.schemas.accounts import AccountSummaryDTO, TradeEligibilityDTO
 from the_alchemiser.interfaces.schemas.base import ResultDTO
-from the_alchemiser.interfaces.schemas.orders import OrderExecutionResultDTO
+from the_alchemiser.execution.orders.order_schemas import OrderExecutionResultDTO
 
 
 class OrderValidationMetadataDTO(BaseModel):

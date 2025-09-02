@@ -19,14 +19,14 @@ if TYPE_CHECKING:  # Avoid runtime import cost / circulars
 from the_alchemiser.domain.registry import StrategyType
 from the_alchemiser.domain.strategies.typed_strategy_manager import TypedStrategyManager
 from the_alchemiser.infrastructure.config import Settings
-from the_alchemiser.infrastructure.logging.logging_utils import get_logger
+from the_alchemiser.shared.utils.logging_utils import get_logger
 from the_alchemiser.interfaces.cli.cli_formatter import (
     render_footer,
     render_header,
     render_portfolio_allocation,
     render_strategy_signals,
 )
-from the_alchemiser.services.errors.exceptions import DataProviderError, StrategyExecutionError
+from the_alchemiser.shared.utils.exceptions import DataProviderError, StrategyExecutionError
 
 
 class SignalAnalyzer:
