@@ -17,6 +17,34 @@ if TYPE_CHECKING:
     from the_alchemiser.execution.orders.order_schemas import RawOrderEnvelope
 
 
+class AccountRepository(Protocol):
+    """Protocol defining account operations interface."""
+
+    def get_account(self) -> dict[str, Any] | None:
+        """Get account information."""
+        ...
+
+    def get_buying_power(self) -> float | None:
+        """Get current buying power."""
+        ...
+
+    def get_positions_dict(self) -> dict[str, float]:
+        """Get all current positions as dict."""
+        ...
+
+
+class MarketDataRepository(Protocol):
+    """Protocol defining market data operations interface."""
+
+    def get_current_price(self, symbol: str) -> float | None:
+        """Get current price for a symbol."""
+        ...
+
+    def get_quote(self, symbol: str) -> dict[str, Any] | None:
+        """Get quote information for a symbol."""
+        ...
+
+
 class TradingRepository(Protocol):
     """Protocol defining trading operations interface.
 

@@ -19,10 +19,8 @@ from pydantic import BaseModel, ConfigDict
 
 from the_alchemiser.strategy.registry.strategy_registry import StrategyType
 from the_alchemiser.shared.value_objects.core_types import AccountInfo, OrderDetails, StrategySignal
-from the_alchemiser.execution.core.execution_schemas_summary import (
-    ExecutionSummaryDTO,
-    PortfolioStateDTO,
-)
+from the_alchemiser.shared.dto.execution_report_dto import ExecutionReportDTO
+from the_alchemiser.shared.dto.portfolio_state_dto import PortfolioStateDTO
 
 
 class MultiStrategyExecutionResultDTO(BaseModel):
@@ -55,5 +53,5 @@ class MultiStrategyExecutionResultDTO(BaseModel):
     account_info_after: AccountInfo
 
     # Structured execution summary and portfolio state
-    execution_summary: ExecutionSummaryDTO
+    execution_summary: ExecutionReportDTO
     final_portfolio_state: PortfolioStateDTO | None = None
