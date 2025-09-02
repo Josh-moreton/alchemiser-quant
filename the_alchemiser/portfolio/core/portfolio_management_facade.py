@@ -9,8 +9,8 @@ import logging
 from decimal import Decimal
 from typing import Any
 
-from the_alchemiser.application.mapping.orders import normalize_order_status
-from the_alchemiser.application.mapping.portfolio_rebalancing_mapping import (
+from the_alchemiser.execution.mappers.orders import normalize_order_status
+from the_alchemiser.portfolio.mappers.portfolio_rebalancing_mapping import (
     dto_plans_to_domain,
     dto_to_domain_rebalance_plan,
 )
@@ -30,13 +30,13 @@ from the_alchemiser.portfolio.allocation.rebalance_calculator import (
 from the_alchemiser.portfolio.state.attribution_engine import (
     StrategyAttributionEngine,
 )
-from the_alchemiser.domain.registry.strategy_registry import StrategyType
-from the_alchemiser.domain.types import OrderDetails
-from the_alchemiser.interfaces.schemas.portfolio_rebalancing import RebalancePlanDTO
-from the_alchemiser.services.trading.trading_service_manager import (
+from the_alchemiser.strategy.registry.strategy_registry import StrategyType
+from the_alchemiser.shared.value_objects.core_types import OrderDetails
+from the_alchemiser.portfolio.schemas.rebalancing import RebalancePlanDTO
+from the_alchemiser.execution.services.trading_service_manager import (
     TradingServiceManager,
 )
-from the_alchemiser.utils.num import floats_equal
+from the_alchemiser.shared.math.num import floats_equal
 from the_alchemiser.utils.serialization import ensure_serialized_dict
 
 

@@ -10,11 +10,11 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any, cast
 
-from the_alchemiser.domain.shared_kernel.value_objects.percentage import Percentage
+from the_alchemiser.shared.types.percentage import Percentage
 from .value_objects.confidence import Confidence
 from .value_objects.strategy_signal import Action
-from the_alchemiser.domain.trading.value_objects.symbol import Symbol
-from the_alchemiser.domain.types import StrategySignal as StrategySignalDTO
+from the_alchemiser.shared.value_objects.symbol import Symbol
+from the_alchemiser.shared.value_objects.core_types import StrategySignal as StrategySignalDTO
 
 
 @dataclass(frozen=True)

@@ -14,38 +14,38 @@ import logging
 import os
 import sys
 
-from the_alchemiser.domain.registry import StrategyType
-from the_alchemiser.infrastructure.config import Settings, load_settings
-from the_alchemiser.infrastructure.logging.logging_utils import (
+from the_alchemiser.strategy.registry.strategy_registry import StrategyType
+from the_alchemiser.shared.config.config import Settings, load_settings
+from the_alchemiser.shared.logging.logging_utils import (
     configure_production_logging,
     generate_request_id,
     get_logger,
     set_request_id,
     setup_logging,
 )
-from the_alchemiser.interfaces.cli.signal_analyzer import SignalAnalyzer
-from the_alchemiser.interfaces.cli.trading_executor import TradingExecutor
-from the_alchemiser.services.errors.exceptions import (
+from the_alchemiser.shared.cli.signal_analyzer import SignalAnalyzer
+from the_alchemiser.shared.cli.trading_executor import TradingExecutor
+from the_alchemiser.shared.types.exceptions import (
     ConfigurationError,
     DataProviderError,
     StrategyExecutionError,
     TradingClientError,
 )
-from the_alchemiser.services.errors.handler import TradingSystemErrorHandler
+from the_alchemiser.shared.errors.error_handler import TradingSystemErrorHandler
 
 # DI imports (optional)
 try:
-    from the_alchemiser.infrastructure.dependency_injection.application_container import (
+    from the_alchemiser.shared.config.container import (
         ApplicationContainer,
     )
-    from the_alchemiser.services.shared.service_factory import ServiceFactory
+    from the_alchemiser.shared.utils.service_factory import ServiceFactory
 
     DI_AVAILABLE = True
 except ImportError:
     DI_AVAILABLE = False
 
 # CLI formatter imports (moved from function-level)
-from the_alchemiser.interfaces.cli.cli_formatter import render_footer, render_header
+from the_alchemiser.shared.cli.cli_formatter import render_footer, render_header
 
 # Global DI container
 # Use Optional for proper type inference by static type checkers

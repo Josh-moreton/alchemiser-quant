@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING, Any, Protocol
 
 from alpaca.trading.enums import OrderSide
 
-from the_alchemiser.services.errors.exceptions import (
+from the_alchemiser.shared.types.exceptions import (
     OrderPlacementError,
     OrderTimeoutError,
     SpreadAnalysisError,
@@ -26,7 +26,7 @@ from .config import StrategyConfig
 from .repeg_strategy import AttemptState, RepegStrategy
 
 if TYPE_CHECKING:
-    from the_alchemiser.application.trading.lifecycle import (
+    from the_alchemiser.execution.lifecycle import (
         LifecycleEventDispatcher,
         OrderLifecycleManager,
     )

@@ -14,8 +14,8 @@ Key Features:
 - Comprehensive error reporting for validation failures via TradingSystemErrorHandler
 
 Usage:
-    from the_alchemiser.application.orders.order_validation import OrderValidator
-    from the_alchemiser.interfaces.schemas.orders import OrderRequestDTO
+    from the_alchemiser.execution.orders.validation import OrderValidator
+    from the_alchemiser.execution.orders.order_schemas import OrderRequestDTO
 
     # Create validator
     validator = OrderValidator()
@@ -36,14 +36,14 @@ from dataclasses import dataclass, field
 from decimal import Decimal
 from typing import Any
 
-from the_alchemiser.application.mapping.orders import (
+from the_alchemiser.execution.mappers.orders import (
     dict_to_order_request_dto,
     order_request_to_validated_dto,
 )
-from the_alchemiser.domain.trading.errors import OrderError, classify_validation_failure
-from the_alchemiser.interfaces.schemas.orders import OrderRequestDTO, ValidatedOrderDTO
-from the_alchemiser.services.errors import TradingSystemErrorHandler
-from the_alchemiser.services.errors.exceptions import ValidationError
+from the_alchemiser.shared.types.trading_errors import OrderError, classify_validation_failure
+from the_alchemiser.execution.orders.order_schemas import OrderRequestDTO, ValidatedOrderDTO
+from the_alchemiser.shared.services.errors import TradingSystemErrorHandler
+from the_alchemiser.shared.types.exceptions import ValidationError
 
 
 class OrderValidationError(ValidationError):

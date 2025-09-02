@@ -19,13 +19,13 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 
-from the_alchemiser.domain.interfaces import (
+from the_alchemiser.shared.interfaces.repository_protocols import (
     AccountRepository,
     MarketDataRepository,
     TradingRepository,
 )
-from the_alchemiser.services.errors.decorators import translate_trading_errors
-from the_alchemiser.utils.num import floats_equal
+from the_alchemiser.shared.utils.decorators import translate_trading_errors
+from the_alchemiser.shared.math.num import floats_equal
 
 logger = logging.getLogger(__name__)
 

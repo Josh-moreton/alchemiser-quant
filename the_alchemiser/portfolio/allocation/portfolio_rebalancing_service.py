@@ -8,7 +8,7 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Any
 
-from the_alchemiser.application.mapping.portfolio_rebalancing_mapping import (
+from the_alchemiser.portfolio.mappers.portfolio_rebalancing_mapping import (
     rebalance_plans_dict_to_collection_dto,
 )
 from the_alchemiser.shared.adapters import (
@@ -29,13 +29,13 @@ from .rebalance_plan import RebalancePlan
 from ..state.attribution_engine import (
     StrategyAttributionEngine,
 )
-from the_alchemiser.interfaces.schemas.portfolio_rebalancing import (
+from the_alchemiser.portfolio.schemas.rebalancing import (
     RebalancePlanCollectionDTO,
     RebalancingImpactDTO,
     RebalancingSummaryDTO,
 )
-from the_alchemiser.services.errors.handler import TradingSystemErrorHandler
-from the_alchemiser.services.trading.trading_service_manager import TradingServiceManager
+from the_alchemiser.shared.errors.error_handler import TradingSystemErrorHandler
+from the_alchemiser.execution.services.trading_service_manager import TradingServiceManager
 
 
 class PortfolioRebalancingService:

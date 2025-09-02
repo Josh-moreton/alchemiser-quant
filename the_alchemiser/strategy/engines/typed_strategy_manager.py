@@ -17,14 +17,14 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
-from the_alchemiser.domain.market_data.protocols.market_data_port import MarketDataPort
-from the_alchemiser.domain.registry.strategy_registry import StrategyRegistry, StrategyType
+from the_alchemiser.shared.types.market_data_port import MarketDataPort
+from the_alchemiser.strategy.registry.strategy_registry import StrategyRegistry, StrategyType
 from .engine import StrategyEngine
 from .nuclear_typed_engine import NuclearTypedEngine
 from .typed_klm_ensemble_engine import TypedKLMStrategyEngine
 from .value_objects.confidence import Confidence
 from .value_objects.strategy_signal import StrategySignal
-from the_alchemiser.domain.trading.value_objects.symbol import Symbol
+from the_alchemiser.shared.value_objects.symbol import Symbol
 
 if TYPE_CHECKING:
     from the_alchemiser.shared.adapters import batch_strategy_signals_to_dtos
