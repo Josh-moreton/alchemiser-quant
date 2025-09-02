@@ -43,7 +43,7 @@ from the_alchemiser.portfolio.schemas.tracking import (
     StrategyPnLDTO,
     StrategyPositionDTO,
 )
-from the_alchemiser.services.errors import TradingSystemErrorHandler
+from the_alchemiser.shared.services.errors import TradingSystemErrorHandler
 from the_alchemiser.shared.utils.exceptions import (
     DataProviderError,
     StrategyExecutionError,

@@ -17,7 +17,7 @@ from the_alchemiser.strategy.mappers.strategy_signal_mapping import (
 )
 from the_alchemiser.shared.value_objects.core_types import AccountInfo
 from the_alchemiser.shared.schemas.common import MultiStrategyExecutionResultDTO
-from the_alchemiser.services.errors import handle_errors_with_retry
+from the_alchemiser.shared.services.errors import handle_errors_with_retry
 from the_alchemiser.shared.utils.exceptions import (
     ConfigurationError,
     DataProviderError,

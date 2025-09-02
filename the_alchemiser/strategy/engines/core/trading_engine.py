@@ -46,9 +46,9 @@ from the_alchemiser.strategy.schemas.strategies import (
 from the_alchemiser.application.portfolio.services.portfolio_management_facade import (
     PortfolioManagementFacade,
 )
-from the_alchemiser.application.trading.account_facade import AccountFacade
+from the_alchemiser.execution.core.account_facade import AccountFacade
 from the_alchemiser.execution.brokers.alpaca_client import AlpacaClient
-from the_alchemiser.application.trading.bootstrap import (
+from the_alchemiser.shared.config.bootstrap import (
     TradingBootstrapContext,
     bootstrap_from_container,
     bootstrap_from_service_manager,
@@ -724,7 +724,7 @@ class TradingEngine:
             logging.error(f"Multi-strategy execution failed: {e}")
 
             # Enhanced error handling (fail-fast; no legacy import fallback)
-            from the_alchemiser.services.errors import handle_trading_error
+            from the_alchemiser.shared.services.errors import handle_trading_error
 
             handle_trading_error(
                 error=e,

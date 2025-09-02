@@ -13,7 +13,7 @@ from typing import Any, TypeVar
 
 from cachetools import TTLCache  # type: ignore[import-untyped]
 
-from the_alchemiser.services.shared.config_service import ConfigService
+from the_alchemiser.shared.services.shared.config_service import ConfigService
 
 T = TypeVar("T")
 

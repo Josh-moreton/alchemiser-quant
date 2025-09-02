@@ -11,4 +11,4 @@ from __future__ import annotations
 # Core utilities are imported on-demand to avoid circular dependencies
 # Example usage:
 # from the_alchemiser.domain.math.math_utils import calculate_position_size
-# from the_alchemiser.services.price_utils import format_price
+# from the_alchemiser.shared.services.price_utils import format_price
