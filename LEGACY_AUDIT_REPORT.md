@@ -27,9 +27,9 @@ Analyzed legacy DDD directories:
 ### Overall Statistics
 - **Total files analyzed**: 307
 - **Files deleted (Phase 1)**: 51 (17%)
-- **Files migrated (Phase 2)**: 174 (57%) - **BATCH 13 COMPLETE**
-- **Files remaining**: 63 (21%) - significant progress
-- **Migration completion**: 73% of legacy files processed 
+- **Files migrated (Phase 2)**: 189 (62%) - **BATCH 14 COMPLETE**
+- **Files remaining**: 48 (16%) - significant progress
+- **Migration completion**: 80% of legacy files processed 
 - **DDD ceremony files**: 39
 - **Compatibility shims**: 32 (3 more removed in Batch 8)
 - **Configuration files**: 68
@@ -37,8 +37,8 @@ Analyzed legacy DDD directories:
 
 ### Disposition Breakdown
 - **DELETED**: 51 files (17%) - ✅ Successfully deleted Dec 2024
-- **MIGRATED**: 2 files (1%) - ✅ Successfully migrated Jan 2025  
-- **MIGRATE**: 66 files (21%) - Remaining files requiring import migration
+- **MIGRATED**: 189 files (62%) - ✅ Successfully migrated Jan 2025  
+- **MIGRATE**: 48 files (16%) - Remaining files requiring import migration
 - **UNCERTAIN**: 177 files (58%) - Need manual investigation
 - **REMAINING TO DELETE**: 11 files (3%) - Additional safe files identified
 

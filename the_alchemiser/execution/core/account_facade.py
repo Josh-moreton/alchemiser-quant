@@ -40,7 +40,7 @@ from the_alchemiser.shared.schemas.accounts import (
     AccountSummaryDTO,
     EnrichedAccountSummaryDTO,
 )
-from the_alchemiser.execution.services.account_service import AccountService
+from the_alchemiser.execution.brokers.account_service import AccountService
 from the_alchemiser.shared.services.errors import handle_trading_error
 from the_alchemiser.shared.utils.exceptions import (
     DataProviderError,

@@ -71,7 +71,7 @@ from the_alchemiser.shared.utils.logging_utils import (
 )
 from the_alchemiser.shared.schemas.common import MultiStrategyExecutionResultDTO
 from the_alchemiser.execution.core.execution_schemas import ExecutionResultDTO
-from the_alchemiser.execution.services.account_service import (
+from the_alchemiser.execution.brokers.account_service import (
     AccountService as TypedAccountService,
 )
 from the_alchemiser.shared.utils.context import create_error_context
