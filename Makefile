@@ -40,7 +40,7 @@ dev:
 # Trading Commands (using the CLI)
 run-signals:
 	@echo "🎯 Running signal analysis mode (no trading)..."
-	poetry run alchemiser bot
+	poetry run alchemiser signal
 
 run-trade:
 	@echo "💰 Running paper trading..."
