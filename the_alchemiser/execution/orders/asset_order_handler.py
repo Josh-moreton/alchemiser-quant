@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 from alpaca.trading.enums import OrderSide, TimeInForce
 from alpaca.trading.requests import MarketOrderRequest
 
-from the_alchemiser.domain.math.asset_info import fractionability_detector
+from the_alchemiser.shared.math.asset_info import fractionability_detector
 from the_alchemiser.shared.utils.logging_utils import get_logger, log_error_with_context
 from the_alchemiser.shared.utils.exceptions import DataProviderError
 

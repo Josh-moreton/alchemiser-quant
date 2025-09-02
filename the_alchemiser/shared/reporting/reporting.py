@@ -24,7 +24,7 @@ def create_execution_summary(
     account_after: AccountInfo,
 ) -> dict[str, Any]:  # TODO: Phase 10 - ReportingData structure needs alignment
     """Create execution summary using helper utilities."""
-    from the_alchemiser.application.portfolio.portfolio_pnl_utils import (
+    from the_alchemiser.portfolio.utils.portfolio_pnl_utils import (
         build_allocation_summary,
         build_strategy_summary,
         calculate_strategy_pnl_summary,
@@ -126,7 +126,7 @@ def build_portfolio_state_data(
     current_positions: PositionsDict,
 ) -> dict[str, Any]:
     """Build portfolio state data for reporting purposes."""
-    from the_alchemiser.domain.math.trading_math import calculate_allocation_discrepancy
+    from the_alchemiser.shared.math.trading_math import calculate_allocation_discrepancy
     from the_alchemiser.shared.utils.account_utils import (
         extract_current_position_values,
     )

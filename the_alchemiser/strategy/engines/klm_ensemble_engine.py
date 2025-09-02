@@ -20,9 +20,9 @@ from typing import Any
 import pandas as pd
 
 from the_alchemiser.shared.types.market_data_port import MarketDataPort
-from the_alchemiser.domain.math.indicator_utils import safe_get_indicator
+from the_alchemiser.strategy.indicators.utils import safe_get_indicator
 from the_alchemiser.domain.math.indicators import TechnicalIndicators
-from the_alchemiser.domain.math.math_utils import (
+from the_alchemiser.shared.math.math_utils import (
     calculate_moving_average_return,
     calculate_stdev_returns,
 )

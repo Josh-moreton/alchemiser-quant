@@ -12,7 +12,7 @@ import logging
 from decimal import ROUND_DOWN, Decimal
 from typing import TYPE_CHECKING
 
-from the_alchemiser.domain.math.asset_info import fractionability_detector
+from the_alchemiser.shared.math.asset_info import fractionability_detector
 from the_alchemiser.shared.types.policy_result import (
     PolicyResult,
     PolicyWarning,
