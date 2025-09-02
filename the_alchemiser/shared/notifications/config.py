@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import logging
 
-from the_alchemiser.infrastructure.config import load_settings
+from the_alchemiser.shared.config.config import load_settings
 from the_alchemiser.shared.config.secrets_manager import SecretsManager
 from the_alchemiser.shared.schemas.reporting import EmailCredentials
 

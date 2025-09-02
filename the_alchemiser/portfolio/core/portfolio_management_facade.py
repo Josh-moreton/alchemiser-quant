@@ -30,7 +30,7 @@ from the_alchemiser.portfolio.allocation.rebalance_calculator import (
 from the_alchemiser.portfolio.state.attribution_engine import (
     StrategyAttributionEngine,
 )
-from the_alchemiser.domain.registry.strategy_registry import StrategyType
+from the_alchemiser.strategy.registry.strategy_registry import StrategyType
 from the_alchemiser.shared.value_objects.core_types import OrderDetails
 from the_alchemiser.portfolio.schemas.rebalancing import RebalancePlanDTO
 from the_alchemiser.execution.services.trading_service_manager import (

@@ -19,7 +19,7 @@ import logging
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any
 
-from the_alchemiser.domain.registry import StrategyType
+from the_alchemiser.strategy.registry.strategy_registry import StrategyType
 
 if TYPE_CHECKING:
     from the_alchemiser.portfolio.pnl.strategy_order_tracker import (

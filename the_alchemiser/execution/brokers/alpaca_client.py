@@ -70,11 +70,11 @@ from alpaca.trading.enums import OrderSide
 from the_alchemiser.execution.pricing.smart_pricing_handler import (
     SmartPricingHandler,
 )
-from the_alchemiser.application.orders.asset_order_handler import AssetOrderHandler
+from the_alchemiser.execution.orders.asset_order_handler import AssetOrderHandler
 
 # DEPRECATED: LimitOrderHandler import removed - use CanonicalOrderExecutor instead
 # (Legacy order validation utilities removed with legacy paths)
-from the_alchemiser.infrastructure.websocket.websocket_connection_manager import (
+from the_alchemiser.execution.websocket.connection_manager import (
     WebSocketConnectionManager,
 )
 from the_alchemiser.execution.monitoring.websocket_order_monitor import (

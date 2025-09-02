@@ -202,7 +202,7 @@ def lambda_handler(event: LambdaEventDTO | None = None, context: Any = None) -> 
 
         logger.info(f"Executing command: {' '.join(command_args)}")
 
-        from the_alchemiser.infrastructure.config import load_settings
+        from the_alchemiser.shared.config.config import load_settings
 
         _settings = load_settings()
         # main() loads settings internally; do not pass unsupported kwargs

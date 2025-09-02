@@ -21,7 +21,7 @@ from .rebalancing_orchestrator import RebalancingOrchestrator
 from .portfolio_management_facade import (
     PortfolioManagementFacade,
 )
-from the_alchemiser.domain.registry.strategy_registry import StrategyType
+from the_alchemiser.strategy.registry.strategy_registry import StrategyType
 from the_alchemiser.shared.value_objects.core_types import OrderDetails
 from the_alchemiser.shared.utils.context import create_error_context
 from the_alchemiser.shared.types.exceptions import StrategyExecutionError

@@ -27,7 +27,7 @@ from the_alchemiser.shared.schemas.accounts import (
     RiskMetricsDTO,
     TradeEligibilityDTO,
 )
-from the_alchemiser.interfaces.schemas.enriched_data import (
+from the_alchemiser.shared.schemas.enriched_data import (
     EnrichedOrderDTO,
     EnrichedPositionDTO,
     EnrichedPositionsDTO,

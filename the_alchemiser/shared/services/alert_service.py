@@ -15,7 +15,7 @@ import logging
 import re
 from typing import Any
 
-from the_alchemiser.infrastructure.config import load_settings
+from the_alchemiser.shared.config.config import load_settings
 
 
 class Alert:

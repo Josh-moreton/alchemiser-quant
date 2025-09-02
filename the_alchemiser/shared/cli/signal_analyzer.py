@@ -12,13 +12,13 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:  # Avoid runtime import cost / circulars
     from the_alchemiser.strategy.schemas.strategies import StrategySignalDisplayDTO
-    from the_alchemiser.infrastructure.dependency_injection.application_container import (
+    from the_alchemiser.shared.config.container import (
         ApplicationContainer,
     )
 
-from the_alchemiser.domain.registry import StrategyType
+from the_alchemiser.strategy.registry.strategy_registry import StrategyType
 from the_alchemiser.strategy.engines.typed_strategy_manager import TypedStrategyManager
-from the_alchemiser.infrastructure.config import Settings
+from the_alchemiser.shared.config.config import Settings
 from the_alchemiser.shared.logging.logging_utils import get_logger
 from the_alchemiser.shared.cli.cli_formatter import (
     render_footer,

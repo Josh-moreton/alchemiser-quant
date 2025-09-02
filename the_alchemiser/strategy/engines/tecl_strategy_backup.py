@@ -34,7 +34,7 @@ from typing import Any
 
 from the_alchemiser.shared.types.market_data_port import MarketDataPort
 from the_alchemiser.strategy.indicators.utils import safe_get_indicator
-from the_alchemiser.domain.math.indicators import TechnicalIndicators
+from the_alchemiser.strategy.indicators.indicators import TechnicalIndicators
 from the_alchemiser.shared.types.percentage import Percentage
 from the_alchemiser.strategy.engines.engine import StrategyEngine
 from the_alchemiser.strategy.engines.archived.backup.value_objects.alert import Alert

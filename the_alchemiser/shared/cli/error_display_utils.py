@@ -16,7 +16,7 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
-from the_alchemiser.domain.trading.errors import OrderError, OrderErrorCategory
+from the_alchemiser.shared.types.trading_errors import OrderError, OrderErrorCategory
 
 
 def render_order_error(
@@ -74,7 +74,7 @@ def render_order_error(
         content_lines.append(f"Order ID: {error.order_id}")
 
     if show_remediation:
-        from the_alchemiser.domain.trading.errors.order_error import get_remediation_hint
+        from the_alchemiser.execution.errors.order_error import get_remediation_hint
 
         hint = get_remediation_hint(error.code)
         if hint:
@@ -228,7 +228,7 @@ def format_error_for_notification(error: OrderError) -> dict[str, Any]:
         Dictionary suitable for notification templates
 
     """
-    from the_alchemiser.domain.trading.errors.order_error import get_remediation_hint
+    from the_alchemiser.execution.errors.order_error import get_remediation_hint
 
     return {
         "category": error.category.value,

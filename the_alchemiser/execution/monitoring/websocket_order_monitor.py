@@ -54,7 +54,7 @@ class OrderCompletionMonitor:
 
         # Check if WebSocket is enabled in config
         try:
-            from the_alchemiser.infrastructure.config import load_settings
+            from the_alchemiser.shared.config.config import load_settings
 
             config = load_settings()
             websocket_enabled = config.alpaca.enable_websocket_orders
@@ -383,11 +383,11 @@ class OrderCompletionMonitor:
             from the_alchemiser.execution.lifecycle.dispatcher import (
                 LifecycleEventDispatcher,
             )
-            from the_alchemiser.domain.trading.lifecycle.events import (
+            from the_alchemiser.execution.lifecycle.events import (
                 LifecycleEventType,
                 OrderLifecycleEvent,
             )
-            from the_alchemiser.domain.trading.lifecycle.states import OrderLifecycleState
+            from the_alchemiser.execution.lifecycle.states import OrderLifecycleState
             from the_alchemiser.execution.orders.order_id import OrderId
 
             # Create partial fill event with metadata

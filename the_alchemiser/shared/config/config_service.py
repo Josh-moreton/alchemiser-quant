@@ -9,7 +9,7 @@ Provides a clean interface for accessing configuration settings.
 
 from __future__ import annotations
 
-from the_alchemiser.infrastructure.config import Settings, load_settings
+from the_alchemiser.shared.config.config import Settings, load_settings
 
 
 class ConfigService:

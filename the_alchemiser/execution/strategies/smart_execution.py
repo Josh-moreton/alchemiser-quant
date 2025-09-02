@@ -915,7 +915,7 @@ class SmartExecution:
         """
         from decimal import Decimal
 
-        from the_alchemiser.application.execution.strategies import (
+        from the_alchemiser.execution.strategies import (
             AggressiveLimitStrategy,
             ExecutionContextAdapter,
         )

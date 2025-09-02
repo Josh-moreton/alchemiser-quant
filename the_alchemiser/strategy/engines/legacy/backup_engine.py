@@ -15,7 +15,7 @@ from datetime import datetime
 from typing import Any
 
 from the_alchemiser.shared.types.market_data_port import MarketDataPort
-from the_alchemiser.domain.strategies.errors.strategy_errors import (
+from the_alchemiser.strategy.errors.strategy_errors import (
     MarketDataUnavailableError,
     StrategyValidationError,
 )

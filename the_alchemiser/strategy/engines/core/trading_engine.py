@@ -43,7 +43,7 @@ from the_alchemiser.strategy.schemas.strategies import (
     StrategySignalDisplayDTO,
     run_all_strategies_mapping,
 )
-from the_alchemiser.application.portfolio.services.portfolio_management_facade import (
+from the_alchemiser.portfolio.core.portfolio_management_facade import (
     PortfolioManagementFacade,
 )
 from the_alchemiser.execution.core.account_facade import AccountFacade
@@ -56,7 +56,7 @@ from the_alchemiser.shared.config.bootstrap import (
 )
 
 # Import application-layer ports for dependency injection
-from the_alchemiser.domain.registry import StrategyType
+from the_alchemiser.strategy.registry.strategy_registry import StrategyType
 from the_alchemiser.strategy.engines.typed_strategy_manager import TypedStrategyManager
 from the_alchemiser.shared.value_objects.core_types import (
     AccountInfo,
@@ -64,7 +64,7 @@ from the_alchemiser.shared.value_objects.core_types import (
     OrderDetails,
     PositionsDict,
 )
-from the_alchemiser.infrastructure.config import Settings
+from the_alchemiser.shared.config.config import Settings
 from the_alchemiser.shared.logging.logging_utils import (
     get_logger,
     log_with_context,
@@ -1039,7 +1039,7 @@ def main() -> None:
     # Modern DI initialization (no legacy fallback). Any failure should surface immediately.
     # These imports are kept at function level to avoid circular imports at module load time
     # since main.py indirectly imports this module through CLI components
-    from the_alchemiser.infrastructure.dependency_injection.application_container import (
+    from the_alchemiser.shared.config.container import (
         ApplicationContainer,
     )
     from the_alchemiser.main import TradingSystem

@@ -18,7 +18,7 @@ from typing import Any, TypedDict
 from the_alchemiser.strategy.mappers.market_data_adapter import (
     StrategyMarketDataAdapter,
 )
-from the_alchemiser.infrastructure.config import Settings, load_settings
+from the_alchemiser.shared.config.config import Settings, load_settings
 from the_alchemiser.shared.config.secrets_manager import SecretsManager
 from the_alchemiser.execution.brokers.account_service import AccountService as TypedAccountService
 from the_alchemiser.shared.utils.context import create_error_context

@@ -21,7 +21,7 @@ from functools import wraps
 from typing import Any
 
 # Order error classification system
-from the_alchemiser.domain.trading.errors import (
+from the_alchemiser.shared.types.trading_errors import (
     OrderError,
     classify_exception,
 )
@@ -598,7 +598,7 @@ def send_error_notification_if_needed() -> ErrorNotificationData | None:
 
     try:
         from the_alchemiser.shared.notifications.client import send_email_notification
-        from the_alchemiser.infrastructure.notifications.templates import EmailTemplates
+        from the_alchemiser.shared.notifications.templates import EmailTemplates
 
         # Generate error report
         error_report = _error_handler.generate_error_report()

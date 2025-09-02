@@ -11,7 +11,7 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from the_alchemiser.infrastructure.dependency_injection.application_container import (
+    from the_alchemiser.shared.config.container import (
         ApplicationContainer,
     )
 
@@ -25,11 +25,11 @@ from the_alchemiser.strategy.mappers.strategy_signal_mapping import (
 )
 from the_alchemiser.shared.config.bootstrap import bootstrap_from_container
 from the_alchemiser.strategy.engines.core.trading_engine import TradingEngine
-from the_alchemiser.domain.registry import StrategyType
+from the_alchemiser.strategy.registry.strategy_registry import StrategyType
 from the_alchemiser.strategy.signals.strategy_signal import (
     StrategySignal as TypedStrategySignal,
 )
-from the_alchemiser.infrastructure.config import Settings
+from the_alchemiser.shared.config.config import Settings
 from the_alchemiser.shared.logging.logging_utils import get_logger
 from the_alchemiser.shared.cli.cli_formatter import (
     render_enriched_order_summaries,

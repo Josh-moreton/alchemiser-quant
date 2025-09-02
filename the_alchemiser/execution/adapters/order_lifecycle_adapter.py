@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Any, Protocol
 
-from the_alchemiser.domain.trading.protocols.order_lifecycle import (
+from the_alchemiser.execution.protocols.order_lifecycle import (
     OrderLifecycleMonitor,
 )
 from the_alchemiser.execution.monitoring.websocket_order_monitor import (

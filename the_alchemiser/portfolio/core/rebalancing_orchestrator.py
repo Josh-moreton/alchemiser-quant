@@ -13,7 +13,7 @@ import asyncio
 import logging
 from typing import TYPE_CHECKING, Any
 
-from the_alchemiser.domain.registry import StrategyType
+from the_alchemiser.strategy.registry.strategy_registry import StrategyType
 from the_alchemiser.shared.value_objects.core_types import OrderDetails
 from the_alchemiser.shared.config.secrets_manager import SecretsManager
 from the_alchemiser.execution.monitoring.websocket_order_monitor import (

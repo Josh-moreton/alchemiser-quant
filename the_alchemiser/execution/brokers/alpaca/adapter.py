@@ -30,7 +30,7 @@ from the_alchemiser.execution.mappers.alpaca_dto_mapping import (
     alpaca_order_to_execution_result,
     create_error_execution_result,
 )
-from the_alchemiser.domain.interfaces import (
+from the_alchemiser.shared.interfaces.repository_protocols import (
     AccountRepository,
     MarketDataRepository,
     TradingRepository,

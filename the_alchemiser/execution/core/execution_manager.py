@@ -44,13 +44,13 @@ from the_alchemiser.execution.mappers.trading_service_dto_mapping import (
     list_to_open_orders_dto,
 )
 from the_alchemiser.execution.orders.validation import OrderValidator
-from the_alchemiser.application.trading.lifecycle import (
+from the_alchemiser.execution.lifecycle import (
     LifecycleEventDispatcher,
     LoggingObserver,
     MetricsObserver,
     OrderLifecycleManager,
 )
-from the_alchemiser.domain.trading.lifecycle import (
+from the_alchemiser.execution.lifecycle import (
     LifecycleEventType,
     OrderLifecycleState,
 )
@@ -64,7 +64,7 @@ from the_alchemiser.shared.schemas.accounts import (
     RiskMetricsDTO,
     TradeEligibilityDTO,
 )
-from the_alchemiser.interfaces.schemas.enriched_data import (
+from the_alchemiser.shared.schemas.enriched_data import (
     EnrichedPositionsDTO,
     OpenOrdersDTO,
 )
@@ -91,7 +91,7 @@ from the_alchemiser.portfolio.schemas.positions import (
     PositionMetricsDTO,
     PositionSummaryDTO,
 )
-from the_alchemiser.interfaces.schemas.smart_trading import (
+from the_alchemiser.shared.schemas.smart_trading import (
     OrderValidationMetadataDTO,
     SmartOrderExecutionDTO,
     TradingDashboardDTO,

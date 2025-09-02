@@ -14,8 +14,8 @@ import logging
 import os
 import sys
 
-from the_alchemiser.domain.registry import StrategyType
-from the_alchemiser.infrastructure.config import Settings, load_settings
+from the_alchemiser.strategy.registry.strategy_registry import StrategyType
+from the_alchemiser.shared.config.config import Settings, load_settings
 from the_alchemiser.shared.logging.logging_utils import (
     configure_production_logging,
     generate_request_id,
@@ -35,7 +35,7 @@ from the_alchemiser.shared.errors.error_handler import TradingSystemErrorHandler
 
 # DI imports (optional)
 try:
-    from the_alchemiser.infrastructure.dependency_injection.application_container import (
+    from the_alchemiser.shared.config.container import (
         ApplicationContainer,
     )
     from the_alchemiser.shared.utils.service_factory import ServiceFactory

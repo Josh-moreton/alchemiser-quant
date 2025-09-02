@@ -32,8 +32,8 @@ from the_alchemiser.portfolio.mappers.tracking_mapping import (
     orders_to_execution_summary_dto,
     strategy_pnl_to_dict,
 )
-from the_alchemiser.domain.registry import StrategyType
-from the_alchemiser.infrastructure.config import load_settings
+from the_alchemiser.strategy.registry.strategy_registry import StrategyType
+from the_alchemiser.shared.config.config import load_settings
 from the_alchemiser.shared.utils.s3_utils import get_s3_handler
 from the_alchemiser.portfolio.schemas.tracking import (
     ExecutionStatus,
@@ -543,7 +543,7 @@ class StrategyOrderTracker:
             from the_alchemiser.shared.value_objects.identifier import (
                 Identifier,
             )
-            from the_alchemiser.domain.trading.errors import classify_exception
+            from the_alchemiser.shared.types.trading_errors import classify_exception
 
             # Convert string order_id to Identifier for classification
             typed_order_id = None

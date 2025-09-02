@@ -36,7 +36,7 @@ class SecretsManager:
 
         """
         if region_name is None:
-            from the_alchemiser.infrastructure.config import load_settings
+            from the_alchemiser.shared.config.config import load_settings
 
             config = load_settings()
             region_name = config.secrets_manager.region_name
@@ -187,7 +187,7 @@ class SecretsManager:
 
         """
         try:
-            from the_alchemiser.infrastructure.config import load_settings
+            from the_alchemiser.shared.config.config import load_settings
 
             config = load_settings()
             secret_name = config.secrets_manager.secret_name
@@ -224,7 +224,7 @@ class SecretsManager:
 
         """
         try:
-            from the_alchemiser.infrastructure.config import load_settings
+            from the_alchemiser.shared.config.config import load_settings
 
             config = load_settings()
             secret_name = config.secrets_manager.secret_name

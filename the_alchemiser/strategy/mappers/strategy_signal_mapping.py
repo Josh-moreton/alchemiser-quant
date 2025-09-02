@@ -15,7 +15,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any, Literal
 
-from the_alchemiser.domain.registry import StrategyType
+from the_alchemiser.strategy.registry.strategy_registry import StrategyType
 from the_alchemiser.strategy.signals.strategy_signal import (
     StrategySignal as TypedStrategySignal,
 )
@@ -99,7 +99,7 @@ def typed_dict_to_domain_signal(
 
     """
     from the_alchemiser.shared.types.percentage import Percentage
-    from the_alchemiser.domain.strategies.value_objects.confidence import Confidence
+    from the_alchemiser.strategy.engines.value_objects.confidence import Confidence
     from the_alchemiser.shared.value_objects.symbol import Symbol
 
     # Extract symbol, handling special cases

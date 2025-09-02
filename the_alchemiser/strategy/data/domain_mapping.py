@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from the_alchemiser.domain.registry import StrategyType
+from the_alchemiser.strategy.registry.strategy_registry import StrategyType
 from the_alchemiser.strategy.engines.archived.backup.models.strategy_position_model import (
     StrategyPositionModel,
 )

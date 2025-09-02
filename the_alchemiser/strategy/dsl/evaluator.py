@@ -39,7 +39,7 @@ from the_alchemiser.strategy.dsl.ast import (
 )
 from the_alchemiser.strategy.dsl.errors import EvaluationError, IndicatorError, PortfolioError
 from the_alchemiser.shared.types.market_data_port import MarketDataPort
-from the_alchemiser.domain.math.indicators import TechnicalIndicators
+from the_alchemiser.strategy.indicators.indicators import TechnicalIndicators
 
 # Type imports for annotations
 if TYPE_CHECKING:

@@ -9,7 +9,7 @@ import logging
 import threading
 from collections.abc import Iterable
 
-from the_alchemiser.domain.trading.lifecycle import (
+from the_alchemiser.execution.lifecycle import (
     LifecycleObserver,
     OrderLifecycleEvent,
 )

@@ -40,7 +40,7 @@ from the_alchemiser.execution.mappers.orders import (
     dict_to_order_request_dto,
     order_request_to_validated_dto,
 )
-from the_alchemiser.domain.trading.errors import OrderError, classify_validation_failure
+from the_alchemiser.shared.types.trading_errors import OrderError, classify_validation_failure
 from the_alchemiser.execution.orders.order_schemas import OrderRequestDTO, ValidatedOrderDTO
 from the_alchemiser.shared.services.errors import TradingSystemErrorHandler
 from the_alchemiser.shared.types.exceptions import ValidationError
