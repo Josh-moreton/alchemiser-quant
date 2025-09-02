@@ -38,7 +38,7 @@ try:
     from the_alchemiser.infrastructure.dependency_injection.application_container import (
         ApplicationContainer,
     )
-    from the_alchemiser.services.shared.service_factory import ServiceFactory
+    from the_alchemiser.shared.utils.service_factory import ServiceFactory
 
     DI_AVAILABLE = True
 except ImportError:

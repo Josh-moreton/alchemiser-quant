@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Business Unit: utilities; Status: current.
+"""Business Unit: shared; Status: current.
 
 Error scope context manager for The Alchemiser Trading System.
 

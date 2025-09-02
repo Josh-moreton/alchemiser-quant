@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Business Unit: utilities; Status: current.
+"""Business Unit: shared; Status: current.
 
 CLI error display utilities for order error classification.
 

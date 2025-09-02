@@ -1,4 +1,4 @@
-"""Business Unit: utilities; Status: current.
+"""Business Unit: shared | Status: current
 
 Service factory using dependency injection.
 """
@@ -10,7 +10,7 @@ from typing import cast
 from the_alchemiser.infrastructure.dependency_injection.application_container import (
     ApplicationContainer,
 )
-from the_alchemiser.execution.services.trading_service_manager import TradingServiceManager
+from the_alchemiser.execution.core.execution_manager import TradingServiceManager
 
 
 class ServiceFactory:

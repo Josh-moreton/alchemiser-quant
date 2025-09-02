@@ -84,7 +84,7 @@ from the_alchemiser.execution.core.execution_schemas import WebSocketResultDTO
 
 # (Legacy exceptions import removed)
 from the_alchemiser.execution.brokers.alpaca_manager import AlpacaManager
-from the_alchemiser.services.trading.position_manager import PositionManager
+from the_alchemiser.portfolio.positions.legacy_position_manager import PositionManager
 
 logger = logging.getLogger(__name__)
 
