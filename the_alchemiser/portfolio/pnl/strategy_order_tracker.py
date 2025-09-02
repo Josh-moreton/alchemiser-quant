@@ -35,7 +35,7 @@ from the_alchemiser.application.mapping.tracking_mapping import (
 from the_alchemiser.domain.registry import StrategyType
 from the_alchemiser.infrastructure.config import load_settings
 from the_alchemiser.infrastructure.s3.s3_utils import get_s3_handler
-from the_alchemiser.interfaces.schemas.tracking import (
+from the_alchemiser.portfolio.schemas.tracking import (
     ExecutionStatus,
     StrategyExecutionSummaryDTO,
     StrategyLiteral,

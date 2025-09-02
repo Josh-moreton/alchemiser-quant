@@ -25,7 +25,7 @@ from rich.table import Table
 from rich.text import Text
 
 from the_alchemiser.strategy.engines.core.trading_engine import TradingEngine
-from the_alchemiser.domain.dsl.errors import DSLError
+from the_alchemiser.strategy.dsl.errors import DSLError
 from the_alchemiser.domain.dsl.parser import DSLParser
 from the_alchemiser.domain.dsl.strategy_loader import StrategyLoader
 
@@ -45,7 +45,7 @@ from the_alchemiser.shared.utils.exceptions import (
     StrategyExecutionError,
     TradingClientError,
 )
-from the_alchemiser.services.errors.handler import TradingSystemErrorHandler
+from the_alchemiser.shared.utils.error_handler import TradingSystemErrorHandler
 from the_alchemiser.services.market_data.market_data_service import MarketDataService
 from the_alchemiser.services.trading.trading_service_manager import (
     TradingServiceManager,

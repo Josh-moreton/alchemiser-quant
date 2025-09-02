@@ -28,7 +28,7 @@ from the_alchemiser.domain.trading.errors import (
 from the_alchemiser.shared.utils.logging_utils import set_error_id
 
 # Enhanced error reporting and classification utilities.
-from the_alchemiser.interfaces.schemas.errors import (
+from the_alchemiser.shared.schemas.errors import (
     ErrorDetailInfo,
     ErrorNotificationData,
     ErrorReportSummary,

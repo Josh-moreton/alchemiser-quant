@@ -19,7 +19,7 @@ from the_alchemiser.domain.trading.lifecycle import (
     OrderLifecycleState,
 )
 from the_alchemiser.domain.trading.lifecycle.transitions import VALID_TRANSITIONS
-from the_alchemiser.domain.trading.value_objects.order_id import OrderId
+from the_alchemiser.execution.orders.order_id import OrderId
 
 logger = logging.getLogger(__name__)
 

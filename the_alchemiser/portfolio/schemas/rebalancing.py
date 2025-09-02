@@ -22,7 +22,7 @@ from decimal import Decimal
 from pydantic import BaseModel, ConfigDict, Field
 
 from the_alchemiser.domain.portfolio.rebalancing.rebalance_plan import RebalancePlan
-from the_alchemiser.interfaces.schemas.base import ResultDTO
+from the_alchemiser.shared.schemas.base import ResultDTO
 
 
 class RebalancePlanDTO(BaseModel):

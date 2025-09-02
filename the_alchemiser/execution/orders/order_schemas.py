@@ -22,7 +22,7 @@ from typing import Any, Literal
 from alpaca.trading.requests import LimitOrderRequest
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from the_alchemiser.interfaces.schemas.base import Result
+from the_alchemiser.shared.schemas.base import Result
 
 
 class OrderValidationMixin:

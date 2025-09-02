@@ -388,7 +388,7 @@ class OrderCompletionMonitor:
                 OrderLifecycleEvent,
             )
             from the_alchemiser.domain.trading.lifecycle.states import OrderLifecycleState
-            from the_alchemiser.domain.trading.value_objects.order_id import OrderId
+            from the_alchemiser.execution.orders.order_id import OrderId
 
             # Create partial fill event with metadata
             metadata = {}

@@ -15,7 +15,7 @@ from decimal import Decimal
 from typing import Any, cast
 
 # Import DTOs and new strategy DTOs
-from the_alchemiser.interfaces.schemas.tracking import (
+from the_alchemiser.portfolio.schemas.tracking import (
     ExecutionStatus,
     OrderEventStatus,
     StrategyExecutionSummaryDTO,

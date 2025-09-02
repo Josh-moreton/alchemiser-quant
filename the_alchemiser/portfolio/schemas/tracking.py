@@ -14,7 +14,7 @@ Key Features:
 - Symbol normalization and data integrity checks
 
 Usage:
-    from the_alchemiser.interfaces.schemas.tracking import (
+    from the_alchemiser.portfolio.schemas.tracking import (
         StrategyOrderEventDTO,
         StrategyExecutionSummaryDTO,
         OrderEventStatus,

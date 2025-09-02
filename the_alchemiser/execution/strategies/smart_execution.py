@@ -48,9 +48,9 @@ from the_alchemiser.execution.orders.order_type import (
 from the_alchemiser.shared.types.quantity import (
     Quantity as DomainQuantity,
 )
-from the_alchemiser.domain.trading.value_objects.side import Side as DomainSide
+from the_alchemiser.execution.orders.side import Side as DomainSide
 from the_alchemiser.shared.value_objects.symbol import Symbol as DomainSymbol
-from the_alchemiser.domain.trading.value_objects.time_in_force import (
+from the_alchemiser.shared.types.time_in_force import (
     TimeInForce as DomainTimeInForce,
 )
 from the_alchemiser.infrastructure.config.execution_config import (

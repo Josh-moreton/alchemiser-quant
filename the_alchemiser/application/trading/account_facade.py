@@ -35,7 +35,7 @@ from the_alchemiser.shared.value_objects.core_types import (
     EnrichedAccountInfo,
     PositionsDict,
 )
-from the_alchemiser.interfaces.schemas.accounts import (
+from the_alchemiser.shared.schemas.accounts import (
     AccountMetricsDTO,
     AccountSummaryDTO,
     EnrichedAccountSummaryDTO,

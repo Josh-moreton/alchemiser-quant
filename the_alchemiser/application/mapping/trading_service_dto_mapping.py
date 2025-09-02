@@ -18,7 +18,7 @@ from the_alchemiser.application.mapping.account_mapping import (
     AccountSummaryTyped,
 )
 from the_alchemiser.application.mapping.position_mapping import PositionSummary
-from the_alchemiser.interfaces.schemas.accounts import (
+from the_alchemiser.shared.schemas.accounts import (
     AccountMetricsDTO,
     AccountSummaryDTO,
     BuyingPowerDTO,
@@ -33,7 +33,7 @@ from the_alchemiser.interfaces.schemas.enriched_data import (
     EnrichedPositionsDTO,
     OpenOrdersDTO,
 )
-from the_alchemiser.interfaces.schemas.market_data import (
+from the_alchemiser.shared.schemas.market_data import (
     MarketStatusDTO,
     MultiSymbolQuotesDTO,
     PriceDTO,

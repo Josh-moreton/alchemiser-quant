@@ -384,7 +384,7 @@ class TradingExecutor:
     def _handle_trading_error(self, error: Exception, mode_str: str) -> None:
         """Handle trading execution errors."""
         try:
-            from the_alchemiser.services.errors.handler import (
+            from the_alchemiser.shared.utils.error_handler import (
                 TradingSystemErrorHandler,
                 send_error_notification_if_needed,
             )

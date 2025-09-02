@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Literal
 
-from the_alchemiser.domain.trading.value_objects.order_status import OrderStatus
+from the_alchemiser.execution.orders.order_status import OrderStatus
 from the_alchemiser.domain.trading.value_objects.order_status_literal import (
     OrderStatusLiteral,
 )

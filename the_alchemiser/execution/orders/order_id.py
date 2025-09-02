@@ -8,7 +8,7 @@ from the_alchemiser.domain.shared_kernel.value_objects.identifier import Identif
 
 if TYPE_CHECKING:  # Only for static typing; avoids runtime circular import
     # Import the Order entity for precise typing during type checking only
-    from the_alchemiser.domain.trading.entities.order import Order
+    from the_alchemiser.execution.entities.order import Order
 
     OrderIdBase = Identifier[Order]
 else:

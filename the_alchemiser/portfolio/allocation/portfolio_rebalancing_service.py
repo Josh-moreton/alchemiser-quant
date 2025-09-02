@@ -29,12 +29,12 @@ from .rebalance_plan import RebalancePlan
 from ..state.attribution_engine import (
     StrategyAttributionEngine,
 )
-from the_alchemiser.interfaces.schemas.portfolio_rebalancing import (
+from the_alchemiser.portfolio.schemas.rebalancing import (
     RebalancePlanCollectionDTO,
     RebalancingImpactDTO,
     RebalancingSummaryDTO,
 )
-from the_alchemiser.services.errors.handler import TradingSystemErrorHandler
+from the_alchemiser.shared.utils.error_handler import TradingSystemErrorHandler
 from the_alchemiser.services.trading.trading_service_manager import TradingServiceManager
 
 

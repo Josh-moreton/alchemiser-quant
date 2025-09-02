@@ -42,10 +42,10 @@ Example:
     >>> from the_alchemiser.application.execution.canonical_executor import CanonicalOrderExecutor
     >>> from the_alchemiser.execution.orders.order_request import OrderRequest
     >>> from the_alchemiser.shared.value_objects.symbol import Symbol
-    >>> from the_alchemiser.domain.trading.value_objects.side import Side
+    >>> from the_alchemiser.execution.orders.side import Side
     >>> from the_alchemiser.shared.types.quantity import Quantity
     >>> from the_alchemiser.execution.orders.order_type import OrderType
-    >>> from the_alchemiser.domain.trading.value_objects.time_in_force import TimeInForce
+    >>> from the_alchemiser.shared.types.time_in_force import TimeInForce
     >>> client = AlpacaClient(trading_client, data_provider)
     >>> executor = CanonicalOrderExecutor(client.alpaca_manager)
     >>> req = OrderRequest(symbol=Symbol('AAPL'), side=Side('buy'), quantity=Quantity(Decimal('10')), order_type=OrderType('market'), time_in_force=TimeInForce('day'))  # noqa: E501
@@ -235,9 +235,9 @@ class AlpacaClient:
         )
         from the_alchemiser.execution.orders.order_type import OrderType
         from the_alchemiser.shared.types.quantity import Quantity
-        from the_alchemiser.domain.trading.value_objects.side import Side
+        from the_alchemiser.execution.orders.side import Side
         from the_alchemiser.shared.value_objects.symbol import Symbol
-        from the_alchemiser.domain.trading.value_objects.time_in_force import (
+        from the_alchemiser.shared.types.time_in_force import (
             TimeInForce,
         )
 

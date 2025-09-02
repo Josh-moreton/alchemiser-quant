@@ -37,7 +37,7 @@ from the_alchemiser.domain.dsl.ast import (
     WeightInverseVolatility,
     WeightSpecified,
 )
-from the_alchemiser.domain.dsl.errors import ParseError, SchemaError
+from the_alchemiser.strategy.dsl.errors import ParseError, SchemaError
 
 
 @dataclass(frozen=True)

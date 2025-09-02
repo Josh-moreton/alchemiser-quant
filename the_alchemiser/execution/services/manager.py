@@ -54,8 +54,8 @@ from the_alchemiser.domain.trading.lifecycle import (
     LifecycleEventType,
     OrderLifecycleState,
 )
-from the_alchemiser.domain.trading.value_objects.order_id import OrderId
-from the_alchemiser.interfaces.schemas.accounts import (
+from the_alchemiser.execution.orders.order_id import OrderId
+from the_alchemiser.shared.schemas.accounts import (
     AccountMetricsDTO,
     AccountSummaryDTO,
     BuyingPowerDTO,
@@ -68,7 +68,7 @@ from the_alchemiser.interfaces.schemas.enriched_data import (
     EnrichedPositionsDTO,
     OpenOrdersDTO,
 )
-from the_alchemiser.interfaces.schemas.market_data import (
+from the_alchemiser.shared.schemas.market_data import (
     MarketStatusDTO,
     MultiSymbolQuotesDTO,
     PriceDTO,
@@ -737,9 +737,9 @@ class TradingServiceManager:
                 from the_alchemiser.shared.types.quantity import (
                     Quantity,
                 )
-                from the_alchemiser.domain.trading.value_objects.side import Side
+                from the_alchemiser.execution.orders.side import Side
                 from the_alchemiser.shared.value_objects.symbol import Symbol
-                from the_alchemiser.domain.trading.value_objects.time_in_force import (
+                from the_alchemiser.shared.types.time_in_force import (
                     TimeInForce,
                 )
 
@@ -800,9 +800,9 @@ class TradingServiceManager:
                 from the_alchemiser.shared.types.quantity import (
                     Quantity,
                 )
-                from the_alchemiser.domain.trading.value_objects.side import Side
+                from the_alchemiser.execution.orders.side import Side
                 from the_alchemiser.shared.value_objects.symbol import Symbol
-                from the_alchemiser.domain.trading.value_objects.time_in_force import (
+                from the_alchemiser.shared.types.time_in_force import (
                     TimeInForce,
                 )
 

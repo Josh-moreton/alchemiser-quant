@@ -11,7 +11,7 @@ from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 
-from the_alchemiser.domain.trading.value_objects.order_id import OrderId
+from the_alchemiser.execution.orders.order_id import OrderId
 
 from .states import OrderLifecycleState
 

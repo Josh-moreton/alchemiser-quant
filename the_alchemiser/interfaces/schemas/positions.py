@@ -20,7 +20,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from the_alchemiser.interfaces.schemas.base import Result
+from the_alchemiser.shared.schemas.base import Result
 
 
 class Position(BaseModel):

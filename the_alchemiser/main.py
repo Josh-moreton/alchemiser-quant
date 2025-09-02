@@ -31,7 +31,7 @@ from the_alchemiser.shared.utils.exceptions import (
     StrategyExecutionError,
     TradingClientError,
 )
-from the_alchemiser.services.errors.handler import TradingSystemErrorHandler
+from the_alchemiser.shared.utils.error_handler import TradingSystemErrorHandler
 
 # DI imports (optional)
 try:
