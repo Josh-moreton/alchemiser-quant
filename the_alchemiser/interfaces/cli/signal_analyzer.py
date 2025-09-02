@@ -98,7 +98,7 @@ class SignalAnalyzer:
             from rich.panel import Panel
             from rich.table import Table
 
-            from the_alchemiser.application.tracking.strategy_order_tracker import (
+            from the_alchemiser.portfolio.pnl.strategy_order_tracker import (
                 StrategyOrderTracker,
             )
 

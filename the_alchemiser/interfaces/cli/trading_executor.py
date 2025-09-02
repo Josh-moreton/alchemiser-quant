@@ -24,7 +24,7 @@ from the_alchemiser.application.mapping.strategy_signal_mapping import (
     map_signals_dict as _map_signals_to_typed,
 )
 from the_alchemiser.application.trading.bootstrap import bootstrap_from_container
-from the_alchemiser.execution.core.trading_engine import TradingEngine
+from the_alchemiser.strategy.engines.core.trading_engine import TradingEngine
 from the_alchemiser.domain.registry import StrategyType
 from the_alchemiser.domain.strategies.value_objects.strategy_signal import (
     StrategySignal as TypedStrategySignal,
@@ -488,7 +488,7 @@ class TradingExecutor:
             import json
             from pathlib import Path
 
-            from the_alchemiser.application.tracking.strategy_order_tracker import (
+            from the_alchemiser.portfolio.pnl.strategy_order_tracker import (
                 StrategyOrderTracker,
             )
 

@@ -767,7 +767,7 @@ class TradingEngine:
     def _archive_daily_strategy_pnl(self, pnl_summary: dict[str, Any]) -> None:
         """Archive daily strategy P&L for historical tracking."""
         try:
-            from the_alchemiser.application.tracking.strategy_order_tracker import (
+            from the_alchemiser.portfolio.pnl.strategy_order_tracker import (
                 get_strategy_tracker,
             )
 

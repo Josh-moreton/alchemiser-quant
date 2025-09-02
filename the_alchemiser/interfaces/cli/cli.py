@@ -24,7 +24,7 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.table import Table
 from rich.text import Text
 
-from the_alchemiser.execution.core.trading_engine import TradingEngine
+from the_alchemiser.strategy.engines.core.trading_engine import TradingEngine
 from the_alchemiser.domain.dsl.errors import DSLError
 from the_alchemiser.domain.dsl.parser import DSLParser
 from the_alchemiser.domain.dsl.strategy_loader import StrategyLoader
@@ -678,7 +678,7 @@ def status(
 
         # Display strategy tracking information
         try:
-            from the_alchemiser.application.tracking.strategy_order_tracker import (
+            from the_alchemiser.portfolio.pnl.strategy_order_tracker import (
                 StrategyOrderTracker,
             )
 

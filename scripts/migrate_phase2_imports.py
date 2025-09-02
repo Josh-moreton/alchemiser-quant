@@ -24,9 +24,9 @@ from typing import Dict, List, Tuple
 
 # File migration mapping: old_path -> new_path
 FILE_MIGRATIONS = {
-    # Move TradingEngine to execution module
+    # Move TradingEngine to strategy module  
     "the_alchemiser/application/trading/engine_service.py": 
-        "the_alchemiser/execution/core/trading_engine.py",
+        "the_alchemiser/strategy/engines/core/trading_engine.py",
     
     # Move SmartExecution to execution strategies
     "the_alchemiser/application/execution/smart_execution.py": 
@@ -37,7 +37,7 @@ FILE_MIGRATIONS = {
 IMPORT_MIGRATIONS = {
     # TradingEngine migrations
     "from the_alchemiser.application.trading.engine_service import TradingEngine": 
-        "from the_alchemiser.execution.core.trading_engine import TradingEngine",
+        "from the_alchemiser.strategy.engines.core.trading_engine import TradingEngine",
     
     # SmartExecution migrations  
     "from the_alchemiser.application.execution.smart_execution import SmartExecution": 

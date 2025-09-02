@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING, Any
 from the_alchemiser.domain.registry import StrategyType
 
 if TYPE_CHECKING:
-    from the_alchemiser.application.tracking.strategy_order_tracker import (
+    from the_alchemiser.portfolio.pnl.strategy_order_tracker import (
         StrategyOrderTracker,
     )
 
@@ -39,7 +39,7 @@ class StrategyExecutionContext:
         cls._current_strategy = strategy
         if cls._order_tracker is None:
             # Import here to avoid circular imports
-            from the_alchemiser.application.tracking.strategy_order_tracker import (
+            from the_alchemiser.portfolio.pnl.strategy_order_tracker import (
                 get_strategy_tracker,
             )
 
@@ -139,7 +139,7 @@ class StrategyTrackingMixin:
         """Initialize tracking mixin and attach tracker instance."""
         super().__init__(*args, **kwargs)
         # Import here to avoid circular imports
-        from the_alchemiser.application.tracking.strategy_order_tracker import (
+        from the_alchemiser.portfolio.pnl.strategy_order_tracker import (
             get_strategy_tracker,
         )
 
@@ -270,7 +270,7 @@ def configure_strategy_tracking_integration(
         # Add tracking mixin to trading engine if it doesn't already have it
         if not hasattr(trading_engine, "_strategy_tracker"):
             # Import here to avoid circular imports
-            from the_alchemiser.application.tracking.strategy_order_tracker import (
+            from the_alchemiser.portfolio.pnl.strategy_order_tracker import (
                 get_strategy_tracker,
             )
 

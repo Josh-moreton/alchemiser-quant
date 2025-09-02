@@ -4,7 +4,7 @@
 Strategy Tracking DTOs for The Alchemiser Trading System.
 
 This module defines Pydantic v2 DTOs for strategy order tracking and execution
-telemetry, consumed by application/tracking/strategy_order_tracker.py.
+telemetry, consumed by portfolio/pnl/strategy_order_tracker.py.
 
 Key Features:
 - Type-safe DTOs with comprehensive validation
