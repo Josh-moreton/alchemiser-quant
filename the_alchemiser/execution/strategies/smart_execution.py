@@ -53,7 +53,7 @@ from the_alchemiser.shared.value_objects.symbol import Symbol as DomainSymbol
 from the_alchemiser.shared.types.time_in_force import (
     TimeInForce as DomainTimeInForce,
 )
-from the_alchemiser.infrastructure.config.execution_config import (
+from the_alchemiser.execution.config.execution_config import (
     ExecutionConfig,
     get_execution_config,
 )
@@ -919,7 +919,7 @@ class SmartExecution:
             AggressiveLimitStrategy,
             ExecutionContextAdapter,
         )
-        from the_alchemiser.infrastructure.config.execution_config import (
+        from the_alchemiser.execution.config.execution_config import (
             create_strategy_config,
         )
 

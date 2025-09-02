@@ -12,7 +12,7 @@ from the_alchemiser.execution.mappers.execution_summary_mapping import (
     safe_dict_to_execution_summary_dto,
     safe_dict_to_portfolio_state_dto,
 )
-from the_alchemiser.application.mapping.strategy_signal_mapping import (
+from the_alchemiser.strategy.mappers.strategy_signal_mapping import (
     map_signals_dict as _map_signals_to_typed,
 )
 from the_alchemiser.shared.value_objects.core_types import AccountInfo
