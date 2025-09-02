@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 import pandas as pd
 
-from the_alchemiser.domain.dsl.ast import (
+from the_alchemiser.strategy.dsl.ast import (
     RSI,
     Asset,
     ASTNode,

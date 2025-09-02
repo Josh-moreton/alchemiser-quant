@@ -19,7 +19,7 @@ from the_alchemiser.shared.types.policy_result import (
     create_approved_result,
     create_rejected_result,
 )
-from the_alchemiser.domain.policies.protocols import TradingClientProtocol
+from the_alchemiser.portfolio.policies.protocols import TradingClientProtocol
 from the_alchemiser.execution.orders.order_request import OrderRequest
 from the_alchemiser.shared.types.quantity import Quantity
 from the_alchemiser.shared.utils.logging_utils import log_with_context

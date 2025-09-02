@@ -13,7 +13,7 @@ import re
 from dataclasses import dataclass
 from typing import Any
 
-from the_alchemiser.domain.dsl.ast import (
+from the_alchemiser.strategy.dsl.ast import (
     RSI,
     Asset,
     ASTNode,
@@ -221,7 +221,7 @@ class DSLParser:
 
         # Apply interning if enabled, which may return an existing instance
         if self._enable_interning:
-            from the_alchemiser.domain.dsl.interning import intern_node
+            from the_alchemiser.strategy.dsl.interning import intern_node
 
             interned_node = intern_node(node)
             # Only count as a new node if this is actually a new unique structure

@@ -141,7 +141,7 @@ def get_optimization_stats() -> dict[str, Any]:
 
     # Add interning stats if available
     try:
-        from the_alchemiser.domain.dsl.interning import get_intern_stats
+        from the_alchemiser.strategy.dsl.interning import get_intern_stats
 
         stats["interning"] = get_intern_stats()
     except ImportError:

@@ -16,7 +16,7 @@ from enum import Enum
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from the_alchemiser.domain.math.protocols.asset_metadata_provider import AssetMetadataProvider
+    from the_alchemiser.shared.protocols.asset_metadata import AssetMetadataProvider
 
 
 class AssetType(Enum):

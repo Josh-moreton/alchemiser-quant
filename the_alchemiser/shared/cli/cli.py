@@ -26,8 +26,8 @@ from rich.text import Text
 
 from the_alchemiser.strategy.engines.core.trading_engine import TradingEngine
 from the_alchemiser.strategy.dsl.errors import DSLError
-from the_alchemiser.domain.dsl.parser import DSLParser
-from the_alchemiser.domain.dsl.strategy_loader import StrategyLoader
+from the_alchemiser.strategy.dsl.parser import DSLParser
+from the_alchemiser.strategy.dsl.strategy_loader import StrategyLoader
 
 # Import domain models for type annotations
 from the_alchemiser.shared.types.bar import BarModel
@@ -281,7 +281,7 @@ def signal(
                 progress.update(task, description="[cyan]Parsing & evaluating DSL strategy...")
 
                 # Load optimization config from environment so .env flags apply
-                from the_alchemiser.domain.dsl.optimization_config import (
+                from the_alchemiser.strategy.dsl.optimization_config import (
                     configure_from_environment,
                 )
 

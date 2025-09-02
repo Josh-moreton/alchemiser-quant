@@ -18,7 +18,7 @@ from the_alchemiser.portfolio.policies.fractionability_policy_impl import (
 from the_alchemiser.portfolio.policies.policy_orchestrator import PolicyOrchestrator
 from the_alchemiser.portfolio.policies.position_policy_impl import PositionPolicyImpl
 from the_alchemiser.portfolio.policies.risk_policy_impl import RiskPolicyImpl
-from the_alchemiser.domain.policies.protocols import DataProviderProtocol, TradingClientProtocol
+from the_alchemiser.portfolio.policies.protocols import DataProviderProtocol, TradingClientProtocol
 
 if TYPE_CHECKING:
     from decimal import Decimal

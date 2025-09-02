@@ -14,7 +14,7 @@ from dataclasses import fields, is_dataclass
 from typing import Any
 from weakref import WeakValueDictionary
 
-from the_alchemiser.domain.dsl.ast import ASTNode
+from the_alchemiser.strategy.dsl.ast import ASTNode
 
 # Global interner pool using weak references for automatic cleanup
 _intern_pool: WeakValueDictionary[tuple[Any, ...], ASTNode] = WeakValueDictionary()
