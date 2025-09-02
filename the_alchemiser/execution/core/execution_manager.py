@@ -10,6 +10,16 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
+from the_alchemiser.execution.brokers.account_service import AccountService
+from the_alchemiser.execution.brokers.alpaca_manager import AlpacaManager
+from the_alchemiser.execution.lifecycle import (
+    LifecycleEventDispatcher,
+    LifecycleEventType,
+    LoggingObserver,
+    MetricsObserver,
+    OrderLifecycleManager,
+    OrderLifecycleState,
+)
 from the_alchemiser.execution.mappers.account_mapping import (
     account_summary_to_typed,
     account_typed_to_serializable,
@@ -21,9 +31,6 @@ from the_alchemiser.execution.mappers.order_mapping import (
 )
 from the_alchemiser.execution.mappers.orders import (
     dict_to_order_request_dto,
-)
-from the_alchemiser.portfolio.mappers.position_mapping import (
-    alpaca_position_to_summary,
 )
 from the_alchemiser.execution.mappers.trading_service_dto_mapping import (
     account_summary_typed_to_dto,
@@ -43,18 +50,26 @@ from the_alchemiser.execution.mappers.trading_service_dto_mapping import (
     list_to_enriched_positions_dto,
     list_to_open_orders_dto,
 )
-from the_alchemiser.execution.orders.validation import OrderValidator
-from the_alchemiser.execution.lifecycle import (
-    LifecycleEventDispatcher,
-    LoggingObserver,
-    MetricsObserver,
-    OrderLifecycleManager,
-)
-from the_alchemiser.execution.lifecycle import (
-    LifecycleEventType,
-    OrderLifecycleState,
-)
 from the_alchemiser.execution.orders.order_id import OrderId
+from the_alchemiser.execution.orders.order_schemas import (
+    OrderExecutionResultDTO,
+    OrderRequestDTO,
+)
+from the_alchemiser.execution.orders.service import OrderService
+from the_alchemiser.execution.orders.validation import OrderValidator
+from the_alchemiser.portfolio.mappers.position_mapping import (
+    alpaca_position_to_summary,
+)
+from the_alchemiser.portfolio.positions.position_service import PositionService
+from the_alchemiser.portfolio.schemas.positions import (
+    ClosePositionResultDTO,
+    PortfolioSummaryDTO,
+    PortfolioValueDTO,
+    PositionAnalyticsDTO,
+    PositionMetricsDTO,
+    PositionSummaryDTO,
+)
+from the_alchemiser.shared.math.num import floats_equal
 from the_alchemiser.shared.schemas.accounts import (
     AccountMetricsDTO,
     AccountSummaryDTO,
@@ -79,30 +94,13 @@ from the_alchemiser.shared.schemas.operations import (
     OrderCancellationDTO,
     OrderStatusDTO,
 )
-from the_alchemiser.execution.orders.order_schemas import (
-    OrderExecutionResultDTO,
-    OrderRequestDTO,
-)
-from the_alchemiser.portfolio.schemas.positions import (
-    ClosePositionResultDTO,
-    PortfolioSummaryDTO,
-    PortfolioValueDTO,
-    PositionAnalyticsDTO,
-    PositionMetricsDTO,
-    PositionSummaryDTO,
-)
 from the_alchemiser.shared.schemas.smart_trading import (
     OrderValidationMetadataDTO,
     SmartOrderExecutionDTO,
     TradingDashboardDTO,
 )
-from the_alchemiser.execution.brokers.account_service import AccountService
 from the_alchemiser.shared.utils.decorators import translate_trading_errors
 from the_alchemiser.strategy.data.market_data_service import MarketDataService
-from the_alchemiser.execution.brokers.alpaca_manager import AlpacaManager
-from the_alchemiser.execution.orders.service import OrderService
-from the_alchemiser.portfolio.positions.position_service import PositionService
-from the_alchemiser.shared.math.num import floats_equal
 
 
 class TradingServiceManager:
@@ -725,23 +723,23 @@ class TradingServiceManager:
                 from the_alchemiser.execution.core.canonical_executor import (
                     CanonicalOrderExecutor,
                 )
-                from the_alchemiser.shared.types.money import (
-                    Money,
-                )
                 from the_alchemiser.execution.orders.order_request import (
                     OrderRequest,
                 )
                 from the_alchemiser.execution.orders.order_type import (
                     OrderType,
                 )
+                from the_alchemiser.execution.orders.side import Side
+                from the_alchemiser.shared.types.money import (
+                    Money,
+                )
                 from the_alchemiser.shared.types.quantity import (
                     Quantity,
                 )
-                from the_alchemiser.execution.orders.side import Side
-                from the_alchemiser.shared.value_objects.symbol import Symbol
                 from the_alchemiser.shared.types.time_in_force import (
                     TimeInForce,
                 )
+                from the_alchemiser.shared.value_objects.symbol import Symbol
 
                 try:
                     order_request_domain = OrderRequest(
@@ -788,23 +786,23 @@ class TradingServiceManager:
                 from the_alchemiser.execution.core.canonical_executor import (
                     CanonicalOrderExecutor,
                 )
-                from the_alchemiser.shared.types.money import (
-                    Money,
-                )
                 from the_alchemiser.execution.orders.order_request import (
                     OrderRequest,
                 )
                 from the_alchemiser.execution.orders.order_type import (
                     OrderType,
                 )
+                from the_alchemiser.execution.orders.side import Side
+                from the_alchemiser.shared.types.money import (
+                    Money,
+                )
                 from the_alchemiser.shared.types.quantity import (
                     Quantity,
                 )
-                from the_alchemiser.execution.orders.side import Side
-                from the_alchemiser.shared.value_objects.symbol import Symbol
                 from the_alchemiser.shared.types.time_in_force import (
                     TimeInForce,
                 )
+                from the_alchemiser.shared.value_objects.symbol import Symbol
 
                 try:
                     order_request_domain = OrderRequest(

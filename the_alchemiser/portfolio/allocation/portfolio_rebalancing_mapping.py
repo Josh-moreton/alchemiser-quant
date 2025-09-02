@@ -16,7 +16,6 @@ import decimal
 from decimal import Decimal
 from typing import Any
 
-from .rebalance_plan import RebalancePlan
 from the_alchemiser.portfolio.schemas.rebalancing import (
     RebalanceExecutionResultDTO,
     RebalanceInstructionDTO,
@@ -25,6 +24,8 @@ from the_alchemiser.portfolio.schemas.rebalancing import (
     RebalancingImpactDTO,
     RebalancingSummaryDTO,
 )
+
+from .rebalance_plan import RebalancePlan
 
 __all__ = [
     "dto_plans_to_domain",

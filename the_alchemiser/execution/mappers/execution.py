@@ -33,23 +33,24 @@ from the_alchemiser.shared.adapters.portfolio_adapters import portfolio_state_to
 
 def safe_dict_to_execution_summary_dto(data: dict[str, Any]) -> ExecutionReportDTO | None:
     """Convert dictionary to ExecutionReportDTO safely.
-    
+
     Args:
         data: Dictionary containing execution data
-        
+
     Returns:
         ExecutionReportDTO instance or None if data is empty/None
+
     """
     if not data:
         return None
-    
+
     try:
         # Extract required fields with defaults
         execution_id = data.get("execution_id", "unknown")
         orders = data.get("orders", [])
         correlation_id = data.get("correlation_id", "unknown")
         causation_id = data.get("causation_id", correlation_id)
-        
+
         return create_execution_report_dto(
             execution_id=execution_id,
             orders=orders,
@@ -67,16 +68,17 @@ def safe_dict_to_execution_summary_dto(data: dict[str, Any]) -> ExecutionReportD
 
 def safe_dict_to_portfolio_state_dto(data: dict[str, Any] | None) -> PortfolioStateDTO | None:
     """Convert dictionary to PortfolioStateDTO safely.
-    
+
     Args:
         data: Dictionary containing portfolio state data or None
-        
+
     Returns:
         PortfolioStateDTO instance or None if data is empty/None
+
     """
     if not data:
         return None
-    
+
     try:
         return portfolio_state_to_dto(
             portfolio_data=data,
@@ -88,7 +90,8 @@ def safe_dict_to_portfolio_state_dto(data: dict[str, Any] | None) -> PortfolioSt
     except Exception:
         # Return None if conversion fails
         return None
-from the_alchemiser.shared.value_objects.core_types import AccountInfo, OrderDetails
+
+
 from the_alchemiser.execution.core.execution_schemas import (
     ExecutionResultDTO,
     LambdaEventDTO,
@@ -99,6 +102,7 @@ from the_alchemiser.execution.core.execution_schemas import (
     WebSocketResultDTO,
     WebSocketStatus,
 )
+from the_alchemiser.shared.value_objects.core_types import AccountInfo, OrderDetails
 
 __all__ = [
     "account_info_to_execution_result_dto",

@@ -1,4 +1,4 @@
 """Module exports."""
 
-from .tracking import *
 from .rebalancing import *
+from .tracking import *

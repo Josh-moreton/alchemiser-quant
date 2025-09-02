@@ -10,6 +10,6 @@ from __future__ import annotations
 from .strategy_signal import *
 
 __all__ = [
-    "StrategySignal", 
     "Action",
+    "StrategySignal",
 ]

@@ -32,10 +32,8 @@ class ConfigurationDTO:
     """Placeholder for configuration data transfer."""
 
 
-
 class ErrorDTO:
     """Placeholder for error data transfer."""
-
 
 
 __all__ = [

@@ -12,15 +12,15 @@ import logging
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
+from the_alchemiser.execution.orders.order_request import OrderRequest
+from the_alchemiser.portfolio.policies.protocols import DataProviderProtocol, TradingClientProtocol
+from the_alchemiser.shared.logging.logging_utils import log_with_context
 from the_alchemiser.shared.types.policy_result import (
     PolicyResult,
     PolicyWarning,
     create_approved_result,
     create_rejected_result,
 )
-from the_alchemiser.portfolio.policies.protocols import DataProviderProtocol, TradingClientProtocol
-from the_alchemiser.execution.orders.order_request import OrderRequest
-from the_alchemiser.shared.logging.logging_utils import log_with_context
 
 if TYPE_CHECKING:
     pass

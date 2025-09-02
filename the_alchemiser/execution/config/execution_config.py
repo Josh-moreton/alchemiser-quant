@@ -13,7 +13,7 @@ import logging
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from .config import load_settings
+from the_alchemiser.shared.config.config import load_settings
 
 if TYPE_CHECKING:  # pragma: no cover - hint for type checkers only
     from the_alchemiser.execution.config.execution_config import StrategyConfig

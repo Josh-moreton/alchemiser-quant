@@ -1,6 +1,7 @@
 """Business Unit: execution | Status: current
 
-Account management and broker account services for execution module."""
+Account management and broker account services for execution module.
+"""
 
 from __future__ import annotations
 
@@ -8,8 +9,8 @@ import logging
 from typing import Any, Literal, cast
 
 from the_alchemiser.shared.interfaces.repository_protocols import AccountRepository
-from the_alchemiser.shared.value_objects.core_types import AccountInfo, PositionsDict
 from the_alchemiser.shared.math.num import floats_equal
+from the_alchemiser.shared.value_objects.core_types import AccountInfo, PositionsDict
 
 
 class AccountService:

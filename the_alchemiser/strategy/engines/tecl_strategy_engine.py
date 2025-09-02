@@ -33,15 +33,16 @@ from decimal import Decimal
 from typing import Any
 
 from the_alchemiser.shared.types.market_data_port import MarketDataPort
+from the_alchemiser.shared.types.percentage import Percentage
+from the_alchemiser.shared.utils.common import ActionType
+from the_alchemiser.shared.value_objects.symbol import Symbol
 from the_alchemiser.strategy.indicators.indicator_utils import safe_get_indicator
 from the_alchemiser.strategy.indicators.indicators import TechnicalIndicators
-from the_alchemiser.shared.types.percentage import Percentage
+
 from .engine import StrategyEngine
 from .value_objects.alert import Alert
 from .value_objects.confidence import Confidence
 from .value_objects.strategy_signal import StrategySignal
-from the_alchemiser.shared.value_objects.symbol import Symbol
-from the_alchemiser.shared.utils.common import ActionType
 
 warnings.filterwarnings("ignore")
 

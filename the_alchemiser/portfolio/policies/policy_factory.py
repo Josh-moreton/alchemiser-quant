@@ -17,8 +17,8 @@ from the_alchemiser.portfolio.policies.fractionability_policy_impl import (
 )
 from the_alchemiser.portfolio.policies.policy_orchestrator import PolicyOrchestrator
 from the_alchemiser.portfolio.policies.position_policy_impl import PositionPolicyImpl
-from the_alchemiser.portfolio.policies.risk_policy_impl import RiskPolicyImpl
 from the_alchemiser.portfolio.policies.protocols import DataProviderProtocol, TradingClientProtocol
+from the_alchemiser.portfolio.policies.risk_policy_impl import RiskPolicyImpl
 
 if TYPE_CHECKING:
     from decimal import Decimal
@@ -90,11 +90,11 @@ class PolicyFactory:
             PolicyOrchestrator with only fractionability policy
 
         """
+        from the_alchemiser.execution.orders.order_request import OrderRequest
         from the_alchemiser.shared.types.policy_result import (
             PolicyResult,
             create_approved_result,
         )
-        from the_alchemiser.execution.orders.order_request import OrderRequest
 
         fractionability_policy = FractionabilityPolicyImpl()
 

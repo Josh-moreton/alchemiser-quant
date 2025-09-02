@@ -8,8 +8,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from decimal import Decimal
 
+from the_alchemiser.shared.value_objects.core_types import (
+    StrategyPositionData as StrategyPositionDTO,
+)
 from the_alchemiser.shared.value_objects.symbol import Symbol
-from the_alchemiser.shared.value_objects.core_types import StrategyPositionData as StrategyPositionDTO
 
 
 @dataclass(frozen=True)

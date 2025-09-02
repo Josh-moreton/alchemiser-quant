@@ -18,6 +18,16 @@ from the_alchemiser.execution.mappers.account_mapping import (
     AccountSummaryTyped,
 )
 from the_alchemiser.portfolio.mappers.position_mapping import PositionSummary
+from the_alchemiser.portfolio.schemas.positions import (
+    ClosePositionResultDTO,
+    LargestPositionDTO,
+    PortfolioMetricsDTO,
+    PortfolioSummaryDTO,
+    PositionAnalyticsDTO,
+    PositionDTO,
+    PositionMetricsDTO,
+    PositionSummaryDTO,
+)
 from the_alchemiser.shared.schemas.accounts import (
     AccountMetricsDTO,
     AccountSummaryDTO,
@@ -44,16 +54,6 @@ from the_alchemiser.shared.schemas.operations import (
     OperationResultDTO,
     OrderCancellationDTO,
     OrderStatusDTO,
-)
-from the_alchemiser.portfolio.schemas.positions import (
-    ClosePositionResultDTO,
-    LargestPositionDTO,
-    PortfolioMetricsDTO,
-    PortfolioSummaryDTO,
-    PositionAnalyticsDTO,
-    PositionDTO,
-    PositionMetricsDTO,
-    PositionSummaryDTO,
 )
 
 

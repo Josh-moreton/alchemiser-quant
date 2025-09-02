@@ -8,8 +8,14 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Any
 
+from the_alchemiser.execution.services.trading_service_manager import TradingServiceManager
 from the_alchemiser.portfolio.mappers.portfolio_rebalancing_mapping import (
     rebalance_plans_dict_to_collection_dto,
+)
+from the_alchemiser.portfolio.schemas.rebalancing import (
+    RebalancePlanCollectionDTO,
+    RebalancingImpactDTO,
+    RebalancingSummaryDTO,
 )
 from the_alchemiser.shared.adapters import (
     portfolio_state_to_dto,
@@ -22,20 +28,15 @@ from the_alchemiser.shared.dto import (
     RebalancePlanDTO,
     StrategySignalDTO,
 )
+from the_alchemiser.shared.errors.error_handler import TradingSystemErrorHandler
+
 from ..holdings.position_analyzer import PositionAnalyzer
 from ..holdings.position_delta import PositionDelta
-from .rebalance_calculator import RebalanceCalculator
-from .rebalance_plan import RebalancePlan
 from ..state.attribution_engine import (
     StrategyAttributionEngine,
 )
-from the_alchemiser.portfolio.schemas.rebalancing import (
-    RebalancePlanCollectionDTO,
-    RebalancingImpactDTO,
-    RebalancingSummaryDTO,
-)
-from the_alchemiser.shared.errors.error_handler import TradingSystemErrorHandler
-from the_alchemiser.execution.services.trading_service_manager import TradingServiceManager
+from .rebalance_calculator import RebalanceCalculator
+from .rebalance_plan import RebalancePlan
 
 
 class PortfolioRebalancingService:
@@ -455,50 +456,51 @@ class PortfolioRebalancingService:
 
     def get_portfolio_state_dto(self, correlation_id: str | None = None) -> PortfolioStateDTO:
         """Get current portfolio state as DTO for inter-module communication.
-        
+
         Args:
             correlation_id: Optional correlation ID for tracking
-            
+
         Returns:
             PortfolioStateDTO with current portfolio state
+
         """
         try:
             # Get current portfolio data
             current_positions = self._get_current_position_values()
             portfolio_value = self._get_portfolio_value()
-            
+
             # Get account summary for additional metrics
             account_summary = self.trading_manager.get_account_summary()
-            
+
             # Get positions data
             positions_data = self.trading_manager.get_positions()
-            
+
             # Create portfolio context
             portfolio_context = {
-                'total_value': portfolio_value,
-                'portfolio_value': portfolio_value,
-                'cash_value': account_summary.get('cash', Decimal('0')),
-                'equity_value': account_summary.get('equity', Decimal('0')),
-                'buying_power': account_summary.get('buying_power', Decimal('0')),
-                'day_pnl': account_summary.get('unrealized_pl', Decimal('0')),
-                'day_pnl_percent': account_summary.get('unrealized_plpc', Decimal('0')),
-                'account_id': account_summary.get('account_number'),
+                "total_value": portfolio_value,
+                "portfolio_value": portfolio_value,
+                "cash_value": account_summary.get("cash", Decimal("0")),
+                "equity_value": account_summary.get("equity", Decimal("0")),
+                "buying_power": account_summary.get("buying_power", Decimal("0")),
+                "day_pnl": account_summary.get("unrealized_pl", Decimal("0")),
+                "day_pnl_percent": account_summary.get("unrealized_plpc", Decimal("0")),
+                "account_id": account_summary.get("account_number"),
             }
-            
+
             return portfolio_state_to_dto(
                 portfolio_data=portfolio_context,
-                positions=positions_data.get('positions', []) if positions_data else [],
+                positions=positions_data.get("positions", []) if positions_data else [],
                 correlation_id=correlation_id,
                 portfolio_id="main_portfolio",
             )
-            
+
         except Exception as e:
             # Return minimal portfolio state with error context
-            from datetime import datetime, UTC
             import uuid
-            
+            from datetime import UTC, datetime
+
             correlation_id = correlation_id or f"portfolio_error_{uuid.uuid4().hex[:12]}"
-            
+
             return PortfolioStateDTO(
                 correlation_id=correlation_id,
                 causation_id=correlation_id,
@@ -506,16 +508,16 @@ class PortfolioRebalancingService:
                 portfolio_id="main_portfolio",
                 positions=[],
                 metrics=PortfolioMetricsDTO(
-                    total_value=Decimal('0'),
-                    cash_value=Decimal('0'),
-                    equity_value=Decimal('0'),
-                    buying_power=Decimal('0'),
-                    day_pnl=Decimal('0'),
-                    day_pnl_percent=Decimal('0'),
-                    total_pnl=Decimal('0'),
-                    total_pnl_percent=Decimal('0'),
+                    total_value=Decimal("0"),
+                    cash_value=Decimal("0"),
+                    equity_value=Decimal("0"),
+                    buying_power=Decimal("0"),
+                    day_pnl=Decimal("0"),
+                    day_pnl_percent=Decimal("0"),
+                    total_pnl=Decimal("0"),
+                    total_pnl_percent=Decimal("0"),
                 ),
-                metadata={'error': str(e)},
+                metadata={"error": str(e)},
             )
 
     def process_strategy_signals_dto(
@@ -524,36 +526,39 @@ class PortfolioRebalancingService:
         correlation_id: str | None = None,
     ) -> dict[str, Any]:
         """Process strategy signals and determine portfolio adjustments.
-        
+
         Args:
             signals: List of strategy signal DTOs
             correlation_id: Optional correlation ID for tracking
-            
+
         Returns:
             Dictionary with processing results and recommended actions
+
         """
         try:
             # Convert signals to target weights
             target_weights = {}
             signal_context = []
-            
+
             for signal in signals:
-                if signal.action in ['BUY', 'SELL'] and signal.allocation_weight is not None:
+                if signal.action in ["BUY", "SELL"] and signal.allocation_weight is not None:
                     # Use allocation weight if provided
                     weight = float(signal.allocation_weight)
-                    if signal.action == 'SELL':
+                    if signal.action == "SELL":
                         weight = 0  # Sell means reduce to zero
                     target_weights[signal.symbol] = Decimal(str(weight))
-                    
-                signal_context.append({
-                    'symbol': signal.symbol,
-                    'action': signal.action,
-                    'confidence': float(signal.confidence),
-                    'strategy': signal.strategy_name,
-                    'reasoning': signal.reasoning,
-                    'correlation_id': signal.correlation_id,
-                })
-            
+
+                signal_context.append(
+                    {
+                        "symbol": signal.symbol,
+                        "action": signal.action,
+                        "confidence": float(signal.confidence),
+                        "strategy": signal.strategy_name,
+                        "reasoning": signal.reasoning,
+                        "correlation_id": signal.correlation_id,
+                    }
+                )
+
             # Calculate rebalancing impact
             if target_weights:
                 impact = self.estimate_rebalancing_impact(target_weights)
@@ -562,25 +567,25 @@ class PortfolioRebalancingService:
                 # No actionable signals
                 impact = None
                 needs_rebalancing = False
-            
+
             return {
-                'correlation_id': correlation_id,
-                'signals_processed': len(signals),
-                'actionable_signals': len(target_weights),
-                'target_weights': {k: float(v) for k, v in target_weights.items()},
-                'needs_rebalancing': needs_rebalancing,
-                'estimated_impact': impact.model_dump() if impact else None,
-                'signal_context': signal_context,
-                'timestamp': signals[0].timestamp if signals else None,
+                "correlation_id": correlation_id,
+                "signals_processed": len(signals),
+                "actionable_signals": len(target_weights),
+                "target_weights": {k: float(v) for k, v in target_weights.items()},
+                "needs_rebalancing": needs_rebalancing,
+                "estimated_impact": impact.model_dump() if impact else None,
+                "signal_context": signal_context,
+                "timestamp": signals[0].timestamp if signals else None,
             }
-            
+
         except Exception as e:
             return {
-                'correlation_id': correlation_id,
-                'signals_processed': len(signals) if signals else 0,
-                'actionable_signals': 0,
-                'error': str(e),
-                'needs_rebalancing': False,
+                "correlation_id": correlation_id,
+                "signals_processed": len(signals) if signals else 0,
+                "actionable_signals": 0,
+                "error": str(e),
+                "needs_rebalancing": False,
             }
 
     def create_rebalance_plan_dto(
@@ -590,48 +595,57 @@ class PortfolioRebalancingService:
         causation_id: str | None = None,
     ) -> RebalancePlanDTO | None:
         """Create a rebalance plan DTO for execution module consumption.
-        
+
         Args:
             target_weights: Target allocation weights by symbol
             correlation_id: Optional correlation ID for tracking
             causation_id: Optional causation ID for traceability
-            
+
         Returns:
             RebalancePlanDTO or None if no rebalancing needed
+
         """
         try:
             # Calculate rebalancing plan using existing method
             plan_collection = self.calculate_rebalancing_plan(target_weights)
-            
+
             if not plan_collection.success or not plan_collection.plans:
                 return None
-            
+
             # Convert to RebalancePlanDTO
-            from datetime import datetime, UTC
             import uuid
+            from datetime import UTC, datetime
+
             from the_alchemiser.shared.dto.rebalance_plan_dto import RebalancePlanItemDTO
-            
+
             correlation_id = correlation_id or f"rebalance_{uuid.uuid4().hex[:12]}"
             causation_id = causation_id or correlation_id
             plan_id = f"plan_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}"
-            
+
             # Convert plans to DTO items
             items = []
             total_portfolio_value = self._get_portfolio_value()
-            total_trade_value = Decimal('0')
-            
+            total_trade_value = Decimal("0")
+
             for symbol, plan in plan_collection.plans.items():
-                if hasattr(plan, 'target_value') and hasattr(plan, 'current_value'):
+                if hasattr(plan, "target_value") and hasattr(plan, "current_value"):
                     trade_amount = plan.target_value - plan.current_value
-                    
+
                     if abs(trade_amount) > self.min_trade_threshold:
                         action = "BUY" if trade_amount > 0 else "SELL"
-                        
+
                         item = RebalancePlanItemDTO(
                             symbol=symbol,
-                            current_weight=plan.current_value / total_portfolio_value if total_portfolio_value > 0 else Decimal('0'),
-                            target_weight=plan.target_value / total_portfolio_value if total_portfolio_value > 0 else Decimal('0'),
-                            weight_diff=(plan.target_value - plan.current_value) / total_portfolio_value if total_portfolio_value > 0 else Decimal('0'),
+                            current_weight=plan.current_value / total_portfolio_value
+                            if total_portfolio_value > 0
+                            else Decimal("0"),
+                            target_weight=plan.target_value / total_portfolio_value
+                            if total_portfolio_value > 0
+                            else Decimal("0"),
+                            weight_diff=(plan.target_value - plan.current_value)
+                            / total_portfolio_value
+                            if total_portfolio_value > 0
+                            else Decimal("0"),
                             target_value=plan.target_value,
                             current_value=plan.current_value,
                             trade_amount=trade_amount,
@@ -640,10 +654,10 @@ class PortfolioRebalancingService:
                         )
                         items.append(item)
                         total_trade_value += abs(trade_amount)
-            
+
             if not items:
                 return None
-            
+
             return RebalancePlanDTO(
                 correlation_id=correlation_id,
                 causation_id=causation_id,
@@ -653,8 +667,8 @@ class PortfolioRebalancingService:
                 total_trade_value=total_trade_value,
                 items=items,
             )
-            
-        except Exception as e:
+
+        except Exception:
             # Log error but don't raise - return None to indicate no plan
             return None
 
@@ -664,17 +678,22 @@ class PortfolioRebalancingService:
         execution_config: dict[str, Any] | None = None,
     ) -> list[OrderRequestDTO]:
         """Convert rebalance plan to order requests for execution module.
-        
+
         Args:
             rebalance_plan: RebalancePlanDTO to convert
             execution_config: Optional execution configuration
-            
+
         Returns:
             List of OrderRequestDTO for execution
+
         """
         return rebalance_plan_to_order_requests(
             rebalance_plan=rebalance_plan,
             portfolio_id="main_portfolio",
-            execution_priority=execution_config.get("execution_priority", "BALANCE") if execution_config else "BALANCE",
-            time_in_force=execution_config.get("time_in_force", "DAY") if execution_config else "DAY",
+            execution_priority=execution_config.get("execution_priority", "BALANCE")
+            if execution_config
+            else "BALANCE",
+            time_in_force=execution_config.get("time_in_force", "DAY")
+            if execution_config
+            else "DAY",
         )

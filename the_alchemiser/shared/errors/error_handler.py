@@ -20,11 +20,6 @@ from datetime import UTC, datetime
 from functools import wraps
 from typing import Any
 
-# Order error classification system
-from the_alchemiser.shared.types.trading_errors import (
-    OrderError,
-    classify_exception,
-)
 from the_alchemiser.shared.logging.logging_utils import set_error_id
 
 # Enhanced error reporting and classification utilities.
@@ -33,9 +28,7 @@ from the_alchemiser.shared.schemas.errors import (
     ErrorNotificationData,
     ErrorReportSummary,
 )
-
-from .context import ErrorContextData
-from .exceptions import (
+from the_alchemiser.shared.types.exceptions import (
     AlchemiserError,
     ConfigurationError,
     DataProviderError,
@@ -47,6 +40,14 @@ from .exceptions import (
     StrategyExecutionError,
     TradingClientError,
 )
+
+# Order error classification system
+from the_alchemiser.shared.types.trading_errors import (
+    OrderError,
+    classify_exception,
+)
+
+from .context import ErrorContextData
 
 
 class ErrorSeverity:

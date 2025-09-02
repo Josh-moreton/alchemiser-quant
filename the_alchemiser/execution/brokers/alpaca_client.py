@@ -60,30 +60,29 @@ import time
 from typing import TYPE_CHECKING, Any, Protocol
 
 if TYPE_CHECKING:
+    from the_alchemiser.execution.orders.order_schemas import ValidatedOrderDTO
     from the_alchemiser.execution.strategies.smart_execution import (
         DataProvider as ExecDataProvider,
     )
-    from the_alchemiser.execution.orders.order_schemas import ValidatedOrderDTO
 
 from alpaca.trading.enums import OrderSide
 
+# (Legacy exceptions import removed)
+from the_alchemiser.execution.brokers.alpaca_manager import AlpacaManager
+from the_alchemiser.execution.core.execution_schemas import WebSocketResultDTO
+from the_alchemiser.execution.monitoring.websocket_order_monitor import (
+    OrderCompletionMonitor,
+)
+from the_alchemiser.execution.orders.asset_order_handler import AssetOrderHandler
 from the_alchemiser.execution.pricing.smart_pricing_handler import (
     SmartPricingHandler,
 )
-from the_alchemiser.execution.orders.asset_order_handler import AssetOrderHandler
 
 # DEPRECATED: LimitOrderHandler import removed - use CanonicalOrderExecutor instead
 # (Legacy order validation utilities removed with legacy paths)
 from the_alchemiser.execution.websocket.connection_manager import (
     WebSocketConnectionManager,
 )
-from the_alchemiser.execution.monitoring.websocket_order_monitor import (
-    OrderCompletionMonitor,
-)
-from the_alchemiser.execution.core.execution_schemas import WebSocketResultDTO
-
-# (Legacy exceptions import removed)
-from the_alchemiser.execution.brokers.alpaca_manager import AlpacaManager
 from the_alchemiser.portfolio.positions.legacy_position_manager import PositionManager
 
 logger = logging.getLogger(__name__)
@@ -234,12 +233,12 @@ class AlpacaClient:
             OrderRequest,
         )
         from the_alchemiser.execution.orders.order_type import OrderType
-        from the_alchemiser.shared.types.quantity import Quantity
         from the_alchemiser.execution.orders.side import Side
-        from the_alchemiser.shared.value_objects.symbol import Symbol
+        from the_alchemiser.shared.types.quantity import Quantity
         from the_alchemiser.shared.types.time_in_force import (
             TimeInForce,
         )
+        from the_alchemiser.shared.value_objects.symbol import Symbol
 
         try:
             order_request = OrderRequest(

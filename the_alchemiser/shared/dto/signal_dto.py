@@ -32,7 +32,9 @@ class StrategySignalDTO(BaseModel):
 
     # Required correlation fields
     correlation_id: str = Field(..., min_length=1, description="Unique correlation identifier")
-    causation_id: str = Field(..., min_length=1, description="Causation identifier for traceability")
+    causation_id: str = Field(
+        ..., min_length=1, description="Causation identifier for traceability"
+    )
     timestamp: datetime = Field(..., description="Signal generation timestamp")
 
     # Signal fields
@@ -40,20 +42,20 @@ class StrategySignalDTO(BaseModel):
     action: str = Field(..., description="Trading action (BUY, SELL, HOLD)")
     confidence: Decimal = Field(..., ge=0, le=1, description="Signal confidence (0-1)")
     reasoning: str = Field(..., min_length=1, description="Human-readable signal reasoning")
-    
+
     # Optional strategy context
-    strategy_name: str | None = Field(default=None, description="Strategy that generated the signal")
+    strategy_name: str | None = Field(
+        default=None, description="Strategy that generated the signal"
+    )
     allocation_weight: Decimal | None = Field(
         default=None, ge=0, le=1, description="Recommended allocation weight (0-1)"
     )
-    
+
     # Optional signal metadata
     signal_strength: Decimal | None = Field(
         default=None, ge=0, description="Raw signal strength value"
     )
-    metadata: dict[str, Any] | None = Field(
-        default=None, description="Additional signal metadata"
-    )
+    metadata: dict[str, Any] | None = Field(default=None, description="Additional signal metadata")
 
     @field_validator("symbol")
     @classmethod
@@ -81,34 +83,34 @@ class StrategySignalDTO(BaseModel):
 
     def to_dict(self) -> dict[str, Any]:
         """Convert DTO to dictionary for serialization.
-        
+
         Returns:
             Dictionary representation of the DTO with properly serialized values.
 
         """
         data = self.model_dump()
-        
+
         # Convert datetime to ISO string
         if self.timestamp:
             data["timestamp"] = self.timestamp.isoformat()
-            
+
         # Convert Decimal fields to string for JSON serialization
         for field_name in ["confidence", "allocation_weight", "signal_strength"]:
             if data.get(field_name) is not None:
                 data[field_name] = str(data[field_name])
-                
+
         return data
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> StrategySignalDTO:
         """Create DTO from dictionary.
-        
+
         Args:
             data: Dictionary containing DTO data
-            
+
         Returns:
             StrategySignalDTO instance
-            
+
         Raises:
             ValueError: If data is invalid or missing required fields
 
@@ -123,13 +125,17 @@ class StrategySignalDTO(BaseModel):
                 data["timestamp"] = datetime.fromisoformat(timestamp_str)
             except ValueError as e:
                 raise ValueError(f"Invalid timestamp format: {data['timestamp']}") from e
-                
+
         # Convert string decimal fields back to Decimal
         for field_name in ["confidence", "allocation_weight", "signal_strength"]:
-            if field_name in data and data[field_name] is not None and isinstance(data[field_name], str):
+            if (
+                field_name in data
+                and data[field_name] is not None
+                and isinstance(data[field_name], str)
+            ):
                 try:
                     data[field_name] = Decimal(data[field_name])
                 except (ValueError, TypeError) as e:
                     raise ValueError(f"Invalid {field_name} value: {data[field_name]}") from e
-                        
+
         return cls(**data)

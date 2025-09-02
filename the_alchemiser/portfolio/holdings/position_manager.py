@@ -16,11 +16,11 @@ from the_alchemiser.shared.logging.logging_utils import (
     get_logger,
     log_error_with_context,
 )
+from the_alchemiser.shared.math.num import floats_equal
 from the_alchemiser.shared.types.exceptions import (
     DataProviderError,
     TradingClientError,
 )
-from the_alchemiser.shared.math.num import floats_equal
 
 
 class PositionManager:

@@ -17,10 +17,10 @@ from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict
 
-from the_alchemiser.strategy.registry.strategy_registry import StrategyType
-from the_alchemiser.shared.value_objects.core_types import AccountInfo, OrderDetails, StrategySignal
 from the_alchemiser.shared.dto.execution_report_dto import ExecutionReportDTO
 from the_alchemiser.shared.dto.portfolio_state_dto import PortfolioStateDTO
+from the_alchemiser.shared.types.strategy_type import StrategyType
+from the_alchemiser.shared.value_objects.core_types import AccountInfo, OrderDetails, StrategySignal
 
 
 class MultiStrategyExecutionResultDTO(BaseModel):

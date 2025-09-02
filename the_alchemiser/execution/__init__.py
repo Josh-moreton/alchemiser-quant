@@ -2,7 +2,7 @@
 
 Broker API integrations and order placement.
 
-This module contains order routing, broker connectors, execution strategies, 
+This module contains order routing, broker connectors, execution strategies,
 and order lifecycle management.
 """
 

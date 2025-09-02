@@ -10,19 +10,19 @@ from __future__ import annotations
 
 from typing import Any
 
-from the_alchemiser.strategy.registry.strategy_registry import StrategyType
-from the_alchemiser.strategy.engines.archived.backup.models.strategy_position_model import (
-    StrategyPositionModel,
-)
-from the_alchemiser.strategy.engines.archived.backup.models.strategy_signal_model import (
-    StrategySignalModel,
-)
 from the_alchemiser.shared.value_objects.core_types import (
     StrategyPositionData as StrategyPositionDTO,
 )
 from the_alchemiser.shared.value_objects.core_types import (
     StrategySignal as StrategySignalDTO,
 )
+from the_alchemiser.strategy.engines.archived.backup.models.strategy_position_model import (
+    StrategyPositionModel,
+)
+from the_alchemiser.strategy.engines.archived.backup.models.strategy_signal_model import (
+    StrategySignalModel,
+)
+from the_alchemiser.strategy.registry.strategy_registry import StrategyType
 
 
 def dto_to_strategy_signal_model(dto: StrategySignalDTO) -> StrategySignalModel:

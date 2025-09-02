@@ -17,13 +17,13 @@ from alpaca.trading.enums import OrderSide
 from the_alchemiser.execution.core.canonical_executor import (
     CanonicalOrderExecutor,
 )
-from the_alchemiser.shared.types.money import Money
 from the_alchemiser.execution.orders.order_request import OrderRequest
 from the_alchemiser.execution.orders.order_type import OrderType
-from the_alchemiser.shared.types.quantity import Quantity
 from the_alchemiser.execution.orders.side import Side
-from the_alchemiser.shared.value_objects.symbol import Symbol
+from the_alchemiser.shared.types.money import Money
+from the_alchemiser.shared.types.quantity import Quantity
 from the_alchemiser.shared.types.time_in_force import TimeInForce
+from the_alchemiser.shared.value_objects.symbol import Symbol
 
 if TYPE_CHECKING:
     from the_alchemiser.execution.strategies.smart_execution import OrderExecutor

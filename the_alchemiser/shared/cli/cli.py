@@ -24,32 +24,33 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.table import Table
 from rich.text import Text
 
-from the_alchemiser.strategy.engines.core.trading_engine import TradingEngine
-from the_alchemiser.strategy.dsl.errors import DSLError
-from the_alchemiser.strategy.dsl.parser import DSLParser
-from the_alchemiser.strategy.dsl.strategy_loader import StrategyLoader
-
-# Import domain models for type annotations
-from the_alchemiser.shared.types.bar import BarModel
-from the_alchemiser.shared.types.quote import QuoteModel
-from the_alchemiser.shared.types.market_data_port import MarketDataPort
-from the_alchemiser.shared.types.symbol_legacy import Symbol
+from the_alchemiser.shared.cli.cli_formatter import render_account_info
+from the_alchemiser.shared.config.secrets_manager import secrets_manager
+from the_alchemiser.shared.errors.error_handler import TradingSystemErrorHandler
 from the_alchemiser.shared.logging.logging_utils import (
     get_logger,
     log_error_with_context,
 )
-from the_alchemiser.shared.config.secrets_manager import secrets_manager
-from the_alchemiser.shared.cli.cli_formatter import render_account_info
+
+# Delayed imports to avoid circular dependency issues during module loading
+# from the_alchemiser.strategy.engines.core.trading_engine import TradingEngine
+# from the_alchemiser.strategy.dsl.errors import DSLError
+# from the_alchemiser.strategy.dsl.parser import DSLParser
+# from the_alchemiser.strategy.dsl.strategy_loader import StrategyLoader
+# Import domain models for type annotations
+from the_alchemiser.shared.types.bar import BarModel
 from the_alchemiser.shared.types.exceptions import (
     AlchemiserError,
     StrategyExecutionError,
     TradingClientError,
 )
-from the_alchemiser.shared.errors.error_handler import TradingSystemErrorHandler
-from the_alchemiser.strategy.data.market_data_service import MarketDataService
-from the_alchemiser.execution.services.trading_service_manager import (
-    TradingServiceManager,
-)
+from the_alchemiser.shared.types.market_data_port import MarketDataPort
+from the_alchemiser.shared.types.quote import QuoteModel
+from the_alchemiser.shared.types.symbol_legacy import Symbol
+
+# Delayed import to avoid complex dependency chains during module loading
+# from the_alchemiser.strategy.data.market_data_service import MarketDataService
+# from the_alchemiser.execution.services.trading_service_manager import TradingServiceManager
 
 # Constants to avoid duplication
 STYLE_BOLD_CYAN = "bold cyan"
@@ -614,6 +615,8 @@ def status(
         )
 
         bootstrap_context = bootstrap_from_container(container)
+        from the_alchemiser.strategy.engines.core.trading_engine import TradingEngine
+
         trader = TradingEngine(
             bootstrap_context=bootstrap_context,
             strategy_allocations={},  # Not needed for status display

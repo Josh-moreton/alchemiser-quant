@@ -16,11 +16,11 @@ without any display logic, supporting the separation of business logic from pres
 
 from typing import Any
 
-from the_alchemiser.shared.value_objects.core_types import AccountInfo
 from the_alchemiser.shared.utils.account_utils import (
     calculate_position_target_deltas,
     extract_current_position_values,
 )
+from the_alchemiser.shared.value_objects.core_types import AccountInfo
 
 
 def calculate_target_vs_current_allocations(

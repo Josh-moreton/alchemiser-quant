@@ -10,12 +10,13 @@ from typing import Any
 
 from alpaca.trading.enums import OrderSide
 
-from the_alchemiser.execution.strategies.smart_execution import SmartExecution
 from the_alchemiser.execution.brokers.alpaca_client import AlpacaClient
-from .rebalance_plan import RebalancePlan
+from the_alchemiser.execution.services.trading_service_manager import TradingServiceManager
+from the_alchemiser.execution.strategies.smart_execution import SmartExecution
 from the_alchemiser.shared.services.errors import TradingSystemErrorHandler
 from the_alchemiser.shared.types.exceptions import StrategyExecutionError
-from the_alchemiser.execution.services.trading_service_manager import TradingServiceManager
+
+from .rebalance_plan import RebalancePlan
 
 
 class RebalanceExecutionService:

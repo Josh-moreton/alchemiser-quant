@@ -33,7 +33,7 @@ class PositionDTO(BaseModel):
     market_value: Decimal = Field(..., description="Current market value")
     unrealized_pnl: Decimal = Field(..., description="Unrealized profit/loss")
     unrealized_pnl_percent: Decimal = Field(..., description="Unrealized P&L percentage")
-    
+
     # Optional position metadata
     last_updated: datetime | None = Field(default=None, description="Last update timestamp")
     side: str | None = Field(default=None, description="Position side (long/short)")
@@ -69,13 +69,13 @@ class PortfolioMetricsDTO(BaseModel):
     cash_value: Decimal = Field(..., ge=0, description="Cash value")
     equity_value: Decimal = Field(..., ge=0, description="Equity value")
     buying_power: Decimal = Field(..., ge=0, description="Available buying power")
-    
+
     # P&L metrics
     day_pnl: Decimal = Field(..., description="Day profit/loss")
     day_pnl_percent: Decimal = Field(..., description="Day P&L percentage")
     total_pnl: Decimal = Field(..., description="Total profit/loss")
     total_pnl_percent: Decimal = Field(..., description="Total P&L percentage")
-    
+
     # Risk metrics
     portfolio_margin: Decimal | None = Field(default=None, ge=0, description="Portfolio margin")
     maintenance_margin: Decimal | None = Field(default=None, ge=0, description="Maintenance margin")
@@ -97,24 +97,26 @@ class PortfolioStateDTO(BaseModel):
 
     # Required correlation fields
     correlation_id: str = Field(..., min_length=1, description="Unique correlation identifier")
-    causation_id: str = Field(..., min_length=1, description="Causation identifier for traceability")
+    causation_id: str = Field(
+        ..., min_length=1, description="Causation identifier for traceability"
+    )
     timestamp: datetime = Field(..., description="State snapshot timestamp")
 
     # Portfolio identification
     portfolio_id: str = Field(..., min_length=1, description="Portfolio identifier")
     account_id: str | None = Field(default=None, description="Associated account ID")
-    
+
     # Portfolio state
     positions: list[PositionDTO] = Field(
         default_factory=list, description="List of portfolio positions"
     )
     metrics: PortfolioMetricsDTO = Field(..., description="Portfolio metrics")
-    
+
     # Strategy allocation
     strategy_allocations: dict[str, Decimal] = Field(
         default_factory=dict, description="Strategy allocation weights"
     )
-    
+
     # Portfolio constraints and settings
     cash_target: Decimal | None = Field(default=None, ge=0, description="Target cash percentage")
     max_position_size: Decimal | None = Field(
@@ -123,7 +125,7 @@ class PortfolioStateDTO(BaseModel):
     rebalance_threshold: Decimal | None = Field(
         default=None, ge=0, description="Rebalancing threshold"
     )
-    
+
     # Optional metadata
     last_rebalance_time: datetime | None = Field(
         default=None, description="Last rebalancing timestamp"
@@ -148,37 +150,38 @@ class PortfolioStateDTO(BaseModel):
         """Validate allocation weights are non-negative."""
         for strategy, weight in v.items():
             if weight < 0:
-                raise ValueError(f"Allocation weight for {strategy} must be non-negative, got {weight}")
+                raise ValueError(
+                    f"Allocation weight for {strategy} must be non-negative, got {weight}"
+                )
         return v
 
     def to_dict(self) -> dict[str, Any]:
         """Convert DTO to dictionary for serialization.
-        
+
         Returns:
             Dictionary representation of the DTO with properly serialized values.
+
         """
         data = self.model_dump()
-        
+
         # Convert datetime fields to ISO strings
         datetime_fields = ["timestamp", "last_rebalance_time"]
         for field_name in datetime_fields:
             if data.get(field_name):
                 data[field_name] = data[field_name].isoformat()
-            
+
         # Convert Decimal fields to string for JSON serialization
-        decimal_fields = [
-            "cash_target", "max_position_size", "rebalance_threshold"
-        ]
+        decimal_fields = ["cash_target", "max_position_size", "rebalance_threshold"]
         for field_name in decimal_fields:
             if data.get(field_name) is not None:
                 data[field_name] = str(data[field_name])
-        
+
         # Convert strategy allocations
         if "strategy_allocations" in data:
             data["strategy_allocations"] = {
                 k: str(v) for k, v in data["strategy_allocations"].items()
             }
-        
+
         # Convert nested positions
         if "positions" in data:
             positions_data = []
@@ -189,42 +192,55 @@ class PortfolioStateDTO(BaseModel):
                     position_dict["last_updated"] = position_dict["last_updated"].isoformat()
                 # Convert Decimal fields in position
                 position_decimal_fields = [
-                    "quantity", "average_cost", "current_price", "market_value",
-                    "unrealized_pnl", "unrealized_pnl_percent", "cost_basis"
+                    "quantity",
+                    "average_cost",
+                    "current_price",
+                    "market_value",
+                    "unrealized_pnl",
+                    "unrealized_pnl_percent",
+                    "cost_basis",
                 ]
                 for field_name in position_decimal_fields:
                     if position_dict.get(field_name) is not None:
                         position_dict[field_name] = str(position_dict[field_name])
                 positions_data.append(position_dict)
             data["positions"] = positions_data
-        
+
         # Convert metrics
         if "metrics" in data:
             metrics_dict = dict(data["metrics"])
             metrics_decimal_fields = [
-                "total_value", "cash_value", "equity_value", "buying_power",
-                "day_pnl", "day_pnl_percent", "total_pnl", "total_pnl_percent",
-                "portfolio_margin", "maintenance_margin"
+                "total_value",
+                "cash_value",
+                "equity_value",
+                "buying_power",
+                "day_pnl",
+                "day_pnl_percent",
+                "total_pnl",
+                "total_pnl_percent",
+                "portfolio_margin",
+                "maintenance_margin",
             ]
             for field_name in metrics_decimal_fields:
                 if metrics_dict.get(field_name) is not None:
                     metrics_dict[field_name] = str(metrics_dict[field_name])
             data["metrics"] = metrics_dict
-                
+
         return data
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> PortfolioStateDTO:
         """Create DTO from dictionary.
-        
+
         Args:
             data: Dictionary containing DTO data
-            
+
         Returns:
             PortfolioStateDTO instance
-            
+
         Raises:
             ValueError: If data is invalid or missing required fields
+
         """
         # Convert string timestamps back to datetime
         datetime_fields = ["timestamp", "last_rebalance_time"]
@@ -237,16 +253,20 @@ class PortfolioStateDTO(BaseModel):
                     data[field_name] = datetime.fromisoformat(timestamp_str)
                 except ValueError as e:
                     raise ValueError(f"Invalid {field_name} format: {data[field_name]}") from e
-                
+
         # Convert string decimal fields back to Decimal
         decimal_fields = ["cash_target", "max_position_size", "rebalance_threshold"]
         for field_name in decimal_fields:
-            if field_name in data and data[field_name] is not None and isinstance(data[field_name], str):
+            if (
+                field_name in data
+                and data[field_name] is not None
+                and isinstance(data[field_name], str)
+            ):
                 try:
                     data[field_name] = Decimal(data[field_name])
                 except (ValueError, TypeError) as e:
                     raise ValueError(f"Invalid {field_name} value: {data[field_name]}") from e
-        
+
         # Convert strategy allocations
         if "strategy_allocations" in data and isinstance(data["strategy_allocations"], dict):
             allocations = {}
@@ -255,18 +275,22 @@ class PortfolioStateDTO(BaseModel):
                     try:
                         allocations[strategy] = Decimal(weight)
                     except (ValueError, TypeError) as e:
-                        raise ValueError(f"Invalid allocation weight for {strategy}: {weight}") from e
+                        raise ValueError(
+                            f"Invalid allocation weight for {strategy}: {weight}"
+                        ) from e
                 else:
                     allocations[strategy] = weight
             data["strategy_allocations"] = allocations
-        
+
         # Convert positions if present
         if "positions" in data and isinstance(data["positions"], list):
             positions_data = []
             for position_data in data["positions"]:
                 if isinstance(position_data, dict):
                     # Convert last_updated timestamp in position
-                    if "last_updated" in position_data and isinstance(position_data["last_updated"], str):
+                    if "last_updated" in position_data and isinstance(
+                        position_data["last_updated"], str
+                    ):
                         try:
                             timestamp_str = position_data["last_updated"]
                             if timestamp_str.endswith("Z"):
@@ -276,14 +300,23 @@ class PortfolioStateDTO(BaseModel):
                             raise ValueError(
                                 f"Invalid last_updated format in position: {position_data['last_updated']}"
                             ) from e
-                    
+
                     # Convert Decimal fields in position
                     position_decimal_fields = [
-                        "quantity", "average_cost", "current_price", "market_value",
-                        "unrealized_pnl", "unrealized_pnl_percent", "cost_basis"
+                        "quantity",
+                        "average_cost",
+                        "current_price",
+                        "market_value",
+                        "unrealized_pnl",
+                        "unrealized_pnl_percent",
+                        "cost_basis",
                     ]
                     for field_name in position_decimal_fields:
-                        if field_name in position_data and position_data[field_name] is not None and isinstance(position_data[field_name], str):
+                        if (
+                            field_name in position_data
+                            and position_data[field_name] is not None
+                            and isinstance(position_data[field_name], str)
+                        ):
                             try:
                                 position_data[field_name] = Decimal(position_data[field_name])
                             except (ValueError, TypeError) as e:
@@ -294,17 +327,28 @@ class PortfolioStateDTO(BaseModel):
                 else:
                     positions_data.append(position_data)  # Assume already a DTO
             data["positions"] = positions_data
-        
+
         # Convert metrics if present
         if "metrics" in data and isinstance(data["metrics"], dict):
             metrics_data = data["metrics"]
             metrics_decimal_fields = [
-                "total_value", "cash_value", "equity_value", "buying_power",
-                "day_pnl", "day_pnl_percent", "total_pnl", "total_pnl_percent",
-                "portfolio_margin", "maintenance_margin"
+                "total_value",
+                "cash_value",
+                "equity_value",
+                "buying_power",
+                "day_pnl",
+                "day_pnl_percent",
+                "total_pnl",
+                "total_pnl_percent",
+                "portfolio_margin",
+                "maintenance_margin",
             ]
             for field_name in metrics_decimal_fields:
-                if field_name in metrics_data and metrics_data[field_name] is not None and isinstance(metrics_data[field_name], str):
+                if (
+                    field_name in metrics_data
+                    and metrics_data[field_name] is not None
+                    and isinstance(metrics_data[field_name], str)
+                ):
                     try:
                         metrics_data[field_name] = Decimal(metrics_data[field_name])
                     except (ValueError, TypeError) as e:
@@ -312,5 +356,5 @@ class PortfolioStateDTO(BaseModel):
                             f"Invalid {field_name} value in metrics: {metrics_data[field_name]}"
                         ) from e
             data["metrics"] = PortfolioMetricsDTO(**metrics_data)
-                        
+
         return cls(**data)

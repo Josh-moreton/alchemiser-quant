@@ -3,7 +3,6 @@
 Market Data Mappers - migrated from legacy location.
 """
 
-
 from __future__ import annotations
 
 from collections.abc import Iterable

@@ -16,9 +16,9 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from the_alchemiser.shared.value_objects.core_types import AccountInfo, OrderDetails
 from the_alchemiser.shared.dto.execution_report_dto import ExecutionReportDTO
 from the_alchemiser.shared.dto.portfolio_state_dto import PortfolioStateDTO
+from the_alchemiser.shared.value_objects.core_types import AccountInfo, OrderDetails
 
 
 class TradingAction(str, Enum):

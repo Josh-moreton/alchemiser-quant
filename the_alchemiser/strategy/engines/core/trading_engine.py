@@ -34,55 +34,55 @@ if TYPE_CHECKING:  # Import for type checking only to avoid runtime dependency
 
 from alpaca.trading.enums import OrderSide
 
-from the_alchemiser.execution.strategies.smart_execution import SmartExecution
-from the_alchemiser.execution.mappers.execution_summary_mapping import (
+from the_alchemiser.execution.brokers.account_service import (
+    AccountService as TypedAccountService,
+)
+from the_alchemiser.execution.brokers.alpaca_client import AlpacaClient
+from the_alchemiser.execution.brokers.alpaca_manager import AlpacaManager
+from the_alchemiser.execution.core.account_facade import AccountFacade
+from the_alchemiser.execution.core.execution_schemas import ExecutionResultDTO
+from the_alchemiser.execution.mappers.execution import (
     safe_dict_to_execution_summary_dto,
     safe_dict_to_portfolio_state_dto,
 )
-from the_alchemiser.strategy.schemas.strategies import (
-    StrategySignalDisplayDTO,
-    run_all_strategies_mapping,
-)
+from the_alchemiser.execution.strategies.smart_execution import SmartExecution
 from the_alchemiser.portfolio.core.portfolio_management_facade import (
     PortfolioManagementFacade,
 )
-from the_alchemiser.execution.core.account_facade import AccountFacade
-from the_alchemiser.execution.brokers.alpaca_client import AlpacaClient
 from the_alchemiser.shared.config.bootstrap import (
     TradingBootstrapContext,
     bootstrap_from_container,
     bootstrap_from_service_manager,
     bootstrap_traditional,
 )
-
-# Import application-layer ports for dependency injection
-from the_alchemiser.strategy.registry.strategy_registry import StrategyType
-from the_alchemiser.strategy.engines.typed_strategy_manager import TypedStrategyManager
-from the_alchemiser.shared.value_objects.core_types import (
-    AccountInfo,
-    EnrichedAccountInfo,
-    OrderDetails,
-    PositionsDict,
-)
 from the_alchemiser.shared.config.config import Settings
+from the_alchemiser.shared.errors.error_handler import TradingSystemErrorHandler
 from the_alchemiser.shared.logging.logging_utils import (
     get_logger,
     log_with_context,
 )
 from the_alchemiser.shared.schemas.common import MultiStrategyExecutionResultDTO
-from the_alchemiser.execution.core.execution_schemas import ExecutionResultDTO
-from the_alchemiser.execution.brokers.account_service import (
-    AccountService as TypedAccountService,
-)
-from the_alchemiser.shared.utils.context import create_error_context
 from the_alchemiser.shared.types.exceptions import (
     ConfigurationError,
     DataProviderError,
     StrategyExecutionError,
     TradingClientError,
 )
-from the_alchemiser.shared.errors.error_handler import TradingSystemErrorHandler
-from the_alchemiser.execution.brokers.alpaca_manager import AlpacaManager
+from the_alchemiser.shared.utils.context import create_error_context
+from the_alchemiser.shared.value_objects.core_types import (
+    AccountInfo,
+    EnrichedAccountInfo,
+    OrderDetails,
+    PositionsDict,
+)
+from the_alchemiser.strategy.engines.typed_strategy_manager import TypedStrategyManager
+
+# Import application-layer ports for dependency injection
+from the_alchemiser.strategy.registry.strategy_registry import StrategyType
+from the_alchemiser.strategy.schemas.strategies import (
+    StrategySignalDisplayDTO,
+    run_all_strategies_mapping,
+)
 
 from ..execution.execution_manager import ExecutionManager
 from ..reporting.reporting import build_portfolio_state_data
@@ -410,11 +410,11 @@ class TradingEngine:
                         for st in self._typed.strategy_allocations
                     }
                 except Exception as e:
-                    from the_alchemiser.shared.utils.context import (
-                        create_error_context,
-                    )
                     from the_alchemiser.shared.errors.error_handler import (
                         TradingSystemErrorHandler,
+                    )
+                    from the_alchemiser.shared.utils.context import (
+                        create_error_context,
                     )
 
                     error_handler = TradingSystemErrorHandler()
@@ -1039,10 +1039,10 @@ def main() -> None:
     # Modern DI initialization (no legacy fallback). Any failure should surface immediately.
     # These imports are kept at function level to avoid circular imports at module load time
     # since main.py indirectly imports this module through CLI components
+    from the_alchemiser.main import TradingSystem
     from the_alchemiser.shared.config.container import (
         ApplicationContainer,
     )
-    from the_alchemiser.main import TradingSystem
 
     TradingSystem()  # Initialize DI system side-effects
     container = ApplicationContainer()

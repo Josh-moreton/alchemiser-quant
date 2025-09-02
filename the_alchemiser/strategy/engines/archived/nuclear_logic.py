@@ -5,6 +5,7 @@ This module provides backward compatibility. Use:
 """
 
 import warnings
+
 from the_alchemiser.strategy.engines.nuclear_logic import *
 
 warnings.warn(

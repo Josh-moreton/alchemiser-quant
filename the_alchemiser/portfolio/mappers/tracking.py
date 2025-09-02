@@ -3,7 +3,6 @@
 Tracking - migrated from legacy location.
 """
 
-
 from __future__ import annotations
 
 from decimal import Decimal

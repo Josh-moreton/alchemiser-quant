@@ -71,24 +71,26 @@ class RebalancePlanDTO(BaseModel):
 
     # Required correlation fields
     correlation_id: str = Field(..., min_length=1, description="Unique correlation identifier")
-    causation_id: str = Field(..., min_length=1, description="Causation identifier for traceability")
+    causation_id: str = Field(
+        ..., min_length=1, description="Causation identifier for traceability"
+    )
     timestamp: datetime = Field(..., description="Plan generation timestamp")
 
     # Plan identification
     plan_id: str = Field(..., min_length=1, description="Unique plan identifier")
-    
+
     # Plan content
     items: list[RebalancePlanItemDTO] = Field(
         ..., min_length=1, description="List of rebalance plan items"
     )
-    
+
     # Plan metadata
     total_portfolio_value: Decimal = Field(..., ge=0, description="Total portfolio value")
     total_trade_value: Decimal = Field(..., description="Total absolute trade value")
     max_drift_tolerance: Decimal = Field(
         default=Decimal("0.05"), ge=0, le=1, description="Maximum drift tolerance (0-1)"
     )
-    
+
     # Optional execution hints
     execution_urgency: str = Field(
         default="NORMAL", description="Execution urgency (LOW, NORMAL, HIGH, URGENT)"
@@ -96,11 +98,9 @@ class RebalancePlanDTO(BaseModel):
     estimated_duration_minutes: int | None = Field(
         default=None, ge=1, description="Estimated execution duration in minutes"
     )
-    
+
     # Optional metadata
-    metadata: dict[str, Any] | None = Field(
-        default=None, description="Additional plan metadata"
-    )
+    metadata: dict[str, Any] | None = Field(default=None, description="Additional plan metadata")
 
     @field_validator("execution_urgency")
     @classmethod
@@ -122,25 +122,23 @@ class RebalancePlanDTO(BaseModel):
 
     def to_dict(self) -> dict[str, Any]:
         """Convert DTO to dictionary for serialization.
-        
+
         Returns:
             Dictionary representation of the DTO with properly serialized values.
 
         """
         data = self.model_dump()
-        
+
         # Convert datetime to ISO string
         if self.timestamp:
             data["timestamp"] = self.timestamp.isoformat()
-            
+
         # Convert Decimal fields to string for JSON serialization
-        decimal_fields = [
-            "total_portfolio_value", "total_trade_value", "max_drift_tolerance"
-        ]
+        decimal_fields = ["total_portfolio_value", "total_trade_value", "max_drift_tolerance"]
         for field_name in decimal_fields:
             if data.get(field_name) is not None:
                 data[field_name] = str(data[field_name])
-        
+
         # Convert nested items
         if "items" in data:
             items_data = []
@@ -148,27 +146,31 @@ class RebalancePlanDTO(BaseModel):
                 item_dict = dict(item)
                 # Convert Decimal fields in items
                 item_decimal_fields = [
-                    "current_weight", "target_weight", "weight_diff",
-                    "target_value", "current_value", "trade_amount"
+                    "current_weight",
+                    "target_weight",
+                    "weight_diff",
+                    "target_value",
+                    "current_value",
+                    "trade_amount",
                 ]
                 for field_name in item_decimal_fields:
                     if item_dict.get(field_name) is not None:
                         item_dict[field_name] = str(item_dict[field_name])
                 items_data.append(item_dict)
             data["items"] = items_data
-                
+
         return data
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> RebalancePlanDTO:
         """Create DTO from dictionary.
-        
+
         Args:
             data: Dictionary containing DTO data
-            
+
         Returns:
             RebalancePlanDTO instance
-            
+
         Raises:
             ValueError: If data is invalid or missing required fields
 
@@ -182,18 +184,20 @@ class RebalancePlanDTO(BaseModel):
                 data["timestamp"] = datetime.fromisoformat(timestamp_str)
             except ValueError as e:
                 raise ValueError(f"Invalid timestamp format: {data['timestamp']}") from e
-                
+
         # Convert string decimal fields back to Decimal
-        decimal_fields = [
-            "total_portfolio_value", "total_trade_value", "max_drift_tolerance"
-        ]
+        decimal_fields = ["total_portfolio_value", "total_trade_value", "max_drift_tolerance"]
         for field_name in decimal_fields:
-            if field_name in data and data[field_name] is not None and isinstance(data[field_name], str):
+            if (
+                field_name in data
+                and data[field_name] is not None
+                and isinstance(data[field_name], str)
+            ):
                 try:
                     data[field_name] = Decimal(data[field_name])
                 except (ValueError, TypeError) as e:
                     raise ValueError(f"Invalid {field_name} value: {data[field_name]}") from e
-        
+
         # Convert items if present
         if "items" in data and isinstance(data["items"], list):
             items_data = []
@@ -201,11 +205,19 @@ class RebalancePlanDTO(BaseModel):
                 if isinstance(item_data, dict):
                     # Convert Decimal fields in items
                     item_decimal_fields = [
-                        "current_weight", "target_weight", "weight_diff",
-                        "target_value", "current_value", "trade_amount"
+                        "current_weight",
+                        "target_weight",
+                        "weight_diff",
+                        "target_value",
+                        "current_value",
+                        "trade_amount",
                     ]
                     for field_name in item_decimal_fields:
-                        if field_name in item_data and item_data[field_name] is not None and isinstance(item_data[field_name], str):
+                        if (
+                            field_name in item_data
+                            and item_data[field_name] is not None
+                            and isinstance(item_data[field_name], str)
+                        ):
                             try:
                                 item_data[field_name] = Decimal(item_data[field_name])
                             except (ValueError, TypeError) as e:
@@ -216,5 +228,5 @@ class RebalancePlanDTO(BaseModel):
                 else:
                     items_data.append(item_data)  # Assume already a DTO
             data["items"] = items_data
-                        
+
         return cls(**data)

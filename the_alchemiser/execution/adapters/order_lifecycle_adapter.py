@@ -3,18 +3,17 @@
 Order Lifecycle Adapter - migrated from legacy location.
 """
 
-
 from __future__ import annotations
 
 from typing import Any, Protocol
 
-from the_alchemiser.execution.protocols.order_lifecycle import (
-    OrderLifecycleMonitor,
-)
+from the_alchemiser.execution.core.execution_schemas import WebSocketResultDTO
 from the_alchemiser.execution.monitoring.websocket_order_monitor import (
     OrderCompletionMonitor,
 )
-from the_alchemiser.execution.core.execution_schemas import WebSocketResultDTO
+from the_alchemiser.execution.protocols.order_lifecycle import (
+    OrderLifecycleMonitor,
+)
 
 
 class TradingClientProtocol(Protocol):  # pragma: no cover - structural typing
