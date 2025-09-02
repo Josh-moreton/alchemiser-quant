@@ -60,7 +60,7 @@ import time
 from typing import TYPE_CHECKING, Any, Protocol
 
 if TYPE_CHECKING:
-    from the_alchemiser.application.execution.smart_execution import (
+    from the_alchemiser.execution.strategies.smart_execution import (
         DataProvider as ExecDataProvider,
     )
     from the_alchemiser.interfaces.schemas.orders import ValidatedOrderDTO

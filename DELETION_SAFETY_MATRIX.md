@@ -25,18 +25,38 @@ This matrix provides a quick reference for the safety level of deleting each cat
 - `scripts/delete_legacy_safe.py` - Executed with --batch-size 20 --verify
 - System health monitoring - Continuous verification during deletion
 
-### 🟡 **CAUTION - Migration Required (68 files)**
+### ✅ **COMPLETED - Import Migration (2 core files migrated)**
+
+| Category | Count | Risk Level | Status | Verification |
+|----------|-------|------------|--------|--------------|
+| Core execution components | 2 | HIGH | ✅ MIGRATED | Files moved to execution module |
+| Import updates | 6 | MEDIUM | ✅ COMPLETED | All imports updated |
+
+**Completion Summary:**
+- [x] `engine_service.py` moved to `execution/core/trading_engine.py`
+- [x] `smart_execution.py` moved to `execution/strategies/smart_execution.py` 
+- [x] 6 files updated with new import paths
+- [x] All syntax checks passed
+- [x] Module __init__.py files updated to expose moved classes
+
+**Migration Details:**
+- Preserved exact functionality while organizing into proper modules
+- Conservative approach: moved files rather than replacing classes
+- All imports updated: CLI, trading_executor, execution adapters, portfolio services
+- Verification confirmed no broken imports or syntax errors
+
+### 🟡 **CAUTION - Migration Required (66 files remaining)**
 
 | Category | Count | Risk Level | Action | Timeline |
 |----------|-------|------------|--------|----------|
-| Core execution components | 15 | HIGH | 🔄 Migrate imports first | 2-3 weeks |
 | Policy implementations | 20 | MEDIUM | 🔄 Update references | 1-2 weeks |
 | Strategy adapters | 18 | MEDIUM | 🔄 Verify equivalents | 1-2 weeks |
 | Configuration files | 15 | MEDIUM | 🔄 Check dependencies | 1 week |
+| Remaining execution components | 13 | MEDIUM | 🔄 Migrate imports | 1-2 weeks |
 
 **Critical Path Files (Block deletion until migrated):**
-1. `application/trading/engine_service.py` - Core trading engine (2 imports)
-2. `application/execution/smart_execution.py` - Smart order execution (6 imports)  
+1. ~~`application/trading/engine_service.py`~~ - ✅ **MIGRATED** to `execution/core/trading_engine.py`
+2. ~~`application/execution/smart_execution.py`~~ - ✅ **MIGRATED** to `execution/strategies/smart_execution.py`
 3. `application/tracking/strategy_order_tracker.py` - Order tracking (6 imports)
 
 **Migration Process:**
