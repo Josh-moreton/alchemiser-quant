@@ -2,7 +2,7 @@
 
 **Advanced Multi-Strategy Quantitative Trading System**
 
-A sophisticated algorithmic trading platform that implements multiple quantitative strategies for automated portfolio management. Built with Domain-Driven Design principles, the system provides robust execution, comprehensive error handling, and seamless integration with Alpaca Trading API.
+A sophisticated algorithmic trading platform that implements multiple quantitative strategies for automated portfolio management. The system provides robust execution, comprehensive error handling, and seamless integration with Alpaca Trading API.
 
 ## 🚀 Quick Start
 
