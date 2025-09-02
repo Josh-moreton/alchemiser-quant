@@ -114,7 +114,7 @@ def execute_order_with_canonical_path(
     raw_envelope = repository.place_order(order_dto)
 
     # Convert RawOrderEnvelope to OrderExecutionResultDTO
-    from the_alchemiser.application.mapping.order_mapping import (
+    from the_alchemiser.execution.mappers.order_mapping import (
         raw_order_envelope_to_execution_result_dto,
     )
 

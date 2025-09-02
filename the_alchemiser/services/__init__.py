@@ -16,7 +16,7 @@ Note: We intentionally avoid re-exporting concrete classes at the package root
 to prevent import-time side effects and circular import issues. Import directly
 from the relevant subpackage, for example:
 
-    from the_alchemiser.services.account.account_service import AccountService
+    from the_alchemiser.execution.services.account_service import AccountService
     from the_alchemiser.services.trading.trading_service_manager import TradingServiceManager
 """
 

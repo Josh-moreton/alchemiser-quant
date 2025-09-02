@@ -35,7 +35,7 @@ if TYPE_CHECKING:  # Import for type checking only to avoid runtime dependency
 from alpaca.trading.enums import OrderSide
 
 from the_alchemiser.execution.strategies.smart_execution import SmartExecution
-from the_alchemiser.application.mapping.execution_summary_mapping import (
+from the_alchemiser.execution.mappers.execution_summary_mapping import (
     safe_dict_to_execution_summary_dto,
     safe_dict_to_portfolio_state_dto,
 )
@@ -71,7 +71,7 @@ from the_alchemiser.shared.utils.logging_utils import (
 )
 from the_alchemiser.interfaces.schemas.common import MultiStrategyExecutionResultDTO
 from the_alchemiser.execution.core.execution_schemas import ExecutionResultDTO
-from the_alchemiser.services.account.account_service import (
+from the_alchemiser.execution.services.account_service import (
     AccountService as TypedAccountService,
 )
 from the_alchemiser.services.errors.context import create_error_context

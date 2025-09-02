@@ -1,8 +1,8 @@
-"""Configuration management.
+"""Business Unit: shared | Status: current
 
-Currently under construction - no logic implemented yet.
+Configuration management for all modules.
 """
 
-from __future__ import annotations
+from .config import *
 
-__all__: list[str] = []
+__all__ = ["Config"]

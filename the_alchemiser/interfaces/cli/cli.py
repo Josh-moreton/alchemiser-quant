@@ -46,7 +46,7 @@ from the_alchemiser.shared.utils.exceptions import (
     TradingClientError,
 )
 from the_alchemiser.shared.utils.error_handler import TradingSystemErrorHandler
-from the_alchemiser.services.market_data.market_data_service import MarketDataService
+from the_alchemiser.strategy.data.market_data_service import MarketDataService
 from the_alchemiser.services.trading.trading_service_manager import (
     TradingServiceManager,
 )

@@ -10,22 +10,22 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
-from the_alchemiser.application.mapping.account_mapping import (
+from the_alchemiser.execution.mappers.account_mapping import (
     account_summary_to_typed,
     account_typed_to_serializable,
     to_money_usd,
 )
-from the_alchemiser.application.mapping.order_mapping import (
+from the_alchemiser.execution.mappers.order_mapping import (
     alpaca_order_to_domain,
     summarize_order,
 )
-from the_alchemiser.application.mapping.orders import (
+from the_alchemiser.execution.mappers.orders import (
     dict_to_order_request_dto,
 )
-from the_alchemiser.application.mapping.position_mapping import (
+from the_alchemiser.portfolio.mappers.position_mapping import (
     alpaca_position_to_summary,
 )
-from the_alchemiser.application.mapping.trading_service_dto_mapping import (
+from the_alchemiser.execution.mappers.trading_service_dto_mapping import (
     account_summary_typed_to_dto,
     dict_to_buying_power_dto,
     dict_to_enriched_account_summary_dto,
@@ -43,7 +43,7 @@ from the_alchemiser.application.mapping.trading_service_dto_mapping import (
     list_to_enriched_positions_dto,
     list_to_open_orders_dto,
 )
-from the_alchemiser.application.orders.order_validation import OrderValidator
+from the_alchemiser.execution.orders.validation import OrderValidator
 from the_alchemiser.application.trading.lifecycle import (
     LifecycleEventDispatcher,
     LoggingObserver,
@@ -75,7 +75,7 @@ from the_alchemiser.shared.schemas.market_data import (
     PriceHistoryDTO,
     SpreadAnalysisDTO,
 )
-from the_alchemiser.interfaces.schemas.operations import (
+from the_alchemiser.shared.schemas.operations import (
     OrderCancellationDTO,
     OrderStatusDTO,
 )
@@ -83,7 +83,7 @@ from the_alchemiser.execution.orders.order_schemas import (
     OrderExecutionResultDTO,
     OrderRequestDTO,
 )
-from the_alchemiser.interfaces.schemas.positions import (
+from the_alchemiser.portfolio.schemas.positions import (
     ClosePositionResultDTO,
     PortfolioSummaryDTO,
     PortfolioValueDTO,
@@ -96,12 +96,12 @@ from the_alchemiser.interfaces.schemas.smart_trading import (
     SmartOrderExecutionDTO,
     TradingDashboardDTO,
 )
-from the_alchemiser.services.account.account_service import AccountService
-from the_alchemiser.services.errors.decorators import translate_trading_errors
-from the_alchemiser.services.market_data.market_data_service import MarketDataService
+from the_alchemiser.execution.services.account_service import AccountService
+from the_alchemiser.shared.utils.decorators import translate_trading_errors
+from the_alchemiser.strategy.data.market_data_service import MarketDataService
 from the_alchemiser.services.repository.alpaca_manager import AlpacaManager
-from the_alchemiser.services.trading.order_service import OrderService
-from the_alchemiser.services.trading.position_service import PositionService
+from the_alchemiser.execution.services.order_service import OrderService
+from the_alchemiser.portfolio.services.position_service import PositionService
 from the_alchemiser.utils.num import floats_equal
 
 

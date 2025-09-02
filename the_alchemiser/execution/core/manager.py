@@ -8,7 +8,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from the_alchemiser.application.mapping.execution_summary_mapping import (
+from the_alchemiser.execution.mappers.execution_summary_mapping import (
     safe_dict_to_execution_summary_dto,
     safe_dict_to_portfolio_state_dto,
 )

@@ -23,7 +23,7 @@ from the_alchemiser.domain.market_data.models.bar import BarModel
 from the_alchemiser.domain.market_data.models.quote import QuoteModel
 from the_alchemiser.domain.shared_kernel.value_objects.symbol import Symbol
 from the_alchemiser.services.market_data.market_data_client import MarketDataClient
-from the_alchemiser.services.market_data.market_data_service import MarketDataService
+from the_alchemiser.strategy.data.market_data_service import MarketDataService
 
 logger = logging.getLogger(__name__)
 

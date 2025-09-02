@@ -168,7 +168,7 @@ class AlpacaClient:
             for order_dict in raw_orders.values():  # Iterate over values, not keys
                 try:
                     # Convert dict to OrderRequestDTO first, then to ValidatedOrderDTO
-                    from the_alchemiser.application.mapping.orders import (
+                    from the_alchemiser.execution.mappers.orders import (
                         dict_to_order_request_dto,
                         order_request_to_validated_dto,
                     )

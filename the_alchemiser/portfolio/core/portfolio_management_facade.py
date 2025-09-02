@@ -9,7 +9,7 @@ import logging
 from decimal import Decimal
 from typing import Any
 
-from the_alchemiser.application.mapping.orders import normalize_order_status
+from the_alchemiser.execution.mappers.orders import normalize_order_status
 from the_alchemiser.application.mapping.portfolio_rebalancing_mapping import (
     dto_plans_to_domain,
     dto_to_domain_rebalance_plan,

@@ -391,7 +391,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             envelope = self.place_order(order_request)
 
             # Convert envelope to OrderExecutionResultDTO for backward compatibility
-            from the_alchemiser.application.mapping.order_mapping import (
+            from the_alchemiser.execution.mappers.order_mapping import (
                 raw_order_envelope_to_execution_result_dto,
             )
 

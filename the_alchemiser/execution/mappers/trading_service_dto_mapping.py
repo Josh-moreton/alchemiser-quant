@@ -14,10 +14,10 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Any
 
-from the_alchemiser.application.mapping.account_mapping import (
+from the_alchemiser.execution.mappers.account_mapping import (
     AccountSummaryTyped,
 )
-from the_alchemiser.application.mapping.position_mapping import PositionSummary
+from the_alchemiser.portfolio.mappers.position_mapping import PositionSummary
 from the_alchemiser.shared.schemas.accounts import (
     AccountMetricsDTO,
     AccountSummaryDTO,
@@ -40,12 +40,12 @@ from the_alchemiser.shared.schemas.market_data import (
     PriceHistoryDTO,
     SpreadAnalysisDTO,
 )
-from the_alchemiser.interfaces.schemas.operations import (
+from the_alchemiser.shared.schemas.operations import (
     OperationResultDTO,
     OrderCancellationDTO,
     OrderStatusDTO,
 )
-from the_alchemiser.interfaces.schemas.positions import (
+from the_alchemiser.portfolio.schemas.positions import (
     ClosePositionResultDTO,
     LargestPositionDTO,
     PortfolioMetricsDTO,
