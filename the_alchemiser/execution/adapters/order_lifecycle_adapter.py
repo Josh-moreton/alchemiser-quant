@@ -1,10 +1,8 @@
-"""Business Unit: order execution/placement; Status: current.
+"""Business Unit: execution | Status: current
 
-Adapter bridging infrastructure websocket monitor to OrderLifecycleMonitor Protocol.
-
-Keeps application layer decoupled from infrastructure implementation while
-reusing the existing OrderCompletionMonitor without private attribute access.
+Order Lifecycle Adapter - migrated from legacy location.
 """
+
 
 from __future__ import annotations
 

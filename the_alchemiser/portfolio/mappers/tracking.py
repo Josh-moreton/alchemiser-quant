@@ -1,12 +1,8 @@
-"""Business Unit: utilities; Status: current.
+"""Business Unit: portfolio | Status: current
 
-Mapping utilities between Strategy Tracking DTOs and external reporting formats.
-
-This module provides mapping functions for strategy tracking DTOs, converting
-between StrategyOrderEventDTO/StrategyExecutionSummaryDTO and external reporting
-payloads or domain structures as needed.
-Part of the anti-corruption layer for clean DTO boundaries.
+Tracking - migrated from legacy location.
 """
+
 
 from __future__ import annotations
 

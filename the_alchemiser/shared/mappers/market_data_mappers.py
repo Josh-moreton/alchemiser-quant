@@ -1,7 +1,8 @@
-"""Business Unit: utilities; Status: current.
+"""Business Unit: shared | Status: current
 
-Mapping utilities between infra/DTOs and domain market data models.
+Market Data Mappers - migrated from legacy location.
 """
+
 
 from __future__ import annotations
 

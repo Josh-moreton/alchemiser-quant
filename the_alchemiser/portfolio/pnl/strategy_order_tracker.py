@@ -51,7 +51,7 @@ from the_alchemiser.shared.utils.exceptions import (
 
 # TODO: Import order history and email summary types once implementation aligns
 # from the_alchemiser.execution.core.execution_schemas import OrderHistoryDTO
-# from the_alchemiser.interfaces.schemas.reporting import EmailSummary
+# from the_alchemiser.shared.schemas.reporting import EmailSummary
 
 
 @dataclass  # Note: Pydantic DTOs available in interfaces.schemas.tracking for I/O boundaries

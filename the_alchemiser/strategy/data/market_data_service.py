@@ -22,7 +22,7 @@ from typing import Any
 
 import pandas as pd
 
-from the_alchemiser.application.mapping.market_data_mappers import bars_to_domain
+from the_alchemiser.shared.mappers.market_data_mappers import bars_to_domain
 from the_alchemiser.domain.interfaces import MarketDataRepository
 from the_alchemiser.shared.types.bar import BarModel
 from the_alchemiser.shared.types.quote import QuoteModel

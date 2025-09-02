@@ -1,16 +1,8 @@
-"""Business Unit: utilities; Status: current.
+"""Business Unit: portfolio | Status: current
 
-Tracking data normalization utilities.
-
-Centralized quantization and normalization for strategy tracking data to ensure
-consistent precision handling and avoid float comparison issues.
-
-Design:
-- Single responsibility: normalize tracking data at ingestion point
-- Consistent decimal precision: price (4-6 dp), quantity (6 dp), money (2 dp)
-- ROUND_HALF_UP rounding for financial consistency
-- Reuse existing execution mapping helpers where appropriate
+Tracking Normalization - migrated from legacy location.
 """
+
 
 from __future__ import annotations
 
