@@ -5,8 +5,10 @@ Currently under construction - no logic implemented yet.
 
 from __future__ import annotations
 
-__all__: list[str] = []# Exported from legacy migration
-from .exceptions import *
+__all__: list[str] = []
+
+# Import from new locations where files were moved
+from ..types.exceptions import *
 # Cross-cutting utilities and error handling
 from .context import ErrorContextData, create_error_context
 from .account_utils import (

@@ -22,8 +22,8 @@ from the_alchemiser.shared.types.policy_result import (
 from the_alchemiser.portfolio.policies.protocols import TradingClientProtocol
 from the_alchemiser.execution.orders.order_request import OrderRequest
 from the_alchemiser.shared.types.quantity import Quantity
-from the_alchemiser.shared.utils.logging_utils import log_with_context
-from the_alchemiser.shared.utils.exceptions import PositionValidationError
+from the_alchemiser.shared.logging.logging_utils import log_with_context
+from the_alchemiser.shared.types.exceptions import PositionValidationError
 
 if TYPE_CHECKING:
     pass

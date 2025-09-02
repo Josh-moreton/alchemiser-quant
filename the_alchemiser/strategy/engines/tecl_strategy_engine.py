@@ -41,7 +41,7 @@ from .value_objects.alert import Alert
 from .value_objects.confidence import Confidence
 from .value_objects.strategy_signal import StrategySignal
 from the_alchemiser.shared.value_objects.symbol import Symbol
-from the_alchemiser.utils.common import ActionType
+from the_alchemiser.shared.utils.common import ActionType
 
 warnings.filterwarnings("ignore")
 

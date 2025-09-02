@@ -16,7 +16,7 @@ import sys
 
 from the_alchemiser.domain.registry import StrategyType
 from the_alchemiser.infrastructure.config import Settings, load_settings
-from the_alchemiser.shared.utils.logging_utils import (
+from the_alchemiser.shared.logging.logging_utils import (
     configure_production_logging,
     generate_request_id,
     get_logger,
@@ -25,13 +25,13 @@ from the_alchemiser.shared.utils.logging_utils import (
 )
 from the_alchemiser.shared.cli.signal_analyzer import SignalAnalyzer
 from the_alchemiser.shared.cli.trading_executor import TradingExecutor
-from the_alchemiser.shared.utils.exceptions import (
+from the_alchemiser.shared.types.exceptions import (
     ConfigurationError,
     DataProviderError,
     StrategyExecutionError,
     TradingClientError,
 )
-from the_alchemiser.shared.utils.error_handler import TradingSystemErrorHandler
+from the_alchemiser.shared.errors.error_handler import TradingSystemErrorHandler
 
 # DI imports (optional)
 try:

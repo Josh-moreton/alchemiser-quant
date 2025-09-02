@@ -30,7 +30,7 @@ from the_alchemiser.strategy.signals.strategy_signal import (
     StrategySignal as TypedStrategySignal,
 )
 from the_alchemiser.infrastructure.config import Settings
-from the_alchemiser.shared.utils.logging_utils import get_logger
+from the_alchemiser.shared.logging.logging_utils import get_logger
 from the_alchemiser.shared.cli.cli_formatter import (
     render_enriched_order_summaries,
     render_footer,
@@ -41,7 +41,7 @@ from the_alchemiser.shared.cli.cli_formatter import (
 )
 from the_alchemiser.shared.schemas.common import MultiStrategyExecutionResultDTO
 from the_alchemiser.execution.orders.order_schemas import ValidatedOrderDTO
-from the_alchemiser.shared.utils.exceptions import (
+from the_alchemiser.shared.types.exceptions import (
     NotificationError,
     StrategyExecutionError,
     TradingClientError,
@@ -384,7 +384,7 @@ class TradingExecutor:
     def _handle_trading_error(self, error: Exception, mode_str: str) -> None:
         """Handle trading execution errors."""
         try:
-            from the_alchemiser.shared.utils.error_handler import (
+            from the_alchemiser.shared.errors.error_handler import (
                 TradingSystemErrorHandler,
                 send_error_notification_if_needed,
             )

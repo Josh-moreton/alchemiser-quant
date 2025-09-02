@@ -215,7 +215,7 @@ def log_alert_to_file(
     }
 
     try:
-        from the_alchemiser.infrastructure.s3.s3_utils import get_s3_handler
+        from the_alchemiser.shared.utils.s3_utils import get_s3_handler
 
         s3_handler = get_s3_handler()
 

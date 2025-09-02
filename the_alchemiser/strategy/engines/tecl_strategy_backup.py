@@ -36,12 +36,12 @@ from the_alchemiser.shared.types.market_data_port import MarketDataPort
 from the_alchemiser.strategy.indicators.utils import safe_get_indicator
 from the_alchemiser.domain.math.indicators import TechnicalIndicators
 from the_alchemiser.shared.types.percentage import Percentage
-from the_alchemiser.domain.strategies.engine import StrategyEngine
+from the_alchemiser.strategy.engines.engine import StrategyEngine
 from the_alchemiser.domain.strategies.value_objects.alert import Alert
 from the_alchemiser.domain.strategies.value_objects.confidence import Confidence
 from the_alchemiser.strategy.signals.strategy_signal import StrategySignal
 from the_alchemiser.shared.value_objects.symbol import Symbol
-from the_alchemiser.utils.common import ActionType
+from the_alchemiser.shared.utils.common import ActionType
 
 warnings.filterwarnings("ignore")
 

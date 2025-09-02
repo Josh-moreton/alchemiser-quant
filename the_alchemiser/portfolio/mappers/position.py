@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 from the_alchemiser.shared.value_objects.core_types import PositionInfo
-from the_alchemiser.utils.num import floats_equal
+from the_alchemiser.shared.math.num import floats_equal
 
 
 @dataclass(frozen=True)

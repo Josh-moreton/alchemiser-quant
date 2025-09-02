@@ -102,7 +102,7 @@ from the_alchemiser.strategy.data.market_data_service import MarketDataService
 from the_alchemiser.execution.brokers.alpaca_manager import AlpacaManager
 from the_alchemiser.execution.orders.service import OrderService
 from the_alchemiser.portfolio.services.position_service import PositionService
-from the_alchemiser.utils.num import floats_equal
+from the_alchemiser.shared.math.num import floats_equal
 
 
 class TradingServiceManager:

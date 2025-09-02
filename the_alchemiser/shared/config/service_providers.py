@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from dependency_injector import containers, providers
 
-from the_alchemiser.domain.strategies.typed_klm_ensemble_engine import TypedKLMStrategyEngine
+from the_alchemiser.strategy.engines.typed_klm_ensemble_engine import TypedKLMStrategyEngine
 from the_alchemiser.execution.brokers.account_service import AccountService
 from the_alchemiser.strategy.data.market_data_service import MarketDataService
 from the_alchemiser.execution.orders.service import OrderService

@@ -34,7 +34,7 @@ from the_alchemiser.portfolio.mappers.tracking_mapping import (
 )
 from the_alchemiser.domain.registry import StrategyType
 from the_alchemiser.infrastructure.config import load_settings
-from the_alchemiser.infrastructure.s3.s3_utils import get_s3_handler
+from the_alchemiser.shared.utils.s3_utils import get_s3_handler
 from the_alchemiser.portfolio.schemas.tracking import (
     ExecutionStatus,
     StrategyExecutionSummaryDTO,
@@ -44,7 +44,7 @@ from the_alchemiser.portfolio.schemas.tracking import (
     StrategyPositionDTO,
 )
 from the_alchemiser.shared.services.errors import TradingSystemErrorHandler
-from the_alchemiser.shared.utils.exceptions import (
+from the_alchemiser.shared.types.exceptions import (
     DataProviderError,
     StrategyExecutionError,
 )

@@ -18,7 +18,7 @@ from the_alchemiser.strategy.mappers.strategy_signal_mapping import (
 from the_alchemiser.shared.value_objects.core_types import AccountInfo
 from the_alchemiser.shared.schemas.common import MultiStrategyExecutionResultDTO
 from the_alchemiser.shared.services.errors import handle_errors_with_retry
-from the_alchemiser.shared.utils.exceptions import (
+from the_alchemiser.shared.types.exceptions import (
     ConfigurationError,
     DataProviderError,
     StrategyExecutionError,
@@ -135,7 +135,7 @@ class ExecutionManager:
             self.engine._archive_daily_strategy_pnl(execution_summary.get("pnl_summary", {}))
             return result
         except TradingClientError as e:
-            from the_alchemiser.shared.utils.logging_utils import (
+            from the_alchemiser.shared.logging.logging_utils import (
                 get_logger,
                 log_error_with_context,
             )
@@ -150,7 +150,7 @@ class ExecutionManager:
             )
             raise  # Re-raise to let upper layers handle
         except DataProviderError as e:
-            from the_alchemiser.shared.utils.logging_utils import (
+            from the_alchemiser.shared.logging.logging_utils import (
                 get_logger,
                 log_error_with_context,
             )
@@ -201,7 +201,7 @@ class ExecutionManager:
             ValueError,
             AttributeError,
         ) as e:
-            from the_alchemiser.shared.utils.logging_utils import (
+            from the_alchemiser.shared.logging.logging_utils import (
                 get_logger,
                 log_error_with_context,
             )

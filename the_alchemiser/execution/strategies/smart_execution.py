@@ -61,7 +61,7 @@ from the_alchemiser.execution.core.execution_schemas import WebSocketResultDTO
 
 if TYPE_CHECKING:
     pass
-from the_alchemiser.shared.utils.exceptions import (
+from the_alchemiser.shared.types.exceptions import (
     BuyingPowerError,
     DataProviderError,
     OrderExecutionError,

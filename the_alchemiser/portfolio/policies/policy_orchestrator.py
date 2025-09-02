@@ -18,7 +18,7 @@ from the_alchemiser.portfolio.mappers.policy_mapping import (
 )
 from the_alchemiser.shared.types.policy_result import PolicyResult, PolicyWarning
 from the_alchemiser.execution.orders.order_request import OrderRequest
-from the_alchemiser.shared.utils.logging_utils import log_with_context
+from the_alchemiser.shared.logging.logging_utils import log_with_context
 from the_alchemiser.execution.orders.order_schemas import (
     AdjustedOrderRequestDTO,
     OrderRequestDTO,

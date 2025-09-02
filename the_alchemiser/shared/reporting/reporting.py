@@ -10,7 +10,7 @@ from typing import Any
 
 from the_alchemiser.domain.registry import StrategyType
 from the_alchemiser.shared.value_objects.core_types import AccountInfo, PositionsDict
-from the_alchemiser.shared.utils.exceptions import DataProviderError, TradingClientError
+from the_alchemiser.shared.types.exceptions import DataProviderError, TradingClientError
 
 
 def create_execution_summary(
@@ -70,7 +70,7 @@ def save_dashboard_data(
 ) -> None:
     """Save structured data for dashboard consumption to S3."""
     try:
-        from the_alchemiser.infrastructure.s3.s3_utils import get_s3_handler
+        from the_alchemiser.shared.utils.s3_utils import get_s3_handler
         from the_alchemiser.interfaces.cli.dashboard_utils import (
             build_basic_dashboard_structure,
             build_s3_paths,

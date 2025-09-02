@@ -17,8 +17,8 @@ from typing import Any
 import pandas as pd
 from alpaca.data.requests import StockLatestQuoteRequest
 
-from the_alchemiser.shared.utils.logging_utils import get_logger, log_error_with_context
-from the_alchemiser.shared.utils.exceptions import DataProviderError
+from the_alchemiser.shared.logging.logging_utils import get_logger, log_error_with_context
+from the_alchemiser.shared.types.exceptions import DataProviderError
 
 logger = get_logger(__name__)
 

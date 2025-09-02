@@ -14,7 +14,7 @@ from the_alchemiser.shared.types.money import Money
 from the_alchemiser.execution.entities.order import Order
 from the_alchemiser.execution.orders.order_id import OrderId
 from the_alchemiser.execution.orders.order_status import OrderStatus
-from the_alchemiser.domain.trading.value_objects.order_status_literal import (
+from the_alchemiser.execution.orders.order_status_literal import (
     OrderStatusLiteral,
 )
 from the_alchemiser.shared.types.quantity import Quantity

@@ -57,7 +57,7 @@ from the_alchemiser.shared.config.bootstrap import (
 
 # Import application-layer ports for dependency injection
 from the_alchemiser.domain.registry import StrategyType
-from the_alchemiser.domain.strategies.typed_strategy_manager import TypedStrategyManager
+from the_alchemiser.strategy.engines.typed_strategy_manager import TypedStrategyManager
 from the_alchemiser.shared.value_objects.core_types import (
     AccountInfo,
     EnrichedAccountInfo,
@@ -65,7 +65,7 @@ from the_alchemiser.shared.value_objects.core_types import (
     PositionsDict,
 )
 from the_alchemiser.infrastructure.config import Settings
-from the_alchemiser.shared.utils.logging_utils import (
+from the_alchemiser.shared.logging.logging_utils import (
     get_logger,
     log_with_context,
 )
@@ -75,13 +75,13 @@ from the_alchemiser.execution.brokers.account_service import (
     AccountService as TypedAccountService,
 )
 from the_alchemiser.shared.utils.context import create_error_context
-from the_alchemiser.shared.utils.exceptions import (
+from the_alchemiser.shared.types.exceptions import (
     ConfigurationError,
     DataProviderError,
     StrategyExecutionError,
     TradingClientError,
 )
-from the_alchemiser.shared.utils.error_handler import TradingSystemErrorHandler
+from the_alchemiser.shared.errors.error_handler import TradingSystemErrorHandler
 from the_alchemiser.execution.brokers.alpaca_manager import AlpacaManager
 
 from ..execution.execution_manager import ExecutionManager
@@ -413,7 +413,7 @@ class TradingEngine:
                     from the_alchemiser.shared.utils.context import (
                         create_error_context,
                     )
-                    from the_alchemiser.shared.utils.error_handler import (
+                    from the_alchemiser.shared.errors.error_handler import (
                         TradingSystemErrorHandler,
                     )
 
