@@ -30,15 +30,15 @@ from the_alchemiser.domain.dsl.parser import DSLParser
 from the_alchemiser.domain.dsl.strategy_loader import StrategyLoader
 
 # Import domain models for type annotations
-from the_alchemiser.domain.market_data.models.bar import BarModel
-from the_alchemiser.domain.market_data.models.quote import QuoteModel
+from the_alchemiser.shared.types.bar import BarModel
+from the_alchemiser.shared.types.quote import QuoteModel
 from the_alchemiser.shared.types.market_data_port import MarketDataPort
-from the_alchemiser.domain.shared_kernel.value_objects.symbol import Symbol
+from the_alchemiser.shared.types.symbol_legacy import Symbol
 from the_alchemiser.shared.utils.logging_utils import (
     get_logger,
     log_error_with_context,
 )
-from the_alchemiser.infrastructure.secrets.secrets_manager import secrets_manager
+from the_alchemiser.shared.config.secrets_manager import secrets_manager
 from the_alchemiser.interfaces.cli.cli_formatter import render_account_info
 from the_alchemiser.shared.utils.exceptions import (
     AlchemiserError,
@@ -47,7 +47,7 @@ from the_alchemiser.shared.utils.exceptions import (
 )
 from the_alchemiser.shared.utils.error_handler import TradingSystemErrorHandler
 from the_alchemiser.strategy.data.market_data_service import MarketDataService
-from the_alchemiser.services.trading.trading_service_manager import (
+from the_alchemiser.execution.services.trading_service_manager import (
     TradingServiceManager,
 )
 
@@ -203,7 +203,7 @@ def signal(
                         from datetime import datetime
                         from decimal import Decimal
 
-                        from the_alchemiser.domain.market_data.models.bar import BarModel
+                        from the_alchemiser.shared.types.bar import BarModel
 
                         # Handle both Symbol objects and strings
                         symbol_str = str(symbol.value) if hasattr(symbol, "value") else str(symbol)
@@ -241,7 +241,7 @@ def signal(
                         from datetime import datetime
                         from decimal import Decimal
 
-                        from the_alchemiser.domain.market_data.models.quote import QuoteModel
+                        from the_alchemiser.shared.types.quote import QuoteModel
 
                         # Handle both Symbol objects and strings
                         symbol_str = str(symbol.value) if hasattr(symbol, "value") else str(symbol)
@@ -1039,7 +1039,7 @@ def validate_indicators(
 
     try:
         # Get API key from secrets manager
-        from the_alchemiser.infrastructure.secrets.secrets_manager import (
+        from the_alchemiser.shared.config.secrets_manager import (
             secrets_manager,
         )
 

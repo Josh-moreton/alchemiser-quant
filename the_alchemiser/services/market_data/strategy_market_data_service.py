@@ -13,15 +13,15 @@ from typing import Any
 
 import pandas as pd
 
-from the_alchemiser.application.mapping.market_data_mapping import (
+from the_alchemiser.strategy.mappers.market_data_mapping import (
     bars_to_dataframe,
     quote_to_current_price,
     quote_to_tuple,
     symbol_str_to_symbol,
 )
-from the_alchemiser.domain.market_data.models.bar import BarModel
-from the_alchemiser.domain.market_data.models.quote import QuoteModel
-from the_alchemiser.domain.shared_kernel.value_objects.symbol import Symbol
+from the_alchemiser.shared.types.bar import BarModel
+from the_alchemiser.shared.types.quote import QuoteModel
+from the_alchemiser.shared.types.symbol_legacy import Symbol
 from the_alchemiser.services.market_data.market_data_client import MarketDataClient
 from the_alchemiser.strategy.data.market_data_service import MarketDataService
 
@@ -75,7 +75,7 @@ class StrategyMarketDataService:
             )
 
             # Convert DataFrame to BarModel list
-            from the_alchemiser.application.mapping.market_data_mapping import dataframe_to_bars
+            from the_alchemiser.strategy.mappers.market_data_mapping import dataframe_to_bars
 
             return dataframe_to_bars(df, symbol)
 

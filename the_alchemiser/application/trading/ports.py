@@ -22,8 +22,8 @@ from typing import Protocol, runtime_checkable
 
 # Re-export canonical MarketDataPort (reuse; no duplication)
 from the_alchemiser.shared.types.market_data_port import MarketDataPort
-from the_alchemiser.domain.shared_kernel.value_objects.symbol import Symbol
-from the_alchemiser.domain.strategies.value_objects.strategy_signal import StrategySignal
+from the_alchemiser.shared.types.symbol_legacy import Symbol
+from the_alchemiser.strategy.signals.strategy_signal import StrategySignal
 from the_alchemiser.execution.entities.order import Order
 
 

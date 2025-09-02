@@ -26,7 +26,7 @@ from the_alchemiser.application.mapping.strategy_signal_mapping import (
 from the_alchemiser.application.trading.bootstrap import bootstrap_from_container
 from the_alchemiser.strategy.engines.core.trading_engine import TradingEngine
 from the_alchemiser.domain.registry import StrategyType
-from the_alchemiser.domain.strategies.value_objects.strategy_signal import (
+from the_alchemiser.strategy.signals.strategy_signal import (
     StrategySignal as TypedStrategySignal,
 )
 from the_alchemiser.infrastructure.config import Settings
@@ -39,7 +39,7 @@ from the_alchemiser.interfaces.cli.cli_formatter import (
     render_strategy_signals,
     render_target_vs_current_allocations,
 )
-from the_alchemiser.interfaces.schemas.common import MultiStrategyExecutionResultDTO
+from the_alchemiser.shared.schemas.common import MultiStrategyExecutionResultDTO
 from the_alchemiser.execution.orders.order_schemas import ValidatedOrderDTO
 from the_alchemiser.shared.utils.exceptions import (
     NotificationError,
@@ -202,7 +202,7 @@ class TradingExecutor:
             api_key = self.container.config.alpaca_api_key()
             secret_key = self.container.config.alpaca_secret_key()
             paper = self.container.config.paper_trading()
-            from the_alchemiser.services.trading.trading_service_manager import (
+            from the_alchemiser.execution.services.trading_service_manager import (
                 TradingServiceManager,
             )
 

@@ -9,7 +9,7 @@ from collections.abc import Iterable
 
 import pandas as pd
 
-from the_alchemiser.domain.market_data.models.bar import BarModel
+from the_alchemiser.shared.types.bar import BarModel
 
 
 def bars_to_dataframe(bars: Iterable[BarModel]) -> pd.DataFrame:

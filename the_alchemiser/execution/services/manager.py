@@ -99,7 +99,7 @@ from the_alchemiser.interfaces.schemas.smart_trading import (
 from the_alchemiser.execution.services.account_service import AccountService
 from the_alchemiser.shared.utils.decorators import translate_trading_errors
 from the_alchemiser.strategy.data.market_data_service import MarketDataService
-from the_alchemiser.services.repository.alpaca_manager import AlpacaManager
+from the_alchemiser.execution.brokers.alpaca_manager import AlpacaManager
 from the_alchemiser.execution.services.order_service import OrderService
 from the_alchemiser.portfolio.services.position_service import PositionService
 from the_alchemiser.utils.num import floats_equal
@@ -722,10 +722,10 @@ class TradingServiceManager:
                 # Use canonical executor directly since legacy methods removed
                 from decimal import Decimal
 
-                from the_alchemiser.application.execution.canonical_executor import (
+                from the_alchemiser.execution.core.canonical_executor import (
                     CanonicalOrderExecutor,
                 )
-                from the_alchemiser.domain.shared_kernel.value_objects.money import (
+                from the_alchemiser.shared.types.money import (
                     Money,
                 )
                 from the_alchemiser.execution.orders.order_request import (
@@ -785,10 +785,10 @@ class TradingServiceManager:
                 # Use canonical executor directly since legacy methods removed
                 from decimal import Decimal
 
-                from the_alchemiser.application.execution.canonical_executor import (
+                from the_alchemiser.execution.core.canonical_executor import (
                     CanonicalOrderExecutor,
                 )
-                from the_alchemiser.domain.shared_kernel.value_objects.money import (
+                from the_alchemiser.shared.types.money import (
                     Money,
                 )
                 from the_alchemiser.execution.orders.order_request import (

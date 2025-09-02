@@ -35,11 +35,11 @@ from typing import Any
 from the_alchemiser.shared.types.market_data_port import MarketDataPort
 from the_alchemiser.domain.math.indicator_utils import safe_get_indicator
 from the_alchemiser.domain.math.indicators import TechnicalIndicators
-from the_alchemiser.domain.shared_kernel.value_objects.percentage import Percentage
+from the_alchemiser.shared.types.percentage import Percentage
 from the_alchemiser.domain.strategies.engine import StrategyEngine
 from the_alchemiser.domain.strategies.value_objects.alert import Alert
 from the_alchemiser.domain.strategies.value_objects.confidence import Confidence
-from the_alchemiser.domain.strategies.value_objects.strategy_signal import StrategySignal
+from the_alchemiser.strategy.signals.strategy_signal import StrategySignal
 from the_alchemiser.shared.value_objects.symbol import Symbol
 from the_alchemiser.utils.common import ActionType
 
@@ -84,7 +84,7 @@ class TECLStrategyEngine(StrategyEngine):
 
     def get_market_data(self) -> dict[str, Any]:
         """Fetch data for all symbols."""
-        from the_alchemiser.application.mapping.market_data_mapping import (
+        from the_alchemiser.strategy.mappers.market_data_mapping import (
             bars_to_dataframe,
             symbol_str_to_symbol,
         )

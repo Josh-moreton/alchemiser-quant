@@ -104,7 +104,7 @@ def fractionability_only_example():
 
 def canonical_executor_integration():
     """Example showing integration with CanonicalOrderExecutor."""
-    from the_alchemiser.application.execution.canonical_executor import CanonicalOrderExecutor
+    from the_alchemiser.execution.core.canonical_executor import CanonicalOrderExecutor
     from the_alchemiser.execution.orders.order_request import OrderRequest
     from the_alchemiser.execution.orders.order_type import OrderType
     from the_alchemiser.shared.types.quantity import Quantity

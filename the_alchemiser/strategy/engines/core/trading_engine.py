@@ -69,7 +69,7 @@ from the_alchemiser.shared.utils.logging_utils import (
     get_logger,
     log_with_context,
 )
-from the_alchemiser.interfaces.schemas.common import MultiStrategyExecutionResultDTO
+from the_alchemiser.shared.schemas.common import MultiStrategyExecutionResultDTO
 from the_alchemiser.execution.core.execution_schemas import ExecutionResultDTO
 from the_alchemiser.execution.services.account_service import (
     AccountService as TypedAccountService,
@@ -82,7 +82,7 @@ from the_alchemiser.shared.utils.exceptions import (
     TradingClientError,
 )
 from the_alchemiser.shared.utils.error_handler import TradingSystemErrorHandler
-from the_alchemiser.services.repository.alpaca_manager import AlpacaManager
+from the_alchemiser.execution.brokers.alpaca_manager import AlpacaManager
 
 from ..execution.execution_manager import ExecutionManager
 from ..reporting.reporting import build_portfolio_state_data

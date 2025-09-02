@@ -39,7 +39,7 @@ Safety Features:
 Example:
     Canonical order placement (preferred):
 
-    >>> from the_alchemiser.application.execution.canonical_executor import CanonicalOrderExecutor
+    >>> from the_alchemiser.execution.core.canonical_executor import CanonicalOrderExecutor
     >>> from the_alchemiser.execution.orders.order_request import OrderRequest
     >>> from the_alchemiser.shared.value_objects.symbol import Symbol
     >>> from the_alchemiser.execution.orders.side import Side
@@ -83,7 +83,7 @@ from the_alchemiser.infrastructure.websocket.websocket_order_monitor import (
 from the_alchemiser.execution.core.execution_schemas import WebSocketResultDTO
 
 # (Legacy exceptions import removed)
-from the_alchemiser.services.repository.alpaca_manager import AlpacaManager
+from the_alchemiser.execution.brokers.alpaca_manager import AlpacaManager
 from the_alchemiser.services.trading.position_manager import PositionManager
 
 logger = logging.getLogger(__name__)
@@ -227,7 +227,7 @@ class AlpacaClient:
         """Place a smart sell order using canonical executor."""
         from decimal import Decimal
 
-        from the_alchemiser.application.execution.canonical_executor import (
+        from the_alchemiser.execution.core.canonical_executor import (
             CanonicalOrderExecutor,
         )
         from the_alchemiser.execution.orders.order_request import (

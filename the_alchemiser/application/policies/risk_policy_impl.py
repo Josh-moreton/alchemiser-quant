@@ -12,7 +12,7 @@ import logging
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from the_alchemiser.domain.policies.policy_result import (
+from the_alchemiser.shared.types.policy_result import (
     PolicyResult,
     PolicyWarning,
     create_approved_result,

@@ -90,7 +90,7 @@ class PolicyFactory:
             PolicyOrchestrator with only fractionability policy
 
         """
-        from the_alchemiser.domain.policies.policy_result import (
+        from the_alchemiser.shared.types.policy_result import (
             PolicyResult,
             create_approved_result,
         )

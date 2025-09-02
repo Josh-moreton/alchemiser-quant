@@ -13,10 +13,10 @@ from collections.abc import Callable
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from the_alchemiser.application.execution.canonical_executor import (
+from the_alchemiser.execution.core.canonical_executor import (
     CanonicalOrderExecutor,
 )
-from the_alchemiser.domain.shared_kernel.value_objects.money import Money
+from the_alchemiser.shared.types.money import Money
 from the_alchemiser.execution.orders.order_request import OrderRequest
 from the_alchemiser.execution.orders.order_type import OrderType
 from the_alchemiser.shared.types.quantity import Quantity
@@ -30,7 +30,7 @@ from the_alchemiser.execution.orders.order_schemas import (
 )
 
 if TYPE_CHECKING:
-    from the_alchemiser.services.repository.alpaca_manager import AlpacaManager
+    from the_alchemiser.execution.brokers.alpaca_manager import AlpacaManager
 
 logger = logging.getLogger(__name__)
 

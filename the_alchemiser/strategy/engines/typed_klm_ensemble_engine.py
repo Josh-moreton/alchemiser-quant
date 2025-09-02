@@ -26,7 +26,7 @@ from the_alchemiser.domain.math.math_utils import (
     calculate_moving_average_return,
     calculate_stdev_returns,
 )
-from the_alchemiser.domain.shared_kernel.value_objects.percentage import Percentage
+from the_alchemiser.shared.types.percentage import Percentage
 from .engine import StrategyEngine
 from .errors.strategy_errors import StrategyExecutionError
 from .value_objects.confidence import Confidence
@@ -165,7 +165,7 @@ class TypedKLMStrategyEngine(StrategyEngine):
 
         Allows a one-off MarketDataPort override for this call.
         """
-        from the_alchemiser.application.mapping.market_data_mapping import (
+        from the_alchemiser.strategy.mappers.market_data_mapping import (
             bars_to_dataframe,
             symbol_str_to_symbol,
         )

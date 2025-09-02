@@ -1,8 +1,15 @@
 """Signal processing and generation.
 
-Currently under construction - no logic implemented yet.
+Business Unit: strategy | Status: current
+
+Strategy signal generation and processing.
 """
 
 from __future__ import annotations
 
-__all__: list[str] = []
+from .strategy_signal import *
+
+__all__ = [
+    "StrategySignal", 
+    "Action",
+]

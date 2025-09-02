@@ -16,7 +16,7 @@ from the_alchemiser.application.mapping.policy_mapping import (
     domain_result_to_dto,
     dto_to_domain_order_request,
 )
-from the_alchemiser.domain.policies.policy_result import PolicyResult, PolicyWarning
+from the_alchemiser.shared.types.policy_result import PolicyResult, PolicyWarning
 from the_alchemiser.execution.orders.order_request import OrderRequest
 from the_alchemiser.shared.utils.logging_utils import log_with_context
 from the_alchemiser.execution.orders.order_schemas import (
@@ -169,7 +169,7 @@ class PolicyOrchestrator:
                 error=str(e),
             )
 
-            from the_alchemiser.domain.policies.policy_result import (
+            from the_alchemiser.shared.types.policy_result import (
                 create_rejected_result,
             )
 
@@ -214,7 +214,7 @@ class PolicyOrchestrator:
                 error=str(e),
             )
 
-            from the_alchemiser.domain.policies.policy_result import (
+            from the_alchemiser.shared.types.policy_result import (
                 create_rejected_result,
             )
 
@@ -259,7 +259,7 @@ class PolicyOrchestrator:
                 error=str(e),
             )
 
-            from the_alchemiser.domain.policies.policy_result import (
+            from the_alchemiser.shared.types.policy_result import (
                 create_rejected_result,
             )
 
@@ -304,7 +304,7 @@ class PolicyOrchestrator:
                 error=str(e),
             )
 
-            from the_alchemiser.domain.policies.policy_result import (
+            from the_alchemiser.shared.types.policy_result import (
                 create_rejected_result,
             )
 
@@ -330,7 +330,7 @@ class PolicyOrchestrator:
             total_warnings=str(len(all_warnings)),
         )
 
-        from the_alchemiser.domain.policies.policy_result import create_approved_result
+        from the_alchemiser.shared.types.policy_result import create_approved_result
 
         result = create_approved_result(
             order_request=current_request,

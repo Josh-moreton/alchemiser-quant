@@ -29,7 +29,7 @@ from typing import Any
 
 # Import DTOs for type-safe email rendering
 from the_alchemiser.shared.value_objects.core_types import AccountInfo, EnrichedAccountInfo
-from the_alchemiser.interfaces.schemas.common import MultiStrategyExecutionResultDTO
+from the_alchemiser.shared.schemas.common import MultiStrategyExecutionResultDTO
 from the_alchemiser.execution.core.execution_schemas import ExecutionResultDTO
 
 # Import all functions from the new modular structure

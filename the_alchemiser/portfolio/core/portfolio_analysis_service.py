@@ -12,7 +12,7 @@ from ..holdings.position_analyzer import PositionAnalyzer
 from ..state.attribution_engine import (
     StrategyAttributionEngine,
 )
-from the_alchemiser.services.trading.trading_service_manager import (
+from the_alchemiser.execution.services.trading_service_manager import (
     TradingServiceManager,
 )
 

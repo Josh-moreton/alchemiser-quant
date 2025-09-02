@@ -149,7 +149,7 @@ def get_optimization_stats() -> dict[str, Any]:
 
     # Add memoisation stats if available
     try:
-        from the_alchemiser.domain.dsl.evaluator_cache import get_memo_stats
+        from the_alchemiser.strategy.dsl.evaluator_cache import get_memo_stats
 
         stats["memoisation"] = get_memo_stats()
     except ImportError:

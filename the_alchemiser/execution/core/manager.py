@@ -16,7 +16,7 @@ from the_alchemiser.application.mapping.strategy_signal_mapping import (
     map_signals_dict as _map_signals_to_typed,
 )
 from the_alchemiser.shared.value_objects.core_types import AccountInfo
-from the_alchemiser.interfaces.schemas.common import MultiStrategyExecutionResultDTO
+from the_alchemiser.shared.schemas.common import MultiStrategyExecutionResultDTO
 from the_alchemiser.services.errors import handle_errors_with_retry
 from the_alchemiser.shared.utils.exceptions import (
     ConfigurationError,

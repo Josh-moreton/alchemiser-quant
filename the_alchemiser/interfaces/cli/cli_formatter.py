@@ -10,7 +10,7 @@ from rich.panel import Panel
 from rich.rule import Rule
 from rich.table import Table
 
-from the_alchemiser.interfaces.schemas.common import MultiStrategyExecutionResultDTO
+from the_alchemiser.shared.schemas.common import MultiStrategyExecutionResultDTO
 from the_alchemiser.utils.num import floats_equal
 
 """Console formatting utilities for quantitative trading system output using rich."""

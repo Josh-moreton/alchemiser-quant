@@ -7,7 +7,7 @@ from the_alchemiser.strategy.engines.value_objects.strategy_signal import *
 
 import warnings
 warnings.warn(
-    "Importing from the_alchemiser.domain.strategies.value_objects.strategy_signal is deprecated. "
+    "Importing from the_alchemiser.strategy.signals.strategy_signal is deprecated. "
     "Use 'from the_alchemiser.strategy.engines.value_objects.strategy_signal import ...' instead.",
     DeprecationWarning,
     stacklevel=2,

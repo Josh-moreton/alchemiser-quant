@@ -11,7 +11,7 @@ from __future__ import annotations
 import logging
 
 from the_alchemiser.infrastructure.config import load_settings
-from the_alchemiser.infrastructure.secrets.secrets_manager import SecretsManager
+from the_alchemiser.shared.config.secrets_manager import SecretsManager
 from the_alchemiser.interfaces.schemas.reporting import EmailCredentials
 
 

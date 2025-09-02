@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from decimal import Decimal
 
-from the_alchemiser.domain.shared_kernel.value_objects.money import Money
+from the_alchemiser.shared.types.money import Money
 from the_alchemiser.execution.orders.order_id import OrderId
 from the_alchemiser.execution.orders.order_status import OrderStatus
 from the_alchemiser.execution.orders.order_type import OrderType
