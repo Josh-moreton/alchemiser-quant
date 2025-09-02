@@ -15,7 +15,7 @@ from the_alchemiser.application.policies.buying_power_policy_impl import BuyingP
 from the_alchemiser.application.policies.fractionability_policy_impl import (
     FractionabilityPolicyImpl,
 )
-from the_alchemiser.application.policies.policy_orchestrator import PolicyOrchestrator
+from the_alchemiser.portfolio.policies.policy_orchestrator import PolicyOrchestrator
 from the_alchemiser.application.policies.position_policy_impl import PositionPolicyImpl
 from the_alchemiser.application.policies.risk_policy_impl import RiskPolicyImpl
 from the_alchemiser.domain.policies.protocols import DataProviderProtocol, TradingClientProtocol

@@ -1,4 +1,4 @@
-"""Business Unit: strategy & signal generation; Status: current.
+"""Business Unit: strategy | Status: current
 
 Typed Strategy Manager.
 

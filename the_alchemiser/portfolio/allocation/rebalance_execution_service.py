@@ -11,7 +11,7 @@ from typing import Any
 from alpaca.trading.enums import OrderSide
 
 from the_alchemiser.execution.strategies.smart_execution import SmartExecution
-from the_alchemiser.application.trading.alpaca_client import AlpacaClient
+from the_alchemiser.execution.brokers.alpaca_client import AlpacaClient
 from .rebalance_plan import RebalancePlan
 from the_alchemiser.services.errors import TradingSystemErrorHandler
 from the_alchemiser.shared.utils.exceptions import StrategyExecutionError

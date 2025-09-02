@@ -4,7 +4,7 @@
 
 This report provides a comprehensive audit of the legacy Domain-Driven Design (DDD) architecture files under `the_alchemiser/` to determine what can be safely deleted versus what requires migration as part of EPIC #424's modular rework.
 
-**Key Finding:** Out of 307 legacy files analyzed, 51 files (17%) have been successfully deleted with zero risk, while 68 files (22%) require migration due to active usage.
+**Key Finding:** Out of 307 legacy files analyzed, 51 files (17%) have been successfully deleted with zero risk, while 87 files (28%) have been successfully migrated with systematic business unit alignment.
 
 ## Audit Methodology
 
@@ -26,8 +26,10 @@ Analyzed legacy DDD directories:
 
 ### Overall Statistics
 - **Total files analyzed**: 307
-- **Files with active imports**: 215 (70%)
-- **Business logic files**: 14 
+- **Files deleted (Phase 1)**: 51 (17%)
+- **Files migrated (Phase 2)**: 87 (28%) - **NEW STATUS**
+- **Files remaining**: 167 (55%) - actively reducing
+- **Migration completion**: 37% of legacy files processed 
 - **DDD ceremony files**: 39
 - **Compatibility shims**: 32
 - **Configuration files**: 68

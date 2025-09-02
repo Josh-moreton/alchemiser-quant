@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Business Unit: order execution/placement; Status: current.
+"""Business Unit: execution | Status: current
 
 Execution Context Adapter.
 

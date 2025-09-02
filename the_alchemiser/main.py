@@ -23,8 +23,8 @@ from the_alchemiser.shared.utils.logging_utils import (
     set_request_id,
     setup_logging,
 )
-from the_alchemiser.interfaces.cli.signal_analyzer import SignalAnalyzer
-from the_alchemiser.interfaces.cli.trading_executor import TradingExecutor
+from the_alchemiser.shared.cli.signal_analyzer import SignalAnalyzer
+from the_alchemiser.shared.cli.trading_executor import TradingExecutor
 from the_alchemiser.shared.utils.exceptions import (
     ConfigurationError,
     DataProviderError,
@@ -45,7 +45,7 @@ except ImportError:
     DI_AVAILABLE = False
 
 # CLI formatter imports (moved from function-level)
-from the_alchemiser.interfaces.cli.cli_formatter import render_footer, render_header
+from the_alchemiser.shared.cli.cli_formatter import render_footer, render_header
 
 # Global DI container
 # Use Optional for proper type inference by static type checkers

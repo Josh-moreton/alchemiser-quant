@@ -1,4 +1,7 @@
-"""Business Unit: utilities; Status: current."""
+"""Business Unit: shared | Status: current
+
+CLI formatting utilities for the trading system.
+"""
 
 from __future__ import annotations
 

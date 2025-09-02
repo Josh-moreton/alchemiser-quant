@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Business Unit: utilities; Status: current.
+"""Business Unit: strategy | Status: current
 
 Comprehensive Indicator Validation for The Alchemiser Quantitative Trading System.
 

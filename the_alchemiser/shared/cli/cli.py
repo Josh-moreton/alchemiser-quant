@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Business Unit: utilities; Status: current.
+"""Business Unit: shared | Status: current
 
 Command-Line Interface for The Alchemiser Quantitative Trading System.
 
@@ -39,7 +39,7 @@ from the_alchemiser.shared.utils.logging_utils import (
     log_error_with_context,
 )
 from the_alchemiser.shared.config.secrets_manager import secrets_manager
-from the_alchemiser.interfaces.cli.cli_formatter import render_account_info
+from the_alchemiser.shared.cli.cli_formatter import render_account_info
 from the_alchemiser.shared.utils.exceptions import (
     AlchemiserError,
     StrategyExecutionError,
@@ -1052,7 +1052,7 @@ def validate_indicators(
             raise typer.Exit(1)
 
         # Import the validation suite
-        from the_alchemiser.infrastructure.validation.indicator_validator import (
+        from the_alchemiser.strategy.validation.indicator_validator import (
             IndicatorValidationSuite,
         )
 

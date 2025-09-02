@@ -1,4 +1,4 @@
-"""Business Unit: order execution/placement; Status: legacy.
+"""Business Unit: execution | Status: current
 
 Integration example for canonical order executor.
 

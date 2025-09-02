@@ -1,4 +1,4 @@
-"""Business Unit: order execution/placement; Status: current.
+"""Business Unit: shared | Status: current
 
 Trading execution CLI module.
 
@@ -31,7 +31,7 @@ from the_alchemiser.strategy.signals.strategy_signal import (
 )
 from the_alchemiser.infrastructure.config import Settings
 from the_alchemiser.shared.utils.logging_utils import get_logger
-from the_alchemiser.interfaces.cli.cli_formatter import (
+from the_alchemiser.shared.cli.cli_formatter import (
     render_enriched_order_summaries,
     render_footer,
     render_header,
@@ -458,7 +458,7 @@ class TradingExecutor:
             from rich.console import Console
             from rich.panel import Panel
 
-            from the_alchemiser.interfaces.cli.signal_analyzer import SignalAnalyzer
+            from the_alchemiser.shared.cli.signal_analyzer import SignalAnalyzer
 
             console = Console()
             console.print("\n")

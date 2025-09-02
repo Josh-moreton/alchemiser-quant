@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Business Unit: order execution/placement; Status: current.
+"""Business Unit: execution | Status: current
 
 Alpaca Client for Direct API Access.
 
@@ -77,7 +77,7 @@ from the_alchemiser.application.orders.asset_order_handler import AssetOrderHand
 from the_alchemiser.infrastructure.websocket.websocket_connection_manager import (
     WebSocketConnectionManager,
 )
-from the_alchemiser.infrastructure.websocket.websocket_order_monitor import (
+from the_alchemiser.execution.monitoring.websocket_order_monitor import (
     OrderCompletionMonitor,
 )
 from the_alchemiser.execution.core.execution_schemas import WebSocketResultDTO

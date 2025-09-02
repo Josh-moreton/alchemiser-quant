@@ -47,7 +47,7 @@ from the_alchemiser.application.portfolio.services.portfolio_management_facade i
     PortfolioManagementFacade,
 )
 from the_alchemiser.application.trading.account_facade import AccountFacade
-from the_alchemiser.application.trading.alpaca_client import AlpacaClient
+from the_alchemiser.execution.brokers.alpaca_client import AlpacaClient
 from the_alchemiser.application.trading.bootstrap import (
     TradingBootstrapContext,
     bootstrap_from_container,

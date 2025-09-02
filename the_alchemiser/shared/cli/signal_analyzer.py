@@ -1,4 +1,4 @@
-"""Business Unit: utilities; Status: current.
+"""Business Unit: shared | Status: current
 
 Signal analysis CLI module.
 
@@ -20,7 +20,7 @@ from the_alchemiser.domain.registry import StrategyType
 from the_alchemiser.domain.strategies.typed_strategy_manager import TypedStrategyManager
 from the_alchemiser.infrastructure.config import Settings
 from the_alchemiser.shared.utils.logging_utils import get_logger
-from the_alchemiser.interfaces.cli.cli_formatter import (
+from the_alchemiser.shared.cli.cli_formatter import (
     render_footer,
     render_header,
     render_portfolio_allocation,

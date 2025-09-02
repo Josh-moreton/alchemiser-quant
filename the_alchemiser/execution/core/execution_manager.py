@@ -1,4 +1,4 @@
-"""Business Unit: execution; Status: current.
+"""Business Unit: execution | Status: current
 
 Trading service facade aggregating order, position, market data, and account operations.
 """
