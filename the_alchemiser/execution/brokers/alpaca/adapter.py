@@ -1,13 +1,10 @@
-"""Business Unit: execution; Status: current.
+"""Business Unit: execution | Status: current.
 
 Alpaca broker adapter for execution module.
 
 This module consolidates scattered Alpaca client usage into a single, well-managed class.
-It provides a transitional approach that:
-1. Reduces scattered imports
-2. Adds consistent error handling
-3. Maintains backward compatibility
-4. Sets up for future improvements
+It provides a transitional approach that reduces scattered imports, adds consistent error
+handling, maintains backward compatibility, and sets up for future improvements.
 
 Phase 2 Update: Now implements domain interfaces for type safety and future migration.
 """

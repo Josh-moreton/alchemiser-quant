@@ -1,6 +1,10 @@
-"""Rebalancing algorithms and logic.
+"""Business Unit: portfolio | Status: current.
 
-Currently under construction - no logic implemented yet.
+Rebalancing algorithms and logic.
+
+This module provides portfolio rebalancing algorithms that calculate optimal
+position adjustments based on target allocations, market conditions, and
+risk constraints. Currently under construction - implementation in progress.
 """
 
 from __future__ import annotations

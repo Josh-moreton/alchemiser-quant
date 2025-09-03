@@ -1,6 +1,9 @@
-"""Business Unit: execution | Status: current
+"""Business Unit: execution | Status: current.
 
 Alpaca broker adapter implementation.
+
+This module provides the main interface to the Alpaca broker platform
+including account management, order execution, and market data integration.
 """
 
 from __future__ import annotations
