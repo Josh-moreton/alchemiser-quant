@@ -73,12 +73,13 @@ from the_alchemiser.execution.core.execution_schemas import WebSocketResultDTO
 from the_alchemiser.execution.monitoring.websocket_order_monitor import (
     OrderCompletionMonitor,
 )
-from the_alchemiser.portfolio.policies.policy_factory import PolicyFactory
 from the_alchemiser.execution.pricing.smart_pricing_handler import (
     SmartPricingHandler,
 )
+
 # Position validation now handled by PolicyOrchestrator (validation methods deprecated)
 from the_alchemiser.portfolio.holdings.position_manager import PositionManager
+from the_alchemiser.portfolio.policies.policy_factory import PolicyFactory
 
 # DEPRECATED: LimitOrderHandler import removed - use CanonicalOrderExecutor instead
 # (Legacy order validation utilities removed with legacy paths)

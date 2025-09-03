@@ -81,8 +81,6 @@ class PositionManager:
             logging.error(f"Unexpected error getting positions: {e}")
             return {}
 
-
-
     def should_use_liquidation_api(self, symbol: str, requested_qty: float) -> bool:
         """Determine if liquidation API should be used instead of regular sell order.
 
@@ -102,8 +100,6 @@ class PositionManager:
 
         # Use liquidation API for selling 99%+ of position
         return requested_qty >= available * 0.99
-
-
 
     def execute_liquidation(self, symbol: str) -> str | None:
         """Execute position liquidation using Alpaca's close_position API.

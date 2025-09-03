@@ -2,7 +2,7 @@
 
 DEPRECATED: Strategy position model using domain value objects.
 
-This file is deprecated. Use the canonical StrategyPosition from 
+This file is deprecated. Use the canonical StrategyPosition from
 strategy.types.strategy instead. All functionality has been moved there.
 """
 

@@ -3,9 +3,9 @@
 Canonical strategy types and models.
 """
 
-from .strategy import StrategySignal, StrategyPosition
+from .strategy import StrategyPosition, StrategySignal
 
 __all__ = [
-    "StrategySignal",
     "StrategyPosition",
+    "StrategySignal",
 ]
