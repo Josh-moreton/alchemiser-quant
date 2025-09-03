@@ -1,6 +1,10 @@
-"""Business Unit: shared | Status: current
+"""Business Unit: shared | Status: current.
 
 Common types and value objects used across modules.
+
+This module provides foundational types including Money, Quantity, Symbol,
+MarketDataPort, and other value objects that ensure type safety and
+consistency across the strategy, portfolio, and execution modules.
 """
 
 from __future__ import annotations

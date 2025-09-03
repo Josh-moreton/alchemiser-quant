@@ -1,10 +1,12 @@
-"""Business Unit: utilities; Status: current.
+"""Business Unit: shared | Status: current.
 
 Core type definitions for The Alchemiser trading system.
 
 This module contains domain-appropriate TypedDict definitions that represent
-core business entities and concepts. Interface/UI types have been moved to
-interfaces/schemas modules as part of the Pydantic migration.
+core business entities and concepts. These types provide structured data
+contracts for account information, orders, positions, and market data.
+Interface/UI types have been moved to interfaces/schemas modules as part
+of the Pydantic migration.
 """
 
 from __future__ import annotations
@@ -16,6 +18,24 @@ from the_alchemiser.shared.types.order_status import OrderStatusLiteral
 
 # Account Information Types
 class AccountInfo(TypedDict):
+    """Account information and financial metrics.
+    
+    Contains comprehensive account details including equity, cash, buying power,
+    and regulatory status information used for portfolio management and
+    risk assessment.
+    
+    Attributes:
+        account_id: Unique identifier for the trading account.
+        equity: Total account equity value.
+        cash: Available cash balance.
+        buying_power: Total buying power available for trades.
+        day_trades_remaining: Number of day trades remaining in current period.
+        portfolio_value: Total value of all holdings.
+        last_equity: Previous day's equity value.
+        daytrading_buying_power: Buying power specifically for day trading.
+        regt_buying_power: Regulation T buying power.
+        status: Account status ("ACTIVE" or "INACTIVE").
+    """
     account_id: str
     equity: str | float
     cash: str | float
@@ -30,7 +50,18 @@ class AccountInfo(TypedDict):
 
 # Enriched Account Types for Display/Reporting
 class PortfolioHistoryData(TypedDict, total=False):
-    """Portfolio history data for P&L tracking."""
+    """Portfolio history data for performance tracking and analysis.
+    
+    Contains historical portfolio metrics used for profit/loss tracking,
+    performance analysis, and reporting. All fields are optional to support
+    partial data scenarios.
+    
+    Attributes:
+        profit_loss: Historical profit/loss values in absolute terms.
+        profit_loss_pct: Historical profit/loss as percentage changes.
+        equity: Historical equity values over time.
+        timestamp: Corresponding timestamps for each data point.
+    """
 
     profit_loss: list[float]
     profit_loss_pct: list[float]

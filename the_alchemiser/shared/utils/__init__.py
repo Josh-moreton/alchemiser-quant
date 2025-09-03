@@ -1,6 +1,10 @@
-"""Utility functions and helpers.
+"""Business Unit: shared | Status: current.
 
-Currently under construction - no logic implemented yet.
+Utility functions and helpers.
+
+This module provides cross-cutting utility functions including account data processing,
+error handling, context management, and other helper functions that support
+operations across all business units.
 """
 
 from __future__ import annotations
