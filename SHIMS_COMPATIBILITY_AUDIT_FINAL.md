@@ -2,10 +2,10 @@
 
 ## Executive Summary
 
-This report identifies **6 confirmed shims and compatibility layers** in the codebase that require attention. This focused audit only includes files that are definitively shims, import redirections, or legacy compatibility code.
+This report identifies **4 confirmed shims and compatibility layers** in the codebase that require attention. This focused audit only includes files that are definitively shims, import redirections, or legacy compatibility code.
 
 **Risk Distribution:**
-- 🔴 **High Risk**: 4 items (explicit legacy code, deprecation warnings)
+- 🔴 **High Risk**: 2 items (mixed files with deprecated methods)
 - 🟡 **Medium Risk**: 2 items (import redirections)
 - 🟢 **Low Risk**: 0 items (backup files)
 
@@ -13,46 +13,24 @@ This report identifies **6 confirmed shims and compatibility layers** in the cod
 
 ## Detailed Findings
 
-### 🔴 HIGH RISK (4 items)
+### 🔴 HIGH RISK (2 items)
 
 **1. position_manager.py** **[1 imports]**
 - **File**: `the_alchemiser/portfolio/holdings/position_manager.py`
-- **Description**: Contains actual deprecation warnings
-- **Purpose**: Issues runtime deprecation warnings
-- **Suggested Action**: review_for_removal
-- **Evidence**: Warning: PositionManager.validate_sell_position is deprecated. ...; Warning: PositionManager.validate_buying_power is deprecated. ...; Actively imported by 1 files
+- **Description**: Contains actual deprecation warnings but also operational methods
+- **Purpose**: Mixed file with deprecated methods and active operational code
+- **Suggested Action**: Keep operational methods, coordinate removal of deprecated methods
+- **Evidence**: Warning: PositionManager.validate_sell_position is deprecated. ...; Warning: PositionManager.validate_buying_power is deprecated. ...; Actively imported by 1 files for operational use
 
 **2. asset_order_handler.py**
 - **File**: `the_alchemiser/execution/orders/asset_order_handler.py`
-- **Description**: Contains actual deprecation warnings
-- **Purpose**: Issues runtime deprecation warnings
-- **Suggested Action**: review_for_removal
+- **Description**: Contains actual deprecation warnings but also operational methods
+- **Purpose**: Mixed file with deprecated methods and active operational code
+- **Suggested Action**: Keep operational methods, coordinate removal of deprecated methods
 - **Evidence**: Warning: AssetOrderHandler.handle_fractionability_error is deprecated. ...; Warning: AssetOrderHandler.handle_limit_order_fractionability_error is deprecated. ...
 
-**3. error_handling.py**
-- **File**: `the_alchemiser/shared/utils/error_handling.py`
-- **Description**: Contains actual deprecation warnings
-- **Purpose**: Issues runtime deprecation warnings
-- **Suggested Action**: review_for_removal
-- **Evidence**: Warning: the_alchemiser.shared.utils.error_handling is deprecated. ...; Warning: create_service_logger is deprecated. ...
-
-**4. canonical_executor.py**
-- **File**: `the_alchemiser/execution/core/canonical_executor.py`
-- **Description**: Explicitly marked with 'Status: legacy'
-- **Purpose**: Module explicitly marked as legacy
-- **Suggested Action**: review_for_migration
-- **Evidence**: """Business Unit: execution; Status: legacy.
-
 ### 🟡 MEDIUM RISK (2 items)
-
-**1. canonical_executor.py**
-- **File**: `the_alchemiser/execution/core/canonical_executor.py`
-- **Description**: Import redirection shim
-- **Purpose**: Redirects imports to new location
-- **Suggested Action**: migrate_imports
-- **Evidence**: Star imports: 1; Redirection language found; Short file: 9 lines
-
-**2. __init__.py**
+**1. __init__.py**
 - **File**: `the_alchemiser/shared/utils/__init__.py`
 - **Description**: Import redirection shim
 - **Purpose**: Redirects imports to new location
@@ -63,16 +41,16 @@ This report identifies **6 confirmed shims and compatibility layers** in the cod
 
 ### Immediate Actions Required
 
-1. **Review 4 high-risk shims** - These are explicitly marked as legacy or deprecated
-2. **Handle 1 actively imported shims** - Must update import statements before removal
-3. **Remove backup files** - These can be safely deleted
+1. **Review 2 high-risk mixed files** - These contain deprecated methods but also operational code
+2. **Handle 1 actively imported files** - Ensure operational methods remain available
+3. **Document deprecated method alternatives** - Provide clear migration paths
 
 ### Suggested Action Priority
 
-1. **Backup Files** → Safe to remove immediately
-2. **Import Redirections** → Update import statements, then remove shim
-3. **Legacy Code** → Review, migrate functionality, then remove
-4. **Deprecated Code** → Already marked for removal, coordinate timing
+1. **Pure Import Redirections** → Update import statements, then remove shim (COMPLETED Phase 4a-4b)
+2. **Mixed Files with Deprecated Methods** → Coordinate removal of deprecated methods only
+3. **Legacy Code** → Review, migrate functionality, then remove (COMPLETED Phase 3)
+4. **Deprecated Modules** → Already removed in Phase 4b (COMPLETED)
 
 ### Risk Mitigation
 
