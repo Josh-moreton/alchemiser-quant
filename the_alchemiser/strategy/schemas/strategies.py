@@ -46,7 +46,7 @@ from typing import TypedDict
 
 from the_alchemiser.strategy.managers.typed_strategy_manager import AggregatedSignals
 from the_alchemiser.strategy.registry.strategy_registry import StrategyType
-from the_alchemiser.strategy.signals.strategy_signal import (
+from the_alchemiser.strategy.engines.value_objects.strategy_signal import (
     StrategySignal as TypedStrategySignal,
 )
 

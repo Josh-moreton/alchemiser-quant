@@ -43,7 +43,7 @@ from the_alchemiser.strategy.mappers.strategy_signal_mapping import (
     map_signals_dict as _map_signals_to_typed,
 )
 from the_alchemiser.strategy.registry.strategy_registry import StrategyType
-from the_alchemiser.strategy.signals.strategy_signal import (
+from the_alchemiser.strategy.engines.value_objects.strategy_signal import (
     StrategySignal as TypedStrategySignal,
 )
 
