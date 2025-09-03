@@ -1,4 +1,4 @@
-"""Business Unit: utilities; Status: current.
+"""Business Unit: shared | Status: current.
 
 Utility helpers for application-layer boundary serialization.
 

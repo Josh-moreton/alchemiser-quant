@@ -26,9 +26,9 @@ from the_alchemiser.portfolio.state.attribution_engine import (
     StrategyAttributionEngine,
 )
 from the_alchemiser.shared.math.num import floats_equal
+from the_alchemiser.shared.utils.serialization import ensure_serialized_dict
 from the_alchemiser.shared.value_objects.core_types import OrderDetails
 from the_alchemiser.strategy.registry.strategy_registry import StrategyType
-from the_alchemiser.utils.serialization import ensure_serialized_dict
 
 from ..allocation.portfolio_rebalancing_service import (
     PortfolioRebalancingService,
