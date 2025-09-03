@@ -1,0 +1,3186 @@
+[
+  {
+    "file_path": "the_alchemiser/execution/services/__init__.py",
+    "finding_type": "legacy",
+    "description": "File in legacy DDD structure: services/",
+    "risk_level": "high",
+    "suggested_action": "Migrate to new modular structure (strategy/portfolio/execution/shared)",
+    "line_number": null,
+    "details": {
+      "legacy_structure": "services/"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/execution/orders/service.py",
+    "finding_type": "deprecated",
+    "description": "Deprecated code or comment: # Legacy place_market_order / place_limit_order removed. Use CanonicalOrderExecutor externally.",
+    "risk_level": "low",
+    "suggested_action": "Review and remove if no longer needed",
+    "line_number": 79,
+    "details": {
+      "pattern_matched": "# Legacy",
+      "line_content": "# Legacy place_market_order / place_limit_order removed. Use CanonicalOrderExecutor externally."
+    }
+  },
+  {
+    "file_path": "the_alchemiser/execution/orders/service.py",
+    "finding_type": "legacy",
+    "description": "Legacy import pattern: from the_alchemiser.shared.utils.decorators import translate_trading_errors",
+    "risk_level": "medium",
+    "suggested_action": "Update import to use new modular structure",
+    "line_number": 30,
+    "details": {
+      "import_pattern": "from.*\\.utils\\.",
+      "import_line": "from the_alchemiser.shared.utils.decorators import translate_trading_errors"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/execution/orders/validation.py",
+    "finding_type": "deprecated",
+    "description": "Deprecated code or comment: # Legacy compatibility functions for existing code",
+    "risk_level": "low",
+    "suggested_action": "Review and remove if no longer needed",
+    "line_number": 297,
+    "details": {
+      "pattern_matched": "# Legacy",
+      "line_content": "# Legacy compatibility functions for existing code"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/execution/orders/asset_order_handler.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: This method remains for backward compatibility only.",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 169,
+    "details": {
+      "pattern_matched": "backward compatibility",
+      "line_content": "This method remains for backward compatibility only."
+    }
+  },
+  {
+    "file_path": "the_alchemiser/execution/orders/asset_order_handler.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: import warnings",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 181,
+    "details": {
+      "pattern_matched": "import.*warnings",
+      "line_content": "import warnings"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/execution/orders/asset_order_handler.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: DeprecationWarning,",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 186,
+    "details": {
+      "pattern_matched": "DeprecationWarning",
+      "line_content": "DeprecationWarning,"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/execution/orders/asset_order_handler.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: This method remains for backward compatibility only.",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 293,
+    "details": {
+      "pattern_matched": "backward compatibility",
+      "line_content": "This method remains for backward compatibility only."
+    }
+  },
+  {
+    "file_path": "the_alchemiser/execution/orders/asset_order_handler.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: import warnings",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 305,
+    "details": {
+      "pattern_matched": "import.*warnings",
+      "line_content": "import warnings"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/execution/orders/asset_order_handler.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: DeprecationWarning,",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 310,
+    "details": {
+      "pattern_matched": "DeprecationWarning",
+      "line_content": "DeprecationWarning,"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/execution/orders/asset_order_handler.py",
+    "finding_type": "deprecated",
+    "description": "Deprecated code or comment: DEPRECATED: This fractionability error handling has been moved to FractionabilityPolicy.",
+    "risk_level": "low",
+    "suggested_action": "Replace with modern alternative",
+    "line_number": 167,
+    "details": {
+      "pattern_matched": "DEPRECATED:",
+      "line_content": "DEPRECATED: This fractionability error handling has been moved to FractionabilityPolicy."
+    }
+  },
+  {
+    "file_path": "the_alchemiser/execution/orders/asset_order_handler.py",
+    "finding_type": "deprecated",
+    "description": "Deprecated code or comment: DEPRECATED: This fractionability error handling has been moved to FractionabilityPolicy.",
+    "risk_level": "low",
+    "suggested_action": "Replace with modern alternative",
+    "line_number": 291,
+    "details": {
+      "pattern_matched": "DEPRECATED:",
+      "line_content": "DEPRECATED: This fractionability error handling has been moved to FractionabilityPolicy."
+    }
+  },
+  {
+    "file_path": "the_alchemiser/execution/orders/lifecycle_adapter.py",
+    "finding_type": "legacy",
+    "description": "File uses old naming convention: lifecycle_adapter.py",
+    "risk_level": "low",
+    "suggested_action": "Consider renaming to match current conventions",
+    "line_number": null,
+    "details": {
+      "naming_pattern": ".*_adapter\\.py$"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/execution/core/manager.py",
+    "finding_type": "legacy",
+    "description": "Legacy import pattern: from the_alchemiser.shared.services.errors import handle_errors_with_retry",
+    "risk_level": "medium",
+    "suggested_action": "Update import to use new modular structure",
+    "line_number": 16,
+    "details": {
+      "import_pattern": "from.*\\.services\\.",
+      "import_line": "from the_alchemiser.shared.services.errors import handle_errors_with_retry"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/execution/core/execution_manager.py",
+    "finding_type": "legacy",
+    "description": "Legacy import pattern: from the_alchemiser.shared.utils.decorators import translate_trading_errors",
+    "risk_level": "medium",
+    "suggested_action": "Update import to use new modular structure",
+    "line_number": 102,
+    "details": {
+      "import_pattern": "from.*\\.utils\\.",
+      "import_line": "from the_alchemiser.shared.utils.decorators import translate_trading_errors"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/execution/core/execution_manager_legacy.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: CRITICAL: This module has moved to the_alchemiser.execution.core",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 3,
+    "details": {
+      "pattern_matched": "This module has moved",
+      "line_content": "CRITICAL: This module has moved to the_alchemiser.execution.core"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/execution/core/execution_manager_legacy.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: This shim maintains backward compatibility for execution systems.",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 4,
+    "details": {
+      "pattern_matched": "backward compatibility",
+      "line_content": "This shim maintains backward compatibility for execution systems."
+    }
+  },
+  {
+    "file_path": "the_alchemiser/execution/core/execution_manager_legacy.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: logging.getLogger(__name__).info(\"Import redirected from legacy path to execution.core module\")",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 13,
+    "details": {
+      "pattern_matched": "Import redirected",
+      "line_content": "logging.getLogger(__name__).info(\"Import redirected from legacy path to execution.core module\")"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/execution/core/execution_manager_legacy.py",
+    "finding_type": "shim",
+    "description": "Star import compatibility shim",
+    "risk_level": "medium",
+    "suggested_action": "Replace with direct imports and remove shim",
+    "line_number": null,
+    "details": {
+      "star_import": true
+    }
+  },
+  {
+    "file_path": "the_alchemiser/execution/core/execution_manager_legacy.py",
+    "finding_type": "deprecated",
+    "description": "Deprecated code or comment: \"\"\"Business Unit: execution; Status: legacy.",
+    "risk_level": "medium",
+    "suggested_action": "Migrate to new modular structure",
+    "line_number": 1,
+    "details": {
+      "pattern_matched": "Status: legacy",
+      "line_content": "\"\"\"Business Unit: execution; Status: legacy."
+    }
+  },
+  {
+    "file_path": "the_alchemiser/execution/core/execution_schemas.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: # Backward compatibility aliases",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 199,
+    "details": {
+      "pattern_matched": "backward compatibility",
+      "line_content": "# Backward compatibility aliases"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/execution/core/execution_schemas.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: # Backward compatibility aliases - will be removed in future version",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 209,
+    "details": {
+      "pattern_matched": "backward compatibility",
+      "line_content": "# Backward compatibility aliases - will be removed in future version"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/execution/core/account_facade.py",
+    "finding_type": "legacy",
+    "description": "File uses old naming convention: account_facade.py",
+    "risk_level": "low",
+    "suggested_action": "Consider renaming to match current conventions",
+    "line_number": null,
+    "details": {
+      "naming_pattern": ".*_facade\\.py$"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/execution/core/account_facade.py",
+    "finding_type": "legacy",
+    "description": "Legacy import pattern: from the_alchemiser.utils.serialization import ensure_serialized_dict",
+    "risk_level": "medium",
+    "suggested_action": "Update import to use new modular structure",
+    "line_number": 51,
+    "details": {
+      "import_pattern": "from.*\\.utils\\.",
+      "import_line": "from the_alchemiser.utils.serialization import ensure_serialized_dict"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/execution/core/canonical_executor.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: CRITICAL: This module has moved to the_alchemiser.execution.core",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 3,
+    "details": {
+      "pattern_matched": "This module has moved",
+      "line_content": "CRITICAL: This module has moved to the_alchemiser.execution.core"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/execution/core/canonical_executor.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: This shim maintains backward compatibility for execution systems.",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 4,
+    "details": {
+      "pattern_matched": "backward compatibility",
+      "line_content": "This shim maintains backward compatibility for execution systems."
+    }
+  },
+  {
+    "file_path": "the_alchemiser/execution/core/canonical_executor.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: logging.getLogger(__name__).info(\"Import redirected from legacy path to execution.core module\")",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 13,
+    "details": {
+      "pattern_matched": "Import redirected",
+      "line_content": "logging.getLogger(__name__).info(\"Import redirected from legacy path to execution.core module\")"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/execution/core/canonical_executor.py",
+    "finding_type": "shim",
+    "description": "Star import compatibility shim",
+    "risk_level": "medium",
+    "suggested_action": "Replace with direct imports and remove shim",
+    "line_number": null,
+    "details": {
+      "star_import": true
+    }
+  },
+  {
+    "file_path": "the_alchemiser/execution/core/canonical_executor.py",
+    "finding_type": "deprecated",
+    "description": "Deprecated code or comment: \"\"\"Business Unit: execution; Status: legacy.",
+    "risk_level": "medium",
+    "suggested_action": "Migrate to new modular structure",
+    "line_number": 1,
+    "details": {
+      "pattern_matched": "Status: legacy",
+      "line_content": "\"\"\"Business Unit: execution; Status: legacy."
+    }
+  },
+  {
+    "file_path": "the_alchemiser/execution/mappers/orders.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: \"\"\"Convert ValidatedOrderDTO back to dictionary for backward compatibility.",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 167,
+    "details": {
+      "pattern_matched": "backward compatibility",
+      "line_content": "\"\"\"Convert ValidatedOrderDTO back to dictionary for backward compatibility."
+    }
+  },
+  {
+    "file_path": "the_alchemiser/execution/brokers/account_service.py",
+    "finding_type": "legacy",
+    "description": "File uses old naming convention: account_service.py",
+    "risk_level": "low",
+    "suggested_action": "Consider renaming to match current conventions",
+    "line_number": null,
+    "details": {
+      "naming_pattern": ".*_service\\.py$"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/execution/brokers/alpaca_client.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: trading_client: Alpaca trading client for API calls (backward compatibility).",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 102,
+    "details": {
+      "pattern_matched": "backward compatibility",
+      "line_content": "trading_client: Alpaca trading client for API calls (backward compatibility)."
+    }
+  },
+  {
+    "file_path": "the_alchemiser/execution/brokers/alpaca_client.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: self.trading_client = alpaca_manager.trading_client  # Backward compatibility",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 130,
+    "details": {
+      "pattern_matched": "backward compatibility",
+      "line_content": "self.trading_client = alpaca_manager.trading_client  # Backward compatibility"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/execution/brokers/alpaca_client.py",
+    "finding_type": "deprecated",
+    "description": "Deprecated code or comment: # DEPRECATED: LimitOrderHandler import removed - use CanonicalOrderExecutor instead",
+    "risk_level": "low",
+    "suggested_action": "Replace with modern alternative",
+    "line_number": 82,
+    "details": {
+      "pattern_matched": "# DEPRECATED",
+      "line_content": "# DEPRECATED: LimitOrderHandler import removed - use CanonicalOrderExecutor instead"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/execution/brokers/alpaca_client.py",
+    "finding_type": "deprecated",
+    "description": "Deprecated code or comment: # DEPRECATED: LimitOrderHandler removed - use CanonicalOrderExecutor instead",
+    "risk_level": "low",
+    "suggested_action": "Replace with modern alternative",
+    "line_number": 143,
+    "details": {
+      "pattern_matched": "# DEPRECATED",
+      "line_content": "# DEPRECATED: LimitOrderHandler removed - use CanonicalOrderExecutor instead"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/execution/brokers/alpaca_client.py",
+    "finding_type": "deprecated",
+    "description": "Deprecated code or comment: # Legacy direct order placement methods removed - use CanonicalOrderExecutor externally.",
+    "risk_level": "low",
+    "suggested_action": "Review and remove if no longer needed",
+    "line_number": 223,
+    "details": {
+      "pattern_matched": "# Legacy",
+      "line_content": "# Legacy direct order placement methods removed - use CanonicalOrderExecutor externally."
+    }
+  },
+  {
+    "file_path": "the_alchemiser/execution/brokers/alpaca_client.py",
+    "finding_type": "legacy",
+    "description": "Legacy import pattern: from the_alchemiser.shared.services.websocket_connection_manager import (",
+    "risk_level": "medium",
+    "suggested_action": "Update import to use new modular structure",
+    "line_number": 84,
+    "details": {
+      "import_pattern": "from.*\\.services\\.",
+      "import_line": "from the_alchemiser.shared.services.websocket_connection_manager import ("
+    }
+  },
+  {
+    "file_path": "the_alchemiser/execution/strategies/execution_context_adapter.py",
+    "finding_type": "legacy",
+    "description": "File uses old naming convention: execution_context_adapter.py",
+    "risk_level": "low",
+    "suggested_action": "Consider renaming to match current conventions",
+    "line_number": null,
+    "details": {
+      "naming_pattern": ".*_adapter\\.py$"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/execution/strategies/repeg_strategy.py",
+    "finding_type": "legacy",
+    "description": "Legacy import pattern: from the_alchemiser.shared.services.tick_size_service import (",
+    "risk_level": "medium",
+    "suggested_action": "Update import to use new modular structure",
+    "line_number": 19,
+    "details": {
+      "import_pattern": "from.*\\.services\\.",
+      "import_line": "from the_alchemiser.shared.services.tick_size_service import ("
+    }
+  },
+  {
+    "file_path": "the_alchemiser/utils/__init__.py",
+    "finding_type": "legacy",
+    "description": "File in legacy DDD structure: utils/",
+    "risk_level": "high",
+    "suggested_action": "Migrate to new modular structure (strategy/portfolio/execution/shared)",
+    "line_number": null,
+    "details": {
+      "legacy_structure": "utils/"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/utils/__init__.py",
+    "finding_type": "legacy",
+    "description": "Legacy import pattern: # from the_alchemiser.shared.services.price_utils import format_price",
+    "risk_level": "medium",
+    "suggested_action": "Update import to use new modular structure",
+    "line_number": 14,
+    "details": {
+      "import_pattern": "from.*\\.services\\.",
+      "import_line": "# from the_alchemiser.shared.services.price_utils import format_price"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/utils/serialization.py",
+    "finding_type": "legacy",
+    "description": "File in legacy DDD structure: utils/",
+    "risk_level": "high",
+    "suggested_action": "Migrate to new modular structure (strategy/portfolio/execution/shared)",
+    "line_number": null,
+    "details": {
+      "legacy_structure": "utils/"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/strategy/engines/klm_ensemble_engine.py",
+    "finding_type": "legacy",
+    "description": "Legacy import pattern: from the_alchemiser.shared.utils.common import ActionType",
+    "risk_level": "medium",
+    "suggested_action": "Update import to use new modular structure",
+    "line_number": 28,
+    "details": {
+      "import_pattern": "from.*\\.utils\\.",
+      "import_line": "from the_alchemiser.shared.utils.common import ActionType"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/strategy/engines/klm_workers/variant_530_18.py",
+    "finding_type": "legacy",
+    "description": "Legacy import pattern: from the_alchemiser.shared.utils.common import ActionType",
+    "risk_level": "medium",
+    "suggested_action": "Update import to use new modular structure",
+    "line_number": 24,
+    "details": {
+      "import_pattern": "from.*\\.utils\\.",
+      "import_line": "from the_alchemiser.shared.utils.common import ActionType"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/strategy/engines/klm_workers/variant_506_38.py",
+    "finding_type": "legacy",
+    "description": "Legacy import pattern: from the_alchemiser.shared.utils.common import ActionType",
+    "risk_level": "medium",
+    "suggested_action": "Update import to use new modular structure",
+    "line_number": 21,
+    "details": {
+      "import_pattern": "from.*\\.utils\\.",
+      "import_line": "from the_alchemiser.shared.utils.common import ActionType"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/strategy/engines/klm_workers/variant_410_38.py",
+    "finding_type": "legacy",
+    "description": "Legacy import pattern: from the_alchemiser.shared.utils.common import ActionType",
+    "risk_level": "medium",
+    "suggested_action": "Update import to use new modular structure",
+    "line_number": 14,
+    "details": {
+      "import_pattern": "from.*\\.utils\\.",
+      "import_line": "from the_alchemiser.shared.utils.common import ActionType"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/strategy/engines/klm_workers/variant_830_21.py",
+    "finding_type": "legacy",
+    "description": "Legacy import pattern: from the_alchemiser.shared.utils.common import ActionType",
+    "risk_level": "medium",
+    "suggested_action": "Update import to use new modular structure",
+    "line_number": 17,
+    "details": {
+      "import_pattern": "from.*\\.utils\\.",
+      "import_line": "from the_alchemiser.shared.utils.common import ActionType"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/strategy/engines/klm_workers/variant_nova.py",
+    "finding_type": "legacy",
+    "description": "Legacy import pattern: from the_alchemiser.shared.utils.common import ActionType",
+    "risk_level": "medium",
+    "suggested_action": "Update import to use new modular structure",
+    "line_number": 18,
+    "details": {
+      "import_pattern": "from.*\\.utils\\.",
+      "import_line": "from the_alchemiser.shared.utils.common import ActionType"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/strategy/engines/klm_workers/variant_1280_26.py",
+    "finding_type": "legacy",
+    "description": "Legacy import pattern: from the_alchemiser.shared.utils.common import ActionType",
+    "risk_level": "medium",
+    "suggested_action": "Update import to use new modular structure",
+    "line_number": 19,
+    "details": {
+      "import_pattern": "from.*\\.utils\\.",
+      "import_line": "from the_alchemiser.shared.utils.common import ActionType"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/strategy/engines/klm_workers/variant_520_22.py",
+    "finding_type": "legacy",
+    "description": "Legacy import pattern: from the_alchemiser.shared.utils.common import ActionType",
+    "risk_level": "medium",
+    "suggested_action": "Update import to use new modular structure",
+    "line_number": 17,
+    "details": {
+      "import_pattern": "from.*\\.utils\\.",
+      "import_line": "from the_alchemiser.shared.utils.common import ActionType"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/strategy/engines/klm_workers/base_klm_variant.py",
+    "finding_type": "legacy",
+    "description": "Legacy import pattern: from the_alchemiser.shared.utils.common import ActionType",
+    "risk_level": "medium",
+    "suggested_action": "Update import to use new modular structure",
+    "line_number": 18,
+    "details": {
+      "import_pattern": "from.*\\.utils\\.",
+      "import_line": "from the_alchemiser.shared.utils.common import ActionType"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/strategy/engines/klm_workers/variant_1200_28.py",
+    "finding_type": "legacy",
+    "description": "Legacy import pattern: from the_alchemiser.shared.utils.common import ActionType",
+    "risk_level": "medium",
+    "suggested_action": "Update import to use new modular structure",
+    "line_number": 17,
+    "details": {
+      "import_pattern": "from.*\\.utils\\.",
+      "import_line": "from the_alchemiser.shared.utils.common import ActionType"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/strategy/engines/tecl_strategy_engine.py",
+    "finding_type": "legacy",
+    "description": "Legacy import pattern: from the_alchemiser.shared.utils.common import ActionType",
+    "risk_level": "medium",
+    "suggested_action": "Update import to use new modular structure",
+    "line_number": 37,
+    "details": {
+      "import_pattern": "from.*\\.utils\\.",
+      "import_line": "from the_alchemiser.shared.utils.common import ActionType"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/strategy/engines/core/trading_engine.py",
+    "finding_type": "legacy",
+    "description": "Legacy import pattern: from the_alchemiser.shared.utils.context import create_error_context",
+    "risk_level": "medium",
+    "suggested_action": "Update import to use new modular structure",
+    "line_number": 73,
+    "details": {
+      "import_pattern": "from.*\\.utils\\.",
+      "import_line": "from the_alchemiser.shared.utils.context import create_error_context"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/strategy/engines/core/trading_engine.py",
+    "finding_type": "legacy",
+    "description": "Legacy import pattern: from the_alchemiser.shared.utils.context import (",
+    "risk_level": "medium",
+    "suggested_action": "Update import to use new modular structure",
+    "line_number": 415,
+    "details": {
+      "import_pattern": "from.*\\.utils\\.",
+      "import_line": "from the_alchemiser.shared.utils.context import ("
+    }
+  },
+  {
+    "file_path": "the_alchemiser/strategy/engines/core/trading_engine.py",
+    "finding_type": "legacy",
+    "description": "Legacy import pattern: from the_alchemiser.shared.services.errors import handle_trading_error",
+    "risk_level": "medium",
+    "suggested_action": "Update import to use new modular structure",
+    "line_number": 726,
+    "details": {
+      "import_pattern": "from.*\\.services\\.",
+      "import_line": "from the_alchemiser.shared.services.errors import handle_trading_error"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/strategy/engines/typed_klm_ensemble_engine.py",
+    "finding_type": "legacy",
+    "description": "Legacy import pattern: from the_alchemiser.shared.utils.common import ActionType",
+    "risk_level": "medium",
+    "suggested_action": "Update import to use new modular structure",
+    "line_number": 28,
+    "details": {
+      "import_pattern": "from.*\\.utils\\.",
+      "import_line": "from the_alchemiser.shared.utils.common import ActionType"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/strategy/data/streaming_service.py",
+    "finding_type": "legacy",
+    "description": "File uses old naming convention: streaming_service.py",
+    "risk_level": "low",
+    "suggested_action": "Consider renaming to match current conventions",
+    "line_number": null,
+    "details": {
+      "naming_pattern": ".*_service\\.py$"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/strategy/data/price_service.py",
+    "finding_type": "legacy",
+    "description": "File uses old naming convention: price_service.py",
+    "risk_level": "low",
+    "suggested_action": "Consider renaming to match current conventions",
+    "line_number": null,
+    "details": {
+      "naming_pattern": ".*_service\\.py$"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/strategy/data/domain_mapping.py",
+    "finding_type": "deprecated",
+    "description": "Deprecated code or comment: # Legacy signal normalization (for backward compatibility)",
+    "risk_level": "low",
+    "suggested_action": "Review and remove if no longer needed",
+    "line_number": 85,
+    "details": {
+      "pattern_matched": "# Legacy",
+      "line_content": "# Legacy signal normalization (for backward compatibility)"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/strategy/data/market_data_service.py",
+    "finding_type": "legacy",
+    "description": "File uses old naming convention: market_data_service.py",
+    "risk_level": "low",
+    "suggested_action": "Consider renaming to match current conventions",
+    "line_number": null,
+    "details": {
+      "naming_pattern": ".*_service\\.py$"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/strategy/data/market_data_service.py",
+    "finding_type": "legacy",
+    "description": "Legacy import pattern: from the_alchemiser.shared.utils.decorators import translate_market_data_errors",
+    "risk_level": "medium",
+    "suggested_action": "Update import to use new modular structure",
+    "line_number": 30,
+    "details": {
+      "import_pattern": "from.*\\.utils\\.",
+      "import_line": "from the_alchemiser.shared.utils.decorators import translate_market_data_errors"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/strategy/data/strategy_market_data_service.py",
+    "finding_type": "legacy",
+    "description": "File uses old naming convention: strategy_market_data_service.py",
+    "risk_level": "low",
+    "suggested_action": "Consider renaming to match current conventions",
+    "line_number": null,
+    "details": {
+      "naming_pattern": ".*_service\\.py$"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/strategy/data/shared_market_data_service.py",
+    "finding_type": "legacy",
+    "description": "File uses old naming convention: shared_market_data_service.py",
+    "risk_level": "low",
+    "suggested_action": "Consider renaming to match current conventions",
+    "line_number": null,
+    "details": {
+      "naming_pattern": ".*_service\\.py$"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/strategy/mappers/market_data_adapter.py",
+    "finding_type": "legacy",
+    "description": "File uses old naming convention: market_data_adapter.py",
+    "risk_level": "low",
+    "suggested_action": "Consider renaming to match current conventions",
+    "line_number": null,
+    "details": {
+      "naming_pattern": ".*_adapter\\.py$"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/strategy/signals/strategy_signal.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: This module provides backward compatibility.",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 3,
+    "details": {
+      "pattern_matched": "backward compatibility",
+      "line_content": "This module provides backward compatibility."
+    }
+  },
+  {
+    "file_path": "the_alchemiser/strategy/signals/strategy_signal.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: import warnings",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 6,
+    "details": {
+      "pattern_matched": "import.*warnings",
+      "line_content": "import warnings"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/strategy/signals/strategy_signal.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: DeprecationWarning,",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 13,
+    "details": {
+      "pattern_matched": "DeprecationWarning",
+      "line_content": "DeprecationWarning,"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/strategy/signals/strategy_signal.py",
+    "finding_type": "shim",
+    "description": "Star import compatibility shim",
+    "risk_level": "medium",
+    "suggested_action": "Replace with direct imports and remove shim",
+    "line_number": null,
+    "details": {
+      "star_import": true
+    }
+  },
+  {
+    "file_path": "the_alchemiser/strategy/signals/strategy_signal.py",
+    "finding_type": "deprecated",
+    "description": "Deprecated code or comment: \"\"\"DEPRECATED: Strategy value objects moved to the_alchemiser.strategy.engines.value_objects.",
+    "risk_level": "low",
+    "suggested_action": "Replace with modern alternative",
+    "line_number": 1,
+    "details": {
+      "pattern_matched": "DEPRECATED:",
+      "line_content": "\"\"\"DEPRECATED: Strategy value objects moved to the_alchemiser.strategy.engines.value_objects."
+    }
+  },
+  {
+    "file_path": "the_alchemiser/main.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: )  # Keep global for backward compatibility during transition",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 73,
+    "details": {
+      "pattern_matched": "backward compatibility",
+      "line_content": ")  # Keep global for backward compatibility during transition"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/main.py",
+    "finding_type": "legacy",
+    "description": "Legacy import pattern: from the_alchemiser.shared.utils.service_factory import ServiceFactory",
+    "risk_level": "medium",
+    "suggested_action": "Update import to use new modular structure",
+    "line_number": 41,
+    "details": {
+      "import_pattern": "from.*\\.utils\\.",
+      "import_line": "from the_alchemiser.shared.utils.service_factory import ServiceFactory"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/lambda_handler.py",
+    "finding_type": "legacy",
+    "description": "Legacy import pattern: from the_alchemiser.shared.services.errors import (",
+    "risk_level": "medium",
+    "suggested_action": "Update import to use new modular structure",
+    "line_number": 259,
+    "details": {
+      "import_pattern": "from.*\\.services\\.",
+      "import_line": "from the_alchemiser.shared.services.errors import ("
+    }
+  },
+  {
+    "file_path": "the_alchemiser/lambda_handler.py",
+    "finding_type": "legacy",
+    "description": "Legacy import pattern: from the_alchemiser.shared.services.errors import (",
+    "risk_level": "medium",
+    "suggested_action": "Update import to use new modular structure",
+    "line_number": 307,
+    "details": {
+      "import_pattern": "from.*\\.services\\.",
+      "import_line": "from the_alchemiser.shared.services.errors import ("
+    }
+  },
+  {
+    "file_path": "the_alchemiser/shared/utils/error_reporter.py",
+    "finding_type": "legacy",
+    "description": "File in legacy DDD structure: utils/",
+    "risk_level": "high",
+    "suggested_action": "Migrate to new modular structure (strategy/portfolio/execution/shared)",
+    "line_number": null,
+    "details": {
+      "legacy_structure": "utils/"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/shared/utils/account_utils.py",
+    "finding_type": "legacy",
+    "description": "File in legacy DDD structure: utils/",
+    "risk_level": "high",
+    "suggested_action": "Migrate to new modular structure (strategy/portfolio/execution/shared)",
+    "line_number": null,
+    "details": {
+      "legacy_structure": "utils/"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/shared/utils/error_recovery.py",
+    "finding_type": "legacy",
+    "description": "File in legacy DDD structure: utils/",
+    "risk_level": "high",
+    "suggested_action": "Migrate to new modular structure (strategy/portfolio/execution/shared)",
+    "line_number": null,
+    "details": {
+      "legacy_structure": "utils/"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/shared/utils/error_monitoring.py",
+    "finding_type": "legacy",
+    "description": "File in legacy DDD structure: utils/",
+    "risk_level": "high",
+    "suggested_action": "Migrate to new modular structure (strategy/portfolio/execution/shared)",
+    "line_number": null,
+    "details": {
+      "legacy_structure": "utils/"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/shared/utils/retry_decorator.py",
+    "finding_type": "legacy",
+    "description": "File in legacy DDD structure: utils/",
+    "risk_level": "high",
+    "suggested_action": "Migrate to new modular structure (strategy/portfolio/execution/shared)",
+    "line_number": null,
+    "details": {
+      "legacy_structure": "utils/"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/shared/utils/__init__.py",
+    "finding_type": "shim",
+    "description": "Star import compatibility shim",
+    "risk_level": "medium",
+    "suggested_action": "Replace with direct imports and remove shim",
+    "line_number": null,
+    "details": {
+      "star_import": true
+    }
+  },
+  {
+    "file_path": "the_alchemiser/shared/utils/__init__.py",
+    "finding_type": "deprecated",
+    "description": "Deprecated code or comment: from .error_handling import *  # Legacy deprecated",
+    "risk_level": "low",
+    "suggested_action": "Replace with modern alternative",
+    "line_number": 21,
+    "details": {
+      "pattern_matched": "# Legacy",
+      "line_content": "from .error_handling import *  # Legacy deprecated"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/shared/utils/__init__.py",
+    "finding_type": "legacy",
+    "description": "File in legacy DDD structure: utils/",
+    "risk_level": "high",
+    "suggested_action": "Migrate to new modular structure (strategy/portfolio/execution/shared)",
+    "line_number": null,
+    "details": {
+      "legacy_structure": "utils/"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/shared/utils/cache_manager.py",
+    "finding_type": "legacy",
+    "description": "File in legacy DDD structure: utils/",
+    "risk_level": "high",
+    "suggested_action": "Migrate to new modular structure (strategy/portfolio/execution/shared)",
+    "line_number": null,
+    "details": {
+      "legacy_structure": "utils/"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/shared/utils/cache_manager.py",
+    "finding_type": "legacy",
+    "description": "Legacy import pattern: from the_alchemiser.shared.services.shared.config_service import ConfigService",
+    "risk_level": "medium",
+    "suggested_action": "Update import to use new modular structure",
+    "line_number": 16,
+    "details": {
+      "import_pattern": "from.*\\.services\\.",
+      "import_line": "from the_alchemiser.shared.services.shared.config_service import ConfigService"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/shared/utils/config.py",
+    "finding_type": "legacy",
+    "description": "File in legacy DDD structure: utils/",
+    "risk_level": "high",
+    "suggested_action": "Migrate to new modular structure (strategy/portfolio/execution/shared)",
+    "line_number": null,
+    "details": {
+      "legacy_structure": "utils/"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/shared/utils/context.py",
+    "finding_type": "legacy",
+    "description": "File in legacy DDD structure: utils/",
+    "risk_level": "high",
+    "suggested_action": "Migrate to new modular structure (strategy/portfolio/execution/shared)",
+    "line_number": null,
+    "details": {
+      "legacy_structure": "utils/"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/shared/utils/s3_utils.py",
+    "finding_type": "legacy",
+    "description": "File in legacy DDD structure: utils/",
+    "risk_level": "high",
+    "suggested_action": "Migrate to new modular structure (strategy/portfolio/execution/shared)",
+    "line_number": null,
+    "details": {
+      "legacy_structure": "utils/"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/shared/utils/error_scope.py",
+    "finding_type": "legacy",
+    "description": "File in legacy DDD structure: utils/",
+    "risk_level": "high",
+    "suggested_action": "Migrate to new modular structure (strategy/portfolio/execution/shared)",
+    "line_number": null,
+    "details": {
+      "legacy_structure": "utils/"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/shared/utils/service_factory.py",
+    "finding_type": "legacy",
+    "description": "File in legacy DDD structure: utils/",
+    "risk_level": "high",
+    "suggested_action": "Migrate to new modular structure (strategy/portfolio/execution/shared)",
+    "line_number": null,
+    "details": {
+      "legacy_structure": "utils/"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/shared/utils/error_handling.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: This module is kept temporarily for backward compatibility but will be removed",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 10,
+    "details": {
+      "pattern_matched": "backward compatibility",
+      "line_content": "This module is kept temporarily for backward compatibility but will be removed"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/shared/utils/error_handling.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: import warnings",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 16,
+    "details": {
+      "pattern_matched": "import.*warnings",
+      "line_content": "import warnings"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/shared/utils/error_handling.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: DeprecationWarning,",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 24,
+    "details": {
+      "pattern_matched": "DeprecationWarning",
+      "line_content": "DeprecationWarning,"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/shared/utils/error_handling.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: DeprecationWarning,",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 38,
+    "details": {
+      "pattern_matched": "DeprecationWarning",
+      "line_content": "DeprecationWarning,"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/shared/utils/error_handling.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: raise DeprecationWarning(",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 52,
+    "details": {
+      "pattern_matched": "DeprecationWarning",
+      "line_content": "raise DeprecationWarning("
+    }
+  },
+  {
+    "file_path": "the_alchemiser/shared/utils/error_handling.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: raise DeprecationWarning(",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 73,
+    "details": {
+      "pattern_matched": "DeprecationWarning",
+      "line_content": "raise DeprecationWarning("
+    }
+  },
+  {
+    "file_path": "the_alchemiser/shared/utils/error_handling.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: raise DeprecationWarning(",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 82,
+    "details": {
+      "pattern_matched": "DeprecationWarning",
+      "line_content": "raise DeprecationWarning("
+    }
+  },
+  {
+    "file_path": "the_alchemiser/shared/utils/error_handling.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: raise DeprecationWarning(\"ErrorContext is deprecated. Use ErrorScope instead.\")",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 92,
+    "details": {
+      "pattern_matched": "DeprecationWarning",
+      "line_content": "raise DeprecationWarning(\"ErrorContext is deprecated. Use ErrorScope instead.\")"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/shared/utils/error_handling.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: raise DeprecationWarning(f\"{name} is deprecated and has been removed.\")",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 101,
+    "details": {
+      "pattern_matched": "DeprecationWarning",
+      "line_content": "raise DeprecationWarning(f\"{name} is deprecated and has been removed.\")"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/shared/utils/error_handling.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: raise DeprecationWarning(",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 111,
+    "details": {
+      "pattern_matched": "DeprecationWarning",
+      "line_content": "raise DeprecationWarning("
+    }
+  },
+  {
+    "file_path": "the_alchemiser/shared/utils/error_handling.py",
+    "finding_type": "deprecated",
+    "description": "Deprecated code or comment: # Deprecated stub functions that raise errors",
+    "risk_level": "low",
+    "suggested_action": "Replace with modern alternative",
+    "line_number": 47,
+    "details": {
+      "pattern_matched": "# DEPRECATED",
+      "line_content": "# Deprecated stub functions that raise errors"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/shared/utils/error_handling.py",
+    "finding_type": "deprecated",
+    "description": "Deprecated code or comment: # Deprecated decorator stubs",
+    "risk_level": "low",
+    "suggested_action": "Replace with modern alternative",
+    "line_number": 60,
+    "details": {
+      "pattern_matched": "# DEPRECATED",
+      "line_content": "# Deprecated decorator stubs"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/shared/utils/error_handling.py",
+    "finding_type": "deprecated",
+    "description": "Deprecated code or comment: # Deprecated class stubs",
+    "risk_level": "low",
+    "suggested_action": "Replace with modern alternative",
+    "line_number": 68,
+    "details": {
+      "pattern_matched": "# DEPRECATED",
+      "line_content": "# Deprecated class stubs"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/shared/utils/error_handling.py",
+    "finding_type": "deprecated",
+    "description": "Deprecated code or comment: # Deprecated instances",
+    "risk_level": "low",
+    "suggested_action": "Replace with modern alternative",
+    "line_number": 95,
+    "details": {
+      "pattern_matched": "# DEPRECATED",
+      "line_content": "# Deprecated instances"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/shared/utils/error_handling.py",
+    "finding_type": "legacy",
+    "description": "File in legacy DDD structure: utils/",
+    "risk_level": "high",
+    "suggested_action": "Migrate to new modular structure (strategy/portfolio/execution/shared)",
+    "line_number": null,
+    "details": {
+      "legacy_structure": "utils/"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/shared/utils/common.py",
+    "finding_type": "legacy",
+    "description": "File in legacy DDD structure: utils/",
+    "risk_level": "high",
+    "suggested_action": "Migrate to new modular structure (strategy/portfolio/execution/shared)",
+    "line_number": null,
+    "details": {
+      "legacy_structure": "utils/"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/shared/utils/decorators.py",
+    "finding_type": "legacy",
+    "description": "File in legacy DDD structure: utils/",
+    "risk_level": "high",
+    "suggested_action": "Migrate to new modular structure (strategy/portfolio/execution/shared)",
+    "line_number": null,
+    "details": {
+      "legacy_structure": "utils/"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/shared/services/tick_size_service.py",
+    "finding_type": "legacy",
+    "description": "File in legacy DDD structure: services/",
+    "risk_level": "high",
+    "suggested_action": "Migrate to new modular structure (strategy/portfolio/execution/shared)",
+    "line_number": null,
+    "details": {
+      "legacy_structure": "services/"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/shared/services/tick_size_service.py",
+    "finding_type": "legacy",
+    "description": "File uses old naming convention: tick_size_service.py",
+    "risk_level": "low",
+    "suggested_action": "Consider renaming to match current conventions",
+    "line_number": null,
+    "details": {
+      "naming_pattern": ".*_service\\.py$"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/shared/services/websocket_connection_manager.py",
+    "finding_type": "legacy",
+    "description": "File in legacy DDD structure: services/",
+    "risk_level": "high",
+    "suggested_action": "Migrate to new modular structure (strategy/portfolio/execution/shared)",
+    "line_number": null,
+    "details": {
+      "legacy_structure": "services/"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/shared/services/real_time_pricing.py",
+    "finding_type": "legacy",
+    "description": "File in legacy DDD structure: services/",
+    "risk_level": "high",
+    "suggested_action": "Migrate to new modular structure (strategy/portfolio/execution/shared)",
+    "line_number": null,
+    "details": {
+      "legacy_structure": "services/"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/shared/services/alert_service.py",
+    "finding_type": "legacy",
+    "description": "File in legacy DDD structure: services/",
+    "risk_level": "high",
+    "suggested_action": "Migrate to new modular structure (strategy/portfolio/execution/shared)",
+    "line_number": null,
+    "details": {
+      "legacy_structure": "services/"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/shared/services/alert_service.py",
+    "finding_type": "legacy",
+    "description": "File uses old naming convention: alert_service.py",
+    "risk_level": "low",
+    "suggested_action": "Consider renaming to match current conventions",
+    "line_number": null,
+    "details": {
+      "naming_pattern": ".*_service\\.py$"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/shared/services/alert_service.py",
+    "finding_type": "legacy",
+    "description": "Legacy import pattern: from the_alchemiser.shared.utils.s3_utils import get_s3_handler",
+    "risk_level": "medium",
+    "suggested_action": "Update import to use new modular structure",
+    "line_number": 218,
+    "details": {
+      "import_pattern": "from.*\\.utils\\.",
+      "import_line": "from the_alchemiser.shared.utils.s3_utils import get_s3_handler"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/shared/services/__init__.py",
+    "finding_type": "legacy",
+    "description": "File in legacy DDD structure: services/",
+    "risk_level": "high",
+    "suggested_action": "Migrate to new modular structure (strategy/portfolio/execution/shared)",
+    "line_number": null,
+    "details": {
+      "legacy_structure": "services/"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/shared/config/service_providers.py",
+    "finding_type": "legacy",
+    "description": "Legacy import pattern: from the_alchemiser.portfolio.services.position_service import PositionService",
+    "risk_level": "medium",
+    "suggested_action": "Update import to use new modular structure",
+    "line_number": 13,
+    "details": {
+      "import_pattern": "from.*\\.services\\.",
+      "import_line": "from the_alchemiser.portfolio.services.position_service import PositionService"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/shared/config/secrets_service.py",
+    "finding_type": "legacy",
+    "description": "File uses old naming convention: secrets_service.py",
+    "risk_level": "low",
+    "suggested_action": "Consider renaming to match current conventions",
+    "line_number": null,
+    "details": {
+      "naming_pattern": ".*_service\\.py$"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/shared/config/bootstrap.py",
+    "finding_type": "legacy",
+    "description": "Legacy import pattern: from the_alchemiser.shared.utils.context import create_error_context",
+    "risk_level": "medium",
+    "suggested_action": "Update import to use new modular structure",
+    "line_number": 25,
+    "details": {
+      "import_pattern": "from.*\\.utils\\.",
+      "import_line": "from the_alchemiser.shared.utils.context import create_error_context"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/shared/config/config_service.py",
+    "finding_type": "legacy",
+    "description": "File uses old naming convention: config_service.py",
+    "risk_level": "low",
+    "suggested_action": "Consider renaming to match current conventions",
+    "line_number": null,
+    "details": {
+      "naming_pattern": ".*_service\\.py$"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/shared/cli/signal_display_utils.py",
+    "finding_type": "deprecated",
+    "description": "Deprecated code or comment: # Legacy Alert objects path",
+    "risk_level": "low",
+    "suggested_action": "Review and remove if no longer needed",
+    "line_number": 197,
+    "details": {
+      "pattern_matched": "# Legacy",
+      "line_content": "# Legacy Alert objects path"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/shared/cli/cli_formatter.py",
+    "finding_type": "deprecated",
+    "description": "Deprecated code or comment: # Legacy numeric path",
+    "risk_level": "low",
+    "suggested_action": "Review and remove if no longer needed",
+    "line_number": 319,
+    "details": {
+      "pattern_matched": "# Legacy",
+      "line_content": "# Legacy numeric path"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/shared/cli/cli.py",
+    "finding_type": "deprecated",
+    "description": "Deprecated code or comment: # Legacy multi-strategy signal path ----------------------------------",
+    "risk_level": "low",
+    "suggested_action": "Review and remove if no longer needed",
+    "line_number": 356,
+    "details": {
+      "pattern_matched": "# Legacy",
+      "line_content": "# Legacy multi-strategy signal path ----------------------------------"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/shared/cli/cli.py",
+    "finding_type": "legacy",
+    "description": "Legacy import pattern: # from the_alchemiser.execution.services.trading_service_manager import TradingServiceManager",
+    "risk_level": "medium",
+    "suggested_action": "Update import to use new modular structure",
+    "line_number": 53,
+    "details": {
+      "import_pattern": "from.*\\.services\\.",
+      "import_line": "# from the_alchemiser.execution.services.trading_service_manager import TradingServiceManager"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/shared/cli/trading_executor.py",
+    "finding_type": "deprecated",
+    "description": "Deprecated code or comment: # Legacy dict case: Per No Legacy Fallback Policy, this path is",
+    "risk_level": "low",
+    "suggested_action": "Review and remove if no longer needed",
+    "line_number": 344,
+    "details": {
+      "pattern_matched": "# Legacy",
+      "line_content": "# Legacy dict case: Per No Legacy Fallback Policy, this path is"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/shared/cli/portfolio_calculations.py",
+    "finding_type": "legacy",
+    "description": "Legacy import pattern: from the_alchemiser.shared.utils.account_utils import (",
+    "risk_level": "medium",
+    "suggested_action": "Update import to use new modular structure",
+    "line_number": 19,
+    "details": {
+      "import_pattern": "from.*\\.utils\\.",
+      "import_line": "from the_alchemiser.shared.utils.account_utils import ("
+    }
+  },
+  {
+    "file_path": "the_alchemiser/shared/value_objects/core_types.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: # Legacy field aliases for backward compatibility",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 100,
+    "details": {
+      "pattern_matched": "backward compatibility",
+      "line_content": "# Legacy field aliases for backward compatibility"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/shared/value_objects/core_types.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: # Import for backward compatibility",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 130,
+    "details": {
+      "pattern_matched": "backward compatibility",
+      "line_content": "# Import for backward compatibility"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/shared/value_objects/core_types.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: # Import for backward compatibility",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 134,
+    "details": {
+      "pattern_matched": "backward compatibility",
+      "line_content": "# Import for backward compatibility"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/shared/value_objects/core_types.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: # Import for backward compatibility",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 138,
+    "details": {
+      "pattern_matched": "backward compatibility",
+      "line_content": "# Import for backward compatibility"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/shared/value_objects/core_types.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: # Import for backward compatibility",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 149,
+    "details": {
+      "pattern_matched": "backward compatibility",
+      "line_content": "# Import for backward compatibility"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/shared/value_objects/core_types.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: # Import for backward compatibility",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 196,
+    "details": {
+      "pattern_matched": "backward compatibility",
+      "line_content": "# Import for backward compatibility"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/shared/value_objects/core_types.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: # Import for backward compatibility",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 229,
+    "details": {
+      "pattern_matched": "backward compatibility",
+      "line_content": "# Import for backward compatibility"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/shared/value_objects/core_types.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: # Import for backward compatibility",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 233,
+    "details": {
+      "pattern_matched": "backward compatibility",
+      "line_content": "# Import for backward compatibility"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/shared/value_objects/core_types.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: # Import for backward compatibility",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 237,
+    "details": {
+      "pattern_matched": "backward compatibility",
+      "line_content": "# Import for backward compatibility"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/shared/value_objects/core_types.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: # Import for backward compatibility",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 241,
+    "details": {
+      "pattern_matched": "backward compatibility",
+      "line_content": "# Import for backward compatibility"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/shared/value_objects/core_types.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: # Import for backward compatibility",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 270,
+    "details": {
+      "pattern_matched": "backward compatibility",
+      "line_content": "# Import for backward compatibility"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/shared/value_objects/core_types.py",
+    "finding_type": "deprecated",
+    "description": "Deprecated code or comment: # Legacy field aliases for backward compatibility",
+    "risk_level": "low",
+    "suggested_action": "Review and remove if no longer needed",
+    "line_number": 100,
+    "details": {
+      "pattern_matched": "# Legacy",
+      "line_content": "# Legacy field aliases for backward compatibility"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/shared/notifications/templates/portfolio.py",
+    "finding_type": "legacy",
+    "description": "Legacy import pattern: from the_alchemiser.shared.utils.account_utils import (",
+    "risk_level": "medium",
+    "suggested_action": "Update import to use new modular structure",
+    "line_number": 440,
+    "details": {
+      "import_pattern": "from.*\\.utils\\.",
+      "import_line": "from the_alchemiser.shared.utils.account_utils import ("
+    }
+  },
+  {
+    "file_path": "the_alchemiser/shared/math/trading_math.py",
+    "finding_type": "legacy",
+    "description": "Legacy import pattern: from the_alchemiser.shared.services.tick_size_service import (",
+    "risk_level": "medium",
+    "suggested_action": "Update import to use new modular structure",
+    "line_number": 171,
+    "details": {
+      "import_pattern": "from.*\\.services\\.",
+      "import_line": "from the_alchemiser.shared.services.tick_size_service import ("
+    }
+  },
+  {
+    "file_path": "the_alchemiser/shared/reporting/reporting.py",
+    "finding_type": "legacy",
+    "description": "Legacy import pattern: from the_alchemiser.portfolio.utils.portfolio_pnl_utils import (",
+    "risk_level": "medium",
+    "suggested_action": "Update import to use new modular structure",
+    "line_number": 27,
+    "details": {
+      "import_pattern": "from.*\\.utils\\.",
+      "import_line": "from the_alchemiser.portfolio.utils.portfolio_pnl_utils import ("
+    }
+  },
+  {
+    "file_path": "the_alchemiser/shared/reporting/reporting.py",
+    "finding_type": "legacy",
+    "description": "Legacy import pattern: from the_alchemiser.shared.utils.s3_utils import get_s3_handler",
+    "risk_level": "medium",
+    "suggested_action": "Update import to use new modular structure",
+    "line_number": 81,
+    "details": {
+      "import_pattern": "from.*\\.utils\\.",
+      "import_line": "from the_alchemiser.shared.utils.s3_utils import get_s3_handler"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/shared/reporting/reporting.py",
+    "finding_type": "legacy",
+    "description": "Legacy import pattern: from the_alchemiser.shared.utils.account_utils import (",
+    "risk_level": "medium",
+    "suggested_action": "Update import to use new modular structure",
+    "line_number": 130,
+    "details": {
+      "import_pattern": "from.*\\.utils\\.",
+      "import_line": "from the_alchemiser.shared.utils.account_utils import ("
+    }
+  },
+  {
+    "file_path": "the_alchemiser/shared/logging/logging_utils.py",
+    "finding_type": "legacy",
+    "description": "Legacy import pattern: from the_alchemiser.shared.utils.s3_utils import S3FileHandler",
+    "risk_level": "medium",
+    "suggested_action": "Update import to use new modular structure",
+    "line_number": 18,
+    "details": {
+      "import_pattern": "from.*\\.utils\\.",
+      "import_line": "from the_alchemiser.shared.utils.s3_utils import S3FileHandler"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/shared/schemas/base.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: # Backward compatibility alias - will be removed in future version",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 28,
+    "details": {
+      "pattern_matched": "backward compatibility",
+      "line_content": "# Backward compatibility alias - will be removed in future version"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/execution/execution_service.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: \"\"\"DEPRECATED: This module has moved to the_alchemiser.portfolio.allocation",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 1,
+    "details": {
+      "pattern_matched": "This module has moved",
+      "line_content": "\"\"\"DEPRECATED: This module has moved to the_alchemiser.portfolio.allocation"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/execution/execution_service.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: This shim maintains backward compatibility.",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 2,
+    "details": {
+      "pattern_matched": "backward compatibility",
+      "line_content": "This shim maintains backward compatibility."
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/execution/execution_service.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: import warnings",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 5,
+    "details": {
+      "pattern_matched": "import.*warnings",
+      "line_content": "import warnings"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/execution/execution_service.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: DeprecationWarning,",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 10,
+    "details": {
+      "pattern_matched": "DeprecationWarning",
+      "line_content": "DeprecationWarning,"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/execution/execution_service.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: # Import all symbols from the new location",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 14,
+    "details": {
+      "pattern_matched": "Import all symbols from the new location",
+      "line_content": "# Import all symbols from the new location"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/execution/execution_service.py",
+    "finding_type": "shim",
+    "description": "Star import compatibility shim",
+    "risk_level": "medium",
+    "suggested_action": "Replace with direct imports and remove shim",
+    "line_number": null,
+    "details": {
+      "star_import": true
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/execution/execution_service.py",
+    "finding_type": "deprecated",
+    "description": "Deprecated code or comment: \"\"\"DEPRECATED: This module has moved to the_alchemiser.portfolio.allocation",
+    "risk_level": "low",
+    "suggested_action": "Replace with modern alternative",
+    "line_number": 1,
+    "details": {
+      "pattern_matched": "DEPRECATED:",
+      "line_content": "\"\"\"DEPRECATED: This module has moved to the_alchemiser.portfolio.allocation"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/execution/execution_service.py",
+    "finding_type": "legacy",
+    "description": "File uses old naming convention: execution_service.py",
+    "risk_level": "low",
+    "suggested_action": "Consider renaming to match current conventions",
+    "line_number": null,
+    "details": {
+      "naming_pattern": ".*_service\\.py$"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/execution/execution_service.py",
+    "finding_type": "legacy",
+    "description": "Legacy import pattern: \"Importing from 'the_alchemiser.application.portfolio.services.rebalance_execution_service' is deprecated. \"",
+    "risk_level": "medium",
+    "suggested_action": "Update import to use new modular structure",
+    "line_number": 8,
+    "details": {
+      "import_pattern": "from.*\\.application\\.",
+      "import_line": "\"Importing from 'the_alchemiser.application.portfolio.services.rebalance_execution_service' is deprecated. \""
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/utils/portfolio_utilities.py",
+    "finding_type": "legacy",
+    "description": "File in legacy DDD structure: utils/",
+    "risk_level": "high",
+    "suggested_action": "Migrate to new modular structure (strategy/portfolio/execution/shared)",
+    "line_number": null,
+    "details": {
+      "legacy_structure": "utils/"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/utils/__init__.py",
+    "finding_type": "legacy",
+    "description": "File in legacy DDD structure: utils/",
+    "risk_level": "high",
+    "suggested_action": "Migrate to new modular structure (strategy/portfolio/execution/shared)",
+    "line_number": null,
+    "details": {
+      "legacy_structure": "utils/"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/utils/portfolio_pnl_utils.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: \"\"\"DEPRECATED: This module has moved to the_alchemiser.portfolio.pnl",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 2,
+    "details": {
+      "pattern_matched": "This module has moved",
+      "line_content": "\"\"\"DEPRECATED: This module has moved to the_alchemiser.portfolio.pnl"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/utils/portfolio_pnl_utils.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: This shim maintains backward compatibility.",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 3,
+    "details": {
+      "pattern_matched": "backward compatibility",
+      "line_content": "This shim maintains backward compatibility."
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/utils/portfolio_pnl_utils.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: import warnings",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 6,
+    "details": {
+      "pattern_matched": "import.*warnings",
+      "line_content": "import warnings"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/utils/portfolio_pnl_utils.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: DeprecationWarning,",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 11,
+    "details": {
+      "pattern_matched": "DeprecationWarning",
+      "line_content": "DeprecationWarning,"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/utils/portfolio_pnl_utils.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: # Import all symbols from the new location",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 15,
+    "details": {
+      "pattern_matched": "Import all symbols from the new location",
+      "line_content": "# Import all symbols from the new location"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/utils/portfolio_pnl_utils.py",
+    "finding_type": "shim",
+    "description": "Star import compatibility shim",
+    "risk_level": "medium",
+    "suggested_action": "Replace with direct imports and remove shim",
+    "line_number": null,
+    "details": {
+      "star_import": true
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/utils/portfolio_pnl_utils.py",
+    "finding_type": "deprecated",
+    "description": "Deprecated code or comment: \"\"\"DEPRECATED: This module has moved to the_alchemiser.portfolio.pnl",
+    "risk_level": "low",
+    "suggested_action": "Replace with modern alternative",
+    "line_number": 2,
+    "details": {
+      "pattern_matched": "DEPRECATED:",
+      "line_content": "\"\"\"DEPRECATED: This module has moved to the_alchemiser.portfolio.pnl"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/utils/portfolio_pnl_utils.py",
+    "finding_type": "legacy",
+    "description": "File in legacy DDD structure: utils/",
+    "risk_level": "high",
+    "suggested_action": "Migrate to new modular structure (strategy/portfolio/execution/shared)",
+    "line_number": null,
+    "details": {
+      "legacy_structure": "utils/"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/utils/portfolio_pnl_utils.py",
+    "finding_type": "legacy",
+    "description": "Legacy import pattern: \"Importing from 'the_alchemiser.application.portfolio.portfolio_pnl_utils' is deprecated. \"",
+    "risk_level": "medium",
+    "suggested_action": "Update import to use new modular structure",
+    "line_number": 9,
+    "details": {
+      "import_pattern": "from.*\\.application\\.",
+      "import_line": "\"Importing from 'the_alchemiser.application.portfolio.portfolio_pnl_utils' is deprecated. \""
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/pnl/strategy_order_tracker.py",
+    "finding_type": "legacy",
+    "description": "Legacy import pattern: from the_alchemiser.shared.services.errors import TradingSystemErrorHandler",
+    "risk_level": "medium",
+    "suggested_action": "Update import to use new modular structure",
+    "line_number": 44,
+    "details": {
+      "import_pattern": "from.*\\.services\\.",
+      "import_line": "from the_alchemiser.shared.services.errors import TradingSystemErrorHandler"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/pnl/strategy_order_tracker.py",
+    "finding_type": "legacy",
+    "description": "Legacy import pattern: from the_alchemiser.shared.utils.s3_utils import get_s3_handler",
+    "risk_level": "medium",
+    "suggested_action": "Update import to use new modular structure",
+    "line_number": 49,
+    "details": {
+      "import_pattern": "from.*\\.utils\\.",
+      "import_line": "from the_alchemiser.shared.utils.s3_utils import get_s3_handler"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/services/__init__.py",
+    "finding_type": "legacy",
+    "description": "File in legacy DDD structure: services/",
+    "risk_level": "high",
+    "suggested_action": "Migrate to new modular structure (strategy/portfolio/execution/shared)",
+    "line_number": null,
+    "details": {
+      "legacy_structure": "services/"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/holdings/position_service.py",
+    "finding_type": "legacy",
+    "description": "File uses old naming convention: position_service.py",
+    "risk_level": "low",
+    "suggested_action": "Consider renaming to match current conventions",
+    "line_number": null,
+    "details": {
+      "naming_pattern": ".*_service\\.py$"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/holdings/position_service.py",
+    "finding_type": "legacy",
+    "description": "Legacy import pattern: from the_alchemiser.shared.utils.decorators import translate_trading_errors",
+    "risk_level": "medium",
+    "suggested_action": "Update import to use new modular structure",
+    "line_number": 28,
+    "details": {
+      "import_pattern": "from.*\\.utils\\.",
+      "import_line": "from the_alchemiser.shared.utils.decorators import translate_trading_errors"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/holdings/position_manager.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: This method remains for backward compatibility only.",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 91,
+    "details": {
+      "pattern_matched": "backward compatibility",
+      "line_content": "This method remains for backward compatibility only."
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/holdings/position_manager.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: import warnings",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 102,
+    "details": {
+      "pattern_matched": "import.*warnings",
+      "line_content": "import warnings"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/holdings/position_manager.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: DeprecationWarning,",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 107,
+    "details": {
+      "pattern_matched": "DeprecationWarning",
+      "line_content": "DeprecationWarning,"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/holdings/position_manager.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: This method remains for backward compatibility only.",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 149,
+    "details": {
+      "pattern_matched": "backward compatibility",
+      "line_content": "This method remains for backward compatibility only."
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/holdings/position_manager.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: import warnings",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 159,
+    "details": {
+      "pattern_matched": "import.*warnings",
+      "line_content": "import warnings"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/holdings/position_manager.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: DeprecationWarning,",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 164,
+    "details": {
+      "pattern_matched": "DeprecationWarning",
+      "line_content": "DeprecationWarning,"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/holdings/position_manager.py",
+    "finding_type": "deprecated",
+    "description": "Deprecated code or comment: DEPRECATED: This position validation logic has been moved to PositionPolicy.",
+    "risk_level": "low",
+    "suggested_action": "Replace with modern alternative",
+    "line_number": 89,
+    "details": {
+      "pattern_matched": "DEPRECATED:",
+      "line_content": "DEPRECATED: This position validation logic has been moved to PositionPolicy."
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/holdings/position_manager.py",
+    "finding_type": "deprecated",
+    "description": "Deprecated code or comment: DEPRECATED: This buying power validation logic has been moved to BuyingPowerPolicy.",
+    "risk_level": "low",
+    "suggested_action": "Replace with modern alternative",
+    "line_number": 147,
+    "details": {
+      "pattern_matched": "DEPRECATED:",
+      "line_content": "DEPRECATED: This buying power validation logic has been moved to BuyingPowerPolicy."
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/rebalancing/rebalance_plan.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: \"\"\"DEPRECATED: This module has moved to the_alchemiser.portfolio.allocation",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 1,
+    "details": {
+      "pattern_matched": "This module has moved",
+      "line_content": "\"\"\"DEPRECATED: This module has moved to the_alchemiser.portfolio.allocation"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/rebalancing/rebalance_plan.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: This shim maintains backward compatibility.",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 2,
+    "details": {
+      "pattern_matched": "backward compatibility",
+      "line_content": "This shim maintains backward compatibility."
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/rebalancing/rebalance_plan.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: import warnings",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 5,
+    "details": {
+      "pattern_matched": "import.*warnings",
+      "line_content": "import warnings"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/rebalancing/rebalance_plan.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: DeprecationWarning,",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 10,
+    "details": {
+      "pattern_matched": "DeprecationWarning",
+      "line_content": "DeprecationWarning,"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/rebalancing/rebalance_plan.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: # Import all symbols from the new location",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 14,
+    "details": {
+      "pattern_matched": "Import all symbols from the new location",
+      "line_content": "# Import all symbols from the new location"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/rebalancing/rebalance_plan.py",
+    "finding_type": "shim",
+    "description": "Star import compatibility shim",
+    "risk_level": "medium",
+    "suggested_action": "Replace with direct imports and remove shim",
+    "line_number": null,
+    "details": {
+      "star_import": true
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/rebalancing/rebalance_plan.py",
+    "finding_type": "deprecated",
+    "description": "Deprecated code or comment: \"\"\"DEPRECATED: This module has moved to the_alchemiser.portfolio.allocation",
+    "risk_level": "low",
+    "suggested_action": "Replace with modern alternative",
+    "line_number": 1,
+    "details": {
+      "pattern_matched": "DEPRECATED:",
+      "line_content": "\"\"\"DEPRECATED: This module has moved to the_alchemiser.portfolio.allocation"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/rebalancing/rebalance_plan.py",
+    "finding_type": "legacy",
+    "description": "Legacy import pattern: \"Importing from 'the_alchemiser.domain.portfolio.rebalancing.rebalance_plan' is deprecated. \"",
+    "risk_level": "medium",
+    "suggested_action": "Update import to use new modular structure",
+    "line_number": 8,
+    "details": {
+      "import_pattern": "from.*\\.domain\\.",
+      "import_line": "\"Importing from 'the_alchemiser.domain.portfolio.rebalancing.rebalance_plan' is deprecated. \""
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/rebalancing/orchestrator.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: \"\"\"DEPRECATED: This module has moved to the_alchemiser.portfolio.core",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 1,
+    "details": {
+      "pattern_matched": "This module has moved",
+      "line_content": "\"\"\"DEPRECATED: This module has moved to the_alchemiser.portfolio.core"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/rebalancing/orchestrator.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: This shim maintains backward compatibility.",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 2,
+    "details": {
+      "pattern_matched": "backward compatibility",
+      "line_content": "This shim maintains backward compatibility."
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/rebalancing/orchestrator.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: import warnings",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 5,
+    "details": {
+      "pattern_matched": "import.*warnings",
+      "line_content": "import warnings"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/rebalancing/orchestrator.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: DeprecationWarning,",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 10,
+    "details": {
+      "pattern_matched": "DeprecationWarning",
+      "line_content": "DeprecationWarning,"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/rebalancing/orchestrator.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: # Import all symbols from the new location",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 14,
+    "details": {
+      "pattern_matched": "Import all symbols from the new location",
+      "line_content": "# Import all symbols from the new location"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/rebalancing/orchestrator.py",
+    "finding_type": "shim",
+    "description": "Star import compatibility shim",
+    "risk_level": "medium",
+    "suggested_action": "Replace with direct imports and remove shim",
+    "line_number": null,
+    "details": {
+      "star_import": true
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/rebalancing/orchestrator.py",
+    "finding_type": "deprecated",
+    "description": "Deprecated code or comment: \"\"\"DEPRECATED: This module has moved to the_alchemiser.portfolio.core",
+    "risk_level": "low",
+    "suggested_action": "Replace with modern alternative",
+    "line_number": 1,
+    "details": {
+      "pattern_matched": "DEPRECATED:",
+      "line_content": "\"\"\"DEPRECATED: This module has moved to the_alchemiser.portfolio.core"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/rebalancing/orchestrator.py",
+    "finding_type": "legacy",
+    "description": "Legacy import pattern: \"Importing from 'the_alchemiser.application.portfolio.rebalancing_orchestrator' is deprecated. \"",
+    "risk_level": "medium",
+    "suggested_action": "Update import to use new modular structure",
+    "line_number": 8,
+    "details": {
+      "import_pattern": "from.*\\.application\\.",
+      "import_line": "\"Importing from 'the_alchemiser.application.portfolio.rebalancing_orchestrator' is deprecated. \""
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/rebalancing/rebalancing_service.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: \"\"\"DEPRECATED: This module has moved to the_alchemiser.portfolio.allocation",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 1,
+    "details": {
+      "pattern_matched": "This module has moved",
+      "line_content": "\"\"\"DEPRECATED: This module has moved to the_alchemiser.portfolio.allocation"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/rebalancing/rebalancing_service.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: This shim maintains backward compatibility.",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 2,
+    "details": {
+      "pattern_matched": "backward compatibility",
+      "line_content": "This shim maintains backward compatibility."
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/rebalancing/rebalancing_service.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: import warnings",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 5,
+    "details": {
+      "pattern_matched": "import.*warnings",
+      "line_content": "import warnings"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/rebalancing/rebalancing_service.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: DeprecationWarning,",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 10,
+    "details": {
+      "pattern_matched": "DeprecationWarning",
+      "line_content": "DeprecationWarning,"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/rebalancing/rebalancing_service.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: # Import all symbols from the new location",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 14,
+    "details": {
+      "pattern_matched": "Import all symbols from the new location",
+      "line_content": "# Import all symbols from the new location"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/rebalancing/rebalancing_service.py",
+    "finding_type": "shim",
+    "description": "Star import compatibility shim",
+    "risk_level": "medium",
+    "suggested_action": "Replace with direct imports and remove shim",
+    "line_number": null,
+    "details": {
+      "star_import": true
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/rebalancing/rebalancing_service.py",
+    "finding_type": "deprecated",
+    "description": "Deprecated code or comment: \"\"\"DEPRECATED: This module has moved to the_alchemiser.portfolio.allocation",
+    "risk_level": "low",
+    "suggested_action": "Replace with modern alternative",
+    "line_number": 1,
+    "details": {
+      "pattern_matched": "DEPRECATED:",
+      "line_content": "\"\"\"DEPRECATED: This module has moved to the_alchemiser.portfolio.allocation"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/rebalancing/rebalancing_service.py",
+    "finding_type": "legacy",
+    "description": "File uses old naming convention: rebalancing_service.py",
+    "risk_level": "low",
+    "suggested_action": "Consider renaming to match current conventions",
+    "line_number": null,
+    "details": {
+      "naming_pattern": ".*_service\\.py$"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/rebalancing/rebalancing_service.py",
+    "finding_type": "legacy",
+    "description": "Legacy import pattern: \"Importing from 'the_alchemiser.application.portfolio.services.portfolio_rebalancing_service' is deprecated. \"",
+    "risk_level": "medium",
+    "suggested_action": "Update import to use new modular structure",
+    "line_number": 8,
+    "details": {
+      "import_pattern": "from.*\\.application\\.",
+      "import_line": "\"Importing from 'the_alchemiser.application.portfolio.services.portfolio_rebalancing_service' is deprecated. \""
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/rebalancing/orchestrator_facade.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: \"\"\"DEPRECATED: This module has moved to the_alchemiser.portfolio.core",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 1,
+    "details": {
+      "pattern_matched": "This module has moved",
+      "line_content": "\"\"\"DEPRECATED: This module has moved to the_alchemiser.portfolio.core"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/rebalancing/orchestrator_facade.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: This shim maintains backward compatibility.",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 2,
+    "details": {
+      "pattern_matched": "backward compatibility",
+      "line_content": "This shim maintains backward compatibility."
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/rebalancing/orchestrator_facade.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: import warnings",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 5,
+    "details": {
+      "pattern_matched": "import.*warnings",
+      "line_content": "import warnings"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/rebalancing/orchestrator_facade.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: DeprecationWarning,",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 10,
+    "details": {
+      "pattern_matched": "DeprecationWarning",
+      "line_content": "DeprecationWarning,"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/rebalancing/orchestrator_facade.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: # Import all symbols from the new location",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 14,
+    "details": {
+      "pattern_matched": "Import all symbols from the new location",
+      "line_content": "# Import all symbols from the new location"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/rebalancing/orchestrator_facade.py",
+    "finding_type": "shim",
+    "description": "Star import compatibility shim",
+    "risk_level": "medium",
+    "suggested_action": "Replace with direct imports and remove shim",
+    "line_number": null,
+    "details": {
+      "star_import": true
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/rebalancing/orchestrator_facade.py",
+    "finding_type": "deprecated",
+    "description": "Deprecated code or comment: \"\"\"DEPRECATED: This module has moved to the_alchemiser.portfolio.core",
+    "risk_level": "low",
+    "suggested_action": "Replace with modern alternative",
+    "line_number": 1,
+    "details": {
+      "pattern_matched": "DEPRECATED:",
+      "line_content": "\"\"\"DEPRECATED: This module has moved to the_alchemiser.portfolio.core"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/rebalancing/orchestrator_facade.py",
+    "finding_type": "legacy",
+    "description": "File uses old naming convention: orchestrator_facade.py",
+    "risk_level": "low",
+    "suggested_action": "Consider renaming to match current conventions",
+    "line_number": null,
+    "details": {
+      "naming_pattern": ".*_facade\\.py$"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/rebalancing/orchestrator_facade.py",
+    "finding_type": "legacy",
+    "description": "Legacy import pattern: \"Importing from 'the_alchemiser.application.portfolio.rebalancing_orchestrator_facade' is deprecated. \"",
+    "risk_level": "medium",
+    "suggested_action": "Update import to use new modular structure",
+    "line_number": 8,
+    "details": {
+      "import_pattern": "from.*\\.application\\.",
+      "import_line": "\"Importing from 'the_alchemiser.application.portfolio.rebalancing_orchestrator_facade' is deprecated. \""
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/calculations/portfolio_calculations.py",
+    "finding_type": "legacy",
+    "description": "Legacy import pattern: from the_alchemiser.shared.utils.account_utils import (",
+    "risk_level": "medium",
+    "suggested_action": "Update import to use new modular structure",
+    "line_number": 14,
+    "details": {
+      "import_pattern": "from.*\\.utils\\.",
+      "import_line": "from the_alchemiser.shared.utils.account_utils import ("
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/allocation/portfolio_rebalancing_service.py",
+    "finding_type": "legacy",
+    "description": "File uses old naming convention: portfolio_rebalancing_service.py",
+    "risk_level": "low",
+    "suggested_action": "Consider renaming to match current conventions",
+    "line_number": null,
+    "details": {
+      "naming_pattern": ".*_service\\.py$"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/allocation/portfolio_rebalancing_service.py",
+    "finding_type": "legacy",
+    "description": "Legacy import pattern: from the_alchemiser.portfolio.utils.portfolio_utilities import PortfolioUtilities",
+    "risk_level": "medium",
+    "suggested_action": "Update import to use new modular structure",
+    "line_number": 20,
+    "details": {
+      "import_pattern": "from.*\\.utils\\.",
+      "import_line": "from the_alchemiser.portfolio.utils.portfolio_utilities import PortfolioUtilities"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/allocation/rebalance_execution_service.py",
+    "finding_type": "legacy",
+    "description": "File uses old naming convention: rebalance_execution_service.py",
+    "risk_level": "low",
+    "suggested_action": "Consider renaming to match current conventions",
+    "line_number": null,
+    "details": {
+      "naming_pattern": ".*_service\\.py$"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/core/portfolio_management_facade.py",
+    "finding_type": "legacy",
+    "description": "File uses old naming convention: portfolio_management_facade.py",
+    "risk_level": "low",
+    "suggested_action": "Consider renaming to match current conventions",
+    "line_number": null,
+    "details": {
+      "naming_pattern": ".*_facade\\.py$"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/core/portfolio_management_facade.py",
+    "finding_type": "legacy",
+    "description": "Legacy import pattern: from the_alchemiser.utils.serialization import ensure_serialized_dict",
+    "risk_level": "medium",
+    "suggested_action": "Update import to use new modular structure",
+    "line_number": 31,
+    "details": {
+      "import_pattern": "from.*\\.utils\\.",
+      "import_line": "from the_alchemiser.utils.serialization import ensure_serialized_dict"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/core/portfolio_analysis_service.py",
+    "finding_type": "legacy",
+    "description": "File uses old naming convention: portfolio_analysis_service.py",
+    "risk_level": "low",
+    "suggested_action": "Consider renaming to match current conventions",
+    "line_number": null,
+    "details": {
+      "naming_pattern": ".*_service\\.py$"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/core/portfolio_analysis_service.py",
+    "finding_type": "legacy",
+    "description": "Legacy import pattern: from the_alchemiser.portfolio.utils.portfolio_utilities import PortfolioUtilities",
+    "risk_level": "medium",
+    "suggested_action": "Update import to use new modular structure",
+    "line_number": 14,
+    "details": {
+      "import_pattern": "from.*\\.utils\\.",
+      "import_line": "from the_alchemiser.portfolio.utils.portfolio_utilities import PortfolioUtilities"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/core/rebalancing_orchestrator_facade.py",
+    "finding_type": "legacy",
+    "description": "File uses old naming convention: rebalancing_orchestrator_facade.py",
+    "risk_level": "low",
+    "suggested_action": "Consider renaming to match current conventions",
+    "line_number": null,
+    "details": {
+      "naming_pattern": ".*_facade\\.py$"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/core/rebalancing_orchestrator_facade.py",
+    "finding_type": "legacy",
+    "description": "Legacy import pattern: from the_alchemiser.shared.utils.context import create_error_context",
+    "risk_level": "medium",
+    "suggested_action": "Update import to use new modular structure",
+    "line_number": 22,
+    "details": {
+      "import_pattern": "from.*\\.utils\\.",
+      "import_line": "from the_alchemiser.shared.utils.context import create_error_context"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/analytics/analysis_service.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: \"\"\"DEPRECATED: This module has moved to the_alchemiser.portfolio.core",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 1,
+    "details": {
+      "pattern_matched": "This module has moved",
+      "line_content": "\"\"\"DEPRECATED: This module has moved to the_alchemiser.portfolio.core"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/analytics/analysis_service.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: This shim maintains backward compatibility.",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 2,
+    "details": {
+      "pattern_matched": "backward compatibility",
+      "line_content": "This shim maintains backward compatibility."
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/analytics/analysis_service.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: import warnings",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 5,
+    "details": {
+      "pattern_matched": "import.*warnings",
+      "line_content": "import warnings"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/analytics/analysis_service.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: DeprecationWarning,",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 10,
+    "details": {
+      "pattern_matched": "DeprecationWarning",
+      "line_content": "DeprecationWarning,"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/analytics/analysis_service.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: # Import all symbols from the new location",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 14,
+    "details": {
+      "pattern_matched": "Import all symbols from the new location",
+      "line_content": "# Import all symbols from the new location"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/analytics/analysis_service.py",
+    "finding_type": "shim",
+    "description": "Star import compatibility shim",
+    "risk_level": "medium",
+    "suggested_action": "Replace with direct imports and remove shim",
+    "line_number": null,
+    "details": {
+      "star_import": true
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/analytics/analysis_service.py",
+    "finding_type": "deprecated",
+    "description": "Deprecated code or comment: \"\"\"DEPRECATED: This module has moved to the_alchemiser.portfolio.core",
+    "risk_level": "low",
+    "suggested_action": "Replace with modern alternative",
+    "line_number": 1,
+    "details": {
+      "pattern_matched": "DEPRECATED:",
+      "line_content": "\"\"\"DEPRECATED: This module has moved to the_alchemiser.portfolio.core"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/analytics/analysis_service.py",
+    "finding_type": "legacy",
+    "description": "File uses old naming convention: analysis_service.py",
+    "risk_level": "low",
+    "suggested_action": "Consider renaming to match current conventions",
+    "line_number": null,
+    "details": {
+      "naming_pattern": ".*_service\\.py$"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/analytics/analysis_service.py",
+    "finding_type": "legacy",
+    "description": "Legacy import pattern: \"Importing from 'the_alchemiser.application.portfolio.services.portfolio_analysis_service' is deprecated. \"",
+    "risk_level": "medium",
+    "suggested_action": "Update import to use new modular structure",
+    "line_number": 8,
+    "details": {
+      "import_pattern": "from.*\\.application\\.",
+      "import_line": "\"Importing from 'the_alchemiser.application.portfolio.services.portfolio_analysis_service' is deprecated. \""
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/analytics/position_analyzer.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: \"\"\"DEPRECATED: This module has moved to the_alchemiser.portfolio.holdings",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 1,
+    "details": {
+      "pattern_matched": "This module has moved",
+      "line_content": "\"\"\"DEPRECATED: This module has moved to the_alchemiser.portfolio.holdings"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/analytics/position_analyzer.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: This shim maintains backward compatibility.",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 2,
+    "details": {
+      "pattern_matched": "backward compatibility",
+      "line_content": "This shim maintains backward compatibility."
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/analytics/position_analyzer.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: import warnings",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 5,
+    "details": {
+      "pattern_matched": "import.*warnings",
+      "line_content": "import warnings"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/analytics/position_analyzer.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: DeprecationWarning,",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 10,
+    "details": {
+      "pattern_matched": "DeprecationWarning",
+      "line_content": "DeprecationWarning,"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/analytics/position_analyzer.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: # Import all symbols from the new location",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 14,
+    "details": {
+      "pattern_matched": "Import all symbols from the new location",
+      "line_content": "# Import all symbols from the new location"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/analytics/position_analyzer.py",
+    "finding_type": "shim",
+    "description": "Star import compatibility shim",
+    "risk_level": "medium",
+    "suggested_action": "Replace with direct imports and remove shim",
+    "line_number": null,
+    "details": {
+      "star_import": true
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/analytics/position_analyzer.py",
+    "finding_type": "deprecated",
+    "description": "Deprecated code or comment: \"\"\"DEPRECATED: This module has moved to the_alchemiser.portfolio.holdings",
+    "risk_level": "low",
+    "suggested_action": "Replace with modern alternative",
+    "line_number": 1,
+    "details": {
+      "pattern_matched": "DEPRECATED:",
+      "line_content": "\"\"\"DEPRECATED: This module has moved to the_alchemiser.portfolio.holdings"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/analytics/position_analyzer.py",
+    "finding_type": "legacy",
+    "description": "Legacy import pattern: \"Importing from 'the_alchemiser.domain.portfolio.position.position_analyzer' is deprecated. \"",
+    "risk_level": "medium",
+    "suggested_action": "Update import to use new modular structure",
+    "line_number": 8,
+    "details": {
+      "import_pattern": "from.*\\.domain\\.",
+      "import_line": "\"Importing from 'the_alchemiser.domain.portfolio.position.position_analyzer' is deprecated. \""
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/analytics/position_delta.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: \"\"\"DEPRECATED: This module has moved to the_alchemiser.portfolio.holdings",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 1,
+    "details": {
+      "pattern_matched": "This module has moved",
+      "line_content": "\"\"\"DEPRECATED: This module has moved to the_alchemiser.portfolio.holdings"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/analytics/position_delta.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: This shim maintains backward compatibility.",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 2,
+    "details": {
+      "pattern_matched": "backward compatibility",
+      "line_content": "This shim maintains backward compatibility."
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/analytics/position_delta.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: import warnings",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 5,
+    "details": {
+      "pattern_matched": "import.*warnings",
+      "line_content": "import warnings"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/analytics/position_delta.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: DeprecationWarning,",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 10,
+    "details": {
+      "pattern_matched": "DeprecationWarning",
+      "line_content": "DeprecationWarning,"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/analytics/position_delta.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: # Import all symbols from the new location",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 14,
+    "details": {
+      "pattern_matched": "Import all symbols from the new location",
+      "line_content": "# Import all symbols from the new location"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/analytics/position_delta.py",
+    "finding_type": "shim",
+    "description": "Star import compatibility shim",
+    "risk_level": "medium",
+    "suggested_action": "Replace with direct imports and remove shim",
+    "line_number": null,
+    "details": {
+      "star_import": true
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/analytics/position_delta.py",
+    "finding_type": "deprecated",
+    "description": "Deprecated code or comment: \"\"\"DEPRECATED: This module has moved to the_alchemiser.portfolio.holdings",
+    "risk_level": "low",
+    "suggested_action": "Replace with modern alternative",
+    "line_number": 1,
+    "details": {
+      "pattern_matched": "DEPRECATED:",
+      "line_content": "\"\"\"DEPRECATED: This module has moved to the_alchemiser.portfolio.holdings"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/analytics/position_delta.py",
+    "finding_type": "legacy",
+    "description": "Legacy import pattern: \"Importing from 'the_alchemiser.domain.portfolio.position.position_delta' is deprecated. \"",
+    "risk_level": "medium",
+    "suggested_action": "Update import to use new modular structure",
+    "line_number": 8,
+    "details": {
+      "import_pattern": "from.*\\.domain\\.",
+      "import_line": "\"Importing from 'the_alchemiser.domain.portfolio.position.position_delta' is deprecated. \""
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/analytics/attribution_engine.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: \"\"\"DEPRECATED: This module has moved to the_alchemiser.portfolio.state",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 1,
+    "details": {
+      "pattern_matched": "This module has moved",
+      "line_content": "\"\"\"DEPRECATED: This module has moved to the_alchemiser.portfolio.state"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/analytics/attribution_engine.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: This shim maintains backward compatibility.",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 2,
+    "details": {
+      "pattern_matched": "backward compatibility",
+      "line_content": "This shim maintains backward compatibility."
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/analytics/attribution_engine.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: import warnings",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 5,
+    "details": {
+      "pattern_matched": "import.*warnings",
+      "line_content": "import warnings"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/analytics/attribution_engine.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: DeprecationWarning,",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 10,
+    "details": {
+      "pattern_matched": "DeprecationWarning",
+      "line_content": "DeprecationWarning,"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/analytics/attribution_engine.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: # Import all symbols from the new location",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 14,
+    "details": {
+      "pattern_matched": "Import all symbols from the new location",
+      "line_content": "# Import all symbols from the new location"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/analytics/attribution_engine.py",
+    "finding_type": "shim",
+    "description": "Star import compatibility shim",
+    "risk_level": "medium",
+    "suggested_action": "Replace with direct imports and remove shim",
+    "line_number": null,
+    "details": {
+      "star_import": true
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/analytics/attribution_engine.py",
+    "finding_type": "deprecated",
+    "description": "Deprecated code or comment: \"\"\"DEPRECATED: This module has moved to the_alchemiser.portfolio.state",
+    "risk_level": "low",
+    "suggested_action": "Replace with modern alternative",
+    "line_number": 1,
+    "details": {
+      "pattern_matched": "DEPRECATED:",
+      "line_content": "\"\"\"DEPRECATED: This module has moved to the_alchemiser.portfolio.state"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/analytics/attribution_engine.py",
+    "finding_type": "legacy",
+    "description": "Legacy import pattern: \"Importing from 'the_alchemiser.domain.portfolio.strategy_attribution.attribution_engine' is deprecated. \"",
+    "risk_level": "medium",
+    "suggested_action": "Update import to use new modular structure",
+    "line_number": 8,
+    "details": {
+      "import_pattern": "from.*\\.domain\\.",
+      "import_line": "\"Importing from 'the_alchemiser.domain.portfolio.strategy_attribution.attribution_engine' is deprecated. \""
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/positions/position_service.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: \"\"\"DEPRECATED: This module has moved to the_alchemiser.portfolio.holdings",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 1,
+    "details": {
+      "pattern_matched": "This module has moved",
+      "line_content": "\"\"\"DEPRECATED: This module has moved to the_alchemiser.portfolio.holdings"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/positions/position_service.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: This shim maintains backward compatibility.",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 2,
+    "details": {
+      "pattern_matched": "backward compatibility",
+      "line_content": "This shim maintains backward compatibility."
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/positions/position_service.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: import warnings",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 5,
+    "details": {
+      "pattern_matched": "import.*warnings",
+      "line_content": "import warnings"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/positions/position_service.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: DeprecationWarning,",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 10,
+    "details": {
+      "pattern_matched": "DeprecationWarning",
+      "line_content": "DeprecationWarning,"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/positions/position_service.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: # Import all symbols from the new location",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 14,
+    "details": {
+      "pattern_matched": "Import all symbols from the new location",
+      "line_content": "# Import all symbols from the new location"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/positions/position_service.py",
+    "finding_type": "shim",
+    "description": "Star import compatibility shim",
+    "risk_level": "medium",
+    "suggested_action": "Replace with direct imports and remove shim",
+    "line_number": null,
+    "details": {
+      "star_import": true
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/positions/position_service.py",
+    "finding_type": "deprecated",
+    "description": "Deprecated code or comment: \"\"\"DEPRECATED: This module has moved to the_alchemiser.portfolio.holdings",
+    "risk_level": "low",
+    "suggested_action": "Replace with modern alternative",
+    "line_number": 1,
+    "details": {
+      "pattern_matched": "DEPRECATED:",
+      "line_content": "\"\"\"DEPRECATED: This module has moved to the_alchemiser.portfolio.holdings"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/positions/position_service.py",
+    "finding_type": "legacy",
+    "description": "File uses old naming convention: position_service.py",
+    "risk_level": "low",
+    "suggested_action": "Consider renaming to match current conventions",
+    "line_number": null,
+    "details": {
+      "naming_pattern": ".*_service\\.py$"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/positions/position_service.py",
+    "finding_type": "legacy",
+    "description": "Legacy import pattern: \"Importing from 'the_alchemiser.services.trading.position_service' is deprecated. \"",
+    "risk_level": "medium",
+    "suggested_action": "Update import to use new modular structure",
+    "line_number": 8,
+    "details": {
+      "import_pattern": "from.*\\.services\\.",
+      "import_line": "\"Importing from 'the_alchemiser.services.trading.position_service' is deprecated. \""
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/positions/legacy_position_manager.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: \"\"\"DEPRECATED: This module has moved to the_alchemiser.portfolio.holdings",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 1,
+    "details": {
+      "pattern_matched": "This module has moved",
+      "line_content": "\"\"\"DEPRECATED: This module has moved to the_alchemiser.portfolio.holdings"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/positions/legacy_position_manager.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: This shim maintains backward compatibility.",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 2,
+    "details": {
+      "pattern_matched": "backward compatibility",
+      "line_content": "This shim maintains backward compatibility."
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/positions/legacy_position_manager.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: import warnings",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 5,
+    "details": {
+      "pattern_matched": "import.*warnings",
+      "line_content": "import warnings"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/positions/legacy_position_manager.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: DeprecationWarning,",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 10,
+    "details": {
+      "pattern_matched": "DeprecationWarning",
+      "line_content": "DeprecationWarning,"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/positions/legacy_position_manager.py",
+    "finding_type": "shim",
+    "description": "Compatibility shim detected: # Import all symbols from the new location",
+    "risk_level": "medium",
+    "suggested_action": "Migrate imports and remove shim",
+    "line_number": 14,
+    "details": {
+      "pattern_matched": "Import all symbols from the new location",
+      "line_content": "# Import all symbols from the new location"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/positions/legacy_position_manager.py",
+    "finding_type": "shim",
+    "description": "Star import compatibility shim",
+    "risk_level": "medium",
+    "suggested_action": "Replace with direct imports and remove shim",
+    "line_number": null,
+    "details": {
+      "star_import": true
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/positions/legacy_position_manager.py",
+    "finding_type": "deprecated",
+    "description": "Deprecated code or comment: \"\"\"DEPRECATED: This module has moved to the_alchemiser.portfolio.holdings",
+    "risk_level": "low",
+    "suggested_action": "Replace with modern alternative",
+    "line_number": 1,
+    "details": {
+      "pattern_matched": "DEPRECATED:",
+      "line_content": "\"\"\"DEPRECATED: This module has moved to the_alchemiser.portfolio.holdings"
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/positions/legacy_position_manager.py",
+    "finding_type": "legacy",
+    "description": "Legacy import pattern: \"Importing from 'the_alchemiser.services.trading.position_manager' is deprecated. \"",
+    "risk_level": "medium",
+    "suggested_action": "Update import to use new modular structure",
+    "line_number": 8,
+    "details": {
+      "import_pattern": "from.*\\.services\\.",
+      "import_line": "\"Importing from 'the_alchemiser.services.trading.position_manager' is deprecated. \""
+    }
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/state/symbol_classifier.py",
+    "finding_type": "deprecated",
+    "description": "Deprecated code or comment: # Legacy nuclear and TECL symbols",
+    "risk_level": "low",
+    "suggested_action": "Review and remove if no longer needed",
+    "line_number": 62,
+    "details": {
+      "pattern_matched": "# Legacy",
+      "line_content": "# Legacy nuclear and TECL symbols"
+    }
+  }
+]

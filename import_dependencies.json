@@ -1,0 +1,3276 @@
+{
+  "import_graph": {
+    "the_alchemiser.main": [
+      "the_alchemiser.shared.cli.signal_analyzer",
+      "the_alchemiser.shared.cli.trading_executor",
+      "the_alchemiser.shared.config.config",
+      "the_alchemiser.shared.errors.error_handler",
+      "the_alchemiser.shared.logging.logging_utils",
+      "the_alchemiser.shared.types.exceptions",
+      "the_alchemiser.strategy.registry.strategy_registry",
+      "the_alchemiser.shared.cli.cli_formatter",
+      "the_alchemiser.shared.config.container",
+      "the_alchemiser.shared.utils.service_factory"
+    ],
+    "the_alchemiser.lambda_handler": [
+      "the_alchemiser.execution.core.execution_schemas",
+      "the_alchemiser.main",
+      "the_alchemiser.shared.logging.logging_utils",
+      "the_alchemiser.shared.types.exceptions",
+      "the_alchemiser.shared.config.config",
+      "the_alchemiser.shared.logging.logging_utils",
+      "the_alchemiser.shared.logging.logging_utils",
+      "the_alchemiser.shared.services.errors",
+      "the_alchemiser.shared.services.errors"
+    ],
+    "examples.policy_layer_usage": [
+      "the_alchemiser.application.policies",
+      "the_alchemiser.execution.orders.order_schemas",
+      "the_alchemiser.execution.core.canonical_executor",
+      "the_alchemiser.execution.orders.order_request",
+      "the_alchemiser.execution.orders.order_type",
+      "the_alchemiser.shared.types.quantity",
+      "the_alchemiser.domain.trading.value_objects.side",
+      "the_alchemiser.shared.value_objects.symbol",
+      "the_alchemiser.domain.trading.value_objects.time_in_force"
+    ],
+    "the_alchemiser.execution.__init__": [
+      "the_alchemiser.execution.brokers.alpaca"
+    ],
+    "the_alchemiser.shared.dto_communication_demo": [
+      "the_alchemiser.shared.adapters.integration_helpers",
+      "the_alchemiser.shared.dto",
+      "the_alchemiser.shared.adapters.integration_helpers",
+      "the_alchemiser.shared.dto.execution_report_dto",
+      "the_alchemiser.shared.dto.execution_report_dto"
+    ],
+    "the_alchemiser.shared.simple_dto_test": [
+      "the_alchemiser.shared.dto",
+      "the_alchemiser.shared.adapters.strategy_adapters",
+      "the_alchemiser.shared.dto"
+    ],
+    "the_alchemiser.execution.monitoring.websocket_order_monitor": [
+      "the_alchemiser.execution.core.execution_schemas",
+      "the_alchemiser.shared.config.config",
+      "the_alchemiser.execution.lifecycle.dispatcher",
+      "the_alchemiser.execution.lifecycle.events",
+      "the_alchemiser.execution.lifecycle.states",
+      "the_alchemiser.execution.orders.order_id"
+    ],
+    "the_alchemiser.execution.orders.order_id": [
+      "the_alchemiser.shared.value_objects.identifier",
+      "the_alchemiser.execution.entities.order"
+    ],
+    "the_alchemiser.execution.orders.order_schemas": [
+      "the_alchemiser.shared.schemas.base"
+    ],
+    "the_alchemiser.execution.orders.order_status_literal": [
+      "the_alchemiser.shared.types.order_status"
+    ],
+    "the_alchemiser.execution.orders.__init__": [
+      "the_alchemiser.execution.orders.order_id",
+      "the_alchemiser.execution.orders.order_request",
+      "the_alchemiser.execution.orders.order_schemas",
+      "the_alchemiser.execution.orders.order_status",
+      "the_alchemiser.execution.orders.order_type",
+      "the_alchemiser.execution.orders.side"
+    ],
+    "the_alchemiser.execution.orders.service": [
+      "the_alchemiser.shared.math.num",
+      "the_alchemiser.shared.protocols.repository",
+      "the_alchemiser.shared.utils.decorators"
+    ],
+    "the_alchemiser.execution.orders.order_request": [
+      "the_alchemiser.execution.orders.order_type",
+      "the_alchemiser.execution.orders.side",
+      "the_alchemiser.shared.types.money",
+      "the_alchemiser.shared.types.quantity",
+      "the_alchemiser.shared.types.time_in_force",
+      "the_alchemiser.shared.value_objects.symbol"
+    ],
+    "the_alchemiser.execution.orders.validation": [
+      "the_alchemiser.execution.mappers.orders",
+      "the_alchemiser.execution.orders.order_schemas",
+      "the_alchemiser.shared.errors.error_handler",
+      "the_alchemiser.shared.types.exceptions",
+      "the_alchemiser.shared.types.trading_errors"
+    ],
+    "the_alchemiser.execution.orders.asset_order_handler": [
+      "the_alchemiser.shared.logging.logging_utils",
+      "the_alchemiser.shared.math.asset_info",
+      "the_alchemiser.shared.types.exceptions",
+      "the_alchemiser.execution.orders.order_schemas"
+    ],
+    "the_alchemiser.execution.orders.lifecycle_adapter": [
+      "the_alchemiser.execution.core.execution_schemas",
+      "the_alchemiser.execution.monitoring.websocket_order_monitor",
+      "the_alchemiser.execution.protocols.order_lifecycle"
+    ],
+    "the_alchemiser.execution.errors.order_error": [
+      "the_alchemiser.shared.value_objects.identifier",
+      "the_alchemiser.execution.errors.error_categories",
+      "the_alchemiser.execution.errors.error_codes"
+    ],
+    "the_alchemiser.execution.errors.classifier": [
+      "the_alchemiser.shared.value_objects.identifier",
+      "the_alchemiser.execution.errors.error_categories",
+      "the_alchemiser.execution.errors.error_codes",
+      "the_alchemiser.execution.errors.order_error"
+    ],
+    "the_alchemiser.execution.entities.__init__": [
+      "the_alchemiser.execution.entities.order"
+    ],
+    "the_alchemiser.execution.entities.order": [
+      "the_alchemiser.execution.orders.order_id",
+      "the_alchemiser.execution.orders.order_status",
+      "the_alchemiser.execution.orders.order_type",
+      "the_alchemiser.shared.types.money",
+      "the_alchemiser.shared.types.quantity",
+      "the_alchemiser.shared.types.time_in_force",
+      "the_alchemiser.shared.value_objects.symbol"
+    ],
+    "the_alchemiser.execution.types.policy_result": [
+      "the_alchemiser.execution.orders.order_request"
+    ],
+    "the_alchemiser.execution.config.execution_config": [
+      "the_alchemiser.shared.config.config",
+      "the_alchemiser.execution.config.execution_config",
+      "the_alchemiser.execution.config.execution_config"
+    ],
+    "the_alchemiser.execution.protocols.order_lifecycle": [
+      "the_alchemiser.execution.core.execution_schemas"
+    ],
+    "the_alchemiser.execution.pricing.smart_pricing_handler": [
+      "the_alchemiser.shared.logging.logging_utils",
+      "the_alchemiser.shared.types.exceptions"
+    ],
+    "the_alchemiser.execution.pricing.__init__": [
+      "the_alchemiser.execution.pricing.smart_pricing_handler",
+      "the_alchemiser.execution.pricing.spread_assessment"
+    ],
+    "the_alchemiser.execution.core.manager": [
+      "the_alchemiser.execution.mappers.execution_summary_mapping",
+      "the_alchemiser.shared.schemas.common",
+      "the_alchemiser.shared.services.errors",
+      "the_alchemiser.shared.types.exceptions",
+      "the_alchemiser.shared.value_objects.core_types",
+      "the_alchemiser.strategy.mappers.strategy_signal_mapping",
+      "the_alchemiser.execution.reporting.reporting",
+      "the_alchemiser.shared.logging.logging_utils",
+      "the_alchemiser.shared.logging.logging_utils",
+      "the_alchemiser.shared.logging.logging_utils"
+    ],
+    "the_alchemiser.execution.core.execution_manager": [
+      "the_alchemiser.execution.brokers.account_service",
+      "the_alchemiser.execution.brokers.alpaca",
+      "the_alchemiser.execution.lifecycle",
+      "the_alchemiser.execution.mappers.account_mapping",
+      "the_alchemiser.execution.mappers.order_mapping",
+      "the_alchemiser.execution.mappers.orders",
+      "the_alchemiser.execution.mappers.trading_service_dto_mapping",
+      "the_alchemiser.execution.orders.order_id",
+      "the_alchemiser.execution.orders.order_schemas",
+      "the_alchemiser.execution.orders.service",
+      "the_alchemiser.execution.orders.validation",
+      "the_alchemiser.execution.schemas.smart_trading",
+      "the_alchemiser.portfolio.mappers.position_mapping",
+      "the_alchemiser.portfolio.positions.position_service",
+      "the_alchemiser.portfolio.schemas.positions",
+      "the_alchemiser.shared.math.num",
+      "the_alchemiser.shared.schemas.accounts",
+      "the_alchemiser.shared.schemas.enriched_data",
+      "the_alchemiser.shared.schemas.market_data",
+      "the_alchemiser.shared.schemas.operations",
+      "the_alchemiser.shared.utils.decorators",
+      "the_alchemiser.strategy.data.market_data_service",
+      "the_alchemiser.execution.core.canonical_executor",
+      "the_alchemiser.execution.orders.order_request",
+      "the_alchemiser.execution.orders.order_type",
+      "the_alchemiser.execution.orders.side",
+      "the_alchemiser.shared.types.money",
+      "the_alchemiser.shared.types.quantity",
+      "the_alchemiser.shared.types.time_in_force",
+      "the_alchemiser.shared.value_objects.symbol",
+      "the_alchemiser.execution.core.canonical_executor",
+      "the_alchemiser.execution.orders.order_request",
+      "the_alchemiser.execution.orders.order_type",
+      "the_alchemiser.execution.orders.side",
+      "the_alchemiser.shared.types.money",
+      "the_alchemiser.shared.types.quantity",
+      "the_alchemiser.shared.types.time_in_force",
+      "the_alchemiser.shared.value_objects.symbol"
+    ],
+    "the_alchemiser.execution.core.__init__": [
+      "the_alchemiser.execution.core.execution_schemas"
+    ],
+    "the_alchemiser.execution.core.execution_manager_legacy": [
+      "the_alchemiser.execution.core.manager"
+    ],
+    "the_alchemiser.execution.core.execution_schemas": [
+      "the_alchemiser.shared.dto.execution_report_dto",
+      "the_alchemiser.shared.dto.portfolio_state_dto",
+      "the_alchemiser.shared.value_objects.core_types"
+    ],
+    "the_alchemiser.execution.core.account_facade": [
+      "the_alchemiser.execution.brokers.account_service",
+      "the_alchemiser.execution.mappers.account_mapping",
+      "the_alchemiser.portfolio.positions.position_service",
+      "the_alchemiser.shared.errors.error_handler",
+      "the_alchemiser.shared.schemas.accounts",
+      "the_alchemiser.shared.types.exceptions",
+      "the_alchemiser.shared.value_objects.core_types",
+      "the_alchemiser.strategy.data.market_data_service",
+      "the_alchemiser.utils.serialization"
+    ],
+    "the_alchemiser.execution.core.canonical_executor": [
+      "the_alchemiser.execution.core.executor"
+    ],
+    "the_alchemiser.execution.mappers.alpaca_dto_mapping": [
+      "the_alchemiser.execution.mappers.orders",
+      "the_alchemiser.execution.orders.order_schemas",
+      "the_alchemiser.execution.schemas.alpaca"
+    ],
+    "the_alchemiser.execution.mappers.execution": [
+      "the_alchemiser.shared.adapters.execution_adapters",
+      "the_alchemiser.shared.adapters.portfolio_adapters",
+      "the_alchemiser.execution.core.execution_schemas",
+      "the_alchemiser.shared.value_objects.core_types"
+    ],
+    "the_alchemiser.execution.mappers.account_mapping": [
+      "the_alchemiser.shared.types.money"
+    ],
+    "the_alchemiser.execution.mappers.__init__": [
+      "the_alchemiser.execution.mappers.account_mapping",
+      "the_alchemiser.execution.mappers.execution",
+      "the_alchemiser.execution.mappers.order_mapping",
+      "the_alchemiser.execution.mappers.orders",
+      "the_alchemiser.execution.mappers.trading_service_dto_mapping",
+      "the_alchemiser.execution.mappers.alpaca_dto_mapping"
+    ],
+    "the_alchemiser.execution.mappers.order_mapping": [
+      "the_alchemiser.execution.entities.order",
+      "the_alchemiser.execution.mappers.orders",
+      "the_alchemiser.execution.orders.order_id",
+      "the_alchemiser.execution.orders.order_status",
+      "the_alchemiser.execution.orders.order_type",
+      "the_alchemiser.shared.types.money",
+      "the_alchemiser.shared.types.quantity",
+      "the_alchemiser.shared.types.time_in_force",
+      "the_alchemiser.shared.value_objects.symbol",
+      "the_alchemiser.execution.orders.order_schemas",
+      "the_alchemiser.execution.mappers.alpaca_dto_mapping"
+    ],
+    "the_alchemiser.execution.mappers.order": [
+      "the_alchemiser.execution.orders.order_status",
+      "the_alchemiser.execution.orders.order_status_literal",
+      "the_alchemiser.shared.math.num",
+      "the_alchemiser.shared.value_objects.core_types"
+    ],
+    "the_alchemiser.execution.mappers.orders": [
+      "the_alchemiser.execution.entities.order",
+      "the_alchemiser.execution.orders.order_id",
+      "the_alchemiser.execution.orders.order_schemas",
+      "the_alchemiser.execution.orders.order_status",
+      "the_alchemiser.execution.orders.order_status_literal",
+      "the_alchemiser.shared.types.money",
+      "the_alchemiser.shared.types.quantity",
+      "the_alchemiser.shared.value_objects.symbol"
+    ],
+    "the_alchemiser.execution.mappers.trading_service_dto_mapping": [
+      "the_alchemiser.execution.mappers.account_mapping",
+      "the_alchemiser.portfolio.mappers.position_mapping",
+      "the_alchemiser.portfolio.schemas.positions",
+      "the_alchemiser.shared.schemas.accounts",
+      "the_alchemiser.shared.schemas.enriched_data",
+      "the_alchemiser.shared.schemas.market_data",
+      "the_alchemiser.shared.schemas.operations"
+    ],
+    "the_alchemiser.execution.brokers.__init__": [
+      "the_alchemiser.execution.brokers.alpaca"
+    ],
+    "the_alchemiser.execution.brokers.account_service": [
+      "the_alchemiser.shared.math.num",
+      "the_alchemiser.shared.protocols.repository",
+      "the_alchemiser.shared.value_objects.core_types"
+    ],
+    "the_alchemiser.execution.brokers.alpaca_client": [
+      "the_alchemiser.execution.brokers.alpaca",
+      "the_alchemiser.execution.core.execution_schemas",
+      "the_alchemiser.execution.monitoring.websocket_order_monitor",
+      "the_alchemiser.execution.orders.asset_order_handler",
+      "the_alchemiser.execution.pricing.smart_pricing_handler",
+      "the_alchemiser.portfolio.positions.legacy_position_manager",
+      "the_alchemiser.shared.services.websocket_connection_manager",
+      "the_alchemiser.execution.orders.order_schemas",
+      "the_alchemiser.execution.strategies.smart_execution",
+      "the_alchemiser.execution.core.canonical_executor",
+      "the_alchemiser.execution.orders.order_request",
+      "the_alchemiser.execution.orders.order_type",
+      "the_alchemiser.execution.orders.side",
+      "the_alchemiser.shared.types.quantity",
+      "the_alchemiser.shared.types.time_in_force",
+      "the_alchemiser.shared.value_objects.symbol",
+      "the_alchemiser.execution.mappers.orders"
+    ],
+    "the_alchemiser.execution.examples.canonical_integration": [
+      "the_alchemiser.execution.core.canonical_executor",
+      "the_alchemiser.execution.orders.order_request",
+      "the_alchemiser.execution.orders.order_schemas",
+      "the_alchemiser.execution.orders.order_type",
+      "the_alchemiser.execution.orders.side",
+      "the_alchemiser.shared.config.config",
+      "the_alchemiser.shared.types.money",
+      "the_alchemiser.shared.types.quantity",
+      "the_alchemiser.shared.types.time_in_force",
+      "the_alchemiser.shared.value_objects.symbol",
+      "the_alchemiser.execution.brokers.alpaca",
+      "the_alchemiser.execution.mappers.order_mapping"
+    ],
+    "the_alchemiser.execution.strategies.execution_context_adapter": [
+      "the_alchemiser.execution.core.canonical_executor",
+      "the_alchemiser.execution.orders.order_request",
+      "the_alchemiser.execution.orders.order_type",
+      "the_alchemiser.execution.orders.side",
+      "the_alchemiser.shared.types.money",
+      "the_alchemiser.shared.types.quantity",
+      "the_alchemiser.shared.types.time_in_force",
+      "the_alchemiser.shared.value_objects.symbol",
+      "the_alchemiser.execution.strategies.smart_execution",
+      "the_alchemiser.execution.brokers.alpaca",
+      "the_alchemiser.execution.brokers.alpaca"
+    ],
+    "the_alchemiser.execution.strategies.__init__": [
+      "the_alchemiser.execution.strategies.aggressive_limit_strategy",
+      "the_alchemiser.execution.strategies.config",
+      "the_alchemiser.execution.strategies.execution_context_adapter",
+      "the_alchemiser.execution.strategies.repeg_strategy",
+      "the_alchemiser.execution.strategies.smart_execution"
+    ],
+    "the_alchemiser.execution.strategies.aggressive_limit_strategy": [
+      "the_alchemiser.shared.types.exceptions",
+      "the_alchemiser.execution.strategies.config",
+      "the_alchemiser.execution.strategies.repeg_strategy",
+      "the_alchemiser.execution.lifecycle"
+    ],
+    "the_alchemiser.execution.strategies.smart_execution": [
+      "the_alchemiser.execution.config.execution_config",
+      "the_alchemiser.execution.core.canonical_executor",
+      "the_alchemiser.execution.core.execution_schemas",
+      "the_alchemiser.execution.orders.order_request",
+      "the_alchemiser.execution.orders.order_type",
+      "the_alchemiser.execution.orders.side",
+      "the_alchemiser.shared.types.money",
+      "the_alchemiser.shared.types.quantity",
+      "the_alchemiser.shared.types.time_in_force",
+      "the_alchemiser.shared.value_objects.symbol",
+      "the_alchemiser.shared.types.exceptions",
+      "the_alchemiser.execution.pricing.spread_assessment",
+      "the_alchemiser.strategy.timing.market_timing_utils",
+      "the_alchemiser.execution.config.execution_config",
+      "the_alchemiser.execution.strategies",
+      "the_alchemiser.execution.brokers.alpaca",
+      "the_alchemiser.execution.brokers.alpaca"
+    ],
+    "the_alchemiser.execution.strategies.repeg_strategy": [
+      "the_alchemiser.shared.services.tick_size_service",
+      "the_alchemiser.execution.strategies.config"
+    ],
+    "the_alchemiser.execution.schemas.smart_trading": [
+      "the_alchemiser.execution.orders.order_schemas",
+      "the_alchemiser.shared.schemas.accounts",
+      "the_alchemiser.shared.schemas.base"
+    ],
+    "the_alchemiser.execution.lifecycle.dispatcher": [
+      "the_alchemiser.execution.lifecycle.events",
+      "the_alchemiser.execution.lifecycle.protocols",
+      "the_alchemiser.shared.errors.error_handler"
+    ],
+    "the_alchemiser.execution.lifecycle.manager": [
+      "the_alchemiser.execution.lifecycle.events",
+      "the_alchemiser.execution.lifecycle.exceptions",
+      "the_alchemiser.execution.lifecycle.states",
+      "the_alchemiser.execution.lifecycle.transitions",
+      "the_alchemiser.execution.orders.order_id"
+    ],
+    "the_alchemiser.execution.lifecycle.events": [
+      "the_alchemiser.execution.orders.order_id",
+      "the_alchemiser.execution.lifecycle.states"
+    ],
+    "the_alchemiser.execution.lifecycle.__init__": [
+      "the_alchemiser.execution.lifecycle.dispatcher",
+      "the_alchemiser.execution.lifecycle.events",
+      "the_alchemiser.execution.lifecycle.exceptions",
+      "the_alchemiser.execution.lifecycle.manager",
+      "the_alchemiser.execution.lifecycle.observers",
+      "the_alchemiser.execution.lifecycle.protocols",
+      "the_alchemiser.execution.lifecycle.states"
+    ],
+    "the_alchemiser.execution.lifecycle.exceptions": [
+      "the_alchemiser.execution.lifecycle.states"
+    ],
+    "the_alchemiser.execution.lifecycle.transitions": [
+      "the_alchemiser.execution.lifecycle.states"
+    ],
+    "the_alchemiser.execution.lifecycle.observers": [
+      "the_alchemiser.execution.analytics.slippage_analyzer",
+      "the_alchemiser.execution.lifecycle.events"
+    ],
+    "the_alchemiser.execution.lifecycle.protocols": [
+      "the_alchemiser.execution.lifecycle.events"
+    ],
+    "the_alchemiser.execution.brokers.alpaca.adapter": [
+      "the_alchemiser.execution.mappers.alpaca_dto_mapping",
+      "the_alchemiser.execution.orders.order_schemas",
+      "the_alchemiser.shared.protocols.repository",
+      "the_alchemiser.execution.orders.order_schemas",
+      "the_alchemiser.execution.orders.order_schemas",
+      "the_alchemiser.execution.mappers.order_mapping",
+      "the_alchemiser.execution.orders.order_schemas",
+      "the_alchemiser.execution.orders.order_schemas"
+    ],
+    "the_alchemiser.execution.brokers.alpaca.__init__": [
+      "the_alchemiser.execution.brokers.alpaca.adapter"
+    ],
+    "the_alchemiser.strategy.validation.indicator_validator": [
+      "the_alchemiser.shared.logging.logging_utils",
+      "the_alchemiser.strategy.indicators.indicators"
+    ],
+    "the_alchemiser.strategy.types.strategy": [
+      "the_alchemiser.shared.math.num",
+      "the_alchemiser.shared.value_objects.core_types"
+    ],
+    "the_alchemiser.strategy.protocols.engine_protocol": [
+      "the_alchemiser.strategy.engines.value_objects.alert",
+      "the_alchemiser.strategy.signals.strategy_signal"
+    ],
+    "the_alchemiser.strategy.managers.typed_strategy_manager": [
+      "the_alchemiser.shared.types.market_data_port",
+      "the_alchemiser.shared.value_objects.symbol",
+      "the_alchemiser.strategy.engines.engine",
+      "the_alchemiser.strategy.engines.nuclear_typed_engine",
+      "the_alchemiser.strategy.engines.typed_klm_ensemble_engine",
+      "the_alchemiser.strategy.engines.value_objects.confidence",
+      "the_alchemiser.strategy.registry.strategy_registry",
+      "the_alchemiser.strategy.signals.strategy_signal",
+      "the_alchemiser.strategy.engines.tecl_strategy_engine"
+    ],
+    "the_alchemiser.strategy.engines.klm_ensemble_engine": [
+      "the_alchemiser.shared.math.math_utils",
+      "the_alchemiser.shared.types.market_data_port",
+      "the_alchemiser.shared.types.percentage",
+      "the_alchemiser.shared.utils.common",
+      "the_alchemiser.shared.value_objects.symbol",
+      "the_alchemiser.strategy.engines.engine",
+      "the_alchemiser.strategy.engines.value_objects.confidence",
+      "the_alchemiser.strategy.errors.strategy_errors",
+      "the_alchemiser.strategy.indicators.indicator_utils",
+      "the_alchemiser.strategy.indicators.indicators",
+      "the_alchemiser.strategy.signals.strategy_signal",
+      "the_alchemiser.strategy.engines.klm_workers",
+      "the_alchemiser.strategy.mappers.market_data_mapping"
+    ],
+    "the_alchemiser.strategy.engines.engine": [
+      "the_alchemiser.shared.types.market_data_port",
+      "the_alchemiser.strategy.engines.errors.strategy_errors",
+      "the_alchemiser.strategy.engines.value_objects.strategy_signal",
+      "the_alchemiser.shared.types.symbol_legacy"
+    ],
+    "the_alchemiser.strategy.engines.__init__": [
+      "the_alchemiser.strategy.engines.engine",
+      "the_alchemiser.strategy.engines.nuclear_typed_engine",
+      "the_alchemiser.strategy.engines.tecl_strategy_engine",
+      "the_alchemiser.strategy.engines.typed_klm_ensemble_engine",
+      "the_alchemiser.strategy.engines.typed_strategy_manager"
+    ],
+    "the_alchemiser.strategy.engines.tecl_strategy_engine": [
+      "the_alchemiser.shared.types.market_data_port",
+      "the_alchemiser.shared.types.percentage",
+      "the_alchemiser.shared.utils.common",
+      "the_alchemiser.shared.value_objects.symbol",
+      "the_alchemiser.strategy.indicators.indicator_utils",
+      "the_alchemiser.strategy.indicators.indicators",
+      "the_alchemiser.strategy.engines.engine",
+      "the_alchemiser.strategy.engines.value_objects.alert",
+      "the_alchemiser.strategy.engines.value_objects.confidence",
+      "the_alchemiser.strategy.engines.value_objects.strategy_signal",
+      "the_alchemiser.strategy.mappers.market_data_mapping"
+    ],
+    "the_alchemiser.strategy.engines.typed_strategy_manager": [
+      "the_alchemiser.shared.types.market_data_port",
+      "the_alchemiser.shared.value_objects.symbol",
+      "the_alchemiser.strategy.registry.strategy_registry",
+      "the_alchemiser.strategy.engines.engine",
+      "the_alchemiser.strategy.engines.nuclear_typed_engine",
+      "the_alchemiser.strategy.engines.typed_klm_ensemble_engine",
+      "the_alchemiser.strategy.engines.value_objects.confidence",
+      "the_alchemiser.strategy.engines.value_objects.strategy_signal",
+      "the_alchemiser.shared.dto",
+      "the_alchemiser.shared.adapters",
+      "the_alchemiser.shared.adapters",
+      "the_alchemiser.strategy.engines.tecl_strategy_engine"
+    ],
+    "the_alchemiser.strategy.engines.nuclear_typed_engine": [
+      "the_alchemiser.shared.types.market_data_port",
+      "the_alchemiser.shared.types.percentage",
+      "the_alchemiser.shared.value_objects.symbol",
+      "the_alchemiser.strategy.indicators.indicator_utils",
+      "the_alchemiser.strategy.indicators.indicators",
+      "the_alchemiser.strategy.engines.engine",
+      "the_alchemiser.strategy.engines.errors.strategy_errors",
+      "the_alchemiser.strategy.engines.nuclear_logic",
+      "the_alchemiser.strategy.engines.value_objects.confidence",
+      "the_alchemiser.strategy.engines.value_objects.strategy_signal",
+      "the_alchemiser.strategy.mappers.market_data_mapping"
+    ],
+    "the_alchemiser.strategy.engines.typed_klm_ensemble_engine": [
+      "the_alchemiser.shared.math.math_utils",
+      "the_alchemiser.shared.types.market_data_port",
+      "the_alchemiser.shared.types.percentage",
+      "the_alchemiser.shared.utils.common",
+      "the_alchemiser.shared.value_objects.symbol",
+      "the_alchemiser.strategy.indicators.indicator_utils",
+      "the_alchemiser.strategy.indicators.indicators",
+      "the_alchemiser.strategy.engines.engine",
+      "the_alchemiser.strategy.engines.errors.strategy_errors",
+      "the_alchemiser.strategy.engines.klm_workers",
+      "the_alchemiser.strategy.engines.value_objects.confidence",
+      "the_alchemiser.strategy.engines.value_objects.strategy_signal",
+      "the_alchemiser.strategy.mappers.market_data_mapping"
+    ],
+    "the_alchemiser.strategy.data.price_fetching_utils": [
+      "the_alchemiser.shared.logging.logging_utils",
+      "the_alchemiser.shared.types.exceptions"
+    ],
+    "the_alchemiser.strategy.data.streaming_service": [
+      "the_alchemiser.strategy.data.price_fetching_utils",
+      "the_alchemiser.strategy.data.real_time_pricing"
+    ],
+    "the_alchemiser.strategy.data.price_service": [
+      "the_alchemiser.strategy.data.market_data_client",
+      "the_alchemiser.strategy.data.streaming_service"
+    ],
+    "the_alchemiser.strategy.data.__init__": [
+      "the_alchemiser.strategy.data.market_data_client",
+      "the_alchemiser.strategy.data.price_fetching_utils",
+      "the_alchemiser.strategy.data.price_service",
+      "the_alchemiser.strategy.data.price_utils",
+      "the_alchemiser.strategy.data.strategy_market_data_service",
+      "the_alchemiser.strategy.data.streaming_service"
+    ],
+    "the_alchemiser.strategy.data.domain_mapping": [
+      "the_alchemiser.shared.value_objects.core_types",
+      "the_alchemiser.shared.value_objects.core_types",
+      "the_alchemiser.strategy.engines.models.strategy_position_model",
+      "the_alchemiser.strategy.engines.models.strategy_signal_model",
+      "the_alchemiser.strategy.registry.strategy_registry",
+      "the_alchemiser.strategy.mappers.strategy_signal_mapping"
+    ],
+    "the_alchemiser.strategy.data.market_data_service": [
+      "the_alchemiser.shared.mappers.market_data_mappers",
+      "the_alchemiser.shared.protocols.repository",
+      "the_alchemiser.shared.types.bar",
+      "the_alchemiser.shared.types.quote",
+      "the_alchemiser.shared.types.symbol_legacy",
+      "the_alchemiser.shared.utils.decorators"
+    ],
+    "the_alchemiser.strategy.data.strategy_market_data_service": [
+      "the_alchemiser.shared.types.bar",
+      "the_alchemiser.shared.types.quote",
+      "the_alchemiser.shared.types.symbol_legacy",
+      "the_alchemiser.strategy.data.market_data_client",
+      "the_alchemiser.strategy.data.market_data_service",
+      "the_alchemiser.strategy.mappers.market_data_mapping",
+      "the_alchemiser.strategy.mappers.market_data_mapping"
+    ],
+    "the_alchemiser.strategy.data.shared_market_data_service": [
+      "the_alchemiser.strategy.data.market_data_service",
+      "the_alchemiser.strategy.data.strategy_market_data_service"
+    ],
+    "the_alchemiser.strategy.data.market_data_client": [
+      "the_alchemiser.execution.brokers.alpaca",
+      "the_alchemiser.shared.types.exceptions"
+    ],
+    "the_alchemiser.strategy.mappers.market_data_adapter": [
+      "the_alchemiser.shared.types.market_data_port",
+      "the_alchemiser.shared.types.symbol_legacy"
+    ],
+    "the_alchemiser.strategy.mappers.__init__": [
+      "the_alchemiser.strategy.mappers.market_data_adapter"
+    ],
+    "the_alchemiser.strategy.mappers.strategy_signal_mapping": [
+      "the_alchemiser.execution.orders.order_schemas",
+      "the_alchemiser.shared.value_objects.core_types",
+      "the_alchemiser.strategy.registry.strategy_registry",
+      "the_alchemiser.strategy.signals.strategy_signal",
+      "the_alchemiser.shared.types.percentage",
+      "the_alchemiser.shared.value_objects.symbol",
+      "the_alchemiser.strategy.engines.value_objects.confidence"
+    ],
+    "the_alchemiser.strategy.mappers.market_data_mapping": [
+      "the_alchemiser.shared.types.bar",
+      "the_alchemiser.shared.types.quote",
+      "the_alchemiser.shared.types.symbol_legacy"
+    ],
+    "the_alchemiser.strategy.signals.__init__": [
+      "the_alchemiser.strategy.signals.strategy_signal"
+    ],
+    "the_alchemiser.strategy.signals.strategy_signal": [
+      "the_alchemiser.strategy.engines.value_objects.strategy_signal"
+    ],
+    "the_alchemiser.strategy.registry.strategy_registry": [
+      "the_alchemiser.shared.types.strategy_type",
+      "the_alchemiser.strategy.engines.nuclear_typed_engine",
+      "the_alchemiser.strategy.engines.tecl_strategy_engine",
+      "the_alchemiser.strategy.engines.typed_klm_ensemble_engine"
+    ],
+    "the_alchemiser.strategy.schemas.__init__": [
+      "the_alchemiser.strategy.schemas.strategies"
+    ],
+    "the_alchemiser.strategy.schemas.strategies": [
+      "the_alchemiser.strategy.engines.typed_strategy_manager",
+      "the_alchemiser.strategy.registry.strategy_registry",
+      "the_alchemiser.strategy.signals.strategy_signal"
+    ],
+    "the_alchemiser.strategy.indicators.__init__": [
+      "the_alchemiser.strategy.indicators.indicator_utils",
+      "the_alchemiser.strategy.indicators.indicators"
+    ],
+    "the_alchemiser.strategy.dsl.evaluator": [
+      "the_alchemiser.shared.types.market_data_port",
+      "the_alchemiser.strategy.dsl.ast",
+      "the_alchemiser.strategy.dsl.errors",
+      "the_alchemiser.strategy.indicators.indicators",
+      "the_alchemiser.strategy.dsl.evaluator_cache",
+      "the_alchemiser.strategy.dsl.evaluator_cache",
+      "the_alchemiser.strategy.dsl.evaluator_cache",
+      "the_alchemiser.strategy.dsl.evaluator_cache",
+      "the_alchemiser.strategy.dsl.evaluator_cache",
+      "the_alchemiser.strategy.dsl.evaluator_cache",
+      "the_alchemiser.strategy.dsl.evaluator_cache"
+    ],
+    "the_alchemiser.strategy.dsl.interning": [
+      "the_alchemiser.strategy.dsl.ast"
+    ],
+    "the_alchemiser.strategy.dsl.__init__": [
+      "the_alchemiser.strategy.dsl.errors",
+      "the_alchemiser.strategy.dsl.evaluator",
+      "the_alchemiser.strategy.dsl.evaluator_cache"
+    ],
+    "the_alchemiser.strategy.dsl.strategy_loader": [
+      "the_alchemiser.shared.types.market_data_port",
+      "the_alchemiser.strategy.dsl.errors",
+      "the_alchemiser.strategy.dsl.evaluator",
+      "the_alchemiser.strategy.dsl.optimization_config",
+      "the_alchemiser.strategy.dsl.parser"
+    ],
+    "the_alchemiser.strategy.dsl.parser": [
+      "the_alchemiser.strategy.dsl.ast",
+      "the_alchemiser.strategy.dsl.errors",
+      "the_alchemiser.strategy.dsl.interning"
+    ],
+    "the_alchemiser.strategy.dsl.evaluator_cache": [
+      "the_alchemiser.strategy.dsl.ast"
+    ],
+    "the_alchemiser.strategy.dsl.optimization_config": [
+      "the_alchemiser.strategy.dsl.interning",
+      "the_alchemiser.strategy.dsl.evaluator_cache"
+    ],
+    "the_alchemiser.strategy.engines.protocols.__init__": [
+      "the_alchemiser.strategy.engines.protocols.strategy_engine"
+    ],
+    "the_alchemiser.strategy.engines.protocols.strategy_engine": [
+      "the_alchemiser.strategy.engines.value_objects.alert",
+      "the_alchemiser.strategy.engines.value_objects.strategy_signal"
+    ],
+    "the_alchemiser.strategy.engines.klm_workers.variant_530_18": [
+      "the_alchemiser.shared.utils.common",
+      "the_alchemiser.shared.value_objects.core_types",
+      "the_alchemiser.strategy.engines.klm_workers.base_klm_variant"
+    ],
+    "the_alchemiser.strategy.engines.klm_workers.variant_506_38": [
+      "the_alchemiser.shared.utils.common",
+      "the_alchemiser.strategy.engines.klm_workers.base_klm_variant"
+    ],
+    "the_alchemiser.strategy.engines.klm_workers.variant_410_38": [
+      "the_alchemiser.shared.utils.common",
+      "the_alchemiser.strategy.engines.klm_workers.variant_506_38"
+    ],
+    "the_alchemiser.strategy.engines.klm_workers.variant_830_21": [
+      "the_alchemiser.shared.utils.common",
+      "the_alchemiser.strategy.engines.klm_workers.base_klm_variant"
+    ],
+    "the_alchemiser.strategy.engines.klm_workers.variant_nova": [
+      "the_alchemiser.shared.utils.common",
+      "the_alchemiser.strategy.engines.klm_workers.base_klm_variant"
+    ],
+    "the_alchemiser.strategy.engines.klm_workers.__init__": [
+      "the_alchemiser.strategy.engines.klm_workers.base_klm_variant",
+      "the_alchemiser.strategy.engines.klm_workers.variant_410_38",
+      "the_alchemiser.strategy.engines.klm_workers.variant_506_38",
+      "the_alchemiser.strategy.engines.klm_workers.variant_520_22",
+      "the_alchemiser.strategy.engines.klm_workers.variant_530_18",
+      "the_alchemiser.strategy.engines.klm_workers.variant_830_21",
+      "the_alchemiser.strategy.engines.klm_workers.variant_1200_28",
+      "the_alchemiser.strategy.engines.klm_workers.variant_1280_26",
+      "the_alchemiser.strategy.engines.klm_workers.variant_nova"
+    ],
+    "the_alchemiser.strategy.engines.klm_workers.variant_1280_26": [
+      "the_alchemiser.shared.utils.common",
+      "the_alchemiser.shared.value_objects.core_types",
+      "the_alchemiser.strategy.engines.klm_workers.base_klm_variant"
+    ],
+    "the_alchemiser.strategy.engines.klm_workers.variant_520_22": [
+      "the_alchemiser.shared.utils.common",
+      "the_alchemiser.strategy.engines.klm_workers.base_klm_variant"
+    ],
+    "the_alchemiser.strategy.engines.klm_workers.base_klm_variant": [
+      "the_alchemiser.shared.utils.common",
+      "the_alchemiser.shared.value_objects.core_types"
+    ],
+    "the_alchemiser.strategy.engines.klm_workers.variant_1200_28": [
+      "the_alchemiser.shared.utils.common",
+      "the_alchemiser.strategy.engines.klm_workers.base_klm_variant"
+    ],
+    "the_alchemiser.strategy.engines.core.trading_engine": [
+      "the_alchemiser.execution.brokers.account_service",
+      "the_alchemiser.execution.brokers.alpaca",
+      "the_alchemiser.execution.brokers.alpaca_client",
+      "the_alchemiser.execution.core.account_facade",
+      "the_alchemiser.execution.core.execution_manager",
+      "the_alchemiser.execution.core.execution_schemas",
+      "the_alchemiser.execution.mappers.execution",
+      "the_alchemiser.execution.strategies.smart_execution",
+      "the_alchemiser.portfolio.core.portfolio_management_facade",
+      "the_alchemiser.shared.config.bootstrap",
+      "the_alchemiser.shared.config.config",
+      "the_alchemiser.shared.errors.error_handler",
+      "the_alchemiser.shared.logging.logging_utils",
+      "the_alchemiser.shared.reporting.reporting",
+      "the_alchemiser.shared.schemas.common",
+      "the_alchemiser.shared.types.exceptions",
+      "the_alchemiser.shared.utils.context",
+      "the_alchemiser.shared.value_objects.core_types",
+      "the_alchemiser.strategy.engines.typed_strategy_manager",
+      "the_alchemiser.strategy.registry.strategy_registry",
+      "the_alchemiser.strategy.schemas.strategies",
+      "the_alchemiser.strategy.schemas.strategies",
+      "the_alchemiser.main",
+      "the_alchemiser.shared.config.container",
+      "the_alchemiser.portfolio.pnl.strategy_order_tracker",
+      "the_alchemiser.portfolio.rebalancing.orchestrator_facade",
+      "the_alchemiser.shared.services.errors",
+      "the_alchemiser.shared.errors.error_handler",
+      "the_alchemiser.shared.utils.context"
+    ],
+    "the_alchemiser.strategy.engines.core.__init__": [
+      "the_alchemiser.strategy.engines.core.trading_engine"
+    ],
+    "the_alchemiser.strategy.engines.value_objects.alert": [
+      "the_alchemiser.shared.value_objects.symbol"
+    ],
+    "the_alchemiser.strategy.engines.value_objects.strategy_signal": [
+      "the_alchemiser.shared.types.percentage",
+      "the_alchemiser.shared.value_objects.symbol",
+      "the_alchemiser.strategy.engines.value_objects.confidence"
+    ],
+    "the_alchemiser.strategy.engines.models.strategy_signal_model": [
+      "the_alchemiser.shared.types.percentage",
+      "the_alchemiser.shared.value_objects.core_types",
+      "the_alchemiser.shared.value_objects.symbol",
+      "the_alchemiser.strategy.engines.models.value_objects.confidence",
+      "the_alchemiser.strategy.engines.models.value_objects.strategy_signal",
+      "the_alchemiser.strategy.engines.models.value_objects.strategy_signal"
+    ],
+    "the_alchemiser.strategy.engines.models.strategy_position_model": [
+      "the_alchemiser.shared.value_objects.core_types",
+      "the_alchemiser.shared.value_objects.symbol"
+    ],
+    "the_alchemiser.strategy.engines.models.__init__": [
+      "the_alchemiser.strategy.engines.models.strategy_position_model",
+      "the_alchemiser.strategy.engines.models.strategy_signal_model"
+    ],
+    "the_alchemiser.shared.adapters.portfolio_adapters": [
+      "the_alchemiser.shared.dto.portfolio_state_dto"
+    ],
+    "the_alchemiser.shared.adapters.execution_adapters": [
+      "the_alchemiser.shared.dto.execution_report_dto",
+      "the_alchemiser.shared.dto.order_request_dto",
+      "the_alchemiser.shared.dto.rebalance_plan_dto"
+    ],
+    "the_alchemiser.shared.adapters.__init__": [
+      "the_alchemiser.shared.adapters.execution_adapters",
+      "the_alchemiser.shared.adapters.portfolio_adapters",
+      "the_alchemiser.shared.adapters.strategy_adapters"
+    ],
+    "the_alchemiser.shared.adapters.integration_helpers": [
+      "the_alchemiser.shared.adapters",
+      "the_alchemiser.shared.dto",
+      "the_alchemiser.shared.dto.rebalance_plan_dto"
+    ],
+    "the_alchemiser.shared.adapters.strategy_adapters": [
+      "the_alchemiser.shared.dto.signal_dto"
+    ],
+    "the_alchemiser.shared.utils.error_reporter": [
+      "the_alchemiser.shared.types.exceptions"
+    ],
+    "the_alchemiser.shared.utils.account_utils": [
+      "the_alchemiser.shared.value_objects.core_types"
+    ],
+    "the_alchemiser.shared.utils.error_recovery": [
+      "the_alchemiser.shared.utils.exceptions",
+      "the_alchemiser.shared.utils.handler"
+    ],
+    "the_alchemiser.shared.utils.error_monitoring": [
+      "the_alchemiser.shared.math.num",
+      "the_alchemiser.shared.utils.context",
+      "the_alchemiser.shared.utils.handler"
+    ],
+    "the_alchemiser.shared.utils.retry_decorator": [
+      "the_alchemiser.shared.types.exceptions",
+      "the_alchemiser.shared.types.exceptions",
+      "the_alchemiser.shared.types.exceptions"
+    ],
+    "the_alchemiser.shared.utils.__init__": [
+      "the_alchemiser.shared.types.exceptions",
+      "the_alchemiser.shared.utils.account_utils",
+      "the_alchemiser.shared.utils.context",
+      "the_alchemiser.shared.utils.error_handling",
+      "the_alchemiser.shared.utils.error_reporter"
+    ],
+    "the_alchemiser.shared.utils.cache_manager": [
+      "the_alchemiser.shared.services.shared.config_service"
+    ],
+    "the_alchemiser.shared.utils.service_factory": [
+      "the_alchemiser.execution.core.execution_manager",
+      "the_alchemiser.shared.config.container"
+    ],
+    "the_alchemiser.shared.utils.error_handling": [
+      "the_alchemiser.shared.logging.logging_utils"
+    ],
+    "the_alchemiser.shared.utils.decorators": [
+      "the_alchemiser.shared.types.exceptions"
+    ],
+    "the_alchemiser.shared.services.alert_service": [
+      "the_alchemiser.shared.config.config",
+      "the_alchemiser.shared.utils.s3_utils"
+    ],
+    "the_alchemiser.shared.errors.error_handler": [
+      "the_alchemiser.shared.logging.logging_utils",
+      "the_alchemiser.shared.schemas.errors",
+      "the_alchemiser.shared.types.exceptions",
+      "the_alchemiser.shared.types.trading_errors",
+      "the_alchemiser.shared.errors.context",
+      "the_alchemiser.shared.value_objects.identifier",
+      "the_alchemiser.shared.notifications.client",
+      "the_alchemiser.shared.notifications.templates"
+    ],
+    "the_alchemiser.shared.types.shared_kernel_types": [
+      "the_alchemiser.shared.types.value_objects.identifier",
+      "the_alchemiser.shared.types.value_objects.money",
+      "the_alchemiser.shared.types.value_objects.percentage"
+    ],
+    "the_alchemiser.shared.types.__init__": [
+      "the_alchemiser.shared.types.market_data_port",
+      "the_alchemiser.shared.types.quantity",
+      "the_alchemiser.shared.types.time_in_force"
+    ],
+    "the_alchemiser.shared.types.market_data": [
+      "the_alchemiser.shared.value_objects.core_types"
+    ],
+    "the_alchemiser.shared.types.account": [
+      "the_alchemiser.shared.value_objects.core_types"
+    ],
+    "the_alchemiser.shared.types.market_data_port": [
+      "the_alchemiser.shared.types.bar",
+      "the_alchemiser.shared.types.quote",
+      "the_alchemiser.shared.types.symbol_legacy"
+    ],
+    "the_alchemiser.shared.types.trading_errors": [
+      "the_alchemiser.shared.types.exceptions"
+    ],
+    "the_alchemiser.shared.config.service_providers": [
+      "the_alchemiser.execution.brokers.account_service",
+      "the_alchemiser.execution.core.execution_manager",
+      "the_alchemiser.execution.orders.service",
+      "the_alchemiser.portfolio.services.position_service",
+      "the_alchemiser.strategy.data.market_data_service",
+      "the_alchemiser.strategy.engines.typed_klm_ensemble_engine"
+    ],
+    "the_alchemiser.shared.config.infrastructure_providers": [
+      "the_alchemiser.execution.brokers.alpaca",
+      "the_alchemiser.strategy.data.market_data_service"
+    ],
+    "the_alchemiser.shared.config.secrets_service": [
+      "the_alchemiser.shared.config.secrets_manager",
+      "the_alchemiser.shared.types.exceptions"
+    ],
+    "the_alchemiser.shared.config.__init__": [
+      "the_alchemiser.shared.config.config"
+    ],
+    "the_alchemiser.shared.config.config_providers": [
+      "the_alchemiser.shared.config.config",
+      "the_alchemiser.shared.config.secrets_manager"
+    ],
+    "the_alchemiser.shared.config.container": [
+      "the_alchemiser.shared.config.config_providers",
+      "the_alchemiser.shared.config.infrastructure_providers",
+      "the_alchemiser.shared.config.service_providers"
+    ],
+    "the_alchemiser.shared.config.bootstrap": [
+      "the_alchemiser.execution.brokers.account_service",
+      "the_alchemiser.execution.brokers.alpaca",
+      "the_alchemiser.execution.core.execution_manager",
+      "the_alchemiser.shared.config.config",
+      "the_alchemiser.shared.config.secrets_manager",
+      "the_alchemiser.shared.errors.error_handler",
+      "the_alchemiser.shared.types.exceptions",
+      "the_alchemiser.shared.utils.context",
+      "the_alchemiser.strategy.data.market_data_service",
+      "the_alchemiser.strategy.mappers.market_data_adapter"
+    ],
+    "the_alchemiser.shared.config.secrets_manager": [
+      "the_alchemiser.shared.config.config",
+      "the_alchemiser.shared.config.config",
+      "the_alchemiser.shared.config.config"
+    ],
+    "the_alchemiser.shared.config.config_service": [
+      "the_alchemiser.shared.config.config"
+    ],
+    "the_alchemiser.shared.protocols.trading": [
+      "the_alchemiser.execution.entities.order",
+      "the_alchemiser.shared.types.market_data_port",
+      "the_alchemiser.shared.types.symbol_legacy",
+      "the_alchemiser.strategy.signals.strategy_signal"
+    ],
+    "the_alchemiser.shared.protocols.repository": [
+      "the_alchemiser.execution.orders.order_schemas"
+    ],
+    "the_alchemiser.shared.protocols.asset_metadata": [
+      "the_alchemiser.shared.value_objects.symbol"
+    ],
+    "the_alchemiser.shared.cli.error_display_utils": [
+      "the_alchemiser.shared.types.trading_errors",
+      "the_alchemiser.execution.errors.order_error",
+      "the_alchemiser.execution.errors.order_error"
+    ],
+    "the_alchemiser.shared.cli.signal_display_utils": [
+      "the_alchemiser.shared.logging.logging_utils",
+      "the_alchemiser.shared.notifications.alert_service",
+      "the_alchemiser.shared.value_objects.core_types",
+      "the_alchemiser.strategy.registry.strategy_registry",
+      "the_alchemiser.shared.notifications.alert_service"
+    ],
+    "the_alchemiser.shared.cli.signal_analyzer": [
+      "the_alchemiser.shared.cli.cli_formatter",
+      "the_alchemiser.shared.config.config",
+      "the_alchemiser.shared.logging.logging_utils",
+      "the_alchemiser.shared.types.exceptions",
+      "the_alchemiser.strategy.engines.typed_strategy_manager",
+      "the_alchemiser.strategy.registry.strategy_registry",
+      "the_alchemiser.shared.config.container",
+      "the_alchemiser.strategy.schemas.strategies",
+      "the_alchemiser.strategy.schemas.strategies",
+      "the_alchemiser.portfolio.pnl.strategy_order_tracker"
+    ],
+    "the_alchemiser.shared.cli.cli_formatter": [
+      "the_alchemiser.shared.math.num",
+      "the_alchemiser.shared.schemas.common",
+      "the_alchemiser.shared.value_objects.core_types"
+    ],
+    "the_alchemiser.shared.cli.cli": [
+      "the_alchemiser.shared.cli.cli_formatter",
+      "the_alchemiser.shared.config.secrets_manager",
+      "the_alchemiser.shared.errors.error_handler",
+      "the_alchemiser.shared.logging.logging_utils",
+      "the_alchemiser.shared.types.bar",
+      "the_alchemiser.shared.types.exceptions",
+      "the_alchemiser.shared.types.market_data_port",
+      "the_alchemiser.shared.types.quote",
+      "the_alchemiser.shared.types.symbol_legacy",
+      "the_alchemiser.shared.logging.logging_utils",
+      "the_alchemiser.main",
+      "the_alchemiser.main",
+      "the_alchemiser.shared.config.bootstrap",
+      "the_alchemiser.strategy.engines.core.trading_engine",
+      "the_alchemiser.shared.config.secrets_manager",
+      "the_alchemiser.strategy.validation.indicator_validator",
+      "the_alchemiser.main",
+      "the_alchemiser.portfolio.pnl.strategy_order_tracker",
+      "the_alchemiser.strategy.dsl.optimization_config",
+      "the_alchemiser.shared.types.bar",
+      "the_alchemiser.shared.types.quote"
+    ],
+    "the_alchemiser.shared.cli.trading_executor": [
+      "the_alchemiser.execution.orders.order_schemas",
+      "the_alchemiser.execution.strategies.smart_execution",
+      "the_alchemiser.shared.cli.cli_formatter",
+      "the_alchemiser.shared.config.bootstrap",
+      "the_alchemiser.shared.config.config",
+      "the_alchemiser.shared.logging.logging_utils",
+      "the_alchemiser.shared.schemas.common",
+      "the_alchemiser.shared.types.exceptions",
+      "the_alchemiser.strategy.engines.core.trading_engine",
+      "the_alchemiser.strategy.mappers.strategy_signal_mapping",
+      "the_alchemiser.strategy.mappers.strategy_signal_mapping",
+      "the_alchemiser.strategy.registry.strategy_registry",
+      "the_alchemiser.strategy.signals.strategy_signal",
+      "the_alchemiser.shared.config.container",
+      "the_alchemiser.shared.notifications.email_utils",
+      "the_alchemiser.execution.core.execution_manager",
+      "the_alchemiser.shared.notifications.email_utils",
+      "the_alchemiser.shared.notifications.templates",
+      "the_alchemiser.shared.errors.error_handler",
+      "the_alchemiser.shared.cli.signal_analyzer",
+      "the_alchemiser.portfolio.pnl.strategy_order_tracker"
+    ],
+    "the_alchemiser.shared.cli.dashboard_utils": [
+      "the_alchemiser.shared.value_objects.core_types"
+    ],
+    "the_alchemiser.shared.cli.portfolio_calculations": [
+      "the_alchemiser.shared.utils.account_utils",
+      "the_alchemiser.shared.value_objects.core_types"
+    ],
+    "the_alchemiser.shared.value_objects.__init__": [
+      "the_alchemiser.shared.value_objects.core_types",
+      "the_alchemiser.shared.value_objects.symbol"
+    ],
+    "the_alchemiser.shared.value_objects.core_types": [
+      "the_alchemiser.shared.types.order_status"
+    ],
+    "the_alchemiser.shared.mappers.execution_summary_mapping": [
+      "the_alchemiser.execution.core.execution_schemas_summary"
+    ],
+    "the_alchemiser.shared.mappers.market_data_mappers": [
+      "the_alchemiser.shared.types.bar",
+      "the_alchemiser.shared.types.quote"
+    ],
+    "the_alchemiser.shared.mappers.pandas_time_series": [
+      "the_alchemiser.shared.types.bar"
+    ],
+    "the_alchemiser.shared.notifications.email_utils": [
+      "the_alchemiser.execution.core.execution_schemas",
+      "the_alchemiser.shared.schemas.common",
+      "the_alchemiser.shared.value_objects.core_types",
+      "the_alchemiser.shared.notifications.client",
+      "the_alchemiser.shared.notifications.config",
+      "the_alchemiser.shared.notifications.templates",
+      "the_alchemiser.shared.notifications.templates.base",
+      "the_alchemiser.shared.notifications.templates.performance",
+      "the_alchemiser.shared.notifications.templates.portfolio",
+      "the_alchemiser.shared.notifications.templates.signals"
+    ],
+    "the_alchemiser.shared.notifications.config": [
+      "the_alchemiser.shared.config.config",
+      "the_alchemiser.shared.config.secrets_manager",
+      "the_alchemiser.shared.schemas.reporting"
+    ],
+    "the_alchemiser.shared.notifications.client": [
+      "the_alchemiser.shared.schemas.reporting",
+      "the_alchemiser.shared.notifications.config"
+    ],
+    "the_alchemiser.shared.dto.__init__": [
+      "the_alchemiser.shared.dto.execution_report_dto",
+      "the_alchemiser.shared.dto.order_request_dto",
+      "the_alchemiser.shared.dto.portfolio_state_dto",
+      "the_alchemiser.shared.dto.rebalance_plan_dto",
+      "the_alchemiser.shared.dto.signal_dto"
+    ],
+    "the_alchemiser.shared.math.math_utils": [
+      "the_alchemiser.shared.math.num"
+    ],
+    "the_alchemiser.shared.math.trading_math": [
+      "the_alchemiser.shared.services.tick_size_service"
+    ],
+    "the_alchemiser.shared.math.asset_info": [
+      "the_alchemiser.shared.protocols.asset_metadata",
+      "the_alchemiser.shared.value_objects.symbol"
+    ],
+    "the_alchemiser.shared.reporting.reporting": [
+      "the_alchemiser.shared.types.exceptions",
+      "the_alchemiser.shared.value_objects.core_types",
+      "the_alchemiser.strategy.registry.strategy_registry",
+      "the_alchemiser.portfolio.utils.portfolio_pnl_utils",
+      "the_alchemiser.shared.math.trading_math",
+      "the_alchemiser.shared.utils.account_utils",
+      "the_alchemiser.shared.cli.dashboard_utils",
+      "the_alchemiser.shared.utils.s3_utils"
+    ],
+    "the_alchemiser.shared.logging.logging_utils": [
+      "the_alchemiser.shared.utils.s3_utils"
+    ],
+    "the_alchemiser.shared.schemas.execution_summary": [
+      "the_alchemiser.shared.value_objects.core_types"
+    ],
+    "the_alchemiser.shared.schemas.__init__": [
+      "the_alchemiser.shared.schemas.accounts",
+      "the_alchemiser.shared.schemas.base",
+      "the_alchemiser.shared.schemas.common",
+      "the_alchemiser.shared.schemas.errors",
+      "the_alchemiser.shared.schemas.market_data"
+    ],
+    "the_alchemiser.shared.schemas.reporting": [
+      "the_alchemiser.shared.value_objects.core_types"
+    ],
+    "the_alchemiser.shared.schemas.accounts": [
+      "the_alchemiser.shared.schemas.base"
+    ],
+    "the_alchemiser.shared.schemas.enriched_data": [
+      "the_alchemiser.shared.schemas.base"
+    ],
+    "the_alchemiser.shared.schemas.cli": [
+      "the_alchemiser.shared.value_objects.core_types"
+    ],
+    "the_alchemiser.shared.schemas.operations": [
+      "the_alchemiser.shared.schemas.base"
+    ],
+    "the_alchemiser.shared.schemas.common": [
+      "the_alchemiser.shared.dto.execution_report_dto",
+      "the_alchemiser.shared.dto.portfolio_state_dto",
+      "the_alchemiser.shared.types.strategy_type",
+      "the_alchemiser.shared.value_objects.core_types"
+    ],
+    "the_alchemiser.shared.schemas.market_data": [
+      "the_alchemiser.shared.schemas.base"
+    ],
+    "the_alchemiser.shared.notifications.templates.signals": [
+      "the_alchemiser.shared.notifications.templates.base"
+    ],
+    "the_alchemiser.shared.notifications.templates.error_report": [
+      "the_alchemiser.shared.notifications.templates.base"
+    ],
+    "the_alchemiser.shared.notifications.templates.trading_report": [
+      "the_alchemiser.shared.value_objects.core_types",
+      "the_alchemiser.shared.notifications.templates.base",
+      "the_alchemiser.shared.notifications.templates.performance",
+      "the_alchemiser.shared.notifications.templates.portfolio",
+      "the_alchemiser.shared.notifications.templates.signals"
+    ],
+    "the_alchemiser.shared.notifications.templates.performance": [
+      "the_alchemiser.shared.notifications.templates.base"
+    ],
+    "the_alchemiser.shared.notifications.templates.multi_strategy": [
+      "the_alchemiser.shared.schemas.common",
+      "the_alchemiser.shared.notifications.templates.base",
+      "the_alchemiser.shared.notifications.templates.performance",
+      "the_alchemiser.shared.notifications.templates.portfolio",
+      "the_alchemiser.shared.notifications.templates.signals"
+    ],
+    "the_alchemiser.shared.notifications.templates.portfolio": [
+      "the_alchemiser.execution.core.execution_schemas",
+      "the_alchemiser.shared.schemas.common",
+      "the_alchemiser.shared.value_objects.core_types",
+      "the_alchemiser.shared.notifications.templates.base",
+      "the_alchemiser.shared.utils.account_utils"
+    ],
+    "the_alchemiser.portfolio.execution.execution_service": [
+      "the_alchemiser.portfolio.allocation.rebalance_execution_service"
+    ],
+    "the_alchemiser.portfolio.utils.portfolio_utilities": [
+      "the_alchemiser.execution.core.execution_manager",
+      "the_alchemiser.shared.errors.error_handler"
+    ],
+    "the_alchemiser.portfolio.utils.__init__": [
+      "the_alchemiser.portfolio.utils.portfolio_utilities"
+    ],
+    "the_alchemiser.portfolio.utils.portfolio_pnl_utils": [
+      "the_alchemiser.portfolio.pnl.portfolio_pnl_utils"
+    ],
+    "the_alchemiser.portfolio.pnl.__init__": [
+      "the_alchemiser.portfolio.pnl.strategy_order_tracker"
+    ],
+    "the_alchemiser.portfolio.pnl.strategy_order_tracker": [
+      "the_alchemiser.portfolio.mappers.tracking_mapping",
+      "the_alchemiser.portfolio.schemas.tracking",
+      "the_alchemiser.shared.config.config",
+      "the_alchemiser.shared.services.errors",
+      "the_alchemiser.shared.types.exceptions",
+      "the_alchemiser.shared.utils.s3_utils",
+      "the_alchemiser.strategy.registry.strategy_registry",
+      "the_alchemiser.shared.types.trading_errors",
+      "the_alchemiser.shared.value_objects.identifier"
+    ],
+    "the_alchemiser.portfolio.pnl.portfolio_pnl_utils": [
+      "the_alchemiser.portfolio.pnl.strategy_order_tracker"
+    ],
+    "the_alchemiser.portfolio.services.__init__": [
+      "the_alchemiser.portfolio.services.position_service",
+      "the_alchemiser.portfolio.services.rebalancing_policy"
+    ],
+    "the_alchemiser.portfolio.holdings.position_model": [
+      "the_alchemiser.shared.math.num",
+      "the_alchemiser.shared.value_objects.core_types"
+    ],
+    "the_alchemiser.portfolio.holdings.__init__": [
+      "the_alchemiser.portfolio.holdings.position_analyzer",
+      "the_alchemiser.portfolio.holdings.position_delta",
+      "the_alchemiser.portfolio.holdings.position_model"
+    ],
+    "the_alchemiser.portfolio.holdings.position_service": [
+      "the_alchemiser.shared.math.num",
+      "the_alchemiser.shared.protocols.repository",
+      "the_alchemiser.shared.utils.decorators"
+    ],
+    "the_alchemiser.portfolio.holdings.position_analyzer": [
+      "the_alchemiser.portfolio.holdings.position_delta"
+    ],
+    "the_alchemiser.portfolio.holdings.position_manager": [
+      "the_alchemiser.shared.logging.logging_utils",
+      "the_alchemiser.shared.math.num",
+      "the_alchemiser.shared.types.exceptions"
+    ],
+    "the_alchemiser.portfolio.rebalancing.rebalance_plan": [
+      "the_alchemiser.portfolio.allocation.rebalance_plan"
+    ],
+    "the_alchemiser.portfolio.rebalancing.orchestrator": [
+      "the_alchemiser.portfolio.core.rebalancing_orchestrator"
+    ],
+    "the_alchemiser.portfolio.rebalancing.rebalancing_service": [
+      "the_alchemiser.portfolio.allocation.portfolio_rebalancing_service"
+    ],
+    "the_alchemiser.portfolio.rebalancing.orchestrator_facade": [
+      "the_alchemiser.portfolio.core.rebalancing_orchestrator_facade"
+    ],
+    "the_alchemiser.portfolio.calculations.portfolio_calculations": [
+      "the_alchemiser.shared.utils.account_utils",
+      "the_alchemiser.shared.value_objects.core_types"
+    ],
+    "the_alchemiser.portfolio.tracking.integration": [
+      "the_alchemiser.strategy.registry.strategy_registry",
+      "the_alchemiser.portfolio.pnl.strategy_order_tracker",
+      "the_alchemiser.portfolio.pnl.strategy_order_tracker",
+      "the_alchemiser.portfolio.pnl.strategy_order_tracker",
+      "the_alchemiser.portfolio.pnl.strategy_order_tracker"
+    ],
+    "the_alchemiser.portfolio.allocation.portfolio_rebalancing_service": [
+      "the_alchemiser.execution.core.execution_manager",
+      "the_alchemiser.portfolio.mappers.portfolio_rebalancing_mapping",
+      "the_alchemiser.portfolio.schemas.rebalancing",
+      "the_alchemiser.portfolio.utils.portfolio_utilities",
+      "the_alchemiser.shared.adapters",
+      "the_alchemiser.shared.dto",
+      "the_alchemiser.portfolio.holdings.position_analyzer",
+      "the_alchemiser.portfolio.holdings.position_delta",
+      "the_alchemiser.portfolio.state.attribution_engine",
+      "the_alchemiser.portfolio.allocation.rebalance_calculator",
+      "the_alchemiser.portfolio.allocation.rebalance_plan",
+      "the_alchemiser.shared.dto.rebalance_plan_dto"
+    ],
+    "the_alchemiser.portfolio.allocation.__init__": [
+      "the_alchemiser.portfolio.allocation.rebalance_calculator",
+      "the_alchemiser.portfolio.allocation.rebalance_plan"
+    ],
+    "the_alchemiser.portfolio.allocation.rebalance_calculator": [
+      "the_alchemiser.shared.math.trading_math",
+      "the_alchemiser.portfolio.allocation.rebalance_plan"
+    ],
+    "the_alchemiser.portfolio.allocation.rebalance_execution_service": [
+      "the_alchemiser.execution.brokers.alpaca_client",
+      "the_alchemiser.execution.core.execution_manager",
+      "the_alchemiser.execution.strategies.smart_execution",
+      "the_alchemiser.shared.errors.error_handler",
+      "the_alchemiser.shared.types.exceptions",
+      "the_alchemiser.portfolio.allocation.rebalance_plan"
+    ],
+    "the_alchemiser.portfolio.core.portfolio_management_facade": [
+      "the_alchemiser.execution.core.execution_manager",
+      "the_alchemiser.execution.mappers.orders",
+      "the_alchemiser.portfolio.allocation.rebalance_calculator",
+      "the_alchemiser.portfolio.holdings.position_analyzer",
+      "the_alchemiser.portfolio.mappers.portfolio_rebalancing_mapping",
+      "the_alchemiser.portfolio.schemas.rebalancing",
+      "the_alchemiser.portfolio.state.attribution_engine",
+      "the_alchemiser.shared.math.num",
+      "the_alchemiser.shared.value_objects.core_types",
+      "the_alchemiser.strategy.registry.strategy_registry",
+      "the_alchemiser.utils.serialization",
+      "the_alchemiser.portfolio.allocation.portfolio_rebalancing_service",
+      "the_alchemiser.portfolio.allocation.rebalance_execution_service",
+      "the_alchemiser.portfolio.core.portfolio_analysis_service"
+    ],
+    "the_alchemiser.portfolio.core.rebalancing_orchestrator": [
+      "the_alchemiser.execution.core.execution_schemas",
+      "the_alchemiser.execution.monitoring.websocket_order_monitor",
+      "the_alchemiser.shared.config.secrets_manager",
+      "the_alchemiser.shared.value_objects.core_types",
+      "the_alchemiser.strategy.registry.strategy_registry",
+      "the_alchemiser.portfolio.core.portfolio_management_facade"
+    ],
+    "the_alchemiser.portfolio.core.portfolio_analysis_service": [
+      "the_alchemiser.execution.core.execution_manager",
+      "the_alchemiser.portfolio.utils.portfolio_utilities",
+      "the_alchemiser.portfolio.holdings.position_analyzer",
+      "the_alchemiser.portfolio.state.attribution_engine"
+    ],
+    "the_alchemiser.portfolio.core.rebalancing_orchestrator_facade": [
+      "the_alchemiser.shared.errors.error_handler",
+      "the_alchemiser.shared.types.exceptions",
+      "the_alchemiser.shared.utils.context",
+      "the_alchemiser.shared.value_objects.core_types",
+      "the_alchemiser.strategy.registry.strategy_registry",
+      "the_alchemiser.portfolio.core.portfolio_management_facade",
+      "the_alchemiser.portfolio.core.rebalancing_orchestrator"
+    ],
+    "the_alchemiser.portfolio.mappers.tracking_normalization": [
+      "the_alchemiser.execution.mappers.execution"
+    ],
+    "the_alchemiser.portfolio.mappers.tracking": [
+      "the_alchemiser.portfolio.schemas.tracking"
+    ],
+    "the_alchemiser.portfolio.mappers.__init__": [
+      "the_alchemiser.portfolio.mappers.portfolio_rebalancing_mapping",
+      "the_alchemiser.portfolio.mappers.position_mapping"
+    ],
+    "the_alchemiser.portfolio.mappers.portfolio_rebalancing_mapping": [
+      "the_alchemiser.portfolio.rebalancing.rebalance_plan",
+      "the_alchemiser.portfolio.schemas.rebalancing"
+    ],
+    "the_alchemiser.portfolio.mappers.tracking_mapping": [
+      "the_alchemiser.portfolio.schemas.tracking"
+    ],
+    "the_alchemiser.portfolio.mappers.policy_mapping": [
+      "the_alchemiser.execution.orders.order_request",
+      "the_alchemiser.execution.orders.order_schemas",
+      "the_alchemiser.execution.orders.order_type",
+      "the_alchemiser.execution.orders.side",
+      "the_alchemiser.execution.types.policy_result",
+      "the_alchemiser.shared.types.money",
+      "the_alchemiser.shared.types.quantity",
+      "the_alchemiser.shared.types.time_in_force",
+      "the_alchemiser.shared.value_objects.symbol"
+    ],
+    "the_alchemiser.portfolio.analytics.analysis_service": [
+      "the_alchemiser.portfolio.core.portfolio_analysis_service"
+    ],
+    "the_alchemiser.portfolio.analytics.position_analyzer": [
+      "the_alchemiser.portfolio.holdings.position_analyzer"
+    ],
+    "the_alchemiser.portfolio.analytics.position_delta": [
+      "the_alchemiser.portfolio.holdings.position_delta"
+    ],
+    "the_alchemiser.portfolio.analytics.attribution_engine": [
+      "the_alchemiser.portfolio.state.attribution_engine"
+    ],
+    "the_alchemiser.portfolio.positions.position_service": [
+      "the_alchemiser.portfolio.holdings.position_service"
+    ],
+    "the_alchemiser.portfolio.positions.legacy_position_manager": [
+      "the_alchemiser.portfolio.holdings.position_manager"
+    ],
+    "the_alchemiser.portfolio.policies.policy_orchestrator": [
+      "the_alchemiser.execution.orders.order_request",
+      "the_alchemiser.execution.orders.order_schemas",
+      "the_alchemiser.execution.types.policy_result",
+      "the_alchemiser.portfolio.mappers.policy_mapping",
+      "the_alchemiser.shared.logging.logging_utils",
+      "the_alchemiser.portfolio.policies.buying_power_policy_impl",
+      "the_alchemiser.portfolio.policies.fractionability_policy_impl",
+      "the_alchemiser.portfolio.policies.position_policy_impl",
+      "the_alchemiser.portfolio.policies.risk_policy_impl",
+      "the_alchemiser.execution.types.policy_result",
+      "the_alchemiser.execution.types.policy_result",
+      "the_alchemiser.execution.types.policy_result",
+      "the_alchemiser.execution.types.policy_result",
+      "the_alchemiser.execution.types.policy_result"
+    ],
+    "the_alchemiser.portfolio.policies.fractionability_policy_impl": [
+      "the_alchemiser.execution.orders.order_request",
+      "the_alchemiser.execution.types.policy_result",
+      "the_alchemiser.portfolio.policies.base_policy",
+      "the_alchemiser.shared.logging.logging_utils",
+      "the_alchemiser.shared.math.asset_info",
+      "the_alchemiser.shared.types.quantity"
+    ],
+    "the_alchemiser.portfolio.policies.rebalancing_policy": [
+      "the_alchemiser.shared.value_objects.core_types"
+    ],
+    "the_alchemiser.portfolio.policies.buying_power_policy_impl": [
+      "the_alchemiser.execution.orders.order_request",
+      "the_alchemiser.execution.types.policy_result",
+      "the_alchemiser.portfolio.policies.base_policy",
+      "the_alchemiser.portfolio.policies.protocols",
+      "the_alchemiser.shared.logging.logging_utils",
+      "the_alchemiser.shared.types.exceptions"
+    ],
+    "the_alchemiser.portfolio.policies.risk_policy_impl": [
+      "the_alchemiser.execution.orders.order_request",
+      "the_alchemiser.execution.types.policy_result",
+      "the_alchemiser.portfolio.policies.base_policy",
+      "the_alchemiser.portfolio.policies.protocols",
+      "the_alchemiser.shared.logging.logging_utils"
+    ],
+    "the_alchemiser.portfolio.policies.position_policy_impl": [
+      "the_alchemiser.execution.orders.order_request",
+      "the_alchemiser.execution.types.policy_result",
+      "the_alchemiser.portfolio.policies.base_policy",
+      "the_alchemiser.portfolio.policies.protocols",
+      "the_alchemiser.shared.logging.logging_utils",
+      "the_alchemiser.shared.types.exceptions",
+      "the_alchemiser.shared.types.quantity"
+    ],
+    "the_alchemiser.portfolio.policies.base_policy": [
+      "the_alchemiser.execution.orders.order_request",
+      "the_alchemiser.execution.types.policy_result"
+    ],
+    "the_alchemiser.portfolio.policies.policy_factory": [
+      "the_alchemiser.execution.orders.order_request",
+      "the_alchemiser.execution.types.policy_result",
+      "the_alchemiser.portfolio.policies.base_policy",
+      "the_alchemiser.portfolio.policies.buying_power_policy_impl",
+      "the_alchemiser.portfolio.policies.fractionability_policy_impl",
+      "the_alchemiser.portfolio.policies.policy_orchestrator",
+      "the_alchemiser.portfolio.policies.position_policy_impl",
+      "the_alchemiser.portfolio.policies.protocols",
+      "the_alchemiser.portfolio.policies.risk_policy_impl",
+      "the_alchemiser.execution.orders.order_request",
+      "the_alchemiser.execution.types.policy_result"
+    ],
+    "the_alchemiser.portfolio.schemas.rebalancing": [
+      "the_alchemiser.portfolio.rebalancing.rebalance_plan",
+      "the_alchemiser.shared.schemas.base"
+    ],
+    "the_alchemiser.portfolio.schemas.tracking": [
+      "the_alchemiser.strategy.registry.strategy_registry"
+    ],
+    "the_alchemiser.portfolio.schemas.__init__": [
+      "the_alchemiser.portfolio.schemas.rebalancing",
+      "the_alchemiser.portfolio.schemas.tracking"
+    ],
+    "the_alchemiser.portfolio.schemas.positions": [
+      "the_alchemiser.shared.schemas.base"
+    ],
+    "the_alchemiser.portfolio.state.__init__": [
+      "the_alchemiser.portfolio.state.symbol_classifier"
+    ],
+    "the_alchemiser.portfolio.state.attribution_engine": [
+      "the_alchemiser.strategy.registry.strategy_registry",
+      "the_alchemiser.portfolio.state.symbol_classifier"
+    ]
+  },
+  "reverse_import_graph": {
+    "the_alchemiser.shared.cli.signal_analyzer": [
+      "the_alchemiser.main",
+      "the_alchemiser.shared.cli.trading_executor"
+    ],
+    "the_alchemiser.shared.cli.trading_executor": [
+      "the_alchemiser.main"
+    ],
+    "the_alchemiser.shared.config.config": [
+      "the_alchemiser.main",
+      "the_alchemiser.lambda_handler",
+      "the_alchemiser.execution.monitoring.websocket_order_monitor",
+      "the_alchemiser.execution.config.execution_config",
+      "the_alchemiser.execution.examples.canonical_integration",
+      "the_alchemiser.strategy.engines.core.trading_engine",
+      "the_alchemiser.shared.services.alert_service",
+      "the_alchemiser.shared.config.__init__",
+      "the_alchemiser.shared.config.config_providers",
+      "the_alchemiser.shared.config.bootstrap",
+      "the_alchemiser.shared.config.secrets_manager",
+      "the_alchemiser.shared.config.secrets_manager",
+      "the_alchemiser.shared.config.secrets_manager",
+      "the_alchemiser.shared.config.config_service",
+      "the_alchemiser.shared.cli.signal_analyzer",
+      "the_alchemiser.shared.cli.trading_executor",
+      "the_alchemiser.shared.notifications.config",
+      "the_alchemiser.portfolio.pnl.strategy_order_tracker"
+    ],
+    "the_alchemiser.shared.errors.error_handler": [
+      "the_alchemiser.main",
+      "the_alchemiser.execution.orders.validation",
+      "the_alchemiser.execution.core.account_facade",
+      "the_alchemiser.execution.lifecycle.dispatcher",
+      "the_alchemiser.strategy.engines.core.trading_engine",
+      "the_alchemiser.strategy.engines.core.trading_engine",
+      "the_alchemiser.shared.config.bootstrap",
+      "the_alchemiser.shared.cli.cli",
+      "the_alchemiser.shared.cli.trading_executor",
+      "the_alchemiser.portfolio.utils.portfolio_utilities",
+      "the_alchemiser.portfolio.allocation.rebalance_execution_service",
+      "the_alchemiser.portfolio.core.rebalancing_orchestrator_facade"
+    ],
+    "the_alchemiser.shared.logging.logging_utils": [
+      "the_alchemiser.main",
+      "the_alchemiser.lambda_handler",
+      "the_alchemiser.lambda_handler",
+      "the_alchemiser.lambda_handler",
+      "the_alchemiser.execution.orders.asset_order_handler",
+      "the_alchemiser.execution.pricing.smart_pricing_handler",
+      "the_alchemiser.execution.core.manager",
+      "the_alchemiser.execution.core.manager",
+      "the_alchemiser.execution.core.manager",
+      "the_alchemiser.strategy.validation.indicator_validator",
+      "the_alchemiser.strategy.data.price_fetching_utils",
+      "the_alchemiser.strategy.engines.core.trading_engine",
+      "the_alchemiser.shared.utils.error_handling",
+      "the_alchemiser.shared.errors.error_handler",
+      "the_alchemiser.shared.cli.signal_display_utils",
+      "the_alchemiser.shared.cli.signal_analyzer",
+      "the_alchemiser.shared.cli.cli",
+      "the_alchemiser.shared.cli.cli",
+      "the_alchemiser.shared.cli.trading_executor",
+      "the_alchemiser.portfolio.holdings.position_manager",
+      "the_alchemiser.portfolio.policies.policy_orchestrator",
+      "the_alchemiser.portfolio.policies.fractionability_policy_impl",
+      "the_alchemiser.portfolio.policies.buying_power_policy_impl",
+      "the_alchemiser.portfolio.policies.risk_policy_impl",
+      "the_alchemiser.portfolio.policies.position_policy_impl"
+    ],
+    "the_alchemiser.shared.types.exceptions": [
+      "the_alchemiser.main",
+      "the_alchemiser.lambda_handler",
+      "the_alchemiser.execution.orders.validation",
+      "the_alchemiser.execution.orders.asset_order_handler",
+      "the_alchemiser.execution.pricing.smart_pricing_handler",
+      "the_alchemiser.execution.core.manager",
+      "the_alchemiser.execution.core.account_facade",
+      "the_alchemiser.execution.strategies.aggressive_limit_strategy",
+      "the_alchemiser.execution.strategies.smart_execution",
+      "the_alchemiser.strategy.data.price_fetching_utils",
+      "the_alchemiser.strategy.data.market_data_client",
+      "the_alchemiser.strategy.engines.core.trading_engine",
+      "the_alchemiser.shared.utils.error_reporter",
+      "the_alchemiser.shared.utils.retry_decorator",
+      "the_alchemiser.shared.utils.retry_decorator",
+      "the_alchemiser.shared.utils.retry_decorator",
+      "the_alchemiser.shared.utils.__init__",
+      "the_alchemiser.shared.utils.decorators",
+      "the_alchemiser.shared.errors.error_handler",
+      "the_alchemiser.shared.types.trading_errors",
+      "the_alchemiser.shared.config.secrets_service",
+      "the_alchemiser.shared.config.bootstrap",
+      "the_alchemiser.shared.cli.signal_analyzer",
+      "the_alchemiser.shared.cli.cli",
+      "the_alchemiser.shared.cli.trading_executor",
+      "the_alchemiser.shared.reporting.reporting",
+      "the_alchemiser.portfolio.pnl.strategy_order_tracker",
+      "the_alchemiser.portfolio.holdings.position_manager",
+      "the_alchemiser.portfolio.allocation.rebalance_execution_service",
+      "the_alchemiser.portfolio.core.rebalancing_orchestrator_facade",
+      "the_alchemiser.portfolio.policies.buying_power_policy_impl",
+      "the_alchemiser.portfolio.policies.position_policy_impl"
+    ],
+    "the_alchemiser.strategy.registry.strategy_registry": [
+      "the_alchemiser.main",
+      "the_alchemiser.strategy.managers.typed_strategy_manager",
+      "the_alchemiser.strategy.engines.typed_strategy_manager",
+      "the_alchemiser.strategy.data.domain_mapping",
+      "the_alchemiser.strategy.mappers.strategy_signal_mapping",
+      "the_alchemiser.strategy.schemas.strategies",
+      "the_alchemiser.strategy.engines.core.trading_engine",
+      "the_alchemiser.shared.cli.signal_display_utils",
+      "the_alchemiser.shared.cli.signal_analyzer",
+      "the_alchemiser.shared.cli.trading_executor",
+      "the_alchemiser.shared.reporting.reporting",
+      "the_alchemiser.portfolio.pnl.strategy_order_tracker",
+      "the_alchemiser.portfolio.tracking.integration",
+      "the_alchemiser.portfolio.core.portfolio_management_facade",
+      "the_alchemiser.portfolio.core.rebalancing_orchestrator",
+      "the_alchemiser.portfolio.core.rebalancing_orchestrator_facade",
+      "the_alchemiser.portfolio.schemas.tracking",
+      "the_alchemiser.portfolio.state.attribution_engine"
+    ],
+    "the_alchemiser.shared.cli.cli_formatter": [
+      "the_alchemiser.main",
+      "the_alchemiser.shared.cli.signal_analyzer",
+      "the_alchemiser.shared.cli.cli",
+      "the_alchemiser.shared.cli.trading_executor"
+    ],
+    "the_alchemiser.shared.config.container": [
+      "the_alchemiser.main",
+      "the_alchemiser.strategy.engines.core.trading_engine",
+      "the_alchemiser.shared.utils.service_factory",
+      "the_alchemiser.shared.cli.signal_analyzer",
+      "the_alchemiser.shared.cli.trading_executor"
+    ],
+    "the_alchemiser.shared.utils.service_factory": [
+      "the_alchemiser.main"
+    ],
+    "the_alchemiser.execution.core.execution_schemas": [
+      "the_alchemiser.lambda_handler",
+      "the_alchemiser.execution.monitoring.websocket_order_monitor",
+      "the_alchemiser.execution.orders.lifecycle_adapter",
+      "the_alchemiser.execution.protocols.order_lifecycle",
+      "the_alchemiser.execution.core.__init__",
+      "the_alchemiser.execution.mappers.execution",
+      "the_alchemiser.execution.brokers.alpaca_client",
+      "the_alchemiser.execution.strategies.smart_execution",
+      "the_alchemiser.strategy.engines.core.trading_engine",
+      "the_alchemiser.shared.notifications.email_utils",
+      "the_alchemiser.shared.notifications.templates.portfolio",
+      "the_alchemiser.portfolio.core.rebalancing_orchestrator"
+    ],
+    "the_alchemiser.main": [
+      "the_alchemiser.lambda_handler",
+      "the_alchemiser.strategy.engines.core.trading_engine",
+      "the_alchemiser.shared.cli.cli",
+      "the_alchemiser.shared.cli.cli",
+      "the_alchemiser.shared.cli.cli"
+    ],
+    "the_alchemiser.shared.services.errors": [
+      "the_alchemiser.lambda_handler",
+      "the_alchemiser.lambda_handler",
+      "the_alchemiser.execution.core.manager",
+      "the_alchemiser.strategy.engines.core.trading_engine",
+      "the_alchemiser.portfolio.pnl.strategy_order_tracker"
+    ],
+    "the_alchemiser.application.policies": [
+      "examples.policy_layer_usage"
+    ],
+    "the_alchemiser.execution.orders.order_schemas": [
+      "examples.policy_layer_usage",
+      "the_alchemiser.execution.orders.__init__",
+      "the_alchemiser.execution.orders.validation",
+      "the_alchemiser.execution.orders.asset_order_handler",
+      "the_alchemiser.execution.core.execution_manager",
+      "the_alchemiser.execution.mappers.alpaca_dto_mapping",
+      "the_alchemiser.execution.mappers.order_mapping",
+      "the_alchemiser.execution.mappers.orders",
+      "the_alchemiser.execution.brokers.alpaca_client",
+      "the_alchemiser.execution.examples.canonical_integration",
+      "the_alchemiser.execution.schemas.smart_trading",
+      "the_alchemiser.execution.brokers.alpaca.adapter",
+      "the_alchemiser.execution.brokers.alpaca.adapter",
+      "the_alchemiser.execution.brokers.alpaca.adapter",
+      "the_alchemiser.execution.brokers.alpaca.adapter",
+      "the_alchemiser.execution.brokers.alpaca.adapter",
+      "the_alchemiser.strategy.mappers.strategy_signal_mapping",
+      "the_alchemiser.shared.protocols.repository",
+      "the_alchemiser.shared.cli.trading_executor",
+      "the_alchemiser.portfolio.mappers.policy_mapping",
+      "the_alchemiser.portfolio.policies.policy_orchestrator"
+    ],
+    "the_alchemiser.execution.core.canonical_executor": [
+      "examples.policy_layer_usage",
+      "the_alchemiser.execution.core.execution_manager",
+      "the_alchemiser.execution.core.execution_manager",
+      "the_alchemiser.execution.brokers.alpaca_client",
+      "the_alchemiser.execution.examples.canonical_integration",
+      "the_alchemiser.execution.strategies.execution_context_adapter",
+      "the_alchemiser.execution.strategies.smart_execution"
+    ],
+    "the_alchemiser.execution.orders.order_request": [
+      "examples.policy_layer_usage",
+      "the_alchemiser.execution.orders.__init__",
+      "the_alchemiser.execution.types.policy_result",
+      "the_alchemiser.execution.core.execution_manager",
+      "the_alchemiser.execution.core.execution_manager",
+      "the_alchemiser.execution.brokers.alpaca_client",
+      "the_alchemiser.execution.examples.canonical_integration",
+      "the_alchemiser.execution.strategies.execution_context_adapter",
+      "the_alchemiser.execution.strategies.smart_execution",
+      "the_alchemiser.portfolio.mappers.policy_mapping",
+      "the_alchemiser.portfolio.policies.policy_orchestrator",
+      "the_alchemiser.portfolio.policies.fractionability_policy_impl",
+      "the_alchemiser.portfolio.policies.buying_power_policy_impl",
+      "the_alchemiser.portfolio.policies.risk_policy_impl",
+      "the_alchemiser.portfolio.policies.position_policy_impl",
+      "the_alchemiser.portfolio.policies.base_policy",
+      "the_alchemiser.portfolio.policies.policy_factory",
+      "the_alchemiser.portfolio.policies.policy_factory"
+    ],
+    "the_alchemiser.execution.orders.order_type": [
+      "examples.policy_layer_usage",
+      "the_alchemiser.execution.orders.__init__",
+      "the_alchemiser.execution.orders.order_request",
+      "the_alchemiser.execution.entities.order",
+      "the_alchemiser.execution.core.execution_manager",
+      "the_alchemiser.execution.core.execution_manager",
+      "the_alchemiser.execution.mappers.order_mapping",
+      "the_alchemiser.execution.brokers.alpaca_client",
+      "the_alchemiser.execution.examples.canonical_integration",
+      "the_alchemiser.execution.strategies.execution_context_adapter",
+      "the_alchemiser.execution.strategies.smart_execution",
+      "the_alchemiser.portfolio.mappers.policy_mapping"
+    ],
+    "the_alchemiser.shared.types.quantity": [
+      "examples.policy_layer_usage",
+      "the_alchemiser.execution.orders.order_request",
+      "the_alchemiser.execution.entities.order",
+      "the_alchemiser.execution.core.execution_manager",
+      "the_alchemiser.execution.core.execution_manager",
+      "the_alchemiser.execution.mappers.order_mapping",
+      "the_alchemiser.execution.mappers.orders",
+      "the_alchemiser.execution.brokers.alpaca_client",
+      "the_alchemiser.execution.examples.canonical_integration",
+      "the_alchemiser.execution.strategies.execution_context_adapter",
+      "the_alchemiser.execution.strategies.smart_execution",
+      "the_alchemiser.shared.types.__init__",
+      "the_alchemiser.portfolio.mappers.policy_mapping",
+      "the_alchemiser.portfolio.policies.fractionability_policy_impl",
+      "the_alchemiser.portfolio.policies.position_policy_impl"
+    ],
+    "the_alchemiser.domain.trading.value_objects.side": [
+      "examples.policy_layer_usage"
+    ],
+    "the_alchemiser.shared.value_objects.symbol": [
+      "examples.policy_layer_usage",
+      "the_alchemiser.execution.orders.order_request",
+      "the_alchemiser.execution.entities.order",
+      "the_alchemiser.execution.core.execution_manager",
+      "the_alchemiser.execution.core.execution_manager",
+      "the_alchemiser.execution.mappers.order_mapping",
+      "the_alchemiser.execution.mappers.orders",
+      "the_alchemiser.execution.brokers.alpaca_client",
+      "the_alchemiser.execution.examples.canonical_integration",
+      "the_alchemiser.execution.strategies.execution_context_adapter",
+      "the_alchemiser.execution.strategies.smart_execution",
+      "the_alchemiser.strategy.managers.typed_strategy_manager",
+      "the_alchemiser.strategy.engines.klm_ensemble_engine",
+      "the_alchemiser.strategy.engines.tecl_strategy_engine",
+      "the_alchemiser.strategy.engines.typed_strategy_manager",
+      "the_alchemiser.strategy.engines.nuclear_typed_engine",
+      "the_alchemiser.strategy.engines.typed_klm_ensemble_engine",
+      "the_alchemiser.strategy.mappers.strategy_signal_mapping",
+      "the_alchemiser.strategy.engines.value_objects.alert",
+      "the_alchemiser.strategy.engines.value_objects.strategy_signal",
+      "the_alchemiser.strategy.engines.models.strategy_signal_model",
+      "the_alchemiser.strategy.engines.models.strategy_position_model",
+      "the_alchemiser.shared.protocols.asset_metadata",
+      "the_alchemiser.shared.value_objects.__init__",
+      "the_alchemiser.shared.math.asset_info",
+      "the_alchemiser.portfolio.mappers.policy_mapping"
+    ],
+    "the_alchemiser.domain.trading.value_objects.time_in_force": [
+      "examples.policy_layer_usage"
+    ],
+    "the_alchemiser.execution.brokers.alpaca": [
+      "the_alchemiser.execution.__init__",
+      "the_alchemiser.execution.core.execution_manager",
+      "the_alchemiser.execution.brokers.__init__",
+      "the_alchemiser.execution.brokers.alpaca_client",
+      "the_alchemiser.execution.examples.canonical_integration",
+      "the_alchemiser.execution.strategies.execution_context_adapter",
+      "the_alchemiser.execution.strategies.execution_context_adapter",
+      "the_alchemiser.execution.strategies.smart_execution",
+      "the_alchemiser.execution.strategies.smart_execution",
+      "the_alchemiser.strategy.data.market_data_client",
+      "the_alchemiser.strategy.engines.core.trading_engine",
+      "the_alchemiser.shared.config.infrastructure_providers",
+      "the_alchemiser.shared.config.bootstrap"
+    ],
+    "the_alchemiser.shared.adapters.integration_helpers": [
+      "the_alchemiser.shared.dto_communication_demo",
+      "the_alchemiser.shared.dto_communication_demo"
+    ],
+    "the_alchemiser.shared.dto": [
+      "the_alchemiser.shared.dto_communication_demo",
+      "the_alchemiser.shared.simple_dto_test",
+      "the_alchemiser.shared.simple_dto_test",
+      "the_alchemiser.strategy.engines.typed_strategy_manager",
+      "the_alchemiser.shared.adapters.integration_helpers",
+      "the_alchemiser.portfolio.allocation.portfolio_rebalancing_service"
+    ],
+    "the_alchemiser.shared.dto.execution_report_dto": [
+      "the_alchemiser.shared.dto_communication_demo",
+      "the_alchemiser.shared.dto_communication_demo",
+      "the_alchemiser.execution.core.execution_schemas",
+      "the_alchemiser.shared.adapters.execution_adapters",
+      "the_alchemiser.shared.dto.__init__",
+      "the_alchemiser.shared.schemas.common"
+    ],
+    "the_alchemiser.shared.adapters.strategy_adapters": [
+      "the_alchemiser.shared.simple_dto_test",
+      "the_alchemiser.shared.adapters.__init__"
+    ],
+    "the_alchemiser.execution.lifecycle.dispatcher": [
+      "the_alchemiser.execution.monitoring.websocket_order_monitor",
+      "the_alchemiser.execution.lifecycle.__init__"
+    ],
+    "the_alchemiser.execution.lifecycle.events": [
+      "the_alchemiser.execution.monitoring.websocket_order_monitor",
+      "the_alchemiser.execution.lifecycle.dispatcher",
+      "the_alchemiser.execution.lifecycle.manager",
+      "the_alchemiser.execution.lifecycle.__init__",
+      "the_alchemiser.execution.lifecycle.observers",
+      "the_alchemiser.execution.lifecycle.protocols"
+    ],
+    "the_alchemiser.execution.lifecycle.states": [
+      "the_alchemiser.execution.monitoring.websocket_order_monitor",
+      "the_alchemiser.execution.lifecycle.manager",
+      "the_alchemiser.execution.lifecycle.events",
+      "the_alchemiser.execution.lifecycle.__init__",
+      "the_alchemiser.execution.lifecycle.exceptions",
+      "the_alchemiser.execution.lifecycle.transitions"
+    ],
+    "the_alchemiser.execution.orders.order_id": [
+      "the_alchemiser.execution.monitoring.websocket_order_monitor",
+      "the_alchemiser.execution.orders.__init__",
+      "the_alchemiser.execution.entities.order",
+      "the_alchemiser.execution.core.execution_manager",
+      "the_alchemiser.execution.mappers.order_mapping",
+      "the_alchemiser.execution.mappers.orders",
+      "the_alchemiser.execution.lifecycle.manager",
+      "the_alchemiser.execution.lifecycle.events"
+    ],
+    "the_alchemiser.shared.value_objects.identifier": [
+      "the_alchemiser.execution.orders.order_id",
+      "the_alchemiser.execution.errors.order_error",
+      "the_alchemiser.execution.errors.classifier",
+      "the_alchemiser.shared.errors.error_handler",
+      "the_alchemiser.portfolio.pnl.strategy_order_tracker"
+    ],
+    "the_alchemiser.execution.entities.order": [
+      "the_alchemiser.execution.orders.order_id",
+      "the_alchemiser.execution.entities.__init__",
+      "the_alchemiser.execution.mappers.order_mapping",
+      "the_alchemiser.execution.mappers.orders",
+      "the_alchemiser.shared.protocols.trading"
+    ],
+    "the_alchemiser.shared.schemas.base": [
+      "the_alchemiser.execution.orders.order_schemas",
+      "the_alchemiser.execution.schemas.smart_trading",
+      "the_alchemiser.shared.schemas.__init__",
+      "the_alchemiser.shared.schemas.accounts",
+      "the_alchemiser.shared.schemas.enriched_data",
+      "the_alchemiser.shared.schemas.operations",
+      "the_alchemiser.shared.schemas.market_data",
+      "the_alchemiser.portfolio.schemas.rebalancing",
+      "the_alchemiser.portfolio.schemas.positions"
+    ],
+    "the_alchemiser.shared.types.order_status": [
+      "the_alchemiser.execution.orders.order_status_literal",
+      "the_alchemiser.shared.value_objects.core_types"
+    ],
+    "the_alchemiser.execution.orders.order_status": [
+      "the_alchemiser.execution.orders.__init__",
+      "the_alchemiser.execution.entities.order",
+      "the_alchemiser.execution.mappers.order_mapping",
+      "the_alchemiser.execution.mappers.order",
+      "the_alchemiser.execution.mappers.orders"
+    ],
+    "the_alchemiser.execution.orders.side": [
+      "the_alchemiser.execution.orders.__init__",
+      "the_alchemiser.execution.orders.order_request",
+      "the_alchemiser.execution.core.execution_manager",
+      "the_alchemiser.execution.core.execution_manager",
+      "the_alchemiser.execution.brokers.alpaca_client",
+      "the_alchemiser.execution.examples.canonical_integration",
+      "the_alchemiser.execution.strategies.execution_context_adapter",
+      "the_alchemiser.execution.strategies.smart_execution",
+      "the_alchemiser.portfolio.mappers.policy_mapping"
+    ],
+    "the_alchemiser.shared.math.num": [
+      "the_alchemiser.execution.orders.service",
+      "the_alchemiser.execution.core.execution_manager",
+      "the_alchemiser.execution.mappers.order",
+      "the_alchemiser.execution.brokers.account_service",
+      "the_alchemiser.strategy.types.strategy",
+      "the_alchemiser.shared.utils.error_monitoring",
+      "the_alchemiser.shared.cli.cli_formatter",
+      "the_alchemiser.shared.math.math_utils",
+      "the_alchemiser.portfolio.holdings.position_model",
+      "the_alchemiser.portfolio.holdings.position_service",
+      "the_alchemiser.portfolio.holdings.position_manager",
+      "the_alchemiser.portfolio.core.portfolio_management_facade"
+    ],
+    "the_alchemiser.shared.protocols.repository": [
+      "the_alchemiser.execution.orders.service",
+      "the_alchemiser.execution.brokers.account_service",
+      "the_alchemiser.execution.brokers.alpaca.adapter",
+      "the_alchemiser.strategy.data.market_data_service",
+      "the_alchemiser.portfolio.holdings.position_service"
+    ],
+    "the_alchemiser.shared.utils.decorators": [
+      "the_alchemiser.execution.orders.service",
+      "the_alchemiser.execution.core.execution_manager",
+      "the_alchemiser.strategy.data.market_data_service",
+      "the_alchemiser.portfolio.holdings.position_service"
+    ],
+    "the_alchemiser.shared.types.money": [
+      "the_alchemiser.execution.orders.order_request",
+      "the_alchemiser.execution.entities.order",
+      "the_alchemiser.execution.core.execution_manager",
+      "the_alchemiser.execution.core.execution_manager",
+      "the_alchemiser.execution.mappers.account_mapping",
+      "the_alchemiser.execution.mappers.order_mapping",
+      "the_alchemiser.execution.mappers.orders",
+      "the_alchemiser.execution.examples.canonical_integration",
+      "the_alchemiser.execution.strategies.execution_context_adapter",
+      "the_alchemiser.execution.strategies.smart_execution",
+      "the_alchemiser.portfolio.mappers.policy_mapping"
+    ],
+    "the_alchemiser.shared.types.time_in_force": [
+      "the_alchemiser.execution.orders.order_request",
+      "the_alchemiser.execution.entities.order",
+      "the_alchemiser.execution.core.execution_manager",
+      "the_alchemiser.execution.core.execution_manager",
+      "the_alchemiser.execution.mappers.order_mapping",
+      "the_alchemiser.execution.brokers.alpaca_client",
+      "the_alchemiser.execution.examples.canonical_integration",
+      "the_alchemiser.execution.strategies.execution_context_adapter",
+      "the_alchemiser.execution.strategies.smart_execution",
+      "the_alchemiser.shared.types.__init__",
+      "the_alchemiser.portfolio.mappers.policy_mapping"
+    ],
+    "the_alchemiser.execution.mappers.orders": [
+      "the_alchemiser.execution.orders.validation",
+      "the_alchemiser.execution.core.execution_manager",
+      "the_alchemiser.execution.mappers.alpaca_dto_mapping",
+      "the_alchemiser.execution.mappers.__init__",
+      "the_alchemiser.execution.mappers.order_mapping",
+      "the_alchemiser.execution.brokers.alpaca_client",
+      "the_alchemiser.portfolio.core.portfolio_management_facade"
+    ],
+    "the_alchemiser.shared.types.trading_errors": [
+      "the_alchemiser.execution.orders.validation",
+      "the_alchemiser.shared.errors.error_handler",
+      "the_alchemiser.shared.cli.error_display_utils",
+      "the_alchemiser.portfolio.pnl.strategy_order_tracker"
+    ],
+    "the_alchemiser.shared.math.asset_info": [
+      "the_alchemiser.execution.orders.asset_order_handler",
+      "the_alchemiser.portfolio.policies.fractionability_policy_impl"
+    ],
+    "the_alchemiser.execution.monitoring.websocket_order_monitor": [
+      "the_alchemiser.execution.orders.lifecycle_adapter",
+      "the_alchemiser.execution.brokers.alpaca_client",
+      "the_alchemiser.portfolio.core.rebalancing_orchestrator"
+    ],
+    "the_alchemiser.execution.protocols.order_lifecycle": [
+      "the_alchemiser.execution.orders.lifecycle_adapter"
+    ],
+    "the_alchemiser.execution.errors.error_categories": [
+      "the_alchemiser.execution.errors.order_error",
+      "the_alchemiser.execution.errors.classifier"
+    ],
+    "the_alchemiser.execution.errors.error_codes": [
+      "the_alchemiser.execution.errors.order_error",
+      "the_alchemiser.execution.errors.classifier"
+    ],
+    "the_alchemiser.execution.errors.order_error": [
+      "the_alchemiser.execution.errors.classifier",
+      "the_alchemiser.shared.cli.error_display_utils",
+      "the_alchemiser.shared.cli.error_display_utils"
+    ],
+    "the_alchemiser.execution.config.execution_config": [
+      "the_alchemiser.execution.config.execution_config",
+      "the_alchemiser.execution.config.execution_config",
+      "the_alchemiser.execution.strategies.smart_execution",
+      "the_alchemiser.execution.strategies.smart_execution"
+    ],
+    "the_alchemiser.execution.pricing.smart_pricing_handler": [
+      "the_alchemiser.execution.pricing.__init__",
+      "the_alchemiser.execution.brokers.alpaca_client"
+    ],
+    "the_alchemiser.execution.pricing.spread_assessment": [
+      "the_alchemiser.execution.pricing.__init__",
+      "the_alchemiser.execution.strategies.smart_execution"
+    ],
+    "the_alchemiser.execution.mappers.execution_summary_mapping": [
+      "the_alchemiser.execution.core.manager"
+    ],
+    "the_alchemiser.shared.schemas.common": [
+      "the_alchemiser.execution.core.manager",
+      "the_alchemiser.strategy.engines.core.trading_engine",
+      "the_alchemiser.shared.cli.cli_formatter",
+      "the_alchemiser.shared.cli.trading_executor",
+      "the_alchemiser.shared.notifications.email_utils",
+      "the_alchemiser.shared.schemas.__init__",
+      "the_alchemiser.shared.notifications.templates.multi_strategy",
+      "the_alchemiser.shared.notifications.templates.portfolio"
+    ],
+    "the_alchemiser.shared.value_objects.core_types": [
+      "the_alchemiser.execution.core.manager",
+      "the_alchemiser.execution.core.execution_schemas",
+      "the_alchemiser.execution.core.account_facade",
+      "the_alchemiser.execution.mappers.execution",
+      "the_alchemiser.execution.mappers.order",
+      "the_alchemiser.execution.brokers.account_service",
+      "the_alchemiser.strategy.types.strategy",
+      "the_alchemiser.strategy.data.domain_mapping",
+      "the_alchemiser.strategy.data.domain_mapping",
+      "the_alchemiser.strategy.mappers.strategy_signal_mapping",
+      "the_alchemiser.strategy.engines.klm_workers.variant_530_18",
+      "the_alchemiser.strategy.engines.klm_workers.variant_1280_26",
+      "the_alchemiser.strategy.engines.klm_workers.base_klm_variant",
+      "the_alchemiser.strategy.engines.core.trading_engine",
+      "the_alchemiser.strategy.engines.models.strategy_signal_model",
+      "the_alchemiser.strategy.engines.models.strategy_position_model",
+      "the_alchemiser.shared.utils.account_utils",
+      "the_alchemiser.shared.types.market_data",
+      "the_alchemiser.shared.types.account",
+      "the_alchemiser.shared.cli.signal_display_utils",
+      "the_alchemiser.shared.cli.cli_formatter",
+      "the_alchemiser.shared.cli.dashboard_utils",
+      "the_alchemiser.shared.cli.portfolio_calculations",
+      "the_alchemiser.shared.value_objects.__init__",
+      "the_alchemiser.shared.notifications.email_utils",
+      "the_alchemiser.shared.reporting.reporting",
+      "the_alchemiser.shared.schemas.execution_summary",
+      "the_alchemiser.shared.schemas.reporting",
+      "the_alchemiser.shared.schemas.cli",
+      "the_alchemiser.shared.schemas.common",
+      "the_alchemiser.shared.notifications.templates.trading_report",
+      "the_alchemiser.shared.notifications.templates.portfolio",
+      "the_alchemiser.portfolio.holdings.position_model",
+      "the_alchemiser.portfolio.calculations.portfolio_calculations",
+      "the_alchemiser.portfolio.core.portfolio_management_facade",
+      "the_alchemiser.portfolio.core.rebalancing_orchestrator",
+      "the_alchemiser.portfolio.core.rebalancing_orchestrator_facade",
+      "the_alchemiser.portfolio.policies.rebalancing_policy"
+    ],
+    "the_alchemiser.strategy.mappers.strategy_signal_mapping": [
+      "the_alchemiser.execution.core.manager",
+      "the_alchemiser.strategy.data.domain_mapping",
+      "the_alchemiser.shared.cli.trading_executor",
+      "the_alchemiser.shared.cli.trading_executor"
+    ],
+    "the_alchemiser.execution.reporting.reporting": [
+      "the_alchemiser.execution.core.manager"
+    ],
+    "the_alchemiser.execution.brokers.account_service": [
+      "the_alchemiser.execution.core.execution_manager",
+      "the_alchemiser.execution.core.account_facade",
+      "the_alchemiser.strategy.engines.core.trading_engine",
+      "the_alchemiser.shared.config.service_providers",
+      "the_alchemiser.shared.config.bootstrap"
+    ],
+    "the_alchemiser.execution.lifecycle": [
+      "the_alchemiser.execution.core.execution_manager",
+      "the_alchemiser.execution.strategies.aggressive_limit_strategy"
+    ],
+    "the_alchemiser.execution.mappers.account_mapping": [
+      "the_alchemiser.execution.core.execution_manager",
+      "the_alchemiser.execution.core.account_facade",
+      "the_alchemiser.execution.mappers.__init__",
+      "the_alchemiser.execution.mappers.trading_service_dto_mapping"
+    ],
+    "the_alchemiser.execution.mappers.order_mapping": [
+      "the_alchemiser.execution.core.execution_manager",
+      "the_alchemiser.execution.mappers.__init__",
+      "the_alchemiser.execution.examples.canonical_integration",
+      "the_alchemiser.execution.brokers.alpaca.adapter"
+    ],
+    "the_alchemiser.execution.mappers.trading_service_dto_mapping": [
+      "the_alchemiser.execution.core.execution_manager",
+      "the_alchemiser.execution.mappers.__init__"
+    ],
+    "the_alchemiser.execution.orders.service": [
+      "the_alchemiser.execution.core.execution_manager",
+      "the_alchemiser.shared.config.service_providers"
+    ],
+    "the_alchemiser.execution.orders.validation": [
+      "the_alchemiser.execution.core.execution_manager"
+    ],
+    "the_alchemiser.execution.schemas.smart_trading": [
+      "the_alchemiser.execution.core.execution_manager"
+    ],
+    "the_alchemiser.portfolio.mappers.position_mapping": [
+      "the_alchemiser.execution.core.execution_manager",
+      "the_alchemiser.execution.mappers.trading_service_dto_mapping",
+      "the_alchemiser.portfolio.mappers.__init__"
+    ],
+    "the_alchemiser.portfolio.positions.position_service": [
+      "the_alchemiser.execution.core.execution_manager",
+      "the_alchemiser.execution.core.account_facade"
+    ],
+    "the_alchemiser.portfolio.schemas.positions": [
+      "the_alchemiser.execution.core.execution_manager",
+      "the_alchemiser.execution.mappers.trading_service_dto_mapping"
+    ],
+    "the_alchemiser.shared.schemas.accounts": [
+      "the_alchemiser.execution.core.execution_manager",
+      "the_alchemiser.execution.core.account_facade",
+      "the_alchemiser.execution.mappers.trading_service_dto_mapping",
+      "the_alchemiser.execution.schemas.smart_trading",
+      "the_alchemiser.shared.schemas.__init__"
+    ],
+    "the_alchemiser.shared.schemas.enriched_data": [
+      "the_alchemiser.execution.core.execution_manager",
+      "the_alchemiser.execution.mappers.trading_service_dto_mapping"
+    ],
+    "the_alchemiser.shared.schemas.market_data": [
+      "the_alchemiser.execution.core.execution_manager",
+      "the_alchemiser.execution.mappers.trading_service_dto_mapping",
+      "the_alchemiser.shared.schemas.__init__"
+    ],
+    "the_alchemiser.shared.schemas.operations": [
+      "the_alchemiser.execution.core.execution_manager",
+      "the_alchemiser.execution.mappers.trading_service_dto_mapping"
+    ],
+    "the_alchemiser.strategy.data.market_data_service": [
+      "the_alchemiser.execution.core.execution_manager",
+      "the_alchemiser.execution.core.account_facade",
+      "the_alchemiser.strategy.data.strategy_market_data_service",
+      "the_alchemiser.strategy.data.shared_market_data_service",
+      "the_alchemiser.shared.config.service_providers",
+      "the_alchemiser.shared.config.infrastructure_providers",
+      "the_alchemiser.shared.config.bootstrap"
+    ],
+    "the_alchemiser.execution.core.manager": [
+      "the_alchemiser.execution.core.execution_manager_legacy"
+    ],
+    "the_alchemiser.shared.dto.portfolio_state_dto": [
+      "the_alchemiser.execution.core.execution_schemas",
+      "the_alchemiser.shared.adapters.portfolio_adapters",
+      "the_alchemiser.shared.dto.__init__",
+      "the_alchemiser.shared.schemas.common"
+    ],
+    "the_alchemiser.utils.serialization": [
+      "the_alchemiser.execution.core.account_facade",
+      "the_alchemiser.portfolio.core.portfolio_management_facade"
+    ],
+    "the_alchemiser.execution.core.executor": [
+      "the_alchemiser.execution.core.canonical_executor"
+    ],
+    "the_alchemiser.execution.schemas.alpaca": [
+      "the_alchemiser.execution.mappers.alpaca_dto_mapping"
+    ],
+    "the_alchemiser.shared.adapters.execution_adapters": [
+      "the_alchemiser.execution.mappers.execution",
+      "the_alchemiser.shared.adapters.__init__"
+    ],
+    "the_alchemiser.shared.adapters.portfolio_adapters": [
+      "the_alchemiser.execution.mappers.execution",
+      "the_alchemiser.shared.adapters.__init__"
+    ],
+    "the_alchemiser.execution.mappers.execution": [
+      "the_alchemiser.execution.mappers.__init__",
+      "the_alchemiser.strategy.engines.core.trading_engine",
+      "the_alchemiser.portfolio.mappers.tracking_normalization"
+    ],
+    "the_alchemiser.execution.mappers.alpaca_dto_mapping": [
+      "the_alchemiser.execution.mappers.__init__",
+      "the_alchemiser.execution.mappers.order_mapping",
+      "the_alchemiser.execution.brokers.alpaca.adapter"
+    ],
+    "the_alchemiser.execution.orders.order_status_literal": [
+      "the_alchemiser.execution.mappers.order",
+      "the_alchemiser.execution.mappers.orders"
+    ],
+    "the_alchemiser.execution.orders.asset_order_handler": [
+      "the_alchemiser.execution.brokers.alpaca_client"
+    ],
+    "the_alchemiser.portfolio.positions.legacy_position_manager": [
+      "the_alchemiser.execution.brokers.alpaca_client"
+    ],
+    "the_alchemiser.shared.services.websocket_connection_manager": [
+      "the_alchemiser.execution.brokers.alpaca_client"
+    ],
+    "the_alchemiser.execution.strategies.smart_execution": [
+      "the_alchemiser.execution.brokers.alpaca_client",
+      "the_alchemiser.execution.strategies.execution_context_adapter",
+      "the_alchemiser.execution.strategies.__init__",
+      "the_alchemiser.strategy.engines.core.trading_engine",
+      "the_alchemiser.shared.cli.trading_executor",
+      "the_alchemiser.portfolio.allocation.rebalance_execution_service"
+    ],
+    "the_alchemiser.execution.strategies.aggressive_limit_strategy": [
+      "the_alchemiser.execution.strategies.__init__"
+    ],
+    "the_alchemiser.execution.strategies.config": [
+      "the_alchemiser.execution.strategies.__init__",
+      "the_alchemiser.execution.strategies.aggressive_limit_strategy",
+      "the_alchemiser.execution.strategies.repeg_strategy"
+    ],
+    "the_alchemiser.execution.strategies.execution_context_adapter": [
+      "the_alchemiser.execution.strategies.__init__"
+    ],
+    "the_alchemiser.execution.strategies.repeg_strategy": [
+      "the_alchemiser.execution.strategies.__init__",
+      "the_alchemiser.execution.strategies.aggressive_limit_strategy"
+    ],
+    "the_alchemiser.strategy.timing.market_timing_utils": [
+      "the_alchemiser.execution.strategies.smart_execution"
+    ],
+    "the_alchemiser.execution.strategies": [
+      "the_alchemiser.execution.strategies.smart_execution"
+    ],
+    "the_alchemiser.shared.services.tick_size_service": [
+      "the_alchemiser.execution.strategies.repeg_strategy",
+      "the_alchemiser.shared.math.trading_math"
+    ],
+    "the_alchemiser.execution.lifecycle.protocols": [
+      "the_alchemiser.execution.lifecycle.dispatcher",
+      "the_alchemiser.execution.lifecycle.__init__"
+    ],
+    "the_alchemiser.execution.lifecycle.exceptions": [
+      "the_alchemiser.execution.lifecycle.manager",
+      "the_alchemiser.execution.lifecycle.__init__"
+    ],
+    "the_alchemiser.execution.lifecycle.transitions": [
+      "the_alchemiser.execution.lifecycle.manager"
+    ],
+    "the_alchemiser.execution.lifecycle.manager": [
+      "the_alchemiser.execution.lifecycle.__init__"
+    ],
+    "the_alchemiser.execution.lifecycle.observers": [
+      "the_alchemiser.execution.lifecycle.__init__"
+    ],
+    "the_alchemiser.execution.analytics.slippage_analyzer": [
+      "the_alchemiser.execution.lifecycle.observers"
+    ],
+    "the_alchemiser.execution.brokers.alpaca.adapter": [
+      "the_alchemiser.execution.brokers.alpaca.__init__"
+    ],
+    "the_alchemiser.strategy.indicators.indicators": [
+      "the_alchemiser.strategy.validation.indicator_validator",
+      "the_alchemiser.strategy.engines.klm_ensemble_engine",
+      "the_alchemiser.strategy.engines.tecl_strategy_engine",
+      "the_alchemiser.strategy.engines.nuclear_typed_engine",
+      "the_alchemiser.strategy.engines.typed_klm_ensemble_engine",
+      "the_alchemiser.strategy.indicators.__init__",
+      "the_alchemiser.strategy.dsl.evaluator"
+    ],
+    "the_alchemiser.strategy.engines.value_objects.alert": [
+      "the_alchemiser.strategy.protocols.engine_protocol",
+      "the_alchemiser.strategy.engines.tecl_strategy_engine",
+      "the_alchemiser.strategy.engines.protocols.strategy_engine"
+    ],
+    "the_alchemiser.strategy.signals.strategy_signal": [
+      "the_alchemiser.strategy.protocols.engine_protocol",
+      "the_alchemiser.strategy.managers.typed_strategy_manager",
+      "the_alchemiser.strategy.engines.klm_ensemble_engine",
+      "the_alchemiser.strategy.mappers.strategy_signal_mapping",
+      "the_alchemiser.strategy.signals.__init__",
+      "the_alchemiser.strategy.schemas.strategies",
+      "the_alchemiser.shared.protocols.trading",
+      "the_alchemiser.shared.cli.trading_executor"
+    ],
+    "the_alchemiser.shared.types.market_data_port": [
+      "the_alchemiser.strategy.managers.typed_strategy_manager",
+      "the_alchemiser.strategy.engines.klm_ensemble_engine",
+      "the_alchemiser.strategy.engines.engine",
+      "the_alchemiser.strategy.engines.tecl_strategy_engine",
+      "the_alchemiser.strategy.engines.typed_strategy_manager",
+      "the_alchemiser.strategy.engines.nuclear_typed_engine",
+      "the_alchemiser.strategy.engines.typed_klm_ensemble_engine",
+      "the_alchemiser.strategy.mappers.market_data_adapter",
+      "the_alchemiser.strategy.dsl.evaluator",
+      "the_alchemiser.strategy.dsl.strategy_loader",
+      "the_alchemiser.shared.types.__init__",
+      "the_alchemiser.shared.protocols.trading",
+      "the_alchemiser.shared.cli.cli"
+    ],
+    "the_alchemiser.strategy.engines.engine": [
+      "the_alchemiser.strategy.managers.typed_strategy_manager",
+      "the_alchemiser.strategy.engines.klm_ensemble_engine",
+      "the_alchemiser.strategy.engines.__init__",
+      "the_alchemiser.strategy.engines.tecl_strategy_engine",
+      "the_alchemiser.strategy.engines.typed_strategy_manager",
+      "the_alchemiser.strategy.engines.nuclear_typed_engine",
+      "the_alchemiser.strategy.engines.typed_klm_ensemble_engine"
+    ],
+    "the_alchemiser.strategy.engines.nuclear_typed_engine": [
+      "the_alchemiser.strategy.managers.typed_strategy_manager",
+      "the_alchemiser.strategy.engines.__init__",
+      "the_alchemiser.strategy.engines.typed_strategy_manager",
+      "the_alchemiser.strategy.registry.strategy_registry"
+    ],
+    "the_alchemiser.strategy.engines.typed_klm_ensemble_engine": [
+      "the_alchemiser.strategy.managers.typed_strategy_manager",
+      "the_alchemiser.strategy.engines.__init__",
+      "the_alchemiser.strategy.engines.typed_strategy_manager",
+      "the_alchemiser.strategy.registry.strategy_registry",
+      "the_alchemiser.shared.config.service_providers"
+    ],
+    "the_alchemiser.strategy.engines.value_objects.confidence": [
+      "the_alchemiser.strategy.managers.typed_strategy_manager",
+      "the_alchemiser.strategy.engines.klm_ensemble_engine",
+      "the_alchemiser.strategy.engines.tecl_strategy_engine",
+      "the_alchemiser.strategy.engines.typed_strategy_manager",
+      "the_alchemiser.strategy.engines.nuclear_typed_engine",
+      "the_alchemiser.strategy.engines.typed_klm_ensemble_engine",
+      "the_alchemiser.strategy.mappers.strategy_signal_mapping",
+      "the_alchemiser.strategy.engines.value_objects.strategy_signal"
+    ],
+    "the_alchemiser.strategy.engines.tecl_strategy_engine": [
+      "the_alchemiser.strategy.managers.typed_strategy_manager",
+      "the_alchemiser.strategy.engines.__init__",
+      "the_alchemiser.strategy.engines.typed_strategy_manager",
+      "the_alchemiser.strategy.registry.strategy_registry"
+    ],
+    "the_alchemiser.shared.math.math_utils": [
+      "the_alchemiser.strategy.engines.klm_ensemble_engine",
+      "the_alchemiser.strategy.engines.typed_klm_ensemble_engine"
+    ],
+    "the_alchemiser.shared.types.percentage": [
+      "the_alchemiser.strategy.engines.klm_ensemble_engine",
+      "the_alchemiser.strategy.engines.tecl_strategy_engine",
+      "the_alchemiser.strategy.engines.nuclear_typed_engine",
+      "the_alchemiser.strategy.engines.typed_klm_ensemble_engine",
+      "the_alchemiser.strategy.mappers.strategy_signal_mapping",
+      "the_alchemiser.strategy.engines.value_objects.strategy_signal",
+      "the_alchemiser.strategy.engines.models.strategy_signal_model"
+    ],
+    "the_alchemiser.shared.utils.common": [
+      "the_alchemiser.strategy.engines.klm_ensemble_engine",
+      "the_alchemiser.strategy.engines.tecl_strategy_engine",
+      "the_alchemiser.strategy.engines.typed_klm_ensemble_engine",
+      "the_alchemiser.strategy.engines.klm_workers.variant_530_18",
+      "the_alchemiser.strategy.engines.klm_workers.variant_506_38",
+      "the_alchemiser.strategy.engines.klm_workers.variant_410_38",
+      "the_alchemiser.strategy.engines.klm_workers.variant_830_21",
+      "the_alchemiser.strategy.engines.klm_workers.variant_nova",
+      "the_alchemiser.strategy.engines.klm_workers.variant_1280_26",
+      "the_alchemiser.strategy.engines.klm_workers.variant_520_22",
+      "the_alchemiser.strategy.engines.klm_workers.base_klm_variant",
+      "the_alchemiser.strategy.engines.klm_workers.variant_1200_28"
+    ],
+    "the_alchemiser.strategy.errors.strategy_errors": [
+      "the_alchemiser.strategy.engines.klm_ensemble_engine"
+    ],
+    "the_alchemiser.strategy.indicators.indicator_utils": [
+      "the_alchemiser.strategy.engines.klm_ensemble_engine",
+      "the_alchemiser.strategy.engines.tecl_strategy_engine",
+      "the_alchemiser.strategy.engines.nuclear_typed_engine",
+      "the_alchemiser.strategy.engines.typed_klm_ensemble_engine",
+      "the_alchemiser.strategy.indicators.__init__"
+    ],
+    "the_alchemiser.strategy.engines.klm_workers": [
+      "the_alchemiser.strategy.engines.klm_ensemble_engine",
+      "the_alchemiser.strategy.engines.typed_klm_ensemble_engine"
+    ],
+    "the_alchemiser.strategy.mappers.market_data_mapping": [
+      "the_alchemiser.strategy.engines.klm_ensemble_engine",
+      "the_alchemiser.strategy.engines.tecl_strategy_engine",
+      "the_alchemiser.strategy.engines.nuclear_typed_engine",
+      "the_alchemiser.strategy.engines.typed_klm_ensemble_engine",
+      "the_alchemiser.strategy.data.strategy_market_data_service",
+      "the_alchemiser.strategy.data.strategy_market_data_service"
+    ],
+    "the_alchemiser.strategy.engines.errors.strategy_errors": [
+      "the_alchemiser.strategy.engines.engine",
+      "the_alchemiser.strategy.engines.nuclear_typed_engine",
+      "the_alchemiser.strategy.engines.typed_klm_ensemble_engine"
+    ],
+    "the_alchemiser.strategy.engines.value_objects.strategy_signal": [
+      "the_alchemiser.strategy.engines.engine",
+      "the_alchemiser.strategy.engines.tecl_strategy_engine",
+      "the_alchemiser.strategy.engines.typed_strategy_manager",
+      "the_alchemiser.strategy.engines.nuclear_typed_engine",
+      "the_alchemiser.strategy.engines.typed_klm_ensemble_engine",
+      "the_alchemiser.strategy.signals.strategy_signal",
+      "the_alchemiser.strategy.engines.protocols.strategy_engine"
+    ],
+    "the_alchemiser.shared.types.symbol_legacy": [
+      "the_alchemiser.strategy.engines.engine",
+      "the_alchemiser.strategy.data.market_data_service",
+      "the_alchemiser.strategy.data.strategy_market_data_service",
+      "the_alchemiser.strategy.mappers.market_data_adapter",
+      "the_alchemiser.strategy.mappers.market_data_mapping",
+      "the_alchemiser.shared.types.market_data_port",
+      "the_alchemiser.shared.protocols.trading",
+      "the_alchemiser.shared.cli.cli"
+    ],
+    "the_alchemiser.strategy.engines.typed_strategy_manager": [
+      "the_alchemiser.strategy.engines.__init__",
+      "the_alchemiser.strategy.schemas.strategies",
+      "the_alchemiser.strategy.engines.core.trading_engine",
+      "the_alchemiser.shared.cli.signal_analyzer"
+    ],
+    "the_alchemiser.shared.adapters": [
+      "the_alchemiser.strategy.engines.typed_strategy_manager",
+      "the_alchemiser.strategy.engines.typed_strategy_manager",
+      "the_alchemiser.shared.adapters.integration_helpers",
+      "the_alchemiser.portfolio.allocation.portfolio_rebalancing_service"
+    ],
+    "the_alchemiser.strategy.engines.nuclear_logic": [
+      "the_alchemiser.strategy.engines.nuclear_typed_engine"
+    ],
+    "the_alchemiser.strategy.data.price_fetching_utils": [
+      "the_alchemiser.strategy.data.streaming_service",
+      "the_alchemiser.strategy.data.__init__"
+    ],
+    "the_alchemiser.strategy.data.real_time_pricing": [
+      "the_alchemiser.strategy.data.streaming_service"
+    ],
+    "the_alchemiser.strategy.data.market_data_client": [
+      "the_alchemiser.strategy.data.price_service",
+      "the_alchemiser.strategy.data.__init__",
+      "the_alchemiser.strategy.data.strategy_market_data_service"
+    ],
+    "the_alchemiser.strategy.data.streaming_service": [
+      "the_alchemiser.strategy.data.price_service",
+      "the_alchemiser.strategy.data.__init__"
+    ],
+    "the_alchemiser.strategy.data.price_service": [
+      "the_alchemiser.strategy.data.__init__"
+    ],
+    "the_alchemiser.strategy.data.price_utils": [
+      "the_alchemiser.strategy.data.__init__"
+    ],
+    "the_alchemiser.strategy.data.strategy_market_data_service": [
+      "the_alchemiser.strategy.data.__init__",
+      "the_alchemiser.strategy.data.shared_market_data_service"
+    ],
+    "the_alchemiser.strategy.engines.models.strategy_position_model": [
+      "the_alchemiser.strategy.data.domain_mapping",
+      "the_alchemiser.strategy.engines.models.__init__"
+    ],
+    "the_alchemiser.strategy.engines.models.strategy_signal_model": [
+      "the_alchemiser.strategy.data.domain_mapping",
+      "the_alchemiser.strategy.engines.models.__init__"
+    ],
+    "the_alchemiser.shared.mappers.market_data_mappers": [
+      "the_alchemiser.strategy.data.market_data_service"
+    ],
+    "the_alchemiser.shared.types.bar": [
+      "the_alchemiser.strategy.data.market_data_service",
+      "the_alchemiser.strategy.data.strategy_market_data_service",
+      "the_alchemiser.strategy.mappers.market_data_mapping",
+      "the_alchemiser.shared.types.market_data_port",
+      "the_alchemiser.shared.cli.cli",
+      "the_alchemiser.shared.cli.cli",
+      "the_alchemiser.shared.mappers.market_data_mappers",
+      "the_alchemiser.shared.mappers.pandas_time_series"
+    ],
+    "the_alchemiser.shared.types.quote": [
+      "the_alchemiser.strategy.data.market_data_service",
+      "the_alchemiser.strategy.data.strategy_market_data_service",
+      "the_alchemiser.strategy.mappers.market_data_mapping",
+      "the_alchemiser.shared.types.market_data_port",
+      "the_alchemiser.shared.cli.cli",
+      "the_alchemiser.shared.cli.cli",
+      "the_alchemiser.shared.mappers.market_data_mappers"
+    ],
+    "the_alchemiser.strategy.mappers.market_data_adapter": [
+      "the_alchemiser.strategy.mappers.__init__",
+      "the_alchemiser.shared.config.bootstrap"
+    ],
+    "the_alchemiser.shared.types.strategy_type": [
+      "the_alchemiser.strategy.registry.strategy_registry",
+      "the_alchemiser.shared.schemas.common"
+    ],
+    "the_alchemiser.strategy.schemas.strategies": [
+      "the_alchemiser.strategy.schemas.__init__",
+      "the_alchemiser.strategy.engines.core.trading_engine",
+      "the_alchemiser.strategy.engines.core.trading_engine",
+      "the_alchemiser.shared.cli.signal_analyzer",
+      "the_alchemiser.shared.cli.signal_analyzer"
+    ],
+    "the_alchemiser.strategy.dsl.ast": [
+      "the_alchemiser.strategy.dsl.evaluator",
+      "the_alchemiser.strategy.dsl.interning",
+      "the_alchemiser.strategy.dsl.parser",
+      "the_alchemiser.strategy.dsl.evaluator_cache"
+    ],
+    "the_alchemiser.strategy.dsl.errors": [
+      "the_alchemiser.strategy.dsl.evaluator",
+      "the_alchemiser.strategy.dsl.__init__",
+      "the_alchemiser.strategy.dsl.strategy_loader",
+      "the_alchemiser.strategy.dsl.parser"
+    ],
+    "the_alchemiser.strategy.dsl.evaluator_cache": [
+      "the_alchemiser.strategy.dsl.evaluator",
+      "the_alchemiser.strategy.dsl.evaluator",
+      "the_alchemiser.strategy.dsl.evaluator",
+      "the_alchemiser.strategy.dsl.evaluator",
+      "the_alchemiser.strategy.dsl.evaluator",
+      "the_alchemiser.strategy.dsl.evaluator",
+      "the_alchemiser.strategy.dsl.evaluator",
+      "the_alchemiser.strategy.dsl.__init__",
+      "the_alchemiser.strategy.dsl.optimization_config"
+    ],
+    "the_alchemiser.strategy.dsl.evaluator": [
+      "the_alchemiser.strategy.dsl.__init__",
+      "the_alchemiser.strategy.dsl.strategy_loader"
+    ],
+    "the_alchemiser.strategy.dsl.optimization_config": [
+      "the_alchemiser.strategy.dsl.strategy_loader",
+      "the_alchemiser.shared.cli.cli"
+    ],
+    "the_alchemiser.strategy.dsl.parser": [
+      "the_alchemiser.strategy.dsl.strategy_loader"
+    ],
+    "the_alchemiser.strategy.dsl.interning": [
+      "the_alchemiser.strategy.dsl.parser",
+      "the_alchemiser.strategy.dsl.optimization_config"
+    ],
+    "the_alchemiser.strategy.engines.protocols.strategy_engine": [
+      "the_alchemiser.strategy.engines.protocols.__init__"
+    ],
+    "the_alchemiser.strategy.engines.klm_workers.base_klm_variant": [
+      "the_alchemiser.strategy.engines.klm_workers.variant_530_18",
+      "the_alchemiser.strategy.engines.klm_workers.variant_506_38",
+      "the_alchemiser.strategy.engines.klm_workers.variant_830_21",
+      "the_alchemiser.strategy.engines.klm_workers.variant_nova",
+      "the_alchemiser.strategy.engines.klm_workers.__init__",
+      "the_alchemiser.strategy.engines.klm_workers.variant_1280_26",
+      "the_alchemiser.strategy.engines.klm_workers.variant_520_22",
+      "the_alchemiser.strategy.engines.klm_workers.variant_1200_28"
+    ],
+    "the_alchemiser.strategy.engines.klm_workers.variant_506_38": [
+      "the_alchemiser.strategy.engines.klm_workers.variant_410_38",
+      "the_alchemiser.strategy.engines.klm_workers.__init__"
+    ],
+    "the_alchemiser.strategy.engines.klm_workers.variant_410_38": [
+      "the_alchemiser.strategy.engines.klm_workers.__init__"
+    ],
+    "the_alchemiser.strategy.engines.klm_workers.variant_520_22": [
+      "the_alchemiser.strategy.engines.klm_workers.__init__"
+    ],
+    "the_alchemiser.strategy.engines.klm_workers.variant_530_18": [
+      "the_alchemiser.strategy.engines.klm_workers.__init__"
+    ],
+    "the_alchemiser.strategy.engines.klm_workers.variant_830_21": [
+      "the_alchemiser.strategy.engines.klm_workers.__init__"
+    ],
+    "the_alchemiser.strategy.engines.klm_workers.variant_1200_28": [
+      "the_alchemiser.strategy.engines.klm_workers.__init__"
+    ],
+    "the_alchemiser.strategy.engines.klm_workers.variant_1280_26": [
+      "the_alchemiser.strategy.engines.klm_workers.__init__"
+    ],
+    "the_alchemiser.strategy.engines.klm_workers.variant_nova": [
+      "the_alchemiser.strategy.engines.klm_workers.__init__"
+    ],
+    "the_alchemiser.execution.brokers.alpaca_client": [
+      "the_alchemiser.strategy.engines.core.trading_engine",
+      "the_alchemiser.portfolio.allocation.rebalance_execution_service"
+    ],
+    "the_alchemiser.execution.core.account_facade": [
+      "the_alchemiser.strategy.engines.core.trading_engine"
+    ],
+    "the_alchemiser.execution.core.execution_manager": [
+      "the_alchemiser.strategy.engines.core.trading_engine",
+      "the_alchemiser.shared.utils.service_factory",
+      "the_alchemiser.shared.config.service_providers",
+      "the_alchemiser.shared.config.bootstrap",
+      "the_alchemiser.shared.cli.trading_executor",
+      "the_alchemiser.portfolio.utils.portfolio_utilities",
+      "the_alchemiser.portfolio.allocation.portfolio_rebalancing_service",
+      "the_alchemiser.portfolio.allocation.rebalance_execution_service",
+      "the_alchemiser.portfolio.core.portfolio_management_facade",
+      "the_alchemiser.portfolio.core.portfolio_analysis_service"
+    ],
+    "the_alchemiser.portfolio.core.portfolio_management_facade": [
+      "the_alchemiser.strategy.engines.core.trading_engine",
+      "the_alchemiser.portfolio.core.rebalancing_orchestrator",
+      "the_alchemiser.portfolio.core.rebalancing_orchestrator_facade"
+    ],
+    "the_alchemiser.shared.config.bootstrap": [
+      "the_alchemiser.strategy.engines.core.trading_engine",
+      "the_alchemiser.shared.cli.cli",
+      "the_alchemiser.shared.cli.trading_executor"
+    ],
+    "the_alchemiser.shared.reporting.reporting": [
+      "the_alchemiser.strategy.engines.core.trading_engine"
+    ],
+    "the_alchemiser.shared.utils.context": [
+      "the_alchemiser.strategy.engines.core.trading_engine",
+      "the_alchemiser.strategy.engines.core.trading_engine",
+      "the_alchemiser.shared.utils.error_monitoring",
+      "the_alchemiser.shared.utils.__init__",
+      "the_alchemiser.shared.config.bootstrap",
+      "the_alchemiser.portfolio.core.rebalancing_orchestrator_facade"
+    ],
+    "the_alchemiser.portfolio.pnl.strategy_order_tracker": [
+      "the_alchemiser.strategy.engines.core.trading_engine",
+      "the_alchemiser.shared.cli.signal_analyzer",
+      "the_alchemiser.shared.cli.cli",
+      "the_alchemiser.shared.cli.trading_executor",
+      "the_alchemiser.portfolio.pnl.__init__",
+      "the_alchemiser.portfolio.pnl.portfolio_pnl_utils",
+      "the_alchemiser.portfolio.tracking.integration",
+      "the_alchemiser.portfolio.tracking.integration",
+      "the_alchemiser.portfolio.tracking.integration",
+      "the_alchemiser.portfolio.tracking.integration"
+    ],
+    "the_alchemiser.portfolio.rebalancing.orchestrator_facade": [
+      "the_alchemiser.strategy.engines.core.trading_engine"
+    ],
+    "the_alchemiser.strategy.engines.core.trading_engine": [
+      "the_alchemiser.strategy.engines.core.__init__",
+      "the_alchemiser.shared.cli.cli",
+      "the_alchemiser.shared.cli.trading_executor"
+    ],
+    "the_alchemiser.strategy.engines.models.value_objects.confidence": [
+      "the_alchemiser.strategy.engines.models.strategy_signal_model"
+    ],
+    "the_alchemiser.strategy.engines.models.value_objects.strategy_signal": [
+      "the_alchemiser.strategy.engines.models.strategy_signal_model",
+      "the_alchemiser.strategy.engines.models.strategy_signal_model"
+    ],
+    "the_alchemiser.shared.dto.order_request_dto": [
+      "the_alchemiser.shared.adapters.execution_adapters",
+      "the_alchemiser.shared.dto.__init__"
+    ],
+    "the_alchemiser.shared.dto.rebalance_plan_dto": [
+      "the_alchemiser.shared.adapters.execution_adapters",
+      "the_alchemiser.shared.adapters.integration_helpers",
+      "the_alchemiser.shared.dto.__init__",
+      "the_alchemiser.portfolio.allocation.portfolio_rebalancing_service"
+    ],
+    "the_alchemiser.shared.dto.signal_dto": [
+      "the_alchemiser.shared.adapters.strategy_adapters",
+      "the_alchemiser.shared.dto.__init__"
+    ],
+    "the_alchemiser.shared.utils.exceptions": [
+      "the_alchemiser.shared.utils.error_recovery"
+    ],
+    "the_alchemiser.shared.utils.handler": [
+      "the_alchemiser.shared.utils.error_recovery",
+      "the_alchemiser.shared.utils.error_monitoring"
+    ],
+    "the_alchemiser.shared.utils.account_utils": [
+      "the_alchemiser.shared.utils.__init__",
+      "the_alchemiser.shared.cli.portfolio_calculations",
+      "the_alchemiser.shared.reporting.reporting",
+      "the_alchemiser.shared.notifications.templates.portfolio",
+      "the_alchemiser.portfolio.calculations.portfolio_calculations"
+    ],
+    "the_alchemiser.shared.utils.error_handling": [
+      "the_alchemiser.shared.utils.__init__"
+    ],
+    "the_alchemiser.shared.utils.error_reporter": [
+      "the_alchemiser.shared.utils.__init__"
+    ],
+    "the_alchemiser.shared.services.shared.config_service": [
+      "the_alchemiser.shared.utils.cache_manager"
+    ],
+    "the_alchemiser.shared.utils.s3_utils": [
+      "the_alchemiser.shared.services.alert_service",
+      "the_alchemiser.shared.reporting.reporting",
+      "the_alchemiser.shared.logging.logging_utils",
+      "the_alchemiser.portfolio.pnl.strategy_order_tracker"
+    ],
+    "the_alchemiser.shared.schemas.errors": [
+      "the_alchemiser.shared.errors.error_handler",
+      "the_alchemiser.shared.schemas.__init__"
+    ],
+    "the_alchemiser.shared.errors.context": [
+      "the_alchemiser.shared.errors.error_handler"
+    ],
+    "the_alchemiser.shared.notifications.client": [
+      "the_alchemiser.shared.errors.error_handler",
+      "the_alchemiser.shared.notifications.email_utils"
+    ],
+    "the_alchemiser.shared.notifications.templates": [
+      "the_alchemiser.shared.errors.error_handler",
+      "the_alchemiser.shared.cli.trading_executor",
+      "the_alchemiser.shared.notifications.email_utils"
+    ],
+    "the_alchemiser.shared.types.value_objects.identifier": [
+      "the_alchemiser.shared.types.shared_kernel_types"
+    ],
+    "the_alchemiser.shared.types.value_objects.money": [
+      "the_alchemiser.shared.types.shared_kernel_types"
+    ],
+    "the_alchemiser.shared.types.value_objects.percentage": [
+      "the_alchemiser.shared.types.shared_kernel_types"
+    ],
+    "the_alchemiser.portfolio.services.position_service": [
+      "the_alchemiser.shared.config.service_providers",
+      "the_alchemiser.portfolio.services.__init__"
+    ],
+    "the_alchemiser.shared.config.secrets_manager": [
+      "the_alchemiser.shared.config.secrets_service",
+      "the_alchemiser.shared.config.config_providers",
+      "the_alchemiser.shared.config.bootstrap",
+      "the_alchemiser.shared.cli.cli",
+      "the_alchemiser.shared.cli.cli",
+      "the_alchemiser.shared.notifications.config",
+      "the_alchemiser.portfolio.core.rebalancing_orchestrator"
+    ],
+    "the_alchemiser.shared.config.config_providers": [
+      "the_alchemiser.shared.config.container"
+    ],
+    "the_alchemiser.shared.config.infrastructure_providers": [
+      "the_alchemiser.shared.config.container"
+    ],
+    "the_alchemiser.shared.config.service_providers": [
+      "the_alchemiser.shared.config.container"
+    ],
+    "the_alchemiser.shared.notifications.alert_service": [
+      "the_alchemiser.shared.cli.signal_display_utils",
+      "the_alchemiser.shared.cli.signal_display_utils"
+    ],
+    "the_alchemiser.strategy.validation.indicator_validator": [
+      "the_alchemiser.shared.cli.cli"
+    ],
+    "the_alchemiser.shared.notifications.email_utils": [
+      "the_alchemiser.shared.cli.trading_executor",
+      "the_alchemiser.shared.cli.trading_executor"
+    ],
+    "the_alchemiser.execution.core.execution_schemas_summary": [
+      "the_alchemiser.shared.mappers.execution_summary_mapping"
+    ],
+    "the_alchemiser.shared.notifications.config": [
+      "the_alchemiser.shared.notifications.email_utils",
+      "the_alchemiser.shared.notifications.client"
+    ],
+    "the_alchemiser.shared.notifications.templates.base": [
+      "the_alchemiser.shared.notifications.email_utils",
+      "the_alchemiser.shared.notifications.templates.signals",
+      "the_alchemiser.shared.notifications.templates.error_report",
+      "the_alchemiser.shared.notifications.templates.trading_report",
+      "the_alchemiser.shared.notifications.templates.performance",
+      "the_alchemiser.shared.notifications.templates.multi_strategy",
+      "the_alchemiser.shared.notifications.templates.portfolio"
+    ],
+    "the_alchemiser.shared.notifications.templates.performance": [
+      "the_alchemiser.shared.notifications.email_utils",
+      "the_alchemiser.shared.notifications.templates.trading_report",
+      "the_alchemiser.shared.notifications.templates.multi_strategy"
+    ],
+    "the_alchemiser.shared.notifications.templates.portfolio": [
+      "the_alchemiser.shared.notifications.email_utils",
+      "the_alchemiser.shared.notifications.templates.trading_report",
+      "the_alchemiser.shared.notifications.templates.multi_strategy"
+    ],
+    "the_alchemiser.shared.notifications.templates.signals": [
+      "the_alchemiser.shared.notifications.email_utils",
+      "the_alchemiser.shared.notifications.templates.trading_report",
+      "the_alchemiser.shared.notifications.templates.multi_strategy"
+    ],
+    "the_alchemiser.shared.schemas.reporting": [
+      "the_alchemiser.shared.notifications.config",
+      "the_alchemiser.shared.notifications.client"
+    ],
+    "the_alchemiser.shared.protocols.asset_metadata": [
+      "the_alchemiser.shared.math.asset_info"
+    ],
+    "the_alchemiser.portfolio.utils.portfolio_pnl_utils": [
+      "the_alchemiser.shared.reporting.reporting"
+    ],
+    "the_alchemiser.shared.math.trading_math": [
+      "the_alchemiser.shared.reporting.reporting",
+      "the_alchemiser.portfolio.allocation.rebalance_calculator"
+    ],
+    "the_alchemiser.shared.cli.dashboard_utils": [
+      "the_alchemiser.shared.reporting.reporting"
+    ],
+    "the_alchemiser.portfolio.allocation.rebalance_execution_service": [
+      "the_alchemiser.portfolio.execution.execution_service",
+      "the_alchemiser.portfolio.core.portfolio_management_facade"
+    ],
+    "the_alchemiser.portfolio.utils.portfolio_utilities": [
+      "the_alchemiser.portfolio.utils.__init__",
+      "the_alchemiser.portfolio.allocation.portfolio_rebalancing_service",
+      "the_alchemiser.portfolio.core.portfolio_analysis_service"
+    ],
+    "the_alchemiser.portfolio.pnl.portfolio_pnl_utils": [
+      "the_alchemiser.portfolio.utils.portfolio_pnl_utils"
+    ],
+    "the_alchemiser.portfolio.mappers.tracking_mapping": [
+      "the_alchemiser.portfolio.pnl.strategy_order_tracker"
+    ],
+    "the_alchemiser.portfolio.schemas.tracking": [
+      "the_alchemiser.portfolio.pnl.strategy_order_tracker",
+      "the_alchemiser.portfolio.mappers.tracking",
+      "the_alchemiser.portfolio.mappers.tracking_mapping",
+      "the_alchemiser.portfolio.schemas.__init__"
+    ],
+    "the_alchemiser.portfolio.services.rebalancing_policy": [
+      "the_alchemiser.portfolio.services.__init__"
+    ],
+    "the_alchemiser.portfolio.holdings.position_analyzer": [
+      "the_alchemiser.portfolio.holdings.__init__",
+      "the_alchemiser.portfolio.allocation.portfolio_rebalancing_service",
+      "the_alchemiser.portfolio.core.portfolio_management_facade",
+      "the_alchemiser.portfolio.core.portfolio_analysis_service",
+      "the_alchemiser.portfolio.analytics.position_analyzer"
+    ],
+    "the_alchemiser.portfolio.holdings.position_delta": [
+      "the_alchemiser.portfolio.holdings.__init__",
+      "the_alchemiser.portfolio.holdings.position_analyzer",
+      "the_alchemiser.portfolio.allocation.portfolio_rebalancing_service",
+      "the_alchemiser.portfolio.analytics.position_delta"
+    ],
+    "the_alchemiser.portfolio.holdings.position_model": [
+      "the_alchemiser.portfolio.holdings.__init__"
+    ],
+    "the_alchemiser.portfolio.allocation.rebalance_plan": [
+      "the_alchemiser.portfolio.rebalancing.rebalance_plan",
+      "the_alchemiser.portfolio.allocation.portfolio_rebalancing_service",
+      "the_alchemiser.portfolio.allocation.__init__",
+      "the_alchemiser.portfolio.allocation.rebalance_calculator",
+      "the_alchemiser.portfolio.allocation.rebalance_execution_service"
+    ],
+    "the_alchemiser.portfolio.core.rebalancing_orchestrator": [
+      "the_alchemiser.portfolio.rebalancing.orchestrator",
+      "the_alchemiser.portfolio.core.rebalancing_orchestrator_facade"
+    ],
+    "the_alchemiser.portfolio.allocation.portfolio_rebalancing_service": [
+      "the_alchemiser.portfolio.rebalancing.rebalancing_service",
+      "the_alchemiser.portfolio.core.portfolio_management_facade"
+    ],
+    "the_alchemiser.portfolio.core.rebalancing_orchestrator_facade": [
+      "the_alchemiser.portfolio.rebalancing.orchestrator_facade"
+    ],
+    "the_alchemiser.portfolio.mappers.portfolio_rebalancing_mapping": [
+      "the_alchemiser.portfolio.allocation.portfolio_rebalancing_service",
+      "the_alchemiser.portfolio.core.portfolio_management_facade",
+      "the_alchemiser.portfolio.mappers.__init__"
+    ],
+    "the_alchemiser.portfolio.schemas.rebalancing": [
+      "the_alchemiser.portfolio.allocation.portfolio_rebalancing_service",
+      "the_alchemiser.portfolio.core.portfolio_management_facade",
+      "the_alchemiser.portfolio.mappers.portfolio_rebalancing_mapping",
+      "the_alchemiser.portfolio.schemas.__init__"
+    ],
+    "the_alchemiser.portfolio.state.attribution_engine": [
+      "the_alchemiser.portfolio.allocation.portfolio_rebalancing_service",
+      "the_alchemiser.portfolio.core.portfolio_management_facade",
+      "the_alchemiser.portfolio.core.portfolio_analysis_service",
+      "the_alchemiser.portfolio.analytics.attribution_engine"
+    ],
+    "the_alchemiser.portfolio.allocation.rebalance_calculator": [
+      "the_alchemiser.portfolio.allocation.portfolio_rebalancing_service",
+      "the_alchemiser.portfolio.allocation.__init__",
+      "the_alchemiser.portfolio.core.portfolio_management_facade"
+    ],
+    "the_alchemiser.portfolio.core.portfolio_analysis_service": [
+      "the_alchemiser.portfolio.core.portfolio_management_facade",
+      "the_alchemiser.portfolio.analytics.analysis_service"
+    ],
+    "the_alchemiser.portfolio.rebalancing.rebalance_plan": [
+      "the_alchemiser.portfolio.mappers.portfolio_rebalancing_mapping",
+      "the_alchemiser.portfolio.schemas.rebalancing"
+    ],
+    "the_alchemiser.execution.types.policy_result": [
+      "the_alchemiser.portfolio.mappers.policy_mapping",
+      "the_alchemiser.portfolio.policies.policy_orchestrator",
+      "the_alchemiser.portfolio.policies.policy_orchestrator",
+      "the_alchemiser.portfolio.policies.policy_orchestrator",
+      "the_alchemiser.portfolio.policies.policy_orchestrator",
+      "the_alchemiser.portfolio.policies.policy_orchestrator",
+      "the_alchemiser.portfolio.policies.policy_orchestrator",
+      "the_alchemiser.portfolio.policies.fractionability_policy_impl",
+      "the_alchemiser.portfolio.policies.buying_power_policy_impl",
+      "the_alchemiser.portfolio.policies.risk_policy_impl",
+      "the_alchemiser.portfolio.policies.position_policy_impl",
+      "the_alchemiser.portfolio.policies.base_policy",
+      "the_alchemiser.portfolio.policies.policy_factory",
+      "the_alchemiser.portfolio.policies.policy_factory"
+    ],
+    "the_alchemiser.portfolio.holdings.position_service": [
+      "the_alchemiser.portfolio.positions.position_service"
+    ],
+    "the_alchemiser.portfolio.holdings.position_manager": [
+      "the_alchemiser.portfolio.positions.legacy_position_manager"
+    ],
+    "the_alchemiser.portfolio.mappers.policy_mapping": [
+      "the_alchemiser.portfolio.policies.policy_orchestrator"
+    ],
+    "the_alchemiser.portfolio.policies.buying_power_policy_impl": [
+      "the_alchemiser.portfolio.policies.policy_orchestrator",
+      "the_alchemiser.portfolio.policies.policy_factory"
+    ],
+    "the_alchemiser.portfolio.policies.fractionability_policy_impl": [
+      "the_alchemiser.portfolio.policies.policy_orchestrator",
+      "the_alchemiser.portfolio.policies.policy_factory"
+    ],
+    "the_alchemiser.portfolio.policies.position_policy_impl": [
+      "the_alchemiser.portfolio.policies.policy_orchestrator",
+      "the_alchemiser.portfolio.policies.policy_factory"
+    ],
+    "the_alchemiser.portfolio.policies.risk_policy_impl": [
+      "the_alchemiser.portfolio.policies.policy_orchestrator",
+      "the_alchemiser.portfolio.policies.policy_factory"
+    ],
+    "the_alchemiser.portfolio.policies.base_policy": [
+      "the_alchemiser.portfolio.policies.fractionability_policy_impl",
+      "the_alchemiser.portfolio.policies.buying_power_policy_impl",
+      "the_alchemiser.portfolio.policies.risk_policy_impl",
+      "the_alchemiser.portfolio.policies.position_policy_impl",
+      "the_alchemiser.portfolio.policies.policy_factory"
+    ],
+    "the_alchemiser.portfolio.policies.protocols": [
+      "the_alchemiser.portfolio.policies.buying_power_policy_impl",
+      "the_alchemiser.portfolio.policies.risk_policy_impl",
+      "the_alchemiser.portfolio.policies.position_policy_impl",
+      "the_alchemiser.portfolio.policies.policy_factory"
+    ],
+    "the_alchemiser.portfolio.policies.policy_orchestrator": [
+      "the_alchemiser.portfolio.policies.policy_factory"
+    ],
+    "the_alchemiser.portfolio.state.symbol_classifier": [
+      "the_alchemiser.portfolio.state.__init__",
+      "the_alchemiser.portfolio.state.attribution_engine"
+    ]
+  },
+  "priorities": {
+    "high_priority": {
+      "the_alchemiser.shared.services.errors": {
+        "importers": [
+          "the_alchemiser.lambda_handler",
+          "the_alchemiser.lambda_handler",
+          "the_alchemiser.execution.core.manager",
+          "the_alchemiser.strategy.engines.core.trading_engine",
+          "the_alchemiser.portfolio.pnl.strategy_order_tracker"
+        ],
+        "count": 5,
+        "type": "legacy_heavy_use"
+      },
+      "the_alchemiser.shared.utils.decorators": {
+        "importers": [
+          "the_alchemiser.execution.orders.service",
+          "the_alchemiser.execution.core.execution_manager",
+          "the_alchemiser.strategy.data.market_data_service",
+          "the_alchemiser.portfolio.holdings.position_service"
+        ],
+        "count": 4,
+        "type": "legacy_heavy_use"
+      },
+      "the_alchemiser.shared.utils.common": {
+        "importers": [
+          "the_alchemiser.strategy.engines.klm_ensemble_engine",
+          "the_alchemiser.strategy.engines.tecl_strategy_engine",
+          "the_alchemiser.strategy.engines.typed_klm_ensemble_engine",
+          "the_alchemiser.strategy.engines.klm_workers.variant_530_18",
+          "the_alchemiser.strategy.engines.klm_workers.variant_506_38",
+          "the_alchemiser.strategy.engines.klm_workers.variant_410_38",
+          "the_alchemiser.strategy.engines.klm_workers.variant_830_21",
+          "the_alchemiser.strategy.engines.klm_workers.variant_nova",
+          "the_alchemiser.strategy.engines.klm_workers.variant_1280_26",
+          "the_alchemiser.strategy.engines.klm_workers.variant_520_22",
+          "the_alchemiser.strategy.engines.klm_workers.base_klm_variant",
+          "the_alchemiser.strategy.engines.klm_workers.variant_1200_28"
+        ],
+        "count": 12,
+        "type": "legacy_heavy_use"
+      },
+      "the_alchemiser.shared.utils.context": {
+        "importers": [
+          "the_alchemiser.strategy.engines.core.trading_engine",
+          "the_alchemiser.strategy.engines.core.trading_engine",
+          "the_alchemiser.shared.utils.error_monitoring",
+          "the_alchemiser.shared.utils.__init__",
+          "the_alchemiser.shared.config.bootstrap",
+          "the_alchemiser.portfolio.core.rebalancing_orchestrator_facade"
+        ],
+        "count": 6,
+        "type": "legacy_heavy_use"
+      },
+      "the_alchemiser.shared.utils.account_utils": {
+        "importers": [
+          "the_alchemiser.shared.utils.__init__",
+          "the_alchemiser.shared.cli.portfolio_calculations",
+          "the_alchemiser.shared.reporting.reporting",
+          "the_alchemiser.shared.notifications.templates.portfolio",
+          "the_alchemiser.portfolio.calculations.portfolio_calculations"
+        ],
+        "count": 5,
+        "type": "legacy_heavy_use"
+      },
+      "the_alchemiser.shared.utils.s3_utils": {
+        "importers": [
+          "the_alchemiser.shared.services.alert_service",
+          "the_alchemiser.shared.reporting.reporting",
+          "the_alchemiser.shared.logging.logging_utils",
+          "the_alchemiser.portfolio.pnl.strategy_order_tracker"
+        ],
+        "count": 4,
+        "type": "legacy_heavy_use"
+      },
+      "the_alchemiser.portfolio.utils.portfolio_utilities": {
+        "importers": [
+          "the_alchemiser.portfolio.utils.__init__",
+          "the_alchemiser.portfolio.allocation.portfolio_rebalancing_service",
+          "the_alchemiser.portfolio.core.portfolio_analysis_service"
+        ],
+        "count": 3,
+        "type": "legacy_heavy_use"
+      }
+    },
+    "medium_priority": {
+      "the_alchemiser.shared.utils.service_factory": {
+        "importers": [
+          "the_alchemiser.main"
+        ],
+        "count": 1,
+        "type": "legacy_light_use"
+      },
+      "the_alchemiser.application.policies": {
+        "importers": [
+          "examples.policy_layer_usage"
+        ],
+        "count": 1,
+        "type": "legacy_light_use"
+      },
+      "the_alchemiser.domain.trading.value_objects.side": {
+        "importers": [
+          "examples.policy_layer_usage"
+        ],
+        "count": 1,
+        "type": "legacy_light_use"
+      },
+      "the_alchemiser.domain.trading.value_objects.time_in_force": {
+        "importers": [
+          "examples.policy_layer_usage"
+        ],
+        "count": 1,
+        "type": "legacy_light_use"
+      },
+      "the_alchemiser.utils.serialization": {
+        "importers": [
+          "the_alchemiser.execution.core.account_facade",
+          "the_alchemiser.portfolio.core.portfolio_management_facade"
+        ],
+        "count": 2,
+        "type": "legacy_light_use"
+      },
+      "the_alchemiser.shared.services.websocket_connection_manager": {
+        "importers": [
+          "the_alchemiser.execution.brokers.alpaca_client"
+        ],
+        "count": 1,
+        "type": "legacy_light_use"
+      },
+      "the_alchemiser.shared.services.tick_size_service": {
+        "importers": [
+          "the_alchemiser.execution.strategies.repeg_strategy",
+          "the_alchemiser.shared.math.trading_math"
+        ],
+        "count": 2,
+        "type": "legacy_light_use"
+      },
+      "the_alchemiser.shared.utils.exceptions": {
+        "importers": [
+          "the_alchemiser.shared.utils.error_recovery"
+        ],
+        "count": 1,
+        "type": "legacy_light_use"
+      },
+      "the_alchemiser.shared.utils.handler": {
+        "importers": [
+          "the_alchemiser.shared.utils.error_recovery",
+          "the_alchemiser.shared.utils.error_monitoring"
+        ],
+        "count": 2,
+        "type": "legacy_light_use"
+      },
+      "the_alchemiser.shared.utils.error_handling": {
+        "importers": [
+          "the_alchemiser.shared.utils.__init__"
+        ],
+        "count": 1,
+        "type": "legacy_light_use"
+      },
+      "the_alchemiser.shared.utils.error_reporter": {
+        "importers": [
+          "the_alchemiser.shared.utils.__init__"
+        ],
+        "count": 1,
+        "type": "legacy_light_use"
+      },
+      "the_alchemiser.shared.services.shared.config_service": {
+        "importers": [
+          "the_alchemiser.shared.utils.cache_manager"
+        ],
+        "count": 1,
+        "type": "legacy_light_use"
+      },
+      "the_alchemiser.portfolio.services.position_service": {
+        "importers": [
+          "the_alchemiser.shared.config.service_providers",
+          "the_alchemiser.portfolio.services.__init__"
+        ],
+        "count": 2,
+        "type": "legacy_light_use"
+      },
+      "the_alchemiser.portfolio.utils.portfolio_pnl_utils": {
+        "importers": [
+          "the_alchemiser.shared.reporting.reporting"
+        ],
+        "count": 1,
+        "type": "legacy_light_use"
+      },
+      "the_alchemiser.portfolio.services.rebalancing_policy": {
+        "importers": [
+          "the_alchemiser.portfolio.services.__init__"
+        ],
+        "count": 1,
+        "type": "legacy_light_use"
+      }
+    },
+    "low_priority": {
+      "the_alchemiser.execution.orders.asset_order_handler": {
+        "importers": [
+          "the_alchemiser.execution.brokers.alpaca_client"
+        ],
+        "count": 1,
+        "type": "shim"
+      },
+      "the_alchemiser.execution.core.execution_schemas": {
+        "importers": [
+          "the_alchemiser.lambda_handler",
+          "the_alchemiser.execution.monitoring.websocket_order_monitor",
+          "the_alchemiser.execution.orders.lifecycle_adapter",
+          "the_alchemiser.execution.protocols.order_lifecycle",
+          "the_alchemiser.execution.core.__init__",
+          "the_alchemiser.execution.mappers.execution",
+          "the_alchemiser.execution.brokers.alpaca_client",
+          "the_alchemiser.execution.strategies.smart_execution",
+          "the_alchemiser.strategy.engines.core.trading_engine",
+          "the_alchemiser.shared.notifications.email_utils",
+          "the_alchemiser.shared.notifications.templates.portfolio",
+          "the_alchemiser.portfolio.core.rebalancing_orchestrator"
+        ],
+        "count": 12,
+        "type": "shim"
+      },
+      "the_alchemiser.execution.core.canonical_executor": {
+        "importers": [
+          "examples.policy_layer_usage",
+          "the_alchemiser.execution.core.execution_manager",
+          "the_alchemiser.execution.core.execution_manager",
+          "the_alchemiser.execution.brokers.alpaca_client",
+          "the_alchemiser.execution.examples.canonical_integration",
+          "the_alchemiser.execution.strategies.execution_context_adapter",
+          "the_alchemiser.execution.strategies.smart_execution"
+        ],
+        "count": 7,
+        "type": "shim"
+      },
+      "the_alchemiser.execution.mappers.orders": {
+        "importers": [
+          "the_alchemiser.execution.orders.validation",
+          "the_alchemiser.execution.core.execution_manager",
+          "the_alchemiser.execution.mappers.alpaca_dto_mapping",
+          "the_alchemiser.execution.mappers.__init__",
+          "the_alchemiser.execution.mappers.order_mapping",
+          "the_alchemiser.execution.brokers.alpaca_client",
+          "the_alchemiser.portfolio.core.portfolio_management_facade"
+        ],
+        "count": 7,
+        "type": "shim"
+      },
+      "the_alchemiser.execution.brokers.alpaca_client": {
+        "importers": [
+          "the_alchemiser.strategy.engines.core.trading_engine",
+          "the_alchemiser.portfolio.allocation.rebalance_execution_service"
+        ],
+        "count": 2,
+        "type": "shim"
+      },
+      "the_alchemiser.strategy.signals.strategy_signal": {
+        "importers": [
+          "the_alchemiser.strategy.protocols.engine_protocol",
+          "the_alchemiser.strategy.managers.typed_strategy_manager",
+          "the_alchemiser.strategy.engines.klm_ensemble_engine",
+          "the_alchemiser.strategy.mappers.strategy_signal_mapping",
+          "the_alchemiser.strategy.signals.__init__",
+          "the_alchemiser.strategy.schemas.strategies",
+          "the_alchemiser.shared.protocols.trading",
+          "the_alchemiser.shared.cli.trading_executor"
+        ],
+        "count": 8,
+        "type": "shim"
+      },
+      "the_alchemiser.main": {
+        "importers": [
+          "the_alchemiser.lambda_handler",
+          "the_alchemiser.strategy.engines.core.trading_engine",
+          "the_alchemiser.shared.cli.cli",
+          "the_alchemiser.shared.cli.cli",
+          "the_alchemiser.shared.cli.cli"
+        ],
+        "count": 5,
+        "type": "shim"
+      },
+      "the_alchemiser.shared.utils.error_handling": {
+        "importers": [
+          "the_alchemiser.shared.utils.__init__"
+        ],
+        "count": 1,
+        "type": "shim"
+      },
+      "the_alchemiser.shared.value_objects.core_types": {
+        "importers": [
+          "the_alchemiser.execution.core.manager",
+          "the_alchemiser.execution.core.execution_schemas",
+          "the_alchemiser.execution.core.account_facade",
+          "the_alchemiser.execution.mappers.execution",
+          "the_alchemiser.execution.mappers.order",
+          "the_alchemiser.execution.brokers.account_service",
+          "the_alchemiser.strategy.types.strategy",
+          "the_alchemiser.strategy.data.domain_mapping",
+          "the_alchemiser.strategy.data.domain_mapping",
+          "the_alchemiser.strategy.mappers.strategy_signal_mapping",
+          "the_alchemiser.strategy.engines.klm_workers.variant_530_18",
+          "the_alchemiser.strategy.engines.klm_workers.variant_1280_26",
+          "the_alchemiser.strategy.engines.klm_workers.base_klm_variant",
+          "the_alchemiser.strategy.engines.core.trading_engine",
+          "the_alchemiser.strategy.engines.models.strategy_signal_model",
+          "the_alchemiser.strategy.engines.models.strategy_position_model",
+          "the_alchemiser.shared.utils.account_utils",
+          "the_alchemiser.shared.types.market_data",
+          "the_alchemiser.shared.types.account",
+          "the_alchemiser.shared.cli.signal_display_utils",
+          "the_alchemiser.shared.cli.cli_formatter",
+          "the_alchemiser.shared.cli.dashboard_utils",
+          "the_alchemiser.shared.cli.portfolio_calculations",
+          "the_alchemiser.shared.value_objects.__init__",
+          "the_alchemiser.shared.notifications.email_utils",
+          "the_alchemiser.shared.reporting.reporting",
+          "the_alchemiser.shared.schemas.execution_summary",
+          "the_alchemiser.shared.schemas.reporting",
+          "the_alchemiser.shared.schemas.cli",
+          "the_alchemiser.shared.schemas.common",
+          "the_alchemiser.shared.notifications.templates.trading_report",
+          "the_alchemiser.shared.notifications.templates.portfolio",
+          "the_alchemiser.portfolio.holdings.position_model",
+          "the_alchemiser.portfolio.calculations.portfolio_calculations",
+          "the_alchemiser.portfolio.core.portfolio_management_facade",
+          "the_alchemiser.portfolio.core.rebalancing_orchestrator",
+          "the_alchemiser.portfolio.core.rebalancing_orchestrator_facade",
+          "the_alchemiser.portfolio.policies.rebalancing_policy"
+        ],
+        "count": 38,
+        "type": "shim"
+      },
+      "the_alchemiser.shared.schemas.base": {
+        "importers": [
+          "the_alchemiser.execution.orders.order_schemas",
+          "the_alchemiser.execution.schemas.smart_trading",
+          "the_alchemiser.shared.schemas.__init__",
+          "the_alchemiser.shared.schemas.accounts",
+          "the_alchemiser.shared.schemas.enriched_data",
+          "the_alchemiser.shared.schemas.operations",
+          "the_alchemiser.shared.schemas.market_data",
+          "the_alchemiser.portfolio.schemas.rebalancing",
+          "the_alchemiser.portfolio.schemas.positions"
+        ],
+        "count": 9,
+        "type": "shim"
+      },
+      "the_alchemiser.portfolio.utils.portfolio_pnl_utils": {
+        "importers": [
+          "the_alchemiser.shared.reporting.reporting"
+        ],
+        "count": 1,
+        "type": "shim"
+      },
+      "the_alchemiser.portfolio.holdings.position_manager": {
+        "importers": [
+          "the_alchemiser.portfolio.positions.legacy_position_manager"
+        ],
+        "count": 1,
+        "type": "shim"
+      },
+      "the_alchemiser.portfolio.rebalancing.rebalance_plan": {
+        "importers": [
+          "the_alchemiser.portfolio.mappers.portfolio_rebalancing_mapping",
+          "the_alchemiser.portfolio.schemas.rebalancing"
+        ],
+        "count": 2,
+        "type": "shim"
+      },
+      "the_alchemiser.portfolio.rebalancing.orchestrator_facade": {
+        "importers": [
+          "the_alchemiser.strategy.engines.core.trading_engine"
+        ],
+        "count": 1,
+        "type": "shim"
+      },
+      "the_alchemiser.portfolio.positions.position_service": {
+        "importers": [
+          "the_alchemiser.execution.core.execution_manager",
+          "the_alchemiser.execution.core.account_facade"
+        ],
+        "count": 2,
+        "type": "shim"
+      },
+      "the_alchemiser.portfolio.positions.legacy_position_manager": {
+        "importers": [
+          "the_alchemiser.execution.brokers.alpaca_client"
+        ],
+        "count": 1,
+        "type": "shim"
+      }
+    }
+  }
+}
