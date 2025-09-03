@@ -16,10 +16,10 @@ from the_alchemiser.shared.value_objects.core_types import (
 from the_alchemiser.shared.value_objects.core_types import (
     StrategySignal as StrategySignalDTO,
 )
-from the_alchemiser.strategy.engines.archived.backup.models.strategy_position_model import (
+from the_alchemiser.strategy.engines.models.strategy_position_model import (
     StrategyPositionModel,
 )
-from the_alchemiser.strategy.engines.archived.backup.models.strategy_signal_model import (
+from the_alchemiser.strategy.engines.models.strategy_signal_model import (
     StrategySignalModel,
 )
 from the_alchemiser.strategy.registry.strategy_registry import StrategyType

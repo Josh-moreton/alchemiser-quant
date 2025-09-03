@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
-from the_alchemiser.strategy.engines.archived.backup.value_objects.alert import Alert
+from the_alchemiser.strategy.engines.value_objects.alert import Alert
 from the_alchemiser.strategy.signals.strategy_signal import (
     StrategySignal,
 )
