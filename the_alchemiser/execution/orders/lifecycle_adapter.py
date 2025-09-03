@@ -1,9 +1,12 @@
-"""Business Unit: order execution/placement; Status: current.
+"""Business Unit: execution | Status: current.
 
 Adapter bridging infrastructure websocket monitor to OrderLifecycleMonitor Protocol.
 
 Keeps application layer decoupled from infrastructure implementation while
 reusing the existing OrderCompletionMonitor without private attribute access.
+
+This module is the unified implementation after duplicate removal on 2025-01-03.
+Duplicate file adapters/order_lifecycle_adapter.py was removed to eliminate redundancy.
 """
 
 from __future__ import annotations

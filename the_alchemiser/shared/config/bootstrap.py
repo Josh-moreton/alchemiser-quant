@@ -16,7 +16,7 @@ import logging
 from typing import Any, TypedDict
 
 from the_alchemiser.execution.brokers.account_service import AccountService as TypedAccountService
-from the_alchemiser.execution.brokers.alpaca_manager import AlpacaManager
+from the_alchemiser.execution.brokers.alpaca import AlpacaManager
 from the_alchemiser.execution.core.execution_manager import TradingServiceManager
 from the_alchemiser.shared.config.config import Settings, load_settings
 from the_alchemiser.shared.config.secrets_manager import SecretsManager

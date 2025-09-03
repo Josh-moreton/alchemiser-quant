@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
-"""Business Unit: order execution/placement; Status: current.
+"""Business Unit: execution | Status: current.
 
 Order Validation and Type Safety Module.
 
 This module provides comprehensive order validation and type safety for trade execution.
 It uses strongly typed DTOs from interfaces/schemas/orders.py and integrates with the
 TradingSystemErrorHandler for proper error handling.
+
+This module is the unified implementation after duplicate removal on 2025-01-03.
+Duplicate file orders/order_validation.py was removed to eliminate redundancy.
 
 Key Features:
 - DTO-based order validation with Pydantic v2 type checking
