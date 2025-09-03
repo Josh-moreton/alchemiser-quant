@@ -1,4 +1,7 @@
-"""Business Unit: utilities; Status: current."""
+"""Business Unit: portfolio | Status: current
+
+Position mapping utilities for normalizing broker position data.
+"""
 
 from __future__ import annotations
 

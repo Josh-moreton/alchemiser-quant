@@ -11,6 +11,7 @@ from typing import Any
 from the_alchemiser.execution.core.execution_manager import (
     TradingServiceManager,
 )
+from the_alchemiser.portfolio.utils.portfolio_utilities import PortfolioUtilities
 
 from ..holdings.position_analyzer import PositionAnalyzer
 from ..state.attribution_engine import (
@@ -42,6 +43,7 @@ class PortfolioAnalysisService:
         self.trading_manager = trading_manager
         self.position_analyzer = position_analyzer or PositionAnalyzer()
         self.attribution_engine = attribution_engine or StrategyAttributionEngine()
+        self._portfolio_utils = PortfolioUtilities(trading_manager)
 
     def get_comprehensive_portfolio_analysis(self) -> dict[str, Any]:
         """Get comprehensive analysis of the current portfolio.
@@ -162,8 +164,8 @@ class PortfolioAnalysisService:
             Performance analysis broken down by strategy
 
         """
-        positions = self._get_current_position_values()
-        portfolio_value = self._get_portfolio_value()
+        positions = self._portfolio_utils.get_current_position_values()
+        portfolio_value = self._portfolio_utils.get_portfolio_value_simple()
 
         if portfolio_value == Decimal("0"):
             return {"error": "Portfolio value is zero"}
@@ -232,8 +234,8 @@ class PortfolioAnalysisService:
             Comparison of current vs target strategy allocations
 
         """
-        current_positions = self._get_current_position_values()
-        portfolio_value = self._get_portfolio_value()
+        current_positions = self._portfolio_utils.get_current_position_values()
+        portfolio_value = self._portfolio_utils.get_portfolio_value_simple()
 
         # Calculate current strategy allocations
         current_strategy_allocations = self.attribution_engine.calculate_strategy_allocations(
@@ -283,25 +285,6 @@ class PortfolioAnalysisService:
                 ),
             },
         }
-
-    def _get_current_position_values(self) -> dict[str, Decimal]:
-        """Get current position values from trading manager."""
-        positions = self.trading_manager.get_all_positions()
-        values: dict[str, Decimal] = {}
-        for pos in positions:
-            try:
-                mv = Decimal(str(getattr(pos, "market_value", 0) or 0))
-            except Exception:
-                mv = Decimal("0")
-            if mv > Decimal("0"):
-                values[getattr(pos, "symbol", "")] = mv
-        return values
-
-    def _get_portfolio_value(self) -> Decimal:
-        """Get total portfolio value from trading manager."""
-        portfolio_dto = self.trading_manager.get_portfolio_value()
-        # PortfolioValueDTO has a 'value' field that contains the Decimal
-        return portfolio_dto.value
 
     def _get_account_information(self) -> dict[str, Any]:
         """Get account information from trading manager."""
