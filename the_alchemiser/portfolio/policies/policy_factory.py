@@ -1,4 +1,4 @@
-"""Business Unit: utilities; Status: current.
+"""Business Unit: portfolio | Status: current
 
 Policy Factory
 
@@ -11,6 +11,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from the_alchemiser.execution.orders.order_request import OrderRequest
+from the_alchemiser.execution.types.policy_result import PolicyResult, create_approved_result
+from the_alchemiser.portfolio.policies.base_policy import BasePolicyImpl
 from the_alchemiser.portfolio.policies.buying_power_policy_impl import BuyingPowerPolicyImpl
 from the_alchemiser.portfolio.policies.fractionability_policy_impl import (
     FractionabilityPolicyImpl,
@@ -99,29 +102,23 @@ class PolicyFactory:
         fractionability_policy = FractionabilityPolicyImpl()
 
         # Create minimal implementations for other policies (no-op)
-        class NoOpPositionPolicy:
-            @property
-            def policy_name(self) -> str:
-                return "NoOpPositionPolicy"
+        class NoOpPolicy(BasePolicyImpl):
+            """Base no-op policy implementation."""
 
             def validate_and_adjust(self, order_request: OrderRequest) -> PolicyResult:
                 return create_approved_result(order_request=order_request)
 
-        class NoOpBuyingPowerPolicy:
-            @property
-            def policy_name(self) -> str:
-                return "NoOpBuyingPowerPolicy"
+        class NoOpPositionPolicy(NoOpPolicy):
+            def __init__(self) -> None:
+                super().__init__("NoOpPositionPolicy")
 
-            def validate_and_adjust(self, order_request: OrderRequest) -> PolicyResult:
-                return create_approved_result(order_request=order_request)
+        class NoOpBuyingPowerPolicy(NoOpPolicy):
+            def __init__(self) -> None:
+                super().__init__("NoOpBuyingPowerPolicy")
 
-        class NoOpRiskPolicy:
-            @property
-            def policy_name(self) -> str:
-                return "NoOpRiskPolicy"
-
-            def validate_and_adjust(self, order_request: OrderRequest) -> PolicyResult:
-                return create_approved_result(order_request=order_request)
+        class NoOpRiskPolicy(NoOpPolicy):
+            def __init__(self) -> None:
+                super().__init__("NoOpRiskPolicy")
 
         return PolicyOrchestrator(
             fractionability_policy=fractionability_policy,

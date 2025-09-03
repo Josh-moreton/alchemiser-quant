@@ -1,6 +1,6 @@
-"""Business Unit: utilities; Status: current.
+"""Business Unit: portfolio | Status: current
 
-Base Policy Protocol
+Base Policy Protocol and Implementation
 
 Defines the common interface that all order validation policies must implement.
 Uses pure domain objects to maintain domain layer purity.
@@ -38,3 +38,24 @@ class OrderPolicy(Protocol):
     def policy_name(self) -> str:
         """Get the name of this policy for logging and identification."""
         ...
+
+
+class BasePolicyImpl:
+    """Base implementation class for order validation policies.
+    
+    Provides common functionality to eliminate code duplication across
+    policy implementations, particularly the policy_name property.
+    """
+
+    def __init__(self, policy_name: str) -> None:
+        """Initialize the base policy implementation.
+        
+        Args:
+            policy_name: The name of this policy for logging and identification
+        """
+        self._policy_name = policy_name
+
+    @property
+    def policy_name(self) -> str:
+        """Get the name of this policy for logging and identification."""
+        return self._policy_name

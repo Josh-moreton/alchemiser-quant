@@ -1,4 +1,4 @@
-"""Business Unit: utilities; Status: current.
+"""Business Unit: portfolio | Status: current
 
 Position Policy Implementation
 
@@ -20,6 +20,7 @@ from the_alchemiser.execution.types.policy_result import (
     create_approved_result,
     create_rejected_result,
 )
+from the_alchemiser.portfolio.policies.base_policy import BasePolicyImpl
 from the_alchemiser.portfolio.policies.protocols import TradingClientProtocol
 from the_alchemiser.shared.logging.logging_utils import log_with_context
 from the_alchemiser.shared.types.exceptions import PositionValidationError
@@ -31,7 +32,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class PositionPolicyImpl:
+class PositionPolicyImpl(BasePolicyImpl):
     """Concrete implementation of position policy.
 
     Handles validation and adjustment of orders based on current position holdings,
@@ -46,8 +47,8 @@ class PositionPolicyImpl:
             trading_client: Trading client for position data
 
         """
+        super().__init__("PositionPolicy")
         self.trading_client = trading_client
-        self._policy_name = "PositionPolicy"
 
     def validate_and_adjust(self, order_request: OrderRequest) -> PolicyResult:
         """Validate and adjust order based on current positions.
@@ -311,7 +312,4 @@ class PositionPolicyImpl:
             )
             return False
 
-    @property
-    def policy_name(self) -> str:
-        """Get the name of this policy for logging and identification."""
-        return self._policy_name
+    # Remove duplicate policy_name property as it's inherited from BasePolicyImpl
