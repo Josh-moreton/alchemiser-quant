@@ -93,12 +93,6 @@ class PolicyFactory:
             PolicyOrchestrator with only fractionability policy
 
         """
-        from the_alchemiser.execution.orders.order_request import OrderRequest
-        from the_alchemiser.execution.types.policy_result import (
-            PolicyResult,
-            create_approved_result,
-        )
-
         fractionability_policy = FractionabilityPolicyImpl()
 
         # Create minimal implementations for other policies (no-op)

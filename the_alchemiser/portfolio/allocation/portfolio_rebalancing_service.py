@@ -17,7 +17,6 @@ from the_alchemiser.portfolio.schemas.rebalancing import (
     RebalancingImpactDTO,
     RebalancingSummaryDTO,
 )
-from the_alchemiser.portfolio.utils.portfolio_utilities import PortfolioUtilities
 from the_alchemiser.shared.adapters import (
     portfolio_state_to_dto,
     rebalance_plan_to_order_requests,

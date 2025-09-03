@@ -13,7 +13,7 @@ from .engine import StrategyEngine
 from .nuclear_typed_engine import NuclearTypedEngine
 from .tecl_strategy_engine import TECLStrategyEngine
 from .typed_klm_ensemble_engine import TypedKLMStrategyEngine
-from .typed_strategy_manager import AggregatedSignals, TypedStrategyManager
+from ..managers.typed_strategy_manager import AggregatedSignals, TypedStrategyManager
 
 __all__ = [
     "AggregatedSignals",

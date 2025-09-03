@@ -25,7 +25,7 @@ from the_alchemiser.execution.entities.order import Order
 # Re-export canonical MarketDataPort (reuse; no duplication)
 from the_alchemiser.shared.types.market_data_port import MarketDataPort
 from the_alchemiser.shared.types.symbol_legacy import Symbol
-from the_alchemiser.strategy.signals.strategy_signal import StrategySignal
+from the_alchemiser.strategy.engines.value_objects.strategy_signal import StrategySignal
 
 
 @runtime_checkable

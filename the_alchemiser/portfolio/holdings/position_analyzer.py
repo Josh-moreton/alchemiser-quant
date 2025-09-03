@@ -5,8 +5,8 @@ Pure position delta calculation logic.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from decimal import Decimal
-from typing import Callable
 
 from .position_delta import PositionDelta
 
@@ -107,9 +107,7 @@ class PositionAnalyzer:
         return self._filter_deltas_by_action(position_deltas, lambda delta: delta.is_buy)
 
     def _filter_deltas_by_action(
-        self, 
-        position_deltas: dict[str, PositionDelta], 
-        predicate: Callable[[PositionDelta], bool]
+        self, position_deltas: dict[str, PositionDelta], predicate: Callable[[PositionDelta], bool]
     ) -> dict[str, PositionDelta]:
         """Filter position deltas by a given predicate to eliminate code duplication."""
         return {symbol: delta for symbol, delta in position_deltas.items() if predicate(delta)}
@@ -179,9 +177,7 @@ class PositionAnalyzer:
         return self._get_symbols_by_action(position_deltas, lambda delta: delta.is_buy)
 
     def _get_symbols_by_action(
-        self, 
-        position_deltas: dict[str, PositionDelta], 
-        predicate: Callable[[PositionDelta], bool]
+        self, position_deltas: dict[str, PositionDelta], predicate: Callable[[PositionDelta], bool]
     ) -> list[str]:
         """Get symbols based on a predicate to eliminate buy/sell code duplication."""
         return [symbol for symbol, delta in position_deltas.items() if predicate(delta)]

@@ -22,7 +22,7 @@ from the_alchemiser.strategy.indicators.indicator_utils import safe_get_indicato
 from the_alchemiser.strategy.indicators.indicators import TechnicalIndicators
 
 from .engine import StrategyEngine
-from .errors.strategy_errors import StrategyExecutionError
+from the_alchemiser.strategy.errors.strategy_errors import StrategyExecutionError
 from .nuclear_logic import evaluate_nuclear_strategy
 from .value_objects.confidence import Confidence
 from .value_objects.strategy_signal import StrategySignal
