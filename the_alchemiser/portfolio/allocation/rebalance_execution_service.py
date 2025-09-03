@@ -14,7 +14,7 @@ from the_alchemiser.execution.brokers.alpaca_client import AlpacaClient
 from the_alchemiser.execution.core.execution_manager import TradingServiceManager
 from the_alchemiser.execution.strategies.smart_execution import SmartExecution
 from the_alchemiser.shared.errors.error_handler import TradingSystemErrorHandler
-from the_alchemiser.shared.types.exceptions import StrategyExecutionError
+from the_alchemiser.strategy.errors.strategy_errors import StrategyExecutionError
 
 from .rebalance_plan import RebalancePlan
 

@@ -197,15 +197,6 @@ class PositionValidationError(TradingClientError):
         self.available_qty = available_qty
 
 
-class StrategyExecutionError(AlchemiserError):
-    """Raised when strategy execution fails."""
-
-    def __init__(self, message: str, strategy_name: str | None = None) -> None:
-        """Create a strategy execution error."""
-        super().__init__(message)
-        self.strategy_name = strategy_name
-
-
 class IndicatorCalculationError(AlchemiserError):
     """Raised when technical indicator calculations fail."""
 
