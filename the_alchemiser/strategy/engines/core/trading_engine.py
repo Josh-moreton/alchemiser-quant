@@ -77,7 +77,7 @@ from the_alchemiser.shared.value_objects.core_types import (
     OrderDetails,
     PositionsDict,
 )
-from the_alchemiser.strategy.engines.typed_strategy_manager import TypedStrategyManager
+from the_alchemiser.strategy.managers.typed_strategy_manager import TypedStrategyManager
 
 # Import application-layer ports for dependency injection
 from the_alchemiser.strategy.registry.strategy_registry import StrategyType

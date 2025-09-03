@@ -25,7 +25,7 @@ from the_alchemiser.shared.cli.cli_formatter import (
 from the_alchemiser.shared.config.config import Settings
 from the_alchemiser.shared.logging.logging_utils import get_logger
 from the_alchemiser.shared.types.exceptions import DataProviderError, StrategyExecutionError
-from the_alchemiser.strategy.engines.typed_strategy_manager import TypedStrategyManager
+from the_alchemiser.strategy.managers.typed_strategy_manager import TypedStrategyManager
 from the_alchemiser.strategy.registry.strategy_registry import StrategyType
 
 
