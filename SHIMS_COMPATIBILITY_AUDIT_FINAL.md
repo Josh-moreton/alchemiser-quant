@@ -2,18 +2,18 @@
 
 ## Executive Summary
 
-This report identifies **28 confirmed shims and compatibility layers** in the codebase that require attention. This focused audit only includes files that are definitively shims, import redirections, or legacy compatibility code.
+This report identifies **6 confirmed shims and compatibility layers** in the codebase that require attention. This focused audit only includes files that are definitively shims, import redirections, or legacy compatibility code.
 
 **Risk Distribution:**
-- 🔴 **High Risk**: 15 items (explicit legacy code, deprecation warnings)
-- 🟡 **Medium Risk**: 13 items (import redirections)
+- 🔴 **High Risk**: 4 items (explicit legacy code, deprecation warnings)
+- 🟡 **Medium Risk**: 2 items (import redirections)
 - 🟢 **Low Risk**: 0 items (backup files)
 
 **Active Usage**: 1 shims are actively imported by other files
 
 ## Detailed Findings
 
-### 🔴 HIGH RISK (15 items)
+### 🔴 HIGH RISK (4 items)
 
 **1. position_manager.py** **[1 imports]**
 - **File**: `the_alchemiser/portfolio/holdings/position_manager.py`
@@ -36,91 +36,14 @@ This report identifies **28 confirmed shims and compatibility layers** in the co
 - **Suggested Action**: review_for_removal
 - **Evidence**: Warning: the_alchemiser.shared.utils.error_handling is deprecated. ...; Warning: create_service_logger is deprecated. ...
 
-**4. execution_service.py**
-- **File**: `the_alchemiser/portfolio/execution/execution_service.py`
-- **Description**: Contains actual deprecation warnings
-- **Purpose**: Issues runtime deprecation warnings
-- **Suggested Action**: review_for_removal
-- **Evidence**: Warning: Importing from ...
-
-**5. portfolio_pnl_utils.py**
-- **File**: `the_alchemiser/portfolio/utils/portfolio_pnl_utils.py`
-- **Description**: Contains actual deprecation warnings
-- **Purpose**: Issues runtime deprecation warnings
-- **Suggested Action**: review_for_removal
-- **Evidence**: Warning: Importing from ...
-
-**6. rebalance_plan.py**
-- **File**: `the_alchemiser/portfolio/rebalancing/rebalance_plan.py`
-- **Description**: Contains actual deprecation warnings
-- **Purpose**: Issues runtime deprecation warnings
-- **Suggested Action**: review_for_removal
-- **Evidence**: Warning: Importing from ...
-
-**7. orchestrator.py**
-- **File**: `the_alchemiser/portfolio/rebalancing/orchestrator.py`
-- **Description**: Contains actual deprecation warnings
-- **Purpose**: Issues runtime deprecation warnings
-- **Suggested Action**: review_for_removal
-- **Evidence**: Warning: Importing from ...
-
-**8. rebalancing_service.py**
-- **File**: `the_alchemiser/portfolio/rebalancing/rebalancing_service.py`
-- **Description**: Contains actual deprecation warnings
-- **Purpose**: Issues runtime deprecation warnings
-- **Suggested Action**: review_for_removal
-- **Evidence**: Warning: Importing from ...
-
-**9. orchestrator_facade.py**
-- **File**: `the_alchemiser/portfolio/rebalancing/orchestrator_facade.py`
-- **Description**: Contains actual deprecation warnings
-- **Purpose**: Issues runtime deprecation warnings
-- **Suggested Action**: review_for_removal
-- **Evidence**: Warning: Importing from ...
-
-**10. analysis_service.py**
-- **File**: `the_alchemiser/portfolio/analytics/analysis_service.py`
-- **Description**: Contains actual deprecation warnings
-- **Purpose**: Issues runtime deprecation warnings
-- **Suggested Action**: review_for_removal
-- **Evidence**: Warning: Importing from ...
-
-**11. position_analyzer.py**
-- **File**: `the_alchemiser/portfolio/analytics/position_analyzer.py`
-- **Description**: Contains actual deprecation warnings
-- **Purpose**: Issues runtime deprecation warnings
-- **Suggested Action**: review_for_removal
-- **Evidence**: Warning: Importing from ...
-
-**12. position_delta.py**
-- **File**: `the_alchemiser/portfolio/analytics/position_delta.py`
-- **Description**: Contains actual deprecation warnings
-- **Purpose**: Issues runtime deprecation warnings
-- **Suggested Action**: review_for_removal
-- **Evidence**: Warning: Importing from ...
-
-**13. attribution_engine.py**
-- **File**: `the_alchemiser/portfolio/analytics/attribution_engine.py`
-- **Description**: Contains actual deprecation warnings
-- **Purpose**: Issues runtime deprecation warnings
-- **Suggested Action**: review_for_removal
-- **Evidence**: Warning: Importing from ...
-
-**14. position_service.py**
-- **File**: `the_alchemiser/portfolio/positions/position_service.py`
-- **Description**: Contains actual deprecation warnings
-- **Purpose**: Issues runtime deprecation warnings
-- **Suggested Action**: review_for_removal
-- **Evidence**: Warning: Importing from ...
-
-**15. canonical_executor.py**
+**4. canonical_executor.py**
 - **File**: `the_alchemiser/execution/core/canonical_executor.py`
 - **Description**: Explicitly marked with 'Status: legacy'
 - **Purpose**: Module explicitly marked as legacy
 - **Suggested Action**: review_for_migration
 - **Evidence**: """Business Unit: execution; Status: legacy.
 
-### 🟡 MEDIUM RISK (13 items)
+### 🟡 MEDIUM RISK (2 items)
 
 **1. canonical_executor.py**
 - **File**: `the_alchemiser/execution/core/canonical_executor.py`
@@ -136,88 +59,11 @@ This report identifies **28 confirmed shims and compatibility layers** in the co
 - **Suggested Action**: migrate_imports
 - **Evidence**: Star imports: 3; Redirection language found; Short file: 18 lines
 
-**3. execution_service.py**
-- **File**: `the_alchemiser/portfolio/execution/execution_service.py`
-- **Description**: Import redirection shim
-- **Purpose**: Redirects imports to new location
-- **Suggested Action**: migrate_imports
-- **Evidence**: Star imports: 1; Redirection language found; Short file: 12 lines
-
-**4. portfolio_pnl_utils.py**
-- **File**: `the_alchemiser/portfolio/utils/portfolio_pnl_utils.py`
-- **Description**: Import redirection shim
-- **Purpose**: Redirects imports to new location
-- **Suggested Action**: migrate_imports
-- **Evidence**: Star imports: 1; Redirection language found; Short file: 13 lines
-
-**5. rebalance_plan.py**
-- **File**: `the_alchemiser/portfolio/rebalancing/rebalance_plan.py`
-- **Description**: Import redirection shim
-- **Purpose**: Redirects imports to new location
-- **Suggested Action**: migrate_imports
-- **Evidence**: Star imports: 1; Redirection language found; Short file: 12 lines
-
-**6. orchestrator.py**
-- **File**: `the_alchemiser/portfolio/rebalancing/orchestrator.py`
-- **Description**: Import redirection shim
-- **Purpose**: Redirects imports to new location
-- **Suggested Action**: migrate_imports
-- **Evidence**: Star imports: 1; Redirection language found; Short file: 12 lines
-
-**7. rebalancing_service.py**
-- **File**: `the_alchemiser/portfolio/rebalancing/rebalancing_service.py`
-- **Description**: Import redirection shim
-- **Purpose**: Redirects imports to new location
-- **Suggested Action**: migrate_imports
-- **Evidence**: Star imports: 1; Redirection language found; Short file: 12 lines
-
-**8. orchestrator_facade.py**
-- **File**: `the_alchemiser/portfolio/rebalancing/orchestrator_facade.py`
-- **Description**: Import redirection shim
-- **Purpose**: Redirects imports to new location
-- **Suggested Action**: migrate_imports
-- **Evidence**: Star imports: 1; Redirection language found; Short file: 12 lines
-
-**9. analysis_service.py**
-- **File**: `the_alchemiser/portfolio/analytics/analysis_service.py`
-- **Description**: Import redirection shim
-- **Purpose**: Redirects imports to new location
-- **Suggested Action**: migrate_imports
-- **Evidence**: Star imports: 1; Redirection language found; Short file: 12 lines
-
-**10. position_analyzer.py**
-- **File**: `the_alchemiser/portfolio/analytics/position_analyzer.py`
-- **Description**: Import redirection shim
-- **Purpose**: Redirects imports to new location
-- **Suggested Action**: migrate_imports
-- **Evidence**: Star imports: 1; Redirection language found; Short file: 12 lines
-
-**11. position_delta.py**
-- **File**: `the_alchemiser/portfolio/analytics/position_delta.py`
-- **Description**: Import redirection shim
-- **Purpose**: Redirects imports to new location
-- **Suggested Action**: migrate_imports
-- **Evidence**: Star imports: 1; Redirection language found; Short file: 12 lines
-
-**12. attribution_engine.py**
-- **File**: `the_alchemiser/portfolio/analytics/attribution_engine.py`
-- **Description**: Import redirection shim
-- **Purpose**: Redirects imports to new location
-- **Suggested Action**: migrate_imports
-- **Evidence**: Star imports: 1; Redirection language found; Short file: 12 lines
-
-**13. position_service.py**
-- **File**: `the_alchemiser/portfolio/positions/position_service.py`
-- **Description**: Import redirection shim
-- **Purpose**: Redirects imports to new location
-- **Suggested Action**: migrate_imports
-- **Evidence**: Star imports: 1; Redirection language found; Short file: 12 lines
-
 ## Recommendations
 
 ### Immediate Actions Required
 
-1. **Review 15 high-risk shims** - These are explicitly marked as legacy or deprecated
+1. **Review 4 high-risk shims** - These are explicitly marked as legacy or deprecated
 2. **Handle 1 actively imported shims** - Must update import statements before removal
 3. **Remove backup files** - These can be safely deleted
 
