@@ -46,7 +46,7 @@ from the_alchemiser.shared.types.exceptions import (
 )
 from the_alchemiser.shared.types.market_data_port import MarketDataPort
 from the_alchemiser.shared.types.quote import QuoteModel
-from the_alchemiser.shared.types.symbol_legacy import Symbol
+from the_alchemiser.shared.value_objects.symbol import Symbol
 
 # Delayed import to avoid complex dependency chains during module loading
 # from the_alchemiser.strategy.data.market_data_service import MarketDataService

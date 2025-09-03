@@ -62,10 +62,10 @@ from the_alchemiser.execution.schemas.smart_trading import (
     SmartOrderExecutionDTO,
     TradingDashboardDTO,
 )
+from the_alchemiser.portfolio.holdings.position_service import PositionService
 from the_alchemiser.portfolio.mappers.position_mapping import (
     alpaca_position_to_summary,
 )
-from the_alchemiser.portfolio.positions.position_service import PositionService
 from the_alchemiser.portfolio.schemas.positions import (
     ClosePositionResultDTO,
     PortfolioSummaryDTO,
@@ -720,7 +720,7 @@ class TradingServiceManager:
                 # Use canonical executor directly since legacy methods removed
                 from decimal import Decimal
 
-                from the_alchemiser.execution.core.canonical_executor import (
+                from the_alchemiser.execution.core.executor import (
                     CanonicalOrderExecutor,
                 )
                 from the_alchemiser.execution.orders.order_request import (
@@ -783,7 +783,7 @@ class TradingServiceManager:
                 # Use canonical executor directly since legacy methods removed
                 from decimal import Decimal
 
-                from the_alchemiser.execution.core.canonical_executor import (
+                from the_alchemiser.execution.core.executor import (
                     CanonicalOrderExecutor,
                 )
                 from the_alchemiser.execution.orders.order_request import (

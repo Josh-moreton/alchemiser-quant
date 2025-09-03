@@ -16,7 +16,7 @@ from collections.abc import Callable
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from the_alchemiser.execution.core.canonical_executor import (
+from the_alchemiser.execution.core.executor import (
     CanonicalOrderExecutor,
 )
 from the_alchemiser.execution.orders.order_request import OrderRequest

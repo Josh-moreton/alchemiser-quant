@@ -41,10 +41,10 @@ from the_alchemiser.execution.config.execution_config import (
     ExecutionConfig,
     get_execution_config,
 )
-from the_alchemiser.execution.core.canonical_executor import (
+from the_alchemiser.execution.core.execution_schemas import WebSocketResultDTO
+from the_alchemiser.execution.core.executor import (
     CanonicalOrderExecutor,
 )
-from the_alchemiser.execution.core.execution_schemas import WebSocketResultDTO
 from the_alchemiser.execution.orders.order_request import OrderRequest
 from the_alchemiser.execution.orders.order_type import (
     OrderType as DomainOrderType,
