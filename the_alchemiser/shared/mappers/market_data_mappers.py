@@ -42,6 +42,17 @@ def _parse_ts(value: Any) -> datetime | None:
 
 
 def bars_to_domain(rows: Iterable[dict[str, Any]]) -> list[BarModel]:
+    """Convert market data bar dictionaries to BarModel domain objects.
+    
+    Args:
+        rows: Iterable of dictionaries containing bar data with keys like
+              't'/'timestamp'/'time', 'o'/'open', 'h'/'high', 'l'/'low', 
+              'c'/'close', 'v'/'volume'
+              
+    Returns:
+        List of BarModel domain objects with Decimal precision for prices.
+        Rows with invalid timestamps are skipped.
+    """
     out: list[BarModel] = []
     for r in rows:
         try:

@@ -746,6 +746,17 @@ class CircuitBreaker:
         self.state = "CLOSED"  # CLOSED, OPEN, HALF_OPEN
 
     def __call__(self, func: Callable[..., Any]) -> Callable[..., Any]:
+        """Decorate function with circuit breaker pattern.
+        
+        Args:
+            func: Function to protect with circuit breaker
+            
+        Returns:
+            Wrapped function with circuit breaker protection.
+            
+        Raises:
+            CircuitBreakerOpenError: When circuit is open and timeout hasn't elapsed.
+        """
         @wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
             if self.state == "OPEN":

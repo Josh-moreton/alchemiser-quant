@@ -1,21 +1,12 @@
-from __future__ import annotations
-
 """Business Unit: shared | Status: current
 
-Execution Summary Mapping - migrated from legacy location.
-"""
-
-#!/usr/bin/env python3
-"""Business Unit: order execution/placement; Status: current.
 Mapping functions for execution summary DTOs.
 
 This module provides mapping utilities to convert between dict structures
-and ExecutionSummaryDTO/PortfolioStateDTO, supporting the migration from
-Any/dict types to structured DTOs.
-
-Part of the anti-corruption layer for clean DTO boundaries.
+and ExecutionSummaryDTO/PortfolioStateDTO, supporting clean DTO boundaries.
 """
 
+from __future__ import annotations
 
 from decimal import Decimal
 from typing import Any

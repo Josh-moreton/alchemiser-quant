@@ -1,26 +1,13 @@
-from __future__ import annotations
-
 """Business Unit: shared | Status: current
 
-Execution Summary - migrated from legacy location.
-"""
-
-#!/usr/bin/env python3
-"""Business Unit: order execution/placement; Status: current.
 Execution Summary DTOs for The Alchemiser Trading System.
 
-This module provides structured DTOs for execution summaries, replacing
-dict[str, Any] usage in MultiStrategyExecutionResultDTO and other execution contexts.
-
-Key Features:
-- Pydantic v2 BaseModel with strict validation
-- Comprehensive execution metadata
-- Decimal precision for financial values
-- Type safety for strategy execution tracking
-
-Part of the Pydantic v2 migration to eliminate dict/Any boundaries.
+This module provides structured DTOs for execution summaries with Pydantic v2 
+validation, decimal precision for financial values, and type safety for 
+strategy execution tracking.
 """
 
+from __future__ import annotations
 
 from decimal import Decimal
 

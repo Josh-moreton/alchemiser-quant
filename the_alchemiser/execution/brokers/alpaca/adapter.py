@@ -843,7 +843,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             return []
 
     def __repr__(self) -> str:
-        """String representation."""
+        """Return string representation of AlpacaManager."""
         return f"AlpacaManager(paper={self._paper})"
 
 
@@ -851,9 +851,15 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 def create_alpaca_manager(
     api_key: str, secret_key: str, paper: bool = True, base_url: str | None = None
 ) -> AlpacaManager:
-    """Factory function to create an AlpacaManager instance.
+    """Create an AlpacaManager instance with provided credentials.
 
-    This function provides a clean way to create AlpacaManager instances
-    and can be easily extended with additional configuration options.
+    Args:
+        api_key: Alpaca API key
+        secret_key: Alpaca secret key
+        paper: Whether to use paper trading (default: True)
+        base_url: Optional custom base URL for API
+
+    Returns:
+        Configured AlpacaManager instance ready for trading operations.
     """
     return AlpacaManager(api_key=api_key, secret_key=secret_key, paper=paper, base_url=base_url)

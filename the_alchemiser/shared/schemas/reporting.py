@@ -1,18 +1,12 @@
-from __future__ import annotations
-
 """Business Unit: shared | Status: current
 
-Reporting - migrated from legacy location.
-"""
-
-#!/usr/bin/env python3
-"""Business Unit: utilities; Status: current.
 Reporting and dashboard DTOs for The Alchemiser Trading System.
 
 This module contains DTOs for reporting, dashboard metrics, and email
-notifications, moved from domain/types.py as part of the Pydantic migration.
+notifications, supporting comprehensive trading system analytics.
 """
 
+from __future__ import annotations
 
 from typing import Any, TypedDict
 
