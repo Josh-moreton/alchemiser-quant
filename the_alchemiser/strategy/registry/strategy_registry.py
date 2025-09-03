@@ -13,22 +13,21 @@ static analysis while maintaining flexibility in strategy selection.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import Enum
 from typing import Any
 
+from the_alchemiser.shared.types.strategy_type import StrategyType
 from the_alchemiser.strategy.engines.nuclear_typed_engine import NuclearTypedEngine
 from the_alchemiser.strategy.engines.tecl_strategy_engine import TECLStrategyEngine
 from the_alchemiser.strategy.engines.typed_klm_ensemble_engine import (
     TypedKLMStrategyEngine,
 )
 
-
-class StrategyType(Enum):
-    """Enumeration of available trading strategies."""
-
-    NUCLEAR = "NUCLEAR"
-    TECL = "TECL"
-    KLM = "KLM"
+# Remove the local StrategyType definition since it's now in shared
+# class StrategyType(Enum):
+#     """Enumeration of available trading strategies."""
+#     NUCLEAR = "NUCLEAR"
+#     TECL = "TECL"
+#     KLM = "KLM"
 
 
 @dataclass

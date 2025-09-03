@@ -13,8 +13,8 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
-from the_alchemiser.execution.lifecycle import OrderLifecycleEvent
 from the_alchemiser.execution.analytics.slippage_analyzer import SlippageAnalyzer
+from the_alchemiser.execution.lifecycle.events import OrderLifecycleEvent
 
 logger = logging.getLogger(__name__)
 

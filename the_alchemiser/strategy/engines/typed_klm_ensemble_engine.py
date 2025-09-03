@@ -19,20 +19,19 @@ from typing import Any
 
 import pandas as pd
 
-from the_alchemiser.shared.types.market_data_port import MarketDataPort
-from the_alchemiser.strategy.indicators.indicator_utils import safe_get_indicator
-from the_alchemiser.strategy.indicators.indicators import TechnicalIndicators
 from the_alchemiser.shared.math.math_utils import (
     calculate_moving_average_return,
     calculate_stdev_returns,
 )
+from the_alchemiser.shared.types.market_data_port import MarketDataPort
 from the_alchemiser.shared.types.percentage import Percentage
+from the_alchemiser.shared.utils.common import ActionType
+from the_alchemiser.shared.value_objects.symbol import Symbol
+from the_alchemiser.strategy.indicators.indicator_utils import safe_get_indicator
+from the_alchemiser.strategy.indicators.indicators import TechnicalIndicators
+
 from .engine import StrategyEngine
 from .errors.strategy_errors import StrategyExecutionError
-from .value_objects.confidence import Confidence
-from .value_objects.strategy_signal import StrategySignal
-from the_alchemiser.shared.value_objects.symbol import Symbol
-from the_alchemiser.shared.utils.common import ActionType
 
 # Import all KLM strategy variants from modular workers package
 from .klm_workers import (
@@ -46,6 +45,8 @@ from .klm_workers import (
     KlmVariant128026,
     KLMVariantNova,
 )
+from .value_objects.confidence import Confidence
+from .value_objects.strategy_signal import StrategySignal
 
 
 class TypedKLMStrategyEngine(StrategyEngine):

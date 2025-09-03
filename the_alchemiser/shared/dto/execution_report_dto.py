@@ -35,7 +35,7 @@ class ExecutedOrderDTO(BaseModel):
     total_value: Decimal = Field(..., gt=0, description="Total execution value")
     status: str = Field(..., description="Order status (FILLED, PARTIAL, REJECTED, etc.)")
     execution_timestamp: datetime = Field(..., description="Order execution timestamp")
-    
+
     # Optional fields
     commission: Decimal | None = Field(default=None, ge=0, description="Commission paid")
     fees: Decimal | None = Field(default=None, ge=0, description="Additional fees")
@@ -92,44 +92,48 @@ class ExecutionReportDTO(BaseModel):
 
     # Required correlation fields
     correlation_id: str = Field(..., min_length=1, description="Unique correlation identifier")
-    causation_id: str = Field(..., min_length=1, description="Causation identifier for traceability")
+    causation_id: str = Field(
+        ..., min_length=1, description="Causation identifier for traceability"
+    )
     timestamp: datetime = Field(..., description="Report generation timestamp")
 
     # Report identification
     execution_id: str = Field(..., min_length=1, description="Unique execution identifier")
     session_id: str | None = Field(default=None, description="Trading session identifier")
-    
+
     # Execution summary
     total_orders: int = Field(..., ge=0, description="Total number of orders")
     successful_orders: int = Field(..., ge=0, description="Number of successful orders")
     failed_orders: int = Field(..., ge=0, description="Number of failed orders")
-    
+
     # Financial summary
     total_value_traded: Decimal = Field(..., ge=0, description="Total value traded")
     total_commissions: Decimal = Field(..., ge=0, description="Total commissions paid")
     total_fees: Decimal = Field(..., ge=0, description="Total fees paid")
     net_cash_flow: Decimal = Field(..., description="Net cash flow (negative for net purchases)")
-    
+
     # Timing
     execution_start_time: datetime = Field(..., description="Execution start timestamp")
     execution_end_time: datetime = Field(..., description="Execution end timestamp")
     total_duration_seconds: int = Field(..., ge=0, description="Total execution duration")
-    
+
     # Order details
     orders: list[ExecutedOrderDTO] = Field(
         default_factory=list, description="List of executed orders"
     )
-    
+
     # Performance metrics
     success_rate: Decimal = Field(..., ge=0, le=1, description="Success rate (0-1)")
     average_execution_time_seconds: Decimal | None = Field(
         default=None, ge=0, description="Average order execution time"
     )
-    
+
     # Optional metadata
     broker_used: str | None = Field(default=None, description="Broker used for execution")
     execution_strategy: str | None = Field(default=None, description="Execution strategy used")
-    market_conditions: str | None = Field(default=None, description="Market conditions during execution")
+    market_conditions: str | None = Field(
+        default=None, description="Market conditions during execution"
+    )
     metadata: dict[str, Any] | None = Field(
         default=None, description="Additional execution metadata"
     )
@@ -152,28 +156,32 @@ class ExecutionReportDTO(BaseModel):
 
     def to_dict(self) -> dict[str, Any]:
         """Convert DTO to dictionary for serialization.
-        
+
         Returns:
             Dictionary representation of the DTO with properly serialized values.
 
         """
         data = self.model_dump()
-        
+
         # Convert datetime fields to ISO strings
         datetime_fields = ["timestamp", "execution_start_time", "execution_end_time"]
         for field_name in datetime_fields:
             if data.get(field_name):
                 data[field_name] = data[field_name].isoformat()
-            
+
         # Convert Decimal fields to string for JSON serialization
         decimal_fields = [
-            "total_value_traded", "total_commissions", "total_fees", "net_cash_flow",
-            "success_rate", "average_execution_time_seconds"
+            "total_value_traded",
+            "total_commissions",
+            "total_fees",
+            "net_cash_flow",
+            "success_rate",
+            "average_execution_time_seconds",
         ]
         for field_name in decimal_fields:
             if data.get(field_name) is not None:
                 data[field_name] = str(data[field_name])
-        
+
         # Convert nested orders
         if "orders" in data:
             orders_data = []
@@ -181,29 +189,36 @@ class ExecutionReportDTO(BaseModel):
                 order_dict = dict(order)
                 # Convert datetime in order
                 if order_dict.get("execution_timestamp"):
-                    order_dict["execution_timestamp"] = order_dict["execution_timestamp"].isoformat()
+                    order_dict["execution_timestamp"] = order_dict[
+                        "execution_timestamp"
+                    ].isoformat()
                 # Convert Decimal fields in order
                 order_decimal_fields = [
-                    "quantity", "filled_quantity", "price", "total_value", "commission", "fees"
+                    "quantity",
+                    "filled_quantity",
+                    "price",
+                    "total_value",
+                    "commission",
+                    "fees",
                 ]
                 for field_name in order_decimal_fields:
                     if order_dict.get(field_name) is not None:
                         order_dict[field_name] = str(order_dict[field_name])
                 orders_data.append(order_dict)
             data["orders"] = orders_data
-                
+
         return data
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> ExecutionReportDTO:
         """Create DTO from dictionary.
-        
+
         Args:
             data: Dictionary containing DTO data
-            
+
         Returns:
             ExecutionReportDTO instance
-            
+
         Raises:
             ValueError: If data is invalid or missing required fields
 
@@ -219,42 +234,63 @@ class ExecutionReportDTO(BaseModel):
                     data[field_name] = datetime.fromisoformat(timestamp_str)
                 except ValueError as e:
                     raise ValueError(f"Invalid {field_name} format: {data[field_name]}") from e
-                
+
         # Convert string decimal fields back to Decimal
         decimal_fields = [
-            "total_value_traded", "total_commissions", "total_fees", "net_cash_flow",
-            "success_rate", "average_execution_time_seconds"
+            "total_value_traded",
+            "total_commissions",
+            "total_fees",
+            "net_cash_flow",
+            "success_rate",
+            "average_execution_time_seconds",
         ]
         for field_name in decimal_fields:
-            if field_name in data and data[field_name] is not None and isinstance(data[field_name], str):
+            if (
+                field_name in data
+                and data[field_name] is not None
+                and isinstance(data[field_name], str)
+            ):
                 try:
                     data[field_name] = Decimal(data[field_name])
                 except (ValueError, TypeError) as e:
                     raise ValueError(f"Invalid {field_name} value: {data[field_name]}") from e
-        
+
         # Convert orders if present
         if "orders" in data and isinstance(data["orders"], list):
             orders_data = []
             for order_data in data["orders"]:
                 if isinstance(order_data, dict):
                     # Convert execution timestamp in order
-                    if "execution_timestamp" in order_data and isinstance(order_data["execution_timestamp"], str):
+                    if "execution_timestamp" in order_data and isinstance(
+                        order_data["execution_timestamp"], str
+                    ):
                         try:
                             timestamp_str = order_data["execution_timestamp"]
                             if timestamp_str.endswith("Z"):
                                 timestamp_str = timestamp_str[:-1] + "+00:00"
-                            order_data["execution_timestamp"] = datetime.fromisoformat(timestamp_str)
+                            order_data["execution_timestamp"] = datetime.fromisoformat(
+                                timestamp_str
+                            )
                         except ValueError as e:
                             raise ValueError(
                                 f"Invalid execution_timestamp format in order: {order_data['execution_timestamp']}"
                             ) from e
-                    
+
                     # Convert Decimal fields in order
                     order_decimal_fields = [
-                        "quantity", "filled_quantity", "price", "total_value", "commission", "fees"
+                        "quantity",
+                        "filled_quantity",
+                        "price",
+                        "total_value",
+                        "commission",
+                        "fees",
                     ]
                     for field_name in order_decimal_fields:
-                        if field_name in order_data and order_data[field_name] is not None and isinstance(order_data[field_name], str):
+                        if (
+                            field_name in order_data
+                            and order_data[field_name] is not None
+                            and isinstance(order_data[field_name], str)
+                        ):
                             try:
                                 order_data[field_name] = Decimal(order_data[field_name])
                             except (ValueError, TypeError) as e:
@@ -265,5 +301,5 @@ class ExecutionReportDTO(BaseModel):
                 else:
                     orders_data.append(order_data)  # Assume already a DTO
             data["orders"] = orders_data
-                        
+
         return cls(**data)

@@ -14,18 +14,21 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any, Literal, TypedDict, cast
 
-from the_alchemiser.execution.mappers.orders import normalize_order_status
-from the_alchemiser.shared.types.money import Money
 from the_alchemiser.execution.entities.order import Order
+from the_alchemiser.execution.mappers.orders import normalize_order_status
 from the_alchemiser.execution.orders.order_id import OrderId
 from the_alchemiser.execution.orders.order_status import OrderStatus
 from the_alchemiser.execution.orders.order_type import OrderType
+from the_alchemiser.shared.types.money import Money
 from the_alchemiser.shared.types.quantity import Quantity
-from the_alchemiser.shared.value_objects.symbol import Symbol
 from the_alchemiser.shared.types.time_in_force import TimeInForce
+from the_alchemiser.shared.value_objects.symbol import Symbol
 
 if TYPE_CHECKING:
-    from the_alchemiser.execution.orders.order_schemas import OrderExecutionResultDTO, RawOrderEnvelope
+    from the_alchemiser.execution.orders.order_schemas import (
+        OrderExecutionResultDTO,
+        RawOrderEnvelope,
+    )
 
 
 class OrderSummary(TypedDict, total=False):

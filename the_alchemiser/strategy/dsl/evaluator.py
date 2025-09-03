@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 import pandas as pd
 
+from the_alchemiser.shared.types.market_data_port import MarketDataPort
 from the_alchemiser.strategy.dsl.ast import (
     RSI,
     Asset,
@@ -38,7 +39,6 @@ from the_alchemiser.strategy.dsl.ast import (
     WeightSpecified,
 )
 from the_alchemiser.strategy.dsl.errors import EvaluationError, IndicatorError, PortfolioError
-from the_alchemiser.shared.types.market_data_port import MarketDataPort
 from the_alchemiser.strategy.indicators.indicators import TechnicalIndicators
 
 # Type imports for annotations

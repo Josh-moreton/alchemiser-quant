@@ -17,12 +17,12 @@ import json
 import logging
 from typing import Any
 
+from the_alchemiser.execution.core.execution_schemas import LambdaEventDTO
+from the_alchemiser.main import main
 from the_alchemiser.shared.logging.logging_utils import (
     generate_request_id,
     set_request_id,
 )
-from the_alchemiser.execution.core.execution_schemas import LambdaEventDTO
-from the_alchemiser.main import main
 from the_alchemiser.shared.types.exceptions import (
     DataProviderError,
     NotificationError,

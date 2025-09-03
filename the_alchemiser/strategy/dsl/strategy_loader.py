@@ -13,6 +13,7 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
+from the_alchemiser.shared.types.market_data_port import MarketDataPort
 from the_alchemiser.strategy.dsl.errors import DSLError
 from the_alchemiser.strategy.dsl.evaluator import DSLEvaluator, Portfolio
 from the_alchemiser.strategy.dsl.optimization_config import (
@@ -20,7 +21,6 @@ from the_alchemiser.strategy.dsl.optimization_config import (
     configure_from_environment,
 )
 from the_alchemiser.strategy.dsl.parser import DSLParser
-from the_alchemiser.shared.types.market_data_port import MarketDataPort
 
 
 class StrategyLoader:

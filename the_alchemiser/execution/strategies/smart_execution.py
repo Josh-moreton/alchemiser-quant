@@ -37,27 +37,27 @@ from typing import TYPE_CHECKING, Any, Protocol
 
 from alpaca.trading.enums import OrderSide
 
-from the_alchemiser.execution.core.canonical_executor import (
-    CanonicalOrderExecutor,
-)
-from the_alchemiser.shared.types.money import Money
-from the_alchemiser.execution.orders.order_request import OrderRequest
-from the_alchemiser.execution.orders.order_type import (
-    OrderType as DomainOrderType,
-)
-from the_alchemiser.shared.types.quantity import (
-    Quantity as DomainQuantity,
-)
-from the_alchemiser.execution.orders.side import Side as DomainSide
-from the_alchemiser.shared.value_objects.symbol import Symbol as DomainSymbol
-from the_alchemiser.shared.types.time_in_force import (
-    TimeInForce as DomainTimeInForce,
-)
 from the_alchemiser.execution.config.execution_config import (
     ExecutionConfig,
     get_execution_config,
 )
+from the_alchemiser.execution.core.canonical_executor import (
+    CanonicalOrderExecutor,
+)
 from the_alchemiser.execution.core.execution_schemas import WebSocketResultDTO
+from the_alchemiser.execution.orders.order_request import OrderRequest
+from the_alchemiser.execution.orders.order_type import (
+    OrderType as DomainOrderType,
+)
+from the_alchemiser.execution.orders.side import Side as DomainSide
+from the_alchemiser.shared.types.money import Money
+from the_alchemiser.shared.types.quantity import (
+    Quantity as DomainQuantity,
+)
+from the_alchemiser.shared.types.time_in_force import (
+    TimeInForce as DomainTimeInForce,
+)
+from the_alchemiser.shared.value_objects.symbol import Symbol as DomainSymbol
 
 if TYPE_CHECKING:
     pass
@@ -915,12 +915,12 @@ class SmartExecution:
         """
         from decimal import Decimal
 
+        from the_alchemiser.execution.config.execution_config import (
+            create_strategy_config,
+        )
         from the_alchemiser.execution.strategies import (
             AggressiveLimitStrategy,
             ExecutionContextAdapter,
-        )
-        from the_alchemiser.execution.config.execution_config import (
-            create_strategy_config,
         )
 
         strategy_config = create_strategy_config()

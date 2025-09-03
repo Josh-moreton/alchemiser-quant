@@ -9,7 +9,11 @@ from __future__ import annotations
 
 from typing import Any, cast
 
-from the_alchemiser.shared.value_objects.core_types import AccountInfo, EnrichedAccountInfo, PositionInfo
+from the_alchemiser.shared.value_objects.core_types import (
+    AccountInfo,
+    EnrichedAccountInfo,
+    PositionInfo,
+)
 
 from .base import BaseEmailTemplate
 from .performance import PerformanceBuilder

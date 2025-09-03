@@ -8,8 +8,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal, cast
 
-from the_alchemiser.shared.value_objects.core_types import StrategyPositionData, StrategySignal
 from the_alchemiser.shared.math.num import floats_equal  # For tolerant float comparison
+from the_alchemiser.shared.value_objects.core_types import StrategyPositionData, StrategySignal
 
 
 @dataclass(frozen=True)

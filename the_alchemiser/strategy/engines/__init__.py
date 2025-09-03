@@ -10,17 +10,17 @@ from __future__ import annotations
 
 from . import core
 from .engine import StrategyEngine
-from .nuclear_typed_engine import NuclearTypedEngine  
+from .nuclear_typed_engine import NuclearTypedEngine
 from .tecl_strategy_engine import TECLStrategyEngine
 from .typed_klm_ensemble_engine import TypedKLMStrategyEngine
-from .typed_strategy_manager import TypedStrategyManager, AggregatedSignals
+from .typed_strategy_manager import AggregatedSignals, TypedStrategyManager
 
 __all__ = [
-    "core",
+    "AggregatedSignals",
+    "NuclearTypedEngine",
     "StrategyEngine",
-    "NuclearTypedEngine", 
     "TECLStrategyEngine",
     "TypedKLMStrategyEngine",
     "TypedStrategyManager",
-    "AggregatedSignals",
+    "core",
 ]

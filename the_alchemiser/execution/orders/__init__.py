@@ -7,11 +7,12 @@ progressive orders, limit orders, and asset-specific order handling.
 """
 
 from __future__ import annotations
-# Exported from legacy migration
-from .order_schemas import *
-from .order_request import OrderRequest
-from .order_type import OrderType
 
 from .order_id import *
+from .order_request import OrderRequest
+
+# Exported from legacy migration
+from .order_schemas import *
 from .order_status import *
+from .order_type import OrderType
 from .side import *

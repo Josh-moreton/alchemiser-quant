@@ -18,16 +18,16 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
 from the_alchemiser.shared.types.market_data_port import MarketDataPort
+from the_alchemiser.shared.value_objects.symbol import Symbol
 from the_alchemiser.strategy.registry.strategy_registry import StrategyRegistry, StrategyType
+
 from .engine import StrategyEngine
 from .nuclear_typed_engine import NuclearTypedEngine
 from .typed_klm_ensemble_engine import TypedKLMStrategyEngine
 from .value_objects.confidence import Confidence
 from .value_objects.strategy_signal import StrategySignal
-from the_alchemiser.shared.value_objects.symbol import Symbol
 
 if TYPE_CHECKING:
-    from the_alchemiser.shared.adapters import batch_strategy_signals_to_dtos
     from the_alchemiser.shared.dto import StrategySignalDTO
 
 
@@ -343,30 +343,31 @@ class TypedStrategyManager:
         self, timestamp: datetime | None = None, correlation_id: str | None = None
     ) -> list[StrategySignalDTO]:
         """Generate strategy signals and return as DTOs for inter-module communication.
-        
+
         This method provides the same functionality as generate_signals() but returns
         StrategySignalDTO objects suitable for communication with other modules.
-        
+
         Args:
             timestamp: Optional timestamp for signal generation
             correlation_id: Optional correlation ID for tracking
-            
+
         Returns:
             List of StrategySignalDTO objects
-            
+
         Raises:
             StrategyExecutionError: If signal generation fails
+
         """
         # Import at runtime to avoid circular imports
         from the_alchemiser.shared.adapters import batch_strategy_signals_to_dtos
-        
+
         # Generate signals using existing method
         aggregated_signals = self.generate_signals(timestamp)
-        
+
         # Convert to DTOs using adapters
         if not aggregated_signals.consolidated_signals:
             return []
-        
+
         return batch_strategy_signals_to_dtos(
             signals=aggregated_signals.consolidated_signals,
             base_correlation_id=correlation_id,
@@ -377,20 +378,21 @@ class TypedStrategyManager:
         self, timestamp: datetime | None = None, correlation_id: str | None = None
     ) -> dict[str, list[StrategySignalDTO]]:
         """Get signals grouped by strategy as DTOs.
-        
+
         Args:
             timestamp: Optional timestamp for signal generation
             correlation_id: Optional correlation ID for tracking
-            
+
         Returns:
             Dictionary mapping strategy names to lists of StrategySignalDTO objects
+
         """
         # Import at runtime to avoid circular imports
         from the_alchemiser.shared.adapters import batch_strategy_signals_to_dtos
-        
+
         # Generate signals using existing method
         aggregated_signals = self.generate_signals(timestamp)
-        
+
         # Convert each strategy's signals to DTOs
         signals_by_strategy = {}
         for strategy_type, signals in aggregated_signals.signals_by_strategy.items():
@@ -403,21 +405,22 @@ class TypedStrategyManager:
                 )
             else:
                 signals_by_strategy[strategy_type.value] = []
-        
+
         return signals_by_strategy
 
     def get_portfolio_context_dto(self) -> dict[str, Any]:
         """Get strategy manager context for portfolio module consumption.
-        
+
         Returns:
             Dictionary with strategy context data suitable for portfolio module
+
         """
         return {
-            'strategy_allocations': {
-                strategy_type.value: allocation 
+            "strategy_allocations": {
+                strategy_type.value: allocation
                 for strategy_type, allocation in self.strategy_allocations.items()
             },
-            'enabled_strategies': [strategy.value for strategy in self.get_enabled_strategies()],
-            'total_strategies': len(self.strategy_engines),
-            'manager_type': 'typed_strategy_manager',
+            "enabled_strategies": [strategy.value for strategy in self.get_enabled_strategies()],
+            "total_strategies": len(self.strategy_engines),
+            "manager_type": "typed_strategy_manager",
         }

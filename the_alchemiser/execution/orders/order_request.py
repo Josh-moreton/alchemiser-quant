@@ -4,12 +4,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from the_alchemiser.shared.types.money import Money
 from the_alchemiser.execution.orders.order_type import OrderType
-from the_alchemiser.shared.types.quantity import Quantity
 from the_alchemiser.execution.orders.side import Side
-from the_alchemiser.shared.value_objects.symbol import Symbol
+from the_alchemiser.shared.types.money import Money
+from the_alchemiser.shared.types.quantity import Quantity
 from the_alchemiser.shared.types.time_in_force import TimeInForce
+from the_alchemiser.shared.value_objects.symbol import Symbol
 
 
 @dataclass(frozen=True)

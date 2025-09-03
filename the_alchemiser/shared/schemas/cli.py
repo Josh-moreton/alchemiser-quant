@@ -12,7 +12,12 @@ from __future__ import annotations
 
 from typing import Literal, TypedDict
 
-from the_alchemiser.shared.value_objects.core_types import AccountInfo, OrderDetails, PositionInfo, StrategySignal
+from the_alchemiser.shared.value_objects.core_types import (
+    AccountInfo,
+    OrderDetails,
+    PositionInfo,
+    StrategySignal,
+)
 
 
 # CLI Command Types

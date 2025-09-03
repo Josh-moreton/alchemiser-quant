@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from typing import Any, Literal, Protocol, TypedDict
 
-from the_alchemiser.execution.orders.order_status_literal import OrderStatusLiteral
+from the_alchemiser.shared.types.order_status import OrderStatusLiteral
 
 
 # Account Information Types

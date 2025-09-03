@@ -11,10 +11,11 @@ from decimal import Decimal
 from typing import Any, cast
 
 from the_alchemiser.shared.types.percentage import Percentage
+from the_alchemiser.shared.value_objects.core_types import StrategySignal as StrategySignalDTO
+from the_alchemiser.shared.value_objects.symbol import Symbol
+
 from .value_objects.confidence import Confidence
 from .value_objects.strategy_signal import Action
-from the_alchemiser.shared.value_objects.symbol import Symbol
-from the_alchemiser.shared.value_objects.core_types import StrategySignal as StrategySignalDTO
 
 
 @dataclass(frozen=True)

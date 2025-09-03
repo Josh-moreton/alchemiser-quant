@@ -13,16 +13,16 @@ import asyncio
 import logging
 from typing import TYPE_CHECKING, Any
 
-from the_alchemiser.strategy.registry.strategy_registry import StrategyType
-from the_alchemiser.shared.value_objects.core_types import OrderDetails
-from the_alchemiser.shared.config.secrets_manager import SecretsManager
-from the_alchemiser.execution.monitoring.websocket_order_monitor import (
-    OrderCompletionMonitor,
-)
 from the_alchemiser.execution.core.execution_schemas import (
     WebSocketResultDTO,
     WebSocketStatus,
 )
+from the_alchemiser.execution.monitoring.websocket_order_monitor import (
+    OrderCompletionMonitor,
+)
+from the_alchemiser.shared.config.secrets_manager import SecretsManager
+from the_alchemiser.shared.value_objects.core_types import OrderDetails
+from the_alchemiser.strategy.registry.strategy_registry import StrategyType
 
 if TYPE_CHECKING:
     from .portfolio_management_facade import (

@@ -11,10 +11,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from the_alchemiser.strategy.registry.strategy_registry import StrategyType
-from the_alchemiser.shared.value_objects.core_types import StrategySignal
-from the_alchemiser.shared.notifications.alert_service import Alert
 from the_alchemiser.shared.logging.logging_utils import get_logger, log_trade_event
+from the_alchemiser.shared.notifications.alert_service import Alert
+from the_alchemiser.shared.value_objects.core_types import StrategySignal
+from the_alchemiser.strategy.registry.strategy_registry import StrategyType
 
 
 def display_signal_results(

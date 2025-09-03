@@ -32,9 +32,6 @@ from the_alchemiser.portfolio.mappers.tracking_mapping import (
     orders_to_execution_summary_dto,
     strategy_pnl_to_dict,
 )
-from the_alchemiser.strategy.registry.strategy_registry import StrategyType
-from the_alchemiser.shared.config.config import load_settings
-from the_alchemiser.shared.utils.s3_utils import get_s3_handler
 from the_alchemiser.portfolio.schemas.tracking import (
     ExecutionStatus,
     StrategyExecutionSummaryDTO,
@@ -43,11 +40,14 @@ from the_alchemiser.portfolio.schemas.tracking import (
     StrategyPnLDTO,
     StrategyPositionDTO,
 )
+from the_alchemiser.shared.config.config import load_settings
 from the_alchemiser.shared.services.errors import TradingSystemErrorHandler
 from the_alchemiser.shared.types.exceptions import (
     DataProviderError,
     StrategyExecutionError,
 )
+from the_alchemiser.shared.utils.s3_utils import get_s3_handler
+from the_alchemiser.strategy.registry.strategy_registry import StrategyType
 
 # TODO: Import order history and email summary types once implementation aligns
 # from the_alchemiser.execution.core.execution_schemas import OrderHistoryDTO
@@ -540,10 +540,10 @@ class StrategyOrderTracker:
         """
         try:
             # Classify the error using the order error classification system
+            from the_alchemiser.shared.types.trading_errors import classify_exception
             from the_alchemiser.shared.value_objects.identifier import (
                 Identifier,
             )
-            from the_alchemiser.shared.types.trading_errors import classify_exception
 
             # Convert string order_id to Identifier for classification
             typed_order_id = None

@@ -8,6 +8,6 @@ This module contains the main portfolio management facades and orchestrators.
 from __future__ import annotations
 
 __all__ = [
-    "PortfolioManagementFacade",
     "PortfolioAnalysisService",
+    "PortfolioManagementFacade",
 ]

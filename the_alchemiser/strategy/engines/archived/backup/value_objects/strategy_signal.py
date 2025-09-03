@@ -9,8 +9,8 @@ from typing import Literal
 from the_alchemiser.shared.types.percentage import (
     Percentage,
 )
-from the_alchemiser.strategy.engines.archived.backup.value_objects.confidence import Confidence
 from the_alchemiser.shared.value_objects.symbol import Symbol
+from the_alchemiser.strategy.engines.archived.backup.value_objects.confidence import Confidence
 
 Action = Literal["BUY", "SELL", "HOLD"]
 

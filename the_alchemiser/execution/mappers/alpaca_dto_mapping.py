@@ -19,8 +19,8 @@ from decimal import Decimal
 from typing import Any, Literal, cast
 
 from the_alchemiser.execution.mappers.orders import normalize_order_status
-from the_alchemiser.execution.schemas.alpaca import AlpacaErrorDTO, AlpacaOrderDTO
 from the_alchemiser.execution.orders.order_schemas import OrderExecutionResultDTO
+from the_alchemiser.execution.schemas.alpaca import AlpacaErrorDTO, AlpacaOrderDTO
 
 logger = logging.getLogger(__name__)
 

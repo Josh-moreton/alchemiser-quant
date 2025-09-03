@@ -27,10 +27,11 @@ from __future__ import annotations
 
 from typing import Any
 
+from the_alchemiser.execution.core.execution_schemas import ExecutionResultDTO
+from the_alchemiser.shared.schemas.common import MultiStrategyExecutionResultDTO
+
 # Import DTOs for type-safe email rendering
 from the_alchemiser.shared.value_objects.core_types import AccountInfo, EnrichedAccountInfo
-from the_alchemiser.shared.schemas.common import MultiStrategyExecutionResultDTO
-from the_alchemiser.execution.core.execution_schemas import ExecutionResultDTO
 
 # Import all functions from the new modular structure
 from .client import EmailClient, send_email_notification

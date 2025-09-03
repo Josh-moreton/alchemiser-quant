@@ -30,12 +30,12 @@ from the_alchemiser.execution.mappers.alpaca_dto_mapping import (
     alpaca_order_to_execution_result,
     create_error_execution_result,
 )
-from the_alchemiser.shared.interfaces.repository_protocols import (
+from the_alchemiser.execution.orders.order_schemas import OrderExecutionResultDTO
+from the_alchemiser.shared.protocols.repository import (
     AccountRepository,
     MarketDataRepository,
     TradingRepository,
 )
-from the_alchemiser.execution.orders.order_schemas import OrderExecutionResultDTO
 
 if TYPE_CHECKING:
     from the_alchemiser.execution.orders.order_schemas import RawOrderEnvelope
