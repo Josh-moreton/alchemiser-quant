@@ -2,35 +2,34 @@
 
 ## Executive Summary
 
-This report identifies **4 confirmed shims and compatibility layers** in the codebase that require attention. This focused audit only includes files that are definitively shims, import redirections, or legacy compatibility code.
+This report identifies the **final 2 confirmed shims and compatibility layers** remaining in the codebase after comprehensive Phase 5 cleanup. This focused audit only includes files that are definitively shims, import redirections, or legacy compatibility code.
 
 **Risk Distribution:**
-- 🔴 **High Risk**: 2 items (mixed files with deprecated methods)
+- 🔴 **High Risk**: 0 items (all deprecated methods removed)
 - 🟡 **Medium Risk**: 2 items (import redirections)
 - 🟢 **Low Risk**: 0 items (backup files)
 
-**Active Usage**: 1 shims are actively imported by other files
+**Active Usage**: 1 file actively imported by other files (for operational methods)
 
 ## Detailed Findings
 
-### 🔴 HIGH RISK (2 items)
+### 🟡 MEDIUM RISK (2 items)
 
 **1. position_manager.py** **[1 imports]**
 - **File**: `the_alchemiser/portfolio/holdings/position_manager.py`
-- **Description**: Contains actual deprecation warnings but also operational methods
-- **Purpose**: Mixed file with deprecated methods and active operational code
-- **Suggested Action**: Keep operational methods, coordinate removal of deprecated methods
-- **Evidence**: Warning: PositionManager.validate_sell_position is deprecated. ...; Warning: PositionManager.validate_buying_power is deprecated. ...; Actively imported by 1 files for operational use
+- **Description**: Operational file with all deprecated methods removed
+- **Purpose**: Mixed file with only operational methods remaining (Phase 5 cleanup completed)
+- **Suggested Action**: **COMPLETE** - All deprecated methods removed, only operational code remains
+- **Evidence**: All deprecated methods successfully removed; Only operational methods used by AlpacaClient remain
 
 **2. asset_order_handler.py**
 - **File**: `the_alchemiser/execution/orders/asset_order_handler.py`
-- **Description**: Contains actual deprecation warnings but also operational methods
-- **Purpose**: Mixed file with deprecated methods and active operational code
-- **Suggested Action**: Keep operational methods, coordinate removal of deprecated methods
-- **Evidence**: Warning: AssetOrderHandler.handle_fractionability_error is deprecated. ...; Warning: AssetOrderHandler.handle_limit_order_fractionability_error is deprecated. ...
+- **Description**: Operational file with all deprecated methods removed
+- **Purpose**: Mixed file with only operational methods remaining (Phase 5 cleanup completed)
+- **Suggested Action**: **COMPLETE** - All deprecated methods removed, only operational code remains
+- **Evidence**: All deprecated methods successfully removed; Only operational methods remain
 
-### 🟡 MEDIUM RISK (2 items)
-**1. __init__.py**
+**3. __init__.py**
 - **File**: `the_alchemiser/shared/utils/__init__.py`
 - **Description**: Import redirection shim
 - **Purpose**: Redirects imports to new location
@@ -41,14 +40,13 @@ This report identifies **4 confirmed shims and compatibility layers** in the cod
 
 ### Immediate Actions Required
 
-1. **Review 2 high-risk mixed files** - These contain deprecated methods but also operational code
-2. **Handle 1 actively imported files** - Ensure operational methods remain available
-3. **Document deprecated method alternatives** - Provide clear migration paths
+1. **Review 1 medium-risk import redirection** - Shared utils import compatibility layer
+2. **Document migration paths** - Clear guidance for remaining import redirections
 
 ### Suggested Action Priority
 
 1. **Pure Import Redirections** → Update import statements, then remove shim (COMPLETED Phase 4a-4b)
-2. **Mixed Files with Deprecated Methods** → Coordinate removal of deprecated methods only
+2. **Mixed Files with Deprecated Methods** → **COMPLETED in Phase 5** - Deprecated methods removed from both files
 3. **Legacy Code** → Review, migrate functionality, then remove (COMPLETED Phase 3)
 4. **Deprecated Modules** → Already removed in Phase 4b (COMPLETED)
 
