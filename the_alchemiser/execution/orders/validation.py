@@ -55,13 +55,14 @@ class OrderValidationError(ValidationError):
 
 def classify_validation_failure(reason: str, data: dict[str, Any] | None = None) -> OrderError:
     """Classify a validation failure as an OrderError.
-    
+
     Args:
         reason: Reason for validation failure
         data: Optional additional data context
-        
+
     Returns:
         OrderError with classified failure information
+
     """
     context = {}
     if data:

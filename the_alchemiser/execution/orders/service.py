@@ -22,11 +22,11 @@ from enum import Enum
 
 from alpaca.trading.enums import TimeInForce
 
+from the_alchemiser.shared.math.num import floats_equal
 from the_alchemiser.shared.protocols.repository import (
     MarketDataRepository,
     TradingRepository,
 )
-from the_alchemiser.shared.math.num import floats_equal
 from the_alchemiser.shared.utils.decorators import translate_trading_errors
 
 logger = logging.getLogger(__name__)

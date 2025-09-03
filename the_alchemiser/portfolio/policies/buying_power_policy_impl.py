@@ -1,4 +1,4 @@
-"""Business Unit: utilities; Status: current.
+"""Business Unit: portfolio | Status: current
 
 Buying Power Policy Implementation
 
@@ -13,15 +13,16 @@ import logging
 from typing import TYPE_CHECKING
 
 from the_alchemiser.execution.orders.order_request import OrderRequest
-from the_alchemiser.portfolio.policies.protocols import DataProviderProtocol, TradingClientProtocol
-from the_alchemiser.shared.logging.logging_utils import log_with_context
-from the_alchemiser.shared.types.exceptions import BuyingPowerError, DataProviderError
 from the_alchemiser.execution.types.policy_result import (
     PolicyResult,
     PolicyWarning,
     create_approved_result,
     create_rejected_result,
 )
+from the_alchemiser.portfolio.policies.base_policy import BasePolicyImpl
+from the_alchemiser.portfolio.policies.protocols import DataProviderProtocol, TradingClientProtocol
+from the_alchemiser.shared.logging.logging_utils import log_with_context
+from the_alchemiser.shared.types.exceptions import BuyingPowerError, DataProviderError
 
 if TYPE_CHECKING:
     pass
@@ -29,7 +30,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class BuyingPowerPolicyImpl:
+class BuyingPowerPolicyImpl(BasePolicyImpl):
     """Concrete implementation of buying power policy.
 
     Handles validation of orders against available buying power and raises
@@ -47,9 +48,9 @@ class BuyingPowerPolicyImpl:
             data_provider: Data provider for price information
 
         """
+        super().__init__("BuyingPowerPolicy")
         self.trading_client = trading_client
         self.data_provider = data_provider
-        self._policy_name = "BuyingPowerPolicy"
 
     def validate_and_adjust(self, order_request: OrderRequest) -> PolicyResult:
         """Validate order against available buying power.
@@ -289,7 +290,4 @@ class BuyingPowerPolicyImpl:
                 symbol=symbol,
             ) from e
 
-    @property
-    def policy_name(self) -> str:
-        """Get the name of this policy for logging and identification."""
-        return self._policy_name
+    # Remove duplicate policy_name property as it's inherited from BasePolicyImpl

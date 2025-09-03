@@ -1,4 +1,4 @@
-"""Business Unit: utilities; Status: current.
+"""Business Unit: portfolio | Status: current
 
 Risk Policy Implementation
 
@@ -13,14 +13,15 @@ from decimal import Decimal
 from typing import TYPE_CHECKING
 
 from the_alchemiser.execution.orders.order_request import OrderRequest
-from the_alchemiser.portfolio.policies.protocols import DataProviderProtocol, TradingClientProtocol
-from the_alchemiser.shared.logging.logging_utils import log_with_context
 from the_alchemiser.execution.types.policy_result import (
     PolicyResult,
     PolicyWarning,
     create_approved_result,
     create_rejected_result,
 )
+from the_alchemiser.portfolio.policies.base_policy import BasePolicyImpl
+from the_alchemiser.portfolio.policies.protocols import DataProviderProtocol, TradingClientProtocol
+from the_alchemiser.shared.logging.logging_utils import log_with_context
 
 if TYPE_CHECKING:
     pass
@@ -28,7 +29,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class RiskPolicyImpl:
+class RiskPolicyImpl(BasePolicyImpl):
     """Concrete implementation of risk policy.
 
     Provides basic risk assessment functionality with configurable thresholds.
@@ -54,9 +55,9 @@ class RiskPolicyImpl:
             max_order_size_pct: Maximum order size as percentage of portfolio
 
         """
+        super().__init__("RiskPolicy")
         self.trading_client = trading_client
         self.data_provider = data_provider
-        self._policy_name = "RiskPolicy"
         self._max_risk_score = max_risk_score
         self.max_position_concentration = max_position_concentration
         self.max_order_size_pct = max_order_size_pct
@@ -352,7 +353,4 @@ class RiskPolicyImpl:
         """Get the maximum acceptable risk score."""
         return self._max_risk_score
 
-    @property
-    def policy_name(self) -> str:
-        """Get the name of this policy for logging and identification."""
-        return self._policy_name
+    # Remove duplicate policy_name property as it's inherited from BasePolicyImpl

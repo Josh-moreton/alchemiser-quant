@@ -17,6 +17,7 @@ from the_alchemiser.portfolio.schemas.rebalancing import (
     RebalancingImpactDTO,
     RebalancingSummaryDTO,
 )
+from the_alchemiser.portfolio.utils.portfolio_utilities import PortfolioUtilities
 from the_alchemiser.shared.adapters import (
     portfolio_state_to_dto,
     rebalance_plan_to_order_requests,
@@ -28,7 +29,6 @@ from the_alchemiser.shared.dto import (
     RebalancePlanDTO,
     StrategySignalDTO,
 )
-from the_alchemiser.shared.errors.error_handler import TradingSystemErrorHandler
 
 from ..holdings.position_analyzer import PositionAnalyzer
 from ..holdings.position_delta import PositionDelta
@@ -275,8 +275,8 @@ class PortfolioRebalancingService:
 
         """
         try:
-            current_positions = self._get_current_position_values()
-            portfolio_value = self._get_portfolio_value()
+            current_positions = self._portfolio_utils.get_current_position_values()
+            portfolio_value = self._portfolio_utils.get_portfolio_value()
 
             # Calculate position deltas
             position_deltas = self.analyze_position_deltas(
@@ -359,79 +359,6 @@ class PortfolioRebalancingService:
                 error=f"Failed to estimate rebalancing impact: {e}",
             )
 
-    def _get_current_position_values(self) -> dict[str, Decimal]:
-        """Get current position values from trading manager."""
-        positions = self.trading_manager.get_all_positions()
-        values: dict[str, Decimal] = {}
-        for pos in positions:
-            try:
-                mv = Decimal(str(getattr(pos, "market_value", 0) or 0))
-            except Exception:
-                mv = Decimal("0")
-            if mv > Decimal("0"):
-                values[getattr(pos, "symbol", "")] = mv
-        return values
-
-    def _get_portfolio_value(self) -> Decimal:
-        """Get total portfolio value from trading manager.
-
-        Returns:
-            Decimal: The portfolio value
-
-        Raises:
-            ValueError: If portfolio_dto is None or portfolio_dto.value is not a valid Decimal
-
-        """
-        try:
-            portfolio_dto = self.trading_manager.get_portfolio_value()
-
-            # Defensive validation: ensure we got a valid PortfolioValueDTO
-            if portfolio_dto is None:
-                error_handler = TradingSystemErrorHandler()
-                error = ValueError("Portfolio DTO is None - potential upstream schema drift")
-                error_handler.handle_error(
-                    error=error,
-                    component="PortfolioRebalancingService._get_portfolio_value",
-                    context="portfolio value retrieval",
-                    additional_data={"portfolio_dto": None},
-                )
-                raise error
-
-            # Defensive validation: ensure portfolio_dto.value is a valid Decimal
-            if not isinstance(portfolio_dto.value, Decimal):
-                error_handler = TradingSystemErrorHandler()
-                error = ValueError(
-                    f"Portfolio value is not a Decimal: {type(portfolio_dto.value)} - "
-                    f"potential upstream schema drift"
-                )
-                error_handler.handle_error(
-                    error=error,
-                    component="PortfolioRebalancingService._get_portfolio_value",
-                    context="portfolio value validation",
-                    additional_data={
-                        "portfolio_dto_type": str(type(portfolio_dto)),
-                        "value_type": str(type(portfolio_dto.value)),
-                        "value_repr": repr(portfolio_dto.value),
-                    },
-                )
-                raise error
-
-            return portfolio_dto.value
-
-        except Exception as e:
-            # Re-raise if already handled above, otherwise handle and re-raise
-            if isinstance(e, ValueError) and "schema drift" in str(e):
-                raise
-
-            error_handler = TradingSystemErrorHandler()
-            error_handler.handle_error(
-                error=e,
-                component="PortfolioRebalancingService._get_portfolio_value",
-                context="portfolio value retrieval - unexpected error",
-                additional_data={"error_type": str(type(e))},
-            )
-            raise
-
     def _calculate_strategy_changes(
         self, current_exposures: dict[str, Any], target_exposures: dict[str, Any]
     ) -> dict[str, Decimal]:
@@ -466,8 +393,8 @@ class PortfolioRebalancingService:
         """
         try:
             # Get current portfolio data
-            current_positions = self._get_current_position_values()
-            portfolio_value = self._get_portfolio_value()
+            current_positions = self._portfolio_utils.get_current_position_values()
+            portfolio_value = self._portfolio_utils.get_portfolio_value()
 
             # Get account summary for additional metrics
             account_summary = self.trading_manager.get_account_summary()
@@ -624,7 +551,7 @@ class PortfolioRebalancingService:
 
             # Convert plans to DTO items
             items = []
-            total_portfolio_value = self._get_portfolio_value()
+            total_portfolio_value = self._portfolio_utils.get_portfolio_value()
             total_trade_value = Decimal("0")
 
             for symbol, plan in plan_collection.plans.items():

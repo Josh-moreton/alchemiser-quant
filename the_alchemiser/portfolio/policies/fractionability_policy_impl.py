@@ -1,4 +1,4 @@
-"""Business Unit: utilities; Status: current.
+"""Business Unit: portfolio | Status: current
 
 Fractionability policy implementation.
 
@@ -13,14 +13,15 @@ from decimal import ROUND_DOWN, Decimal
 from typing import TYPE_CHECKING
 
 from the_alchemiser.execution.orders.order_request import OrderRequest
-from the_alchemiser.shared.logging.logging_utils import log_with_context
-from the_alchemiser.shared.math.asset_info import fractionability_detector
 from the_alchemiser.execution.types.policy_result import (
     PolicyResult,
     PolicyWarning,
     create_approved_result,
     create_rejected_result,
 )
+from the_alchemiser.portfolio.policies.base_policy import BasePolicyImpl
+from the_alchemiser.shared.logging.logging_utils import log_with_context
+from the_alchemiser.shared.math.asset_info import fractionability_detector
 from the_alchemiser.shared.types.quantity import Quantity
 
 if TYPE_CHECKING:
@@ -29,7 +30,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class FractionabilityPolicyImpl:
+class FractionabilityPolicyImpl(BasePolicyImpl):
     """Concrete implementation of fractionability policy.
 
     Handles validation and adjustment of order quantities based on asset
@@ -39,7 +40,7 @@ class FractionabilityPolicyImpl:
 
     def __init__(self) -> None:
         """Initialize the fractionability policy."""
-        self._policy_name = "FractionabilityPolicy"
+        super().__init__("FractionabilityPolicy")
 
     def validate_and_adjust(self, order_request: OrderRequest) -> PolicyResult:
         """Validate and adjust order quantity based on fractionability rules.
@@ -215,7 +216,4 @@ class FractionabilityPolicyImpl:
         """
         return fractionability_detector.convert_to_whole_shares(symbol, quantity, price or 0.0)
 
-    @property
-    def policy_name(self) -> str:
-        """Get the name of this policy for logging and identification."""
-        return self._policy_name
+    # Remove duplicate policy_name property as it's inherited from BasePolicyImpl

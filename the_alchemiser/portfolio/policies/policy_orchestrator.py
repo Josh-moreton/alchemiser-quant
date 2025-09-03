@@ -17,12 +17,12 @@ from the_alchemiser.execution.orders.order_schemas import (
     AdjustedOrderRequestDTO,
     OrderRequestDTO,
 )
+from the_alchemiser.execution.types.policy_result import PolicyResult, PolicyWarning
 from the_alchemiser.portfolio.mappers.policy_mapping import (
     domain_result_to_dto,
     dto_to_domain_order_request,
 )
 from the_alchemiser.shared.logging.logging_utils import log_with_context
-from the_alchemiser.execution.types.policy_result import PolicyResult, PolicyWarning
 
 if TYPE_CHECKING:
     from the_alchemiser.portfolio.policies.buying_power_policy_impl import (

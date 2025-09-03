@@ -77,13 +77,13 @@ from the_alchemiser.execution.orders.asset_order_handler import AssetOrderHandle
 from the_alchemiser.execution.pricing.smart_pricing_handler import (
     SmartPricingHandler,
 )
+from the_alchemiser.portfolio.positions.legacy_position_manager import PositionManager
 
 # DEPRECATED: LimitOrderHandler import removed - use CanonicalOrderExecutor instead
 # (Legacy order validation utilities removed with legacy paths)
 from the_alchemiser.shared.services.websocket_connection_manager import (
     WebSocketConnectionManager,
 )
-from the_alchemiser.portfolio.positions.legacy_position_manager import PositionManager
 
 logger = logging.getLogger(__name__)
 
