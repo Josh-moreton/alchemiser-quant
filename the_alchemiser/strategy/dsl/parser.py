@@ -49,6 +49,7 @@ class Vector:
     
     Attributes:
         elements: List of elements contained in the vector.
+
     """
     elements: list[Any]
 
@@ -67,6 +68,7 @@ class DSLParser:
     Attributes:
         MAX_DEPTH: Default maximum recursion depth (5,000,000)
         MAX_NODES: Default maximum AST nodes (2,000,000,000)
+
     """
     MAX_DEPTH = 5000000  # Default very high for extremely nested strategies
     MAX_NODES = 2000000000  # Default very high for massive complex strategies

@@ -22,6 +22,7 @@ class PositionSummary:
         market_value: Total market value (qty * current_price)
         unrealized_pl: Unrealized profit/loss amount
         unrealized_plpc: Unrealized profit/loss percentage
+
     """
     symbol: str
     qty: Decimal

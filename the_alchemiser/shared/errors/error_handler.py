@@ -756,6 +756,7 @@ class CircuitBreaker:
             
         Raises:
             CircuitBreakerOpenError: When circuit is open and timeout hasn't elapsed.
+
         """
         @wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> Any:

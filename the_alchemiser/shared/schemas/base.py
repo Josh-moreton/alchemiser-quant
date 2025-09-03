@@ -21,7 +21,13 @@ class Result(BaseModel):
     error: str | None = None
 
     @property
-    def is_success(self) -> bool:  # Convenience mirror
+    def is_success(self) -> bool:
+        """Check if operation was successful.
+        
+        Returns:
+            True if operation succeeded, False otherwise.
+
+        """
         return self.success
 
 

@@ -78,6 +78,18 @@ class TradingPlan(BaseModel):
     @field_validator("symbol")
     @classmethod
     def validate_symbol(cls, v: str) -> str:
+        """Validate and normalize trading symbol.
+        
+        Args:
+            v: Raw symbol string to validate
+            
+        Returns:
+            Cleaned and normalized symbol (uppercase, alphanumeric)
+            
+        Raises:
+            ValueError: If symbol is empty or contains invalid characters
+
+        """
         if not v or not v.strip():  # pragma: no cover - defensive
             raise ValueError("Symbol cannot be empty")
         symbol = v.strip().upper()

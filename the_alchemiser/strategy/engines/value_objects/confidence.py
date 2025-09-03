@@ -22,6 +22,7 @@ class Confidence:
         
         Returns:
             True if confidence value is 0.7 or higher.
+
         """
         return self.value >= Decimal("0.7")
 
@@ -31,5 +32,6 @@ class Confidence:
         
         Returns:
             True if confidence value is 0.3 or lower.
+
         """
         return self.value <= Decimal("0.3")

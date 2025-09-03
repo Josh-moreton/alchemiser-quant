@@ -33,6 +33,12 @@ class ExecutionContextAdapter:
     """Adapter to provide ExecutionContext interface using canonical executor."""
 
     def __init__(self, order_executor: OrderExecutor) -> None:
+        """Initialize adapter with an OrderExecutor instance.
+        
+        Args:
+            order_executor: OrderExecutor instance to wrap
+
+        """
         self._order_executor = order_executor
 
     def place_limit_order(
@@ -115,6 +121,7 @@ class ExecutionContextAdapter:
 
         Returns:
             WebSocket result DTO containing order completion status.
+
         """
         return self._order_executor.wait_for_order_completion(order_ids, max_wait_seconds)
 
@@ -127,5 +134,6 @@ class ExecutionContextAdapter:
         Returns:
             Tuple of (bid, ask) prices as floats, or None if unavailable.
             Note: Boundary returns floats; strategy layer converts to Decimal precisely.
+
         """
         return self._order_executor.data_provider.get_latest_quote(symbol)

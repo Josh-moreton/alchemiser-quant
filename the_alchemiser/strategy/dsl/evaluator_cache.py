@@ -134,6 +134,7 @@ class NodeEvaluationCache:
         Returns:
             Tuple of (cache_hit: bool, result: Any). If cache_hit is False,
             result will be None.
+
         """
         global _memo_stats
         cache_key = (node_id, context.cache_key())
@@ -154,6 +155,7 @@ class NodeEvaluationCache:
             node_id: Unique identifier for the DSL node
             context: Evaluation context containing cache key components  
             result: Evaluation result to cache
+
         """
         cache_key = (node_id, context.cache_key())
         with self._lock:
@@ -174,6 +176,7 @@ class NodeEvaluationCache:
 
         Returns:
             Dictionary containing cache size, maximum size, and utilization percentage.
+
         """
         with self._lock:
             size = len(self._store)

@@ -445,6 +445,7 @@ class AccountFacade:
 
         Returns:
             Serialized dictionary containing minimal account summary data.
+
         """
         default_account = _create_default_account_info("error")
         minimal_metrics = AccountMetricsDTO(

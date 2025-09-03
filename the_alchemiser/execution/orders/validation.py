@@ -59,6 +59,7 @@ def classify_validation_failure(reason: str, data: dict[str, Any] | None = None)
         
     Returns:
         OrderError with classified failure information
+
     """
     context = {}
     if data:

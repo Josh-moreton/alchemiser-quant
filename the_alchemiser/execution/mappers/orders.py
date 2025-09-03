@@ -60,6 +60,7 @@ def normalize_order_status(raw: str) -> OrderStatusLiteral:
         
     Returns:
         Normalized OrderStatusLiteral value.
+
     """
     token = (raw or "").strip().lower()
     if not token:

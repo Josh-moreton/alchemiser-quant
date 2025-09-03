@@ -38,6 +38,7 @@ class AccountMetrics:
         market_exposure: Ratio of market value to total equity  
         leverage_ratio: Optional leverage ratio if applicable
         available_buying_power_ratio: Ratio of available buying power to equity
+
     """
     cash_ratio: Decimal
     market_exposure: Decimal
@@ -60,6 +61,7 @@ class AccountSummaryTyped:
         buying_power: Available buying power
         last_equity: Previous equity value for comparison
         day_trade_count: Number of day trades in current period
+
     """
     account_id: str
     equity: Money

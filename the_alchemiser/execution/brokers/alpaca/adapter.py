@@ -861,5 +861,6 @@ def create_alpaca_manager(
 
     Returns:
         Configured AlpacaManager instance ready for trading operations.
+
     """
     return AlpacaManager(api_key=api_key, secret_key=secret_key, paper=paper, base_url=base_url)

@@ -52,6 +52,7 @@ def bars_to_domain(rows: Iterable[dict[str, Any]]) -> list[BarModel]:
     Returns:
         List of BarModel domain objects with Decimal precision for prices.
         Rows with invalid timestamps are skipped.
+
     """
     out: list[BarModel] = []
     for r in rows:
