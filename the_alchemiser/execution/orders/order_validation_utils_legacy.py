@@ -1,18 +1,12 @@
-from __future__ import annotations
-
 """Business Unit: execution | Status: current
 
 Order Validation Utils Legacy - migrated from legacy location.
-"""
-
-#!/usr/bin/env python3
-"""Business Unit: order execution/placement; Status: current.
-Order Validation Utilities.
 
 This module provides helper functions for validating order parameters,
 including quantity validation, price validation, and parameter normalization.
 """
 
+from __future__ import annotations
 
 import logging
 import math

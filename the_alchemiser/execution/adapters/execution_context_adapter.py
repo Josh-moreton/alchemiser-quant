@@ -107,8 +107,25 @@ class ExecutionContextAdapter:
     def wait_for_order_completion(
         self, order_ids: list[str], max_wait_seconds: int = 30
     ) -> Any:  # WebSocketResultDTO
+        """Wait for order completion using WebSocket monitoring.
+
+        Args:
+            order_ids: List of order IDs to monitor
+            max_wait_seconds: Maximum time to wait for completion
+
+        Returns:
+            WebSocket result DTO containing order completion status.
+        """
         return self._order_executor.wait_for_order_completion(order_ids, max_wait_seconds)
 
     def get_latest_quote(self, symbol: str) -> tuple[float, float] | None:
-        # Boundary returns floats; strategy layer converts to Decimal precisely
+        """Get latest bid/ask quote for a symbol.
+
+        Args:
+            symbol: Trading symbol to get quote for
+
+        Returns:
+            Tuple of (bid, ask) prices as floats, or None if unavailable.
+            Note: Boundary returns floats; strategy layer converts to Decimal precisely.
+        """
         return self._order_executor.data_provider.get_latest_quote(symbol)

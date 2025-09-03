@@ -42,6 +42,14 @@ from the_alchemiser.strategy.dsl.errors import ParseError, SchemaError
 
 @dataclass(frozen=True)
 class Vector:
+    """Vector data structure for DSL evaluation.
+    
+    A simple container for a list of elements used in DSL expressions.
+    Frozen dataclass ensures immutability during evaluation.
+    
+    Attributes:
+        elements: List of elements contained in the vector.
+    """
     elements: list[Any]
 
 

@@ -125,6 +125,16 @@ class NodeEvaluationCache:
         self._lock = RLock()
 
     def get(self, node_id: str, context: EvalContext) -> tuple[bool, Any]:
+        """Retrieve cached evaluation result for a node.
+
+        Args:
+            node_id: Unique identifier for the DSL node
+            context: Evaluation context containing cache key components
+
+        Returns:
+            Tuple of (cache_hit: bool, result: Any). If cache_hit is False,
+            result will be None.
+        """
         global _memo_stats
         cache_key = (node_id, context.cache_key())
         with self._lock:
@@ -138,6 +148,13 @@ class NodeEvaluationCache:
             return False, None
 
     def set(self, node_id: str, context: EvalContext, result: Any) -> None:
+        """Store evaluation result in cache with LRU eviction.
+
+        Args:
+            node_id: Unique identifier for the DSL node
+            context: Evaluation context containing cache key components  
+            result: Evaluation result to cache
+        """
         cache_key = (node_id, context.cache_key())
         with self._lock:
             self._store[cache_key] = result
@@ -148,10 +165,16 @@ class NodeEvaluationCache:
                 _memo_stats["evictions"] += 1
 
     def clear(self) -> None:
+        """Clear all cached entries."""
         with self._lock:
             self._store.clear()
 
     def get_info(self) -> dict[str, Any]:
+        """Get cache utilization information.
+
+        Returns:
+            Dictionary containing cache size, maximum size, and utilization percentage.
+        """
         with self._lock:
             size = len(self._store)
             return {

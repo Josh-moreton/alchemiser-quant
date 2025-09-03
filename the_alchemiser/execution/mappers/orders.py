@@ -50,6 +50,17 @@ _STATUS_SYNONYMS: dict[str, OrderStatusLiteral] = {
 
 
 def normalize_order_status(raw: str) -> OrderStatusLiteral:
+    """Normalize raw order status string to OrderStatusLiteral.
+    
+    Maps various broker status strings to standardized order status literals.
+    Unknown statuses default to 'new' with a warning log.
+    
+    Args:
+        raw: Raw order status string from broker
+        
+    Returns:
+        Normalized OrderStatusLiteral value.
+    """
     token = (raw or "").strip().lower()
     if not token:
         return "new"

@@ -9,6 +9,20 @@ from typing import Any
 
 @dataclass(frozen=True)
 class PositionSummary:
+    """Summary of position data with decimal precision.
+    
+    Contains key position metrics calculated with precise decimal arithmetic
+    for financial accuracy.
+    
+    Attributes:
+        symbol: Trading symbol (e.g., 'AAPL', 'TECL')
+        qty: Position quantity as precise Decimal
+        avg_entry_price: Average entry price as precise Decimal  
+        current_price: Current market price as precise Decimal
+        market_value: Total market value (qty * current_price)
+        unrealized_pl: Unrealized profit/loss amount
+        unrealized_plpc: Unrealized profit/loss percentage
+    """
     symbol: str
     qty: Decimal
     avg_entry_price: Decimal
