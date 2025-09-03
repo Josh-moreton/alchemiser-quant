@@ -9,49 +9,68 @@
 This report provides a comprehensive audit of legacy, archived, and backup files within the `the_alchemiser/strategy` module. After detailed analysis, we have identified **23 total files** that fall into these categories, with **14 files that are safe to delete** as they are exact duplicates or deprecated shims.
 
 **Key Findings:**
-- ✅ 14 files are safe to delete (exact duplicates or deprecated shims)
-- ⚠️ 7 files still have active imports and require migration before deletion  
-- 🔍 All archived KLM strategy variants are identical duplicates
+- ✅ **COMPLETED**: 13 files deleted (archived KLM variants and deprecated shims)
+- ⚠️ 10 files still have active imports and require migration before deletion  
+- 🔍 All archived KLM strategy variants were identical duplicates (DELETED)
 - 🔍 Several backup files are still referenced by current code
-- 🔍 Additional deprecated shim files found with active imports
+- 🔍 Deprecated shim files have been removed (DELETED)
+
+**Progress Update**: **Phase 1 complete** - 13 of 23 legacy files successfully deleted with zero risk.
 
 ## Detailed Analysis by Category
 
-### 1. Archived KLM Strategy Variants (8 files) - ✅ SAFE TO DELETE
+### 1. Archived KLM Strategy Variants (8 files) - ✅ **COMPLETED DELETION**
 
-**Location**: `the_alchemiser/strategy/archived/klm/`
+**Location**: `the_alchemiser/strategy/archived/klm/` - **DIRECTORY DELETED**
 
-All 8 KLM strategy variant files in the archived directory are **identical duplicates** of the active versions in `the_alchemiser/strategy/engines/klm_workers/`:
+All 8 KLM strategy variant files in the archived directory were **identical duplicates** of the active versions in `the_alchemiser/strategy/engines/klm_workers/`:
 
 | Archived File | Current Replacement | Status |
 |---------------|---------------------|--------|
-| `archived/klm/base_variant.py` | `engines/klm_workers/base_klm_variant.py` | ✅ IDENTICAL |
-| `archived/klm/variant_1280_26.py` | `engines/klm_workers/variant_1280_26.py` | ✅ IDENTICAL |
-| `archived/klm/variant_410_38.py` | `engines/klm_workers/variant_410_38.py` | ✅ IDENTICAL |
-| `archived/klm/variant_506_38.py` | `engines/klm_workers/variant_506_38.py` | ✅ IDENTICAL |
-| `archived/klm/variant_520_22.py` | `engines/klm_workers/variant_520_22.py` | ✅ IDENTICAL |
-| `archived/klm/variant_530_18.py` | `engines/klm_workers/variant_530_18.py` | ✅ IDENTICAL |
-| `archived/klm/variant_830_21.py` | `engines/klm_workers/variant_830_21.py` | ✅ IDENTICAL |
-| `archived/klm/variant_nova.py` | `engines/klm_workers/variant_nova.py` | ✅ IDENTICAL |
+| `archived/klm/base_variant.py` | `engines/klm_workers/base_klm_variant.py` | ✅ **DELETED** |
+| `archived/klm/variant_1280_26.py` | `engines/klm_workers/variant_1280_26.py` | ✅ **DELETED** |
+| `archived/klm/variant_410_38.py` | `engines/klm_workers/variant_410_38.py` | ✅ **DELETED** |
+| `archived/klm/variant_506_38.py` | `engines/klm_workers/variant_506_38.py` | ✅ **DELETED** |
+| `archived/klm/variant_520_22.py` | `engines/klm_workers/variant_520_22.py` | ✅ **DELETED** |
+| `archived/klm/variant_530_18.py` | `engines/klm_workers/variant_530_18.py` | ✅ **DELETED** |
+| `archived/klm/variant_830_21.py` | `engines/klm_workers/variant_830_21.py` | ✅ **DELETED** |
+| `archived/klm/variant_nova.py` | `engines/klm_workers/variant_nova.py` | ✅ **DELETED** |
 
-**Recommendation**: Delete entire `archived/klm/` directory - these are exact duplicates moved during the EPIC #424 migration.
+**Result**: Entire `archived/klm/` directory successfully deleted - these were exact duplicates moved during the EPIC #424 migration.
 
-### 2. Deprecated Shim Files (5 files) - ✅ SAFE TO DELETE
+### 2. Deprecated Shim Files (5 files) - ✅ **COMPLETED DELETION**
 
-**2.1 Archived Nuclear Logic Shim**
+**2.1 Archived Nuclear Logic Shim** - ✅ **DELETED**
 - **File**: `the_alchemiser/strategy/engines/archived/nuclear_logic.py`
-- **Status**: Deprecated backward compatibility shim
-- **Content**: Contains only deprecation warning and import redirect
+- **Status**: Deprecated backward compatibility shim - **DELETED**
+- **Content**: Contained only deprecation warning and import redirect
 - **Replacement**: `the_alchemiser/strategy/engines/nuclear_logic.py` (active implementation)
-- **Recommendation**: ✅ DELETE - deprecated shim no longer needed
+- **Action Taken**: Import updated in `nuclear_typed_backup.py` and shim deleted
 
-**2.2 Legacy Nuclear Logic Copy**
+**2.2 Legacy Nuclear Logic Copy** - ✅ **DELETED**
 - **File**: `the_alchemiser/strategy/engines/legacy/nuclear_logic.py`  
-- **Status**: Identical copy of current implementation
+- **Status**: Identical copy of current implementation - **DELETED**
 - **Replacement**: `the_alchemiser/strategy/engines/nuclear_logic.py` (same content)
-- **Recommendation**: ✅ DELETE - exact duplicate
 
-**2.3 Legacy Indicator Utils Shim**
+**2.3 Legacy Math Indicators Shim** - ✅ **DELETED**
+- **File**: `the_alchemiser/strategy/indicators/math_indicators.py`
+- **Status**: Deprecated backward compatibility shim - **DELETED**  
+- **Content**: Redirected imports to `indicators.py` with deprecation warning
+- **Active Imports**: 0 files found
+- **Replacement**: `the_alchemiser/strategy/indicators/indicators.py`
+
+**2.4 Legacy DSL Init** - ✅ **DELETED**
+- **File**: `the_alchemiser/strategy/dsl/legacy_init.py`
+- **Status**: Legacy DSL module exports - **DELETED**
+- **Active Imports**: 0 files found  
+- **Replacement**: `the_alchemiser/strategy/dsl/__init__.py`
+
+**2.5 Orphaned Backup KLM Worker** - ✅ **DELETED**
+- **File**: `the_alchemiser/strategy/engines/archived/backup/klm_workers/variant_1200_28.py`
+- **Status**: Orphaned backup file - **DELETED**
+- **Active Imports**: 0 files found (current version exists in proper location)
+
+**2.6 Legacy Indicator Utils Shim** - ⚠️ **REQUIRES MIGRATION**
 - **File**: `the_alchemiser/strategy/indicators/utils.py`
 - **Status**: Deprecated backward compatibility shim
 - **Content**: Redirects imports to `indicator_utils.py` with deprecation warning
@@ -59,22 +78,7 @@ All 8 KLM strategy variant files in the archived directory are **identical dupli
 - **Replacement**: `the_alchemiser/strategy/indicators/indicator_utils.py`
 - **Recommendation**: ⚠️ MIGRATE IMPORTS FIRST - 3 files use this shim
 
-**2.4 Legacy Math Indicators Shim**
-- **File**: `the_alchemiser/strategy/indicators/math_indicators.py`
-- **Status**: Deprecated backward compatibility shim  
-- **Content**: Redirects imports to `indicators.py` with deprecation warning
-- **Active Imports**: 0 files found
-- **Replacement**: `the_alchemiser/strategy/indicators/indicators.py`
-- **Recommendation**: ✅ DELETE - no active usage found
-
-**2.5 Legacy DSL Init**
-- **File**: `the_alchemiser/strategy/dsl/legacy_init.py`
-- **Status**: Legacy DSL module exports
-- **Active Imports**: 0 files found  
-- **Replacement**: `the_alchemiser/strategy/dsl/__init__.py`
-- **Recommendation**: ✅ DELETE - no active usage found
-
-### 3. Files with Active Imports (10 files) - ⚠️ REQUIRE MIGRATION
+### 3. Files with Active Imports (9 files) - ⚠️ REQUIRE MIGRATION
 
 These files are still actively imported by current code and cannot be deleted until imports are migrated:
 
@@ -87,19 +91,13 @@ These files are still actively imported by current code and cannot be deleted un
 - `engines/archived/backup/models/strategy_position_model.py` - **1 active import**
 - `engines/archived/backup/models/strategy_signal_model.py` - **1 active import**
 
-**3.3 Backup KLM Worker (1 file) - ORPHANED**
-- `engines/archived/backup/klm_workers/variant_1200_28.py` - **0 imports found**
-
-**3.4 Deprecated Shim with Active Usage (1 file) - REQUIRES MIGRATION**
+**3.3 Deprecated Shim with Active Usage (1 file) - REQUIRES MIGRATION**
 - `indicators/utils.py` - **3 active imports** (from backup engines)
 
-**3.5 Backup Strategy Engines (3 files) - ACTIVELY USED**
+**3.4 Backup Strategy Engines (3 files) - ACTIVELY USED**
 - `engines/nuclear_typed_backup.py` - Contains current implementation but imports from backup
 - `engines/tecl_strategy_backup.py` - Contains current implementation but imports from backup  
 - `engines/legacy/backup_engine.py` - Contains StrategyEngine base class
-
-**3.6 Legacy Manager (1 file) - MINIMAL CONTENT**
-- `managers/legacy_strategy_manager.py` - Empty file with business unit docstring only
 
 ## Import Dependencies Analysis
 
@@ -125,15 +123,17 @@ from the_alchemiser.strategy.engines.archived.backup.models.* import *
 
 ## Migration Requirements
 
-### Phase 1: Safe Deletions (11 files) - ✅ READY NOW
-1. Delete `strategy/archived/klm/` directory (8 files)
-2. Delete `strategy/engines/archived/nuclear_logic.py` (deprecated shim)
-3. Delete `strategy/engines/legacy/nuclear_logic.py` (duplicate)
-4. Delete `strategy/indicators/math_indicators.py` (deprecated shim, no usage)
-5. Delete `strategy/dsl/legacy_init.py` (no active usage found)
+### Phase 1: Safe Deletions (13 files) - ✅ **COMPLETED**
+1. ✅ **DELETED** `strategy/archived/klm/` directory (8 files)
+2. ✅ **DELETED** `strategy/engines/archived/nuclear_logic.py` (deprecated shim)
+3. ✅ **DELETED** `strategy/engines/legacy/nuclear_logic.py` (duplicate)
+4. ✅ **DELETED** `strategy/indicators/math_indicators.py` (deprecated shim, no usage)
+5. ✅ **DELETED** `strategy/dsl/legacy_init.py` (no active usage found)
+6. ✅ **DELETED** `strategy/engines/archived/backup/klm_workers/variant_1200_28.py` (orphaned)
+7. ✅ **UPDATED** Import in `nuclear_typed_backup.py` to use current nuclear_logic
 
 ### Phase 2: Shim Migration (1 file) - ⚠️ REQUIRES 3 IMPORT UPDATES
-Before deleting the deprecated indicator utils shim:
+Before deleting the remaining deprecated indicator utils shim:
 
 | Deprecated Shim | Current Replacement | Migration Action |
 |----------------|-------------------|------------------|
@@ -159,14 +159,12 @@ Before deleting these backup value objects, update imports to use current versio
 | `archived/backup/models/strategy_position_model.py` | `engines/models/strategy_position_model.py` | Update 1 import statement |
 | `archived/backup/models/strategy_signal_model.py` | `engines/models/strategy_signal_model.py` | Update 1 import statement |
 
-### Phase 5: Cleanup Remaining Files (6 files) - 🔍 REQUIRES ANALYSIS
+### Phase 5: Cleanup Remaining Files (5 files) - 🔍 REQUIRES ANALYSIS
 These files need individual assessment:
-- `engines/nuclear_typed_backup.py` - Rename to remove "backup" suffix
+- `engines/nuclear_typed_backup.py` - Rename to remove "backup" suffix  
 - `engines/tecl_strategy_backup.py` - Rename to remove "backup" suffix
 - `engines/legacy/backup_engine.py` - Move to proper location
 - `managers/legacy_strategy_manager.py` - Verify if needed
-- `dsl/legacy_init.py` - Verify if needed
-- `engines/archived/backup/klm_workers/variant_1200_28.py` - Appears orphaned
 
 ## Safety Verification
 
@@ -186,30 +184,33 @@ These files need individual assessment:
 
 | Category | Total Files | Safe to Delete | Require Migration | Notes |
 |----------|-------------|----------------|-------------------|--------|
-| KLM Archived Variants | 8 | 8 | 0 | Exact duplicates |
-| Deprecated Shims | 5 | 4 | 1 | 1 has 3 active imports |
+| KLM Archived Variants | 8 | ✅ **8 DELETED** | 0 | Exact duplicates |
+| Deprecated Shims | 6 | ✅ **5 DELETED** | 1 | 1 has 3 active imports |
 | Backup Value Objects | 3 | 0 | 3 | 9 active imports total |
 | Backup Models | 2 | 0 | 2 | 2 active imports total |
 | Backup Engines | 3 | 0 | 3 | Various complexity |
 | Legacy Manager | 1 | 0 | 1 | Empty file |
-| Orphaned Files | 1 | 1 | 0 | No imports found |
-| **TOTAL** | **23** | **13** | **10** | |
+| Orphaned Files | 0 | ✅ **0 DELETED** | 0 | All orphaned files deleted |
+| **TOTAL** | **23** | **✅ 13 DELETED** | **10 REMAINING** | **57% Complete** |
 
 ## Recommended Deletion Plan
 
-### Immediate Deletions (13 files) - NO RISK
+### ✅ **PHASE 1 COMPLETED**: Immediate Deletions (13 files) - **ZERO RISK**
 ```bash
-# Phase 1: Safe deletions  
-rm -rf the_alchemiser/strategy/archived/klm/
-rm the_alchemiser/strategy/engines/archived/nuclear_logic.py
-rm the_alchemiser/strategy/engines/legacy/nuclear_logic.py
-rm the_alchemiser/strategy/indicators/math_indicators.py
-rm the_alchemiser/strategy/dsl/legacy_init.py
-rm the_alchemiser/strategy/engines/archived/backup/klm_workers/variant_1200_28.py
+# ✅ COMPLETED - Phase 1: Safe deletions  
+✅ rm -rf the_alchemiser/strategy/archived/klm/
+✅ rm the_alchemiser/strategy/engines/archived/nuclear_logic.py
+✅ rm the_alchemiser/strategy/engines/legacy/nuclear_logic.py
+✅ rm the_alchemiser/strategy/indicators/math_indicators.py
+✅ rm the_alchemiser/strategy/dsl/legacy_init.py
+✅ rm the_alchemiser/strategy/engines/archived/backup/klm_workers/variant_1200_28.py
+✅ Updated import in nuclear_typed_backup.py to use current nuclear_logic
 ```
 
+**RESULT**: 13 legacy files successfully deleted with zero impact to functionality.
+
 ### Staged Deletions (10 files) - AFTER MIGRATION
-1. **Update imports** (15 total import statements need updating)
+1. **Update imports** (12 total import statements need updating)  
 2. **Test thoroughly** after each batch of changes
 3. **Delete backup files** once imports migrated
 4. **Clean up remaining legacy files**
