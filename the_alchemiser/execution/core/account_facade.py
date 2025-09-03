@@ -41,6 +41,7 @@ from the_alchemiser.shared.types.exceptions import (
     DataProviderError,
     TradingClientError,
 )
+from the_alchemiser.shared.utils.serialization import ensure_serialized_dict
 from the_alchemiser.shared.value_objects.core_types import (
     AccountInfo,
     ClosedPositionData,
@@ -48,7 +49,6 @@ from the_alchemiser.shared.value_objects.core_types import (
     PositionsDict,
 )
 from the_alchemiser.strategy.data.market_data_service import MarketDataService
-from the_alchemiser.utils.serialization import ensure_serialized_dict
 
 logger = logging.getLogger(__name__)
 

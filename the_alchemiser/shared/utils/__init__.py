@@ -20,3 +20,4 @@ from .account_utils import (
 from .context import ErrorContextData, create_error_context
 from .error_handling import *  # Legacy deprecated
 from .error_reporter import *
+from .serialization import ensure_serialized_dict, to_serializable
