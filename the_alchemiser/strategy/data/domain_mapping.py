@@ -16,38 +16,37 @@ from the_alchemiser.shared.value_objects.core_types import (
 from the_alchemiser.shared.value_objects.core_types import (
     StrategySignal as StrategySignalDTO,
 )
-from the_alchemiser.strategy.engines.models.strategy_position_model import (
-    StrategyPositionModel,
-)
-from the_alchemiser.strategy.engines.models.strategy_signal_model import (
-    StrategySignalModel,
+# Updated to use canonical types
+from the_alchemiser.strategy.types.strategy import (
+    StrategyPosition,
+    StrategySignal,
 )
 from the_alchemiser.strategy.registry.strategy_registry import StrategyType
 
 
-def dto_to_strategy_signal_model(dto: StrategySignalDTO) -> StrategySignalModel:
+def dto_to_strategy_signal_model(dto: StrategySignalDTO) -> StrategySignal:
     """Convert StrategySignal DTO to domain model."""
-    return StrategySignalModel.from_dto(dto)
+    return StrategySignal.from_dto(dto)
 
 
-def strategy_signal_model_to_dto(model: StrategySignalModel) -> StrategySignalDTO:
+def strategy_signal_model_to_dto(model: StrategySignal) -> StrategySignalDTO:
     """Convert domain model to StrategySignal DTO."""
     return model.to_dto()
 
 
-def dto_to_strategy_position_model(dto: StrategyPositionDTO) -> StrategyPositionModel:
+def dto_to_strategy_position_model(dto: StrategyPositionDTO) -> StrategyPosition:
     """Convert StrategyPositionData DTO to domain model."""
-    return StrategyPositionModel.from_dto(dto)
+    return StrategyPosition.from_dto(dto)
 
 
-def strategy_position_model_to_dto(model: StrategyPositionModel) -> StrategyPositionDTO:
+def strategy_position_model_to_dto(model: StrategyPosition) -> StrategyPositionDTO:
     """Convert domain model to StrategyPositionData DTO."""
     return model.to_dto()
 
 
 def map_strategy_signals_to_models(
     signals_dict: dict[StrategyType, StrategySignalDTO],
-) -> dict[StrategyType, StrategySignalModel]:
+) -> dict[StrategyType, StrategySignal]:
     """Convert dict of StrategySignal DTOs to domain models."""
     return {
         strategy_type: dto_to_strategy_signal_model(signal_dto)
@@ -56,7 +55,7 @@ def map_strategy_signals_to_models(
 
 
 def map_strategy_models_to_dtos(
-    models_dict: dict[StrategyType, StrategySignalModel],
+    models_dict: dict[StrategyType, StrategySignal],
 ) -> dict[StrategyType, StrategySignalDTO]:
     """Convert dict of domain models to StrategySignal DTOs."""
     return {
@@ -67,7 +66,7 @@ def map_strategy_models_to_dtos(
 
 def map_strategy_positions_to_models(
     positions_dict: dict[str, StrategyPositionDTO],
-) -> dict[str, StrategyPositionModel]:
+) -> dict[str, StrategyPosition]:
     """Convert dict of StrategyPositionData DTOs to domain models."""
     return {
         key: dto_to_strategy_position_model(position_dto)
@@ -76,7 +75,7 @@ def map_strategy_positions_to_models(
 
 
 def map_strategy_position_models_to_dtos(
-    models_dict: dict[str, StrategyPositionModel],
+    models_dict: dict[str, StrategyPosition],
 ) -> dict[str, StrategyPositionDTO]:
     """Convert dict of domain models to StrategyPositionData DTOs."""
     return {key: strategy_position_model_to_dto(model) for key, model in models_dict.items()}
