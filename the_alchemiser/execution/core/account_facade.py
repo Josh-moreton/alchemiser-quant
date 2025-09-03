@@ -30,7 +30,7 @@ from typing import Any, cast
 
 from the_alchemiser.execution.brokers.account_service import AccountService
 from the_alchemiser.execution.mappers.account_mapping import account_summary_to_typed
-from the_alchemiser.portfolio.positions.position_service import PositionService
+from the_alchemiser.portfolio.holdings.position_service import PositionService
 from the_alchemiser.shared.errors.error_handler import handle_trading_error
 from the_alchemiser.shared.schemas.accounts import (
     AccountMetricsDTO,

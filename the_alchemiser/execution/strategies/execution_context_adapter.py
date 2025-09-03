@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING, Any
 
 from alpaca.trading.enums import OrderSide
 
-from the_alchemiser.execution.core.canonical_executor import (
+from the_alchemiser.execution.core.executor import (
     CanonicalOrderExecutor,
 )
 from the_alchemiser.execution.orders.order_request import OrderRequest

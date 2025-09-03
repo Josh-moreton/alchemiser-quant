@@ -81,45 +81,7 @@ class PositionManager:
             logging.error(f"Unexpected error getting positions: {e}")
             return {}
 
-    def validate_sell_position(
-        self, symbol: str, requested_qty: float, force_refresh: bool = True
-    ) -> tuple[bool, float, str | None]:
-        """Validate and adjust sell quantity based on available position.
 
-        DEPRECATED: This position validation logic has been moved to PositionPolicy.
-        Use PolicyOrchestrator with PositionPolicy for new implementations.
-        This method remains for backward compatibility only.
-
-        Args:
-            symbol: Symbol to sell
-            requested_qty: Requested quantity to sell
-            force_refresh: If True, forces fresh position data from broker
-
-        Returns:
-            Tuple of (is_valid, adjusted_qty, warning_message)
-
-        """
-        import warnings
-
-        warnings.warn(
-            "PositionManager.validate_sell_position is deprecated. "
-            "Use PolicyOrchestrator with PositionPolicy instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        # Force refresh from broker for critical sell operations
-        positions = self.get_current_positions(force_refresh=force_refresh)
-        available = positions.get(symbol, 0)
-
-        if available <= 0:
-            return False, 0.0, f"No position to sell for {symbol}"
-
-        # Smart quantity adjustment - sell only what's actually available
-        if requested_qty > available:
-            warning_msg = f"Adjusting sell quantity for {symbol}: {requested_qty} -> {available}"
-            return True, available, warning_msg
-
-        return True, requested_qty, None
 
     def should_use_liquidation_api(self, symbol: str, requested_qty: float) -> bool:
         """Determine if liquidation API should be used instead of regular sell order.
@@ -141,88 +103,7 @@ class PositionManager:
         # Use liquidation API for selling 99%+ of position
         return requested_qty >= available * 0.99
 
-    def validate_buying_power(self, symbol: str, qty: float) -> tuple[bool, str | None]:
-        """Validate buying power for a purchase.
 
-        DEPRECATED: This buying power validation logic has been moved to BuyingPowerPolicy.
-        Use PolicyOrchestrator with BuyingPowerPolicy for new implementations.
-        This method remains for backward compatibility only.
-
-        Args:
-            symbol: Symbol to buy
-            qty: Quantity to buy
-
-        Returns:
-            Tuple of (is_sufficient, warning_message)
-
-        """
-        import warnings
-
-        warnings.warn(
-            "PositionManager.validate_buying_power is deprecated. "
-            "Use PolicyOrchestrator with BuyingPowerPolicy instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        try:
-            account = self.trading_client.get_account()
-            buying_power = float(getattr(account, "buying_power", 0) or 0)
-            current_price = self.data_provider.get_current_price(symbol)
-
-            if current_price is not None and current_price > 0:
-                price_value = float(current_price)
-                qty_value = float(qty)
-                order_value = qty_value * price_value
-
-                if order_value > buying_power:
-                    warning_msg = (
-                        f"Order value ${order_value:.2f} exceeds "
-                        f"buying power ${buying_power:.2f} for {symbol}"
-                    )
-                    return False, warning_msg
-
-            return True, None
-
-        except (AttributeError, ValueError, TypeError) as e:
-            logger = get_logger(__name__)
-            log_error_with_context(
-                logger,
-                TradingClientError(f"Failed to validate buying power for {symbol}: {e}"),
-                "buying_power_validation",
-                function="validate_buying_power",
-                symbol=symbol,
-                quantity=qty,
-                error_type=type(e).__name__,
-            )
-            warning_msg = f"Unable to validate buying power for {symbol}: {e}"
-            return True, warning_msg  # Continue with order despite validation error
-        except DataProviderError as e:
-            logger = get_logger(__name__)
-            log_error_with_context(
-                logger,
-                e,
-                "buying_power_validation",
-                function="validate_buying_power",
-                symbol=symbol,
-                quantity=qty,
-                error_type=type(e).__name__,
-            )
-            warning_msg = f"Data provider error validating buying power for {symbol}: {e}"
-            return True, warning_msg  # Continue with order despite validation error
-        except (TradingClientError, ConnectionError, TimeoutError, OSError) as e:
-            logger = get_logger(__name__)
-            log_error_with_context(
-                logger,
-                TradingClientError(f"Unexpected error validating buying power for {symbol}: {e}"),
-                "buying_power_validation",
-                function="validate_buying_power",
-                symbol=symbol,
-                quantity=qty,
-                error_type="unexpected_error",
-                original_error=type(e).__name__,
-            )
-            warning_msg = f"Unexpected error validating buying power for {symbol}: {e}"
-            return True, warning_msg  # Continue with order despite validation error
 
     def execute_liquidation(self, symbol: str) -> str | None:
         """Execute position liquidation using Alpaca's close_position API.

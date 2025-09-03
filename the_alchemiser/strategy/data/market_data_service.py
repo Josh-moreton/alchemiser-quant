@@ -26,8 +26,8 @@ from the_alchemiser.shared.mappers.market_data_mappers import bars_to_domain
 from the_alchemiser.shared.protocols.repository import MarketDataRepository
 from the_alchemiser.shared.types.bar import BarModel
 from the_alchemiser.shared.types.quote import QuoteModel
-from the_alchemiser.shared.types.symbol_legacy import Symbol
 from the_alchemiser.shared.utils.decorators import translate_market_data_errors
+from the_alchemiser.shared.value_objects.symbol import Symbol
 
 logger = logging.getLogger(__name__)
 

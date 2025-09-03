@@ -39,7 +39,7 @@ Safety Features:
 Example:
     Canonical order placement (preferred):
 
-    >>> from the_alchemiser.execution.core.canonical_executor import CanonicalOrderExecutor
+    >>> from the_alchemiser.execution.core.executor import CanonicalOrderExecutor
     >>> from the_alchemiser.execution.orders.order_request import OrderRequest
     >>> from the_alchemiser.shared.value_objects.symbol import Symbol
     >>> from the_alchemiser.execution.orders.side import Side
@@ -73,11 +73,12 @@ from the_alchemiser.execution.core.execution_schemas import WebSocketResultDTO
 from the_alchemiser.execution.monitoring.websocket_order_monitor import (
     OrderCompletionMonitor,
 )
-from the_alchemiser.execution.orders.asset_order_handler import AssetOrderHandler
+from the_alchemiser.portfolio.policies.policy_factory import PolicyFactory
 from the_alchemiser.execution.pricing.smart_pricing_handler import (
     SmartPricingHandler,
 )
-from the_alchemiser.portfolio.positions.legacy_position_manager import PositionManager
+# Position validation now handled by PolicyOrchestrator (validation methods deprecated)
+from the_alchemiser.portfolio.holdings.position_manager import PositionManager
 
 # DEPRECATED: LimitOrderHandler import removed - use CanonicalOrderExecutor instead
 # (Legacy order validation utilities removed with legacy paths)
@@ -138,7 +139,11 @@ class AlpacaClient:
         self.order_monitor = OrderCompletionMonitor(
             self.trading_client, api_key=api_key, secret_key=secret_key
         )
-        self.asset_handler = AssetOrderHandler(data_provider)
+        # Initialize policy orchestrator for validation (replaces deprecated validation methods)
+        self.policy_orchestrator = PolicyFactory.create_orchestrator(
+            self.trading_client, data_provider
+        )
+        # Keep PositionManager for operational methods (not deprecated)
         self.position_manager = PositionManager(self.trading_client, data_provider)
         # DEPRECATED: LimitOrderHandler removed - use CanonicalOrderExecutor instead
         self.pricing_handler = SmartPricingHandler(data_provider)
@@ -226,7 +231,7 @@ class AlpacaClient:
         """Place a smart sell order using canonical executor."""
         from decimal import Decimal
 
-        from the_alchemiser.execution.core.canonical_executor import (
+        from the_alchemiser.execution.core.executor import (
             CanonicalOrderExecutor,
         )
         from the_alchemiser.execution.orders.order_request import (

@@ -8,12 +8,12 @@ trading signals based on market data and technical indicators.
 
 from __future__ import annotations
 
+from ..managers.typed_strategy_manager import AggregatedSignals, TypedStrategyManager
 from . import core
 from .engine import StrategyEngine
 from .nuclear_typed_engine import NuclearTypedEngine
 from .tecl_strategy_engine import TECLStrategyEngine
 from .typed_klm_ensemble_engine import TypedKLMStrategyEngine
-from ..managers.typed_strategy_manager import AggregatedSignals, TypedStrategyManager
 
 __all__ = [
     "AggregatedSignals",

@@ -17,10 +17,10 @@ from typing import Any, Literal
 
 from the_alchemiser.execution.orders.order_schemas import ValidatedOrderDTO
 from the_alchemiser.shared.value_objects.core_types import StrategySignal
-from the_alchemiser.strategy.registry.strategy_registry import StrategyType
 from the_alchemiser.strategy.engines.value_objects.strategy_signal import (
     StrategySignal as TypedStrategySignal,
 )
+from the_alchemiser.strategy.registry.strategy_registry import StrategyType
 
 ActionLiteral = Literal["BUY", "SELL", "HOLD"]
 

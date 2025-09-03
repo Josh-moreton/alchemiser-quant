@@ -11,6 +11,6 @@ from __future__ import annotations
 from .typed_strategy_manager import AggregatedSignals, TypedStrategyManager
 
 __all__ = [
-    "AggregatedSignals", 
+    "AggregatedSignals",
     "TypedStrategyManager",
 ]

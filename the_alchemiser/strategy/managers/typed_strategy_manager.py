@@ -23,8 +23,8 @@ from the_alchemiser.strategy.engines.engine import StrategyEngine
 from the_alchemiser.strategy.engines.nuclear_typed_engine import NuclearTypedEngine
 from the_alchemiser.strategy.engines.typed_klm_ensemble_engine import TypedKLMStrategyEngine
 from the_alchemiser.strategy.engines.value_objects.confidence import Confidence
-from the_alchemiser.strategy.registry.strategy_registry import StrategyRegistry, StrategyType
 from the_alchemiser.strategy.engines.value_objects.strategy_signal import StrategySignal
+from the_alchemiser.strategy.registry.strategy_registry import StrategyRegistry, StrategyType
 
 
 class AggregatedSignals:

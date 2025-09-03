@@ -44,11 +44,11 @@ from __future__ import annotations
 from collections import defaultdict
 from typing import TypedDict
 
-from the_alchemiser.strategy.managers.typed_strategy_manager import AggregatedSignals
-from the_alchemiser.strategy.registry.strategy_registry import StrategyType
 from the_alchemiser.strategy.engines.value_objects.strategy_signal import (
     StrategySignal as TypedStrategySignal,
 )
+from the_alchemiser.strategy.managers.typed_strategy_manager import AggregatedSignals
+from the_alchemiser.strategy.registry.strategy_registry import StrategyType
 
 BUY_ACTIONS: set[str] = {"BUY", "LONG"}  # Support historical LONG alias
 SELL_ACTIONS: set[str] = {"SELL"}  # Extend here if SHORT/EXIT introduced later

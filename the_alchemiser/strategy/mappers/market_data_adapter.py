@@ -16,7 +16,7 @@ from typing import Any  # noqa: F401 (retained for forward compatibility comment
 import pandas as pd
 
 from the_alchemiser.shared.types.market_data_port import MarketDataPort
-from the_alchemiser.shared.types.symbol_legacy import Symbol
+from the_alchemiser.shared.value_objects.symbol import Symbol
 
 
 class StrategyMarketDataAdapter:
