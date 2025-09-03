@@ -1,4 +1,59 @@
-"""Business Unit: execution | Status: current..
+"""Business Unit: order execution/placement; Status: current.
+
+Mapping utilities between Alpaca order objects and domain Order entity.
+
+This module is part of the anti-corruption layer. It converts external Alpaca
+order representations into pure domain models so the rest of the application
+can operate with strong types.
+"""
+
+from __future__ import annotations
+
+from dataclasses import asdict
+from datetime import UTC, datetime
+from decimal import Decimal
+from typing import TYPE_CHECKING, Any, Literal, TypedDict, cast
+
+from the_alchemiser.execution.entities.order import Order
+from the_alchemiser.execution.mappers.orders import normalize_order_status
+from the_alchemiser.execution.orders.order_id import OrderId
+from the_alchemiser.execution.orders.order_status import OrderStatus
+from the_alchemiser.execution.orders.order_type import OrderType
+from the_alchemiser.shared.types.money import Money
+from the_alchemiser.shared.types.quantity import Quantity
+from the_alchemiser.shared.types.time_in_force import TimeInForce
+from the_alchemiser.shared.value_objects.symbol import Symbol
+
+if TYPE_CHECKING:
+    from the_alchemiser.execution.orders.order_schemas import (
+        OrderExecutionResultDTO,
+        RawOrderEnvelope,
+    )
+
+
+class OrderSummary(TypedDict, total=False):
+    """Lightweight order summary for UI/reporting when needed."""
+
+    id: str
+    symbol: str
+    qty: float
+    status: str
+    type: str
+    limit_price: float | None
+    created_at: str | None
+
+
+def _coerce_decimal(value: Any) -> Decimal | None:
+    try:
+        if value is None:
+            return None
+        return Decimal(str(value))
+    except Exception:
+        return None
+
+
+def _map_status(raw_status: Any) -> OrderStatus:
+    """Map Alpaca status strings/enums to domain OrderStatus.
 
     Uses the centralized order status normalizer and then converts to domain enum.
     """

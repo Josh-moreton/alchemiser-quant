@@ -1,4 +1,26 @@
-"""Business Unit: execution | Status: current.._observers: list[LifecycleObserver] = []
+"""Business Unit: order execution/placement; Status: current.
+
+Lifecycle event dispatcher with thread-safe observer pattern.
+"""
+
+from __future__ import annotations
+
+import logging
+import threading
+from collections.abc import Iterable
+
+from the_alchemiser.execution.lifecycle.events import OrderLifecycleEvent
+from the_alchemiser.execution.lifecycle.protocols import LifecycleObserver
+from the_alchemiser.shared.errors.error_handler import TradingSystemErrorHandler
+
+logger = logging.getLogger(__name__)
+
+
+class LifecycleEventDispatcher:
+    """Thread-safe observer dispatcher for order lifecycle events."""
+
+    def __init__(self, error_handler: TradingSystemErrorHandler | None = None) -> None:
+        self._observers: list[LifecycleObserver] = []
         self._lock = threading.RLock()
         self._error_handler = error_handler or TradingSystemErrorHandler()
 

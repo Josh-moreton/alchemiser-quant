@@ -1,4 +1,48 @@
-"""Business Unit: strategy | Status: current..
+"""Business Unit: utilities; Status: current.
+
+KLM Strategy Variant 506/38 - "KMLM (13) - Longer BT".
+
+This is the first variant in the Clojure strategy ensemble. It follows the standard
+overbought detection pattern followed by "Single Popped KMLM" logic.
+
+Pattern: QQQE → VTV → VOX → TECL → VOOG → VOOV → XLP → TQQQ → XLY → FAS → SPY →
+         Single Popped KMLM (UVXY RSI check → BSC or Pop Bot → Core KMLM Switcher)
+
+CORRECTED LOGIC:
+- KMLM Switcher: When XLK > KMLM → FNGU (NOT TECL/SOXL/SVIX)
+- L/S Rotator: UUP, FTLS, KMLM only (NOT SVXY/VIXM/SVIX)
+- This matches CLJ lines 170-195 exactly
+"""
+
+from __future__ import annotations
+
+import pandas as pd
+
+from the_alchemiser.shared.utils.common import ActionType
+
+from .base_klm_variant import BaseKLMVariant
+
+
+class KlmVariant50638(BaseKLMVariant):
+    """Variant 506/38 - Standard overbought detection with Single Popped KMLM fallback.
+
+    This variant represents the most common pattern in the KLM ensemble:
+    1. Primary overbought checks → UVXY
+    2. Single Popped KMLM logic (UVXY RSI-based branching)
+    3. BSC strategy or Pop Bot + Core KMLM Switcher
+    """
+
+    def __init__(self) -> None:
+        super().__init__(
+            name="506/38", description="KMLM (13) - Longer BT - Standard overbought detection"
+        )
+
+    def evaluate(
+        self,
+        indicators: dict[str, dict[str, float]],
+        market_data: dict[str, pd.DataFrame] | None = None,
+    ) -> tuple[str | dict[str, float], str, str]:
+        """Evaluate the 506/38 variant strategy.
 
         Returns:
             Tuple of (symbol_or_allocation, action, reason)

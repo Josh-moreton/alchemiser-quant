@@ -1,4 +1,31 @@
-"""Business Unit: strategy | Status: current..
+"""Business Unit: utilities; Status: current.
+
+Modern price fetching service.
+
+Provides async/callback-based API for current price requests with
+graceful REST fallback when streaming is unavailable.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import logging
+from collections.abc import Awaitable, Callable
+from typing import Any
+
+from the_alchemiser.strategy.data.market_data_client import MarketDataClient
+from the_alchemiser.strategy.data.streaming_service import StreamingService
+
+
+class ModernPriceFetchingService:
+    """Modern price fetching with async support and fallback strategies."""
+
+    def __init__(
+        self,
+        market_data_client: MarketDataClient,
+        streaming_service: StreamingService | None,
+    ) -> None:
+        """Initialize modern price fetching service.
 
         Args:
             market_data_client: Market data client for REST API calls

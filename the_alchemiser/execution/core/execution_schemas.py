@@ -1,5 +1,66 @@
 #!/usr/bin/env python3
-"""Business Unit: execution | Status: current.."""
+"""Business Unit: order execution/placement; Status: current.
+
+Trading execution and result DTOs for The Alchemiser Trading System.
+
+Pydantic v2 DTOs supporting trading execution lifecycle, order processing,
+websocket events, quotes, lambda events, and order history. Replaces legacy
+TypedDict structures with immutable, validated models.
+"""
+
+from __future__ import annotations
+
+from decimal import Decimal
+from enum import Enum
+from typing import Any
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+from the_alchemiser.shared.dto.execution_report_dto import ExecutionReportDTO
+from the_alchemiser.shared.dto.portfolio_state_dto import PortfolioStateDTO
+from the_alchemiser.shared.value_objects.core_types import AccountInfo, OrderDetails
+
+
+class TradingAction(str, Enum):
+    """Trading action enumeration."""
+
+    BUY = "BUY"
+    SELL = "SELL"
+
+
+class WebSocketStatus(str, Enum):
+    """WebSocket operation status enumeration."""
+
+    COMPLETED = "completed"
+    TIMEOUT = "timeout"
+    ERROR = "error"
+
+
+class ExecutionResult(BaseModel):
+    """Complete outcome of a trading execution cycle."""
+
+    model_config = ConfigDict(
+        strict=True,
+        frozen=True,
+        validate_assignment=True,
+        str_strip_whitespace=True,
+    )
+
+    orders_executed: list[OrderDetails] = Field(
+        description="List of orders executed during this cycle"
+    )
+    account_info_before: AccountInfo = Field(description="Account state before execution")
+    account_info_after: AccountInfo = Field(description="Account state after execution")
+    execution_summary: ExecutionReportDTO = Field(
+        description="Structured summary of execution results and metrics"
+    )
+    final_portfolio_state: PortfolioStateDTO | None = Field(
+        default=None, description="Final portfolio state after execution"
+    )
+
+
+class TradingPlan(BaseModel):
+    """Validated trading plan with normalized symbol and positive financial values."""
 
     model_config = ConfigDict(
         strict=True,

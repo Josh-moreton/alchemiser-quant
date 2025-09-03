@@ -1,5 +1,45 @@
 #!/usr/bin/env python3
-"""Business Unit: shared | Status: current..
+"""Business Unit: utilities; Status: current.
+
+Asset Information Utilities.
+
+Handles asset-specific information like fractionability, ETF types, and trading characteristics.
+This helps optimize order placement strategies for different asset types.
+
+This module now uses the AssetMetadataProvider protocol to avoid infrastructure dependencies.
+"""
+
+from __future__ import annotations
+
+import logging
+from enum import Enum
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from the_alchemiser.shared.protocols.asset_metadata import AssetMetadataProvider
+
+
+class AssetType(Enum):
+    """Asset type classification for trading optimization."""
+
+    STOCK = "stock"
+    ETF = "etf"
+    ETN = "etn"
+    LEVERAGED_ETF = "leveraged_etf"
+    CRYPTO = "crypto"
+    UNKNOWN = "unknown"
+
+
+class FractionabilityDetector:
+    """Detects and handles non-fractionable assets using AssetMetadataProvider.
+
+    Professional trading systems need to handle assets that don't support
+    fractional shares. This system delegates to an AssetMetadataProvider
+    implementation for authoritative fractionability information.
+    """
+
+    def __init__(self, asset_metadata_provider: AssetMetadataProvider | None = None) -> None:
+        """Initialize with optional AssetMetadataProvider.
 
         Args:
             asset_metadata_provider: Provider for asset metadata access

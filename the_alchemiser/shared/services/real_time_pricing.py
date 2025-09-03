@@ -1,5 +1,103 @@
 #!/usr/bin/env python3
-"""Business Unit: shared | Status: current.._stream_thread: threading.Thread | None = None
+"""Business Unit: utilities; Status: current.
+
+Real-time WebSocket Price Streaming for Alpaca Trading.
+
+This module provides real-time stock price updates via Alpaca's WebSocket streams
+to ensure accurate limit order pricing. It maintains current bid/ask quotes and
+last trade prices for symbols used in trading strategies.
+
+DESIGN PHILOSOPHY:
+=================
+- Real-time pricing for accurate limit orders
+- Minimal latency for high-frequency quote updates
+- Thread-safe quote storage with automatic cleanup
+- Graceful fallback to REST API when needed
+- Subscribe only to symbols being actively traded
+
+KEY FEATURES:
+============
+1. Real-time quote updates (bid/ask/last price)
+2. Automatic symbol subscription management
+3. Thread-safe price storage
+4. Connection health monitoring
+5. Smart reconnection logic
+6. Memory-efficient quote caching
+"""
+
+from __future__ import annotations
+
+import logging
+import threading
+import time
+from collections.abc import Callable
+from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
+from typing import Any
+
+from alpaca.data.enums import DataFeed
+from alpaca.data.live import StockDataStream
+from alpaca.data.models import Quote, Trade
+
+# TODO: Phase 11 - Types available for future migration to structured pricing data
+# from the_alchemiser.shared.value_objects.core_types import PriceData, QuoteData
+
+
+@dataclass
+class RealTimeQuote:
+    """Real-time quote data structure."""
+
+    bid: float
+    ask: float
+    last_price: float
+    timestamp: datetime
+
+    @property
+    def mid_price(self) -> float:
+        """Calculate mid-point between bid and ask."""
+        if self.bid > 0 and self.ask > 0:
+            return (self.bid + self.ask) / 2
+        if self.bid > 0:
+            return self.bid
+        if self.ask > 0:
+            return self.ask
+        return self.last_price
+
+
+class RealTimePricingService:
+    """Real-time pricing service using Alpaca's WebSocket data streams.
+
+    Provides up-to-date bid/ask quotes and last trade prices for accurate
+    limit order placement. Automatically manages subscriptions based on
+    active trading symbols.
+    """
+
+    def __init__(self, api_key: str, secret_key: str, paper_trading: bool = True) -> None:
+        """Initialize real-time pricing service.
+
+        Args:
+            api_key: Alpaca API key
+            secret_key: Alpaca secret key
+            paper_trading: Whether to use paper trading environment
+
+        """
+        self.api_key = api_key
+        self.secret_key = secret_key
+        self.paper_trading = paper_trading
+
+        # Real-time quote storage (thread-safe)
+        self._quotes: dict[str, RealTimeQuote] = {}
+        self._quotes_lock = threading.RLock()
+
+        # Subscription management
+        self._subscribed_symbols: set[str] = set()
+        self._subscription_lock = threading.RLock()
+        self._subscription_priority: dict[str, float] = {}  # symbol -> priority score
+        self._max_symbols = 5  # Stay under Alpaca's subscription limits
+
+        # Connection management
+        self._stream: StockDataStream | None = None
+        self._stream_thread: threading.Thread | None = None
         self._connected = False
         self._should_reconnect = True
 

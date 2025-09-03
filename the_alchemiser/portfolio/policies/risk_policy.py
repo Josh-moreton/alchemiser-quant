@@ -1,4 +1,57 @@
-"""Business Unit: portfolio | Status: current..
+"""Business Unit: utilities; Status: current.
+
+Risk Policy Interface
+
+Handles risk assessment and limits for order requests.
+"""
+
+from __future__ import annotations
+
+from decimal import Decimal
+from typing import Protocol
+
+from the_alchemiser.execution.orders.order_schemas import AdjustedOrderRequestDTO, OrderRequestDTO
+
+
+class RiskPolicy(Protocol):
+    """Policy for assessing and managing risk in order requests.
+
+    This policy evaluates orders against risk thresholds and can reject
+    or adjust orders that exceed acceptable risk levels.
+    """
+
+    def validate_and_adjust(self, order_request: OrderRequestDTO) -> AdjustedOrderRequestDTO:
+        """Assess risk and validate order against risk limits.
+
+        Args:
+            order_request: The original order request to validate
+
+        Returns:
+            AdjustedOrderRequestDTO with risk assessment and any adjustments
+
+        """
+        ...
+
+    def calculate_risk_score(
+        self, symbol: str, quantity: float, order_type: str = "market"
+    ) -> Decimal:
+        """Calculate a risk score for an order.
+
+        Args:
+            symbol: Stock symbol
+            quantity: Order quantity
+            order_type: Type of order
+
+        Returns:
+            Risk score (higher values indicate higher risk)
+
+        """
+        ...
+
+    def assess_position_concentration(
+        self, symbol: str, additional_quantity: float
+    ) -> tuple[bool, str | None]:
+        """Assess if adding quantity would create excessive concentration.
 
         Args:
             symbol: Stock symbol

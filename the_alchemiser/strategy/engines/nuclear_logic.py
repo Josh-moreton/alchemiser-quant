@@ -1,4 +1,26 @@
-"""Business Unit: strategy | Status: current..
+"""Business Unit: utilities; Status: current.
+
+Pure evaluation logic for the Nuclear strategy (typed, framework-free).
+
+This module exposes a small, pure function used by the typed Nuclear engine
+to decide the recommended symbol, action, and reasoning from precomputed
+indicators. It does not perform any IO or import infrastructure code.
+
+Scope note:
+- Mirrors key branches from the legacy orchestrator to avoid unexpected HOLDs.
+- Adds a bull-market branch (SPY price > SPY 200MA) that recommends the
+    NUCLEAR_PORTFOLIO when not otherwise overbought/oversold.
+"""
+
+from __future__ import annotations
+
+from typing import Any
+
+
+def evaluate_nuclear_strategy(
+    indicators: dict[str, Any], market_data: dict[str, Any] | None = None
+) -> tuple[str, str, str]:
+    """Evaluate the Nuclear strategy from indicators only.
 
     Contract:
     - Returns (symbol, action, reasoning)

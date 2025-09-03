@@ -1,5 +1,68 @@
 #!/usr/bin/env python3
-"""Business Unit: shared | Status: current.."""
+"""Business Unit: utilities; Status: current.
+
+S3 Utilities for Quantitative Trading System
+Handles reading and writing files to S3 storage.
+"""
+
+from __future__ import annotations
+
+import json
+import logging
+from typing import Any
+from urllib.parse import urlparse
+
+import boto3
+from botocore.exceptions import ClientError, NoCredentialsError
+
+
+class S3Handler:
+    """Handles S3 operations for the quantitative trading system."""
+
+    def __init__(self) -> None:
+        """Initialize S3 client."""
+        try:
+            self.s3_client = boto3.client("s3")
+            logging.debug("S3 client initialized successfully")
+        except NoCredentialsError:
+            logging.error("AWS credentials not found. Please configure AWS credentials.")
+            raise
+        except Exception as e:
+            logging.error(f"Error initializing S3 client: {e}")
+            raise
+
+    def parse_s3_uri(self, s3_uri: str) -> tuple[str, str]:
+        """Parse S3 URI to extract bucket and key."""
+        parsed = urlparse(s3_uri)
+        if parsed.scheme != "s3":
+            raise ValueError(f"Invalid S3 URI: {s3_uri}. Must start with 's3://'")
+
+        bucket = parsed.netloc
+        key = parsed.path.lstrip("/")
+
+        return bucket, key
+
+    def write_text(self, s3_uri: str, content: str) -> bool:
+        """Write text content to S3."""
+        try:
+            bucket, key = self.parse_s3_uri(s3_uri)
+
+            self.s3_client.put_object(
+                Bucket=bucket,
+                Key=key,
+                Body=content.encode("utf-8"),
+                ContentType="text/plain",
+            )
+
+            logging.debug(f"Successfully wrote to {s3_uri}")
+            return True
+
+        except Exception as e:
+            logging.error(f"Error writing to {s3_uri}: {e}")
+            return False
+
+    def read_text(self, s3_uri: str) -> str | None:
+        """Read text content from S3."""
         try:
             bucket, key = self.parse_s3_uri(s3_uri)
 

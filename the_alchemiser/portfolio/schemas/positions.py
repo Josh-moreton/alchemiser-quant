@@ -1,5 +1,71 @@
 #!/usr/bin/env python3
-"""Business Unit: portfolio | Status: current..
+"""Business Unit: utilities; Status: current.
+
+Position DTOs for The Alchemiser Trading System.
+
+This module contains DTOs for position data, portfolio summaries, and position analytics,
+providing type-safe interfaces for position management operations.
+
+Key Features:
+- Pydantic v2 BaseModel with strict validation
+- Decimal precision for financial values
+- Comprehensive field validation and normalization
+- Type safety for position lifecycle management
+"""
+
+from __future__ import annotations
+
+from decimal import Decimal
+from typing import Any
+
+from pydantic import BaseModel, ConfigDict, Field
+
+from the_alchemiser.shared.schemas.base import Result
+
+
+class Position(BaseModel):
+    """DTO for individual position information.
+
+    Used when returning position data from TradingServiceManager methods.
+    Provides validation and normalization of position parameters.
+    """
+
+    model_config = ConfigDict(
+        strict=True,
+        frozen=True,
+        validate_assignment=True,
+        str_strip_whitespace=True,
+    )
+
+    symbol: str = Field(..., min_length=1, max_length=10, description="Stock symbol")
+    quantity: Decimal = Field(..., description="Position quantity")
+    average_entry_price: Decimal = Field(..., ge=0, description="Average entry price")
+    current_price: Decimal = Field(..., ge=0, description="Current market price")
+    market_value: Decimal = Field(..., description="Current market value")
+    unrealized_pnl: Decimal = Field(..., description="Unrealized profit/loss")
+    unrealized_pnl_percent: Decimal = Field(..., description="Unrealized P&L percentage")
+
+
+class PositionSummaryResult(Result):
+    """DTO for position summary with additional context.
+
+    Contains position data plus metadata about the request/response.
+    """
+
+    model_config = ConfigDict(
+        strict=True,
+        frozen=True,
+        validate_assignment=True,
+    )
+
+    symbol: str | None = None
+    position: Position | None = None
+    error: str | None = None
+    # End of file newline ensured below
+
+
+class PortfolioSummaryResult(Result):
+    """DTO for overall portfolio summary.
 
     Aggregated view of all positions and portfolio metrics.
     """

@@ -1,5 +1,35 @@
 #!/usr/bin/env python3
-"""Business Unit: shared | Status: current..
+"""Business Unit: utilities; Status: current.
+
+AWS Secrets Manager Integration
+Handles retrieving secrets from AWS Secrets Manager for the Quantitative Trading System.
+
+Environment-Aware Behavior:
+- Production (AWS Lambda): Only uses AWS Secrets Manager, fails hard if not available
+- Development: Falls back to environment variables (including .env files) if AWS Secrets Manager fails
+"""
+
+from __future__ import annotations
+
+import json
+import logging
+import os
+
+try:
+    import boto3
+    from botocore.exceptions import ClientError
+
+    BOTO3_AVAILABLE = True
+except ImportError:
+    BOTO3_AVAILABLE = False
+    logging.warning("boto3 not available - falling back to environment variables")
+
+
+class SecretsManager:
+    """Handles retrieving secrets from AWS Secrets Manager."""
+
+    def __init__(self, region_name: str | None = None) -> None:
+        """Initialize the Secrets Manager client.
 
         Args:
             region_name: AWS region where secrets are stored (if None, loads from config)

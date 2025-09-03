@@ -1,4 +1,65 @@
-"""Business Unit: shared | Status: current..
+"""Business Unit: utilities; Status: current.
+
+Utility functions and classes for generating trading alerts.
+
+This module centralizes alert creation and logging, providing helpers that
+convert strategy recommendations into structured data that can be persisted or
+displayed to users.
+"""
+
+from __future__ import annotations
+
+import datetime as dt
+import json
+import logging
+import re
+from typing import Any
+
+from the_alchemiser.shared.config.config import load_settings
+
+
+class Alert:
+    """Container for a single strategy alert."""
+
+    def __init__(
+        self, symbol: str, action: str, reason: str, timestamp: dt.datetime, price: float
+    ) -> None:
+        """Initialize an alert.
+
+        Args:
+            symbol: Ticker symbol the alert relates to.
+            action: Recommended action such as ``"BUY"`` or ``"SELL"``.
+            reason: Human readable explanation for the alert.
+            timestamp: Time the alert was generated.
+            price: Price associated with the alert.
+
+        """
+        self.symbol = symbol
+        self.action = action
+        self.reason = reason
+        self.timestamp = timestamp
+        self.price = price
+
+    def to_dict(self) -> dict[str, Any]:
+        """Serialize the alert to a dictionary for storage or logging."""
+        return {
+            "symbol": self.symbol,
+            "action": self.action,
+            "reason": self.reason,
+            "timestamp": (
+                self.timestamp.isoformat()
+                if isinstance(self.timestamp, dt.datetime)
+                else str(self.timestamp)
+            ),
+            "price": self.price,
+        }
+
+
+# Factory function for alert creation (can be extended for more logic)
+def create_alert(
+    symbol: str, action: str, reason: str, price: float, timestamp: dt.datetime | None = None
+) -> Alert:
+    """Create a new :class:`Alert` instance.
 
     Args:
         symbol: Ticker symbol the alert relates to.

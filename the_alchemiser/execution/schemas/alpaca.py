@@ -1,5 +1,55 @@
 #!/usr/bin/env python3
-"""Business Unit: execution | Status: current..)")
+"""Business Unit: utilities; Status: current.
+
+Alpaca Infrastructure DTOs for The Alchemiser Trading System.
+
+This module provides Pydantic v2 DTOs for Alpaca API responses, ensuring
+typed boundaries at the infrastructure layer. These DTOs map directly
+to Alpaca API response structures and are used for validation and type safety.
+
+Key Features:
+- Direct mapping to Alpaca API response structures
+- Decimal precision for financial values
+- Comprehensive field validation
+- Error response handling
+"""
+
+from __future__ import annotations
+
+from datetime import datetime
+from decimal import Decimal
+from typing import Any, Literal
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+
+class AlpacaOrderDTO(BaseModel):
+    """DTO for Alpaca order responses.
+
+    Maps directly to Alpaca order API response structure with proper
+    validation and type conversion for financial values.
+    """
+
+    model_config = ConfigDict(
+        strict=True,
+        frozen=True,
+        validate_assignment=True,
+        str_strip_whitespace=True,
+    )
+
+    # Core order identification
+    id: str = Field(description="Alpaca order ID")
+    symbol: str = Field(description="Trading symbol")
+    asset_class: str = Field(description="Asset class (equity, etc.)")
+
+    # Order amounts and quantities
+    notional: Decimal | None = Field(default=None, description="Notional dollar amount")
+    qty: Decimal | None = Field(default=None, description="Quantity of shares")
+    filled_qty: Decimal | None = Field(default=None, description="Filled quantity")
+    filled_avg_price: Decimal | None = Field(default=None, description="Average fill price")
+
+    # Order classification
+    order_class: str = Field(description="Order class (simple, bracket, etc.)")
     order_type: str = Field(description="Order type (market, limit, etc.)")
     type: str = Field(description="Alias for order_type")
     side: Literal["buy", "sell"] = Field(description="Order side")

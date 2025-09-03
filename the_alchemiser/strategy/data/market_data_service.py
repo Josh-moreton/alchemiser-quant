@@ -1,4 +1,98 @@
-"""Business Unit: strategy | Status: current..
+"""Business Unit: utilities; Status: current.
+
+Market Data Service - Enhanced market data operations with caching and validation.
+
+This service builds on the MarketDataRepository interface to provide:
+- Intelligent caching of market data
+- Data validation and quality checks
+- Batch operations for multiple symbols
+- Market timing and schedule awareness
+
+Typed Domain additions:
+- Implements methods compatible with MarketDataPort (get_bars, get_latest_quote, get_mid_price)
+    to support the Typed Domain V2 migration without legacy fallbacks.
+"""
+
+from __future__ import annotations
+
+import logging
+from datetime import UTC, datetime, timedelta
+from decimal import Decimal
+from typing import Any
+
+import pandas as pd
+
+from the_alchemiser.shared.protocols.repository import MarketDataRepository
+from the_alchemiser.shared.mappers.market_data_mappers import bars_to_domain
+from the_alchemiser.shared.types.bar import BarModel
+from the_alchemiser.shared.types.quote import QuoteModel
+from the_alchemiser.shared.types.symbol_legacy import Symbol
+from the_alchemiser.shared.utils.decorators import translate_market_data_errors
+
+logger = logging.getLogger(__name__)
+
+
+class MarketDataService:
+    """Enhanced market data service with caching and validation.
+
+    This service provides high-level market data operations built on top of
+    the MarketDataRepository interface, adding intelligent caching, validation,
+    and batch processing capabilities.
+    """
+
+    def __init__(
+        self,
+        market_data_repo: MarketDataRepository,
+        cache_ttl_seconds: int = 5,
+        enable_validation: bool = True,
+    ) -> None:
+        """Initialize the market data service.
+
+        Args:
+            market_data_repo: Market data repository implementation
+            cache_ttl_seconds: Cache time-to-live in seconds
+            enable_validation: Whether to enable data validation
+
+        """
+        self._market_data = market_data_repo
+        self._cache_ttl = cache_ttl_seconds
+        self._enable_validation = enable_validation
+        self._price_cache: dict[str, tuple[float, datetime]] = {}
+        self._quote_cache: dict[str, tuple[tuple[float, float], datetime]] = {}
+
+    # --- Typed Domain V2: MarketDataPort-compatible methods ---
+    @translate_market_data_errors(default_return=[])
+    def get_bars(self, symbol: Symbol, period: str, timeframe: str) -> list[BarModel]:
+        """Fetch historical bars mapped to domain models (BarModel list).
+
+        Args:
+            symbol: Domain Symbol
+            period: e.g., '1y', '6mo', '3mo', '1mo', '200d'
+            timeframe: e.g., '1d', '1h', '1m', '5m', '15m'
+
+        Returns:
+            List[BarModel] (may be empty on failure)
+
+        """
+        # Map period to start/end ISO strings
+        end_dt = datetime.now(UTC)
+        start_dt = end_dt - timedelta(days=self._map_period_to_days(period))
+        start_iso = start_dt.date().isoformat()
+        end_iso = end_dt.date().isoformat()
+
+        repo_timeframe = self._map_timeframe_for_repo(timeframe)
+
+        rows = self._market_data.get_historical_bars(
+            symbol=str(symbol),
+            start_date=start_iso,
+            end_date=end_iso,
+            timeframe=repo_timeframe,
+        )
+        return bars_to_domain(rows)
+
+    @translate_market_data_errors(default_return=None)
+    def get_latest_quote(self, symbol: Symbol) -> QuoteModel | None:
+        """Fetch latest quote and map to domain QuoteModel.
 
         Note: Repository interface returns a (bid, ask) tuple; timestamp may be unavailable.
         """

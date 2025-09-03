@@ -1,4 +1,27 @@
-"""Business Unit: shared | Status: current.."""
+"""Business Unit: utilities; Status: current.
+
+Performance content builder for email templates.
+
+This module handles building HTML content for trading summaries,
+order execution reports, and performance metrics.
+"""
+
+from __future__ import annotations
+
+from typing import Any
+
+from .base import BaseEmailTemplate
+
+# TODO: Phase 12 - Types available for future migration to structured performance reports
+# from the_alchemiser.shared.value_objects.core_types import BacktestResult, PerformanceMetrics, TradeAnalysis
+
+
+class PerformanceBuilder:
+    """Builds performance-related HTML content for emails."""
+
+    @staticmethod
+    def build_trading_activity(orders: list[dict[str, Any]] | None = None) -> str:
+        """Build HTML for trading activity section."""
         if not orders or len(orders) == 0:
             return """
             <div style="margin: 24px 0; padding: 16px; background-color: #F3F4F6; border-radius: 8px; text-align: center;">

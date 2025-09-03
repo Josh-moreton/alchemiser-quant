@@ -1,4 +1,81 @@
-"""Business Unit: strategy | Status: current..
+"""Business Unit: utilities; Status: current.
+
+Evaluation context & caching utilities for DSL evaluator memoisation.
+
+Changes (post review hardening):
+ - Replaced hybrid functools.lru_cache approach with a true thread-safe
+     OrderedDict-based LRU implementation.
+ - Added helper to safely assign stable node IDs when interning is disabled
+     so memoisation can still function (structural hashing fallback).
+ - Added internal locking for concurrent access from parallel evaluation.
+"""
+
+from __future__ import annotations
+
+import hashlib
+from collections import OrderedDict
+from dataclasses import dataclass, fields, is_dataclass
+from threading import RLock
+from typing import Any
+
+from the_alchemiser.strategy.dsl.ast import (
+    RSI,
+    Asset,
+    ASTNode,
+    CumulativeReturn,
+    CurrentPrice,
+    Filter,
+    GreaterThan,
+    Group,
+    If,
+    LessThan,
+    MovingAveragePrice,
+    MovingAverageReturn,
+    NumberLiteral,
+    SelectBottom,
+    SelectTop,
+    StdevReturn,
+    Strategy,
+    Symbol,
+    WeightEqual,
+    WeightInverseVolatility,
+    WeightSpecified,
+)
+
+# Statistics for telemetry
+_memo_stats = {
+    "requests": 0,
+    "hits": 0,
+    "misses": 0,
+    "evictions": 0,
+}
+
+
+@dataclass(frozen=True)
+class EvalContext:
+    """Evaluation context that captures all state affecting node evaluation results.
+
+    This must include all dimensions that can change evaluation results:
+    - Time bucket (trading day or timestamp)
+    - Universe fingerprint (what symbols are available)
+    - Environment parameters (lookback windows, etc.)
+    """
+
+    time_bucket: str  # e.g., "2024-01-15" or timestamp
+    universe_fingerprint: str  # hash of sorted symbol list
+    env_fingerprint: str  # hash of environment parameters
+
+    def cache_key(self) -> tuple[str, str, str]:
+        """Get a hashable cache key for this context."""
+        return (self.time_bucket, self.universe_fingerprint, self.env_fingerprint)
+
+
+def create_eval_context(
+    timestamp: str | None = None,
+    symbols: list[str] | None = None,
+    env_params: dict[str, Any] | None = None,
+) -> EvalContext:
+    """Create an evaluation context from current state.
 
     Args:
         timestamp: Current evaluation timestamp (defaults to current time bucket)

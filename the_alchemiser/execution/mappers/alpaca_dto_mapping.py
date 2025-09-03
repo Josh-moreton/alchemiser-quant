@@ -1,5 +1,69 @@
 #!/usr/bin/env python3
-"""Business Unit: execution | Status: current..error(f"Failed to convert {value} to Decimal: {e}")
+"""Business Unit: utilities; Status: current.
+
+Alpaca DTO mapping utilities for infrastructure boundary.
+
+This module provides mapping functions to convert between Alpaca API responses
+and OrderExecutionResultDTO, ensuring proper type conversion and validation
+at the infrastructure boundary.
+
+Part of the anti-corruption layer for clean DTO boundaries.
+"""
+
+from __future__ import annotations
+
+import contextlib
+import logging
+from datetime import UTC, datetime
+from decimal import Decimal
+from typing import Any, Literal, cast
+
+from the_alchemiser.execution.mappers.orders import normalize_order_status
+from the_alchemiser.execution.orders.order_schemas import OrderExecutionResultDTO
+from the_alchemiser.execution.schemas.alpaca import AlpacaErrorDTO, AlpacaOrderDTO
+
+logger = logging.getLogger(__name__)
+
+
+def alpaca_order_to_dto(order: Any) -> AlpacaOrderDTO:
+    """Convert raw Alpaca order object to AlpacaOrderDTO.
+
+    Handles both attribute-based objects and dict responses from Alpaca API.
+
+    Args:
+        order: Raw Alpaca order object or dict
+
+    Returns:
+        AlpacaOrderDTO with validated and converted fields
+
+    Raises:
+        ValueError: If required fields are missing or invalid
+
+    """
+
+    # Extract helper function to handle both attribute access and dict access
+    def get_attr(name: str, default: Any = None) -> Any:
+        if isinstance(order, dict):
+            return order.get(name, default)
+        return getattr(order, name, default)
+
+    # Extract required fields
+    order_id = get_attr("id")
+    if not order_id:
+        raise ValueError("Order ID is required")
+
+    symbol = get_attr("symbol")
+    if not symbol:
+        raise ValueError("Symbol is required")
+
+    # Extract financial values with proper Decimal conversion
+    def to_decimal(value: Any) -> Decimal | None:
+        if value is None:
+            return None
+        try:
+            return Decimal(str(value))
+        except (ValueError, TypeError) as e:
+            logger.error(f"Failed to convert {value} to Decimal: {e}")
             raise
 
     # Extract timestamps with proper datetime handling

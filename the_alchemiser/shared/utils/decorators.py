@@ -1,5 +1,34 @@
 #!/usr/bin/env python3
-"""Business Unit: shared | Status: current..
+"""Business Unit: utilities; Status: current.
+
+Exception translation decorators for The Alchemiser Trading System.
+
+This module provides decorators that only translate exceptions without logging.
+The logging is handled explicitly by orchestrators/services using the handler.
+"""
+
+from __future__ import annotations
+
+import functools
+from collections.abc import Callable
+from typing import Any, TypeVar
+
+from the_alchemiser.shared.types.exceptions import (
+    ConfigurationError,
+    DataProviderError,
+    MarketDataError,
+    StreamingError,
+    TradingClientError,
+)
+
+F = TypeVar("F", bound=Callable[..., Any])  # Generic function type for decorators
+
+
+def translate_service_errors(
+    error_types: dict[type[Exception], type[Exception]] | None = None,
+    default_return: Any = None,  # noqa: ANN401  # Flexible default return for any function type
+) -> Callable[[F], F]:
+    """Decorator to translate service errors without logging.
 
     This decorator only translates exceptions - no logging is performed.
     Orchestrators/services should use the handler explicitly for logging.

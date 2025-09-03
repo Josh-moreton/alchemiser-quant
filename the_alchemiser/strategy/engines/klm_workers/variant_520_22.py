@@ -1,4 +1,43 @@
-"""Business Unit: strategy | Status: current.."""
+"""Business Unit: utilities; Status: current.
+
+KLM Strategy Variant 520/22 - "KMLM (23) - Original".
+
+This variant is similar to 506/38 and 1200/28 except:
+- KMLM Switcher uses select-bottom 1 from TECL/SVIX only (no SOXL, no FNGU)
+- L/S Rotator uses FTLS/KMLM/SSO/UUP (not SQQQ/TLT like others)
+- Everything else is the same: Single Popped KMLM, BSC, Combined Pop Bot (no LABU)
+
+This is the "Original" baseline implementation.
+"""
+
+from __future__ import annotations
+
+import pandas as pd
+
+from the_alchemiser.shared.utils.common import ActionType
+
+from .base_klm_variant import BaseKLMVariant
+
+
+class KlmVariant52022(BaseKLMVariant):
+    """Variant 520/22 - "Original" with TECL/SVIX switcher and FTLS/KMLM/SSO/UUP rotator.
+
+    Key differences:
+    - KMLM Switcher: TECL/SVIX only (no SOXL)
+    - L/S Rotator: FTLS/KMLM/SSO/UUP (not SQQQ/TLT)
+    """
+
+    def __init__(self) -> None:
+        super().__init__(
+            name="520/22", description="KMLM (23) - Original baseline with TECL/SVIX switcher"
+        )
+
+    def evaluate(
+        self,
+        indicators: dict[str, dict[str, float]],
+        market_data: dict[str, pd.DataFrame] | None = None,
+    ) -> tuple[str | dict[str, float], str, str]:
+        """Evaluate 520/22 - same as 506/38 except KMLM Switcher and L/S Rotator."""
         # Step 1: Primary overbought checks → UVXY
         symbol, reason = self.check_primary_overbought_conditions(indicators)
         if symbol:

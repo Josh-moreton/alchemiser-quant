@@ -1,10 +1,60 @@
 from __future__ import annotations
 
-"""Business Unit: shared | Status: current..
+"""Business Unit: shared | Status: current
+
+Dashboard Utils - migrated from legacy location.
 """
 
 #!/usr/bin/env python3
-"""Business Unit: shared | Status: current..
+"""Business Unit: utilities; Status: current.
+Dashboard Data Utilities.
+
+This module provides helper functions for building structured data
+for dashboard consumption, including portfolio metrics, positions,
+and performance data.
+"""
+
+
+import logging
+from datetime import UTC, datetime
+from typing import Any
+
+from the_alchemiser.shared.value_objects.core_types import AccountInfo, PositionInfo
+
+
+def build_basic_dashboard_structure(paper_trading: bool) -> dict[str, Any]:
+    """Build basic dashboard data structure.
+
+    Args:
+        paper_trading: Whether using paper trading mode
+
+    Returns:
+        Dict with empty dashboard structure
+
+    """
+    return {
+        "timestamp": datetime.now(UTC).isoformat(),
+        "execution_mode": "PAPER" if paper_trading else "LIVE",
+        "success": False,
+        "strategies": {},
+        "portfolio": {
+            "total_value": 0,
+            "total_pl": 0,
+            "total_pl_percent": 0,
+            "daily_pl": 0,
+            "daily_pl_percent": 0,
+            "cash": 0,
+            "equity": 0,
+        },
+        "positions": [],
+        "recent_trades": [],
+        "signals": {},
+        "performance": {"last_30_days": {}, "last_7_days": {}, "today": {}},
+    }
+
+
+def extract_portfolio_metrics(account_info: AccountInfo | dict[str, Any]) -> dict[str, float]:
+    """Extract portfolio metrics from account information.
 
     Args:
         account_info: Account information dictionary

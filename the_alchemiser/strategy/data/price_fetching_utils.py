@@ -1,5 +1,77 @@
 #!/usr/bin/env python3
-"""Business Unit: strategy | Status: current..
+"""Business Unit: utilities; Status: current.
+
+Price Fetching Utilities.
+
+This module provides helper functions for price fetching operations,
+breaking down verbose price fetching logic into reusable components.
+"""
+
+from __future__ import annotations
+
+import logging
+import time
+from collections.abc import Callable
+from typing import Any
+
+import pandas as pd
+from alpaca.data.requests import StockLatestQuoteRequest
+
+from the_alchemiser.shared.logging.logging_utils import get_logger, log_error_with_context
+from the_alchemiser.shared.types.exceptions import DataProviderError
+
+logger = get_logger(__name__)
+
+
+def subscribe_for_real_time(real_time_pricing: Any, symbol: str) -> bool:
+    """Subscribe to real-time data for a symbol with just-in-time subscription.
+
+    Args:
+        real_time_pricing: Real-time pricing instance
+        symbol: Stock symbol to subscribe to
+
+    Returns:
+        bool: True if subscription was successful, False otherwise
+
+    """
+    if not real_time_pricing or not real_time_pricing.is_connected():
+        return False
+
+    try:
+        # Subscribe for trading with high priority
+        real_time_pricing.subscribe_for_trading(symbol)
+        logging.debug(f"Subscribed to real-time data for {symbol} (order placement)")
+
+        # Give a moment for real-time data to flow
+        time.sleep(0.8)  # Slightly longer wait for order placement accuracy
+        return True
+    except (AttributeError, ValueError, ConnectionError) as e:
+        log_error_with_context(
+            logger,
+            DataProviderError(f"Failed to subscribe to real-time data for {symbol}: {e}"),
+            "real_time_subscription",
+            function="subscribe_for_real_time",
+            symbol=symbol,
+            error_type=type(e).__name__,
+        )
+        logging.warning(f"Failed to subscribe to real-time data for {symbol}: {e}")
+        return False
+    except Exception as e:
+        log_error_with_context(
+            logger,
+            DataProviderError(f"Unexpected error subscribing to real-time data for {symbol}: {e}"),
+            "real_time_subscription",
+            function="subscribe_for_real_time",
+            symbol=symbol,
+            error_type="unexpected_error",
+            original_error=type(e).__name__,
+        )
+        logging.warning(f"Unexpected error subscribing to real-time data for {symbol}: {e}")
+        return False
+
+
+def extract_bid_ask(quote: Any) -> tuple[float | None, float | None]:
+    """Extract bid and ask prices safely from a quote object.
 
     Args:
         quote: Quote object with bid_price and ask_price attributes

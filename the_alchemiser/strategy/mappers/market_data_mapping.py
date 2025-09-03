@@ -1,4 +1,54 @@
-"""Business Unit: strategy | Status: current..
+"""Business Unit: utilities; Status: current.
+
+Market data mapping utilities for strategy adaptation.
+
+Provides conversion functions between typed domain models and DataFrame formats
+for strategies that still need pandas ergonomics while maintaining domain purity.
+"""
+
+from __future__ import annotations
+
+from decimal import Decimal
+
+import pandas as pd
+
+from the_alchemiser.shared.types.bar import BarModel
+from the_alchemiser.shared.types.quote import QuoteModel
+from the_alchemiser.shared.types.symbol_legacy import Symbol
+
+
+def bars_to_dataframe(bars: list[BarModel]) -> pd.DataFrame:
+    """Convert list of BarModel domain objects to pandas DataFrame.
+
+    Args:
+        bars: List of BarModel domain objects
+
+    Returns:
+        DataFrame with OHLCV data indexed by timestamp
+
+    """
+    if not bars:
+        return pd.DataFrame()
+
+    data = []
+    for bar in bars:
+        data.append(
+            {
+                "Open": float(bar.open),
+                "High": float(bar.high),
+                "Low": float(bar.low),
+                "Close": float(bar.close),
+                "Volume": float(bar.volume),
+            }
+        )
+
+    df = pd.DataFrame(data, index=[bar.ts for bar in bars])
+    df.index.name = "timestamp"
+    return df
+
+
+def quote_to_tuple(quote: QuoteModel | None) -> tuple[float | None, float | None]:
+    """Convert QuoteModel to tuple format for backward compatibility.
 
     Args:
         quote: QuoteModel domain object or None

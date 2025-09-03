@@ -1,5 +1,40 @@
 #!/usr/bin/env python3
-"""Business Unit: portfolio | Status: current..FILLED,
+"""Business Unit: utilities; Status: current.
+
+Mapping utilities between tracking DTOs and internal dataclasses.
+
+This module provides anti-corruption layer mappings for the strategy_order_tracker
+refactor, converting between StrategyOrderEventDTO/StrategyExecutionSummaryDTO
+and internal dataclasses. Updated to support new Pydantic DTOs for strategy tracking.
+"""
+
+from __future__ import annotations
+
+from datetime import UTC, datetime
+from decimal import Decimal
+from typing import Any, cast
+
+# Import DTOs and new strategy DTOs
+from the_alchemiser.portfolio.schemas.tracking import (
+    ExecutionStatus,
+    OrderEventStatus,
+    StrategyExecutionSummaryDTO,
+    StrategyLiteral,
+    StrategyOrderDTO,
+    StrategyOrderEventDTO,
+    StrategyPnLDTO,
+    StrategyPositionDTO,
+)
+
+# Constants to avoid duplication
+UTC_OFFSET_STRING = "+00:00"
+DECIMAL_QUANTIZE_PRECISION = "0.000001"
+
+
+def strategy_order_to_event_dto(
+    order: Any,  # StrategyOrder - avoid import to prevent circular dependency
+    event_id: str | None = None,
+    status: OrderEventStatus = OrderEventStatus.FILLED,
     error: str | None = None,
 ) -> StrategyOrderEventDTO:
     """Convert StrategyOrder to StrategyOrderEventDTO."""

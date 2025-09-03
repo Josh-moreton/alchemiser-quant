@@ -1,5 +1,84 @@
 #!/usr/bin/env python3
-"""Business Unit: execution | Status: current....
+"""Business Unit: order execution/placement; Status: current.
+
+Smart Execution Engine with Professional Order Strategy.
+
+This module provides sophisticated order execution using the Better Orders strategy:
+- Aggressive marketable limits (ask+1¢ for buys, bid-            # Get alpaca manager from order executor for canonical executor
+            alpaca_manager = getattr(self._order_executor, "alpaca_manager", None)
+            if not alpaca_manager:
+                # If not available, get underlying trading repository
+                alpaca_manager = getattr(self._order_executor, "_trading", self._order_executor)
+
+            order_request = OrderRequest(
+                symbol=DomainSymbol(symbol),
+                side=DomainSide("buy" if side.value.lower() == "buy" else "sell"),
+                quantity=DomainQuantity(Decimal(str(qty))),
+                order_type=DomainOrderType("limit"),
+                time_in_force=DomainTimeInForce("day"),
+                limit_price=DomainMoney(amount=Decimal(str(limit_price)), currency="USD"),
+            )
+            executor = CanonicalOrderExecutor(alpaca_manager)lls)
+- Market timing logic for 9:30-9:35 ET execution
+- Fast 2-3 second timeouts with re-pegging
+- Designed for leveraged ETFs and high-volume trading
+- Market order fallback for execution certainty
+
+Refactored to use composition instead of thin proxy methods.
+Focuses on execution strategy logic while delegating order placement to specialized components.
+"""
+
+from __future__ import annotations
+
+import logging
+import time
+from decimal import Decimal
+from typing import TYPE_CHECKING, Any, Protocol
+
+from alpaca.trading.enums import OrderSide
+
+from the_alchemiser.execution.config.execution_config import (
+    ExecutionConfig,
+    get_execution_config,
+)
+from the_alchemiser.execution.core.canonical_executor import (
+    CanonicalOrderExecutor,
+)
+from the_alchemiser.execution.core.execution_schemas import WebSocketResultDTO
+from the_alchemiser.execution.orders.order_request import OrderRequest
+from the_alchemiser.execution.orders.order_type import (
+    OrderType as DomainOrderType,
+)
+from the_alchemiser.execution.orders.side import Side as DomainSide
+from the_alchemiser.shared.types.money import Money
+from the_alchemiser.shared.types.quantity import (
+    Quantity as DomainQuantity,
+)
+from the_alchemiser.shared.types.time_in_force import (
+    TimeInForce as DomainTimeInForce,
+)
+from the_alchemiser.shared.value_objects.symbol import Symbol as DomainSymbol
+
+if TYPE_CHECKING:
+    pass
+from the_alchemiser.shared.types.exceptions import (
+    BuyingPowerError,
+    DataProviderError,
+    OrderExecutionError,
+    OrderPlacementError,
+    SpreadAnalysisError,
+    TradingClientError,
+)
+
+
+class OrderExecutor(Protocol):
+    """Protocol for minimal dependencies required by SmartExecution.
+
+    Legacy direct order placement methods removed; SmartExecution now builds
+    canonical OrderRequest objects internally and uses CanonicalOrderExecutor.
+    """
+
+    def place_smart_sell_order(self, symbol: str, qty: float) -> str | None: ...
     def liquidate_position(self, symbol: str) -> str | None: ...
     def get_current_positions(self) -> dict[str, float]: ...
     def wait_for_order_completion(

@@ -1,5 +1,72 @@
 #!/usr/bin/env python3
-"""Business Unit: execution | Status: current..config = config
+"""Business Unit: strategy & signal generation; Status: current.
+
+Repeg Strategy.
+
+Stateless strategy for planning and executing re-pegging attempts with
+adaptive pricing and timeout logic.
+Uses Decimal for all monetary values per project standards.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from decimal import ROUND_HALF_UP, Decimal
+from typing import NamedTuple, TypedDict
+
+from alpaca.trading.enums import OrderSide
+
+from the_alchemiser.shared.services.tick_size_service import (
+    DynamicTickSizeService,
+    resolve_tick_size,
+)
+
+from .config import StrategyConfig
+
+
+class AttemptPlan(TypedDict):
+    attempt_index: int
+    timeout_seconds: float
+    price_improvement_ticks: int
+    reason: str
+
+
+class AttemptResult(NamedTuple):
+    """Result of a single attempt calculation."""
+
+    price: Decimal
+    timeout_seconds: float
+    reason: str
+    attempt_index: int
+
+
+@dataclass(frozen=True)
+class AttemptState:
+    """Current state for an attempt sequence."""
+
+    bid: Decimal
+    ask: Decimal
+    original_spread_cents: Decimal
+    last_attempt_time: float
+    side: OrderSide
+    symbol: str  # Phase 7 Enhancement: Add symbol for dynamic tick size resolution
+
+
+class RepegStrategy:
+    """Stateless strategy for adaptive re-pegging logic.
+
+    This strategy handles the pricing and timing logic for re-pegging
+    attempts while maintaining no internal state. All state is passed
+    explicitly through method parameters.
+    """
+
+    def __init__(
+        self,
+        config: StrategyConfig,
+        strategy_name: str = "RepegStrategy",
+        tick_size_service: DynamicTickSizeService | None = None,
+    ) -> None:
+        self.config = config
         self.strategy_name = strategy_name
         # Require explicit service injection; if omitted, create a new instance (transitional)
         self._tick_size_service = tick_size_service or DynamicTickSizeService()

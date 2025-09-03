@@ -1,5 +1,41 @@
 #!/usr/bin/env python3
-"""Business Unit: portfolio | Status: current.."""
+"""Business Unit: utilities; Status: current.
+
+Trading Engine Integration for Strategy Order Tracker.
+
+This module provides integration between the trading engine and strategy order tracker
+to automatically capture and track orders by strategy for P&L calculations.
+
+Key Features:
+- Automatic order tracking when orders are executed
+- Strategy context preservation through the execution chain
+- Integration with existing TradingEngine and SmartExecution
+- Minimal changes to existing code patterns
+"""
+
+from __future__ import annotations
+
+import logging
+from contextlib import contextmanager
+from typing import TYPE_CHECKING, Any
+
+from the_alchemiser.strategy.registry.strategy_registry import StrategyType
+
+if TYPE_CHECKING:
+    from the_alchemiser.portfolio.pnl.strategy_order_tracker import (
+        StrategyOrderTracker,
+    )
+
+
+class StrategyExecutionContext:
+    """Context manager to track which strategy is currently executing orders."""
+
+    _current_strategy: StrategyType | None = None
+    _order_tracker: StrategyOrderTracker | None = None
+
+    @classmethod
+    def set_current_strategy(cls, strategy: StrategyType) -> None:
+        """Set the currently executing strategy."""
         cls._current_strategy = strategy
         if cls._order_tracker is None:
             # Import here to avoid circular imports

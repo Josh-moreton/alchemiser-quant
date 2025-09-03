@@ -1,10 +1,55 @@
 from __future__ import annotations
 
-"""Business Unit: shared | Status: current..
+"""Business Unit: shared | Status: current
+
+Enriched Data - migrated from legacy location.
 """
 
 #!/usr/bin/env python3
-"""Business Unit: shared | Status: current.."""
+"""Business Unit: utilities; Status: current.
+Order listing DTOs for The Alchemiser Trading System.
+
+This module contains DTOs for order listing operations, including
+open orders retrieval and order history.
+"""
+
+
+from typing import Any
+
+from pydantic import BaseModel, ConfigDict
+
+from the_alchemiser.shared.schemas.base import Result
+
+
+class EnrichedOrderView(BaseModel):
+    """DTO for enriched order data with domain mapping."""
+
+    model_config = ConfigDict(
+        strict=True,
+        frozen=True,
+        validate_assignment=True,
+    )
+
+    raw: dict[str, Any]
+    domain: dict[str, Any]  # Domain order object serialized
+    summary: dict[str, Any]  # Order summary
+
+
+class OpenOrdersView(Result):
+    """DTO for open orders list response."""
+
+    model_config = ConfigDict(
+        strict=True,
+        frozen=True,
+        validate_assignment=True,
+    )
+
+    orders: list[EnrichedOrderView]
+    symbol_filter: str | None = None
+
+
+class EnrichedPositionView(BaseModel):
+    """DTO for enriched position data with domain mapping."""
 
     model_config = ConfigDict(
         strict=True,

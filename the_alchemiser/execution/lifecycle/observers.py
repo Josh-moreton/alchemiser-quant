@@ -1,4 +1,36 @@
-"""Business Unit: execution | Status: current..
+"""Business Unit: order execution/placement; Status: current.
+
+Concrete observer implementations for order lifecycle events.
+"""
+
+from __future__ import annotations
+
+import logging
+import time
+from typing import Any
+
+from rich.console import Console
+from rich.panel import Panel
+from rich.table import Table
+
+from the_alchemiser.execution.analytics.slippage_analyzer import SlippageAnalyzer
+from the_alchemiser.execution.lifecycle.events import OrderLifecycleEvent
+
+logger = logging.getLogger(__name__)
+
+
+class LoggingObserver:
+    """Observer that logs order lifecycle events with structured information.
+
+    This observer provides rich logging of order lifecycle transitions,
+    including contextual metadata and formatted output for debugging
+    and audit trail purposes.
+    """
+
+    def __init__(
+        self, *, use_rich_logging: bool = True, slippage_analyzer: SlippageAnalyzer | None = None
+    ) -> None:  # Transitional: bool retained for backward compatibility
+        """Initialize the logging observer.
 
         Args:
             use_rich_logging: Whether to use Rich console for formatted output

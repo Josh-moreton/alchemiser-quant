@@ -1,4 +1,32 @@
-"""Business Unit: shared | Status: current..
+"""Business Unit: utilities; Status: current.
+
+Email configuration management module.
+
+This module handles loading email settings from environment variables and AWS Secrets Manager.
+Replaces the `get_email_config` function from the original email_utils.py.
+"""
+
+from __future__ import annotations
+
+import logging
+
+from the_alchemiser.shared.config.config import load_settings
+from the_alchemiser.shared.config.secrets_manager import SecretsManager
+from the_alchemiser.shared.schemas.reporting import EmailCredentials
+
+
+class EmailConfig:
+    """Manages email configuration settings."""
+
+    def __init__(self) -> None:
+        """Prepare helpers for loading configuration from multiple sources."""
+        self.secrets_manager = SecretsManager()
+        self._config_cache: EmailCredentials | None = None
+
+    def get_config(
+        self,
+    ) -> EmailCredentials | None:
+        """Get email configuration from environment variables and secrets manager.
 
         Returns:
             EmailCredentials containing email configuration or None if configuration is invalid.

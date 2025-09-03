@@ -1,5 +1,34 @@
 #!/usr/bin/env python3
-"""Business Unit: shared | Status: current.."""
+"""Business Unit: utilities; Status: current.
+
+WebSocket Connection Manager.
+
+This module manages WebSocket connections for order monitoring and real-time data,
+providing connection lifecycle management and cleanup utilities.
+"""
+
+from __future__ import annotations
+
+import contextlib
+import logging
+import threading
+import time
+from typing import Any
+
+from rich.console import Console
+
+
+class WebSocketConnectionManager:
+    """Manages WebSocket connections for the AlpacaClient.
+
+    Provides connection setup, cleanup, and lifecycle management for both
+    trading streams and data streams.
+    """
+
+    def __init__(
+        self, trading_client: Any, api_key: str | None = None, secret_key: str | None = None
+    ) -> None:
+        """Initialize with trading client and optional API credentials."""
         self.trading_client = trading_client
         self.api_key = api_key
         self.secret_key = secret_key

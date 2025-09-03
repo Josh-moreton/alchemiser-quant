@@ -1,4 +1,76 @@
-"""Business Unit: strategy | Status: current..
+"""Business Unit: strategy & signal generation; Status: current.
+
+Typed Strategy Manager.
+
+Modern strategy orchestrator that depends only on MarketDataPort and typed engines.
+Aggregates typed StrategySignal objects and handles conflict resolution between
+multiple strategy recommendations.
+
+This manager implements the DDD modernization plan by using only typed interfaces
+and returning structured domain objects ready for execution and CLI mapping.
+"""
+
+from __future__ import annotations
+
+import logging
+from datetime import UTC, datetime
+from decimal import Decimal
+from typing import TYPE_CHECKING, Any
+
+from the_alchemiser.shared.types.market_data_port import MarketDataPort
+from the_alchemiser.shared.value_objects.symbol import Symbol
+from the_alchemiser.strategy.registry.strategy_registry import StrategyRegistry, StrategyType
+
+from .engine import StrategyEngine
+from .nuclear_typed_engine import NuclearTypedEngine
+from .typed_klm_ensemble_engine import TypedKLMStrategyEngine
+from .value_objects.confidence import Confidence
+from .value_objects.strategy_signal import StrategySignal
+
+if TYPE_CHECKING:
+    from the_alchemiser.shared.dto import StrategySignalDTO
+
+
+class AggregatedSignals:
+    """Aggregated strategy signals with conflict resolution."""
+
+    def __init__(self) -> None:
+        self.signals_by_strategy: dict[StrategyType, list[StrategySignal]] = {}
+        self.consolidated_signals: list[StrategySignal] = []
+        self.conflicts: list[dict[str, Any]] = []
+
+    def add_strategy_signals(
+        self, strategy_type: StrategyType, signals: list[StrategySignal]
+    ) -> None:
+        """Add signals from a specific strategy."""
+        self.signals_by_strategy[strategy_type] = signals
+
+    def get_all_signals(self) -> list[StrategySignal]:
+        """Get all signals from all strategies."""
+        all_signals = []
+        for signals in self.signals_by_strategy.values():
+            all_signals.extend(signals)
+        return all_signals
+
+    def get_signals_by_strategy(self) -> dict[StrategyType, list[StrategySignal]]:
+        """Get signals grouped by strategy."""
+        return self.signals_by_strategy.copy()
+
+
+class TypedStrategyManager:
+    """Typed strategy manager that orchestrates typed engines and aggregates signals.
+
+    This manager implements clean dependency injection using only MarketDataPort
+    and typed strategy engines. It produces aggregated typed structures ready
+    for execution and CLI mapping.
+    """
+
+    def __init__(
+        self,
+        market_data_port: MarketDataPort,
+        strategy_allocations: dict[StrategyType, float] | None = None,
+    ) -> None:
+        """Initialize typed strategy manager.
 
         Args:
             market_data_port: Market data access interface

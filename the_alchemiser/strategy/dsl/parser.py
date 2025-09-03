@@ -1,4 +1,65 @@
-"""Business Unit: strategy | Status: current..
+"""Business Unit: utilities; Status: current.
+
+S-expression parser with Clojure vector [] support for trading strategy DSL.
+
+Vectors act as grouping constructs. For portfolio / selector constructs they
+are flattened into the surrounding argument list. For conditional branches a
+vector containing multiple expressions becomes an implicit block.
+"""
+
+from __future__ import annotations
+
+import re
+from dataclasses import dataclass
+from typing import Any
+
+from the_alchemiser.strategy.dsl.ast import (
+    RSI,
+    Asset,
+    ASTNode,
+    CumulativeReturn,
+    CurrentPrice,
+    Filter,
+    FunctionCall,
+    GreaterThan,
+    Group,
+    If,
+    LessThan,
+    MovingAveragePrice,
+    MovingAverageReturn,
+    NumberLiteral,
+    SelectBottom,
+    SelectTop,
+    StdevReturn,
+    Strategy,
+    Symbol,
+    WeightEqual,
+    WeightInverseVolatility,
+    WeightSpecified,
+)
+from the_alchemiser.strategy.dsl.errors import ParseError, SchemaError
+
+
+@dataclass(frozen=True)
+class Vector:
+    elements: list[Any]
+
+
+# Simplified for linter compatibility (recursive union replaced by Any)
+SExprType = Any
+
+
+class DSLParser:
+    MAX_DEPTH = 5000000  # Default very high for extremely nested strategies
+    MAX_NODES = 2000000000  # Default very high for massive complex strategies
+
+    def __init__(
+        self,
+        max_nodes: int | None = MAX_NODES,
+        max_depth: int | None = MAX_DEPTH,
+        enable_interning: bool = False,
+    ) -> None:
+        """Create a DSL parser.
 
         Args:
             max_nodes: Maximum AST nodes allowed (None disables cap).
