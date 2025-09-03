@@ -28,6 +28,17 @@ def to_money_usd(value: str | float | int | Decimal | None) -> Money | None:
 
 @dataclass(frozen=True)
 class AccountMetrics:
+    """Account financial metrics with decimal precision.
+    
+    Contains key financial ratios and metrics for account analysis
+    calculated with precise decimal arithmetic.
+    
+    Attributes:
+        cash_ratio: Ratio of cash to total equity
+        market_exposure: Ratio of market value to total equity  
+        leverage_ratio: Optional leverage ratio if applicable
+        available_buying_power_ratio: Ratio of available buying power to equity
+    """
     cash_ratio: Decimal
     market_exposure: Decimal
     leverage_ratio: Decimal | None
@@ -36,6 +47,20 @@ class AccountMetrics:
 
 @dataclass(frozen=True)
 class AccountSummaryTyped:
+    """Typed account summary with Money value objects.
+    
+    Provides a fully typed account summary using Money value objects
+    for precise financial calculations and type safety.
+    
+    Attributes:
+        account_id: Unique account identifier
+        equity: Total account equity
+        cash: Available cash balance
+        market_value: Total market value of positions
+        buying_power: Available buying power
+        last_equity: Previous equity value for comparison
+        day_trade_count: Number of day trades in current period
+    """
     account_id: str
     equity: Money
     cash: Money

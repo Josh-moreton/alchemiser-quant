@@ -25,6 +25,11 @@ from .config import StrategyConfig
 
 
 class AttemptPlan(TypedDict):
+    """Plan for a single re-pegging attempt.
+    
+    Defines the parameters for an individual attempt in the re-pegging strategy,
+    including timing, pricing, and reasoning.
+    """
     attempt_index: int
     timeout_seconds: float
     price_improvement_ticks: int

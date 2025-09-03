@@ -58,6 +58,16 @@ SExprType = Any
 
 
 class DSLParser:
+    """Parser for Domain Specific Language expressions.
+    
+    Parses S-expression style DSL into AST nodes with configurable limits
+    for safety and performance. Supports extremely nested strategies with
+    high default limits.
+    
+    Attributes:
+        MAX_DEPTH: Default maximum recursion depth (5,000,000)
+        MAX_NODES: Default maximum AST nodes (2,000,000,000)
+    """
     MAX_DEPTH = 5000000  # Default very high for extremely nested strategies
     MAX_NODES = 2000000000  # Default very high for massive complex strategies
 

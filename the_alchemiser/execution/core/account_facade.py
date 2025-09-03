@@ -441,11 +441,10 @@ class AccountFacade:
     # --- Typed Domain Integration Methods ---
 
     def _build_minimal_summary(self) -> dict[str, Any]:
-        """Internal helper to construct a minimal fallback summary.
+        """Construct a minimal fallback summary when account data is unavailable.
 
         Returns:
             Serialized dictionary containing minimal account summary data.
-
         """
         default_account = _create_default_account_info("error")
         minimal_metrics = AccountMetricsDTO(
