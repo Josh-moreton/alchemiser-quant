@@ -1,0 +1,1342 @@
+[
+  {
+    "file_path": "the_alchemiser/shared/types/symbol_legacy.py",
+    "category": "shim",
+    "description": "Legacy symbol implementation with active imports",
+    "risk_level": "high",
+    "suggested_action": "migrate_imports_then_remove",
+    "evidence": [
+      "Explicitly named 'legacy'",
+      "Active imports: 7"
+    ],
+    "active_imports": 7,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "the_alchemiser/portfolio/positions/legacy_position_manager.py",
+    "category": "shim",
+    "description": "Legacy position manager with active imports",
+    "risk_level": "high",
+    "suggested_action": "migrate_imports_then_remove",
+    "evidence": [
+      "Explicitly named 'legacy'",
+      "Active imports: 1"
+    ],
+    "active_imports": 1,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "scripts/import_analyzer.py",
+    "category": "legacy",
+    "description": "Utility script for legacy/migration tasks",
+    "risk_level": "low",
+    "suggested_action": "review_for_removal",
+    "evidence": [
+      "Contains legacy/migration keywords"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "scripts/migrate_phase2_imports.py",
+    "category": "legacy",
+    "description": "Utility script for legacy/migration tasks",
+    "risk_level": "low",
+    "suggested_action": "review_for_removal",
+    "evidence": [
+      "Contains legacy/migration keywords"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "scripts/rollback_legacy_deletions.py",
+    "category": "legacy",
+    "description": "Utility script for legacy/migration tasks",
+    "risk_level": "medium",
+    "suggested_action": "review_for_removal",
+    "evidence": [
+      "Contains legacy/migration keywords"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "scripts/delete_legacy_safe.py",
+    "category": "legacy",
+    "description": "Utility script for legacy/migration tasks",
+    "risk_level": "medium",
+    "suggested_action": "review_for_removal",
+    "evidence": [
+      "Contains legacy/migration keywords"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "scripts/audit_shims_compatibility.py",
+    "category": "legacy",
+    "description": "Utility script for legacy/migration tasks",
+    "risk_level": "low",
+    "suggested_action": "review_for_removal",
+    "evidence": [
+      "Contains legacy/migration keywords"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "scripts/focused_shim_auditor.py",
+    "category": "legacy",
+    "description": "Utility script for legacy/migration tasks",
+    "risk_level": "low",
+    "suggested_action": "review_for_removal",
+    "evidence": [
+      "Contains legacy/migration keywords"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "scripts/comprehensive_legacy_auditor.py",
+    "category": "legacy",
+    "description": "Utility script for legacy/migration tasks",
+    "risk_level": "medium",
+    "suggested_action": "review_for_removal",
+    "evidence": [
+      "Contains legacy/migration keywords"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "scripts/refined_shim_auditor.py",
+    "category": "legacy",
+    "description": "Utility script for legacy/migration tasks",
+    "risk_level": "low",
+    "suggested_action": "review_for_removal",
+    "evidence": [
+      "Contains legacy/migration keywords"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "BATCH_17_MIGRATION_REPORT.md",
+    "category": "archive",
+    "description": "Migration or audit report documentation",
+    "risk_level": "low",
+    "suggested_action": "archive_or_remove",
+    "evidence": [
+      "Historical migration/audit documentation"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "BATCH_9_MIGRATION_REPORT.md",
+    "category": "archive",
+    "description": "Migration or audit report documentation",
+    "risk_level": "low",
+    "suggested_action": "archive_or_remove",
+    "evidence": [
+      "Historical migration/audit documentation"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "BATCH_15_MIGRATION_REPORT.md",
+    "category": "archive",
+    "description": "Migration or audit report documentation",
+    "risk_level": "low",
+    "suggested_action": "archive_or_remove",
+    "evidence": [
+      "Historical migration/audit documentation"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "BATCH_3_MIGRATION_REPORT.md",
+    "category": "archive",
+    "description": "Migration or audit report documentation",
+    "risk_level": "low",
+    "suggested_action": "archive_or_remove",
+    "evidence": [
+      "Historical migration/audit documentation"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "BATCH_12_MIGRATION_REPORT.md",
+    "category": "archive",
+    "description": "Migration or audit report documentation",
+    "risk_level": "low",
+    "suggested_action": "archive_or_remove",
+    "evidence": [
+      "Historical migration/audit documentation"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "BATCH_17_MIGRATION_PLAN.md",
+    "category": "archive",
+    "description": "Migration or audit report documentation",
+    "risk_level": "low",
+    "suggested_action": "archive_or_remove",
+    "evidence": [
+      "Historical migration/audit documentation"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "BATCH_7_MIGRATION_REPORT.md",
+    "category": "archive",
+    "description": "Migration or audit report documentation",
+    "risk_level": "low",
+    "suggested_action": "archive_or_remove",
+    "evidence": [
+      "Historical migration/audit documentation"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "BATCH_11_MIGRATION_PLAN.md",
+    "category": "archive",
+    "description": "Migration or audit report documentation",
+    "risk_level": "low",
+    "suggested_action": "archive_or_remove",
+    "evidence": [
+      "Historical migration/audit documentation"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "BATCH_16_MIGRATION_REPORT.md",
+    "category": "archive",
+    "description": "Migration or audit report documentation",
+    "risk_level": "low",
+    "suggested_action": "archive_or_remove",
+    "evidence": [
+      "Historical migration/audit documentation"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "BATCH_2_MIGRATION_REPORT.md",
+    "category": "archive",
+    "description": "Migration or audit report documentation",
+    "risk_level": "low",
+    "suggested_action": "archive_or_remove",
+    "evidence": [
+      "Historical migration/audit documentation"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "BATCH_5_MIGRATION_PLAN.md",
+    "category": "archive",
+    "description": "Migration or audit report documentation",
+    "risk_level": "low",
+    "suggested_action": "archive_or_remove",
+    "evidence": [
+      "Historical migration/audit documentation"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "BATCH_1_MIGRATION_REPORT.md",
+    "category": "archive",
+    "description": "Migration or audit report documentation",
+    "risk_level": "low",
+    "suggested_action": "archive_or_remove",
+    "evidence": [
+      "Historical migration/audit documentation"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "BATCH_14_MIGRATION_PLAN.md",
+    "category": "archive",
+    "description": "Migration or audit report documentation",
+    "risk_level": "low",
+    "suggested_action": "archive_or_remove",
+    "evidence": [
+      "Historical migration/audit documentation"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "BATCH_4_MIGRATION_REPORT.md",
+    "category": "archive",
+    "description": "Migration or audit report documentation",
+    "risk_level": "low",
+    "suggested_action": "archive_or_remove",
+    "evidence": [
+      "Historical migration/audit documentation"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "BATCH_13_MIGRATION_REPORT.md",
+    "category": "archive",
+    "description": "Migration or audit report documentation",
+    "risk_level": "low",
+    "suggested_action": "archive_or_remove",
+    "evidence": [
+      "Historical migration/audit documentation"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "BATCH_11_MIGRATION_REPORT.md",
+    "category": "archive",
+    "description": "Migration or audit report documentation",
+    "risk_level": "low",
+    "suggested_action": "archive_or_remove",
+    "evidence": [
+      "Historical migration/audit documentation"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "BATCH_14_MIGRATION_REPORT.md",
+    "category": "archive",
+    "description": "Migration or audit report documentation",
+    "risk_level": "low",
+    "suggested_action": "archive_or_remove",
+    "evidence": [
+      "Historical migration/audit documentation"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "BATCH_8_MIGRATION_PLAN.md",
+    "category": "archive",
+    "description": "Migration or audit report documentation",
+    "risk_level": "low",
+    "suggested_action": "archive_or_remove",
+    "evidence": [
+      "Historical migration/audit documentation"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "BATCH_8_MIGRATION_REPORT.md",
+    "category": "archive",
+    "description": "Migration or audit report documentation",
+    "risk_level": "low",
+    "suggested_action": "archive_or_remove",
+    "evidence": [
+      "Historical migration/audit documentation"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "BATCH_6_MIGRATION_REPORT.md",
+    "category": "archive",
+    "description": "Migration or audit report documentation",
+    "risk_level": "low",
+    "suggested_action": "archive_or_remove",
+    "evidence": [
+      "Historical migration/audit documentation"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "BATCH_7_MIGRATION_PLAN.md",
+    "category": "archive",
+    "description": "Migration or audit report documentation",
+    "risk_level": "low",
+    "suggested_action": "archive_or_remove",
+    "evidence": [
+      "Historical migration/audit documentation"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "BATCH_10_MIGRATION_REPORT.md",
+    "category": "archive",
+    "description": "Migration or audit report documentation",
+    "risk_level": "low",
+    "suggested_action": "archive_or_remove",
+    "evidence": [
+      "Historical migration/audit documentation"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "BATCH_15_MIGRATION_PLAN.md",
+    "category": "archive",
+    "description": "Migration or audit report documentation",
+    "risk_level": "low",
+    "suggested_action": "archive_or_remove",
+    "evidence": [
+      "Historical migration/audit documentation"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "BATCH_5_MIGRATION_REPORT.md",
+    "category": "archive",
+    "description": "Migration or audit report documentation",
+    "risk_level": "low",
+    "suggested_action": "archive_or_remove",
+    "evidence": [
+      "Historical migration/audit documentation"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "BATCH_16_MIGRATION_PLAN.md",
+    "category": "archive",
+    "description": "Migration or audit report documentation",
+    "risk_level": "low",
+    "suggested_action": "archive_or_remove",
+    "evidence": [
+      "Historical migration/audit documentation"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "BATCH_13_MIGRATION_PLAN.md",
+    "category": "archive",
+    "description": "Migration or audit report documentation",
+    "risk_level": "low",
+    "suggested_action": "archive_or_remove",
+    "evidence": [
+      "Historical migration/audit documentation"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "BATCH_12_MIGRATION_PLAN.md",
+    "category": "archive",
+    "description": "Migration or audit report documentation",
+    "risk_level": "low",
+    "suggested_action": "archive_or_remove",
+    "evidence": [
+      "Historical migration/audit documentation"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "REFINED_SHIMS_AUDIT_REPORT.md",
+    "category": "archive",
+    "description": "Migration or audit report documentation",
+    "risk_level": "low",
+    "suggested_action": "archive_or_remove",
+    "evidence": [
+      "Historical migration/audit documentation"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "STRATEGY_LEGACY_AUDIT_REPORT.md",
+    "category": "archive",
+    "description": "Migration or audit report documentation",
+    "risk_level": "low",
+    "suggested_action": "archive_or_remove",
+    "evidence": [
+      "Historical migration/audit documentation"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "LEGACY_AUDIT_REPORT.md",
+    "category": "archive",
+    "description": "Migration or audit report documentation",
+    "risk_level": "low",
+    "suggested_action": "archive_or_remove",
+    "evidence": [
+      "Historical migration/audit documentation"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "SHIMS_COMPATIBILITY_AUDIT_REPORT.md",
+    "category": "archive",
+    "description": "Migration or audit report documentation",
+    "risk_level": "low",
+    "suggested_action": "archive_or_remove",
+    "evidence": [
+      "Historical migration/audit documentation"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "BATCH_17_MIGRATION_REPORT.md",
+    "category": "archive",
+    "description": "Migration or audit report documentation",
+    "risk_level": "low",
+    "suggested_action": "archive_or_remove",
+    "evidence": [
+      "Historical migration/audit documentation"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "BATCH_9_MIGRATION_REPORT.md",
+    "category": "archive",
+    "description": "Migration or audit report documentation",
+    "risk_level": "low",
+    "suggested_action": "archive_or_remove",
+    "evidence": [
+      "Historical migration/audit documentation"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "BATCH_15_MIGRATION_REPORT.md",
+    "category": "archive",
+    "description": "Migration or audit report documentation",
+    "risk_level": "low",
+    "suggested_action": "archive_or_remove",
+    "evidence": [
+      "Historical migration/audit documentation"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "BATCH_3_MIGRATION_REPORT.md",
+    "category": "archive",
+    "description": "Migration or audit report documentation",
+    "risk_level": "low",
+    "suggested_action": "archive_or_remove",
+    "evidence": [
+      "Historical migration/audit documentation"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "BATCH_12_MIGRATION_REPORT.md",
+    "category": "archive",
+    "description": "Migration or audit report documentation",
+    "risk_level": "low",
+    "suggested_action": "archive_or_remove",
+    "evidence": [
+      "Historical migration/audit documentation"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "BATCH_17_MIGRATION_PLAN.md",
+    "category": "archive",
+    "description": "Migration or audit report documentation",
+    "risk_level": "low",
+    "suggested_action": "archive_or_remove",
+    "evidence": [
+      "Historical migration/audit documentation"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "BATCH_7_MIGRATION_REPORT.md",
+    "category": "archive",
+    "description": "Migration or audit report documentation",
+    "risk_level": "low",
+    "suggested_action": "archive_or_remove",
+    "evidence": [
+      "Historical migration/audit documentation"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "BATCH_11_MIGRATION_PLAN.md",
+    "category": "archive",
+    "description": "Migration or audit report documentation",
+    "risk_level": "low",
+    "suggested_action": "archive_or_remove",
+    "evidence": [
+      "Historical migration/audit documentation"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "PHASE2_MIGRATION_MATRIX.md",
+    "category": "archive",
+    "description": "Migration or audit report documentation",
+    "risk_level": "low",
+    "suggested_action": "archive_or_remove",
+    "evidence": [
+      "Historical migration/audit documentation"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "BATCH_16_MIGRATION_REPORT.md",
+    "category": "archive",
+    "description": "Migration or audit report documentation",
+    "risk_level": "low",
+    "suggested_action": "archive_or_remove",
+    "evidence": [
+      "Historical migration/audit documentation"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "BATCH_2_MIGRATION_REPORT.md",
+    "category": "archive",
+    "description": "Migration or audit report documentation",
+    "risk_level": "low",
+    "suggested_action": "archive_or_remove",
+    "evidence": [
+      "Historical migration/audit documentation"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "BATCH_5_MIGRATION_PLAN.md",
+    "category": "archive",
+    "description": "Migration or audit report documentation",
+    "risk_level": "low",
+    "suggested_action": "archive_or_remove",
+    "evidence": [
+      "Historical migration/audit documentation"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "BATCH_1_MIGRATION_REPORT.md",
+    "category": "archive",
+    "description": "Migration or audit report documentation",
+    "risk_level": "low",
+    "suggested_action": "archive_or_remove",
+    "evidence": [
+      "Historical migration/audit documentation"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "BATCH_14_MIGRATION_PLAN.md",
+    "category": "archive",
+    "description": "Migration or audit report documentation",
+    "risk_level": "low",
+    "suggested_action": "archive_or_remove",
+    "evidence": [
+      "Historical migration/audit documentation"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "BATCH_4_MIGRATION_REPORT.md",
+    "category": "archive",
+    "description": "Migration or audit report documentation",
+    "risk_level": "low",
+    "suggested_action": "archive_or_remove",
+    "evidence": [
+      "Historical migration/audit documentation"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "BATCH_13_MIGRATION_REPORT.md",
+    "category": "archive",
+    "description": "Migration or audit report documentation",
+    "risk_level": "low",
+    "suggested_action": "archive_or_remove",
+    "evidence": [
+      "Historical migration/audit documentation"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "BATCH_11_MIGRATION_REPORT.md",
+    "category": "archive",
+    "description": "Migration or audit report documentation",
+    "risk_level": "low",
+    "suggested_action": "archive_or_remove",
+    "evidence": [
+      "Historical migration/audit documentation"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "BATCH_14_MIGRATION_REPORT.md",
+    "category": "archive",
+    "description": "Migration or audit report documentation",
+    "risk_level": "low",
+    "suggested_action": "archive_or_remove",
+    "evidence": [
+      "Historical migration/audit documentation"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "BATCH_8_MIGRATION_PLAN.md",
+    "category": "archive",
+    "description": "Migration or audit report documentation",
+    "risk_level": "low",
+    "suggested_action": "archive_or_remove",
+    "evidence": [
+      "Historical migration/audit documentation"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "BATCH_8_MIGRATION_REPORT.md",
+    "category": "archive",
+    "description": "Migration or audit report documentation",
+    "risk_level": "low",
+    "suggested_action": "archive_or_remove",
+    "evidence": [
+      "Historical migration/audit documentation"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "BATCH_6_MIGRATION_REPORT.md",
+    "category": "archive",
+    "description": "Migration or audit report documentation",
+    "risk_level": "low",
+    "suggested_action": "archive_or_remove",
+    "evidence": [
+      "Historical migration/audit documentation"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "BATCH_7_MIGRATION_PLAN.md",
+    "category": "archive",
+    "description": "Migration or audit report documentation",
+    "risk_level": "low",
+    "suggested_action": "archive_or_remove",
+    "evidence": [
+      "Historical migration/audit documentation"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "BATCH_10_MIGRATION_REPORT.md",
+    "category": "archive",
+    "description": "Migration or audit report documentation",
+    "risk_level": "low",
+    "suggested_action": "archive_or_remove",
+    "evidence": [
+      "Historical migration/audit documentation"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "BATCH_15_MIGRATION_PLAN.md",
+    "category": "archive",
+    "description": "Migration or audit report documentation",
+    "risk_level": "low",
+    "suggested_action": "archive_or_remove",
+    "evidence": [
+      "Historical migration/audit documentation"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "BATCH_5_MIGRATION_REPORT.md",
+    "category": "archive",
+    "description": "Migration or audit report documentation",
+    "risk_level": "low",
+    "suggested_action": "archive_or_remove",
+    "evidence": [
+      "Historical migration/audit documentation"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "BATCH_16_MIGRATION_PLAN.md",
+    "category": "archive",
+    "description": "Migration or audit report documentation",
+    "risk_level": "low",
+    "suggested_action": "archive_or_remove",
+    "evidence": [
+      "Historical migration/audit documentation"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "BATCH_13_MIGRATION_PLAN.md",
+    "category": "archive",
+    "description": "Migration or audit report documentation",
+    "risk_level": "low",
+    "suggested_action": "archive_or_remove",
+    "evidence": [
+      "Historical migration/audit documentation"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "BATCH_12_MIGRATION_PLAN.md",
+    "category": "archive",
+    "description": "Migration or audit report documentation",
+    "risk_level": "low",
+    "suggested_action": "archive_or_remove",
+    "evidence": [
+      "Historical migration/audit documentation"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "scripts/import_analyzer.py",
+    "category": "deprecated",
+    "description": "Contains explicit deprecation markers",
+    "risk_level": "high",
+    "suggested_action": "review_for_removal",
+    "evidence": [
+      "DEPRECATED"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "scripts/audit_shims_compatibility.py",
+    "category": "deprecated",
+    "description": "Contains explicit deprecation markers",
+    "risk_level": "high",
+    "suggested_action": "review_for_removal",
+    "evidence": [
+      "DEPRECATED",
+      "TODO.*remove",
+      "@deprecated"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "scripts/focused_shim_auditor.py",
+    "category": "deprecated",
+    "description": "Contains explicit deprecation markers",
+    "risk_level": "high",
+    "suggested_action": "review_for_removal",
+    "evidence": [
+      "DEPRECATED"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "scripts/comprehensive_legacy_auditor.py",
+    "category": "deprecated",
+    "description": "Contains explicit deprecation markers",
+    "risk_level": "high",
+    "suggested_action": "review_for_removal",
+    "evidence": [
+      "DEPRECATED",
+      "TODO.*remove",
+      "@deprecated"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "scripts/refined_shim_auditor.py",
+    "category": "deprecated",
+    "description": "Contains explicit deprecation markers",
+    "risk_level": "high",
+    "suggested_action": "review_for_removal",
+    "evidence": [
+      "DEPRECATED"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "the_alchemiser/main.py",
+    "category": "deprecated",
+    "description": "Contains explicit deprecation markers",
+    "risk_level": "high",
+    "suggested_action": "review_for_removal",
+    "evidence": [
+      "DEPRECATED"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "the_alchemiser/execution/mappers/orders.py",
+    "category": "deprecated",
+    "description": "Contains explicit deprecation markers",
+    "risk_level": "high",
+    "suggested_action": "review_for_removal",
+    "evidence": [
+      "DEPRECATED"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "the_alchemiser/execution/brokers/alpaca_client.py",
+    "category": "deprecated",
+    "description": "Contains explicit deprecation markers",
+    "risk_level": "high",
+    "suggested_action": "review_for_removal",
+    "evidence": [
+      "DEPRECATED"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "the_alchemiser/strategy/data/strategy_market_data_service.py",
+    "category": "deprecated",
+    "description": "Contains explicit deprecation markers",
+    "risk_level": "high",
+    "suggested_action": "review_for_removal",
+    "evidence": [
+      "DEPRECATED"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "the_alchemiser/strategy/data/shared_market_data_service.py",
+    "category": "deprecated",
+    "description": "Contains explicit deprecation markers",
+    "risk_level": "high",
+    "suggested_action": "review_for_removal",
+    "evidence": [
+      "DEPRECATED"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "the_alchemiser/strategy/engines/protocols/__init__.py",
+    "category": "deprecated",
+    "description": "Contains explicit deprecation markers",
+    "risk_level": "high",
+    "suggested_action": "review_for_removal",
+    "evidence": [
+      "DEPRECATED"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "the_alchemiser/strategy/engines/klm_workers/variant_530_18.py",
+    "category": "deprecated",
+    "description": "Contains explicit deprecation markers",
+    "risk_level": "high",
+    "suggested_action": "review_for_removal",
+    "evidence": [
+      "TODO.*remove"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "the_alchemiser/strategy/engines/klm_workers/variant_1280_26.py",
+    "category": "deprecated",
+    "description": "Contains explicit deprecation markers",
+    "risk_level": "high",
+    "suggested_action": "review_for_removal",
+    "evidence": [
+      "TODO.*remove"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "the_alchemiser/strategy/engines/models/strategy_signal_model.py",
+    "category": "deprecated",
+    "description": "Contains explicit deprecation markers",
+    "risk_level": "high",
+    "suggested_action": "review_for_removal",
+    "evidence": [
+      "DEPRECATED"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "the_alchemiser/strategy/engines/models/strategy_position_model.py",
+    "category": "deprecated",
+    "description": "Contains explicit deprecation markers",
+    "risk_level": "high",
+    "suggested_action": "review_for_removal",
+    "evidence": [
+      "DEPRECATED"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "the_alchemiser/strategy/engines/models/__init__.py",
+    "category": "deprecated",
+    "description": "Contains explicit deprecation markers",
+    "risk_level": "high",
+    "suggested_action": "review_for_removal",
+    "evidence": [
+      "DEPRECATED"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "the_alchemiser/shared/cli/cli.py",
+    "category": "deprecated",
+    "description": "Contains explicit deprecation markers",
+    "risk_level": "high",
+    "suggested_action": "review_for_removal",
+    "evidence": [
+      "DEPRECATED"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "the_alchemiser/shared/cli/trading_executor.py",
+    "category": "deprecated",
+    "description": "Contains explicit deprecation markers",
+    "risk_level": "high",
+    "suggested_action": "review_for_removal",
+    "evidence": [
+      "DEPRECATED"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "scripts/import_analyzer.py",
+    "category": "deprecated",
+    "description": "Imports from legacy or deprecated modules",
+    "risk_level": "medium",
+    "suggested_action": "update_imports",
+    "evidence": [
+      "Import dependency analyzer for legacy",
+      "importing from legacy",
+      "import dependencies for legacy",
+      "importing from legacy",
+      "importers[str(py_file)] = legacy"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "scripts/migrate_phase2_imports.py",
+    "category": "deprecated",
+    "description": "Imports from legacy or deprecated modules",
+    "risk_level": "medium",
+    "suggested_action": "update_imports",
+    "evidence": [
+      "Import mapping: legacy"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "scripts/audit_shims_compatibility.py",
+    "category": "deprecated",
+    "description": "Imports from legacy or deprecated modules",
+    "risk_level": "medium",
+    "suggested_action": "update_imports",
+    "evidence": [
+      "import *\" in line and any(kw in line.lower() for kw in [\"redirect\", \"compat\", \"legacy"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "scripts/focused_shim_auditor.py",
+    "category": "deprecated",
+    "description": "Imports from legacy or deprecated modules",
+    "risk_level": "medium",
+    "suggested_action": "update_imports",
+    "evidence": [
+      "import redirections, or legacy"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "scripts/comprehensive_legacy_auditor.py",
+    "category": "deprecated",
+    "description": "Imports from legacy or deprecated modules",
+    "risk_level": "medium",
+    "suggested_action": "update_imports",
+    "evidence": [
+      "importing from legacy",
+      "import.*legacy",
+      "Imports from legacy",
+      "from.*legacy.*import",
+      "from.*deprecated.*import"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "scripts/import_analyzer.py",
+    "category": "deprecated",
+    "description": "Explicitly marked with 'Status: legacy'",
+    "risk_level": "high",
+    "suggested_action": "review_for_migration",
+    "evidence": [
+      "if content and re.search(r\"Status.*legacy\", content, re.IGNORECASE):"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "scripts/audit_shims_compatibility.py",
+    "category": "deprecated",
+    "description": "Explicitly marked with 'Status: legacy'",
+    "risk_level": "high",
+    "suggested_action": "review_for_migration",
+    "evidence": [
+      "# 6. Status markers indicating legacy/compatibility"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "scripts/focused_shim_auditor.py",
+    "category": "deprecated",
+    "description": "Explicitly marked with 'Status: legacy'",
+    "risk_level": "high",
+    "suggested_action": "review_for_migration",
+    "evidence": [
+      "# 3. Files with explicit Status: legacy markers"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "scripts/comprehensive_legacy_auditor.py",
+    "category": "deprecated",
+    "description": "Explicitly marked with 'Status: legacy'",
+    "risk_level": "high",
+    "suggested_action": "review_for_migration",
+    "evidence": [
+      "self._audit_status_legacy_markers()"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "scripts/refined_shim_auditor.py",
+    "category": "deprecated",
+    "description": "Explicitly marked with 'Status: legacy'",
+    "risk_level": "high",
+    "suggested_action": "review_for_migration",
+    "evidence": [
+      "r'\".*Status.*legacy.*\"',"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "the_alchemiser/strategy/data/strategy_market_data_service.py",
+    "category": "deprecated",
+    "description": "Explicitly marked with 'Status: legacy'",
+    "risk_level": "high",
+    "suggested_action": "review_for_migration",
+    "evidence": [
+      "\"\"\"Business Unit: strategy & signal generation; Status: legacy"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "the_alchemiser/strategy/data/shared_market_data_service.py",
+    "category": "deprecated",
+    "description": "Explicitly marked with 'Status: legacy'",
+    "risk_level": "high",
+    "suggested_action": "review_for_migration",
+    "evidence": [
+      "\"\"\"Business Unit: strategy | Status: legacy"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "the_alchemiser/strategy/engines/models/strategy_signal_model.py",
+    "category": "deprecated",
+    "description": "Explicitly marked with 'Status: legacy'",
+    "risk_level": "high",
+    "suggested_action": "review_for_migration",
+    "evidence": [
+      "\"\"\"Business Unit: strategy & signal generation; Status: legacy"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "the_alchemiser/strategy/engines/models/strategy_position_model.py",
+    "category": "deprecated",
+    "description": "Explicitly marked with 'Status: legacy'",
+    "risk_level": "high",
+    "suggested_action": "review_for_migration",
+    "evidence": [
+      "\"\"\"Business Unit: strategy & signal generation; Status: legacy"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  },
+  {
+    "file_path": "the_alchemiser/strategy/engines/models/__init__.py",
+    "category": "deprecated",
+    "description": "Explicitly marked with 'Status: legacy'",
+    "risk_level": "high",
+    "suggested_action": "review_for_migration",
+    "evidence": [
+      "\"\"\"Business Unit: strategy | Status: legacy"
+    ],
+    "active_imports": 0,
+    "replacement_path": null,
+    "dependencies": []
+  }
+]
