@@ -9,8 +9,10 @@ from __future__ import annotations
 
 from .position_analyzer import PositionAnalyzer
 from .position_delta import PositionDelta
+from .position_model import PositionModel
 
 __all__ = [
     "PositionAnalyzer",
     "PositionDelta",
+    "PositionModel",
 ]
