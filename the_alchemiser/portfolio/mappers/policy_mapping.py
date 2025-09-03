@@ -19,8 +19,8 @@ from the_alchemiser.execution.orders.order_schemas import (
 )
 from the_alchemiser.execution.orders.order_type import OrderType
 from the_alchemiser.execution.orders.side import Side
-from the_alchemiser.shared.types.money import Money
 from the_alchemiser.execution.types.policy_result import PolicyResult, PolicyWarning
+from the_alchemiser.shared.types.money import Money
 from the_alchemiser.shared.types.quantity import Quantity
 from the_alchemiser.shared.types.time_in_force import TimeInForce
 from the_alchemiser.shared.value_objects.symbol import Symbol

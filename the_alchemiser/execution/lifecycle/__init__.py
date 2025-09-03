@@ -12,13 +12,13 @@ from .protocols import LifecycleObserver
 from .states import OrderLifecycleState
 
 __all__ = [
-    "LifecycleEventDispatcher",
-    "LifecycleEventType", 
-    "OrderLifecycleEvent",
     "InvalidOrderStateTransitionError",
-    "OrderLifecycleManager",
+    "LifecycleEventDispatcher",
+    "LifecycleEventType",
+    "LifecycleObserver",
     "LoggingObserver",
     "MetricsObserver",
-    "LifecycleObserver",
+    "OrderLifecycleEvent",
+    "OrderLifecycleManager",
     "OrderLifecycleState",
 ]

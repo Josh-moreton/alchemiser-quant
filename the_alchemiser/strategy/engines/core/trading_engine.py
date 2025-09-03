@@ -37,9 +37,10 @@ from alpaca.trading.enums import OrderSide
 from the_alchemiser.execution.brokers.account_service import (
     AccountService as TypedAccountService,
 )
-from the_alchemiser.execution.brokers.alpaca_client import AlpacaClient
 from the_alchemiser.execution.brokers.alpaca import AlpacaManager
+from the_alchemiser.execution.brokers.alpaca_client import AlpacaClient
 from the_alchemiser.execution.core.account_facade import AccountFacade
+from the_alchemiser.execution.core.execution_manager import TradingServiceManager
 from the_alchemiser.execution.core.execution_schemas import ExecutionResultDTO
 from the_alchemiser.execution.mappers.execution import (
     safe_dict_to_execution_summary_dto,
@@ -61,6 +62,7 @@ from the_alchemiser.shared.logging.logging_utils import (
     get_logger,
     log_with_context,
 )
+from the_alchemiser.shared.reporting.reporting import build_portfolio_state_data
 from the_alchemiser.shared.schemas.common import MultiStrategyExecutionResultDTO
 from the_alchemiser.shared.types.exceptions import (
     ConfigurationError,
@@ -83,9 +85,6 @@ from the_alchemiser.strategy.schemas.strategies import (
     StrategySignalDisplayDTO,
     run_all_strategies_mapping,
 )
-
-from the_alchemiser.execution.core.execution_manager import TradingServiceManager
-from the_alchemiser.shared.reporting.reporting import build_portfolio_state_data
 
 # --- Internal Application Protocols ---
 

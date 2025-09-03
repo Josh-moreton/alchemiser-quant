@@ -57,6 +57,11 @@ from the_alchemiser.execution.orders.order_schemas import (
 )
 from the_alchemiser.execution.orders.service import OrderService
 from the_alchemiser.execution.orders.validation import OrderValidator
+from the_alchemiser.execution.schemas.smart_trading import (
+    OrderValidationMetadataDTO,
+    SmartOrderExecutionDTO,
+    TradingDashboardDTO,
+)
 from the_alchemiser.portfolio.mappers.position_mapping import (
     alpaca_position_to_summary,
 )
@@ -93,11 +98,6 @@ from the_alchemiser.shared.schemas.market_data import (
 from the_alchemiser.shared.schemas.operations import (
     OrderCancellationDTO,
     OrderStatusDTO,
-)
-from the_alchemiser.execution.schemas.smart_trading import (
-    OrderValidationMetadataDTO,
-    SmartOrderExecutionDTO,
-    TradingDashboardDTO,
 )
 from the_alchemiser.shared.utils.decorators import translate_trading_errors
 from the_alchemiser.strategy.data.market_data_service import MarketDataService

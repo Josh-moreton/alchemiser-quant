@@ -13,14 +13,14 @@ from decimal import ROUND_DOWN, Decimal
 from typing import TYPE_CHECKING
 
 from the_alchemiser.execution.orders.order_request import OrderRequest
-from the_alchemiser.shared.logging.logging_utils import log_with_context
-from the_alchemiser.shared.math.asset_info import fractionability_detector
 from the_alchemiser.execution.types.policy_result import (
     PolicyResult,
     PolicyWarning,
     create_approved_result,
     create_rejected_result,
 )
+from the_alchemiser.shared.logging.logging_utils import log_with_context
+from the_alchemiser.shared.math.asset_info import fractionability_detector
 from the_alchemiser.shared.types.quantity import Quantity
 
 if TYPE_CHECKING:
