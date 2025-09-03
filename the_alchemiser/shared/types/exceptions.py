@@ -1,23 +1,5 @@
 #!/usr/bin/env python3
-"""Business Unit: utilities; Status: current.
-
-Custom exception classes for The Alchemiser Quantitative Trading System.
-
-This module defines specific exception types for different failure scenarios
-to enable better error handling and debugging throughout the application.
-"""
-
-from __future__ import annotations
-
-from datetime import UTC, datetime
-from typing import Any
-
-
-class AlchemiserError(Exception):
-    """Base exception class for all Alchemiser-specific errors."""
-
-    def __init__(self, message: str, context: dict[str, Any] | None = None) -> None:
-        """Initialize base error with optional contextual data."""
+"""Business Unit: shared | Status: current.."""
         super().__init__(message)
         self.message = message
         self.context = context or {}

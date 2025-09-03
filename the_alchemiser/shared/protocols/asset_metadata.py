@@ -1,4 +1,4 @@
-"""Business Unit: utilities; Status: current.
+"""Business Unit: shared | Status: current..
 
 Asset Metadata Provider Protocol.
 

@@ -1,4 +1,4 @@
-"""Business Unit: utilities; Status: current.
+"""Business Unit: shared | Status: current..
 
 Domain model for an OHLCV bar.
 

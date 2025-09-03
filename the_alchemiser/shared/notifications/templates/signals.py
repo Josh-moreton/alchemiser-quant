@@ -1,4 +1,4 @@
-"""Business Unit: utilities; Status: current.
+"""Business Unit: shared | Status: current..
 
 Signals content builder for email templates.
 

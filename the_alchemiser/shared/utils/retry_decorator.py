@@ -1,52 +1,5 @@
 #!/usr/bin/env python3
-"""Business Unit: shared; Status: current.
-
-Retry Decorator with Exponential Backoff.
-
-This module provides retry functionality with exponential backoff and jitter
-for robust error handling according to the error handling improvement plan.
-"""
-
-from __future__ import annotations
-
-import logging
-import random
-import time
-from collections.abc import Callable
-from functools import wraps
-from typing import ParamSpec, TypeVar
-
-logger = logging.getLogger(__name__)
-
-P = ParamSpec("P")
-T = TypeVar("T")
-
-
-def retry_with_backoff(
-    exceptions: tuple[type[Exception], ...] = (Exception,),
-    max_retries: int = 3,
-    base_delay: float = 1.0,
-    max_delay: float = 60.0,
-    backoff_factor: float = 2.0,
-    jitter: bool = True,
-) -> Callable[[Callable[P, T]], Callable[P, T]]:
-    """Retry decorator with exponential backoff and jitter."""
-
-    def decorator(func: Callable[P, T]) -> Callable[P, T]:
-        @wraps(func)
-        def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
-            last_exception: Exception | None = None
-
-            for attempt in range(max_retries + 1):
-                try:
-                    return func(*args, **kwargs)
-                except exceptions as e:
-                    last_exception = e
-
-                    if attempt == max_retries:
-                        # Add retry context to exception
-                        if hasattr(e, "retry_count"):
-                            e.retry_count = attempt
+"""Business Unit: shared | Status: current..retry_count = attempt
                         raise
 
                     # Calculate delay with exponential backoff

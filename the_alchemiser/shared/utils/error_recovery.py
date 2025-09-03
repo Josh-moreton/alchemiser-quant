@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
-"""Business Unit: shared | Status: current
-
-Error Recovery and Resilience Framework for The Alchemiser Trading System.
+"""Business Unit: shared | Status: current..
 
 This module implements Phase 2 of the error handling enhancement plan:
 - Automatic Error Recovery strategies
@@ -33,7 +31,20 @@ F = TypeVar("F", bound=Callable[..., Any])
 
 
 class RecoveryResult:
-    """Result of an error recovery attempt."""
+    """Result of an error recovery attempt.
+    
+    Encapsulates the outcome of an error recovery operation including
+    success status, recovery metadata, and recommendations for further
+    action such as retries.
+    
+    Attributes:
+        success: Whether the recovery was successful.
+        message: Human-readable description of the recovery result.
+        recovered_data: Any data recovered during the process.
+        retry_recommended: Whether a retry is recommended.
+        retry_delay: Recommended delay before retry in seconds.
+        timestamp: When the recovery attempt was made.
+    """
 
     def __init__(
         self,
@@ -43,6 +54,15 @@ class RecoveryResult:
         retry_recommended: bool = False,
         retry_delay: float = 0.0,
     ) -> None:
+        """Initialize a recovery result.
+        
+        Args:
+            success: Whether the recovery was successful.
+            message: Human-readable description of the result.
+            recovered_data: Any data recovered during the process.
+            retry_recommended: Whether a retry is recommended.
+            retry_delay: Recommended delay before retry in seconds.
+        """
         self.success = success
         self.message = message
         self.recovered_data = recovered_data
@@ -51,7 +71,11 @@ class RecoveryResult:
         self.timestamp = datetime.now(UTC)
 
     def to_dict(self) -> dict[str, Any]:
-        """Convert recovery result to dictionary."""
+        """Convert recovery result to dictionary.
+        
+        Returns:
+            Dictionary representation of the recovery result.
+        """
         return {
             "success": self.success,
             "message": self.message,
@@ -63,18 +87,41 @@ class RecoveryResult:
 
 
 class ErrorRecoveryStrategy(ABC):
-    """Abstract base class for error recovery strategies."""
+    """Abstract base class for error recovery strategies.
+    
+    Defines the interface for implementing specific error recovery strategies.
+    Each strategy can determine if it can handle a particular error type
+    and attempt recovery with appropriate actions.
+    """
 
     @abstractmethod
     def can_recover(self, error: EnhancedAlchemiserError) -> bool:
-        """Check if this strategy can recover from the given error."""
+        """Check if this strategy can recover from the given error.
+        
+        Args:
+            error: The error to potentially recover from.
+            
+        Returns:
+            True if this strategy can handle the error, False otherwise.
+        """
 
     @abstractmethod
     def recover(self, error: EnhancedAlchemiserError) -> RecoveryResult:
-        """Attempt to recover from the error."""
+        """Attempt to recover from the error.
+        
+        Args:
+            error: The error to recover from.
+            
+        Returns:
+            RecoveryResult indicating the outcome of the recovery attempt.
+        """
 
     def get_strategy_name(self) -> str:
-        """Get the name of this recovery strategy."""
+        """Get the name of this recovery strategy.
+        
+        Returns:
+            The class name of this strategy.
+        """
         return self.__class__.__name__
 
 

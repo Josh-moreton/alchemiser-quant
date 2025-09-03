@@ -1,4 +1,4 @@
-"""Business Unit: utilities; Status: current.
+"""Business Unit: shared | Status: current..
 
 Infrastructure layer providers for dependency injection.
 """

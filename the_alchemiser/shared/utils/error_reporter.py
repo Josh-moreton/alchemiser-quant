@@ -1,50 +1,5 @@
 #!/usr/bin/env python3
-"""Business Unit: utilities; Status: current.
-
-Centralized Error Reporter for Production Monitoring.
-
-This module provides structured error reporting for hands-off operation
-according to the error handling improvement plan.
-"""
-
-from __future__ import annotations
-
-import logging
-from collections import defaultdict
-from datetime import UTC, datetime
-from typing import Any
-
-from the_alchemiser.shared.types.exceptions import (
-    InsufficientFundsError,
-    MarketClosedError,
-    OrderExecutionError,
-    SecurityError,
-)
-
-logger = logging.getLogger(__name__)
-
-
-class ErrorReporter:
-    """Centralized error reporting for production monitoring."""
-
-    def __init__(self, notification_manager: Any = None) -> None:
-        """Initialize error reporter.
-
-        Args:
-            notification_manager: Optional notification manager for alerts
-
-        """
-        self.notification_manager = notification_manager
-        self.error_counts: dict[str, int] = defaultdict(int)
-        self.critical_errors: list[dict[str, Any]] = []
-
-    def report_error(
-        self,
-        error: Exception,
-        context: dict[str, Any] | None = None,
-        is_critical: bool = False,
-    ) -> None:
-        """Report an error with context for monitoring."""
+"""Business Unit: shared | Status: current.."""
         error_data = {
             "timestamp": datetime.now(UTC).isoformat(),
             "error_type": error.__class__.__name__,

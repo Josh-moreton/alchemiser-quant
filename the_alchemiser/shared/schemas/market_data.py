@@ -1,44 +1,5 @@
 #!/usr/bin/env python3
-"""Business Unit: utilities; Status: current.
-
-Market Data DTOs for The Alchemiser Trading System.
-
-This module contains DTOs for market data operations, price queries,
-spread analysis, and market status information.
-
-Key Features:
-- Pydantic v2 BaseModel with strict validation
-- Decimal precision for financial values
-- Comprehensive field validation and normalization
-- Type safety for market data operations
-"""
-
-from __future__ import annotations
-
-from decimal import Decimal
-from typing import Any
-
-from pydantic import ConfigDict
-
-from the_alchemiser.shared.schemas.base import Result
-
-
-class PriceResult(Result):
-    """DTO for latest price information."""
-
-    model_config = ConfigDict(
-        strict=True,
-        frozen=True,
-        validate_assignment=True,
-    )
-
-    symbol: str | None = None
-    price: Decimal | None = None
-    error: str | None = None
-
-
-class PriceHistoryResult(Result):
-    """DTO for price history data."""
+"""Business Unit: shared | Status: current.."""
 
     model_config = ConfigDict(
         strict=True,

@@ -1,19 +1,4 @@
-"""Business Unit: strategy & signal generation; Status: current.
-
-Domain-specific exceptions for strategy engines.
-
-These exceptions keep the domain layer pure by avoiding dependencies on
-service-layer exception classes.
-"""
-
-from __future__ import annotations
-
-
-class StrategyValidationError(Exception):
-    """Raised when strategy signals fail validation."""
-
-    def __init__(self, message: str, strategy_name: str | None = None) -> None:
-        super().__init__(message)
+"""Business Unit: strategy | Status: current..__init__(message)
         self.strategy_name = strategy_name
 
 

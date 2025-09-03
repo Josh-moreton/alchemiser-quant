@@ -1,6 +1,4 @@
-"""Business Unit: utilities; Status: current.
-
-KLM Strategy Variant 530/18 - "KMLM Switcher | Anansi Mods".
+"""Business Unit: strategy | Status: current..
 
 This is the Scale-In strategy variant - the most complex in the ensemble.
 It uses progressive VIX allocation based on multiple RSI conditions.

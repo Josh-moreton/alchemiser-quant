@@ -1,16 +1,4 @@
-"""Business Unit: utilities; Status: current."""
-
-from __future__ import annotations
-
-from dataclasses import dataclass
-from decimal import Decimal
-from typing import Any
-
-from the_alchemiser.shared.types.money import Money
-
-
-def to_money_usd(value: str | float | int | Decimal | None) -> Money | None:
-    """Map raw numeric portfolio value to Money(USD).
+"""Business Unit: execution | Status: current..
 
     Returns None if value is None or not coercible.
     """

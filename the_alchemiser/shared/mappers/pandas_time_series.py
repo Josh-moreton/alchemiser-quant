@@ -1,4 +1,4 @@
-"""Business Unit: utilities; Status: current.
+"""Business Unit: shared | Status: current..
 
 Utilities to convert domain time-series models to pandas structures for indicators.
 """

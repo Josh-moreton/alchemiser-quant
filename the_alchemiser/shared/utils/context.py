@@ -1,37 +1,5 @@
 #!/usr/bin/env python3
-"""Business Unit: utilities; Status: current.
-
-Error context data structures for The Alchemiser Trading System.
-
-This module provides standardized error context data structures
-for consistent error reporting and tracking.
-"""
-
-from __future__ import annotations
-
-from dataclasses import dataclass
-from datetime import UTC, datetime
-from typing import Any
-
-
-@dataclass(frozen=True)
-class ErrorContextData:
-    """Standardized error context data for all error reporting.
-
-    This frozen dataclass provides immutable error context information
-    that can be safely passed around and serialized.
-    """
-
-    operation: str
-    component: str
-    function_name: str | None = None
-    request_id: str | None = None
-    user_id: str | None = None
-    session_id: str | None = None
-    additional_data: dict[str, Any] | None = None
-
-    def __post_init__(self) -> None:
-        """Post-initialization to handle mutable defaults."""
+"""Business Unit: shared | Status: current.."""
         if self.additional_data is None:
             # Use object.__setattr__ since the dataclass is frozen
             object.__setattr__(self, "additional_data", {})

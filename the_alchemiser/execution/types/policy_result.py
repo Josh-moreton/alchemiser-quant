@@ -1,40 +1,4 @@
-"""Business Unit: utilities; Status: current.
-
-Pure domain policy result objects.
-
-These value objects represent the results of policy validation and adjustment
-without any dependencies on external frameworks or DTOs. They are used within
-the domain layer to maintain purity and separation of concerns.
-"""
-
-from __future__ import annotations
-
-from dataclasses import dataclass
-from decimal import Decimal
-from typing import Literal
-
-from the_alchemiser.execution.orders.order_request import OrderRequest
-
-
-@dataclass(frozen=True)
-class PolicyWarning:
-    """Domain value object for policy warnings.
-
-    Represents warnings generated during order validation that allow the order
-    to proceed but with adjustments or notifications.
-    """
-
-    policy_name: str  # e.g., "FractionabilityPolicy", "PositionPolicy"
-    action: Literal["adjust", "allow", "reject"]
-    message: str
-    original_value: str | None = None
-    adjusted_value: str | None = None
-    risk_level: Literal["low", "medium", "high"] = "low"
-
-
-@dataclass(frozen=True)
-class PolicyResult:
-    """Domain value object representing the result of a policy validation.
+"""Business Unit: execution | Status: current..
 
     Contains the order request (potentially adjusted), approval status,
     warnings, and metadata from policy processing. This is the pure domain

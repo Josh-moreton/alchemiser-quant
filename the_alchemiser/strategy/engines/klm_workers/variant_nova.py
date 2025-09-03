@@ -1,45 +1,4 @@
-"""Business Unit: utilities; Status: current.
-
-KLM Strategy Variant Nova - "Nerfed 2900/8 (373) - Nova - Short BT".
-
-This variant is DIFFERENT from others in several key ways:
-1. Uses UVIX instead of UVXY in Single Popped KMLM check
-2. KMLM Switcher uses RSI(11) and select-top 1 from individual stocks
-3. Individual stock selection: FNGO, TSLA, MSFT, AAPL, NVDA, GOOGL, AMZN
-4. Optimized for short-term trading analysis
-
-This is the "Nova" experimental variant with individual stock selection.
-"""
-
-from __future__ import annotations
-
-import pandas as pd
-
-from the_alchemiser.shared.utils.common import ActionType
-
-from .base_klm_variant import BaseKLMVariant
-
-
-class KLMVariantNova(BaseKLMVariant):
-    """Variant Nova - Individual stock selection with UVIX check.
-
-    Key differences:
-    - Single Popped KMLM uses UVIX (not UVXY)
-    - KMLM Switcher uses RSI(11) and select-top 1 from individual stocks
-    - Stock selection: FNGO, TSLA, MSFT, AAPL, NVDA, GOOGL, AMZN
-    """
-
-    def __init__(self) -> None:
-        super().__init__(
-            name="Nova", description="Nerfed 2900/8 (373) - Nova - Short BT with individual stocks"
-        )
-
-    def evaluate(
-        self,
-        indicators: dict[str, dict[str, float]],
-        market_data: dict[str, pd.DataFrame] | None = None,
-    ) -> tuple[str | dict[str, float], str, str]:
-        """Evaluate Nova - same as others except UVIX check and individual stock selection."""
+"""Business Unit: strategy | Status: current.."""
         # Step 1: Primary overbought checks → UVXY (same as others)
         symbol, reason = self.check_primary_overbought_conditions(indicators)
         if symbol:

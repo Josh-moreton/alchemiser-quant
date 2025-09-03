@@ -1,43 +1,4 @@
-"""Business Unit: portfolio assessment & management; Status: current.
-
-Portfolio calculation utilities (business logic only).
-
-Moved from interface layer to application.trading to maintain layering:
-application may not import interface/cli. Provides pure allocation calculations.
-"""
-
-from __future__ import annotations
-
-from decimal import Decimal, InvalidOperation
-from typing import Any, TypedDict
-
-from the_alchemiser.shared.utils.account_utils import (
-    extract_current_position_values as _float_current_values,
-)
-from the_alchemiser.shared.value_objects.core_types import AccountInfo, PositionInfo, PositionsDict
-
-# NOTE: Existing account_utils returns float calculations. We wrap and promote to Decimal
-# for precision as required by project standards. Internal float helpers retained until
-# those utilities are refactored to Decimal.
-
-
-def _to_decimal(value: Any, default: str = "0") -> Decimal:
-    if isinstance(value, Decimal):
-        return value
-    try:
-        if value is None:
-            return Decimal(default)
-        return Decimal(str(value))
-    except (InvalidOperation, ValueError, TypeError):
-        return Decimal(default)
-
-
-def calculate_target_vs_current_allocations(
-    target_portfolio: dict[str, float],
-    account_info: AccountInfo | dict[str, Any],
-    current_positions: PositionsDict | dict[str, PositionInfo | dict[str, Any] | Any],
-) -> tuple[dict[str, Decimal], dict[str, Decimal]]:
-    """Calculate target vs current allocations using Decimal values.
+"""Business Unit: portfolio | Status: current..
 
     Args:
         target_portfolio: mapping symbol -> target weight (0-1 float)

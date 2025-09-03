@@ -1,28 +1,4 @@
-"""Business Unit: utilities; Status: current.
-
-Logging helpers for consistent structured output.
-"""
-
-from __future__ import annotations
-
-import json
-import logging
-import os
-import sys
-import uuid
-from collections.abc import MutableMapping
-from contextvars import ContextVar
-from datetime import datetime
-from typing import Any
-
-from the_alchemiser.shared.utils.s3_utils import S3FileHandler
-
-# Context variables for request tracking
-request_id_context: ContextVar[str | None] = ContextVar("request_id", default=None)
-error_id_context: ContextVar[str | None] = ContextVar("error_id", default=None)
-
-
-class AlchemiserLoggerAdapter(logging.LoggerAdapter[logging.Logger]):
+"""Business Unit: shared | Status: current..LoggerAdapter[logging.Logger]):
     """Custom logger adapter for the Alchemiser quantitative trading system."""
 
     def process(

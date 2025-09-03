@@ -1,38 +1,4 @@
-"""Business Unit: order execution/placement; Status: current.
-
-Execution mapping utilities (anti-corruption layer).
-
-Ordered fixes applied (review issues 1→10):
-1. DDD boundary alignment: introduce internal normalisation for order objects so
-    exported dicts are shape-consistent regardless of source (dict / domain Order).
-2. Removed unused timestamp helper; replaced with `_normalize_timestamp_str` and
-    applied in quote creation & parsing.
-3. Precision policy: split monetary vs quantity/size precision helpers with
-    explicit rounding (ROUND_HALF_UP). Quantities/sizes allow 4 dp; money fixed
-    to 2 dp.
-4. Avoid binary float drift in JSON: monetary & quantity fields serialised as
-    strings; computed spread/mid likewise (still parseable downstream).
-5. Enum conversions wrapped with contextual ValueError messages.
-6. Mixed order shapes eliminated via `_normalize_order_details`.
-7. Tests (added separately) cover round-trips, precision, invalid enums.
-8. Style: removed shebang, wrapped long lines.
-9. Clarified docstring scope (DTO <-> boundary types & domain entity helpers).
-10. Timestamp normalisation now guarantees timezone awareness & ISO 8601.
-"""
-
-from __future__ import annotations
-
-from collections.abc import Iterable, Mapping
-from datetime import UTC, datetime
-from decimal import ROUND_HALF_UP, Decimal
-from typing import Any
-
-from the_alchemiser.shared.adapters.execution_adapters import create_execution_report_dto
-from the_alchemiser.shared.adapters.portfolio_adapters import portfolio_state_to_dto
-
-
-def safe_dict_to_execution_summary_dto(data: dict[str, Any]) -> ExecutionReportDTO | None:
-    """Convert dictionary to ExecutionReportDTO safely.
+"""Business Unit: execution | Status: current..
 
     Args:
         data: Dictionary containing execution data

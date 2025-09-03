@@ -1,32 +1,5 @@
 #!/usr/bin/env python3
-"""Business Unit: utilities; Status: current.
-
-Dynamic Tick Size Service.
-
-Phase 7 Enhancement: Provides symbol-specific tick size resolution
-to replace hardcoded $0.01 values throughout the system.
-
-This service provides intelligent tick size detection based on:
-- Security type (equity, crypto, forex, etc.)
-- Price ranges (different tick sizes for different price levels)
-- Exchange-specific rules
-- Symbol-specific overrides
-"""
-
-from __future__ import annotations
-
-import logging
-from decimal import Decimal
-from typing import Protocol
-
-logger = logging.getLogger(__name__)
-
-
-class TickSizeProvider(Protocol):
-    """Protocol for tick size providers."""
-
-    def get_tick_size(self, symbol: str, current_price: Decimal | None = None) -> Decimal:
-        """Get the tick size for a symbol."""
+"""Business Unit: shared | Status: current.."""
         ...
 
 

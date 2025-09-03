@@ -1,32 +1,4 @@
-"""Business Unit: utilities; Status: current.
-
-Email client module for sending notifications.
-
-This module handles SMTP operations and message sending functionality.
-Replaces the `send_email_notification` function from the original email_utils.py.
-"""
-
-from __future__ import annotations
-
-import logging
-import smtplib
-from email import encoders
-from email.mime.base import MIMEBase
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-
-from the_alchemiser.shared.schemas.reporting import EmailCredentials
-
-from .config import EmailConfig
-
-
-class EmailClient:
-    """SMTP email client for sending notifications."""
-
-    def __init__(self) -> None:
-        """Initialize email client."""
-        self._config: EmailCredentials | None = None
-        self._email_config = EmailConfig()
+"""Business Unit: shared | Status: current.._email_config = EmailConfig()
 
     def _get_config(self) -> EmailCredentials | None:
         """Get email configuration lazily."""

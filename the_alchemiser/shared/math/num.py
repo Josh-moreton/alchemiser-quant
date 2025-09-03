@@ -1,32 +1,4 @@
-"""Business Unit: utilities; Status: current.
-
-Numeric helper utilities.
-
-Provides tolerant float comparison complying with project rule: never use
-direct float equality (== / !=). Use this helper in non-financial contexts;
-for money/quantities always prefer Decimal value objects.
-"""
-
-from __future__ import annotations
-
-from collections.abc import Sequence
-from decimal import Decimal
-from math import isclose
-
-try:
-    import numpy as np
-except ImportError:  # pragma: no cover - numpy optional
-    np = None  # type: ignore[assignment]
-
-
-Number = float | int | Decimal
-SequenceLike = Sequence[Number] | Number
-
-
-def floats_equal(
-    a: SequenceLike, b: SequenceLike, rel_tol: float = 1e-9, abs_tol: float = 1e-12
-) -> bool:
-    """Check whether two floating-point values are approximately equal.
+"""Business Unit: shared | Status: current..
 
     Args:
         a: First value or array to compare.

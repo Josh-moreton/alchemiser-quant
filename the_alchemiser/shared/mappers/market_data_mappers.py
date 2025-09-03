@@ -1,6 +1,4 @@
-"""Business Unit: shared | Status: current
-
-Market Data Mappers - migrated from legacy location.
+"""Business Unit: shared | Status: current..
 """
 
 from __future__ import annotations

@@ -1,6 +1,4 @@
-"""Business Unit: shared | Status: current
-
-Signal analysis CLI module.
+"""Business Unit: shared | Status: current..
 
 Handles signal generation and display without trading execution.
 """

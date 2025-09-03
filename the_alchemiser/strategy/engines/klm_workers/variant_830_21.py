@@ -1,43 +1,4 @@
-"""Business Unit: utilities; Status: current.
-
-KLM Strategy Variant 830/21 - "MonkeyBusiness Simons variant V2".
-
-This variant is similar to other standard variants except:
-1. KMLM Switcher uses select-TOP 1 from TECL/SOXL/SVIX (opposite of others)
-2. L/S Rotator has "Bond Check" logic using BND moving-average-return
-3. Different symbols in the Bond Check paths
-
-This is the V2 (enhanced) version of the MonkeyBusiness Simons approach.
-"""
-
-from __future__ import annotations
-
-import pandas as pd
-
-from the_alchemiser.shared.utils.common import ActionType
-
-from .base_klm_variant import BaseKLMVariant
-
-
-class KlmVariant83021(BaseKLMVariant):
-    """Variant 830/21 - MonkeyBusiness Simons variant V2.
-
-    Key differences:
-    - KMLM Switcher: select-TOP 1 from TECL/SOXL/SVIX (highest RSI)
-    - Bond Check: BND MA(20) determines KMLM/SPLV vs TLT/LABD/TZA selection
-    """
-
-    def __init__(self) -> None:
-        super().__init__(
-            name="830/21", description="MonkeyBusiness Simons variant V2 - Enhanced with Bond Check"
-        )
-
-    def evaluate(
-        self,
-        indicators: dict[str, dict[str, float]],
-        market_data: dict[str, pd.DataFrame] | None = None,
-    ) -> tuple[str | dict[str, float], str, str]:
-        """Evaluate 830/21 - same as other variants except KMLM Switcher and Bond Check."""
+"""Business Unit: strategy | Status: current.."""
         # Step 1: Primary overbought checks → UVXY
         symbol, reason = self.check_primary_overbought_conditions(indicators)
         if symbol:

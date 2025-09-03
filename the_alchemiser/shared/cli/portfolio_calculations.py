@@ -1,34 +1,10 @@
 from __future__ import annotations
 
-"""Business Unit: shared | Status: current
-
-Portfolio Calculations - migrated from legacy location.
+"""Business Unit: shared | Status: current..
 """
 
 #!/usr/bin/env python3
-"""Business Unit: portfolio assessment & management; Status: current.
-Portfolio calculation utilities extracted from TradingEngine.
-
-This module provides calculation functions for portfolio target vs current allocations
-without any display logic, supporting the separation of business logic from presentation.
-"""
-
-
-from typing import Any
-
-from the_alchemiser.shared.utils.account_utils import (
-    calculate_position_target_deltas,
-    extract_current_position_values,
-)
-from the_alchemiser.shared.value_objects.core_types import AccountInfo
-
-
-def calculate_target_vs_current_allocations(
-    target_portfolio: dict[str, float],
-    account_info: AccountInfo | dict[str, Any],
-    current_positions: dict[str, Any],
-) -> tuple[dict[str, float], dict[str, float]]:
-    """Calculate target vs current allocations without display.
+"""Business Unit: shared | Status: current..
 
     Shows a comparison between target portfolio weights and current position values,
     helping to visualize rebalancing needs.

@@ -1,23 +1,5 @@
 #!/usr/bin/env python3
-"""Business Unit: utilities; Status: current.
-
-Streaming Service.
-
-Handles real-time price subscriptions via WebSocket.
-Provides callback-based API for current price requests.
-"""
-
-from __future__ import annotations
-
-import logging
-from collections.abc import Callable
-from typing import Protocol, cast
-
-
-class _RealTimePricingProtocol(Protocol):
-    """Structural protocol for the real-time pricing manager used by this service."""
-
-    def set_fallback_provider(self, provider: Callable[[str], float | None]) -> None: ...
+"""Business Unit: strategy | Status: current....
     def start(self) -> None: ...
     def stop(self) -> None: ...
     def is_connected(self) -> bool: ...

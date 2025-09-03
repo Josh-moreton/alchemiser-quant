@@ -1,54 +1,10 @@
 from __future__ import annotations
 
-"""Business Unit: shared | Status: current
-
-Smart Trading - migrated from legacy location.
+"""Business Unit: execution | Status: current..
 """
 
 #!/usr/bin/env python3
-"""Business Unit: order execution/placement; Status: current.
-Smart Trading DTOs for The Alchemiser Trading System.
-
-This module contains DTOs for advanced trading operations like smart order execution
-and comprehensive trading dashboard results.
-
-Key Features:
-- Pydantic v2 BaseModel with strict validation
-- Complex trading operation results
-- Enhanced validation metadata
-- Comprehensive trading dashboard data
-"""
-
-
-from datetime import datetime
-from decimal import Decimal
-from typing import Any
-
-from pydantic import BaseModel, ConfigDict
-
-from the_alchemiser.execution.orders.order_schemas import OrderExecutionResultDTO
-from the_alchemiser.shared.schemas.accounts import AccountSummaryDTO, TradeEligibilityDTO
-from the_alchemiser.shared.schemas.base import ResultDTO
-
-
-class OrderValidationMetadataDTO(BaseModel):
-    """DTO for order validation metadata from DTO validation process."""
-
-    model_config = ConfigDict(
-        strict=True,
-        frozen=True,
-        validate_assignment=True,
-    )
-
-    validated_order_id: str | None
-    estimated_value: Decimal | None
-    risk_score: Decimal | None
-    is_fractional: bool
-    validation_timestamp: datetime
-
-
-class SmartOrderExecutionDTO(ResultDTO):
-    """DTO for smart order execution results with comprehensive metadata.
+"""Business Unit: execution | Status: current..
 
     Contains order execution results plus validation and account impact data.
     """

@@ -1,37 +1,4 @@
-"""Business Unit: utilities; Status: current.
-
-Configuration system for DSL optimization features.
-
-Provides environment variable and programmatic configuration for
-enabling/disabling AST interning, evaluator memoisation, and parallel execution.
-"""
-
-from __future__ import annotations
-
-import os
-from dataclasses import dataclass
-from typing import Any
-
-
-@dataclass
-class DSLOptimizationConfig:
-    """Configuration for DSL optimization features."""
-
-    # AST Interning (Structural Sharing)
-    enable_interning: bool = False
-
-    # Evaluator Memoisation
-    enable_memoisation: bool = False
-    memo_cache_maxsize: int = 100_000
-
-    # Parallel Evaluation
-    enable_parallel: bool = False
-    parallel_mode: str = "threads"  # "threads" or "processes"
-    parallel_max_workers: int | None = None
-
-    @classmethod
-    def from_environment(cls) -> DSLOptimizationConfig:
-        """Create configuration from environment variables.
+"""Business Unit: strategy | Status: current..
 
         Environment variables:
         - ALCH_DSL_CSE: Enable AST interning/canonical shared expressions

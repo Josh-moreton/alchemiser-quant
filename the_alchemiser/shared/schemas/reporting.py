@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-"""Business Unit: shared | Status: current
-
-Reporting - migrated from legacy location.
+"""Business Unit: shared | Status: current..
 """
 
 #!/usr/bin/env python3

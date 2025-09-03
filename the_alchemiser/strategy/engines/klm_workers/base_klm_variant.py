@@ -1,48 +1,4 @@
-"""Business Unit: utilities; Status: current.
-
-Base KLM Strategy Variant.
-
-Abstract base class for all KLM strategy variants. Provides common functionality
-and enforces a consistent interface across all variants.
-"""
-
-from __future__ import annotations
-
-import logging
-from abc import ABC, abstractmethod
-from typing import Any
-
-import numpy as np
-import pandas as pd
-
-from the_alchemiser.shared.utils.common import ActionType
-from the_alchemiser.shared.value_objects.core_types import (
-    KLMDecision,
-)  # TODO: Phase 9 - Added for gradual migration
-
-
-class BaseKLMVariant(ABC):
-    """Abstract base class for all KLM strategy variants.
-
-    Each variant must implement the evaluate() method to return trading decisions.
-    Common functionality like filter operations and allocation logic is shared.
-    """
-
-    def __init__(self, name: str, description: str) -> None:
-        self.name = name
-        self.description = description
-        self.performance_history: list[float] = []
-        self.logger = logging.getLogger(f"KLM.{name}")
-
-    @abstractmethod
-    def evaluate(
-        self,
-        indicators: dict[str, dict[str, float]],
-        market_data: dict[str, pd.DataFrame] | None = None,
-    ) -> (
-        tuple[str | dict[str, float], str, str] | KLMDecision
-    ):  # TODO: Phase 9 - Gradual migration to KLMDecision
-        """Evaluate the strategy variant and return trading decision.
+"""Business Unit: strategy | Status: current..
 
         Args:
             indicators: Dictionary of calculated technical indicators

@@ -1,21 +1,4 @@
-"""Business Unit: utilities; Status: current.
-
-DSL-specific exceptions for the S-expression Strategy Engine.
-
-Provides clear, actionable error messages with context about what went wrong
-and suggestions for fixing DSL syntax or evaluation issues.
-"""
-
-from __future__ import annotations
-
-from typing import Any
-
-
-class DSLError(Exception):
-    """Base exception for all DSL-related errors."""
-
-    def __init__(self, message: str, context: dict[str, Any] | None = None) -> None:
-        super().__init__(message)
+"""Business Unit: strategy | Status: current..__init__(message)
         self.message = message
         self.context = context or {}
 

@@ -1,6 +1,4 @@
-"""Business Unit: shared | Status: current
-
-Trading execution CLI module.
+"""Business Unit: shared | Status: current..
 
 Handles trading execution with comprehensive error handling and notifications.
 """

@@ -1,6 +1,4 @@
-"""Business Unit: strategy | Status: current
-
-Typed Strategy Manager.
+"""Business Unit: strategy | Status: current..
 
 Modern strategy orchestrator that depends only on MarketDataPort and typed engines.
 Aggregates typed StrategySignal objects and handles conflict resolution between

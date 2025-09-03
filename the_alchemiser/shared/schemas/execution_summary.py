@@ -1,63 +1,10 @@
 from __future__ import annotations
 
-"""Business Unit: shared | Status: current
-
-Execution Summary - migrated from legacy location.
+"""Business Unit: shared | Status: current..
 """
 
 #!/usr/bin/env python3
-"""Business Unit: order execution/placement; Status: current.
-Execution Summary DTOs for The Alchemiser Trading System.
-
-This module provides structured DTOs for execution summaries, replacing
-dict[str, Any] usage in MultiStrategyExecutionResultDTO and other execution contexts.
-
-Key Features:
-- Pydantic v2 BaseModel with strict validation
-- Comprehensive execution metadata
-- Decimal precision for financial values
-- Type safety for strategy execution tracking
-
-Part of the Pydantic v2 migration to eliminate dict/Any boundaries.
-"""
-
-
-from decimal import Decimal
-
-from pydantic import BaseModel, ConfigDict, Field
-
-from the_alchemiser.shared.value_objects.core_types import AccountInfo
-
-
-class AllocationSummary(BaseModel):
-    """DTO for portfolio allocation summary data."""
-
-    model_config = ConfigDict(
-        strict=True,
-        frozen=True,
-        validate_assignment=True,
-        str_strip_whitespace=True,
-    )
-
-    total_allocation: Decimal = Field(..., description="Total portfolio allocation percentage")
-    num_positions: int = Field(..., ge=0, description="Number of positions")
-    largest_position_pct: Decimal = Field(..., ge=0, description="Largest position percentage")
-
-
-class StrategyPnLSummary(BaseModel):
-    """DTO for strategy P&L summary data."""
-
-    model_config = ConfigDict(
-        strict=True,
-        frozen=True,
-        validate_assignment=True,
-        str_strip_whitespace=True,
-    )
-
-    total_pnl: Decimal = Field(..., description="Total P&L across all strategies")
-    best_performer: str | None = Field(None, description="Best performing strategy")
-    worst_performer: str | None = Field(None, description="Worst performing strategy")
-    num_profitable: int = Field(..., ge=0, description="Number of profitable strategies")
+"""Business Unit: shared | Status: current...., ge=0, description="Number of profitable strategies")
 
 
 class StrategySummary(BaseModel):

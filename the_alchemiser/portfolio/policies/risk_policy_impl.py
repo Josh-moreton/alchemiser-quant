@@ -1,47 +1,4 @@
-"""Business Unit: utilities; Status: current.
-
-Risk Policy Implementation
-
-Concrete implementation of RiskPolicy that handles risk assessment and limits.
-Now uses pure domain objects and typed protocols.
-"""
-
-from __future__ import annotations
-
-import logging
-from decimal import Decimal
-from typing import TYPE_CHECKING
-
-from the_alchemiser.execution.orders.order_request import OrderRequest
-from the_alchemiser.portfolio.policies.protocols import DataProviderProtocol, TradingClientProtocol
-from the_alchemiser.shared.logging.logging_utils import log_with_context
-from the_alchemiser.execution.types.policy_result import (
-    PolicyResult,
-    PolicyWarning,
-    create_approved_result,
-    create_rejected_result,
-)
-
-if TYPE_CHECKING:
-    pass
-
-logger = logging.getLogger(__name__)
-
-
-class RiskPolicyImpl:
-    """Concrete implementation of risk policy.
-
-    Provides basic risk assessment functionality with configurable thresholds.
-    Can be extended with more sophisticated risk models in the future.
-    Uses typed protocols for external dependencies.
-    """
-
-    def __init__(
-        self,
-        trading_client: TradingClientProtocol | None = None,
-        data_provider: DataProviderProtocol | None = None,
-        max_risk_score: Decimal = Decimal("100"),
-        max_position_concentration: float = 0.15,  # 15% of portfolio
+"""Business Unit: portfolio | Status: current..15,  # 15% of portfolio
         max_order_size_pct: float = 0.10,  # 10% of portfolio per order
     ) -> None:
         """Initialize the risk policy.

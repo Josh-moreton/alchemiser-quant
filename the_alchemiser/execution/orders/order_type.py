@@ -1,4 +1,4 @@
-"""Business Unit: order execution/placement; Status: current."""
+"""Business Unit: execution | Status: current.."""
 
 from __future__ import annotations
 

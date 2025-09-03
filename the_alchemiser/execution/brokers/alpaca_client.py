@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
-"""Business Unit: execution | Status: current
-
-Alpaca Client for Direct API Access.
+"""Business Unit: execution | Status: current..
 
 A streamlined, robust wrapper around Alpaca's trading APIs that provides direct access
 to core trading functions. This client has been refactored to use helper modules for

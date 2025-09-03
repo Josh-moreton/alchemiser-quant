@@ -1,4 +1,4 @@
-"""Business Unit: utilities; Status: current.
+"""Business Unit: strategy | Status: current..
 
 KLM Strategy Variant 410/38 - "MonkeyBusiness Simons variant".
 
