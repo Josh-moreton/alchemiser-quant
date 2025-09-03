@@ -15,6 +15,7 @@ from datetime import datetime
 from typing import Any
 
 from the_alchemiser.shared.types.market_data_port import MarketDataPort
+from the_alchemiser.shared.value_objects.symbol import Symbol
 
 from the_alchemiser.strategy.errors.strategy_errors import (
     MarketDataUnavailableError,
@@ -185,8 +186,6 @@ class StrategyEngine(ABC):
         unavailable_symbols = []
         for symbol in symbols:
             try:
-                from the_alchemiser.shared.types.symbol_legacy import Symbol
-
                 symbol_obj = Symbol(symbol)
                 price = self.market_data_port.get_mid_price(symbol_obj)
                 if price is None:
