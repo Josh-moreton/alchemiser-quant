@@ -18,7 +18,7 @@ import logging
 from typing import Any
 
 from the_alchemiser.shared.errors.error_handler import TradingSystemErrorHandler
-from the_alchemiser.shared.types.exceptions import StrategyExecutionError
+from the_alchemiser.strategy.errors.strategy_errors import StrategyExecutionError
 from the_alchemiser.shared.utils.context import create_error_context
 from the_alchemiser.shared.value_objects.core_types import OrderDetails
 from the_alchemiser.strategy.registry.strategy_registry import StrategyType

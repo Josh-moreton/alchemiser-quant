@@ -1,15 +1,16 @@
-"""Business Unit: utilities; Status: current.
+"""Business Unit: strategy | Status: legacy
 
-Strategy domain models package.
+Legacy strategy domain models package - DEPRECATED.
 
-This package provides strongly-typed models for strategy domain objects using
-domain value objects and Decimal for financial precision.
+This package is deprecated. Use the canonical types from strategy.types instead.
+All functionality has been consolidated into strategy.types.strategy module.
 """
 
 from __future__ import annotations
 
-from .strategy_position_model import StrategyPositionModel
-from .strategy_signal_model import StrategySignalModel
+# Import from canonical location for backward compatibility
+from the_alchemiser.strategy.types.strategy import StrategyPosition as StrategyPositionModel
+from the_alchemiser.strategy.types.strategy import StrategySignal as StrategySignalModel
 
 __all__ = [
     "StrategyPositionModel",
