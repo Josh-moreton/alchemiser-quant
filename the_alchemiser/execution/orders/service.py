@@ -22,7 +22,7 @@ from enum import Enum
 
 from alpaca.trading.enums import TimeInForce
 
-from the_alchemiser.shared.interfaces.repository_protocols import (
+from the_alchemiser.shared.protocols.repository import (
     MarketDataRepository,
     TradingRepository,
 )

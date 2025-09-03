@@ -13,7 +13,7 @@ import functools
 from collections.abc import Callable
 from typing import Any, TypeVar
 
-from .exceptions import (
+from the_alchemiser.shared.types.exceptions import (
     ConfigurationError,
     DataProviderError,
     MarketDataError,

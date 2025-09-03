@@ -41,13 +41,29 @@ from the_alchemiser.execution.mappers.orders import (
     order_request_to_validated_dto,
 )
 from the_alchemiser.execution.orders.order_schemas import OrderRequestDTO, ValidatedOrderDTO
-from the_alchemiser.shared.services.errors import TradingSystemErrorHandler
+from the_alchemiser.shared.errors.error_handler import TradingSystemErrorHandler
 from the_alchemiser.shared.types.exceptions import ValidationError
-from the_alchemiser.shared.types.trading_errors import OrderError, classify_validation_failure
+from the_alchemiser.shared.types.trading_errors import OrderError
 
 
 class OrderValidationError(ValidationError):
     """Raised when order validation fails."""
+
+
+def classify_validation_failure(reason: str, data: dict[str, Any] | None = None) -> OrderError:
+    """Classify a validation failure as an OrderError.
+    
+    Args:
+        reason: Reason for validation failure
+        data: Optional additional data context
+        
+    Returns:
+        OrderError with classified failure information
+    """
+    context = {}
+    if data:
+        context["validation_data"] = data
+    return OrderError(reason, context=context)
 
 
 @dataclass(frozen=True)

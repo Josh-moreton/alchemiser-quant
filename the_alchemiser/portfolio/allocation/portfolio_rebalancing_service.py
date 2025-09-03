@@ -8,7 +8,7 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Any
 
-from the_alchemiser.execution.services.trading_service_manager import TradingServiceManager
+from the_alchemiser.execution.core.execution_manager import TradingServiceManager
 from the_alchemiser.portfolio.mappers.portfolio_rebalancing_mapping import (
     rebalance_plans_dict_to_collection_dto,
 )

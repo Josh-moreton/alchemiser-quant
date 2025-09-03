@@ -80,7 +80,7 @@ from the_alchemiser.execution.pricing.smart_pricing_handler import (
 
 # DEPRECATED: LimitOrderHandler import removed - use CanonicalOrderExecutor instead
 # (Legacy order validation utilities removed with legacy paths)
-from the_alchemiser.execution.websocket.connection_manager import (
+from the_alchemiser.shared.services.websocket_connection_manager import (
     WebSocketConnectionManager,
 )
 from the_alchemiser.portfolio.positions.legacy_position_manager import PositionManager

@@ -36,7 +36,7 @@ from the_alchemiser.shared.schemas.accounts import (
     AccountSummaryDTO,
     EnrichedAccountSummaryDTO,
 )
-from the_alchemiser.shared.services.errors import handle_trading_error
+from the_alchemiser.shared.errors.error_handler import handle_trading_error
 from the_alchemiser.shared.types.exceptions import (
     DataProviderError,
     TradingClientError,

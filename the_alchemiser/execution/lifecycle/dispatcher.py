@@ -9,10 +9,8 @@ import logging
 import threading
 from collections.abc import Iterable
 
-from the_alchemiser.execution.lifecycle import (
-    LifecycleObserver,
-    OrderLifecycleEvent,
-)
+from the_alchemiser.execution.lifecycle.events import OrderLifecycleEvent
+from the_alchemiser.execution.lifecycle.protocols import LifecycleObserver
 from the_alchemiser.shared.errors.error_handler import TradingSystemErrorHandler
 
 logger = logging.getLogger(__name__)

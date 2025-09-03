@@ -19,7 +19,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 
-from the_alchemiser.shared.interfaces.repository_protocols import (
+from the_alchemiser.shared.protocols.repository import (
     AccountRepository,
     MarketDataRepository,
     TradingRepository,

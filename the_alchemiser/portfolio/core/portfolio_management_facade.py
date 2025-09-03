@@ -10,7 +10,7 @@ from decimal import Decimal
 from typing import Any
 
 from the_alchemiser.execution.mappers.orders import normalize_order_status
-from the_alchemiser.execution.services.trading_service_manager import (
+from the_alchemiser.execution.core.execution_manager import (
     TradingServiceManager,
 )
 from the_alchemiser.portfolio.allocation.rebalance_calculator import (

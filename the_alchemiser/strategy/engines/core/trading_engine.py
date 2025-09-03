@@ -49,7 +49,7 @@ from the_alchemiser.execution.strategies.smart_execution import SmartExecution
 from the_alchemiser.portfolio.core.portfolio_management_facade import (
     PortfolioManagementFacade,
 )
-from the_alchemiser.app.config.bootstrap import (
+from the_alchemiser.shared.config.bootstrap import (
     TradingBootstrapContext,
     bootstrap_from_container,
     bootstrap_from_service_manager,
@@ -84,8 +84,8 @@ from the_alchemiser.strategy.schemas.strategies import (
     run_all_strategies_mapping,
 )
 
-from ..execution.execution_manager import ExecutionManager
-from ..reporting.reporting import build_portfolio_state_data
+from the_alchemiser.execution.core.execution_manager import TradingServiceManager
+from the_alchemiser.shared.reporting.reporting import build_portfolio_state_data
 
 # --- Internal Application Protocols ---
 
@@ -351,7 +351,7 @@ class TradingEngine:
                 position_service=position_service,
             )
 
-            self.execution_manager = ExecutionManager(self)
+            self.execution_manager = TradingServiceManager(self)
         except Exception as e:
             raise TradingClientError(
                 f"Failed to initialize account service or execution manager: {e}",
@@ -1040,7 +1040,7 @@ def main() -> None:
     # These imports are kept at function level to avoid circular imports at module load time
     # since main.py indirectly imports this module through CLI components
     from the_alchemiser.main import TradingSystem
-    from the_alchemiser.app.config.container import (
+    from the_alchemiser.shared.config.container import (
         ApplicationContainer,
     )
 
