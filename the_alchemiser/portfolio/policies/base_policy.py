@@ -42,16 +42,17 @@ class OrderPolicy(Protocol):
 
 class BasePolicyImpl:
     """Base implementation class for order validation policies.
-    
+
     Provides common functionality to eliminate code duplication across
     policy implementations, particularly the policy_name property.
     """
 
     def __init__(self, policy_name: str) -> None:
         """Initialize the base policy implementation.
-        
+
         Args:
             policy_name: The name of this policy for logging and identification
+
         """
         self._policy_name = policy_name
 

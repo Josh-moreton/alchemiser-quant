@@ -10,7 +10,7 @@ __all__ = [
     "PositionMapper",
     # Rebalancing mapping functions
     "dto_plans_to_domain",
-    "dto_to_domain_rebalance_plan", 
+    "dto_to_domain_rebalance_plan",
     "rebalance_execution_result_dict_to_dto",
     "rebalance_instruction_dict_to_dto",
     "rebalance_plans_dict_to_collection_dto",
