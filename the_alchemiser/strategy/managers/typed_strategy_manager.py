@@ -19,7 +19,7 @@ from typing import Any
 
 from the_alchemiser.shared.types.market_data_port import MarketDataPort
 from the_alchemiser.shared.value_objects.symbol import Symbol
-from the_alchemiser.strategy.engines.archived.backup.value_objects.confidence import Confidence
+from the_alchemiser.strategy.engines.value_objects.confidence import Confidence
 from the_alchemiser.strategy.engines.engine import StrategyEngine
 from the_alchemiser.strategy.engines.nuclear_typed_engine import NuclearTypedEngine
 from the_alchemiser.strategy.engines.typed_klm_ensemble_engine import TypedKLMStrategyEngine
