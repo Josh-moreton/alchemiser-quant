@@ -1,10 +1,13 @@
-"""Business Unit: order execution/placement; Status: current.
+"""Business Unit: execution | Status: current.
 
 Centralized order request builder for Alpaca API requests.
 
 This module provides a single construction site for MarketOrderRequest and
 LimitOrderRequest objects, eliminating duplication across services and
 ensuring consistent request building logic.
+
+This module is the unified implementation after duplicate removal on 2025-01-03.
+Duplicate file orders/order_request_builder.py was removed to eliminate redundancy.
 """
 
 from __future__ import annotations

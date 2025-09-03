@@ -1,9 +1,12 @@
-"""Business Unit: execution | Status: current
+"""Business Unit: execution | Status: current.
 
 Integration example for canonical order executor.
 
 This module demonstrates how the canonical order executor can be integrated
 into existing trading workflows with shadow mode for safe rollout.
+
+This module is the unified implementation after duplicate removal on 2025-01-03.
+Duplicate file core/canonical_integration_example.py was removed to eliminate redundancy.
 """
 
 from __future__ import annotations
@@ -30,7 +33,7 @@ from the_alchemiser.shared.types.time_in_force import TimeInForce
 from the_alchemiser.shared.value_objects.symbol import Symbol
 
 if TYPE_CHECKING:
-    from the_alchemiser.execution.brokers.alpaca_manager import AlpacaManager
+    from the_alchemiser.execution.brokers.alpaca import AlpacaManager
 
 logger = logging.getLogger(__name__)
 

@@ -11,7 +11,7 @@ from decimal import Decimal
 from typing import Any
 
 from the_alchemiser.execution.brokers.account_service import AccountService
-from the_alchemiser.execution.brokers.alpaca_manager import AlpacaManager
+from the_alchemiser.execution.brokers.alpaca import AlpacaManager
 from the_alchemiser.execution.lifecycle import (
     LifecycleEventDispatcher,
     LifecycleEventType,

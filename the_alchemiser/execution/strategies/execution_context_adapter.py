@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
-"""Business Unit: order execution/placement; Status: current.
+"""Business Unit: execution | Status: current.
 
 Execution Context Adapter.
 
 Adapter to bridge OrderExecutor protocol to ExecutionContext protocol
 for strategy compatibility using canonical executor.
+
+This module is the unified implementation after duplicate removal on 2025-01-03.
+Duplicate file adapters/execution_context_adapter.py was removed to eliminate redundancy.
 """
 
 from __future__ import annotations
@@ -47,7 +50,7 @@ class ExecutionContextAdapter:
                 alpaca_manager = getattr(self._order_executor, "_trading", self._order_executor)
 
             # Ensure we have a proper AlpacaManager instance, type cast as needed
-            from the_alchemiser.execution.brokers.alpaca_manager import AlpacaManager
+            from the_alchemiser.execution.brokers.alpaca import AlpacaManager
 
             if not isinstance(alpaca_manager, AlpacaManager):
                 raise ValueError("Unable to get AlpacaManager instance for canonical executor")
@@ -83,7 +86,7 @@ class ExecutionContextAdapter:
                 alpaca_manager = getattr(self._order_executor, "_trading", self._order_executor)
 
             # Ensure we have a proper AlpacaManager instance, type cast as needed
-            from the_alchemiser.execution.brokers.alpaca_manager import AlpacaManager
+            from the_alchemiser.execution.brokers.alpaca import AlpacaManager
 
             if not isinstance(alpaca_manager, AlpacaManager):
                 raise ValueError("Unable to get AlpacaManager instance for canonical executor")

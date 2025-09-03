@@ -68,7 +68,7 @@ if TYPE_CHECKING:
 from alpaca.trading.enums import OrderSide
 
 # (Legacy exceptions import removed)
-from the_alchemiser.execution.brokers.alpaca_manager import AlpacaManager
+from the_alchemiser.execution.brokers.alpaca import AlpacaManager
 from the_alchemiser.execution.core.execution_schemas import WebSocketResultDTO
 from the_alchemiser.execution.monitoring.websocket_order_monitor import (
     OrderCompletionMonitor,
