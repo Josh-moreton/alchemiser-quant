@@ -40,7 +40,7 @@ from the_alchemiser.execution.brokers.account_service import (
 from the_alchemiser.execution.brokers.alpaca import AlpacaManager
 from the_alchemiser.execution.brokers.alpaca_client import AlpacaClient
 from the_alchemiser.execution.core.account_facade import AccountFacade
-from the_alchemiser.execution.core.execution_manager import TradingServiceManager
+from the_alchemiser.execution.core.refactored_execution_manager import RefactoredTradingServiceManager as TradingServiceManager
 from the_alchemiser.execution.core.execution_schemas import ExecutionResultDTO
 from the_alchemiser.execution.mappers.execution import (
     safe_dict_to_execution_summary_dto,
@@ -350,7 +350,7 @@ class TradingEngine:
                 position_service=position_service,
             )
 
-            self.execution_manager = TradingServiceManager(self)
+            self.execution_manager = self._trading_service_manager
         except Exception as e:
             raise TradingClientError(
                 f"Failed to initialize account service or execution manager: {e}",

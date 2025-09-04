@@ -50,7 +50,7 @@ from the_alchemiser.shared.value_objects.symbol import Symbol
 
 # Delayed import to avoid complex dependency chains during module loading
 # from the_alchemiser.strategy.data.market_data_service import MarketDataService
-# from the_alchemiser.execution.services.trading_service_manager import TradingServiceManager
+from the_alchemiser.execution.core.refactored_execution_manager import RefactoredTradingServiceManager as TradingServiceManager
 
 # Constants to avoid duplication
 STYLE_BOLD_CYAN = "bold cyan"

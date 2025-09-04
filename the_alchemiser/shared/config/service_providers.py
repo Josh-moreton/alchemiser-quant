@@ -8,7 +8,7 @@ from __future__ import annotations
 from dependency_injector import containers, providers
 
 from the_alchemiser.execution.brokers.account_service import AccountService
-from the_alchemiser.execution.core.execution_manager import TradingServiceManager
+from the_alchemiser.execution.core.refactored_execution_manager import RefactoredTradingServiceManager as TradingServiceManager
 from the_alchemiser.execution.orders.service import OrderService
 from the_alchemiser.portfolio.services.position_service import PositionService
 from the_alchemiser.strategy.data.market_data_service import MarketDataService

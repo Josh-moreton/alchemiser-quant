@@ -15,7 +15,7 @@ RECOMMENDED USAGE:
 
 ARCHITECTURE NOTES:
 - 64 Python files across 17 directories (simplified from original 67 files, 20+ directories)
-- Core complexity concentrated in execution_manager.py (1185 lines) - use refactored version when possible
+- RefactoredTradingServiceManager: Main service manager (recommended)
 - Legacy alpaca_client.py (336 lines) marked for deprecation - migrate to AlpacaManager
 - Focus on thin-wrapper design around alpaca-py APIs
 """

@@ -8,8 +8,8 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Any
 
-from the_alchemiser.execution.core.execution_manager import (
-    TradingServiceManager,
+from the_alchemiser.execution.core.refactored_execution_manager import (
+    RefactoredTradingServiceManager as TradingServiceManager,
 )
 from the_alchemiser.portfolio.utils.portfolio_utilities import PortfolioUtilities
 
