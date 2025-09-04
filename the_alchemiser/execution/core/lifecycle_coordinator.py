@@ -1,6 +1,10 @@
-"""Business Unit: execution | Status: current
+"""Business Unit: execution | Status: current.
 
-Lifecycle coordinator managing order lifecycle tracking and event dispatching.
+Simplified lifecycle coordinator using streamlined state management.
+
+Updated in Phase 3 to use simplified lifecycle manager, removing complex
+observer patterns and event dispatching overhead while preserving essential
+lifecycle tracking functionality.
 """
 
 from __future__ import annotations
@@ -8,34 +12,27 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from the_alchemiser.execution.lifecycle import (
-    LifecycleEventDispatcher,
-    LifecycleEventType,
-    LoggingObserver,
-    MetricsObserver,
-    OrderLifecycleManager,
-    OrderLifecycleState,
+from the_alchemiser.execution.lifecycle_simplified import (
+    OrderState,
+    SimplifiedLifecycleManager,
+    StateTransition,
 )
 from the_alchemiser.execution.orders.order_id import OrderId
 
 
 class LifecycleCoordinator:
-    """Service responsible for order lifecycle management and event coordination.
+    """Simplified service for order lifecycle management.
     
-    Handles lifecycle state tracking, event dispatching, and lifecycle metrics.
+    Phase 3 redesign focusing on essential lifecycle tracking without
+    over-engineered observer patterns and event dispatching complexity.
     """
 
     def __init__(self) -> None:
-        """Initialize the lifecycle coordinator."""
+        """Initialize the simplified lifecycle coordinator."""
         self.logger = logging.getLogger(__name__)
         
-        # Initialize order lifecycle management
-        self.lifecycle_manager = OrderLifecycleManager()
-        self.lifecycle_dispatcher = LifecycleEventDispatcher()
-        
-        # Register default observers
-        self.lifecycle_dispatcher.register(LoggingObserver(use_rich_logging=True))
-        self.lifecycle_dispatcher.register(MetricsObserver())
+        # Use simplified lifecycle management (replaces complex 9-file system)
+        self.lifecycle_manager = SimplifiedLifecycleManager()
 
     def create_order_id(self, client_order_id: str | None = None) -> OrderId:
         """Create an OrderId for lifecycle tracking.
@@ -45,6 +42,7 @@ class LifecycleCoordinator:
 
         Returns:
             OrderId for lifecycle tracking
+
         """
         if client_order_id:
             try:
@@ -54,38 +52,45 @@ class LifecycleCoordinator:
                 pass
         return OrderId.generate()
 
-    def emit_lifecycle_event(
+    def initialize_order(self, order_id: OrderId) -> StateTransition:
+        """Initialize a new order for lifecycle tracking.
+
+        Args:
+            order_id: Order identifier
+
+        Returns:
+            StateTransition record of initialization
+
+        """
+        return self.lifecycle_manager.initialize_order(order_id)
+
+    def transition_order_state(
         self,
         order_id: OrderId,
-        target_state: OrderLifecycleState,
-        event_type: LifecycleEventType = LifecycleEventType.STATE_CHANGED,
+        target_state: OrderState,
+        reason: str | None = None,
         metadata: dict[str, Any] | None = None,
-    ) -> None:
-        """Emit a lifecycle event for an order.
+    ) -> StateTransition:
+        """Transition an order to a new state.
 
         Args:
             order_id: Order identifier
             target_state: Target lifecycle state
-            event_type: Type of lifecycle event
-            metadata: Additional event metadata
-        """
-        try:
-            self.lifecycle_manager.advance(
-                order_id=order_id,
-                target_state=target_state,
-                event_type=event_type,
-                metadata=metadata or {},
-                dispatcher=self.lifecycle_dispatcher,
-            )
-        except Exception as e:
-            self.logger.warning(
-                "Failed to emit lifecycle event for order %s: %s",
-                order_id,
-                e,
-                exc_info=True,
-            )
+            reason: Reason for state transition
+            metadata: Additional context metadata
 
-    def get_order_lifecycle_state(self, order_id: OrderId) -> OrderLifecycleState | None:
+        Returns:
+            StateTransition record
+
+        """
+        return self.lifecycle_manager.transition_to(
+            order_id=order_id,
+            new_state=target_state,
+            reason=reason,
+            metadata=metadata,
+        )
+
+    def get_order_state(self, order_id: OrderId) -> OrderState | None:
         """Get the current lifecycle state of an order.
 
         Args:
@@ -93,36 +98,42 @@ class LifecycleCoordinator:
 
         Returns:
             Current lifecycle state, or None if order not tracked
+
         """
         return self.lifecycle_manager.get_state(order_id)
 
-    def get_all_tracked_orders(self) -> dict[OrderId, OrderLifecycleState]:
-        """Get all tracked orders and their current lifecycle states.
+    def get_transition_history(self, order_id: OrderId) -> list[StateTransition]:
+        """Get the transition history for an order.
+
+        Args:
+            order_id: Order identifier
 
         Returns:
-            Dictionary mapping order IDs to their current states
-        """
-        return self.lifecycle_manager.get_all_orders()
+            List of state transitions for the order
 
-    def get_lifecycle_metrics(self) -> dict[str, Any]:
-        """Get lifecycle metrics from the metrics observer.
+        """
+        return self.lifecycle_manager.get_transition_history(order_id)
+
+    def is_order_terminal(self, order_id: OrderId) -> bool:
+        """Check if an order is in a terminal state.
+
+        Args:
+            order_id: Order identifier
 
         Returns:
-            Dictionary containing lifecycle event and transition metrics
-        """
-        # Find the metrics observer
-        for observer in self.lifecycle_dispatcher.iter_observers():
-            if hasattr(observer, "get_event_counts") and hasattr(observer, "get_transition_counts"):
-                return {
-                    "event_counts": observer.get_event_counts(),
-                    "transition_counts": observer.get_transition_counts(),
-                    "total_observers": self.lifecycle_dispatcher.get_observer_count(),
-                    "observer_types": self.lifecycle_dispatcher.get_observer_types(),
-                }
+            True if order is in terminal state, False otherwise
 
-        return {
-            "event_counts": {},
-            "transition_counts": {},
-            "total_observers": self.lifecycle_dispatcher.get_observer_count(),
-            "observer_types": self.lifecycle_dispatcher.get_observer_types(),
-        }
+        """
+        return self.lifecycle_manager.is_terminal_state(order_id)
+
+    def get_orders_in_state(self, state: OrderState) -> list[OrderId]:
+        """Get all orders currently in the specified state.
+
+        Args:
+            state: Target state to query
+
+        Returns:
+            List of order IDs in the specified state
+
+        """
+        return self.lifecycle_manager.get_orders_in_state(state)
